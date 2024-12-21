@@ -6,12 +6,21 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "lint:strict": "next lint --max-warnings 0",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "check-all": "pnpm run lint:strict && pnpm run type-check",
+    "docker:prebuild": "pnpm run check-all",
+    "docker:build": "pnpm run docker:prebuild && docker build -t william-callahan-portfolio .",
+    "docker:run": "docker run -p 3000:3000 william-callahan-portfolio",
+    "docker:push": "docker push william-callahan-portfolio"
   },
   "dependencies": {
+    "fuse.js": "^7.0.0",
     "gray-matter": "^4.0.3",
     "lucide-react": "^0.344.0",
-    "next": "^14.1.0",
+    "next": "^14.2.21",
     "next-mdx-remote": "^4.4.1",
     "next-themes": "^0.2.1",
     "react": "^18.3.1",
@@ -21,12 +30,12 @@
     "@types/node": "^20.11.24",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
-    "autoprefixer": "^10.4.18",
+    "autoprefixer": "^10.4.20",
     "eslint": "^8.57.0",
-    "eslint-config-next": "^14.1.0",
+    "eslint-config-next": "^14.2.21",
     "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1",
-    "typescript": "^5.5.3"
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.6.0"
   },
   "packageManager": "pnpm@8.15.4"
 }

@@ -4,12 +4,13 @@
  * Type definitions for social media links and icons.
  */
 
-import type { LucideIcon } from 'lucide-react';
+import type { LucideProps } from 'lucide-react';
+import type { ForwardRefExoticComponent, RefAttributes } from 'react';
 
 export interface SocialIconProps {
-  href: string;
-  label: string;
-  icon: LucideIcon;
+  readonly href: string;
+  readonly label: string;
+  readonly icon: ForwardRefExoticComponent<LucideProps & RefAttributes<SVGSVGElement>>;
 }
 
 export type SocialLink = SocialIconProps;

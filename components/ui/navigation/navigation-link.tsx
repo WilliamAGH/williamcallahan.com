@@ -3,11 +3,11 @@
  */
 
 import Link from 'next/link';
-import { useTerminal } from '@/components/ui/terminal/use-terminal';
+import { useTerminalContext } from '@/components/ui/terminal/terminal-context';
 import type { NavigationLinkProps } from '@/types/navigation';
 
 export function NavigationLink({ path, name, currentPath }: NavigationLinkProps) {
-  const { clearHistory } = useTerminal();
+  const { clearHistory } = useTerminalContext();
   const isActive = currentPath === path;
   
   const handleClick = () => {

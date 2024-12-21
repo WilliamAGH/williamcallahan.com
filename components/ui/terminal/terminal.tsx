@@ -25,28 +25,30 @@ export function Terminal() {
 
   return (
     <div 
-      className="bg-[#1a1b26] rounded-lg p-6 font-mono text-sm max-w-5xl mx-auto mt-8 border border-gray-700 shadow-xl cursor-text"
+      className="bg-[#1a1b26] rounded-lg p-6 font-mono text-sm mx-auto mt-8 border border-gray-700 shadow-xl cursor-text w-full max-w-5xl"
       onClick={focusInput}
     >
       <div className="mb-4">
         <WindowControls />
       </div>
       <div className="text-gray-300 max-h-[400px] overflow-y-auto custom-scrollbar">
-        <History history={history} />
-        {selection ? (
-          <SelectionView 
-            items={selection}
-            onSelect={handleSelection}
-            onExit={cancelSelection}
-          />
-        ) : (
-          <CommandInput
-            ref={inputRef}
-            value={input}
-            onChange={setInput}
-            onSubmit={handleSubmit}
-          />
-        )}
+        <div className="whitespace-pre-wrap break-words select-text">
+          <History history={history} />
+          {selection ? (
+            <SelectionView 
+              items={selection}
+              onSelect={handleSelection}
+              onExit={cancelSelection}
+            />
+          ) : (
+            <CommandInput
+              ref={inputRef}
+              value={input}
+              onChange={setInput}
+              onSubmit={handleSubmit}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

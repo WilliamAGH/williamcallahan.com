@@ -12,6 +12,8 @@ import { TerminalHistory } from './terminal-history';
 import { CommandInput } from './command-input';
 import type { TerminalCommand } from '@/types/terminal';
 
+type CommandKey = keyof typeof terminalCommands;
+
 export function CommandInterface() {
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<TerminalCommand[]>([{
@@ -22,18 +24,19 @@ export function CommandInterface() {
   
   const handleCommand = (e: React.FormEvent) => {
     e.preventDefault();
-    const command = input.toLowerCase().trim();
+    const command = input.toLowerCase().trim() as CommandKey;
     
-    if (terminalCommands[command]) {
+    if (command in terminalCommands) {
       setHistory(prev => [...prev, 
         { input: command, output: '' },
         { input: '', output: `Navigating to ${command}...` }
       ]);
       router.push(terminalCommands[command]);
     } else {
+      const availableCommands = Object.keys(terminalCommands).join(', ');
       setHistory(prev => [...prev,
         { input: command, output: '' },
-        { input: '', output: 'Command not found. Available sections: ' + Object.keys(terminalCommands).join(', ') }
+        { input: '', output: `Command not found. Available sections: ${availableCommands}` }
       ]);
     }
     
@@ -45,17 +48,21 @@ export function CommandInterface() {
       <TerminalHeader />
       <div className="text-gray-300">
         <TerminalHistory history={history} />
-        <div className="flex items-center">
-          <span className="text-[#7aa2f7] mr-2">$</span>
+        <form onSubmit={handleCommand} className="flex items-center">
+          <label htmlFor="command-input" className="text-[#7aa2f7] mr-2">$</label>
           <input
+            id="command-input"
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             className="bg-transparent flex-1 focus:outline-none text-gray-300 caret-transparent"
-            autoFocus
+            placeholder="Type a command..."
+            aria-label="Terminal command input"
+            // Only autoFocus on client-side to avoid hydration issues
+            {...(typeof window !== 'undefined' ? { autoFocus: true } : {})}
           />
           <span className="w-2 h-5 bg-gray-300 animate-pulse" />
-        </div>
+        </form>
       </div>
     </div>
   );
