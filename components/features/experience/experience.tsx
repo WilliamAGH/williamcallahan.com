@@ -1,5 +1,6 @@
 "use client";
 
+import Image from 'next/image';
 import { WindowControls } from '@/components/ui/navigation/window-controls';
 import { experiences } from '@/data/experience';
 
@@ -26,10 +27,12 @@ export function Experience() {
                   <div className="flex items-start gap-6">
                     {exp.logo && (
                       <div className="w-16 h-16 relative flex-shrink-0">
-                        <img
+                        <Image
                           src={exp.logo}
                           alt={`${exp.company} logo`}
-                          className="w-full h-full object-contain rounded-lg"
+                          width={64}
+                          height={64}
+                          className="object-contain rounded-lg"
                         />
                       </div>
                     )}

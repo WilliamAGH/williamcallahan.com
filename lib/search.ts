@@ -5,6 +5,7 @@
 import { posts } from '@/data/blog/posts';
 import { experiences } from '@/data/experience';
 import { education, certifications } from '@/data/education';
+import { investments } from '@/data/investments';
 import type { BlogPost } from '@/types/blog';
 import type { SearchResult } from '@/types/search';
 
@@ -24,6 +25,31 @@ export async function searchPosts(query: string): Promise<BlogPost[]> {
   }).sort((a, b) => 
     new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
   );
+}
+
+export async function searchInvestments(query: string): Promise<SearchResult[]> {
+  if (!query) return investments.map(inv => ({
+    label: inv.name,
+    description: inv.description,
+    path: `/investments#${inv.id}`
+  }));
+
+  const searchTerms = query.toLowerCase().split(' ');
+  return investments.filter(inv => {
+    const searchText = [
+      inv.name,
+      inv.description,
+      inv.type,
+      inv.status,
+      inv.year
+    ].join(' ').toLowerCase();
+    
+    return searchTerms.every(term => searchText.includes(term));
+  }).map(inv => ({
+    label: inv.name,
+    description: inv.description,
+    path: `/investments#${inv.id}`
+  }));
 }
 
 export async function searchExperience(query: string): Promise<SearchResult[]> {

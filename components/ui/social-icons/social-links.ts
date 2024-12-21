@@ -1,5 +1,5 @@
 /**
- * Social Media Links Configuration
+ * Social Links Configuration
  */
 
 import { Github, Linkedin } from 'lucide-react';
@@ -10,17 +10,17 @@ import type { SocialLink } from '@/types/social';
 export const socialLinks: SocialLink[] = [
   { 
     icon: X, 
-    href: 'https://x.com/username',
+    href: 'https://x.com/williamcallahan',
     label: 'X (formerly Twitter)'
   },
-  { 
-    icon: Linkedin, 
-    href: 'https://linkedin.com/in/username',
-    label: 'LinkedIn'
+  {
+    href: 'https://www.linkedin.com/in/williamacallahan',
+    label: 'LinkedIn',
+    icon: Linkedin
   },
   { 
     icon: Github, 
-    href: 'https://github.com/username',
+    href: 'https://github.com/williamagh',
     label: 'GitHub'
   },
   { 

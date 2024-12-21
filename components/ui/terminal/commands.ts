@@ -2,33 +2,48 @@
  * Terminal Commands Handler
  */
 
-import { searchPosts, searchExperience, searchEducation } from '@/lib/search';
+import { searchPosts, searchExperience, searchEducation, searchInvestments } from '@/lib/search';
 import { sections } from './sections';
-import type { CommandResult } from '@/types/terminal';
+import type { CommandResult, SearchResult, SelectionItem } from '@/types/terminal';
+
+type SectionKey = keyof typeof sections;
 
 const HELP_MESSAGE = `
 Available commands:
-  search <terms>          Search across all sections
-  blog search <terms>     Search blog posts
-  blog list              List all blog posts
-  help                   Show this help message
-
+  help                Show this help message
+  clear              Clear terminal history
+  
 Navigation:
-${Object.keys(sections).map(section => 
-  `  ${section}`.padEnd(20) + `Go to ${section} page`
-).join('\n')}
+  home               Go to home page
+  investments        Go to investments page
+  experience         Go to experience page
+  education          Go to education page
+  blog               Go to blog page
+
+Search:
+  <section> <terms>  Search within a section
+                     Example: investments fintech
 
 Examples:
-  search investing
-  blog search fintech
-  experience
+  investments fintech
+  experience 2020
+  blog investing
+  clear
 `.trim();
 
 export async function handleCommand(input: string): Promise<CommandResult> {
-  const [command, ...args] = input.toLowerCase().trim().split(' ');
+  const [rawCommand, ...args] = input.toLowerCase().trim().split(' ');
+
+  // Clear command
+  if (rawCommand === 'clear') {
+    return {
+      results: [],
+      shouldClear: true
+    };
+  }
 
   // Help command
-  if (command === 'help') {
+  if (rawCommand === 'help') {
     return {
       results: [{
         input: '',
@@ -37,8 +52,58 @@ export async function handleCommand(input: string): Promise<CommandResult> {
     };
   }
 
+  // Section-specific search
+  if (rawCommand in sections && args.length > 0) {
+    const searchTerms = args.join(' ');
+    const command = rawCommand as SectionKey;
+    const section = command.charAt(0).toUpperCase() + command.slice(1);
+    
+    let results: SearchResult[] = [];
+    
+    switch (command) {
+      case 'blog':
+        results = await searchPosts(searchTerms);
+        break;
+      case 'experience':
+        results = await searchExperience(searchTerms);
+        break;
+      case 'education':
+        results = await searchEducation(searchTerms);
+        break;
+      case 'investments':
+        results = await searchInvestments(searchTerms);
+        break;
+      default:
+        results = [];
+    }
+
+    if (results.length === 0) {
+      return {
+        results: [{
+          input: '',
+          output: `No results found in ${section} for "${searchTerms}"`
+        }]
+      };
+    }
+
+    const selectionItems: SelectionItem[] = results.map(result => ({
+      label: (result.label ?? result.title) ?? '',
+      description: (result.description ?? result.excerpt) ?? '',
+      path: result.path ?? `/blog/${result.slug ?? ''}`
+    }));
+
+    return {
+      results: [{
+        input: '',
+        output: `Found ${results.length} results in ${section} for "${searchTerms}"`
+      }],
+      selectionItems
+    };
+  }
+
   // Navigation command
-  if (sections[command]) {
+  if (rawCommand in sections) {
+    const command = rawCommand as SectionKey;
     return {
       results: [{
         input: '',
@@ -48,113 +113,10 @@ export async function handleCommand(input: string): Promise<CommandResult> {
     };
   }
 
-  // Search commands
-  if (command === 'search') {
-    const searchTerms = args.join(' ');
-    if (!searchTerms) {
-      return {
-        results: [{
-          input: '',
-          output: 'Please provide search terms. Example: search investing'
-        }]
-      };
-    }
-
-    const [posts, experience, education] = await Promise.all([
-      searchPosts(searchTerms),
-      searchExperience(searchTerms),
-      searchEducation(searchTerms)
-    ]);
-
-    const results = [
-      ...posts.map(post => ({
-        label: post.title,
-        path: `/blog/${post.slug}`
-      })),
-      ...experience.map(exp => ({
-        label: exp.label,
-        path: exp.path
-      })),
-      ...education.map(edu => ({
-        label: edu.label,
-        path: edu.path
-      }))
-    ];
-
-    if (results.length === 0) {
-      return {
-        results: [{
-          input: '',
-          output: `No results found for "${searchTerms}"`
-        }]
-      };
-    }
-
-    return {
-      results: [{
-        input: '',
-        output: `Found ${results.length} results:`
-      }],
-      selectionItems: results
-    };
-  }
-
-  // Blog commands
-  if (command === 'blog') {
-    const subCommand = args[0];
-    const searchTerms = args.slice(1).join(' ');
-
-    if (subCommand === 'search') {
-      if (!searchTerms) {
-        return {
-          results: [{
-            input: '',
-            output: 'Please provide search terms. Example: blog search investing'
-          }]
-        };
-      }
-
-      const posts = await searchPosts(searchTerms);
-      if (posts.length === 0) {
-        return {
-          results: [{
-            input: '',
-            output: `No posts found matching "${searchTerms}"`
-          }]
-        };
-      }
-
-      return {
-        results: [{
-          input: '',
-          output: `Found ${posts.length} posts:`
-        }],
-        selectionItems: posts.map(post => ({
-          label: post.title,
-          path: `/blog/${post.slug}`
-        }))
-      };
-    }
-
-    if (subCommand === 'list') {
-      const posts = await searchPosts('');
-      return {
-        results: [{
-          input: '',
-          output: 'All blog posts:'
-        }],
-        selectionItems: posts.map(post => ({
-          label: post.title,
-          path: `/blog/${post.slug}`
-        }))
-      };
-    }
-  }
-
   return {
     results: [{
       input: '',
-      output: `Command not found. Type 'help' to see available commands.`
+      output: `Command not recognized. Type "help" for available commands.`
     }]
   };
 }

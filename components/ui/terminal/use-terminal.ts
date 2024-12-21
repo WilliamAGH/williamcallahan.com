@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import { handleCommand } from './commands';
 import type { TerminalCommand, SelectionItem } from '@/types/terminal';
 
+const MAX_HISTORY = 100;
+
 export function useTerminal() {
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<TerminalCommand[]>([{
@@ -14,48 +16,46 @@ export function useTerminal() {
     output: 'Welcome! Type "help" for available commands.'
   }]);
   const [selection, setSelection] = useState<SelectionItem[] | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const clearHistory = useCallback(() => {
     setHistory([{
       input: '',
       output: 'Welcome! Type "help" for available commands.'
     }]);
-    setSelection(null);
   }, []);
 
   const focusInput = useCallback(() => {
     inputRef.current?.focus();
   }, []);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
 
-    // Add command to history immediately
     setHistory(prev => [...prev, { input: input.trim(), output: '' }]);
     
     try {
-      const result = await handleCommand(input.trim());
+      const result = await handleCommand(input);
       
-      // Update history with command results
-      setHistory(prev => {
-        const newHistory = [...prev];
-        result.results.forEach(item => {
-          newHistory.push({ input: '', output: item.output });
+      if (result.shouldClear) {
+        clearHistory();
+      } else {
+        setHistory(prev => {
+          const updatedHistory = [...prev];
+          if (result.selectionItems) {
+            setSelection(result.selectionItems);
+          } else {
+            for (const item of result.results) {
+              updatedHistory.push({ input: '', output: item.output });
+            }
+            if (result.navigation) {
+              router.push(result.navigation);
+            }
+          }
+          return updatedHistory.slice(-MAX_HISTORY);
         });
-        return newHistory;
-      });
-
-      // Handle selection items if present
-      if (result.selectionItems) {
-        setSelection(result.selectionItems);
-      }
-
-      // Handle navigation if present
-      if (result.navigation) {
-        router.push(result.navigation);
       }
     } catch (error) {
       setHistory(prev => [...prev, { 
@@ -65,25 +65,26 @@ export function useTerminal() {
     }
     
     setInput('');
-  }, [input, router]);
+  };
 
   const handleSelection = useCallback((item: SelectionItem) => {
     setSelection(null);
     if (item.path) {
       router.push(item.path);
-      setHistory(prev => [...prev, { 
-        input: '', 
-        output: `Navigating to ${item.label}...` 
-      }]);
+      setTimeout(() => {
+        const id = item.path.split('#')[1];
+        if (id) {
+          const element = document.getElementById(id);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+          }
+        }
+      }, 100);
     }
   }, [router]);
 
   const cancelSelection = useCallback(() => {
     setSelection(null);
-    setHistory(prev => [...prev, { 
-      input: '', 
-      output: 'Selection cancelled.' 
-    }]);
   }, []);
 
   return {
@@ -94,8 +95,8 @@ export function useTerminal() {
     handleSubmit,
     handleSelection,
     cancelSelection,
-    focusInput,
+    clearHistory,
     inputRef,
-    clearHistory
+    focusInput
   };
 }
