@@ -1,10 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone',
+  swcMinify: true,
   images: {
-    domains: ['images.unsplash.com', 'williamcallahan.com'],
-  },
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'williamcallahan.com'
+      }
+    ]
+  }
 };
 
 export default nextConfig;

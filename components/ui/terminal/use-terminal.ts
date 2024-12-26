@@ -1,5 +1,7 @@
 /**
  * Terminal Hook
+ * 
+ * Custom hook for terminal state and command handling.
  */
 
 import { useState, useCallback, useRef } from 'react';
@@ -39,25 +41,26 @@ export function useTerminal() {
     try {
       const result = await handleCommand(input);
       
-      if (result.shouldClear) {
+      if (result.clear) {
         clearHistory();
       } else {
-        setHistory(prev => {
-          const updatedHistory = [...prev];
-          if (result.selectionItems) {
-            setSelection(result.selectionItems);
-          } else {
-            for (const item of result.results) {
-              updatedHistory.push({ input: '', output: item.output });
-            }
-            if (result.navigation) {
-              router.push(result.navigation);
-            }
+        if (result.selectionItems) {
+          setSelection(result.selectionItems);
+        } else {
+          setHistory(prev => {
+            const newHistory = [...prev];
+            result.results.forEach(item => {
+              newHistory.push({ input: '', output: item.output });
+            });
+            return newHistory.slice(-MAX_HISTORY);
+          });
+          
+          if (result.navigation) {
+            router.push(result.navigation);
           }
-          return updatedHistory.slice(-MAX_HISTORY);
-        });
+        }
       }
-    } catch (error) {
+    } catch {
       setHistory(prev => [...prev, { 
         input: '', 
         output: 'An error occurred while processing the command.' 

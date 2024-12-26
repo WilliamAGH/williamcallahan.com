@@ -18,8 +18,7 @@ export const investments: Investment[] = [
     accelerator: {
       program: 'techstars',
       batch: 'Winter 2023',
-      location: 'NYC',
-      logo: '/images/techstars-logo.svg'
+      location: 'NYC'
     },
     details: [
       { label: 'Investment Type', value: 'Direct Investment' },
@@ -41,8 +40,7 @@ export const investments: Investment[] = [
     accelerator: {
       program: 'ycombinator',
       batch: 'Winter 2022',
-      location: 'San Francisco',
-      logo: '/images/ycombinator-logo.svg'
+      location: 'San Francisco'
     },
     details: [
       { label: 'Investment Type', value: 'Fund' },

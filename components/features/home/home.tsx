@@ -1,3 +1,9 @@
+/**
+ * Home Page Component
+ * 
+ * Landing page content with personal introduction.
+ */
+
 "use client";
 
 export function Home() {

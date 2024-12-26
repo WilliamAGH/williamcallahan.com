@@ -5,18 +5,18 @@
 import type { Accelerator } from './accelerator';
 
 export interface Investment {
-  readonly id: string;
-  readonly name: string;
-  readonly description: string;
-  readonly type: string;
-  readonly stage: string;
-  readonly year: string;
-  readonly status: 'Active' | 'Exited' | 'Inactive';
-  readonly logo: string;
-  readonly website?: string;
-  readonly accelerator?: Accelerator;
-  readonly details?: ReadonlyArray<{
-    readonly label: string;
-    readonly value: string;
-  }>;
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  stage: string;
+  year: string;
+  status: 'Active' | 'Exited' | 'Inactive';
+  logo: string;
+  website?: string;
+  accelerator?: Accelerator;
+  details?: {
+    label: string;
+    value: string;
+  }[];
 }

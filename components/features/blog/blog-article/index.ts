@@ -1,0 +1,1 @@
+export { BlogArticle } from './blog-article';

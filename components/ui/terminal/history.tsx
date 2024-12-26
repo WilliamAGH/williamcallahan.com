@@ -1,5 +1,8 @@
 /**
  * Terminal History Component
+ * 
+ * Displays command history with proper word wrapping and
+ * prevents unwanted text truncation on mobile devices.
  */
 
 import type { TerminalCommand } from '@/types/terminal';
@@ -15,12 +18,12 @@ export function History({ history }: HistoryProps) {
         <div key={i}>
           {line.input && (
             <div className="flex items-start">
-              <span className="text-[#7aa2f7] select-none mr-2">$</span>
-              <span className="text-gray-300 break-all">{line.input}</span>
+              <span className="text-[#7aa2f7] select-none mr-2 shrink-0">$</span>
+              <span className="text-gray-300 break-words">{line.input}</span>
             </div>
           )}
           {line.output && (
-            <div className="text-gray-300 whitespace-pre-wrap break-all">
+            <div className="text-gray-300 whitespace-pre-wrap break-words">
               {line.output}
             </div>
           )}

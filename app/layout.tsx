@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { ThemeProvider } from '@/components/ui/theme';
-import { TerminalProvider } from '@/components/ui/terminal/terminal-context';
+import { Providers } from './providers';
 import { Navigation, Terminal, SocialIcons, ThemeToggle } from '@/components/ui';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -20,25 +19,23 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider>
-          <TerminalProvider>
-            <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
-              <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
-                <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-                  <Navigation />
-                  <div className="flex items-center space-x-4">
-                    <SocialIcons />
-                    <ThemeToggle />
-                  </div>
+        <Providers>
+          <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
+            <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
+              <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+                <Navigation />
+                <div className="flex items-center space-x-4">
+                  <SocialIcons />
+                  <ThemeToggle />
                 </div>
-              </header>
-              <main className="pt-24 pb-16 px-4">
-                <Terminal />
-                {children}
-              </main>
-            </div>
-          </TerminalProvider>
-        </ThemeProvider>
+              </div>
+            </header>
+            <main className="pt-24 pb-16 px-4">
+              <Terminal />
+              {children}
+            </main>
+          </div>
+        </Providers>
       </body>
     </html>
   );
