@@ -1,3 +1,9 @@
+/**
+ * Experience Section Component
+ * 
+ * Displays professional experience timeline with company details.
+ */
+
 "use client";
 
 import Image from 'next/image';

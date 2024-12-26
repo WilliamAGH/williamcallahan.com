@@ -24,7 +24,7 @@ export function BlogCard({ post }: { post: BlogPost }) {
           <div className="flex items-center gap-2 mb-3">
             {post.tags.map(tag => (
               <span
-                key={tag}
+                key={`${post.id}-${tag}`}
                 className="px-2 py-1 text-xs rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
               >
                 {tag}
@@ -39,16 +39,20 @@ export function BlogCard({ post }: { post: BlogPost }) {
           </p>
           <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
             <div className="flex items-center gap-2">
-              {post.author.avatar && (
-                <Image
-                  src={post.author.avatar}
-                  alt={post.author.name}
-                  width={24}
-                  height={24}
-                  className="rounded-full"
-                />
+              {post.author.avatar ? (
+                <>
+                  <Image
+                    src={post.author.avatar}
+                    alt={post.author.name}
+                    width={24}
+                    height={24}
+                    className="rounded-full"
+                  />
+                  <span>{post.author.name}</span>
+                </>
+              ) : (
+                <span>{post.author.name}</span>
               )}
-              <span>{post.author.name}</span>
             </div>
             <span>{new Date(post.publishedAt).toLocaleDateString()}</span>
           </div>

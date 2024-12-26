@@ -1,43 +1,43 @@
 /**
  * Terminal Command Interface Component
+ * 
+ * Provides the main terminal interface with input handling.
  */
 
 "use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { terminalCommands } from './terminal-commands';
+import { handleCommand } from './commands';
 import { TerminalHeader } from './terminal-header';
 import { TerminalHistory } from './terminal-history';
-import { CommandInput } from './command-input';
 import type { TerminalCommand } from '@/types/terminal';
-
-type CommandKey = keyof typeof terminalCommands;
 
 export function CommandInterface() {
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<TerminalCommand[]>([{
     input: '',
-    output: 'Welcome! Type a section name to navigate:'
+    output: 'Welcome! Type "help" for available commands.'
   }]);
   const router = useRouter();
-  
-  const handleCommand = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const command = input.toLowerCase().trim() as CommandKey;
+    if (!input.trim()) return;
+
+    const result = await handleCommand(input.trim());
     
-    if (command in terminalCommands) {
-      setHistory(prev => [...prev, 
-        { input: command, output: '' },
-        { input: '', output: `Navigating to ${command}...` }
-      ]);
-      router.push(terminalCommands[command]);
+    if (result.clear) {
+      setHistory([{
+        input: '',
+        output: 'Welcome! Type "help" for available commands.'
+      }]);
     } else {
-      const availableCommands = Object.keys(terminalCommands).join(', ');
-      setHistory(prev => [...prev,
-        { input: command, output: '' },
-        { input: '', output: `Command not found. Available sections: ${availableCommands}` }
-      ]);
+      setHistory(prev => [...prev, ...result.results]);
+      
+      if (result.navigation) {
+        router.push(result.navigation);
+      }
     }
     
     setInput('');
@@ -48,20 +48,17 @@ export function CommandInterface() {
       <TerminalHeader />
       <div className="text-gray-300">
         <TerminalHistory history={history} />
-        <form onSubmit={handleCommand} className="flex items-center">
-          <label htmlFor="command-input" className="text-[#7aa2f7] mr-2">$</label>
-          <input
-            id="command-input"
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="bg-transparent flex-1 focus:outline-none text-gray-300 caret-transparent"
-            placeholder="Type a command..."
-            aria-label="Terminal command input"
-            // Only autoFocus on client-side to avoid hydration issues
-            {...(typeof window !== 'undefined' ? { autoFocus: true } : {})}
-          />
-          <span className="w-2 h-5 bg-gray-300 animate-pulse" />
+        <form onSubmit={handleSubmit}>
+          <div className="flex items-center">
+            <span className="text-[#7aa2f7] mr-2">$</span>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              className="bg-transparent flex-1 focus:outline-none text-gray-300"
+              autoFocus
+            />
+          </div>
         </form>
       </div>
     </div>

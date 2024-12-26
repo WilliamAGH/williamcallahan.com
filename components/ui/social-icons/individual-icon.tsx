@@ -1,4 +1,9 @@
-import { LucideIcon } from 'lucide-react';
+/**
+ * Individual Social Icon Component
+ * 
+ * Renders a single social media icon with link.
+ */
+
 import type { SocialIconProps } from '@/types/social';
 
 export const IndividualIcon = ({ href, label, icon: Icon }: SocialIconProps) => {

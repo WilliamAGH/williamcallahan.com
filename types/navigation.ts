@@ -5,4 +5,6 @@ export interface NavigationLink {
 
 export interface NavigationLinkProps extends NavigationLink {
   currentPath: string;
+  className?: string;
+  onClick?: () => void;
 }
