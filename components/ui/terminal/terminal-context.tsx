@@ -1,11 +1,12 @@
 /**
  * Terminal Context Provider
+ * 
+ * Provides terminal state management across components.
  */
 
 "use client";
 
-import { createContext, useContext, useCallback, useState } from 'react';
-import type { TerminalCommand } from '@/types/terminal';
+import { createContext, useContext, useCallback } from 'react';
 
 interface TerminalContextType {
   clearHistory: () => void;
@@ -14,16 +15,8 @@ interface TerminalContextType {
 export const TerminalContext = createContext<TerminalContextType | null>(null);
 
 export function TerminalProvider({ children }: { children: React.ReactNode }) {
-  const [history, setHistory] = useState<TerminalCommand[]>([{
-    input: '',
-    output: 'Welcome! Type "help" for available commands.'
-  }]);
-
   const clearHistory = useCallback(() => {
-    setHistory([{
-      input: '',
-      output: 'Welcome! Type "help" for available commands.'
-    }]);
+    // History management is handled in the terminal component
   }, []);
 
   return (

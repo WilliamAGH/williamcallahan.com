@@ -1,17 +1,12 @@
 /**
  * Social Icon Component
  * 
- * Individual social media link with icon.
- * Handles hover states and accessibility attributes.
+ * Renders a social media icon with link and hover effects.
  */
 
 import type { SocialIconProps } from '@/types/social';
 
-export function SocialIcon({ 
-  href, 
-  label, 
-  icon: Icon 
-}: Readonly<SocialIconProps>) {
+export function SocialIcon({ href, label, icon: Icon }: SocialIconProps) {
   return (
     <a
       href={href}
@@ -20,11 +15,7 @@ export function SocialIcon({
       className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
       aria-label={label}
     >
-      <Icon 
-        className="w-5 h-5" 
-        aria-hidden="true"
-        focusable="false"
-      />
+      <Icon className="w-5 h-5" />
     </a>
   );
 }
