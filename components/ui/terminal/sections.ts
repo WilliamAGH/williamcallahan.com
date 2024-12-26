@@ -1,3 +1,9 @@
+/**
+ * Terminal Navigation Sections
+ * 
+ * Defines available navigation paths for the terminal interface.
+ */
+
 export const sections = {
   home: '/',
   investments: '/investments',
@@ -12,3 +18,5 @@ export const sections = {
   'mutual-first': '/experience#mutual-first',
   morningstar: '/experience#morningstar'
 } as const;
+
+export type SectionKey = keyof typeof sections;

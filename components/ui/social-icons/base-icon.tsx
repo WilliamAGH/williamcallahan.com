@@ -1,10 +1,8 @@
 /**
- * Base Icon Component
+ * Base Icon Props
  * 
- * Provides consistent base props for all custom icons
+ * Common SVG properties for social icons.
  */
-
-import { SVGProps } from 'react';
 
 export const baseIconProps = {
   xmlns: "http://www.w3.org/2000/svg",

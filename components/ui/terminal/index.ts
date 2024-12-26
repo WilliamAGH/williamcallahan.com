@@ -1,8 +1,7 @@
 /**
  * Terminal Module Exports
- * 
- * Public API for the terminal component.
  */
 
 export { Terminal } from './terminal';
-export type { TerminalProps } from './types';
+export { TerminalProvider } from './terminal-context';
+export type { TerminalCommand } from '@/types/terminal';

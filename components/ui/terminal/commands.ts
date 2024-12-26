@@ -3,10 +3,8 @@
  */
 
 import { searchPosts, searchExperience, searchEducation, searchInvestments } from '@/lib/search';
-import { sections } from './sections';
-import type { CommandResult, SearchResult, SelectionItem } from '@/types/terminal';
-
-type SectionKey = keyof typeof sections;
+import { sections, type SectionKey } from './sections';
+import type { CommandResult, SearchResult } from '@/types/terminal';
 
 const HELP_MESSAGE = `
 Available commands:
@@ -32,18 +30,18 @@ Examples:
 `.trim();
 
 export async function handleCommand(input: string): Promise<CommandResult> {
-  const [rawCommand, ...args] = input.toLowerCase().trim().split(' ');
+  const [command, ...args] = input.toLowerCase().trim().split(' ');
 
   // Clear command
-  if (rawCommand === 'clear') {
+  if (command === 'clear') {
     return {
       results: [],
-      shouldClear: true
+      clear: true
     };
   }
 
   // Help command
-  if (rawCommand === 'help') {
+  if (command === 'help') {
     return {
       results: [{
         input: '',
@@ -52,18 +50,28 @@ export async function handleCommand(input: string): Promise<CommandResult> {
     };
   }
 
+  // Type guard for valid section
+  const isValidSection = (section: string): section is SectionKey => {
+    return section in sections;
+  };
+
   // Section-specific search
-  if (rawCommand in sections && args.length > 0) {
+  if (isValidSection(command) && args.length > 0) {
     const searchTerms = args.join(' ');
-    const command = rawCommand as SectionKey;
     const section = command.charAt(0).toUpperCase() + command.slice(1);
     
     let results: SearchResult[] = [];
     
     switch (command) {
-      case 'blog':
-        results = await searchPosts(searchTerms);
+      case 'blog': {
+        const posts = await searchPosts(searchTerms);
+        results = posts.map(post => ({
+          label: post.title,
+          description: post.excerpt,
+          path: `/blog/${post.slug}`
+        }));
         break;
+      }
       case 'experience':
         results = await searchExperience(searchTerms);
         break;
@@ -73,8 +81,6 @@ export async function handleCommand(input: string): Promise<CommandResult> {
       case 'investments':
         results = await searchInvestments(searchTerms);
         break;
-      default:
-        results = [];
     }
 
     if (results.length === 0) {
@@ -86,24 +92,17 @@ export async function handleCommand(input: string): Promise<CommandResult> {
       };
     }
 
-    const selectionItems: SelectionItem[] = results.map(result => ({
-      label: (result.label ?? result.title) ?? '',
-      description: (result.description ?? result.excerpt) ?? '',
-      path: result.path ?? `/blog/${result.slug ?? ''}`
-    }));
-
     return {
       results: [{
         input: '',
         output: `Found ${results.length} results in ${section} for "${searchTerms}"`
       }],
-      selectionItems
+      selectionItems: results
     };
   }
 
   // Navigation command
-  if (rawCommand in sections) {
-    const command = rawCommand as SectionKey;
+  if (isValidSection(command)) {
     return {
       results: [{
         input: '',
