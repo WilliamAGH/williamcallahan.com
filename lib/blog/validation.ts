@@ -1,8 +1,11 @@
 /**
  * Blog Post Validation
+ *
+ * Validates blog post data to ensure all required fields are present
+ * and properly formatted before processing or display.
  */
 
-import type { BlogPost } from '@/types/blog';
+import type { BlogPost } from '../../types/blog';
 
 const REQUIRED_FIELDS = [
   'title',
@@ -14,6 +17,12 @@ const REQUIRED_FIELDS = [
   'readingTime'
 ] as const;
 
+/**
+ * Validates a blog post object
+ *
+ * @param {BlogPost} post - The blog post to validate
+ * @returns {{ valid: boolean; errors: string[] }} Validation result with any error messages
+ */
 export function validatePost(post: BlogPost): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 

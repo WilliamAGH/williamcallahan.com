@@ -1,0 +1,23 @@
+---
+title: How to automatically use Warp Terminal's Subshells with "Warpify"
+slug: "auto-warpify-subshells-in-warp-terminal"
+excerpt: "Learn how to enhance your Warp Terminal experience by automatically using subshells with a custom Warpify configuration"
+publishedAt: "2024-12-31"
+author: "william-callahan"
+tags: ["terminal", "CLI", "technology"]
+coverImage: "https://images.unsplash.com/photo-1642543492481-44e81e3914a7?auto=format&fit=crop&q=80"
+readingTime: 2
+---
+
+Warp Terminal is a modern terminal emulator that brings powerful features to command-line workflows. One of its standout features is subshells - isolated terminal environments for different projects or contexts. In this post, we'll explore how to automate the use of subshells using a custom configuration I call "Warpify".
+
+## What are Warp Subshells?
+
+Warp subshells provide isolated environments where you can run commands without affecting your main terminal session. They're perfect for managing different projects, each with their own environment variables and working directories.
+
+```bash
+# Warpify subshells
+printf '\eP$f{"hook": "SourcedRcFileForWarp", "value": { "shell": "zsh" }}\x9c'
+```
+
+Update: This article was originally written when Warp subshell wasn't behaving as expected, but now the standard bashrc/zshrc config files work again. The original cause/issue is unclear. See this article for further documentation on this: [Warpify Subshells](https://warp.dev/docs/subshells).
