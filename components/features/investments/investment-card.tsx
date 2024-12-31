@@ -1,19 +1,24 @@
 /**
  * Investment Card Component
+ * Displays investment information with logo, status, and details
  */
 
-import Image from 'next/image';
 import { ExternalLink } from 'lucide-react';
-import { AcceleratorBadge } from '@/components/ui/accelerator-badge';
-import type { Investment } from '@/types/investment';
+import { AcceleratorBadge, LogoImage } from '../../../components/ui';
+import type { Investment } from '../../../types/investment';
 
-const statusColors = {
-  Active: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
-  Exited: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-  Inactive: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-};
+interface InvestmentCardProps {
+  /** The investment data to display */
+  investment: Investment;
+}
 
-export function InvestmentCard({ investment }: { investment: Investment }) {
+export function InvestmentCard({ investment }: InvestmentCardProps) {
+  const statusColors = {
+    Active: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
+    Exited: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+    Inactive: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+  };
+
   return (
     <div
       id={investment.id}
@@ -22,9 +27,10 @@ export function InvestmentCard({ investment }: { investment: Investment }) {
       <div className="p-6">
         <div className="flex items-start gap-6">
           <div className="w-16 h-16 relative flex-shrink-0">
-            <Image
-              src={investment.logo}
-              alt={`${investment.name} logo`}
+            <LogoImage
+              company={investment.name}
+              logoUrl={investment.logo}
+              website={investment.website}
               width={64}
               height={64}
               className="object-contain rounded-lg"
