@@ -1,11 +1,27 @@
+'use client';
+
 import Link from 'next/link';
 import { Tag } from 'lucide-react';
 
+/**
+ * Props for the BlogTags component
+ */
 interface BlogTagsProps {
+  /** Array of tag names to display */
   tags: string[];
 }
 
-export function BlogTags({ tags }: BlogTagsProps) {
+/**
+ * BlogTags Component
+ *
+ * Displays a list of tags for a blog post as clickable links.
+ * Each tag is styled as a pill/badge with a tag icon.
+ *
+ * @param {BlogTagsProps} props - Component props
+ * @param {string[]} props.tags - Array of tag names to display
+ * @returns {JSX.Element} The rendered tags list
+ */
+export const BlogTags: React.FC<BlogTagsProps> = ({ tags }) => {
   return (
     <div className="flex flex-wrap gap-2 mb-8">
       {tags.map(tag => (
