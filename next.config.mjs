@@ -12,6 +12,14 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'williamcallahan.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'icons.duckduckgo.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.google.com'
       }
     ]
   }
