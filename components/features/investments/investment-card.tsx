@@ -70,8 +70,8 @@ export function InvestmentCard({ investment }: { investment: Investment }) {
             </div>
             {investment.details && (
               <div className="grid grid-cols-2 gap-4">
-                {investment.details.map((detail, index) => (
-                  <div key={index}>
+                {investment.details.map((detail) => (
+                  <div key={`${investment.id}-${detail.label}`}>
                     <dt className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                       {detail.label}
                     </dt>
