@@ -1,31 +1,87 @@
 /**
  * MDX Processing Utilities
+ *
+ * Handles reading, parsing, and serializing MDX blog posts with frontmatter.
+ * Provides functionality to:
+ * - Read MDX files from the posts directory
+ * - Parse frontmatter metadata
+ * - Serialize MDX content with syntax highlighting
  */
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
-import type { BlogPost } from '@/types/blog';
+import { serialize } from 'next-mdx-remote/serialize';
+import rehypePrism from 'rehype-prism';
+import { authors } from '../../data/blog/authors';
+import type { BlogPost } from '../../types/blog';
 
+/** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), 'data/blog/posts');
 
+/**
+ * Retrieves and processes a single MDX blog post
+ *
+ * @param {string} slug - The URL slug of the post to retrieve
+ * @returns {Promise<BlogPost | null>} The processed blog post or null if not found
+ */
 export async function getMDXPost(slug: string): Promise<BlogPost | null> {
   try {
     const fullPath = path.join(POSTS_DIRECTORY, `${slug}.mdx`);
     const fileContents = await fs.readFile(fullPath, 'utf8');
+
+    // Parse frontmatter
     const { data, content } = matter(fileContents);
 
-    return {
-      ...data,
-      content,
-      slug
-    } as BlogPost;
+    // Look up author data
+    const authorId = data.author as string;
+    const author = authors[authorId];
+    if (!author) {
+      console.error(`Author not found: ${authorId}`);
+      return null;
+    }
+
+    // Serialize the content with options for proper MDX features
+    const mdxSource = await serialize(content, {
+      mdxOptions: {
+        rehypePlugins: [
+          [rehypePrism, {
+            ignoreMissing: true,
+            aliases: {
+              bash: ['shell', 'sh', 'zsh']
+            }
+          }]
+        ]
+      }
+    });
+
+    // Construct the full blog post object
+    const post: BlogPost = {
+      id: `mdx-${slug}`,
+      title: data.title,
+      slug: data.slug,
+      excerpt: data.excerpt,
+      content: mdxSource,
+      publishedAt: data.publishedAt,
+      updatedAt: data.updatedAt,
+      author,
+      tags: data.tags,
+      readingTime: data.readingTime,
+      coverImage: data.coverImage
+    };
+
+    return post;
   } catch (error) {
     console.error(`Error loading post ${slug}:`, error);
     return null;
   }
 }
 
+/**
+ * Retrieves and processes all MDX blog posts
+ *
+ * @returns {Promise<BlogPost[]>} Array of all processed blog posts
+ */
 export async function getAllMDXPosts(): Promise<BlogPost[]> {
   try {
     const files = await fs.readdir(POSTS_DIRECTORY);
@@ -39,7 +95,7 @@ export async function getAllMDXPosts(): Promise<BlogPost[]> {
         })
     );
 
-    return posts.filter((post): post is BlogPost => post !== null);
+    return posts.filter((post: BlogPost | null): post is BlogPost => post !== null);
   } catch (error) {
     console.error('Error loading posts:', error);
     return [];

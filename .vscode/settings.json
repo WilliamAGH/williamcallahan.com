@@ -1,0 +1,10 @@
+{
+  "[markdown]": {
+    "editor.wordWrap": "wordWrapColumn",
+    "editor.wordWrapColumn": 80,
+    "editor.wrappingIndent": "same",
+    "editor.defaultFormatter": "vscode.markdown-language-features"
+  },
+  "editor.wordWrap": "on",
+  "files.trimTrailingWhitespace": true
+}

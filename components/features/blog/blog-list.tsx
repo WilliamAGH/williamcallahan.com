@@ -15,9 +15,7 @@ export function BlogList({ posts }: BlogListProps) {
   return (
     <div className="grid gap-6 md:grid-cols-2">
       {posts.map(post => (
-        <div key={post.id}>
-          <BlogCard post={post} />
-        </div>
+        <BlogCard key={post.id} post={post} />
       ))}
     </div>
   );

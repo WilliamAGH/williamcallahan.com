@@ -1,6 +1,8 @@
+'use client';
+
 /**
  * Blog Article Component
- * 
+ *
  * Displays a full blog post with responsive layout and proper
  * content formatting across all device sizes.
  */
@@ -10,18 +12,34 @@ import Link from 'next/link';
 import { ArrowLeft, Clock, Calendar } from 'lucide-react';
 import { BlogAuthor } from './blog-author';
 import { BlogTags } from './blog-tags';
-import { formatDate } from '@/lib/utils';
-import type { BlogPost } from '@/types/blog';
+import { MDXContent } from './mdx-content';
+import { formatDate } from '../../../../lib/utils';
+import type { BlogPost } from '../../../../types/blog';
 
 interface BlogArticleProps {
+  /** The blog post data to render */
   post: BlogPost;
 }
 
-export function BlogArticle({ post }: BlogArticleProps) {
+/**
+ * BlogArticle Component
+ *
+ * Renders a full blog post with MDX content, including:
+ * - Header with title, date, and reading time
+ * - Author information
+ * - Tags
+ * - Cover image
+ * - MDX content with syntax highlighting
+ *
+ * @param {BlogArticleProps} props - Component props
+ * @param {BlogPost} props.post - The blog post data to render
+ * @returns {JSX.Element} The rendered blog article
+ */
+export const BlogArticle: React.FC<BlogArticleProps> = ({ post }) => {
   return (
     <article className="max-w-4xl mx-auto mt-4 sm:mt-8 px-4">
       {/* Back to Blog */}
-      <Link 
+      <Link
         href="/blog"
         className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors mb-6 sm:mb-8"
       >
@@ -34,7 +52,7 @@ export function BlogArticle({ post }: BlogArticleProps) {
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
           {post.title}
         </h1>
-        
+
         <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4 sm:mb-6">
           <div className="flex items-center">
             <Calendar className="w-4 h-4 mr-2" />
@@ -65,9 +83,7 @@ export function BlogArticle({ post }: BlogArticleProps) {
       )}
 
       {/* Article Content */}
-      <div className="prose dark:prose-invert prose-lg max-w-none prose-img:rounded-lg prose-img:mx-auto">
-        {post.content}
-      </div>
+      <MDXContent content={post.content} />
     </article>
   );
 }

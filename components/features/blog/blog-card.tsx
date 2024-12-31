@@ -1,29 +1,12 @@
 /**
  * Blog Card Component
- * Displays a blog post preview with cover image, tags, and author info
  */
 
 import Link from 'next/link';
 import Image from 'next/image';
-import type { BlogPost } from '../../../types/blog';
+import type { BlogPost } from '@/types/blog';
 
 export function BlogCard({ post }: { post: BlogPost }) {
-  // Prepare author display section to avoid nested conditionals in JSX
-  const authorDisplay = post.author.avatar ? (
-    <div className="flex items-center gap-2">
-      <Image
-        src={post.author.avatar}
-        alt={post.author.name}
-        width={24}
-        height={24}
-        className="rounded-full"
-      />
-      <span>{post.author.name}</span>
-    </div>
-  ) : (
-    <span>{post.author.name}</span>
-  );
-
   return (
     <Link href={`/blog/${post.slug}`} className="block group">
       <article className="rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden bg-gray-50 dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-200">
@@ -33,7 +16,8 @@ export function BlogCard({ post }: { post: BlogPost }) {
               src={post.coverImage}
               alt={post.title}
               fill
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           </div>
         )}
@@ -55,10 +39,27 @@ export function BlogCard({ post }: { post: BlogPost }) {
             {post.excerpt}
           </p>
           <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-            <div className="flex items-center gap-2">
-              {authorDisplay}
+            {post.author.avatar ? (
+              <div key={`${post.id}-author-with-avatar`} className="flex items-center gap-2">
+                <div className="relative w-6 h-6">
+                  <Image
+                    src={post.author.avatar}
+                    alt={post.author.name}
+                    fill
+                    sizes="24px"
+                    className="rounded-full object-cover"
+                  />
+                </div>
+                <span>{post.author.name}</span>
+              </div>
+            ) : (
+              <div key={`${post.id}-author-name`} className="flex items-center gap-2">
+                <span>{post.author.name}</span>
+              </div>
+            )}
+            <div key={`${post.id}-date`}>
+              {new Date(post.publishedAt).toLocaleDateString()}
             </div>
-            <span>{new Date(post.publishedAt).toLocaleDateString()}</span>
           </div>
         </div>
       </article>
