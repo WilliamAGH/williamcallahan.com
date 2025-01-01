@@ -2,7 +2,37 @@
  * Education Data
  */
 
-import type { Education, Certification } from "@/types/education";
+import type { Education, Certification } from 'types/education';
+
+export const highlightedCertifications: Certification[] = [
+  {
+    id: 'stanford-ml',
+    institution: 'Stanford University',
+    name: 'Machine Learning for Business with Python',
+    year: '2024',
+    logo: undefined,
+    website: 'https://www.stanford.edu',
+    location: 'Stanford, California'
+  },
+  {
+    id: 'stanford-llm',
+    institution: 'Stanford University',
+    name: 'Large Language Models for Business with Python',
+    year: '2024',
+    logo: undefined,
+    website: 'https://www.stanford.edu',
+    location: 'Stanford, California'
+  },
+  {
+    id: 'stanford-ai-design',
+    institution: 'Stanford University',
+    name: 'User-Centered Design for AI Applications',
+    year: '2024',
+    logo: undefined,
+    website: 'https://www.stanford.edu',
+    location: 'Stanford, California'
+  }
+];
 
 export const education: Education[] = [
   {
@@ -36,39 +66,12 @@ export const education: Education[] = [
 
 export const certifications: Certification[] = [
   {
-    id: 'stanford-ml',
-    institution: 'Stanford University',
-    name: 'Machine Learning for Business with Python',
-    year: '2024',
-    logo: undefined,
-    website: 'https://www.stanford.edu',
-    location: 'Stanford, California'
-  },
-  {
-    id: 'stanford-llm',
-    institution: 'Stanford University',
-    name: 'Large Language Models for Business with Python',
-    year: '2024',
-    logo: undefined,
-    website: 'https://www.stanford.edu',
-    location: 'Stanford, California'
-  },
-  {
-    id: 'stanford-ai-design',
-    institution: 'Stanford University',
-    name: 'User-Centered Design for AI Applications',
-    year: '2024',
-    logo: undefined,
-    website: 'https://www.stanford.edu',
-    location: 'Stanford, California'
-  },
-  {
     id: 'columbia-vc',
     institution: 'Columbia Business School',
     name: 'Executive Education – Venture Capital Decision Making',
     year: '2022',
     logo: undefined,
-    website: 'https://www8.gsb.columbia.edu',
+    website: 'https://gsb.columbia.edu',
     location: 'New York, New York'
   },
   {
@@ -96,6 +99,6 @@ export const certifications: Certification[] = [
     year: '2012',
     logo: undefined,
     website: 'https://www.cfp.net',
-    location: 'Washington, D.C.'
+    location: 'Washington, District of Columbia'
   }
 ];
