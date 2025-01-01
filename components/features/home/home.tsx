@@ -22,7 +22,10 @@ export function Home() {
         Today, my highest professional priority is building aVenture, a research and investing
         platform that seeks to make investing in private startups safer with better data.
 
-        If you want to get in contact with me, you can connect with me on
+        If you want to get in contact with me, you can connect with me on{' '}
+        <a href="https://discord.com/users/WilliamDscord" className="text-blue-600 hover:text-blue-800">Discord</a>,{' '}
+        <a href="https://x.com/williamcallahan" className="text-blue-600 hover:text-blue-800">X</a>, or{' '}
+        <a href="https://linkedin.com/in/williamacallahan" className="text-blue-600 hover:text-blue-800">LinkedIn</a>.
       </p>
     </div>
   );
