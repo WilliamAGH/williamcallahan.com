@@ -4,10 +4,10 @@
 
 "use client";
 
-import { WindowControls } from '@/components/ui/navigation/window-controls';
+import { WindowControls } from 'components/ui/navigation/window-controls';
 import { EducationCard } from './education-card';
 import { CertificationCard } from './certification-card';
-import { education, certifications } from '@/data/education';
+import { education, certifications, highlightedCertifications } from 'data/education';
 
 export function Education() {
   return (
@@ -21,6 +21,15 @@ export function Education() {
         </div>
 
         <div className="p-6">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-6">Highlighted & Recent Courses</h2>
+            <div className="space-y-6">
+              {highlightedCertifications.map((cert) => (
+                <CertificationCard key={cert.id} {...cert} />
+              ))}
+            </div>
+          </div>
+
           <div className="mb-8">
             <h2 className="text-2xl font-bold mb-6">University Degrees</h2>
             <div className="space-y-6">

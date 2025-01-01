@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
+  <defs>
+    <!-- Modern gradient palette -->
+    <linearGradient id="skyGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4299E1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2C5282;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Unicorn gradient -->
+    <linearGradient id="unicornGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#9F7AEA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6B46C1;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Money gradient -->
+    <linearGradient id="moneyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#48BB78;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#276749;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="400" fill="url(#skyGrad)"/>
+
+  <!-- Stylized SF skyline silhouette -->
+  <path d="M0,250
+           L50,250 L50,200 L80,200 L80,150 L100,150 L100,220
+           L150,220 L150,100 L180,100 L180,200
+           L220,200 L220,80 L240,80 L240,180
+           L280,180 L280,120 L300,120 L300,220
+           L350,220 L350,60 L380,60 L380,220
+           L420,220 L420,150 L450,150 L450,220
+           L800,220"
+        fill="#1A365D"
+        opacity="0.8"/>
+
+  <!-- Success stories -->
+  <g transform="translate(100,100)">
+    <!-- Rising unicorn -->
+    <path d="M0,100 L30,70 L60,100 L30,130 Z"
+          fill="url(#unicornGrad)"
+          transform="rotate(-30)"/>
+
+    <!-- Dollar symbols floating up -->
+    <g fill="url(#moneyGrad)">
+      <text x="20" y="50" font-size="24" transform="rotate(-15)">$</text>
+      <text x="60" y="30" font-size="24" transform="rotate(-10)">$</text>
+      <text x="100" y="20" font-size="24" transform="rotate(-5)">$</text>
+    </g>
+  </g>
+
+  <!-- Transition/Risk zone -->
+  <g transform="translate(400,150)">
+    <!-- Startup trajectory paths -->
+    <path d="M0,0 C50,-50 100,-50 150,0" stroke="#48BB78" stroke-width="3" fill="none"/>
+    <path d="M0,50 C50,0 100,0 150,50" stroke="#805AD5" stroke-width="3" fill="none"/>
+    <path d="M0,100 C50,150 100,150 150,100" stroke="#F56565" stroke-width="3" fill="none"/>
+
+    <!-- Key metrics/data points -->
+    <circle cx="50" cy="20" r="4" fill="#48BB78"/>
+    <circle cx="100" cy="50" r="4" fill="#805AD5"/>
+    <circle cx="150" cy="80" r="4" fill="#F56565"/>
+  </g>
+
+  <!-- Warning/Peril zone -->
+  <g transform="translate(600,100)">
+    <!-- Failed startup symbols -->
+    <path d="M0,100 L30,70 L60,100 L30,130 Z"
+          fill="#F56565"
+          transform="rotate(45)"
+          opacity="0.8"/>
+
+    <!-- Falling dollars -->
+    <g fill="#FC8181" opacity="0.8">
+      <text x="20" y="150" font-size="24" transform="rotate(15)">$</text>
+      <text x="60" y="170" font-size="24" transform="rotate(30)">$</text>
+      <text x="100" y="180" font-size="24" transform="rotate(45)">$</text>
+    </g>
+  </g>
+
+  <!-- Market grid suggesting data/tech -->
+  <g stroke="#E2E8F0" stroke-width="0.5" opacity="0.1">
+    <path d="M0,280 h800 M0,300 h800 M0,320 h800 M0,340 h800"/>
+  </g>
+</svg>

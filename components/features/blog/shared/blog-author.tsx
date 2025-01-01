@@ -2,6 +2,7 @@
  * Blog Author Component
  *
  * Displays author information with avatar and optional bio.
+ * Links to the homepage when clicked.
  *
  * @component
  * @param {Object} props
@@ -9,7 +10,8 @@
  */
 
 import Image from 'next/image';
-import type { Author } from '@/types/blog';
+import Link from 'next/link';
+import type { Author } from 'types/blog';
 
 interface BlogAuthorProps {
   author: Author;
@@ -17,7 +19,7 @@ interface BlogAuthorProps {
 
 export function BlogAuthor({ author }: BlogAuthorProps) {
   return (
-    <div className="flex items-center gap-4 mb-6">
+    <Link href="/" className="flex items-center gap-4 mb-6 hover:opacity-80 transition-opacity">
       {author.avatar && (
         <div className="relative w-12 h-12">
           <Image
@@ -37,6 +39,6 @@ export function BlogAuthor({ author }: BlogAuthorProps) {
           </p>
         )}
       </div>
-    </div>
+    </Link>
   );
 }

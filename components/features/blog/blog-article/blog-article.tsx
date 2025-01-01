@@ -14,7 +14,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Clock, Calendar } from 'lucide-react';
-import { BlogAuthor } from './blog-author';
+import { BlogAuthor } from '../shared/blog-author';
 import { BlogTags } from './blog-tags';
 import { MDXContent } from './mdx-content';
 import { formatDate } from '../../../../lib/utils';
