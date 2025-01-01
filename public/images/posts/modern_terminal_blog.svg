@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
   <!-- Background -->
-  <rect width="800" height="500" rx="10" fill="#1a1b26" />
+  <rect width="800" height="400" rx="10" fill="#1a1b26" />
 
   <!-- Title bar -->
   <rect width="800" height="40" rx="10" fill="#24283b" />
@@ -11,7 +11,7 @@
   <circle cx="65" cy="20" r="6" fill="#28c840"/>
 
   <!-- Terminal content -->
-  <g transform="translate(20, 60)">
+  <g transform="translate(20, 80)">
     <!-- Command prompt line -->
     <text x="0" y="20" fill="#7aa2f7" font-family="monospace" font-size="14">➜</text>
     <text x="25" y="20" fill="#7dcfff" font-family="monospace" font-size="14">~/projects</text>

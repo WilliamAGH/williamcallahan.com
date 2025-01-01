@@ -11,49 +11,64 @@ export const experiences: Experience[] = [
   {
     id: 'aventure',
     company: 'aVenture',
-    period: '2020 - PRESENT',
-    role: 'Founder & CEO - Building a platform to make venture capital accessible to everyone, normalizing its role in modern portfolio management.',
-    logo: '/images/aVenture Favicon.png',  // Using local logo file with correct name
-    website: 'https://aventure.vc'
+    period: '2023 - Present',
+    role: 'Founder & CEO - Building a research platform with data on venture-backed startups and their investors to help founders and investors make better decisions.',
+    logo: '/images/aVenture Favicon.png',
+    website: 'https://aventure.vc',
+    location: 'San Francisco, California'
+  },
+  {
+    id: 'techstars',
+    company: 'Techstars',
+    period: '2023 - 2024',
+    role: 'Received an investment from Techstars and participated in their accelerator program, focusing on pivoting aVenture to a research-based product and preparing to launch and fundraise.',
+    logo: 'images/techstars_logo.png',
+    website: 'https://www.techstars.com',
+    location: 'New York, New York'
+  },
+  {
+    id: 'seekinvest',
+    company: 'SeekInvest',
+    period: '2022 - Present',
+    role: 'Advisor - A SaaS platform for helping investors ensure their investments are aligned with their value with values data overlaid on their portfolio.',
+    logo: undefined,
+    website: 'https://www.seekinvest.com',
+    location: 'Chicago, Illinois'
   },
   {
     id: 'tsbank',
     company: 'TS Bank',
     period: '2021 - 2022',
-    role: 'Director of Innovation - Led digital transformation initiatives and fintech partnerships to modernize banking services.',
-    logo: undefined,  // Will use website for logo fetching
-    website: 'https://www.tsbank.com'
-  },
-  {
-    id: 'seekinvest',
-    company: 'SeekInvest',
-    period: '2021 - PRESENT',
-    role: 'Founder & CEO - Developing innovative investment research tools and portfolio management solutions.',
-    logo: undefined,  // Will use website for logo fetching
-    website: 'https://www.seekinvest.com'
+    role: 'President of wealth management division following acquisition/sale of Callahan Financial Planning unit.',
+    logo: undefined,
+    website: 'https://www.tsbank.com',
+    location: 'Omaha, Nebraska'
   },
   {
     id: 'callahan-financial',
     company: 'Callahan Financial Planning',
-    period: '2018 - 2020',
-    role: 'Investment Advisor - Provided comprehensive financial planning and investment management services.',
-    logo: undefined,  // Will use website for logo fetching
-    website: 'https://callahanplanning.com'
+    period: '2010 - 2022',
+    role: 'Founded and led an SEC-registered investment advisor - Provided comprehensive financial planning and investment advisory services, including proprietary cloud software for managing complex and nuanced data sets in such relationships. Managed $225 million in assets on acquisition.',
+    logo: undefined,
+    website: 'https://callahanplanning.com',
+    location: 'Omaha, Nebraska / San Francisco, California'
   },
   {
     id: 'mutual-first',
     company: 'Mutual First Federal Credit Union',
-    period: '2016 - 2018',
-    role: 'Financial Advisor - Guided members through investment decisions and retirement planning.',
-    logo: undefined,  // Will use website for logo fetching
-    website: 'https://mutualfirst.com'
+    period: '2020 - 2021',
+    role: 'Board Member - Served on the board of directors, including as treasurer, overseeing the strategic direction and financial health of the credit union. Primary focus on product differentiation and pricing strategy, asset-liability management strategies, and growth strategy.',
+    logo: undefined,
+    website: 'https://mutualfirst.com',
+    location: 'Omaha, Nebraska'
   },
   {
     id: 'morningstar',
     company: 'Morningstar',
-    period: '2014 - 2016',
-    role: 'Investment Research Analyst - Conducted in-depth analysis of investment products and market trends.',
-    logo: undefined,  // Will use website for logo fetching
-    website: 'https://morningstar.com'
+    period: '2015 - 2019',
+    role: 'Advisor to the executive team - Provided strategic and specific direction to the executive team on the development of new SaaS offerings for advanced investment research and portfolio management',
+    logo: undefined,
+    website: 'https://morningstar.com',
+    location: 'Chicago, Illinois'
   }
 ];

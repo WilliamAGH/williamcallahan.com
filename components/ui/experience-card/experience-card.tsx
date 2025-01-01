@@ -8,8 +8,8 @@
 "use client";
 
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
-import { LogoImage } from '../logo-image';
-import { ExternalLink } from '../external-link';
+import { LogoImage } from '../../ui';
+import { ExternalLink } from '../../ui/external-link';
 import type { Experience } from '../../../types/experience';
 
 /**
@@ -37,7 +37,8 @@ export function ExperienceCard({
   period,
   role,
   logo,
-  website
+  website,
+  location
 }: ExperienceCardProps): JSX.Element {
   return (
     <div
@@ -47,14 +48,22 @@ export function ExperienceCard({
       <div className="p-6">
         <div className="flex items-start gap-6">
           <div className="w-16 h-16 relative flex-shrink-0">
-            <LogoImage
-              company={company}
-              logoUrl={logo}
-              website={website}
-              width={64}
-              height={64}
-              className="object-contain rounded-lg"
-            />
+            <ExternalLink
+              href={website}
+              title={company}
+              rawTitle={true}
+              showIcon={false}
+            >
+              <LogoImage
+                company={company}
+                logoUrl={logo}
+                website={website}
+                width={64}
+                height={64}
+                className="object-contain rounded-lg"
+                alt={company}
+              />
+            </ExternalLink>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-2">
@@ -68,19 +77,30 @@ export function ExperienceCard({
                   {company}
                 </ExternalLink>
                 {website && (
-                  <ExternalLinkIcon
-                    className="w-4 h-4 text-gray-400"
-                    aria-label="Opens in new tab"
-                  />
+                  <ExternalLink
+                    href={website}
+                    title={`Visit ${company}'s website`}
+                    showIcon={false}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    <ExternalLinkIcon className="w-4 h-4" />
+                  </ExternalLink>
                 )}
               </div>
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 {period}
               </span>
             </div>
-            <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-              {role}
-            </p>
+            <div className="space-y-1">
+              <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+                {role}
+              </p>
+              {location && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                  {location}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
