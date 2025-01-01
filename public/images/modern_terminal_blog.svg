@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <!-- Background -->
+  <rect width="800" height="500" rx="10" fill="#1a1b26" />
+
+  <!-- Title bar -->
+  <rect width="800" height="40" rx="10" fill="#24283b" />
+
+  <!-- Window controls -->
+  <circle cx="25" cy="20" r="6" fill="#ff5f57"/>
+  <circle cx="45" cy="20" r="6" fill="#febc2e"/>
+  <circle cx="65" cy="20" r="6" fill="#28c840"/>
+
+  <!-- Terminal content -->
+  <g transform="translate(20, 60)">
+    <!-- Command prompt line -->
+    <text x="0" y="20" fill="#7aa2f7" font-family="monospace" font-size="14">➜</text>
+    <text x="25" y="20" fill="#7dcfff" font-family="monospace" font-size="14">~/projects</text>
+    <text x="120" y="20" fill="#73daca" font-family="monospace" font-size="14">git:(</text>
+    <text x="170" y="20" fill="#f7768e" font-family="monospace" font-size="14">main</text>
+    <text x="210" y="20" fill="#73daca" font-family="monospace" font-size="14">)</text>
+
+    <!-- Command input -->
+    <text x="230" y="20" fill="#c0caf5" font-family="monospace" font-size="14">cargo run</text>
+
+    <!-- Output -->
+    <text x="0" y="50" fill="#565f89" font-family="monospace" font-size="14">Compiling project v0.1.0 (/Users/dev/projects)</text>
+    <text x="0" y="80" fill="#565f89" font-family="monospace" font-size="14">Finished dev [unoptimized + debuginfo] target(s) in 0.82s</text>
+    <text x="0" y="110" fill="#565f89" font-family="monospace" font-size="14">Running `target/debug/project`</text>
+
+    <!-- New command prompt -->
+    <text x="0" y="140" fill="#7aa2f7" font-family="monospace" font-size="14">➜</text>
+    <text x="25" y="140" fill="#7dcfff" font-family="monospace" font-size="14">~/projects</text>
+    <text x="120" y="140" fill="#73daca" font-family="monospace" font-size="14">git:(</text>
+    <text x="170" y="140" fill="#f7768e" font-family="monospace" font-size="14">main</text>
+    <text x="210" y="140" fill="#73daca" font-family="monospace" font-size="14">)</text>
+
+    <!-- Blinking cursor -->
+    <rect x="230" y="130" width="8" height="2" fill="#c0caf5">
+      <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite" />
+    </rect>
+  </g>
+</svg>
