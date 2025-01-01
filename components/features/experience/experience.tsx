@@ -1,30 +1,45 @@
+"use client";
+
 /**
  * Experience Section Component
- * Displays professional experience entries with logos and details
+ *
+ * Displays a list of professional experience entries in a styled container.
+ * Each entry includes company details, role information, and duration.
+ * The component uses a consistent layout with the Education section,
+ * featuring window controls and a max-width container.
+ *
+ * @returns {JSX.Element} A styled container with experience entries
  */
 
-import { ExperienceCard, LogoImage } from "../../../components/ui";
+import { ExperienceCard } from "../../../components/ui";
+import { WindowControls } from "../../../components/ui/navigation/window-controls";
 import { experiences } from "../../../data/experience";
 import type { Experience as ExperienceType } from "../../../types";
 
-export function Experience() {
+export function Experience(): JSX.Element {
   return (
-    <div className="flex flex-col gap-4">
-      {experiences.map((exp: ExperienceType) => (
-        <div key={exp.company} className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <LogoImage 
-              company={exp.company} 
-              logoUrl={exp.logo}
-              website={exp.website}
-              width={24} 
-              height={24} 
-            />
-            <h3 className="text-lg font-semibold">{exp.company}</h3>
+    <div className="max-w-5xl mx-auto mt-8">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+        <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
+          <div className="flex items-center">
+            <WindowControls />
+            <h1 className="text-xl font-mono ml-4">~/experience</h1>
           </div>
-          <ExperienceCard {...exp} />
         </div>
-      ))}
+
+        <div className="p-6">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-6">Experience</h2>
+            <div className="space-y-6">
+            {experiences.map((exp: ExperienceType) => (
+              <div key={exp.company}>
+                <ExperienceCard {...exp} />
+              </div>
+            ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

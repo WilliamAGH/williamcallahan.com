@@ -38,6 +38,9 @@ RUN \
 FROM base AS runner
 WORKDIR /app
 
+# Install sharp dependencies
+RUN apk add --no-cache vips-dev build-base
+
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 

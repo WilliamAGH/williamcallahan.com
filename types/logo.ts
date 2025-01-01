@@ -1,7 +1,7 @@
 /**
  * Logo Types Module
  * Defines TypeScript interfaces for the logo management system
- * 
+ *
  * @module types/logo
  */
 
@@ -13,7 +13,7 @@ export interface LogoResult {
   /** The URL of the fetched logo image */
   url: string;
   /** The source service that provided the logo */
-  source: "duckduckgo" | "fallback";
+  source: "google" | "duckduckgo" | "fallback";
   /** Optional error message if something went wrong but a fallback was provided */
   error?: string;
 }
@@ -21,7 +21,7 @@ export interface LogoResult {
 /**
  * Represents the structure of the logo cache
  * Maps domain names to cached logo information
- * 
+ *
  * @example
  * {
  *   "google.com": {

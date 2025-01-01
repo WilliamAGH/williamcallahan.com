@@ -56,7 +56,7 @@ export function InvestmentCard({ investment }: InvestmentCardProps) {
               </span>
             </div>
             {investment.accelerator && (
-              <div className="mb-3">
+              <div className="mb-3 max-w-full overflow-hidden">
                 <AcceleratorBadge accelerator={investment.accelerator} />
               </div>
             )}

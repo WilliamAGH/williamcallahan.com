@@ -10,7 +10,8 @@ export const education: Education[] = [
     institution: 'Creighton University',
     degree: 'Master of Business Administration (MBA)',
     year: '2016',
-    logo: 'https://williamcallahan.com/wp-content/uploads/2023/10/creighton.svg',
+    // Using website for logo fetching
+    logo: undefined,
     website: 'https://www.creighton.edu'
   },
   {
@@ -18,7 +19,8 @@ export const education: Education[] = [
     institution: 'Creighton University',
     degree: 'Master of Investment Management & Financial Analysis (MIMFA)',
     year: '2011',
-    logo: 'https://williamcallahan.com/wp-content/uploads/2023/10/creighton.svg',
+    // Using website for logo fetching
+    logo: undefined,
     website: 'https://www.creighton.edu'
   },
   {
@@ -26,7 +28,8 @@ export const education: Education[] = [
     institution: 'University of Nebraska at Omaha',
     degree: 'BSBA in Corporate Finance, Banking & Financial Markets, Investment Science & Portfolio Management',
     year: '2011',
-    logo: 'https://williamcallahan.com/wp-content/uploads/2023/10/uno.svg',
+    // Using website for logo fetching
+    logo: undefined,
     website: 'https://www.unomaha.edu'
   }
 ];
@@ -37,7 +40,8 @@ export const certifications: Certification[] = [
     institution: 'MIT',
     name: 'Designing and Building AI Products and Services',
     year: '2023',
-    logo: 'https://williamcallahan.com/wp-content/uploads/2023/10/mit.svg',
+    // Using website for logo fetching
+    logo: undefined,
     website: 'https://www.mit.edu'
   },
   {
@@ -45,7 +49,8 @@ export const certifications: Certification[] = [
     institution: 'Columbia Business School',
     name: 'Executive Education – Venture Capital Decision Making',
     year: '2022',
-    logo: 'https://williamcallahan.com/wp-content/uploads/2023/10/columbia.svg',
+    // Using website for logo fetching
+    logo: undefined,
     website: 'https://www8.gsb.columbia.edu'
   },
   {
@@ -53,7 +58,8 @@ export const certifications: Certification[] = [
     institution: 'University of California Berkeley',
     name: 'Certification in Startup Law & Venture Capital Investing',
     year: '2016',
-    logo: 'https://williamcallahan.com/wp-content/uploads/2023/10/berkeley.svg',
+    // Using website for logo fetching
+    logo: undefined,
     website: 'https://www.berkeley.edu'
   },
   {
@@ -61,7 +67,8 @@ export const certifications: Certification[] = [
     institution: 'CFA Institute',
     name: 'Chartered Financial Analyst (CFA) Charterholder',
     year: '2012',
-    logo: 'https://williamcallahan.com/wp-content/uploads/2023/10/cfa.svg',
+    // Using website for logo fetching
+    logo: undefined,
     website: 'https://www.cfainstitute.org'
   },
   {
@@ -69,7 +76,8 @@ export const certifications: Certification[] = [
     institution: 'CFP Board',
     name: 'Certified Financial Planner (CFP) Professional (NYU)',
     year: '2012',
-    logo: 'https://williamcallahan.com/wp-content/uploads/2023/10/cfp.svg',
+    // Using website for logo fetching
+    logo: undefined,
     website: 'https://www.cfp.net'
   }
 ];
