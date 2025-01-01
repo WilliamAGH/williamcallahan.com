@@ -13,6 +13,8 @@ import path from 'node:path';
 import matter from 'gray-matter';
 import { serialize } from 'next-mdx-remote/serialize';
 import rehypePrism from 'rehype-prism';
+import remarkBreaks from 'remark-breaks';
+import remarkGfm from 'remark-gfm';
 import { authors } from '../../data/blog/authors';
 import type { BlogPost } from '../../types/blog';
 
@@ -44,6 +46,10 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
     // Serialize the content with options for proper MDX features
     const mdxSource = await serialize(content, {
       mdxOptions: {
+        remarkPlugins: [
+          remarkBreaks,
+          [remarkGfm, { singleTilde: false }]
+        ],
         rehypePlugins: [
           [rehypePrism, {
             ignoreMissing: true,
@@ -51,12 +57,15 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
               bash: ['shell', 'sh', 'zsh']
             }
           }]
-        ]
-      }
+        ],
+        format: 'mdx'
+      },
+      scope: {},
+      parseFrontmatter: true
     });
 
     // Construct the full blog post object
-    const post: BlogPost = {
+    return {
       id: `mdx-${slug}`,
       title: data.title,
       slug: data.slug,
@@ -69,8 +78,6 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
       readingTime: data.readingTime,
       coverImage: data.coverImage
     };
-
-    return post;
   } catch (error) {
     console.error(`Error loading post ${slug}:`, error);
     return null;

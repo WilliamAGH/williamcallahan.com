@@ -11,6 +11,6 @@
 
 export { BlogWrapper } from './blog-wrapper';
 export { BlogArticle } from './blog-article';
-export { BlogAuthor } from './blog-author';
+export { BlogAuthor } from '../shared/blog-author';
 export { BlogTags } from './blog-tags';
 export { MDXContent } from './mdx-content';
