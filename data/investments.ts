@@ -13,7 +13,7 @@ export const investments: Investment[] = [
     stage: 'Seed',
     year: '2020',
     status: 'Active',
-    logo: '/images/aventure-logo.svg',
+    logo: '/images/aVenture Favicon.png',
     website: 'https://aventure.vc',
     accelerator: {
       program: 'techstars',

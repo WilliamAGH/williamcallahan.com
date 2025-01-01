@@ -1,14 +1,14 @@
 /**
  * LogoImage Component
  * A React component that displays company/website logos with automatic fetching and caching
- * 
+ *
  * Features:
  * - Automatic logo fetching from DuckDuckGo/Google services
  * - Support for direct logo URLs
  * - Loading states with placeholders
  * - Error handling with fallbacks
  * - SSR compatibility
- * 
+ *
  * @module components/ui/logo-image
  */
 
@@ -41,15 +41,15 @@ interface LogoImageProps {
 /**
  * A component that displays a company or website logo
  * Can either use a provided logo URL or automatically fetch one
- * 
+ *
  * @component
  * @example
  * // With direct logo URL
  * <LogoImage company="Google" logoUrl="https://..." />
- * 
+ *
  * // With automatic fetching
  * <LogoImage company="Google" website="https://google.com" />
- * 
+ *
  * // With minimal props (uses company name for fetching)
  * <LogoImage company="Google" />
  */
@@ -58,8 +58,8 @@ export function LogoImage({
   logoUrl,
   website,
   alt,
-  width = 32,
-  height = 32,
+  width = 64,
+  height = 64,
   className = "",
 }: LogoImageProps) {
   // State for SSR and component lifecycle
@@ -124,7 +124,7 @@ export function LogoImage({
   if (!dynamicLogoUrl) {
     return (
       <div
-        className={`bg-gray-200 dark:bg-gray-700 rounded-sm animate-pulse ${className}`}
+        className={`bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse ${className}`}
         style={{ width, height }}
         aria-label={`Loading ${company} logo`}
       />
@@ -133,13 +133,21 @@ export function LogoImage({
 
   // Show the logo image
   return (
-    <Image
-      src={dynamicLogoUrl}
-      alt={alt || `${company} logo`}
-      width={width}
-      height={height}
-      className={`rounded-sm ${className}`}
-      unoptimized // Since we're loading external images
-    />
+    <div className="rounded-lg overflow-hidden">
+      <Image
+        src={dynamicLogoUrl}
+        alt={alt || `${company} logo`}
+        width={width}
+        height={height}
+        className={`object-contain ${className}`}
+        quality={95}
+        unoptimized // Since we're loading external images
+        style={{
+          maxWidth: '100%',
+          height: 'auto',
+          objectFit: 'contain'
+        }}
+      />
+    </div>
   );
 }

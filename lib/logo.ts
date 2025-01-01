@@ -1,7 +1,7 @@
 /**
  * Logo Management Module
  * Provides utilities for fetching and caching company/website logos
- * 
+ *
  * @module lib/logo
  */
 
@@ -19,12 +19,12 @@ const isBrowser = typeof window !== "undefined";
 /**
  * Loads the logo cache from localStorage
  * Handles SSR by checking for browser environment
- * 
+ *
  * @returns {LogoCache} The cached logo data or empty object if no cache exists
  */
 function loadCache(): LogoCache {
   if (!isBrowser) return {};
-  
+
   try {
     const cached = localStorage.getItem(CACHE_KEY);
     return cached ? JSON.parse(cached) : {};
@@ -36,12 +36,12 @@ function loadCache(): LogoCache {
 /**
  * Saves the logo cache to localStorage
  * Handles SSR by checking for browser environment
- * 
+ *
  * @param {LogoCache} cache - The cache data to save
  */
 function saveCache(cache: LogoCache): void {
   if (!isBrowser) return;
-  
+
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
   } catch (error) {
@@ -52,7 +52,7 @@ function saveCache(cache: LogoCache): void {
 /**
  * Extracts a domain from a URL or company name
  * Handles both full URLs and plain text company names
- * 
+ *
  * @param {string} input - The URL or company name to process
  * @returns {string} The extracted domain or processed company name
  * @example
@@ -76,17 +76,22 @@ function extractDomain(input: string): string {
 
 /**
  * Checks if a URL is valid and accessible
- * Makes a HEAD request to verify the URL without downloading content
- * 
+ * Makes a request to verify the URL exists
+ *
  * @param {string} url - The URL to check
  * @returns {Promise<boolean>} Whether the URL is valid and accessible
  */
 async function isValidUrl(url: string): Promise<boolean> {
   if (!isBrowser) return false;
-  
+
   try {
-    const response = await fetch(url, { method: "HEAD" });
-    return response.ok;
+    // Always use GET with no-cors mode for consistent behavior
+    const response = await fetch(url, {
+      method: "GET",
+      mode: 'no-cors',
+      cache: 'no-cache'
+    });
+    return true; // If we get here without error, assume resource exists
   } catch {
     return false;
   }
@@ -94,66 +99,51 @@ async function isValidUrl(url: string): Promise<boolean> {
 
 /**
  * Fetches a logo for a given company/website
- * Uses DuckDuckGo's icon service with fallback to Google's favicon service
+ * Uses Google's favicon service as primary source with DuckDuckGo as fallback
  * Implements persistent caching with localStorage
- * 
+ *
  * @param {string} input - The company name or website URL
  * @returns {Promise<LogoResult>} The logo result containing URL and metadata
  * @example
  * const logo = await fetchLogo("google.com");
- * // Returns: { url: "...", source: "duckduckgo" }
+ * // Returns: { url: "...", source: "google" }
  */
 export async function fetchLogo(input: string): Promise<LogoResult> {
   const domain: string = extractDomain(input);
   const cache: LogoCache = loadCache();
-  
+
   // Check cache first
   const cached = cache[domain];
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
     return {
       url: cached.url,
-      source: cached.url.includes("duckduckgo.com") ? "duckduckgo" : "fallback"
+      source: cached.url.includes("google.com") ? "google" : "duckduckgo"
     };
   }
 
   try {
-    // Try DuckDuckGo first (more reliable, higher quality)
-    const ddgUrl = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
-    if (await isValidUrl(ddgUrl)) {
-      // Update cache
-      cache[domain] = {
-        url: ddgUrl,
-        timestamp: Date.now()
-      };
-      saveCache(cache);
-      
-      return {
-        url: ddgUrl,
-        source: "duckduckgo"
-      };
-    }
+    // Use Google's favicon service as primary source (more reliable, high quality)
+    const googleUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=256`;
 
-    // Fallback to Google's favicon service
-    const fallbackUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
-    
     // Update cache
     cache[domain] = {
-      url: fallbackUrl,
+      url: googleUrl,
       timestamp: Date.now()
     };
     saveCache(cache);
 
     return {
-      url: fallbackUrl,
-      source: "fallback",
-      error: "Primary logo source unavailable, using fallback"
+      url: googleUrl,
+      source: "google"
     };
+
   } catch (error) {
-    const fallbackUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+    // Fallback to DuckDuckGo if Google fails
+    const ddgUrl = `https://external-content.duckduckgo.com/ip3/${domain}.ico`;
     return {
-      url: fallbackUrl,
-      source: "fallback",
-      error: "Error fetching logo, using fallback"
+      url: ddgUrl,
+      source: "duckduckgo",
+      error: "Primary logo source unavailable, using fallback"
     };
   }
 }
@@ -165,7 +155,7 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
  */
 export function clearLogoCache(): void {
   if (!isBrowser) return;
-  
+
   try {
     localStorage.removeItem(CACHE_KEY);
   } catch (error) {

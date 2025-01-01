@@ -1,6 +1,6 @@
 /**
  * Experience Data
- * 
+ *
  * Contains work history and professional experience data.
  * Used to populate the experience section of the portfolio.
  */
@@ -13,7 +13,7 @@ export const experiences: Experience[] = [
     company: 'aVenture',
     period: '2020 - PRESENT',
     role: 'Founder & CEO - Building a platform to make venture capital accessible to everyone, normalizing its role in modern portfolio management.',
-    logo: 'https://williamcallahan.com/wp-content/uploads/2023/10/aVenture.svg',
+    logo: '/images/aVenture Favicon.png',  // Using local logo file with correct name
     website: 'https://aventure.vc'
   },
   {
@@ -21,7 +21,7 @@ export const experiences: Experience[] = [
     company: 'TS Bank',
     period: '2021 - 2022',
     role: 'Director of Innovation - Led digital transformation initiatives and fintech partnerships to modernize banking services.',
-    logo: 'https://williamcallahan.com/wp-content/uploads/2023/10/TSBank.svg',
+    logo: undefined,  // Will use website for logo fetching
     website: 'https://www.tsbank.com'
   },
   {
@@ -29,7 +29,7 @@ export const experiences: Experience[] = [
     company: 'SeekInvest',
     period: '2021 - PRESENT',
     role: 'Founder & CEO - Developing innovative investment research tools and portfolio management solutions.',
-    logo: 'https://williamcallahan.com/wp-content/uploads/2023/10/SeekInvest.svg',
+    logo: undefined,  // Will use website for logo fetching
     website: 'https://www.seekinvest.com'
   },
   {
@@ -37,7 +37,7 @@ export const experiences: Experience[] = [
     company: 'Callahan Financial Planning',
     period: '2018 - 2020',
     role: 'Investment Advisor - Provided comprehensive financial planning and investment management services.',
-    logo: 'https://williamcallahan.com/wp-content/uploads/2023/10/CallahanFinancial.svg',
+    logo: undefined,  // Will use website for logo fetching
     website: 'https://callahanplanning.com'
   },
   {
@@ -45,7 +45,7 @@ export const experiences: Experience[] = [
     company: 'Mutual First Federal Credit Union',
     period: '2016 - 2018',
     role: 'Financial Advisor - Guided members through investment decisions and retirement planning.',
-    logo: 'https://williamcallahan.com/wp-content/uploads/2023/10/MutualFirst.svg',
+    logo: undefined,  // Will use website for logo fetching
     website: 'https://mutualfirst.com'
   },
   {
@@ -53,7 +53,7 @@ export const experiences: Experience[] = [
     company: 'Morningstar',
     period: '2014 - 2016',
     role: 'Investment Research Analyst - Conducted in-depth analysis of investment products and market trends.',
-    logo: 'https://williamcallahan.com/wp-content/uploads/2023/10/Morningstar.svg',
+    logo: undefined,  // Will use website for logo fetching
     website: 'https://morningstar.com'
   }
 ];
