@@ -3,8 +3,9 @@
  * Displays investment information with logo, status, and details
  */
 
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import { AcceleratorBadge, LogoImage } from '../../../components/ui';
+import { ExternalLink } from '../../../components/ui/external-link';
 import type { Investment } from '../../../types/investment';
 
 interface InvestmentCardProps {
@@ -27,28 +28,43 @@ export function InvestmentCard({ investment }: InvestmentCardProps) {
       <div className="p-6">
         <div className="flex items-start gap-6">
           <div className="w-16 h-16 relative flex-shrink-0">
-            <LogoImage
-              company={investment.name}
-              logoUrl={investment.logo}
-              website={investment.website}
-              width={64}
-              height={64}
-              className="object-contain rounded-lg"
-            />
+            <ExternalLink
+              href={investment.website}
+              title={investment.name}
+              rawTitle={true}
+              showIcon={false}
+            >
+              <LogoImage
+                company={investment.name}
+                logoUrl={investment.logo}
+                website={investment.website}
+                width={64}
+                height={64}
+                className="object-contain rounded-lg"
+                alt={investment.name}
+              />
+            </ExternalLink>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <h3 className="text-xl font-semibold">{investment.name}</h3>
+              <div className="flex items-center gap-1">
+                <ExternalLink
+                  href={investment.website}
+                  title={`Visit ${investment.name}'s website`}
+                  showIcon={false}
+                  className="text-xl font-semibold hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  {investment.name}
+                </ExternalLink>
                 {investment.website && (
-                  <a
+                  <ExternalLink
                     href={investment.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    title={`Visit ${investment.name}'s website`}
+                    showIcon={false}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
+                    <ExternalLinkIcon className="w-4 h-4" />
+                  </ExternalLink>
                 )}
               </div>
               <span className="text-sm text-gray-500 dark:text-gray-400">
@@ -75,7 +91,7 @@ export function InvestmentCard({ investment }: InvestmentCardProps) {
               </span>
             </div>
             {investment.details && (
-              <div className="grid grid-cols-2 gap-4">
+              <dl className="grid grid-cols-2 gap-4">
                 {investment.details.map((detail) => (
                   <div key={`${investment.id}-${detail.label}`}>
                     <dt className="text-xs text-gray-500 dark:text-gray-400 mb-1">
@@ -86,7 +102,7 @@ export function InvestmentCard({ investment }: InvestmentCardProps) {
                     </dd>
                   </div>
                 ))}
-              </div>
+              </dl>
             )}
           </div>
         </div>
