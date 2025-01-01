@@ -6,78 +6,96 @@ import type { Education, Certification } from "@/types/education";
 
 export const education: Education[] = [
   {
+    id: 'creighton-mimfa',
+    institution: 'Creighton University',
+    degree: 'Master of Investment Management & Financial Analysis (MIMFA)',
+    year: '2016',
+    logo: undefined,
+    website: 'https://www.creighton.edu',
+    location: 'Omaha, Nebraska'
+  },
+  {
     id: 'creighton-mba',
     institution: 'Creighton University',
     degree: 'Master of Business Administration (MBA)',
     year: '2016',
-    // Using website for logo fetching
     logo: undefined,
-    website: 'https://www.creighton.edu'
-  },
-  {
-    id: 'creighton-mimfa',
-    institution: 'Creighton University',
-    degree: 'Master of Investment Management & Financial Analysis (MIMFA)',
-    year: '2011',
-    // Using website for logo fetching
-    logo: undefined,
-    website: 'https://www.creighton.edu'
+    website: 'https://www.creighton.edu',
+    location: 'Omaha, Nebraska'
   },
   {
     id: 'uno-bsba',
-    institution: 'University of Nebraska at Omaha',
+    institution: 'University of Nebraska',
     degree: 'BSBA in Corporate Finance, Banking & Financial Markets, Investment Science & Portfolio Management',
     year: '2011',
-    // Using website for logo fetching
     logo: undefined,
-    website: 'https://www.unomaha.edu'
+    website: 'https://www.unomaha.edu',
+    location: 'Omaha, Nebraska'
   }
 ];
 
 export const certifications: Certification[] = [
   {
-    id: 'mit-ai',
-    institution: 'MIT',
-    name: 'Designing and Building AI Products and Services',
-    year: '2023',
-    // Using website for logo fetching
+    id: 'stanford-ml',
+    institution: 'Stanford University',
+    name: 'Machine Learning for Business with Python',
+    year: '2024',
     logo: undefined,
-    website: 'https://www.mit.edu'
+    website: 'https://www.stanford.edu',
+    location: 'Stanford, California'
+  },
+  {
+    id: 'stanford-llm',
+    institution: 'Stanford University',
+    name: 'Large Language Models for Business with Python',
+    year: '2024',
+    logo: undefined,
+    website: 'https://www.stanford.edu',
+    location: 'Stanford, California'
+  },
+  {
+    id: 'stanford-ai-design',
+    institution: 'Stanford University',
+    name: 'User-Centered Design for AI Applications',
+    year: '2024',
+    logo: undefined,
+    website: 'https://www.stanford.edu',
+    location: 'Stanford, California'
   },
   {
     id: 'columbia-vc',
     institution: 'Columbia Business School',
     name: 'Executive Education – Venture Capital Decision Making',
     year: '2022',
-    // Using website for logo fetching
     logo: undefined,
-    website: 'https://www8.gsb.columbia.edu'
+    website: 'https://www8.gsb.columbia.edu',
+    location: 'New York, New York'
   },
   {
     id: 'berkeley-vc',
     institution: 'University of California Berkeley',
     name: 'Certification in Startup Law & Venture Capital Investing',
-    year: '2016',
-    // Using website for logo fetching
+    year: '2022',
     logo: undefined,
-    website: 'https://www.berkeley.edu'
+    website: 'https://www.berkeley.edu',
+    location: 'Berkeley, California'
   },
   {
     id: 'cfa',
     institution: 'CFA Institute',
     name: 'Chartered Financial Analyst (CFA) Charterholder',
     year: '2012',
-    // Using website for logo fetching
     logo: undefined,
-    website: 'https://www.cfainstitute.org'
+    website: 'https://www.cfainstitute.org',
+    location: 'Charlottesville, Virginia'
   },
   {
     id: 'cfp',
     institution: 'CFP Board',
-    name: 'Certified Financial Planner (CFP) Professional (NYU)',
+    name: 'Certified Financial Planner (CFP) Professional Certification',
     year: '2012',
-    // Using website for logo fetching
     logo: undefined,
-    website: 'https://www.cfp.net'
+    website: 'https://www.cfp.net',
+    location: 'Washington, D.C.'
   }
 ];

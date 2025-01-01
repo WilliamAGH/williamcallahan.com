@@ -3,6 +3,7 @@
 import type { ComponentProps } from 'react';
 import { MDXRemote } from 'next-mdx-remote';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
+import { CodeBlock } from '../../../ui/code-block';
 
 /**
  * Props for the MDXContent component
@@ -29,9 +30,9 @@ export const MDXContent: React.FC<MDXContentProps> = ({ content }) => {
         {...content}
         components={{
           pre: ({ children, ...props }: ComponentProps<'pre'>) => (
-            <pre className="not-prose rounded-lg overflow-x-auto bg-gray-800 p-4 text-gray-100" {...props}>
+            <CodeBlock {...props}>
               {children}
-            </pre>
+            </CodeBlock>
           ),
           code: ({ children, ...props }: ComponentProps<'code'>) => (
             <code className="text-gray-100" {...props}>

@@ -23,6 +23,8 @@ interface ExternalLinkProps {
   className?: string;
   /** Title to show on hover */
   title?: string;
+  /** When true, uses the title text exactly as provided without adding "Visit" prefix */
+  rawTitle?: boolean;
 }
 
 /**
@@ -47,7 +49,8 @@ export function ExternalLink({
   children,
   showIcon = true,
   className = "",
-  title
+  title,
+  rawTitle = false
 }: ExternalLinkProps): JSX.Element {
   const baseClassName = `inline-flex items-center gap-1 ${className}`;
 
@@ -66,7 +69,7 @@ export function ExternalLink({
       target="_blank"
       rel="noopener noreferrer"
       className={`${baseClassName} hover:text-gray-600 dark:hover:text-gray-300 transition-colors`}
-      title={title || `Visit ${href} (opens in new tab)`}
+      title={rawTitle ? title : (title || `Visit ${href} (opens in new tab)`)}
     >
       {children}
       {showIcon && (
