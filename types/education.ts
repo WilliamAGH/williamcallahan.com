@@ -19,6 +19,8 @@ export interface Education {
   logo?: string;
   /** Optional URL to the institution's website */
   website?: string;
+  /** Optional location of the institution */
+  location?: string;
 }
 
 /**
@@ -37,4 +39,6 @@ export interface Certification {
   logo?: string;
   /** Optional URL to verify the certification or institution website */
   website?: string;
+  /** Optional location of the certifying institution */
+  location?: string;
 }

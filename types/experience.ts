@@ -12,4 +12,6 @@ export interface Experience {
   logo?: string;
   website?: string;
   accelerator?: Accelerator;
+  /** Optional location of the company */
+  location?: string;
 }

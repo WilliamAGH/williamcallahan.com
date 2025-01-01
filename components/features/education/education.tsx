@@ -19,10 +19,10 @@ export function Education() {
             <h1 className="text-xl font-mono ml-4">~/education</h1>
           </div>
         </div>
-        
+
         <div className="p-6">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold mb-6">Education</h2>
+            <h2 className="text-2xl font-bold mb-6">University Degrees</h2>
             <div className="space-y-6">
               {education.map((edu) => (
                 <EducationCard key={edu.id} {...edu} />
@@ -31,7 +31,7 @@ export function Education() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold mb-6">Certifications</h2>
+            <h2 className="text-2xl font-bold mb-6">Certifications & Continuing Studies</h2>
             <div className="space-y-6">
               {certifications.map((cert) => (
                 <CertificationCard key={cert.id} {...cert} />

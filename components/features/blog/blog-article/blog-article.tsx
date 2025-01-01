@@ -5,6 +5,10 @@
  *
  * Displays a full blog post with responsive layout and proper
  * content formatting across all device sizes.
+ *
+ * Images in blog articles should maintain a 2:1 aspect ratio (e.g. 800x400)
+ * for optimal display and consistency across the site. This applies to both
+ * cover images and inline images within the content.
  */
 
 import Image from 'next/image';
