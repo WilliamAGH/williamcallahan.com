@@ -26,14 +26,6 @@ async function getLogoData(website: string | undefined, name: string, logo: stri
     };
   }
 
-  // During build/production, return placeholder immediately
-  if (process.env.NODE_ENV === 'production') {
-    return {
-      url: '/images/company-placeholder.svg',
-      source: null
-    };
-  }
-
   try {
     // Try to get from server cache first
     const domain = website
@@ -50,10 +42,11 @@ async function getLogoData(website: string | undefined, name: string, logo: stri
       };
     }
 
-    // If not in cache, fetch it server-side
+    // If not in cache, fetch it server-side using relative URL
     const apiUrl = `/api/logo?${website ? `website=${encodeURIComponent(website)}` : `company=${encodeURIComponent(name)}`}`;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-    const response = await fetch(`${siteUrl}${apiUrl}`, {
+
+    // Use relative URL for internal API calls
+    const response = await fetch(apiUrl, {
       redirect: 'manual', // Don't follow redirects
       next: { revalidate: 3600 } // Cache for 1 hour
     });
@@ -105,8 +98,8 @@ async function getLogoData(website: string | undefined, name: string, logo: stri
  * @param {Investment} props - Investment entry properties
  * @returns {Promise<JSX.Element>} Pre-rendered investment card with server-fetched logo
  */
-// Force static generation
-export const dynamic = 'force-static';
+// Enable dynamic rendering to allow API calls during server-side rendering
+export const dynamic = 'force-dynamic';
 
 export async function InvestmentCard(props: Investment): Promise<JSX.Element> {
   const { website, name, logo } = props;

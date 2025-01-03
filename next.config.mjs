@@ -17,6 +17,7 @@ const nextConfig = {
 
     return config;
   },
+  // Keep standalone output for Docker deployments
   output: 'standalone',
   reactStrictMode: true,
   swcMinify: true,

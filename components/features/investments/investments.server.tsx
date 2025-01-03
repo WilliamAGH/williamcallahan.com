@@ -23,8 +23,8 @@ interface InvestmentsProps {
  * @param {InvestmentsProps} props - Component properties
  * @returns {Promise<JSX.Element>} Pre-rendered investments section with server-fetched logos
  */
-// Force static generation
-export const dynamic = 'force-static';
+// Enable dynamic rendering to allow API calls during server-side rendering
+export const dynamic = 'force-dynamic';
 
 export async function Investments({ investments = [] }: InvestmentsProps): Promise<JSX.Element> {
   // Pre-render each investment card on the server

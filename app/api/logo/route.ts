@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { ServerCache } from '../../../lib/server-cache';
-import { LOGO_SOURCES, GENERIC_GLOBE_PATTERNS, API_BASE_URL, LOGO_SIZES } from '../../../lib/constants';
+import { LOGO_SOURCES, GENERIC_GLOBE_PATTERNS, LOGO_SIZES } from '../../../lib/constants';
 import sharp from 'sharp';
 import fs from 'fs/promises';
 import path from 'path';
@@ -191,22 +191,21 @@ async function fetchAndValidateImage(url: string): Promise<{
     const formData = new FormData();
     formData.append('image', new Blob([processedBuffer], { type: isSvg ? 'image/svg+xml' : 'image/png' }));
 
-    // Send to validation API using absolute URL
-    const validationUrl = new URL('/api/validate-logo', API_BASE_URL).toString();
-    const validationResponse = await fetch(validationUrl, {
+    // Send to validation API using relative URL
+    const response2 = await fetch('/api/validate-logo', {
       method: 'POST',
       body: formData,
       next: { revalidate: 3600 } // Cache for 1 hour
     });
 
-    if (!validationResponse.ok) {
+    if (!response2.ok) {
       if (process.env.NODE_ENV === 'development') {
-        console.debug('Logo validation API error:', validationResponse.status);
+        console.debug('Logo validation API error:', response2.status);
       }
       return { valid: false, error: 'Validation failed' };
     }
 
-    const { isGlobeIcon } = await validationResponse.json();
+    const { isGlobeIcon } = await response2.json();
     return { valid: !isGlobeIcon, buffer: !isGlobeIcon ? processedBuffer : undefined };
   } catch (error) {
     if (error instanceof Error) {
