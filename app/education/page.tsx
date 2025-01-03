@@ -27,6 +27,9 @@ export const metadata: Metadata = {
   },
 };
 
+// Force static generation
+export const revalidate = false;
+
 export default function EducationPage() {
   return <Education />;
 }

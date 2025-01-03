@@ -2,56 +2,71 @@
  * Education Server Component
  * @module components/features/education/education.server
  * @description
- * Server component that handles pre-fetching of logos and data for the education section.
- * This component fetches and processes all logos on the server side before passing
- * the pre-rendered cards to the client component.
- *
- * @example
- * ```tsx
- * // In a page component
- * export default function Page() {
- *   return <Education />;
- * }
- * ```
+ * Server component that handles pre-rendering education and certification cards.
  */
 
-import { EducationCard } from '../../../components/features/education/education-card.server';
-import { CertificationCard } from '../../../components/features/education/certification-card.server';
-import { education, certifications, highlightedCertifications } from '../../../data/education';
-import { EducationClient } from '../../../components/features/education/education.client';
+import { WindowControls } from "../../../components/ui/navigation/window-controls";
+import { EducationCard } from "./education-card.server";
+import { CertificationCard } from "./certification-card.server";
+import { education, certifications } from "../../../data/education";
+import type { Education as EducationType, Certification } from "../../../types/education";
 
-/**
- * Education Server Component
- * @returns {Promise<JSX.Element>} Pre-rendered education section with server-fetched logos
- */
+// Force static generation
+export const dynamic = 'force-static';
+
 export async function Education(): Promise<JSX.Element> {
-  // Pre-fetch all logos on the server
-  const educationWithLogos = await Promise.all(
-    education.map(async (edu) => {
-      const card = await EducationCard(edu);
-      return { ...edu, card };
-    })
+  // Pre-render education cards
+  const educationCards = await Promise.all(
+    education.map(async (edu: EducationType) => ({
+      ...edu,
+      card: await EducationCard(edu)
+    }))
   );
 
-  const highlightedCertsWithLogos = await Promise.all(
-    highlightedCertifications.map(async (cert) => {
-      const card = await CertificationCard(cert);
-      return { ...cert, card };
-    })
-  );
-
-  const certificationsWithLogos = await Promise.all(
-    certifications.map(async (cert) => {
-      const card = await CertificationCard(cert);
-      return { ...cert, card };
-    })
+  // Pre-render certification cards
+  const certificationCards = await Promise.all(
+    certifications.map(async (cert: Certification) => ({
+      ...cert,
+      card: await CertificationCard(cert)
+    }))
   );
 
   return (
-    <EducationClient
-      education={educationWithLogos}
-      highlightedCertifications={highlightedCertsWithLogos}
-      certifications={certificationsWithLogos}
-    />
+    <div className="max-w-5xl mx-auto mt-8">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+        <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
+          <div className="flex items-center">
+            <WindowControls />
+            <h1 className="text-xl font-mono ml-4">~/education</h1>
+          </div>
+        </div>
+
+        <div className="p-6">
+          {/* Education Section */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-6">Education</h2>
+            <div className="space-y-6">
+              {educationCards.map((edu) => (
+                <div key={edu.institution}>
+                  {edu.card}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Certifications Section */}
+          <div>
+            <h2 className="text-2xl font-bold mb-6">Certifications</h2>
+            <div className="space-y-6">
+              {certificationCards.map((cert) => (
+                <div key={cert.name}>
+                  {cert.card}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

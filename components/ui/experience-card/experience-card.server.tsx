@@ -6,12 +6,6 @@ import { ExperienceCardClient } from '../../../components/ui/experience-card/exp
  * Get logo data for an experience entry
  * @param {string | undefined} website - Company website URL
  * @param {string} company - Company name
- * @returns {Promise<{url: string, source: string | null}>} Logo data with URL and source
- */
-/**
- * Get logo data for an experience entry
- * @param {string | undefined} website - Company website URL
- * @param {string} company - Company name
  * @param {string | undefined} logo - Optional direct logo URL
  * @returns {Promise<{url: string, source: string | null}>} Logo data with URL and source
  */
@@ -40,7 +34,15 @@ async function getLogoData(website: string | undefined, company: string, logo: s
       };
     }
 
-    // If not in cache, fetch it server-side
+    // During build, return placeholder immediately since we can't fetch
+    if (process.env.NODE_ENV === 'production') {
+      return {
+        url: '/images/company-placeholder.svg',
+        source: null
+      };
+    }
+
+    // If not in cache, fetch it server-side (development only)
     const apiUrl = `/api/logo?${website ? `website=${encodeURIComponent(website)}` : `company=${encodeURIComponent(company)}`}`;
     const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}${apiUrl}`);
 
@@ -81,6 +83,9 @@ async function getLogoData(website: string | undefined, company: string, logo: s
  * @param {Experience} props - Experience entry properties
  * @returns {Promise<JSX.Element>} Pre-rendered experience card with server-fetched logo
  */
+// Force static generation
+export const dynamic = 'force-static';
+
 export async function ExperienceCard(props: Experience): Promise<JSX.Element> {
   const { website, company, logo } = props;
   const logoData = await getLogoData(website, company, logo);
