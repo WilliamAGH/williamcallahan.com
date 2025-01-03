@@ -34,9 +34,9 @@ function validateUrl(urlString: string): string {
  * @param {NextRequest} request - Incoming request
  * @returns {Promise<NextResponse>} API response with inverted image
  */
-// Force static generation
-export const dynamic = 'force-static';
-export const revalidate = false;
+// Configure dynamic API route with caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 3600; // Cache for 1 hour
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
@@ -57,15 +57,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     const url = validateUrl(urlParam);
-
-    // During build, return original URL
-    if (process.env.NODE_ENV === 'production') {
-      return NextResponse.redirect(url, {
-        headers: {
-          'Cache-Control': 'public, max-age=31536000' // 1 year
-        }
-      });
-    }
 
     // Get cached inverted version if available
     const cacheKey = `${url}-${isDarkTheme ? 'dark' : 'light'}`;
@@ -160,18 +151,6 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    // During build, return no inversion needed
-    if (process.env.NODE_ENV === 'production') {
-      return new NextResponse(null, {
-        headers: {
-          'X-Needs-Inversion': 'false',
-          'X-Has-Transparency': 'false',
-          'X-Brightness': '128',
-          'Cache-Control': 'public, max-age=31536000'
-        }
-      });
-    }
-
     const url = validateUrl(urlParam);
 
     // Check cache first

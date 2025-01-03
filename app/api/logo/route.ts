@@ -13,6 +13,7 @@ import { LOGO_SOURCES, GENERIC_GLOBE_PATTERNS, API_BASE_URL, LOGO_SIZES } from '
 import sharp from 'sharp';
 import fs from 'fs/promises';
 import path from 'path';
+import { createHash } from 'crypto';
 
 // Cache for placeholder SVG
 let placeholderSvg: Buffer | null = null;
@@ -26,6 +27,80 @@ async function getPlaceholder(): Promise<Buffer> {
     placeholderSvg = await fs.readFile(path.join(process.cwd(), 'public/images/company-placeholder.svg'));
   }
   return placeholderSvg;
+}
+
+/**
+ * Generate a hash for the domain to use as filename
+ * @param {string} domain - Domain to hash
+ * @returns {string} Hashed filename
+ */
+function getDomainHash(domain: string): string {
+  return createHash('md5').update(domain).digest('hex');
+}
+
+/**
+ * Get the path for storing a logo
+ * @param {string} domain - Domain the logo is for
+ * @param {string} source - Source of the logo (google, clearbit, etc.)
+ * @returns {string} Path to store the logo
+ */
+function getLogoPath(domain: string, source: string): string {
+  const hash = getDomainHash(domain);
+  return path.join(process.cwd(), 'public', 'logos', `${hash}-${source}.png`);
+}
+
+/**
+ * Ensure the logos directory exists
+ * @returns {Promise<boolean>} Whether the directory is available and writable
+ */
+async function ensureLogosDirectory(): Promise<boolean> {
+  const logosDir = path.join(process.cwd(), 'public', 'logos');
+  try {
+    // Try to access or create the directory
+    try {
+      await fs.access(logosDir);
+    } catch {
+      await fs.mkdir(logosDir, { recursive: true });
+    }
+
+    // Verify we can write to the directory
+    const testFile = path.join(logosDir, '.write-test');
+    await fs.writeFile(testFile, '');
+    await fs.unlink(testFile);
+    return true;
+  } catch (error) {
+    console.warn('Logo directory not writable:', error);
+    return false;
+  }
+}
+
+/**
+ * Try to read a logo from disk
+ * @param {string} logoPath - Path to the logo file
+ * @returns {Promise<Buffer | null>} Logo buffer or null if not found/readable
+ */
+async function readLogoFromDisk(logoPath: string): Promise<Buffer | null> {
+  try {
+    return await fs.readFile(logoPath);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Try to write a logo to disk
+ * @param {string} logoPath - Path to write the logo
+ * @param {Buffer} buffer - Logo data to write
+ * @returns {Promise<boolean>} Whether the write was successful
+ */
+async function writeLogoToDisk(logoPath: string, buffer: Buffer): Promise<boolean> {
+  try {
+    await fs.writeFile(logoPath, buffer);
+    return true;
+  } catch (error) {
+    console.warn('Failed to write logo to disk:', error);
+    return false;
+  }
 }
 
 /**
@@ -200,9 +275,9 @@ async function tryLogoSources(domain: string): Promise<{
  * @param {NextRequest} request - Incoming request
  * @returns {Promise<NextResponse>} API response
  */
-// Force static generation
-export const dynamic = 'force-static';
-export const revalidate = false;
+// Configure dynamic API route with caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 3600; // Cache for 1 hour
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
@@ -228,6 +303,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     } else {
       domain = company!.toLowerCase().replace(/\s+/g, '');
     }
+
+    // Check if filesystem storage is available
+    const hasFileSystem = await ensureLogosDirectory();
 
     // Check cache first
     const cached = ServerCache.getLogoFetch(domain);
@@ -257,9 +335,39 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Check filesystem if available
+    if (hasFileSystem) {
+      for (const source of ['google', 'clearbit', 'duckduckgo']) {
+        const logoPath = getLogoPath(domain, source);
+        const buffer = await readLogoFromDisk(logoPath);
+        if (buffer) {
+          // Update memory cache with the stored logo
+          ServerCache.setLogoFetch(domain, {
+            url: null,
+            source: source as any,
+            buffer
+          });
+          return new NextResponse(buffer, {
+            headers: {
+              'Content-Type': 'image/png',
+              'Cache-Control': 'public, max-age=31536000',
+              'x-logo-source': source
+            }
+          });
+        }
+      }
+    }
+
     // Try to fetch logo from sources
     const result = await tryLogoSources(domain);
-    if (result.valid && result.buffer) {
+    if (result.valid && result.buffer && result.source) {
+      // Try to store on filesystem if available
+      if (hasFileSystem) {
+        const logoPath = getLogoPath(domain, result.source);
+        await writeLogoToDisk(logoPath, result.buffer);
+      }
+
+      // Update memory cache
       ServerCache.setLogoFetch(domain, {
         url: null,
         source: result.source as any,
