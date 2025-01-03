@@ -23,7 +23,7 @@ const customJestConfig = {
     '<rootDir>/node_modules/',
   ],
   transformIgnorePatterns: [
-    '/node_modules/',
+    '/node_modules/(?!(node-fetch)/)',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
   globals: {

@@ -1,12 +1,19 @@
-import { TextEncoder, TextDecoder } from 'util';
-import { Headers, Request, Response } from 'node-fetch';
+import { TextEncoder, TextDecoder } from 'node:util';
+import fetch, { Headers, Request, Response } from 'node-fetch';
+import type { Headers as NodeFetchHeaders, Request as NodeFetchRequest, Response as NodeFetchResponse } from 'node-fetch';
 
 // Polyfill globals
 global.TextEncoder = TextEncoder;
-global.TextDecoder = TextDecoder as any;
-global.Headers = Headers as any;
-global.Request = Request as any;
-global.Response = Response as any;
+// @ts-expect-error: Different TextDecoder implementations
+global.TextDecoder = TextDecoder;
+// @ts-expect-error: Different Headers implementations
+global.Headers = Headers;
+// @ts-expect-error: Different Request implementations
+global.Request = Request;
+// @ts-expect-error: Different Response implementations
+global.Response = Response;
+// @ts-expect-error: Different fetch implementations
+global.fetch = fetch;
 
 // Mock Next.js modules
 jest.mock('next/server', () => ({
