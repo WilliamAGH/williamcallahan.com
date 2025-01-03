@@ -35,6 +35,16 @@ export interface Education extends EducationBase {
 }
 
 /**
+ * Class entry
+ * @interface
+ * @extends {EducationBase}
+ */
+export interface Class extends EducationBase {
+  /** Class name */
+  name: string;
+}
+
+/**
  * Certification entry
  * @interface
  * @extends {EducationBase}

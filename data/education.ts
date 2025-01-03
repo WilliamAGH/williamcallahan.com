@@ -2,9 +2,9 @@
  * Education Data
  */
 
-import type { Education, Certification } from 'types/education';
+import type { Education, Certification, Class } from 'types/education';
 
-export const highlightedCertifications: Certification[] = [
+export const recentCourses: Class[] = [
   {
     id: 'de-anza-data-structures',
     institution: 'De Anza College',
@@ -125,6 +125,7 @@ export const certifications: Certification[] = [
     id: 'cfa',
     institution: 'CFA Institute',
     name: 'Chartered Financial Analyst (CFA) Charterholder',
+    logo: '/images/cfa_institute_logo.png',
     year: '2012',
     website: 'https://www.cfainstitute.org',
     location: 'Charlottesville, Virginia'

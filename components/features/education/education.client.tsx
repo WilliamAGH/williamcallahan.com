@@ -11,14 +11,14 @@
  * ```tsx
  * <EducationClient
  *   education={educationWithLogos}
- *   highlightedCertifications={highlightedCertsWithLogos}
+ *   recentCourses={recentCoursesWithLogos}
  *   certifications={certificationsWithLogos}
  * />
  * ```
  */
 
 import { WindowControls } from '../../../components/ui/navigation/window-controls';
-import type { Education, Certification } from '../../../types/education';
+import type { Education, Certification, Class } from '../../../types/education';
 
 /**
  * Props for the Education Client Component
@@ -26,10 +26,10 @@ import type { Education, Certification } from '../../../types/education';
  */
 interface EducationClientProps {
   /** Education entries with pre-rendered cards */
-  /** Highlighted certification entries with pre-rendered cards */
+  /** Recent course entries with pre-rendered cards */
   /** Regular certification entries with pre-rendered cards */
   education: (Education & { card: JSX.Element })[];
-  highlightedCertifications: (Certification & { card: JSX.Element })[];
+  recentCourses: (Class & { card: JSX.Element })[];
   certifications: (Certification & { card: JSX.Element })[];
 }
 
@@ -40,7 +40,7 @@ interface EducationClientProps {
  */
 export function EducationClient({
   education,
-  highlightedCertifications,
+  recentCourses,
   certifications
 }: EducationClientProps) {
   return (
@@ -57,8 +57,8 @@ export function EducationClient({
           <div className="mb-8">
             <h2 className="text-2xl font-bold mb-6">Highlighted & Recent Courses</h2>
             <div className="space-y-6">
-              {highlightedCertifications.map((cert) => (
-                <div key={cert.id}>{cert.card}</div>
+              {recentCourses.map((course) => (
+                <div key={course.id}>{course.card}</div>
               ))}
             </div>
           </div>

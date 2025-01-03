@@ -8,8 +8,8 @@
 import { WindowControls } from "../../../components/ui/navigation/window-controls";
 import { EducationCard } from "./education-card.server";
 import { CertificationCard } from "./certification-card.server";
-import { education, certifications } from "../../../data/education";
-import type { Education as EducationType, Certification } from "../../../types/education";
+import { education, certifications, recentCourses } from "../../../data/education";
+import type { Education as EducationType, Certification, Class } from "../../../types/education";
 
 // Force static generation
 export const dynamic = 'force-static';
@@ -20,6 +20,14 @@ export async function Education(): Promise<JSX.Element> {
     education.map(async (edu: EducationType) => ({
       ...edu,
       card: await EducationCard(edu)
+    }))
+  );
+
+  // Pre-render recent course cards
+  const recentCourseCards = await Promise.all(
+    recentCourses.map(async (course: Class) => ({
+      ...course,
+      card: await CertificationCard(course)
     }))
   );
 
@@ -42,6 +50,18 @@ export async function Education(): Promise<JSX.Element> {
         </div>
 
         <div className="p-6">
+          {/* Recent Courses Section */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-6">Highlighted & Recent Courses</h2>
+            <div className="space-y-6">
+              {recentCourseCards.map((course) => (
+                <div key={course.id}>
+                  {course.card}
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Education Section */}
           <div className="mb-8">
             <h2 className="text-2xl font-bold mb-6">Education</h2>
