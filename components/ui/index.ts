@@ -11,7 +11,7 @@ export { CodeBlock } from './code-block';
 export { CopyButton } from './copy-button';
 export { ExternalLink } from './external-link';
 export { default as FinancialMetrics } from './financial-metrics';
-export { default as LogoImage } from './logo-image';
+export { LogoImage } from './logo-image';
 export { MDXTable } from './mdx-table';
 export { ThemeToggle } from './theme-toggle';
 

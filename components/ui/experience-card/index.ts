@@ -1,1 +1,1 @@
-export { ExperienceCard } from './experience-card';
+export { ExperienceCard } from './experience-card.server';

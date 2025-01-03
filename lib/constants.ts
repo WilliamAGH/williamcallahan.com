@@ -24,6 +24,18 @@ export const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000;
 export const SERVER_CACHE_DURATION = 30 * 24 * 60 * 60;
 
 /**
+ * Cache duration for logo fetching
+ * @constant
+ * @type {Object}
+ */
+export const LOGO_CACHE_DURATION = {
+  /** Success cache duration (30 days in seconds) */
+  SUCCESS: 30 * 24 * 60 * 60,
+  /** Failed attempt cache duration (1 day in seconds) */
+  FAILURE: 24 * 60 * 60
+} as const;
+
+/**
  * Base URL for API endpoints
  * @constant
  * @type {string}

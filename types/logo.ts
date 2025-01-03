@@ -131,6 +131,17 @@ export interface LogoCache {
 }
 
 /**
+ * Logo data passed from server to client components
+ * @interface
+ */
+export interface LogoData {
+  /** URL of the logo image */
+  url: string;
+  /** Source of the logo (e.g., 'google', 'clearbit', etc.) */
+  source: string | null;
+}
+
+/**
  * Configuration options for logo display
  * @description Controls how a logo is displayed, including theme-based inversion
  * and fallback behavior

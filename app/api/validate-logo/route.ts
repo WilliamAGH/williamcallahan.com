@@ -46,10 +46,21 @@ async function getImageHash(buffer: Buffer): Promise<string> {
 async function compareImages(image1: Buffer, image2: Buffer): Promise<boolean> {
   try {
     // Validate image formats first
-    const [meta1, meta2] = await Promise.all([
-      sharp(image1).metadata(),
-      sharp(image2).metadata()
-    ]);
+    let meta1, meta2;
+    try {
+      [meta1, meta2] = await Promise.all([
+        sharp(image1).metadata(),
+        sharp(image2).metadata()
+      ]);
+    } catch (error) {
+      console.error('Error getting image metadata:', error);
+      return false;
+    }
+
+    if (!meta1 || !meta2) {
+      console.debug('Failed to get image metadata');
+      return false;
+    }
 
     // Basic format validation
     if (!meta1.format || !meta2.format ||
@@ -68,10 +79,21 @@ async function compareImages(image1: Buffer, image2: Buffer): Promise<boolean> {
     }
 
     // Convert both images to PNG for consistent comparison
-    const [norm1, norm2] = await Promise.all([
-      sharp(image1).png().toBuffer(),
-      sharp(image2).png().toBuffer()
-    ]);
+    let norm1, norm2;
+    try {
+      [norm1, norm2] = await Promise.all([
+        sharp(image1).png().toBuffer(),
+        sharp(image2).png().toBuffer()
+      ]);
+    } catch (error) {
+      console.error('Error normalizing images:', error);
+      return false;
+    }
+
+    if (!norm1 || !norm2) {
+      console.debug('Failed to normalize images');
+      return false;
+    }
 
     // Calculate perceptual hashes
     const [hash1, hash2] = await Promise.all([

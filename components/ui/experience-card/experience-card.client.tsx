@@ -1,61 +1,50 @@
-/**
- * Certification Card Component
- * Displays certification information with logo and details
- *
- * @module components/features/education/certification-card
- */
+"use client";
 
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
-import { LogoImage } from '../../../components/ui';
-import { ExternalLink } from '../../../components/ui/external-link';
-import type { Certification } from '../../../types/education';
+import { LogoImage } from '../logo-image';
+import { ExternalLink } from '../external-link';
+import type { Experience } from '../../../types/experience';
 
-/**
- * Props for the CertificationCard component
- */
-interface CertificationCardProps extends Certification {}
+interface LogoData {
+  url: string;
+  source: string | null;
+}
 
-/**
- * A component that displays certification information
- * including logo, name, and year with external linking capabilities
- *
- * @component
- * @example
- * <CertificationCard
- *   institution="AWS"
- *   name="Solutions Architect"
- *   year="2023"
- *   website="https://aws.amazon.com"
- * />
- */
-export function CertificationCard({
-  institution,
-  name,
-  year,
+interface ExperienceCardClientProps extends Experience {
+  logoData: LogoData;
+}
+
+export function ExperienceCardClient({
+  id,
+  company,
+  period,
+  role,
   website,
   location,
-  logo
-}: CertificationCardProps): JSX.Element {
+  logoData
+}: ExperienceCardClientProps): JSX.Element {
   return (
-    <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
+    <div
+      id={id}
+      className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200"
+    >
       <div className="p-6">
         <div className="flex items-start gap-6">
           <div className="w-16 h-16 relative flex-shrink-0">
             <ExternalLink
               href={website}
-              title={institution}
+              title={company}
               rawTitle={true}
               showIcon={false}
             >
               <LogoImage
-                url={logo || `/api/logo?website=${encodeURIComponent(website)}`}
+                url={logoData.url}
                 width={64}
                 height={64}
-                className="object-contain w-full h-full rounded-lg"
-                alt={institution}
-                enableInversion={true}
+                className="object-contain rounded-lg"
+                alt={company}
+                enableInversion={false}
                 showPlaceholder={true}
-                website={website}
               />
             </ExternalLink>
           </div>
@@ -64,16 +53,16 @@ export function CertificationCard({
               <div className="flex items-center gap-1">
                 <ExternalLink
                   href={website}
-                  title={`Visit ${institution}'s website`}
+                  title={`Visit ${company}'s website`}
                   showIcon={false}
                   className="text-xl font-semibold hover:text-gray-600 dark:hover:text-gray-300"
                 >
-                  {institution}
+                  {company}
                 </ExternalLink>
                 {website && (
                   <ExternalLink
                     href={website}
-                    title={`Visit ${institution}'s website`}
+                    title={`Visit ${company}'s website`}
                     showIcon={false}
                     className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
@@ -82,12 +71,12 @@ export function CertificationCard({
                 )}
               </div>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {year}
+                {period}
               </span>
             </div>
             <div className="space-y-1">
               <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                {name}
+                {role}
               </p>
               {location && (
                 <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">

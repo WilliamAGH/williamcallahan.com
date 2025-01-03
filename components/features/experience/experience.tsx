@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Experience Section Component
  *
@@ -11,7 +9,7 @@
  * @returns {JSX.Element} A styled container with experience entries
  */
 
-import { ExperienceCard } from "../../../components/ui/experience-card";
+import { ExperienceCard } from "../../../components/ui/experience-card/experience-card.server";
 import { WindowControls } from "../../../components/ui/navigation/window-controls";
 import { experiences } from "../../../data/experience";
 import type { Experience as ExperienceType } from "../../../types";
