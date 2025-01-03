@@ -4,7 +4,7 @@ import type { ComponentProps } from 'react';
 import { MDXRemote } from 'next-mdx-remote';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 import { CodeBlock } from '../../../ui/code-block';
-import { MetricsGroup } from '../../../ui/financial-metrics';
+import FinancialMetrics from '../../../ui/financial-metrics';
 
 /**
  * Props for the MDXContent component
@@ -41,7 +41,7 @@ export const MDXContent: React.FC<MDXContentProps> = ({ content }) => {
             </code>
           ),
           MetricsGroup: (props: any) => (
-            <MetricsGroup {...props} />
+            <FinancialMetrics {...props} />
           )
         }}
       />

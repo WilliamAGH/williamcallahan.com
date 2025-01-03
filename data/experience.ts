@@ -5,7 +5,7 @@
  * Used to populate the experience section of the portfolio.
  */
 
-import type { Experience } from '@/types/experience';
+import type { Experience } from '../types/experience';
 
 export const experiences: Experience[] = [
   {
@@ -22,7 +22,7 @@ export const experiences: Experience[] = [
     company: 'Techstars',
     period: '2023 - 2024',
     role: 'Received an investment from Techstars and participated in their accelerator program, focusing on pivoting aVenture to a research-based product and preparing to launch and fundraise.',
-    logo: 'images/techstars_logo.png',
+    logo: '/images/techstars_logo.png',
     website: 'https://www.techstars.com',
     location: 'New York, New York'
   },
@@ -49,7 +49,7 @@ export const experiences: Experience[] = [
     company: 'Callahan Financial Planning',
     period: '2010 - 2022',
     role: 'Founded and led an SEC-registered investment advisor - Provided comprehensive financial planning and investment advisory services, including proprietary cloud software for managing complex and nuanced data sets in such relationships. Managed $225 million in assets on acquisition.',
-    logo: undefined,
+    logo: '/images/callahan_planning_logo.png',
     website: 'https://callahanplanning.com',
     location: 'Omaha, Nebraska / San Francisco, California'
   },

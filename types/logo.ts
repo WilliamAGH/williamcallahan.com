@@ -1,47 +1,77 @@
 /**
  * Logo Types Module
- * Defines TypeScript interfaces for the logo management system
- *
  * @module types/logo
+ * @description
+ * Type definitions for logo fetching, caching, and display.
  */
 
 /**
- * Represents the result of a logo fetch operation
- * Contains the URL of the fetched logo and metadata about its source
+ * Logo source identifiers
+ */
+export type LogoSource = 'google' | 'duckduckgo' | null;
+
+/**
+ * Logo inversion analysis
+ * @interface
+ */
+export interface LogoInversion {
+  /** Whether the logo needs inversion on dark theme */
+  needsDarkInversion: boolean;
+  /** Whether the logo needs inversion on light theme */
+  needsLightInversion: boolean;
+  /** Whether the logo has transparency */
+  hasTransparency: boolean;
+  /** Average brightness value (0-255) */
+  brightness: number;
+}
+
+/**
+ * Logo fetch result
+ * @interface
  */
 export interface LogoResult {
-  /** The URL of the fetched logo image */
-  url: string;
-  /** The source service that provided the logo */
-  source: "google" | "duckduckgo" | "fallback";
-  /** Optional error message if something went wrong but a fallback was provided */
+  /** URL of the logo, or null if no valid logo found */
+  url: string | null;
+  /** Source of the logo */
+  source: LogoSource;
+  /** Error message if logo fetch failed */
   error?: string;
+  /** Inversion analysis results */
+  inversion?: LogoInversion;
+  /** Raw image buffer */
+  buffer?: Buffer;
 }
 
 /**
- * Represents the structure of the logo cache
- * Maps domain names to cached logo information
- *
- * @example
- * {
- *   "google.com": {
- *     url: "https://...",
- *     timestamp: 1234567890
- *   }
- * }
+ * Logo cache entry
+ * @interface
+ */
+export interface LogoCacheEntry extends LogoResult {
+  /** Timestamp when the cache entry was created */
+  timestamp: number;
+}
+
+/**
+ * Logo cache structure
+ * @interface
  */
 export interface LogoCache {
-  /** Domain-keyed map of cached logo data */
-  [domain: string]: {
-    /** The cached logo URL */
-    url: string;
-    /** Timestamp when the logo was cached (milliseconds since epoch) */
-    timestamp: number;
-  };
+  [domain: string]: LogoCacheEntry;
 }
 
 /**
- * Re-export education types for convenience
- * These are used in conjunction with logo handling in education-related components
+ * Logo display options
+ * @interface
  */
-export type { Education, Certification } from "./education";
+export interface LogoDisplayOptions {
+  /** Whether to invert the logo based on theme */
+  enableInversion?: boolean;
+  /** Whether the current theme is dark */
+  isDarkTheme?: boolean;
+  /** CSS classes to apply */
+  className?: string;
+  /** Alt text for the image */
+  alt?: string;
+  /** Whether to show placeholder on error */
+  showPlaceholder?: boolean;
+}

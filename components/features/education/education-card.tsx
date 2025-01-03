@@ -26,16 +26,15 @@ interface EducationCardProps extends Education {}
  *   degree="Master of Science"
  *   year="2023"
  *   website="https://mit.edu"
- *   logo="/images/mit-logo.svg"
  * />
  */
 export function EducationCard({
   institution,
-  logo,
   degree,
   year,
   website,
-  location
+  location,
+  logo
 }: EducationCardProps): JSX.Element {
   return (
     <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
@@ -49,13 +48,14 @@ export function EducationCard({
               showIcon={false}
             >
               <LogoImage
-                company={institution}
-                logoUrl={logo}
-                website={website}
+                url={logo || `/api/logo?website=${encodeURIComponent(website)}`}
                 width={64}
                 height={64}
-                className="object-contain rounded-lg"
+                className="object-contain w-full h-full rounded-lg"
                 alt={institution}
+                enableInversion={true}
+                showPlaceholder={true}
+                website={website}
               />
             </ExternalLink>
           </div>

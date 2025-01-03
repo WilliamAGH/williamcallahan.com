@@ -19,14 +19,15 @@ Warp subshells provide isolated environments where you can run commands without 
 
 Add this to your `.bashrc` or `.zshrc` file to automatically use Warp subshells when you open a new terminal session.
 
-For modern macOS:
+For modern macOS if you have JetBrains IDE(s) installed (to exclude them):
 
 ```bash
 # Warpify subshells
-printf '\eP$f{"hook": "SourcedRcFileForWarp", "value": { "shell": "zsh" }}\x9c'
-```
+if [[ "$TERM_PROGRAM" == "WarpTerminal" ]]; then
+ printf '\eP$f{"hook": "SourcedRcFileForWarp", "value": { "shell": "zsh" }}\x9c'
+fi```
 
-To have this appended to the file automatically, you can just run the following command in your terminal (for macOS):
+To have the basic config appended to the file automatically, you can just run the following command in your terminal (for macOS):
 
 ```bash
 echo 'printf '\eP$f{"hook": "SourcedRcFileForWarp", "value": { "shell": "zsh" }}\x9c'' >> ~/.zshrc
@@ -39,4 +40,4 @@ For Linux:
 printf '\eP$f{"hook": "SourcedRcFileForWarp", "value": { "shell": "bash" }}\x9c'
 ```
 
-Update: This article was originally written when Warp subshell wasn't behaving as expected, but now the standard bashrc/zshrc config files work again. The original cause/issue is unclear. See this article for further documentation on this: [Warpify Subshells](https://warp.dev/docs/subshells).
+See this article for further documentation on this: [Warpify Subshells](https://warp.dev/docs/subshells).

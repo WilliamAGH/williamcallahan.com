@@ -6,11 +6,55 @@ import type { Education, Certification } from 'types/education';
 
 export const highlightedCertifications: Certification[] = [
   {
+    id: 'de-anza-data-structures',
+    institution: 'De Anza College',
+    name: 'Data Abstractions & Structures',
+    logo: '/images/de_anza_college_logo.png',
+    year: '2025',
+    website: 'https://deanza.edu',
+    location: 'Cupertino, California'
+  },
+  {
+    id: 'san-mateo-object-oriented',
+    institution: 'College of San Mateo',
+    name: 'Object-Oriented Programming',
+    logo: '/images/college_of_san_mateo_logo.png',
+    year: '2025',
+    website: 'https://collegeofsanmateo.edu',
+    location: 'San Mateo, California'
+  },
+  {
+    id: 'san-mateo-college-python',
+    institution: 'College of San Mateo',
+    name: 'Python Programming',
+    logo: '/images/college_of_san_mateo_logo.png',
+    year: '2025',
+    website: 'https://collegeofsanmateo.edu',
+    location: 'San Mateo, California',
+  },
+  {
+    id: 'san-mateo-college-unix-linux',
+    institution: 'College of San Mateo',
+    name: 'Unix & Linux Systems',
+    logo: '/images/college_of_san_mateo_logo.png',
+    year: '2025',
+    website: 'https://collegeofsanmateo.edu',
+    location: 'San Mateo, California',
+  },
+  {
+    id: 'berkeley-front-end-development',
+    institution: 'University of California Berkeley',
+    name: 'Front-End Web Development',
+    logo: '/images/uc_berkeley_logo.png',
+    year: '2025',
+    website: 'https://www.berkeley.edu',
+    location: 'Berkeley, California'
+  },
+  {
     id: 'stanford-ml',
     institution: 'Stanford University',
     name: 'Machine Learning for Business with Python',
     year: '2024',
-    logo: undefined,
     website: 'https://www.stanford.edu',
     location: 'Stanford, California'
   },
@@ -19,7 +63,6 @@ export const highlightedCertifications: Certification[] = [
     institution: 'Stanford University',
     name: 'Large Language Models for Business with Python',
     year: '2024',
-    logo: undefined,
     website: 'https://www.stanford.edu',
     location: 'Stanford, California'
   },
@@ -28,7 +71,6 @@ export const highlightedCertifications: Certification[] = [
     institution: 'Stanford University',
     name: 'User-Centered Design for AI Applications',
     year: '2024',
-    logo: undefined,
     website: 'https://www.stanford.edu',
     location: 'Stanford, California'
   }
@@ -40,7 +82,6 @@ export const education: Education[] = [
     institution: 'Creighton University',
     degree: 'Master of Investment Management & Financial Analysis (MIMFA)',
     year: '2016',
-    logo: undefined,
     website: 'https://www.creighton.edu',
     location: 'Omaha, Nebraska'
   },
@@ -49,7 +90,6 @@ export const education: Education[] = [
     institution: 'Creighton University',
     degree: 'Master of Business Administration (MBA)',
     year: '2016',
-    logo: undefined,
     website: 'https://www.creighton.edu',
     location: 'Omaha, Nebraska'
   },
@@ -58,7 +98,6 @@ export const education: Education[] = [
     institution: 'University of Nebraska',
     degree: 'BSBA in Corporate Finance, Banking & Financial Markets, Investment Science & Portfolio Management',
     year: '2011',
-    logo: undefined,
     website: 'https://www.unomaha.edu',
     location: 'Omaha, Nebraska'
   }
@@ -70,7 +109,6 @@ export const certifications: Certification[] = [
     institution: 'Columbia Business School',
     name: 'Executive Education – Venture Capital Decision Making',
     year: '2022',
-    logo: undefined,
     website: 'https://gsb.columbia.edu',
     location: 'New York, New York'
   },
@@ -78,8 +116,8 @@ export const certifications: Certification[] = [
     id: 'berkeley-vc',
     institution: 'University of California Berkeley',
     name: 'Certification in Startup Law & Venture Capital Investing',
+    logo: '/images/uc_berkeley_logo.png',
     year: '2022',
-    logo: undefined,
     website: 'https://www.berkeley.edu',
     location: 'Berkeley, California'
   },
@@ -88,7 +126,6 @@ export const certifications: Certification[] = [
     institution: 'CFA Institute',
     name: 'Chartered Financial Analyst (CFA) Charterholder',
     year: '2012',
-    logo: undefined,
     website: 'https://www.cfainstitute.org',
     location: 'Charlottesville, Virginia'
   },
@@ -97,7 +134,6 @@ export const certifications: Certification[] = [
     institution: 'CFP Board',
     name: 'Certified Financial Planner (CFP) Professional Certification',
     year: '2012',
-    logo: undefined,
     website: 'https://www.cfp.net',
     location: 'Washington, District of Columbia'
   }

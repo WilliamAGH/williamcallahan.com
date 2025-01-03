@@ -1,153 +1,106 @@
-/**
- * LogoImage Component
- * A React component that displays company/website logos with automatic fetching and caching
- *
- * Features:
- * - Automatic logo fetching from DuckDuckGo/Google services
- * - Support for direct logo URLs
- * - Loading states with placeholders
- * - Error handling with fallbacks
- * - SSR compatibility
- *
- * @module components/ui/logo-image
- */
-
 "use client";
 
-import { useState, useEffect } from "react";
-import Image from "next/image";
-import { fetchLogo } from "../../lib/logo";
-
 /**
- * Props for the LogoImage component
+ * Logo Image Component
+ * @module components/ui/logo-image
+ * @description
+ * React component for displaying company logos with automatic
+ * theme-based inversion and fallback handling.
  */
-interface LogoImageProps {
-  /** Company name or website URL to fetch logo for */
-  company: string;
-  /** Optional direct URL to logo image */
-  logoUrl?: string;
-  /** Optional website URL to use for logo fetching */
-  website?: string;
-  /** Alt text for the image */
-  alt?: string;
+
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { useTheme } from 'next-themes';
+import type { LogoDisplayOptions } from '../../types/logo';
+
+interface LogoImageProps extends LogoDisplayOptions {
+  /** URL of the logo to display */
+  url: string;
   /** Width of the image in pixels */
-  width?: number;
+  width: number;
   /** Height of the image in pixels */
-  height?: number;
-  /** Additional CSS classes */
-  className?: string;
+  height: number;
+  /** Optional website URL for API fallback */
+  website?: string;
 }
 
 /**
- * A component that displays a company or website logo
- * Can either use a provided logo URL or automatically fetch one
- *
+ * Logo Image Component
  * @component
- * @example
- * // With direct logo URL
- * <LogoImage company="Google" logoUrl="https://..." />
- *
- * // With automatic fetching
- * <LogoImage company="Google" website="https://google.com" />
- *
- * // With minimal props (uses company name for fetching)
- * <LogoImage company="Google" />
+ * @param {LogoImageProps} props - Component props
+ * @returns {JSX.Element} Rendered component
  */
-export function LogoImage({
-  company,
-  logoUrl,
-  website,
-  alt,
-  width = 64,
-  height = 64,
-  className = "",
-}: LogoImageProps) {
-  // State for SSR and component lifecycle
-  const [mounted, setMounted] = useState(false);
-  const [dynamicLogoUrl, setDynamicLogoUrl] = useState<string | null>(logoUrl || null);
-  const [error, setError] = useState<string | null>(null);
+export default function LogoImage({
+  url,
+  width,
+  height,
+  className = '',
+  alt = 'Company Logo',
+  showPlaceholder = true,
+  website
+}: LogoImageProps): JSX.Element {
+  const { theme } = useTheme();
+  const [currentUrl, setCurrentUrl] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<boolean>(false);
+  const [triedApi, setTriedApi] = useState<boolean>(false);
 
-  // Handle SSR - only fetch logos on client side
+  // Check if URL is already an API URL
+  const isApiUrl = (url: string): boolean => url.startsWith('/api/logo');
+
+  // Get API fallback URL
+  const getApiFallbackUrl = (website: string): string => {
+    return `/api/logo?website=${encodeURIComponent(website)}`;
+  };
+
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Handle logo fetching
-  useEffect(() => {
-    if (!mounted) return;
-
-    // If a logo URL is provided directly, use that instead of fetching
-    if (logoUrl) {
-      setDynamicLogoUrl(logoUrl);
+    if (!url) {
+      setError(true);
+      setIsLoading(false);
       return;
     }
 
-    let active = true;
-
-    async function loadLogo() {
-      try {
-        // Use website URL if available, otherwise use company name
-        const result = await fetchLogo(website || company);
-        if (active) {
-          setDynamicLogoUrl(result.url);
-          if (result.error) {
-            setError(result.error);
-          }
-        }
-      } catch (err) {
-        if (active) {
-          setError("Failed to load logo");
-          console.error("Error loading logo:", err);
-        }
-      }
+    // If it's already an API URL or we've already tried the API, use the URL directly
+    if (isApiUrl(url) || triedApi) {
+      setCurrentUrl(url);
+      setError(false);
+      setIsLoading(false);
+      return;
     }
 
-    loadLogo();
+    // For non-API URLs, try the local path first
+    setCurrentUrl(url);
+    setTriedApi(false);
+    setError(false);
+    setIsLoading(false);
+  }, [url, triedApi]);
 
-    // Cleanup function to prevent setting state after unmount
-    return () => {
-      active = false;
-    };
-  }, [company, logoUrl, website, mounted]);
+  const handleImageError = () => {
+    // If we haven't tried the API yet and we have a website URL
+    if (!triedApi && website && !isApiUrl(url)) {
+      setTriedApi(true);
+      setCurrentUrl(getApiFallbackUrl(website));
+      return;
+    }
 
-  // Log errors for debugging
-  if (error) {
-    console.warn(`Logo error for ${company}:`, error);
-  }
+    // If we've already tried the API or don't have a website URL, show placeholder
+    setError(true);
+    setIsLoading(false);
+  };
 
-  // Show nothing during SSR to prevent hydration mismatch
-  if (!mounted) {
-    return null;
-  }
+  const imageUrl = error || isLoading || !currentUrl
+    ? '/images/company-placeholder.svg'
+    : currentUrl;
 
-  // Show loading placeholder while fetching
-  if (!dynamicLogoUrl) {
-    return (
-      <div
-        className={`bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse ${className}`}
-        style={{ width, height }}
-        aria-label={`Loading ${company} logo`}
-      />
-    );
-  }
-
-  // Show the logo image
   return (
-    <div className="rounded-lg overflow-hidden">
-      <Image
-        src={dynamicLogoUrl}
-        alt={alt || `${company} logo`}
-        width={width}
-        height={height}
-        className={`object-contain ${className}`}
-        quality={95}
-        unoptimized // Since we're loading external images
-        style={{
-          maxWidth: '100%',
-          height: 'auto',
-          objectFit: 'contain'
-        }}
-      />
-    </div>
+    <Image
+      src={imageUrl}
+      alt={alt}
+      width={width}
+      height={height}
+      className={`${className} ${error ? 'opacity-50' : ''}`}
+      onError={handleImageError}
+      priority // Load immediately as logos are usually above the fold
+    />
   );
 }
