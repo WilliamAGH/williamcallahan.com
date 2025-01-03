@@ -7,13 +7,15 @@
  * we only serve valid company logos and not generic globe icons.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { ServerCache } from '../../../lib/server-cache';
 import { LOGO_SOURCES, GENERIC_GLOBE_PATTERNS, LOGO_SIZES } from '../../../lib/constants';
+import type { LogoSource } from '../../../types/logo';
 import sharp from 'sharp';
-import fs from 'fs/promises';
-import path from 'path';
-import { createHash } from 'crypto';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 // Cache for placeholder SVG
 let placeholderSvg: Buffer | null = null;
@@ -299,8 +301,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         // If URL parsing fails, try using the website string directly
         domain = website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
       }
+    } else if (company) {
+      domain = company.toLowerCase().replace(/\s+/g, '');
     } else {
-      domain = company!.toLowerCase().replace(/\s+/g, '');
+      throw new Error('Website or company name required');
     }
 
     // Check if filesystem storage is available
@@ -343,7 +347,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           // Update memory cache with the stored logo
           ServerCache.setLogoFetch(domain, {
             url: null,
-            source: source as any,
+            source: source as LogoSource,
             buffer
           });
           return new NextResponse(buffer, {
@@ -369,7 +373,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Update memory cache
       ServerCache.setLogoFetch(domain, {
         url: null,
-        source: result.source as any,
+        source: result.source as LogoSource,
         buffer: result.buffer
       });
 

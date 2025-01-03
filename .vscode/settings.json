@@ -6,5 +6,10 @@
     "editor.defaultFormatter": "vscode.markdown-language-features"
   },
   "editor.wordWrap": "on",
-  "files.trimTrailingWhitespace": true
+  "files.trimTrailingWhitespace": true,
+  "css.validate": true,
+  "css.customData": [".vscode/css-data.json"],
+  "editor.quickSuggestions": {
+    "strings": true
+  }
 }
