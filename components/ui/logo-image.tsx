@@ -1,7 +1,6 @@
-"use client";
-
 /**
  * Logo Image Component
+ * @note This is a Client Component because it needs to handle image loading states
  * @module components/ui/logo-image
  * @description
  * React component for displaying company logos with automatic theme-based inversion,
@@ -21,11 +20,12 @@
  * ```
  */
 
+'use client';
+
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import type { LogoDisplayOptions } from "../../types/logo";
-
 /**
  * Props for the LogoImage component
  * @interface
@@ -91,7 +91,7 @@ interface LogoImageProps extends LogoDisplayOptions {
  * />
  * ```
  */
-export default function LogoImage({
+export function LogoImage({
   url,
   width,
   height,
@@ -102,7 +102,6 @@ export default function LogoImage({
   isDarkTheme,
   website
 }: LogoImageProps): JSX.Element | null {
-  const { theme } = useTheme();
   const [currentUrl, setCurrentUrl] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<boolean>(false);
@@ -130,7 +129,7 @@ export default function LogoImage({
 
   /**
    * Manages logo URL state and error handling
-   * Implements fallback logic for failed logo loads
+   * Uses server-side fetching as primary method
    */
   useEffect(() => {
     // Reset states when URL changes
@@ -188,9 +187,7 @@ export default function LogoImage({
    */
   const getInversionClass = (): string => {
     if (!enableInversion) return "";
-    // Use provided isDarkTheme prop if available, otherwise use theme context
-    const isDark = typeof isDarkTheme !== "undefined" ? isDarkTheme : theme === "dark";
-    return isDark ? "dark:invert" : "invert-0";
+    return isDarkTheme ? "dark:invert" : "invert-0";
   };
 
   // Don't render anything if there's an error and showPlaceholder is false

@@ -67,13 +67,17 @@ async function fetchAndValidateImage(url: string): Promise<{
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.debug(`Failed to fetch image from ${url}: ${response.status}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.debug(`Failed to fetch image from ${url}: ${response.status}`);
+      }
       return { valid: false, error: 'Failed to fetch image' };
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
     if (!buffer || buffer.byteLength === 0) {
-      console.debug(`Empty image buffer from ${url}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.debug(`Empty image buffer from ${url}`);
+      }
       return { valid: false, error: 'Empty image buffer' };
     }
 
@@ -83,7 +87,9 @@ async function fetchAndValidateImage(url: string): Promise<{
 
     // For SVGs, we don't need size validation
     if (!isSvg && !await isImageLargeEnough(buffer)) {
-      console.debug(`Image too small from ${url}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.debug(`Image too small from ${url}`);
+      }
       return { valid: false, error: 'Image too small' };
     }
 
@@ -103,7 +109,9 @@ async function fetchAndValidateImage(url: string): Promise<{
     });
 
     if (!validationResponse.ok) {
-      console.debug('Logo validation API error:', validationResponse.status);
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('Logo validation API error:', validationResponse.status);
+      }
       return { valid: false, error: 'Validation failed' };
     }
 
@@ -112,7 +120,9 @@ async function fetchAndValidateImage(url: string): Promise<{
   } catch (error) {
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
+        if (process.env.NODE_ENV === 'development') {
         console.debug(`Timeout fetching image from ${url}`);
+      }
         return { valid: false, error: 'Request timeout' };
       }
       console.error(`Error validating image from ${url}:`, error.message);
@@ -174,6 +184,10 @@ async function tryLogoSources(domain: string): Promise<{
  * @param {NextRequest} request - Incoming request
  * @returns {Promise<NextResponse>} API response
  */
+// Force static generation
+export const dynamic = 'force-static';
+export const revalidate = false;
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
   const website = searchParams.get('website');
@@ -201,21 +215,34 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Check cache first
     const cached = ServerCache.getLogoFetch(domain);
-    if (cached?.buffer) {
-      const contentType = cached.buffer[0] === 0x3c ? 'image/svg+xml' : 'image/png';
-      return new NextResponse(cached.buffer, {
-        headers: {
-          'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=31536000', // 1 year
-        }
-      });
+    if (cached) {
+      // If we have a cached error, return placeholder
+      if (cached.error) {
+        return NextResponse.redirect(new URL('/images/company-placeholder.svg', request.url), {
+          headers: {
+            'x-logo-source': ''
+          }
+        });
+      }
+
+      // If we have a cached buffer, return it
+      if (cached.buffer) {
+        const contentType = cached.buffer[0] === 0x3c ? 'image/svg+xml' : 'image/png';
+        return new NextResponse(cached.buffer, {
+          headers: {
+            'Content-Type': contentType,
+            'Cache-Control': 'public, max-age=31536000', // 1 year
+            'x-logo-source': cached.source || ''
+          }
+        });
+      }
     }
 
-    // Try all logo sources
+    // Only try sources if we haven't recently failed
     const result = await tryLogoSources(domain);
     if (result.valid && result.buffer) {
       ServerCache.setLogoFetch(domain, {
-        url: null, // We don't need to store the URL since we have the buffer
+        url: null,
         source: result.source as any,
         buffer: result.buffer
       });
@@ -225,14 +252,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         headers: {
           'Content-Type': contentType,
           'Cache-Control': 'public, max-age=31536000',
+          'x-logo-source': result.source || ''
         }
       });
     }
 
-    // If all sources fail, return placeholder
-    return NextResponse.redirect(new URL('/images/company-placeholder.svg', request.url));
+    // Cache the failure to prevent retrying too soon
+    ServerCache.setLogoFetch(domain, {
+      url: null,
+      source: null,
+      error: result.error || 'Failed to fetch logo'
+    });
+
+    // Return placeholder
+    return NextResponse.redirect(new URL('/images/company-placeholder.svg', request.url), {
+      headers: {
+        'x-logo-source': ''
+      }
+    });
   } catch (error) {
     console.error('Error in logo API:', error);
-    return NextResponse.redirect(new URL('/images/company-placeholder.svg', request.url));
+    return NextResponse.redirect(new URL('/images/company-placeholder.svg', request.url), {
+      headers: {
+        'x-logo-source': ''
+      }
+    });
   }
 }
