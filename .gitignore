@@ -28,3 +28,4 @@ tsconfig.tsbuildinfo
 # Coverage directory
 /coverage
 /coverage/**
+.env
