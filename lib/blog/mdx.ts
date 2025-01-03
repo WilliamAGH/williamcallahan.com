@@ -13,7 +13,6 @@ import path from 'node:path';
 import matter from 'gray-matter';
 import { serialize } from 'next-mdx-remote/serialize';
 import rehypePrism from 'rehype-prism';
-import remarkBreaks from 'remark-breaks';
 import remarkGfm from 'remark-gfm';
 import { authors } from '../../data/blog/authors';
 import type { BlogPost } from '../../types/blog';
@@ -75,8 +74,7 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
     const mdxSource = await serialize(content, {
       mdxOptions: {
         remarkPlugins: [
-          remarkBreaks,
-          [remarkGfm, { singleTilde: false }]
+          [remarkGfm, { singleTilde: false, breaks: true }]
         ],
         rehypePlugins: [
           [rehypePrism, {
