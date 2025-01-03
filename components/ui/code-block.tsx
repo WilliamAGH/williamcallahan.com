@@ -63,7 +63,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, ...pr
       : getTextContent(children)
   );
 
-  const defaultClasses = 'not-prose rounded-lg overflow-x-auto bg-gray-800 p-4 text-gray-100';
+  const defaultClasses = 'not-prose rounded-lg overflow-x-auto bg-gray-800 p-4 text-gray-100 text-sm max-h-[400px] overflow-y-auto';
 
   return (
     <div className="relative">
