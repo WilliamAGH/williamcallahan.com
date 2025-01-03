@@ -14,11 +14,11 @@ export const metadata: Metadata = {
   openGraph: {
     title: DEFAULT_METADATA.openGraph?.title,
     description: DEFAULT_METADATA.openGraph?.description,
-    type: DEFAULT_METADATA.openGraph?.type,
+    type: DEFAULT_METADATA.openGraph?.type ?? "website",
     url: DEFAULT_METADATA.openGraph?.url,
   },
   twitter: {
-    card: DEFAULT_METADATA.twitter?.card,
+    card: DEFAULT_METADATA.twitter?.card ?? "summary",
     title: DEFAULT_METADATA.twitter?.title,
     description: DEFAULT_METADATA.twitter?.description,
     creator: DEFAULT_METADATA.twitter?.creator,
