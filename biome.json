@@ -6,22 +6,34 @@
   "linter": {
     "enabled": true,
     "ignore": [
-      "node_modules/**"
+      "node_modules/**",
+      "coverage/**"
     ],
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noConfusingVoidType": "off"
+        "noConfusingVoidType": "off",
+        "noExplicitAny": "error"
       },
       "complexity": {
-        "noUselessEmptyExport": "off"
+        "noUselessEmptyExport": "off",
+        "useArrowFunction": "error"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "error"
       }
     }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single"
+        }
   },
   "formatter": {
     "enabled": true,
     "ignore": [
-      "node_modules/**"
+      "node_modules/**",
+      "coverage/**"
     ]
   }
 }

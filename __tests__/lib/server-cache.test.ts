@@ -1,4 +1,4 @@
-import { ServerCache } from '../../lib/server-cache';
+import { ServerCacheInstance } from '../../lib/server-cache';
 import type { LogoInversion, LogoSource } from '../../types/logo';
 import { SERVER_CACHE_DURATION } from '../../lib/constants';
 
@@ -47,7 +47,7 @@ jest.mock('node-cache', () => {
 
 describe('ServerCache', () => {
   beforeEach(() => {
-    ServerCache.clear();
+    ServerCacheInstance.clear();
   });
 
   describe('logo validation', () => {
@@ -55,8 +55,8 @@ describe('ServerCache', () => {
       const imageHash = 'test-hash';
       const isGlobeIcon = true;
 
-      ServerCache.setLogoValidation(imageHash, isGlobeIcon);
-      const result = ServerCache.getLogoValidation(imageHash);
+      ServerCacheInstance.setLogoValidation(imageHash, isGlobeIcon);
+      const result = ServerCacheInstance.getLogoValidation(imageHash);
 
       expect(result).toBeDefined();
       expect(result?.isGlobeIcon).toBe(isGlobeIcon);
@@ -64,7 +64,7 @@ describe('ServerCache', () => {
     });
 
     it('should return undefined for non-existent validation', () => {
-      const result = ServerCache.getLogoValidation('non-existent');
+      const result = ServerCacheInstance.getLogoValidation('non-existent');
       expect(result).toBeUndefined();
     });
   });
@@ -79,8 +79,8 @@ describe('ServerCache', () => {
     it('should store and retrieve logo fetch results', () => {
       const domain = 'example.com';
 
-      ServerCache.setLogoFetch(domain, mockFetchResult);
-      const result = ServerCache.getLogoFetch(domain);
+      ServerCacheInstance.setLogoFetch(domain, mockFetchResult);
+      const result = ServerCacheInstance.getLogoFetch(domain);
 
       expect(result).toBeDefined();
       expect(result?.url).toBe(mockFetchResult.url);
@@ -92,10 +92,10 @@ describe('ServerCache', () => {
     it('should clear logo fetch cache for specific domain', () => {
       const domain = 'example.com';
 
-      ServerCache.setLogoFetch(domain, mockFetchResult);
-      ServerCache.clearLogoFetch(domain);
+      ServerCacheInstance.setLogoFetch(domain, mockFetchResult);
+      ServerCacheInstance.clearLogoFetch(domain);
 
-      const result = ServerCache.getLogoFetch(domain);
+      const result = ServerCacheInstance.getLogoFetch(domain);
       expect(result).toBeUndefined();
     });
 
@@ -103,13 +103,13 @@ describe('ServerCache', () => {
       const domains = ['example1.com', 'example2.com'];
 
       domains.forEach(domain => {
-        ServerCache.setLogoFetch(domain, mockFetchResult);
+        ServerCacheInstance.setLogoFetch(domain, mockFetchResult);
       });
 
-      ServerCache.clearAllLogoFetches();
+      ServerCacheInstance.clearAllLogoFetches();
 
       domains.forEach(domain => {
-        const result = ServerCache.getLogoFetch(domain);
+        const result = ServerCacheInstance.getLogoFetch(domain);
         expect(result).toBeUndefined();
       });
     });
@@ -127,8 +127,8 @@ describe('ServerCache', () => {
       const key = 'test-key';
       const buffer = Buffer.from('test-inverted');
 
-      ServerCache.setInvertedLogo(key, buffer, mockAnalysis);
-      const result = ServerCache.getInvertedLogo(key);
+      ServerCacheInstance.setInvertedLogo(key, buffer, mockAnalysis);
+      const result = ServerCacheInstance.getInvertedLogo(key);
 
       expect(result).toBeDefined();
       expect(result?.buffer).toEqual(buffer);
@@ -137,7 +137,7 @@ describe('ServerCache', () => {
     });
 
     it('should return undefined for non-existent inverted logo', () => {
-      const result = ServerCache.getInvertedLogo('non-existent');
+      const result = ServerCacheInstance.getInvertedLogo('non-existent');
       expect(result).toBeUndefined();
     });
   });
@@ -153,14 +153,14 @@ describe('ServerCache', () => {
     it('should store and retrieve logo analysis', () => {
       const key = 'test-key';
 
-      ServerCache.setLogoAnalysis(key, mockAnalysis);
-      const result = ServerCache.getLogoAnalysis(key);
+      ServerCacheInstance.setLogoAnalysis(key, mockAnalysis);
+      const result = ServerCacheInstance.getLogoAnalysis(key);
 
       expect(result).toEqual(mockAnalysis);
     });
 
     it('should return undefined for non-existent analysis', () => {
-      const result = ServerCache.getLogoAnalysis('non-existent');
+      const result = ServerCacheInstance.getLogoAnalysis('non-existent');
       expect(result).toBeUndefined();
     });
   });
@@ -168,26 +168,26 @@ describe('ServerCache', () => {
   describe('cache management', () => {
     it('should clear all caches', () => {
       // Set some test data
-      ServerCache.setLogoValidation('test-hash', true);
-      ServerCache.setLogoFetch('example.com', {
+      ServerCacheInstance.setLogoValidation('test-hash', true);
+      ServerCacheInstance.setLogoFetch('example.com', {
         url: 'https://example.com/logo.png',
         source: 'google' as LogoSource
       });
 
-      ServerCache.clear();
+      ServerCacheInstance.clear();
 
-      expect(ServerCache.getLogoValidation('test-hash')).toBeUndefined();
-      expect(ServerCache.getLogoFetch('example.com')).toBeUndefined();
+      expect(ServerCacheInstance.getLogoValidation('test-hash')).toBeUndefined();
+      expect(ServerCacheInstance.getLogoFetch('example.com')).toBeUndefined();
     });
 
     it('should get cache statistics', () => {
-      ServerCache.setLogoValidation('test-hash', true);
-      ServerCache.setLogoFetch('example.com', {
+      ServerCacheInstance.setLogoValidation('test-hash', true);
+      ServerCacheInstance.setLogoFetch('example.com', {
         url: 'https://example.com/logo.png',
         source: 'google' as LogoSource
       });
 
-      const stats = ServerCache.getStats();
+      const stats = ServerCacheInstance.getStats();
       expect(stats.keys).toBe(2);
       expect(typeof stats.hits).toBe('number');
       expect(typeof stats.misses).toBe('number');
@@ -201,16 +201,16 @@ describe('ServerCache', () => {
       jest.spyOn(Date, 'now').mockImplementation(() => startTime);
 
       // Set cache entry
-      ServerCache.setLogoValidation(key, true);
-      expect(ServerCache.getLogoValidation(key)).toBeDefined();
+      ServerCacheInstance.setLogoValidation(key, true);
+      expect(ServerCacheInstance.getLogoValidation(key)).toBeDefined();
 
       // Advance time just before TTL expiration
       jest.spyOn(Date, 'now').mockImplementation(() => startTime + (SERVER_CACHE_DURATION * 1000) - 1);
-      expect(ServerCache.getLogoValidation(key)).toBeDefined();
+      expect(ServerCacheInstance.getLogoValidation(key)).toBeDefined();
 
       // Advance time past TTL expiration
       jest.spyOn(Date, 'now').mockImplementation(() => startTime + (SERVER_CACHE_DURATION * 1000) + 1);
-      expect(ServerCache.getLogoValidation(key)).toBeUndefined();
+      expect(ServerCacheInstance.getLogoValidation(key)).toBeUndefined();
 
       // Restore Date.now
       jest.spyOn(Date, 'now').mockRestore();
