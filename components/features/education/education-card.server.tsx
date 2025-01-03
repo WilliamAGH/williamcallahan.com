@@ -3,25 +3,15 @@
  * @module components/features/education/education-card.server
  * @description
  * Server component that handles logo fetching and processing for education entries.
- * Uses ServerCache for efficient logo caching and processing.
- *
- * @example
- * ```tsx
- * const card = await EducationCard({
- *   institution: "UC Berkeley",
- *   website: "berkeley.edu",
- *   // ... other education props
- * });
- * ```
  */
 
 import { ServerCache } from '../../../lib/server-cache';
 import type { Education } from '../../../types/education';
-import { EducationCardClient } from '../../../components/features/education/education-card.client';
+import { EducationCardClient } from './education-card.client';
 
 /**
  * Get logo data for an education entry
- * @param {string | undefined} website - Institution's website URL
+ * @param {string | undefined} website - Institution website URL
  * @param {string} institution - Institution name
  * @param {string | undefined} logo - Optional direct logo URL
  * @returns {Promise<{url: string, source: string | null}>} Logo data with URL and source
@@ -51,7 +41,15 @@ async function getLogoData(website: string | undefined, institution: string, log
       };
     }
 
-    // If not in cache, fetch it server-side
+    // During build, return placeholder immediately since we can't fetch
+    if (process.env.NODE_ENV === 'production') {
+      return {
+        url: '/images/company-placeholder.svg',
+        source: null
+      };
+    }
+
+    // If not in cache, fetch it server-side (development only)
     const apiUrl = `/api/logo?${website ? `website=${encodeURIComponent(website)}` : `company=${encodeURIComponent(institution)}`}`;
     const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}${apiUrl}`);
 
@@ -92,6 +90,9 @@ async function getLogoData(website: string | undefined, institution: string, log
  * @param {Education} props - Education entry properties
  * @returns {Promise<JSX.Element>} Pre-rendered education card with server-fetched logo
  */
+// Force static generation
+export const dynamic = 'force-static';
+
 export async function EducationCard(props: Education): Promise<JSX.Element> {
   const { website, institution, logo } = props;
   const logoData = await getLogoData(website, institution, logo);

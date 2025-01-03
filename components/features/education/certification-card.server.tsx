@@ -3,31 +3,20 @@
  * @module components/features/education/certification-card.server
  * @description
  * Server component that handles logo fetching and processing for certification entries.
- * Uses ServerCache for efficient logo caching and processing.
- *
- * @example
- * ```tsx
- * const card = await CertificationCard({
- *   institution: "AWS",
- *   name: "Solutions Architect",
- *   website: "aws.amazon.com",
- *   // ... other certification props
- * });
- * ```
  */
 
 import { ServerCache } from '../../../lib/server-cache';
 import type { Certification } from '../../../types/education';
-import { CertificationCardClient } from '../../../components/features/education/certification-card.client';
+import { CertificationCardClient } from './certification-card.client';
 
 /**
  * Get logo data for a certification entry
- * @param {string | undefined} website - Institution's website URL
- * @param {string} institution - Institution name
+ * @param {string | undefined} website - Provider website URL
+ * @param {string} name - Certification name
  * @param {string | undefined} logo - Optional direct logo URL
  * @returns {Promise<{url: string, source: string | null}>} Logo data with URL and source
  */
-async function getLogoData(website: string | undefined, institution: string, logo: string | undefined): Promise<{url: string, source: string | null}> {
+async function getLogoData(website: string | undefined, name: string, logo: string | undefined): Promise<{url: string, source: string | null}> {
   // If logo is provided directly, use it
   if (logo) {
     return {
@@ -42,18 +31,26 @@ async function getLogoData(website: string | undefined, institution: string, log
       ? website.startsWith('http')
         ? new URL(website).hostname.replace('www.', '')
         : website.replace(/^www\./, '').split('/')[0]
-      : institution.toLowerCase().replace(/\s+/g, '');
+      : name.toLowerCase().replace(/\s+/g, '');
 
     const cached = ServerCache.getLogoFetch(domain);
     if (cached?.buffer) {
       return {
-        url: `/api/logo?${website ? `website=${encodeURIComponent(website)}` : `company=${encodeURIComponent(institution)}`}`,
+        url: `/api/logo?${website ? `website=${encodeURIComponent(website)}` : `company=${encodeURIComponent(name)}`}`,
         source: cached.source
       };
     }
 
-    // If not in cache, fetch it server-side
-    const apiUrl = `/api/logo?${website ? `website=${encodeURIComponent(website)}` : `company=${encodeURIComponent(institution)}`}`;
+    // During build, return placeholder immediately since we can't fetch
+    if (process.env.NODE_ENV === 'production') {
+      return {
+        url: '/images/company-placeholder.svg',
+        source: null
+      };
+    }
+
+    // If not in cache, fetch it server-side (development only)
+    const apiUrl = `/api/logo?${website ? `website=${encodeURIComponent(website)}` : `company=${encodeURIComponent(name)}`}`;
     const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}${apiUrl}`);
 
     if (!response.ok) {
@@ -93,9 +90,12 @@ async function getLogoData(website: string | undefined, institution: string, log
  * @param {Certification} props - Certification entry properties
  * @returns {Promise<JSX.Element>} Pre-rendered certification card with server-fetched logo
  */
+// Force static generation
+export const dynamic = 'force-static';
+
 export async function CertificationCard(props: Certification): Promise<JSX.Element> {
-  const { website, institution, logo } = props;
-  const logoData = await getLogoData(website, institution, logo);
+  const { website, name, logo } = props;
+  const logoData = await getLogoData(website, name, logo);
 
   return <CertificationCardClient {...props} logoData={logoData} />;
 }
