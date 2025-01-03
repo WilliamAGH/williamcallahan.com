@@ -58,7 +58,7 @@ jest.mock('../../data/blog/posts', () => ({
 }));
 
 // Mock MDX functionality
-jest.mock('@/lib/blog/mdx', () => ({
+jest.mock('../../lib/blog/mdx', () => ({
   getAllMDXPosts: jest.fn().mockResolvedValue([]),
   getMDXPost: jest.fn().mockImplementation((slug: string) => {
     const posts = [

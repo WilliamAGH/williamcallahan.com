@@ -24,6 +24,7 @@
 import sharp from "sharp";
 import { createHash } from "crypto";
 import { VALID_IMAGE_FORMATS, MIN_LOGO_SIZE, MAX_SIZE_DIFF } from "./constants";
+import { logger } from "./logger";
 
 /**
  * Configuration constants for image comparison
@@ -203,7 +204,7 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
   try {
     // Validate inputs
     if (!image1 || !image2) {
-      console.warn("Invalid input: image buffers are required");
+      logger.warn("Invalid input: image buffers are required");
       return false;
     }
 
@@ -215,14 +216,14 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
         getValidatedMetadata(image2)
       ]);
     } catch (error) {
-      console.warn("Metadata validation failed:", error instanceof ImageCompareError ? error.message : `Failed to get image metadata: ${error instanceof Error ? error.message : "Unknown error"}`);
+      logger.warn("Metadata validation failed:", error instanceof ImageCompareError ? error.message : `Failed to get image metadata: ${error instanceof Error ? error.message : "Unknown error"}`);
       return false;
     }
 
     // Check if both images are valid
     if (!meta1.isValid || !meta2.isValid) {
       const error = meta1.validationError || meta2.validationError;
-      console.warn("Image validation failed:", error);
+      logger.warn("Image validation failed:", error);
       return false;
     }
 
@@ -230,7 +231,7 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
     const sizeDiff = Math.abs(meta1.width - meta2.width) +
                     Math.abs(meta1.height - meta2.height);
     if (sizeDiff > CONFIG.MAX_SIZE_DIFF) {
-      console.warn(
+      logger.warn(
         `Size difference too large: ${sizeDiff}px (max: ${CONFIG.MAX_SIZE_DIFF}px)`
       );
       return false;
@@ -244,7 +245,7 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
         sharp(image2).png().toBuffer()
       ]);
     } catch (error) {
-      console.warn("PNG conversion failed:", error instanceof Error ? error.message : "Unknown error");
+      logger.warn("PNG conversion failed:", error instanceof Error ? error.message : "Unknown error");
       return false;
     }
 
@@ -258,7 +259,7 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
       // Compare hashes
       return hash1 === hash2;
     } catch (error) {
-      console.warn("Hash generation failed:", error instanceof ImageCompareError ? error.message : "Unknown error");
+      logger.warn("Hash generation failed:", error instanceof ImageCompareError ? error.message : "Unknown error");
       return false;
     }
   } catch (error) {
@@ -266,7 +267,7 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
     if (error instanceof ImageCompareError) {
       throw error;
     }
-    console.error("Unexpected error during image comparison:", error instanceof Error ? error.message : "Unknown error");
+    logger.error("Unexpected error during image comparison:", error instanceof Error ? error.message : "Unknown error");
     return false;
   }
 }
