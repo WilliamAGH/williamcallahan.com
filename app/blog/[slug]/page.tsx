@@ -1,7 +1,9 @@
-import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
-import { BlogWrapper } from '../../../components/features/blog/blog-article';
-import { getPostBySlug } from '../../../lib/blog';
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { BlogWrapper } from "../../../components/features/blog/blog-article";
+import { getPostBySlug } from "../../../lib/blog";
+import { getBlogPostMetadata } from "../../../lib/seo";
+import type { Article, WithContext } from "schema-dts";
 
 /**
  * Props for the BlogPostPage component
@@ -22,17 +24,59 @@ interface BlogPostPageProps {
  */
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   const post = await getPostBySlug(params.slug);
-  if (!post) return { title: 'Post Not Found' };
+  if (!post) return { title: "Post Not Found" };
+
+  const metadata = getBlogPostMetadata(post);
+
+  // Schema.org Article metadata
+  const jsonLd: WithContext<Article> = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.excerpt,
+    author: {
+      "@type": "Person",
+      name: post.author.name,
+    },
+    datePublished: metadata.datePublished,
+    dateModified: metadata.dateModified,
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": metadata.canonical,
+    },
+    publisher: {
+      "@type": "Person",
+      name: "William Callahan",
+    },
+  };
 
   return {
-    title: `${post.title} | William Alan Callahan`,
-    description: post.excerpt,
+    metadataBase: new URL('https://williamcallahan.com'),
+    title: metadata.title,
+    description: metadata.description,
     openGraph: {
-      title: post.title,
-      description: post.excerpt,
-      type: 'article',
-      images: post.coverImage ? [{ url: post.coverImage }] : []
-    }
+      type: "article",
+      publishedTime: metadata.datePublished,
+      modifiedTime: metadata.dateModified,
+      authors: [post.author.name],
+      tags: post.tags,
+      url: metadata.canonical,
+      images: post.coverImage ? [{ url: post.coverImage }] : undefined,
+    },
+    alternates: {
+      canonical: metadata.canonical,
+    },
+    authors: [{ name: post.author.name }],
+    keywords: post.tags,
+    robots: {
+      index: true,
+      follow: true,
+    },
+    other: {
+      "article:published_time": metadata.datePublished,
+      "article:modified_time": metadata.dateModified,
+      "script:ld+json": JSON.stringify(jsonLd),
+    },
   };
 }
 
