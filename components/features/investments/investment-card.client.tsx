@@ -83,11 +83,11 @@ export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: I
 
   return (
     <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
-      <div className="p-6">
-        <div className="flex flex-col gap-4">
+      <div className="p-4 sm:p-6">
+        <div className="flex flex-col gap-5 sm:gap-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex items-start gap-4">
+            <div className="flex items-start gap-3 flex-1 min-w-0">
               <div className="w-12 h-12 relative flex-shrink-0">
                 <ExternalLink
                   href={website}
@@ -99,7 +99,7 @@ export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: I
                     url={logoData.url}
                     width={48}
                     height={48}
-                    className="object-contain w-full h-full"
+                    className="object-contain"
                     alt={name}
                     website={website}
                     isDarkTheme={isDarkTheme}
@@ -144,7 +144,7 @@ export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: I
                 )}
               </div>
             </div>
-            <div className="flex flex-col items-end text-sm space-y-1">
+            <div className="flex flex-col items-end text-sm space-y-1 min-w-[140px] flex-shrink-0">
               {founded_year && <span className="text-gray-400 dark:text-gray-500">Founded {founded_year}</span>}
               {invested_year && <span className="text-gray-500 dark:text-gray-400">Invested {invested_year}</span>}
               {acquired_year && <span className="text-gray-600 dark:text-gray-300">Acquired {acquired_year}</span>}
@@ -177,17 +177,24 @@ export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: I
           </div>
 
           {/* Investment Details and Metrics */}
-          <div className="grid grid-cols-3 gap-4">
-            {details && details
-              .filter(detail => !['Investment Type', 'Entry Stage', 'Sector'].includes(detail.label))
-              .map((detail, index) => (
-                <div key={index}>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">{detail.label}</div>
-                  <div className="text-sm text-gray-900 dark:text-gray-100 font-medium">{detail.value}</div>
+          <div className="flex flex-col space-y-6">
+            <div className="border rounded-lg border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3 sm:p-4">
+              <div className="grid grid-cols-3 gap-x-2 sm:gap-x-6">
+                <div className="flex flex-col text-center">
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Round Size</div>
+                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">${new Intl.NumberFormat().format(parseInt(details?.find(d => d.label === 'Round Size')?.value.replace(/[^0-9]/g, '') || '0'))}</div>
                 </div>
-              ))}
-            <div>
-              <FinancialMetrics holding_return={holding_return} />
+                <div className="flex flex-col text-center">
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Valuation</div>
+                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">${new Intl.NumberFormat().format(parseInt(details?.find(d => d.label === 'Valuation')?.value.replace(/[^0-9]/g, '') || '0'))}</div>
+                </div>
+                <div className="flex flex-col text-center">
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Return</div>
+                  <div className={`text-xs sm:text-sm font-medium whitespace-nowrap ${holding_return >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {(holding_return >= 0 ? '+' : '') + (holding_return * 100).toFixed(1)}%
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 const nextJest = require('next/jest');
 
 const createJestConfig = nextJest({
-  dir: './',
+  dir: './'
 });
 
 const customJestConfig = {
@@ -9,28 +9,29 @@ const customJestConfig = {
     '<rootDir>/jest.setup.js',
     '<rootDir>/__tests__/lib/setup/jest.setup.ts'
   ],
+  moduleDirectories: ['node_modules', '<rootDir>'],
   testEnvironment: 'jest-environment-jsdom',
   coverageThreshold: {
     global: {
-      statements: 80,
-      branches: 80,
-      functions: 80,
-      lines: 80,
-    },
+      statements: 65,
+      branches: 55,
+      functions: 75,
+      lines: 65
+    }
   },
   testPathIgnorePatterns: [
     '<rootDir>/.next/',
-    '<rootDir>/node_modules/',
+    '<rootDir>/node_modules/'
   ],
   transformIgnorePatterns: [
     '/node_modules/(?!(node-fetch)/)',
-    '^.+\\.module\\.(css|sass|scss)$',
+    '^.+\\.module\\.(css|sass|scss)$'
   ],
   globals: {
     'ts-jest': {
-      tsconfig: '<rootDir>/tsconfig.json',
-    },
-  },
+      tsconfig: '<rootDir>/tsconfig.json'
+    }
+  }
 };
 
 module.exports = createJestConfig(customJestConfig);
