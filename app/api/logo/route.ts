@@ -11,6 +11,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ServerCache } from '../../../lib/server-cache';
 import { LOGO_SOURCES, GENERIC_GLOBE_PATTERNS, API_BASE_URL, LOGO_SIZES } from '../../../lib/constants';
 import sharp from 'sharp';
+import fs from 'fs/promises';
+import path from 'path';
+
+// Cache for placeholder SVG
+let placeholderSvg: Buffer | null = null;
+
+/**
+ * Get placeholder SVG content
+ * @returns {Promise<Buffer>} Placeholder SVG buffer
+ */
+async function getPlaceholder(): Promise<Buffer> {
+  if (!placeholderSvg) {
+    placeholderSvg = await fs.readFile(path.join(process.cwd(), 'public/images/company-placeholder.svg'));
+  }
+  return placeholderSvg;
+}
 
 /**
  * Check if a URL matches known generic globe icon patterns
@@ -213,13 +229,28 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       domain = company!.toLowerCase().replace(/\s+/g, '');
     }
 
+    // During build/production, return placeholder immediately
+    if (process.env.NODE_ENV === 'production') {
+      const placeholder = await getPlaceholder();
+      return new NextResponse(placeholder, {
+        headers: {
+          'Content-Type': 'image/svg+xml',
+          'Cache-Control': 'public, max-age=31536000', // 1 year
+          'x-logo-source': ''
+        }
+      });
+    }
+
     // Check cache first
     const cached = ServerCache.getLogoFetch(domain);
     if (cached) {
-      // If we have a cached error, return placeholder
+      // If we have a cached error or during build, return placeholder
       if (cached.error) {
-        return NextResponse.redirect(new URL('/images/company-placeholder.svg', request.url), {
+        const placeholder = await getPlaceholder();
+        return new NextResponse(placeholder, {
           headers: {
+            'Content-Type': 'image/svg+xml',
+            'Cache-Control': 'public, max-age=31536000',
             'x-logo-source': ''
           }
         });
@@ -231,21 +262,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         return new NextResponse(cached.buffer, {
           headers: {
             'Content-Type': contentType,
-            'Cache-Control': 'public, max-age=31536000', // 1 year
+            'Cache-Control': 'public, max-age=31536000',
             'x-logo-source': cached.source || ''
           }
         });
       }
-    }
-
-    // During build, return placeholder immediately
-    if (process.env.NODE_ENV === 'production') {
-      return NextResponse.redirect(new URL('/images/company-placeholder.svg', request.url), {
-        headers: {
-          'Cache-Control': 'public, max-age=31536000', // 1 year
-          'x-logo-source': ''
-        }
-      });
     }
 
     // Only try sources in development
@@ -275,15 +296,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
     // Return placeholder
-    return NextResponse.redirect(new URL('/images/company-placeholder.svg', request.url), {
+    const placeholder = await getPlaceholder();
+    return new NextResponse(placeholder, {
       headers: {
+        'Content-Type': 'image/svg+xml',
+        'Cache-Control': 'public, max-age=31536000',
         'x-logo-source': ''
       }
     });
   } catch (error) {
     console.error('Error in logo API:', error);
-    return NextResponse.redirect(new URL('/images/company-placeholder.svg', request.url), {
+    const placeholder = await getPlaceholder();
+    return new NextResponse(placeholder, {
       headers: {
+        'Content-Type': 'image/svg+xml',
+        'Cache-Control': 'public, max-age=31536000',
         'x-logo-source': ''
       }
     });
