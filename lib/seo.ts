@@ -15,12 +15,14 @@ export const DEFAULT_METADATA: BaseSEOMetadata = {
     description: 'Personal and professional website of William Callahan',
     type: 'website',
     url: API_BASE_URL,
+    image: '/images/William Callahan - San Francisco.jpeg',
   },
   twitter: {
     card: 'summary_large_image',
     site: '@williamcallahan',
     title: 'William Callahan',
     description: 'Personal and professional website of William Callahan',
+    image: '/images/William Callahan - San Francisco.jpeg',
   },
 };
 
