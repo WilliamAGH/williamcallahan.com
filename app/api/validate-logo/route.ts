@@ -130,7 +130,7 @@ async function loadReferenceIcon(): Promise<void> {
  * @param {NextRequest} request - Incoming request
  * @returns {Promise<NextResponse>} API response
  */
-// Configure dynamic API route with caching
+// Enable dynamic rendering to allow API calls during server-side rendering
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600; // Cache for 1 hour
 

@@ -29,8 +29,8 @@ export const metadata: Metadata = {
   },
 };
 
-// Force static generation
-export const revalidate = false;
+// Enable dynamic rendering to allow API calls
+export const dynamic = 'force-dynamic';
 
 export default function InvestmentsPage() {
   return <Investments investments={investments} />;

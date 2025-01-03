@@ -9,7 +9,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ServerCache } from '../../../../lib/server-cache';
 import { analyzeImage, invertImage, needsInversion } from '../../../../lib/imageAnalysis';
-import { API_BASE_URL } from '../../../../lib/constants';
 
 /**
  * Safely parse and validate URL
@@ -18,9 +17,9 @@ import { API_BASE_URL } from '../../../../lib/constants';
  */
 function validateUrl(urlString: string): string {
   try {
-    // If it's a relative URL starting with /api, make it absolute
+    // If it's a relative URL starting with /api, keep it relative
     if (urlString.startsWith('/api')) {
-      return new URL(urlString, API_BASE_URL).toString();
+      return urlString;
     }
     // Otherwise, ensure it's a valid URL
     return new URL(urlString).toString();
@@ -34,7 +33,7 @@ function validateUrl(urlString: string): string {
  * @param {NextRequest} request - Incoming request
  * @returns {Promise<NextResponse>} API response with inverted image
  */
-// Configure dynamic API route with caching
+// Enable dynamic rendering to allow API calls during server-side rendering
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600; // Cache for 1 hour
 
