@@ -4,14 +4,30 @@ import type { ComponentProps } from 'react';
 import { CopyButton } from './copy-button';
 import { cn } from '../../lib/utils';
 
+/**
+ * Props for the CodeBlock component
+ * @interface CodeBlockProps
+ * @extends {ComponentProps<'pre'>} - Extends pre element props
+ */
 interface CodeBlockProps extends ComponentProps<'pre'> {
+  /** The content to be displayed in the code block */
   children: React.ReactNode;
 }
 
-export const CodeBlock: React.FC<CodeBlockProps> = ({ children, ...props }) => {
-  // Extract the text content from the children
+/**
+ * A component that renders a code block with syntax highlighting and a copy button
+ * @component
+ * @param {CodeBlockProps} props - The component props
+ * @returns {JSX.Element} A code block with copy functionality
+ */
+export const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, ...props }) => {
+  /**
+   * Filters out comment lines from text content
+   * @param {string} text - The text to filter
+   * @returns {string} Text with comments removed
+   */
   const filterComments = (text: string): string => {
-    // Split by newlines, filter out comment lines, and rejoin
+    if (typeof text !== 'string') return '';
     return text
       .split('\n')
       .filter(line => !line.trim().startsWith('#'))
@@ -19,6 +35,11 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ children, ...props }) => {
       .trim();
   };
 
+  /**
+   * Recursively extracts text content from React nodes
+   * @param {React.ReactNode} child - The node to extract text from
+   * @returns {string} Extracted text content
+   */
   const getTextContent = (child: React.ReactNode): string => {
     if (typeof child === 'string') return filterComments(child);
     if (typeof child === 'number') return String(child);
@@ -35,24 +56,19 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ children, ...props }) => {
     return '';
   };
 
+  // Extract and filter the text content
   const content = filterComments(
     Array.isArray(children)
       ? children.map(getTextContent).join('')
       : getTextContent(children)
   );
 
+  const defaultClasses = 'not-prose rounded-lg overflow-x-auto bg-gray-800 p-4 text-gray-100';
+
   return (
     <div className="relative">
       <pre
-        className={cn(
-          'not-prose',
-          'rounded-lg',
-          'overflow-x-auto',
-          'bg-gray-800',
-          'p-4',
-          'text-gray-100',
-          props.className
-        )}
+        className={cn(defaultClasses, className)}
         {...props}
       >
         {children}
@@ -61,3 +77,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ children, ...props }) => {
     </div>
   );
 };
+
+// Type assertion to ensure component type is correct
+CodeBlock.displayName = 'CodeBlock';

@@ -17,10 +17,14 @@ const nextConfig = {
 
     return config;
   },
+  // Keep standalone output for Docker deployments
   output: 'standalone',
   reactStrictMode: true,
   swcMinify: true,
   images: {
+    dangerouslyAllowSVG: true,
+    contentDispositionType: 'attachment',
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
       {
         protocol: 'https',
@@ -41,6 +45,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'external-content.duckduckgo.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'logo.clearbit.com'
       }
     ]
   }

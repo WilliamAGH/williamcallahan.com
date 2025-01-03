@@ -18,7 +18,7 @@ export const investments: Investment[] = [
     "acquired_year": null,
     "status": "Active",
     "operating_status": "Operating",
-    "logo": null,
+    "logo": '/images/accern_logo.png',
     "website": "https://accern.com",
     "multiple": 0.97,
     "holding_return": -0.03,

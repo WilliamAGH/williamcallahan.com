@@ -1,61 +1,119 @@
 /**
- * Logo Brightness Analysis Module
+ * Logo Image Analysis Module
  * @module lib/imageAnalysis
  * @description
- * Analyzes logo images to determine if they need color inversion
- * to maintain visibility against light/dark backgrounds.
+ * Provides functionality for analyzing and manipulating logo images, including:
+ * - Brightness analysis for theme-based color inversion
+ * - Transparency detection and preservation
+ * - Image format validation and processing
+ * - Dimension analysis and resizing
+ *
+ * @example
+ * ```typescript
+ * // Analyze a logo
+ * const analysis = await analyzeLogo(imageBuffer);
+ *
+ * // Check if inversion is needed
+ * const needsInversion = await doesLogoNeedInversion(imageBuffer, isDarkTheme);
+ *
+ * // Invert colors while preserving transparency
+ * const inverted = await invertLogo(imageBuffer);
+ * ```
  */
 
-import sharp from 'sharp';
-import { VALID_IMAGE_FORMATS } from './constants';
+import sharp from "sharp";
+import { VALID_IMAGE_FORMATS } from "./constants";
 
-/** Brightness threshold (0-255) that distinguishes light from dark colors */
-const BRIGHTNESS_THRESHOLD = 128;
+/**
+ * Configuration constants for image analysis
+ * @internal
+ */
+const CONFIG = {
+  /** Brightness threshold (0-255) that distinguishes light from dark colors */
+  BRIGHTNESS_THRESHOLD: 128,
 
-/** Maximum dimensions for analysis to maintain performance */
-const MAX_ANALYSIS_DIMENSION = 512;
+  /** Maximum dimensions for analysis to maintain performance */
+  MAX_ANALYSIS_DIMENSION: 512,
 
-/** Default format for processed images */
-const DEFAULT_FORMAT = 'png';
+  /** Default format for processed images */
+  DEFAULT_FORMAT: "png" as const,
 
-/** Legacy interface for backwards compatibility */
-export interface LogoInversion {
-  brightness: number;
-  needsDarkInversion: boolean;
-  needsLightInversion: boolean;
-  hasTransparency: boolean;
-  format: string;
-  dimensions: {
-    width: number;
-    height: number;
-  };
+  /** Valid image formats */
+  FORMATS: VALID_IMAGE_FORMATS
+} as const;
+
+/**
+ * Custom error class for image analysis errors
+ * @class
+ */
+export class ImageAnalysisError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ImageAnalysisError";
+  }
 }
 
-/** Results of analyzing a logo's brightness */
-interface LogoBrightnessAnalysis {
+/**
+ * Legacy interface for backwards compatibility
+ * @deprecated Use LogoBrightnessAnalysis instead
+ */
+export interface LogoInversion {
   /** Average brightness value (0-255) */
-  averageBrightness: number;
-  /** Whether the logo is light-colored */
-  isLightColored: boolean;
-  /** Whether the logo needs inversion in light theme for contrast */
-  needsInversionInLightTheme: boolean;
-  /** Whether the logo needs inversion in dark theme for contrast */
-  needsInversionInDarkTheme: boolean;
+  brightness: number;
+  /** Whether the logo needs inversion in dark theme */
+  needsDarkInversion: boolean;
+  /** Whether the logo needs inversion in light theme */
+  needsLightInversion: boolean;
   /** Whether the logo has transparency */
   hasTransparency: boolean;
-  /** Image format */
+  /** Image format (e.g., 'png', 'jpeg') */
   format: string;
   /** Image dimensions */
   dimensions: {
+    /** Width in pixels */
     width: number;
+    /** Height in pixels */
     height: number;
   };
 }
 
 /**
- * Convert new analysis format to legacy format
- * @param {LogoBrightnessAnalysis} analysis - New format analysis
- * @returns {LogoInversion} Legacy format analysis
+ * Results of analyzing a logo's brightness and characteristics
+ * @interface
+ */
+interface LogoBrightnessAnalysis {
+  /** Average brightness value (0-255) */
+  averageBrightness: number;
+  /** Whether the logo is predominantly light-colored */
+  isLightColored: boolean;
+  /** Whether the logo needs inversion in light theme for contrast */
+  needsInversionInLightTheme: boolean;
+  /** Whether the logo needs inversion in dark theme for contrast */
+  needsInversionInDarkTheme: boolean;
+  /** Whether the logo contains transparent pixels */
+  hasTransparency: boolean;
+  /** Image format (e.g., 'png', 'jpeg') */
+  format: string;
+  /** Image dimensions */
+  dimensions: {
+    /** Width in pixels */
+    width: number;
+    /** Height in pixels */
+    height: number;
+  };
+}
+
+/**
+ * Converts new analysis format to legacy format for backwards compatibility
+ * @param {LogoBrightnessAnalysis} analysis - New format analysis results
+ * @returns {LogoInversion} Legacy format analysis results
+ * @internal
+ *
+ * @example
+ * ```typescript
+ * const newAnalysis = await analyzeLogo(buffer);
+ * const legacyFormat = convertToLegacyFormat(newAnalysis);
+ * ```
  */
 function convertToLegacyFormat(analysis: LogoBrightnessAnalysis): LogoInversion {
   return {
@@ -69,25 +127,51 @@ function convertToLegacyFormat(analysis: LogoBrightnessAnalysis): LogoInversion 
 }
 
 /**
- * Validate image format and dimensions
- * @param {sharp.Metadata} metadata - Image metadata
+ * Validates image format and dimensions
+ * @param {sharp.Metadata} metadata - Image metadata from Sharp
  * @returns {void}
- * @throws {Error} If image format or dimensions are invalid
+ * @throws {ImageAnalysisError} If image format or dimensions are invalid
+ * @internal
+ *
+ * @example
+ * ```typescript
+ * const metadata = await sharp(buffer).metadata();
+ * validateImage(metadata); // Throws if invalid
+ * ```
  */
 function validateImage(metadata: sharp.Metadata): void {
-  if (!metadata.format || !VALID_IMAGE_FORMATS.includes(metadata.format as any)) {
-    throw new Error('Invalid image format');
+  if (!metadata.format || !CONFIG.FORMATS.includes(metadata.format as any)) {
+    throw new ImageAnalysisError(
+      `Invalid image format: ${metadata.format}. Must be one of: ${CONFIG.FORMATS.join(", ")}`
+    );
   }
 
   if (!metadata.width || !metadata.height || metadata.width < 1 || metadata.height < 1) {
-    throw new Error('Invalid image dimensions');
+    throw new ImageAnalysisError(
+      `Invalid image dimensions: ${metadata.width}x${metadata.height}. Must be positive numbers.`
+    );
   }
 }
 
 /**
- * Analyze a logo's brightness to determine if it needs inversion
+ * Analyzes a logo's brightness and characteristics to determine if it needs inversion
  * @param {Buffer} buffer - Logo image buffer to analyze
- * @returns {Promise<LogoBrightnessAnalysis>} Analysis results
+ * @returns {Promise<LogoBrightnessAnalysis>} Comprehensive analysis results
+ * @throws {ImageAnalysisError} If the image is invalid or analysis fails
+ *
+ * @example
+ * ```typescript
+ * const buffer = await fs.readFile('logo.png');
+ * const analysis = await analyzeLogo(buffer);
+ *
+ * if (analysis.isLightColored) {
+ *   console.log('Light logo detected');
+ * }
+ *
+ * if (analysis.hasTransparency) {
+ *   console.log('Logo contains transparency');
+ * }
+ * ```
  */
 export async function analyzeLogo(buffer: Buffer): Promise<LogoBrightnessAnalysis> {
   const image = sharp(buffer, { pages: 1 }); // Handle multi-page ICO files
@@ -96,15 +180,19 @@ export async function analyzeLogo(buffer: Buffer): Promise<LogoBrightnessAnalysi
   // Validate format and dimensions
   validateImage(metadata);
 
-  const width = metadata.width || MAX_ANALYSIS_DIMENSION;
-  const height = metadata.height || MAX_ANALYSIS_DIMENSION;
+  const width = metadata.width || CONFIG.MAX_ANALYSIS_DIMENSION;
+  const height = metadata.height || CONFIG.MAX_ANALYSIS_DIMENSION;
 
   // Resize for consistent analysis
   const resized = image
-    .resize(Math.min(width, MAX_ANALYSIS_DIMENSION), Math.min(height, MAX_ANALYSIS_DIMENSION), {
-      fit: 'inside',
-      withoutEnlargement: true
-    })
+    .resize(
+      Math.min(width, CONFIG.MAX_ANALYSIS_DIMENSION),
+      Math.min(height, CONFIG.MAX_ANALYSIS_DIMENSION),
+      {
+        fit: "inside",
+        withoutEnlargement: true
+      }
+    )
     .raw()
     .grayscale();
 
@@ -131,7 +219,7 @@ export async function analyzeLogo(buffer: Buffer): Promise<LogoBrightnessAnalysi
   }
 
   const averageBrightness = totalPixels > 0 ? totalBrightness / totalPixels : 0;
-  const isLightColored = averageBrightness >= BRIGHTNESS_THRESHOLD;
+  const isLightColored = averageBrightness >= CONFIG.BRIGHTNESS_THRESHOLD;
 
   return {
     averageBrightness,
@@ -145,19 +233,29 @@ export async function analyzeLogo(buffer: Buffer): Promise<LogoBrightnessAnalysi
     needsInversionInLightTheme: isLightColored,
     needsInversionInDarkTheme: !isLightColored,
     hasTransparency: hasTransparency || metadata.hasAlpha === true,
-    format: metadata.format || DEFAULT_FORMAT,
+    format: metadata.format || CONFIG.DEFAULT_FORMAT,
     dimensions: {
-      width: metadata.width || MAX_ANALYSIS_DIMENSION,
-      height: metadata.height || MAX_ANALYSIS_DIMENSION
+      width: metadata.width || CONFIG.MAX_ANALYSIS_DIMENSION,
+      height: metadata.height || CONFIG.MAX_ANALYSIS_DIMENSION
     }
   };
 }
 
 /**
- * Invert a logo's colors while preserving transparency
+ * Inverts a logo's colors while optionally preserving transparency
  * @param {Buffer} buffer - Logo image buffer to invert
- * @param {boolean} preserveTransparency - Whether to preserve transparency
- * @returns {Promise<Buffer>} Inverted logo buffer
+ * @param {boolean} [preserveTransparency=true] - Whether to preserve transparency
+ * @returns {Promise<Buffer>} Inverted logo buffer in PNG format
+ * @throws {ImageAnalysisError} If the image is invalid or inversion fails
+ *
+ * @example
+ * ```typescript
+ * // Invert colors and preserve transparency
+ * const inverted = await invertLogo(buffer);
+ *
+ * // Invert colors without preserving transparency
+ * const solid = await invertLogo(buffer, false);
+ * ```
  */
 export async function invertLogo(buffer: Buffer, preserveTransparency = true): Promise<Buffer> {
   const image = sharp(buffer, { pages: 1 }); // Handle multi-page ICO files
@@ -186,20 +284,37 @@ export async function invertLogo(buffer: Buffer, preserveTransparency = true): P
 }
 
 /**
- * Check if a logo needs color inversion based on the current theme
+ * Determines if a logo needs color inversion based on the current theme
  * @param {Buffer} buffer - Logo image buffer to check
- * @param {boolean} isDarkTheme - Whether current theme is dark
- * @returns {Promise<boolean>} Whether the logo needs inversion
+ * @param {boolean} isDarkTheme - Whether the current theme is dark mode
+ * @returns {Promise<boolean>} Whether the logo needs inversion for optimal contrast
+ * @throws {ImageAnalysisError} If the image is invalid or analysis fails
+ *
+ * @example
+ * ```typescript
+ * // Check if logo needs inversion in dark mode
+ * const needsInversion = await doesLogoNeedInversion(buffer, true);
+ *
+ * // Check if logo needs inversion in light mode
+ * const needsInversion = await doesLogoNeedInversion(buffer, false);
+ * ```
  */
 export async function doesLogoNeedInversion(buffer: Buffer, isDarkTheme: boolean): Promise<boolean> {
   const analysis = await analyzeLogo(buffer);
   return isDarkTheme ? analysis.needsInversionInDarkTheme : analysis.needsInversionInLightTheme;
 }
 
-// Legacy exports for backwards compatibility
+/**
+ * Legacy exports for backwards compatibility
+ * @deprecated Use the new function names instead
+ */
 export async function analyzeImage(buffer: Buffer): Promise<LogoInversion> {
   const analysis = await analyzeLogo(buffer);
   return convertToLegacyFormat(analysis);
 }
+
+/** @deprecated Use invertLogo instead */
 export const invertImage = invertLogo;
+
+/** @deprecated Use doesLogoNeedInversion instead */
 export const needsInversion = doesLogoNeedInversion;

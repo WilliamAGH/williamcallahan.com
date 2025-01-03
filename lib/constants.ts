@@ -24,6 +24,18 @@ export const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000;
 export const SERVER_CACHE_DURATION = 30 * 24 * 60 * 60;
 
 /**
+ * Cache duration for logo fetching
+ * @constant
+ * @type {Object}
+ */
+export const LOGO_CACHE_DURATION = {
+  /** Success cache duration (30 days in seconds) */
+  SUCCESS: 30 * 24 * 60 * 60,
+  /** Failed attempt cache duration (1 day in seconds) */
+  FAILURE: 24 * 60 * 60
+} as const;
+
+/**
  * Base URL for API endpoints
  * @constant
  * @type {string}
@@ -60,11 +72,11 @@ export const ENDPOINTS = {
 export const LOGO_SOURCES = {
   google: {
     hd: (domain: string) =>
-      `https://www.google.com/s2/favicons?domain=${domain}&sz=256`,
+      `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=256`,
     md: (domain: string) =>
-      `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+      `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=128`,
     sm: (domain: string) =>
-      `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
+      `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=64`
   },
   clearbit: {
     hd: (domain: string) =>
@@ -90,8 +102,8 @@ export const LOGO_SOURCES = {
  */
 export const GENERIC_GLOBE_PATTERNS = [
   // Google patterns
-  /\/s2\/favicons\?.*&sz=\d+.*&err=1/i,
-  /\/s2\/favicons\?.*&defaulticon=1/i,
+  /\/faviconV2\?.*&fallback_opts=.*&type=DEFAULT/i,
+  /\/faviconV2\?.*&fallback_opts=.*&type=FAVICON.*&err=1/i,
   // DuckDuckGo patterns
   /\/ip3\/[^/]+\.ico.*\?v=\d+/i,
   /\/ip3\/[^/]+\.ico\?f=1/i,
