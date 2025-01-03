@@ -2,7 +2,19 @@
 
 ## Logo Storage and Docker Deployment
 
-The website includes a logo fetching and caching system that automatically retrieves, validates, and stores company logos. This system is designed to work in both persistent and ephemeral storage scenarios.
+### Volume Configuration
+
+**Docker Volume Details:**
+- Volume Name: `logo_storage`
+- Container Mount Path: `/app/public/logos`
+- Purpose: Persistent storage for fetched company logos
+
+Example mount:
+```bash
+docker run -v logo_storage:/app/public/logos ...
+```
+
+The system works with or without this volume configured. When the volume is not available, it automatically falls back to memory-only caching and re-fetches logos as needed.
 
 ### How Logo Storage Works
 

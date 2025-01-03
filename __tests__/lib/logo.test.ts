@@ -1,11 +1,11 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import * as ServerCacheModule from '../../lib/server-cache'; // Adjusted import
+import * as ServerCacheModule from '../../lib/server-cache';
 import { GET } from '../../app/api/logo/route';
 import fs from 'fs/promises';
 import path from 'path';
 import { Request } from './setup/logo';
 import type { LogoSource } from '../../types/logo';
-import { NextResponse } from 'next/server'; // Import NextResponse
+import { NextResponse } from 'next/server';
 
 // Mock placeholder SVG content
 const mockPlaceholderSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
@@ -76,13 +76,18 @@ jest.mock('fs/promises', () => ({
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
 global.fetch = mockFetch;
 
-// Mock ServerCache
-jest.mock('../../lib/server-cache', () => ({
-  __esModule: true,
-  ...jest.requireActual('../../lib/server-cache'),
-  getLogoFetch: jest.fn(),
-  setLogoFetch: jest.fn(),
-}));
+// Mock ServerCache with proper types
+jest.mock('../../lib/server-cache', () => {
+  const actual = jest.requireActual<typeof ServerCacheModule>('../../lib/server-cache');
+  return {
+    __esModule: true,
+    ServerCache: {
+      ...actual.ServerCache,
+      getLogoFetch: jest.fn(),
+      setLogoFetch: jest.fn(),
+    }
+  };
+});
 
 // Mock NextResponse
 jest.mock('next/server', () => ({
@@ -120,7 +125,7 @@ describe('Logo API', () => {
 
   it('should return cached logo if available', async () => {
     const mockBuffer = Buffer.from('test');
-    (ServerCacheModule.getLogoFetch as jest.Mock).mockReturnValue({
+    (ServerCacheModule.ServerCache.getLogoFetch as jest.Mock).mockReturnValue({
       url: null,
       buffer: mockBuffer,
       source: 'google' as LogoSource,
@@ -131,7 +136,7 @@ describe('Logo API', () => {
     const response = await GET(request);
 
     expect(response.status).toBe(200);
-    expect(ServerCacheModule.getLogoFetch).toHaveBeenCalledWith('example.com');
+    expect(ServerCacheModule.ServerCache.getLogoFetch).toHaveBeenCalledWith('example.com');
 
     const buffer = Buffer.from(await response.arrayBuffer());
     expect(buffer).toEqual(mockBuffer);
@@ -203,7 +208,7 @@ describe('Logo API', () => {
   });
 
   it('should handle cached errors', async () => {
-    (ServerCacheModule.getLogoFetch as jest.Mock).mockReturnValue({
+    (ServerCacheModule.ServerCache.getLogoFetch as jest.Mock).mockReturnValue({
       url: null,
       source: null as LogoSource,
       error: 'Failed to fetch logo',
