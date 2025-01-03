@@ -4,45 +4,56 @@ import { SERVER_CACHE_DURATION } from '../../lib/constants';
 
 // Mock NodeCache
 jest.mock('node-cache', () => {
-  return jest.fn().mockImplementation(() => {
-    let store = new Map();
-    let ttls = new Map();
+  class MockNodeCache {
+    private store = new Map();
+    private ttls = new Map();
 
-    return {
-      get: jest.fn(key => {
-        const now = Date.now();
-        const ttl = ttls.get(key);
+    get(key: string) {
+      const now = Date.now();
+      const ttl = this.ttls.get(key);
 
-        // Check if TTL has expired
-        if (ttl && now >= ttl) {
-          store.delete(key);
-          ttls.delete(key);
-          return undefined;
-        }
+      // Check if TTL has expired
+      if (ttl && now >= ttl) {
+        this.store.delete(key);
+        this.ttls.delete(key);
+        return undefined;
+      }
 
-        return store.get(key);
-      }),
-      set: jest.fn((key, value) => {
-        store.set(key, value);
-        ttls.set(key, Date.now() + SERVER_CACHE_DURATION * 1000);
-        return true;
-      }),
-      del: jest.fn(key => {
-        store.delete(key);
-        ttls.delete(key);
-      }),
-      flushAll: jest.fn(() => {
-        store.clear();
-        ttls.clear();
-      }),
-      keys: jest.fn(() => Array.from(store.keys())),
-      getStats: jest.fn(() => ({
-        keys: store.size,
+      return this.store.get(key);
+    }
+
+    set(key: string, value: any, ttl?: number) {
+      this.store.set(key, value);
+      this.ttls.set(key, Date.now() + (ttl || SERVER_CACHE_DURATION) * 1000);
+      return true;
+    }
+
+    del(key: string) {
+      this.store.delete(key);
+      this.ttls.delete(key);
+    }
+
+    flushAll() {
+      this.store.clear();
+      this.ttls.clear();
+    }
+
+    keys() {
+      return Array.from(this.store.keys());
+    }
+
+    getStats() {
+      return {
+        keys: this.store.size,
         hits: 0,
-        misses: 0
-      }))
-    };
-  });
+        misses: 0,
+        ksize: 0,
+        vsize: 0
+      };
+    }
+  }
+
+  return MockNodeCache;
 });
 
 describe('ServerCache', () => {
