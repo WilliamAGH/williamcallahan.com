@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: DEFAULT_METADATA.openGraph?.title,
     description: DEFAULT_METADATA.openGraph?.description,
-    type: DEFAULT_METADATA.openGraph?.type ?? "website",
+    type: (DEFAULT_METADATA.openGraph?.type || "website") as "website" | "article" | "profile",
     url: DEFAULT_METADATA.openGraph?.url,
     images: [
       {
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     ],
   },
   twitter: {
-    card: DEFAULT_METADATA.twitter?.card ?? "summary_large_image",
+    card: (DEFAULT_METADATA.twitter?.card || "summary_large_image") as "summary" | "summary_large_image",
     title: DEFAULT_METADATA.twitter?.title,
     description: DEFAULT_METADATA.twitter?.description,
     creator: DEFAULT_METADATA.twitter?.creator,
