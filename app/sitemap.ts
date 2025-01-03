@@ -11,7 +11,7 @@
 
 import { MetadataRoute } from 'next';
 import { getAllPosts } from "../lib/blog";
-import { DOMAIN } from "../lib/seo";
+import { API_BASE_URL } from "../lib/constants";
 
 /**
  * Generate sitemap for the application
@@ -28,30 +28,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static pages
   const staticPages = [
     {
-      url: DOMAIN,
+      url: API_BASE_URL,
       lastModified: new Date(),
     },
     {
-      url: `${DOMAIN}/blog`,
+      url: `${API_BASE_URL}/blog`,
       lastModified: new Date(),
     },
     {
-      url: `${DOMAIN}/experience`,
+      url: `${API_BASE_URL}/experience`,
       lastModified: new Date(),
     },
     {
-      url: `${DOMAIN}/education`,
+      url: `${API_BASE_URL}/education`,
       lastModified: new Date(),
     },
     {
-      url: `${DOMAIN}/investments`,
+      url: `${API_BASE_URL}/investments`,
       lastModified: new Date(),
     },
   ];
 
   // Blog post pages
   const blogPages = posts.map((post) => ({
-    url: `${DOMAIN}/blog/${post.slug}`,
+    url: `${API_BASE_URL}/blog/${post.slug}`,
     lastModified: new Date(post.updatedAt || post.publishedAt),
   }));
 

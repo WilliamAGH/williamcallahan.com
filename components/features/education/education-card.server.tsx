@@ -41,40 +41,46 @@ async function getLogoData(website: string | undefined, institution: string, log
       };
     }
 
-    // During build, return placeholder immediately since we can't fetch
-    if (process.env.NODE_ENV === 'production') {
-      return {
-        url: '/images/company-placeholder.svg',
-        source: null
-      };
-    }
-
-    // If not in cache, fetch it server-side (development only)
+    // If not in cache, fetch it server-side
     const apiUrl = `/api/logo?${website ? `website=${encodeURIComponent(website)}` : `company=${encodeURIComponent(institution)}`}`;
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}${apiUrl}`);
-
-    if (!response.ok) {
-      console.error(`Failed to fetch logo for ${domain}: ${response.status}`);
-      return {
-        url: '/images/company-placeholder.svg',
-        source: null
-      };
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const contentType = response.headers.get('content-type');
-    const source = response.headers.get('x-logo-source');
-
-    // Cache the result
-    ServerCache.setLogoFetch(domain, {
-      url: null,
-      source: source as any,
-      buffer
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const response = await fetch(`${siteUrl}${apiUrl}`, {
+      redirect: 'manual', // Don't follow redirects
+      next: { revalidate: 3600 } // Cache for 1 hour
     });
 
+    // If we get a redirect, it means no logo was found
+    if (response.status === 307) {
+      return {
+        url: '/images/company-placeholder.svg',
+        source: null
+      };
+    }
+
+    // For successful responses
+    if (response.ok) {
+      const buffer = Buffer.from(await response.arrayBuffer());
+      const contentType = response.headers.get('content-type');
+      const source = response.headers.get('x-logo-source');
+
+      // Cache the result
+      ServerCache.setLogoFetch(domain, {
+        url: null,
+        source: source as any,
+        buffer
+      });
+
+      return {
+        url: apiUrl,
+        source: source
+      };
+    }
+
+    // For any other error
+    console.error(`Failed to fetch logo for ${domain}: ${response.status}`);
     return {
-      url: apiUrl,
-      source: source
+      url: '/images/company-placeholder.svg',
+      source: null
     };
   } catch (error) {
     console.error('Error fetching logo:', error);

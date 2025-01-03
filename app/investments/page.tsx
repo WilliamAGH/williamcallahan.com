@@ -8,19 +8,19 @@
 import type { Metadata } from 'next';
 import { Investments } from '../../components/features/investments';
 import { investments } from '../../data/investments';
-import { DOMAIN } from '../../lib/seo';
+import { API_BASE_URL } from '../../lib/constants';
 
 export const metadata: Metadata = {
   title: 'Investment Portfolio - William Callahan',
   description: 'View William Callahan\'s investment portfolio, including ventures, startups, and technology investments.',
   alternates: {
-    canonical: `${DOMAIN}/investments`,
+    canonical: `${API_BASE_URL}/investments`,
   },
   openGraph: {
     title: 'William Callahan - Investments',
     description: 'Investment portfolio and venture activities of William Callahan',
     type: 'profile',
-    url: `${DOMAIN}/investments`,
+    url: `${API_BASE_URL}/investments`,
   },
   twitter: {
     card: 'summary',

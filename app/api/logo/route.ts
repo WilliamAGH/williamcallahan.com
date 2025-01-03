@@ -238,7 +238,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Only try sources if we haven't recently failed
+    // During build, return placeholder immediately
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.redirect(new URL('/images/company-placeholder.svg', request.url), {
+        headers: {
+          'Cache-Control': 'public, max-age=31536000', // 1 year
+          'x-logo-source': ''
+        }
+      });
+    }
+
+    // Only try sources in development
     const result = await tryLogoSources(domain);
     if (result.valid && result.buffer) {
       ServerCache.setLogoFetch(domain, {
