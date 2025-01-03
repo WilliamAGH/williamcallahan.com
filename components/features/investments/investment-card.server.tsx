@@ -3,109 +3,85 @@
  * @module components/features/investments/investment-card.server
  * @description
  * Server component that handles logo fetching and processing for investment entries.
- * Uses ServerCache for efficient logo caching and processing.
+ * Uses direct logo fetching to work during build time.
  */
 
-import { ServerCache } from '../../../lib/server-cache';
 import type { Investment } from '../../../types/investment';
 import { ThemeWrapper } from './theme-wrapper.client';
+import { fetchLogo, normalizeDomain } from '../../../lib/logo-fetcher';
+import fs from 'fs/promises';
+import path from 'path';
+
+// Cache for placeholder SVG
+let placeholderSvg: Buffer | null = null;
 
 /**
- * Get logo data for an investment entry
- * @param {string | undefined} website - Company website URL
- * @param {string} name - Company name
- * @param {string | undefined} logo - Optional direct logo URL
- * @returns {Promise<{url: string, source: string | null}>} Logo data with URL and source
+ * Get placeholder SVG content
+ * @returns {Promise<Buffer>} Placeholder SVG buffer
  */
-async function getLogoData(website: string | undefined, name: string, logo: string | undefined): Promise<{url: string, source: string | null}> {
-  // If logo is provided directly, use it
-  if (logo) {
-    return {
-      url: logo,
-      source: null
-    };
+async function getPlaceholder(): Promise<Buffer> {
+  if (!placeholderSvg) {
+    placeholderSvg = await fs.readFile(path.join(process.cwd(), 'public/images/company-placeholder.svg'));
   }
-
-  try {
-    // Try to get from server cache first
-    const domain = website
-      ? website.startsWith('http')
-        ? new URL(website).hostname.replace('www.', '')
-        : website.replace(/^www\./, '').split('/')[0]
-      : name.toLowerCase().replace(/\s+/g, '');
-
-    const cached = ServerCache.getLogoFetch(domain);
-    if (cached?.buffer) {
-      return {
-        url: `/api/logo?${website ? `website=${encodeURIComponent(website)}` : `company=${encodeURIComponent(name)}`}`,
-        source: cached.source
-      };
-    }
-
-    // If not in cache, fetch it server-side using relative URL
-    const apiUrl = `/api/logo?${website ? `website=${encodeURIComponent(website)}` : `company=${encodeURIComponent(name)}`}`;
-
-    // Use relative URL for internal API calls
-    const response = await fetch(apiUrl, {
-      redirect: 'manual', // Don't follow redirects
-      next: { revalidate: 3600 } // Cache for 1 hour
-    });
-
-    // If we get a redirect, it means no logo was found
-    if (response.status === 307) {
-      return {
-        url: '/images/company-placeholder.svg',
-        source: null
-      };
-    }
-
-    // For successful responses
-    if (response.ok) {
-      const buffer = Buffer.from(await response.arrayBuffer());
-      const contentType = response.headers.get('content-type');
-      const source = response.headers.get('x-logo-source');
-
-      // Cache the result
-      ServerCache.setLogoFetch(domain, {
-        url: null,
-        source: source as any,
-        buffer
-      });
-
-      return {
-        url: apiUrl,
-        source: source
-      };
-    }
-
-    // For any other error
-    console.error(`Failed to fetch logo for ${domain}: ${response.status}`);
-    return {
-      url: '/images/company-placeholder.svg',
-      source: null
-    };
-  } catch (error) {
-    console.error('Error fetching logo:', error);
-    return {
-      url: '/images/company-placeholder.svg',
-      source: null
-    };
-  }
+  return placeholderSvg;
 }
 
 /**
  * Investment Card Server Component
  * @param {Investment} props - Investment entry properties
- * @returns {Promise<JSX.Element>} Pre-rendered investment card with server-fetched logo
+ * @returns {Promise<JSX.Element>} Pre-rendered investment card with fetched logo
  */
-// Enable dynamic rendering to allow API calls during server-side rendering
-export const dynamic = 'force-dynamic';
-
 export async function InvestmentCard(props: Investment): Promise<JSX.Element> {
   const { website, name, logo } = props;
-  // Convert null to undefined for the logo field
-  const logoUrl = logo === null ? undefined : logo;
-  const logoData = await getLogoData(website, name, logoUrl);
 
-  return <ThemeWrapper investment={props} logoData={logoData} />;
+  try {
+    // If logo is provided directly, use it
+    if (logo) {
+      return <ThemeWrapper investment={props} logoData={{ url: logo, source: null }} />;
+    }
+
+    // Get domain from website or company name
+    const domain = website ? normalizeDomain(website) : normalizeDomain(name);
+
+    // Fetch logo directly (works during build)
+    const result = await fetchLogo(domain);
+
+    if (result.buffer) {
+      // Convert buffer to data URL for client
+      const base64 = result.buffer.toString('base64');
+      const mimeType = result.buffer[0] === 0x3c ? 'image/svg+xml' : 'image/png';
+      const dataUrl = `data:${mimeType};base64,${base64}`;
+
+      return <ThemeWrapper
+        investment={props}
+        logoData={{
+          url: dataUrl,
+          source: result.source
+        }}
+      />;
+    }
+
+    // Use placeholder for failed fetches
+    const placeholder = await getPlaceholder();
+    const base64 = placeholder.toString('base64');
+    return <ThemeWrapper
+      investment={props}
+      logoData={{
+        url: `data:image/svg+xml;base64,${base64}`,
+        source: null
+      }}
+    />;
+  } catch (error) {
+    console.error('Error in InvestmentCard:', error);
+    // Return placeholder on any error
+    const placeholder = await getPlaceholder();
+    const base64 = placeholder.toString('base64');
+    return <ThemeWrapper
+      investment={props}
+      logoData={{
+        url: `data:image/svg+xml;base64,${base64}`,
+        source: null
+      }}
+    />;
+  }
 }
