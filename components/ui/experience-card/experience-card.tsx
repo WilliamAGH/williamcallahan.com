@@ -8,7 +8,7 @@
 "use client";
 
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
-import { LogoImage } from '../../ui';
+import LogoImage from '../../ui/logo-image';
 import { ExternalLink } from '../../ui/external-link';
 import type { Experience } from '../../../types/experience';
 
@@ -55,13 +55,13 @@ export function ExperienceCard({
               showIcon={false}
             >
               <LogoImage
-                company={company}
-                logoUrl={logo}
-                website={website}
+                url={logo || `/api/logo?${website ? `website=${encodeURIComponent(website)}` : `company=${encodeURIComponent(company)}`}`}
                 width={64}
                 height={64}
                 className="object-contain rounded-lg"
                 alt={company}
+                enableInversion={true}
+                showPlaceholder={true}
               />
             </ExternalLink>
           </div>
