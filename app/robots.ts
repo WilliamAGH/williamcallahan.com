@@ -10,7 +10,7 @@
  */
 
 import { MetadataRoute } from 'next';
-import { DOMAIN } from "../lib/seo";
+import { API_BASE_URL } from "../lib/constants";
 
 /**
  * Generate robots.txt for the application
@@ -37,6 +37,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/api/'],
     },
-    sitemap: `${DOMAIN}/sitemap.xml`,
+    sitemap: `${API_BASE_URL}/sitemap.xml`,
   };
 }

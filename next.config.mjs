@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    // Enable generation of metadata files
+    generateMetadata: true,
+  },
   webpack(config) {
     // Configure SVG handling
     config.module.rules.push({

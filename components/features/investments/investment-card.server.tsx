@@ -44,16 +44,10 @@ async function getLogoData(website: string | undefined, name: string, logo: stri
 
     // If not in cache, fetch it server-side
     const apiUrl = `/api/logo?${website ? `website=${encodeURIComponent(website)}` : `company=${encodeURIComponent(name)}`}`;
-    // During build, return placeholder immediately since we can't fetch
-    if (process.env.NODE_ENV === 'production') {
-      return {
-        url: '/images/company-placeholder.svg',
-        source: null
-      };
-    }
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}${apiUrl}`, {
-      redirect: 'manual' // Don't follow redirects
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const response = await fetch(`${siteUrl}${apiUrl}`, {
+      redirect: 'manual', // Don't follow redirects
+      next: { revalidate: 3600 } // Cache for 1 hour
     });
 
     // If we get a redirect, it means no logo was found

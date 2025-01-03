@@ -6,19 +6,19 @@
 
 import type { Metadata } from 'next';
 import { Education } from '../../components/features/education/education.server';
-import { DOMAIN } from '../../lib/seo';
+import { API_BASE_URL } from '../../lib/constants';
 
 export const metadata: Metadata = {
   title: 'Education Background - William Callahan',
   description: 'Learn about William Callahan\'s educational background, including academic achievements and professional certifications.',
   alternates: {
-    canonical: `${DOMAIN}/education`,
+    canonical: `${API_BASE_URL}/education`,
   },
   openGraph: {
     title: 'William Callahan - Education',
     description: 'Educational background and academic achievements of William Callahan',
     type: 'profile',
-    url: `${DOMAIN}/education`,
+    url: `${API_BASE_URL}/education`,
   },
   twitter: {
     card: 'summary',

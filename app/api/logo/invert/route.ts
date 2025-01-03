@@ -34,6 +34,10 @@ function validateUrl(urlString: string): string {
  * @param {NextRequest} request - Incoming request
  * @returns {Promise<NextResponse>} API response with inverted image
  */
+// Force static generation
+export const dynamic = 'force-static';
+export const revalidate = false;
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
   const urlParam = searchParams.get('url');
@@ -42,12 +46,38 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!urlParam) {
     return NextResponse.json(
       { error: 'URL parameter required' },
-      { status: 400 }
+      {
+        status: 400,
+        headers: {
+          'Cache-Control': 'no-store'
+        }
+      }
     );
   }
 
   try {
     const url = validateUrl(urlParam);
+
+    // During build, return original URL
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.redirect(url, {
+        headers: {
+          'Cache-Control': 'public, max-age=31536000' // 1 year
+        }
+      });
+    }
+
+    // Get cached inverted version if available
+    const cacheKey = `${url}-${isDarkTheme ? 'dark' : 'light'}`;
+    const cached = ServerCache.getInvertedLogo(cacheKey);
+    if (cached?.buffer) {
+      return new NextResponse(cached.buffer, {
+        headers: {
+          'Content-Type': 'image/png',
+          'Cache-Control': 'public, max-age=31536000',
+        }
+      });
+    }
 
     // Fetch the original image
     const response = await fetch(url, {
@@ -57,7 +87,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (!response.ok) {
       return NextResponse.json(
         { error: 'Failed to fetch image' },
-        { status: response.status }
+        {
+          status: response.status,
+          headers: {
+            'Cache-Control': 'no-store'
+          }
+        }
       );
     }
 
@@ -70,18 +105,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return new NextResponse(buffer, {
         headers: {
           'Content-Type': response.headers.get('Content-Type') || 'image/png',
-          'Cache-Control': 'public, max-age=31536000', // 1 year
-        }
-      });
-    }
-
-    // Get cached inverted version if available
-    const cacheKey = `${url}-${isDarkTheme ? 'dark' : 'light'}`;
-    const cached = ServerCache.getInvertedLogo(cacheKey);
-    if (cached?.buffer) {
-      return new NextResponse(cached.buffer, {
-        headers: {
-          'Content-Type': 'image/png',
           'Cache-Control': 'public, max-age=31536000',
         }
       });
@@ -107,7 +130,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     console.error('Error inverting logo:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to process image' },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store'
+        }
+      }
     );
   }
 }
@@ -123,10 +151,27 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
   const isDarkTheme = searchParams.get('theme') === 'dark';
 
   if (!urlParam) {
-    return new NextResponse(null, { status: 400 });
+    return new NextResponse(null, {
+      status: 400,
+      headers: {
+        'Cache-Control': 'no-store'
+      }
+    });
   }
 
   try {
+    // During build, return no inversion needed
+    if (process.env.NODE_ENV === 'production') {
+      return new NextResponse(null, {
+        headers: {
+          'X-Needs-Inversion': 'false',
+          'X-Has-Transparency': 'false',
+          'X-Brightness': '128',
+          'Cache-Control': 'public, max-age=31536000'
+        }
+      });
+    }
+
     const url = validateUrl(urlParam);
 
     // Check cache first
@@ -139,6 +184,7 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
           'X-Needs-Inversion': needsInv.toString(),
           'X-Has-Transparency': cached.hasTransparency.toString(),
           'X-Brightness': cached.brightness.toString(),
+          'Cache-Control': 'public, max-age=31536000'
         }
       });
     }
@@ -149,7 +195,12 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
     });
 
     if (!response.ok) {
-      return new NextResponse(null, { status: response.status });
+      return new NextResponse(null, {
+        status: response.status,
+        headers: {
+          'Cache-Control': 'no-store'
+        }
+      });
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
@@ -163,10 +214,16 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
         'X-Needs-Inversion': (isDarkTheme ? analysis.needsDarkInversion : analysis.needsLightInversion).toString(),
         'X-Has-Transparency': analysis.hasTransparency.toString(),
         'X-Brightness': analysis.brightness.toString(),
+        'Cache-Control': 'public, max-age=31536000'
       }
     });
   } catch (error) {
     console.error('Error analyzing logo:', error);
-    return new NextResponse(null, { status: 500 });
+    return new NextResponse(null, {
+      status: 500,
+      headers: {
+        'Cache-Control': 'no-store'
+      }
+    });
   }
 }

@@ -4,27 +4,37 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { Navigation, Terminal, SocialIcons, ThemeToggle } from "../components/ui";
 import { DEFAULT_METADATA } from "../lib/seo";
+import { API_BASE_URL } from "../lib/constants";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: DEFAULT_METADATA.title,
   description: DEFAULT_METADATA.description,
-  metadataBase: new URL("https://williamcallahan.com"),
+  metadataBase: new URL(API_BASE_URL),
   openGraph: {
     title: DEFAULT_METADATA.openGraph?.title,
     description: DEFAULT_METADATA.openGraph?.description,
     type: DEFAULT_METADATA.openGraph?.type ?? "website",
     url: DEFAULT_METADATA.openGraph?.url,
+    images: [
+      {
+        url: `${API_BASE_URL}/images/william.jpeg`,
+        width: 1200,
+        height: 630,
+        alt: 'William Callahan',
+      },
+    ],
   },
   twitter: {
-    card: DEFAULT_METADATA.twitter?.card ?? "summary",
+    card: DEFAULT_METADATA.twitter?.card ?? "summary_large_image",
     title: DEFAULT_METADATA.twitter?.title,
     description: DEFAULT_METADATA.twitter?.description,
     creator: DEFAULT_METADATA.twitter?.creator,
+    images: [`${API_BASE_URL}/images/william.jpeg`],
   },
   alternates: {
-    canonical: "https://williamcallahan.com",
+    canonical: API_BASE_URL,
   },
 };
 

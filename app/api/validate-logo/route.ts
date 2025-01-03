@@ -130,18 +130,49 @@ async function loadReferenceIcon(): Promise<void> {
  * @param {NextRequest} request - Incoming request
  * @returns {Promise<NextResponse>} API response
  */
+// Force static generation
+export const dynamic = 'force-static';
+export const revalidate = false;
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   await loadReferenceIcon();
 
   if (!referenceGlobeIcon) {
-    return NextResponse.json({ isGlobeIcon: false });
+    return NextResponse.json(
+      { isGlobeIcon: false },
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=31536000' // 1 year
+        }
+      }
+    );
   }
 
   try {
+    // During build, return false to avoid validation
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { isGlobeIcon: false },
+        {
+          headers: {
+            'Cache-Control': 'public, max-age=31536000' // 1 year
+          }
+        }
+      );
+    }
+
     const formData = await request.formData();
     const imageFile = formData.get('image') as File;
     if (!imageFile) {
-      return NextResponse.json({ error: 'No image provided' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'No image provided' },
+        {
+          status: 400,
+          headers: {
+            'Cache-Control': 'no-store'
+          }
+        }
+      );
     }
 
     const buffer = Buffer.from(await imageFile.arrayBuffer());
@@ -150,7 +181,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const imageHash = await getImageHash(buffer);
     const cached = ServerCache.getLogoValidation(imageHash);
     if (cached) {
-      return NextResponse.json({ isGlobeIcon: cached.isGlobeIcon });
+      return NextResponse.json(
+        { isGlobeIcon: cached.isGlobeIcon },
+        {
+          headers: {
+            'Cache-Control': 'public, max-age=31536000' // 1 year
+          }
+        }
+      );
     }
 
     // Compare with reference icon
@@ -159,9 +197,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Cache the result
     ServerCache.setLogoValidation(imageHash, isGlobeIcon);
 
-    return NextResponse.json({ isGlobeIcon });
+    return NextResponse.json(
+      { isGlobeIcon },
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=31536000' // 1 year
+        }
+      }
+    );
   } catch (error) {
     console.error('Error validating logo:', error);
-    return NextResponse.json({ error: 'Failed to validate logo' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to validate logo' },
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store'
+        }
+      }
+    );
   }
 }
