@@ -2,6 +2,7 @@
 
 import type { ComponentProps } from 'react';
 import { CopyButton } from './copy-button';
+import { cn } from '../../lib/utils';
 
 interface CodeBlockProps extends ComponentProps<'pre'> {
   children: React.ReactNode;
@@ -42,7 +43,18 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ children, ...props }) => {
 
   return (
     <div className="relative">
-      <pre className="not-prose rounded-lg overflow-x-auto bg-gray-800 p-4 text-gray-100" {...props}>
+      <pre
+        className={cn(
+          'not-prose',
+          'rounded-lg',
+          'overflow-x-auto',
+          'bg-gray-800',
+          'p-4',
+          'text-gray-100',
+          props.className
+        )}
+        {...props}
+      >
         {children}
       </pre>
       <CopyButton content={content} />

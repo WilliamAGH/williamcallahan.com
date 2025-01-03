@@ -1,44 +1,45 @@
 /**
  * Education Types
- * Defines types for educational institutions and certifications
+ * @module types/education
+ * @description
+ * Type definitions for education and certification data.
  */
 
 /**
- * Represents an educational institution entry
+ * Base interface for education-related items
+ * @interface
  */
-export interface Education {
-  /** Unique identifier for the education entry */
+interface EducationBase {
+  /** Unique identifier */
   id: string;
-  /** Name of the educational institution */
+  /** Institution name */
   institution: string;
-  /** Degree or qualification earned */
-  degree: string;
-  /** Year or period of study */
+  /** Year completed */
   year: string;
-  /** Optional URL to the institution's logo */
+  /** Institution website URL */
+  website: string;
+  /** Location (city, state) */
+  location: string;
+  /** Optional logo URL or file path */
   logo?: string;
-  /** Optional URL to the institution's website */
-  website?: string;
-  /** Optional location of the institution */
-  location?: string;
 }
 
 /**
- * Represents a professional certification
+ * Education entry (e.g., degree)
+ * @interface
+ * @extends {EducationBase}
  */
-export interface Certification {
-  /** Unique identifier for the certification */
-  id: string;
-  /** Institution that issued the certification */
-  institution: string;
-  /** Name of the certification */
+export interface Education extends EducationBase {
+  /** Degree name and specialization */
+  degree: string;
+}
+
+/**
+ * Certification entry
+ * @interface
+ * @extends {EducationBase}
+ */
+export interface Certification extends EducationBase {
+  /** Certification or course name */
   name: string;
-  /** Year the certification was earned */
-  year: string;
-  /** Optional URL to the certification logo */
-  logo?: string;
-  /** Optional URL to verify the certification or institution website */
-  website?: string;
-  /** Optional location of the certifying institution */
-  location?: string;
 }

@@ -11,7 +11,7 @@
  * @returns {JSX.Element} A styled container with experience entries
  */
 
-import { ExperienceCard } from "../../../components/ui";
+import { ExperienceCard } from "../../../components/ui/experience-card";
 import { WindowControls } from "../../../components/ui/navigation/window-controls";
 import { experiences } from "../../../data/experience";
 import type { Experience as ExperienceType } from "../../../types";
