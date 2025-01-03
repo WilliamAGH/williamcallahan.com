@@ -81,17 +81,17 @@ export function InvestmentsClient({ investments = [] }: InvestmentsClientProps):
               >
                 survivorship bias
               </ExternalLink>
-              . I've sought in good faith to represent them all here.
+              . I&apos;ve sought in good faith to represent them all here.
             </p>
             <p>
-              The vast majority of these investments were passive / on the sidelines. That means I wasn't a large or meaningful part of their fundraising round, just allowed to participate with a smaller amount (typically $5,000 to $25,000).
+              The vast majority of these investments were passive / on the sidelines. That means I wasn&apos;t a large or meaningful part of their fundraising round, just allowed to participate with a smaller amount (typically $5,000 to $25,000).
             </p>
             <p>
               The longer-term goal of this dataset is to shed light on early stage investing to make it better for everyone involved. To bring some of the rigor of public markets with the{' '}
               <ExternalLink
                 href="http://archives.cpajournal.com/2003/1203/nv/nv2.htm"
               >
-                "disinfectant of sunlight"
+                &quot;disinfectant of sunlight&quot;
               </ExternalLink>
               .
             </p>
@@ -100,7 +100,7 @@ export function InvestmentsClient({ investments = [] }: InvestmentsClientProps):
               <a href="/" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
                 Reach out
               </a>{' '}
-              if you'd like to see me add any data points or background!
+              if you&apos;d like to see me add any data points or background!
             </p>
             <details className="mt-8 group">
               <summary className="text-lg font-semibold mb-4 cursor-pointer hover:text-gray-600 dark:hover:text-gray-300">
@@ -111,10 +111,10 @@ export function InvestmentsClient({ investments = [] }: InvestmentsClientProps):
               <ol className="list-decimal list-outside space-y-4 ml-4 mt-4">
                 <li className="space-y-2">
                   <p className="italic">Return calculations require assigning at least two valuations: when you invest and at some later point, either when you exit or at an arbitrary point in time. Exits are easy to calculate (the price is set by someone else, just as the investment had), but the majority of current investments otherwise must be valued arbitrarily by some estimate of current value.</p>
-                  <p className="italic">Currently I am using the simplest methodology available: the last fundraising round valuation. That means if they haven't raised more money since, the valuation is statistically more likely to be overstated than understated. Remember, this is not an endorsement or investment advice, nor an offer for any securities.</p>
+                  <p className="italic">Currently I am using the simplest methodology available: the last fundraising round valuation. That means if they haven&apos;t raised more money since, the valuation is statistically more likely to be overstated than understated. Remember, this is not an endorsement or investment advice, nor an offer for any securities.</p>
                 </li>
                 <li className="space-y-2">
-                  <p className="italic">A lot of the returns show small declines or near complete losses but not total losses. These should probably stand out as peculiar, but there's a good reason for both: fees/transaction costs.</p>
+                  <p className="italic">A lot of the returns show small declines or near complete losses but not total losses. These should probably stand out as peculiar, but there&apos;s a good reason for both: fees/transaction costs.</p>
                   <p className="italic">The vast majority of deals have some allocation of transaction costs for legal and related expenses incurred in the transaction. That means less than 100% of the principal ends up getting invested in the company. Therefore it immediately has a negative return equal to the amount of transaction expense incurred. And in the event of a total loss without a distribution, it has been accounted for as a total loss of the principal invested excluding the transaction costs.</p>
                 </li>
               </ol>
