@@ -2,11 +2,7 @@ import type { BaseSEOMetadata, SEOMetadata, ImageSEOMetadata } from '../types/se
 import type { BlogPost } from '../types/blog';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-
-/**
- * Base domain for the website
- */
-export const DOMAIN = 'https://williamcallahan.com';
+import { API_BASE_URL } from './constants';
 
 /**
  * Default site metadata
@@ -18,7 +14,7 @@ export const DEFAULT_METADATA: BaseSEOMetadata = {
     title: 'William Callahan',
     description: 'Personal and professional website of William Callahan',
     type: 'website',
-    url: DOMAIN,
+    url: API_BASE_URL,
   },
   twitter: {
     card: 'summary_large_image',
@@ -34,7 +30,7 @@ export const DEFAULT_METADATA: BaseSEOMetadata = {
 export const STATIC_PAGE_METADATA: Record<string, BaseSEOMetadata> = {
   '/': {
     ...DEFAULT_METADATA,
-    canonical: 'https://williamcallahan.com/',
+    canonical: `${API_BASE_URL}/`,
   },
   '/experience': {
     title: 'Professional Experience - William Callahan',
@@ -89,7 +85,7 @@ export const STATIC_PAGE_METADATA: Record<string, BaseSEOMetadata> = {
  * @returns The full canonical URL
  */
 export function getCanonicalUrl(path: string): string {
-  return `${DOMAIN}${path}`;
+  return `${API_BASE_URL}${path}`;
 }
 
 /**
@@ -135,7 +131,7 @@ export function getBlogPostMetadata(post: BlogPost): SEOMetadata {
       description: post.excerpt,
       image: post.coverImage?.startsWith('http')
         ? post.coverImage
-        : `${DOMAIN}${post.coverImage}`,
+        : `${API_BASE_URL}${post.coverImage}`,
       creator: '@williamcallahan',
     },
     linkedin: {
@@ -143,7 +139,7 @@ export function getBlogPostMetadata(post: BlogPost): SEOMetadata {
       description: post.excerpt,
       image: post.coverImage?.startsWith('http')
         ? post.coverImage
-        : `${DOMAIN}${post.coverImage}`,
+        : `${API_BASE_URL}${post.coverImage}`,
       type: 'article',
       'article:author': 'William Callahan',
       'article:published_time': datePublished,
@@ -167,7 +163,7 @@ export function getImageMetadata(
   return {
     alt,
     title,
-    url: image.startsWith('http') ? image : `${DOMAIN}${image}`,
+    url: image.startsWith('http') ? image : `${API_BASE_URL}${image}`,
   };
 }
 
@@ -180,7 +176,7 @@ export function generateRobotsTxt(): string {
 User-agent: *
 Allow: /
 
-Sitemap: ${DOMAIN}/sitemap.xml
+Sitemap: ${API_BASE_URL}/sitemap.xml
 `.trim();
 }
 

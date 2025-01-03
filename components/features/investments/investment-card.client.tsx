@@ -1,8 +1,20 @@
+"use client";
+
 /**
- * Investment Card Component
- * @module components/features/investments/investment-card
+ * Investment Card Client Component
+ * @module components/features/investments/investment-card.client
  * @description
- * Displays investment information with logo, metrics, and details
+ * Client component that handles the display and interaction for investment entries.
+ * Receives pre-fetched logo data from the server component.
+ *
+ * @example
+ * ```tsx
+ * <InvestmentCardClient
+ *   {...investment}
+ *   logoData={{ url: '/api/logo/123', source: 'google' }}
+ *   isDarkTheme={true}
+ * />
+ * ```
  */
 
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
@@ -10,30 +22,34 @@ import { LogoImage } from '../../../components/ui';
 import { ExternalLink } from '../../../components/ui/external-link';
 import FinancialMetrics from '../../../components/ui/financial-metrics';
 import type { Investment } from '../../../types/investment';
+import type { LogoData } from '../../../types/logo';
 
 /**
- * Props for the InvestmentCard component
+ * Props for the InvestmentCardClient component
+ * @interface
+ * @extends {Investment}
  */
-interface InvestmentCardProps {
-  /** Investment data */
-  investment: Investment;
+interface InvestmentCardClientProps extends Investment {
+  /** Pre-fetched logo data from server */
+  logoData: LogoData;
+  /** Whether dark theme is active */
+  isDarkTheme?: boolean;
 }
 
 /**
- * A component that displays investment information
- * including logo, company name, and financial metrics
+ * Investment Card Client Component
+ * @param {InvestmentCardClientProps} props - Component properties
+ * @returns {JSX.Element} Rendered investment card with pre-fetched logo
  *
- * @component
- * @example
- * <InvestmentCard
- *   investment={{
- *     name: "Example Co",
- *     website: "https://example.com",
- *     metrics: { multiple: 2.5, holding_return: 150 }
- *   }}
- * />
+ * @remarks
+ * This component is responsible for:
+ * - Displaying company information
+ * - Rendering pre-fetched logos
+ * - Handling external links
+ * - Displaying financial metrics
+ * - Theme-aware rendering
  */
-export function InvestmentCard({ investment }: InvestmentCardProps): JSX.Element {
+export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: InvestmentCardClientProps): JSX.Element {
   const {
     name,
     website,
@@ -80,11 +96,13 @@ export function InvestmentCard({ investment }: InvestmentCardProps): JSX.Element
                   showIcon={false}
                 >
                   <LogoImage
-                    url={`/api/logo?website=${encodeURIComponent(website || '')}`}
+                    url={logoData.url}
                     width={48}
                     height={48}
                     className="object-contain w-full h-full"
                     alt={name}
+                    website={website}
+                    isDarkTheme={isDarkTheme}
                   />
                 </ExternalLink>
               </div>

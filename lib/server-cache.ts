@@ -7,7 +7,7 @@
  */
 
 import NodeCache from 'node-cache';
-import { SERVER_CACHE_DURATION } from './constants';
+import { SERVER_CACHE_DURATION, LOGO_CACHE_DURATION } from './constants';
 import type { LogoInversion, LogoSource } from '../types/logo';
 
 /**
@@ -113,10 +113,11 @@ export class ServerCache {
    */
   static setLogoFetch(domain: string, result: Omit<LogoFetchResult, 'timestamp'>): void {
     const key = this.LOGO_FETCH_PREFIX + domain;
+    const ttl = result.error ? LOGO_CACHE_DURATION.FAILURE : LOGO_CACHE_DURATION.SUCCESS;
     cache.set(key, {
       ...result,
       timestamp: Date.now()
-    });
+    }, ttl);
   }
 
   /**

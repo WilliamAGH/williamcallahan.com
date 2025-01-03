@@ -1,17 +1,18 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { useTheme } from 'next-themes';
-import LogoImage from '../../../components/ui/logo-image';
+import { LogoImage } from '../../../components/ui/logo-image';
 
 // Mock next/image
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ src, alt, className, onError, ...props }: any) => (
+  default: ({ src, alt, className, onError, priority, ...props }: any) => (
     <img
       src={src}
       alt={alt}
       className={className}
       onError={onError}
+      priority={priority ? "true" : undefined}
       {...props}
     />
   )
@@ -95,20 +96,69 @@ describe('LogoImage', () => {
 
     it('attempts API fallback when local image fails', async () => {
       const website = 'https://example.com';
-      render(<LogoImage {...mockProps} website={website} />);
+      const { rerender } = render(
+        <LogoImage {...mockProps} url="https://example.com/logo.png" website={website} />
+      );
 
+      // Wait for initial render
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Verify initial URL
+      const img = screen.getByRole('img');
+      expect(img).toHaveAttribute('src', 'https://example.com/logo.png');
+
+      // Trigger error to force API fallback
+      fireEvent.error(img);
+
+      // Wait for state updates
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Force a re-render to ensure state updates are reflected
+      rerender(
+        <LogoImage {...mockProps} url="https://example.com/logo.png" website={website} />
+      );
+
+      // Verify fallback URL
+      expect(img).toHaveAttribute(
+        'src',
+        `/api/logo?website=${encodeURIComponent(website)}`
+      );
+    });
+
+    it('shows placeholder after API fallback fails', async () => {
+      const website = 'https://example.com';
+      render(
+        <LogoImage {...mockProps} url="https://example.com/logo.png" website={website} />
+      );
+
+      // Wait for initial render
       await act(async () => {
         await Promise.resolve();
       });
 
       const img = screen.getByRole('img');
+
+      // Trigger first error to force API fallback
       fireEvent.error(img);
 
       await act(async () => {
         await Promise.resolve();
       });
 
-      expect(img).toHaveAttribute('src', `/api/logo?website=${encodeURIComponent(website)}`);
+      // Trigger second error on API fallback
+      fireEvent.error(img);
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Should show placeholder
+      expect(img).toHaveAttribute('src', '/images/company-placeholder.svg');
+      expect(img).toHaveClass('opacity-50');
     });
   });
 

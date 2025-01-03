@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Experience Section Component
  *
@@ -11,12 +9,23 @@
  * @returns {JSX.Element} A styled container with experience entries
  */
 
-import { ExperienceCard } from "../../../components/ui/experience-card";
+import { ExperienceCard } from "../../../components/ui/experience-card/experience-card.server";
 import { WindowControls } from "../../../components/ui/navigation/window-controls";
 import { experiences } from "../../../data/experience";
 import type { Experience as ExperienceType } from "../../../types";
 
-export function Experience(): JSX.Element {
+// Force static generation
+export const dynamic = 'force-static';
+
+export async function Experience(): Promise<JSX.Element> {
+  // Pre-render each experience card
+  const experienceCards = await Promise.all(
+    experiences.map(async (exp: ExperienceType) => ({
+      ...exp,
+      card: await ExperienceCard(exp)
+    }))
+  );
+
   return (
     <div className="max-w-5xl mx-auto mt-8">
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -31,9 +40,9 @@ export function Experience(): JSX.Element {
           <div className="mb-8">
             <h2 className="text-2xl font-bold mb-6">Experience</h2>
             <div className="space-y-6">
-            {experiences.map((exp: ExperienceType) => (
+            {experienceCards.map((exp) => (
               <div key={exp.company}>
-                <ExperienceCard {...exp} />
+                {exp.card}
               </div>
             ))}
             </div>

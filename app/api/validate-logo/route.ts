@@ -46,10 +46,21 @@ async function getImageHash(buffer: Buffer): Promise<string> {
 async function compareImages(image1: Buffer, image2: Buffer): Promise<boolean> {
   try {
     // Validate image formats first
-    const [meta1, meta2] = await Promise.all([
-      sharp(image1).metadata(),
-      sharp(image2).metadata()
-    ]);
+    let meta1, meta2;
+    try {
+      [meta1, meta2] = await Promise.all([
+        sharp(image1).metadata(),
+        sharp(image2).metadata()
+      ]);
+    } catch (error) {
+      console.error('Error getting image metadata:', error);
+      return false;
+    }
+
+    if (!meta1 || !meta2) {
+      console.debug('Failed to get image metadata');
+      return false;
+    }
 
     // Basic format validation
     if (!meta1.format || !meta2.format ||
@@ -68,10 +79,21 @@ async function compareImages(image1: Buffer, image2: Buffer): Promise<boolean> {
     }
 
     // Convert both images to PNG for consistent comparison
-    const [norm1, norm2] = await Promise.all([
-      sharp(image1).png().toBuffer(),
-      sharp(image2).png().toBuffer()
-    ]);
+    let norm1, norm2;
+    try {
+      [norm1, norm2] = await Promise.all([
+        sharp(image1).png().toBuffer(),
+        sharp(image2).png().toBuffer()
+      ]);
+    } catch (error) {
+      console.error('Error normalizing images:', error);
+      return false;
+    }
+
+    if (!norm1 || !norm2) {
+      console.debug('Failed to normalize images');
+      return false;
+    }
 
     // Calculate perceptual hashes
     const [hash1, hash2] = await Promise.all([
@@ -108,18 +130,37 @@ async function loadReferenceIcon(): Promise<void> {
  * @param {NextRequest} request - Incoming request
  * @returns {Promise<NextResponse>} API response
  */
+// Enable dynamic rendering to allow API calls during server-side rendering
+export const dynamic = 'force-dynamic';
+export const revalidate = 3600; // Cache for 1 hour
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   await loadReferenceIcon();
 
   if (!referenceGlobeIcon) {
-    return NextResponse.json({ isGlobeIcon: false });
+    return NextResponse.json(
+      { isGlobeIcon: false },
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=31536000' // 1 year
+        }
+      }
+    );
   }
 
   try {
     const formData = await request.formData();
     const imageFile = formData.get('image') as File;
     if (!imageFile) {
-      return NextResponse.json({ error: 'No image provided' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'No image provided' },
+        {
+          status: 400,
+          headers: {
+            'Cache-Control': 'no-store'
+          }
+        }
+      );
     }
 
     const buffer = Buffer.from(await imageFile.arrayBuffer());
@@ -128,7 +169,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const imageHash = await getImageHash(buffer);
     const cached = ServerCache.getLogoValidation(imageHash);
     if (cached) {
-      return NextResponse.json({ isGlobeIcon: cached.isGlobeIcon });
+      return NextResponse.json(
+        { isGlobeIcon: cached.isGlobeIcon },
+        {
+          headers: {
+            'Cache-Control': 'public, max-age=31536000' // 1 year
+          }
+        }
+      );
     }
 
     // Compare with reference icon
@@ -137,9 +185,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Cache the result
     ServerCache.setLogoValidation(imageHash, isGlobeIcon);
 
-    return NextResponse.json({ isGlobeIcon });
+    return NextResponse.json(
+      { isGlobeIcon },
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=31536000' // 1 year
+        }
+      }
+    );
   } catch (error) {
     console.error('Error validating logo:', error);
-    return NextResponse.json({ error: 'Failed to validate logo' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to validate logo' },
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store'
+        }
+      }
+    );
   }
 }
