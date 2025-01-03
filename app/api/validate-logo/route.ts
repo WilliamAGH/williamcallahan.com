@@ -130,9 +130,9 @@ async function loadReferenceIcon(): Promise<void> {
  * @param {NextRequest} request - Incoming request
  * @returns {Promise<NextResponse>} API response
  */
-// Force static generation
-export const dynamic = 'force-static';
-export const revalidate = false;
+// Configure dynamic API route with caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 3600; // Cache for 1 hour
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   await loadReferenceIcon();
@@ -149,18 +149,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    // During build, return false to avoid validation
-    if (process.env.NODE_ENV === 'production') {
-      return NextResponse.json(
-        { isGlobeIcon: false },
-        {
-          headers: {
-            'Cache-Control': 'public, max-age=31536000' // 1 year
-          }
-        }
-      );
-    }
-
     const formData = await request.formData();
     const imageFile = formData.get('image') as File;
     if (!imageFile) {

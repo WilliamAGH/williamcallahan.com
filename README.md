@@ -1,97 +1,227 @@
-# William Callahan Portfolio
+# William Callahan's Personal Website
 
-A modern, performant personal site and blog built with Next.js.
+## Logo Storage and Docker Deployment
 
-## 🚀 Quick Start
+The website includes a logo fetching and caching system that automatically retrieves, validates, and stores company logos. This system is designed to work in both persistent and ephemeral storage scenarios.
 
+### How Logo Storage Works
+
+The logo system follows a multi-layered caching approach:
+
+1. **Memory Cache** (Ephemeral, Fast)
+   - First layer of caching using `ServerCache`
+   - Clears when the container restarts
+   - Provides fastest access for frequently requested logos
+
+2. **Filesystem Cache** (Optional Persistence)
+   - Stored in `/app/public/logos`
+   - Can be persistent with Docker volume
+   - Falls back to ephemeral storage if volume isn't mounted
+   - Logos stored with hashed filenames: `{md5(domain)}-{source}.png`
+
+3. **External Fetching** (Fallback)
+   - Attempts multiple sources (Google, Clearbit, DuckDuckGo)
+   - Validates logos to filter out generic icons
+   - Converts all logos to PNG for consistency
+
+### Deployment Instructions
+
+#### 1. Basic Deployment (Ephemeral Storage)
 ```bash
-# Install dependencies
-npm install
+# Build the image
+docker build -t williamcallahan-website .
 
-# Start development server
-npm run dev
+# Run with ephemeral storage
+docker run -d \
+  -p 3000:3000 \
+  --name williamcallahan-website \
+  williamcallahan-website
+```
+In this mode:
+- Logos are stored in container's filesystem
+- Storage clears on container restart
+- System automatically re-fetches logos as needed
+- No volume management required
+- Suitable for testing or when persistence isn't critical
 
-# Build for production
-npm run build
+#### 2. Persistent Storage Deployment
+```bash
+# Create a named volume
+docker volume create logo_storage
 
-# Start production server
-npm run start
+# Build the image
+docker build -t williamcallahan-website .
+
+# Run with persistent storage
+docker run -d \
+  -p 3000:3000 \
+  -v logo_storage:/app/public/logos \
+  --name williamcallahan-website \
+  williamcallahan-website
+
+# Optional: Fix volume permissions if needed
+docker run --rm \
+  -v logo_storage:/data \
+  alpine chown -R 1001:1001 /data
 ```
 
-## 🛠 Scripts
+#### 3. Production Deployment with Docker Compose
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  website:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - logo_storage:/app/public/logos
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-- `npm run type-check` - Run TypeScript type checking
-- `npm run validate` - Run both linting and type checking
-
-## 🏗 Tech Stack
-
-- **Framework**: [Next.js 14](https://nextjs.org/)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-- **Icons**: [Lucide React](https://lucide.dev/)
-- **Deployment**: [williamcallahan.com](https://williamcallahan.com)
-- **Language**: TypeScript
-
-## 📁 Project Structure
-
+volumes:
+  logo_storage:
+    driver: local  # Use local for development
+    # For production, you might use:
+    # driver: your-storage-driver
+    # driver_opts:
+    #   type: nfs
+    #   o: addr=storage-server,rw
+    #   device: ":/path/to/storage"
 ```
-.
-├── app/                # Next.js app router pages
-├── components/         # React components
-│   ├── features/      # Feature-specific components
-│   └── ui/            # Reusable UI components
-├── data/              # Static data and content
-├── lib/               # Utility functions and helpers
-├── public/            # Static assets
-└── types/             # TypeScript type definitions
+
+#### 4. Kubernetes Deployment
+```yaml
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: williamcallahan-website
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+      - name: website
+        image: williamcallahan-website
+        volumeMounts:
+        - name: logo-storage
+          mountPath: /app/public/logos
+      volumes:
+      - name: logo-storage
+        persistentVolumeClaim:
+          claimName: logo-storage-pvc
+
+---
+# pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: logo-storage-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
 ```
 
-## 🔍 Development Practices
+### System Resilience
 
-### Code Organization
-- Small, focused files with single responsibilities
-- Feature-based component organization
-- Shared UI components in `components/ui`
-- Utility functions in `lib` directory
+The logo system is designed to be resilient and self-healing:
 
-### TypeScript
-- Strict type checking enabled
-- Type definitions in `types` directory
-- Interface-first development
-- Proper type exports/imports
+1. **Filesystem Availability Check**
+```typescript
+// Automatic filesystem check on startup
+const hasFileSystem = await ensureLogosDirectory();
+if (!hasFileSystem) {
+  console.warn('Filesystem storage unavailable, falling back to memory-only mode');
+}
+```
 
-### Documentation
-- Clear component documentation with JSDoc
-- Inline comments for complex logic
-- Type documentation for interfaces
-- README files for major features
+2. **Storage Fallback Chain**
+```mermaid
+graph TD
+    A[Logo Request] --> B{Check Memory Cache}
+    B -->|Hit| C[Return Logo]
+    B -->|Miss| D{Filesystem Available?}
+    D -->|Yes| E{Check Disk Cache}
+    D -->|No| G[Fetch from External]
+    E -->|Hit| F[Return & Cache in Memory]
+    E -->|Miss| G
+    G -->|Success| H{Filesystem Available?}
+    G -->|Failure| K[Return Placeholder]
+    H -->|Yes| I[Store on Disk]
+    H -->|No| J[Store in Memory Only]
+```
+
+3. **Error Recovery**
+- Automatic retry on transient failures
+- Graceful fallback to placeholder images
+- Separate error caching to prevent API hammering
+
+### Maintenance Operations
+
+1. **Clear Cache**
+```bash
+# Memory cache only (soft reset)
+curl -X POST http://localhost:3000/api/cache/clear
+
+# Full reset (memory + disk)
+docker volume rm logo_storage
+docker volume create logo_storage
+docker restart williamcallahan-website
+```
+
+2. **Backup Logos**
+```bash
+# Create backup
+docker run --rm \
+  -v logo_storage:/data \
+  -v $(pwd)/backup:/backup \
+  alpine tar czf /backup/logos.tar.gz /data
+
+# Restore backup
+docker run --rm \
+  -v logo_storage:/data \
+  -v $(pwd)/backup:/backup \
+  alpine tar xzf /backup/logos.tar.gz -C /
+```
+
+3. **Health Check**
+```bash
+# Check system health
+curl http://localhost:3000/api/health
+
+# View logs
+docker logs williamcallahan-website
+```
 
 ### Best Practices
-- Consistent file naming
-- Component composition
-- Proper error handling
-- Performance optimization
-- Accessibility compliance
 
-## 🚀 Deployment
+1. **Production Deployment**
+- Always use persistent volumes in production
+- Implement regular backups
+- Monitor storage usage
+- Set up health checks
 
-The site is deployed to [williamcallahan.com](https://williamcallahan.com) using Sliplane.io Docker containers:
+2. **Development/Testing**
+- Use ephemeral storage for faster iteration
+- Clear cache frequently during testing
+- Monitor API rate limits
 
-Push to main branch triggers deployment
+3. **Maintenance**
+- Regular health checks
+- Periodic cache cleanup
+- Storage usage monitoring
+- API access verification
 
-## 📦 Dependencies
-
-Main dependencies:
-- `next`: ^14.1.0
-- `react`: ^18.3.1
-- `lucide-react`: ^0.344.0
-- `next-themes`: ^0.2.1
-- `tailwindcss`: ^3.4.1
-
-Dev dependencies:
-- `typescript`: ^5.5.3
-- `eslint`: ^8.57.0
-- `@types/react`: ^18.3.5
+The system is designed to be resilient and self-healing, automatically adapting to the available storage options while maintaining functionality in all scenarios. Whether running with persistent storage or in ephemeral mode, the logo fetching and caching system will continue to function effectively.
