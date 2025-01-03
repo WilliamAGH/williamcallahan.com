@@ -11,7 +11,7 @@ import sharp from 'sharp';
 import { createHash } from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
-import { ServerCache } from '../../../lib/server-cache';
+import { ServerCacheInstance } from '../../../lib/server-cache';
 import { VALID_IMAGE_FORMATS, MIN_LOGO_SIZE } from '../../../lib/constants';
 
 /** Reference globe icon buffer - loaded once and reused */
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Check cache first
     const imageHash = await getImageHash(buffer);
-    const cached = ServerCache.getLogoValidation(imageHash);
+    const cached = ServerCacheInstance.getLogoValidation(imageHash);
     if (cached) {
       return NextResponse.json(
         { isGlobeIcon: cached.isGlobeIcon },
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const isGlobeIcon = await compareImages(buffer, referenceGlobeIcon);
 
     // Cache the result
-    ServerCache.setLogoValidation(imageHash, isGlobeIcon);
+    ServerCacheInstance.setLogoValidation(imageHash, isGlobeIcon);
 
     return NextResponse.json(
       { isGlobeIcon },

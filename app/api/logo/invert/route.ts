@@ -6,8 +6,9 @@
  * This route handles image inversion, caching, and serving inverted logos.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { ServerCache } from '../../../../lib/server-cache';
+import { NextResponse } from 'next/server';
+import type{ NextRequest } from 'next/server';
+import { ServerCacheInstance } from '../../../../lib/server-cache';
 import { analyzeImage, invertImage, needsInversion } from '../../../../lib/imageAnalysis';
 
 /**
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Get cached inverted version if available
     const cacheKey = `${url}-${isDarkTheme ? 'dark' : 'light'}`;
-    const cached = ServerCache.getInvertedLogo(cacheKey);
+    const cached = ServerCacheInstance.getInvertedLogo(cacheKey);
     if (cached?.buffer) {
       return new NextResponse(cached.buffer, {
         headers: {
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const inverted = await invertImage(buffer);
 
     // Cache the result
-    ServerCache.setInvertedLogo(cacheKey, inverted, analysis);
+    ServerCacheInstance.setInvertedLogo(cacheKey, inverted, analysis);
 
     // Return inverted image
     return new NextResponse(inverted, {
@@ -154,7 +155,7 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
 
     // Check cache first
     const cacheKey = `${url}-analysis`;
-    const cached = ServerCache.getLogoAnalysis(cacheKey);
+    const cached = ServerCacheInstance.getLogoAnalysis(cacheKey);
     if (cached) {
       const needsInv = isDarkTheme ? cached.needsDarkInversion : cached.needsLightInversion;
       return new NextResponse(null, {
@@ -185,7 +186,7 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
     const analysis = await analyzeImage(buffer);
 
     // Cache the analysis
-    ServerCache.setLogoAnalysis(cacheKey, analysis);
+    ServerCacheInstance.setLogoAnalysis(cacheKey, analysis);
 
     return new NextResponse(null, {
       headers: {
