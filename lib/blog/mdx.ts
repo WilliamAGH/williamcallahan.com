@@ -22,6 +22,31 @@ import type { BlogPost } from '../../types/blog';
 const POSTS_DIRECTORY = path.join(process.cwd(), 'data/blog/posts');
 
 /**
+ * Converts a date string or Date object to ISO string with time
+ * If the input is just a date (YYYY-MM-DD), adds midnight time
+ */
+function toISOString(date: string | Date | undefined): string {
+  if (!date) return new Date().toISOString();
+
+  const parsed = typeof date === 'string'
+    ? new Date(date + (date.includes('T') ? '' : 'T00:00:00.000Z'))
+    : date;
+
+  return parsed.toISOString();
+}
+
+/**
+ * Gets file creation and modification dates
+ */
+async function getFileDates(filePath: string): Promise<{ created: string; modified: string }> {
+  const stats = await fs.stat(filePath);
+  return {
+    created: stats.birthtime.toISOString(),
+    modified: stats.mtime.toISOString()
+  };
+}
+
+/**
  * Retrieves and processes a single MDX blog post
  *
  * @param {string} slug - The URL slug of the post to retrieve
@@ -42,6 +67,9 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
       console.error(`Author not found: ${authorId}`);
       return null;
     }
+
+    // Get file dates as fallback
+    const fileDates = await getFileDates(fullPath);
 
     // Serialize the content with options for proper MDX features
     const mdxSource = await serialize(content, {
@@ -64,6 +92,10 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
       parseFrontmatter: true
     });
 
+    // Use frontmatter dates or fall back to file dates
+    const publishedAt = toISOString(data.publishedAt || fileDates.created);
+    const updatedAt = toISOString(data.updatedAt || data.modifiedAt || fileDates.modified);
+
     // Construct the full blog post object
     return {
       id: `mdx-${slug}`,
@@ -71,8 +103,8 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
       slug: data.slug,
       excerpt: data.excerpt,
       content: mdxSource,
-      publishedAt: data.publishedAt,
-      updatedAt: data.updatedAt,
+      publishedAt,
+      updatedAt,
       author,
       tags: data.tags,
       readingTime: data.readingTime,

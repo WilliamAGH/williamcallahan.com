@@ -2,9 +2,9 @@
  * Blog Card Component
  */
 
-import Link from 'next/link';
-import Image from 'next/image';
-import type { BlogPost } from '@/types/blog';
+import Link from "next/link";
+import Image from "next/image";
+import type { BlogPost } from "../../../types/blog";
 
 export function BlogCard({ post }: { post: BlogPost }) {
   return (
@@ -16,6 +16,7 @@ export function BlogCard({ post }: { post: BlogPost }) {
               src={post.coverImage}
               alt={post.title}
               fill
+              priority
               className="object-cover"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
