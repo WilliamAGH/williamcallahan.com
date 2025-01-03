@@ -1,6 +1,6 @@
 /**
  * Certification Card Component
- * Displays professional certification information with logo and details
+ * Displays certification information with logo and details
  *
  * @module components/features/education/certification-card
  */
@@ -22,20 +22,19 @@ interface CertificationCardProps extends Certification {}
  * @component
  * @example
  * <CertificationCard
- *   institution="CFA Institute"
- *   name="Chartered Financial Analyst"
+ *   institution="AWS"
+ *   name="Solutions Architect"
  *   year="2023"
- *   website="https://cfainstitute.org"
- *   logo="/images/cfa-logo.svg"
+ *   website="https://aws.amazon.com"
  * />
  */
 export function CertificationCard({
   institution,
   name,
   year,
-  logo,
   website,
-  location
+  location,
+  logo
 }: CertificationCardProps): JSX.Element {
   return (
     <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
@@ -49,13 +48,14 @@ export function CertificationCard({
               showIcon={false}
             >
               <LogoImage
-                company={institution}
-                logoUrl={logo}
-                website={website}
+                url={logo || `/api/logo?website=${encodeURIComponent(website)}`}
                 width={64}
                 height={64}
-                className="object-contain rounded-lg"
+                className="object-contain w-full h-full rounded-lg"
                 alt={institution}
+                enableInversion={true}
+                showPlaceholder={true}
+                website={website}
               />
             </ExternalLink>
           </div>

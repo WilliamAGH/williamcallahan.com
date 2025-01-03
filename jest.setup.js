@@ -1,5 +1,8 @@
 import '@testing-library/jest-dom';
 
+// Polyfill for setImmediate
+global.setImmediate = (callback) => setTimeout(callback, 0);
+
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

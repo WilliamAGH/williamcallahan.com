@@ -1,6 +1,6 @@
 /**
  * Main Navigation Component
- * 
+ *
  * Provides the primary navigation bar for the application.
  * Includes responsive mobile menu and proper spacing across all devices.
  */
@@ -17,9 +17,9 @@ import { NavigationLink } from './navigation-link';
 export function Navigation() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  
+
   return (
-    <div className="flex-1">
+    <nav role="navigation" className="flex-1">
       {/* Mobile Menu Button */}
       <div className="sm:hidden flex items-center">
         <WindowControls className="mr-2" />
@@ -48,7 +48,10 @@ export function Navigation() {
 
       {/* Mobile Navigation Menu */}
       {isMenuOpen && (
-        <div className="sm:hidden absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-2">
+        <div
+          data-testid="mobile-menu"
+          className="sm:hidden absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-2"
+        >
           {navigationLinks.map((link) => (
             <NavigationLink
               key={link.path}
@@ -60,6 +63,6 @@ export function Navigation() {
           ))}
         </div>
       )}
-    </div>
+    </nav>
   );
 }

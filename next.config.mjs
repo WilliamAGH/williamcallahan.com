@@ -1,5 +1,22 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  webpack(config) {
+    // Configure SVG handling
+    config.module.rules.push({
+      test: /\.svg$/,
+      use: ['@svgr/webpack']
+    });
+
+    // Handle node modules in API routes
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      crypto: false,
+      path: false
+    };
+
+    return config;
+  },
   output: 'standalone',
   reactStrictMode: true,
   swcMinify: true,
@@ -20,6 +37,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'www.google.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'external-content.duckduckgo.com'
       }
     ]
   }
