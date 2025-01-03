@@ -1,14 +1,31 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import './globals.css';
-import { Providers } from './providers';
-import { Navigation, Terminal, SocialIcons, ThemeToggle } from '@/components/ui';
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { Providers } from "./providers";
+import { Navigation, Terminal, SocialIcons, ThemeToggle } from "../components/ui";
+import { DEFAULT_METADATA } from "../lib/seo";
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'William Alan Callahan',
-  description: 'Portfolio and personal website of William Alan Callahan',
+  title: DEFAULT_METADATA.title,
+  description: DEFAULT_METADATA.description,
+  metadataBase: new URL("https://williamcallahan.com"),
+  openGraph: {
+    title: DEFAULT_METADATA.openGraph?.title,
+    description: DEFAULT_METADATA.openGraph?.description,
+    type: DEFAULT_METADATA.openGraph?.type,
+    url: DEFAULT_METADATA.openGraph?.url,
+  },
+  twitter: {
+    card: DEFAULT_METADATA.twitter?.card,
+    title: DEFAULT_METADATA.twitter?.title,
+    description: DEFAULT_METADATA.twitter?.description,
+    creator: DEFAULT_METADATA.twitter?.creator,
+  },
+  alternates: {
+    canonical: "https://williamcallahan.com",
+  },
 };
 
 export default function RootLayout({

@@ -1,21 +1,40 @@
 /**
  * Blog Landing Page
- * 
+ *
  * Displays a list of all blog posts with filtering and search capabilities.
  */
 
-import { Metadata } from 'next';
-import { BlogList } from '@/components/features/blog/blog-list';
-import { getAllPosts } from '@/lib/blog';
+import type { Metadata } from "next";
+import { BlogList } from "../../components/features/blog/blog-list";
+import { getAllPosts } from "../../lib/blog";
+import { getStaticPageMetadata } from "../../lib/seo";
 
 export const metadata: Metadata = {
-  title: 'Blog | William Alan Callahan',
-  description: 'Thoughts on technology, investing, and building companies',
+  ...getStaticPageMetadata("/blog"),
+  alternates: {
+    canonical: "https://williamcallahan.com/blog",
+  },
+  openGraph: {
+    title: "Blog | William Alan Callahan",
+    description: "Thoughts on technology, investing, and building companies",
+    type: "website",
+    url: "https://williamcallahan.com/blog",
+  },
+  twitter: {
+    card: "summary",
+    title: "Blog | William Alan Callahan",
+    description: "Thoughts on technology, investing, and building companies",
+    creator: "@williamcallahan",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default async function BlogPage() {
   const posts = await getAllPosts();
-  
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <header className="mb-12">
@@ -24,7 +43,7 @@ export default async function BlogPage() {
           Thoughts on technology, investing, and building companies
         </p>
       </header>
-      
+
       <BlogList posts={posts} />
     </div>
   );
