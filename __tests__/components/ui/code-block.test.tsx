@@ -20,8 +20,9 @@ describe('CodeBlock', () => {
   describe('Basic Rendering', () => {
     it('renders children within a pre element', () => {
       render(<CodeBlock>const x = 1;</CodeBlock>);
-      expect(screen.getByText('const x = 1;')).toBeInTheDocument();
-      expect(screen.getByText('const x = 1;').tagName).toBe('PRE');
+      const pre = screen.getByText('const x = 1;');
+      expect(pre).toBeInTheDocument();
+      expect(pre.tagName).toBe('PRE');
     });
 
     it('applies correct styling classes', () => {
@@ -152,18 +153,15 @@ const y = 2;`}
         </CodeBlock>
       );
       const pre = container.querySelector('pre');
-
-      // Get all classes from the pre element
-      const classes = pre?.className.split(' ') || [];
-
-      // Verify all expected classes are present
-      expect(classes).toContain('custom-class');
-      expect(classes).toContain('not-prose');
-      expect(classes).toContain('rounded-lg');
-      expect(classes).toContain('overflow-x-auto');
-      expect(classes).toContain('bg-gray-800');
-      expect(classes).toContain('p-4');
-      expect(classes).toContain('text-gray-100');
+      expect(pre).toHaveClass(
+        'custom-class',
+        'not-prose',
+        'rounded-lg',
+        'overflow-x-auto',
+        'bg-gray-800',
+        'p-4',
+        'text-gray-100'
+      );
     });
 
     it('handles whitespace in text content', () => {
