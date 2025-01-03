@@ -25,6 +25,14 @@ async function getLogoData(website: string | undefined, name: string, logo: stri
     };
   }
 
+  // During build/production, return placeholder immediately
+  if (process.env.NODE_ENV === 'production') {
+    return {
+      url: '/images/company-placeholder.svg',
+      source: null
+    };
+  }
+
   try {
     // Try to get from server cache first
     const domain = website
