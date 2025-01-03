@@ -7,7 +7,7 @@
  * used by both API routes and server components.
  */
 
-import { ServerCache } from './server-cache';
+import { ServerCacheInstance } from './server-cache';
 import { LOGO_SOURCES } from './constants';
 import type { LogoSource } from '../types/logo';
 
@@ -22,7 +22,7 @@ export async function fetchLogo(domain: string): Promise<{
   error?: string;
 }> {
   // Check cache first
-  const cached = ServerCache.getLogoFetch(domain);
+  const cached = ServerCacheInstance.getLogoFetch(domain);
   if (cached?.buffer) {
     return {
       buffer: cached.buffer,
@@ -42,7 +42,7 @@ export async function fetchLogo(domain: string): Promise<{
         const buffer = Buffer.from(await response.arrayBuffer());
 
         // Cache the result
-        ServerCache.setLogoFetch(domain, {
+        ServerCacheInstance.setLogoFetch(domain, {
           url: null,
           source,
           buffer
@@ -56,7 +56,7 @@ export async function fetchLogo(domain: string): Promise<{
   }
 
   // Cache the failure
-  ServerCache.setLogoFetch(domain, {
+  ServerCacheInstance.setLogoFetch(domain, {
     url: null,
     source: null,
     error: 'Failed to fetch logo'

@@ -51,36 +51,35 @@ interface InvertedLogoEntry {
   timestamp: number;
 }
 
-// Create a singleton cache instance
-const cache = new NodeCache({
-  stdTTL: SERVER_CACHE_DURATION,
-  checkperiod: 24 * 60 * 60, // Check for expired keys every day
-  useClones: false, // Don't clone objects for better performance with buffers
-  deleteOnExpire: true
-});
+// Cache key prefixes
+const LOGO_VALIDATION_PREFIX = 'logo-validation:';
+const LOGO_FETCH_PREFIX = 'logo-fetch:';
+const INVERTED_LOGO_PREFIX = 'logo-inverted:';
+const LOGO_ANALYSIS_PREFIX = 'logo-analysis:';
 
 /**
- * Server-side cache management
- * @class
+ * Server-side cache management class
+ * @class ServerCache
+ * @extends NodeCache
  */
-export class ServerCache {
-  /** Prefix for logo validation cache keys */
-  private static readonly LOGO_VALIDATION_PREFIX = 'logo-validation:';
-  /** Prefix for logo fetch cache keys */
-  private static readonly LOGO_FETCH_PREFIX = 'logo-fetch:';
-  /** Prefix for inverted logo cache keys */
-  private static readonly INVERTED_LOGO_PREFIX = 'logo-inverted:';
-  /** Prefix for logo analysis cache keys */
-  private static readonly LOGO_ANALYSIS_PREFIX = 'logo-analysis:';
+export class ServerCache extends NodeCache {
+  constructor() {
+    super({
+      stdTTL: SERVER_CACHE_DURATION,
+      checkperiod: 24 * 60 * 60, // Check for expired keys every day
+      useClones: false, // Don't clone objects for better performance with buffers
+      deleteOnExpire: true
+    });
+  }
 
   /**
    * Get cached logo validation result
    * @param {string} imageHash - Hash of the image to look up
    * @returns {LogoValidationResult | undefined} Cached validation result
    */
-  static getLogoValidation(imageHash: string): LogoValidationResult | undefined {
-    const key = this.LOGO_VALIDATION_PREFIX + imageHash;
-    return cache.get<LogoValidationResult>(key);
+  getLogoValidation(imageHash: string): LogoValidationResult | undefined {
+    const key = LOGO_VALIDATION_PREFIX + imageHash;
+    return this.get<LogoValidationResult>(key);
   }
 
   /**
@@ -88,9 +87,9 @@ export class ServerCache {
    * @param {string} imageHash - Hash of the image to cache
    * @param {boolean} isGlobeIcon - Whether the image is a generic globe icon
    */
-  static setLogoValidation(imageHash: string, isGlobeIcon: boolean): void {
-    const key = this.LOGO_VALIDATION_PREFIX + imageHash;
-    cache.set(key, {
+  setLogoValidation(imageHash: string, isGlobeIcon: boolean): void {
+    const key = LOGO_VALIDATION_PREFIX + imageHash;
+    this.set(key, {
       isGlobeIcon,
       timestamp: Date.now()
     });
@@ -101,44 +100,60 @@ export class ServerCache {
    * @param {string} domain - Domain to look up
    * @returns {LogoFetchResult | undefined} Cached fetch result
    */
-  static getLogoFetch(domain: string): LogoFetchResult | undefined {
-    const key = this.LOGO_FETCH_PREFIX + domain;
-    return cache.get<LogoFetchResult>(key);
+  getLogoFetch(domain: string): LogoFetchResult | undefined {
+    const key = LOGO_FETCH_PREFIX + domain;
+    return this.get<LogoFetchResult>(key);
   }
 
   /**
    * Cache logo fetch result
    * @param {string} domain - Domain to cache
-   * @param {Omit<LogoFetchResult, 'timestamp'>} result - Fetch result to cache
+   * @param {Partial<LogoFetchResult>} result - Fetch result to cache
    */
-  static setLogoFetch(domain: string, result: Omit<LogoFetchResult, 'timestamp'>): void {
-    const key = this.LOGO_FETCH_PREFIX + domain;
-    const ttl = result.error ? LOGO_CACHE_DURATION.FAILURE : LOGO_CACHE_DURATION.SUCCESS;
-    cache.set(key, {
+  setLogoFetch(domain: string, result: Partial<LogoFetchResult>): void {
+    const key = LOGO_FETCH_PREFIX + domain;
+    this.set(key, {
       ...result,
       timestamp: Date.now()
-    }, ttl);
+    }, result.error ? LOGO_CACHE_DURATION.FAILURE : LOGO_CACHE_DURATION.SUCCESS);
+  }
+
+  /**
+   * Clear logo fetch result
+   * @param {string} domain - Domain to clear
+   */
+  clearLogoFetch(domain: string): void {
+    const key = LOGO_FETCH_PREFIX + domain;
+    this.del(key);
+  }
+
+  /**
+   * Clear all logo fetch results
+   */
+  clearAllLogoFetches(): void {
+    const keys = this.keys().filter(key => key.startsWith(LOGO_FETCH_PREFIX));
+    keys.forEach(key => this.del(key));
   }
 
   /**
    * Get cached inverted logo
-   * @param {string} key - Cache key for the inverted logo
+   * @param {string} cacheKey - Cache key for the inverted logo
    * @returns {InvertedLogoEntry | undefined} Cached inverted logo
    */
-  static getInvertedLogo(key: string): InvertedLogoEntry | undefined {
-    const cacheKey = this.INVERTED_LOGO_PREFIX + key;
-    return cache.get<InvertedLogoEntry>(cacheKey);
+  getInvertedLogo(cacheKey: string): InvertedLogoEntry | undefined {
+    const key = INVERTED_LOGO_PREFIX + cacheKey;
+    return this.get<InvertedLogoEntry>(key);
   }
 
   /**
    * Cache inverted logo
-   * @param {string} key - Cache key for the inverted logo
+   * @param {string} cacheKey - Cache key for the inverted logo
    * @param {Buffer} buffer - Inverted image buffer
    * @param {LogoInversion} analysis - Analysis results
    */
-  static setInvertedLogo(key: string, buffer: Buffer, analysis: LogoInversion): void {
-    const cacheKey = this.INVERTED_LOGO_PREFIX + key;
-    cache.set(cacheKey, {
+  setInvertedLogo(cacheKey: string, buffer: Buffer, analysis: LogoInversion): void {
+    const key = INVERTED_LOGO_PREFIX + cacheKey;
+    this.set(key, {
       buffer,
       analysis,
       timestamp: Date.now()
@@ -147,59 +162,53 @@ export class ServerCache {
 
   /**
    * Get cached logo analysis
-   * @param {string} key - Cache key for the analysis
+   * @param {string} cacheKey - Cache key for the logo analysis
    * @returns {LogoInversion | undefined} Cached analysis results
    */
-  static getLogoAnalysis(key: string): LogoInversion | undefined {
-    const cacheKey = this.LOGO_ANALYSIS_PREFIX + key;
-    return cache.get<LogoInversion>(cacheKey);
+  getLogoAnalysis(cacheKey: string): LogoInversion | undefined {
+    const key = LOGO_ANALYSIS_PREFIX + cacheKey;
+    return this.get<LogoInversion>(key);
   }
 
   /**
    * Cache logo analysis
-   * @param {string} key - Cache key for the analysis
+   * @param {string} cacheKey - Cache key for the logo analysis
    * @param {LogoInversion} analysis - Analysis results to cache
    */
-  static setLogoAnalysis(key: string, analysis: LogoInversion): void {
-    const cacheKey = this.LOGO_ANALYSIS_PREFIX + key;
-    cache.set(cacheKey, analysis);
-  }
-
-  /**
-   * Clear all caches
-   * @remarks
-   * This should only be used for testing or maintenance
-   */
-  static clear(): void {
-    cache.flushAll();
+  setLogoAnalysis(cacheKey: string, analysis: LogoInversion): void {
+    const key = LOGO_ANALYSIS_PREFIX + cacheKey;
+    this.set(key, analysis);
   }
 
   /**
    * Get cache statistics
-   * @returns {Object} Cache stats
+   * @returns {NodeCache.Stats} Cache statistics
    */
-  static getStats() {
-    return cache.getStats();
+  getStats(): NodeCache.Stats {
+    const stats = super.getStats();
+    return {
+      hits: stats.hits,
+      misses: stats.misses,
+      keys: this.keys().length,
+      ksize: stats.ksize,
+      vsize: stats.vsize
+    };
   }
 
   /**
-   * Clear logo fetch cache for a domain
-   * @param {string} domain - Domain to clear cache for
+   * Clear all caches
    */
-  static clearLogoFetch(domain: string): void {
-    const key = this.LOGO_FETCH_PREFIX + domain;
-    cache.del(key);
+  clearAllCaches(): void {
+    this.flushAll();
   }
 
   /**
-   * Clear all logo fetch caches
+   * Clear all caches
    */
-  static clearAllLogoFetches(): void {
-    const keys = cache.keys();
-    keys.forEach(key => {
-      if (key.startsWith(this.LOGO_FETCH_PREFIX)) {
-        cache.del(key);
-      }
-    });
+  clear(): void {
+    super.flushAll();
   }
 }
+
+// Export singleton instance
+export const ServerCacheInstance = new ServerCache();

@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { ServerCache } from '../../../../lib/server-cache';
+import { ServerCacheInstance } from '../../../../lib/server-cache';
 
 /**
  * POST handler for cache clearing
@@ -17,11 +17,11 @@ import { ServerCache } from '../../../../lib/server-cache';
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // Clear all caches
-    ServerCache.clearAllLogoFetches();
+    ServerCacheInstance.clearAllLogoFetches();
 
     return NextResponse.json({
       message: 'Cache cleared successfully',
-      stats: ServerCache.getStats()
+      stats: ServerCacheInstance.getStats()
     });
   } catch (error) {
     console.error('Error clearing cache:', error);
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     return NextResponse.json({
-      stats: ServerCache.getStats()
+      stats: ServerCacheInstance.getStats()
     });
   } catch (error) {
     console.error('Error getting cache stats:', error);
