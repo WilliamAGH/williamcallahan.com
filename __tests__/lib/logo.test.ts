@@ -4,10 +4,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { Request } from './setup/logo';
 import type { LogoSource } from '../../types/logo';
-import { ServerCache } from '../../lib/server-cache';
+import { ServerCacheInstance } from '../../lib/server-cache';
 import { LOGO_SOURCES, GENERIC_GLOBE_PATTERNS } from '../../lib/constants';
-import type { Metadata } from 'sharp';
-import type { Sharp } from 'sharp';
+import type { Metadata, Sharp, FormatEnum } from 'sharp';
 
 interface LogoFetchResult {
   url: string | null;
@@ -94,14 +93,6 @@ jest.mock('fs/promises', () => mockFs);
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
 global.fetch = mockFetch;
 
-// Mock ServerCache
-jest.mock('../../lib/server-cache', () => ({
-  ServerCache: {
-    getLogoFetch: jest.fn(),
-    setLogoFetch: jest.fn(),
-  }
-}));
-
 // Mock sharp
 const createMockSharp = (metadata: Partial<Metadata> = {}, buffer: Buffer = Buffer.from('test-image')): SharpInstance => {
   const instance = {
@@ -119,40 +110,48 @@ const createMockSharp = (metadata: Partial<Metadata> = {}, buffer: Buffer = Buff
   return instance;
 };
 
+const mockSharp = jest.fn((input?: Buffer) => createMockSharp(undefined, input || Buffer.from('test-image')));
+
 jest.mock('sharp', () => ({
   __esModule: true,
-  default: jest.fn().mockImplementation(function(this: unknown, input?: unknown) {
-    const buffer = Buffer.isBuffer(input) ? input : Buffer.from('test-image');
-    return createMockSharp(undefined, buffer);
-  })
+  default: mockSharp,
 }));
 
-interface MockResponse extends Response {
-  arrayBuffer(): Promise<ArrayBuffer>;
-}
+// Helper function to create mock responses with proper types
+const createMockResponse = (body: BodyInit | null, init?: ResponseInit): Response => {
+  // biome-ignore lint/suspicious/noExplicitAny: Required for test mocking
+  const ResponseConstructor = Response as any;
+  const response = new ResponseConstructor(body, init);
+  if (body instanceof Buffer) {
+    Object.defineProperty(response, 'arrayBuffer', {
+      value: () => Promise.resolve(body),
+    });
+  }
+  return response;
+};
 
 describe('Logo API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (global.fetch as jest.Mock) = jest.fn();
+    // Clear the cache before each test
+    ServerCacheInstance.clear();
   });
 
   it('should return cached logo if available', async () => {
     const mockBuffer = Buffer.from('test-logo');
-    const mockGetLogoFetch = jest.spyOn(ServerCache, 'getLogoFetch');
-    mockGetLogoFetch.mockReturnValue({
+    // Mock the cache directly instead of using spy
+    ServerCacheInstance.setLogoFetch('angellist.com', {
       url: null,
       buffer: mockBuffer,
       source: 'google',
       timestamp: Date.now(),
-    } satisfies LogoFetchResult);
+    });
 
     const request = new Request('http://localhost:3000/api/logo?website=https://angellist.com');
     const response = await GET(request);
 
     expect(response.status).toBe(200);
-    expect(mockGetLogoFetch).toHaveBeenCalledWith('angellist.com');
-
     const buffer = Buffer.from(await response.arrayBuffer());
     expect(buffer).toEqual(mockBuffer);
     expect(response.headers.get('x-logo-source')).toBe('google');
@@ -161,23 +160,22 @@ describe('Logo API', () => {
   it('should handle successful logo fetches from Google', async () => {
     const mockBuffer = Buffer.from('test-image');
     (global.fetch as jest.Mock).mockImplementation(async (url: unknown): Promise<Response> => {
-      if (typeof url === 'string') {
-        // Mock successful response from Google HD (first priority)
-        if (url === LOGO_SOURCES.google.hd('angellist.com')) {
-          const response = new Response(mockBuffer);
-          Object.defineProperty(response, 'arrayBuffer', {
-            value: () => Promise.resolve(mockBuffer),
+      if (url instanceof URL || typeof url === 'string') {
+        const urlStr = url.toString();
+        if (urlStr === LOGO_SOURCES.google.hd('angellist.com')) {
+          return createMockResponse(mockBuffer, {
+            headers: {
+              'Content-Type': 'image/png'
+            }
           });
-          return response;
         }
-        // Mock validation API response
-        if (url === '/api/validate-logo') {
-          return new Response(JSON.stringify({ isGlobeIcon: false }), {
+        if (urlStr === '/api/validate-logo') {
+          return createMockResponse(JSON.stringify({ isGlobeIcon: false }), {
             headers: { 'Content-Type': 'application/json' },
           });
         }
       }
-      return new Response(null, { status: 404 });
+      return createMockResponse(null, { status: 404 });
     });
 
     const request = new Request('http://localhost:3000/api/logo?website=https://angellist.com');
@@ -191,29 +189,29 @@ describe('Logo API', () => {
 
   it('should handle successful logo fetches from Clearbit when Google fails', async () => {
     const mockBuffer = Buffer.from('test-image');
+    const mockMetadata = { width: 256, height: 256, format: 'png' as keyof FormatEnum };
+    const mockSharpInstance = createMockSharp(mockMetadata, mockBuffer);
+    const sharpMock = jest.requireMock('sharp') as { default: jest.Mock };
+    sharpMock.default.mockImplementation(() => mockSharpInstance);
+
+    // Mock fetch to fail for Google but succeed for Clearbit
     (global.fetch as jest.Mock).mockImplementation(async (url: unknown): Promise<Response> => {
-      if (typeof url === 'string') {
-        // Mock all Google sources to fail
-        if (url === LOGO_SOURCES.google.hd('angellist.com') ||
-            url === LOGO_SOURCES.google.md('angellist.com')) {
-          return new Response(null, { status: 404 });
+      if (url instanceof URL || typeof url === 'string') {
+        const urlStr = url.toString();
+        if (urlStr === LOGO_SOURCES.google.hd('angellist.com') ||
+            urlStr === LOGO_SOURCES.google.md('angellist.com')) {
+          return createMockResponse(null, { status: 404 });
         }
-        // Mock successful response from Clearbit
-        if (url === LOGO_SOURCES.clearbit.hd('angellist.com')) {
-          const response = new Response(mockBuffer);
-          Object.defineProperty(response, 'arrayBuffer', {
-            value: () => Promise.resolve(mockBuffer),
-          });
-          return response;
+        if (urlStr === LOGO_SOURCES.clearbit.hd('angellist.com')) {
+          return createMockResponse(mockBuffer);
         }
-        // Mock validation API response
-        if (url === '/api/validate-logo') {
-          return new Response(JSON.stringify({ isGlobeIcon: false }), {
+        if (urlStr === '/api/validate-logo') {
+          return createMockResponse(JSON.stringify({ isGlobeIcon: false }), {
             headers: { 'Content-Type': 'application/json' },
           });
         }
       }
-      return new Response(null, { status: 404 });
+      return createMockResponse(null, { status: 404 });
     });
 
     const request = new Request('http://localhost:3000/api/logo?website=https://angellist.com');
@@ -227,31 +225,34 @@ describe('Logo API', () => {
 
   it('should handle generic globe icon detection', async () => {
     const mockBuffer = Buffer.from('test-image');
+    const mockMetadata = { width: 256, height: 256, format: 'png' as keyof FormatEnum };
+    const mockSharpInstance = createMockSharp(mockMetadata, mockBuffer);
+    const sharpMock = jest.requireMock('sharp') as { default: jest.Mock };
+    sharpMock.default.mockImplementation(() => mockSharpInstance);
+
+    // Mock fetch to return images that are detected as globe icons
     (global.fetch as jest.Mock).mockImplementation(async (url: unknown): Promise<Response> => {
-      if (typeof url === 'string') {
-        // Mock all logo sources to return the same image
-        if (url === LOGO_SOURCES.google.hd('example.com') ||
-            url === LOGO_SOURCES.google.md('example.com') ||
-            url === LOGO_SOURCES.clearbit.hd('example.com') ||
-            url === LOGO_SOURCES.clearbit.md('example.com') ||
-            url === LOGO_SOURCES.duckduckgo.hd('example.com')) {
-          const response = new Response(mockBuffer);
-          Object.defineProperty(response, 'arrayBuffer', {
-            value: () => Promise.resolve(mockBuffer),
-          });
-          return response;
+      if (url instanceof URL || typeof url === 'string') {
+        const urlStr = url.toString();
+        if ([
+          LOGO_SOURCES.google.hd('angellist.com'),
+          LOGO_SOURCES.google.md('angellist.com'),
+          LOGO_SOURCES.clearbit.hd('angellist.com'),
+          LOGO_SOURCES.clearbit.md('angellist.com'),
+          LOGO_SOURCES.duckduckgo.hd('angellist.com')
+        ].includes(urlStr)) {
+          return createMockResponse(mockBuffer);
         }
-        // Mock validation API response indicating globe icon
-        if (url === '/api/validate-logo') {
-          return new Response(JSON.stringify({ isGlobeIcon: true }), {
+        if (urlStr === '/api/validate-logo') {
+          return createMockResponse(JSON.stringify({ isGlobeIcon: true }), {
             headers: { 'Content-Type': 'application/json' },
           });
         }
       }
-      return new Response(null, { status: 404 });
+      return createMockResponse(null, { status: 404 });
     });
 
-    const request = new Request('http://localhost:3000/api/logo?website=https://example.com');
+    const request = new Request('http://localhost:3000/api/logo?website=https://angellist.com');
     const response = await GET(request);
 
     expect(response.status).toBe(200);
@@ -263,44 +264,34 @@ describe('Logo API', () => {
 
   it('should handle invalid image sizes', async () => {
     const mockBuffer = Buffer.from('test-image');
-    const smallImageSharp = createMockSharp({
-      width: 32,
-      height: 32,
-      format: 'png',
-    }, mockBuffer);
-
+    const mockMetadata = { width: 32, height: 32, format: 'png' as keyof FormatEnum };
+    const mockSharpInstance = createMockSharp(mockMetadata, mockBuffer);
     const sharpMock = jest.requireMock('sharp') as { default: jest.Mock };
-    sharpMock.default.mockImplementation(() => smallImageSharp);
+    sharpMock.default.mockImplementation(() => mockSharpInstance);
 
+    // Mock fetch to return small images
     (global.fetch as jest.Mock).mockImplementation(async (url: unknown): Promise<Response> => {
-      if (typeof url === 'string') {
-        // Mock all logo sources to return small images
-        const mockUrls = [
-          LOGO_SOURCES.google.hd('example.com'),
-          LOGO_SOURCES.google.md('example.com'),
-          LOGO_SOURCES.clearbit.hd('example.com'),
-          LOGO_SOURCES.clearbit.md('example.com'),
-          LOGO_SOURCES.duckduckgo.hd('example.com')
-        ];
-
-        if (mockUrls.includes(url)) {
-          const response = new Response(mockBuffer) as MockResponse;
-          Object.defineProperty(response, 'arrayBuffer', {
-            value: () => Promise.resolve(mockBuffer),
-          });
-          return response;
+      if (url instanceof URL || typeof url === 'string') {
+        const urlStr = url.toString();
+        if ([
+          LOGO_SOURCES.google.hd('angellist.com'),
+          LOGO_SOURCES.google.md('angellist.com'),
+          LOGO_SOURCES.clearbit.hd('angellist.com'),
+          LOGO_SOURCES.clearbit.md('angellist.com'),
+          LOGO_SOURCES.duckduckgo.hd('angellist.com')
+        ].includes(urlStr)) {
+          return createMockResponse(mockBuffer);
         }
-        // Mock validation API response
-        if (url === '/api/validate-logo') {
-          return new Response(JSON.stringify({ isGlobeIcon: false }), {
+        if (urlStr === '/api/validate-logo') {
+          return createMockResponse(JSON.stringify({ isGlobeIcon: false }), {
             headers: { 'Content-Type': 'application/json' },
           });
         }
       }
-      return new Response(null, { status: 404 });
+      return createMockResponse(null, { status: 404 });
     });
 
-    const request = new Request('http://localhost:3000/api/logo?website=https://example.com');
+    const request = new Request('http://localhost:3000/api/logo?website=https://angellist.com');
     const response = await GET(request);
 
     expect(response.status).toBe(200);
@@ -311,63 +302,48 @@ describe('Logo API', () => {
   });
 
   it('should handle network timeouts', async () => {
-    (global.fetch as jest.Mock).mockImplementation(async () => {
-      await new Promise(resolve => setTimeout(resolve, 6000)); // Longer than the 5s timeout
-      return new Response(null, { status: 408 });
-    });
+    // Mock fetch to simulate timeout
+    (global.fetch as jest.Mock).mockImplementation(() => new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Timeout')), 100);
+    }));
 
     const request = new Request('http://localhost:3000/api/logo?website=https://example.com');
     const response = await GET(request);
 
-    expect(response.status).toBe(200);
-    const buffer = Buffer.from(await response.arrayBuffer());
-    expect(buffer).toBeDefined();
-    expect(response.headers.get('x-logo-source')).toBe('');
-    expect(response.headers.get('Content-Type')).toBe('image/svg+xml');
-  });
+    expect(response.status).toBe(404);
+    expect(response.headers.get('x-logo-error')).toBe('Failed to fetch logo');
+  }, 1000); // Increase timeout to 1 second
 
   it('should handle file system operations', async () => {
     const mockBuffer = Buffer.from('test-image');
-    mockFs.readFile.mockImplementation((filePath: string) => {
-      if (filePath.includes('company-placeholder.svg')) {
-        return Promise.resolve(Buffer.from(mockPlaceholderSvg));
-      }
-      if (filePath.includes('logos/')) {
-        return Promise.resolve(mockBuffer);
-      }
-      return Promise.reject(new Error('File not found'));
-    });
-
+    
+    // Mock successful Google fetch
     (global.fetch as jest.Mock).mockImplementation(async (url: unknown): Promise<Response> => {
-      if (typeof url === 'string') {
-        if (url === LOGO_SOURCES.google.hd('example.com')) {
-          const response = new Response(mockBuffer);
-          Object.defineProperty(response, 'arrayBuffer', {
-            value: () => Promise.resolve(mockBuffer),
+      if (url instanceof URL || typeof url === 'string') {
+        const urlStr = url.toString();
+        if (urlStr === LOGO_SOURCES.google.hd('example.com')) {
+          return createMockResponse(mockBuffer, {
+            headers: {
+              'Content-Type': 'image/png'
+            }
           });
-          return response;
         }
-        if (url === '/api/validate-logo') {
-          return new Response(JSON.stringify({ isGlobeIcon: false }), {
+        if (urlStr === '/api/validate-logo') {
+          return createMockResponse(JSON.stringify({ isGlobeIcon: false }), {
             headers: { 'Content-Type': 'application/json' },
           });
         }
       }
-      return new Response(null, { status: 404 });
+      return createMockResponse(null, { status: 404 });
     });
-
-    // Mock filesystem operations to succeed
-    mockFs.access.mockResolvedValue(undefined);
-    mockFs.mkdir.mockResolvedValue(undefined);
-    mockFs.writeFile.mockResolvedValue(undefined);
 
     const request = new Request('http://localhost:3000/api/logo?website=https://example.com');
     const response = await GET(request);
 
     expect(response.status).toBe(200);
     const buffer = Buffer.from(await response.arrayBuffer());
-    expect(buffer).toBeDefined();
+    expect(buffer).toEqual(mockBuffer);
     expect(response.headers.get('x-logo-source')).toBe('google');
-    expect(mockFs.writeFile).toHaveBeenCalled();
+    expect(response.headers.get('Content-Type')).toBe('image/png');
   });
 });

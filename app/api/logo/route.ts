@@ -9,13 +9,41 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { ServerCache } from '../../../lib/server-cache';
+import { ServerCacheInstance } from '../../../lib/server-cache';
 import { LOGO_SOURCES, GENERIC_GLOBE_PATTERNS, LOGO_SIZES } from '../../../lib/constants';
 import type { LogoSource } from '../../../types/logo';
 import sharp from 'sharp';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+
+/**
+ * Result of a logo fetch and validation operation
+ * @interface
+ */
+interface LogoValidationResult {
+  /** Whether the validation was successful */
+  valid: boolean;
+  /** The image buffer if validation was successful */
+  buffer?: Buffer;
+  /** The error message if validation failed */
+  error?: string;
+}
+
+/**
+ * Result of a logo fetch operation from multiple sources
+ * @interface
+ */
+interface LogoFetchResult {
+  /** Whether the fetch was successful */
+  valid: boolean;
+  /** The image buffer if fetch was successful */
+  buffer?: Buffer;
+  /** The source of the logo if fetch was successful */
+  source?: LogoSource;
+  /** The error message if fetch failed */
+  error?: string;
+}
 
 // Cache for placeholder SVG
 let placeholderSvg: Buffer | null = null;
@@ -135,13 +163,9 @@ async function isImageLargeEnough(buffer: Buffer): Promise<boolean> {
 /**
  * Fetch and validate an image from a URL
  * @param {string} url - URL to fetch
- * @returns {Promise<{valid: boolean, buffer?: Buffer, error?: string}>} Validation result
+ * @returns {Promise<LogoValidationResult>} Validation result
  */
-async function fetchAndValidateImage(url: string): Promise<{
-  valid: boolean;
-  buffer?: Buffer;
-  error?: string;
-}> {
+async function fetchAndValidateImage(url: string): Promise<LogoValidationResult> {
   // Check URL pattern first for early rejection
   if (isGenericGlobeIcon(url)) {
     console.debug(`Blocked generic globe icon URL: ${url}`);
@@ -227,14 +251,9 @@ async function fetchAndValidateImage(url: string): Promise<{
 /**
  * Try to fetch a logo from multiple sources
  * @param {string} domain - Domain to fetch logo for
- * @returns {Promise<{valid: boolean, buffer?: Buffer, source?: string, error?: string}>} Result
+ * @returns {Promise<LogoFetchResult>} Result
  */
-async function tryLogoSources(domain: string): Promise<{
-  valid: boolean;
-  buffer?: Buffer;
-  source?: string;
-  error?: string;
-}> {
+async function tryLogoSources(domain: string): Promise<LogoFetchResult> {
   // Try Google HD (256px)
   const googleHdResult = await fetchAndValidateImage(LOGO_SOURCES.google.hd(domain));
   if (googleHdResult.valid && googleHdResult.buffer) {
@@ -278,7 +297,7 @@ async function tryLogoSources(domain: string): Promise<{
  */
 // Configure dynamic API route with caching
 export const dynamic = 'force-dynamic';
-export const revalidate = 3600; // Cache for 1 hour
+export const revalidate = 3600;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
@@ -311,7 +330,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const hasFileSystem = await ensureLogosDirectory();
 
     // Check cache first
-    const cached = ServerCache.getLogoFetch(domain);
+    const cached = ServerCacheInstance.getLogoFetch(domain);
     if (cached) {
       // If we have a cached error, return placeholder
       if (cached.error) {
@@ -340,14 +359,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Check filesystem if available
     if (hasFileSystem) {
-      for (const source of ['google', 'clearbit', 'duckduckgo']) {
+      for (const source of ['google', 'clearbit', 'duckduckgo'] as const) {
         const logoPath = getLogoPath(domain, source);
         const buffer = await readLogoFromDisk(logoPath);
         if (buffer) {
           // Update memory cache with the stored logo
-          ServerCache.setLogoFetch(domain, {
+          ServerCacheInstance.setLogoFetch(domain, {
             url: null,
-            source: source as LogoSource,
+            source,
             buffer
           });
           return new NextResponse(buffer, {
@@ -371,9 +390,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
 
       // Update memory cache
-      ServerCache.setLogoFetch(domain, {
+      ServerCacheInstance.setLogoFetch(domain, {
         url: null,
-        source: result.source as LogoSource,
+        source: result.source,
         buffer: result.buffer
       });
 
@@ -388,7 +407,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Cache the failure to prevent retrying too soon
-    ServerCache.setLogoFetch(domain, {
+    ServerCacheInstance.setLogoFetch(domain, {
       url: null,
       source: null,
       error: result.error || 'Failed to fetch logo'
