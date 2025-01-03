@@ -137,8 +137,8 @@ async function fetchAndValidateImage(url: string): Promise<{
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
         if (process.env.NODE_ENV === 'development') {
-        console.debug(`Timeout fetching image from ${url}`);
-      }
+          console.debug(`Timeout fetching image from ${url}`);
+        }
         return { valid: false, error: 'Request timeout' };
       }
       console.error(`Error validating image from ${url}:`, error.message);
@@ -229,22 +229,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       domain = company!.toLowerCase().replace(/\s+/g, '');
     }
 
-    // During build/production, return placeholder immediately
-    if (process.env.NODE_ENV === 'production') {
-      const placeholder = await getPlaceholder();
-      return new NextResponse(placeholder, {
-        headers: {
-          'Content-Type': 'image/svg+xml',
-          'Cache-Control': 'public, max-age=31536000', // 1 year
-          'x-logo-source': ''
-        }
-      });
-    }
-
     // Check cache first
     const cached = ServerCache.getLogoFetch(domain);
     if (cached) {
-      // If we have a cached error or during build, return placeholder
+      // If we have a cached error, return placeholder
       if (cached.error) {
         const placeholder = await getPlaceholder();
         return new NextResponse(placeholder, {
@@ -269,7 +257,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Only try sources in development
+    // Try to fetch logo from sources
     const result = await tryLogoSources(domain);
     if (result.valid && result.buffer) {
       ServerCache.setLogoFetch(domain, {
