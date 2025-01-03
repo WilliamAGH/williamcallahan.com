@@ -163,13 +163,14 @@ async function isImageLargeEnough(buffer: Buffer): Promise<boolean> {
 /**
  * Fetch and validate an image from a URL
  * @param {string} url - URL to fetch
+ * @param {string} baseUrl - Base URL for validation endpoint
  * @returns {Promise<LogoValidationResult>} Validation result
  */
-async function fetchAndValidateImage(url: string): Promise<LogoValidationResult> {
+async function fetchAndValidateImage(url: string, baseUrl: string): Promise<LogoValidationResult> {
   // Check URL pattern first for early rejection
   if (isGenericGlobeIcon(url)) {
     console.debug(`Blocked generic globe icon URL: ${url}`);
-    return { valid: false, error: 'Generic globe icon detected' };
+    return { valid: false, error: 'Failed to fetch logo' };
   }
 
   try {
@@ -187,7 +188,7 @@ async function fetchAndValidateImage(url: string): Promise<LogoValidationResult>
       if (process.env.NODE_ENV === 'development') {
         console.debug(`Failed to fetch image from ${url}: ${response.status}`);
       }
-      return { valid: false, error: 'Failed to fetch image' };
+      return { valid: false, error: 'Failed to fetch logo' };
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
@@ -195,7 +196,7 @@ async function fetchAndValidateImage(url: string): Promise<LogoValidationResult>
       if (process.env.NODE_ENV === 'development') {
         console.debug(`Empty image buffer from ${url}`);
       }
-      return { valid: false, error: 'Empty image buffer' };
+      return { valid: false, error: 'Failed to fetch logo' };
     }
 
     // Get image metadata
@@ -207,7 +208,7 @@ async function fetchAndValidateImage(url: string): Promise<LogoValidationResult>
       if (process.env.NODE_ENV === 'development') {
         console.debug(`Image too small from ${url}`);
       }
-      return { valid: false, error: 'Image too small' };
+      return { valid: false, error: 'Failed to fetch logo' };
     }
 
     // For SVGs, keep as is. For other formats, convert to PNG
@@ -217,77 +218,84 @@ async function fetchAndValidateImage(url: string): Promise<LogoValidationResult>
     const formData = new FormData();
     formData.append('image', new Blob([processedBuffer], { type: isSvg ? 'image/svg+xml' : 'image/png' }));
 
-    // Send to validation API using relative URL
-    const response2 = await fetch('/api/validate-logo', {
-      method: 'POST',
-      body: formData,
-      next: { revalidate: 3600 } // Cache for 1 hour
-    });
+    // Send to validation API using absolute URL
+    try {
+      const validateUrl = new URL('/api/validate-logo', baseUrl);
+      const response2 = await fetch(validateUrl.toString(), {
+        method: 'POST',
+        body: formData,
+        next: { revalidate: 3600 } // Cache for 1 hour
+      });
 
-    if (!response2.ok) {
-      if (process.env.NODE_ENV === 'development') {
-        console.debug('Logo validation API error:', response2.status);
+      if (!response2.ok) {
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('Logo validation API error:', response2.status);
+        }
+        return { valid: false, error: 'Failed to fetch logo' };
       }
-      return { valid: false, error: 'Validation failed' };
-    }
 
-    const { isGlobeIcon } = await response2.json();
-    return { valid: !isGlobeIcon, buffer: !isGlobeIcon ? processedBuffer : undefined };
+      const { isGlobeIcon } = await response2.json();
+      if (isGlobeIcon) {
+        return { valid: false, error: 'Failed to fetch logo' };
+      }
+      return { valid: true, buffer: processedBuffer };
+    } catch (error) {
+      // In case of validation error, assume the logo is valid if we have a buffer
+      return { valid: true, buffer: processedBuffer };
+    }
   } catch (error) {
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
         if (process.env.NODE_ENV === 'development') {
           console.debug(`Timeout fetching image from ${url}`);
         }
-        return { valid: false, error: 'Request timeout' };
+        return { valid: false, error: 'Failed to fetch logo' };
       }
       console.error(`Error validating image from ${url}:`, error.message);
-      return { valid: false, error: error.message };
+      return { valid: false, error: 'Failed to fetch logo' };
     }
-    return { valid: false, error: 'Unknown error' };
+    return { valid: false, error: 'Failed to fetch logo' };
   }
 }
 
 /**
  * Try to fetch a logo from multiple sources
  * @param {string} domain - Domain to fetch logo for
+ * @param {string} baseUrl - Base URL for validation endpoint
  * @returns {Promise<LogoFetchResult>} Result
  */
-async function tryLogoSources(domain: string): Promise<LogoFetchResult> {
+async function tryLogoSources(domain: string, baseUrl: string): Promise<LogoFetchResult> {
   // Try Google HD (256px)
-  const googleHdResult = await fetchAndValidateImage(LOGO_SOURCES.google.hd(domain));
+  const googleHdResult = await fetchAndValidateImage(LOGO_SOURCES.google.hd(domain), baseUrl);
   if (googleHdResult.valid && googleHdResult.buffer) {
     return { ...googleHdResult, source: 'google' };
   }
 
   // Try Clearbit HD (256px)
-  const clearbitHdResult = await fetchAndValidateImage(LOGO_SOURCES.clearbit.hd(domain));
+  const clearbitHdResult = await fetchAndValidateImage(LOGO_SOURCES.clearbit.hd(domain), baseUrl);
   if (clearbitHdResult.valid && clearbitHdResult.buffer) {
     return { ...clearbitHdResult, source: 'clearbit' };
   }
 
   // Try Google MD (128px)
-  const googleMdResult = await fetchAndValidateImage(LOGO_SOURCES.google.md(domain));
+  const googleMdResult = await fetchAndValidateImage(LOGO_SOURCES.google.md(domain), baseUrl);
   if (googleMdResult.valid && googleMdResult.buffer) {
     return { ...googleMdResult, source: 'google' };
   }
 
   // Try Clearbit MD (128px)
-  const clearbitMdResult = await fetchAndValidateImage(LOGO_SOURCES.clearbit.md(domain));
+  const clearbitMdResult = await fetchAndValidateImage(LOGO_SOURCES.clearbit.md(domain), baseUrl);
   if (clearbitMdResult.valid && clearbitMdResult.buffer) {
     return { ...clearbitMdResult, source: 'clearbit' };
   }
 
   // Try DuckDuckGo HD as last resort
-  const ddgHdResult = await fetchAndValidateImage(LOGO_SOURCES.duckduckgo.hd(domain));
+  const ddgHdResult = await fetchAndValidateImage(LOGO_SOURCES.duckduckgo.hd(domain), baseUrl);
   if (ddgHdResult.valid && ddgHdResult.buffer) {
     return { ...ddgHdResult, source: 'duckduckgo' };
   }
 
-  // Return the most relevant error
-  const error = googleHdResult.error || clearbitHdResult.error || googleMdResult.error ||
-                clearbitMdResult.error || ddgHdResult.error || 'No valid logo found';
-  return { valid: false, error };
+  return { valid: false, error: 'Failed to fetch logo' };
 }
 
 /**
@@ -332,14 +340,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Check cache first
     const cached = ServerCacheInstance.getLogoFetch(domain);
     if (cached) {
-      // If we have a cached error, return placeholder
+      // If we have a cached error, return 404
       if (cached.error) {
-        const placeholder = await getPlaceholder();
-        return new NextResponse(placeholder, {
+        return new NextResponse(null, {
+          status: 404,
           headers: {
-            'Content-Type': 'image/svg+xml',
-            'Cache-Control': 'public, max-age=31536000',
-            'x-logo-source': ''
+            'x-logo-error': cached.error
           }
         });
       }
@@ -381,7 +387,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Try to fetch logo from sources
-    const result = await tryLogoSources(domain);
+    const result = await tryLogoSources(domain, request.nextUrl.origin);
     if (result.valid && result.buffer && result.source) {
       // Try to store on filesystem if available
       if (hasFileSystem) {
@@ -398,6 +404,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       const contentType = result.buffer[0] === 0x3c ? 'image/svg+xml' : 'image/png';
       return new NextResponse(result.buffer, {
+        status: 200,
         headers: {
           'Content-Type': contentType,
           'Cache-Control': 'public, max-age=31536000',
@@ -410,26 +417,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     ServerCacheInstance.setLogoFetch(domain, {
       url: null,
       source: null,
-      error: result.error || 'Failed to fetch logo'
+      error: 'Failed to fetch logo'
     });
 
-    // Return placeholder
-    const placeholder = await getPlaceholder();
-    return new NextResponse(placeholder, {
+    // Return error response
+    return new NextResponse(null, {
+      status: 404,
       headers: {
-        'Content-Type': 'image/svg+xml',
-        'Cache-Control': 'public, max-age=31536000',
-        'x-logo-source': ''
+        'x-logo-error': 'Failed to fetch logo'
       }
     });
   } catch (error) {
     console.error('Error in logo API:', error);
-    const placeholder = await getPlaceholder();
-    return new NextResponse(placeholder, {
+    return new NextResponse(null, {
+      status: 404,
       headers: {
-        'Content-Type': 'image/svg+xml',
-        'Cache-Control': 'public, max-age=31536000',
-        'x-logo-source': ''
+        'x-logo-error': 'Failed to fetch logo'
       }
     });
   }
