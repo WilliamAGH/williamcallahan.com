@@ -6,10 +6,12 @@ publishedAt: "2024-10-24"
 author: "william-callahan"
 tags: ["nextjs", "vercel", "conference", "san-francisco"]
 coverImage: "/images/posts/William Callahan winning mechanical keyboard at SF hackathon.jpeg"
-readingTime: 2 minutes
+readingTime: 2
 ---
 
-Next.js 15 launched with some game-changing features:
+I attended the 2024 Next.js Conference in San Francisco this week. It was a great opportunity to meet some amazing folks and learn about the latest developments in the Next.js ecosystem.
+
+First up, Next.js 15 launched with some game-changing features:
 
 - [Partial Prerendering](https://nextjs.org/docs/app/building-your-application/rendering/partial-prerendering) - A new rendering model that combines static and dynamic content for faster page loads. It statically pre-renders a shell of your page while streaming in dynamic content, giving users instant initial views.
 
@@ -68,58 +70,37 @@ export default function Page() {
 
 - [TypeScript Config Support](https://nextjs.org/blog/next-15#support-for-nextconfigts) - First-class support for `next.config.ts` with type safety.
 
-Met some amazing folks at the conference:
+----
+I also met some amazing folks at the conference!
 
-  <div className="flex flex-col space-y-16">
-  <div className="flex flex-col md:flex-row gap-12 items-center">
-    <div className="md:w-[35%]">
-      <div className="text-lg leading-relaxed">
-        Caught up with Sahil Lavingia from Gumroad about his upcoming projects. Update: he just <a href="https://x.com/shl/status/1871231606930981021" className="text-blue-500 hover:text-blue-600">announced them now!</a>
-      </div>
-    </div>
-    <div className="md:w-[65%]">
-      <div className="bg-transparent">
-        <img src="/images/posts/Sahil Lavingia and William Callahan.jpeg" alt="Sahil Lavingia - Founder & CEO of Gumroad" title="Sahil Lavingia - Founder & CEO of Gumroad" className="rounded-lg" />
-      </div>
-    </div>
-  </div>
+First up in the morningwas Sahil Lavingia from <a href="https://gumroad.com" className="text-blue-500 hover:text-blue-600">Gumroad</a>. We had a great conversation about his upcoming projects. Update: he just <a href="https://x.com/shl/status/1871231606930981021" className="text-blue-500 hover:text-blue-600">announced them!</a>
 
-  <div className="flex flex-col md:flex-row-reverse gap-12 items-center">
-    <div className="md:w-[35%]">
-      <div className="text-lg leading-relaxed">
-        Quick chat with Theo Browne, CEO of <a href="https://ping.gg" className="text-blue-500 hover:text-blue-600">Ping</a> (YC backed) and tech YouTuber, about Guillermo Rauch's keynote.
-      </div>
-    </div>
-    <div className="md:w-[65%]">
-      <div className="bg-transparent">
-        <img src="/images/posts/Theo Browne and William Callahan.jpeg" alt="Theo Browne - CEO of Ping.gg & Tech YouTuber" title="Theo Browne - CEO of Ping.gg & Tech YouTuber" className="rounded-lg" />
-      </div>
-    </div>
-  </div>
+<ArticleImage
+  src="/images/posts/Sahil Lavingia and William Callahan.jpeg"
+  alt="Sahil Lavingia - Founder & CEO of Gumroad"
+  caption="Sahil Lavingia, Founder & CEO of Gumroad"
+/>
 
-  <div className="flex flex-col md:flex-row gap-12 items-center">
-    <div className="md:w-[35%]">
-      <div className="text-lg leading-relaxed">
-        And finally I met Rahul Sonwalkar, now building Julius AI. You might remember him from <a href="https://www.theverge.com/2022/10/28/23428775/twitter-fake-employee-layoff-rahul-ligma-elon-musk" className="text-blue-500 hover:text-blue-600">that viral Twitter layoff story</a> during the Musk acquisition.
-      </div>
-    </div>
-    <div className="md:w-[65%]">
-      <div className="bg-transparent">
-        <img src="/images/posts/Rahul Sonwalkar and William Callahan.jpeg" alt="Rahul Sonwalkar - Founder of Julius AI" title="Rahul Sonwalkar - Founder of Julius AI" className="rounded-lg" />
-      </div>
-    </div>
-  </div>
+Later, I had the chance to chat with <a href="https://t3.gg" className="text-blue-500 hover:text-blue-600">Theo Browne</a> about <a href="https://rauchg.com" className="text-blue-500 hover:text-blue-600">Guillermo Rauch's</a> keynote. You may recognize Theo from his <a href="https://youtube.com/@t3dotgg" className="text-blue-500 hover:text-blue-600">YouTube</a> or <a href="https://twitch.tv/theo" className="text-blue-500 hover:text-blue-600">Twitch</a> channel, and he's also the CEO of <a href="https://ping.gg" className="text-blue-500 hover:text-blue-600">Ping</a> (YC backed).
 
-  <div className="flex flex-col md:flex-row-reverse gap-12 items-center">
-    <div className="md:w-[35%]">
-      <div className="text-lg leading-relaxed">
-        Unexpected bonus: Won a mechanical keyboard at Sanity.io's Next.js hackathon the night before!
-      </div>
-    </div>
-    <div className="md:w-[65%]">
-      <div className="bg-transparent">
-        <img src="/images/posts/William Callahan winning mechanical keyboard at SF hackathon.jpeg" alt="Winning the Sanity.io Next.js Hackathon" title="Winning the Sanity.io Next.js Hackathon" className="rounded-lg" />
-      </div>
-    </div>
-  </div>
-</div>
+<ArticleImage
+  src="/images/posts/Theo Browne and William Callahan.jpeg"
+  alt="Theo Browne - CEO of Ping.gg & Tech YouTuber"
+  caption="Theo Browne, CEO of Ping.gg"
+/>
+
+Finally, I finally met Rahul. You might remember him from <a href="https://www.theverge.com/2022/10/28/23428775/twitter-fake-employee-layoff-rahul-ligma-elon-musk" className="text-blue-500 hover:text-blue-600">that viral Twitter layoff story</a> right after the Musk acquisition closed. Rahul is now hard at work building <a href="https://julius.ai" className="text-blue-500 hover:text-blue-600">Julius AI</a>, which is growing fast.
+
+<ArticleImage
+  src="/images/posts/Rahul Sonwalkar and William Callahan.jpeg"
+  alt="Rahul Sonwalkar - Founder of Julius AI"
+  caption="Rahul Sonwalkar, Founder of Julius AI"
+/>
+
+Oh, and the night before the conference, I participated in <a href="https://www.sanity.io" className="text-blue-500 hover:text-blue-600">Sanity.io's</a> Next.js hackathon. To my surprise, I ended up winning a mechanical keyboard! It was a great way to kick off the conference experience.
+
+<ArticleImage
+  src="/images/posts/William Callahan winning mechanical keyboard at SF hackathon.jpeg"
+  alt="Winning the Sanity.io Next.js Hackathon"
+  caption="Winning the Sanity.io Next.js Hackathon"
+/>

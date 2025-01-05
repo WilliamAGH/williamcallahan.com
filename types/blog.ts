@@ -8,6 +8,18 @@
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 
 /**
+ * Represents an image caption with metadata
+ */
+export interface ImageCaption {
+  /** Main caption text */
+  text: string;
+  /** Photographer or image credit (optional) */
+  photographer?: string;
+  /** Date the photo was taken (optional) */
+  date?: string;
+}
+
+/**
  * Represents a blog post with its complete content and metadata
  */
 export interface BlogPost {
