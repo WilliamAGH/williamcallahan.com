@@ -1,0 +1,305 @@
+# Bookmarks Integration Guide
+
+## Overview
+
+The bookmarks feature allows users to save and display web content through a Telegram bot, with automatic AI-powered tagging and summarization. This guide covers the complete integration process.
+
+## System Components
+
+1. **Frontend UI** - Displays bookmarks with:
+   - Website logos (using site's logo fetching system)
+   - Title and description
+   - AI-generated tags
+   - Publication and bookmark dates
+   - Monthly grouping with expand/collapse
+
+2. **Telegram Bot** - Entry point for adding bookmarks
+3. **Jina AI** - Text extraction from URLs
+4. **Groq API** - AI processing for tags and summaries
+
+## Environment Configuration
+
+Add the following to your `.env` file:
+
+```bash
+# Telegram Bot Configuration
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_ALLOWED_USERS=comma_separated_usernames
+
+# Groq API Configuration
+GROQ_API_KEY=your_groq_api_key
+
+# Jina AI Configuration
+JINA_API_KEY=your_jina_api_key
+```
+
+## Data Structure
+
+Bookmarks follow this TypeScript interface:
+
+```typescript
+interface Bookmark {
+  id: string;
+  url: string;
+  title: string;
+  description: string;
+  tags: string[];
+  ogImage?: string;
+  dateBookmarked: string;
+  datePublished?: string;
+  telegramUsername?: string;
+}
+```
+
+## Integration Steps
+
+### 1. Telegram Bot Setup
+
+1. Create a new bot through [@BotFather](https://t.me/botfather)
+2. Set up commands:
+   ```
+   bookmark - Save a URL as a bookmark
+   list - List your recent bookmarks
+   help - Show available commands
+   ```
+3. Implement bot handlers:
+
+```typescript
+import { Telegraf } from 'telegraf';
+import { extractText } from './jina';
+import { generateTags, generateSummary } from './groq';
+
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+
+bot.command('bookmark', async (ctx) => {
+  const url = ctx.message.text.split(' ')[1];
+  if (!url) {
+    return ctx.reply('Please provide a URL: /bookmark https://example.com');
+  }
+
+  try {
+    // Extract text using Jina AI
+    const text = await extractText(url);
+
+    // Generate tags and summary using Groq
+    const [tags, summary] = await Promise.all([
+      generateTags(text),
+      generateSummary(text)
+    ]);
+
+    // Save bookmark to database
+    const bookmark = {
+      id: generateId(),
+      url,
+      title: await extractTitle(url),
+      description: summary,
+      tags,
+      dateBookmarked: new Date().toISOString(),
+      datePublished: await extractPublishDate(url),
+      telegramUsername: ctx.message.from.username
+    };
+
+    await saveBookmark(bookmark);
+    ctx.reply('Bookmark saved successfully!');
+  } catch (error) {
+    ctx.reply('Failed to save bookmark. Please try again.');
+  }
+});
+```
+
+### 2. Jina AI Integration
+
+Use Jina AI's content extraction service to get clean text from URLs:
+
+```typescript
+import { JinaAI } from '@jina-ai/client';
+
+const jina = new JinaAI({ apiKey: process.env.JINA_API_KEY });
+
+export async function extractText(url: string): Promise<string> {
+  const response = await fetch(`https://r.jina.ai/${encodeURIComponent(url)}`);
+  const data = await response.json();
+  return data.text;
+}
+```
+
+### 3. Groq API Integration
+
+Use Groq's llama-3.3-70b-versatile model for tag generation and summarization:
+
+```typescript
+import { GroqClient } from '@groq/client';
+
+const groq = new GroqClient({ apiKey: process.env.GROQ_API_KEY });
+
+export async function generateTags(text: string): Promise<string[]> {
+  const prompt = `Generate 3-5 relevant tags for the following text. Return only the tags as a comma-separated list:\n\n${text}`;
+
+  const response = await groq.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    messages: [{ role: 'user', content: prompt }]
+  });
+
+  return response.choices[0].message.content.split(',').map(tag => tag.trim());
+}
+
+export async function generateSummary(text: string): Promise<string> {
+  const prompt = `Write a concise summary (max 2 sentences) of the following text:\n\n${text}`;
+
+  const response = await groq.chat.completions.create({
+    model: 'llama-3.3-70b-versatile',
+    messages: [{ role: 'user', content: prompt }]
+  });
+
+  return response.choices[0].message.content.trim();
+}
+```
+
+### 4. Database Integration
+
+Implement these functions according to your database choice:
+
+```typescript
+async function saveBookmark(bookmark: Bookmark): Promise<void>;
+async function getBookmarks(): Promise<Bookmark[]>;
+async function getBookmarksByMonth(): Promise<Record<string, Bookmark[]>>;
+```
+
+### 5. API Routes
+
+Create necessary API routes:
+
+```typescript
+// app/api/bookmarks/route.ts
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+export async function GET(request: NextRequest) {
+  const bookmarks = await getBookmarks();
+  return NextResponse.json(bookmarks);
+}
+```
+
+## Logo System Integration
+
+The bookmark cards integrate with the site's existing logo fetching and caching system, using the same infrastructure as /companies and /education sections:
+
+1. Logo Storage:
+   - Primary storage in Docker volume at `/app/public/logos`
+   - Filesystem caching with hashed filenames: `{md5(domain)}-{source}.png`
+   - Memory caching via ServerCacheInstance for fast access
+   - Automatic fallback to memory-only mode if volume isn't available
+
+2. Logo Fetching:
+   - Attempts multiple sources in order:
+     1. Google HD (256px)
+     2. Clearbit HD (256px)
+     3. Google MD (128px)
+     4. Clearbit MD (128px)
+     5. DuckDuckGo HD (fallback)
+   - Validates logos to filter out generic icons
+   - Converts all logos to PNG for consistency
+   - Handles SVG formats appropriately
+
+3. Build-time Behavior:
+   - During build, checks persistent volume for cached logos
+   - If logo not found, fetches from external sources
+   - Stores newly fetched logos in volume for future builds
+   - Uses memory cache for subsequent requests
+
+4. Runtime Behavior:
+   - First checks persistent volume
+   - Falls back to memory cache
+   - Re-fetches only if both caches miss
+   - Handles failed fetches gracefully
+
+The LogoImage component handles this automatically when provided with a website URL:
+
+```typescript
+<LogoImage
+  url={`/api/logo?website=${encodeURIComponent(normalizeDomain(url))}`}
+  width={96}
+  height={96}
+  website={url}
+  enableInversion
+  isDarkTheme={isDarkTheme}
+/>
+```
+
+## Security Considerations
+
+1. **Telegram Bot**
+   - Restrict access to allowed usernames only
+   - Validate URLs before processing
+   - Rate limit bookmark submissions
+
+2. **API Endpoints**
+   - Implement proper authentication
+   - Validate input data
+   - Rate limit requests
+
+3. **Content Processing**
+   - Sanitize extracted text
+   - Validate generated tags and summaries
+   - Handle failed API calls gracefully
+
+## Error Handling
+
+Implement comprehensive error handling:
+
+```typescript
+try {
+  // Attempt bookmark creation
+} catch (error) {
+  if (error instanceof JinaError) {
+    // Handle text extraction errors
+  } else if (error instanceof GroqError) {
+    // Handle AI processing errors
+  } else {
+    // Handle other errors
+  }
+}
+```
+
+## Testing
+
+1. Unit test each component:
+   - Telegram bot commands
+   - Text extraction
+   - Tag generation
+   - Summary generation
+
+2. Integration test the complete flow:
+   - URL submission to final display
+   - Error cases and fallbacks
+   - Logo fetching and caching
+
+3. End-to-end test user scenarios:
+   - Bookmark submission through Telegram
+   - Website display and interaction
+   - Monthly grouping functionality
+
+## Monitoring
+
+Monitor system health:
+
+1. Logo fetching and caching metrics
+2. API response times and success rates
+3. AI processing performance
+4. Storage usage for cached logos
+
+## Deployment
+
+1. Ensure environment variables are set
+2. Configure logo storage volume
+3. Set up monitoring
+4. Deploy Telegram bot
+5. Test complete flow in production
+
+## Support
+
+For issues or questions:
+1. Check logs for specific error messages
+2. Verify API keys and permissions
+3. Ensure all services are running
+4. Contact respective service support if needed
