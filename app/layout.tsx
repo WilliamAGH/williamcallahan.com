@@ -1,3 +1,17 @@
+// app/layout.tsx
+
+/**
+ * Root Layout Component
+ * @module app/layout
+ * @description
+ * The root layout component that wraps all pages in the application.
+ * Implements:
+ * - Global styles and fonts
+ * - Theme provider and analytics
+ * - Navigation and header
+ * - SEO metadata
+ */
+
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -5,9 +19,15 @@ import { Providers } from "./providers";
 import { Navigation, Terminal, SocialIcons, ThemeToggle } from "../components/ui";
 import { DEFAULT_METADATA } from "../lib/seo";
 import { API_BASE_URL } from "../lib/constants";
+import UmamiAnalytics from '@/components/analytics/UmamiAnalytics'
 
+/** Load Inter font with Latin subset */
 const inter = Inter({ subsets: ["latin"] });
 
+/**
+ * Global metadata configuration for the application
+ * @see https://nextjs.org/docs/app/api-reference/functions/generate-metadata
+ */
 export const metadata: Metadata = {
   title: DEFAULT_METADATA.title,
   description: DEFAULT_METADATA.description,
@@ -38,6 +58,12 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Root Layout Component
+ * @param {Object} props - Component props
+ * @param {React.ReactNode} props.children - Child components to render
+ * @returns {JSX.Element} The root layout structure
+ */
 export default function RootLayout({
   children,
 }: {
@@ -63,6 +89,7 @@ export default function RootLayout({
             </main>
           </div>
         </Providers>
+        <UmamiAnalytics />
       </body>
     </html>
   );
