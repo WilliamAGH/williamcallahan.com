@@ -54,6 +54,7 @@ describe('BookmarkCardClient', () => {
 
     render(<BookmarkCardClient {...bookmarkWithManyTags} />);
 
+    // biome-ignore lint/complexity/noForEach: <explanation>
     bookmarkWithManyTags.tags.forEach(tag => {
       expect(screen.getByText(tag)).toBeInTheDocument();
     });

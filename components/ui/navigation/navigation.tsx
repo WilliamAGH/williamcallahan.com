@@ -19,11 +19,12 @@ export function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <nav role="navigation" className="flex-1">
+    <nav className="flex-1">
       {/* Mobile Menu Button */}
       <div className="sm:hidden flex items-center">
         <WindowControls className="mr-2" />
         <button
+          type="button"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
           aria-label="Toggle menu"
