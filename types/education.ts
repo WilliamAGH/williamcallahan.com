@@ -14,8 +14,8 @@ interface EducationBase {
   id: string;
   /** Institution name */
   institution: string;
-  /** Year completed */
-  year: string;
+  /** Year completed (optional) */
+  year?: string;
   /** Institution website URL */
   website: string;
   /** Location (city, state) */

@@ -9,8 +9,8 @@
 import type { Certification } from '../../../types/education';
 import { CertificationCardClient } from './certification-card.client';
 import { fetchLogo, normalizeDomain } from '../../../lib/logo-fetcher';
-import fs from 'fs/promises';
-import path from 'path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 // Cache for placeholder SVG
 let placeholderSvg: Buffer | null = null;
