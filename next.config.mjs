@@ -1,5 +1,26 @@
+// next.config.mjs
+
+/**
+ * Next.js Configuration
+ * @module next.config
+ * @description
+ * Configuration file for Next.js application settings including:
+ * - Webpack customization for SVG handling
+ * - Node.js polyfills for API routes
+ * - Image optimization settings
+ * - Build output configuration
+ * - Content Security Policy for scripts and images
+ *
+ * @see https://nextjs.org/docs/app/api-reference/next-config-js
+ */
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  /**
+   * Custom webpack configuration
+   * @param {import('webpack').Configuration} config - Webpack config object
+   * @returns {import('webpack').Configuration} Modified webpack config
+   */
   webpack(config) {
     // Configure SVG handling
     config.module.rules.push({
@@ -21,10 +42,15 @@ const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   swcMinify: true,
+  /**
+   * Image optimization configuration
+   * @see https://nextjs.org/docs/app/api-reference/components/image
+   */
   images: {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // CSP configuration allowing Umami analytics script from configured domain
+    contentSecurityPolicy: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' ${process.env.NEXT_PUBLIC_UMAMI_URL}`,
     remotePatterns: [
       {
         protocol: 'https',
