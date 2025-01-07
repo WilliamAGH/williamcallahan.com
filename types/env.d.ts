@@ -18,8 +18,6 @@ declare global {
       // Analytics Configuration
       /** Umami Analytics website ID for tracking */
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: string;
-      /** Base URL of your Umami Analytics instance */
-      NEXT_PUBLIC_UMAMI_URL: string;
     }
   }
 }
