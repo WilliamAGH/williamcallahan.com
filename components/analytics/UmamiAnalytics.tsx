@@ -14,7 +14,6 @@
  *
  * Required environment variables:
  * - NEXT_PUBLIC_UMAMI_WEBSITE_ID: Your Umami website ID
- * - NEXT_PUBLIC_UMAMI_URL: URL of your Umami instance
  *
  * @see https://umami.is/docs/tracker-configuration
  */
@@ -23,6 +22,8 @@
 
 import Script from 'next/script'
 import type { FC } from 'react'
+
+const UMAMI_URL = 'https://analytics.umami.is'
 
 interface UmamiAnalyticsProps {
   /**
@@ -41,7 +42,7 @@ interface UmamiAnalyticsProps {
  * @returns {JSX.Element | null} The analytics script element or null if configuration is missing
  */
 const UmamiAnalytics: FC<UmamiAnalyticsProps> = ({ respectDoNotTrack = true }) => {
-  if (!process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || !process.env.NEXT_PUBLIC_UMAMI_URL) {
+  if (!process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID) {
     console.warn('Umami Analytics configuration is missing')
     return null
   }
@@ -52,7 +53,7 @@ const UmamiAnalytics: FC<UmamiAnalyticsProps> = ({ respectDoNotTrack = true }) =
       defer
       strategy="afterInteractive"
       data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
-      src={`${process.env.NEXT_PUBLIC_UMAMI_URL}/script.js`}
+      src={`${UMAMI_URL}/script.js`}
       data-do-not-track={respectDoNotTrack}
     />
   )
