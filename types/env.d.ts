@@ -12,6 +12,10 @@
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
+      /** Public-facing URL of the site */
+      NEXT_PUBLIC_SITE_URL: string;
+
+      // Analytics Configuration
       /** Umami Analytics website ID for tracking */
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: string;
       /** Base URL of your Umami Analytics instance */
