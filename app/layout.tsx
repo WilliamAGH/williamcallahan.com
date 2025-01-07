@@ -19,7 +19,10 @@ import { Providers } from "./providers";
 import { Navigation, Terminal, SocialIcons, ThemeToggle } from "../components/ui";
 import { DEFAULT_METADATA } from "../lib/seo";
 import { API_BASE_URL } from "../lib/constants";
+
+// Analytics
 import UmamiAnalytics from '@/components/analytics/UmamiAnalytics'
+import PlausibleAnalytics from '@/components/analytics/PlausibleAnalytics'
 
 /** Load Inter font with Latin subset */
 const inter = Inter({ subsets: ["latin"] });
@@ -90,6 +93,7 @@ export default function RootLayout({
           </div>
         </Providers>
         <UmamiAnalytics />
+        <PlausibleAnalytics />
       </body>
     </html>
   );

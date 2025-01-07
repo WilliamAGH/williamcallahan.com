@@ -49,8 +49,8 @@ const nextConfig = {
   images: {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
-    // CSP configuration allowing Umami analytics script from configured domain
-    contentSecurityPolicy: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' ${process.env.NEXT_PUBLIC_UMAMI_URL}`,
+    // CSP configuration allowing analytics scripts from configured domains
+    contentSecurityPolicy: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' ${process.env.NEXT_PUBLIC_UMAMI_URL} https://plausible.callahan.cloud`,
     remotePatterns: [
       {
         protocol: 'https',
