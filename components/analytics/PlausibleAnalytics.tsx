@@ -22,7 +22,7 @@
 import Script from 'next/script'
 import type { FC } from 'react'
 
-const PLAUSIBLE_URL = 'https://plausible.callahan.cloud'
+const PLAUSIBLE_URL = 'https://plausible.iocloudhost.net'
 
 interface PlausibleAnalyticsProps {
   /**
