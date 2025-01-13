@@ -50,7 +50,7 @@ const nextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     // CSP configuration allowing analytics scripts from configured domains
-    contentSecurityPolicy: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://analytics.umami.is https://plausible.callahan.cloud`,
+    contentSecurityPolicy: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net`,
     remotePatterns: [
       {
         protocol: 'https',
