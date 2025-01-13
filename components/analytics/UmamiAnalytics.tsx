@@ -23,7 +23,7 @@
 import Script from 'next/script'
 import type { FC } from 'react'
 
-const UMAMI_URL = 'https://analytics.umami.is'
+const UMAMI_URL = 'https://umami.iocloudhost.net'
 
 interface UmamiAnalyticsProps {
   /**
