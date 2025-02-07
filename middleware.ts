@@ -1,54 +1,59 @@
 // middleware.ts
 
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-/**
- * Simple request logging middleware
- * Logs the method, pathname, and search params of each request,
- * excluding static assets, images, and JavaScript files
- */
 export function middleware(request: NextRequest) {
-  const { method, nextUrl: { pathname, search } } = request
+  const {
+    method,
+    nextUrl: { pathname, search },
+  } = request
+  const clientIp = request.headers.get('cf-connecting-ip') || 'unknown'
+  const userAgent = request.headers.get('user-agent') || 'unknown'
+  const referer = request.headers.get('referer') || 'direct'
 
-  // Skip logging for:
-  // - Static assets and API routes
-  // - Image file extensions
-  // - JavaScript files
-  // - Image directory
-  const skipPatterns = [
-    '/_next',
-    '/api',
-    /\.(png|jpe?g|svg|js)$/,
-    '/images/'
-  ]
+  // Normalize paths just like client-side
+  const normalizedPath = pathname
+    .replace(/\/blog\/[^/]+/, '/blog/:slug')
+    .replace(/\/investments.*/, '/investments')
+    .replace(/\/education.*/, '/education')
+    .replace(/\/experience.*/, '/experience')
+    .replace(/\/bookmarks.*/, '/bookmarks')
 
-  const shouldSkip = skipPatterns.some(pattern =>
+  // Skip only true static assets
+  const skipPatterns = ['/_next/static', '/_next/image', /\.(ico|png|jpe?g|svg)$/]
+
+  const shouldTrack = !skipPatterns.some((pattern) =>
     typeof pattern === 'string'
       ? pathname.startsWith(pattern)
       : pattern.test(pathname)
   )
 
-  if (!shouldSkip) {
-    console.log(`[Request] ${method} ${pathname}${search}`)
+  if (shouldTrack) {
+    // Log comprehensive request data
+    console.log(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        type: 'server_pageview',
+        data: {
+          path: normalizedPath,
+          fullPath: `${pathname}${search}`,
+          method,
+          clientIp,
+          userAgent,
+          referer,
+        },
+      })
+    )
   }
 
   return NextResponse.next()
 }
 
-/**
- * Configure which paths the middleware runs on
- * This will run on all paths except static files and api routes
- */
+// Update matcher to catch more routes
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    // Include everything except static assets
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }
