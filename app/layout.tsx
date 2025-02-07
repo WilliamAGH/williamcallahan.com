@@ -13,6 +13,7 @@
  */
 
 import type { Metadata } from "next";
+import { Suspense } from 'react'
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -90,8 +91,10 @@ export default function RootLayout({
             </main>
           </div>
         </Providers>
-        <Analytics />
+        <Suspense fallback={<></>}>
+          <Analytics />
+        </Suspense>
       </body>
     </html>
-  )
+  );
 }
