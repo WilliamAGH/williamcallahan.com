@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
+  <!-- Background -->
+  <rect width="800" height="400" rx="10" fill="#282a36" />
+
+  <!-- Title bar -->
+  <rect width="800" height="40" rx="10" fill="#44475a" />
+
+  <!-- Window controls -->
+  <circle cx="25" cy="20" r="6" fill="#ff5555"/>
+  <circle cx="45" cy="20" r="6" fill="#f1fa8c"/>
+  <circle cx="65" cy="20" r="6" fill="#50fa7b"/>
+
+  <!-- Terminal content -->
+  <g transform="translate(20, 80)">
+    <!-- Command prompt line -->
+    <text x="0" y="20" fill="#bd93f9" font-family="monospace" font-size="14">❯</text>
+    <text x="25" y="20" fill="#8be9fd" font-family="monospace" font-size="14">~/webapp</text>
+    <text x="120" y="20" fill="#50fa7b" font-family="monospace" font-size="14">git:(</text>
+    <text x="170" y="20" fill="#ff79c6" font-family="monospace" font-size="14">main</text>
+    <text x="210" y="20" fill="#50fa7b" font-family="monospace" font-size="14">)</text>
+
+    <!-- Command input -->
+    <text x="230" y="20" fill="#f8f8f2" font-family="monospace" font-size="14">npm install</text>
+
+    <!-- Output -->
+    <text x="0" y="50" fill="#6272a4" font-family="monospace" font-size="14">added 1420 packages in 2m</text>
+    <text x="0" y="80" fill="#6272a4" font-family="monospace" font-size="14">found 0 vulnerabilities</text>
+
+    <!-- New command prompt with npm start -->
+    <text x="0" y="110" fill="#bd93f9" font-family="monospace" font-size="14">❯</text>
+    <text x="25" y="110" fill="#8be9fd" font-family="monospace" font-size="14">~/webapp</text>
+    <text x="120" y="110" fill="#50fa7b" font-family="monospace" font-size="14">git:(</text>
+    <text x="170" y="110" fill="#ff79c6" font-family="monospace" font-size="14">main</text>
+    <text x="210" y="110" fill="#50fa7b" font-family="monospace" font-size="14">)</text>
+    <text x="230" y="110" fill="#f8f8f2" font-family="monospace" font-size="14">npm start</text>
+
+    <!-- npm start output -->
+    <text x="0" y="140" fill="#6272a4" font-family="monospace" font-size="14">> webapp@1.0.0 start</text>
+    <text x="0" y="170" fill="#6272a4" font-family="monospace" font-size="14">ready - started server on http://localhost:3000</text>
+
+    <!-- New command prompt with cursor -->
+    <text x="0" y="200" fill="#bd93f9" font-family="monospace" font-size="14">❯</text>
+    <text x="25" y="200" fill="#8be9fd" font-family="monospace" font-size="14">~/webapp</text>
+    <text x="120" y="200" fill="#50fa7b" font-family="monospace" font-size="14">git:(</text>
+    <text x="170" y="200" fill="#ff79c6" font-family="monospace" font-size="14">main</text>
+    <text x="210" y="200" fill="#50fa7b" font-family="monospace" font-size="14">)</text>
+
+    <!-- Blinking cursor -->
+    <rect x="230" y="190" width="8" height="2" fill="#f8f8f2">
+      <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite" />
+    </rect>
+  </g>
+</svg>
