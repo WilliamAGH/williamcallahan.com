@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
+  <!-- Background -->
+  <rect width="800" height="400" rx="10" fill="#282828" />
+
+  <!-- Title bar -->
+  <rect width="800" height="40" rx="10" fill="#3c3836" />
+
+  <!-- Window controls -->
+  <circle cx="25" cy="20" r="6" fill="#fb4934"/>
+  <circle cx="45" cy="20" r="6" fill="#fabd2f"/>
+  <circle cx="65" cy="20" r="6" fill="#b8bb26"/>
+
+  <!-- Terminal content -->
+  <g transform="translate(20, 80)">
+    <!-- View Caddyfile command -->
+    <text x="0" y="20" fill="#83a598" font-family="monospace" font-size="14">[server]</text>
+    <text x="85" y="20" fill="#ebdbb2" font-family="monospace" font-size="14">cat Caddyfile</text>
+
+    <!-- Caddyfile content -->
+    <text x="0" y="50" fill="#d5c4a1" font-family="monospace" font-size="14">example.com {</text>
+    <text x="20" y="70" fill="#d5c4a1" font-family="monospace" font-size="14">root * /var/www</text>
+    <text x="20" y="90" fill="#d5c4a1" font-family="monospace" font-size="14">file_server</text>
+    <text x="20" y="110" fill="#d5c4a1" font-family="monospace" font-size="14">tls admin@example.com</text>
+    <text x="20" y="130" fill="#d5c4a1" font-family="monospace" font-size="14">reverse_proxy /api/* localhost:3000</text>
+    <text x="0" y="150" fill="#d5c4a1" font-family="monospace" font-size="14">}</text>
+
+    <!-- Validate config -->
+    <text x="0" y="180" fill="#83a598" font-family="monospace" font-size="14">[server]</text>
+    <text x="85" y="180" fill="#ebdbb2" font-family="monospace" font-size="14">caddy validate</text>
+    <text x="0" y="200" fill="#b8bb26" font-family="monospace" font-size="14">✓ Valid configuration</text>
+
+    <!-- Start server -->
+    <text x="0" y="230" fill="#83a598" font-family="monospace" font-size="14">[server]</text>
+    <text x="85" y="230" fill="#ebdbb2" font-family="monospace" font-size="14">caddy start</text>
+
+    <!-- Server output -->
+    <text x="0" y="260" fill="#928374" font-family="monospace" font-size="14">2024/01/07 10:42:00 INFO</text>
+    <text x="250" y="260" fill="#d5c4a1" font-family="monospace" font-size="14">using provided configuration</text>
+    <text x="0" y="280" fill="#928374" font-family="monospace" font-size="14">2024/01/07 10:42:02 INFO</text>
+    <text x="250" y="280" fill="#b8bb26" font-family="monospace" font-size="14">autosaved JSON config to /config/caddy/autosave.json</text>
+    </rect>
+  </g>
+</svg>
