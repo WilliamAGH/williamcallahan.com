@@ -1,97 +1,136 @@
 'use client'
 
 import Script from 'next/script'
-import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect, useRef } from 'react'
+import { usePathname } from 'next/navigation'
+import { useEffect, useCallback } from 'react'
 
-const PLAUSIBLE_URL = 'https://plausible.iocloudhost.net'
+/**
+ * Analytics event data structure based on official specs
+ * @see https://umami.is/docs/tracker-functions
+ * @see https://plausible.io/docs/custom-event-goals
+ */
+interface BaseAnalyticsEvent {
+  /** Current page path (normalized for dynamic routes) */
+  path: string
+  /** Full page URL */
+  url: string
+  /** Page referrer */
+  referrer: string
+}
 
-export function Analytics() {
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const timeoutId = useRef<NodeJS.Timeout | null>(null)
+interface UmamiEvent extends BaseAnalyticsEvent {
+  /** Website ID for tracking */
+  website?: string
+  /** Current hostname */
+  hostname?: string
+}
 
-    // Normalize dynamic routes
-    const getNormalizedPath = (path: string) => {
-        return path
-            .replace(/\/blog\/[^/]+/, '/blog/:slug')
-            .replace(/\/investments.*/, '/investments')
-            .replace(/\/education.*/, '/education')
-            .replace(/\/experience.*/, '/experience')
-            .replace(/\/bookmarks.*/, '/bookmarks')
-            .replace(/\?.+$/, ''); // Remove query params
-    };
+interface PlausibleEvent extends BaseAnalyticsEvent {
+  /** Additional custom properties */
+  [key: string]: unknown
+}
 
-    const trackPageView = (path: string) => {
-        const data = {
-            path,
-            timestamp: new Date().toISOString(),
-            referrer: document.referrer,
-            userAgent: navigator.userAgent,
-            // Add any client-specific data
-            windowWidth: window.innerWidth,
-            windowHeight: window.innerHeight,
-            language: navigator.language
-        }
+/**
+ * Creates base analytics event data
+ * @returns Base analytics event data
+ */
+function createBaseEventData(): BaseAnalyticsEvent {
+  return {
+    path: window.location.pathname,
+    url: window.location.href,
+    referrer: document.referrer
+  }
+}
 
-        try {
-            if (window.plausible) {
-                window.plausible('pageview', { props: data })
-            }
-            if (window.umami) {
-                window.umami.track('pageview', data)
-            }
-        } catch (error) {
-            console.error('Analytics Error:', error)
-        }
-    }
-
-  useEffect(() => {
-    const normalizedPath = getNormalizedPath(pathname || '')
-
-    // Debounced tracking (shorter: 150ms)
-    timeoutId.current = setTimeout(() => {
-      trackPageView(normalizedPath)
-    }, 150)
-
-    // Flush on unmount
-    return () => {
-      if (timeoutId.current) {
-        clearTimeout(timeoutId.current)
-        trackPageView(normalizedPath) // Immediate send
+/**
+ * Safely tracks a pageview in Plausible
+ * @param path - The normalized page path
+ */
+function trackPlausible(path: string): void {
+  if (typeof window.plausible === 'function') {
+    try {
+      const eventData = {
+        ...createBaseEventData(),
+        path // Override with normalized path
       }
+      window.plausible('pageview', { props: eventData })
+    } catch (error) {
+      console.error('Plausible tracking error:', error)
     }
-  }, [pathname, searchParams])
+  }
+}
+
+/**
+ * Safely tracks a pageview in Umami
+ * @param path - The normalized page path
+ */
+function trackUmami(path: string): void {
+  if (window.umami?.track && typeof window.umami.track === 'function') {
+    try {
+      const eventData: UmamiEvent = {
+        ...createBaseEventData(),
+        path, // Override with normalized path
+        hostname: window.location.hostname,
+        website: process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
+      }
+      window.umami.track('pageview', eventData)
+    } catch (error) {
+      console.error('Umami tracking error:', error)
+    }
+  }
+}
+
+/**
+ * Analytics component that handles pageview tracking
+ * Supports both Plausible and Umami analytics
+ * @returns JSX.Element | null
+ */
+export function Analytics(): JSX.Element | null {
+  const pathname = usePathname()
+
+  const trackPageview = useCallback((path: string) => {
+    trackPlausible(path)
+    trackUmami(path)
+  }, [])
+
+  // Track pageview on route change
+  useEffect(() => {
+    if (!pathname) return
+
+    // Simple path normalization for dynamic routes
+    const path = pathname
+      .replace(/\/blog\/[^/]+/, '/blog/:slug')
+      .replace(/\?.+$/, '')
+
+    // Small delay to ensure analytics scripts are loaded
+    const timeoutId = setTimeout(() => {
+      trackPageview(path)
+    }, 100)
+
+    return () => clearTimeout(timeoutId)
+  }, [pathname, trackPageview])
 
   // Early return if missing config
   if (!process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || !process.env.NEXT_PUBLIC_SITE_URL) {
-    console.warn('Analytics: Missing Umami or Plausible config')
     return null
   }
 
-  let domain = ''
-  try {
-    domain = new URL(process.env.NEXT_PUBLIC_SITE_URL).hostname
-  } catch (error) {
-    console.error('Invalid NEXT_PUBLIC_SITE_URL:', process.env.NEXT_PUBLIC_SITE_URL)
-    return null // Prevent loading with invalid domain
-  }
+  const domain = new URL(process.env.NEXT_PUBLIC_SITE_URL).hostname
 
   return (
     <>
       <Script
-        async
-        defer
+        id="umami"
+        strategy="afterInteractive"
+        src="https://umami.iocloudhost.net/script.js"
         data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
-        src={`https://umami.iocloudhost.net/script.js`}
-        data-do-not-track={false}
       />
       <Script
-        defer
-        data-domain="williamcallahan.com"
-        src={`${PLAUSIBLE_URL}/js/script.file-downloads.hash.outbound-links.pageview-props.js`}
+        id="plausible"
+        strategy="afterInteractive"
+        src="https://plausible.iocloudhost.net/js/script.js"
+        data-domain={domain}
       />
-      <Script src="/scripts/plausible-init.js" />
     </>
   )
 }
