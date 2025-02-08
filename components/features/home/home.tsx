@@ -35,7 +35,7 @@ export function Home() {
         <div className="md:w-64 w-full">
           <div className="relative aspect-square overflow-hidden rounded-2xl shadow-lg">
             <Image
-              src="/images/William Callahan - San Francisco.jpeg"
+              src="/images/William%20Callahan%20-%20San%20Francisco.jpeg"
               alt="William Callahan in San Francisco"
               fill
               sizes="(max-width: 768px) 100vw, 256px"

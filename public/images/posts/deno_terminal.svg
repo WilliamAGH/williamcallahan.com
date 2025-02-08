@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
+  <!-- Background -->
+  <rect width="800" height="400" rx="10" fill="#2e3440" />
+
+  <!-- Title bar -->
+  <rect width="800" height="40" rx="10" fill="#3b4252" />
+
+  <!-- Window controls -->
+  <circle cx="25" cy="20" r="6" fill="#bf616a"/>
+  <circle cx="45" cy="20" r="6" fill="#ebcb8b"/>
+  <circle cx="65" cy="20" r="6" fill="#a3be8c"/>
+
+  <!-- Terminal content -->
+  <g transform="translate(20, 80)">
+    <!-- Command prompt line -->
+    <text x="0" y="20" fill="#81a1c1" font-family="monospace" font-size="14">$</text>
+    <text x="25" y="20" fill="#88c0d0" font-family="monospace" font-size="14">~/deno-app</text>
+    <text x="120" y="20" fill="#a3be8c" font-family="monospace" font-size="14">git:(</text>
+    <text x="170" y="20" fill="#b48ead" font-family="monospace" font-size="14">main</text>
+    <text x="210" y="20" fill="#a3be8c" font-family="monospace" font-size="14">)</text>
+
+    <!-- Command input -->
+    <text x="230" y="20" fill="#eceff4" font-family="monospace" font-size="14">deno init</text>
+
+    <!-- Output -->
+    <text x="0" y="50" fill="#4c566a" font-family="monospace" font-size="14">✅ Project initialized</text>
+    <text x="0" y="80" fill="#4c566a" font-family="monospace" font-size="14">└─ main.ts</text>
+    <text x="0" y="110" fill="#4c566a" font-family="monospace" font-size="14">└─ deno.json</text>
+
+    <!-- New command with deno run -->
+    <text x="0" y="140" fill="#81a1c1" font-family="monospace" font-size="14">$</text>
+    <text x="25" y="140" fill="#88c0d0" font-family="monospace" font-size="14">~/deno-app</text>
+    <text x="120" y="140" fill="#a3be8c" font-family="monospace" font-size="14">git:(</text>
+    <text x="170" y="140" fill="#b48ead" font-family="monospace" font-size="14">main</text>
+    <text x="210" y="140" fill="#a3be8c" font-family="monospace" font-size="14">)</text>
+    <text x="230" y="140" fill="#eceff4" font-family="monospace" font-size="14">deno run --allow-net main.ts</text>
+
+    <!-- Deno run output -->
+    <text x="0" y="170" fill="#4c566a" font-family="monospace" font-size="14">Check file:///home/user/deno-app/main.ts</text>
+    <text x="0" y="200" fill="#4c566a" font-family="monospace" font-size="14">Server running at http://localhost:8000</text>
+
+    <!-- New command prompt with cursor -->
+    <text x="0" y="230" fill="#81a1c1" font-family="monospace" font-size="14">$</text>
+    <text x="25" y="230" fill="#88c0d0" font-family="monospace" font-size="14">~/deno-app</text>
+    <text x="120" y="230" fill="#a3be8c" font-family="monospace" font-size="14">git:(</text>
+    <text x="170" y="230" fill="#b48ead" font-family="monospace" font-size="14">main</text>
+    <text x="210" y="230" fill="#a3be8c" font-family="monospace" font-size="14">)</text>
+
+    <!-- Blinking cursor -->
+    <rect x="230" y="220" width="8" height="2" fill="#eceff4">
+      <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite" />
+    </rect>
+  </g>
+</svg>

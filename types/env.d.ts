@@ -20,6 +20,13 @@ declare global {
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: string;
     }
   }
+
+  interface Window {
+    plausible: (...args: any[]) => void;
+    umami: {
+      track: (event: string, data?: Record<string, any>) => void;
+    } & ((...args: any[]) => void);
+  }
 }
 
 export {}
