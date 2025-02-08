@@ -1,0 +1,167 @@
+---
+title: 'New Virtual Machine Server Setup Checklist'
+excerpt: 'A detailed guide to setting up a new Linux virtual machine server, from initial updates to security hardening'
+publishedAt: '2024-08-30'
+author: "william-callahan"
+tags: ['server', 'linux', 'docker', 'security', 'tutorial']
+coverImage: '/images/posts/ssh_terminal.svg'
+slug: 'new-virtual-machine-server-setup-checklist'
+readingTime: 6
+---
+
+# New Virtual Machine Server Setup Checklist
+
+I use a lot of checklists -- here is one of mine for setting up a new Linux virtual machine server. The commands are written for Ubuntu/Debian-based systems.
+
+## System Updates
+
+### Update Package Lists and Upgrade System
+
+First, let's update the package lists and upgrade existing packages:
+
+```bash
+sudo apt update
+sudo apt upgrade
+```
+
+- `apt update`: Updates the package list/index files from repositories
+- `apt upgrade`: Actually upgrades the installed packages to their latest versions
+
+## Docker Installation
+
+Follow these steps to install Docker properly on Ubuntu:
+
+### 1. Remove Conflicting Packages
+```bash
+for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
+```
+
+### 2. Set up Docker Repository
+```bash
+# Add Docker's official GPG key:
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+```
+
+### 3. Install Docker Engine
+```bash
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+### 4. Configure Docker to Start on Boot
+```bash
+sudo systemctl enable docker.service
+sudo systemctl enable containerd.service
+```
+
+## Change Hostname
+
+To permanently change your server's hostname:
+
+```bash
+sudo hostnamectl set-hostname <<your-new-hostname>>
+```
+
+And update `/etc/hosts` to reflect the new hostname:
+```bash
+sudo nano /etc/hosts
+# Add/update the line:
+127.0.0.1 <<your-new-hostname>>
+```
+
+## User Management
+
+### Create New User with Sudo Privileges
+```bash
+# Create new user
+sudo adduser <<new-username>>
+
+# Add to sudo group
+sudo usermod -aG sudo <<new-username>>
+
+# Add to docker group
+sudo usermod -aG docker <<new-username>>
+```
+
+## Essential CLI Tools Installation
+
+### Install Homebrew
+Login as your new user above first, as you can't install homebrew as root.
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+### Install [Micro Editor](https://micro-editor.github.io/)
+```bash
+sudo apt install micro
+```
+
+### Install [Lazydocker](https://github.com/jesseduffield/lazydocker) and [Lazygit](https://github.com/jesseduffield/lazygit)
+```bash
+brew install jesseduffield/lazydocker/lazydocker
+brew install lazygit
+```
+
+## SSH Server Configuration
+
+### 1. Generate SSH Key Pair (on your local machine)
+```bash
+ssh-keygen -t ed25519 -C "your-email@example.com"
+```
+
+### 2. Configure SSH Server
+Edit `/etc/ssh/sshd_config`:
+```bash
+sudo nano /etc/ssh/sshd_config
+```
+
+Add/modify these important settings:
+```
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+MaxAuthTries 10
+```
+
+### 3. Add SSH Keys
+For the new user:
+```bash
+# Create .ssh directory
+sudo mkdir -p /home/<<new-username>>/.ssh
+sudo chown <<new-username>>:<<new-username>> /home/<<new-username>>/.ssh
+sudo chmod 700 /home/<<new-username>>/.ssh
+
+# Copy root's authorized_keys to new user (if exists)
+if [ -f /root/.ssh/authorized_keys ]; then
+    sudo cp /root/.ssh/authorized_keys /home/<<new-username>>/.ssh/
+    sudo chown <<new-username>>:<<new-username>> /home/<<new-username>>/.ssh/authorized_keys
+    sudo chmod 600 /home/<<new-username>>/.ssh/authorized_keys
+fi
+
+# Or manually add your public key if needed
+# echo "your-public-key" | sudo tee /home/<<new-username>>/.ssh/authorized_keys
+```
+
+### 4. Restart SSH Service
+```bash
+sudo systemctl restart ssh
+```
+
+## Security Recommendations
+
+- Always keep your system updated
+- Don't allow SSH logins via password
+- Consider using UFW (Uncomplicated Firewall) to manage incoming connections
+
+Remember to test SSH access with your new user before closing your current session to ensure you haven't locked yourself out of the server.

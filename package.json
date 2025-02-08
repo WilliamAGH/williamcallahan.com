@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "npm run validate && next build",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
+    "start:plain": "next start",
     "docker:build": "docker buildx build --platform=linux/amd64 --build-arg NODE_ENV=production --build-arg NEXT_TELEMETRY_DISABLED=1 --load -t williamcallahan-web:latest .",
     "docker:start": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production williamcallahan-web:latest",
     "lint": "next lint",

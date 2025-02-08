@@ -1,0 +1,200 @@
+---
+title: 'Setting Up a New PC / Server with Pop!_OS 22.04'
+excerpt: 'A detailed checklist for setting up a PC / server with Pop!_OS 22.04, from BIOS configuration to essential tools installation'
+publishedAt: '2024-09-25'
+author: "william-callahan"
+tags: ['linux', 'pop-os', 'server', 'tutorial', 'checklist']
+coverImage: '/images/posts/terminal_pop_os.svg'
+slug: 'pop-os-22-micro-pc-server-setup'
+readingTime: 5
+---
+
+# Setting Up a PC / Server with Pop!_OS
+
+I use a lot of checklists -- here's another one of mine, this time for setting up a PC / server with Pop!_OS. While these instructions are written specifically for Pop!_OS, they should work similarly for Ubuntu with minor adjustments.
+
+## Pre-Installation Steps
+
+### 1. BIOS Configuration
+
+Most modern PCs require disabling Secure Boot and TPM/device security features to install Linux distributions. To access BIOS:
+
+1. Power on your PC
+2. Immediately press and hold the `Delete` key
+   - If that doesn't work, try tapping `F2`, `F8`, or `F12` during startup
+   - Different manufacturers use different keys, but `Delete` is increasingly common
+
+Navigate to:
+- Security/Boot section
+- Disable "Secure Boot"
+- Disable "TPM Security" if present
+- Save changes and exit
+
+### 2. Boot Order Configuration
+
+While still in BIOS:
+1. Navigate to Boot Order/Boot Priority section
+2. Move USB drive to the top of the boot order
+3. Save changes and exit
+
+### 3. Prepare Installation Media
+
+1. Download the OS:
+   - [Pop!_OS 22.04](https://pop.system76.com/)
+   - Or [Ubuntu 22.04](https://ubuntu.com/download/desktop) if you prefer
+2. Download [Etcher](https://www.balena.io/etcher/) to create bootable USB
+3. Use Etcher to flash the OS image to your USB drive
+
+## Installation Process
+
+### Partitioning Guide
+
+When you reach the disk partitioning step, here's how to set up your partitions:
+
+> Why These Partitions?
+> - EFI partition stores bootloader files
+> - Root partition holds your OS and all data
+> - Modern systems with sufficient RAM often don't need swap
+
+#### EFI System Partition
+```bash
+Partition Name: EFI
+Label: EFI
+Create as: Primary Partition
+File System: fat32
+Mount point: /boot/efi
+Size: 1GB  # Being generous for safety
+```
+
+#### Root Partition
+```bash
+Partition Name: Root
+Label: Pop_OS
+Create as: Primary Partition
+File System: ext4
+Mount point: /
+Size: Remaining space
+```
+
+💡 Pro tip: Leave 10MB free space before and after partitions for potential future adjustments.
+
+## Post-Installation Setup
+
+### System Updates
+
+> APT vs Pop!_Shop
+> Pop!_OS uses APT for CLI package management and Pop!_Shop for GUI. Stick to one to avoid conflicts - I prefer APT for servers.
+
+```bash
+# Update package lists and upgrade system
+sudo apt update
+sudo apt upgrade
+```
+
+### Setting Hostname
+```bash
+sudo hostnamectl set-hostname NEW_HOSTNAME
+```
+
+### SSH Server Setup
+
+> Why SSH?
+> SSH provides secure remote access to your server. Using key-based authentication is more secure than passwords.
+
+```bash
+# Install SSH server
+sudo apt install openssh-server
+
+# Configure SSH
+sudo nano /etc/ssh/sshd_config
+```
+
+Add/modify these lines:
+```bash
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+```
+
+Set up SSH keys:
+```bash
+# Create .ssh directory
+sudo mkdir -p ~/.ssh
+sudo chmod 700 ~/.ssh
+
+# Add your public key
+echo "your-public-key" > ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+
+# For root (if needed)
+sudo mkdir -p /root/.ssh
+sudo chmod 700 /root/.ssh
+sudo cp ~/.ssh/authorized_keys /root/.ssh/
+sudo chmod 600 /root/.ssh/authorized_keys
+```
+
+### Docker Installation
+
+> Why Docker?
+> Docker containers provide isolated environments for running applications, making deployment and management easier.
+
+Follow the [official Docker installation guide](https://docs.docker.com/engine/install/ubuntu/) for the latest instructions.
+
+### AppImage Management
+```bash
+# Create applications directory
+sudo mkdir -p /opt/applications
+
+# For each AppImage:
+chmod +x your-app.AppImage
+sudo mv your-app.AppImage /opt/applications/
+
+# Create desktop entry
+cat << EOF > ~/.local/share/applications/your-app.desktop
+[Desktop Entry]
+Name=Your App Name
+Exec=/opt/applications/your-app.AppImage
+Icon=/path/to/icon.png
+Type=Application
+Categories=Utility;
+EOF
+```
+
+### Set Micro as Default Editor
+```bash
+# Install Micro
+sudo apt install micro
+
+# Set as default editor
+sudo update-alternatives --install /usr/bin/editor editor /usr/local/bin/micro 100
+sudo update-alternatives --config editor
+
+# Configure for git
+echo 'export VISUAL=micro' >> ~/.bashrc
+echo 'export EDITOR=micro' >> ~/.bashrc
+source ~/.bashrc
+```
+
+### Enable Automatic Reboot
+```bash
+sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+```
+
+## Essential Tools Installation
+
+Here's my curated list of must-have tools for development:
+
+| Tool | Description | Installation |
+|------|-------------|--------------|
+| [Homebrew](https://brew.sh) | Package manager | `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"` |
+| [Lazygit](https://github.com/jesseduffield/lazygit) | Git TUI | `brew install lazygit` |
+| [Lazydocker](https://github.com/jesseduffield/lazydocker) | Docker TUI | `brew install jesseduffield/lazydocker/lazydocker` |
+| [Node.js & npm](https://nodejs.org) | JavaScript runtime | `curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh \| bash` |
+| [pnpm](https://pnpm.io) | Fast package manager | `npm install -g pnpm` |
+| [Python](https://python.org) | Python runtime | `sudo apt install python3 python3-pip` |
+| [pipx](https://pypa.github.io/pipx/) | Python app installer | `python3 -m pip install --user pipx` |
+| [uv](https://github.com/astral-sh/uv) | Fast Python packager | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| [Warp](https://warp.dev) | Modern terminal | Visit [warp.dev](https://warp.dev) for installation |
+| [Micro](https://micro-editor.github.io) | Terminal editor | `sudo apt install micro` |
+
+Remember to test all services and configurations before considering the setup complete. This checklist has served me well in setting up numerous servers - I hope it helps you too!

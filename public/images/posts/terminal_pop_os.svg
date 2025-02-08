@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
+  <!-- Background with subtle gradient -->
+  <defs>
+    <linearGradient id="bg-gradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" style="stop-color:#1b1b2f"/>
+      <stop offset="100%" style="stop-color:#2d2d44"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="400" rx="10" fill="url(#bg-gradient)" />
+
+  <!-- Title bar -->
+  <rect width="800" height="40" rx="10" fill="#333355" />
+
+  <!-- Window controls -->
+  <circle cx="25" cy="20" r="6" fill="#794bc4"/>
+  <circle cx="45" cy="20" r="6" fill="#48b9c7"/>
+  <circle cx="65" cy="20" r="6" fill="#73c48f"/>
+
+  <!-- Terminal content -->
+  <g transform="translate(20, 50)">
+    <!-- Check system info -->
+    <text x="0" y="20" fill="#48b9c7" font-family="monospace" font-size="14">pop-os</text>
+    <text x="65" y="20" fill="#73c48f" font-family="monospace" font-size="14">~</text>
+    <text x="80" y="20" fill="#e2e2e2" font-family="monospace" font-size="14">neofetch</text>
+
+    <!-- System info output -->
+    <text x="0" y="50" fill="#a094c7" font-family="monospace" font-size="14">OS: Pop!_OS 22.04 LTS x86_64</text>
+    <text x="0" y="70" fill="#a094c7" font-family="monospace" font-size="14">DE: COSMIC</text>
+
+    <!-- Update command -->
+    <text x="0" y="100" fill="#48b9c7" font-family="monospace" font-size="14">pop-os</text>
+    <text x="65" y="100" fill="#73c48f" font-family="monospace" font-size="14">~</text>
+    <text x="80" y="100" fill="#e2e2e2" font-family="monospace" font-size="14">pop-upgrade release upgrade</text>
+
+    <!-- Upgrade output -->
+    <text x="0" y="130" fill="#a094c7" font-family="monospace" font-size="14">Release upgrade available to Pop!_OS 24.04</text>
+    <text x="0" y="150" fill="#a094c7" font-family="monospace" font-size="14">Download size: 2.1 GB</text>
+
+    <!-- COSMIC config -->
+    <text x="0" y="180" fill="#48b9c7" font-family="monospace" font-size="14">pop-os</text>
+    <text x="65" y="180" fill="#73c48f" font-family="monospace" font-size="14">~</text>
+    <text x="80" y="180" fill="#e2e2e2" font-family="monospace" font-size="14">cosmic-settings</text>
+
+    <!-- Settings output -->
+    <text x="0" y="210" fill="#a094c7" font-family="monospace" font-size="14">COSMIC Desktop Settings</text>
+    <text x="20" y="230" fill="#a094c7" font-family="monospace" font-size="14">✓ Auto-tiling: enabled</text>
+    <text x="20" y="250" fill="#a094c7" font-family="monospace" font-size="14">✓ Dark theme: enabled</text>
+
+    <!-- New prompt -->
+    <text x="0" y="280" fill="#48b9c7" font-family="monospace" font-size="14">pop-os</text>
+    <text x="65" y="280" fill="#73c48f" font-family="monospace" font-size="14">~</text>
+
+    <!-- Blinking cursor -->
+    <rect x="80" y="270" width="8" height="2" fill="#e2e2e2">
+      <animate attributeName="opacity" values="0;1;0" dur="1.5s" repeatCount="indefinite" />
+    </rect>
+  </g>
+</svg>

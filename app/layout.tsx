@@ -13,6 +13,7 @@
  */
 
 import type { Metadata } from "next";
+import { Suspense } from 'react'
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -20,9 +21,7 @@ import { Navigation, Terminal, SocialIcons, ThemeToggle } from "../components/ui
 import { DEFAULT_METADATA } from "../lib/seo";
 import { API_BASE_URL } from "../lib/constants";
 
-// Analytics
-import UmamiAnalytics from '@/components/analytics/UmamiAnalytics'
-import PlausibleAnalytics from '@/components/analytics/PlausibleAnalytics'
+import { Analytics } from '@/components/analytics/Analytics'
 
 /** Load Inter font with Latin subset */
 const inter = Inter({ subsets: ["latin"] });
@@ -92,8 +91,9 @@ export default function RootLayout({
             </main>
           </div>
         </Providers>
-        <UmamiAnalytics />
-        <PlausibleAnalytics />
+        <Suspense fallback={<></>}>
+          <Analytics />
+        </Suspense>
       </body>
     </html>
   );
