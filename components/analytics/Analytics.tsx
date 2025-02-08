@@ -84,11 +84,11 @@ export function Analytics() {
         defer
         data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
         src={`https://umami.iocloudhost.net/script.js`}
-        data-do-not-track={true}
+        data-do-not-track={false}
       />
       <Script
         defer
-        data-domain={domain}
+        data-domain="williamcallahan.com"
         src={`${PLAUSIBLE_URL}/js/script.file-downloads.hash.outbound-links.pageview-props.js`}
       />
       <Script src="/scripts/plausible-init.js" />
