@@ -5,54 +5,54 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useCallback } from 'react'
 
 /**
- * Analytics event data structure
- * @interface AnalyticsEvent
+ * Analytics event data structure based on official specs
+ * @see https://umami.is/docs/tracker-functions
+ * @see https://plausible.io/docs/custom-event-goals
  */
-interface AnalyticsEvent {
+interface BaseAnalyticsEvent {
   /** Current page path (normalized for dynamic routes) */
   path: string
-  /** Client IP address from server */
-  ip?: string
   /** Full page URL */
   url: string
   /** Page referrer */
   referrer: string
-  /** Client user agent */
-  userAgent: string
-  /** Client language */
-  language: string
-  /** Viewport width */
-  screenWidth: number
-  /** Viewport height */
-  screenHeight: number
+}
+
+interface UmamiEvent extends BaseAnalyticsEvent {
+  /** Website ID for tracking */
+  website?: string
+  /** Current hostname */
+  hostname?: string
+}
+
+interface PlausibleEvent extends BaseAnalyticsEvent {
+  /** Additional custom properties */
+  [key: string]: unknown
 }
 
 /**
- * Creates analytics event data
- * @param path - The normalized page path
- * @param ip - Optional client IP address
- * @returns Analytics event data object
+ * Creates base analytics event data
+ * @returns Base analytics event data
  */
-function createEventData(path: string, ip?: string): AnalyticsEvent {
+function createBaseEventData(): BaseAnalyticsEvent {
   return {
-    path,
-    ...(ip && { ip }),
+    path: window.location.pathname,
     url: window.location.href,
-    referrer: document.referrer,
-    userAgent: navigator.userAgent,
-    language: navigator.language,
-    screenWidth: window.innerWidth,
-    screenHeight: window.innerHeight
+    referrer: document.referrer
   }
 }
 
 /**
  * Safely tracks a pageview in Plausible
- * @param eventData - The analytics event data
+ * @param path - The normalized page path
  */
-function trackPlausible(eventData: AnalyticsEvent): void {
+function trackPlausible(path: string): void {
   if (typeof window.plausible === 'function') {
     try {
+      const eventData = {
+        ...createBaseEventData(),
+        path // Override with normalized path
+      }
       window.plausible('pageview', { props: eventData })
     } catch (error) {
       console.error('Plausible tracking error:', error)
@@ -62,11 +62,17 @@ function trackPlausible(eventData: AnalyticsEvent): void {
 
 /**
  * Safely tracks a pageview in Umami
- * @param eventData - The analytics event data
+ * @param path - The normalized page path
  */
-function trackUmami(eventData: AnalyticsEvent): void {
+function trackUmami(path: string): void {
   if (window.umami?.track && typeof window.umami.track === 'function') {
     try {
+      const eventData: UmamiEvent = {
+        ...createBaseEventData(),
+        path, // Override with normalized path
+        hostname: window.location.hostname,
+        website: process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
+      }
       window.umami.track('pageview', eventData)
     } catch (error) {
       console.error('Umami tracking error:', error)
@@ -77,26 +83,14 @@ function trackUmami(eventData: AnalyticsEvent): void {
 /**
  * Analytics component that handles pageview tracking
  * Supports both Plausible and Umami analytics
- * Tracks detailed event data including client IP (via API)
  * @returns JSX.Element | null
  */
 export function Analytics(): JSX.Element | null {
   const pathname = usePathname()
 
-  const trackPageview = useCallback(async (path: string) => {
-    try {
-      const ip = await fetch('/api/ip').then(res => res.text())
-      const eventData = createEventData(path, ip)
-
-      trackPlausible(eventData)
-      trackUmami(eventData)
-    } catch (error) {
-      // Fallback with basic data if IP fetch fails
-      const eventData = createEventData(path)
-      trackPlausible(eventData)
-      trackUmami(eventData)
-      console.error('Analytics IP fetch error:', error)
-    }
+  const trackPageview = useCallback((path: string) => {
+    trackPlausible(path)
+    trackUmami(path)
   }, [])
 
   // Track pageview on route change
