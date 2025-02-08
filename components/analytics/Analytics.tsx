@@ -47,13 +47,24 @@ function createBaseEventData(): BaseAnalyticsEvent {
  * @param path - The normalized page path
  */
 function trackPlausible(path: string): void {
-  if (typeof window.plausible === 'function') {
+  if (typeof window !== 'undefined' && typeof window.plausible === 'function') {
     try {
-      const eventData = {
-        ...createBaseEventData(),
-        path // Override with normalized path
-      }
-      window.plausible('pageview', { props: eventData })
+      // Fetch the IP address first
+      fetch('/api/ip')
+        .then(res => res.text())
+        .then(ip => {
+          console.log('[Plausible Debug] Client IP:', ip)
+          const eventData = {
+            ...createBaseEventData(),
+            path,
+            ip // Include IP in the event data for debugging
+          }
+          window.plausible('pageview', { props: eventData })
+          console.log('[Plausible Debug] Event sent with data:', eventData)
+        })
+        .catch(error => {
+          console.error('[Plausible Debug] Error getting IP:', error)
+        })
     } catch (error) {
       console.error('Plausible tracking error:', error)
     }
@@ -65,11 +76,11 @@ function trackPlausible(path: string): void {
  * @param path - The normalized page path
  */
 function trackUmami(path: string): void {
-  if (window.umami?.track && typeof window.umami.track === 'function') {
+  if (typeof window !== 'undefined' && window.umami?.track && typeof window.umami.track === 'function') {
     try {
       const eventData: UmamiEvent = {
         ...createBaseEventData(),
-        path, // Override with normalized path
+        path,
         hostname: window.location.hostname,
         website: process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
       }
@@ -89,29 +100,29 @@ export function Analytics(): JSX.Element | null {
   const pathname = usePathname()
 
   const trackPageview = useCallback((path: string) => {
+    // Ensure we're in the browser
+    if (typeof window === 'undefined') return
     trackPlausible(path)
     trackUmami(path)
   }, [])
 
-  // Track pageview on route change
   useEffect(() => {
-    if (!pathname) return
+    if (!pathname || typeof window === 'undefined') return
 
-    // Simple path normalization for dynamic routes
     const path = pathname
       .replace(/\/blog\/[^/]+/, '/blog/:slug')
       .replace(/\?.+$/, '')
 
-    // Small delay to ensure analytics scripts are loaded
+    // Increased delay to ensure scripts are fully loaded
     const timeoutId = setTimeout(() => {
       trackPageview(path)
-    }, 100)
+    }, 500)
 
     return () => clearTimeout(timeoutId)
   }, [pathname, trackPageview])
 
-  // Early return if missing config
-  if (!process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || !process.env.NEXT_PUBLIC_SITE_URL) {
+  // Early return if missing config or not in browser
+  if (typeof window === 'undefined' || !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || !process.env.NEXT_PUBLIC_SITE_URL) {
     return null
   }
 
@@ -121,13 +132,13 @@ export function Analytics(): JSX.Element | null {
     <>
       <Script
         id="umami"
-        strategy="afterInteractive"
+        strategy="lazyOnload"
         src="https://umami.iocloudhost.net/script.js"
         data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
       />
       <Script
         id="plausible"
-        strategy="afterInteractive"
+        strategy="lazyOnload"
         src="https://plausible.iocloudhost.net/js/script.js"
         data-domain={domain}
       />
