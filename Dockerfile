@@ -5,43 +5,42 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Set PNPM_HOME and enable trusted builds
+# Set environment variables before any COPY or RUN commands for better caching
 ENV PNPM_HOME=/root/.local/share/pnpm
 ENV PATH=$PATH:$PNPM_HOME
-ENV NODE_ENV=development
+ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
 
-# Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* pnpm-lock.yaml* ./
-RUN \
-  if [ -f pnpm-lock.yaml ]; then \
-    npm install -g pnpm && PNPM_HOME=/root/.local/share/pnpm pnpm install --frozen-lockfile --unsafe-perm --ignore-scripts; \
-  elif [ -f package-lock.json ]; then \
-    npm ci --ignore-scripts; \
-  else \
-    npm i --ignore-scripts; \
-  fi
+# Install pnpm first
+RUN npm install -g pnpm
+
+# Copy only package files first
+COPY package.json pnpm-lock.yaml* ./
+
+# Install dependencies with a more compatible caching strategy
+RUN pnpm install --frozen-lockfile --unsafe-perm --ignore-scripts
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
 
+# Set environment variables
 ENV PNPM_HOME=/root/.local/share/pnpm
 ENV PATH=$PATH:$PNPM_HOME
-ENV NODE_ENV=development
+ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
 
-# Install dev dependencies for build and validation
-RUN \
-  if [ -f pnpm-lock.yaml ]; then \
-    npm install -g pnpm && PNPM_HOME=/root/.local/share/pnpm pnpm install --frozen-lockfile --unsafe-perm && pnpm build; \
-  else \
-    npm ci && npm run build; \
-  fi
+# Install pnpm globally
+RUN npm install -g pnpm
+
+# Copy dependencies and source code
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Build the application
+RUN pnpm build
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -68,7 +67,6 @@ RUN mkdir .next
 RUN chown nextjs:nodejs .next
 
 # Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
