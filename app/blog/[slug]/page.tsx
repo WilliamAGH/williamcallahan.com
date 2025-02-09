@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BlogWrapper } from "../../../components/features/blog/blog-article";
 import { getPostBySlug } from "../../../lib/blog";
-import { getBlogPostMetadata } from "../../../lib/seo";
+import { getBlogPostMetadata, ensureAbsoluteUrl } from "../../../lib/seo";
 import type { Article, WithContext } from "schema-dts";
+import type { OpenGraphMetadata } from "../../../types/seo";
 
 /**
  * Props for the BlogPostPage component
@@ -46,24 +47,32 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       url: og.url,
       siteName: og.siteName,
       locale: og.locale,
-      images: [
-        typeof og.image === 'string'
-          ? { url: og.image }
-          : {
-              url: og.image.url,
-              width: og.image.width,
-              height: og.image.height,
-              alt: og.image.alt,
-            },
-      ],
-      ...(og.type === 'article' && og.article ? {
-        authors: og.article.authors,
-        publishedTime: og.article.publishedTime,
-        modifiedTime: og.article.modifiedTime,
-        expirationTime: og.article.expirationTime,
-        section: og.article.section,
-        tags: og.article.tags,
-      } : {}),
+      images: typeof og.image === 'string'
+        ? [{ url: ensureAbsoluteUrl(og.image) }]
+        : [{
+            url: ensureAbsoluteUrl(og.image.url),
+            width: og.image.width,
+            height: og.image.height,
+            alt: og.image.alt,
+          }],
+      ...(og.type === 'article' && og.article && {
+        article: {
+          publishedTime: og.article.publishedTime,
+          modifiedTime: og.article.modifiedTime,
+          ...(og.article.expirationTime && {
+            expirationTime: og.article.expirationTime
+          }),
+          ...(og.article.authors?.length && {
+            authors: og.article.authors
+          }),
+          ...(og.article.section && {
+            section: og.article.section
+          }),
+          ...(og.article.tags?.length && {
+            tags: og.article.tags
+          }),
+        }
+      }),
     },
     twitter: metadata.twitter && {
       card: metadata.twitter.card,
@@ -72,12 +81,10 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       title: metadata.twitter.title,
       description: metadata.twitter.description,
       images: metadata.twitter.image
-        ? [
-            {
-              url: metadata.twitter.image,
-              alt: metadata.twitter.imageAlt,
-            },
-          ]
+        ? [{
+            url: ensureAbsoluteUrl(metadata.twitter.image),
+            alt: metadata.twitter.imageAlt,
+          }]
         : undefined,
     },
     alternates: {

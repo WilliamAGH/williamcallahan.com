@@ -31,7 +31,70 @@ describe('SEO Library', () => {
   describe('getStaticPageMetadata', () => {
     it('should return correct metadata for home page', () => {
       const metadata = getStaticPageMetadata('/');
-      expect(metadata).toEqual(STATIC_PAGE_METADATA['/']);
+      const expected = {
+        ...DEFAULT_METADATA,
+        canonical: 'https://williamcallahan.com/',
+        openGraph: metadata.openGraph && {
+          ...DEFAULT_METADATA.openGraph,
+          url: 'https://williamcallahan.com/',
+        },
+      };
+
+      // Compare image properties separately
+      if (metadata.openGraph?.image && expected.openGraph?.image) {
+        const metadataImage = metadata.openGraph.image;
+        const expectedImage = expected.openGraph.image;
+
+        if (typeof metadataImage === 'string' && typeof expectedImage === 'string') {
+          expect(metadataImage).toBe(expectedImage);
+        } else if (typeof metadataImage === 'object' && typeof expectedImage === 'object') {
+          expect(metadataImage.url).toBe(expectedImage.url);
+          expect(metadataImage.width).toBe(expectedImage.width);
+          expect(metadataImage.height).toBe(expectedImage.height);
+          expect(metadataImage.alt).toBe(expectedImage.alt);
+          expect(metadataImage.type).toBe(expectedImage.type);
+        }
+      }
+
+      // Compare rest of metadata without images
+      const { openGraph: metadataOg, ...metadataRest } = metadata;
+      const { openGraph: expectedOg, ...expectedRest } = expected;
+
+      const metadataOgWithoutImage = metadataOg && {
+        ...metadataOg,
+        image: undefined
+      };
+      const expectedOgWithoutImage = expectedOg && {
+        ...expectedOg,
+        image: undefined
+      };
+
+      expect(metadataRest).toEqual(expectedRest);
+      expect(metadataOgWithoutImage).toEqual(expectedOgWithoutImage);
+    });
+
+    it('should return default metadata for unknown paths', () => {
+      const metadata = getStaticPageMetadata('/unknown');
+      expect(metadata.title).toBe(DEFAULT_METADATA.title);
+      expect(metadata.canonical).toBe('https://williamcallahan.com/unknown');
+      expect(metadata.openGraph?.url).toBe('https://williamcallahan.com/unknown');
+    });
+
+    it('should ensure all image URLs are absolute', () => {
+      const metadata = getStaticPageMetadata('/');
+
+      if (metadata.openGraph?.image) {
+        const ogImage = metadata.openGraph.image;
+        if (typeof ogImage === 'string') {
+          expect(ogImage.startsWith('https://')).toBe(true);
+        } else {
+          expect(ogImage.url.startsWith('https://')).toBe(true);
+        }
+      }
+
+      if (metadata.twitter?.image) {
+        expect(metadata.twitter.image.startsWith('https://')).toBe(true);
+      }
     });
   });
 

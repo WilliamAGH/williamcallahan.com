@@ -43,7 +43,9 @@ export const metadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: DEFAULT_METADATA.openGraph?.image ?? "",
+        url: typeof DEFAULT_METADATA.openGraph?.image === 'string'
+          ? DEFAULT_METADATA.openGraph.image
+          : DEFAULT_METADATA.openGraph?.image?.url ?? "",
         width: 300,
         height: 150,
         alt: "William Callahan",

@@ -9,9 +9,9 @@ import { NEXT_PUBLIC_SITE_URL } from './constants';
  * @param url - The URL to check and potentially convert
  * @returns The absolute URL
  */
-function ensureAbsoluteUrl(url: string): string {
-  if (!url) return '';
-  return url.startsWith('http') ? url : `${NEXT_PUBLIC_SITE_URL}${url}`;
+export function ensureAbsoluteUrl(url: string): string {
+  if (url.startsWith('http')) return url;
+  return `${NEXT_PUBLIC_SITE_URL}${url.startsWith('/') ? url : `/${url}`}`;
 }
 
 /**
@@ -150,21 +150,21 @@ export function getStaticPageMetadata(path: string): BaseSEOMetadata {
   const processedMetadata = {
     ...metadata,
     canonical: getCanonicalUrl(path),
+    openGraph: metadata.openGraph && {
+      ...metadata.openGraph,
+      url: getCanonicalUrl(path),
+      image: typeof metadata.openGraph.image === 'string'
+        ? ensureAbsoluteUrl(metadata.openGraph.image)
+        : {
+            ...metadata.openGraph.image,
+            url: ensureAbsoluteUrl(metadata.openGraph.image.url),
+          },
+    },
+    twitter: metadata.twitter && {
+      ...metadata.twitter,
+      image: metadata.twitter.image ? ensureAbsoluteUrl(metadata.twitter.image) : undefined,
+    },
   };
-
-  // Ensure image URLs are absolute
-  if (processedMetadata.openGraph?.image) {
-    const ogImage = processedMetadata.openGraph.image;
-    processedMetadata.openGraph.image = typeof ogImage === 'string'
-      ? ensureAbsoluteUrl(ogImage)
-      : {
-          ...ogImage,
-          url: ensureAbsoluteUrl(ogImage.url)
-        };
-  }
-  if (processedMetadata.twitter?.image) {
-    processedMetadata.twitter.image = ensureAbsoluteUrl(processedMetadata.twitter.image);
-  }
 
   return processedMetadata;
 }
