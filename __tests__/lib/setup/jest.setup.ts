@@ -13,6 +13,9 @@ import { logger } from '../../../lib/logger';
 // Silence logger by default in tests
 logger.setSilent(true);
 
+// Mock environment variables
+process.env.NEXT_PUBLIC_SITE_URL = 'https://williamcallahan.com';
+
 // Define the structure we need for NextURL
 interface MockNextURL {
   href: string;
