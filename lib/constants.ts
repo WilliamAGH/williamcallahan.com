@@ -36,6 +36,20 @@ export const LOGO_CACHE_DURATION = {
 } as const;
 
 /**
+ * Base URL for the website
+ * @constant
+ * @type {string}
+ * @remarks
+ * In production, this defaults to the main domain.
+ * In development, it uses localhost.
+ */
+export const NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || (
+  process.env.NODE_ENV === 'development'
+    ? 'http://localhost:3000'
+    : 'https://williamcallahan.com'
+);
+
+/**
  * Base URL for API endpoints
  * @constant
  * @type {string}
@@ -43,11 +57,7 @@ export const LOGO_CACHE_DURATION = {
  * In production, this defaults to the main domain.
  * In development, it uses localhost.
  */
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || (
-  process.env.NODE_ENV === 'development'
-    ? 'http://localhost:3000'
-    : 'https://williamcallahan.com'
-);
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || NEXT_PUBLIC_SITE_URL;
 
 /**
  * API endpoints for the application

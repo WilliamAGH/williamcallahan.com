@@ -2,7 +2,17 @@ import type { BaseSEOMetadata, SEOMetadata, ImageSEOMetadata } from '../types/se
 import type { BlogPost } from '../types/blog';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { API_BASE_URL } from './constants';
+import { NEXT_PUBLIC_SITE_URL } from './constants';
+
+/**
+ * Ensure a URL is absolute
+ * @param url - The URL to check and potentially convert
+ * @returns The absolute URL
+ */
+function ensureAbsoluteUrl(url: string): string {
+  if (!url) return '';
+  return url.startsWith('http') ? url : `${NEXT_PUBLIC_SITE_URL}${url}`;
+}
 
 /**
  * Default site metadata
@@ -14,15 +24,15 @@ export const DEFAULT_METADATA: BaseSEOMetadata = {
     title: 'William Callahan - Finance, Startups, & Engineering - San Francisco',
     description: 'Website for William Callahan, a startup investor and Techstars founder, with a public journal of all startup investments he\'s ever made. Writes about technology, programming, Y Combinator, Techstars, and other accelerators, AI, and more.',
     type: 'website',
-    url: API_BASE_URL,
-    image: '/images/posts/npm_terminal.svg',
+    url: NEXT_PUBLIC_SITE_URL,
+    image: ensureAbsoluteUrl('/images/posts/npm_terminal.svg'),
   },
   twitter: {
     card: 'summary_large_image',
     site: '@williamcallahan',
     title: 'William Callahan - Finance, Startups, & Engineering - San Francisco',
     description: 'Website for William Callahan, a startup investor and Techstars founder, with a public journal of all startup investments he\'s ever made. Writes about technology, programming, Y Combinator, Techstars, and other accelerators, AI, and more.',
-    image: '/images/posts/npm_terminal.svg',
+    image: ensureAbsoluteUrl('/images/posts/npm_terminal.svg'),
   },
 };
 
@@ -32,7 +42,7 @@ export const DEFAULT_METADATA: BaseSEOMetadata = {
 export const STATIC_PAGE_METADATA: Record<string, BaseSEOMetadata> = {
   '/': {
     ...DEFAULT_METADATA,
-    canonical: `${API_BASE_URL}/`,
+    canonical: `${NEXT_PUBLIC_SITE_URL}/`,
   },
   '/experience': {
     title: 'Professional Experience - William Callahan',
@@ -93,7 +103,7 @@ export const STATIC_PAGE_METADATA: Record<string, BaseSEOMetadata> = {
  * @returns The full canonical URL
  */
 export function getCanonicalUrl(path: string): string {
-  return `${API_BASE_URL}${path}`;
+  return `${NEXT_PUBLIC_SITE_URL}${path}`;
 }
 
 /**
@@ -103,10 +113,20 @@ export function getCanonicalUrl(path: string): string {
  */
 export function getStaticPageMetadata(path: string): BaseSEOMetadata {
   const metadata = STATIC_PAGE_METADATA[path] || DEFAULT_METADATA;
-  return {
+  const processedMetadata = {
     ...metadata,
     canonical: getCanonicalUrl(path),
   };
+
+  // Ensure image URLs are absolute
+  if (processedMetadata.openGraph?.image) {
+    processedMetadata.openGraph.image = ensureAbsoluteUrl(processedMetadata.openGraph.image);
+  }
+  if (processedMetadata.twitter?.image) {
+    processedMetadata.twitter.image = ensureAbsoluteUrl(processedMetadata.twitter.image);
+  }
+
+  return processedMetadata;
 }
 
 /**
@@ -129,7 +149,7 @@ export function getBlogPostMetadata(post: BlogPost): SEOMetadata {
       title: post.title,
       description: post.excerpt,
       type: 'article',
-      image: post.coverImage,
+      image: post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined,
       url: getCanonicalUrl(`/blog/${post.slug}`),
     },
     twitter: {
@@ -137,17 +157,13 @@ export function getBlogPostMetadata(post: BlogPost): SEOMetadata {
       site: '@williamcallahan',
       title: post.title,
       description: post.excerpt,
-      image: post.coverImage?.startsWith('http')
-        ? post.coverImage
-        : `${API_BASE_URL}${post.coverImage}`,
+      image: post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined,
       creator: '@williamcallahan',
     },
     linkedin: {
       title: post.title,
       description: post.excerpt,
-      image: post.coverImage?.startsWith('http')
-        ? post.coverImage
-        : `${API_BASE_URL}${post.coverImage}`,
+      image: post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined,
       type: 'article',
       'article:author': 'William Callahan',
       'article:published_time': datePublished,
@@ -171,7 +187,7 @@ export function getImageMetadata(
   return {
     alt,
     title,
-    url: image.startsWith('http') ? image : `${API_BASE_URL}${image}`,
+    url: image.startsWith('http') ? image : `${NEXT_PUBLIC_SITE_URL}${image}`,
   };
 }
 
@@ -184,7 +200,7 @@ export function generateRobotsTxt(): string {
 User-agent: *
 Allow: /
 
-Sitemap: ${API_BASE_URL}/sitemap.xml
+Sitemap: ${NEXT_PUBLIC_SITE_URL}/sitemap.xml
 `.trim();
 }
 
