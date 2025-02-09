@@ -11,6 +11,11 @@ import {
 import type { BlogPost } from '../../types/blog';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 
+// Mock the environment and constants
+jest.mock('../../lib/constants', () => ({
+  NEXT_PUBLIC_SITE_URL: 'https://williamcallahan.com'
+}));
+
 // Mock MDXRemoteSerializeResult
 const mockMDXContent = {} as MDXRemoteSerializeResult;
 
@@ -62,7 +67,7 @@ describe('SEO Library', () => {
           title: 'Test Post',
           description: 'Test excerpt',
           type: 'article',
-          image: '/images/test.jpg',
+          image: 'https://williamcallahan.com/images/test.jpg',
           url: 'https://williamcallahan.com/blog/test-post',
         },
         twitter: {
