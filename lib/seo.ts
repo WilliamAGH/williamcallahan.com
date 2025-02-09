@@ -1,4 +1,4 @@
-import type { BaseSEOMetadata, SEOMetadata, ImageSEOMetadata } from '../types/seo';
+import type { BaseSEOMetadata, SEOMetadata, ImageSEOMetadata, OpenGraphImage } from '../types/seo';
 import type { BlogPost } from '../types/blog';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -15,6 +15,22 @@ function ensureAbsoluteUrl(url: string): string {
 }
 
 /**
+ * Create structured OpenGraph image metadata
+ * @param url - The image URL
+ * @param alt - Alt text for the image
+ * @returns OpenGraph image metadata
+ */
+function createOpenGraphImage(url: string, alt: string = ''): OpenGraphImage {
+  return {
+    url: ensureAbsoluteUrl(url),
+    width: 1200,  // Default OG image width
+    height: 630,  // Default OG image height
+    alt,
+    type: url.toLowerCase().endsWith('.svg') ? 'image/svg+xml' : 'image/jpeg',
+  };
+}
+
+/**
  * Default site metadata
  */
 export const DEFAULT_METADATA: BaseSEOMetadata = {
@@ -25,7 +41,15 @@ export const DEFAULT_METADATA: BaseSEOMetadata = {
     description: 'Website for William Callahan, a startup investor and Techstars founder, with a public journal of all startup investments he\'s ever made. Writes about technology, programming, Y Combinator, Techstars, and other accelerators, AI, and more.',
     type: 'website',
     url: NEXT_PUBLIC_SITE_URL,
-    image: ensureAbsoluteUrl('/images/posts/npm_terminal.svg'),
+    image: {
+      url: ensureAbsoluteUrl('/images/posts/npm_terminal.svg'),
+      width: 1200,
+      height: 630,
+      alt: 'William Callahan',
+      type: 'image/svg+xml',
+    },
+    locale: 'en_US',
+    siteName: 'William Callahan',
   },
   twitter: {
     card: 'summary_large_image',
@@ -33,6 +57,7 @@ export const DEFAULT_METADATA: BaseSEOMetadata = {
     title: 'William Callahan - Finance, Startups, & Engineering - San Francisco',
     description: 'Website for William Callahan, a startup investor and Techstars founder, with a public journal of all startup investments he\'s ever made. Writes about technology, programming, Y Combinator, Techstars, and other accelerators, AI, and more.',
     image: ensureAbsoluteUrl('/images/posts/npm_terminal.svg'),
+    imageAlt: 'William Callahan',
   },
 };
 
@@ -51,7 +76,10 @@ export const STATIC_PAGE_METADATA: Record<string, BaseSEOMetadata> = {
       title: 'William Callahan - Professional Experience',
       description: 'Professional experience and career highlights of William Callahan',
       type: 'profile',
-      image: DEFAULT_METADATA.openGraph?.image,
+      url: `${NEXT_PUBLIC_SITE_URL}/experience`,
+      image: DEFAULT_METADATA.openGraph?.image || '',
+      locale: 'en_US',
+      siteName: 'William Callahan',
     },
     twitter: {
       card: 'summary',
@@ -68,7 +96,10 @@ export const STATIC_PAGE_METADATA: Record<string, BaseSEOMetadata> = {
       title: 'William Callahan - Education',
       description: 'Educational background and academic achievements of William Callahan',
       type: 'profile',
-      image: DEFAULT_METADATA.openGraph?.image,
+      url: `${NEXT_PUBLIC_SITE_URL}/education`,
+      image: DEFAULT_METADATA.openGraph?.image || '',
+      locale: 'en_US',
+      siteName: 'William Callahan',
     },
     twitter: {
       card: 'summary',
@@ -85,7 +116,10 @@ export const STATIC_PAGE_METADATA: Record<string, BaseSEOMetadata> = {
       title: 'William Callahan - Investments',
       description: 'Investment portfolio and venture activities of William Callahan',
       type: 'profile',
-      image: DEFAULT_METADATA.openGraph?.image,
+      url: `${NEXT_PUBLIC_SITE_URL}/investments`,
+      image: DEFAULT_METADATA.openGraph?.image || '',
+      locale: 'en_US',
+      siteName: 'William Callahan',
     },
     twitter: {
       card: 'summary',
@@ -120,7 +154,13 @@ export function getStaticPageMetadata(path: string): BaseSEOMetadata {
 
   // Ensure image URLs are absolute
   if (processedMetadata.openGraph?.image) {
-    processedMetadata.openGraph.image = ensureAbsoluteUrl(processedMetadata.openGraph.image);
+    const ogImage = processedMetadata.openGraph.image;
+    processedMetadata.openGraph.image = typeof ogImage === 'string'
+      ? ensureAbsoluteUrl(ogImage)
+      : {
+          ...ogImage,
+          url: ensureAbsoluteUrl(ogImage.url)
+        };
   }
   if (processedMetadata.twitter?.image) {
     processedMetadata.twitter.image = ensureAbsoluteUrl(processedMetadata.twitter.image);
@@ -135,38 +175,57 @@ export function getStaticPageMetadata(path: string): BaseSEOMetadata {
  * @returns The post metadata with dates
  */
 export function getBlogPostMetadata(post: BlogPost): SEOMetadata {
-  // Use the MDX file's creation date as published date
-  const datePublished = post.publishedAt;
-  const dateModified = post.updatedAt || datePublished;
+  const { title, excerpt, slug, publishedAt, updatedAt, coverImage, author, tags } = post;
+  const canonicalUrl = `${NEXT_PUBLIC_SITE_URL}/blog/${slug}`;
+  const imageUrl = coverImage || '/images/posts/npm_terminal.svg';
+  const dateModified = updatedAt || publishedAt;
+
+  const ogImage: OpenGraphImage = {
+    url: ensureAbsoluteUrl(imageUrl),
+    width: 1200,
+    height: 630,
+    alt: title,
+    type: imageUrl.toLowerCase().endsWith('.svg') ? 'image/svg+xml' : 'image/jpeg',
+  };
 
   return {
-    title: `${post.title} - William Callahan's Blog`,
-    description: post.excerpt,
-    canonical: getCanonicalUrl(`/blog/${post.slug}`),
-    datePublished,
+    title: `${title} - William Callahan's Blog`,
+    description: excerpt,
+    canonical: canonicalUrl,
+    datePublished: publishedAt,
     dateModified,
     openGraph: {
-      title: post.title,
-      description: post.excerpt,
+      title,
+      description: excerpt,
       type: 'article',
-      image: post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined,
-      url: getCanonicalUrl(`/blog/${post.slug}`),
+      image: ogImage,
+      url: canonicalUrl,
+      locale: 'en_US',
+      siteName: 'William Callahan',
+      article: {
+        publishedTime: publishedAt,
+        modifiedTime: dateModified,
+        authors: [author.name],
+        section: tags[0] || 'Blog',
+        tags,
+      },
     },
     twitter: {
       card: 'summary_large_image',
       site: '@williamcallahan',
-      title: post.title,
-      description: post.excerpt,
-      image: post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined,
       creator: '@williamcallahan',
+      title,
+      description: excerpt,
+      image: ensureAbsoluteUrl(imageUrl),
+      imageAlt: title,
     },
     linkedin: {
-      title: post.title,
-      description: post.excerpt,
-      image: post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined,
+      title,
+      description: excerpt,
+      image: ensureAbsoluteUrl(imageUrl),
       type: 'article',
-      'article:author': 'William Callahan',
-      'article:published_time': datePublished,
+      'article:author': author.name,
+      'article:published_time': publishedAt,
       'article:modified_time': dateModified,
     },
   };
@@ -187,7 +246,7 @@ export function getImageMetadata(
   return {
     alt,
     title,
-    url: image.startsWith('http') ? image : `${NEXT_PUBLIC_SITE_URL}${image}`,
+    url: ensureAbsoluteUrl(image),
   };
 }
 

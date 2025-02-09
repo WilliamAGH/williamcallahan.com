@@ -67,16 +67,32 @@ describe('SEO Library', () => {
           title: 'Test Post',
           description: 'Test excerpt',
           type: 'article',
-          image: 'https://williamcallahan.com/images/test.jpg',
+          image: {
+            url: 'https://williamcallahan.com/images/test.jpg',
+            width: 1200,
+            height: 630,
+            alt: 'Test Post',
+            type: 'image/jpeg',
+          },
           url: 'https://williamcallahan.com/blog/test-post',
+          locale: 'en_US',
+          siteName: 'William Callahan',
+          article: {
+            publishedTime: '2024-01-01T00:00:00Z',
+            modifiedTime: '2024-01-02T00:00:00Z',
+            authors: ['William Callahan'],
+            section: 'test',
+            tags: ['test'],
+          },
         },
         twitter: {
           card: 'summary_large_image',
           site: '@williamcallahan',
           creator: '@williamcallahan',
+          title: 'Test Post',
           description: 'Test excerpt',
           image: 'https://williamcallahan.com/images/test.jpg',
-          title: 'Test Post',
+          imageAlt: 'Test Post',
         },
         linkedin: {
           title: 'Test Post',
@@ -90,10 +106,50 @@ describe('SEO Library', () => {
       });
     });
 
+    it('should use default image when coverImage is not provided', () => {
+      const postWithoutImage = { ...mockPost, coverImage: undefined };
+      const metadata = getBlogPostMetadata(postWithoutImage);
+      expect(metadata.openGraph?.image).toEqual({
+        url: 'https://williamcallahan.com/images/posts/npm_terminal.svg',
+        width: 1200,
+        height: 630,
+        alt: 'Test Post',
+        type: 'image/svg+xml',
+      });
+    });
+
     it('should use publishedAt as dateModified if updatedAt is not provided', () => {
       const postWithoutUpdate = { ...mockPost, updatedAt: undefined };
       const metadata = getBlogPostMetadata(postWithoutUpdate);
       expect(metadata.dateModified).toBe(postWithoutUpdate.publishedAt);
+      expect(metadata.openGraph?.article?.modifiedTime).toBe(postWithoutUpdate.publishedAt);
+      expect(metadata.linkedin?.['article:modified_time']).toBe(postWithoutUpdate.publishedAt);
+    });
+
+    it('should handle SVG images correctly', () => {
+      const postWithSvg = { ...mockPost, coverImage: '/images/test.svg' };
+      const metadata = getBlogPostMetadata(postWithSvg);
+      expect(metadata.openGraph?.image).toEqual({
+        url: 'https://williamcallahan.com/images/test.svg',
+        width: 1200,
+        height: 630,
+        alt: 'Test Post',
+        type: 'image/svg+xml',
+      });
+    });
+
+    it('should use first tag as section and include all tags', () => {
+      const postWithTags = { ...mockPost, tags: ['category1', 'category2'] };
+      const metadata = getBlogPostMetadata(postWithTags);
+      expect(metadata.openGraph?.article?.section).toBe('category1');
+      expect(metadata.openGraph?.article?.tags).toEqual(['category1', 'category2']);
+    });
+
+    it('should use "Blog" as default section when no tags are provided', () => {
+      const postWithoutTags = { ...mockPost, tags: [] };
+      const metadata = getBlogPostMetadata(postWithoutTags);
+      expect(metadata.openGraph?.article?.section).toBe('Blog');
+      expect(metadata.openGraph?.article?.tags).toEqual([]);
     });
   });
 
