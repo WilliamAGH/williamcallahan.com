@@ -16,11 +16,11 @@ ENV HUSKY=0
 COPY package.json package-lock.json* pnpm-lock.yaml* ./
 RUN \
   if [ -f pnpm-lock.yaml ]; then \
-    npm install -g pnpm && PNPM_HOME=/root/.local/share/pnpm pnpm install --frozen-lockfile --unsafe-perm; \
+    npm install -g pnpm && PNPM_HOME=/root/.local/share/pnpm pnpm install --frozen-lockfile --unsafe-perm --ignore-scripts; \
   elif [ -f package-lock.json ]; then \
-    npm ci; \
+    npm ci --ignore-scripts; \
   else \
-    npm i; \
+    npm i --ignore-scripts; \
   fi
 
 # Rebuild the source code only when needed
