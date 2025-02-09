@@ -27,11 +27,12 @@ COPY . .
 # Uncomment the following line in case you want to disable telemetry during the build.
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Install dev dependencies for build and validation
 RUN \
   if [ -f pnpm-lock.yaml ]; then \
-    npm install -g pnpm && pnpm build; \
+    npm install -g pnpm && pnpm install --frozen-lockfile && pnpm build; \
   else \
-    npm run build; \
+    npm ci && npm run build; \
   fi
 
 # Production image, copy all the files and run next
