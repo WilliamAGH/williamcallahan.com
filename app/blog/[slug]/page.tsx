@@ -27,55 +27,61 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   if (!post) return { title: "Post Not Found" };
 
   const metadata = getBlogPostMetadata(post);
+  const { openGraph: og } = metadata;
 
-  // Schema.org Article metadata
-  const jsonLd: WithContext<Article> = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: post.title,
-    description: post.excerpt,
-    author: {
-      "@type": "Person",
-      name: post.author.name,
-    },
-    datePublished: metadata.datePublished,
-    dateModified: metadata.dateModified,
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": metadata.canonical,
-    },
-    publisher: {
-      "@type": "Person",
-      name: "William Callahan",
-    },
-  };
+  if (!og) {
+    return {
+      title: metadata.title,
+      description: metadata.description,
+    };
+  }
 
   return {
-    metadataBase: new URL('https://williamcallahan.com'),
     title: metadata.title,
     description: metadata.description,
     openGraph: {
-      type: "article",
-      publishedTime: metadata.datePublished,
-      modifiedTime: metadata.dateModified,
-      authors: [post.author.name],
-      tags: post.tags,
-      url: metadata.canonical,
-      images: post.coverImage ? [{ url: post.coverImage }] : undefined,
+      title: og.title,
+      description: og.description,
+      type: og.type,
+      url: og.url,
+      siteName: og.siteName,
+      locale: og.locale,
+      images: [
+        typeof og.image === 'string'
+          ? { url: og.image }
+          : {
+              url: og.image.url,
+              width: og.image.width,
+              height: og.image.height,
+              alt: og.image.alt,
+            },
+      ],
+      ...(og.type === 'article' && og.article ? {
+        authors: og.article.authors,
+        publishedTime: og.article.publishedTime,
+        modifiedTime: og.article.modifiedTime,
+        expirationTime: og.article.expirationTime,
+        section: og.article.section,
+        tags: og.article.tags,
+      } : {}),
+    },
+    twitter: metadata.twitter && {
+      card: metadata.twitter.card,
+      site: metadata.twitter.site,
+      creator: metadata.twitter.creator,
+      title: metadata.twitter.title,
+      description: metadata.twitter.description,
+      images: metadata.twitter.image
+        ? [
+            {
+              url: metadata.twitter.image,
+              alt: metadata.twitter.imageAlt,
+            },
+          ]
+        : undefined,
     },
     alternates: {
       canonical: metadata.canonical,
-    },
-    authors: [{ name: post.author.name }],
-    keywords: post.tags,
-    robots: {
-      index: true,
-      follow: true,
-    },
-    other: {
-      "article:published_time": metadata.datePublished,
-      "article:modified_time": metadata.dateModified,
-      "script:ld+json": JSON.stringify(jsonLd),
     },
   };
 }
