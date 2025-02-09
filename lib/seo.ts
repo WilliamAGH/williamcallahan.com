@@ -8,21 +8,21 @@ import { API_BASE_URL } from './constants';
  * Default site metadata
  */
 export const DEFAULT_METADATA: BaseSEOMetadata = {
-  title: 'William Callahan in San Francisco, CA, USA',
-  description: 'The personal and professional website for William Callahan, including a blog, professional background, investments, and more.',
+  title: 'William Callahan - Finance, Startups, & Engineering - San Francisco',
+  description: 'Website for William Callahan, a startup investor and Techstars founder, with a public journal of all startup investments he\'s ever made. Writes about technology, programming, Y Combinator, Techstars, and other accelerators, AI, and more.',
   openGraph: {
-    title: 'William Callahan',
-    description: 'Personal and professional website of William Callahan',
+    title: 'William Callahan - Finance, Startups, & Engineering - San Francisco',
+    description: 'Website for William Callahan, a startup investor and Techstars founder, with a public journal of all startup investments he\'s ever made. Writes about technology, programming, Y Combinator, Techstars, and other accelerators, AI, and more.',
     type: 'website',
     url: API_BASE_URL,
-    image: '/images/William Callahan - San Francisco.jpeg',
+    image: '/images/posts/npm_terminal.svg',
   },
   twitter: {
     card: 'summary_large_image',
     site: '@williamcallahan',
-    title: 'William Callahan',
-    description: 'Personal and professional website of William Callahan',
-    image: '/images/William Callahan - San Francisco.jpeg',
+    title: 'William Callahan - Finance, Startups, & Engineering - San Francisco',
+    description: 'Website for William Callahan, a startup investor and Techstars founder, with a public journal of all startup investments he\'s ever made. Writes about technology, programming, Y Combinator, Techstars, and other accelerators, AI, and more.',
+    image: '/images/posts/npm_terminal.svg',
   },
 };
 
@@ -41,12 +41,14 @@ export const STATIC_PAGE_METADATA: Record<string, BaseSEOMetadata> = {
       title: 'William Callahan - Professional Experience',
       description: 'Professional experience and career highlights of William Callahan',
       type: 'profile',
+      image: DEFAULT_METADATA.openGraph?.image,
     },
     twitter: {
       card: 'summary',
       site: '@williamcallahan',
       title: 'William Callahan - Professional Experience',
       description: 'Professional experience and career highlights of William Callahan',
+      image: DEFAULT_METADATA.twitter?.image,
     },
   },
   '/education': {
@@ -56,12 +58,14 @@ export const STATIC_PAGE_METADATA: Record<string, BaseSEOMetadata> = {
       title: 'William Callahan - Education',
       description: 'Educational background and academic achievements of William Callahan',
       type: 'profile',
+      image: DEFAULT_METADATA.openGraph?.image,
     },
     twitter: {
       card: 'summary',
       site: '@williamcallahan',
       title: 'William Callahan - Education',
       description: 'Educational background and academic achievements of William Callahan',
+      image: DEFAULT_METADATA.twitter?.image,
     },
   },
   '/investments': {
@@ -71,12 +75,14 @@ export const STATIC_PAGE_METADATA: Record<string, BaseSEOMetadata> = {
       title: 'William Callahan - Investments',
       description: 'Investment portfolio and venture activities of William Callahan',
       type: 'profile',
+      image: DEFAULT_METADATA.openGraph?.image,
     },
     twitter: {
       card: 'summary',
       site: '@williamcallahan',
       title: 'William Callahan - Investments',
       description: 'Investment portfolio and venture activities of William Callahan',
+      image: DEFAULT_METADATA.twitter?.image,
     },
   },
 };
