@@ -39,12 +39,14 @@ export const metadata: Metadata = {
     description: DEFAULT_METADATA.openGraph?.description,
     type: DEFAULT_METADATA.openGraph?.type ?? "website",
     url: DEFAULT_METADATA.openGraph?.url,
+    siteName: "William Callahan",
+    locale: "en_US",
     images: [
       {
-        url: `${API_BASE_URL}/images/william.jpeg`,
-        width: 1200,
-        height: 630,
-        alt: 'William Callahan',
+        url: DEFAULT_METADATA.openGraph?.image ?? "",
+        width: 300,
+        height: 150,
+        alt: "William Callahan",
       },
     ],
   },
@@ -52,11 +54,19 @@ export const metadata: Metadata = {
     card: DEFAULT_METADATA.twitter?.card ?? "summary_large_image",
     title: DEFAULT_METADATA.twitter?.title,
     description: DEFAULT_METADATA.twitter?.description,
-    creator: DEFAULT_METADATA.twitter?.creator,
-    images: [`${API_BASE_URL}/images/william.jpeg`],
+    site: DEFAULT_METADATA.twitter?.site,
+    creator: DEFAULT_METADATA.twitter?.site,
+    images: DEFAULT_METADATA.twitter?.image ? [DEFAULT_METADATA.twitter.image] : undefined,
   },
   alternates: {
     canonical: API_BASE_URL,
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  icons: {
+    icon: "/favicon.ico",
   },
 };
 
