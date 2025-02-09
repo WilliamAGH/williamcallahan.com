@@ -5,10 +5,9 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Set environment variables before any COPY or RUN commands for better caching
+# Set environment variables for dependency installation
 ENV PNPM_HOME=/root/.local/share/pnpm
 ENV PATH=$PATH:$PNPM_HOME
-ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
 
@@ -18,19 +17,19 @@ RUN npm install -g pnpm
 # Copy only package files first
 COPY package.json pnpm-lock.yaml* ./
 
-# Install dependencies with a more compatible caching strategy
+# Install dependencies
 RUN pnpm install --frozen-lockfile --unsafe-perm --ignore-scripts
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 
-# Set environment variables
+# Set environment variables for build
 ENV PNPM_HOME=/root/.local/share/pnpm
 ENV PATH=$PATH:$PNPM_HOME
-ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
+ENV NODE_ENV=development
 
 # Install pnpm globally
 RUN npm install -g pnpm
@@ -40,7 +39,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build the application
-RUN pnpm build
+RUN NODE_ENV=production pnpm build
 
 # Production image, copy all the files and run next
 FROM base AS runner
