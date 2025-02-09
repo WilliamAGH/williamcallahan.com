@@ -9,7 +9,7 @@ WORKDIR /app
 COPY package.json package-lock.json* pnpm-lock.yaml* ./
 RUN \
   if [ -f pnpm-lock.yaml ]; then \
-    corepack enable pnpm && pnpm i --frozen-lockfile; \
+    npm install -g pnpm && pnpm i --frozen-lockfile; \
   elif [ -f package-lock.json ]; then \
     npm ci; \
   else \
@@ -29,7 +29,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN \
   if [ -f pnpm-lock.yaml ]; then \
-    corepack enable pnpm && pnpm build; \
+    npm install -g pnpm && pnpm build; \
   else \
     npm run build; \
   fi
