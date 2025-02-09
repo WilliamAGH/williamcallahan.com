@@ -15,7 +15,7 @@
     "clean": "rm -rf .next out node_modules",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
-    "prepare": "husky"
+    "prepare": "node .husky/install.mjs"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.15",
