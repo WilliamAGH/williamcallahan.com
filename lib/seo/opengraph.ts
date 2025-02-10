@@ -97,6 +97,10 @@ export function createArticleOgMetadata({
       modifiedTime: formattedModified,
       section: metadata.article.section,
       tags: tags || [],
+      authors: [metadata.author],
     },
+    // Add dates at root level for better compatibility
+    publishedTime: formattedPublished,
+    modifiedTime: formattedModified,
   };
 }
