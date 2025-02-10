@@ -6,7 +6,7 @@
  */
 
 import { Home } from "../components/features";
-import { getStaticPageMetadata } from "../lib/seo";
+import { getStaticPageMetadata } from "../lib/seo/metadata";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = getStaticPageMetadata("/");
