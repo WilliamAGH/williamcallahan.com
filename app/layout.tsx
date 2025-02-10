@@ -18,8 +18,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { Navigation, Terminal, SocialIcons, ThemeToggle } from "../components/ui";
-import { DEFAULT_METADATA } from "../lib/seo";
-import { API_BASE_URL } from "../lib/constants";
+import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "../data/metadata";
 
 import { Analytics } from '@/components/analytics/Analytics'
 
@@ -28,47 +27,44 @@ const inter = Inter({ subsets: ["latin"] });
 
 /**
  * Global metadata configuration for the application
+ * Follows Next.js 14 metadata standards and handles different environments
  * @see https://nextjs.org/docs/app/api-reference/functions/generate-metadata
  */
 export const metadata: Metadata = {
-  title: DEFAULT_METADATA.title,
-  description: DEFAULT_METADATA.description,
-  metadataBase: new URL(API_BASE_URL),
+  metadataBase: new URL(
+    process.env.NODE_ENV === 'production'
+      ? 'https://williamcallahan.com'
+      : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  ),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  authors: [{ name: SITE_NAME, url: 'https://williamcallahan.com' }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  formatDetection: {
+    email: true,
+    address: false,
+    telephone: false,
+    date: false,
+  },
   openGraph: {
-    title: DEFAULT_METADATA.openGraph?.title,
-    description: DEFAULT_METADATA.openGraph?.description,
-    type: DEFAULT_METADATA.openGraph?.type ?? "website",
-    url: DEFAULT_METADATA.openGraph?.url,
-    siteName: "William Callahan",
-    locale: "en_US",
-    images: [
-      {
-        url: typeof DEFAULT_METADATA.openGraph?.image === 'string'
-          ? DEFAULT_METADATA.openGraph.image
-          : DEFAULT_METADATA.openGraph?.image?.url ?? "",
-        width: 300,
-        height: 150,
-        alt: "William Callahan",
-      },
-    ],
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: 'https://williamcallahan.com',
+    siteName: SITE_NAME,
+    locale: 'en_US',
+    type: 'website',
+    images: [siteMetadata.defaultImage],
   },
   twitter: {
-    card: DEFAULT_METADATA.twitter?.card ?? "summary_large_image",
-    title: DEFAULT_METADATA.twitter?.title,
-    description: DEFAULT_METADATA.twitter?.description,
-    site: DEFAULT_METADATA.twitter?.site,
-    creator: DEFAULT_METADATA.twitter?.site,
-    images: DEFAULT_METADATA.twitter?.image ? [DEFAULT_METADATA.twitter.image] : undefined,
+    card: 'summary_large_image',
+    site: siteMetadata.social.twitter,
+    creator: siteMetadata.social.twitter,
   },
   alternates: {
-    canonical: API_BASE_URL,
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-  icons: {
-    icon: "/favicon.ico",
+    ...(process.env.NODE_ENV === 'production' && {
+      canonical: 'https://williamcallahan.com'
+    }),
   },
 };
 

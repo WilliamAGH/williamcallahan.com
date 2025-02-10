@@ -5,9 +5,9 @@
  */
 
 import type { Metadata } from "next";
-import { BlogList } from "../../components/features/blog/blog-list";
+import { BlogList } from "../../components/features/blog/blog-list/blog-list";
 import { getAllPosts } from "../../lib/blog";
-import { getStaticPageMetadata } from "../../lib/seo";
+import { getStaticPageMetadata } from "../../lib/seo/metadata";
 
 export const metadata: Metadata = {
   ...getStaticPageMetadata("/blog"),
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function BlogPage() {
+export default async function Page() {
   const posts = await getAllPosts();
 
   return (
