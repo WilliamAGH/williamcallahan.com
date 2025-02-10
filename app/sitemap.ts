@@ -2,58 +2,41 @@
  * Sitemap Generation
  * @module app/sitemap
  * @description
- * Generates a sitemap for the website using Next.js 14's Metadata API.
- * This file automatically generates a sitemap.xml file at build time,
- * including all static pages and dynamic blog posts.
+ * Generates sitemap.xml for the site following Next.js 14 conventions.
+ * Includes all static pages and their metadata.
  *
- * @see https://nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap
+ * @see {@link "https://nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap"} - Next.js Sitemap API
+ * @see {@link "../data/metadata.ts"} - Source of page metadata including dates
  */
 
 import { MetadataRoute } from 'next';
-import { getAllPosts } from "../lib/blog";
-import { API_BASE_URL } from "../lib/constants";
+import { PAGE_METADATA, metadata as siteMetadata } from '../data/metadata';
 
 /**
- * Generate sitemap for the application
- * @see https://nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap
+ * Generate sitemap entries for all static pages
+ * @returns {MetadataRoute.Sitemap} Sitemap entries following Next.js format
  */
-/**
- * Generate sitemap entries
- * @returns {Promise<MetadataRoute.Sitemap>} Array of sitemap entries
- */
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Get all blog posts
-  const posts = await getAllPosts();
+export default function sitemap(): MetadataRoute.Sitemap {
+  // Map of routes to their priorities
+  const routes = {
+    '/': 1.0,
+    '/blog': 0.9,
+    '/experience': 0.8,
+    '/investments': 0.8,
+    '/education': 0.5,
+    '/bookmarks': 0.7,
+  } as const;
 
-  // Static pages
-  const staticPages = [
-    {
-      url: API_BASE_URL,
-      lastModified: new Date(),
-    },
-    {
-      url: `${API_BASE_URL}/blog`,
-      lastModified: new Date(),
-    },
-    {
-      url: `${API_BASE_URL}/experience`,
-      lastModified: new Date(),
-    },
-    {
-      url: `${API_BASE_URL}/education`,
-      lastModified: new Date(),
-    },
-    {
-      url: `${API_BASE_URL}/investments`,
-      lastModified: new Date(),
-    },
-  ];
+  // Create sitemap entries for each route
+  return Object.entries(routes).map(([route, priority]) => {
+    const key = route === '/' ? 'home' : route.slice(1);
+    const pageMetadata = PAGE_METADATA[key as keyof typeof PAGE_METADATA];
 
-  // Blog post pages
-  const blogPages = posts.map((post) => ({
-    url: `${API_BASE_URL}/blog/${post.slug}`,
-    lastModified: new Date(post.updatedAt || post.publishedAt),
-  }));
-
-  return [...staticPages, ...blogPages];
+    return {
+      url: `${siteMetadata.site.url}${route}`,
+      lastModified: pageMetadata.dateModified,
+      changeFrequency: 'monthly',
+      priority,
+    };
+  });
 }

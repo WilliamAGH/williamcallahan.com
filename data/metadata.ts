@@ -49,6 +49,82 @@ export const SITE_DESCRIPTION_SHORT = 'William Callahan\'s personal website - st
  * Core site metadata
  * Used to generate all forms of metadata tags (meta, OpenGraph, Schema.org, etc.)
  */
+/**
+ * Page-specific metadata configurations
+ * @see {@link "https://schema.org/dateModified"} - Update dateModified whenever page content changes
+ * @see {@link "https://schema.org/dateCreated"} - The date each page was first published
+ */
+/**
+ * Base metadata interface for all pages
+ */
+interface BasePageMetadata {
+  title: string;
+  description: string;
+  dateCreated: string;
+  dateModified: string;
+}
+
+/**
+ * Profile page metadata interface
+ */
+interface ProfilePageMetadata extends BasePageMetadata {
+  bio: string;
+}
+
+/**
+ * Collection page metadata interface
+ */
+interface CollectionPageMetadata extends BasePageMetadata {
+  bio?: never;
+}
+
+/**
+ * Page-specific metadata configurations
+ * @see {@link "https://schema.org/dateModified"} - Update dateModified whenever page content changes
+ * @see {@link "https://schema.org/dateCreated"} - The date each page was first published
+ */
+export const PAGE_METADATA = {
+  home: {
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    dateCreated: '2025-02-10T12:42:00',
+    dateModified: '2025-02-10T12:42:00',
+    bio: SITE_DESCRIPTION_SHORT,
+  } as ProfilePageMetadata,
+  experience: {
+    title: `Professional Experience - ${SITE_NAME}`,
+    description: `Explore ${SITE_NAME}'s professional experience, including roles in software engineering, entrepreneurship, and technology leadership.`,
+    dateCreated: '2025-02-10T12:42:00',
+    dateModified: '2025-02-10T12:42:00',
+    bio: 'Software engineer, startup investor, and Techstars founder based in San Francisco.',
+  } as ProfilePageMetadata,
+  investments: {
+    title: `Investment Portfolio - ${SITE_NAME}`,
+    description: `View ${SITE_NAME}'s investment portfolio, including ventures, startups, and technology investments.`,
+    dateCreated: '2025-02-10T12:42:00',
+    dateModified: '2025-02-10T12:42:00',
+  } as CollectionPageMetadata,
+  education: {
+    title: `Education & Certifications - ${SITE_NAME}`,
+    description: `Learn about ${SITE_NAME}'s educational background, certifications, and continuous learning journey.`,
+    dateCreated: '2025-02-10T12:42:00',
+    dateModified: '2025-02-10T12:42:00',
+    bio: 'Lifelong learner with a focus on technology, finance, and entrepreneurship.',
+  } as ProfilePageMetadata,
+  bookmarks: {
+    title: `Bookmarks & Resources - ${SITE_NAME}`,
+    description: `An upcoming list and curated collection of ${SITE_NAME}'s favorite resources, articles, and tools.`,
+    dateCreated: '2025-02-10T12:42:00',
+    dateModified: '2025-02-10T12:42:00',
+  } as CollectionPageMetadata,
+  blog: {
+    title: `Blog - ${SITE_NAME}`,
+    description: `Articles and insights from ${SITE_NAME} on technology, startups, and software engineering.`,
+    dateCreated: '2025-02-10T12:42:00',
+    dateModified: '2025-02-10T12:42:00',
+  } as CollectionPageMetadata,
+} as const;
+
 export const metadata = {
   title: SITE_TITLE,
   description: SITE_DESCRIPTION,

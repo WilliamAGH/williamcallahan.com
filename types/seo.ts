@@ -83,8 +83,12 @@ export type ArticleOpenGraph = {
     modifiedTime: string;
     section?: string;
     tags?: string[];
+    authors?: string[];
   };
   images?: OpenGraphImage[];
+  // Root level dates for better compatibility
+  publishedTime?: string;
+  modifiedTime?: string;
 };
 
 /**
@@ -98,13 +102,13 @@ export type ProfileOpenGraph = {
   siteName?: string;
   locale?: string;
   type: 'profile';
-  profile: {
-    firstName?: string;
-    lastName?: string;
-    username?: string;
-    gender?: string;
-  };
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  gender?: string;
   images?: OpenGraphImage[];
+  publishedTime?: string;
+  modifiedTime?: string;
 };
 
 /**
@@ -143,19 +147,48 @@ export interface ArticleSchema {
 }
 
 /**
- * Schema.org ProfilePage metadata
- * Used in JSON-LD structured data
+ * Schema.org base metadata shared by all page types
  */
-export interface ProfileSchema {
+interface BaseSchema {
   '@context': 'https://schema.org';
-  '@type': 'ProfilePage';
   name: string;
   description: string;
+  dateCreated: PacificDateString;
+  dateModified: PacificDateString;
+  datePublished: PacificDateString;
+}
+
+/**
+ * Schema.org ProfilePage metadata
+ * Used for personal, professional, and academic profile pages
+ * @see {@link "https://schema.org/ProfilePage"} - Schema.org ProfilePage specification
+ */
+export interface ProfileSchema extends BaseSchema {
+  '@type': 'ProfilePage';
   mainEntity: {
     '@type': 'Person';
     name: string;
-    jobTitle: string;
     description: string;
+    sameAs?: string[];
+    image?: string;
+  };
+}
+
+/**
+ * Schema.org CollectionPage metadata
+ * Used for pages that list multiple items (blog posts, investments, bookmarks)
+ * @see {@link "https://schema.org/CollectionPage"} - Schema.org CollectionPage specification
+ */
+export interface CollectionSchema extends BaseSchema {
+  '@type': 'CollectionPage';
+  mainEntity: {
+    '@type': 'ItemList';
+    itemListElement: Array<{
+      '@type': 'ListItem';
+      position: number;
+      url: string;
+      name: string;
+    }>;
   };
 }
 
@@ -164,8 +197,20 @@ export interface ProfileSchema {
  * These appear in the page's <head> section
  */
 export interface MetaDateFields {
+  // Standard HTML meta dates
   [SEO_DATE_FIELDS.meta.published]?: PacificDateString;
   [SEO_DATE_FIELDS.meta.modified]: PacificDateString;
+
+  // OpenGraph article dates
+  [SEO_DATE_FIELDS.openGraph.published]?: PacificDateString;
+  [SEO_DATE_FIELDS.openGraph.modified]?: PacificDateString;
+
+  // Optional Dublin Core dates
+  [SEO_DATE_FIELDS.dublinCore.created]?: PacificDateString;
+  [SEO_DATE_FIELDS.dublinCore.modified]?: PacificDateString;
+  [SEO_DATE_FIELDS.dublinCore.issued]?: PacificDateString;
+
+  // Allow for additional meta fields
   [key: string]: string | number | (string | number)[] | undefined;
 }
 
@@ -178,13 +223,38 @@ export type MetadataOther = {
 } & {
   [SEO_DATE_FIELDS.meta.modified]: string;
   [SEO_DATE_FIELDS.meta.published]?: string;
+  [SEO_DATE_FIELDS.openGraph.published]?: string;
+  [SEO_DATE_FIELDS.openGraph.modified]?: string;
 };
+
+/**
+ * Script metadata for JSON-LD
+ */
+export interface ScriptMetadata {
+  type: 'application/ld+json';
+  text: string;
+}
 
 /**
  * Complete article metadata structure
  * Combines all metadata types into a single interface
  */
-export interface ArticleMetadata extends Omit<Metadata, 'openGraph' | 'other'> {
+/**
+ * Next.js metadata with script support
+ * Extends the base Metadata type to include script field
+ */
+export interface ExtendedMetadata extends Metadata {
+  script?: Array<{
+    type: string;
+    text: string;
+  }>;
+}
+
+/**
+ * Complete article metadata structure
+ * Combines all metadata types into a single interface
+ */
+export interface ArticleMetadata extends Omit<ExtendedMetadata, 'openGraph' | 'other'> {
   openGraph: ArticleOpenGraph;
   other: MetaDateFields;
 }
@@ -193,7 +263,7 @@ export interface ArticleMetadata extends Omit<Metadata, 'openGraph' | 'other'> {
  * Complete profile metadata structure
  * Combines all metadata types into a single interface
  */
-export interface ProfileMetadata extends Omit<Metadata, 'openGraph' | 'other'> {
+export interface ProfileMetadata extends Omit<ExtendedMetadata, 'openGraph' | 'other'> {
   openGraph: ProfileOpenGraph;
   other: MetaDateFields;
 }

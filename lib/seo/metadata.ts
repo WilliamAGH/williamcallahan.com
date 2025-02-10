@@ -18,11 +18,20 @@
  */
 
 import { Metadata } from 'next';
-import { SITE_TITLE, SITE_DESCRIPTION_SHORT, SITE_NAME, metadata as siteMetadata } from '../../data/metadata';
+import {
+  SITE_TITLE,
+  SITE_DESCRIPTION_SHORT,
+  SITE_NAME,
+  metadata as siteMetadata,
+  PAGE_METADATA
+} from '../../data/metadata';
 import { SEO_DATE_FIELDS, type ArticleParams } from './constants';
 import { formatSeoDate, ensureAbsoluteUrl } from './utils';
 import { createArticleOgMetadata } from './opengraph';
-import type { ArticleMetadata, ArticleSchema } from '../../types/seo';
+import { generateSchemaGraph } from './schema';
+import type { ArticleMetadata, ExtendedMetadata } from '../../types/seo';
+import type { SchemaParams } from '../../types/seo/schema';
+import type { ExtendedOpenGraph } from '../../types/seo/opengraph';
 
 /**
  * Base metadata configuration for all pages
@@ -50,56 +59,10 @@ export const BASE_METADATA: Metadata = {
   publisher: siteMetadata.article.publisher,
   formatDetection: {
     telephone: false,
-    date: false,
     address: false,
     email: true,
   },
 };
-
-/**
- * Creates JSON-LD structured data for an article
- * @see {@link "https://schema.org/Article"} - Schema.org Article specification
- */
-function createArticleSchema({
-  title,
-  description,
-  url,
-  image,
-  datePublished,
-  dateModified,
-}: ArticleParams): ArticleSchema {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'Article',
-    headline: title,
-    description,
-    datePublished: formatSeoDate(datePublished),
-    dateModified: formatSeoDate(dateModified),
-    author: {
-      '@type': 'Person',
-      name: siteMetadata.author,
-      url: siteMetadata.site.url,
-    },
-    publisher: {
-      '@type': 'Organization',
-      name: siteMetadata.article.publisher,
-      logo: {
-        '@type': 'ImageObject',
-        url: ensureAbsoluteUrl(siteMetadata.defaultImage.url),
-      },
-    },
-    ...(image && {
-      image: {
-        '@type': 'ImageObject',
-        url: ensureAbsoluteUrl(image),
-      },
-    }),
-    mainEntityOfPage: {
-      '@type': 'WebPage',
-      '@id': url,
-    },
-  };
-}
 
 /**
  * Creates metadata for article pages
@@ -118,6 +81,7 @@ export function createArticleMetadata({
   datePublished,
   dateModified,
   tags,
+  articleBody = 'Article content not available',
 }: ArticleParams): ArticleMetadata {
   // Format dates in Pacific Time with proper offset
   const formattedPublished = formatSeoDate(datePublished);
@@ -125,24 +89,40 @@ export function createArticleMetadata({
 
   const browserTitle = `${title} - ${SITE_NAME}'s Blog`;
 
-  const articleSchema = createArticleSchema({
+  // Generate schema graph
+  const schemaParams: SchemaParams = {
+    path: new URL(url).pathname,
     title,
     description,
-    url,
-    image,
-    datePublished,
-    dateModified,
-  });
+    datePublished: formattedPublished,
+    dateModified: formattedModified,
+    type: 'article',
+    articleBody,
+    keywords: tags,
+    image: image ? {
+      url: image,
+      width: siteMetadata.defaultImage.width,
+      height: siteMetadata.defaultImage.height,
+    } : undefined,
+    breadcrumbs: [
+      { path: '/', name: 'Home' },
+      { path: '/blog', name: 'Blog' },
+      { path: new URL(url).pathname, name: title },
+    ],
+  };
+
+  const schema = generateSchemaGraph(schemaParams);
 
   return {
     title: browserTitle,
     description,
     alternates: {
       canonical: url,
-      types: {
-        'application/ld+json': JSON.stringify(articleSchema),
-      },
     },
+    script: [{
+      type: 'application/ld+json',
+      text: JSON.stringify(schema, null, process.env.NODE_ENV === 'development' ? 2 : 0),
+    }],
     openGraph: createArticleOgMetadata({
       title,
       description,
@@ -160,37 +140,164 @@ export function createArticleMetadata({
       description,
     },
     other: {
-      [SEO_DATE_FIELDS.meta.modified]: formattedModified,
+      // Standard HTML meta dates
       [SEO_DATE_FIELDS.meta.published]: formattedPublished,
+      [SEO_DATE_FIELDS.meta.modified]: formattedModified,
+
+      // Optional Dublin Core dates
+      [SEO_DATE_FIELDS.dublinCore.created]: formattedPublished,
+      [SEO_DATE_FIELDS.dublinCore.modified]: formattedModified,
+      [SEO_DATE_FIELDS.dublinCore.issued]: formattedPublished,
+
+      // OpenGraph article dates (as meta properties)
+      [`property=${SEO_DATE_FIELDS.openGraph.published}`]: formattedPublished,
+      [`property=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
+      [`name=${SEO_DATE_FIELDS.openGraph.published}`]: formattedPublished,
+      [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
     },
   };
 }
 
 /**
  * Get metadata for a static page
- * Includes last-modified date for SEO
+ * Includes published and modified dates for SEO
  *
  * @param {string} path - The path of the page (e.g., "/", "/blog")
- * @param {Metadata} metadata - Additional metadata to merge with base metadata
- * @returns {Metadata} Next.js metadata object for the page
+ * @param {keyof typeof PAGE_METADATA} pageKey - The key for the page's metadata in PAGE_METADATA
+ * @returns {ExtendedMetadata} Next.js metadata object for the page
  */
-export function getStaticPageMetadata(path: string, metadata?: Metadata): Metadata {
-  // Always use production URL for canonical URLs
-  const url = `https://williamcallahan.com${path}`;
-  const lastModified = formatSeoDate(new Date());
+export function getStaticPageMetadata(
+  path: string,
+  pageKey: keyof typeof PAGE_METADATA
+): ExtendedMetadata {
+  const pageMetadata = PAGE_METADATA[pageKey];
+  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
+  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+
+  // Determine page type and breadcrumbs
+  const isProfilePage = ['home', 'experience', 'education'].includes(pageKey);
+  const isCollectionPage = ['blog', 'investments', 'bookmarks'].includes(pageKey);
+  const isDatasetPage = pageKey === 'investments';
+
+  const breadcrumbs = path === '/' ? undefined : [
+    { path: '/', name: 'Home' },
+    { path, name: pageMetadata.title },
+  ];
+
+  // Generate schema graph
+  const schemaParams: SchemaParams = {
+    path,
+    title: pageMetadata.title,
+    description: pageMetadata.description,
+    datePublished: formattedCreated,
+    dateModified: formattedModified,
+    type: isProfilePage ? 'profile' : isDatasetPage ? 'dataset' : isCollectionPage ? 'collection' : undefined,
+    breadcrumbs,
+    image: {
+      url: siteMetadata.defaultImage.url,
+      width: siteMetadata.defaultImage.width,
+      height: siteMetadata.defaultImage.height,
+    },
+  };
+
+  const schema = generateSchemaGraph(schemaParams);
+
+  const openGraph: ExtendedOpenGraph = isProfilePage
+    ? {
+        title: pageMetadata.title,
+        description: pageMetadata.description,
+        type: 'profile',
+        url: ensureAbsoluteUrl(path),
+        images: [siteMetadata.defaultImage],
+        siteName: SITE_NAME,
+        locale: 'en_US',
+        firstName: SITE_NAME.split(' ')[0],
+        lastName: SITE_NAME.split(' ')[1],
+        username: siteMetadata.social.twitter.replace('@', ''),
+      }
+    : pageKey === 'blog'
+    ? {
+        title: pageMetadata.title,
+        description: pageMetadata.description,
+        type: 'article',
+        url: ensureAbsoluteUrl(path),
+        images: [siteMetadata.defaultImage],
+        siteName: SITE_NAME,
+        locale: 'en_US',
+        article: {
+          publishedTime: formattedCreated,
+          modifiedTime: formattedModified,
+          authors: [siteMetadata.author],
+          section: siteMetadata.article.section,
+          tags: [],
+        },
+      }
+    : isCollectionPage
+    ? {
+        title: pageMetadata.title,
+        description: pageMetadata.description,
+        type: 'website',
+        url: ensureAbsoluteUrl(path),
+        images: [siteMetadata.defaultImage],
+        siteName: SITE_NAME,
+        locale: 'en_US',
+      }
+    : {
+        title: pageMetadata.title,
+        description: pageMetadata.description,
+        type: 'article',
+        url: ensureAbsoluteUrl(path),
+        images: [siteMetadata.defaultImage],
+        siteName: SITE_NAME,
+        locale: 'en_US',
+        article: {
+          publishedTime: formattedCreated,
+          modifiedTime: formattedModified,
+          authors: [siteMetadata.author],
+          section: siteMetadata.article.section,
+          tags: [],
+        },
+      };
 
   return {
     ...BASE_METADATA,
-    ...metadata,
+    title: pageMetadata.title,
+    description: pageMetadata.description,
     alternates: {
-      canonical: url,
+      canonical: ensureAbsoluteUrl(path),
     },
-    openGraph: {
-      ...(metadata?.openGraph || {}),
-      url,
+    script: [{
+      type: 'application/ld+json',
+      text: JSON.stringify(schema, null, process.env.NODE_ENV === 'development' ? 2 : 0),
+    }],
+    openGraph,
+    twitter: {
+      card: 'summary',
+      title: pageMetadata.title,
+      description: pageMetadata.description,
+      images: [siteMetadata.defaultImage],
+      creator: siteMetadata.social.twitter,
     },
     other: {
-      [SEO_DATE_FIELDS.meta.modified]: lastModified,
+      // Standard HTML meta dates
+      [SEO_DATE_FIELDS.meta.published]: formattedCreated,
+      [SEO_DATE_FIELDS.meta.modified]: formattedModified,
+
+      // Optional Dublin Core dates
+      [SEO_DATE_FIELDS.dublinCore.created]: formattedCreated,
+      [SEO_DATE_FIELDS.dublinCore.modified]: formattedModified,
+      [SEO_DATE_FIELDS.dublinCore.issued]: formattedCreated,
+
+      // OpenGraph article dates (as meta properties)
+      [`property=${SEO_DATE_FIELDS.openGraph.published}`]: formattedCreated,
+      [`property=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
+      [`name=${SEO_DATE_FIELDS.openGraph.published}`]: formattedCreated,
+      [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
     },
+    // Add bookmarks metadata for relevant pages
+    ...(pageKey === 'bookmarks' && {
+      bookmarks: [], // Will be populated with actual bookmarks
+      category: 'Resources',
+    }),
   };
 }

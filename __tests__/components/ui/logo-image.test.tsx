@@ -6,13 +6,14 @@ import { LogoImage } from '../../../components/ui/logo-image';
 // Mock next/image
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: ({ src, alt, className, onError, priority, ...props }: any) => (
+  default: ({ src, alt, className, onError, priority, unoptimized, ...props }: any) => (
     <img
       src={src}
       alt={alt}
       className={className}
       onError={onError}
       priority={priority ? "true" : undefined}
+      unoptimized={unoptimized ? "true" : undefined}
       {...props}
     />
   )
@@ -185,6 +186,32 @@ describe('LogoImage', () => {
       });
 
       expect(screen.getByRole('img')).toHaveAttribute('src', apiUrl);
+    });
+
+    it('sets unoptimized prop for data URLs', async () => {
+      const dataUrl = 'data:image/png;base64,abc123';
+      render(<LogoImage {...mockProps} url={dataUrl} />);
+
+      // Wait for useEffect
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const img = screen.getByRole('img');
+      expect(img).toHaveAttribute('src', dataUrl);
+      expect(img).toHaveAttribute('unoptimized', 'true');
+    });
+
+    it('does not set unoptimized prop for regular URLs', async () => {
+      render(<LogoImage {...mockProps} />);
+
+      // Wait for useEffect
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const img = screen.getByRole('img');
+      expect(img).not.toHaveAttribute('unoptimized');
     });
   });
 
