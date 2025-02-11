@@ -7,6 +7,7 @@
  */
 
 import NodeCache from 'node-cache';
+import { timestamp } from './dateTime';
 import { SERVER_CACHE_DURATION, LOGO_CACHE_DURATION } from './constants';
 import type { LogoInversion, LogoSource } from '../types/logo';
 
@@ -91,7 +92,7 @@ export class ServerCache extends NodeCache {
     const key = LOGO_VALIDATION_PREFIX + imageHash;
     this.set(key, {
       isGlobeIcon,
-      timestamp: Date.now()
+      timestamp: timestamp()
     });
   }
 
@@ -114,7 +115,7 @@ export class ServerCache extends NodeCache {
     const key = LOGO_FETCH_PREFIX + domain;
     this.set(key, {
       ...result,
-      timestamp: Date.now()
+      timestamp: timestamp()
     }, result.error ? LOGO_CACHE_DURATION.FAILURE : LOGO_CACHE_DURATION.SUCCESS);
   }
 
@@ -156,7 +157,7 @@ export class ServerCache extends NodeCache {
     this.set(key, {
       buffer,
       analysis,
-      timestamp: Date.now()
+      timestamp: timestamp()
     });
   }
 

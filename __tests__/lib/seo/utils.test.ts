@@ -6,6 +6,7 @@
 import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate, formatOpenGraphDate, validateSeoDate } from '../../../lib/seo/utils';
 import { NEXT_PUBLIC_SITE_URL } from '../../../lib/constants';
 import { isPacificDateString } from '../../../types/seo';
+import { parsePacificDate } from '../../../lib/dateTime';
 
 describe('SEO Utilities', () => {
   describe('ensureAbsoluteUrl', () => {
@@ -57,7 +58,7 @@ describe('SEO Utilities', () => {
     describe('formatSeoDate (Schema.org)', () => {
       it('should always output full ISO format with timezone during standard time', () => {
         // January 1st (PST)
-        const date = new Date('2025-01-01T12:00:00');
+        const date = parsePacificDate('2025-01-01T12:00:00');
         const formatted = formatSeoDate(date);
         expect(isPacificDateString(formatted)).toBe(true);
         expect(formatted).toBe('2025-01-01T12:00:00-08:00');
@@ -65,7 +66,7 @@ describe('SEO Utilities', () => {
 
       it('should always output full ISO format with timezone during daylight savings', () => {
         // July 1st (PDT)
-        const date = new Date('2025-07-01T12:00:00');
+        const date = parsePacificDate('2025-07-01T12:00:00');
         const formatted = formatSeoDate(date);
         expect(isPacificDateString(formatted)).toBe(true);
         expect(formatted).toBe('2025-07-01T12:00:00-07:00');
@@ -92,7 +93,7 @@ describe('SEO Utilities', () => {
       });
 
       it('should use full ISO format for modified dates', () => {
-        const date = new Date('2025-01-01T15:30:45');
+        const date = parsePacificDate('2025-01-01T15:30:45');
         const formatted = formatOpenGraphDate(date, 'modified');
         expect(formatted).toBe('2025-01-01T15:30:45-08:00');
       });

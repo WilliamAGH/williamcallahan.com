@@ -8,6 +8,7 @@ import { education, certifications } from '../data/education';
 import { investments } from '../data/investments';
 import type { BlogPost } from '../types/blog';
 import type { SearchResult } from '../types/search';
+import { sortDates } from './dateTime';
 
 export async function searchPosts(query: string): Promise<BlogPost[]> {
   if (!query) return posts;
@@ -32,9 +33,7 @@ export async function searchPosts(query: string): Promise<BlogPost[]> {
     return searchTerms.every(term =>
       searchFields.some(field => field.toLowerCase().includes(term))
     );
-  }).sort((a, b) =>
-    new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-  );
+  }).sort((a, b) => sortDates(a.publishedAt, b.publishedAt));
 }
 
 export async function searchInvestments(query: string): Promise<SearchResult[]> {

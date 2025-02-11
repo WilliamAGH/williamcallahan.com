@@ -18,85 +18,23 @@
  * - Tests edge cases like missing posts
  */
 
-import { getAllPosts, getPostBySlug } from '../../lib/blog';
-import type { BlogPost } from '../../types/blog';
-
-// Mock static posts
+// Set up mocks before any imports
 jest.mock('../../data/blog/posts', () => ({
-  posts: [
-    {
-      id: 'test-post-1',
-      title: 'Test Post 1',
-      slug: 'test-post-1',
-      excerpt: 'Test excerpt 1',
-      content: 'Test content 1',
-      publishedAt: '2024-03-14T12:00:00Z',
-      author: {
-        id: 'william-callahan',
-        name: 'William Callahan'
-      },
-      coverImage: 'https://example.com/image1.jpg',
-      tags: ['test'],
-      readingTime: 5
-    },
-    {
-      id: 'test-post-2',
-      title: 'Test Post 2',
-      slug: 'test-post-2',
-      excerpt: 'Test excerpt 2',
-      content: 'Test content 2',
-      publishedAt: '2024-03-13T12:00:00Z',
-      author: {
-        id: 'william-callahan',
-        name: 'William Callahan'
-      },
-      coverImage: 'https://example.com/image2.jpg',
-      tags: ['test'],
-      readingTime: 3
-    }
-  ]
+  posts: require('../lib/fixtures/blog-posts').TEST_POSTS
 }));
 
-// Mock MDX functionality
 jest.mock('../../lib/blog/mdx', () => ({
   getAllMDXPosts: jest.fn().mockResolvedValue([]),
   getMDXPost: jest.fn().mockImplementation((slug: string) => {
-    const posts = [
-      {
-        id: 'test-post-1',
-        title: 'Test Post 1',
-        slug: 'test-post-1',
-        excerpt: 'Test excerpt 1',
-        content: 'Test content 1',
-        publishedAt: '2024-03-14T12:00:00Z',
-        author: {
-          id: 'william-callahan',
-          name: 'William Callahan'
-        },
-        coverImage: 'https://example.com/image1.jpg',
-        tags: ['test'],
-        readingTime: 5
-      },
-      {
-        id: 'test-post-2',
-        title: 'Test Post 2',
-        slug: 'test-post-2',
-        excerpt: 'Test excerpt 2',
-        content: 'Test content 2',
-        publishedAt: '2024-03-13T12:00:00Z',
-        author: {
-          id: 'william-callahan',
-          name: 'William Callahan'
-        },
-        coverImage: 'https://example.com/image2.jpg',
-        tags: ['test'],
-        readingTime: 3
-      }
-    ];
-    const post = posts.find(p => p.slug === slug);
+    const { TEST_POSTS } = require('../lib/fixtures/blog-posts');
+    const post = TEST_POSTS.find((p: { slug: string }) => p.slug === slug);
     return Promise.resolve(post || null);
   })
 }));
+
+import { getAllPosts, getPostBySlug } from '../../lib/blog';
+import { TEST_POSTS } from '../lib/fixtures/blog-posts';
+import { sortDates } from '../../lib/dateTime';
 
 describe('Blog Module', () => {
   describe('getAllPosts', () => {
@@ -107,10 +45,12 @@ describe('Blog Module', () => {
      * 1. Posts are retrieved successfully
      * 2. Each post has all required fields
      * 3. Posts are sorted by date in descending order
+     * 4. Proper timezone handling for both PST and PDT dates
      *
      * Expected Behavior:
      * - Returns array of posts with all required fields
      * - Posts are sorted with newest first (by publishedAt)
+     * - Dates maintain correct timezone offsets
      */
     it('returns posts sorted by date in descending order', async () => {
       const posts = await getAllPosts();
@@ -121,11 +61,32 @@ describe('Blog Module', () => {
         expect(post).toHaveProperty('title');
         expect(post).toHaveProperty('slug');
         expect(post).toHaveProperty('content');
+        expect(post).toHaveProperty('publishedAt');
+
+        // Verify timezone offset is present
+        expect(post.publishedAt).toMatch(/[+-]\d{2}:00$/);
       }
 
       // Verify sorting
-      const dates = posts.map(post => new Date(post.publishedAt).getTime());
-      expect(dates).toEqual([...dates].sort((a, b) => b - a));
+      // Verify posts are sorted newest first
+      const publishDates = posts.map(post => post.publishedAt);
+      const sortedDates = [...publishDates].sort(sortDates);
+      expect(publishDates).toEqual(sortedDates);
+    });
+
+    it('handles both PST and PDT dates correctly', async () => {
+      const posts = await getAllPosts();
+
+      // Find winter (PST) and summer (PDT) posts
+      const winterPost = posts.find(p => p.publishedAt.includes('-08:00'));
+      const summerPost = posts.find(p => p.publishedAt.includes('-07:00'));
+
+      expect(winterPost).toBeTruthy();
+      expect(summerPost).toBeTruthy();
+
+      // Verify correct timezone offsets
+      expect(winterPost?.publishedAt).toMatch(/-08:00$/);
+      expect(summerPost?.publishedAt).toMatch(/-07:00$/);
     });
   });
 

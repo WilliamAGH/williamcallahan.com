@@ -4,6 +4,7 @@ import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import { LogoImage } from '../logo-image';
 import { ExternalLink } from '../external-link';
 import type { Experience } from '../../../types/experience';
+import { toISO, formatDisplay } from '../../../lib/dateTime';
 
 interface LogoData {
   url: string;
@@ -17,7 +18,6 @@ interface ExperienceCardClientProps extends Experience {
 export function ExperienceCardClient({
   id,
   company,
-  period,
   startDate,
   endDate,
   role,
@@ -73,9 +73,11 @@ export function ExperienceCardClient({
                 )}
               </div>
               <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
-                <time dateTime={startDate}>{period.split(' - ')[0]}</time>
+                <time dateTime={toISO(startDate)}>{formatDisplay(startDate)}</time>
                 {' - '}
-                <time dateTime={endDate || 'Present'}>{period.split(' - ')[1]}</time>
+                <time dateTime={endDate ? toISO(endDate) : undefined}>
+                  {endDate ? formatDisplay(endDate) : 'Present'}
+                </time>
               </span>
             </div>
             <div className="space-y-1">

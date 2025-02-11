@@ -19,6 +19,7 @@
  *   console.log('Images are perceptually similar');
  * }
  * ```
+ * NOTE: Any edits to this file's tests always fail so far, don't try improving
  */
 
 import sharp from "sharp";

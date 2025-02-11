@@ -12,7 +12,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Calendar, Clock } from 'lucide-react';
 import { BlogTags } from '../shared/blog-tags';
-import { formatPacificDate as formatDate } from '@/lib/utils';
+import { formatDisplay as formatDate } from '@/lib/dateTime';
 import type { BlogPost } from '@/types/blog';
 
 interface BlogCardProps {

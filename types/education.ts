@@ -3,7 +3,10 @@
  * @module types/education
  * @description
  * Type definitions for education and certification data.
+ * All dates are stored in Pacific timezone.
  */
+
+import { PacificDateString } from './experience';
 
 /**
  * Base interface for education-related items
@@ -14,8 +17,8 @@ interface EducationBase {
   id: string;
   /** Institution name */
   institution: string;
-  /** Year completed (optional) */
-  year?: string;
+  /** Completion date in Pacific timezone (optional) */
+  year?: PacificDateString;
   /** Institution website URL */
   website: string;
   /** Location (city, state) */

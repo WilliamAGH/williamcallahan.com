@@ -2,10 +2,8 @@
  * MDX Processing Utilities
  *
  * Handles reading, parsing, and serializing MDX blog posts with frontmatter.
- * Provides functionality to:
- * - Read MDX files from the posts directory
- * - Parse frontmatter metadata
- * - Serialize MDX content with syntax highlighting
+ * Uses the centralized date/time functions from lib/dateTime.ts to ensure
+ * consistent date handling across the application.
  */
 
 import fs from 'node:fs/promises';
@@ -19,6 +17,7 @@ type MDXComponents = MDXRemoteProps['components'];
 import { authors } from '../../data/blog/authors';
 import type { BlogPost } from '../../types/blog';
 import { ServerMDXCodeBlock } from '../../components/ui/mdx-code-block';
+import { toISO } from '../../lib/dateTime';
 
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), 'data/blog/posts');
@@ -32,34 +31,13 @@ const serverComponents: MDXComponents = {
 };
 
 /**
- * Converts a date string or Date object to ISO string with time
- * If the input is just a date (YYYY-MM-DD), adds midnight time
- */
-function toISOString(date: string | Date | undefined): string {
-  if (!date) return new Date().toISOString();
-
-  // If it's already a full ISO string with time, return as is
-  if (typeof date === 'string' && date.includes('T')) {
-    return date;
-  }
-
-  // If it's a Date object, preserve its current timezone
-  if (date instanceof Date) {
-    return date.toISOString();
-  }
-
-  // For date-only strings (YYYY-MM-DD), append time in PT (UTC-8)
-  return `${date}T00:00:00-08:00`;
-}
-
-/**
- * Gets file creation and modification dates
+ * Gets file creation and modification dates in Pacific timezone
  */
 async function getFileDates(filePath: string): Promise<{ created: string; modified: string }> {
   const stats = await fs.stat(filePath);
   return {
-    created: stats.birthtime.toISOString(),
-    modified: stats.mtime.toISOString()
+    created: toISO(stats.birthtime),
+    modified: toISO(stats.mtime)
   };
 }
 
@@ -111,8 +89,8 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
     });
 
     // Use frontmatter dates or fall back to file dates
-    const publishedAt = toISOString(data.publishedAt || fileDates.created);
-    const updatedAt = toISOString(data.updatedAt || data.modifiedAt || fileDates.modified);
+    const publishedAt = toISO(data.publishedAt || fileDates.created);
+    const updatedAt = toISO(data.updatedAt || data.modifiedAt || fileDates.modified);
 
     // Construct the full blog post object
     return {

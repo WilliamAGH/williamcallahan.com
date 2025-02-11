@@ -14,14 +14,16 @@
  * - Falls back to the default image defined in data/metadata.ts if no coverImage
  * - Default image path is configured in metadata.defaultImage.url
  *
- * @see {@link "../../../data/metadata.ts"} - For default image configuration
+ * @see {@link "@/data/metadata.ts"} - For default image configuration
  */
 
 import Link from "next/link";
 import Image from "next/image";
-import { truncateText } from "../../../lib/utils";
-import { metadata } from "../../../data/metadata";
-import type { BlogPost } from "../../../types/blog";
+import { truncateText } from "@/lib/utils";
+import { formatDisplay } from "@/lib/dateTime";
+// No change needed in imports, just the usage
+import { metadata } from "@/data/metadata";
+import type { BlogPost } from "@/types/blog";
 
 export function BlogCard({ post }: { post: BlogPost }) {
   // Use post's cover image or fall back to default image from metadata
@@ -79,7 +81,7 @@ export function BlogCard({ post }: { post: BlogPost }) {
               </div>
             )}
             <div key={`${post.id}-date`}>
-              {new Date(post.publishedAt).toLocaleDateString()}
+              {formatDisplay(post.publishedAt)}
             </div>
           </div>
         </div>

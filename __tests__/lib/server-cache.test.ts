@@ -1,6 +1,7 @@
 import { ServerCacheInstance } from '../../lib/server-cache';
 import type { LogoInversion, LogoSource } from '../../types/logo';
 import { SERVER_CACHE_DURATION } from '../../lib/constants';
+import { timestamp } from '../../lib/dateTime';
 
 // Mock NodeCache
 jest.mock('node-cache', () => {
@@ -9,7 +10,7 @@ jest.mock('node-cache', () => {
     private ttls = new Map();
 
     get(key: string) {
-      const now = Date.now();
+      const now = timestamp();
       const ttl = this.ttls.get(key);
 
       // Check if TTL has expired
@@ -24,7 +25,7 @@ jest.mock('node-cache', () => {
 
     set(key: string, value: any, ttl?: number) {
       this.store.set(key, value);
-      this.ttls.set(key, Date.now() + (ttl || SERVER_CACHE_DURATION) * 1000);
+      this.ttls.set(key, timestamp() + (ttl || SERVER_CACHE_DURATION) * 1000);
       return true;
     }
 
@@ -71,7 +72,7 @@ describe('ServerCache', () => {
 
       expect(result).toBeDefined();
       expect(result?.isGlobeIcon).toBe(isGlobeIcon);
-      expect(result?.timestamp).toBeLessThanOrEqual(Date.now());
+      expect(result?.timestamp).toBeLessThanOrEqual(timestamp());
     });
 
     it('should return undefined for non-existent validation', () => {
@@ -97,7 +98,7 @@ describe('ServerCache', () => {
       expect(result?.url).toBe(mockFetchResult.url);
       expect(result?.source).toBe(mockFetchResult.source);
       expect(result?.buffer).toEqual(mockFetchResult.buffer);
-      expect(result?.timestamp).toBeLessThanOrEqual(Date.now());
+      expect(result?.timestamp).toBeLessThanOrEqual(timestamp());
     });
 
     it('should clear logo fetch cache for specific domain', () => {
@@ -144,7 +145,7 @@ describe('ServerCache', () => {
       expect(result).toBeDefined();
       expect(result?.buffer).toEqual(buffer);
       expect(result?.analysis).toEqual(mockAnalysis);
-      expect(result?.timestamp).toBeLessThanOrEqual(Date.now());
+      expect(result?.timestamp).toBeLessThanOrEqual(timestamp());
     });
 
     it('should return undefined for non-existent inverted logo', () => {
@@ -209,22 +210,22 @@ describe('ServerCache', () => {
 
       // Set initial time
       const startTime = 1000000;
-      jest.spyOn(Date, 'now').mockImplementation(() => startTime);
+      jest.spyOn(Date.prototype, 'getTime').mockImplementation(() => startTime);
 
       // Set cache entry
       ServerCacheInstance.setLogoValidation(key, true);
       expect(ServerCacheInstance.getLogoValidation(key)).toBeDefined();
 
       // Advance time just before TTL expiration
-      jest.spyOn(Date, 'now').mockImplementation(() => startTime + (SERVER_CACHE_DURATION * 1000) - 1);
+      jest.spyOn(Date.prototype, 'getTime').mockImplementation(() => startTime + (SERVER_CACHE_DURATION * 1000) - 1);
       expect(ServerCacheInstance.getLogoValidation(key)).toBeDefined();
 
       // Advance time past TTL expiration
-      jest.spyOn(Date, 'now').mockImplementation(() => startTime + (SERVER_CACHE_DURATION * 1000) + 1);
+      jest.spyOn(Date.prototype, 'getTime').mockImplementation(() => startTime + (SERVER_CACHE_DURATION * 1000) + 1);
       expect(ServerCacheInstance.getLogoValidation(key)).toBeUndefined();
 
       // Restore Date.now
-      jest.spyOn(Date, 'now').mockRestore();
+      jest.spyOn(Date.prototype, 'getTime').mockRestore();
     });
   });
 });

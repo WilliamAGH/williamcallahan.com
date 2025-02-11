@@ -4,9 +4,19 @@
  * @description
  * Types for professional experience entries.
  * Includes structured date fields for SEO and semantic HTML.
+ * All dates are stored in Pacific timezone.
  */
 
 import type { Accelerator } from './accelerator';
+
+/**
+ * Pacific timezone date string
+ * Format: YYYY-MM-DD or ISO string with timezone offset
+ * @example
+ * "2024-01-01" -> Stored as midnight PT
+ * "2024-01-01T08:00:00-08:00" -> Full ISO with PT offset
+ */
+export type PacificDateString = string;
 
 /**
  * Experience entry with structured dates
@@ -17,12 +27,12 @@ export interface Experience {
   id: string;
   /** Company or organization name */
   company: string;
-  /** Display-friendly date period (e.g., "2023 - Present") */
-  period: string;
-  /** ISO date string for when the position started */
-  startDate: string;
-  /** ISO date string for when the position ended (undefined for current positions) */
-  endDate?: string;
+  /** @deprecated Use startDate and endDate instead - period is now generated dynamically */
+  period?: string;
+  /** Pacific timezone date string for when the position started */
+  startDate: PacificDateString;
+  /** Pacific timezone date string for when the position ended (undefined for current positions) */
+  endDate?: PacificDateString;
   /** Job title and description */
   role: string;
   /** Path to company logo image */

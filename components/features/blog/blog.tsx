@@ -7,27 +7,18 @@
  * - Title uses font-mono with potential overflow handling for long tag paths
  */
 
-"use client";
+'use client';
 
-import { useEffect, useState } from 'react';
 import { BlogList } from './blog-list';
 import { WindowControls } from '@/components/ui/navigation/window-controls';
 import type { BlogPost } from '@/types/blog';
 
 interface BlogProps {
   tag?: string;
+  posts: BlogPost[];
 }
 
-export function Blog({ tag }: BlogProps) {
-  const [posts, setPosts] = useState<BlogPost[]>([]);
-
-  useEffect(() => {
-    const url = tag ? `/api/posts?tag=${encodeURIComponent(tag)}` : '/api/posts';
-    fetch(url)
-      .then(res => res.json())
-      .then(data => setPosts(data));
-  }, [tag]);
-
+export function Blog({ tag, posts }: BlogProps) {
   return (
     <div className="max-w-6xl mx-auto mt-8 px-2 sm:px-4 md:px-6">
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">

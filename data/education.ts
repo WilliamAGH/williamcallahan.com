@@ -1,8 +1,11 @@
 /**
  * Education Data
+ * All dates are stored in Pacific timezone.
+ * Completion years are set to December 31st of the year.
  */
 
 import type { Education, Certification, Class } from 'types/education';
+import { toISO } from '../lib/dateTime';
 
 export const recentCourses: Class[] = [
   {
@@ -73,7 +76,7 @@ export const education: Education[] = [
     id: 'creighton-mimfa',
     institution: 'Creighton University',
     degree: 'Master of Investment Management & Financial Analysis (MIMFA)',
-    year: '2016',
+    year: toISO('2016-12-31'),
     website: 'https://www.creighton.edu',
     location: 'Omaha, Nebraska'
   },
@@ -81,7 +84,7 @@ export const education: Education[] = [
     id: 'creighton-mba',
     institution: 'Creighton University',
     degree: 'Master of Business Administration (MBA)',
-    year: '2016',
+    year: toISO('2016-12-31'),
     website: 'https://www.creighton.edu',
     location: 'Omaha, Nebraska'
   },
@@ -89,7 +92,7 @@ export const education: Education[] = [
     id: 'uno-bsba',
     institution: 'University of Nebraska',
     degree: 'BSBA in Corporate Finance, Banking & Financial Markets, Investment Science & Portfolio Management',
-    year: '2011',
+    year: toISO('2011-12-31'),
     website: 'https://www.unomaha.edu',
     location: 'Omaha, Nebraska'
   }
@@ -100,7 +103,7 @@ export const certifications: Certification[] = [
     id: 'columbia-vc',
     institution: 'Columbia Business School',
     name: 'Executive Education – Venture Capital Decision Making',
-    year: '2022',
+    year: toISO('2022-12-31'),
     website: 'https://gsb.columbia.edu',
     location: 'New York, New York'
   },
@@ -109,7 +112,7 @@ export const certifications: Certification[] = [
     institution: 'University of California Berkeley',
     name: 'Certification in Startup Law & Venture Capital Investing',
     logo: '/images/uc_berkeley_logo.png',
-    year: '2022',
+    year: toISO('2022-12-31'),
     website: 'https://www.berkeley.edu',
     location: 'Berkeley, California'
   },
@@ -118,7 +121,7 @@ export const certifications: Certification[] = [
     institution: 'CFA Institute',
     name: 'Chartered Financial Analyst (CFA) Charterholder',
     logo: '/images/cfa_institute_logo.png',
-    year: '2012',
+    year: toISO('2012-12-31'),
     website: 'https://www.cfainstitute.org',
     location: 'Charlottesville, Virginia'
   },
@@ -126,7 +129,7 @@ export const certifications: Certification[] = [
     id: 'cfp',
     institution: 'CFP Board',
     name: 'Certified Financial Planner (CFP) Professional Certification',
-    year: '2012',
+    year: toISO('2012-12-31'),
     website: 'https://www.cfp.net',
     location: 'Washington, District of Columbia'
   }

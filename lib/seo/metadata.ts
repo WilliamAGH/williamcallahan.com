@@ -83,9 +83,9 @@ export function createArticleMetadata({
   tags,
   articleBody = 'Article content not available',
 }: ArticleParams): ArticleMetadata {
-  // Format dates in Pacific Time with proper offset
-  const formattedPublished = formatSeoDate(datePublished);
-  const formattedModified = formatSeoDate(dateModified);
+  // Always include timezone for all dates
+  const publishedTime = formatSeoDate(datePublished, true);
+  const modifiedTime = formatSeoDate(dateModified, true);
 
   const browserTitle = `${title} - ${SITE_NAME}'s Blog`;
 
@@ -94,8 +94,8 @@ export function createArticleMetadata({
     path: new URL(url).pathname,
     title,
     description,
-    datePublished: formattedPublished,
-    dateModified: formattedModified,
+      datePublished: publishedTime,
+      dateModified: modifiedTime,
     type: 'article',
     articleBody,
     keywords: tags,
@@ -128,8 +128,8 @@ export function createArticleMetadata({
       description,
       url,
       image,
-      datePublished,
-      dateModified,
+      datePublished: publishedTime,
+      dateModified: modifiedTime,
       tags,
     }),
     twitter: {
@@ -141,19 +141,19 @@ export function createArticleMetadata({
     },
     other: {
       // Standard HTML meta dates
-      [SEO_DATE_FIELDS.meta.published]: formattedPublished,
-      [SEO_DATE_FIELDS.meta.modified]: formattedModified,
+      [SEO_DATE_FIELDS.meta.published]: publishedTime,
+      [SEO_DATE_FIELDS.meta.modified]: modifiedTime,
 
       // Optional Dublin Core dates
-      [SEO_DATE_FIELDS.dublinCore.created]: formattedPublished,
-      [SEO_DATE_FIELDS.dublinCore.modified]: formattedModified,
-      [SEO_DATE_FIELDS.dublinCore.issued]: formattedPublished,
+      [SEO_DATE_FIELDS.dublinCore.created]: publishedTime,
+      [SEO_DATE_FIELDS.dublinCore.modified]: modifiedTime,
+      [SEO_DATE_FIELDS.dublinCore.issued]: publishedTime,
 
       // OpenGraph article dates (as meta properties)
-      [`property=${SEO_DATE_FIELDS.openGraph.published}`]: formattedPublished,
-      [`property=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
-      [`name=${SEO_DATE_FIELDS.openGraph.published}`]: formattedPublished,
-      [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
+      [`property=${SEO_DATE_FIELDS.openGraph.published}`]: publishedTime,
+      [`property=${SEO_DATE_FIELDS.openGraph.modified}`]: modifiedTime,
+      [`name=${SEO_DATE_FIELDS.openGraph.published}`]: publishedTime,
+      [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: modifiedTime,
     },
   };
 }
@@ -171,8 +171,9 @@ export function getStaticPageMetadata(
   pageKey: keyof typeof PAGE_METADATA
 ): ExtendedMetadata {
   const pageMetadata = PAGE_METADATA[pageKey];
-  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
-  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+  // Always include timezone for all dates
+  const dateCreated = formatSeoDate(pageMetadata.dateCreated, true);
+  const dateModified = formatSeoDate(pageMetadata.dateModified, true);
 
   // Determine page type and breadcrumbs
   const isProfilePage = ['home', 'experience', 'education'].includes(pageKey);
@@ -189,8 +190,8 @@ export function getStaticPageMetadata(
     path,
     title: pageMetadata.title,
     description: pageMetadata.description,
-    datePublished: formattedCreated,
-    dateModified: formattedModified,
+    datePublished: dateCreated,
+    dateModified: dateModified,
     type: isProfilePage ? 'profile' : isDatasetPage ? 'dataset' : isCollectionPage ? 'collection' : undefined,
     breadcrumbs,
     image: {
@@ -225,8 +226,8 @@ export function getStaticPageMetadata(
         siteName: SITE_NAME,
         locale: 'en_US',
         article: {
-          publishedTime: formattedCreated,
-          modifiedTime: formattedModified,
+          publishedTime: dateCreated,
+          modifiedTime: dateModified,
           authors: [siteMetadata.author],
           section: siteMetadata.article.section,
           tags: [],
@@ -251,8 +252,8 @@ export function getStaticPageMetadata(
         siteName: SITE_NAME,
         locale: 'en_US',
         article: {
-          publishedTime: formattedCreated,
-          modifiedTime: formattedModified,
+          publishedTime: dateCreated,
+          modifiedTime: dateModified,
           authors: [siteMetadata.author],
           section: siteMetadata.article.section,
           tags: [],
@@ -280,19 +281,19 @@ export function getStaticPageMetadata(
     },
     other: {
       // Standard HTML meta dates
-      [SEO_DATE_FIELDS.meta.published]: formattedCreated,
-      [SEO_DATE_FIELDS.meta.modified]: formattedModified,
+      [SEO_DATE_FIELDS.meta.published]: dateCreated,
+      [SEO_DATE_FIELDS.meta.modified]: dateModified,
 
       // Optional Dublin Core dates
-      [SEO_DATE_FIELDS.dublinCore.created]: formattedCreated,
-      [SEO_DATE_FIELDS.dublinCore.modified]: formattedModified,
-      [SEO_DATE_FIELDS.dublinCore.issued]: formattedCreated,
+      [SEO_DATE_FIELDS.dublinCore.created]: dateCreated,
+      [SEO_DATE_FIELDS.dublinCore.modified]: dateModified,
+      [SEO_DATE_FIELDS.dublinCore.issued]: dateCreated,
 
       // OpenGraph article dates (as meta properties)
-      [`property=${SEO_DATE_FIELDS.openGraph.published}`]: formattedCreated,
-      [`property=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
-      [`name=${SEO_DATE_FIELDS.openGraph.published}`]: formattedCreated,
-      [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
+      [`property=${SEO_DATE_FIELDS.openGraph.published}`]: dateCreated,
+      [`property=${SEO_DATE_FIELDS.openGraph.modified}`]: dateModified,
+      [`name=${SEO_DATE_FIELDS.openGraph.published}`]: dateCreated,
+      [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: dateModified,
     },
     // Add bookmarks metadata for relevant pages
     ...(pageKey === 'bookmarks' && {

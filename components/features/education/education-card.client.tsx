@@ -22,6 +22,7 @@ import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import { LogoImage } from '../../../components/ui';
 import { ExternalLink } from '../../../components/ui/external-link';
 import type { Education } from '../../../types/education';
+import { formatDisplay } from '../../../lib/dateTime';
 
 /**
  * Logo data structure
@@ -102,7 +103,7 @@ export function EducationCardClient({
                 )}
               </div>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {year}
+                {year ? formatDisplay(year).split(',')[0] : ''}
               </span>
             </div>
             <div className="space-y-1">

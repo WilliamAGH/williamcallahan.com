@@ -2,48 +2,42 @@
  * Blog Tag Page
  * @module app/blog/tags/[tag]/page
  * @description
- * Displays blog posts filtered by tag with proper SEO metadata.
+ * Lists all blog posts for a specific tag.
+ * Implements proper SEO with schema.org structured data.
  */
 
-import { Blog } from "@/components/features/blog/blog";
+import { Blog } from "@/components/features";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { PAGE_METADATA } from "@/data/metadata";
-import { formatSeoDate } from "@/lib/seo/utils";
+import { getAllMDXPosts } from "@/lib/blog/mdx";
 import type { Metadata } from "next";
 
-interface Props {
-  params: {
-    tag: string;
-  };
+interface BlogTagPageProps {
+  params: { tag: string }
 }
 
 /**
- * Generate metadata for the tag page
+ * Generate metadata for the blog tag page
  */
-export function generateMetadata({ params }: Props): Metadata {
-  const tag = decodeURIComponent(params.tag);
-  const title = `${tag} - Blog - William Callahan`;
-  const description = `Articles tagged with ${tag} - Read about ${tag} and related topics.`;
-
-  return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description,
-    },
-  };
-}
+export const metadata: Metadata = getStaticPageMetadata('/blog/tags', 'blog');
 
 /**
  * Blog tag page component
  */
-export default function BlogTagPage({ params }: Props) {
-  const tag = decodeURIComponent(params.tag);
+export default async function BlogTagPage({ params }: BlogTagPageProps) {
+  const { tag } = params;
   const pageMetadata = PAGE_METADATA.blog;
-  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
-  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+  // PAGE_METADATA dates are already in Pacific time
+  const { dateCreated, dateModified } = pageMetadata;
+
+  // Fetch posts server-side
+  const allPosts = await getAllMDXPosts();
+
+  // Filter posts by tag
+  const posts = allPosts.filter(post =>
+    post.tags.some(t => t.toLowerCase() === tag.toLowerCase())
+  );
 
   return (
     <>
@@ -51,13 +45,11 @@ export default function BlogTagPage({ params }: Props) {
         data={{
           "@context": "https://schema.org",
           "@type": "CollectionPage",
-          "name": `${tag} - Blog Posts`,
-          "description": `Articles tagged with ${tag}`,
-          "datePublished": formattedCreated,
-          "dateModified": formattedModified,
+          "datePublished": dateCreated,
+          "dateModified": dateModified
         }}
       />
-      <Blog tag={tag} />
+      <Blog posts={posts} tag={tag} />
     </>
   );
 }

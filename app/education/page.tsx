@@ -12,7 +12,6 @@ import { Education } from '../../components/features/education/education.server'
 import { getStaticPageMetadata } from '../../lib/seo/metadata';
 import { JsonLdScript } from "../../components/seo/json-ld";
 import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
-import { formatSeoDate } from "../../lib/seo/utils";
 import type { Metadata } from "next";
 
 /**
@@ -25,8 +24,8 @@ export const metadata: Metadata = getStaticPageMetadata('/education', 'education
  */
 export default function EducationPage() {
   const pageMetadata = PAGE_METADATA.education;
-  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
-  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+  // PAGE_METADATA dates are already in Pacific time
+  const { dateCreated, dateModified } = pageMetadata;
 
   return (
     <>
@@ -36,8 +35,8 @@ export default function EducationPage() {
           "@type": "ProfilePage",
           "name": `${SITE_NAME} - Education`,
           "description": pageMetadata.description,
-          "datePublished": formattedCreated,
-          "dateModified": formattedModified,
+          "datePublished": dateCreated,
+          "dateModified": dateModified,
           "mainEntity": {
             "@type": "Person",
             "name": SITE_NAME,

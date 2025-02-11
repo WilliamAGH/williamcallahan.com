@@ -23,6 +23,7 @@ import { ExternalLink } from '../../../components/ui/external-link';
 import FinancialMetrics from '../../../components/ui/financial-metrics';
 import type { Investment } from '../../../types/investment';
 import type { LogoData } from '../../../types/logo';
+import { formatDisplay } from '../../../lib/dateTime';
 
 /**
  * Props for the InvestmentCardClient component
@@ -145,10 +146,10 @@ export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: I
               </div>
             </div>
             <div className="flex flex-col items-end text-sm space-y-1 min-w-[140px] flex-shrink-0">
-              {founded_year && <span className="text-gray-400 dark:text-gray-500">Founded {founded_year}</span>}
-              {invested_year && <span className="text-gray-500 dark:text-gray-400">Invested {invested_year}</span>}
-              {acquired_year && <span className="text-gray-600 dark:text-gray-300">Acquired {acquired_year}</span>}
-              {shutdown_year && <span className="text-gray-700 dark:text-gray-200">Closed {shutdown_year}</span>}
+              {founded_year && <span className="text-gray-400 dark:text-gray-500">Founded {formatDisplay(founded_year).split(',')[0]}</span>}
+              {invested_year && <span className="text-gray-500 dark:text-gray-400">Invested {formatDisplay(invested_year).split(',')[0]}</span>}
+              {acquired_year && <span className="text-gray-600 dark:text-gray-300">Acquired {formatDisplay(acquired_year).split(',')[0]}</span>}
+              {shutdown_year && <span className="text-gray-700 dark:text-gray-200">Closed {formatDisplay(shutdown_year).split(',')[0]}</span>}
             </div>
           </div>
 

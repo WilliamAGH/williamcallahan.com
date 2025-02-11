@@ -1,8 +1,13 @@
 /**
  * Investment Types
+ * @module types/investment
+ * @description
+ * Type definitions for investment data.
+ * All dates are stored in Pacific timezone.
  */
 
 import type { Accelerator } from './accelerator';
+import { PacificDateString } from './seo/shared';
 
 /**
  * Financial metrics for an investment
@@ -32,14 +37,14 @@ export interface Investment {
   stage: string;
   /** Business category */
   category?: string;
-  /** Year company was founded */
-  founded_year?: string | null;
-  /** Year of investment */
-  invested_year: string;
-  /** Year company shut down (if applicable) */
-  shutdown_year?: string | null;
-  /** Year company was acquired (if applicable) */
-  acquired_year?: string | null;
+  /** Date company was founded (stored as end of year in PT) */
+  founded_year?: PacificDateString | null;
+  /** Date of investment (stored as end of year in PT) */
+  invested_year: PacificDateString;
+  /** Date company shut down (stored as end of year in PT) */
+  shutdown_year?: PacificDateString | null;
+  /** Date company was acquired (stored as end of year in PT) */
+  acquired_year?: PacificDateString | null;
   /** Current investment status */
   status: 'Active' | 'Realized';
   /** Company operating status */

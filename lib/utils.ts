@@ -7,7 +7,6 @@
 
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-
 /**
  * Merge class names with Tailwind CSS classes
  * @param {...ClassValue[]} inputs - Class names to merge
@@ -37,111 +36,6 @@ export function formatPercentage(value: number): string {
   if (value === 0) return '0%';
   if (!value) return 'N/A';
   return `${value.toFixed(1)}%`;
-}
-
-/**
- * Parse a date string as Pacific Time
- * @param {string | Date} input - Date string or Date object to parse
- * @returns {Date} Date object in Pacific Time
- */
-export function parsePacificDate(input: string | Date): Date {
-  // Create a formatter that will parse dates in Pacific time
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Los_Angeles',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  });
-
-  // For date-only strings, set time to midnight Pacific
-  if (typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)) {
-    const [year, month, day] = input.split('-').map(Number);
-    // Determine if date is in DST (April through October)
-    const isDST = month >= 4 && month <= 10;
-    // Create date at UTC time that corresponds to midnight Pacific
-    // UTC 08:00 = PST 00:00 (standard time)
-    // UTC 07:00 = PDT 00:00 (daylight savings)
-    const utcHour = isDST ? 7 : 8;
-    return new Date(Date.UTC(year, month - 1, day, utcHour));
-  }
-
-  // For dates with time components, preserve the time but ensure Pacific timezone
-  const date = input instanceof Date ? input : new Date(input);
-  const formatted = formatter.format(date)
-    .replace(/(\d+)\/(\d+)\/(\d+),\s(\d+):(\d+):(\d+)/, '$3-$1-$2T$4:$5:$6')
-    .replace('T24:', 'T00:');
-  return new Date(formatted);
-}
-
-/**
- * Format a date for display with Pacific Time offset
- * @param {string | Date} input - Date to format
- * @returns {string} Formatted date string with timezone
- */
-export function formatPacificDate(input: string | Date): string {
-  const date = parsePacificDate(input);
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Los_Angeles',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  });
-  const tzFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Los_Angeles',
-    timeZoneName: 'shortOffset'
-  });
-  const tzString = tzFormatter.format(date);
-  const tzOffset = tzString.split('GMT').pop()?.trim();
-  // Ensure we have a timezone offset, defaulting to PST (-8) if not found
-  const formattedOffset = tzOffset || '-8';
-  return `${formatter.format(date)} (GMT${formattedOffset})`;
-}
-
-/**
- * Format a date in ISO 8601 format with Pacific Time offset
- * @param {string | Date} input - Date to format
- * @returns {string} ISO 8601 formatted date string with timezone offset
- */
-export function formatISOPacific(input: string | Date): string {
-  const date = parsePacificDate(input);
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Los_Angeles',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  });
-  const tzFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Los_Angeles',
-    timeZoneName: 'longOffset'
-  });
-  // Format date parts and normalize midnight
-  let formatted = formatter.format(date)
-    .replace(/(\d+)\/(\d+)\/(\d+),\s(\d+):(\d+):(\d+)/, '$3-$1-$2T$4:$5:$6')
-    .replace('T24:', 'T00:');
-
-  // Extract timezone offset
-  const tzString = tzFormatter.format(date);
-  const offsetMatch = tzString.match(/GMT\s*([+-])(\d{1,2}):?(\d{2})?/);
-
-  let formattedOffset: string;
-  if (offsetMatch) {
-    const [, sign, hours, minutes = '00'] = offsetMatch;
-    formattedOffset = `${sign}${hours.padStart(2, '0')}:${minutes}`;
-  } else {
-    // Default to PST if no match
-    formattedOffset = '-08:00';
-  }
-
-  // Ensure midnight is normalized in final output
-  return `${formatted}${formattedOffset}`.replace('T24:', 'T00:');
 }
 
 /**

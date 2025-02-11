@@ -13,7 +13,6 @@ import { Investments } from "../../components/features";
 import { getStaticPageMetadata } from "../../lib/seo/metadata";
 import { JsonLdScript } from "../../components/seo/json-ld";
 import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
-import { formatSeoDate } from "../../lib/seo/utils";
 import { investments } from "../../data/investments";
 import type { Metadata } from "next";
 
@@ -27,8 +26,8 @@ export const metadata: Metadata = getStaticPageMetadata('/investments', 'investm
  */
 export default function InvestmentsPage() {
   const pageMetadata = PAGE_METADATA.investments;
-  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
-  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+  // PAGE_METADATA dates are already in Pacific time
+  const { dateCreated, dateModified } = pageMetadata;
 
   // Get active investments for dataset
   const activeInvestments = investments;
@@ -41,8 +40,8 @@ export default function InvestmentsPage() {
           "@type": "Dataset",
           "name": `${SITE_NAME}'s Investment Portfolio`,
           "description": pageMetadata.description,
-          "datePublished": formattedCreated,
-          "dateModified": formattedModified,
+          "datePublished": dateCreated,
+          "dateModified": dateModified,
           "creator": {
             "@type": "Person",
             "name": SITE_NAME,

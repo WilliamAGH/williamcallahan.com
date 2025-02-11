@@ -5,26 +5,31 @@
  * Common type definitions shared across SEO modules.
  */
 
+import { toISO } from '../../lib/dateTime';
+
 /**
- * ISO 8601 date string with Pacific Time offset
- * Format: YYYY-MM-DDTHH:mm:ss-08:00 (or -07:00 during DST)
- * @example "2025-02-10T10:54:28-08:00"
+ * ISO 8601 date string in Pacific Time
+ * @example "2025-02-10T10:54:28 PST"
  */
 export type PacificDateString = string;
 
 /**
- * Date format validation regex
- * Matches ISO 8601 format with Pacific Time offset
- * @example "2025-02-10T10:54:28-08:00"
- */
-export const PACIFIC_DATE_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-0[87]:00$/;
-
-/**
  * Type guard for PacificDateString
- * Ensures a string matches the required format
+ * Ensures a string is a valid date in Pacific timezone format
  */
 export function isPacificDateString(date: string): date is PacificDateString {
-  return PACIFIC_DATE_REGEX.test(date);
+  try {
+    // First check if it's already a properly formatted Pacific date string
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(date)) {
+      return true;
+    }
+    // For other formats, use toISO to validate and format
+    const formatted = toISO(date);
+    // Verify it matches our expected format with timezone offset
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[-+]\d{2}:\d{2}$/.test(formatted);
+  } catch {
+    return false;
+  }
 }
 
 /**

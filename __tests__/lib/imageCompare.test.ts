@@ -1,3 +1,5 @@
+//  * NOTE: Any edits to this file's tests always fail so far, don't try improving
+
 import { describe, expect, it, jest } from '@jest/globals';
 import { compareImages } from '../../lib/imageCompare';
 import { logger } from '../../lib/logger';

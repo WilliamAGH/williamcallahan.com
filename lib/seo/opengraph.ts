@@ -67,9 +67,9 @@ export function createArticleOgMetadata({
   dateModified,
   tags,
 }: ArticleParams): ArticleOpenGraph {
-  // Format dates in Pacific Time with proper offset
-  const formattedPublished = formatSeoDate(datePublished);
-  const formattedModified = formatSeoDate(dateModified);
+  // Always include timezone for OpenGraph dates
+  const publishedTime = formatSeoDate(datePublished, true);
+  const modifiedTime = formatSeoDate(dateModified, true);
 
   const imageDescriptor = image ? {
     url: ensureAbsoluteUrl(image),
@@ -93,14 +93,14 @@ export function createArticleOgMetadata({
     url,
     images: [imageDescriptor],
     article: {
-      publishedTime: formattedPublished,
-      modifiedTime: formattedModified,
+      publishedTime,
+      modifiedTime,
       section: metadata.article.section,
       tags: tags || [],
       authors: [metadata.author],
     },
     // Add dates at root level for better compatibility
-    publishedTime: formattedPublished,
-    modifiedTime: formattedModified,
+    publishedTime,
+    modifiedTime,
   };
 }

@@ -19,7 +19,7 @@ import { ArrowLeft, Clock, Calendar } from 'lucide-react';
 import { BlogAuthor } from '../shared/blog-author';
 import { BlogTags } from './blog-tags';
 import { MDXContent } from './mdx-content';
-import { formatPacificDate as formatDate } from '../../../../lib/utils';
+import { formatDisplay } from '../../../../lib/dateTime';
 import type { BlogPost } from '../../../../types/blog';
 import type { Article, WithContext } from 'schema-dts';
 
@@ -65,7 +65,7 @@ export const BlogArticle: React.FC<BlogArticleProps> = ({ post }) => {
         <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4 sm:mb-6">
           <div className="flex items-center">
             <Calendar className="w-4 h-4 mr-2" />
-            {formatDate(post.publishedAt)}
+            {formatDisplay(post.publishedAt)}
           </div>
           <div className="flex items-center">
             <Clock className="w-4 h-4 mr-2" />

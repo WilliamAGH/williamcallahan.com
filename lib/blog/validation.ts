@@ -6,6 +6,7 @@
  */
 
 import type { BlogPost } from '../../types/blog';
+import { isPacificDateString } from '../../types/seo/shared';
 
 const REQUIRED_FIELDS = [
   'title',
@@ -38,9 +39,13 @@ export function validatePost(post: BlogPost): { valid: boolean; errors: string[]
     errors.push('Invalid slug format. Use lowercase letters, numbers, and hyphens only.');
   }
 
-  // Validate date format
-  if (post.publishedAt && Number.isNaN(Date.parse(post.publishedAt))) {
+  // Validate dates can be parsed
+  if (post.publishedAt && !isPacificDateString(post.publishedAt)) {
     errors.push('Invalid publishedAt date format');
+  }
+
+  if (post.updatedAt && !isPacificDateString(post.updatedAt)) {
+    errors.push('Invalid updatedAt date format');
   }
 
   // Validate tags

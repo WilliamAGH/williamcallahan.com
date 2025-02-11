@@ -5,6 +5,7 @@
 import { posts as staticPosts } from '@/data/blog/posts';
 import { getAllMDXPosts, getMDXPost } from './blog/mdx';
 import type { BlogPost } from '@/types/blog';
+import { toISO, sortDates } from './dateTime';
 
 /**
  * Retrieves all blog posts sorted by publish date
@@ -15,9 +16,7 @@ export async function getAllPosts(): Promise<BlogPost[]> {
   const allPosts = [...staticPosts, ...mdxPosts];
 
   // Sort by date, newest first
-  return allPosts.sort(
-    (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-  );
+  return allPosts.sort((a, b) => sortDates(a.publishedAt, b.publishedAt));
 }
 
 /**

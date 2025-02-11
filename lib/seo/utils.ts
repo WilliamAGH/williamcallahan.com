@@ -13,7 +13,7 @@
  */
 
 import { NEXT_PUBLIC_SITE_URL } from '../constants';
-import { formatISOPacific } from '../utils';
+import { toISO, toOpenGraph, PACIFIC_TIMEZONE } from '../dateTime';
 import { isPacificDateString, type PacificDateString } from '../../types/seo';
 
 /**
@@ -71,65 +71,45 @@ export function getImageTypeFromUrl(url: string): string {
 
 /**
  * Formats a date for Schema.org metadata in Pacific Time
- * Always outputs full ISO 8601 format with timezone offset
- * Required for Schema.org datePublished, dateModified, dateCreated
- *
- * @example
- * formatSeoDate('2025-02-10')
- * // Returns: '2025-02-10T00:00:00-08:00'
- *
- * formatSeoDate('2025-07-10T15:30:00')
- * // Returns: '2025-07-10T15:30:00-07:00'
- *
- * @param date - The date to format (string or Date object)
- * @returns ISO 8601 formatted date string with Pacific Time offset
- * @see {@link "https://schema.org/DateTime"} - Schema.org DateTime format
+ * @param date - The date to format
+ * @returns ISO 8601 formatted date string in Pacific Time
  */
-export function formatSeoDate(date: string | Date | undefined): PacificDateString {
-  if (!date) {
-    date = new Date();
+export function formatSeoDate(date: string | Date | undefined, includeTimezone = true): string {
+  // If it's already a properly formatted Pacific date string
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(date)) {
+    if (!includeTimezone) {
+      return date;
+    }
+    // Add timezone offset
+    const d = new Date(date);
+    const month = d.getMonth(); // 0-11
+    // PDT (March-November), PST (rest of the year)
+    const offset = month >= 2 && month <= 10 ? '-07:00' : '-08:00';
+    return `${date}${offset}`;
   }
-
-  // Always use full ISO format with timezone for Schema.org
-  const result = formatISOPacific(date) as PacificDateString;
-
-  // Validate the format
-  if (!isPacificDateString(result)) {
-    throw new Error(`Invalid date format: ${result}`);
-  }
-
-  return result;
+  // Otherwise convert to Pacific time
+  const isoDate = toISO(date);
+  return includeTimezone ? isoDate : isoDate.replace(/[-+]\d{2}:\d{2}$/, '');
 }
 
 /**
  * Formats a date for OpenGraph metadata
- * Uses date-only format (YYYY-MM-DD) for publish dates
- * Uses full ISO format with timezone for modified dates
- *
- * @example
- * formatOpenGraphDate('2025-02-10', 'published')
- * // Returns: '2025-02-10'
- *
- * formatOpenGraphDate('2025-07-10T15:30:00', 'modified')
- * // Returns: '2025-07-10T15:30:00-07:00'
- *
- * @param date - The date to format (string or Date object)
+ * @param date - The date to format
  * @param type - The type of date (published or modified)
  * @returns Date string in appropriate format for OpenGraph
- * @see {@link "https://ogp.me/#type_article"} - OpenGraph date formats
  */
 export function formatOpenGraphDate(date: string | Date | undefined, type: 'published' | 'modified'): string {
-  if (!date) {
-    date = new Date();
+  // If it's already a properly formatted Pacific date string and it's a published date, add timezone offset
+  if (type === 'published' && typeof date === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(date)) {
+    // Get timezone offset for the date
+    const d = new Date(date);
+    const month = d.getMonth(); // 0-11
+    // PDT (March-November), PST (rest of the year)
+    const offset = month >= 2 && month <= 10 ? '-07:00' : '-08:00';
+    return `${date}${offset}`;
   }
-
-  // For publish dates, use date-only format
-  if (type === 'published' && typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return date;
-  }
-
-  // For modified dates or dates with time components, use full ISO format
-  return formatISOPacific(date);
+  // Otherwise use toOpenGraph which handles timezone conversion if needed
+  return toOpenGraph(date, type);
 }
 
 /**

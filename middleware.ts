@@ -2,6 +2,7 @@
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { nowPacific } from './lib/dateTime'
 
 /**
  * Type definition for server-side request logging
@@ -69,7 +70,7 @@ export function middleware(request: NextRequest): NextResponse {
 
   // Log the request with the real IP
   const log: RequestLog = {
-    timestamp: new Date().toISOString(),
+    timestamp: nowPacific(),
     type: 'server_pageview',
     data: {
       path: request.nextUrl.pathname,

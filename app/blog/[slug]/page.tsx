@@ -6,11 +6,10 @@
  * Implements proper SEO with schema.org structured data.
  */
 
-import { BlogArticle } from "../../../components/features/blog";
-import { getMDXPost } from "../../../lib/blog/mdx";
-import { JsonLdScript } from "../../../components/seo/json-ld";
-import { formatSeoDate } from "../../../lib/seo/utils";
-import { SITE_NAME } from "../../../data/metadata";
+import { BlogWrapper } from "@/components/features/blog/blog-article";
+import { getMDXPost } from "@/lib/blog/mdx";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { SITE_NAME } from "@/data/metadata";
 import type { Metadata } from "next";
 
 interface BlogPostPageProps {
@@ -26,18 +25,17 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   const post = await getMDXPost(params.slug);
   if (!post) return {};
 
-  const formattedPublished = formatSeoDate(post.publishedAt);
-  const formattedModified = formatSeoDate(post.updatedAt || post.publishedAt);
-
+  // MDX dates are already converted to Pacific time by getMDXPost
   return {
+    // Pass dates directly since they're already in correct format
     title: `${post.title} - ${SITE_NAME}'s Blog`,
     description: post.excerpt,
     openGraph: {
       title: post.title,
       description: post.excerpt,
       type: 'article',
-      publishedTime: formattedPublished,
-      modifiedTime: formattedModified,
+      publishedTime: post.publishedAt,
+      modifiedTime: post.updatedAt || post.publishedAt,
       authors: [post.author.name],
       tags: post.tags,
     },
@@ -56,9 +54,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const post = await getMDXPost(params.slug);
   if (!post) return null;
 
-  const formattedPublished = formatSeoDate(post.publishedAt);
-  const formattedModified = formatSeoDate(post.updatedAt || post.publishedAt);
-
+  // Dates are already in correct format from getMDXPost
   return (
     <>
       <JsonLdScript
@@ -67,15 +63,15 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           "@type": "Article",
           "headline": post.title,
           "description": post.excerpt,
-          "datePublished": formattedPublished,
-          "dateModified": formattedModified,
+          "datePublished": post.publishedAt,
+          "dateModified": post.updatedAt || post.publishedAt,
           "author": {
             "@type": "Person",
             "name": post.author.name
           }
         }}
       />
-      <BlogArticle post={post} />
+      <BlogWrapper post={post} />
     </>
   );
 }
