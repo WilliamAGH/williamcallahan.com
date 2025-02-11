@@ -18,6 +18,38 @@
 
 import { NextRequest } from 'next/server';
 import { logger } from '../../../lib/logger';
+import { expect } from '@jest/globals';
+import matchers from '@testing-library/jest-dom/matchers';
+
+// Extend Jest matchers
+expect.extend(matchers);
+
+// Add type support for jest-dom matchers
+declare global {
+  namespace jest {
+    interface Matchers<R = void> {
+      toBeInTheDocument(): R;
+      toHaveAttribute(attr: string, value?: string): R;
+      toHaveClass(...classNames: string[]): R;
+      toHaveStyle(css: Record<string, any>): R;
+      toBeDisabled(): R;
+      toBeEnabled(): R;
+      toHaveFocus(): R;
+      toHaveTextContent(text: string | RegExp, options?: { normalizeWhitespace: boolean }): R;
+      toBeVisible(): R;
+      toBeInvalid(): R;
+      toBeValid(): R;
+      toBeRequired(): R;
+      toBeEmptyDOMElement(): R;
+      toHaveValue(value?: string | string[] | number): R;
+      toHaveDisplayValue(value: string | RegExp | Array<string | RegExp>): R;
+      toBeChecked(): R;
+      toBePartiallyChecked(): R;
+      toHaveFormValues(values: Record<string, any>): R;
+      toHaveDescription(text: string | RegExp): R;
+    }
+  }
+}
 
 // Silence logger by default in tests
 logger.setSilent(true);

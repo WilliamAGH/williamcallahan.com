@@ -83,10 +83,17 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+        <script src="/scripts/theme-init.js" />
       </head>
       <body className={`${inter.className} overscroll-none`}>
         <Providers>
-          <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
+          <div
+            className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100"
+            style={{
+              transition: 'background-color 0.2s ease-in-out, color 0.2s ease-in-out',
+              transitionDelay: '0.1s'
+            }}
+          >
             <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-40">
               <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
                 <Navigation />

@@ -1,8 +1,8 @@
 # Active Context
 
 ## Current Tasks
-1. Migrating all date handling to use the centralized lib/dateTime.ts module
-2. ✅ Fixed test suite failures related to React's act() in production mode
+1. Investigating and fixing theme flickering and image display issues
+2. Migrating all date handling to use the centralized lib/dateTime.ts module
 
 ## Recent Changes
 - Fixed test suite failures:
@@ -10,48 +10,58 @@
   - Fixed NavigationLink test preventDefault handling
   - Improved SelectionView test state management
   - Removed forced production mode from test setup
-- Identified several components and files still using direct date manipulation
-- Analyzed the codebase for non-compliant date handling
-- Found dateTime.ts provides comprehensive Pacific timezone handling
+- Identified theme flickering during page loads
+- Found image display issues during navigation
 
-## Outstanding Changes Needed
+## Outstanding Issues and Solutions
 
-### Date Migration Tasks
-#### Experience Card Component
-- Location: components/ui/experience-card/experience-card.client.tsx
-- Issue: Using raw ISO strings in dateTime attributes
-- Fix: Need to use toISO() for proper timezone handling
+### Theme Flickering Issue
+#### Problem Analysis
+- Theme flickers between light/dark during page loads
+- Doesn't properly respect system theme initially
+- Occurs due to hydration timing:
+  1. App starts with no theme class
+  2. Waits for hydration to determine theme
+  3. Finally applies correct theme class
 
-#### Experience Data
-- Location: data/experience.ts
-- Issue: Hardcoded YYYY-MM-DD format dates
-- Fix: Need to process through toISO() for consistent timezone handling
-- Impact: Affects Schema.org metadata
+#### Proposed Solutions
+1. Add pre-hydration script in `<head>` to set initial theme
+2. Update ThemeProvider with `forcedTheme` during SSR
+3. Add `suppressHydrationWarning` to theme-sensitive elements
+4. Improve theme initialization timing
 
-#### Experience Types
-- Location: types/experience.ts
-- Issue: Basic string typing for dates
-- Fix: Consider using PacificDateString type for consistency with blog system
+### Image Display Issues
+#### Problem Analysis
+- Full-screen image pop-ups occur during navigation
+- Issue appears after clicking back to blog
+- Likely caused by:
+  1. Next.js image cache management during navigation
+  2. Improper image preloading
+  3. Missing cache control headers
 
-#### Education Card Component
-- Location: components/features/education/education-card.client.tsx
-- Issue: Direct year display without formatting
-- Fix: Consider using formatDisplay() for consistency
+#### Proposed Solutions
+1. Add proper `priority` and `loading` attributes
+2. Implement image preloading for blog posts
+3. Add cache control headers
+4. Ensure consistent use of next/image component
+5. Improve image cache management during navigation
 
 ## Next Steps
-1. Date Migration Tasks:
-   - Update experience-card.client.tsx to use toISO()
-   - Modify experience.ts data to process dates through toISO()
-   - Update experience.ts types to use more specific date typing
-   - Update education card to use formatDisplay()
-   - Add tests to verify timezone handling
-   - Update documentation to reflect changes
+1. Theme Fixes:
+   - Add pre-hydration theme script
+   - Update ThemeProvider configuration
+   - Add proper hydration warnings
+   - Test theme transitions
+
+2. Image Fixes:
+   - Review and update image component usage
+   - Implement proper cache headers
+   - Add preloading for critical images
+   - Test navigation scenarios
 
 ## Implementation Notes
-- All dates must be handled in Pacific timezone
-- Use toISO() for machine-readable dates (Schema.org, HTML attributes)
-- Use formatDisplay() for human-readable dates
-- Consider adding validation to ensure proper date format usage
-- Test environment is now properly configured for React testing
-- Maintain separation between test and production environments
-- Document any environment-specific testing requirements
+- Theme changes must handle both system and user preferences
+- Image optimizations should not impact initial load time
+- Consider impact on Core Web Vitals
+- Test across different navigation patterns
+- Document any theme/image-specific requirements

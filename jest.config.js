@@ -31,11 +31,13 @@ const customJestConfig = {
   ],
   // Setup files that run after test environment is setup
   setupFilesAfterEnv: [
-    // 3. Set up polyfills
+    // 3. Set up polyfills and base jest-dom matchers
     '<rootDir>/jest.setup.js',
     // 4. Set up test utilities and mocks
     '<rootDir>/__tests__/lib/setup/jest.setup.ts',
-    // 5. Set up React and Testing Library (must be last)
+    // 5. Add extended jest-dom matchers
+    '<rootDir>/__tests__/lib/setup/testing-library.ts',
+    // 6. Set up React and Testing Library (must be last)
     '<rootDir>/__tests__/lib/setup/react.ts'
   ],
   moduleDirectories: ['node_modules', '<rootDir>'],

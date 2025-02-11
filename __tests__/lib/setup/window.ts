@@ -85,16 +85,25 @@ const windowMock = {
     getPropertyValue: jest.fn(),
     setProperty: jest.fn()
   })),
-  matchMedia: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn()
-  })),
+  matchMedia: jest.fn().mockImplementation((query: string) => {
+    type MediaQueryListener = (ev: MediaQueryListEvent) => void;
+
+    const mediaQueryList: MediaQueryList = {
+      matches: query === '(prefers-color-scheme: dark)',
+      media: query,
+      onchange: null,
+      addListener: jest.fn((listener: MediaQueryListener) => {
+        mediaQueryList.addEventListener('change', listener);
+      }),
+      removeListener: jest.fn((listener: MediaQueryListener) => {
+        mediaQueryList.removeEventListener('change', listener);
+      }),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn()
+    };
+    return mediaQueryList;
+  }),
   location: {
     href: 'http://localhost',
     pathname: '/',
