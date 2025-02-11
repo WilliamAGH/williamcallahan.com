@@ -13,8 +13,8 @@
     "type-check": "tsc --noEmit",
     "validate": "pnpm run lint && pnpm run type-check",
     "clean": "rm -rf .next out node_modules",
-    "test": "jest --coverage",
-    "test:watch": "jest --watch",
+    "test": "NODE_ENV=test jest --coverage",
+    "test:watch": "NODE_ENV=test jest --watch",
     "prepare": "node .husky/install.mjs"
   },
   "dependencies": {

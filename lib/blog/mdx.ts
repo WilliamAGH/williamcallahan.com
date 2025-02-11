@@ -38,11 +38,18 @@ const serverComponents: MDXComponents = {
 function toISOString(date: string | Date | undefined): string {
   if (!date) return new Date().toISOString();
 
-  const parsed = typeof date === 'string'
-    ? new Date(date + (date.includes('T') ? '' : 'T00:00:00.000Z'))
-    : date;
+  // If it's already a full ISO string with time, return as is
+  if (typeof date === 'string' && date.includes('T')) {
+    return date;
+  }
 
-  return parsed.toISOString();
+  // If it's a Date object, preserve its current timezone
+  if (date instanceof Date) {
+    return date.toISOString();
+  }
+
+  // For date-only strings (YYYY-MM-DD), append time in PT (UTC-8)
+  return `${date}T00:00:00-08:00`;
 }
 
 /**

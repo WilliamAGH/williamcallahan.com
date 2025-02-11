@@ -1,5 +1,8 @@
 import '@testing-library/jest-dom';
 
+// Set timezone to PT for all tests
+process.env.TZ = 'America/Los_Angeles';
+
 // Polyfill for setImmediate
 global.setImmediate = (callback) => setTimeout(callback, 0);
 

@@ -12,12 +12,17 @@ export async function GET(request: NextRequest) {
 
   const posts = await getAllMDXPosts();
 
+  // Sort posts by publishedAt in descending order
+  const sortedPosts = posts.sort((a, b) =>
+    new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+  );
+
   if (tag) {
-    const filteredPosts = posts.filter(post =>
+    const filteredPosts = sortedPosts.filter(post =>
       post.tags.some(t => t.toLowerCase() === tag.toLowerCase())
     );
     return NextResponse.json(filteredPosts);
   }
 
-  return NextResponse.json(posts);
+  return NextResponse.json(sortedPosts);
 }

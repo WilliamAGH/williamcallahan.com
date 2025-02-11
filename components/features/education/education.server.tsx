@@ -45,7 +45,7 @@ export async function Education(): Promise<JSX.Element> {
         <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
           <div className="flex items-center">
             <WindowControls />
-            <h1 className="text-xl font-mono ml-4">~/education</h1>
+            <h1 className="text-base sm:text-lg md:text-xl font-mono ml-4 truncate min-w-0">~/education</h1>
           </div>
         </div>
 

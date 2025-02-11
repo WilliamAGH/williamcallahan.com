@@ -51,8 +51,8 @@ export function ExperienceCardClient({
             </ExternalLink>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1">
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+              <div className="flex items-center gap-1 min-w-0">
                 <ExternalLink
                   href={website}
                   title={`Visit ${company}'s website`}
@@ -72,7 +72,7 @@ export function ExperienceCardClient({
                   </ExternalLink>
                 )}
               </div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
+              <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
                 <time dateTime={startDate}>{period.split(' - ')[0]}</time>
                 {' - '}
                 <time dateTime={endDate || 'Present'}>{period.split(' - ')[1]}</time>

@@ -41,9 +41,13 @@ export interface BlogPost {
   author: Author;
   /** Array of tag names */
   tags: string[];
-  /** Estimated reading time in minutes */
-  readingTime: number;
-  /** URL of the post's cover image (optional) */
+  /** Estimated reading time in minutes (optional) */
+  readingTime?: number;
+  /**
+   * URL of the post's cover image (optional)
+   * If not provided, falls back to metadata.defaultImage.url from data/metadata.ts
+   * @see {@link "../../data/metadata.ts"} - For default image configuration
+   */
   coverImage?: string;
 }
 
