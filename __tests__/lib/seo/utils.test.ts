@@ -3,7 +3,7 @@
  * @jest-environment node
  */
 
-import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate, validateSeoDate } from '../../../lib/seo/utils';
+import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate, formatOpenGraphDate, validateSeoDate } from '../../../lib/seo/utils';
 import { NEXT_PUBLIC_SITE_URL } from '../../../lib/constants';
 import { isPacificDateString } from '../../../types/seo';
 
@@ -48,50 +48,65 @@ describe('SEO Utilities', () => {
     });
   });
 
-  describe('formatSeoDate', () => {
+  describe('Date Formatting', () => {
     beforeAll(() => {
       // Mock timezone to America/Los_Angeles
       process.env.TZ = 'America/Los_Angeles';
     });
 
-    it('should format date string with Pacific Time offset during standard time', () => {
-      // January 1st (PST)
-      const date = new Date('2025-01-01T12:00:00');
-      const formatted = formatSeoDate(date);
-      expect(isPacificDateString(formatted)).toBe(true);
-      expect(formatted).toMatch(/-08:00$/);
+    describe('formatSeoDate (Schema.org)', () => {
+      it('should always output full ISO format with timezone during standard time', () => {
+        // January 1st (PST)
+        const date = new Date('2025-01-01T12:00:00');
+        const formatted = formatSeoDate(date);
+        expect(isPacificDateString(formatted)).toBe(true);
+        expect(formatted).toBe('2025-01-01T12:00:00-08:00');
+      });
+
+      it('should always output full ISO format with timezone during daylight savings', () => {
+        // July 1st (PDT)
+        const date = new Date('2025-07-01T12:00:00');
+        const formatted = formatSeoDate(date);
+        expect(isPacificDateString(formatted)).toBe(true);
+        expect(formatted).toBe('2025-07-01T12:00:00-07:00');
+      });
+
+      it('should convert date-only strings to midnight in Pacific Time', () => {
+        const dateStr = '2025-02-10';
+        const formatted = formatSeoDate(dateStr);
+        expect(isPacificDateString(formatted)).toBe(true);
+        expect(formatted).toBe('2025-02-10T00:00:00-08:00');
+      });
+
+      it('should handle undefined by using current time', () => {
+        const formatted = formatSeoDate(undefined);
+        expect(isPacificDateString(formatted)).toBe(true);
+      });
     });
 
-    it('should format date string with Pacific Time offset during daylight savings', () => {
-      // July 1st (PDT)
-      const date = new Date('2025-07-01T12:00:00');
-      const formatted = formatSeoDate(date);
-      expect(isPacificDateString(formatted)).toBe(true);
-      expect(formatted).toMatch(/-07:00$/);
-    });
+    describe('formatOpenGraphDate', () => {
+      it('should preserve date-only format for publish dates', () => {
+        const dateStr = '2025-02-10';
+        const formatted = formatOpenGraphDate(dateStr, 'published');
+        expect(formatted).toBe('2025-02-10');
+      });
 
-    it('should handle string input', () => {
-      const dateStr = '2025-02-10T10:54:28';
-      const formatted = formatSeoDate(dateStr);
-      expect(isPacificDateString(formatted)).toBe(true);
-    });
+      it('should use full ISO format for modified dates', () => {
+        const date = new Date('2025-01-01T15:30:45');
+        const formatted = formatOpenGraphDate(date, 'modified');
+        expect(formatted).toBe('2025-01-01T15:30:45-08:00');
+      });
 
-    it('should handle undefined by using current time', () => {
-      const formatted = formatSeoDate(undefined);
-      expect(isPacificDateString(formatted)).toBe(true);
-    });
+      it('should use full ISO format for publish dates with time', () => {
+        const dateStr = '2025-02-10T12:30:00';
+        const formatted = formatOpenGraphDate(dateStr, 'published');
+        expect(formatted).toBe('2025-02-10T12:30:00-08:00');
+      });
 
-    it('should preserve hour, minute, and second values', () => {
-      const date = new Date('2025-01-01T15:30:45');
-      const formatted = formatSeoDate(date);
-      expect(formatted).toMatch(/T15:30:45-0[87]:00$/);
-    });
-
-    it('should handle date-only strings', () => {
-      const dateStr = '2025-02-10';
-      const formatted = formatSeoDate(dateStr);
-      expect(isPacificDateString(formatted)).toBe(true);
-      expect(formatted).toMatch(/T00:00:00-08:00$/);
+      it('should handle undefined by using current time', () => {
+        const formatted = formatOpenGraphDate(undefined, 'published');
+        expect(formatted).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-0[78]:00$/);
+      });
     });
   });
 
