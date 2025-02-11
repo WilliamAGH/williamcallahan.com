@@ -117,23 +117,26 @@ describe('ThemeToggle', () => {
   });
 
   it('shows loading state initially', () => {
-    // Enable loading state testing
+    // Enable loading state testing and ensure theme is not ready
     process.env.TEST_LOADING_STATE = 'true';
+    document.documentElement.removeAttribute('data-theme-ready');
 
     (useTheme as jest.Mock).mockReturnValue({
-      theme: 'system',
+      theme: undefined,
       setTheme: jest.fn(),
       systemTheme: 'light'
     });
 
     render(<ThemeToggle />);
 
-    const button = getLoadingButton();
+    const button = screen.getByRole('button');
     expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-label', 'Loading theme preferences');
     expect(button).toHaveAttribute('title', 'Loading theme preferences...');
 
     // Reset for other tests
     process.env.TEST_LOADING_STATE = undefined;
+    document.documentElement.setAttribute('data-theme-ready', 'true');
   });
 
   it('cycles through themes correctly', async () => {
