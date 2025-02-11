@@ -23,10 +23,10 @@
  * - Uses React Testing Library for DOM interactions
  */
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { Terminal } from '../../../../components/ui/terminal/terminal';
 import { useRouter } from 'next/navigation';
-import { setupTests } from '../../../../lib/test/setup';
+import { act } from '../../../../lib/test/setup';
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -48,7 +48,11 @@ jest.mock('../../../../lib/search', () => ({
 }));
 
 describe('Terminal Component', () => {
-  const { mockRouter } = setupTests();
+  const mockRouter = {
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn()
+  };
 
   beforeEach(() => {
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
@@ -70,9 +74,14 @@ describe('Terminal Component', () => {
       fireEvent.change(input, { target: { value: 'help' } });
       fireEvent.submit(input);
 
-      await waitFor(() => {
-        expect(screen.getByText(/Available commands/i)).toBeInTheDocument();
+      await act(async () => {
+        await Promise.resolve();
       });
+      // Get the help text section
+      const helpText = screen.getByText(/Navigation:/i).parentElement;
+      expect(helpText).toBeInTheDocument();
+      expect(helpText).toHaveTextContent(/Available commands/i);
+      expect(helpText).toHaveTextContent(/Search:/i);
     });
 
     it('handles invalid commands', async () => {
@@ -82,9 +91,10 @@ describe('Terminal Component', () => {
       fireEvent.change(input, { target: { value: 'invalid-command' } });
       fireEvent.submit(input);
 
-      await waitFor(() => {
-        expect(screen.getByText(/Command not recognized/i)).toBeInTheDocument();
+      await act(async () => {
+        await Promise.resolve();
       });
+      expect(screen.getByText(/Command not recognized/i)).toBeInTheDocument();
     });
   });
 
@@ -96,9 +106,10 @@ describe('Terminal Component', () => {
       fireEvent.change(input, { target: { value: 'blog' } });
       fireEvent.submit(input);
 
-      await waitFor(() => {
-        expect(mockRouter.push).toHaveBeenCalledWith('/blog');
+      await act(async () => {
+        await Promise.resolve();
       });
+      expect(mockRouter.push).toHaveBeenCalledWith('/blog');
     });
   });
 
@@ -110,10 +121,11 @@ describe('Terminal Component', () => {
       fireEvent.change(input, { target: { value: 'blog test' } });
       fireEvent.submit(input);
 
-      await waitFor(() => {
-        expect(screen.getByText('Test Post')).toBeInTheDocument();
-        expect(screen.getByText(/Use ↑↓ to navigate/i)).toBeInTheDocument();
+      await act(async () => {
+        await Promise.resolve();
       });
+      expect(screen.getByText('Test Post')).toBeInTheDocument();
+      expect(screen.getByText(/Use ↑↓ to navigate/i)).toBeInTheDocument();
     });
 
     it('handles no results', async () => {
@@ -123,9 +135,10 @@ describe('Terminal Component', () => {
       fireEvent.change(input, { target: { value: 'experience nonexistent' } });
       fireEvent.submit(input);
 
-      await waitFor(() => {
-        expect(screen.getByText(/No results found in Experience/i)).toBeInTheDocument();
+      await act(async () => {
+        await Promise.resolve();
       });
+      expect(screen.getByText(/No results found in Experience/i)).toBeInTheDocument();
     });
   });
 

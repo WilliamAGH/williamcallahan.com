@@ -6,7 +6,11 @@
  * All dates are stored in Pacific timezone.
  */
 
-import { PacificDateString } from './experience';
+/**
+ * Year string in YYYY format
+ * @example "2016"
+ */
+export type YearString = string;
 
 /**
  * Base interface for education-related items
@@ -17,8 +21,8 @@ interface EducationBase {
   id: string;
   /** Institution name */
   institution: string;
-  /** Completion date in Pacific timezone (optional) */
-  year?: PacificDateString;
+  /** Completion year in YYYY format */
+  year?: YearString;
   /** Institution website URL */
   website: string;
   /** Location (city, state) */

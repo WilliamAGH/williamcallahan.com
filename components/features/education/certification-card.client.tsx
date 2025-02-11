@@ -21,6 +21,7 @@
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import { LogoImage } from '../../../components/ui';
 import { ExternalLink } from '../../../components/ui/external-link';
+import { formatYearDisplay } from '../../../lib/dateTime';
 import type { Certification } from '../../../types/education';
 
 /**
@@ -102,7 +103,7 @@ export function CertificationCardClient({
                 )}
               </div>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {year}
+                {formatYearDisplay(year)}
               </span>
             </div>
             <div className="space-y-1">

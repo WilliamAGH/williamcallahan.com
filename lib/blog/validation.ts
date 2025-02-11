@@ -6,7 +6,7 @@
  */
 
 import type { BlogPost } from '../../types/blog';
-import { isPacificDateString } from '../../types/seo/shared';
+import { isValidPacificDate } from '../../lib/dateTime';
 
 const REQUIRED_FIELDS = [
   'title',
@@ -40,11 +40,11 @@ export function validatePost(post: BlogPost): { valid: boolean; errors: string[]
   }
 
   // Validate dates can be parsed
-  if (post.publishedAt && !isPacificDateString(post.publishedAt)) {
+  if (post.publishedAt && !isValidPacificDate(post.publishedAt)) {
     errors.push('Invalid publishedAt date format');
   }
 
-  if (post.updatedAt && !isPacificDateString(post.updatedAt)) {
+  if (post.updatedAt && !isValidPacificDate(post.updatedAt)) {
     errors.push('Invalid updatedAt date format');
   }
 

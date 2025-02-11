@@ -1,30 +1,16 @@
-import '@testing-library/jest-dom';
+/**
+ * Jest Polyfills Setup
+ *
+ * IMPORTANT: This file only handles polyfills. All other setup is handled by:
+ * 1. environment.ts - Sets up Node environment and env variables
+ * 2. window.ts - Creates window mock with document object
+ * 3. jest.setup.js (this file) - Sets up polyfills
+ * 4. testing-library.ts - Sets up React Testing Library
+ * 5. jest.setup.ts - Sets up remaining test utilities
+ *
+ * Keep this file focused only on polyfills to maintain clear separation of concerns
+ * and ensure proper initialization order.
+ */
 
-// Set timezone to PT for all tests
-process.env.TZ = 'America/Los_Angeles';
-
-// Polyfill for setImmediate
+// Polyfill for setImmediate (required for React 18 async operations)
 global.setImmediate = (callback) => setTimeout(callback, 0);
-
-// Mock process.env for tests
-process.env.NEXT_PUBLIC_SITE_URL = 'https://williamcallahan.com';
-
-// Mock window object if it doesn't exist (for Node environment)
-if (typeof window === 'undefined') {
-  global.window = {};
-}
-
-// Mock window.matchMedia
-Object.defineProperty(global.window, 'matchMedia', {
-  writable: true,
-  value: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
-});

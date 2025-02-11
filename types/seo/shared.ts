@@ -5,32 +5,13 @@
  * Common type definitions shared across SEO modules.
  */
 
-import { toISO } from '../../lib/dateTime';
+import { isValidPacificDate } from '../../lib/dateTime';
 
 /**
  * ISO 8601 date string in Pacific Time
  * @example "2025-02-10T10:54:28 PST"
  */
 export type PacificDateString = string;
-
-/**
- * Type guard for PacificDateString
- * Ensures a string is a valid date in Pacific timezone format
- */
-export function isPacificDateString(date: string): date is PacificDateString {
-  try {
-    // First check if it's already a properly formatted Pacific date string
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(date)) {
-      return true;
-    }
-    // For other formats, use toISO to validate and format
-    const formatted = toISO(date);
-    // Verify it matches our expected format with timezone offset
-    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[-+]\d{2}:\d{2}$/.test(formatted);
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Required date fields for article metadata
@@ -54,9 +35,9 @@ export function isArticleDates(dates: any): dates is ArticleDates {
   return (
     typeof dates === 'object' &&
     dates !== null &&
-    isPacificDateString(dates.datePublished) &&
-    isPacificDateString(dates.dateModified) &&
-    (dates.dateCreated === undefined || isPacificDateString(dates.dateCreated))
+    isValidPacificDate(dates.datePublished) &&
+    isValidPacificDate(dates.dateModified) &&
+    (dates.dateCreated === undefined || isValidPacificDate(dates.dateCreated))
   );
 }
 

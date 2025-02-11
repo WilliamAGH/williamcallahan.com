@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { act } from '../../../../lib/test/setup';
 import { SelectionView } from '@/components/ui/terminal/selection-view';
 import type { SelectionItem } from '@/types/terminal';
 
@@ -45,7 +46,7 @@ describe('SelectionView', () => {
   });
 
   describe('keyboard navigation', () => {
-    it('moves selection down with arrow down', () => {
+    it('moves selection down with arrow down', async () => {
       render(
         <SelectionView
           items={mockItems}
@@ -54,13 +55,15 @@ describe('SelectionView', () => {
         />
       );
 
-      act(() => {
+      await act(async () => {
         fireEvent.keyDown(window, { key: 'ArrowDown' });
+        await Promise.resolve();
       });
+
       expect(screen.getByText('Item 2').closest('div')).toHaveClass('bg-blue-500/20');
     });
 
-    it('moves selection up with arrow up', () => {
+    it('moves selection up with arrow up', async () => {
       render(
         <SelectionView
           items={mockItems}
@@ -70,14 +73,17 @@ describe('SelectionView', () => {
       );
 
       // Move down first to test moving up
-      act(() => {
+      await act(async () => {
         fireEvent.keyDown(window, { key: 'ArrowDown' });
+        await Promise.resolve();
         fireEvent.keyDown(window, { key: 'ArrowUp' });
+        await Promise.resolve();
       });
+
       expect(screen.getByText('Item 1').closest('div')).toHaveClass('bg-blue-500/20');
     });
 
-    it('wraps to bottom when pressing up at top', () => {
+    it('wraps to bottom when pressing up at top', async () => {
       render(
         <SelectionView
           items={mockItems}
@@ -86,13 +92,15 @@ describe('SelectionView', () => {
         />
       );
 
-      act(() => {
+      await act(async () => {
         fireEvent.keyDown(window, { key: 'ArrowUp' });
+        await Promise.resolve();
       });
+
       expect(screen.getByText('Item 3').closest('div')).toHaveClass('bg-blue-500/20');
     });
 
-    it('wraps to top when pressing down at bottom', () => {
+    it('wraps to top when pressing down at bottom', async () => {
       render(
         <SelectionView
           items={mockItems}
@@ -102,16 +110,22 @@ describe('SelectionView', () => {
       );
 
       // Move to bottom
-      act(() => {
+      await act(async () => {
+        // First to Item 2
         fireEvent.keyDown(window, { key: 'ArrowDown' });
+        await Promise.resolve();
+        // Then to Item 3
         fireEvent.keyDown(window, { key: 'ArrowDown' });
-        // Should wrap to top
+        await Promise.resolve();
+        // Should wrap to Item 1
         fireEvent.keyDown(window, { key: 'ArrowDown' });
+        await Promise.resolve();
       });
+
       expect(screen.getByText('Item 1').closest('div')).toHaveClass('bg-blue-500/20');
     });
 
-    it('selects item with enter key', () => {
+    it('selects item with enter key', async () => {
       render(
         <SelectionView
           items={mockItems}
@@ -120,19 +134,25 @@ describe('SelectionView', () => {
         />
       );
 
-      // Move to second item
-      act(() => {
-        fireEvent.keyDown(window, { key: 'ArrowDown' });
+      // Move to second item and wait for state update
+      await act(async () => {
+        fireEvent.mouseEnter(screen.getByText('Item 2'));
+        await Promise.resolve();
       });
 
-      // Then select it
-      act(() => {
+      // Verify second item is selected
+      expect(screen.getByText('Item 2').closest('div')).toHaveClass('bg-blue-500/20');
+
+      // Now press enter
+      await act(async () => {
         fireEvent.keyDown(window, { key: 'Enter' });
+        await Promise.resolve();
       });
+
       expect(mockOnSelect).toHaveBeenCalledWith(mockItems[1]);
     });
 
-    it('exits with escape key', () => {
+    it('exits with escape key', async () => {
       render(
         <SelectionView
           items={mockItems}
@@ -141,15 +161,17 @@ describe('SelectionView', () => {
         />
       );
 
-      act(() => {
+      await act(async () => {
         fireEvent.keyDown(window, { key: 'Escape' });
+        await Promise.resolve();
       });
+
       expect(mockOnExit).toHaveBeenCalled();
     });
   });
 
   describe('mouse interactions', () => {
-    it('updates selection on mouse hover', () => {
+    it('updates selection on mouse hover', async () => {
       render(
         <SelectionView
           items={mockItems}
@@ -158,13 +180,15 @@ describe('SelectionView', () => {
         />
       );
 
-      act(() => {
+      await act(async () => {
         fireEvent.mouseEnter(screen.getByText('Item 2'));
+        await Promise.resolve();
       });
+
       expect(screen.getByText('Item 2').closest('div')).toHaveClass('bg-blue-500/20');
     });
 
-    it('selects item on click', () => {
+    it('selects item on click', async () => {
       render(
         <SelectionView
           items={mockItems}
@@ -173,9 +197,11 @@ describe('SelectionView', () => {
         />
       );
 
-      act(() => {
+      await act(async () => {
         fireEvent.click(screen.getByText('Item 2'));
+        await Promise.resolve();
       });
+
       expect(mockOnSelect).toHaveBeenCalledWith(mockItems[1]);
     });
   });
@@ -193,7 +219,7 @@ describe('SelectionView', () => {
       expect(screen.getByText(/use ↑↓ to navigate/i)).toBeInTheDocument();
     });
 
-    it('prevents default on navigation key events', () => {
+    it('prevents default on navigation key events', async () => {
       render(
         <SelectionView
           items={mockItems}
@@ -204,13 +230,18 @@ describe('SelectionView', () => {
 
       const event = new KeyboardEvent('keydown', { key: 'ArrowDown' });
       jest.spyOn(event, 'preventDefault');
-      act(() => {
+
+      await act(async () => {
         window.dispatchEvent(event);
+        await Promise.resolve();
       });
+
       expect(event.preventDefault).toHaveBeenCalled();
     });
 
-    it('cleans up event listeners on unmount', () => {
+    it('cleans up event listeners on unmount', async () => {
+      const removeEventListenerSpy = jest.spyOn(window, 'removeEventListener');
+
       const { unmount } = render(
         <SelectionView
           items={mockItems}
@@ -219,8 +250,8 @@ describe('SelectionView', () => {
         />
       );
 
-      const removeEventListenerSpy = jest.spyOn(window, 'removeEventListener');
       unmount();
+
       expect(removeEventListenerSpy).toHaveBeenCalled();
       removeEventListenerSpy.mockRestore();
     });

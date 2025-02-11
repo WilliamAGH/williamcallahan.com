@@ -16,6 +16,7 @@
 - Biome for formatting
 
 ## Technical Constraints
+- CRITICAL: All tests MUST run in production mode (NODE_ENV=production)
 - Need to maintain high test coverage (target > 90%)
 - Must handle both SSR and client-side rendering scenarios
 - Image processing requires specific test scenarios
@@ -27,6 +28,7 @@
 
 ## Testing Requirements
 1. Component Testing
+   - Tests must run in production mode
    - Mock external dependencies
    - Test user interactions
    - Verify rendered output

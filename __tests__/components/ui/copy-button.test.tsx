@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { act } from '../../../lib/test/setup';
 import { CopyButton } from '../../../components/ui/copy-button';
 
 describe('CopyButton', () => {
@@ -26,11 +27,13 @@ describe('CopyButton', () => {
     expect(button).toBeInTheDocument();
   });
 
-  it('copies content and shows success state', () => {
+  it('copies content and shows success state', async () => {
     mockClipboard.writeText.mockResolvedValueOnce(undefined);
     render(<CopyButton content="test" />);
 
-    fireEvent.click(screen.getByRole('button'));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button'));
+    });
 
     expect(mockClipboard.writeText).toHaveBeenCalledWith('test');
     expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Copied!');
@@ -40,19 +43,25 @@ describe('CopyButton', () => {
     mockClipboard.writeText.mockRejectedValueOnce(new Error('Failed'));
     render(<CopyButton content="test" />);
 
-    fireEvent.click(screen.getByRole('button'));
-
-    await waitFor(() => {
-      expect(console.error).toHaveBeenCalled();
-      expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Copy code');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button'));
+      // Let the error propagate
+      await Promise.resolve();
     });
+
+    expect(console.error).toHaveBeenCalled();
+    expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Copy code');
   });
 
-  it('handles missing clipboard API', () => {
+  it('handles missing clipboard API', async () => {
     Object.defineProperty(navigator, 'clipboard', { value: undefined });
     render(<CopyButton content="test" />);
 
-    fireEvent.click(screen.getByRole('button'));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button'));
+      // Let any error handling complete
+      await Promise.resolve();
+    });
 
     expect(console.error).toHaveBeenCalled();
     expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Copy code');

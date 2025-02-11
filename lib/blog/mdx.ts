@@ -88,9 +88,35 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
       components: serverComponents
     });
 
-    // Use frontmatter dates or fall back to file dates
-    const publishedAt = toISO(data.publishedAt || fileDates.created);
-    const updatedAt = toISO(data.updatedAt || data.modifiedAt || fileDates.modified);
+    // Process and validate frontmatter dates
+    const processDate = (date: string | undefined, fallback: string): string => {
+      if (!date) return fallback;
+
+      try {
+        // For YYYY-MM-DD format, ensure it's valid and in Pacific timezone
+        if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          const [year, month, day] = date.split('-').map(Number);
+          // Validate date components
+          if (
+            year >= 2000 && year <= 2100 &&
+            month >= 1 && month <= 12 &&
+            day >= 1 && day <= 31
+          ) {
+            // Return as-is for schema compatibility
+            return date;
+          }
+        }
+
+        // For other formats, convert to ISO with Pacific timezone
+        return toISO(date);
+      } catch (error) {
+        console.error(`Invalid date format in post ${slug}:`, date);
+        return fallback;
+      }
+    };
+
+    const publishedAt = processDate(data.publishedAt, fileDates.created);
+    const updatedAt = processDate(data.updatedAt || data.modifiedAt, fileDates.modified);
 
     // Construct the full blog post object
     return {

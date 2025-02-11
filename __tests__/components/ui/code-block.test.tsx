@@ -1,13 +1,18 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { screen, render } from '@testing-library/react';
+import { act } from '../../../lib/test/setup';
 import { CodeBlock } from '../../../components/ui/code-block';
 import { CopyButton } from '../../../components/ui/copy-button';
 
 // Mock CopyButton component
 jest.mock('../../../components/ui/copy-button', () => ({
   CopyButton: jest.fn(({ content }) => (
-    <button data-testid="mock-copy-button" data-content={content}>
-      Copy
+    <button
+      role="button"
+      aria-label="Copy code"
+      data-content={content}
+    >
+      Copy code
     </button>
   ))
 }));
@@ -18,14 +23,14 @@ describe('CodeBlock', () => {
   });
 
   describe('Basic Rendering', () => {
-    it('renders children within a pre element', () => {
+    it('renders code content within a pre element', () => {
       render(<CodeBlock>const x = 1;</CodeBlock>);
       const pre = screen.getByText('const x = 1;');
       expect(pre).toBeInTheDocument();
       expect(pre.tagName).toBe('PRE');
     });
 
-    it('applies correct styling classes', () => {
+    it('applies correct styling classes for code block', () => {
       render(<CodeBlock>test code</CodeBlock>);
       const pre = screen.getByText('test code');
       expect(pre).toHaveClass(
@@ -38,27 +43,25 @@ describe('CodeBlock', () => {
       );
     });
 
-    it('includes a copy button', () => {
+    it('includes an accessible copy button', () => {
       render(<CodeBlock>test code</CodeBlock>);
-      expect(screen.getByTestId('mock-copy-button')).toBeInTheDocument();
+      const copyButton = screen.getByRole('button', { name: /copy code/i });
+      expect(copyButton).toBeInTheDocument();
+      expect(copyButton).toHaveAttribute('data-content', 'test code');
     });
   });
 
   describe('Text Content Extraction', () => {
     it('handles string children', () => {
       render(<CodeBlock>simple text</CodeBlock>);
-      expect(screen.getByTestId('mock-copy-button')).toHaveAttribute(
-        'data-content',
-        'simple text'
-      );
+      const copyButton = screen.getByRole('button', { name: /copy code/i });
+      expect(copyButton).toHaveAttribute('data-content', 'simple text');
     });
 
     it('handles number children', () => {
       render(<CodeBlock>{42}</CodeBlock>);
-      expect(screen.getByTestId('mock-copy-button')).toHaveAttribute(
-        'data-content',
-        '42'
-      );
+      const copyButton = screen.getByRole('button', { name: /copy code/i });
+      expect(copyButton).toHaveAttribute('data-content', '42');
     });
 
     it('handles nested children', () => {
@@ -69,10 +72,8 @@ describe('CodeBlock', () => {
           </span>
         </CodeBlock>
       );
-      expect(screen.getByTestId('mock-copy-button')).toHaveAttribute(
-        'data-content',
-        'nestedtext'
-      );
+      const copyButton = screen.getByRole('button', { name: /copy code/i });
+      expect(copyButton).toHaveAttribute('data-content', 'nestedtext');
     });
 
     it('filters out comment lines', () => {
@@ -84,7 +85,8 @@ const x = 1;
 const y = 2;`}
         </CodeBlock>
       );
-      expect(screen.getByTestId('mock-copy-button')).toHaveAttribute(
+      const copyButton = screen.getByRole('button', { name: /copy code/i });
+      expect(copyButton).toHaveAttribute(
         'data-content',
         'const x = 1;\nconst y = 2;'
       );
@@ -96,7 +98,8 @@ const y = 2;`}
           {['const x = 1;', <span key="span">const y = 2;</span>]}
         </CodeBlock>
       );
-      expect(screen.getByTestId('mock-copy-button')).toHaveAttribute(
+      const copyButton = screen.getByRole('button', { name: /copy code/i });
+      expect(copyButton).toHaveAttribute(
         'data-content',
         'const x = 1;const y = 2;'
       );
@@ -111,10 +114,8 @@ const y = 2;`}
           {null}
         </CodeBlock>
       );
-      expect(screen.getByTestId('mock-copy-button')).toHaveAttribute(
-        'data-content',
-        'valid text'
-      );
+      const copyButton = screen.getByRole('button', { name: /copy code/i });
+      expect(copyButton).toHaveAttribute('data-content', 'valid text');
     });
 
     it('handles deeply nested comments', () => {
@@ -123,27 +124,26 @@ const y = 2;`}
           <div>
             <span>
               {`# Nested comment
-              const x = 1;`}
+                const x = 1;`}
             </span>
           </div>
         </CodeBlock>
       );
-      expect(screen.getByTestId('mock-copy-button')).toHaveAttribute(
-        'data-content',
-        'const x = 1;'
-      );
+      const copyButton = screen.getByRole('button', { name: /copy code/i });
+      expect(copyButton).toHaveAttribute('data-content', 'const x = 1;');
     });
   });
 
   describe('Props Handling', () => {
     it('forwards additional props to pre element', () => {
       render(
-        <CodeBlock data-testid="test-pre" style={{ margin: '10px' }}>
+        <CodeBlock aria-label="Example code" style={{ margin: '10px' }}>
           test code
         </CodeBlock>
       );
-      const pre = screen.getByTestId('test-pre');
+      const pre = screen.getByText('test code');
       expect(pre).toHaveStyle({ margin: '10px' });
+      expect(pre).toHaveAttribute('aria-label', 'Example code');
     });
 
     it('merges custom className with default classes', () => {
@@ -170,7 +170,8 @@ const y = 2;`}
           <div>{'first line\nsecond line'}</div>
         </CodeBlock>
       );
-      expect(screen.getByTestId('mock-copy-button')).toHaveAttribute(
+      const copyButton = screen.getByRole('button', { name: /copy code/i });
+      expect(copyButton).toHaveAttribute(
         'data-content',
         'first line\nsecond line'
       );

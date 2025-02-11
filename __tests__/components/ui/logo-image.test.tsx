@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { act } from '../../../lib/test/setup';
 import { useTheme } from 'next-themes';
 import { LogoImage } from '../../../components/ui/logo-image';
 

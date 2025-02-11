@@ -3,24 +3,28 @@
  */
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTerminalContext } from '@/components/ui/terminal/terminal-context';
 import type { NavigationLinkProps } from '@/types/navigation';
 
-export function NavigationLink({ 
-  path, 
-  name, 
+export function NavigationLink({
+  path,
+  name,
   currentPath,
   className = '',
   onClick
 }: NavigationLinkProps) {
+  const router = useRouter();
   const { clearHistory } = useTerminalContext();
   const isActive = currentPath === path;
-  
-  const handleClick = () => {
-    clearHistory();
-    onClick?.();
+
+  const handleClick = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent immediate navigation
+    await clearHistory();
+    if (onClick) await onClick();
+    router.push(path);
   };
-  
+
   return (
     <Link
       href={path}

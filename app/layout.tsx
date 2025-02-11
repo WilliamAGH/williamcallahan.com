@@ -81,13 +81,16 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+      </head>
+      <body className={`${inter.className} overscroll-none`}>
         <Providers>
           <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
-            <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
-              <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-40">
+              <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
                 <Navigation />
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center gap-4 relative z-50">
                   <SocialIcons />
                   <ThemeToggle />
                 </div>

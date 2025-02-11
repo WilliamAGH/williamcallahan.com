@@ -1,10 +1,19 @@
 /**
  * Jest Setup Tests
  *
- * Verifies that Jest is properly configured with:
- * - Required environment variables
- * - Global mocks
- * - Test utilities
+ * This file sets up test utilities and mocks.
+ * It runs in the setup sequence:
+ *
+ * 1. environment.ts - Sets up Node environment and env variables
+ * 2. window.ts - Creates window mock with document object
+ * 3. jest.setup.js - Sets up polyfills
+ * 4. jest.setup.ts (this file) - Sets up test utilities and mocks
+ * 5. react.ts - Sets up React and Testing Library
+ *
+ * This file handles:
+ * - Request/Response mocks
+ * - Logger configuration
+ * - Other global test utilities
  */
 
 import { NextRequest } from 'next/server';
@@ -12,33 +21,6 @@ import { logger } from '../../../lib/logger';
 
 // Silence logger by default in tests
 logger.setSilent(true);
-
-// Mock environment variables
-process.env.NEXT_PUBLIC_SITE_URL = 'https://williamcallahan.com';
-
-// Define the structure we need for NextURL
-interface MockNextURL {
-  href: string;
-  origin: string;
-  protocol: string;
-  username: string;
-  password: string;
-  host: string;
-  hostname: string;
-  port: string;
-  pathname: string;
-  search: string;
-  searchParams: URLSearchParams;
-  hash: string;
-  basePath: string;
-  locale: string;
-  defaultLocale: string;
-  domainLocale: null;
-  analyze(): { pathname: { filename: string; normalized: string } };
-  formatPathname(): string;
-  formatSearch(): string;
-  toString(): string;
-}
 
 // Mock Response implementation
 class MockResponse implements Response {
@@ -174,33 +156,34 @@ const parseUrl = (input: string | URL): { urlString: string; urlInstance: URL } 
   }
 };
 
-// Define internal symbol type
-const INTERNALS = Symbol.for('internal request');
-
-type InternalRequestData = {
-  cookies: Map<string, string>;
-  geo: Record<string, unknown>;
-  ip?: string;
-  url: MockNextURL;
-};
-
-// Extend base Request type
-interface BaseMockRequest extends Request {
-  body: ReadableStream<Uint8Array> | null;
-  signal: AbortSignal;
+// Create base Request class
+class BaseRequest {
+  url: string;
+  constructor(input: string | URL, init?: RequestInit) {
+    this.url = input.toString();
+  }
 }
 
-// Define our mock request type
-type MockRequestType = BaseMockRequest & {
-  nextUrl: MockNextURL;
-  cookies: Map<string, string>;
-  geo: Record<string, unknown>;
-  ip?: string;
-  page?: { name?: string; params?: Record<string, string> };
-  ua?: Record<string, unknown>;
-  destination: string;
-  [INTERNALS]: InternalRequestData;
-  bytes(): Promise<Uint8Array>;
+// Create a constructor function for mocked requests
+class MockRequest {
+  static [Symbol.hasInstance](instance: any) {
+    return instance && typeof instance === 'object' && 'url' in instance;
+  }
+
+  constructor(input: string | URL, init?: RequestInit) {
+    const request = createMockRequest(input, init);
+    Object.setPrototypeOf(request, MockRequest.prototype);
+    return request;
+  }
+}
+
+// Set up prototype inheritance
+Object.setPrototypeOf(MockRequest.prototype, BaseRequest.prototype);
+
+// Create properly typed constructor
+const TypedMockRequest = MockRequest as unknown as {
+  new(input: string | URL, init?: RequestInit): NextRequest;
+  prototype: Request;
 };
 
 // Create a minimal mock implementation for NextRequest
@@ -235,7 +218,7 @@ const createMockRequest = (input: string | URL, init?: RequestInit): NextRequest
     formatPathname: () => urlInstance.pathname,
     formatSearch: () => urlInstance.search,
     toString: () => urlString
-  } satisfies MockNextURL;
+  };
 
   // Create the request object with all NextRequest properties
   const request = {
@@ -269,7 +252,7 @@ const createMockRequest = (input: string | URL, init?: RequestInit): NextRequest
     json: () => Promise.resolve({}),
     text: () => Promise.resolve(''),
     bytes: () => Promise.resolve(new Uint8Array()),
-    [INTERNALS]: {
+    [Symbol.for('internal request')]: {
       cookies: new Map(),
       geo: {},
       ip: undefined,
@@ -282,36 +265,6 @@ const createMockRequest = (input: string | URL, init?: RequestInit): NextRequest
 
   // Cast to unknown first to avoid type checking, then to NextRequest
   return request as unknown as NextRequest;
-};
-
-// Create base Request class
-class BaseRequest {
-  url: string;
-  constructor(input: string | URL, init?: RequestInit) {
-    this.url = input.toString();
-  }
-}
-
-// Create a constructor function for mocked requests
-class MockRequest {
-  static [Symbol.hasInstance](instance: any) {
-    return instance && typeof instance === 'object' && 'url' in instance;
-  }
-
-  constructor(input: string | URL, init?: RequestInit) {
-    const request = createMockRequest(input, init);
-    Object.setPrototypeOf(request, MockRequest.prototype);
-    return request;
-  }
-}
-
-// Set up prototype inheritance
-Object.setPrototypeOf(MockRequest.prototype, BaseRequest.prototype);
-
-// Create properly typed constructor
-const TypedMockRequest = MockRequest as unknown as {
-  new(input: string | URL, init?: RequestInit): NextRequest;
-  prototype: Request;
 };
 
 // Set up the global environment
@@ -353,10 +306,6 @@ setupGlobalMocks();
 
 // Add tests to verify the setup works
 describe('Jest Setup', () => {
-  it('should have test environment configured', () => {
-    expect(process.env.NODE_ENV).toBe('test');
-  });
-
   it('should have Request mock configured', () => {
     const url = 'https://example.com/';
     const request = new Request(url);

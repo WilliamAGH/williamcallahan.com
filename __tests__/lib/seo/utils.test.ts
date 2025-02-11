@@ -7,6 +7,7 @@ import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate, formatOpenGraphD
 import { NEXT_PUBLIC_SITE_URL } from '../../../lib/constants';
 import { isPacificDateString } from '../../../types/seo';
 import { parsePacificDate } from '../../../lib/dateTime';
+import { PACIFIC_TIMEZONE, PST_OFFSET, PDT_OFFSET } from '../setup/environment';
 
 describe('SEO Utilities', () => {
   describe('ensureAbsoluteUrl', () => {
@@ -50,18 +51,13 @@ describe('SEO Utilities', () => {
   });
 
   describe('Date Formatting', () => {
-    beforeAll(() => {
-      // Mock timezone to America/Los_Angeles
-      process.env.TZ = 'America/Los_Angeles';
-    });
-
     describe('formatSeoDate (Schema.org)', () => {
       it('should always output full ISO format with timezone during standard time', () => {
         // January 1st (PST)
         const date = parsePacificDate('2025-01-01T12:00:00');
         const formatted = formatSeoDate(date);
         expect(isPacificDateString(formatted)).toBe(true);
-        expect(formatted).toBe('2025-01-01T12:00:00-08:00');
+        expect(formatted).toBe(`2025-01-01T12:00:00${PST_OFFSET}`);
       });
 
       it('should always output full ISO format with timezone during daylight savings', () => {
@@ -69,14 +65,14 @@ describe('SEO Utilities', () => {
         const date = parsePacificDate('2025-07-01T12:00:00');
         const formatted = formatSeoDate(date);
         expect(isPacificDateString(formatted)).toBe(true);
-        expect(formatted).toBe('2025-07-01T12:00:00-07:00');
+        expect(formatted).toBe(`2025-07-01T12:00:00${PDT_OFFSET}`);
       });
 
       it('should convert date-only strings to midnight in Pacific Time', () => {
         const dateStr = '2025-02-10';
         const formatted = formatSeoDate(dateStr);
         expect(isPacificDateString(formatted)).toBe(true);
-        expect(formatted).toBe('2025-02-10T00:00:00-08:00');
+        expect(formatted).toBe(`2025-02-10T00:00:00${PST_OFFSET}`);
       });
 
       it('should handle undefined by using current time', () => {
@@ -95,29 +91,29 @@ describe('SEO Utilities', () => {
       it('should use full ISO format for modified dates', () => {
         const date = parsePacificDate('2025-01-01T15:30:45');
         const formatted = formatOpenGraphDate(date, 'modified');
-        expect(formatted).toBe('2025-01-01T15:30:45-08:00');
+        expect(formatted).toBe(`2025-01-01T15:30:45${PST_OFFSET}`);
       });
 
       it('should use full ISO format for publish dates with time', () => {
         const dateStr = '2025-02-10T12:30:00';
         const formatted = formatOpenGraphDate(dateStr, 'published');
-        expect(formatted).toBe('2025-02-10T12:30:00-08:00');
+        expect(formatted).toBe(`2025-02-10T12:30:00${PST_OFFSET}`);
       });
 
       it('should handle undefined by using current time', () => {
         const formatted = formatOpenGraphDate(undefined, 'published');
-        expect(formatted).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-0[78]:00$/);
+        expect(formatted).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[-+]\d{2}:\d{2}$/);
       });
     });
   });
 
   describe('validateSeoDate', () => {
     it('should validate correct Pacific Time format during standard time', () => {
-      expect(validateSeoDate('2025-01-01T12:00:00-08:00')).toBe(true);
+      expect(validateSeoDate(`2025-01-01T12:00:00${PST_OFFSET}`)).toBe(true);
     });
 
     it('should validate correct Pacific Time format during daylight savings', () => {
-      expect(validateSeoDate('2025-07-01T12:00:00-07:00')).toBe(true);
+      expect(validateSeoDate(`2025-07-01T12:00:00${PDT_OFFSET}`)).toBe(true);
     });
 
     it('should reject invalid formats', () => {

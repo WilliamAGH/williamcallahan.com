@@ -1,6 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { Analytics } from '@/components/analytics/Analytics'
 import { usePathname } from 'next/navigation'
+import { act } from '../../../lib/test/setup'
 
 type UmamiMock = {
   track: jest.Mock
@@ -76,10 +77,12 @@ describe('Analytics', () => {
     render(<Analytics />)
 
     // Wait for scripts to "load"
-    await waitFor(() => {
-      expect(global.umami).toBeDefined()
-      expect(global.plausible).toBeDefined()
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 150))
     })
+
+    expect(global.umami).toBeDefined()
+    expect(global.plausible).toBeDefined()
 
     // Verify tracking was called
     expect(global.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
@@ -94,9 +97,11 @@ describe('Analytics', () => {
 
     render(<Analytics />)
 
-    await waitFor(() => {
-      expect(global.umami).toBeDefined()
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 150))
     })
+
+    expect(global.umami).toBeDefined()
 
     // Verify path was normalized
     expect(global.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
@@ -117,16 +122,20 @@ describe('Analytics', () => {
     const { rerender } = render(<Analytics />)
 
     // Wait for initial load
-    await waitFor(() => {
-      expect(global.umami).toBeDefined()
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 150))
     })
+
+    expect(global.umami).toBeDefined()
 
     // Clear tracking calls
     ;(global.umami?.track as jest.Mock).mockClear()
 
     // Simulate route change
-    ;(usePathname as jest.Mock).mockReturnValue('/new-page')
-    rerender(<Analytics />)
+    await act(async () => {
+      (usePathname as jest.Mock).mockReturnValue('/new-page')
+      rerender(<Analytics />)
+    })
 
     // Verify new page was tracked
     expect(global.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
@@ -147,11 +156,13 @@ describe('Analytics', () => {
 
     render(<Analytics />)
 
-    await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[Analytics Error] Failed to load Umami script:',
-        expect.any(Error)
-      )
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 150))
     })
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      '[Analytics Error] Failed to load Umami script:',
+      expect.any(Error)
+    )
   })
 })
