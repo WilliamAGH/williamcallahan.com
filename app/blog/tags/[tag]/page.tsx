@@ -10,7 +10,8 @@ import { Blog } from "@/components/features";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { PAGE_METADATA } from "@/data/metadata";
-import { getAllMDXPosts } from "@/lib/blog/mdx";
+import { getAllTags, getPostsByTag, tagExists } from "@/lib/blog/posts";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 interface BlogTagPageProps {
@@ -23,21 +24,31 @@ interface BlogTagPageProps {
 export const metadata: Metadata = getStaticPageMetadata('/blog/tags', 'blog');
 
 /**
+ * Generate static params for all tag pages
+ */
+export async function generateStaticParams() {
+  const tags = await getAllTags();
+  return tags.map(tag => ({ tag }));
+}
+
+/**
  * Blog tag page component
  */
 export default async function BlogTagPage({ params }: BlogTagPageProps) {
   const { tag } = params;
+
+  // Check if tag exists
+  const exists = await tagExists(tag);
+  if (!exists) {
+    notFound();
+  }
+
   const pageMetadata = PAGE_METADATA.blog;
   // PAGE_METADATA dates are already in Pacific time
   const { dateCreated, dateModified } = pageMetadata;
 
-  // Fetch posts server-side
-  const allPosts = await getAllMDXPosts();
-
-  // Filter posts by tag
-  const posts = allPosts.filter(post =>
-    post.tags.some(t => t.toLowerCase() === tag.toLowerCase())
-  );
+  // Get posts for this tag
+  const posts = await getPostsByTag(tag);
 
   return (
     <>

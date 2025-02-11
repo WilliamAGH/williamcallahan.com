@@ -10,7 +10,8 @@ import { Blog } from "../../components/features";
 import { getStaticPageMetadata } from "../../lib/seo/metadata";
 import { JsonLdScript } from "../../components/seo/json-ld";
 import { PAGE_METADATA } from "../../data/metadata";
-import { getAllPosts } from "../../lib/blog";
+import { getAllPosts, getPostsByTag, tagExists } from "../../lib/blog/posts";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 /**
@@ -31,13 +32,10 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   // PAGE_METADATA dates are already in Pacific time
   const { dateCreated, dateModified } = pageMetadata;
 
-  // Fetch all posts (sorted by date)
-  const allPosts = await getAllPosts();
-
-  // Filter posts by tag if specified
+  // Get posts based on tag
   const posts = tag
-    ? allPosts.filter(post => post.tags.some(t => t.toLowerCase() === tag.toLowerCase()))
-    : allPosts;
+    ? (await tagExists(tag) ? await getPostsByTag(tag) : notFound())
+    : await getAllPosts();
 
   return (
     <>
