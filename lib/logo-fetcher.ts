@@ -30,13 +30,42 @@ export async function fetchLogo(domain: string): Promise<{
     };
   }
 
-  // Try each source directly
+  /**
+   * Fetch with timeout wrapper
+   * @param {string} url - URL to fetch
+   * @param {number} timeout - Timeout in milliseconds
+   * @returns {Promise<Response | null>} Response or null if timeout
+   */
+  const fetchWithTimeout = async (url: string, timeout = 5000): Promise<Response | null> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        next: { revalidate: 3600 }
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error: unknown) {
+      clearTimeout(timeoutId);
+      // Gracefully handle timeout/abort
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log(`Timeout fetching logo from ${url}`);
+        return null;
+      }
+      throw error;
+    }
+  };
+
+  // Try each source directly with timeout
   for (const source of ['google', 'clearbit', 'duckduckgo'] as const) {
     try {
       const url = LOGO_SOURCES[source].hd(domain);
-      const response = await fetch(url, {
-        next: { revalidate: 3600 } // Cache for 1 hour
-      });
+      const response = await fetchWithTimeout(url);
+
+      // Skip this source if it timed out
+      if (!response) continue;
 
       if (response.ok) {
         const buffer = Buffer.from(await response.arrayBuffer());
@@ -50,8 +79,9 @@ export async function fetchLogo(domain: string): Promise<{
 
         return { buffer, source };
       }
-    } catch (error) {
-      console.error(`Error fetching from ${source}:`, error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`Error fetching from ${source}:`, errorMessage);
     }
   }
 
