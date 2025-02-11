@@ -52,11 +52,8 @@ export function Navigation() {
       {isMenuOpen && (
         <div
           data-testid="mobile-menu"
-          className="sm:hidden absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-2 z-10"
+          className="sm:hidden absolute top-full left-0 right-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-2 z-10"
         >
-          <div className="px-4 py-2">
-            <ThemeToggle />
-          </div>
           {navigationLinks.map((link) => (
             <NavigationLink
               key={link.path}
