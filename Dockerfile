@@ -54,20 +54,14 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Create logos directory and set permissions
-RUN mkdir -p /app/public/logos && chown -R nextjs:nodejs /app/public
-
-# Copy public directory first
-COPY --from=builder /app/public ./public
-RUN chown -R nextjs:nodejs ./public
-
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
+# Copy the entire .next directory and standalone output
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy public directory and set permissions
+COPY --from=builder /app/public ./public
+RUN mkdir -p /app/public/logos && chown -R nextjs:nodejs /app/public
 
 # Create a volume for persisting logos
 VOLUME /app/public/logos
