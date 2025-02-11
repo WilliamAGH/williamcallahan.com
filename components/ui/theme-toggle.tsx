@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, systemTheme } = useTheme();
 
   // Prevent hydration mismatch by only rendering after mount
   useEffect(() => setMounted(true), []);
@@ -15,17 +15,25 @@ export function ThemeToggle() {
     return null; // Avoid hydration mismatch by not rendering anything on server
   }
 
+  const cycleTheme = () => {
+    if (theme === 'system') setTheme('light');
+    else if (theme === 'light') setTheme('dark');
+    else setTheme('system');
+  };
+
+  const currentTheme = theme === 'system' ? systemTheme : theme;
+
   return (
     <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      onClick={cycleTheme}
       className="p-2 rounded-lg transition-colors hover:bg-gray-200 dark:hover:bg-gray-800"
       aria-label="Toggle theme"
-      title="Toggle Dark/Light Mode"
+      title={`Current theme: ${theme}`}
     >
-      {theme === "dark" ? (
-        <Sun className="h-5 w-5" />
+      {currentTheme === "dark" ? (
+        <Sun className="h-5 w-5" data-testid="sun-icon" />
       ) : (
-        <Moon className="h-5 w-5" />
+        <Moon className="h-5 w-5" data-testid="moon-icon" />
       )}
     </button>
   );

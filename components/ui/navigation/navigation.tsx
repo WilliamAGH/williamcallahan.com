@@ -13,6 +13,7 @@ import { Menu, X } from 'lucide-react';
 import { WindowControls } from './window-controls';
 import { navigationLinks } from './navigation-links';
 import { NavigationLink } from './navigation-link';
+import { ThemeToggle } from '../theme-toggle';
 
 export function Navigation() {
   const pathname = usePathname();
@@ -21,7 +22,7 @@ export function Navigation() {
   return (
     <nav className="flex-1">
       {/* Mobile Menu Button */}
-      <div className="sm:hidden flex items-center">
+      <div className="sm:hidden flex items-center relative z-20">
         <WindowControls className="mr-2" />
         <button
           type="button"
@@ -51,8 +52,11 @@ export function Navigation() {
       {isMenuOpen && (
         <div
           data-testid="mobile-menu"
-          className="sm:hidden absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-2"
+          className="sm:hidden absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-2 z-10"
         >
+          <div className="px-4 py-2">
+            <ThemeToggle />
+          </div>
           {navigationLinks.map((link) => (
             <NavigationLink
               key={link.path}
