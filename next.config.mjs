@@ -62,6 +62,10 @@ const nextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'dev.williamcallahan.com'
+      },
+      {
+        protocol: 'https',
         hostname: 'icons.duckduckgo.com'
       },
       {

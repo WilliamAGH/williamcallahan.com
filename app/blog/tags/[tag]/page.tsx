@@ -10,7 +10,7 @@ import { Blog } from "@/components/features";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { PAGE_METADATA } from "@/data/metadata";
-import { getAllTags, getPostsByTag, tagExists } from "@/lib/blog/posts";
+import { getAllTags, getPostsByTag, tagExists } from "@/lib/blog";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
