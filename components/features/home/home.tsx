@@ -13,7 +13,7 @@ export function Home() {
     <div className="max-w-4xl mx-auto mt-8">
       <div className="flex flex-col md:flex-row items-start gap-8 mb-8">
         <div className="flex-1">
-          <h1 className="text-4xl font-bold mb-6">William Alan Callahan</h1>
+          <h1 className="text-4xl font-bold mb-6">William Callahan</h1>
           <p className="text-lg mb-4">
             Hello &mdash; I&apos;m an entrepreneur that enjoys building.
           </p>

@@ -96,7 +96,7 @@ export function LogoImage({
       className={`${className} ${error ? "opacity-50" : ""} ${getInversionClass()}`}
       onError={handleError}
       priority
-      unoptimized={isDataUrl(imageUrl)} // Skip optimization for data URLs since they're already optimized
+      {...(isDataUrl(imageUrl) ? { unoptimized: true } : {})} // Skip optimization for data URLs since they're already optimized
     />
   );
 }

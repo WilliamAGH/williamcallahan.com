@@ -1,106 +1,298 @@
 /**
- * Core SEO metadata types for the website
+ * SEO Type Definitions
+ * @module types/seo
+ * @description
+ * Type definitions for SEO metadata, including OpenGraph, schema.org, and HTML meta tags.
+ * Ensures type safety and proper field usage across the application.
+ *
+ * @see {@link "../lib/seo/constants.ts"} - SEO constants and field names
+ * @see {@link "../lib/seo/metadata.ts"} - Metadata generation
+ * @see {@link "../lib/seo/opengraph.ts"} - OpenGraph implementation
  */
 
+import type { Metadata } from 'next';
+import type { OpenGraph } from 'next/dist/lib/metadata/types/opengraph-types';
+import type { SEO_DATE_FIELDS } from '../lib/seo/constants';
+
 /**
- * LinkedIn metadata interface
- * @see https://www.linkedin.com/help/linkedin/answer/46687/making-your-website-shareable-on-linkedin
+ * ISO 8601 date string with Pacific Time offset
+ * Format: YYYY-MM-DDTHH:mm:ss-08:00 (or -07:00 during DST)
+ * @example "2025-02-10T10:54:28-08:00"
  */
-export interface LinkedInMetadata {
-  /** Title of content */
-  title: string;
-  /** Description of content */
-  description: string;
-  /** Image URL */
-  image?: string;
-  /** Type of content */
-  type: 'article';
-  /** Article author */
-  'article:author': string;
-  /** Article published time */
-  'article:published_time': string;
-  /** Article modified time */
-  'article:modified_time': string;
+export type PacificDateString = string;
+
+/**
+ * Required date fields for article metadata
+ * @see {@link "https://ogp.me/#type_article"} - OpenGraph article dates
+ * @see {@link "https://schema.org/Article"} - Schema.org article dates
+ */
+export interface ArticleDates {
+  /** When the article was first created (may be different from publish date) */
+  dateCreated?: PacificDateString;
+  /** When the article was first published */
+  datePublished: PacificDateString;
+  /** When the article was last modified */
+  dateModified: PacificDateString;
 }
 
 /**
- * Base SEO metadata interface that all pages must implement
+ * OpenGraph image metadata
+ * @see {@link "https://ogp.me/#structured"} - OpenGraph image properties
  */
-export interface BaseSEOMetadata {
-  /** Page title - should be unique and descriptive */
-  title: string;
-  /** Meta description - should be between 150-160 characters */
-  description: string;
-  /** Canonical URL for the page */
-  canonical?: string;
-  /** Open Graph specific metadata */
-  openGraph?: OpenGraphMetadata;
-  /** Twitter specific metadata */
-  twitter?: TwitterMetadata;
-  /** LinkedIn specific metadata */
-  linkedin?: LinkedInMetadata;
+export interface OpenGraphImage {
+  url: string;
+  secureUrl?: string;
+  alt?: string;
+  type?: string;
+  width?: string | number;
+  height?: string | number;
 }
 
 /**
- * Extended SEO metadata interface that includes dates
- */
-export interface SEOMetadata extends BaseSEOMetadata {
-  /** Date the content was first published */
-  datePublished: string;
-  /** Date the content was last modified */
-  dateModified: string;
-}
-
-/**
- * Open Graph metadata interface
- * @see https://ogp.me/
- */
-export interface OpenGraphMetadata {
-  /** The title of your object as it should appear within the graph */
-  title: string;
-  /** A brief description of the content */
-  description: string;
-  /** The type of your object. Defaults to 'website' */
-  type?: 'website' | 'article' | 'profile';
-  /** An image URL which should represent your object within the graph */
-  image?: string;
-  /** The canonical URL of your object that will be used as its permanent ID in the graph */
-  url?: string;
-}
-
-/**
- * Twitter Card metadata interface
- * @see https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup
- */
-export interface TwitterMetadata {
-  /** The type of Twitter Card */
-  card: 'summary' | 'summary_large_image';
-  /** @username of website (twitter:site) */
-  site: string;
-  /** @username of content creator (twitter:creator) */
-  creator?: string;
-  /** Title of content (twitter:title) */
-  title: string;
-  /** Description of content (twitter:description) */
-  description: string;
-  /** Image URL (twitter:image) */
-  image?: string;
-  /** Image alt text (twitter:image:alt) */
-  imageAlt?: string;
-}
-
-/**
- * Image SEO metadata interface
+ * Image SEO metadata combining various formats
+ * @see {@link "https://ogp.me/#structured"} - OpenGraph image properties
+ * @see {@link "https://schema.org/ImageObject"} - Schema.org image properties
  */
 export interface ImageSEOMetadata {
-  /** Alt text for the image */
-  alt: string;
-  /** Title attribute for the image */
-  title: string;
-  /** URL of the image */
   url: string;
-  /** Width of the image */
-  width?: number;
-  /** Height of the image */
-  height?: number;
+  alt: string;
+  title: string;
+  openGraph?: OpenGraphImage;
+  schema?: {
+    '@type': 'ImageObject';
+    url: string;
+    width?: number;
+    height?: number;
+    caption?: string;
+  };
+}
+
+/**
+ * OpenGraph article metadata structure
+ * @see {@link "https://ogp.me/#type_article"} - OpenGraph article specification
+ */
+export type ArticleOpenGraph = {
+  title: string;
+  description: string;
+  url: string;
+  siteName?: string;
+  locale?: string;
+  type: 'article';
+  article: {
+    publishedTime: string;
+    modifiedTime: string;
+    section?: string;
+    tags?: string[];
+    authors?: string[];
+  };
+  images?: OpenGraphImage[];
+  // Root level dates for better compatibility
+  publishedTime?: string;
+  modifiedTime?: string;
+};
+
+/**
+ * OpenGraph profile metadata structure
+ * @see {@link "https://ogp.me/#type_profile"} - OpenGraph profile specification
+ */
+export type ProfileOpenGraph = {
+  title: string;
+  description: string;
+  url: string;
+  siteName?: string;
+  locale?: string;
+  type: 'profile';
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  gender?: string;
+  images?: OpenGraphImage[];
+  publishedTime?: string;
+  modifiedTime?: string;
+};
+
+/**
+ * Schema.org Article metadata
+ * Used in JSON-LD structured data
+ */
+export interface ArticleSchema {
+  '@context': 'https://schema.org';
+  '@type': 'Article';
+  headline: string;
+  description: string;
+  datePublished: PacificDateString;
+  dateModified: PacificDateString;
+  author: {
+    '@type': 'Person';
+    name: string;
+    url?: string;
+  };
+  publisher: {
+    '@type': 'Organization';
+    name: string;
+    logo?: {
+      '@type': 'ImageObject';
+      url: string;
+    };
+  };
+  image?: {
+    '@type': 'ImageObject';
+    url: string;
+    caption?: string;
+  };
+  mainEntityOfPage: {
+    '@type': 'WebPage';
+    '@id': string;
+  };
+}
+
+/**
+ * Schema.org base metadata shared by all page types
+ */
+interface BaseSchema {
+  '@context': 'https://schema.org';
+  name: string;
+  description: string;
+  dateCreated: PacificDateString;
+  dateModified: PacificDateString;
+  datePublished: PacificDateString;
+}
+
+/**
+ * Schema.org ProfilePage metadata
+ * Used for personal, professional, and academic profile pages
+ * @see {@link "https://schema.org/ProfilePage"} - Schema.org ProfilePage specification
+ */
+export interface ProfileSchema extends BaseSchema {
+  '@type': 'ProfilePage';
+  mainEntity: {
+    '@type': 'Person';
+    name: string;
+    description: string;
+    sameAs?: string[];
+    image?: string;
+  };
+}
+
+/**
+ * Schema.org CollectionPage metadata
+ * Used for pages that list multiple items (blog posts, investments, bookmarks)
+ * @see {@link "https://schema.org/CollectionPage"} - Schema.org CollectionPage specification
+ */
+export interface CollectionSchema extends BaseSchema {
+  '@type': 'CollectionPage';
+  mainEntity: {
+    '@type': 'ItemList';
+    itemListElement: Array<{
+      '@type': 'ListItem';
+      position: number;
+      url: string;
+      name: string;
+    }>;
+  };
+}
+
+/**
+ * HTML meta tag date fields
+ * These appear in the page's <head> section
+ */
+export interface MetaDateFields {
+  // Standard HTML meta dates
+  [SEO_DATE_FIELDS.meta.published]?: PacificDateString;
+  [SEO_DATE_FIELDS.meta.modified]: PacificDateString;
+
+  // OpenGraph article dates
+  [SEO_DATE_FIELDS.openGraph.published]?: PacificDateString;
+  [SEO_DATE_FIELDS.openGraph.modified]?: PacificDateString;
+
+  // Optional Dublin Core dates
+  [SEO_DATE_FIELDS.dublinCore.created]?: PacificDateString;
+  [SEO_DATE_FIELDS.dublinCore.modified]?: PacificDateString;
+  [SEO_DATE_FIELDS.dublinCore.issued]?: PacificDateString;
+
+  // Allow for additional meta fields
+  [key: string]: string | number | (string | number)[] | undefined;
+}
+
+/**
+ * Type for Next.js metadata 'other' field
+ * Ensures compatibility with Next.js types while maintaining our custom fields
+ */
+export type MetadataOther = {
+  [key: string]: string | number | (string | number)[];
+} & {
+  [SEO_DATE_FIELDS.meta.modified]: string;
+  [SEO_DATE_FIELDS.meta.published]?: string;
+  [SEO_DATE_FIELDS.openGraph.published]?: string;
+  [SEO_DATE_FIELDS.openGraph.modified]?: string;
+};
+
+/**
+ * Script metadata for JSON-LD
+ */
+export interface ScriptMetadata {
+  type: 'application/ld+json';
+  text: string;
+}
+
+/**
+ * Complete article metadata structure
+ * Combines all metadata types into a single interface
+ */
+/**
+ * Next.js metadata with script support
+ * Extends the base Metadata type to include script field
+ */
+export interface ExtendedMetadata extends Metadata {
+  script?: Array<{
+    type: string;
+    text: string;
+  }>;
+}
+
+/**
+ * Complete article metadata structure
+ * Combines all metadata types into a single interface
+ */
+export interface ArticleMetadata extends Omit<ExtendedMetadata, 'openGraph' | 'other'> {
+  openGraph: ArticleOpenGraph;
+  other: MetaDateFields;
+}
+
+/**
+ * Complete profile metadata structure
+ * Combines all metadata types into a single interface
+ */
+export interface ProfileMetadata extends Omit<ExtendedMetadata, 'openGraph' | 'other'> {
+  openGraph: ProfileOpenGraph;
+  other: MetaDateFields;
+}
+
+/**
+ * Date format validation regex
+ * Matches ISO 8601 format with Pacific Time offset
+ * @example "2025-02-10T10:54:28-08:00"
+ */
+export const PACIFIC_DATE_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-0[87]:00$/;
+
+/**
+ * Type guard for PacificDateString
+ * Ensures a string matches the required format
+ */
+export function isPacificDateString(date: string): date is PacificDateString {
+  return PACIFIC_DATE_REGEX.test(date);
+}
+
+/**
+ * Type guard for ArticleDates
+ * Ensures all required date fields are present and properly formatted
+ */
+export function isArticleDates(dates: any): dates is ArticleDates {
+  return (
+    typeof dates === 'object' &&
+    dates !== null &&
+    isPacificDateString(dates.datePublished) &&
+    isPacificDateString(dates.dateModified) &&
+    (dates.dateCreated === undefined || isPacificDateString(dates.dateCreated))
+  );
 }

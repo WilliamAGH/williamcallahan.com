@@ -10,33 +10,34 @@
  */
 
 import { MetadataRoute } from 'next';
-import { API_BASE_URL } from "../lib/constants";
 
 /**
  * Generate robots.txt for the application
+ * Handles different rules for production and non-production environments:
+ * - Production: Allow all except /api/, include sitemap
+ * - Non-production: All instances other than https://williamcallahan.com, prevent all crawling
+ *
+ * @returns {MetadataRoute.Robots} Robots.txt configuration
  * @see https://nextjs.org/docs/app/api-reference/file-conventions/metadata/robots
  */
-/**
- * Generate robots.txt content
- * @returns {MetadataRoute.Robots} Robots.txt configuration
- *
- * @example
- * Generated robots.txt will look like:
- * ```
- * User-Agent: *
- * Allow: /
- * Disallow: /api/
- *
- * Sitemap: https://williamcallahan.com/sitemap.xml
- * ```
- */
 export default function robots(): MetadataRoute.Robots {
+  const isProd = process.env.NEXT_PUBLIC_SITE_URL === 'https://williamcallahan.com';
+
   return {
     rules: {
       userAgent: '*',
-      allow: '/',
-      disallow: ['/api/'],
+      ...(isProd
+        ? {
+            allow: '/',
+            disallow: ['/api/']
+          }
+        : {
+            disallow: '/'
+          }
+      ),
     },
-    sitemap: `${API_BASE_URL}/sitemap.xml`,
+    ...(isProd && {
+      sitemap: 'https://williamcallahan.com/sitemap.xml'
+    }),
   };
 }

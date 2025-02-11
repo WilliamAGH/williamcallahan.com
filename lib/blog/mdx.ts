@@ -14,11 +14,22 @@ import matter from 'gray-matter';
 import { serialize } from 'next-mdx-remote/serialize';
 import rehypePrism from 'rehype-prism';
 import remarkGfm from 'remark-gfm';
+import type { MDXRemoteProps } from 'next-mdx-remote';
+type MDXComponents = MDXRemoteProps['components'];
 import { authors } from '../../data/blog/authors';
 import type { BlogPost } from '../../types/blog';
+import { ServerMDXCodeBlock } from '../../components/ui/mdx-code-block';
 
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), 'data/blog/posts');
+
+/**
+ * MDX components map for server-side rendering
+ * These components are used during serialization
+ */
+const serverComponents: MDXComponents = {
+  pre: ServerMDXCodeBlock,
+};
 
 /**
  * Converts a date string or Date object to ISO string with time
@@ -87,7 +98,9 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
         format: 'mdx'
       },
       scope: {},
-      parseFrontmatter: true
+      parseFrontmatter: true,
+      // @ts-expect-error - next-mdx-remote types are not up to date
+      components: serverComponents
     });
 
     // Use frontmatter dates or fall back to file dates

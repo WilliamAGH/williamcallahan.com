@@ -1,21 +1,28 @@
 /**
- * Bookmarks Page Component
+ * Bookmarks Page
  * @module app/bookmarks/page
  * @description
- * Server component that handles the bookmarks page rendering.
- * Currently uses mock data for UI development, will be replaced
- * with real data from the API in the future.
+ * Displays curated collection of bookmarked resources.
+ * Implements proper SEO with schema.org structured data.
+ *
+ * @see {@link "https://nextjs.org/docs/app/api-reference/functions/generate-metadata"} - Next.js Metadata API
+ * @see {@link "https://schema.org/CollectionPage"} - Schema.org CollectionPage specification
  */
 
+import type { Metadata } from 'next';
 import { BookmarksClient } from '../../components/features/bookmarks/bookmarks.client';
 import { BookmarkCardClient } from '../../components/features/bookmarks/bookmark-card.client';
 import type { Bookmark, BookmarkWithPreview } from '../../types/bookmark';
+import { getStaticPageMetadata } from '../../lib/seo/metadata';
+import { JsonLdScript } from "../../components/seo/json-ld";
+import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
+import { formatSeoDate } from "../../lib/seo/utils";
 
 /**
  * Mock bookmarks data for UI development
  * @type {Bookmark[]}
  */
-const mockBookmarks: readonly Bookmark[] = [
+const mockBookmarks: Bookmark[] = [
   {
     id: '1',
     url: 'https://console.groq.com/docs/overview',
@@ -75,12 +82,35 @@ const mockBookmarks: readonly Bookmark[] = [
  * - Handles server-side rendering of the bookmarks page
  * - Will integrate with the API for real data in the future
  */
-export default function BookmarksPage(): JSX.Element {
-  // Transform bookmarks to include pre-rendered preview components
-  const bookmarksWithPreviews: BookmarkWithPreview[] = mockBookmarks.map(bookmark => ({
-    ...bookmark,
-    preview: <BookmarkCardClient key={bookmark.id} {...bookmark} />
-  }));
+export default function BookmarksPage() {
+  const pageMetadata = PAGE_METADATA.bookmarks;
+  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
+  const formattedModified = formatSeoDate(pageMetadata.dateModified);
 
-  return <BookmarksClient bookmarks={bookmarksWithPreviews} />;
+  return (
+    <>
+      <JsonLdScript
+        data={{
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          "name": `${SITE_NAME}'s Bookmarked Resources`,
+          "description": pageMetadata.description,
+          "datePublished": formattedCreated,
+          "dateModified": formattedModified,
+          "author": {
+            "@type": "Person",
+            "name": SITE_NAME,
+            "description": siteMetadata.shortDescription,
+            "sameAs": siteMetadata.social.profiles
+          },
+          "isPartOf": {
+            "@type": "WebSite",
+            "name": SITE_NAME,
+            "url": "https://williamcallahan.com"
+          }
+        }}
+      />
+      <BookmarksClient bookmarks={mockBookmarks} />
+    </>
+  );
 }

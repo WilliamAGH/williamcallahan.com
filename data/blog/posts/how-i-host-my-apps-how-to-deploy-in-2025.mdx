@@ -1,0 +1,53 @@
+---
+title: "How I Host My Apps: How to Deploy in 2025"
+slug: "how-i-host-my-apps-how-to-deploy-in-2025"
+excerpt: "The hosting setup I use for aVenture.vc, plus why you shouldn't waste time with complex cloud services when starting out."
+publishedAt: "2025-02-10"
+updatedAt: "2025-02-10"
+author: "william-callahan"
+tags: ["devops", "docker", "cloud", "startups"]
+coverImage: "/images/posts/cloudHostingOptionsRailwayFlyHetznerDigitalOcean.jpg"
+readingTime: 3
+---
+
+_Apologies for the AI image, ChatGPT images still struggle with spelling_  😉
+
+When you're building a tech startup or app, the worst thing you can do is get stuck perfecting your hosting setup (I speak from painful experience!). Spend too much time fussing over it and you'll be left without a live product and pristine hosting. Get something up and running fast, then iterate as your needs grow.
+
+I run both [aVenture.vc](https://aventure.vc) and this site [williamcallahan.com](https://williamcallahan.com) using these tools.
+
+## Get Live Fast – Start Simple
+
+For a lean startup, the easiest way to get a live deployment is to start with a managed app platform. They're cheap in the beginning, super easy to connect to a GitHub repo and get going right away. I recommend:
+- [Railway](https://railway.app)
+- [Fly.io](https://fly.io)
+- [DigitalOcean App Platform](https://www.digitalocean.com/products/app-platform)
+
+I really like Fly.io, but if you want a more visual setup option, Railway is great for that.
+
+These services are super cheap at the start and let you focus on building your app instead of managing infrastructure.
+
+Here's a real-world example for Fly.io:
+
+```bash
+# Initialize a new Fly.io app and deploy
+flyctl launch
+flyctl deploy
+```
+
+## Step Up with Docker + VMs
+
+Once you're live and need a bit more control, you can transition to using Docker containers on VMs. This is what I did for [aVenture.vc](https://aventure.vc). Using a simple `Dockerfile` or `docker-compose.yml` setup means you're not locked in:
+
+Consider these options when you need dedicated VMs:
+- [Coolify](https://coolify.io) – free open source software layer for managing easy self-hosting and your Docker containers
+- [Oracle Cloud Free Tier](https://www.oracle.com/cloud/free/) – free ARM Linux VMs and more, this is worth several thousand dollars a year alone perpetually
+- [Hetzner](https://www.hetzner.com) – European-based, but extremely cost effective equivalent to [DigitalOcean](https://digitalocean.com) (which is also great!) with Oregon (US-West) and Virginia (US-East) data centers available
+
+## Only as You Grow: Complex Cloud Platforms
+
+Once your app has significant traffic (but not sooner!), it can make sense to invest in more complex cloud solutions like AWS, Google Cloud, or Microsoft Azure.
+
+But here's the deal: starting on these platforms early wastes precious time and money on credits that expire. Stick with simple deploys until you're ready to scale up. I made the mistake of running towards building on them too early, and it was a waste of time and money.
+
+When that time comes, you can layer in Kubernetes and refine your deployments further. But for a startup, starting with simplicity is key. With the write setup, your app can host many thousands of users with the simple stuff. If it can't, focus on solving that problem first!

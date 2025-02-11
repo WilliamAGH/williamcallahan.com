@@ -1,103 +1,81 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { BlogWrapper } from "../../../components/features/blog/blog-article";
-import { getPostBySlug } from "../../../lib/blog";
-import { getBlogPostMetadata } from "../../../lib/seo";
-import type { Article, WithContext } from "schema-dts";
-
 /**
- * Props for the BlogPostPage component
+ * Blog Post Page
+ * @module app/blog/[slug]/page
+ * @description
+ * Renders individual blog posts with full content and metadata.
+ * Implements proper SEO with schema.org structured data.
  */
+
+import { BlogArticle } from "../../../components/features/blog";
+import { getMDXPost } from "../../../lib/blog/mdx";
+import { JsonLdScript } from "../../../components/seo/json-ld";
+import { formatSeoDate } from "../../../lib/seo/utils";
+import { SITE_NAME } from "../../../data/metadata";
+import type { Metadata } from "next";
+
 interface BlogPostPageProps {
-  /** URL parameters */
   params: {
-    /** URL slug of the blog post to display */
     slug: string;
   };
 }
 
 /**
- * Generates metadata for the blog post page
- *
- * @param {BlogPostPageProps} props - Component props containing URL parameters
- * @returns {Promise<Metadata>} Next.js metadata object for the page
+ * Generate metadata for the blog post
  */
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
-  const post = await getPostBySlug(params.slug);
-  if (!post) return { title: "Post Not Found" };
+  const post = await getMDXPost(params.slug);
+  if (!post) return {};
 
-  const metadata = getBlogPostMetadata(post);
-
-  // Schema.org Article metadata
-  const jsonLd: WithContext<Article> = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: post.title,
-    description: post.excerpt,
-    author: {
-      "@type": "Person",
-      name: post.author.name,
-    },
-    datePublished: metadata.datePublished,
-    dateModified: metadata.dateModified,
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": metadata.canonical,
-    },
-    publisher: {
-      "@type": "Person",
-      name: "William Callahan",
-    },
-  };
+  const formattedPublished = formatSeoDate(post.publishedAt);
+  const formattedModified = formatSeoDate(post.updatedAt || post.publishedAt);
 
   return {
-    metadataBase: new URL('https://williamcallahan.com'),
-    title: metadata.title,
-    description: metadata.description,
+    title: `${post.title} - ${SITE_NAME}'s Blog`,
+    description: post.excerpt,
     openGraph: {
-      type: "article",
-      publishedTime: metadata.datePublished,
-      modifiedTime: metadata.dateModified,
+      title: post.title,
+      description: post.excerpt,
+      type: 'article',
+      publishedTime: formattedPublished,
+      modifiedTime: formattedModified,
       authors: [post.author.name],
       tags: post.tags,
-      url: metadata.canonical,
-      images: post.coverImage ? [{ url: post.coverImage }] : undefined,
     },
-    alternates: {
-      canonical: metadata.canonical,
-    },
-    authors: [{ name: post.author.name }],
-    keywords: post.tags,
-    robots: {
-      index: true,
-      follow: true,
-    },
-    other: {
-      "article:published_time": metadata.datePublished,
-      "article:modified_time": metadata.dateModified,
-      "script:ld+json": JSON.stringify(jsonLd),
+    twitter: {
+      card: 'summary_large_image',
+      title: post.title,
+      description: post.excerpt,
     },
   };
 }
 
 /**
- * Blog Post Page Component
- *
- * Displays a single blog post using the BlogArticle component.
- * Handles fetching the post data and showing a 404 page if not found.
- *
- * @param {BlogPostPageProps} props - Component props containing URL parameters
- * @returns {Promise<JSX.Element>} The rendered blog post page
+ * Blog post page component
  */
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
-  const post = await getPostBySlug(params.slug);
-  if (!post) notFound();
+  const post = await getMDXPost(params.slug);
+  if (!post) return null;
 
-  // Validate post has required MDX content
-  if (!post.content) {
-    console.error(`Post ${params.slug} is missing MDX content`);
-    notFound();
-  }
+  const formattedPublished = formatSeoDate(post.publishedAt);
+  const formattedModified = formatSeoDate(post.updatedAt || post.publishedAt);
 
-  return <BlogWrapper post={post} />;
+  return (
+    <>
+      <JsonLdScript
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Article",
+          "headline": post.title,
+          "description": post.excerpt,
+          "datePublished": formattedPublished,
+          "dateModified": formattedModified,
+          "author": {
+            "@type": "Person",
+            "name": post.author.name
+          }
+        }}
+      />
+      <BlogArticle post={post} />
+    </>
+  );
 }
