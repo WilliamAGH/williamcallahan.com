@@ -18,6 +18,8 @@ export function ExperienceCardClient({
   id,
   company,
   period,
+  startDate,
+  endDate,
   role,
   website,
   location,
@@ -71,7 +73,9 @@ export function ExperienceCardClient({
                 )}
               </div>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {period}
+                <time dateTime={startDate}>{period.split(' - ')[0]}</time>
+                {' - '}
+                <time dateTime={endDate || 'Present'}>{period.split(' - ')[1]}</time>
               </span>
             </div>
             <div className="space-y-1">

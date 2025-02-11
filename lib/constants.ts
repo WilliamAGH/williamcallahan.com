@@ -43,11 +43,7 @@ export const LOGO_CACHE_DURATION = {
  * In production, this defaults to the main domain.
  * In development, it uses localhost.
  */
-export const NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || (
-  process.env.NODE_ENV === 'development'
-    ? 'http://localhost:3000'
-    : 'https://williamcallahan.com'
-);
+export const NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://williamcallahan.com';
 
 /**
  * Base URL for API endpoints

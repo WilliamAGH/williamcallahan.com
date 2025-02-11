@@ -1,36 +1,50 @@
 /**
  * Experience Page
- *
+ * @module app/experience/page
+ * @description
  * Displays professional experience and work history.
- * Shows timeline of career progression.
+ * Implements proper SEO with schema.org structured data.
  */
 
-import type { Metadata } from 'next';
-import { Experience } from '../../components/features/experience';
-import { API_BASE_URL } from '../../lib/constants';
+import { Experience } from "../../components/features";
+import { getStaticPageMetadata } from "../../lib/seo/metadata";
+import { JsonLdScript } from "../../components/seo/json-ld";
+import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
+import { formatSeoDate } from "../../lib/seo/utils";
+import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: 'Professional Experience - William Callahan',
-  description: 'Explore William Callahan\'s professional experience, including roles in software engineering, entrepreneurship, and technology leadership.',
-  alternates: {
-    canonical: `${API_BASE_URL}/experience`,
-  },
-  openGraph: {
-    title: 'William Callahan - Professional Experience',
-    description: 'Professional experience and career highlights of William Callahan',
-    type: 'profile',
-    url: `${API_BASE_URL}/experience`,
-  },
-  twitter: {
-    card: 'summary',
-    title: 'William Callahan - Professional Experience',
-    description: 'Professional experience and career highlights of William Callahan',
-  },
-};
+/**
+ * Generate metadata for the experience page
+ */
+export const metadata: Metadata = getStaticPageMetadata('/experience', 'experience');
 
-// Force static generation
-export const revalidate = false;
-
+/**
+ * Experience page component
+ */
 export default function ExperiencePage() {
-  return <Experience />;
+  const pageMetadata = PAGE_METADATA.experience;
+  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
+  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+
+  return (
+    <>
+      <JsonLdScript
+        data={{
+          "@context": "https://schema.org",
+          "@type": "ProfilePage",
+          "name": `${SITE_NAME} - Professional Experience`,
+          "description": pageMetadata.description,
+          "datePublished": formattedCreated,
+          "dateModified": formattedModified,
+          "mainEntity": {
+            "@type": "Person",
+            "name": SITE_NAME,
+            "description": siteMetadata.shortDescription,
+            "sameAs": siteMetadata.social.profiles
+          }
+        }}
+      />
+      <Experience />
+    </>
+  );
 }

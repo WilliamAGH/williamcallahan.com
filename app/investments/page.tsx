@@ -1,37 +1,74 @@
 /**
  * Investments Page
+ * @module app/investments/page
+ * @description
+ * Displays investment portfolio and track record.
+ * Implements proper SEO with schema.org structured data.
  *
- * Showcases investment portfolio and strategy.
- * Highlights key investments and outcomes.
+ * @see {@link "https://nextjs.org/docs/app/api-reference/functions/generate-metadata"} - Next.js Metadata API
+ * @see {@link "https://schema.org/Dataset"} - Schema.org Dataset specification
  */
 
-import type { Metadata } from 'next';
-import { Investments } from '../../components/features/investments';
-import { investments } from '../../data/investments';
-import { API_BASE_URL } from '../../lib/constants';
+import { Investments } from "../../components/features";
+import { getStaticPageMetadata } from "../../lib/seo/metadata";
+import { JsonLdScript } from "../../components/seo/json-ld";
+import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
+import { formatSeoDate } from "../../lib/seo/utils";
+import { investments } from "../../data/investments";
+import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: 'Investment Portfolio - William Callahan',
-  description: 'View William Callahan\'s investment portfolio, including ventures, startups, and technology investments.',
-  alternates: {
-    canonical: `${API_BASE_URL}/investments`,
-  },
-  openGraph: {
-    title: 'William Callahan - Investments',
-    description: 'Investment portfolio and venture activities of William Callahan',
-    type: 'profile',
-    url: `${API_BASE_URL}/investments`,
-  },
-  twitter: {
-    card: 'summary',
-    title: 'William Callahan - Investments',
-    description: 'Investment portfolio and venture activities of William Callahan',
-  },
-};
+/**
+ * Generate metadata for the investments page
+ */
+export const metadata: Metadata = getStaticPageMetadata('/investments', 'investments');
 
-// Enable dynamic rendering to allow API calls
-export const dynamic = 'force-dynamic';
-
+/**
+ * Investments page component
+ */
 export default function InvestmentsPage() {
-  return <Investments investments={investments} />;
+  const pageMetadata = PAGE_METADATA.investments;
+  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
+  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+
+  // Get active investments for dataset
+  const activeInvestments = investments;
+
+  return (
+    <>
+      <JsonLdScript
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Dataset",
+          "name": `${SITE_NAME}'s Investment Portfolio`,
+          "description": pageMetadata.description,
+          "datePublished": formattedCreated,
+          "dateModified": formattedModified,
+          "creator": {
+            "@type": "Person",
+            "name": SITE_NAME,
+            "description": siteMetadata.shortDescription,
+            "sameAs": siteMetadata.social.profiles
+          },
+          "license": "https://creativecommons.org/licenses/by/4.0/",
+          "isAccessibleForFree": true,
+          "includedInDataCatalog": {
+            "@type": "DataCatalog",
+            "name": `${SITE_NAME}'s Public Investment Records`
+          },
+          "distribution": {
+            "@type": "DataDownload",
+            "contentUrl": "https://williamcallahan.com/investments",
+            "encodingFormat": "text/html"
+          },
+          "keywords": [
+            "startups",
+            "venture capital",
+            "angel investing",
+            ...Array.from(new Set(activeInvestments.map(inv => inv.category)))
+          ]
+        }}
+      />
+      <Investments investments={investments} />
+    </>
+  );
 }

@@ -106,19 +106,28 @@ export function Analytics(): JSX.Element | null {
     trackUmami(path)
   }, [])
 
+  // Track page views on route changes
   useEffect(() => {
-    if (!pathname || typeof window === 'undefined') return
+    if (!pathname) return
 
-    const path = pathname
+    const normalizedPath = pathname
       .replace(/\/blog\/[^/]+/, '/blog/:slug')
       .replace(/\?.+$/, '')
 
-    // Increased delay to ensure scripts are fully loaded
-    const timeoutId = setTimeout(() => {
-      trackPageview(path)
-    }, 500)
+    // Debug analytics script status
+    console.debug('[Analytics Debug] Script status:', {
+      umamiLoaded: typeof window.umami?.track === 'function',
+      plausibleLoaded: typeof window.plausible === 'function',
+      path: normalizedPath
+    })
 
-    return () => clearTimeout(timeoutId)
+    // Only track if scripts are loaded and initialized
+    if (typeof window.umami?.track === 'function' || typeof window.plausible === 'function') {
+      console.debug('[Analytics Debug] Tracking pageview:', normalizedPath)
+      trackPageview(normalizedPath)
+    } else {
+      console.debug('[Analytics Debug] Scripts not ready, skipping pageview')
+    }
   }, [pathname, trackPageview])
 
   // Early return if missing config or not in browser
@@ -127,6 +136,9 @@ export function Analytics(): JSX.Element | null {
   }
 
   const domain = new URL(process.env.NEXT_PUBLIC_SITE_URL).hostname
+  const normalizedPath = pathname
+    ? pathname.replace(/\/blog\/[^/]+/, '/blog/:slug').replace(/\?.+$/, '')
+    : ''
 
   return (
     <>
@@ -135,12 +147,25 @@ export function Analytics(): JSX.Element | null {
         strategy="lazyOnload"
         src="https://umami.iocloudhost.net/script.js"
         data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+        onLoad={() => {
+          console.debug('[Analytics Debug] Umami script loaded')
+          if (normalizedPath) {
+            console.debug('[Analytics Debug] Initial tracking:', normalizedPath)
+            trackPageview(normalizedPath)
+          }
+        }}
+        onError={(e) => {
+          console.error('[Analytics Error] Failed to load Umami script:', e)
+        }}
       />
       <Script
         id="plausible"
         strategy="lazyOnload"
         src="https://plausible.iocloudhost.net/js/script.js"
         data-domain={domain}
+        onError={(e) => {
+          console.error('[Analytics Error] Failed to load Plausible script:', e)
+        }}
       />
     </>
   )
