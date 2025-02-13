@@ -289,6 +289,7 @@ export function getStaticPageMetadata(
     twitter: {
       ...BASE_METADATA.twitter,
       card: 'summary',
+      site: siteMetadata.social.twitter,
       title: overrides?.title ?? pageMetadata.title,
       description: overrides?.description ?? pageMetadata.description,
       images: [{

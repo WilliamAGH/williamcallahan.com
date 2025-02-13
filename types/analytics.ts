@@ -14,8 +14,7 @@
 /**
  * Base analytics event data structure
  * @see https://umami.is/docs/tracker-functions
- * @see https://plausible.io/docs/custom-event-goals
- */
+ * @see https://plausible.io/docs/custom-event-goals */
 export interface BaseAnalyticsEvent {
   /** Current page path (normalized for dynamic routes) */
   path: string;
@@ -55,7 +54,6 @@ export type AnalyticsEventType = 'pageview';
 
 /**
  * Plausible analytics function type
- * Supports both direct tracking and queue functionality
  */
 export type PlausibleTracker = {
   (eventName: string, options?: { props: Record<string, unknown> }): void;
@@ -64,10 +62,16 @@ export type PlausibleTracker = {
 
 /**
  * Umami analytics object type
- * Supports both direct tracking and function call syntax
  */
 export type UmamiTracker = {
   track: (eventName: string, eventData?: Record<string, unknown>) => void;
 } & {
   (event: string, data?: Record<string, unknown>): void;
 };
+
+declare global {
+  interface Window {
+    plausible?: PlausibleTracker;
+    umami?: UmamiTracker;
+  }
+}

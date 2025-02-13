@@ -14,6 +14,13 @@
 import { render, waitFor } from '@testing-library/react';
 import { Analytics } from '@/components/analytics/Analytics';
 import { usePathname } from 'next/navigation';
+import { PlausibleTracker, UmamiTracker } from '@/types/analytics';
+import { isProduction } from '@/lib/envDetect';
+
+// Mock envDetect
+jest.mock('@/lib/envDetect', () => ({
+  isProduction: jest.fn().mockReturnValue(true)
+}));
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -26,6 +33,7 @@ beforeAll(() => {
     value: {
       pathname: '/test',
       href: 'https://test.com/test',
+      hostname: 'test.com'
     },
     writable: true
   });
@@ -50,17 +58,19 @@ beforeAll(() => {
 
 // Setup mock analytics functions
 beforeEach(() => {
-  // Setup Umami mock
+  // Setup Umami mock with type safety
   const umamiTrackFn = jest.fn();
-  window.umami = Object.assign(
+  const umamiTracker: UmamiTracker = Object.assign(
     (event: string, data?: Record<string, unknown>) => {
       umamiTrackFn(event, data);
     },
     { track: umamiTrackFn }
   );
+  window.umami = umamiTracker;
 
-  // Setup Plausible mock
-  window.plausible = jest.fn();
+  // Setup Plausible mock with type safety
+  const plausibleTracker: PlausibleTracker = jest.fn();
+  window.plausible = plausibleTracker;
 });
 
 describe('Analytics Component', () => {
@@ -72,7 +82,7 @@ describe('Analytics Component', () => {
     process.env = {
       ...originalEnv,
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: 'test-id',
-      NEXT_PUBLIC_SITE_URL: 'https://test.com'
+      NEXT_PUBLIC_SITE_URL: 'https://williamcallahan.com'
     };
 
     // Mock pathname
@@ -94,8 +104,8 @@ describe('Analytics Component', () => {
     // Restore environment
     process.env = originalEnv;
     // Clean up window globals
-    delete (window as any).plausible;
-    delete (window as any).umami;
+    delete window.plausible;
+    delete window.umami;
   });
 
   describe('Script Loading', () => {
@@ -112,11 +122,17 @@ describe('Analytics Component', () => {
       const plausibleScript = container.querySelector('script#plausible') as HTMLScriptElement;
       expect(plausibleScript).toBeInTheDocument();
       expect(plausibleScript.getAttribute('src')).toBe('https://plausible.iocloudhost.net/js/script.js');
-      expect(plausibleScript.getAttribute('data-domain')).toBe('test.com');
+      expect(plausibleScript.getAttribute('data-domain')).toBe('williamcallahan.com');
     });
 
     it('handles missing environment variables', () => {
       delete process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
+      const { container } = render(<Analytics />);
+      expect(container.innerHTML).toBe('');
+    });
+
+    it('does not load scripts in non-production', () => {
+      (isProduction as jest.Mock).mockReturnValueOnce(false);
       const { container } = render(<Analytics />);
       expect(container.innerHTML).toBe('');
     });
@@ -133,7 +149,7 @@ describe('Analytics Component', () => {
             path: '/test'
           })
         }));
-        expect(window.umami.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
+        expect(window.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
           path: '/test'
         }));
       });
@@ -149,6 +165,16 @@ describe('Analytics Component', () => {
             path: '/blog/:slug'
           })
         }));
+      });
+    });
+
+    it('skips tracking in non-production', async () => {
+      (isProduction as jest.Mock).mockReturnValueOnce(false);
+      render(<Analytics />);
+
+      await waitFor(() => {
+        expect(window.plausible).not.toHaveBeenCalled();
+        expect(window.umami?.track).not.toHaveBeenCalled();
       });
     });
   });
@@ -211,6 +237,15 @@ describe('Analytics Component', () => {
         );
       });
 
+      consoleDebug.mockRestore();
+    });
+
+    it('logs when skipping tracking in non-production', async () => {
+      const consoleDebug = jest.spyOn(console, 'debug').mockImplementation();
+      (isProduction as jest.Mock).mockReturnValueOnce(false);
+      render(<Analytics />);
+
+      expect(consoleDebug).not.toHaveBeenCalled();
       consoleDebug.mockRestore();
     });
   });

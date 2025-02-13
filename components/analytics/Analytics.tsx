@@ -3,23 +3,27 @@
 import Script from 'next/script'
 import { usePathname } from 'next/navigation'
 import { useEffect, useCallback } from 'react'
+import { isProduction } from '@/lib/envDetect'
 
 /**
  * Analytics Component
  * @module components/analytics/Analytics
  * @description
  * Handles pageview tracking for both Plausible and Umami analytics.
+ * Only runs in production environment (williamcallahan.com).
  * Implements queue system for handling events when scripts are not yet loaded.
  *
  * Related modules:
  * @see {@link "lib/analytics/queue"} - Queue system for handling analytics events
  * @see {@link "types/analytics"} - Analytics type definitions
  * @see {@link "public/scripts/plausible-init.js"} - Plausible initialization script
+ * @see {@link "lib/envDetect"} - Environment detection utilities
  *
  * External documentation:
  * @see https://umami.is/docs/tracker-functions - Umami tracking documentation
  * @see https://plausible.io/docs/custom-event-goals - Plausible events documentation
  */
+
 interface BaseAnalyticsEvent {
   /** Current page path (normalized for dynamic routes) */
   path: string
@@ -107,15 +111,15 @@ export function Analytics(): JSX.Element | null {
   const pathname = usePathname()
 
   const trackPageview = useCallback(async (path: string) => {
-    // Ensure we're in the browser
-    if (typeof window === 'undefined') return;
+    // Ensure we're in the browser and production
+    if (typeof window === 'undefined' || !isProduction()) return;
     await trackPlausible(path);
     trackUmami(path);
   }, []);
 
   // Track page views on route changes
   useEffect(() => {
-    if (!pathname) return;
+    if (!pathname || !isProduction()) return;
 
     const normalizedPath = pathname
       .replace(/\/blog\/[^/]+/, '/blog/:slug')
@@ -138,8 +142,13 @@ export function Analytics(): JSX.Element | null {
     }
   }, [pathname, trackPageview]);
 
-  // Early return if missing config or not in browser
-  if (typeof window === 'undefined' || !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || !process.env.NEXT_PUBLIC_SITE_URL) {
+  // Early return if missing config, not in browser, or not in production
+  if (
+    typeof window === 'undefined' ||
+    !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ||
+    !process.env.NEXT_PUBLIC_SITE_URL ||
+    !isProduction()
+  ) {
     return null
   }
 
