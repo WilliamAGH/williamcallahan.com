@@ -16,8 +16,8 @@ import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/m
 import { investments } from "../../data/investments";
 import type { Metadata } from "next";
 
-// Enable dynamic rendering to allow data updates and API calls during server-side rendering
-export const dynamic = 'force-dynamic';
+// Enable ISR with 1 hour revalidation to match server component
+export const revalidate = 3600;
 
 /**
  * Generate metadata for the investments page
@@ -53,10 +53,10 @@ export default function InvestmentsPage() {
     };
   });
 
-  // Ensure stable order
-  const activeInvestments = [...investmentsWithKeys].sort((a, b) => {
-    const yearDiff = b.invested_year.localeCompare(a.invested_year);
-    return yearDiff !== 0 ? yearDiff : a.id.localeCompare(b.id);
+  // Sort investments alphabetically by company name, then by year for same company
+  const sortedInvestments = [...investmentsWithKeys].sort((a, b) => {
+    const nameDiff = a.name.localeCompare(b.name);
+    return nameDiff !== 0 ? nameDiff : b.invested_year.localeCompare(a.invested_year);
   });
 
   return (
@@ -90,11 +90,11 @@ export default function InvestmentsPage() {
             "startups",
             "venture capital",
             "angel investing",
-            ...Array.from(new Set(activeInvestments.map(inv => inv.category)))
+            ...Array.from(new Set(sortedInvestments.map(inv => inv.category)))
           ]
         }}
       />
-      <Investments investments={activeInvestments} />
+      <Investments investments={sortedInvestments} />
     </>
   );
 }

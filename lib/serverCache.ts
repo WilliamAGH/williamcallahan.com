@@ -1,15 +1,30 @@
 /**
  * Server-side Cache Management
- * @module lib/server-cache
+ * @module lib/serverCache
  * @description
  * Provides server-side caching for logos, validation results,
  * and image analysis data.
+ *
+ * @see {@link lib/cacheConfig.ts} - For environment detection and cache settings
+ * @see {@link lib/constants.ts} - For LOGO_CACHE_DURATION settings
+ * @see {@link lib/cache.ts} - For client-side caching
+ *
+ * Cache Control:
+ * - Production: 30-day TTL, 24h check period
+ * - Development: 1-minute TTL, 30s check period, auto-clear on changes
+ * - Logo Cache: Separate durations for success/failure (see constants.ts)
+ *
+ * Manual Control:
+ * - clearAllCaches() - Reset everything
+ * - clearLogoFetch(domain) - Reset specific logo
+ * - clearAllLogoFetches() - Reset all logos
  */
 
 import NodeCache from 'node-cache';
 import { timestamp } from './dateTime';
-import { SERVER_CACHE_DURATION, LOGO_CACHE_DURATION } from './constants';
+import { LOGO_CACHE_DURATION } from './constants';
 import type { LogoInversion, LogoSource } from '../types/logo';
+import { cacheConfig, setupHotReload } from './cacheConfig';
 
 /**
  * Logo validation result from the server
@@ -66,8 +81,8 @@ const LOGO_ANALYSIS_PREFIX = 'logo-analysis:';
 export class ServerCache extends NodeCache {
   constructor() {
     super({
-      stdTTL: SERVER_CACHE_DURATION,
-      checkperiod: 24 * 60 * 60, // Check for expired keys every day
+      stdTTL: cacheConfig.ttl,
+      checkperiod: cacheConfig.checkPeriod,
       useClones: false, // Don't clone objects for better performance with buffers
       deleteOnExpire: true
     });
@@ -211,5 +226,8 @@ export class ServerCache extends NodeCache {
   }
 }
 
-// Export singleton instance
+// Create and export singleton instance
 export const ServerCacheInstance = new ServerCache();
+
+// Set up hot reload cache clearing in development
+setupHotReload(() => ServerCacheInstance.clearAllCaches());

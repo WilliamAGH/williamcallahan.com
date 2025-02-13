@@ -25,9 +25,11 @@
  * }, [setHandleCommand]);
  */
 
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+"use client";
+
+import { createContext, useContext, useState, useCallback } from "react";
 import type { FC, ReactNode } from "react";
-import type { CommandResult } from "@/types/terminal";
+import type { CommandResult, SelectionItem } from "@/types/terminal";
 
 /**
  * Terminal context state interface
@@ -38,6 +40,9 @@ interface TerminalContextType {
   clearHistory: () => Promise<void>;
   handleCommand?: (command: string | undefined | null) => Promise<CommandResult>;
   setHandleCommand: (handler: (command: string | undefined | null) => Promise<CommandResult>) => void;
+  selection?: SelectionItem[];
+  handleSelection?: (item: SelectionItem) => void;
+  cancelSelection?: () => void;
 }
 
 /**
@@ -88,6 +93,7 @@ export const TerminalProvider: FC<TerminalProviderProps> = ({ children, initialS
   const [commandHandler, setCommandHandler] = useState<(command: string | undefined | null) => Promise<CommandResult>>(
     initialState?.handleCommand ?? defaultCommandHandler
   );
+  const [selection, setSelection] = useState<SelectionItem[]>();
 
   /**
    * Clear terminal history
@@ -97,8 +103,24 @@ export const TerminalProvider: FC<TerminalProviderProps> = ({ children, initialS
     setHistory([]);
   }, []);
 
+  /**
+   * Handle selection of an item
+   */
+  const handleSelection = useCallback((item: SelectionItem) => {
+    // Process selection and clear selection state
+    console.log('Selected:', item);
+    setSelection(undefined);
+  }, []);
+
+  /**
+   * Cancel selection mode
+   */
+  const cancelSelection = useCallback(() => {
+    setSelection(undefined);
+  }, []);
+
   // Initialize terminal if no initial state is provided
-  useEffect(() => {
+  useState(() => {
     if (initialState?.isReady === undefined) {
       setIsReady(true);
     }
@@ -106,14 +128,18 @@ export const TerminalProvider: FC<TerminalProviderProps> = ({ children, initialS
       setIsReady(false);
       setHistory([]);
       setCommandHandler(defaultCommandHandler); // Reset handler on unmount
+      setSelection(undefined);
     };
-  }, [initialState?.isReady]);
+  });
 
   const value = {
     isReady,
     clearHistory,
     handleCommand: commandHandler,
-    setHandleCommand: setCommandHandler
+    setHandleCommand: setCommandHandler,
+    selection,
+    handleSelection,
+    cancelSelection
   };
 
   return (

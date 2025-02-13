@@ -1,29 +1,13 @@
 /**
- * Terminal Component
+ * Terminal Client Component
  *
- * @module components/ui/terminal/Terminal
- * @see {@link useTerminal} - Hook for terminal state management
- * @see {@link TerminalContext} - Context provider
- * @see {@link navigationCommands} - Command processing implementation
+ * Handles all interactive terminal functionality.
+ * Manages state and user interactions.
  *
- * IMPORTANT: State Management & Dependencies
- * - Uses useRef to store searchFn and posts to prevent recreation of handleCommand
- * - handleCommand is defined inside useEffect to break dependency cycle
- * - Proper cleanup is implemented to prevent memory leaks
- *
- * Dependency Cycle Prevention:
- * The component previously had an issue where handleCommand recreation would trigger
- * infinite updates through TerminalContext. This was fixed by:
- * 1. Moving handleCommand inside useEffect
- * 2. Using refs for stable references
- * 3. Implementing proper cleanup
- *
- * @example
- * // Correct usage with search function
- * <Terminal
- *   searchFn={mySearchFunction}
- *   posts={blogPosts}
- * />
+ * @module components/ui/terminal/terminal.client
+ * @see {@link "components/ui/terminal/terminal.server.tsx"} - Server-side shell
+ * @see {@link "components/ui/terminal/terminalContext.tsx"} - Terminal state management
+ * @see {@link "docs/architecture/terminalGUI.md"} - Terminal architecture documentation
  */
 
 "use client";
@@ -31,7 +15,7 @@
 import { useEffect, useCallback, useRef } from "react";
 import { WindowControls } from "../navigation/windowControls";
 import { History } from "./history";
-import { CommandInput } from "../../ui/terminal/commandInput.client";
+import { CommandInput } from "./commandInput.client";
 import { SelectionView } from "./selectionView";
 import { useTerminal } from "./useTerminal";
 import { BlogPost } from "@/types/blog";
@@ -39,12 +23,22 @@ import { SelectionItem, CommandResult } from "@/types/terminal";
 import { handleCommand as processCommand } from './navigationCommands';
 import { useTerminalContext } from "./terminalContext";
 
-interface TerminalProps {
+interface TerminalClientProps {
   searchFn?: (query: string, posts: BlogPost[]) => Promise<SelectionItem[]>;
   posts?: BlogPost[];
 }
 
-export const Terminal: React.FC<TerminalProps> = ({ searchFn, posts = [] }) => {
+/**
+ * Terminal Client Component
+ *
+ * Handles all interactive functionality and state management.
+ * This component is responsible for:
+ * - Command processing
+ * - Input handling
+ * - History management
+ * - Selection handling
+ */
+export function TerminalClient({ searchFn, posts = [] }: TerminalClientProps) {
   const {
     input,
     setInput,
@@ -100,12 +94,7 @@ export const Terminal: React.FC<TerminalProps> = ({ searchFn, posts = [] }) => {
   }, [isReady, setHandleCommand]);
 
   return (
-    <div
-      className="bg-terminal-light dark:bg-terminal-dark rounded-lg p-4 sm:p-6 font-mono text-sm mx-auto mt-8 border border-gray-200 dark:border-gray-700 shadow-xl cursor-text w-full max-w-[calc(100vw-2rem)] sm:max-w-5xl"
-      onClick={focusInput}
-      role="region"
-      aria-label="Terminal interface"
-    >
+    <>
       <div className="mb-4">
         <WindowControls />
       </div>
@@ -113,6 +102,7 @@ export const Terminal: React.FC<TerminalProps> = ({ searchFn, posts = [] }) => {
         className="text-gray-600 dark:text-gray-300 max-h-[300px] sm:max-h-[400px] overflow-y-auto custom-scrollbar"
         aria-live="polite"
         aria-atomic="true"
+        onClick={focusInput}
       >
         <div className="whitespace-pre-wrap break-words select-text">
           <History history={history} />
@@ -121,7 +111,7 @@ export const Terminal: React.FC<TerminalProps> = ({ searchFn, posts = [] }) => {
               items={selection}
               onSelect={handleSelection}
               onExit={cancelSelection}
-              role="list"
+              role="listbox"
               aria-label="Available options"
             />
           ) : (
@@ -135,6 +125,6 @@ export const Terminal: React.FC<TerminalProps> = ({ searchFn, posts = [] }) => {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
-};
+}

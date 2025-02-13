@@ -30,17 +30,34 @@ interface InvestmentsProps {
  * @param {InvestmentsProps} props - Component properties
  * @returns {Promise<JSX.Element>} Pre-rendered investments section with server-fetched logos
  */
-// Enable dynamic rendering to allow API calls during server-side rendering
-export const dynamic = 'force-dynamic';
+// Use ISR with a reasonable revalidation period
+export const revalidate = 3600; // Revalidate every hour
 
 export async function Investments({ investments = [] }: InvestmentsProps): Promise<JSX.Element> {
-  // Pre-render each investment card on the server
-  const investmentsWithCards = await Promise.all(
-    investments.map(async (investment) => ({
-      ...investment,
-      card: await InvestmentCardServer(investment)
-    }))
-  );
+  try {
+    // Pre-render each investment card on the server with error handling
+    const investmentsWithCards = await Promise.all(
+      investments.map(async (investment) => {
+        try {
+          return {
+            ...investment,
+            card: await InvestmentCardServer(investment)
+          };
+        } catch (error) {
+          console.error(`Error rendering card for investment ${investment.id}:`, error);
+          // Return investment without card on error
+          return investment;
+        }
+      })
+    );
 
-  return <InvestmentsClient investments={investmentsWithCards} />;
+    // Filter out any investments that failed to render
+    const validInvestments = investmentsWithCards.filter((inv) => 'card' in inv);
+
+    return <InvestmentsClient investments={validInvestments} />;
+  } catch (error) {
+    console.error('Error in Investments server component:', error);
+    // Return empty state on error
+    return <InvestmentsClient investments={[]} />;
+  }
 }

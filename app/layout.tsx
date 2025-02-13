@@ -86,31 +86,43 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
         <ThemeInitializer />
       </head>
       <body className={`${inter.className} overscroll-none`}>
         <Providers>
-          <div
-            className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100"
-            style={{
-              transition: 'background-color 150ms ease-out, color 150ms ease-out',
-              willChange: 'background-color, color'
-            }}
-          >
-            <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-40">
-              <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-                <Navigation />
-                <div className="flex items-center gap-4 relative z-50">
-                  <SocialIcons />
-                  <ThemeToggle />
+          <div className="relative min-h-screen">
+            {/* Background layer */}
+            <div
+              className="fixed inset-0 bg-white dark:bg-[#1a1b26] -z-10"
+              style={{
+                transition: 'background-color 150ms ease-out',
+                willChange: 'background-color'
+              }}
+            />
+
+            {/* Content layer */}
+            <div
+              className="relative z-0 min-h-screen text-gray-900 dark:text-gray-100"
+              style={{
+                transition: 'color 150ms ease-out',
+                willChange: 'color'
+              }}
+            >
+              <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-40 border-b border-gray-200/50 dark:border-gray-800/50">
+                <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+                  <Navigation />
+                  <div className="flex items-center gap-4 relative z-50">
+                    <SocialIcons />
+                    <ThemeToggle />
+                  </div>
                 </div>
-              </div>
-            </header>
-            <main className="pt-24 pb-16 px-4">
-              <Terminal />
-              {children}
-            </main>
+              </header>
+              <main className="relative pt-24 pb-16 px-4">
+                <Terminal />
+                {children}
+              </main>
+            </div>
           </div>
         </Providers>
         <Suspense fallback={<></>}>

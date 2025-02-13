@@ -8,11 +8,34 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      colors: {
+        background: {
+          light: 'rgb(255, 255, 255)',
+          dark: 'rgb(10, 10, 10)'
+        },
+        foreground: {
+          light: 'rgb(10, 10, 10)',
+          dark: 'rgb(255, 255, 255)'
+        }
+      },
+      backgroundColor: {
+        DEFAULT: 'var(--background)',
+        dark: 'var(--background-dark)',
+        terminal: {
+          light: 'rgb(255, 255, 255)',
+          dark: 'rgb(26, 27, 38)'
+        }
+      },
+      textColor: {
+        DEFAULT: 'var(--foreground)',
+        dark: 'var(--foreground-dark)'
+      },
       typography: {
         DEFAULT: {
           css: {
             maxWidth: 'none',
             color: 'inherit',
+            backgroundColor: 'inherit',
             a: {
               color: 'inherit',
               textDecoration: 'underline',

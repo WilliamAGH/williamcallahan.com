@@ -10,6 +10,14 @@
         "aria-required-children": "off",
         "aria-valid-attr-value": "off"
       }
+    ],
+    "compat-api/css": [
+      "default",
+      {
+        "ignore": [
+          "-webkit-overflow-scrolling"
+        ]
+      }
     ]
   }
 }

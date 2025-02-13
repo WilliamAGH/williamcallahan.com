@@ -16,6 +16,17 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Optimize CSS and font loading
+  optimizeFonts: true,
+  experimental: {
+    optimizeCss: true
+  },
+
+  // Add cache busting for builds
+  generateBuildId: async () => {
+    return 'build-' + Date.now()
+  },
+
   /**
    * Custom webpack configuration
    * @param {import('webpack').Configuration} config - Webpack config object
@@ -117,7 +128,7 @@ const nextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     // CSP configuration allowing SVGs and analytics
-    contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net; img-src 'self' data: https:; style-src 'self' 'unsafe-inline';",
+    contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://*.cloudflareinsights.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.cloudflareinsights.com;",
     remotePatterns: [
       {
         protocol: 'https',
@@ -146,6 +157,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'logo.clearbit.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'static.cloudflareinsights.com'
       }
     ]
   }

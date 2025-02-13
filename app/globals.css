@@ -4,9 +4,64 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    /* ... other variables ... */
+    /* Light mode colors */
+    --background: theme('colors.background.light');
+    --foreground: theme('colors.foreground.light');
+    background-color: var(--background);
+    color: var(--foreground);
+    /* Theme transition variables */
+    --theme-transition-duration: 150ms;
+    --theme-transition-timing: ease-out;
+    --theme-transition: background-color var(--theme-transition-duration) var(--theme-transition-timing),
+                       color var(--theme-transition-duration) var(--theme-transition-timing);
+  }
+
+  /* Dark mode colors */
+  :root.dark {
+    --background: theme('colors.background.dark');
+    --foreground: theme('colors.foreground.dark');
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  /* Optimize transitions for mobile */
+  @media (hover: none) {
+    :root {
+      --theme-transition-duration: 100ms;
+    }
+  }
+
+  /* Base styles for themed elements */
+  body,
+  .theme-transition {
+    transition: var(--theme-transition);
+    will-change: background-color, color;
+    /* Ensure transitions work smoothly */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -font-smoothing: antialiased;
+    /* Ensure background is never transparent */
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+
+  /* Disable transitions during theme changes */
+  :root:not([data-theme-ready="true"]) body,
+  :root:not([data-theme-ready="true"]) .theme-transition {
+    transition: none !important;
+  }
+
+  /* Handle initial dark mode */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme-ready="true"]) {
+      color-scheme: dark;
+      --background: theme('colors.background.dark');
+      --foreground: theme('colors.foreground.dark');
+      background-color: var(--background);
+      color: var(--foreground);
+    }
   }
 }
 
@@ -52,7 +107,7 @@ html {
   }
 
   /* Touch device support */
-  @supports (-webkit-overflow-scrolling: touch) {
+  @supports (overflow-scrolling: touch) {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
@@ -72,8 +127,6 @@ pre[class*="language-"] {
   line-height: 1.5;
   tab-size: 2;
   -webkit-hyphens: none;
-  -moz-hyphens: none;
-  -ms-hyphens: none;
   hyphens: none;
 }
 

@@ -54,17 +54,41 @@ export function middleware(request: NextRequest): NextResponse {
   const response = NextResponse.next()
   const ip = getRealIp(request)
 
-  // Set security headers
-  const securityHeaders = {
+  // Set security and caching headers
+  const headers: Record<string, string> = {
+    // Security headers
     'X-DNS-Prefetch-Control': 'on',
     'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
     'X-Frame-Options': 'SAMEORIGIN',
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'X-Real-IP': ip
+    'X-Real-IP': ip,
   }
 
-  Object.entries(securityHeaders).forEach(([header, value]) => {
+  // Add cache headers for static assets
+  const path = request.nextUrl.pathname
+  if (path.startsWith('/_next/static/css/')) {
+    // CSS files - shorter cache time to allow style updates
+    headers['Cache-Control'] = 'public, max-age=604800, immutable' // 7 days
+  } else if (path.startsWith('/_next/static/')) {
+    // Other static assets - longer cache time
+    headers['Cache-Control'] = 'public, max-age=604800, immutable' // 1 week
+  } else if (path.includes('cloudflareinsights.com')) {
+    // Cloudflare analytics - allow CORS and caching
+    headers['Access-Control-Allow-Origin'] = '*'
+    headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    headers['Cache-Control'] = 'public, max-age=3600' // 1 hour
+  }
+
+  // Add CORS headers for Cloudflare domains
+  const referer = request.headers.get('referer')
+  if (referer?.includes('cloudflareinsights.com')) {
+    headers['Access-Control-Allow-Origin'] = 'https://static.cloudflareinsights.com'
+    headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    headers['Access-Control-Allow-Headers'] = 'Content-Type'
+  }
+
+  Object.entries(headers).forEach(([header, value]) => {
     response.headers.set(header, value)
   })
 
@@ -96,12 +120,11 @@ export const config = {
     /*
      * Match all request paths except for the ones starting with:
      * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - robots.txt
      * - sitemap.xml
+     * Note: We want to process _next/static for cache headers
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)',
+    '/((?!api|favicon.ico|robots.txt|sitemap.xml).*)',
   ],
 }

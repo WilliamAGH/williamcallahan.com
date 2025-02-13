@@ -1,9 +1,10 @@
 // __tests__/components/ui/themeToggle.test.tsx
 
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { useTheme } from 'next-themes';
 import { ThemeToggle } from '@/components/ui/themeToggle';
 import { act } from '@testing-library/react';
+import { THEMES } from '@/types/theme';
 
 // Mock next-themes
 jest.mock('next-themes', () => ({
@@ -15,13 +16,7 @@ describe('ThemeToggle', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    process.env.TEST_LOADING_STATE = undefined;
-    document.documentElement.removeAttribute('data-theme-ready');
-  });
-
-  afterEach(() => {
-    process.env.TEST_LOADING_STATE = undefined;
-    document.documentElement.removeAttribute('data-theme-ready');
+    cleanup();
   });
 
   interface ThemeProps {
@@ -34,11 +29,11 @@ describe('ThemeToggle', () => {
 
   const renderWithTheme = (themeProps: ThemeProps = {}) => {
     const defaultProps = {
-      theme: 'system',
+      theme: THEMES.SYSTEM,
       setTheme: mockSetTheme,
-      systemTheme: 'light',
+      systemTheme: THEMES.LIGHT,
       mounted: true,
-      resolvedTheme: 'system'
+      resolvedTheme: THEMES.SYSTEM
     };
 
     (useTheme as jest.Mock).mockReturnValue({
@@ -50,92 +45,93 @@ describe('ThemeToggle', () => {
   };
 
   describe('Theme Initialization', () => {
-    it('matches system theme on initial load', () => {
-      document.documentElement.setAttribute('data-theme-ready', 'true');
-      renderWithTheme({ mounted: true });
-      const button = screen.getByRole('button');
-      expect(button).toHaveAttribute('aria-label', 'Toggle theme (currently System theme)');
-    });
-
-    it('shows loading state before mounting', async () => {
-      process.env.TEST_LOADING_STATE = 'true';
-      document.documentElement.removeAttribute('data-theme-ready');
+    it('shows light theme by default before mounting', () => {
       renderWithTheme({ mounted: false });
       const button = screen.getByRole('button');
-      expect(button).toHaveAttribute('aria-label', 'Theme toggle error - click to retry');
-      expect(button).not.toBeDisabled();
+      expect(button).toHaveAttribute('aria-label', 'Toggle theme (currently System theme)');
+      const sun = screen.getByTestId('sun-icon');
+      expect(sun).toHaveClass('rotate-0', 'scale-100');
+    });
+
+    it('updates theme after mounting', () => {
+      renderWithTheme({ mounted: true, theme: THEMES.DARK });
+      const button = screen.getByRole('button');
+      expect(button).toHaveAttribute('aria-label', 'Toggle theme (currently Dark theme)');
+      const moon = screen.getByTestId('moon-icon');
+      expect(moon).toHaveClass('rotate-0', 'scale-100');
     });
   });
 
-  describe('Loading States', () => {
-    it('shows loading state when theme system is not ready', async () => {
-      process.env.TEST_LOADING_STATE = 'true';
-      document.documentElement.removeAttribute('data-theme-ready');
-      renderWithTheme({ mounted: false });
-      const button = screen.getByRole('button');
-      expect(button).toHaveAttribute('aria-label', 'Theme toggle error - click to retry');
-      expect(button).not.toBeDisabled();
-    });
-
-    it('shows error state when theme system fails', async () => {
-      document.documentElement.setAttribute('data-theme-ready', 'error');
-      renderWithTheme({ mounted: true });
-      const button = screen.getByRole('button');
-      expect(button).toHaveAttribute('aria-label', 'Theme toggle error - click to retry');
-      expect(button).not.toBeDisabled();
-    });
-
-    it('transitions from loading to ready state', async () => {
-      process.env.TEST_LOADING_STATE = 'true';
-      document.documentElement.removeAttribute('data-theme-ready');
-      const { rerender } = renderWithTheme({ mounted: false });
-
+  describe('Theme Switching', () => {
+    it('cycles through themes correctly', () => {
+      // Test light to dark
+      renderWithTheme({ theme: THEMES.LIGHT });
       let button = screen.getByRole('button');
-      expect(button).toHaveAttribute('aria-label', 'Theme toggle error - click to retry');
+      fireEvent.click(button);
+      expect(mockSetTheme).toHaveBeenCalledWith(THEMES.DARK);
 
-      // Simulate mounting completion and theme system ready
-      await act(async () => {
-        process.env.TEST_LOADING_STATE = undefined;
-        document.documentElement.setAttribute('data-theme-ready', 'true');
-        rerender(<ThemeToggle />);
-      });
-
+      // Test dark to system
+      cleanup();
+      mockSetTheme.mockClear();
+      renderWithTheme({ theme: THEMES.DARK });
       button = screen.getByRole('button');
-      expect(button).toHaveAttribute('aria-label', 'Toggle theme (currently System theme)');
+      fireEvent.click(button);
+      expect(mockSetTheme).toHaveBeenCalledWith(THEMES.SYSTEM);
+
+      // Test system to light
+      cleanup();
+      mockSetTheme.mockClear();
+      renderWithTheme({ theme: THEMES.SYSTEM });
+      button = screen.getByRole('button');
+      fireEvent.click(button);
+      expect(mockSetTheme).toHaveBeenCalledWith(THEMES.LIGHT);
+    });
+
+    it('responds to system theme changes', () => {
+      // Test light system theme
+      renderWithTheme({
+        theme: THEMES.SYSTEM,
+        systemTheme: THEMES.LIGHT
+      });
+      expect(screen.getByTestId('sun-icon')).toHaveClass('rotate-0', 'scale-100');
+      expect(screen.getByTestId('moon-icon')).toHaveClass('-rotate-90', 'scale-0');
+
+      // Test dark system theme
+      cleanup();
+      renderWithTheme({
+        theme: THEMES.SYSTEM,
+        systemTheme: THEMES.DARK
+      });
+      expect(screen.getByTestId('sun-icon')).toHaveClass('-rotate-90', 'scale-0');
+      expect(screen.getByTestId('moon-icon')).toHaveClass('rotate-0', 'scale-100');
     });
   });
 
-  describe('Error Handling', () => {
-    it('shows error state and allows retry', async () => {
-      document.documentElement.setAttribute('data-theme-ready', 'error');
-      const { rerender } = renderWithTheme({ mounted: true });
-
+  describe('Accessibility', () => {
+    it('provides correct aria labels', () => {
+      renderWithTheme({ theme: THEMES.LIGHT });
       const button = screen.getByRole('button');
-      expect(button).toHaveAttribute('aria-label', 'Theme toggle error - click to retry');
-
-      // Simulate successful retry
-      await act(async () => {
-        document.documentElement.setAttribute('data-theme-ready', 'true');
-        rerender(<ThemeToggle />);
-      });
-
-      expect(button).toHaveAttribute('aria-label', 'Toggle theme (currently System theme)');
+      expect(button).toHaveAttribute('aria-label', 'Toggle theme (currently Light theme)');
+      expect(button).toHaveAttribute('title', 'Switch to dark theme');
     });
 
-    it('recovers from error state', async () => {
-      document.documentElement.setAttribute('data-theme-ready', 'error');
-      const { rerender } = renderWithTheme({ mounted: true });
-
+    it('responds to keyboard events', () => {
+      renderWithTheme({ theme: THEMES.LIGHT });
       const button = screen.getByRole('button');
-      expect(button).toHaveAttribute('aria-label', 'Theme toggle error - click to retry');
 
-      // Simulate successful recovery
-      await act(async () => {
-        document.documentElement.setAttribute('data-theme-ready', 'true');
-        rerender(<ThemeToggle />);
-      });
+      // Test Enter key
+      fireEvent.keyDown(button, { key: 'Enter' });
+      expect(mockSetTheme).toHaveBeenCalledWith(THEMES.DARK);
 
-      expect(button).toHaveAttribute('aria-label', 'Toggle theme (currently System theme)');
+      // Test Space key
+      mockSetTheme.mockClear();
+      fireEvent.keyDown(button, { key: ' ' });
+      expect(mockSetTheme).toHaveBeenCalledWith(THEMES.DARK);
+
+      // Test other keys (should not trigger theme change)
+      mockSetTheme.mockClear();
+      fireEvent.keyDown(button, { key: 'Tab' });
+      expect(mockSetTheme).not.toHaveBeenCalled();
     });
   });
 });

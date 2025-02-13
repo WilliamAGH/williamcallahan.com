@@ -65,7 +65,7 @@ export function CommandInput({
         role="searchbox"
         autoComplete="off"
         spellCheck="false"
-        autoCapitalize="off"
+        data-autocapitalize="none"
       />
     </form>
   );

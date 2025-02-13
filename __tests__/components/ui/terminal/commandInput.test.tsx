@@ -17,7 +17,7 @@
  */
 
 import { render, fireEvent, screen } from '@testing-library/react';
-import { CommandInput } from '@/components/ui/terminal/commandInput';
+import { CommandInput } from '@/components/ui/terminal/client';
 import { createRef } from 'react';
 
 describe('CommandInput Component', () => {

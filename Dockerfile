@@ -29,24 +29,27 @@ ENV PNPM_HOME=/root/.local/share/pnpm
 ENV PATH=$PATH:$PNPM_HOME
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
-ENV NODE_ENV=development
+ENV NODE_ENV=production
 
 # Install pnpm globally
 RUN npm install -g pnpm
+
+# Ensure proper cache headers for static assets
+ENV NEXT_STATIC_PROPS_CACHE_CONTROL="public, max-age=31536000, immutable"
 
 # Copy dependencies and source code
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build the application
-RUN NODE_ENV=production pnpm build
+RUN pnpm build
 
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
 
 # Install sharp dependencies and curl for healthchecks
-RUN apk add --no-cache vips-dev build-base curl
+RUN apk add vips-dev build-base curl
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
