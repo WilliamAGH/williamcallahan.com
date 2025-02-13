@@ -190,12 +190,6 @@ export const metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://williamcallahan.com',
-    siteName: SITE_NAME,
-    images: [{
-      url: 'https://williamcallahan.com/og-image.jpg',
-      width: 1200,
-      height: 630,
-      alt: SITE_NAME
-    }]
+    siteName: SITE_NAME
   }
 };

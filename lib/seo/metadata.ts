@@ -49,6 +49,12 @@ export const BASE_METADATA: Metadata = {
     card: 'summary_large_image',
     site: siteMetadata.social.twitter,
     creator: siteMetadata.social.twitter,
+    images: [{
+      url: ensureAbsoluteUrl(siteMetadata.defaultImage.url),
+      width: siteMetadata.defaultImage.width,
+      height: siteMetadata.defaultImage.height,
+      alt: siteMetadata.defaultImage.alt,
+    }],
   },
   alternates: {
     canonical: 'https://williamcallahan.com',
@@ -285,7 +291,12 @@ export function getStaticPageMetadata(
       card: 'summary',
       title: overrides?.title ?? pageMetadata.title,
       description: overrides?.description ?? pageMetadata.description,
-      images: [siteMetadata.defaultImage],
+      images: [{
+        url: ensureAbsoluteUrl(siteMetadata.defaultImage.url),
+        width: siteMetadata.defaultImage.width,
+        height: siteMetadata.defaultImage.height,
+        alt: siteMetadata.defaultImage.alt,
+      }],
       creator: siteMetadata.social.twitter,
     },
     other: {

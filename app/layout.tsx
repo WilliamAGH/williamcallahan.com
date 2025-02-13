@@ -58,12 +58,30 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     locale: 'en_US',
     type: 'website',
-    images: [siteMetadata.defaultImage],
+    images: [{
+      url: new URL(siteMetadata.defaultImage.url, process.env.NODE_ENV === 'production'
+        ? 'https://williamcallahan.com'
+        : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').toString(),
+      width: siteMetadata.defaultImage.width,
+      height: siteMetadata.defaultImage.height,
+      alt: siteMetadata.defaultImage.alt,
+      type: siteMetadata.defaultImage.type,
+    }],
   },
   twitter: {
     card: 'summary_large_image',
     site: siteMetadata.social.twitter,
     creator: siteMetadata.social.twitter,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [{
+      url: new URL(siteMetadata.defaultImage.url, process.env.NODE_ENV === 'production'
+        ? 'https://williamcallahan.com'
+        : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').toString(),
+      width: siteMetadata.defaultImage.width,
+      height: siteMetadata.defaultImage.height,
+      alt: siteMetadata.defaultImage.alt,
+    }],
   },
   alternates: {
     ...(process.env.NODE_ENV === 'production' && {
