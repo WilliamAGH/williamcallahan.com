@@ -73,19 +73,28 @@ export function middleware(request: NextRequest): NextResponse {
   } else if (path.startsWith('/_next/static/')) {
     // Other static assets - longer cache time
     headers['Cache-Control'] = 'public, max-age=604800, immutable' // 1 week
-  } else if (path.includes('cloudflareinsights.com')) {
-    // Cloudflare analytics - allow CORS and caching
+  } else if (path.includes('cloudflareinsights.com') || path.includes('umami.iocloudhost.net') || path.includes('plausible.iocloudhost.net')) {
+    // Analytics domains - allow CORS and caching
     headers['Access-Control-Allow-Origin'] = '*'
-    headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+    headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    headers['Access-Control-Allow-Headers'] = 'Content-Type'
     headers['Cache-Control'] = 'public, max-age=3600' // 1 hour
   }
 
-  // Add CORS headers for Cloudflare domains
+  // Add CORS headers for analytics domains
   const referer = request.headers.get('referer')
-  if (referer?.includes('cloudflareinsights.com')) {
-    headers['Access-Control-Allow-Origin'] = 'https://static.cloudflareinsights.com'
-    headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+  if (referer?.includes('cloudflareinsights.com') || referer?.includes('umami.iocloudhost.net') || referer?.includes('plausible.iocloudhost.net')) {
+    headers['Access-Control-Allow-Origin'] = '*'
+    headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     headers['Access-Control-Allow-Headers'] = 'Content-Type'
+  }
+
+  // Handle analytics script proxying
+  if (path === '/js/script.js') {
+    return NextResponse.rewrite(new URL('https://umami.iocloudhost.net/script.js'));
+  }
+  if (path === '/beacon.min.js') {
+    return NextResponse.rewrite(new URL('https://static.cloudflareinsights.com/beacon.min.js'));
   }
 
   Object.entries(headers).forEach(([header, value]) => {

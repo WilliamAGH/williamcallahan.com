@@ -31,9 +31,11 @@ interface BaseAnalyticsEvent {
 
 interface UmamiEvent extends BaseAnalyticsEvent {
   /** Website ID for tracking */
-  website?: string
+  website?: string;
   /** Current hostname */
-  hostname?: string
+  hostname?: string;
+  /** Allow additional properties */
+  [key: string]: unknown;
 }
 
 interface PlausibleEvent extends BaseAnalyticsEvent {
@@ -57,27 +59,21 @@ function createBaseEventData(): BaseAnalyticsEvent {
  * Safely tracks a pageview in Plausible
  * @param path - The normalized page path
  */
-function trackPlausible(path: string): void {
+async function trackPlausible(path: string): Promise<void> {
   if (typeof window !== 'undefined' && window.plausible) {
     try {
       // Fetch the IP address first
-      fetch('/api/ip')
-        .then(res => res.text())
-        .then(ip => {
-          console.log('[Plausible Debug] Client IP:', ip)
-          const eventData = {
-            ...createBaseEventData(),
-            path,
-            ip // Include IP in the event data for debugging
-          }
-          window.plausible('pageview', { props: eventData })
-          console.log('[Plausible Debug] Event sent with data:', eventData)
-        })
-        .catch(error => {
-          console.error('[Plausible Debug] Error getting IP:', error)
-        })
+      const res = await fetch('/api/ip');
+      if (!res.ok) throw new Error('Failed to fetch IP');
+      const ip = await res.text();
+      const eventData = {
+        ...createBaseEventData(),
+        path,
+        ip // Include IP in the event data for debugging
+      };
+      window.plausible('pageview', { props: eventData });
     } catch (error) {
-      console.error('Plausible tracking error:', error)
+      console.error('Plausible tracking error:', error);
     }
   }
 }
@@ -95,7 +91,7 @@ function trackUmami(path: string): void {
         hostname: window.location.hostname,
         website: process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID
       }
-      window.umami.track('pageview', eventData)
+      window.umami.track('pageview', eventData as Record<string, unknown>)
     } catch (error) {
       console.error('Umami tracking error:', error)
     }
@@ -110,36 +106,37 @@ function trackUmami(path: string): void {
 export function Analytics(): JSX.Element | null {
   const pathname = usePathname()
 
-  const trackPageview = useCallback((path: string) => {
+  const trackPageview = useCallback(async (path: string) => {
     // Ensure we're in the browser
-    if (typeof window === 'undefined') return
-    trackPlausible(path)
-    trackUmami(path)
-  }, [])
+    if (typeof window === 'undefined') return;
+    await trackPlausible(path);
+    trackUmami(path);
+  }, []);
 
   // Track page views on route changes
   useEffect(() => {
-    if (!pathname) return
+    if (!pathname) return;
 
     const normalizedPath = pathname
       .replace(/\/blog\/[^/]+/, '/blog/:slug')
-      .replace(/\?.+$/, '')
+      .replace(/\?.+$/, '');
 
     // Debug analytics script status
     console.debug('[Analytics Debug] Script status:', {
       umamiLoaded: typeof window.umami?.track === 'function',
       plausibleLoaded: window.plausible !== undefined,
       path: normalizedPath
-    })
+    });
 
     // Only track if scripts are loaded and initialized
     if ((window.umami && typeof window.umami.track === 'function') || window.plausible !== undefined) {
-      console.debug('[Analytics Debug] Tracking pageview:', normalizedPath)
-      trackPageview(normalizedPath)
+      console.debug('[Analytics Debug] Tracking pageview:', normalizedPath);
+      // Use void to handle the Promise without creating an async function
+      void trackPageview(normalizedPath);
     } else {
-      console.debug('[Analytics Debug] Scripts not ready, skipping pageview')
+      console.debug('[Analytics Debug] Scripts not ready, skipping pageview');
     }
-  }, [pathname, trackPageview])
+  }, [pathname, trackPageview]);
 
   // Early return if missing config or not in browser
   if (typeof window === 'undefined' || !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || !process.env.NEXT_PUBLIC_SITE_URL) {
@@ -159,10 +156,11 @@ export function Analytics(): JSX.Element | null {
         src="https://umami.iocloudhost.net/script.js"
         data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
         onLoad={() => {
-          console.debug('[Analytics Debug] Umami script loaded')
+          console.debug('[Analytics Debug] Umami script loaded');
           if (normalizedPath) {
-            console.debug('[Analytics Debug] Initial tracking:', normalizedPath)
-            trackPageview(normalizedPath)
+            console.debug('[Analytics Debug] Initial tracking:', normalizedPath);
+            // Use void to handle the Promise
+            void trackPageview(normalizedPath);
           }
         }}
         onError={(e) => {

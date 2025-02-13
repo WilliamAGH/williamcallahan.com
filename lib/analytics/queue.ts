@@ -24,7 +24,7 @@
  * - Session-based event grouping
  */
 
-import { BaseAnalyticsEvent } from '@/types/analytics';
+import { BaseAnalyticsEvent } from '../../types/analytics';
 
 const QUEUE_STORAGE_KEY = 'analytics_event_queue';
 const MAX_RETRY_ATTEMPTS = 3;

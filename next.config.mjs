@@ -116,10 +116,12 @@ const nextConfig = {
 
     return config;
   },
+
   // Keep standalone output for Docker deployments
   output: 'standalone',
   reactStrictMode: true,
   swcMinify: true,
+
   /**
    * Image optimization configuration
    * @see https://nextjs.org/docs/app/api-reference/components/image
@@ -128,7 +130,7 @@ const nextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     // CSP configuration allowing SVGs and analytics
-    contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://*.cloudflareinsights.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.cloudflareinsights.com;",
+    contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://*.cloudflareinsights.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.cloudflareinsights.com https://umami.iocloudhost.net https://plausible.iocloudhost.net;",
     remotePatterns: [
       {
         protocol: 'https',
@@ -163,6 +165,45 @@ const nextConfig = {
         hostname: 'static.cloudflareinsights.com'
       }
     ]
+  },
+
+  // Add headers for CORS and additional security
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*'
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, OPTIONS'
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type'
+          }
+        ]
+      }
+    ];
+  },
+
+  // Handle analytics script proxying
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: '/js/script.js',
+          destination: 'https://umami.iocloudhost.net/script.js'
+        },
+        {
+          source: '/beacon.min.js',
+          destination: 'https://static.cloudflareinsights.com/beacon.min.js'
+        }
+      ]
+    };
   }
 };
 
