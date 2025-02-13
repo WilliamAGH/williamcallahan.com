@@ -65,6 +65,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 RUN mkdir -p /app/public/logos && chown -R nextjs:nodejs /app/public
 
+# Copy data directory (for blog posts and other content)
+COPY --from=builder /app/data ./data
+RUN chown -R nextjs:nodejs /app/data
+
 # Create a volume for persisting logos
 VOLUME /app/public/logos
 

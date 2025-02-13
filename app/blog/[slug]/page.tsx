@@ -7,7 +7,7 @@
  */
 
 import { notFound } from 'next/navigation';
-import { getMDXPost } from "@/lib/blog/mdx";
+import { getMDXPost, getAllMDXPosts } from "@/lib/blog/mdx";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { SITE_NAME } from "@/data/metadata";
 import type { Metadata } from "next";
@@ -24,6 +24,13 @@ interface BlogPostPageProps {
 /**
  * Generate metadata for the blog post
  */
+export async function generateStaticParams() {
+  const posts = await getAllMDXPosts();
+  return posts.map((post) => ({
+    slug: post.slug,
+  }));
+}
+
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   try {
     const post = await getMDXPost(params.slug);
