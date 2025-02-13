@@ -51,23 +51,27 @@ jest.mock('../../data/blog/posts', () => ({
 jest.mock('../../data/investments', () => ({
   investments: [
     {
-      id: '1',
+      id: 'testcompany1',
       name: 'Test Company 1',
       description: 'A fintech startup',
       type: 'Seed',
       status: 'Active',
       founded_year: '2020',
-      invested_year: '2021'
+      invested_year: '2021',
+      stage: 'Seed',
+      stableKey: 'testcompany1-2021-seed'
     },
     {
-      id: '2',
+      id: 'testcompany2',
       name: 'Test Company 2',
       description: 'An AI company',
       type: 'Series A',
       status: 'Acquired',
       founded_year: '2019',
       invested_year: '2020',
-      acquired_year: '2023'
+      acquired_year: '2023',
+      stage: 'Series A',
+      stableKey: 'testcompany2-2020-series-a'
     }
   ]
 }));
@@ -75,16 +79,20 @@ jest.mock('../../data/investments', () => ({
 jest.mock('../../data/experience', () => ({
   experiences: [
     {
-      id: '1',
+      id: 'techcorp',
       company: 'Tech Corp',
       role: 'Senior Engineer',
-      period: '2020-2022'
+      period: '2020-2022',
+      startDate: '2020-01-01',
+      stableKey: 'techcorp-2020-engineer'
     },
     {
-      id: '2',
+      id: 'startupinc',
       company: 'Startup Inc',
       role: 'Lead Developer',
-      period: '2022-Present'
+      period: '2022-Present',
+      startDate: '2022-01-01',
+      stableKey: 'startupinc-2022-developer'
     }
   ]
 }));
@@ -97,7 +105,8 @@ jest.mock('../../data/education', () => ({
       degree: 'Master of Investment Management & Financial Analysis (MIMFA)',
       year: '2016',
       website: 'https://www.creighton.edu',
-      location: 'Omaha, Nebraska'
+      location: 'Omaha, Nebraska',
+      stableKey: 'creighton-2016-mimfa'
     }
   ],
   certifications: [
@@ -108,7 +117,8 @@ jest.mock('../../data/education', () => ({
       logo: '/images/cfa_institute_logo.png',
       year: '2016',
       website: 'https://www.cfainstitute.org',
-      location: 'Charlottesville, Virginia'
+      location: 'Charlottesville, Virginia',
+      stableKey: 'cfa-2016-analyst'
     }
   ],
   recentCourses: []
@@ -191,7 +201,7 @@ describe('Search Functions', () => {
 
     it('should include correct path in results', async () => {
       const results = await searchInvestments('Test Company 1');
-      expect(results[0].path).toBe('/investments#1');
+      expect(results[0].path).toBe('/investments#testcompany1-2021-seed');
     });
   });
 
@@ -224,7 +234,7 @@ describe('Search Functions', () => {
 
     it('should include correct path in results', async () => {
       const results = await searchExperience('Tech Corp');
-      expect(results[0].path).toBe('/experience#1');
+      expect(results[0].path).toBe('/experience#techcorp-2020-engineer');
     });
   });
 
@@ -251,7 +261,7 @@ describe('Search Functions', () => {
         label: 'Creighton University',
         value: 'education-creighton-mimfa',
         action: 'navigate',
-        path: '/education#creighton-mimfa'
+        path: '/education#creighton-2016-mimfa'
       });
     });
 
@@ -262,7 +272,7 @@ describe('Search Functions', () => {
         label: 'CFA Institute',
         value: 'certification-cfa',
         action: 'navigate',
-        path: '/education#cfa'
+        path: '/education#cfa-2016-analyst'
       });
     });
 
@@ -273,7 +283,7 @@ describe('Search Functions', () => {
         label: 'Creighton University',
         value: 'education-creighton-mimfa',
         action: 'navigate',
-        path: '/education#creighton-mimfa'
+        path: '/education#creighton-2016-mimfa'
       });
     });
 

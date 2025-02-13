@@ -132,7 +132,7 @@ export async function searchInvestments(query: string): Promise<SelectionItem[]>
     label: inv.name,
     value: `investment-${inv.id}`,
     action: "navigate" as const,
-    path: `/investments#${inv.id}`
+    path: `/investments#${inv.stableKey}`
   }));
 
   const searchTerms = query.toLowerCase().split(' ').filter(Boolean);
@@ -164,7 +164,7 @@ export async function searchInvestments(query: string): Promise<SelectionItem[]>
     label: inv.name,
     value: `investment-${inv.id}`,
     action: "navigate",
-    path: `/investments#${inv.id}`
+    path: `/investments#${inv.stableKey}`
   }));
 }
 
@@ -192,7 +192,7 @@ export async function searchExperience(query: string): Promise<SelectionItem[]> 
     label: exp.company,
     value: `experience-${exp.id}`,
     action: "navigate" as const,
-    path: `/experience#${exp.id}`
+    path: `/experience#${exp.stableKey}`
   }));
 
   const searchTerms = query.toLowerCase().split(' ').filter(Boolean);
@@ -218,7 +218,7 @@ export async function searchExperience(query: string): Promise<SelectionItem[]> 
     label: exp.company,
     value: `experience-${exp.id}`,
     action: "navigate",
-    path: `/experience#${exp.id}`
+    path: `/experience#${exp.stableKey}`
   }));
 }
 
@@ -229,13 +229,13 @@ export async function searchEducation(query: string): Promise<SelectionItem[]> {
         label: edu.institution,
         value: `education-${edu.id}`,
         action: "navigate" as const,
-        path: `/education#${edu.id}`
+        path: `/education#${edu.stableKey}`
       })),
       ...certifications.map(cert => ({
         label: cert.institution,
         value: `certification-${cert.id}`,
         action: "navigate" as const,
-        path: `/education#${cert.id}`
+        path: `/education#${cert.stableKey}`
       }))
     ];
   }
@@ -257,7 +257,7 @@ export async function searchEducation(query: string): Promise<SelectionItem[]> {
     label: edu.institution,
     value: `education-${edu.id}`,
     action: "navigate" as const,
-    path: `/education#${edu.id}`
+    path: `/education#${edu.stableKey}`
   }));
 
   const matchingCertifications = certifications.filter(cert => {
@@ -275,7 +275,7 @@ export async function searchEducation(query: string): Promise<SelectionItem[]> {
     label: cert.institution,
     value: `certification-${cert.id}`,
     action: "navigate" as const,
-    path: `/education#${cert.id}`
+    path: `/education#${cert.stableKey}`
   }));
 
   return [...matchingEducation, ...matchingCertifications];

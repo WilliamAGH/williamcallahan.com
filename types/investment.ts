@@ -68,4 +68,6 @@ export interface Investment {
     label: string;
     value: string;
   }[];
+  /** Runtime-generated stable unique identifier */
+  stableKey?: string;
 }

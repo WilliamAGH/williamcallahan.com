@@ -29,6 +29,8 @@ interface EducationBase {
   location: string;
   /** Optional logo URL or file path */
   logo?: string;
+  /** Runtime-generated stable unique identifier for anchor links */
+  stableKey?: string;
 }
 
 /**

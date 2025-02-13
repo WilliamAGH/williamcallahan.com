@@ -13,17 +13,24 @@ import { ExperienceCard } from "@/components/ui/experience-card/experience-card.
 import { WindowControls } from "@/components/ui/navigation/windowControls";
 import { experiences } from "@/data/experience";
 import type { Experience as ExperienceType } from "@/types";
+import { generateExperienceKey } from "@/lib/utils/stableKeys";
 
 // Force static generation
 export const dynamic = 'force-static';
 
 export async function Experience(): Promise<JSX.Element> {
-  // Pre-render each experience card
+  // Pre-render each experience card with stable keys
   const experienceCards = await Promise.all(
-    experiences.map(async (exp: ExperienceType) => ({
-      ...exp,
-      card: await ExperienceCard(exp)
-    }))
+    experiences.map(async (exp: ExperienceType) => {
+      const withKey = {
+        ...exp,
+        stableKey: generateExperienceKey(exp.id, exp.startDate, exp.role)
+      };
+      return {
+        ...withKey,
+        card: await ExperienceCard(withKey)
+      };
+    })
   );
 
   return (
@@ -41,7 +48,7 @@ export async function Experience(): Promise<JSX.Element> {
             <h2 className="text-2xl font-bold mb-6">Experience</h2>
             <div className="space-y-6">
             {experienceCards.map((exp) => (
-              <div key={exp.company}>
+              <div key={exp.id} id={exp.stableKey}>
                 {exp.card}
               </div>
             ))}

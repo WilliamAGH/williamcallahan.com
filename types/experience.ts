@@ -43,6 +43,8 @@ export interface Experience {
   accelerator?: Accelerator;
   /** Company location */
   location?: string;
+  /** Runtime-generated stable unique identifier for anchor links */
+  stableKey?: string;
 }
 
 /**
