@@ -1,8 +1,11 @@
 /**
  * Education Data
+ * All dates are stored in Pacific timezone.
+ * Completion years are set to December 31st of the year.
  */
 
 import type { Education, Certification, Class } from 'types/education';
+import { toISO } from '../lib/dateTime';
 
 export const recentCourses: Class[] = [
   {
@@ -118,7 +121,7 @@ export const certifications: Certification[] = [
     institution: 'CFA Institute',
     name: 'Chartered Financial Analyst (CFA) Charterholder',
     logo: '/images/cfa_institute_logo.png',
-    year: '2012',
+    year: '2016',
     website: 'https://www.cfainstitute.org',
     location: 'Charlottesville, Virginia'
   },

@@ -1,157 +1,252 @@
-import { render, screen, waitFor } from '@testing-library/react'
-import { Analytics } from '@/components/analytics/Analytics'
-import { usePathname } from 'next/navigation'
+/**
+ * Analytics Component Tests
+ * @module __tests__/components/analytics/Analytics
+ * @description
+ * Tests for the Analytics component, verifying script loading,
+ * event tracking, and error handling.
+ *
+ * Related modules:
+ * @see {@link "components/analytics/Analytics"} - Component being tested
+ * @see {@link "lib/analytics/queue"} - Queue system for handling analytics events
+ * @see {@link "docs/architecture/analytics.md"} - Analytics architecture documentation
+ */
 
-type UmamiMock = {
-  track: jest.Mock
-} & jest.Mock
+import { render, waitFor } from '@testing-library/react';
+import { Analytics } from '@/components/analytics/Analytics';
+import { usePathname } from 'next/navigation';
+import { PlausibleTracker, UmamiTracker } from '@/types/analytics';
+import { isProduction } from '@/lib/envDetect';
 
-type PlausibleMock = jest.Mock
-
-// Override the window object for tests
-declare global {
-  // eslint-disable-next-line no-var
-  var umami: UmamiMock | undefined
-  // eslint-disable-next-line no-var
-  var plausible: PlausibleMock | undefined
-}
+// Mock envDetect
+jest.mock('@/lib/envDetect', () => ({
+  isProduction: jest.fn().mockReturnValue(true)
+}));
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
   usePathname: jest.fn()
-}))
+}));
+
+// Mock window.location
+beforeAll(() => {
+  Object.defineProperty(window, 'location', {
+    value: {
+      pathname: '/test',
+      href: 'https://test.com/test',
+      hostname: 'test.com'
+    },
+    writable: true
+  });
+});
 
 // Mock next/script
-jest.mock('next/script', () => ({
-  __esModule: true,
-  default: function Script({ id, onLoad, onError }: any) {
-    // Simulate script load after a short delay
-    setTimeout(() => {
-      if (id === 'umami') {
-        // Mock Umami initialization
-        const umamiMock = jest.fn() as UmamiMock
-        umamiMock.track = jest.fn()
-        global.umami = umamiMock
-        onLoad?.()
-      } else if (id === 'plausible') {
-        // Mock Plausible initialization
-        global.plausible = jest.fn()
-      }
-    }, 100)
-    return null
-  }
-}))
+jest.mock('next/script', () => {
+  return function Script(props: any) {
+    // Call onLoad immediately to simulate script loading
+    props.onLoad?.();
+    return <script {...props} />;
+  };
+});
 
-describe('Analytics', () => {
-  const originalEnv = process.env
-  const mockWebsiteId = 'test-website-id'
-  const mockSiteUrl = 'https://williamcallahan.com'
+// Mock document.referrer
+beforeAll(() => {
+  Object.defineProperty(document, 'referrer', {
+    value: 'https://test.com/referrer',
+    configurable: true
+  });
+});
+
+// Setup mock analytics functions
+beforeEach(() => {
+  // Setup Umami mock with type safety
+  const umamiTrackFn = jest.fn();
+  const umamiTracker: UmamiTracker = Object.assign(
+    (event: string, data?: Record<string, unknown>) => {
+      umamiTrackFn(event, data);
+    },
+    { track: umamiTrackFn }
+  );
+  window.umami = umamiTracker;
+
+  // Setup Plausible mock with type safety
+  const plausibleTracker: PlausibleTracker = jest.fn();
+  window.plausible = plausibleTracker;
+});
+
+describe('Analytics Component', () => {
+  // Store original environment
+  const originalEnv = process.env;
 
   beforeEach(() => {
-    // Setup environment variables
+    // Reset environment variables
     process.env = {
       ...originalEnv,
-      NEXT_PUBLIC_UMAMI_WEBSITE_ID: mockWebsiteId,
-      NEXT_PUBLIC_SITE_URL: mockSiteUrl
-    }
+      NEXT_PUBLIC_UMAMI_WEBSITE_ID: 'test-id',
+      NEXT_PUBLIC_SITE_URL: 'https://williamcallahan.com'
+    };
 
     // Mock pathname
-    ;(usePathname as jest.Mock).mockReturnValue('/test-page')
+    (usePathname as jest.Mock).mockReturnValue('/test');
 
-    // Reset window objects between tests
-    global.umami = undefined
-    global.plausible = undefined
+    // Mock fetch for IP endpoint
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        text: () => Promise.resolve('127.0.0.1'),
+        ok: true
+      } as Response)
+    );
 
-    // Clear console mocks
-    jest.spyOn(console, 'debug').mockImplementation(() => {})
-    jest.spyOn(console, 'error').mockImplementation(() => {})
-  })
+    // Clear all mocks
+    jest.clearAllMocks();
+  });
 
   afterEach(() => {
-    process.env = originalEnv
-    jest.clearAllMocks()
-  })
+    // Restore environment
+    process.env = originalEnv;
+    // Clean up window globals
+    delete window.plausible;
+    delete window.umami;
+  });
 
-  it('initializes analytics scripts correctly', async () => {
-    render(<Analytics />)
+  describe('Script Loading', () => {
+    it('loads analytics scripts with correct attributes', () => {
+      const { container } = render(<Analytics />);
 
-    // Wait for scripts to "load"
-    await waitFor(() => {
-      expect(global.umami).toBeDefined()
-      expect(global.plausible).toBeDefined()
-    })
+      // Check Umami script
+      const umamiScript = container.querySelector('script#umami') as HTMLScriptElement;
+      expect(umamiScript).toBeInTheDocument();
+      expect(umamiScript.getAttribute('src')).toBe('https://umami.iocloudhost.net/script.js');
+      expect(umamiScript.getAttribute('data-website-id')).toBe('test-id');
 
-    // Verify tracking was called
-    expect(global.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
-      path: '/test-page',
-      website: mockWebsiteId
-    }))
-  })
+      // Check Plausible script
+      const plausibleScript = container.querySelector('script#plausible') as HTMLScriptElement;
+      expect(plausibleScript).toBeInTheDocument();
+      expect(plausibleScript.getAttribute('src')).toBe('https://plausible.iocloudhost.net/js/script.js');
+      expect(plausibleScript.getAttribute('data-domain')).toBe('williamcallahan.com');
+    });
 
-  it('handles blog post paths correctly', async () => {
-    // Mock a blog post path
-    ;(usePathname as jest.Mock).mockReturnValue('/blog/test-post')
+    it('handles missing environment variables', () => {
+      delete process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
+      const { container } = render(<Analytics />);
+      expect(container.innerHTML).toBe('');
+    });
 
-    render(<Analytics />)
+    it('does not load scripts in non-production', () => {
+      (isProduction as jest.Mock).mockReturnValueOnce(false);
+      const { container } = render(<Analytics />);
+      expect(container.innerHTML).toBe('');
+    });
+  });
 
-    await waitFor(() => {
-      expect(global.umami).toBeDefined()
-    })
+  describe('Event Tracking', () => {
+    it('tracks pageview on route change', async () => {
+      render(<Analytics />);
 
-    // Verify path was normalized
-    expect(global.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
-      path: '/blog/:slug'
-    }))
-  })
+      // Wait for tracking calls
+      await waitFor(() => {
+        expect(window.plausible).toHaveBeenCalledWith('pageview', expect.objectContaining({
+          props: expect.objectContaining({
+            path: '/test'
+          })
+        }));
+        expect(window.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
+          path: '/test'
+        }));
+      });
+    });
 
-  it('does not initialize without required environment variables', () => {
-    // Clear environment variables
-    process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID = ''
-    process.env.NEXT_PUBLIC_SITE_URL = ''
+    it('normalizes blog paths for tracking', async () => {
+      (usePathname as jest.Mock).mockReturnValue('/blog/test-post');
+      render(<Analytics />);
 
-    const { container } = render(<Analytics />)
-    expect(container.innerHTML).toBe('')
-  })
+      await waitFor(() => {
+        expect(window.plausible).toHaveBeenCalledWith('pageview', expect.objectContaining({
+          props: expect.objectContaining({
+            path: '/blog/:slug'
+          })
+        }));
+      });
+    });
 
-  it('tracks page views on route changes', async () => {
-    const { rerender } = render(<Analytics />)
+    it('skips tracking in non-production', async () => {
+      (isProduction as jest.Mock).mockReturnValueOnce(false);
+      render(<Analytics />);
 
-    // Wait for initial load
-    await waitFor(() => {
-      expect(global.umami).toBeDefined()
-    })
+      await waitFor(() => {
+        expect(window.plausible).not.toHaveBeenCalled();
+        expect(window.umami?.track).not.toHaveBeenCalled();
+      });
+    });
+  });
 
-    // Clear tracking calls
-    ;(global.umami?.track as jest.Mock).mockClear()
+  describe('Error Handling', () => {
+    it('handles Plausible tracking errors', async () => {
+      const consoleError = jest.spyOn(console, 'error').mockImplementation();
+      const error = new Error('Tracking failed');
 
-    // Simulate route change
-    ;(usePathname as jest.Mock).mockReturnValue('/new-page')
-    rerender(<Analytics />)
+      // Mock fetch to throw error
+      global.fetch = jest.fn(() => Promise.reject(error));
 
-    // Verify new page was tracked
-    expect(global.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
-      path: '/new-page'
-    }))
-  })
+      render(<Analytics />);
 
-  it('handles script load errors gracefully', async () => {
-    const consoleSpy = jest.spyOn(console, 'error')
+      await waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith('Plausible tracking error:', error);
+      });
 
-    // Mock Script to simulate error
-    jest.requireMock('next/script').default = function Script({ id, onError }: any) {
-      setTimeout(() => {
-        onError?.(new Error('Failed to load script'))
-      }, 100)
-      return null
-    }
+      consoleError.mockRestore();
+    });
 
-    render(<Analytics />)
+    it('handles Umami tracking errors', async () => {
+      const consoleError = jest.spyOn(console, 'error').mockImplementation();
+      const error = new Error('Tracking failed');
 
-    await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[Analytics Error] Failed to load Umami script:',
-        expect.any(Error)
-      )
-    })
-  })
-})
+      // Mock Umami to throw error
+      const trackFn = jest.fn().mockImplementation(() => {
+        throw error;
+      });
+      window.umami = Object.assign(
+        (event: string, data?: Record<string, unknown>) => {
+          trackFn(event, data);
+        },
+        { track: trackFn }
+      );
+
+      render(<Analytics />);
+
+      await waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith('Umami tracking error:', error);
+      });
+
+      consoleError.mockRestore();
+    });
+  });
+
+  describe('Debug Logging', () => {
+    it('logs script status on route change', async () => {
+      const consoleDebug = jest.spyOn(console, 'debug').mockImplementation();
+      render(<Analytics />);
+
+      await waitFor(() => {
+        expect(consoleDebug).toHaveBeenCalledWith(
+          '[Analytics Debug] Script status:',
+          expect.objectContaining({
+            umamiLoaded: true,
+            plausibleLoaded: true,
+            path: '/test'
+          })
+        );
+      });
+
+      consoleDebug.mockRestore();
+    });
+
+    it('logs when skipping tracking in non-production', async () => {
+      const consoleDebug = jest.spyOn(console, 'debug').mockImplementation();
+      (isProduction as jest.Mock).mockReturnValueOnce(false);
+      render(<Analytics />);
+
+      expect(consoleDebug).not.toHaveBeenCalled();
+      consoleDebug.mockRestore();
+    });
+  });
+});

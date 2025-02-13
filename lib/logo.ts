@@ -17,6 +17,7 @@
 
 import { LogoResult, LogoCache, LogoSource } from "../types/logo";
 import { ENDPOINTS } from "./constants";
+import { timestamp } from "./dateTime";
 
 /**
  * Configuration constants for logo management
@@ -184,7 +185,7 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
   const domain = extractDomain(input);
   const cached = cache[domain];
 
-  if (cached && Date.now() - cached.timestamp < CONFIG.CACHE_DURATION) {
+  if (cached && timestamp() - cached.timestamp < CONFIG.CACHE_DURATION) {
     if (cached.url === null) {
       return {
         url: null,
@@ -236,7 +237,7 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
       // Cache the error
       cache[domain] = {
         ...errorResult,
-        timestamp: Date.now()
+        timestamp: timestamp()
       };
       saveCache(cache);
 
@@ -259,7 +260,7 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
 
     cache[domain] = {
       ...successResult,
-      timestamp: Date.now()
+      timestamp: timestamp()
     };
     saveCache(cache);
 
@@ -282,7 +283,7 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
     // Cache the failure
     cache[domain] = {
       ...errorResult,
-      timestamp: Date.now()
+      timestamp: timestamp()
     };
     saveCache(cache);
 

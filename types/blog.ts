@@ -6,6 +6,7 @@
  */
 
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
+import type { PacificDateString } from './seo/shared';
 
 /**
  * Represents an image caption with metadata
@@ -33,17 +34,21 @@ export interface BlogPost {
   excerpt: string;
   /** Serialized MDX content */
   content: MDXRemoteSerializeResult;
-  /** Publication date in ISO format */
-  publishedAt: string;
-  /** Last update date in ISO format (optional) */
-  updatedAt?: string;
+  /** Publication date in ISO format with Pacific timezone */
+  publishedAt: PacificDateString;
+  /** Last update date in ISO format with Pacific timezone (optional) */
+  updatedAt?: PacificDateString;
   /** Post author information */
   author: Author;
   /** Array of tag names */
   tags: string[];
-  /** Estimated reading time in minutes */
-  readingTime: number;
-  /** URL of the post's cover image (optional) */
+  /** Estimated reading time in minutes (optional) */
+  readingTime?: number;
+  /**
+   * URL of the post's cover image (optional)
+   * If not provided, falls back to metadata.defaultImage.url from data/metadata.ts
+   * @see {@link "../../data/metadata.ts"} - For default image configuration
+   */
   coverImage?: string;
 }
 

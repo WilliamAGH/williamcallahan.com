@@ -8,9 +8,9 @@
 
 import type { Experience } from '../../../types/experience';
 import { ExperienceCardClient } from './experience-card.client';
-import { fetchLogo, normalizeDomain } from '../../../lib/logo-fetcher';
-import fs from 'fs/promises';
-import path from 'path';
+import { fetchLogo, normalizeDomain } from '../../../lib/logoFetcher';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 // Cache for placeholder SVG
 let placeholderSvg: Buffer | null = null;

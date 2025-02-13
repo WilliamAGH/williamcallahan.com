@@ -8,7 +8,7 @@
 
 import { NextResponse } from 'next/server';
 import type{ NextRequest } from 'next/server';
-import { ServerCacheInstance } from '../../../../lib/server-cache';
+import { ServerCacheInstance } from '../../../../lib/serverCache';
 import { analyzeImage, invertImage, needsInversion } from '../../../../lib/imageAnalysis';
 
 /**

@@ -4,11 +4,13 @@
 
 "use client";
 
-import { WindowControls } from '../navigation/window-controls';
+import React from 'react';
+
+import { WindowControls } from '../navigation/windowControls';
 import { History } from './history';
-import { CommandInput } from './command-input';
-import { SelectionView } from './selection-view';
-import { useTerminal } from './use-terminal';
+import { CommandInput } from './commandInput';
+import { SelectionView } from './selectionView';
+import { useTerminal } from './useTerminal';
 
 export function Terminal() {
   const {
@@ -29,7 +31,7 @@ export function Terminal() {
       <div className="text-gray-300 select-text">
         <History history={history} />
         {selection ? (
-          <SelectionView 
+          <SelectionView
             items={selection}
             onSelect={handleSelection}
             onExit={cancelSelection}

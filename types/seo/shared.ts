@@ -5,27 +5,13 @@
  * Common type definitions shared across SEO modules.
  */
 
+import { isValidPacificDate } from '../../lib/dateTime';
+
 /**
- * ISO 8601 date string with Pacific Time offset
- * Format: YYYY-MM-DDTHH:mm:ss-08:00 (or -07:00 during DST)
- * @example "2025-02-10T10:54:28-08:00"
+ * ISO 8601 date string in Pacific Time
+ * @example "2025-02-10T10:54:28 PST"
  */
 export type PacificDateString = string;
-
-/**
- * Date format validation regex
- * Matches ISO 8601 format with Pacific Time offset
- * @example "2025-02-10T10:54:28-08:00"
- */
-export const PACIFIC_DATE_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}-0[87]:00$/;
-
-/**
- * Type guard for PacificDateString
- * Ensures a string matches the required format
- */
-export function isPacificDateString(date: string): date is PacificDateString {
-  return PACIFIC_DATE_REGEX.test(date);
-}
 
 /**
  * Required date fields for article metadata
@@ -49,9 +35,9 @@ export function isArticleDates(dates: any): dates is ArticleDates {
   return (
     typeof dates === 'object' &&
     dates !== null &&
-    isPacificDateString(dates.datePublished) &&
-    isPacificDateString(dates.dateModified) &&
-    (dates.dateCreated === undefined || isPacificDateString(dates.dateCreated))
+    isValidPacificDate(dates.datePublished) &&
+    isValidPacificDate(dates.dateModified) &&
+    (dates.dateCreated === undefined || isValidPacificDate(dates.dateCreated))
   );
 }
 

@@ -123,6 +123,12 @@ export const PAGE_METADATA = {
     dateCreated: '2025-02-10T12:42:00',
     dateModified: '2025-02-10T12:42:00',
   } as CollectionPageMetadata,
+  blogTag: {
+    title: `%tag% blog posts by ${SITE_NAME}`,
+    description: `Articles tagged with "%tag%" - Thoughts from ${SITE_NAME} on %tag%, technology, and software engineering.`,
+    dateCreated: '2025-02-10T12:42:00',
+    dateModified: '2025-02-10T12:42:00',
+  } as CollectionPageMetadata,
 } as const;
 
 export const metadata = {
@@ -184,12 +190,6 @@ export const metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://williamcallahan.com',
-    siteName: SITE_NAME,
-    images: [{
-      url: 'https://williamcallahan.com/og-image.jpg',
-      width: 1200,
-      height: 630,
-      alt: SITE_NAME
-    }]
+    siteName: SITE_NAME
   }
 };

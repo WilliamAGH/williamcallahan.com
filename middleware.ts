@@ -2,6 +2,7 @@
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { nowPacific } from './lib/dateTime'
 
 /**
  * Type definition for server-side request logging
@@ -53,23 +54,60 @@ export function middleware(request: NextRequest): NextResponse {
   const response = NextResponse.next()
   const ip = getRealIp(request)
 
-  // Set security headers
-  const securityHeaders = {
+  const path = request.nextUrl.pathname;
+
+  // Set security and caching headers
+  const headers: Record<string, string> = {
+    // Security headers
     'X-DNS-Prefetch-Control': 'on',
     'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
     'X-Frame-Options': 'SAMEORIGIN',
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'X-Real-IP': ip
+    'X-Real-IP': ip,
   }
 
-  Object.entries(securityHeaders).forEach(([header, value]) => {
+  // Add cache headers for images and static assets
+  if (path.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+    headers['Cache-Control'] = 'public, max-age=31536000, immutable'; // 1 year
+    headers['Vary'] = 'Accept'; // Vary header for content negotiation
+  } else if (path.startsWith('/_next/static/css/')) {
+    // CSS files - shorter cache time to allow style updates
+    headers['Cache-Control'] = 'public, max-age=604800, immutable' // 7 days
+  } else if (path.startsWith('/_next/static/')) {
+    // Other static assets - longer cache time
+    headers['Cache-Control'] = 'public, max-age=604800, immutable' // 1 week
+  } else if (path.includes('cloudflareinsights.com') || path.includes('umami.iocloudhost.net') || path.includes('plausible.iocloudhost.net')) {
+    // Analytics domains - allow CORS and caching
+    headers['Access-Control-Allow-Origin'] = '*'
+    headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    headers['Cache-Control'] = 'public, max-age=3600' // 1 hour
+  }
+
+  // Add CORS headers for analytics domains
+  const referer = request.headers.get('referer')
+  if (referer?.includes('cloudflareinsights.com') || referer?.includes('umami.iocloudhost.net') || referer?.includes('plausible.iocloudhost.net')) {
+    headers['Access-Control-Allow-Origin'] = '*'
+    headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    headers['Access-Control-Allow-Headers'] = 'Content-Type'
+  }
+
+  // Handle analytics script proxying
+  if (path === '/js/script.js') {
+    return NextResponse.rewrite(new URL('https://umami.iocloudhost.net/script.js'));
+  }
+  if (path === '/beacon.min.js') {
+    return NextResponse.rewrite(new URL('https://static.cloudflareinsights.com/beacon.min.js'));
+  }
+
+  Object.entries(headers).forEach(([header, value]) => {
     response.headers.set(header, value)
   })
 
   // Log the request with the real IP
   const log: RequestLog = {
-    timestamp: new Date().toISOString(),
+    timestamp: nowPacific(),
     type: 'server_pageview',
     data: {
       path: request.nextUrl.pathname,
@@ -95,12 +133,11 @@ export const config = {
     /*
      * Match all request paths except for the ones starting with:
      * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - robots.txt
      * - sitemap.xml
+     * Note: We want to process _next/static for cache headers
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)',
+    '/((?!api|favicon.ico|robots.txt|sitemap.xml).*)',
   ],
 }

@@ -1,3 +1,5 @@
+// lib/seo/metadata.ts
+
 /**
  * Core SEO Metadata Implementation
  * @module lib/seo/metadata
@@ -47,6 +49,12 @@ export const BASE_METADATA: Metadata = {
     card: 'summary_large_image',
     site: siteMetadata.social.twitter,
     creator: siteMetadata.social.twitter,
+    images: [{
+      url: ensureAbsoluteUrl(siteMetadata.defaultImage.url),
+      width: siteMetadata.defaultImage.width,
+      height: siteMetadata.defaultImage.height,
+      alt: siteMetadata.defaultImage.alt,
+    }],
   },
   alternates: {
     canonical: 'https://williamcallahan.com',
@@ -83,35 +91,35 @@ export function createArticleMetadata({
   tags,
   articleBody = 'Article content not available',
 }: ArticleParams): ArticleMetadata {
-  // Format dates in Pacific Time with proper offset
-  const formattedPublished = formatSeoDate(datePublished);
-  const formattedModified = formatSeoDate(dateModified);
+  // Always include timezone for all dates
+  const publishedTime = formatSeoDate(datePublished, true);
+  const modifiedTime = formatSeoDate(dateModified, true);
 
   const browserTitle = `${title} - ${SITE_NAME}'s Blog`;
 
-  // Generate schema graph
-  const schemaParams: SchemaParams = {
-    path: new URL(url).pathname,
-    title,
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: title,
     description,
-    datePublished: formattedPublished,
-    dateModified: formattedModified,
-    type: 'article',
     articleBody,
+    datePublished: publishedTime,
+    dateModified: modifiedTime,
     keywords: tags,
-    image: image ? {
-      url: image,
-      width: siteMetadata.defaultImage.width,
-      height: siteMetadata.defaultImage.height,
-    } : undefined,
-    breadcrumbs: [
-      { path: '/', name: 'Home' },
-      { path: '/blog', name: 'Blog' },
-      { path: new URL(url).pathname, name: title },
-    ],
+    author: {
+      '@type': 'Person',
+      name: SITE_NAME,
+      url: siteMetadata.site.url
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: SITE_NAME
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': url
+    }
   };
-
-  const schema = generateSchemaGraph(schemaParams);
 
   return {
     title: browserTitle,
@@ -128,8 +136,8 @@ export function createArticleMetadata({
       description,
       url,
       image,
-      datePublished,
-      dateModified,
+      datePublished: publishedTime,
+      dateModified: modifiedTime,
       tags,
     }),
     twitter: {
@@ -141,19 +149,19 @@ export function createArticleMetadata({
     },
     other: {
       // Standard HTML meta dates
-      [SEO_DATE_FIELDS.meta.published]: formattedPublished,
-      [SEO_DATE_FIELDS.meta.modified]: formattedModified,
+      [SEO_DATE_FIELDS.meta.published]: publishedTime,
+      [SEO_DATE_FIELDS.meta.modified]: modifiedTime,
 
       // Optional Dublin Core dates
-      [SEO_DATE_FIELDS.dublinCore.created]: formattedPublished,
-      [SEO_DATE_FIELDS.dublinCore.modified]: formattedModified,
-      [SEO_DATE_FIELDS.dublinCore.issued]: formattedPublished,
+      [SEO_DATE_FIELDS.dublinCore.created]: publishedTime,
+      [SEO_DATE_FIELDS.dublinCore.modified]: modifiedTime,
+      [SEO_DATE_FIELDS.dublinCore.issued]: publishedTime,
 
       // OpenGraph article dates (as meta properties)
-      [`property=${SEO_DATE_FIELDS.openGraph.published}`]: formattedPublished,
-      [`property=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
-      [`name=${SEO_DATE_FIELDS.openGraph.published}`]: formattedPublished,
-      [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
+      [`property=${SEO_DATE_FIELDS.openGraph.published}`]: publishedTime,
+      [`property=${SEO_DATE_FIELDS.openGraph.modified}`]: modifiedTime,
+      [`name=${SEO_DATE_FIELDS.openGraph.published}`]: publishedTime,
+      [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: modifiedTime,
     },
   };
 }
@@ -164,33 +172,40 @@ export function createArticleMetadata({
  *
  * @param {string} path - The path of the page (e.g., "/", "/blog")
  * @param {keyof typeof PAGE_METADATA} pageKey - The key for the page's metadata in PAGE_METADATA
+ * @param {object} overrides - Optional overrides for the page's metadata
  * @returns {ExtendedMetadata} Next.js metadata object for the page
  */
 export function getStaticPageMetadata(
   path: string,
-  pageKey: keyof typeof PAGE_METADATA
+  pageKey: keyof typeof PAGE_METADATA,
+  overrides?: {
+    title?: string;
+    description?: string;
+    breadcrumbs?: Array<{ path: string; name: string; }>;
+  }
 ): ExtendedMetadata {
   const pageMetadata = PAGE_METADATA[pageKey];
-  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
-  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+  // Always include timezone for all dates
+  const dateCreated = formatSeoDate(pageMetadata.dateCreated, true);
+  const dateModified = formatSeoDate(pageMetadata.dateModified, true);
 
   // Determine page type and breadcrumbs
   const isProfilePage = ['home', 'experience', 'education'].includes(pageKey);
-  const isCollectionPage = ['blog', 'investments', 'bookmarks'].includes(pageKey);
+  const isCollectionPage = ['blog', 'investments', 'bookmarks', 'blogTag'].includes(pageKey);
   const isDatasetPage = pageKey === 'investments';
 
-  const breadcrumbs = path === '/' ? undefined : [
+  const breadcrumbs = overrides?.breadcrumbs ?? (path === '/' ? undefined : [
     { path: '/', name: 'Home' },
-    { path, name: pageMetadata.title },
-  ];
+    { path, name: overrides?.title ?? pageMetadata.title },
+  ]);
 
   // Generate schema graph
   const schemaParams: SchemaParams = {
     path,
-    title: pageMetadata.title,
-    description: pageMetadata.description,
-    datePublished: formattedCreated,
-    dateModified: formattedModified,
+    title: overrides?.title ?? pageMetadata.title,
+    description: overrides?.description ?? pageMetadata.description,
+    datePublished: dateCreated,
+    dateModified: dateModified,
     type: isProfilePage ? 'profile' : isDatasetPage ? 'dataset' : isCollectionPage ? 'collection' : undefined,
     breadcrumbs,
     image: {
@@ -204,8 +219,8 @@ export function getStaticPageMetadata(
 
   const openGraph: ExtendedOpenGraph = isProfilePage
     ? {
-        title: pageMetadata.title,
-        description: pageMetadata.description,
+        title: overrides?.title ?? pageMetadata.title,
+        description: overrides?.description ?? pageMetadata.description,
         type: 'profile',
         url: ensureAbsoluteUrl(path),
         images: [siteMetadata.defaultImage],
@@ -217,16 +232,16 @@ export function getStaticPageMetadata(
       }
     : pageKey === 'blog'
     ? {
-        title: pageMetadata.title,
-        description: pageMetadata.description,
+        title: overrides?.title ?? pageMetadata.title,
+        description: overrides?.description ?? pageMetadata.description,
         type: 'article',
         url: ensureAbsoluteUrl(path),
         images: [siteMetadata.defaultImage],
         siteName: SITE_NAME,
         locale: 'en_US',
         article: {
-          publishedTime: formattedCreated,
-          modifiedTime: formattedModified,
+          publishedTime: dateCreated,
+          modifiedTime: dateModified,
           authors: [siteMetadata.author],
           section: siteMetadata.article.section,
           tags: [],
@@ -234,8 +249,8 @@ export function getStaticPageMetadata(
       }
     : isCollectionPage
     ? {
-        title: pageMetadata.title,
-        description: pageMetadata.description,
+        title: overrides?.title ?? pageMetadata.title,
+        description: overrides?.description ?? pageMetadata.description,
         type: 'website',
         url: ensureAbsoluteUrl(path),
         images: [siteMetadata.defaultImage],
@@ -243,16 +258,16 @@ export function getStaticPageMetadata(
         locale: 'en_US',
       }
     : {
-        title: pageMetadata.title,
-        description: pageMetadata.description,
+        title: overrides?.title ?? pageMetadata.title,
+        description: overrides?.description ?? pageMetadata.description,
         type: 'article',
         url: ensureAbsoluteUrl(path),
         images: [siteMetadata.defaultImage],
         siteName: SITE_NAME,
         locale: 'en_US',
         article: {
-          publishedTime: formattedCreated,
-          modifiedTime: formattedModified,
+          publishedTime: dateCreated,
+          modifiedTime: dateModified,
           authors: [siteMetadata.author],
           section: siteMetadata.article.section,
           tags: [],
@@ -261,8 +276,8 @@ export function getStaticPageMetadata(
 
   return {
     ...BASE_METADATA,
-    title: pageMetadata.title,
-    description: pageMetadata.description,
+    title: overrides?.title ?? pageMetadata.title,
+    description: overrides?.description ?? pageMetadata.description,
     alternates: {
       canonical: ensureAbsoluteUrl(path),
     },
@@ -272,27 +287,34 @@ export function getStaticPageMetadata(
     }],
     openGraph,
     twitter: {
+      ...BASE_METADATA.twitter,
       card: 'summary',
-      title: pageMetadata.title,
-      description: pageMetadata.description,
-      images: [siteMetadata.defaultImage],
+      site: siteMetadata.social.twitter,
+      title: overrides?.title ?? pageMetadata.title,
+      description: overrides?.description ?? pageMetadata.description,
+      images: [{
+        url: ensureAbsoluteUrl(siteMetadata.defaultImage.url),
+        width: siteMetadata.defaultImage.width,
+        height: siteMetadata.defaultImage.height,
+        alt: siteMetadata.defaultImage.alt,
+      }],
       creator: siteMetadata.social.twitter,
     },
     other: {
       // Standard HTML meta dates
-      [SEO_DATE_FIELDS.meta.published]: formattedCreated,
-      [SEO_DATE_FIELDS.meta.modified]: formattedModified,
+      [SEO_DATE_FIELDS.meta.published]: dateCreated,
+      [SEO_DATE_FIELDS.meta.modified]: dateModified,
 
       // Optional Dublin Core dates
-      [SEO_DATE_FIELDS.dublinCore.created]: formattedCreated,
-      [SEO_DATE_FIELDS.dublinCore.modified]: formattedModified,
-      [SEO_DATE_FIELDS.dublinCore.issued]: formattedCreated,
+      [SEO_DATE_FIELDS.dublinCore.created]: dateCreated,
+      [SEO_DATE_FIELDS.dublinCore.modified]: dateModified,
+      [SEO_DATE_FIELDS.dublinCore.issued]: dateCreated,
 
       // OpenGraph article dates (as meta properties)
-      [`property=${SEO_DATE_FIELDS.openGraph.published}`]: formattedCreated,
-      [`property=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
-      [`name=${SEO_DATE_FIELDS.openGraph.published}`]: formattedCreated,
-      [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
+      [`property=${SEO_DATE_FIELDS.openGraph.published}`]: dateCreated,
+      [`property=${SEO_DATE_FIELDS.openGraph.modified}`]: dateModified,
+      [`name=${SEO_DATE_FIELDS.openGraph.published}`]: dateCreated,
+      [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: dateModified,
     },
     // Add bookmarks metadata for relevant pages
     ...(pageKey === 'bookmarks' && {

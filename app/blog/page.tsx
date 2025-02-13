@@ -10,7 +10,8 @@ import { Blog } from "../../components/features";
 import { getStaticPageMetadata } from "../../lib/seo/metadata";
 import { JsonLdScript } from "../../components/seo/json-ld";
 import { PAGE_METADATA } from "../../data/metadata";
-import { formatSeoDate } from "../../lib/seo/utils";
+import { getAllPosts, getPostsByTag, tagExists } from "../../lib/blog";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 /**
@@ -18,13 +19,23 @@ import type { Metadata } from "next";
  */
 export const metadata: Metadata = getStaticPageMetadata('/blog', 'blog');
 
+interface BlogPageProps {
+  searchParams: { tag?: string }
+}
+
 /**
  * Blog index page component
  */
-export default function BlogPage() {
+export default async function BlogPage({ searchParams }: BlogPageProps) {
+  const { tag } = searchParams;
   const pageMetadata = PAGE_METADATA.blog;
-  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
-  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+  // PAGE_METADATA dates are already in Pacific time
+  const { dateCreated, dateModified } = pageMetadata;
+
+  // Get posts based on tag
+  const posts = tag
+    ? (await tagExists(tag) ? await getPostsByTag(tag) : notFound())
+    : await getAllPosts();
 
   return (
     <>
@@ -32,11 +43,11 @@ export default function BlogPage() {
         data={{
           "@context": "https://schema.org",
           "@type": "CollectionPage",
-          "datePublished": formattedCreated,
-          "dateModified": formattedModified
+          "datePublished": dateCreated,
+          "dateModified": dateModified
         }}
       />
-      <Blog />
+      <Blog posts={posts} tag={tag} />
     </>
   );
 }

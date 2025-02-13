@@ -1,34 +1,51 @@
 /**
  * Terminal History Component
- * 
- * Displays command history with proper word wrapping and
- * prevents unwanted text truncation on mobile devices.
+ *
+ * Displays terminal command history with proper accessibility support.
+ * Implements proper state isolation and cleanup.
  */
 
-import type { TerminalCommand } from '@/types/terminal';
+"use client";
+
+import { memo } from "react";
+import type { TerminalCommand } from "@/types/terminal";
 
 interface HistoryProps {
   history: TerminalCommand[];
 }
 
-export function History({ history }: HistoryProps) {
+export const History = memo(function History({ history }: HistoryProps) {
   return (
-    <div className="space-y-1 mb-4">
-      {history.map((line, i) => (
-        <div key={i}>
-          {line.input && (
-            <div className="flex items-start">
-              <span className="text-[#7aa2f7] select-none mr-2 shrink-0">$</span>
-              <span className="text-gray-300 break-words">{line.input}</span>
+    <div
+      role="log"
+      aria-label="Terminal command history"
+      aria-live="polite"
+      aria-atomic="false"
+    >
+      {history.map((command, index) => (
+        <div
+          key={`${command.input || command.output}-${index}`}
+          className="mb-2"
+        >
+          {command.input && (
+            <div className="flex items-center">
+              <span className="text-green-500 mr-2">$</span>
+              <span className="text-gray-300">{command.input}</span>
             </div>
           )}
-          {line.output && (
-            <div className="text-gray-300 whitespace-pre-wrap break-words">
-              {line.output}
+          {command.output && (
+            <div
+              className="text-gray-300 whitespace-pre-wrap"
+              role="status"
+              aria-label={`Output for ${command.input || "command"}`}
+            >
+              {command.output}
             </div>
           )}
         </div>
       ))}
     </div>
   );
-}
+});
+
+History.displayName = "History";

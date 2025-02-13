@@ -1,12 +1,16 @@
 import {
   formatMultiple,
   formatPercentage,
-  formatDate,
   isValidUrl,
   extractDomain,
   truncateText,
   randomString
 } from '../../lib/utils';
+import {
+  parsePacificDate,
+  formatDisplay as formatPacificDate,
+  formatISOPacific
+} from '../../lib/dateTime';
 
 describe('formatMultiple', () => {
   it('formats numbers correctly', () => {
@@ -34,32 +38,6 @@ describe('formatPercentage', () => {
   });
 });
 
-describe('formatDate', () => {
-  // Mock timezone to ensure consistent behavior
-  const realDate = global.Date;
-  beforeAll(() => {
-    const constantDate = new Date('2024-03-14T12:00:00Z');
-    global.Date = class extends realDate {
-      constructor(date: any) {
-        super(date || '2024-03-14T12:00:00Z');
-      }
-    } as DateConstructor;
-  });
-
-  afterAll(() => {
-    global.Date = realDate;
-  });
-
-  it('formats dates correctly', () => {
-    const date = new Date('2024-03-14T12:00:00Z');
-    expect(formatDate(date.toISOString())).toBe('March 14, 2024');
-  });
-
-  it('handles different date formats', () => {
-    expect(formatDate('2024-03-14T12:00:00Z')).toBe('March 14, 2024');
-    expect(formatDate('2024-03-14')).toBe('March 14, 2024');
-  });
-});
 
 describe('isValidUrl', () => {
   it('validates URLs correctly', () => {

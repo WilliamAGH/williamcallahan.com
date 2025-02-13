@@ -22,10 +22,11 @@
  */
 
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
-import { ExternalLink } from '../../ui/external-link';
-import { LogoImage } from '../../ui/logo-image';
+import { ExternalLink } from '../../ui/externalLink';
+import { LogoImage } from '../../ui/logoImage';
 import type { Bookmark } from '../../../types/bookmark';
-import { normalizeDomain } from '../../../lib/logo-fetcher';
+import { normalizeDomain } from '../../../lib/logoFetcher';
+import { formatDisplay } from '../../../lib/dateTime';
 
 /**
  * Props for the BookmarkCardClient component
@@ -62,17 +63,8 @@ export function BookmarkCardClient({
   datePublished,
   isDarkTheme
 }: BookmarkCardClientProps): JSX.Element {
-  const formattedBookmarkDate = new Date(dateBookmarked).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-
-  const formattedPublishDate = datePublished ? new Date(datePublished).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  }) : null;
+  const formattedBookmarkDate = formatDisplay(dateBookmarked);
+  const formattedPublishDate = datePublished ? formatDisplay(datePublished) : null;
 
   return (
     <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">

@@ -10,7 +10,6 @@ import { Experience } from "../../components/features";
 import { getStaticPageMetadata } from "../../lib/seo/metadata";
 import { JsonLdScript } from "../../components/seo/json-ld";
 import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
-import { formatSeoDate } from "../../lib/seo/utils";
 import type { Metadata } from "next";
 
 /**
@@ -23,8 +22,8 @@ export const metadata: Metadata = getStaticPageMetadata('/experience', 'experien
  */
 export default function ExperiencePage() {
   const pageMetadata = PAGE_METADATA.experience;
-  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
-  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+  // PAGE_METADATA dates are already in Pacific time
+  const { dateCreated, dateModified } = pageMetadata;
 
   return (
     <>
@@ -34,8 +33,8 @@ export default function ExperiencePage() {
           "@type": "ProfilePage",
           "name": `${SITE_NAME} - Professional Experience`,
           "description": pageMetadata.description,
-          "datePublished": formattedCreated,
-          "dateModified": formattedModified,
+          "datePublished": dateCreated,
+          "dateModified": dateModified,
           "mainEntity": {
             "@type": "Person",
             "name": SITE_NAME,

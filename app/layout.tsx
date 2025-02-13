@@ -19,7 +19,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { Navigation, Terminal, SocialIcons, ThemeToggle } from "../components/ui";
 import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "../data/metadata";
-
+import { ThemeInitializer } from "./clientComponents/initializers/theme";
 import { Analytics } from '@/components/analytics/Analytics'
 
 /** Load Inter font with Latin subset */
@@ -47,6 +47,10 @@ export const metadata: Metadata = {
     telephone: false,
     date: false,
   },
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-icon.png',
+  },
   openGraph: {
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
@@ -54,12 +58,30 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     locale: 'en_US',
     type: 'website',
-    images: [siteMetadata.defaultImage],
+    images: [{
+      url: new URL(siteMetadata.defaultImage.url, process.env.NODE_ENV === 'production'
+        ? 'https://williamcallahan.com'
+        : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').toString(),
+      width: siteMetadata.defaultImage.width,
+      height: siteMetadata.defaultImage.height,
+      alt: siteMetadata.defaultImage.alt,
+      type: siteMetadata.defaultImage.type,
+    }],
   },
   twitter: {
     card: 'summary_large_image',
     site: siteMetadata.social.twitter,
     creator: siteMetadata.social.twitter,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [{
+      url: new URL(siteMetadata.defaultImage.url, process.env.NODE_ENV === 'production'
+        ? 'https://williamcallahan.com'
+        : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').toString(),
+      width: siteMetadata.defaultImage.width,
+      height: siteMetadata.defaultImage.height,
+      alt: siteMetadata.defaultImage.alt,
+    }],
   },
   alternates: {
     ...(process.env.NODE_ENV === 'production' && {
@@ -81,22 +103,44 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+        <ThemeInitializer />
+      </head>
+      <body className={`${inter.className} overscroll-none`}>
         <Providers>
-          <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
-            <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
-              <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-                <Navigation />
-                <div className="flex items-center space-x-4">
-                  <SocialIcons />
-                  <ThemeToggle />
+          <div className="relative min-h-screen">
+            {/* Background layer */}
+            <div
+              className="fixed inset-0 bg-white dark:bg-[#1a1b26] -z-10"
+              style={{
+                transition: 'background-color 150ms ease-out',
+                willChange: 'background-color'
+              }}
+            />
+
+            {/* Content layer */}
+            <div
+              className="relative z-0 min-h-screen text-gray-900 dark:text-gray-100"
+              style={{
+                transition: 'color 150ms ease-out',
+                willChange: 'color'
+              }}
+            >
+              <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-40 border-b border-gray-200/50 dark:border-gray-800/50">
+                <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+                  <Navigation />
+                  <div className="flex items-center gap-4 relative z-50">
+                    <SocialIcons />
+                    <ThemeToggle />
+                  </div>
                 </div>
-              </div>
-            </header>
-            <main className="pt-24 pb-16 px-4">
-              <Terminal />
-              {children}
-            </main>
+              </header>
+              <main className="relative pt-24 pb-16 px-4">
+                <Terminal />
+                {children}
+              </main>
+            </div>
           </div>
         </Providers>
         <Suspense fallback={<></>}>

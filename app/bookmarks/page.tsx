@@ -9,14 +9,11 @@
  * @see {@link "https://schema.org/CollectionPage"} - Schema.org CollectionPage specification
  */
 
-import type { Metadata } from 'next';
 import { BookmarksClient } from '../../components/features/bookmarks/bookmarks.client';
 import { BookmarkCardClient } from '../../components/features/bookmarks/bookmark-card.client';
 import type { Bookmark, BookmarkWithPreview } from '../../types/bookmark';
-import { getStaticPageMetadata } from '../../lib/seo/metadata';
 import { JsonLdScript } from "../../components/seo/json-ld";
 import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
-import { formatSeoDate } from "../../lib/seo/utils";
 
 /**
  * Mock bookmarks data for UI development
@@ -84,8 +81,8 @@ const mockBookmarks: Bookmark[] = [
  */
 export default function BookmarksPage() {
   const pageMetadata = PAGE_METADATA.bookmarks;
-  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
-  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+  // PAGE_METADATA dates are already in Pacific time
+  const { dateCreated, dateModified } = pageMetadata;
 
   return (
     <>
@@ -95,8 +92,8 @@ export default function BookmarksPage() {
           "@type": "CollectionPage",
           "name": `${SITE_NAME}'s Bookmarked Resources`,
           "description": pageMetadata.description,
-          "datePublished": formattedCreated,
-          "dateModified": formattedModified,
+          "datePublished": dateCreated,
+          "dateModified": dateModified,
           "author": {
             "@type": "Person",
             "name": SITE_NAME,

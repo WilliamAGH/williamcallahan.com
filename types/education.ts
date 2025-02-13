@@ -3,7 +3,14 @@
  * @module types/education
  * @description
  * Type definitions for education and certification data.
+ * All dates are stored in Pacific timezone.
  */
+
+/**
+ * Year string in YYYY format
+ * @example "2016"
+ */
+export type YearString = string;
 
 /**
  * Base interface for education-related items
@@ -14,14 +21,16 @@ interface EducationBase {
   id: string;
   /** Institution name */
   institution: string;
-  /** Year completed (optional) */
-  year?: string;
+  /** Completion year in YYYY format */
+  year?: YearString;
   /** Institution website URL */
   website: string;
   /** Location (city, state) */
   location: string;
   /** Optional logo URL or file path */
   logo?: string;
+  /** Runtime-generated stable unique identifier for anchor links */
+  stableKey?: string;
 }
 
 /**

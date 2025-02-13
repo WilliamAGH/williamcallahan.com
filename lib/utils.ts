@@ -7,7 +7,6 @@
 
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-
 /**
  * Merge class names with Tailwind CSS classes
  * @param {...ClassValue[]} inputs - Class names to merge
@@ -37,34 +36,6 @@ export function formatPercentage(value: number): string {
   if (value === 0) return '0%';
   if (!value) return 'N/A';
   return `${value.toFixed(1)}%`;
-}
-
-/**
- * Format a date string (e.g., "March 14, 2024")
- * @param {string} dateString - The date string to format
- * @returns {string} Formatted date string
- */
-export function formatDate(dateString: string): string {
-  // Create date in UTC to avoid timezone issues
-  const date = new Date(dateString);
-  const utcDate = new Date(
-    Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate(),
-      12, // noon UTC to avoid any date boundary issues
-      0,
-      0,
-      0
-    )
-  );
-
-  return utcDate.toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC'
-  });
 }
 
 /**
@@ -121,4 +92,29 @@ export function randomString(length: number): string {
     result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return result;
+}
+
+/**
+ * Debounce a function call
+ * @param {Function} func - Function to debounce
+ * @param {number} wait - Time to wait in milliseconds
+ * @returns {Function} Debounced function
+ */
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | null = null;
+
+  return function executedFunction(...args: Parameters<T>) {
+    const later = () => {
+      timeout = null;
+      func(...args);
+    };
+
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(later, wait);
+  };
 }

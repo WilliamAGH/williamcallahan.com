@@ -17,7 +17,7 @@
  * ```
  */
 
-import { WindowControls } from '../../../components/ui/navigation/window-controls';
+import { WindowControls } from '../../ui/navigation/windowControls';
 import type { Education, Certification, Class } from '../../../types/education';
 
 /**

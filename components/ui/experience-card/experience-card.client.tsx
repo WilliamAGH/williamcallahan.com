@@ -1,9 +1,10 @@
 "use client";
 
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
-import { LogoImage } from '../logo-image';
-import { ExternalLink } from '../external-link';
+import { LogoImage } from '../logoImage';
+import { ExternalLink } from '../externalLink';
 import type { Experience } from '../../../types/experience';
+import { toISO, formatDisplay, formatYearDisplay } from '../../../lib/dateTime';
 
 interface LogoData {
   url: string;
@@ -17,7 +18,6 @@ interface ExperienceCardClientProps extends Experience {
 export function ExperienceCardClient({
   id,
   company,
-  period,
   startDate,
   endDate,
   role,
@@ -51,8 +51,8 @@ export function ExperienceCardClient({
             </ExternalLink>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1">
+            <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+              <div className="flex items-center gap-1 min-w-0">
                 <ExternalLink
                   href={website}
                   title={`Visit ${company}'s website`}
@@ -72,10 +72,12 @@ export function ExperienceCardClient({
                   </ExternalLink>
                 )}
               </div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                <time dateTime={startDate}>{period.split(' - ')[0]}</time>
+              <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
+                <time dateTime={toISO(startDate)}>{formatDisplay(startDate, 'year')}</time>
                 {' - '}
-                <time dateTime={endDate || 'Present'}>{period.split(' - ')[1]}</time>
+                <time dateTime={endDate ? toISO(endDate) : undefined}>
+                  {endDate ? formatDisplay(endDate, 'year') : 'Present'}
+                </time>
               </span>
             </div>
             <div className="space-y-1">
