@@ -281,6 +281,7 @@ export function getStaticPageMetadata(
     }],
     openGraph,
     twitter: {
+      ...BASE_METADATA.twitter,
       card: 'summary',
       title: overrides?.title ?? pageMetadata.title,
       description: overrides?.description ?? pageMetadata.description,
