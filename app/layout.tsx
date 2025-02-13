@@ -19,7 +19,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { Navigation, Terminal, SocialIcons, ThemeToggle } from "../components/ui";
 import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "../data/metadata";
-
+import { ThemeInitializer } from "./clientComponents/initializers/theme";
 import { Analytics } from '@/components/analytics/Analytics'
 
 /** Load Inter font with Latin subset */
@@ -46,6 +46,10 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
     date: false,
+  },
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-icon.png',
   },
   openGraph: {
     title: SITE_TITLE,
@@ -83,15 +87,15 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-        <script src="/scripts/theme-init.js" />
+        <ThemeInitializer />
       </head>
       <body className={`${inter.className} overscroll-none`}>
         <Providers>
           <div
             className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100"
             style={{
-              transition: 'background-color 0.2s ease-in-out, color 0.2s ease-in-out',
-              transitionDelay: '0.1s'
+              transition: 'background-color 150ms ease-out, color 150ms ease-out',
+              willChange: 'background-color, color'
             }}
           >
             <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-40">

@@ -9,13 +9,13 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { ServerCacheInstance } from '../../../lib/server-cache';
+import { ServerCacheInstance } from '../../../lib/serverCache';
 import { LOGO_SOURCES, GENERIC_GLOBE_PATTERNS, LOGO_SIZES } from '../../../lib/constants';
 import type { LogoSource } from '../../../types/logo';
 import sharp from 'sharp';
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import { createHash } from 'node:crypto';
+import fs from 'fs/promises';
+import path from 'path';
+import { createHash } from 'crypto';
 
 /**
  * Result of a logo fetch and validation operation

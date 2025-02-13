@@ -4,9 +4,16 @@
  * @description
  * Server component that handles pre-rendering investment cards.
  * Uses ServerCache for efficient logo caching and processing.
+ *
+ * IMPORTANT: To avoid circular dependencies:
+ * - Import server components directly from their source files
+ * - Do not import through the feature's barrel file (index.ts)
+ *
+ * @see {@link "components/features/investments/investment-card.server.tsx"} - Direct import source
+ * @see {@link "docs/development/best-practices.md"} - Dependency management guidelines
  */
 
-import { InvestmentCardServer } from './index';
+import { InvestmentCard as InvestmentCardServer } from './investment-card.server';
 import { InvestmentsClient } from './investments.client';
 import type { Investment } from '../../../types/investment';
 

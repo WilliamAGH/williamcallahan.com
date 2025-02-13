@@ -13,8 +13,8 @@
  * ```
  */
 
-import { WindowControls } from '../../../components/ui/navigation/window-controls';
-import { ExternalLink } from '../../../components/ui/external-link';
+import { WindowControls } from '../../ui/navigation/windowControls';
+import { ExternalLink } from '../../ui/externalLink';
 import type { Investment } from '../../../types/investment';
 
 /**

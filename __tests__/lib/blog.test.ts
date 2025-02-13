@@ -1,42 +1,48 @@
 /**
  * Blog Module Tests
  *
- * Tests the core blog functionality including:
- * 1. Post Management
- *    - Retrieval of posts from both static and MDX sources
- *    - Proper sorting by publish date (newest first)
- *    - Validation of required post fields
- *
- * 2. Post Lookup
- *    - Finding posts by slug
- *    - Handling non-existent slugs
- *    - Proper source prioritization (static before MDX)
- *
- * Test Data:
- * - Uses mock posts with controlled dates and fields
- * - Mocks both static posts and MDX functionality
- * - Tests edge cases like missing posts
+ * @module __tests__/lib/blog
+ * @description Tests blog functionality including post handling and MDX processing
  */
 
-// Set up mocks before any imports
-jest.mock('../../data/blog/posts', () => ({
-  posts: require('../lib/fixtures/blog-posts').TEST_POSTS
+// Import mock data first to avoid initialization issues
+import { mockBlog } from '@/__tests__/lib/fixtures/mockBlog';
+
+// Import other dependencies after mock data
+import { getAllPosts, getPostBySlug } from '@/lib/blog';
+import { TEST_POSTS, TEST_POST } from '@/__tests__/lib/fixtures/mockBlog';
+import { sortDates } from '@/lib/dateTime';
+
+// Mock blog posts - using mockBlog that was imported first
+jest.mock('@/data/blog/posts', () => ({
+  posts: mockBlog.posts
 }));
 
-jest.mock('../../lib/blog/mdx', () => ({
+// Mock MDX functionality
+jest.mock('next-mdx-remote/serialize', () => ({
+  serialize: jest.fn().mockResolvedValue(mockBlog.mdxResult)
+}));
+
+// Mock rehype plugins
+jest.mock('rehype-prism', () => jest.fn());
+
+jest.mock('@/lib/server/mdx', () => ({
   getAllMDXPosts: jest.fn().mockResolvedValue([]),
   getMDXPost: jest.fn().mockImplementation((slug: string) => {
-    const { TEST_POSTS } = require('../lib/fixtures/blog-posts');
     const post = TEST_POSTS.find((p: { slug: string }) => p.slug === slug);
     return Promise.resolve(post || null);
   })
 }));
 
-import { getAllPosts, getPostBySlug } from '../../lib/blog';
-import { TEST_POSTS } from '../lib/fixtures/blog-posts';
-import { sortDates } from '../../lib/dateTime';
-
 describe('Blog Module', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   describe('getAllPosts', () => {
     /**
      * Test: Post Retrieval and Sorting
@@ -68,7 +74,6 @@ describe('Blog Module', () => {
       }
 
       // Verify sorting
-      // Verify posts are sorted newest first
       const publishDates = posts.map(post => post.publishedAt);
       const sortedDates = [...publishDates].sort(sortDates);
       expect(publishDates).toEqual(sortedDates);
@@ -108,6 +113,10 @@ describe('Blog Module', () => {
       expect(post).toBeTruthy();
       expect(post?.slug).toBe('test-post-1');
       expect(post?.title).toBe('Test Post 1');
+      // Get the expected post from TEST_POSTS array
+      const expectedPost = TEST_POSTS.find(p => p.slug === 'test-post-1');
+      expect(post?.publishedAt).toBe(expectedPost?.publishedAt);
+      expect(post?.updatedAt).toBe(expectedPost?.updatedAt);
     });
 
     it('returns null for non-existent slug', async () => {

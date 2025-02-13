@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { ServerCacheInstance } from '../../../../lib/server-cache';
+import { ServerCacheInstance } from '../../../../lib/serverCache';
 
 /**
  * POST handler for cache clearing

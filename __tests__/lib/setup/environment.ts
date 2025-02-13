@@ -12,10 +12,21 @@
  * 5. react.ts - Sets up React and Testing Library
  */
 
-// Set up environment variables using Object.defineProperty to handle read-only properties
-Object.defineProperty(process.env, 'NODE_ENV', { value: 'development' });
-Object.defineProperty(process.env, 'TZ', { value: 'America/Los_Angeles' });
-Object.defineProperty(process.env, 'NEXT_PUBLIC_SITE_URL', { value: 'https://williamcallahan.com' });
+// Set up environment variables using Object.defineProperty for read-only properties
+Object.defineProperty(process.env, 'NODE_ENV', {
+  value: 'test',
+  configurable: true
+});
+
+Object.defineProperty(process.env, 'TZ', {
+  value: 'America/Los_Angeles',
+  configurable: true
+});
+
+Object.defineProperty(process.env, 'NEXT_PUBLIC_SITE_URL', {
+  value: 'https://williamcallahan.com',
+  configurable: true
+});
 
 // Export timezone helpers for tests that need to work with different times
 export const mockPacificTime = (date: string) => {

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { BookmarkCardClient } from './bookmark-card.client';
-import { WindowControls } from '../../../components/ui/navigation/window-controls';
+import { WindowControls } from '../../ui/navigation/windowControls';
 import type { Bookmark } from '../../../types/bookmark';
 
 interface BookmarksClientProps {

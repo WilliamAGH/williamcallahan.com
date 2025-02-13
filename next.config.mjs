@@ -22,10 +22,77 @@ const nextConfig = {
    * @returns {import('webpack').Configuration} Modified webpack config
    */
   webpack(config) {
-    // Configure SVG handling
+    // Enable handling of node: protocol imports
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      crypto: false
+    };
+
+    // Handle node: protocol imports for server components
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'node:fs/promises': 'fs/promises',
+      'node:fs': 'fs',
+      'node:path': 'path'
+    };
+
+    // Configure SVG handling with improved options
     config.module.rules.push({
       test: /\.svg$/,
-      use: ['@svgr/webpack']
+      issuer: /\.[jt]sx?$/,
+      use: [
+        {
+          loader: '@svgr/webpack',
+          options: {
+            svgo: true,
+            svgoConfig: {
+              plugins: [
+                {
+                  name: 'preset-default',
+                  params: {
+                    overrides: {
+                      removeViewBox: false,
+                      removeTitle: false,
+                    },
+                  },
+                },
+              ],
+            },
+            titleProp: true,
+            ref: true,
+          },
+        },
+      ],
+    });
+
+    // Add specific rule for MDX-embedded SVGs
+    config.module.rules.push({
+      test: /\.svg$/,
+      issuer: /\.mdx?$/,
+      use: [
+        {
+          loader: '@svgr/webpack',
+          options: {
+            svgo: true,
+            svgoConfig: {
+              plugins: [
+                {
+                  name: 'preset-default',
+                  params: {
+                    overrides: {
+                      removeViewBox: false,
+                      removeTitle: false,
+                      inlineStyles: { onlyMatchedOnce: false },
+                    },
+                  },
+                },
+              ],
+            },
+            titleProp: true,
+            ref: true,
+          },
+        },
+      ],
     });
 
     // Handle node modules in API routes
@@ -49,8 +116,8 @@ const nextConfig = {
   images: {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
-    // CSP configuration allowing analytics scripts from configured domains
-    contentSecurityPolicy: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net`,
+    // CSP configuration allowing SVGs and analytics
+    contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net; img-src 'self' data: https:; style-src 'self' 'unsafe-inline';",
     remotePatterns: [
       {
         protocol: 'https',

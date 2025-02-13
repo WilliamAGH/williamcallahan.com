@@ -20,7 +20,7 @@
 
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import { LogoImage } from '../../../components/ui';
-import { ExternalLink } from '../../../components/ui/external-link';
+import { ExternalLink } from '../../ui/externalLink';
 import { formatYearDisplay } from '../../../lib/dateTime';
 import type { Certification } from '../../../types/education';
 

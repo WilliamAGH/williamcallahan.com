@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 // Dynamically import the BlogArticle component with no SSR
 // This ensures proper hydration of MDX content on the client
 const BlogArticle = dynamic(
-  () => import('@/components/features/blog/blog-article/blog-article').then(mod => mod.BlogArticle),
+  () => import('./blog-article'),
   { ssr: false }
 );
 

@@ -7,10 +7,10 @@
  */
 
 import type { Investment } from '../../../types/investment';
-import { ThemeWrapper } from './theme-wrapper.client';
-import { fetchLogo, normalizeDomain } from '../../../lib/logo-fetcher';
-import fs from 'fs/promises';
-import path from 'path';
+import { InvestmentCardClient } from './investment-card.client';
+import { fetchLogo, normalizeDomain } from '../../../lib/logoFetcher';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 // Cache for placeholder SVG
 let placeholderSvg: Buffer | null = null;
@@ -37,7 +37,7 @@ export async function InvestmentCard(props: Investment): Promise<JSX.Element> {
   try {
     // If logo is provided directly, use it
     if (logo) {
-      return <ThemeWrapper investment={props} logoData={{ url: logo, source: null }} />;
+      return <InvestmentCardClient {...props} logoData={{ url: logo, source: null }} />;
     }
 
     // Get domain from website or company name
@@ -52,8 +52,8 @@ export async function InvestmentCard(props: Investment): Promise<JSX.Element> {
       const mimeType = result.buffer[0] === 0x3c ? 'image/svg+xml' : 'image/png';
       const dataUrl = `data:${mimeType};base64,${base64}`;
 
-      return <ThemeWrapper
-        investment={props}
+      return <InvestmentCardClient
+        {...props}
         logoData={{
           url: dataUrl,
           source: result.source
@@ -64,8 +64,8 @@ export async function InvestmentCard(props: Investment): Promise<JSX.Element> {
     // Use placeholder for failed fetches
     const placeholder = await getPlaceholder();
     const base64 = placeholder.toString('base64');
-    return <ThemeWrapper
-      investment={props}
+    return <InvestmentCardClient
+      {...props}
       logoData={{
         url: `data:image/svg+xml;base64,${base64}`,
         source: null
@@ -76,8 +76,8 @@ export async function InvestmentCard(props: Investment): Promise<JSX.Element> {
     // Return placeholder on any error
     const placeholder = await getPlaceholder();
     const base64 = placeholder.toString('base64');
-    return <ThemeWrapper
-      investment={props}
+    return <InvestmentCardClient
+      {...props}
       logoData={{
         url: `data:image/svg+xml;base64,${base64}`,
         source: null

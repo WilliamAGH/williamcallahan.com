@@ -85,25 +85,6 @@ const windowMock = {
     getPropertyValue: jest.fn(),
     setProperty: jest.fn()
   })),
-  matchMedia: jest.fn().mockImplementation((query: string) => {
-    type MediaQueryListener = (ev: MediaQueryListEvent) => void;
-
-    const mediaQueryList: MediaQueryList = {
-      matches: query === '(prefers-color-scheme: dark)',
-      media: query,
-      onchange: null,
-      addListener: jest.fn((listener: MediaQueryListener) => {
-        mediaQueryList.addEventListener('change', listener);
-      }),
-      removeListener: jest.fn((listener: MediaQueryListener) => {
-        mediaQueryList.removeEventListener('change', listener);
-      }),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      dispatchEvent: jest.fn()
-    };
-    return mediaQueryList;
-  }),
   location: {
     href: 'http://localhost',
     pathname: '/',
@@ -160,6 +141,76 @@ const windowMock = {
   })
 } as any;
 
+/**
+ * IMPORTANT: DO NOT MODIFY THIS TYPE TO BE MORE SPECIFIC!
+ *
+ * We need this type to be generic enough to handle both MediaQueryListEvent and Event
+ * because the DOM's EventListenerOrEventListenerObject interface expects Event,
+ * but MediaQueryList needs MediaQueryListEvent.
+ */
+type MediaQueryListener = (this: MediaQueryList, ev: any) => void;
+
+class MockMediaQueryList implements MediaQueryList {
+    private listeners: Set<MediaQueryListener>;
+    matches: boolean;
+    media: string;
+    onchange: ((this: MediaQueryList, ev: MediaQueryListEvent) => void) | null;
+
+    constructor(matches: boolean, media: string) {
+        this.matches = matches;
+        this.media = media;
+        this.listeners = new Set();
+        this.onchange = null;
+    }
+
+    addListener(listener: MediaQueryListener): void {
+        this.addEventListener('change', listener);
+    }
+
+    removeListener(listener: MediaQueryListener): void {
+        this.removeEventListener('change', listener);
+    }
+
+    addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        if (type === 'change' && typeof listener === 'function') {
+            // Cast to MediaQueryListener to handle both Event and MediaQueryListEvent
+            this.listeners.add(listener as MediaQueryListener);
+        }
+    }
+
+    removeEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+        if (type === 'change' && typeof listener === 'function') {
+            // Cast to MediaQueryListener to handle both Event and MediaQueryListEvent
+            this.listeners.delete(listener as MediaQueryListener);
+        }
+    }
+
+    dispatchEvent(event: Event): boolean {
+        if (event.type === 'change') {
+            this.listeners.forEach(listener => {
+                listener.call(this, event as MediaQueryListEvent);
+            });
+            if (this.onchange) {
+                this.onchange.call(this, event as MediaQueryListEvent);
+            }
+        }
+        return true;
+    }
+}
+
+// Create a global matchMedia mock
+const mockMatchMedia = (query: string): MediaQueryList => {
+    const matches = query === '(prefers-color-scheme: dark)' ? false : true;
+    return new MockMediaQueryList(matches, query);
+};
+
+// Define matchMedia on window
+Object.defineProperty(windowMock, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: jest.fn().mockImplementation(mockMatchMedia),
+});
+
 // Ensure global matches window
 global.window = windowMock;
 global.document = windowMock.document;
@@ -169,5 +220,5 @@ global.navigator = {
   languages: ['en-US', 'en']
 } as any;
 
-// Export for use in tests if needed
-export { windowMock };
+// Export for use in tests
+export { windowMock, MockMediaQueryList, mockMatchMedia };

@@ -2,18 +2,18 @@
 
 ## Testing Architecture
 1. Component Testing Strategy
-   - CRITICAL: All tests MUST run in production mode (NODE_ENV=production)
    - Use React Testing Library for component tests
    - Follow user-centric testing approach
-   - Mock external dependencies consistently
+   - Use real data and behavior where possible
    - Test both success and error states
    - Verify accessibility requirements
    - Test responsive behaviors
+   - Minimize mocking when feasible
 
 2. Utility Testing Patterns
-   - Pure function unit tests in production mode
+   - Pure function unit tests with real data
    - Integration tests for complex operations
-   - Consistent mocking patterns
+   - Prefer real implementations over mocks
    - Error boundary testing
    - Edge case coverage
 
@@ -50,13 +50,13 @@
    - Coverage reporting configuration
    - Must support production mode testing
 
-2. Mocking Strategy
-   - Mock external APIs
-   - Mock file system operations
-   - Mock browser APIs
-   - Mock date/time operations
-   - Consistent mock data patterns
-   - Production-compatible mocks
+2. Testing Strategy
+   - Use real APIs when possible
+   - Use real file system operations when safe
+   - Minimize browser API mocking
+   - Use real date/time operations when feasible
+   - Prefer real data over mock data
+   - Mock only when necessary
 
 3. Test Organization
    - Mirror source structure in __tests__

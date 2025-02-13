@@ -9,10 +9,10 @@
  * @see {@link "https://schema.org/ProfilePage"} - Schema.org ProfilePage specification
  */
 
-import { Home } from "../components/features";
-import { getStaticPageMetadata } from "../lib/seo/metadata";
-import { JsonLdScript } from "../components/seo/json-ld";
-import { PAGE_METADATA } from "../data/metadata";
+import { Home } from "@/components/features/home/home";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { PAGE_METADATA } from "@/data/metadata";
 import type { Metadata } from "next";
 
 /**

@@ -10,7 +10,7 @@
 'use client';
 
 import { BlogList } from './blog-list';
-import { WindowControls } from '@/components/ui/navigation/window-controls';
+import { WindowControls } from '@/components/ui/navigation/windowControls';
 import type { BlogPost } from '@/types/blog';
 
 interface BlogProps {

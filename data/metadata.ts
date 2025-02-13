@@ -123,6 +123,12 @@ export const PAGE_METADATA = {
     dateCreated: '2025-02-10T12:42:00',
     dateModified: '2025-02-10T12:42:00',
   } as CollectionPageMetadata,
+  blogTag: {
+    title: `%tag% blog posts by ${SITE_NAME}`,
+    description: `Articles tagged with "%tag%" - Thoughts from ${SITE_NAME} on %tag%, technology, and software engineering.`,
+    dateCreated: '2025-02-10T12:42:00',
+    dateModified: '2025-02-10T12:42:00',
+  } as CollectionPageMetadata,
 } as const;
 
 export const metadata = {

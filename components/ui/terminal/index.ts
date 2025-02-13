@@ -3,5 +3,5 @@
  */
 
 export { Terminal } from './terminal';
-export { TerminalProvider } from './terminal-context';
+export { TerminalProvider } from './terminalContext';
 export type { TerminalCommand } from '@/types/terminal';

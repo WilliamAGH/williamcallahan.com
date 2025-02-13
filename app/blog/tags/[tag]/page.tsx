@@ -9,7 +9,7 @@
 import { Blog } from "@/components/features";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { JsonLdScript } from "@/components/seo/json-ld";
-import { PAGE_METADATA } from "@/data/metadata";
+import { PAGE_METADATA, SITE_NAME } from "@/data/metadata";
 import { getAllTags, getPostsByTag, tagExists } from "@/lib/blog";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -21,7 +21,28 @@ interface BlogTagPageProps {
 /**
  * Generate metadata for the blog tag page
  */
-export const metadata: Metadata = getStaticPageMetadata('/blog/tags', 'blog');
+export async function generateMetadata({ params }: BlogTagPageProps): Promise<Metadata> {
+  const { tag } = params;
+  const exists = await tagExists(tag);
+  if (!exists) {
+    notFound();
+  }
+
+  const pageMetadata = PAGE_METADATA.blogTag;
+  const capitalizedTag = tag.charAt(0).toUpperCase() + tag.slice(1);
+  const title = pageMetadata.title.replace(/%tag%/g, capitalizedTag);
+  const description = pageMetadata.description.replace(/%tag%/g, capitalizedTag);
+
+  return getStaticPageMetadata(`/blog/tags/${tag}`, 'blogTag', {
+    title,
+    description,
+    breadcrumbs: [
+      { path: '/', name: 'Home' },
+      { path: '/blog', name: 'Blog' },
+      { path: `/blog/tags/${tag}`, name: `Posts tagged "${capitalizedTag}"` }
+    ]
+  });
+}
 
 /**
  * Generate static params for all tag pages

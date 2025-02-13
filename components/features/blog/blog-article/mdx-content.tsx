@@ -4,9 +4,9 @@ import { useState, useEffect, useRef, useCallback, type ComponentProps, type Rea
 import { MDXRemote } from 'next-mdx-remote';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 import Image from 'next/image';
-import { CodeBlock } from '../../../ui/code-block';
-import { ErrorBoundary } from '../../../ui/error-boundary';
-import FinancialMetrics from '../../../ui/financial-metrics';
+import { CodeBlock } from '../../../ui/codeBlock';
+import { ErrorBoundary } from '../../../ui/errorBoundary';
+import FinancialMetrics from '../../../ui/financialMetrics';
 import type { ImageCaption } from '../../../../types/blog';
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {
@@ -64,7 +64,7 @@ const MdxImage = ({
             width={1600}
             height={800}
             className={`rounded-lg mx-auto transition-opacity duration-200 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-            onLoadingComplete={handleLoad}
+            onLoad={handleLoad}
             data-article-image="inline"
             unoptimized={false}
             loading="eager"
@@ -85,7 +85,7 @@ const MdxImage = ({
             fill
             sizes="(max-width: 768px) 100vw, 768px"
             className={`absolute top-0 left-0 w-full h-full rounded-lg object-cover shadow-lg transition-opacity duration-200 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-            onLoadingComplete={handleLoad}
+            onLoad={handleLoad}
             data-article-image="inline"
             unoptimized={false}
             loading="eager"

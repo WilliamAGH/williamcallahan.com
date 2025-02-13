@@ -1,3 +1,5 @@
+'use server';
+
 /**
  * Education Card Server Component
  * @module components/features/education/education-card.server
@@ -8,9 +10,9 @@
 
 import type { Education } from '../../../types/education';
 import { EducationCardClient } from './education-card.client';
-import { fetchLogo, normalizeDomain } from '../../../lib/logo-fetcher';
+import { fetchLogo, normalizeDomain } from '../../../lib/logoFetcher';
+import * as path from 'path';
 import fs from 'fs/promises';
-import path from 'path';
 
 // Cache for placeholder SVG
 let placeholderSvg: Buffer | null = null;
@@ -23,7 +25,7 @@ async function getPlaceholder(): Promise<Buffer> {
   if (!placeholderSvg) {
     placeholderSvg = await fs.readFile(path.join(process.cwd(), 'public/images/company-placeholder.svg'));
   }
-  return placeholderSvg;
+  return placeholderSvg as Buffer;
 }
 
 /**

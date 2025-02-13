@@ -1,3 +1,5 @@
+'use server';
+
 /**
  * Education Server Component
  * @module components/features/education/education.server
@@ -5,14 +7,11 @@
  * Server component that handles pre-rendering education and certification cards.
  */
 
-import { WindowControls } from "../../../components/ui/navigation/window-controls";
+import { WindowControls } from "../../ui/navigation/windowControls";
 import { EducationCard } from "./education-card.server";
 import { CertificationCard } from "./certification-card.server";
 import { education, certifications, recentCourses } from "../../../data/education";
 import type { Education as EducationType, Certification, Class } from "../../../types/education";
-
-// Force static generation
-export const dynamic = 'force-static';
 
 export async function Education(): Promise<JSX.Element> {
   // Pre-render education cards
@@ -67,7 +66,7 @@ export async function Education(): Promise<JSX.Element> {
             <h2 className="text-2xl font-bold mb-6">Education</h2>
             <div className="space-y-6">
               {educationCards.map((edu) => (
-                <div key={edu.institution}>
+                <div key={edu.id}>
                   {edu.card}
                 </div>
               ))}
@@ -79,7 +78,7 @@ export async function Education(): Promise<JSX.Element> {
             <h2 className="text-2xl font-bold mb-6">Certifications</h2>
             <div className="space-y-6">
               {certificationCards.map((cert) => (
-                <div key={cert.name}>
+                <div key={cert.id}>
                   {cert.card}
                 </div>
               ))}

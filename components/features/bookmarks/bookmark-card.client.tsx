@@ -22,10 +22,10 @@
  */
 
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
-import { ExternalLink } from '../../ui/external-link';
-import { LogoImage } from '../../ui/logo-image';
+import { ExternalLink } from '../../ui/externalLink';
+import { LogoImage } from '../../ui/logoImage';
 import type { Bookmark } from '../../../types/bookmark';
-import { normalizeDomain } from '../../../lib/logo-fetcher';
+import { normalizeDomain } from '../../../lib/logoFetcher';
 import { formatDisplay } from '../../../lib/dateTime';
 
 /**

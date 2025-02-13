@@ -237,3 +237,31 @@ docker logs williamcallahan-website
 - API access verification
 
 The system is designed to be resilient and self-healing, automatically adapting to the available storage options while maintaining functionality in all scenarios. Whether running with persistent storage or in ephemeral mode, the logo fetching and caching system will continue to function effectively.
+
+## Development
+
+### Dependency Management
+
+The project uses `madge` to detect and prevent circular dependencies:
+
+```bash
+# Check for circular dependencies
+npx madge --circular --extensions ts,tsx .
+
+# Visualize dependency graph (outputs graph.svg)
+npx madge --image graph.svg --extensions ts,tsx .
+```
+
+For detailed guidelines on preventing circular dependencies and best practices for component organization, see:
+- [Development Best Practices](docs/development/best-practices.md)
+- [Component Architecture](docs/architecture/state-management.md)
+
+Run dependency checks before committing changes:
+```bash
+# Check dependencies
+npm run validate  # Includes circular dependency check
+```
+
+For more information about the project's development practices and guidelines, refer to:
+- [Development Best Practices](docs/development/best-practices.md)
+- [Testing Guidelines](docs/development/testing.md)

@@ -11,7 +11,7 @@ import sharp from 'sharp';
 import { createHash } from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
-import { ServerCacheInstance } from '../../../lib/server-cache';
+import { ServerCacheInstance } from '../../../lib/serverCache';
 import { VALID_IMAGE_FORMATS, MIN_LOGO_SIZE } from '../../../lib/constants';
 
 /** Reference globe icon buffer - loaded once and reused */

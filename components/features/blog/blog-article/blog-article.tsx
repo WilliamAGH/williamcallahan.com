@@ -17,7 +17,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { ArrowLeft, Clock, Calendar } from 'lucide-react';
-import { ErrorBoundary } from '../../../../components/ui/error-boundary';
+import { ErrorBoundary } from '../../../ui/errorBoundary';
 import { BlogAuthor } from '../shared/blog-author';
 import { BlogTags } from './blog-tags';
 import { MDXContent } from './mdx-content';
@@ -146,7 +146,7 @@ export const BlogArticle: React.FC<BlogArticleProps> = ({ post }) => {
               data-article-image="cover"
               unoptimized={false}
               loading="eager"
-              onLoadingComplete={() => {
+              onLoad={() => {
                 addCleanup(() => {
                   const img = document.querySelector(`img[src="${post.coverImage}"]`);
                   if (img instanceof HTMLElement) {
@@ -164,3 +164,4 @@ export const BlogArticle: React.FC<BlogArticleProps> = ({ post }) => {
     </article>
   );
 }
+export default BlogArticle;
