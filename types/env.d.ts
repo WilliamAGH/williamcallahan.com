@@ -1,32 +1,24 @@
-// types/env.d.ts
-
 /**
- * Environment Variables Type Definitions
+ * Global Type Declarations
  * @module types/env
  * @description
- * Type definitions for environment variables used in the application.
- * Extends the global NodeJS.ProcessEnv interface to provide type safety
- * for environment variables.
+ * Global type declarations for the application, including window extensions
+ * for analytics providers.
+ *
+ * Related modules:
+ * @see {@link "types/analytics"} - Analytics type definitions
  */
 
+import type { PlausibleTracker, UmamiTracker } from './analytics';
+
 declare global {
-  namespace NodeJS {
-    interface ProcessEnv {
-      /** Public-facing URL of the site */
-      NEXT_PUBLIC_SITE_URL: string;
-
-      // Analytics Configuration
-      /** Umami Analytics website ID for tracking */
-      NEXT_PUBLIC_UMAMI_WEBSITE_ID: string;
-    }
-  }
-
   interface Window {
-    plausible: (...args: any[]) => void;
-    umami: {
-      track: (event: string, data?: Record<string, any>) => void;
-    } & ((...args: any[]) => void);
+    /** Plausible analytics function */
+    plausible: PlausibleTracker;
+    /** Umami analytics object */
+    umami: UmamiTracker;
   }
 }
 
-export {}
+// Ensure this file is treated as a module
+export {};

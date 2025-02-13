@@ -5,9 +5,20 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useCallback } from 'react'
 
 /**
- * Analytics event data structure based on official specs
- * @see https://umami.is/docs/tracker-functions
- * @see https://plausible.io/docs/custom-event-goals
+ * Analytics Component
+ * @module components/analytics/Analytics
+ * @description
+ * Handles pageview tracking for both Plausible and Umami analytics.
+ * Implements queue system for handling events when scripts are not yet loaded.
+ *
+ * Related modules:
+ * @see {@link "lib/analytics/queue"} - Queue system for handling analytics events
+ * @see {@link "types/analytics"} - Analytics type definitions
+ * @see {@link "public/scripts/plausible-init.js"} - Plausible initialization script
+ *
+ * External documentation:
+ * @see https://umami.is/docs/tracker-functions - Umami tracking documentation
+ * @see https://plausible.io/docs/custom-event-goals - Plausible events documentation
  */
 interface BaseAnalyticsEvent {
   /** Current page path (normalized for dynamic routes) */
@@ -47,7 +58,7 @@ function createBaseEventData(): BaseAnalyticsEvent {
  * @param path - The normalized page path
  */
 function trackPlausible(path: string): void {
-  if (typeof window !== 'undefined' && typeof window.plausible === 'function') {
+  if (typeof window !== 'undefined' && window.plausible) {
     try {
       // Fetch the IP address first
       fetch('/api/ip')
@@ -76,7 +87,7 @@ function trackPlausible(path: string): void {
  * @param path - The normalized page path
  */
 function trackUmami(path: string): void {
-  if (typeof window !== 'undefined' && window.umami?.track && typeof window.umami.track === 'function') {
+  if (typeof window !== 'undefined' && window.umami && typeof window.umami.track === 'function') {
     try {
       const eventData: UmamiEvent = {
         ...createBaseEventData(),
@@ -117,12 +128,12 @@ export function Analytics(): JSX.Element | null {
     // Debug analytics script status
     console.debug('[Analytics Debug] Script status:', {
       umamiLoaded: typeof window.umami?.track === 'function',
-      plausibleLoaded: typeof window.plausible === 'function',
+      plausibleLoaded: window.plausible !== undefined,
       path: normalizedPath
     })
 
     // Only track if scripts are loaded and initialized
-    if (typeof window.umami?.track === 'function' || typeof window.plausible === 'function') {
+    if ((window.umami && typeof window.umami.track === 'function') || window.plausible !== undefined) {
       console.debug('[Analytics Debug] Tracking pageview:', normalizedPath)
       trackPageview(normalizedPath)
     } else {
