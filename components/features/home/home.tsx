@@ -33,7 +33,7 @@ export function Home() {
       </p>
         </div>
         <div className="md:w-64 w-full">
-          <div className="relative aspect-square overflow-hidden rounded-2xl shadow-lg">
+          <div className="relative aspect-square overflow-hidden rounded-2xl shadow-lg max-h-[512px]">
             <Image
               src="/images/William%20Callahan%20-%20San%20Francisco.jpeg"
               alt="William Callahan in San Francisco"

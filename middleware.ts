@@ -54,6 +54,8 @@ export function middleware(request: NextRequest): NextResponse {
   const response = NextResponse.next()
   const ip = getRealIp(request)
 
+  const path = request.nextUrl.pathname;
+
   // Set security and caching headers
   const headers: Record<string, string> = {
     // Security headers
@@ -65,9 +67,11 @@ export function middleware(request: NextRequest): NextResponse {
     'X-Real-IP': ip,
   }
 
-  // Add cache headers for static assets
-  const path = request.nextUrl.pathname
-  if (path.startsWith('/_next/static/css/')) {
+  // Add cache headers for images and static assets
+  if (path.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+    headers['Cache-Control'] = 'public, max-age=31536000, immutable'; // 1 year
+    headers['Vary'] = 'Accept'; // Vary header for content negotiation
+  } else if (path.startsWith('/_next/static/css/')) {
     // CSS files - shorter cache time to allow style updates
     headers['Cache-Control'] = 'public, max-age=604800, immutable' // 7 days
   } else if (path.startsWith('/_next/static/')) {

@@ -47,63 +47,37 @@ const nextConfig = {
       'node:path': 'path'
     };
 
-    // Configure SVG handling with improved options
+    // Define common SVG loader options
+    const svgOptions = {
+      svgo: true,
+      svgoConfig: {
+        plugins: [{
+          name: 'preset-default',
+          params: {
+            overrides: {
+              removeViewBox: false,
+              removeTitle: false,
+              inlineStyles: { onlyMatchedOnce: false },
+            },
+          },
+        }],
+      },
+      titleProp: true,
+      ref: true,
+    };
+
+    // Configure SVG handling for JSX/TSX files
     config.module.rules.push({
       test: /\.svg$/,
       issuer: /\.[jt]sx?$/,
-      use: [
-        {
-          loader: '@svgr/webpack',
-          options: {
-            svgo: true,
-            svgoConfig: {
-              plugins: [
-                {
-                  name: 'preset-default',
-                  params: {
-                    overrides: {
-                      removeViewBox: false,
-                      removeTitle: false,
-                    },
-                  },
-                },
-              ],
-            },
-            titleProp: true,
-            ref: true,
-          },
-        },
-      ],
+      use: [{ loader: '@svgr/webpack', options: svgOptions }],
     });
 
-    // Add specific rule for MDX-embedded SVGs
+    // Configure SVG handling for MDX files
     config.module.rules.push({
       test: /\.svg$/,
       issuer: /\.mdx?$/,
-      use: [
-        {
-          loader: '@svgr/webpack',
-          options: {
-            svgo: true,
-            svgoConfig: {
-              plugins: [
-                {
-                  name: 'preset-default',
-                  params: {
-                    overrides: {
-                      removeViewBox: false,
-                      removeTitle: false,
-                      inlineStyles: { onlyMatchedOnce: false },
-                    },
-                  },
-                },
-              ],
-            },
-            titleProp: true,
-            ref: true,
-          },
-        },
-      ],
+      use: [{ loader: '@svgr/webpack', options: svgOptions }],
     });
 
     // Handle node modules in API routes
@@ -129,6 +103,8 @@ const nextConfig = {
   images: {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 31536000, // 1 year
     // CSP configuration allowing SVGs and analytics
     contentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://*.cloudflareinsights.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.cloudflareinsights.com https://umami.iocloudhost.net https://plausible.iocloudhost.net;",
     remotePatterns: [
@@ -164,7 +140,9 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'static.cloudflareinsights.com'
       }
-    ]
+    ],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048], // Optimize for common screen sizes
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384], // Optimize for common image sizes
   },
 
   // Add headers for CORS and additional security
