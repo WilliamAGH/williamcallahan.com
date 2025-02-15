@@ -18,6 +18,7 @@
     "prepare": "node .husky/install.mjs"
   },
   "dependencies": {
+    "@sentry/nextjs": "^8.55.0",
     "@tailwindcss/typography": "^0.5.15",
     "clsx": "^2.1.1",
     "fuse.js": "^7.0.0",
