@@ -15,15 +15,21 @@ jest.mock('../../../../components/ui/terminal/terminalContext', () => ({
 }));
 
 // Mock window-controls component
-jest.mock('../../../../components/ui/navigation/window-controls', () => ({
-  WindowControls: () => <div data-testid="window-controls">Window Controls</div>
-}));
+jest.mock('../../../../components/ui/navigation/window-controls', () => {
+  function MockWindowControls() {
+    return <div data-testid="window-controls">Window Controls</div>;
+  }
+  MockWindowControls.displayName = 'MockWindowControls';
+  return { WindowControls: MockWindowControls };
+});
 
 // Mock next/link
 jest.mock('next/link', () => {
-  return ({ children, ...props }: any) => {
+  function MockLink({ children, ...props }: any) {
     return <a {...props}>{children}</a>;
-  };
+  }
+  MockLink.displayName = 'MockLink';
+  return MockLink;
 });
 
 describe('Navigation', () => {
@@ -63,21 +69,19 @@ describe('Navigation', () => {
       expect(blogLink).toHaveAttribute('aria-current', 'page');
     });
 
-    it('renders window controls in both views', () => {
+    it('renders navigation views without window controls', () => {
       render(<Navigation />);
       const nav = screen.getByRole('navigation');
 
       // Check desktop view
       const desktopView = nav.querySelector('.sm\\:flex');
       expect(desktopView).toBeInTheDocument();
-      const desktopControls = within(desktopView as HTMLElement).getAllByTestId('window-controls');
-      expect(desktopControls).toHaveLength(1);
+      expect(within(desktopView as HTMLElement).queryByTestId('window-controls')).not.toBeInTheDocument();
 
       // Check mobile view
       const mobileView = nav.querySelector('.sm\\:hidden');
       expect(mobileView).toBeInTheDocument();
-      const mobileControls = within(mobileView as HTMLElement).getAllByTestId('window-controls');
-      expect(mobileControls).toHaveLength(1);
+      expect(within(mobileView as HTMLElement).queryByTestId('window-controls')).not.toBeInTheDocument();
     });
   });
 

@@ -11,5 +11,8 @@
   "css.customData": [".vscode/css-data.json"],
   "editor.quickSuggestions": {
     "strings": true
+  },
+  "terminal.integrated.env.osx": {
+    "BROWSER": "open -a 'Microsoft Edge'"
   }
 }
