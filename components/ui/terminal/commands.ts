@@ -1,16 +1,32 @@
 /**
  * Terminal Commands Handler
+ *
+ * Handles command processing and navigation for the terminal interface.
  */
 
 import { searchPosts, searchExperience, searchEducation, searchInvestments } from '@/lib/search';
 import { sections, type SectionKey } from './sections';
 import type { CommandResult, SearchResult } from '@/types/terminal';
 
+export const terminalCommands = {
+  home: '/',
+  investments: '/investments',
+  experience: '/experience',
+  skills: '/skills',
+  blog: '/blog',
+  aventure: '/experience#aventure',
+  tsbank: '/experience#tsbank',
+  seekinvest: '/experience#seekinvest',
+  'callahan-financial': '/experience#callahan-financial',
+  'mutual-first': '/experience#mutual-first',
+  morningstar: '/experience#morningstar'
+} as const;
+
 const HELP_MESSAGE = `
 Available commands:
   help                Show this help message
   clear              Clear terminal history
-  
+
 Navigation:
   home               Go to home page
   investments        Go to investments page
@@ -59,9 +75,9 @@ export async function handleCommand(input: string): Promise<CommandResult> {
   if (isValidSection(command) && args.length > 0) {
     const searchTerms = args.join(' ');
     const section = command.charAt(0).toUpperCase() + command.slice(1);
-    
+
     let results: SearchResult[] = [];
-    
+
     switch (command) {
       case 'blog': {
         const posts = await searchPosts(searchTerms);

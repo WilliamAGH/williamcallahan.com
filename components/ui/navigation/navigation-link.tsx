@@ -3,24 +3,24 @@
  */
 
 import Link from 'next/link';
-import { useTerminalContext } from '@/components/ui/terminal/terminal-context';
+import { useTerminalContext } from '@/components/ui/terminal/terminalContext';
 import type { NavigationLinkProps } from '@/types/navigation';
 
-export function NavigationLink({ 
-  path, 
-  name, 
+export function NavigationLink({
+  path,
+  name,
   currentPath,
   className = '',
   onClick
 }: NavigationLinkProps) {
   const { clearHistory } = useTerminalContext();
   const isActive = currentPath === path;
-  
+
   const handleClick = () => {
     clearHistory();
     onClick?.();
   };
-  
+
   return (
     <Link
       href={path}

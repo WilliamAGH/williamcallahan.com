@@ -2,7 +2,7 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import { Navigation } from '../../../../components/ui/navigation/navigation';
 import { usePathname } from 'next/navigation';
 import { navigationLinks } from '../../../../components/ui/navigation/navigation-links';
-import { useTerminalContext } from '../../../../components/ui/terminal/terminal-context';
+import { useTerminalContext } from '../../../../components/ui/terminal/terminalContext';
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -10,7 +10,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 // Mock terminal context
-jest.mock('../../../../components/ui/terminal/terminal-context', () => ({
+jest.mock('../../../../components/ui/terminal/terminalContext', () => ({
   useTerminalContext: jest.fn()
 }));
 
