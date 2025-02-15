@@ -10,7 +10,6 @@
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
-import { WindowControls } from './window-controls';
 import { navigationLinks } from './navigation-links';
 import { NavigationLink } from './navigation-link';
 import { ThemeToggle } from '../theme-toggle';
@@ -23,7 +22,6 @@ export function Navigation() {
     <nav className="flex-1">
       {/* Mobile Menu Button */}
       <div className="sm:hidden flex items-center relative z-20">
-        <WindowControls className="mr-2" />
         <button
           type="button"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -36,7 +34,6 @@ export function Navigation() {
 
       {/* Desktop Navigation */}
       <div className="hidden sm:flex items-center">
-        <WindowControls />
         <div className="flex space-x-1">
           {navigationLinks.map((link) => (
             <NavigationLink
