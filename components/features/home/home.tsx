@@ -32,13 +32,13 @@ export function Home() {
         <a href="https://linkedin.com/in/williamacallahan" className="text-blue-600 hover:text-blue-800">LinkedIn</a>.
       </p>
         </div>
-        <div className="md:w-64 w-full">
+        <div className="w-full sm:w-80 md:w-64">
           <div className="relative aspect-square overflow-hidden rounded-2xl shadow-lg">
             <Image
               src="/images/William%20Callahan%20-%20San%20Francisco.jpeg"
               alt="William Callahan in San Francisco"
               fill
-              sizes="(max-width: 768px) 100vw, 256px"
+              sizes="(max-width: 640px) 100vw, (max-width: 768px) 320px, 256px"
               className="object-cover"
               priority
             />

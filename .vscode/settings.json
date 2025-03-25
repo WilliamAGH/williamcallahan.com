@@ -16,5 +16,7 @@
     "activityBar.background": "#093238",
     "titleBar.activeBackground": "#0D464F",
     "titleBar.activeForeground": "#F2FCFD"
+    "terminal.integrated.env.osx": {
+    "BROWSER": "open -a 'Microsoft Edge'"
   }
 }
