@@ -11,5 +11,10 @@
   "css.customData": [".vscode/css-data.json"],
   "editor.quickSuggestions": {
     "strings": true
+  },
+  "workbench.colorCustomizations": {
+    "activityBar.background": "#093238",
+    "titleBar.activeBackground": "#0D464F",
+    "titleBar.activeForeground": "#F2FCFD"
   }
 }
