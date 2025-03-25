@@ -42,13 +42,8 @@ const nextConfig = {
       { module: /node_modules\/@sentry/ }
     ];
 
-    // Add externals for problematic packages
-    config.externals = [
-      ...(config.externals || []),
-      {
-        'require-in-the-middle': 'commonjs require-in-the-middle'
-      }
-    ];
+    // We no longer need to externalize require-in-the-middle since we've added it as a dependency
+    // Externalizing was causing the runtime error in production
 
     return config;
   },
@@ -81,7 +76,7 @@ const nextConfig = {
   // Keep standalone output for Docker deployments
   output: 'standalone',
   reactStrictMode: true,
-  // swcMinify: true,
+  swcMinify: true, // Enable SWC minification for faster production builds
   // Add transpilePackages to handle ESM packages and instrumentation packages
   transpilePackages: [
     'next-mdx-remote',
