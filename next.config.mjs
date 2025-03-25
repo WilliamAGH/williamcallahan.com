@@ -76,7 +76,7 @@ const nextConfig = {
   // Keep standalone output for Docker deployments
   output: 'standalone',
   reactStrictMode: true,
-  swcMinify: true, // Enable SWC minification for faster production builds
+  // Next.js 15 uses SWC by default; swcMinify option is no longer needed
   // Add transpilePackages to handle ESM packages and instrumentation packages
   transpilePackages: [
     'next-mdx-remote',
