@@ -1,17 +1,17 @@
 "use client";
 
 import { ThemeProvider } from "next-themes";
-import { TerminalProvider } from "@/components/ui/terminal/terminal-context";
+import { TerminalProvider } from "@/components/ui/terminal";
 import { Suspense } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <Suspense fallback={null}>
-        <TerminalProvider>
+      <TerminalProvider>
+        <Suspense fallback={null}>
           {children}
-        </TerminalProvider>
-      </Suspense>
+        </Suspense>
+      </TerminalProvider>
     </ThemeProvider>
   );
 }

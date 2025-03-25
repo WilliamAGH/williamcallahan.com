@@ -1,6 +1,6 @@
 /**
  * Window Controls Component
- * 
+ *
  * Renders macOS-style window control buttons.
  */
 

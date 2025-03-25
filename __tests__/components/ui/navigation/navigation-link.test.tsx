@@ -1,9 +1,9 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { NavigationLink } from '../../../../components/ui/navigation/navigation-link';
-import { useTerminalContext } from '../../../../components/ui/terminal/terminal-context';
+import { useTerminalContext } from '../../../../components/ui/terminal/terminalContext';
 
 // Mock the terminal context
-jest.mock('../../../../components/ui/terminal/terminal-context', () => ({
+jest.mock('../../../../components/ui/terminal/terminalContext', () => ({
   useTerminalContext: jest.fn()
 }));
 
