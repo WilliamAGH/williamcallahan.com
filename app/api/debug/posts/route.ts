@@ -22,12 +22,35 @@ function checkIsDevelopment() {
 
 export async function GET() {
   try {
-    checkIsDevelopment();
+    // In production, return a simple "not available" message instead of throwing an error
+    if (process.env.NODE_ENV !== 'development') {
+      return NextResponse.json(
+        { message: "Debug information is only available in development mode" },
+        { status: 403 }
+      );
+    }
 
     // Get information about the posts directory
     const postsDir = path.join(process.cwd(), 'data/blog/posts');
-    const dirContents = await fs.readdir(postsDir);
-    const mdxFiles = dirContents.filter(file => file.endsWith('.mdx'));
+
+    // Safely check if directory exists first
+    let dirExists = false;
+    try {
+      await fs.access(postsDir);
+      dirExists = true;
+    } catch (error) {
+      // Directory doesn't exist
+      console.warn(`Posts directory not found at ${postsDir}`);
+    }
+
+    // Only try to read directory if it exists
+    let dirContents: string[] = [];
+    let mdxFiles: string[] = [];
+
+    if (dirExists) {
+      dirContents = await fs.readdir(postsDir);
+      mdxFiles = dirContents.filter(file => file.endsWith('.mdx'));
+    }
 
     // Get all MDX posts with error handling
     let mdxPosts: Array<any> = [];
