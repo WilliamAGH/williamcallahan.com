@@ -135,12 +135,12 @@ describe('Blog Module', () => {
      *
      * Verifies:
      * 1. Correct post is returned for valid slug
-     * 2. Null is returned for non-existent slug
+     * 2. Throws BlogPostDataError for non-existent slug
      * 3. Post data matches expected format
      *
      * Expected Behavior:
      * - Returns full post object for valid slug
-     * - Returns null for invalid/non-existent slug
+     * - Throws error for invalid/non-existent slug
      */
     it('returns correct post for valid slug', async () => {
       const post = await getPostBySlug('test-post-1');
@@ -149,9 +149,8 @@ describe('Blog Module', () => {
       expect(post?.title).toBe('Test Post 1');
     });
 
-    it('returns null for non-existent slug', async () => {
-      const post = await getPostBySlug('non-existent');
-      expect(post).toBeNull();
+    it('throws error for non-existent slug', async () => {
+      await expect(getPostBySlug('non-existent')).rejects.toThrow();
     });
   });
 });

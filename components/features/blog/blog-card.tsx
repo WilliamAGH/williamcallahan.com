@@ -17,7 +17,7 @@ export function BlogCard({ post }: { post: BlogPost }) {
               alt={post.title}
               fill
               priority
-              className="object-cover"
+              className={post.coverImage.endsWith('.svg') ? "object-contain p-2" : "object-cover"}
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           </div>

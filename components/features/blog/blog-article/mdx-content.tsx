@@ -1,10 +1,14 @@
 'use client';
 
 import type { ComponentProps, ReactNode } from 'react';
-import { MDXRemote } from 'next-mdx-remote';
+import dynamic from 'next/dynamic';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
+// Import MDXRemote dynamically to ensure it only runs on the client
+const MDXRemote = dynamic(() => import('next-mdx-remote').then(mod => mod.MDXRemote), {
+  ssr: false, // This is crucial - it prevents server-side rendering of this component
+});
 import Image from 'next/image';
-import { CodeBlock } from '../../../ui/code-block';
+import { MDXCodeBlock } from '../../../ui/mdx-code-block';
 import FinancialMetrics from '../../../ui/financial-metrics';
 import type { ImageCaption } from '../../../../types/blog';
 
@@ -91,30 +95,30 @@ interface MDXContentProps {
  * @param {MDXContentProps} props - Component props
  * @returns {JSX.Element} Rendered MDX content
  */
-export const MDXContent: React.FC<MDXContentProps> = ({ content }) => {
+export function MDXContent({ content }: MDXContentProps): JSX.Element {
+  // Define components outside of render to avoid recreation
+  const components = {
+    pre: MDXCodeBlock,
+    code: (codeProps: ComponentProps<'code'>) => {
+      const { children, className, ...rest } = codeProps;
+      return (
+        <code className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-1.5 py-0.5 rounded" {...rest}>
+          {children}
+        </code>
+      );
+    },
+    MetricsGroup: FinancialMetrics,
+    img: MdxImage,
+    ArticleGallery,
+    ArticleImage: MdxImage
+  };
+
   return (
     <article className="prose dark:prose-invert prose-lg max-w-[85ch] mx-auto prose-headings:text-gray-900 dark:prose-headings:text-white prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300 prose-p:my-4 prose-p:whitespace-pre-line">
       <MDXRemote
         {...content}
-        components={{
-          pre: ({ children, ...props }: ComponentProps<'pre'>) => (
-            <CodeBlock {...props}>
-              {children}
-            </CodeBlock>
-          ),
-          code: ({ children, ...props }: ComponentProps<'code'>) => (
-            <code className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-1.5 py-0.5 rounded" {...props}>
-              {children}
-            </code>
-          ),
-          MetricsGroup: (props: ComponentProps<typeof FinancialMetrics>) => (
-            <FinancialMetrics {...props} />
-          ),
-          img: MdxImage,
-          ArticleGallery,
-          ArticleImage: MdxImage
-        }}
+        components={components}
       />
     </article>
   );
-};
+}
