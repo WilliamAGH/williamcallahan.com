@@ -40,11 +40,13 @@ export async function getAllPosts(): Promise<BlogPost[]> {
 /**
  * Retrieves a single blog post by its slug
  *
- * @throws BlogPostDataError if the post cannot be found
+ * @returns The found blog post or null if not found
+ * @throws BlogPostDataError only for unexpected errors, not for missing posts
  */
-export async function getPostBySlug(slug: string): Promise<BlogPost> {
+export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
   if (!slug) {
-    throw new BlogPostDataError('Blog post slug is required', '');
+    console.warn('Blog post slug is empty or undefined');
+    return null;
   }
 
   try {
@@ -55,19 +57,24 @@ export async function getPostBySlug(slug: string): Promise<BlogPost> {
     // Then check MDX posts
     const mdxPost = await getMDXPost(slug);
 
+    // Instead of throwing an error for missing posts, just return null
+    // This allows the caller to decide how to handle missing posts
     if (!mdxPost) {
-      throw new BlogPostDataError(`Blog post not found: ${slug}`, slug);
+      console.log(`Blog post not found: ${slug}`);
+      return null;
     }
 
     return mdxPost;
   } catch (error) {
-    // Only wrap non-BlogPostDataError errors
-    if (error instanceof BlogPostDataError) {
+    // Log the error but don't crash the server
+    console.error(`[getPostBySlug] Error retrieving post "${slug}":`, error);
+
+    // For unexpected errors, we still throw to allow API error handling
+    if (!(error instanceof BlogPostDataError)) {
+      throw new BlogPostDataError(`Error retrieving blog post: ${slug}`, slug, error);
+    } else {
       throw error;
     }
-
-    console.error(`[getPostBySlug] Error retrieving post "${slug}":`, error);
-    throw new BlogPostDataError(`Error retrieving blog post: ${slug}`, slug, error);
   }
 }
 

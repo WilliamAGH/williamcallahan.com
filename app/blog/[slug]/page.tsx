@@ -60,29 +60,44 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
  */
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params;
-  const post = await getMDXPost(slug);
-  if (!post) notFound();
 
-  const formattedPublished = formatSeoDate(post.publishedAt);
-  const formattedModified = formatSeoDate(post.updatedAt || post.publishedAt);
+  try {
+    const post = await getMDXPost(slug);
 
-  return (
-    <>
-      <JsonLdScript
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Article",
-          "headline": post.title,
-          "description": post.excerpt,
-          "datePublished": formattedPublished,
-          "dateModified": formattedModified,
-          "author": {
-            "@type": "Person",
-            "name": post.author.name
-          }
-        }}
-      />
-      <BlogWrapper post={post} />
-    </>
-  );
+    // If post not found, use Next.js built-in 404 page
+    if (!post) {
+      console.log(`Blog post not found: ${slug} - Returning 404 page`);
+      notFound();
+    }
+
+    const formattedPublished = formatSeoDate(post.publishedAt);
+    const formattedModified = formatSeoDate(post.updatedAt || post.publishedAt);
+
+    return (
+      <>
+        <JsonLdScript
+          data={{
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": post.title,
+            "description": post.excerpt,
+            "datePublished": formattedPublished,
+            "dateModified": formattedModified,
+            "author": {
+              "@type": "Person",
+              "name": post.author.name
+            }
+          }}
+        />
+        <BlogWrapper post={post} />
+      </>
+    );
+  } catch (error) {
+    // Log the error with details
+    console.error(`Error rendering blog post ${slug}:`, error);
+
+    // Return 404 page for any error in blog post rendering
+    // This prevents server crashes and provides a better user experience
+    notFound();
+  }
 }
