@@ -53,6 +53,9 @@ importers:
       remark-gfm:
         specifier: ^3.0.1
         version: 3.0.1
+      require-in-the-middle:
+        specifier: ^7.5.2
+        version: 7.5.2
       schema-dts:
         specifier: ^1.1.2
         version: 1.1.2(typescript@5.7.3)
