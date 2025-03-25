@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.2",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbo",
     "build": "pnpm run validate && next build",
     "start": "node .next/standalone/server.js",
     "start:plain": "next start",
@@ -23,7 +23,7 @@
     "fuse.js": "^7.0.0",
     "gray-matter": "^4.0.3",
     "lucide-react": "^0.344.0",
-    "next": "^14.2.21",
+    "next": "^15.2.4",
     "next-mdx-remote": "^4.4.1",
     "next-themes": "^0.2.1",
     "node-cache": "^5.1.2",

@@ -26,14 +26,17 @@ describe('CopyButton', () => {
     expect(button).toBeInTheDocument();
   });
 
-  it('copies content and shows success state', () => {
+  it('copies content and shows success state', async () => {
     mockClipboard.writeText.mockResolvedValueOnce(undefined);
     render(<CopyButton content="test" />);
 
     fireEvent.click(screen.getByRole('button'));
 
     expect(mockClipboard.writeText).toHaveBeenCalledWith('test');
-    expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Copied!');
+    // Wait for state update
+    await waitFor(() => {
+      expect(screen.getByRole('button')).toHaveAttribute('aria-label', 'Copied!');
+    });
   });
 
   it('handles clipboard errors', async () => {
