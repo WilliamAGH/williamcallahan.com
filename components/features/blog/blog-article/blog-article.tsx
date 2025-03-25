@@ -41,10 +41,9 @@ interface BlogArticleProps {
  * - MDX content with syntax highlighting
  *
  * @param {BlogArticleProps} props - Component props
- * @param {BlogPost} props.post - The blog post data to render
  * @returns {JSX.Element} The rendered blog article
  */
-export const BlogArticle: React.FC<BlogArticleProps> = ({ post }) => {
+export function BlogArticle({ post }: BlogArticleProps): JSX.Element {
   return (
     <article className="max-w-4xl mx-auto mt-4 sm:mt-8 px-4">
       {/* Back to Blog */}
@@ -85,14 +84,16 @@ export const BlogArticle: React.FC<BlogArticleProps> = ({ post }) => {
             alt={post.title}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-cover"
+            className={post.coverImage.endsWith('.svg') ? "object-contain p-2" : "object-cover"}
             priority
           />
         </div>
       )}
 
       {/* Article Content */}
-      <MDXContent content={post.content} />
+      <div className="relative">
+        <MDXContent content={post.content} />
+      </div>
     </article>
   );
 }

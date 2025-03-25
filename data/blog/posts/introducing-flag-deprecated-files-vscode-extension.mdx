@@ -1,0 +1,92 @@
+---
+title: "Flag Deprecated Files: A Simple VSCode Extension for Cleaner Codebases"
+slug: "introducing-flag-deprecated-files-vscode-extension"
+excerpt: "How I solved my own problem of tracking deprecated files in large codebases with a lightweight VSCode extension that visually flags files marked with @deprecated tags."
+publishedAt: "2025-03-24"
+updatedAt: "2025-03-24"
+author: "william-callahan"
+tags: ["vscode", "extension", "developer-tools", "productivity", "code-quality"]
+coverImage: "/images/posts/example-of-deprecation-flag-in-vscode.png"
+readingTime: 4
+---
+
+Keeping track of deprecated files is a hassle. For me, it's lots of deja vu: "wait, didn't I do this three months ago?" 🤔
+
+That's why I built [**Flag Deprecated Files**, a VSCode extension](https://marketplace.visualstudio.com/items?itemName=WilliamCallahan.flag-deprecated-files) that visually highlights files containing `@deprecated` tags directly in your file explorer.
+
+## Why I Built This
+
+Working in large repositories, I often flag files as deprecated with JSDoc/JavaDoc/Docstring tags when we're planning to phase them out. The problem? There was no easy way to *see* which files were deprecated without opening each one. In my case, these are repo's with a thousand + files, so it was a real pain.
+
+I decided to build a lightweight extension that simply works. Since I needed it myself, I figured others might find it useful too!
+
+## How It Works
+
+The extension is refreshingly straightforward:
+
+1. It scans your workspace for files with `@deprecated` tags in the first few lines (12 by default for speed)
+2. Files with the tag get a visual deprecated indicator (⊘) in the file explorer
+3. Folders show a count of how many deprecated files they contain
+4. Everything updates in real-time as you edit files
+
+
+The best part? It's performant by default—it only scans the first 12 lines of each file (configurable) and uses batched processing to avoid slowing down your IDE.
+
+## Light & Performant
+
+While building this, I focused on making it lightweight:
+
+```typescript
+async checkSingleFile(uri: vscode.Uri): Promise<boolean> {
+  try {
+    // Quick check first 1KB for @deprecated
+    const bytes = await vscode.workspace.fs.readFile(uri);
+    const quickCheck = new TextDecoder().decode(bytes.slice(0, 1024));
+    if (!quickCheck.includes('@deprecated')) {
+      return false;
+    }
+
+    const document = await vscode.workspace.openTextDocument(uri);
+    for (let i = 0; i < Math.min(document.lineCount, this.config.maxLinesToScan); i++) {
+      if (document.lineAt(i).text.includes('@deprecated')) {
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error(`Error processing file ${uri.fsPath}:`, error);
+    return false;
+  }
+}
+```
+
+This two-phase approach—first checking a 1KB chunk before doing a more thorough scan—means it barely impacts your editor's performance, even in large projects.
+
+## Customization Options
+
+You can customize the extension through your `.vscode/settings.json` (the settings below are in it by default without requiring these to be specified, but using the command replaces the default settings):
+
+```json
+{
+  "flagDeprecatedFiles.excludedDirectories": ["node_modules", "dist", "build"],
+  "flagDeprecatedFiles.decorations.badge": "⊘",
+  "flagDeprecatedFiles.decorations.color": "amber",
+  "flagDeprecatedFiles.maxLinesToScan": 12
+}
+```
+
+Change the badge icon, choose your own color scheme, or adjust exactly which directories get scanned.
+
+## How to Use / Get Started
+
+The extension is available now on:
+- [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=WilliamCallahan.flag-deprecated-files) (for VSCode, Cursor)
+- [Open VSX Registry](https://open-vsx.org/extension/williamcallahan/flag-deprecated-files) (for VSCodium, Windsurf IDE, Trae, and other forks)
+
+The [source code is on GitHub](https://github.com/WilliamAGH/vscode-flag-deprecated-files-extension).
+
+## What's Next?
+
+I'd love to hear any suggestions for improvements! You can [request features or report bugs here](https://github.com/williamagh/vscode-flag-deprecated-files-extension/issues).
+
+If you work with large codebases and deprecated files, I hope this little extension makes your IDE experience just a bit better!
