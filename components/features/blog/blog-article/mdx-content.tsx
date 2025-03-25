@@ -4,9 +4,14 @@ import type { ComponentProps, ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 // Import MDXRemote dynamically to ensure it only runs on the client
-const MDXRemote = dynamic(() => import('next-mdx-remote').then(mod => mod.MDXRemote), {
-  ssr: false, // This is crucial - it prevents server-side rendering of this component
-});
+const MDXRemote = dynamic(() =>
+  import('next-mdx-remote').then((mod) => {
+    return mod.MDXRemote;
+  }),
+  {
+    ssr: false, // This is crucial - it prevents server-side rendering of this component
+  }
+);
 import Image from 'next/image';
 import { MDXCodeBlock } from '../../../ui/mdx-code-block';
 import FinancialMetrics from '../../../ui/financial-metrics';
