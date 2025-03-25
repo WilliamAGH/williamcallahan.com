@@ -48,14 +48,14 @@ export default function NotFound() {
       </div>
 
       <h2 className="mt-6 text-3xl font-semibold tracking-tight text-gray-800 dark:text-gray-200">
-        Page not found
+        Oops! This page seems to have wandered off
       </h2>
 
       <p className="mt-4 text-xl text-gray-600 dark:text-gray-400 max-w-lg">
-        The page you&apos;re looking for doesn&apos;t exist or has been moved to another URL.
+        I couldn&apos;t find what you were looking for. Maybe it was moved or never existed in the first place?
       </p>
 
-      <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
+      <div className="mt-12">
         <Link
           href="/"
           className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500 text-white rounded-lg font-medium transform transition duration-200 hover:translate-y-[-2px] hover:shadow-lg"
@@ -63,23 +63,6 @@ export default function NotFound() {
           <ArrowLeft size={20} />
           Back to Home
         </Link>
-
-        <Link
-          href="/blog"
-          className="px-6 py-3 border border-gray-300 dark:border-gray-700 rounded-lg font-medium text-gray-800 dark:text-gray-200 transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-        >
-          Browse Articles
-        </Link>
-      </div>
-
-      <div className="mt-16 text-sm text-gray-500 dark:text-gray-500">
-        If you believe this is an error, please contact{" "}
-        <a
-          href="mailto:support@williamcallahan.com"
-          className="text-blue-600 dark:text-blue-400 hover:underline"
-        >
-          support
-        </a>
       </div>
     </div>
   );
