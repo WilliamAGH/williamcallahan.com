@@ -29,6 +29,9 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   const formattedPublished = formatSeoDate(post.publishedAt);
   const formattedModified = formatSeoDate(post.updatedAt || post.publishedAt);
 
+  // Full URL for the blog post
+  const postUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://williamcallahan.com'}/blog/${post.slug}`;
+
   return {
     title: `${post.title} - ${SITE_NAME}'s Blog`,
     description: post.excerpt,
@@ -36,6 +39,10 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       title: post.title,
       description: post.excerpt,
       type: 'article',
+      url: postUrl,
+      images: post.coverImage
+        ? [{ url: post.coverImage }]
+        : [],
       publishedTime: formattedPublished,
       modifiedTime: formattedModified,
       authors: [post.author.name],
@@ -45,6 +52,10 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       card: 'summary_large_image',
       title: post.title,
       description: post.excerpt,
+      site: "@william_a_h",
+      images: post.coverImage
+        ? [{ url: post.coverImage }]
+        : [],
     },
   };
 }

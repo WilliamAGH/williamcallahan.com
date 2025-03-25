@@ -138,6 +138,14 @@ export function createArticleMetadata({
       creator: siteMetadata.social.twitter,
       title,
       description,
+      images: image
+        ? [{ url: ensureAbsoluteUrl(image) }]
+        : [{
+            url: ensureAbsoluteUrl(siteMetadata.defaultImage.url),
+            width: siteMetadata.defaultImage.width,
+            height: siteMetadata.defaultImage.height,
+            alt: siteMetadata.defaultImage.alt,
+          }],
     },
     other: {
       // Standard HTML meta dates
