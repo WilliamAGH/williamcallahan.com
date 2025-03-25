@@ -34,6 +34,22 @@ const nextConfig = {
       path: false
     };
 
+    // Suppress warnings for Sentry and OpenTelemetry dynamic requires
+    config.ignoreWarnings = [
+      // Suppress warnings about dynamic requires
+      { module: /node_modules\/require-in-the-middle\/index\.js/ },
+      { module: /node_modules\/@opentelemetry\/instrumentation\/build\/esm\/platform\/node\/instrumentation\.js/ },
+      { module: /node_modules\/@sentry/ }
+    ];
+
+    // Add externals for problematic packages
+    config.externals = [
+      ...(config.externals || []),
+      {
+        'require-in-the-middle': 'commonjs require-in-the-middle'
+      }
+    ];
+
     return config;
   },
 
@@ -53,7 +69,12 @@ const nextConfig = {
       resolveAliases: {
         'fs': false,
         'crypto': false,
-        'path': false
+        'path': false,
+        // Add Sentry and OpenTelemetry package aliases for Turbopack
+        'require-in-the-middle': 'commonjs require-in-the-middle',
+        '@sentry/nextjs': { type: 'commonjs' },
+        '@sentry/node': { type: 'commonjs' },
+        '@opentelemetry/instrumentation': { type: 'commonjs' }
       }
     }
   },
@@ -61,6 +82,16 @@ const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   // swcMinify: true,
+  // Add transpilePackages to handle ESM packages and instrumentation packages
+  transpilePackages: [
+    'next-mdx-remote',
+    '@sentry/nextjs',
+    '@sentry/node',
+    '@sentry/opentelemetry',
+    '@opentelemetry/instrumentation',
+    '@opentelemetry/api',
+    'require-in-the-middle'
+  ],
   /**
    * Image optimization configuration
    * @see https://nextjs.org/docs/app/api-reference/components/image
