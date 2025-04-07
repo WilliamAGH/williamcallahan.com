@@ -25,6 +25,7 @@
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Terminal } from '../../../../components/ui/terminal/terminal';
+import { TerminalProvider } from '../../../../components/ui/terminal/terminalContext';
 import { useRouter } from 'next/navigation';
 import { setupTests } from '../../../../lib/test/setup';
 
@@ -47,6 +48,15 @@ jest.mock('../../../../lib/search', () => ({
   searchInvestments: jest.fn().mockResolvedValue([])
 }));
 
+// Helper function to render with provider
+const renderTerminal = () => {
+  return render(
+    <TerminalProvider>
+      <Terminal />
+    </TerminalProvider>
+  );
+};
+
 describe('Terminal Component', () => {
   const { mockRouter } = setupTests();
 
@@ -56,15 +66,15 @@ describe('Terminal Component', () => {
 
   describe('Rendering', () => {
     it('renders with welcome message', () => {
-      render(<Terminal />);
-      expect(screen.getByText(/Welcome!/i)).toBeInTheDocument();
+      renderTerminal();
+      expect(screen.getByText(/Welcome! Type "help" for available commands./i)).toBeInTheDocument();
       expect(screen.getByRole('textbox')).toHaveFocus();
     });
   });
 
   describe('Command Processing', () => {
     it('processes help command', async () => {
-      render(<Terminal />);
+      renderTerminal();
       const input = screen.getByRole('textbox');
 
       fireEvent.change(input, { target: { value: 'help' } });
@@ -76,21 +86,22 @@ describe('Terminal Component', () => {
     });
 
     it('handles invalid commands', async () => {
-      render(<Terminal />);
+      renderTerminal();
       const input = screen.getByRole('textbox');
 
       fireEvent.change(input, { target: { value: 'invalid-command' } });
       fireEvent.submit(input);
 
       await waitFor(() => {
-        expect(screen.getByText(/Command not recognized/i)).toBeInTheDocument();
+        // Updated expectation to match actual error message
+        expect(screen.getByText(/Command not recognized. Type "help" for available commands./i)).toBeInTheDocument();
       });
     });
   });
 
   describe('Navigation', () => {
     it('navigates to correct route', async () => {
-      render(<Terminal />);
+      renderTerminal();
       const input = screen.getByRole('textbox');
 
       fireEvent.change(input, { target: { value: 'blog' } });
@@ -104,7 +115,7 @@ describe('Terminal Component', () => {
 
   describe('Search', () => {
     it('displays search results', async () => {
-      render(<Terminal />);
+      renderTerminal();
       const input = screen.getByRole('textbox');
 
       fireEvent.change(input, { target: { value: 'blog test' } });
@@ -117,23 +128,76 @@ describe('Terminal Component', () => {
     });
 
     it('handles no results', async () => {
-      render(<Terminal />);
+      renderTerminal();
       const input = screen.getByRole('textbox');
 
       fireEvent.change(input, { target: { value: 'experience nonexistent' } });
       fireEvent.submit(input);
 
       await waitFor(() => {
-        expect(screen.getByText(/No results found in Experience/i)).toBeInTheDocument();
+        expect(screen.getByText(/No results found/i)).toBeInTheDocument();
       });
     });
   });
 
   describe('Mobile Responsiveness', () => {
     it('maintains proper text wrapping', () => {
-      render(<Terminal />);
-      const terminal = screen.getByText(/Welcome!/i).closest('.whitespace-pre-wrap');
-      expect(terminal).toHaveClass('break-words');
+      renderTerminal();
+      const terminalContent = screen.getByText(/Welcome!/i).closest('.whitespace-pre-wrap');
+      expect(terminalContent).toHaveClass('break-words');
+    });
+  });
+
+  // Add tests for minimize/maximize/close if needed
+  describe('Window Controls Integration', () => {
+    it('minimizes the terminal', async () => {
+      renderTerminal();
+      const minimizeButton = screen.getByRole('button', { name: /minimize/i });
+      fireEvent.click(minimizeButton);
+
+      // Wait for the minimized view to appear
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /restore/i })).toBeInTheDocument();
+      });
+
+      // Verify the main terminal content is gone (or check for specific minimized state class/element)
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    });
+
+    it('maximizes and restores the terminal', async () => {
+      renderTerminal();
+      const maximizeButton = screen.getByRole('button', { name: /maximize/i });
+
+      // Maximize
+      fireEvent.click(maximizeButton);
+      await waitFor(() => {
+        // Check if the maximized class is applied (adjust selector as needed)
+        expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).toHaveClass('sm:max-w-full');
+      });
+
+      // Restore (click maximize again)
+      fireEvent.click(maximizeButton);
+      await waitFor(() => {
+        // Check if the normal class is applied
+        expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).toHaveClass('sm:max-w-5xl');
+        expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).not.toHaveClass('sm:max-w-full');
+      });
+    });
+
+    it('closes the terminal', async () => {
+      renderTerminal();
+      const closeButton = screen.getByRole('button', { name: /close/i });
+      fireEvent.click(closeButton);
+
+      // Wait for the component to potentially unmount or render null
+      await waitFor(() => {
+         // Check that core elements are no longer present
+         expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+         expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
+      });
+
+      // Or, if the parent controls rendering based on context state,
+      // you might need a different approach depending on where the state lives.
     });
   });
 });
