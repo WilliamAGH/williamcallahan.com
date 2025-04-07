@@ -1,7 +1,7 @@
 'use client';
 
 import type { ComponentProps } from 'react';
-import { CopyButton } from './copy-button';
+import { CopyButton } from './copyButton';
 import { cn } from '../../lib/utils';
 
 /**

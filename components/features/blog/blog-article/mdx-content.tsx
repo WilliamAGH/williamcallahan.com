@@ -13,8 +13,8 @@ const MDXRemote = dynamic(() =>
   }
 );
 import Image from 'next/image';
-import { MDXCodeBlock } from '../../../ui/mdx-code-block';
-import FinancialMetrics from '../../../ui/financial-metrics';
+import { MDXCodeBlock } from '../../../ui/mdxCodeBlock';
+import FinancialMetrics from '../../../ui/financialMetrics';
 import type { ImageCaption } from '../../../../types/blog';
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {
