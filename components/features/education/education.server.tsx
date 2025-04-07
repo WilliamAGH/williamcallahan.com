@@ -67,7 +67,7 @@ export async function Education(): Promise<JSX.Element> {
             <h2 className="text-2xl font-bold mb-6">Education</h2>
             <div className="space-y-6">
               {educationCards.map((edu) => (
-                <div key={edu.institution}>
+                <div key={edu.id}>
                   {edu.card}
                 </div>
               ))}
@@ -79,7 +79,7 @@ export async function Education(): Promise<JSX.Element> {
             <h2 className="text-2xl font-bold mb-6">Certifications</h2>
             <div className="space-y-6">
               {certificationCards.map((cert) => (
-                <div key={cert.name}>
+                <div key={cert.id}>
                   {cert.card}
                 </div>
               ))}

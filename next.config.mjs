@@ -1,12 +1,9 @@
-import {withSentryConfig} from '@sentry/nextjs';
-// next.config.mjs
-
 /**
  * Next.js Configuration
  * @module next.config
  * @description
  * Configuration file for Next.js application settings including:
- * - Webpack customization for SVG handling
+ * - Webpack/Turbopack customization for SVG handling
  * - Node.js polyfills for API routes
  * - Image optimization settings
  * - Build output configuration
@@ -37,12 +34,59 @@ const nextConfig = {
       path: false
     };
 
+    // Suppress warnings for Sentry and OpenTelemetry dynamic requires
+    config.ignoreWarnings = [
+      // Suppress warnings about dynamic requires
+      { module: /node_modules\/require-in-the-middle\/index\.js/ },
+      { module: /node_modules\/@opentelemetry\/instrumentation\/build\/esm\/platform\/node\/instrumentation\.js/ },
+      { module: /node_modules\/@sentry/ }
+    ];
+
+    // We no longer need to externalize require-in-the-middle since we've added it as a dependency
+    // Externalizing was causing the runtime error in production
+
     return config;
+  },
+
+  /**
+   * Turbopack configuration
+   * Ensures compatibility when running with --turbo flag
+   */
+  experimental: {
+    turbo: {
+      rules: {
+        // Configure SVG handling in Turbopack
+        '*.svg': {
+          loaders: ['@svgr/webpack']
+        }
+      },
+      // Important resolvers for node modules in API routes
+      resolveAliases: {
+        'fs': false,
+        'crypto': false,
+        'path': false,
+        // Add Sentry and OpenTelemetry package aliases for Turbopack
+        'require-in-the-middle': 'commonjs require-in-the-middle',
+        '@sentry/nextjs': { type: 'commonjs' },
+        '@sentry/node': { type: 'commonjs' },
+        '@opentelemetry/instrumentation': { type: 'commonjs' }
+      }
+    }
   },
   // Keep standalone output for Docker deployments
   output: 'standalone',
   reactStrictMode: true,
-  swcMinify: true,
+  // Next.js 15 uses SWC by default; swcMinify option is no longer needed
+  // Add transpilePackages to handle ESM packages and instrumentation packages
+  transpilePackages: [
+    'next-mdx-remote',
+    '@sentry/nextjs',
+    '@sentry/node',
+    '@sentry/opentelemetry',
+    '@opentelemetry/instrumentation',
+    '@opentelemetry/api',
+    'require-in-the-middle'
+  ],
   /**
    * Image optimization configuration
    * @see https://nextjs.org/docs/app/api-reference/components/image
@@ -52,6 +96,7 @@ const nextConfig = {
     contentDispositionType: 'attachment',
     // CSP configuration allowing analytics scripts from configured domains
     contentSecurityPolicy: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net`,
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -81,43 +126,4 @@ const nextConfig = {
   }
 };
 
-export default withSentryConfig(nextConfig, {
-// For all available options, see:
-// https://github.com/getsentry/sentry-webpack-plugin#options
-
-org: "shared",
-project: "williamcallahancom",
-sentryUrl: "https://glitchtip.iocloudhost.net/",
-
-// Only print logs for uploading source maps in CI
-silent: !process.env.CI,
-
-// For all available options, see:
-// https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
-
-// Upload a larger set of source maps for prettier stack traces (increases build time)
-widenClientFileUpload: true,
-
-// Automatically annotate React components to show their full name in breadcrumbs and session replay
-reactComponentAnnotation: {
-enabled: true,
-},
-
-// Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
-// This can increase your server load as well as your hosting bill.
-// Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
-// side errors will fail.
-tunnelRoute: "/monitoring",
-
-// Hides source maps from generated client bundles
-hideSourceMaps: true,
-
-// Automatically tree-shake Sentry logger statements to reduce bundle size
-disableLogger: true,
-
-// Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-// See the following for more information:
-// https://docs.sentry.io/product/crons/
-// https://vercel.com/docs/cron-jobs
-automaticVercelMonitors: true,
-});
+export default nextConfig;

@@ -16,6 +16,7 @@
 import { WindowControls } from '../../../components/ui/navigation/window-controls';
 import { ExternalLink } from '../../../components/ui/external-link';
 import type { Investment } from '../../../types/investment';
+import Link from 'next/link';
 
 /**
  * Extended investment type with pre-rendered card
@@ -97,9 +98,9 @@ export function InvestmentsClient({ investments = [] }: InvestmentsClientProps):
             </p>
             <p>
               I think there are a lot of lessons available for founders and investors alike, and hope to increase the available data over time.{' '}
-              <a href="/" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
+              <Link href="/" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
                 Reach out
-              </a>{' '}
+              </Link>{' '}
               if you&apos;d like to see me add any data points or background!
             </p>
             <details className="mt-8 group">

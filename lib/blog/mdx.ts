@@ -64,7 +64,18 @@ async function getFileDates(filePath: string): Promise<{ created: string; modifi
  */
 export async function getMDXPost(slug: string): Promise<BlogPost | null> {
   try {
+    // First check if the post actually exists to avoid unnecessary file read attempts
     const fullPath = path.join(POSTS_DIRECTORY, `${slug}.mdx`);
+
+    // Check if the file exists before trying to read it
+    try {
+      await fs.access(fullPath);
+    } catch (error) {
+      // File doesn't exist, log with appropriate level and return null
+      console.warn(`Blog post not found: ${slug} at path ${fullPath}`);
+      return null;
+    }
+
     const fileContents = await fs.readFile(fullPath, 'utf8');
 
     // Parse frontmatter

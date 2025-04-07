@@ -6,7 +6,6 @@
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
-    /* ... other variables ... */
   }
 }
 
@@ -164,4 +163,72 @@ pre[class*="language-"] {
 
 .token.entity {
   cursor: help;
+}
+
+/**
+ * 404 Page Glitch Animation
+ *
+ * Provides a modern digital glitch effect for the 404 page
+ * Used by the app/not-found.tsx component
+ * @see {@link app/not-found.tsx}
+ */
+@keyframes glitch {
+  0% {
+    transform: translate(0);
+    text-shadow: 0 0 transparent;
+  }
+  2% {
+    transform: translate(-2px, 1px);
+    text-shadow: 2px 0 #ff00ea, -2px 0 #00ffff;
+  }
+  4% {
+    transform: translate(2px, -1px);
+    text-shadow: 2px 0 #00ffff, -2px 0 #ff00ea;
+  }
+  5% {
+    transform: translate(-1px, 2px);
+    text-shadow: 2px 0 #ff00ea, -2px 0 #00ffff;
+  }
+  6% {
+    transform: translate(1px, -2px);
+    text-shadow: 2px 0 #00ffff, -2px 0 #ff00ea;
+  }
+  7% {
+    transform: translate(0);
+    text-shadow: 0 0 transparent;
+  }
+  100% {
+    transform: translate(0);
+    text-shadow: 0 0 transparent;
+  }
+}
+
+.animate-glitch {
+  animation: glitch 3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  position: relative;
+}
+
+/* Add a slight clip effect to enhance the glitch */
+.animate-glitch::before,
+.animate-glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.animate-glitch::before {
+  animation: glitch 500ms infinite;
+  clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
+  transform: translate(-0.04em, -0.04em);
+  opacity: 0.75;
+}
+
+.animate-glitch::after {
+  animation: glitch 375ms infinite;
+  clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%);
+  transform: translate(0.04em, 0.04em);
+  opacity: 0.75;
 }

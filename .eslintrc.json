@@ -1,4 +1,13 @@
 {
-  "extends": "next",
-  "ignorePatterns": ["node_modules/**/*", ".next/**/*"]
+  "extends": ["next/core-web-vitals"],
+  "ignorePatterns": ["node_modules/**/*", ".next/**/*"],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "parserOptions": {
+    "ecmaVersion": 15,
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  }
 }
