@@ -1,11 +1,7 @@
-import type { BlogPost } from '../../../../types/blog';
-import dynamic from 'next/dynamic';
+'use client';
 
-// Dynamically import the BlogArticle component with no SSR
-// This ensures proper hydration of MDX content on the client
-const BlogArticle = dynamic(() => import('./blog-article').then(mod => mod.BlogArticle), {
-  ssr: false
-});
+import type { BlogPost } from '../../../../types/blog';
+import { BlogArticle } from './blog-article';
 
 /**
  * Props for the BlogWrapper component
@@ -18,12 +14,12 @@ interface BlogWrapperProps {
 /**
  * BlogWrapper Component
  *
- * Server component that wraps the client-side BlogArticle.
- * Uses dynamic import to ensure proper hydration of MDX content.
+ * Client component that wraps the BlogArticle.
+ * Handles the client-side rendering of MDX content.
  *
  * @param {BlogWrapperProps} props - Component props
  * @returns {JSX.Element} The wrapped blog article
  */
-export function BlogWrapper({ post }: BlogWrapperProps) {
+export function BlogWrapper({ post }: BlogWrapperProps): JSX.Element {
   return <BlogArticle post={post} />;
 }

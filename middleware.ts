@@ -39,7 +39,7 @@ function getRealIp(request: NextRequest): string {
   return request.headers.get('True-Client-IP') ||
          request.headers.get('CF-Connecting-IP') ||
          request.headers.get('X-Forwarded-For')?.split(',')[0] ||
-         request.ip ||
+         request.headers.get('X-Real-IP') ||
          'unknown'
 }
 

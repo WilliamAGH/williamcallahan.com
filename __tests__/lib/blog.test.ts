@@ -135,12 +135,12 @@ describe('Blog Module', () => {
      *
      * Verifies:
      * 1. Correct post is returned for valid slug
-     * 2. Null is returned for non-existent slug
+     * 2. Returns null for non-existent slug
      * 3. Post data matches expected format
      *
      * Expected Behavior:
      * - Returns full post object for valid slug
-     * - Returns null for invalid/non-existent slug
+     * - Returns null for invalid/non-existent slug (allowing graceful 404 handling)
      */
     it('returns correct post for valid slug', async () => {
       const post = await getPostBySlug('test-post-1');
