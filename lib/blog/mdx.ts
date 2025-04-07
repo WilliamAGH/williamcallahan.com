@@ -1,3 +1,7 @@
+import { assertServerOnly } from '../utils/ensure-server-only';
+
+assertServerOnly('lib/blog/mdx.ts'); // Ensure this module runs only on the server
+
 /**
  * MDX Processing Utilities
  *
