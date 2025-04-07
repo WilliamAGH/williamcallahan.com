@@ -12,6 +12,7 @@ import { JsonLdScript } from "../../components/seo/json-ld";
 import { PAGE_METADATA } from "../../data/metadata";
 import { formatSeoDate } from "../../lib/seo/utils";
 import type { Metadata } from "next";
+import { getAllPosts } from '../../lib/blog';
 
 /**
  * Generate metadata for the blog index page
@@ -21,10 +22,12 @@ export const metadata: Metadata = getStaticPageMetadata('/blog', 'blog');
 /**
  * Blog index page component
  */
-export default function BlogPage() {
+export default async function BlogPage() {
   const pageMetadata = PAGE_METADATA.blog;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
+
+  const posts = await getAllPosts();
 
   return (
     <>
@@ -36,7 +39,7 @@ export default function BlogPage() {
           "dateModified": formattedModified
         }}
       />
-      <Blog />
+      <Blog initialPosts={posts} />
     </>
   );
 }
