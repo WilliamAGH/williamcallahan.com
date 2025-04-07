@@ -23,16 +23,69 @@
  * - Uses React Testing Library for DOM interactions
  */
 
+import React from 'react'; // Ensure React is imported first
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Terminal } from '../../../../components/ui/terminal/terminal';
 import { TerminalProvider } from '../../../../components/ui/terminal/terminalContext';
+import { TerminalWindowStateProvider } from '../../../../lib/context/TerminalWindowStateContext';
+// GlobalWindowRegistryProvider is mocked below, so no need to import it here
 import { useRouter } from 'next/navigation';
 import { setupTests } from '../../../../lib/test/setup';
+import { GlobalWindowRegistryContextType } from '../../../../lib/context/GlobalWindowRegistryContext'; // Import type for mocking
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn()
 }));
+
+// Define mockWindowState outside the factory scope so it persists but can be reset
+let mockWindowState: 'normal' | 'minimized' | 'maximized' | 'closed' = 'normal';
+
+// Mock GlobalWindowRegistryContext related hooks
+jest.mock('../../../../lib/context/GlobalWindowRegistryContext', () => {
+  // Mock LucideIcon component type using forwardRef to satisfy the type system
+  const MockIcon = React.forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>((props, ref) => (
+    <svg ref={ref} {...props} data-testid="mock-icon" /> // Simple SVG mock
+  ));
+  MockIcon.displayName = 'MockIcon'; // Good practice for debugging
+
+  // Functions to modify the shared mockWindowState
+  const setMockState = (newState: typeof mockWindowState) => { mockWindowState = newState; };
+  const minimizeMock = () => setMockState('minimized');
+  const maximizeMock = () => setMockState(mockWindowState === 'maximized' ? 'normal' : 'maximized');
+  const closeMock = () => setMockState('closed');
+  const restoreMock = () => setMockState('normal');
+
+  return {
+    GlobalWindowRegistryProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+    // Mock the general registry hook (simplified as Terminal uses the specific one)
+    useWindowRegistry: jest.fn((): Partial<GlobalWindowRegistryContextType> => ({
+      windows: { 'test-terminal': { id: 'test-terminal', state: mockWindowState, icon: MockIcon, title: 'Test Terminal' } },
+      registerWindow: jest.fn(),
+      unregisterWindow: jest.fn(),
+      setWindowState: jest.fn((id, state) => { if (id === 'test-terminal') setMockState(state); }),
+      minimizeWindow: jest.fn((id) => { if (id === 'test-terminal') minimizeMock(); }),
+      maximizeWindow: jest.fn((id) => { if (id === 'test-terminal') maximizeMock(); }),
+      closeWindow: jest.fn((id) => { if (id === 'test-terminal') closeMock(); }),
+      restoreWindow: jest.fn((id) => { if (id === 'test-terminal') restoreMock(); }),
+      getWindowState: jest.fn((id) => id === 'test-terminal'
+        ? { id: 'test-terminal', state: mockWindowState, icon: MockIcon, title: 'Test Terminal' }
+        : undefined
+      ),
+    })),
+    // Mock the specific hook used by the Terminal component
+    useRegisteredWindowState: jest.fn().mockImplementation(() => ({
+      windowState: mockWindowState, // Return the current state
+      isRegistered: true,
+      minimize: jest.fn(minimizeMock), // Return functions that modify the state
+      maximize: jest.fn(maximizeMock),
+      close: jest.fn(closeMock),
+      restore: jest.fn(restoreMock),
+      setState: jest.fn(setMockState),
+    })),
+  };
+});
+
 
 // Mock search functions
 jest.mock('../../../../lib/search', () => ({
@@ -48,20 +101,28 @@ jest.mock('../../../../lib/search', () => ({
   searchInvestments: jest.fn().mockResolvedValue([])
 }));
 
-// Helper function to render with provider
+// Helper function to render with providers (GlobalWindowRegistryProvider is no longer needed due to the hook mock)
 const renderTerminal = () => {
   return render(
-    <TerminalProvider>
-      <Terminal />
-    </TerminalProvider>
+    <TerminalWindowStateProvider terminalId="test-terminal">
+      <TerminalProvider>
+        <Terminal />
+      </TerminalProvider>
+    </TerminalWindowStateProvider>
   );
 };
+
 
 describe('Terminal Component', () => {
   const { mockRouter } = setupTests();
 
   beforeEach(() => {
+    // Reset Next.js router mock
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
+    // Reset the window state mock directly
+    mockWindowState = 'normal';
+    // Clear all Jest mocks (including call counts)
+    jest.clearAllMocks();
   });
 
   describe('Rendering', () => {
@@ -150,50 +211,83 @@ describe('Terminal Component', () => {
 
   // Add tests for minimize/maximize/close if needed
   describe('Window Controls Integration', () => {
-    it('minimizes the terminal', async () => {
-      renderTerminal();
+    it('minimizes the terminal', () => {
+      // Get rerender function
+      const { rerender } = renderTerminal();
       const minimizeButton = screen.getByRole('button', { name: /minimize/i });
+
+      // Click minimize
       fireEvent.click(minimizeButton);
 
-      // Wait for the minimized view to appear
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /restore/i })).toBeInTheDocument();
-      });
+      // Force re-render to reflect state change in the mock
+      rerender(
+        <TerminalWindowStateProvider terminalId="test-terminal">
+          <TerminalProvider>
+            <Terminal />
+          </TerminalProvider>
+        </TerminalWindowStateProvider>
+      );
 
-      // Verify the main terminal content is gone (or check for specific minimized state class/element)
+      // Assert: Terminal content should be gone
       expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
     });
 
-    it('maximizes and restores the terminal', async () => {
-      renderTerminal();
-      const maximizeButton = screen.getByRole('button', { name: /maximize/i });
+    it('maximizes and restores the terminal', () => {
+      const { rerender } = renderTerminal();
+      const maximizeButton = screen.getByRole('button', { name: /maximize/i }); // Assuming this targets the correct button
+
+      // Initial state check (optional but good practice)
+      expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).toHaveClass('sm:max-w-3xl');
+      expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).not.toHaveClass('sm:max-w-full');
 
       // Maximize
       fireEvent.click(maximizeButton);
-      await waitFor(() => {
-        // Check if the maximized class 'sm:max-w-full' is applied
-        expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).toHaveClass('sm:max-w-full');
-        expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).not.toHaveClass('sm:max-w-3xl'); // Ensure normal class is removed
-      });
+      rerender(
+        <TerminalWindowStateProvider terminalId="test-terminal">
+          <TerminalProvider>
+            <Terminal />
+          </TerminalProvider>
+        </TerminalWindowStateProvider>
+      );
+      // Assert maximized state: Check for fixed positioning and max-width override
+      const maximizedElement = screen.getByText(/Welcome!/i).closest('div[class*="fixed"]'); // Find the outer div
+      expect(maximizedElement).toHaveClass('fixed');
+      expect(maximizedElement).toHaveClass('max-w-none'); // Key class for maximized state
 
       // Restore (click maximize again)
       fireEvent.click(maximizeButton);
-      await waitFor(() => {
-        // Check if the normal class 'sm:max-w-3xl' is applied
-        expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).toHaveClass('sm:max-w-3xl');
-        expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).not.toHaveClass('sm:max-w-full'); // Ensure maximized class is removed
-      });
+       rerender(
+        <TerminalWindowStateProvider terminalId="test-terminal">
+          <TerminalProvider>
+            <Terminal />
+          </TerminalProvider>
+        </TerminalWindowStateProvider>
+      );
+      // Assert restored (normal) state: Check for default max-width and absence of max-width override
+      const restoredElement = screen.getByText(/Welcome!/i).closest('div[class*="max-w-"]'); // Find the outer div
+      expect(restoredElement).toHaveClass('sm:max-w-3xl'); // Key class for normal state
+      expect(restoredElement).not.toHaveClass('fixed');
+      expect(restoredElement).not.toHaveClass('max-w-none'); // Ensure override is removed
     });
 
-    it('closes the terminal', async () => {
-      renderTerminal();
+    it('closes the terminal', () => {
+      const { rerender } = renderTerminal();
       const closeButton = screen.getByRole('button', { name: /close/i });
+
+      // Click close
       fireEvent.click(closeButton);
 
-      // After clicking close, the component should render null.
-      // Check that core elements like the input are no longer present.
-      // Using queryBy... directly after the event is often sufficient
-      // when the component conditionally renders null.
+      // Force re-render
+      rerender(
+        <TerminalWindowStateProvider terminalId="test-terminal">
+          <TerminalProvider>
+            <Terminal />
+          </TerminalProvider>
+        </TerminalWindowStateProvider>
+      );
+
+      // Assert: Terminal content should be gone
       expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
       expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
     });
