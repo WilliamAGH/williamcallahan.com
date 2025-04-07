@@ -86,7 +86,9 @@ export default function RootLayout({
           <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
             <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
               <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-                <Navigation />
+                <Suspense fallback={null}>
+                  <Navigation />
+                </Suspense>
                 <div className="flex items-center space-x-4">
                   <SocialIcons />
                   <ThemeToggle />

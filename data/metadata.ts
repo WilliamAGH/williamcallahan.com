@@ -123,6 +123,12 @@ export const PAGE_METADATA = {
     dateCreated: '2025-02-10T12:42:00',
     dateModified: '2025-02-10T12:42:00',
   } as CollectionPageMetadata,
+  projects: {
+    title: `Project Sandbox - ${SITE_NAME}`, // Changed title
+    description: `A selection of projects ${SITE_NAME} has worked on or contributed to.`,
+    dateCreated: '2025-04-07T10:11:00',
+    dateModified: '2025-04-07T10:58:00', // Update modified date
+  } as CollectionPageMetadata,
 } as const;
 
 export const metadata = {
