@@ -9,6 +9,9 @@
 import NodeCache from 'node-cache';
 import { SERVER_CACHE_DURATION, LOGO_CACHE_DURATION } from './constants';
 import type { LogoInversion, LogoSource } from '../types/logo';
+import { assertServerOnly } from './utils/ensure-server-only';
+
+assertServerOnly('lib/server-cache.ts');
 
 /**
  * Logo validation result from the server
