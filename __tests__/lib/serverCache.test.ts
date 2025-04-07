@@ -1,3 +1,10 @@
+/**
+ * Mock ensure-server-only to prevent errors in test environment
+ */
+jest.mock('../../lib/utils/ensure-server-only', () => ({
+  assertServerOnly: jest.fn() // Mock implementation does nothing
+}));
+
 import { ServerCacheInstance } from '../../lib/server-cache';
 import type { LogoInversion, LogoSource } from '../../types/logo';
 import { SERVER_CACHE_DURATION } from '../../lib/constants';
