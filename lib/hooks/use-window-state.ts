@@ -65,17 +65,19 @@ export function useWindowState(id: string, initialState: WindowState = 'normal')
       const storedState = getSessionStorageState(id);
       if (storedState) {
         console.log(`useWindowState (${id}): Hydrating state from sessionStorage: ${storedState}`);
-        // Update the state only if the stored value differs from the current state
-        // This prevents potential loops if the initial state was already correct
-        if (storedState !== windowState) {
-           setWindowState(storedState);
-        }
+        // Use functional update to avoid needing windowState in dependency array
+        setWindowState(prevState => {
+          // Only update if the stored state is different from the previous state
+          return storedState !== prevState ? storedState : prevState;
+        });
       }
     }
-     // This effect should run once after mount, depending on isMounted, id, and windowState
-   }, [isMounted, id]); // Added windowState dependency as required by linter
+     // This effect should run only once after mounting to hydrate the initial state.
+     // It depends on isMounted and id (in case id changes, though unlikely for a stable component).
+     // It should NOT depend on windowState itself, as that could cause loops.
+    }, [isMounted, id]); // Removed windowState from dependencies
 
-   // Effect to update sessionStorage when the state changes, but only if mounted
+    // Effect to update sessionStorage when the state changes, but only if mounted
   useEffect(() => {
     // Only write to storage if we are mounted on the client
     if (isMounted) {
