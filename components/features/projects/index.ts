@@ -1,1 +1,1 @@
-export { ProjectsClient as Projects } from './projects.server';
+export { ProjectsClient as Projects } from './projects.client';
