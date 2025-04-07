@@ -1,6 +1,6 @@
 /**
  * Command Input Component
- * 
+ *
  * Terminal input field that prevents iOS Safari zoom while maintaining visual consistency.
  * Uses CSS transform to scale down the visually larger font size.
  */
@@ -20,7 +20,9 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
         <div className="flex items-center w-full">
           <span className="text-[#7aa2f7] select-none mr-2">$</span>
           <div className="relative flex-1 transform-gpu">
+            <label htmlFor="terminal-command" className="sr-only">Terminal command</label>
             <input
+              id="terminal-command"
               ref={ref}
               type="text"
               value={value}
@@ -32,6 +34,9 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
                 margin: '-0.125rem 0',
               }}
               autoFocus
+              aria-label="Terminal command input"
+              placeholder="Type a command..."
+              title="Terminal command input"
             />
           </div>
         </div>

@@ -92,11 +92,11 @@ export const CodeBlock = ({ children, className, ...props }: CodeBlockProps): JS
     'bg-gray-800',
     'p-4',
     'text-gray-100',
-    'text-sm' // Add smaller font size
+    'text-[13px]'
   );
 
   return (
-    <div className="relative group rounded-lg overflow-hidden">
+    <div className="relative group rounded-lg overflow-hidden bg-gray-800">
       {language && (
         <div className="absolute top-3 right-12 px-2 py-1 text-xs font-mono rounded-md bg-gray-700/50 text-gray-300 uppercase transition-opacity duration-200 opacity-0 group-hover:opacity-100">
           {language}
@@ -106,7 +106,9 @@ export const CodeBlock = ({ children, className, ...props }: CodeBlockProps): JS
         className={cn(defaultClasses, className)}
         {...props}
       >
-        {children}
+        <code className="text-gray-100 bg-transparent text-[13px] [&_*]:!text-gray-100 [&_*]:!bg-transparent">
+          {children}
+        </code>
       </pre>
       <CopyButton content={filteredContent} />
     </div>

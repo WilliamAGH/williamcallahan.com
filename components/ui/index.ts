@@ -13,7 +13,6 @@ export { ExternalLink } from './externalLink';
 export { default as FinancialMetrics } from './financialMetrics';
 export { LogoImage } from './logoImage';
 export { MDXTable } from './mdxTable';
-export { ThemeToggle } from './themeToggle';
 
 // Re-export nested components
 export * from './navigation';
