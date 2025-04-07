@@ -190,15 +190,12 @@ describe('Terminal Component', () => {
       const closeButton = screen.getByRole('button', { name: /close/i });
       fireEvent.click(closeButton);
 
-      // Wait for the component to potentially unmount or render null
-      await waitFor(() => {
-         // Check that core elements are no longer present
-         expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-         expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
-      });
-
-      // Or, if the parent controls rendering based on context state,
-      // you might need a different approach depending on where the state lives.
+      // After clicking close, the component should render null.
+      // Check that core elements like the input are no longer present.
+      // Using queryBy... directly after the event is often sufficient
+      // when the component conditionally renders null.
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
     });
   });
 });
