@@ -10,6 +10,9 @@
 import { ServerCacheInstance } from './server-cache';
 import { LOGO_SOURCES } from './constants';
 import type { LogoSource } from '../types/logo';
+import { assertServerOnly } from './utils/ensure-server-only';
+
+assertServerOnly('lib/logo-fetcher.ts');
 
 /**
  * Fetch a logo for a given domain
