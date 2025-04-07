@@ -19,7 +19,9 @@ import "./globals.css";
 import { Providers } from "./providers";
 // Import the new ClientTerminal wrapper and other UI components
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
-import { ClientTerminal } from "../components/ui/terminal/terminal.client"; // Import the new client component
+import { ClientTerminal } from "../components/ui/terminal/terminal.client";
+import { GlobalWindowRegistryProvider } from "@/lib/context/GlobalWindowRegistryContext"; // Import the new provider
+import { FloatingRestoreButtons } from "@/components/ui/window/FloatingRestoreButtons"; // Import the new buttons container
 import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "../data/metadata";
 
 import { Analytics } from '@/components/analytics/Analytics'
@@ -85,26 +87,30 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
-          <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
-            {/* Replacing the entire header section to ensure correct structure */}
-            <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
-              <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-                <Suspense fallback={null}>
-                  <Navigation />
-                </Suspense>
-                <div className="flex items-center space-x-4">
-                  <SocialIcons />
-                  <ThemeToggle />
+          {/* Use the new global provider */}
+          <GlobalWindowRegistryProvider>
+            <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
+              {/* Header remains outside the main content area that interacts with terminal state */}
+              <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
+                <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+                  <Suspense fallback={null}>
+                    <Navigation />
+                  </Suspense>
+                  <div className="flex items-center space-x-4">
+                    <SocialIcons />
+                    <ThemeToggle />
+                  </div>
                 </div>
-              </div>
-            </header>
-            {/* End of replaced header section */}
-             <main className="pt-24 pb-16 px-4">
-               {/* Use the ClientTerminal component here */}
-               <ClientTerminal />
-               {children}
-             </main>
-           </div>
+              </header>
+              <main className="pt-24 pb-16 px-4">
+                {/* Render the ClientTerminal (which uses the context) */}
+                <ClientTerminal />
+                {children}
+              </main>
+              {/* Render the container for all floating restore buttons */}
+              <FloatingRestoreButtons />
+            </div>
+          </GlobalWindowRegistryProvider>
         </Providers>
         <Suspense fallback={<></>}>
           <Analytics />
