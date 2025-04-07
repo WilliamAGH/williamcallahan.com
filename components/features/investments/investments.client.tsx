@@ -14,7 +14,7 @@
  */
 
 import { WindowControls } from '../../../components/ui/navigation/window-controls';
-import { ExternalLink } from '../../../components/ui/external-link';
+import { ExternalLink } from '../../ui/externalLink';
 import type { Investment } from '../../../types/investment';
 import Link from 'next/link';
 

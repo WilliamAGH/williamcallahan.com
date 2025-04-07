@@ -19,8 +19,8 @@
 
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import { LogoImage } from '../../../components/ui';
-import { ExternalLink } from '../../../components/ui/external-link';
-import FinancialMetrics from '../../../components/ui/financial-metrics';
+import { ExternalLink } from '../../ui/externalLink';
+import FinancialMetrics from '../../ui/financialMetrics';
 import type { Investment } from '../../../types/investment';
 import type { LogoData } from '../../../types/logo';
 
