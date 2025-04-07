@@ -12,7 +12,6 @@ import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { navigationLinks } from './navigation-links';
 import { NavigationLink } from './navigation-link';
-import { ThemeToggle } from '../themeToggle';
 
 export function Navigation() {
   const pathname = usePathname();

@@ -18,7 +18,7 @@ import type { MDXRemoteProps } from 'next-mdx-remote';
 type MDXComponents = MDXRemoteProps['components'];
 import { authors } from '../../data/blog/authors';
 import type { BlogPost } from '../../types/blog';
-import { ServerMDXCodeBlock } from '../../components/ui/mdxCodeBlock';
+import { ServerMDXCodeBlock } from '../../components/ui/mdxCodeBlock.server';
 
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), 'data/blog/posts');

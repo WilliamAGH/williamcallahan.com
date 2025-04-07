@@ -13,7 +13,7 @@ const MDXRemote = dynamic(() =>
   }
 );
 import Image from 'next/image';
-import { MDXCodeBlock } from '../../../ui/mdxCodeBlock';
+import { MDXCodeBlock } from '../../../ui/mdxCodeBlock.server';
 import FinancialMetrics from '../../../ui/financialMetrics';
 import type { ImageCaption } from '../../../../types/blog';
 
