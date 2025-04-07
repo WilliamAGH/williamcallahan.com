@@ -4,39 +4,26 @@
  * Custom hook for terminal state and command handling.
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react'; // Added useEffect
+import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { handleCommand } from './commands';
-import type { SelectionItem } from '@/types/terminal'; // Removed TerminalCommand import here
-import { useTerminalContext } from './terminalContext'; // Import context hook
+import type { SelectionItem } from '@/types/terminal';
+import { useTerminalContext } from './terminalContext';
 
 const MAX_HISTORY = 100;
 
 export function useTerminal() {
+  // Get only history functions from TerminalContext
   const {
     history,
     addToHistory,
     clearHistory,
-    isReady // Get context state and functions
+    // isReady is no longer part of this context
   } = useTerminalContext();
   const [input, setInput] = useState('');
   const [selection, setSelection] = useState<SelectionItem[] | null>(null);
    const router = useRouter();
    const inputRef = useRef<HTMLInputElement>(null);
-   const welcomeMessageAdded = useRef(false); // Ref to track if welcome message was added
-
-    // Add initial welcome message only once after mount if history is empty
-    useEffect(() => {
-      console.log(`useTerminal Mount Effect: history.length=${history.length}, welcomeAdded=${welcomeMessageAdded.current}`);
-      // Check history length *inside* the mount effect
-      // Only add if history is empty AND we haven't added it before in this component instance
-      if (history.length === 0 && !welcomeMessageAdded.current) {
-        console.log("useTerminal Mount Effect: Adding welcome message.");
-        addToHistory({ input: '', output: 'Welcome! Type "help" for available commands.' });
-        welcomeMessageAdded.current = true; // Set the ref flag
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Run only ONCE after initial mount
 
     const focusInput = useCallback((event?: React.MouseEvent<HTMLDivElement>) => {
     // Only focus if the click target is not a button or inside a button

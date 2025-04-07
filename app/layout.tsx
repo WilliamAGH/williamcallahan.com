@@ -13,11 +13,13 @@
  */
 
 import type { Metadata } from "next";
-import { Suspense } from 'react'
 import { Inter } from "next/font/google";
+import { Suspense } from 'react'
 import "./globals.css";
 import { Providers } from "./providers";
-import { Navigation, Terminal, SocialIcons, ThemeToggle } from "../components/ui";
+// Import the new ClientTerminal wrapper and other UI components
+import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
+import { ClientTerminal } from "../components/ui/terminal/terminal.client"; // Import the new client component
 import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "../data/metadata";
 
 import { Analytics } from '@/components/analytics/Analytics'
@@ -84,6 +86,7 @@ export default function RootLayout({
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
           <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
+            {/* Replacing the entire header section to ensure correct structure */}
             <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
               <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
                 <Suspense fallback={null}>
@@ -95,11 +98,13 @@ export default function RootLayout({
                 </div>
               </div>
             </header>
-            <main className="pt-24 pb-16 px-4">
-              <Terminal />
-              {children}
-            </main>
-          </div>
+            {/* End of replaced header section */}
+             <main className="pt-24 pb-16 px-4">
+               {/* Use the ClientTerminal component here */}
+               <ClientTerminal />
+               {children}
+             </main>
+           </div>
         </Providers>
         <Suspense fallback={<></>}>
           <Analytics />

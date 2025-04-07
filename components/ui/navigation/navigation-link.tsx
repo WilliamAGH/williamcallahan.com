@@ -1,8 +1,10 @@
 /**
  * Navigation Link Component
  */
+"use client"; // Add "use client" as it uses hooks
 
 import Link from 'next/link';
+// Revert to original hook name
 import { useTerminalContext } from '@/components/ui/terminal/terminalContext';
 import type { NavigationLinkProps } from '@/types/navigation';
 
@@ -13,6 +15,7 @@ export function NavigationLink({
   className = '',
   onClick
 }: NavigationLinkProps) {
+  // Use the original hook name
   const { clearHistory } = useTerminalContext();
   const isActive = currentPath === path;
 

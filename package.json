@@ -18,8 +18,11 @@
     "prepare": "node .husky/install.mjs"
   },
   "dependencies": {
+    "@octokit/graphql": "^8.2.1",
     "@sentry/nextjs": "^9.9.0",
     "@tailwindcss/typography": "^0.5.16",
+    "@types/cheerio": "^0.22.35",
+    "cheerio": "^1.0.0",
     "clsx": "^2.1.1",
     "fuse.js": "^7.0.0",
     "gray-matter": "^4.0.3",
@@ -29,12 +32,12 @@
     "next-mdx-remote": "^4.4.1",
     "next-themes": "^0.2.1",
     "node-cache": "^5.1.2",
-    "require-in-the-middle": "^7.5.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "rehype-prism": "^2.3.3",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^3.0.1",
+    "require-in-the-middle": "^7.5.2",
     "schema-dts": "^1.1.2",
     "sharp": "^0.33.5",
     "tailwind-merge": "^2.6.0"

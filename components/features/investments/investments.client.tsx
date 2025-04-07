@@ -13,10 +13,13 @@
  * ```
  */
 
+import { useEffect } from 'react';
 import { WindowControls } from '../../../components/ui/navigation/window-controls';
 import { ExternalLink } from '../../ui/externalLink';
 import type { Investment } from '../../../types/investment';
 import Link from 'next/link';
+import { useWindowState, WindowState } from '@/lib/hooks/use-window-state';
+import { cn } from '@/lib/utils';
 
 /**
  * Extended investment type with pre-rendered card
@@ -37,6 +40,9 @@ interface InvestmentsClientProps {
   investments: InvestmentWithCard[];
 }
 
+// Define a unique ID for this window instance
+const INVESTMENTS_WINDOW_ID = 'investments-window';
+
 /**
  * Investments Client Component
  * @param {InvestmentsClientProps} props - Component properties
@@ -49,20 +55,97 @@ interface InvestmentsClientProps {
  * - Handling empty state
  */
 export function InvestmentsClient({ investments = [] }: InvestmentsClientProps): JSX.Element {
-  if (!investments?.length) {
+  // Use the window state hook for this instance
+  const {
+    windowState,
+    closeWindow,
+    minimizeWindow,
+    maximizeWindow,
+    isReady
+  } = useWindowState(INVESTMENTS_WINDOW_ID, 'normal');
+
+  // Log state changes (optional, for debugging)
+  useEffect(() => {
+    if (isReady) {
+      console.log(`InvestmentsClient Render (${INVESTMENTS_WINDOW_ID}) - Window State:`, windowState);
+    }
+  }, [windowState, isReady]);
+
+  // --- Conditional Rendering based on useWindowState ---
+
+  // Handle initial render before client is ready (if state is not initial)
+  if (!isReady && windowState !== 'normal') {
+     console.log(`InvestmentsClient (${INVESTMENTS_WINDOW_ID}): Prerender state mismatch, rendering null until ready.`);
+     return <></>;
+  }
+
+  // Handle closed state
+  if (windowState === "closed") {
+    console.log(`InvestmentsClient (${INVESTMENTS_WINDOW_ID}): Rendering null (windowState is closed)`);
+    return <></>;
+  }
+
+  // Handle minimized state
+  if (windowState === "minimized") {
+    console.log(`InvestmentsClient (${INVESTMENTS_WINDOW_ID}): Rendering minimized view`);
     return (
-      <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-        No investments to display
+      <div className="max-w-5xl mx-auto mt-8">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
+            <div className="flex items-center">
+              <WindowControls
+                onClose={closeWindow}
+                onMinimize={minimizeWindow}
+                onMaximize={maximizeWindow}
+              />
+              <h1 className="text-xl font-mono ml-4">~/investments (Minimized)</h1>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
+  // Handle empty state (after window state checks)
+  if (!investments?.length) {
+    // Render the container and header even if empty, but show message inside
+    return (
+      <div className="max-w-5xl mx-auto mt-8">
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
+            <div className="flex items-center">
+              <WindowControls
+                onClose={closeWindow}
+                onMinimize={minimizeWindow}
+                onMaximize={maximizeWindow}
+              />
+              <h1 className="text-xl font-mono ml-4">~/investments</h1>
+            </div>
+          </div>
+          <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+            No investments to display
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render normal or maximized view
+  console.log(`InvestmentsClient (${INVESTMENTS_WINDOW_ID}): Rendering ${windowState} view`);
   return (
     <div className="max-w-5xl mx-auto mt-8">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <div className={cn(
+        "bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden",
+        // Add styles for maximized view if needed
+        // windowState === 'maximized' ? 'max-w-full' : ''
+      )}>
         <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
           <div className="flex items-center">
-            <WindowControls />
+            <WindowControls
+              onClose={closeWindow}
+              onMinimize={minimizeWindow}
+              onMaximize={maximizeWindow}
+            />
             <h1 className="text-xl font-mono ml-4">~/investments</h1>
           </div>
         </div>

@@ -35,7 +35,7 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
               }}
               autoFocus
               aria-label="Terminal command input"
-              placeholder="Type a command..."
+              placeholder="Enter a command"
               title="Terminal command input"
             />
           </div>

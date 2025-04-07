@@ -49,22 +49,13 @@ function createBaseEventData(): BaseAnalyticsEvent {
 function trackPlausible(path: string): void {
   if (typeof window !== 'undefined' && typeof window.plausible === 'function') {
     try {
-      // Fetch the IP address first
-      fetch('/api/ip')
-        .then(res => res.text())
-        .then(ip => {
-          console.log('[Plausible Debug] Client IP:', ip)
-          const eventData = {
-            ...createBaseEventData(),
-            path,
-            ip // Include IP in the event data for debugging
-          }
-          window.plausible('pageview', { props: eventData })
-          console.log('[Plausible Debug] Event sent with data:', eventData)
-        })
-        .catch(error => {
-          console.error('[Plausible Debug] Error getting IP:', error)
-        })
+      // Directly track without fetching IP. Plausible collects IP server-side.
+      const eventData = {
+        ...createBaseEventData(),
+        path,
+      }
+      window.plausible('pageview', { props: eventData })
+      console.log('[Plausible Debug] Event sent with data:', eventData)
     } catch (error) {
       console.error('Plausible tracking error:', error)
     }
@@ -148,10 +139,17 @@ export function Analytics(): JSX.Element | null {
         src="https://umami.iocloudhost.net/script.js"
         data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
         onLoad={() => {
-          console.debug('[Analytics Debug] Umami script loaded')
-          if (normalizedPath) {
-            console.debug('[Analytics Debug] Initial tracking:', normalizedPath)
-            trackPageview(normalizedPath)
+          console.debug('[Analytics Debug] Umami script loaded');
+          // Trigger initial track *after* script is confirmed loaded
+          // Ensure track function exists before calling
+          if (typeof window.umami?.track === 'function') {
+            const initialPath = (pathname || window.location.pathname)
+              .replace(/\/blog\/[^/]+/, '/blog/:slug')
+              .replace(/\?.+$/, '');
+            console.debug('[Analytics Debug] Tracking initial pageview from onLoad:', initialPath);
+            trackPageview(initialPath);
+          } else {
+             console.warn('[Analytics Debug] Umami track function not found immediately after onLoad');
           }
         }}
         onError={(e) => {

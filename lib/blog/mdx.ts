@@ -114,8 +114,6 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
       },
       scope: {},
       parseFrontmatter: true,
-      // @ts-expect-error - next-mdx-remote types are not up to date
-      components: serverComponents
     });
 
     // Use frontmatter dates or fall back to file dates
