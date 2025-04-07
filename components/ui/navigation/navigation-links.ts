@@ -9,5 +9,6 @@ export const navigationLinks: NavigationLink[] = [
   { name: 'Investments', path: '/investments' },
   { name: 'Experience', path: '/experience' },
   { name: 'Education', path: '/education' },
+  { name: 'Project Sandbox', path: '/projects' }, // Changed name
   { name: 'Blog', path: '/blog' },
 ];
