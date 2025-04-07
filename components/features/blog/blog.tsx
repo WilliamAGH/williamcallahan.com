@@ -2,22 +2,36 @@
  * Blog Page Component
  */
 
-"use client";
-
-import { useEffect, useState } from 'react';
+import { getAllPosts } from '@/lib/blog';
 import { BlogList } from './blog-list';
 import { WindowControls } from '@/components/ui/navigation/window-controls';
-import type { BlogPost } from '@/types/blog';
+import { Suspense } from 'react';
 
-export function Blog() {
-  const [posts, setPosts] = useState<BlogPost[]>([]);
+function BlogSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4">
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
+      ))}
+    </div>
+  );
+}
 
-  useEffect(() => {
-    fetch('/api/posts')
-      .then(res => res.json())
-      .then(data => setPosts(data));
-  }, []);
+async function BlogContent() {
+  const posts = await getAllPosts();
 
+  if (!posts || posts.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-600 dark:text-gray-400">
+        <p>No blog posts found.</p>
+      </div>
+    );
+  }
+
+  return <BlogList posts={posts} />;
+}
+
+export async function Blog() {
   return (
     <div className="max-w-5xl mx-auto mt-8">
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -27,9 +41,11 @@ export function Blog() {
             <h1 className="text-xl font-mono ml-4">~/blog</h1>
           </div>
         </div>
-        
+
         <div className="p-6">
-          <BlogList posts={posts} />
+          <Suspense fallback={<BlogSkeleton />}>
+            <BlogContent />
+          </Suspense>
         </div>
       </div>
     </div>
