@@ -18,7 +18,8 @@ import { WindowControls } from '../../../components/ui/navigation/window-control
 import { ExternalLink } from '../../ui/externalLink';
 import type { Investment } from '../../../types/investment';
 import Link from 'next/link';
-import { useWindowState, WindowState } from '@/lib/hooks/use-window-state';
+import { useRegisteredWindowState } from "@/lib/context/GlobalWindowRegistryContext";
+import { Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -55,26 +56,26 @@ const INVESTMENTS_WINDOW_ID = 'investments-window';
  * - Handling empty state
  */
 export function InvestmentsClient({ investments = [] }: InvestmentsClientProps): JSX.Element {
-  // Use the window state hook for this instance
+  // Register this window instance and get its state/actions
   const {
     windowState,
-    closeWindow,
-    minimizeWindow,
-    maximizeWindow,
-    isReady
-  } = useWindowState(INVESTMENTS_WINDOW_ID, 'normal');
+    close: closeWindow,
+    minimize: minimizeWindow,
+    maximize: maximizeWindow,
+    isRegistered
+  } = useRegisteredWindowState(INVESTMENTS_WINDOW_ID, Landmark, 'Restore Investments', 'normal');
 
   // Log state changes (optional, for debugging)
   useEffect(() => {
-    if (isReady) {
+    if (isRegistered) {
       console.log(`InvestmentsClient Render (${INVESTMENTS_WINDOW_ID}) - Window State:`, windowState);
     }
-  }, [windowState, isReady]);
+  }, [windowState, isRegistered]);
 
   // --- Conditional Rendering based on useWindowState ---
 
   // Handle initial render before client is ready (if state is not initial)
-  if (!isReady && windowState !== 'normal') {
+  if (!isRegistered) {
      console.log(`InvestmentsClient (${INVESTMENTS_WINDOW_ID}): Prerender state mismatch, rendering null until ready.`);
      return <></>;
   }
@@ -87,23 +88,8 @@ export function InvestmentsClient({ investments = [] }: InvestmentsClientProps):
 
   // Handle minimized state
   if (windowState === "minimized") {
-    console.log(`InvestmentsClient (${INVESTMENTS_WINDOW_ID}): Rendering minimized view`);
-    return (
-      <div className="max-w-5xl mx-auto mt-8">
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
-          <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
-            <div className="flex items-center">
-              <WindowControls
-                onClose={closeWindow}
-                onMinimize={minimizeWindow}
-                onMaximize={maximizeWindow}
-              />
-              <h1 className="text-xl font-mono ml-4">~/investments (Minimized)</h1>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    console.log(`InvestmentsClient (${INVESTMENTS_WINDOW_ID}): Rendering null (minimized)`);
+    return <></>;
   }
 
   // Handle empty state (after window state checks)
@@ -132,14 +118,20 @@ export function InvestmentsClient({ investments = [] }: InvestmentsClientProps):
 
   // Render normal or maximized view
   console.log(`InvestmentsClient (${INVESTMENTS_WINDOW_ID}): Rendering ${windowState} view`);
+  const isMaximized = windowState === 'maximized';
+
   return (
-    <div className="max-w-5xl mx-auto mt-8">
+    <div className={cn(
+      "max-w-5xl mx-auto mt-8",
+      isMaximized && "fixed inset-0 z-[60] max-w-none m-0"
+    )}>
       <div className={cn(
-        "bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden",
-        // Add styles for maximized view if needed
-        // windowState === 'maximized' ? 'max-w-full' : ''
+        "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-hidden",
+        isMaximized
+          ? "w-full h-full rounded-none shadow-none flex flex-col"
+          : "rounded-lg shadow-lg"
       )}>
-        <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
+        <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 flex-shrink-0">
           <div className="flex items-center">
             <WindowControls
               onClose={closeWindow}
@@ -150,7 +142,10 @@ export function InvestmentsClient({ investments = [] }: InvestmentsClientProps):
           </div>
         </div>
 
-        <div className="p-6">
+        <div className={cn(
+          "p-6",
+          isMaximized ? "overflow-y-auto flex-grow" : ""
+        )}>
           <div className="prose dark:prose-invert max-w-none mb-8">
             <p>
               Below is the data (periodically updated) on all of my private startup investments to-date. The idea is to be transparent about all of them: no{' '}
