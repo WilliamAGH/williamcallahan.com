@@ -10,7 +10,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getMDXPost } from '../../../lib/blog/mdx';
 import { formatSeoDate } from '../../../lib/seo/utils';
-import { BlogWrapper } from '../../../components/features/blog';
+import { BlogArticle } from '../../../components/features/blog/blog-article/blog-article';
 import { JsonLdScript } from "../../../components/seo/json-ld";
 import { SITE_NAME } from "../../../data/metadata";
 
@@ -89,7 +89,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             }
           }}
         />
-        <BlogWrapper post={post} />
+        <BlogArticle post={post} />
       </>
     );
   } catch (error) {

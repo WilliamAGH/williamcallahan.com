@@ -6,126 +6,74 @@
 
 "use client";
 
-import React, { createContext, useContext, useCallback, useEffect, useState, Dispatch, SetStateAction, useMemo } from 'react';
-import type { TerminalCommand } from './types';
+import React, { createContext, useContext, useCallback, useState, useMemo, useEffect } from 'react';
+import type { TerminalCommand } from '@/types/terminal';
 
-export type TerminalMode = 'normal' | 'minimized' | 'maximized' | 'closed';
-const SESSION_STORAGE_KEY = 'terminalMode';
-
-// Helper function to safely access sessionStorage
-const getSessionStorageMode = (): TerminalMode | null => {
-  try {
-    // Ensure window is defined (client-side)
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem(SESSION_STORAGE_KEY) as TerminalMode | null;
-    }
-  } catch (error) {
-    console.warn('sessionStorage is not available:', error);
-  }
-  return null;
-};
-
-// Helper function to safely set sessionStorage
-const setSessionStorageMode = (mode: TerminalMode) => {
-  try {
-    // Ensure window is defined (client-side)
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem(SESSION_STORAGE_KEY, mode);
-    }
-  } catch (error) {
-    console.warn('sessionStorage is not available:', error);
-  }
-};
-
-// Define the context type based on state and functions
+// Define the context type including history and mode state
 interface TerminalContextType {
   clearHistory: () => void;
-  isReady: boolean; // Flag indicating client-side readiness
   history: TerminalCommand[];
   addToHistory: (command: TerminalCommand) => void;
-  terminalMode: TerminalMode;
-  setTerminalMode: Dispatch<SetStateAction<TerminalMode>>;
+  // terminalMode: TerminalMode; // Removed
+  // setTerminalMode: Dispatch<SetStateAction<TerminalMode>>; // Removed
+  // isReady: boolean; // Removed - readiness handled by useWindowState hook
 }
 
-// Define default context value matching the type
+// Define default context value
 const defaultContext: TerminalContextType = {
   clearHistory: () => {},
-  isReady: false, // Default to false, set true after mount
   history: [],
   addToHistory: () => {},
-  terminalMode: 'normal',
-  setTerminalMode: () => {}
+  // terminalMode: 'normal', // Removed
+  // setTerminalMode: () => {}, // Removed
+  // isReady: false, // Removed
 };
 
-// Initialize state directly from sessionStorage if available, otherwise 'normal'
-// This function runs when the useState hook initializes
-const getInitialMode = (): TerminalMode => {
-  if (typeof window !== 'undefined') {
-    const storedMode = getSessionStorageMode();
-    // console.log(`TerminalProvider Initial State Check: Found stored mode "${storedMode}"`);
-    return storedMode || 'normal';
-  }
-  // console.log("TerminalProvider Initial State Check: SSR, defaulting to 'normal'");
-  return 'normal'; // Default for SSR
-};
-
+// Function to get initial mode, safely checking sessionStorage
 export const TerminalContext = createContext<TerminalContextType>(defaultContext);
 
+const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
+  input: '',
+  output: 'Welcome! Type "help" for available commands.'
+};
+
 export function TerminalProvider({ children }: { children: React.ReactNode }) {
-  console.log("--- TerminalProvider Instance Mounting/Rendering ---"); // Add log here
-  const [isClientReady, setIsClientReady] = useState(false); // State to track client mount
-  const [history, setHistory] = useState<TerminalCommand[]>([]);
-  // Initialize state using the function to read storage safely
-  const [terminalMode, setTerminalModeState] = useState<TerminalMode>(getInitialMode);
+  console.log("--- TerminalProvider Instance Mounting/Rendering ---");
+  // Initialize history with the welcome message if it's truly empty initially
+  const [history, setHistory] = useState<TerminalCommand[]>(() => {
+    // Check if history is truly empty on initial render
+    // This avoids adding the message multiple times if the provider re-renders
+    // but retains state.
+    // Note: This assumes the initial state is always empty. If hydration from
+    // storage were added here, this logic would need adjustment.
+    return [INITIAL_WELCOME_MESSAGE];
+  });
 
-  // Effect to mark client as ready after mount
-  useEffect(() => {
-    setIsClientReady(true);
-    // Optional: Re-read storage on mount if initial read might have issues
-    const currentStoredMode = getSessionStorageMode();
-    if (currentStoredMode && currentStoredMode !== terminalMode) {
-       console.log("TerminalProvider: Correcting mode from storage on mount effect.");
-       setTerminalModeState(currentStoredMode);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount
-
-  // Function to update state and sessionStorage
-  const setTerminalMode: Dispatch<SetStateAction<TerminalMode>> = useCallback((modeOrFn) => {
-    setTerminalModeState(prevMode => {
-      const newMode = typeof modeOrFn === 'function' ? modeOrFn(prevMode) : modeOrFn;
-      // Only update sessionStorage if window is available (client-side)
-      if (typeof window !== 'undefined') {
-        setSessionStorageMode(newMode);
-        console.log(`Terminal mode set to: ${newMode} (sessionStorage updated)`);
-      } else {
-        console.log(`Terminal mode set to: ${newMode} (SSR - sessionStorage skipped)`);
-      }
-      return newMode;
-    });
-  }, []);
+  // Function to update state AND sessionStorage
+  // Removed setTerminalMode function
 
   const clearHistory = useCallback(() => {
+    console.log("TerminalProvider: Clearing history");
     setHistory([]);
   }, []);
 
   const addToHistory = useCallback((command: TerminalCommand) => {
+    console.log("TerminalProvider: Adding to history:", command.input);
     setHistory(prev => [...prev, command]);
   }, []);
 
   // Memoize the context value
   const contextValue = useMemo(() => ({
     clearHistory,
-    isReady: isClientReady, // Use the client ready state
     history,
     addToHistory,
-    terminalMode,
-    setTerminalMode // Ensure this is the correctly scoped function
-  }), [clearHistory, isClientReady, history, addToHistory, terminalMode, setTerminalMode]);
+  }), [clearHistory, history, addToHistory]);
 
-  // console.log("TerminalProvider rendering/re-rendering", { isClientReady, terminalMode });
+  // Log history changes for debugging
+  useEffect(() => {
+    console.log("TerminalProvider History Updated:", history);
+  }, [history]);
 
-  // Always render children, consumers can use isReady if needed
   return (
     <TerminalContext.Provider value={contextValue}>
       {children}
@@ -133,6 +81,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Restore original hook name - but it only provides history now
 export function useTerminalContext() {
   const context = useContext(TerminalContext);
   if (!context) {

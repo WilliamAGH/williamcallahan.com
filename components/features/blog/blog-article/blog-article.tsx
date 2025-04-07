@@ -1,6 +1,5 @@
 // components/features/blog/blog-article/blog-article.tsx
-
-'use client';
++'use client';
 
 /**
  * Blog Article Component
@@ -18,10 +17,10 @@ import Link from 'next/link';
 import { ArrowLeft, Clock, Calendar } from 'lucide-react';
 import { BlogAuthor } from '../shared/blog-author';
 import { BlogTags } from './blog-tags';
-import { MDXContent } from './mdx-content';
 import { formatDate } from '../../../../lib/utils';
-import type { BlogPost } from '../../../../types/blog';
 import type { Article, WithContext } from 'schema-dts';
+import { MDXContent } from './mdx-content';
+import type { BlogPost } from '../../../../types/blog';
 
 interface BlogArticleProps {
   /** The blog post data to render */

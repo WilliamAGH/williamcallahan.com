@@ -171,16 +171,17 @@ describe('Terminal Component', () => {
       // Maximize
       fireEvent.click(maximizeButton);
       await waitFor(() => {
-        // Check if the maximized class is applied (adjust selector as needed)
+        // Check if the maximized class 'sm:max-w-full' is applied
         expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).toHaveClass('sm:max-w-full');
+        expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).not.toHaveClass('sm:max-w-3xl'); // Ensure normal class is removed
       });
 
       // Restore (click maximize again)
       fireEvent.click(maximizeButton);
       await waitFor(() => {
-        // Check if the normal class is applied
-        expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).toHaveClass('sm:max-w-5xl');
-        expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).not.toHaveClass('sm:max-w-full');
+        // Check if the normal class 'sm:max-w-3xl' is applied
+        expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).toHaveClass('sm:max-w-3xl');
+        expect(screen.getByText(/Welcome!/i).closest('[class*="max-w-"]')).not.toHaveClass('sm:max-w-full'); // Ensure maximized class is removed
       });
     });
 

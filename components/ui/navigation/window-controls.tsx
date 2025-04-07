@@ -4,9 +4,11 @@
  * Renders macOS-style window control buttons with optional click handlers.
  */
 
+// No longer needs "use client" as it's purely presentational again
+
 interface WindowControlsProps {
   className?: string;
-  onClose?: () => void;
+  onClose?: () => void; // Revert to original prop types
   onMinimize?: () => void;
   onMaximize?: () => void;
 }
@@ -20,10 +22,13 @@ const HoverIcon = ({ icon }: { icon: string }) => (
 
 export function WindowControls({
   className = '',
+  // Revert to original prop names
   onClose,
   onMinimize,
   onMaximize,
 }: WindowControlsProps) {
+  // Remove context usage and diagnostic logging
+
   return (
     <div className={`flex items-center space-x-2 mr-4 ${className}`}>
       {/* Close Button */}
@@ -32,7 +37,7 @@ export function WindowControls({
         title="Close"
         className="relative group w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center"
         onClick={onClose}
-        disabled={!onClose} // Disable if no handler provided
+        disabled={!onClose} // Disable based solely on prop presence
       >
         <HoverIcon icon="✕" />
       </button>
@@ -42,19 +47,19 @@ export function WindowControls({
         title="Minimize"
         className="relative group w-3 h-3 rounded-full bg-yellow-500 hover:bg-yellow-600 transition-colors flex items-center justify-center"
         onClick={onMinimize}
-        disabled={!onMinimize}
+        disabled={!onMinimize} // Disable based solely on prop presence
       >
         <HoverIcon icon="−" />
       </button>
       {/* Maximize/Restore Button */}
       <button
-        aria-label="Maximize"
-        title="Maximize"
+        aria-label="Maximize/Restore" // Keep updated label
+        title="Maximize/Restore" // Keep updated title
         className="relative group w-3 h-3 rounded-full bg-green-500 hover:bg-green-600 transition-colors flex items-center justify-center"
         onClick={onMaximize}
-        disabled={!onMaximize}
+        disabled={!onMaximize} // Disable based solely on prop presence
       >
-        <HoverIcon icon="+" />
+        <HoverIcon icon="+" /> {/* Icon remains static for now */}
       </button>
     </div>
   );

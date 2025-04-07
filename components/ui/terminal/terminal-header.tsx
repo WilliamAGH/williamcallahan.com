@@ -5,43 +5,31 @@
  * macOS-style window control buttons.
  */
 
-"use client";
-
-import { useTerminalContext } from './terminalContext';
+// No longer needs "use client" if it doesn't use hooks directly
+// Removed import { useTerminalContext } from './terminalContext';
 import { WindowControls } from '@/components/ui/navigation/window-controls';
 
-export function TerminalHeader() {
-  const { setTerminalMode, terminalMode } = useTerminalContext();
+// Define props for the handlers
+interface TerminalHeaderProps {
+  onClose?: () => void;
+  onMinimize?: () => void;
+  onMaximize?: () => void;
+}
 
-  // Define handlers specifically for the terminal context actions
-  const handleClose = () => {
-    console.log('Terminal Close clicked');
-    setTerminalMode('closed');
-  };
-
-  const handleMinimize = () => {
-    console.log('Terminal Minimize clicked');
-    setTerminalMode('minimized');
-  };
-
-  const handleMaximize = () => {
-    console.log('Terminal Maximize/Restore clicked');
-    setTerminalMode(prev => {
-      const nextMode = prev === 'maximized' ? 'normal' : 'maximized';
-      console.log(`Switching terminal mode from ${prev} to ${nextMode}`);
-      return nextMode;
-    });
-  };
+export function TerminalHeader({
+  onClose,
+  onMinimize,
+  onMaximize,
+}: TerminalHeaderProps) {
+  // Remove internal handlers and context usage
 
   return (
     <div className="flex items-center gap-2 mb-3">
-      {/* Use WindowControls component, passing specific handlers */}
+      {/* Pass the received handlers directly to WindowControls */}
       <WindowControls
-        onClose={handleClose}
-        onMinimize={handleMinimize}
-        onMaximize={handleMaximize}
-        // Optionally pass terminalMode if WindowControls needs it for appearance/logic
-        // mode={terminalMode}
+        onClose={onClose}
+        onMinimize={onMinimize}
+        onMaximize={onMaximize}
       />
       {/* Add any other header elements here if needed */}
     </div>
