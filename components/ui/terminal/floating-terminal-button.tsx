@@ -26,6 +26,7 @@ export function FloatingTerminalButton() {
 
   return (
     <button
+      type="button"
       onClick={restoreWindow}
       className={cn(
         "fixed bottom-4 right-4 z-[100] p-3 rounded-full",

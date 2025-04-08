@@ -33,6 +33,7 @@ export function FloatingRestoreButtons() {
           <button
             key={win.id}
             onClick={() => restoreWindow(win.id)}
+            type="button"
             className={cn(
               "p-3 rounded-full",
               "bg-blue-600 hover:bg-blue-700 text-white", // Base style - might want variations
