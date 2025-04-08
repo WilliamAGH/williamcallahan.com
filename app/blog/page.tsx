@@ -13,6 +13,7 @@ import { PAGE_METADATA } from "../../data/metadata";
 import { formatSeoDate } from "../../lib/seo/utils";
 import type { Metadata } from "next";
 import { getAllPosts } from '../../lib/blog';
+import type { BlogPost } from '../../types/blog';
 
 /**
  * Generate metadata for the blog index page
@@ -27,7 +28,7 @@ export default async function BlogPage() {
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 
-  let posts = [];
+  let posts: BlogPost[] = [];
   try {
     posts = await getAllPosts();
   } catch (error) {
