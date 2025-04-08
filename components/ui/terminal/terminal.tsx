@@ -134,6 +134,8 @@ export function Terminal() {
           data-testid="terminal-backdrop"
           className="fixed inset-0 z-[59] bg-black/50 backdrop-blur-sm"
           onClick={handleBackdropClick}
+          onKeyDown={(e) => e.key === 'Enter' && handleBackdropClick()}
+          tabIndex={0}
           aria-hidden="true"
         />
       )}

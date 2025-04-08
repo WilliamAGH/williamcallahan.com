@@ -27,8 +27,13 @@ export default async function BlogPage() {
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 
-  const posts = await getAllPosts();
-
+  let posts = [];
+  try {
+    posts = await getAllPosts();
+  } catch (error) {
+    console.error('Failed to fetch blog posts:', error);
+    // Could also set an error state to display to the user
+  }
   return (
     <>
       <JsonLdScript
