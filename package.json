@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.2",
   "scripts": {
-    "dev": "next dev --turbo",
+    "dev": "next dev",
     "build": "pnpm run validate && next build",
     "start": "node .next/standalone/server.js",
     "start:plain": "next start",

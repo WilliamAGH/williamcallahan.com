@@ -21,6 +21,7 @@ import { Providers } from "./providers";
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
 import { ClientTerminal } from "../components/ui/terminal/terminal.client";
 import { GlobalWindowRegistryProvider } from "@/lib/context/GlobalWindowRegistryContext";
+import { BodyClassManager } from "@/components/utils/body-class-manager.client"; // Import the new component
 import { FloatingRestoreButtons } from "@/components/ui/window/FloatingRestoreButtons";
 import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "../data/metadata";
 
@@ -88,6 +89,7 @@ export default function RootLayout({
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
           <GlobalWindowRegistryProvider>
+            <BodyClassManager /> {/* Add the BodyClassManager here */}
             {/* Revert to direct rendering */}
             <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
               <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
