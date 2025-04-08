@@ -24,7 +24,7 @@ const mapContributionLevel = (level: string): number => {
 };
 
 // Function to handle GitHub's 202 response by retrying with exponential backoff
-async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 5): Promise<Response> {
   let lastResponse: Response | null = null;
   let retryCount = 0;
   let delay = 1000; // Start with 1 second delay
@@ -102,6 +102,8 @@ async function fetchActivityWithGraphQL(): Promise<GitHubActivityApiResponse> {
     let linesRemoved = 0;
     let totalReposProcessed = 0;
     let statsComputingRepos = 0;
+    let computingRepoNames: string[] = [];
+    let dataComplete = true;
 
     try {
       // First, get user's repositories
@@ -134,7 +136,7 @@ async function fetchActivityWithGraphQL(): Promise<GitHubActivityApiResponse> {
                   'Accept': 'application/vnd.github.v3+json'
                 }
               },
-              2 // Maximum 2 retries (3 attempts total)
+              5 // Maximum 5 retries (6 attempts total)
             );
 
             totalReposProcessed++;
@@ -142,6 +144,8 @@ async function fetchActivityWithGraphQL(): Promise<GitHubActivityApiResponse> {
             if (statsResponse.status === 202) {
               console.warn(`Stats still computing for repo ${repo.name} after retries`);
               statsComputingRepos++;
+              computingRepoNames.push(repo.name);
+              dataComplete = false;
               continue;
             }
 
@@ -186,7 +190,10 @@ async function fetchActivityWithGraphQL(): Promise<GitHubActivityApiResponse> {
         }
 
         console.log(`Stats processed for ${totalReposProcessed} repositories (${statsComputingRepos} still computing)`);
-        console.log(`Successfully fetched code statistics: ${linesAdded} lines added, ${linesRemoved} lines removed`);
+        if (computingRepoNames.length > 0) {
+          console.log(`Repositories still computing: ${computingRepoNames.join(', ')}`);
+        }
+        console.log(`Successfully fetched code statistics: ${linesAdded} lines added, ${linesRemoved} lines removed (${dataComplete ? 'complete' : 'incomplete'})`);
 
         if (linesAdded === 0 && linesRemoved === 0) {
           console.warn('No lines added/removed found. This could be due to:');
@@ -232,6 +239,7 @@ async function fetchActivityWithGraphQL(): Promise<GitHubActivityApiResponse> {
       totalContributions: calculatedTotalContributions.toString(),
       linesAdded,
       linesRemoved,
+      dataComplete
     };
 
   } catch (error) {
@@ -363,6 +371,7 @@ export async function GET(request: Request) {
     // Check for cache invalidation request
     const url = new URL(request.url);
     const refreshCache = url.searchParams.get('refresh') === 'true';
+    const forceCache = url.searchParams.get('force-cache') === 'true';
 
     if (refreshCache) {
       console.log('Cache refresh requested, invalidating GitHub activity cache');
@@ -372,8 +381,9 @@ export async function GET(request: Request) {
     // Check if data is in cache
     const cachedData = cache.get<GitHubActivityApiResponse>(GITHUB_ACTIVITY_CACHE_KEY);
 
-    if (cachedData) {
-      console.log('Returning GitHub activity data from cache');
+    // Only use cache if data is complete or force-cache is specified
+    if (cachedData && (cachedData.dataComplete || forceCache)) {
+      console.log(`Returning GitHub activity data from cache (${cachedData.dataComplete ? 'complete' : 'incomplete'})`);
       return NextResponse.json(cachedData);
     }
 
@@ -388,16 +398,22 @@ export async function GET(request: Request) {
         console.warn('GraphQL API fetch failed, falling back to scraping:', apiError);
         // Fallback to scraping if API fails
         activityData = await fetchActivityByScraping();
+        activityData.dataComplete = false; // Mark scraping data as incomplete since it doesn't have code stats
       }
     } else {
       // Use scraping if no token is found
       console.log('No GitHub API token found, attempting scraping...');
       activityData = await fetchActivityByScraping();
+      activityData.dataComplete = false; // Mark scraping data as incomplete
     }
 
-    // Store the fetched data in cache
-    cache.set(GITHUB_ACTIVITY_CACHE_KEY, activityData, CACHE_TTL.DAILY);
-    console.log(`GitHub activity data cached for ${CACHE_TTL.DAILY / 3600} hours`);
+    // Only cache the data if it's complete or explicitly requested with force-cache
+    if (activityData.dataComplete || forceCache) {
+      cache.set(GITHUB_ACTIVITY_CACHE_KEY, activityData, CACHE_TTL.DAILY);
+      console.log(`GitHub activity data cached for ${CACHE_TTL.DAILY / 3600} hours (${activityData.dataComplete ? 'complete' : 'incomplete'})`);
+    } else {
+      console.log('Data is incomplete - not caching. Use ?force-cache=true to cache incomplete data');
+    }
 
     // Return the data fetched from either source
     return NextResponse.json(activityData);

@@ -23,6 +23,7 @@ export interface GitHubActivityApiResponse {
   totalContributions?: string; // Optional total count (especially from scraping)
   linesAdded?: number; // Total lines of code added in the last 365 days
   linesRemoved?: number; // Total lines of code removed in the last 365 days
+  dataComplete?: boolean; // Indicates if all repositories' stats were successfully retrieved
   error?: string; // Error message if fetching failed
   details?: string; // Additional error details
 }

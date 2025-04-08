@@ -32,7 +32,8 @@ const CodeMetrics: React.FC<{
   linesAdded: number | null;
   linesRemoved: number | null;
   isLoading: boolean;
-}> = ({ linesAdded, linesRemoved, isLoading }) => {
+  dataComplete: boolean;
+}> = ({ linesAdded, linesRemoved, isLoading, dataComplete }) => {
   if (isLoading || linesAdded === null || linesRemoved === null) {
     return null;
   }
@@ -47,6 +48,12 @@ const CodeMetrics: React.FC<{
       <div className="flex items-center mb-2">
         <Code size={18} className="text-blue-500 mr-2" />
         <h3 className="text-base font-semibold">Code Impact</h3>
+        {!dataComplete && (
+          <div className="ml-auto flex items-center text-yellow-600 dark:text-yellow-500 text-xs font-medium">
+            <RefreshCw size={12} className="mr-1" />
+            Partial data
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col space-y-3">
@@ -98,6 +105,12 @@ const CodeMetrics: React.FC<{
             {linesAdded > linesRemoved ? '+' : ''}{(linesAdded - linesRemoved).toLocaleString()} lines
           </span>
         </div>
+
+        {!dataComplete && (
+          <div className="text-xs text-center text-yellow-600 dark:text-yellow-500 mt-2 italic">
+            Some repositories are still being processed. Refresh later for complete data.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -111,6 +124,7 @@ const GitHubActivity = () => {
   const [totalContributions, setTotalContributions] = useState<string | null>(null);
   const [linesAdded, setLinesAdded] = useState<number | null>(null);
   const [linesRemoved, setLinesRemoved] = useState<number | null>(null);
+  const [dataComplete, setDataComplete] = useState<boolean>(true);
 
   // Function to navigate to GitHub profile
   const navigateToGitHub = () => {
@@ -118,7 +132,7 @@ const GitHubActivity = () => {
   };
 
   // Function to fetch data with optional refresh parameter
-  const fetchData = async (refresh = false) => {
+  const fetchData = async (refresh = false, forceCache = false) => {
     setIsLoading(true);
     setError(null);
     if (refresh) {
@@ -126,7 +140,10 @@ const GitHubActivity = () => {
     }
 
     try {
-      const url = refresh ? '/api/github-activity?refresh=true' : '/api/github-activity';
+      let url = '/api/github-activity';
+      if (refresh) url += '?refresh=true';
+      if (forceCache) url += (refresh ? '&' : '?') + 'force-cache=true';
+
       const response = await fetch(url);
       const result: GitHubActivityApiResponse = await response.json();
 
@@ -145,6 +162,7 @@ const GitHubActivity = () => {
         if (typeof result.linesRemoved === 'number') {
           setLinesRemoved(result.linesRemoved);
         }
+        setDataComplete(result.dataComplete !== false); // Treat undefined as true for backward compatibility
       } else {
         // Handle cases where scraping might return empty data but no error
         console.warn('Received empty or invalid data structure from API:', result);
@@ -158,12 +176,14 @@ const GitHubActivity = () => {
         if (typeof result.linesRemoved === 'number') {
           setLinesRemoved(result.linesRemoved);
         }
+        setDataComplete(result.dataComplete !== false);
       }
 
     } catch (err) {
       console.error('Failed to fetch GitHub activity:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
       setActivityData([]); // Clear data on error
+      setDataComplete(true); // Reset data completeness on error
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -174,6 +194,12 @@ const GitHubActivity = () => {
   const handleRefresh = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent navigation to GitHub
     fetchData(true);
+  };
+
+  // Handle force cache button click
+  const handleForceCache = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent navigation to GitHub
+    fetchData(true, true);
   };
 
   useEffect(() => {
@@ -260,18 +286,35 @@ const GitHubActivity = () => {
             GitHub Activity
           </a>
         </h2>
-        <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
-          title="Refresh GitHub data"
-          aria-label="Refresh GitHub data"
-        >
-          <RefreshCw
-            size={16}
-            className={`${isRefreshing ? 'animate-spin text-blue-500' : 'text-gray-500'}`}
-          />
-        </button>
+        <div className="flex space-x-2">
+          {!dataComplete && !isRefreshing && (
+            <button
+              onClick={handleForceCache}
+              className="p-1.5 rounded-full bg-yellow-100 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:hover:bg-yellow-900/50 transition-colors text-yellow-600 dark:text-yellow-500"
+              title="Force cache incomplete data"
+              aria-label="Force cache incomplete data"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 9V7.8c0-1.68 0-2.52-.327-3.162a3 3 0 0 0-1.311-1.311C16.72 3 15.88 3 14.2 3H9.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C5 5.28 5 6.12 5 7.8V16.2c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C7.28 21 8.12 21 9.8 21H16"></path>
+                <path d="M9 13h6"></path>
+                <path d="M12 10v6"></path>
+                <path d="M16 19h6"></path>
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
+            title="Refresh GitHub data"
+            aria-label="Refresh GitHub data"
+          >
+            <RefreshCw
+              size={16}
+              className={`${isRefreshing ? 'animate-spin text-blue-500' : 'text-gray-500'}`}
+            />
+          </button>
+        </div>
       </div>
       <p className="text-muted-foreground mb-4">
         Visualizing my recent coding activity, projects, and experiments from{' '}
@@ -296,6 +339,42 @@ const GitHubActivity = () => {
         onKeyDown={(e) => e.key === 'Enter' && navigateToGitHub()}
       >
         <div className="p-2 sm:p-4">
+          {!dataComplete && !isRefreshing && (
+            <div className="mb-3 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/50 rounded-md text-sm text-yellow-700 dark:text-yellow-400">
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
+                  <path d="M12 9v4"></path>
+                  <path d="M12 17h.01"></path>
+                </svg>
+                <span>
+                  Some repository statistics are still computing. Data shown may be incomplete.
+                </span>
+              </div>
+              <div className="mt-1.5 flex gap-3 text-xs">
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleRefresh(e); }}
+                  className="flex items-center hover:text-yellow-800 dark:hover:text-yellow-300 transition-colors"
+                >
+                  <RefreshCw size={12} className="mr-1" />
+                  Try again
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleForceCache(e); }}
+                  className="flex items-center hover:text-yellow-800 dark:hover:text-yellow-300 transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                    <path d="M19 9V7.8c0-1.68 0-2.52-.327-3.162a3 3 0 0 0-1.311-1.311C16.72 3 15.88 3 14.2 3H9.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C5 5.28 5 6.12 5 7.8V16.2c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C7.28 21 8.12 21 9.8 21H16"></path>
+                    <path d="M9 13h6"></path>
+                    <path d="M12 10v6"></path>
+                    <path d="M16 19h6"></path>
+                  </svg>
+                  Force cache this data
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="overflow-x-auto custom-scrollbar pb-2">
             {isRefreshing ? (
               <div className="flex justify-center items-center py-10">
@@ -312,6 +391,7 @@ const GitHubActivity = () => {
             linesAdded={linesAdded}
             linesRemoved={linesRemoved}
             isLoading={isLoading || isRefreshing}
+            dataComplete={dataComplete}
           />
         </div>
       </div>
