@@ -10,6 +10,7 @@
 
 import React, { useState, useEffect } from 'react';
 import type { ContributionDay, GitHubActivityApiResponse } from '@/types/github'; // Import types
+import { RefreshCw, Plus, Minus, Code } from 'lucide-react'; // Import icons
 
 // GitHub profile URL
 const GITHUB_PROFILE_URL = "https://github.com/williamagh/";
@@ -26,57 +27,161 @@ const getLevelColor = (level: number): string => {
   }
 };
 
+// Component to display lines of code metrics
+const CodeMetrics: React.FC<{
+  linesAdded: number | null;
+  linesRemoved: number | null;
+  isLoading: boolean;
+}> = ({ linesAdded, linesRemoved, isLoading }) => {
+  if (isLoading || linesAdded === null || linesRemoved === null) {
+    return null;
+  }
+
+  // Calculate percentages for visualization
+  const total = Math.max(linesAdded + linesRemoved, 1); // Avoid division by zero
+  const addedPercent = (linesAdded / total) * 100;
+  const removedPercent = (linesRemoved / total) * 100;
+
+  return (
+    <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+      <div className="flex items-center mb-2">
+        <Code size={18} className="text-blue-500 mr-2" />
+        <h3 className="text-base font-semibold">Code Impact</h3>
+      </div>
+
+      <div className="flex flex-col space-y-3">
+        {/* Visual bar representation */}
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex">
+          <div
+            className="bg-gradient-to-r from-green-400 to-green-600 dark:from-green-600 dark:to-green-400 h-full transition-all duration-1000 ease-out"
+            style={{ width: `${addedPercent}%` }}
+          />
+          <div
+            className="bg-gradient-to-r from-red-400 to-red-600 dark:from-red-600 dark:to-red-400 h-full transition-all duration-1000 ease-out"
+            style={{ width: `${removedPercent}%` }}
+          />
+        </div>
+
+        {/* Metrics with animations */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 group hover:border-green-300 dark:hover:border-green-700 transition-colors">
+            <div className="flex items-center text-green-600 dark:text-green-400 mb-1">
+              <Plus size={16} className="mr-1 group-hover:animate-bounce" />
+              <span className="text-xs uppercase font-medium">Added</span>
+            </div>
+            <div className="flex items-baseline">
+              <span className="text-xl font-bold group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                {linesAdded.toLocaleString()}
+              </span>
+              <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">lines</span>
+            </div>
+          </div>
+
+          <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 group hover:border-red-300 dark:hover:border-red-700 transition-colors">
+            <div className="flex items-center text-red-600 dark:text-red-400 mb-1">
+              <Minus size={16} className="mr-1 group-hover:animate-bounce" />
+              <span className="text-xs uppercase font-medium">Removed</span>
+            </div>
+            <div className="flex items-baseline">
+              <span className="text-xl font-bold group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                {linesRemoved.toLocaleString()}
+              </span>
+              <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">lines</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Net change */}
+        <div className="flex justify-center items-center py-2">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Net change: </span>
+          <span className={`ml-1 text-sm font-medium ${linesAdded > linesRemoved ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+            {linesAdded > linesRemoved ? '+' : ''}{(linesAdded - linesRemoved).toLocaleString()} lines
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const GitHubActivity = () => {
   const [activityData, setActivityData] = useState<ContributionDay[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalContributions, setTotalContributions] = useState<string | null>(null);
+  const [linesAdded, setLinesAdded] = useState<number | null>(null);
+  const [linesRemoved, setLinesRemoved] = useState<number | null>(null);
 
   // Function to navigate to GitHub profile
   const navigateToGitHub = () => {
     window.open(GITHUB_PROFILE_URL, '_blank', 'noopener,noreferrer');
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetch('/api/github-activity');
-        const result: GitHubActivityApiResponse = await response.json(); // Use imported type
+  // Function to fetch data with optional refresh parameter
+  const fetchData = async (refresh = false) => {
+    setIsLoading(true);
+    setError(null);
+    if (refresh) {
+      setIsRefreshing(true);
+    }
 
-        if (!response.ok || result.error) {
-          throw new Error(result.error || `API request failed with status ${response.status}`);
-        }
+    try {
+      const url = refresh ? '/api/github-activity?refresh=true' : '/api/github-activity';
+      const response = await fetch(url);
+      const result: GitHubActivityApiResponse = await response.json();
 
-        if (result.data && Array.isArray(result.data)) {
-          setActivityData(result.data);
-          if (result.totalContributions) {
-            setTotalContributions(result.totalContributions);
-          }
-        } else {
-          // Handle cases where scraping might return empty data but no error
-          console.warn('Received empty or invalid data structure from API:', result);
-          setActivityData([]);
-           if (result.totalContributions) {
-            setTotalContributions(result.totalContributions);
-          }
-        }
-
-      } catch (err) {
-        console.error('Failed to fetch GitHub activity:', err);
-        setError(err instanceof Error ? err.message : 'An unknown error occurred');
-        setActivityData([]); // Clear data on error
-      } finally {
-        setIsLoading(false);
+      if (!response.ok || result.error) {
+        throw new Error(result.error || `API request failed with status ${response.status}`);
       }
-    };
 
+      if (result.data && Array.isArray(result.data)) {
+        setActivityData(result.data);
+        if (result.totalContributions) {
+          setTotalContributions(result.totalContributions);
+        }
+        if (typeof result.linesAdded === 'number') {
+          setLinesAdded(result.linesAdded);
+        }
+        if (typeof result.linesRemoved === 'number') {
+          setLinesRemoved(result.linesRemoved);
+        }
+      } else {
+        // Handle cases where scraping might return empty data but no error
+        console.warn('Received empty or invalid data structure from API:', result);
+        setActivityData([]);
+        if (result.totalContributions) {
+          setTotalContributions(result.totalContributions);
+        }
+        if (typeof result.linesAdded === 'number') {
+          setLinesAdded(result.linesAdded);
+        }
+        if (typeof result.linesRemoved === 'number') {
+          setLinesRemoved(result.linesRemoved);
+        }
+      }
+
+    } catch (err) {
+      console.error('Failed to fetch GitHub activity:', err);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setActivityData([]); // Clear data on error
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  // Handle refresh button click
+  const handleRefresh = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent navigation to GitHub
+    fetchData(true);
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
   const renderGraph = () => {
-    if (isLoading) {
+    if (isLoading && !isRefreshing) {
       return (
         <div
           onClick={navigateToGitHub}
@@ -143,17 +248,31 @@ const GitHubActivity = () => {
 
   return (
     <div className="mt-8">
-      <h2 className="text-2xl font-bold mb-4">
-        <a
-          href="https://github.com/williamagh/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-blue-500 transition-colors"
-          aria-label="View William Callahan's GitHub profile"
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold">
+          <a
+            href="https://github.com/williamagh/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-blue-500 transition-colors"
+            aria-label="View William Callahan's GitHub profile"
+          >
+            GitHub Activity
+          </a>
+        </h2>
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
+          title="Refresh GitHub data"
+          aria-label="Refresh GitHub data"
         >
-          GitHub Activity
-        </a>
-      </h2>
+          <RefreshCw
+            size={16}
+            className={`${isRefreshing ? 'animate-spin text-blue-500' : 'text-gray-500'}`}
+          />
+        </button>
+      </div>
       <p className="text-muted-foreground mb-4">
         Visualizing my recent coding activity, projects, and experiments from{' '}
         <a
@@ -169,15 +288,31 @@ const GitHubActivity = () => {
       </p>
       <div
         onClick={navigateToGitHub}
-        className="border rounded-lg p-2 sm:p-4 bg-background overflow-hidden hover:border-blue-300 dark:hover:border-blue-700 transition-colors cursor-pointer"
+        className={`border rounded-lg bg-background overflow-hidden hover:border-blue-300 dark:hover:border-blue-700 transition-colors cursor-pointer ${isRefreshing ? 'opacity-70' : ''}`}
         aria-label="View William Callahan's GitHub contribution activity"
         title="View William Callahan's GitHub profile"
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && navigateToGitHub()}
       >
-        <div className="overflow-x-auto custom-scrollbar pb-2">
-          {renderGraph()}
+        <div className="p-2 sm:p-4">
+          <div className="overflow-x-auto custom-scrollbar pb-2">
+            {isRefreshing ? (
+              <div className="flex justify-center items-center py-10">
+                <RefreshCw size={24} className="animate-spin text-blue-500" />
+                <span className="ml-2 text-muted-foreground">Refreshing data...</span>
+              </div>
+            ) : (
+              renderGraph()
+            )}
+          </div>
+
+          {/* Add the code metrics component */}
+          <CodeMetrics
+            linesAdded={linesAdded}
+            linesRemoved={linesRemoved}
+            isLoading={isLoading || isRefreshing}
+          />
         </div>
       </div>
       <p className="text-xs text-muted-foreground mt-2 text-right">

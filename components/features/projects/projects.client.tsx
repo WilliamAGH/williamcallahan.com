@@ -37,7 +37,8 @@ function ProjectsContent() {
       <Suspense fallback={<div>Loading GitHub activity...</div>}>
         <GitHubActivity />
       </Suspense>
-      <div className="space-y-6 mt-8">
+      {/* Use a responsive grid layout - fewer columns on large screens for bigger cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 mt-8"> {/* Changed lg:grid-cols-2 and increased gap */}
         {projects.map((project) => (
           <ProjectCardServer key={project.name} project={project} />
         ))}

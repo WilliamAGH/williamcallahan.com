@@ -233,8 +233,25 @@ pre[class*="language-"] {
   opacity: 0.75;
 }
 
+/* --- Project Card Entrance Animation --- */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* --- Global Window State Nav Styling --- */
 @layer utilities {
+  .animate-fade-in-up {
+    animation: fade-in-up 0.5s ease-out forwards;
+    /* Add animation-delay with stagger in component if needed */
+  }
+
   /* Positioning is handled by components */
   /* Hiding secondary elements is handled here via body classes */
 

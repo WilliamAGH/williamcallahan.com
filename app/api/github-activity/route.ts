@@ -23,6 +23,35 @@ const mapContributionLevel = (level: string): number => {
   }
 };
 
+// Function to handle GitHub's 202 response by retrying with exponential backoff
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
+  let lastResponse: Response | null = null;
+  let retryCount = 0;
+  let delay = 1000; // Start with 1 second delay
+
+  while (retryCount < maxRetries) {
+    const response = await fetch(url, options);
+
+    // If it's not a 202 (computing stats), return the response
+    if (response.status !== 202) {
+      return response;
+    }
+
+    console.log(`Received 202 for ${url}, waiting ${delay}ms before retry ${retryCount + 1}/${maxRetries}`);
+    lastResponse = response;
+
+    // Wait before retrying
+    await new Promise(resolve => setTimeout(resolve, delay));
+
+    // Exponential backoff
+    delay *= 2;
+    retryCount++;
+  }
+
+  // Return the last response if we've exhausted retries
+  return lastResponse!;
+}
+
 // Fetch activity using GitHub GraphQL API
 async function fetchActivityWithGraphQL(): Promise<GitHubActivityApiResponse> {
   if (!GITHUB_API_TOKEN) {
@@ -68,6 +97,113 @@ async function fetchActivityWithGraphQL(): Promise<GitHubActivityApiResponse> {
       },
     });
 
+    // Fetch lines added/removed using REST API
+    let linesAdded = 0;
+    let linesRemoved = 0;
+    let totalReposProcessed = 0;
+    let statsComputingRepos = 0;
+
+    try {
+      // First, get user's repositories
+      console.log(`Fetching repositories for ${GITHUB_USERNAME}...`);
+      const reposResponse = await fetch(`https://api.github.com/users/${GITHUB_USERNAME}/repos?per_page=100`, {
+        headers: {
+          'Authorization': `Bearer ${GITHUB_API_TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+
+      if (reposResponse.ok) {
+        const repos = await reposResponse.json();
+        console.log(`Found ${repos.length} repositories for ${GITHUB_USERNAME}`);
+
+        if (repos.length === 0) {
+          console.warn(`No repositories found for ${GITHUB_USERNAME}. Cannot calculate lines added/removed.`);
+        }
+
+        // Process each repository to get commit stats
+        for (const repo of repos) {
+          try {
+            console.log(`Fetching stats for repo: ${repo.name}...`);
+            // Get stats for this repository with retry logic
+            const statsResponse = await fetchWithRetry(
+              `https://api.github.com/repos/${GITHUB_USERNAME}/${repo.name}/stats/contributors`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${GITHUB_API_TOKEN}`,
+                  'Accept': 'application/vnd.github.v3+json'
+                }
+              },
+              2 // Maximum 2 retries (3 attempts total)
+            );
+
+            totalReposProcessed++;
+
+            if (statsResponse.status === 202) {
+              console.warn(`Stats still computing for repo ${repo.name} after retries`);
+              statsComputingRepos++;
+              continue;
+            }
+
+            if (statsResponse.ok) {
+              const contributors = await statsResponse.json();
+              console.log(`Found ${contributors.length} contributors for repo ${repo.name}`);
+
+              // Find the user's contributions
+              const userStats = Array.isArray(contributors) ?
+                contributors.find(c => c.author && c.author.login === GITHUB_USERNAME) : null;
+
+              if (userStats && userStats.weeks) {
+                console.log(`Found ${userStats.weeks.length} weeks of contribution data for ${GITHUB_USERNAME} in repo ${repo.name}`);
+
+                let repoAdded = 0;
+                let repoRemoved = 0;
+                let matchingWeeks = 0;
+
+                for (const week of userStats.weeks) {
+                  // Only count weeks within our 365-day window
+                  const weekDate = new Date(week.w * 1000); // Convert UNIX timestamp to Date
+                  if (weekDate >= fromDateObj && weekDate <= today) {
+                    repoAdded += week.a || 0;
+                    repoRemoved += week.d || 0;
+                    matchingWeeks++;
+                  }
+                }
+
+                console.log(`Repo ${repo.name}: ${matchingWeeks} weeks in timeframe, +${repoAdded} lines, -${repoRemoved} lines`);
+                linesAdded += repoAdded;
+                linesRemoved += repoRemoved;
+              } else {
+                console.log(`No contribution data found for ${GITHUB_USERNAME} in repo ${repo.name}`);
+              }
+            } else {
+              console.warn(`Failed to fetch stats for repo ${repo.name}: ${statsResponse.status} ${statsResponse.statusText}`);
+            }
+          } catch (repoError) {
+            console.warn(`Error fetching stats for ${repo.name}:`, repoError);
+            // Continue with other repos
+          }
+        }
+
+        console.log(`Stats processed for ${totalReposProcessed} repositories (${statsComputingRepos} still computing)`);
+        console.log(`Successfully fetched code statistics: ${linesAdded} lines added, ${linesRemoved} lines removed`);
+
+        if (linesAdded === 0 && linesRemoved === 0) {
+          console.warn('No lines added/removed found. This could be due to:');
+          console.warn('1. GitHub API token does not have sufficient permissions');
+          console.warn('2. Stats are being computed by GitHub (202 response)');
+          console.warn('3. No commits in the specified timeframe');
+          console.warn('4. Repository is empty or has no commit history');
+        }
+      } else {
+        console.warn(`Failed to fetch repositories: ${reposResponse.status} ${reposResponse.statusText}`);
+        console.warn('Response body:', await reposResponse.text().catch(() => 'Could not read response body'));
+      }
+    } catch (statsError) {
+      console.error('Error fetching code statistics:', statsError);
+      // Don't throw - we can still return contribution data without line stats
+    }
+
     const contributionDays = user.contributionsCollection.contributionCalendar.weeks.flatMap(
       week => week.contributionDays
     );
@@ -89,11 +225,13 @@ async function fetchActivityWithGraphQL(): Promise<GitHubActivityApiResponse> {
     console.log(`Successfully fetched ${contributions.length} contribution days via GraphQL.`);
     console.log(`API reported total: ${apiTotalContributions}, Calculated total (including private): ${calculatedTotalContributions}`);
 
-    // Return the manually calculated total
+    // Return the manually calculated total and lines added/removed
     return {
       source: 'api',
       data: contributions,
       totalContributions: calculatedTotalContributions.toString(),
+      linesAdded,
+      linesRemoved,
     };
 
   } catch (error) {
@@ -271,3 +409,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ source: 'error', error: 'Failed to fetch GitHub activity', details: errorMessage, data: [] }, { status: 500 });
   }
 }
+
