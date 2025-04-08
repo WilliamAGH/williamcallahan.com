@@ -1,51 +1,105 @@
+"use client"; // Make this a Client Component wrapper
+
 /**
- * Experience Section Component
+ * Experience Section Component - Client Wrapper
  *
- * Displays a list of professional experience entries in a styled container.
- * Each entry includes company details, role information, and duration.
- * The component uses a consistent layout with the Education section,
- * featuring window controls and a max-width container.
- *
- * @returns {JSX.Element} A styled container with experience entries
+ * Manages the window state (minimize, maximize, close) for the Experience section.
+ * Renders the ExperienceContent server component within a window frame.
  */
 
-import { ExperienceCard } from "../../../components/ui/experience-card/experience-card.server";
+import { useEffect } from 'react'; // Import hooks (useState might not be needed)
 import { WindowControls } from "../../../components/ui/navigation/window-controls";
-import { experiences } from "../../../data/experience";
-import type { Experience as ExperienceType } from "../../../types";
+import { useRegisteredWindowState } from "@/lib/context/GlobalWindowRegistryContext";
+import { Briefcase } from 'lucide-react'; // Import specific icon
+import { cn } from '@/lib/utils'; // Import cn utility
+import type { ReactElement } from 'react'; // Import ReactElement type for JSX props
 
-// Force static generation
-export const dynamic = 'force-static';
+// Define a unique ID for this window instance
+const EXPERIENCE_WINDOW_ID = 'experience-window';
 
-export async function Experience(): Promise<JSX.Element> {
-  // Pre-render each experience card
-  const experienceCards = await Promise.all(
-    experiences.map(async (exp: ExperienceType) => ({
-      ...exp,
-      card: await ExperienceCard(exp)
-    }))
-  );
+// Force static generation for the content component if possible (may need adjustment)
+// export const dynamic = 'force-static'; // This directive likely belongs with data fetching/rendering logic
 
+// Define the props for the Experience component
+interface ExperienceProps {
+  experienceCards: Array<{ id: string; card: ReactElement }>; // Expecting pre-rendered cards
+}
+
+// Exported component is now the wrapper
+export function Experience({ experienceCards }: ExperienceProps): JSX.Element {
+  // Register this window instance and get its state/actions
+  const {
+    windowState,
+    close: closeWindow,
+    minimize: minimizeWindow,
+    maximize: maximizeWindow,
+    isRegistered
+  } = useRegisteredWindowState(EXPERIENCE_WINDOW_ID, Briefcase, 'Restore Experience', 'normal');
+
+  // Log state changes (optional)
+  useEffect(() => {
+    if (isRegistered) { // Check isRegistered
+      console.log(`Experience Component Render (${EXPERIENCE_WINDOW_ID}) - Window State:`, windowState);
+    }
+  }, [windowState, isRegistered]); // Dependency on isRegistered
+
+  // Render nothing until ready
+  if (!isRegistered) { // Check isRegistered
+     return <></>; // Or a suitable skeleton/placeholder
+  }
+
+  // Handle closed state
+  if (windowState === "closed") {
+    return <></>;
+  }
+
+  // Handle minimized state
+  // This is now handled by the FloatingRestoreButtons component
+  if (windowState === "minimized") {
+     return <></>;
+  }
+
+  // Render normal or maximized view
+  const isMaximized = windowState === 'maximized';
+
+  // Refactored structure to match other clients (single main wrapper)
   return (
-    <div className="max-w-5xl mx-auto mt-8">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
-        <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
-          <div className="flex items-center">
-            <WindowControls />
-            <h1 className="text-xl font-mono ml-4">~/experience</h1>
-          </div>
+    <div className={cn(
+      // Base styles
+      "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-hidden",
+      "transition-all duration-300 ease-in-out",
+      // Normal state styles
+      "relative max-w-5xl mx-auto mt-8 rounded-lg shadow-lg",
+      // Maximized state overrides
+      isMaximized &&
+        "fixed inset-0 z-[60] max-w-none m-0 rounded-none shadow-none flex flex-col h-full top-16 bottom-16 md:bottom-4"
+    )}>
+      {/* Sticky Header */}
+      <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 flex-shrink-0 sticky top-0 z-10">
+        <div className="flex items-center">
+          <WindowControls
+            onClose={closeWindow}
+            onMinimize={minimizeWindow}
+            onMaximize={maximizeWindow}
+          />
+          <h1 className="text-xl font-mono ml-4">~/experience</h1>
         </div>
+      </div>
 
-        <div className="p-6">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold mb-6">Experience</h2>
-            <div className="space-y-6">
-            {experienceCards.map((exp) => (
-              <div key={exp.company}>
-                {exp.card}
+      {/* Scrollable Content Area */}
+      <div className={cn(
+        "p-6",
+        isMaximized ? "overflow-y-auto flex-grow" : ""
+      )}>
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold mb-6">Experience</h2>
+          <div className="space-y-6">
+            {experienceCards.map((item) => (
+              // Use item.id which was passed along from the server component
+              <div key={item.id}>
+                {item.card}
               </div>
             ))}
-            </div>
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { CodeBlock } from './code-block';
+import { CodeBlock } from './codeBlock';
 import type { DetailedHTMLProps, HTMLAttributes } from 'react';
 
 type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>;
@@ -13,8 +13,11 @@ type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement
 export function ServerMDXCodeBlock(props: PreProps) {
   const { children, className, ...rest } = props;
   return (
-    <pre className={className} {...rest}>
-      <code>{children}</code>
+    <pre
+      className="not-prose rounded-lg overflow-x-auto bg-gray-800 p-4 text-gray-100 text-[13px]"
+      {...rest}
+    >
+      <code className="text-gray-100 bg-transparent text-[13px]">{children}</code>
     </pre>
   );
 }

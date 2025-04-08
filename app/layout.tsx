@@ -13,11 +13,16 @@
  */
 
 import type { Metadata } from "next";
-import { Suspense } from 'react'
 import { Inter } from "next/font/google";
+import { Suspense } from 'react'
 import "./globals.css";
 import { Providers } from "./providers";
-import { Navigation, Terminal, SocialIcons, ThemeToggle } from "../components/ui";
+// Re-add direct imports
+import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
+import { ClientTerminal } from "../components/ui/terminal/terminal.client";
+import { GlobalWindowRegistryProvider } from "@/lib/context/GlobalWindowRegistryContext";
+import { BodyClassManager } from "@/components/utils/body-class-manager.client"; // Import the new component
+import { FloatingRestoreButtons } from "@/components/ui/window/FloatingRestoreButtons";
 import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "../data/metadata";
 
 import { Analytics } from '@/components/analytics/Analytics'
@@ -83,21 +88,30 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
-          <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
-            <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
-              <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-                <Navigation />
-                <div className="flex items-center space-x-4">
-                  <SocialIcons />
-                  <ThemeToggle />
+          <GlobalWindowRegistryProvider>
+            <BodyClassManager /> {/* Add the BodyClassManager here */}
+            {/* Revert to direct rendering */}
+            <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
+              <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
+                <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+                  <Suspense fallback={null}>
+                    {/* Navigation component doesn't need props anymore */}
+                    <Navigation />
+                  </Suspense>
+                  {/* Render secondary icons directly again */}
+                  <div className="flex items-center space-x-4">
+                    <SocialIcons />
+                    <ThemeToggle />
+                  </div>
                 </div>
-              </div>
-            </header>
-            <main className="pt-24 pb-16 px-4">
-              <Terminal />
-              {children}
-            </main>
-          </div>
+              </header>
+              <main className="pt-24 pb-16 px-4">
+                <ClientTerminal />
+                {children}
+              </main>
+              <FloatingRestoreButtons />
+            </div>
+          </GlobalWindowRegistryProvider>
         </Providers>
         <Suspense fallback={<></>}>
           <Analytics />

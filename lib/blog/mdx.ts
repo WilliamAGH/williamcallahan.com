@@ -1,3 +1,7 @@
+import { assertServerOnly } from '../utils/ensure-server-only';
+
+assertServerOnly('lib/blog/mdx.ts'); // Ensure this module runs only on the server
+
 /**
  * MDX Processing Utilities
  *
@@ -18,10 +22,13 @@ import type { MDXRemoteProps } from 'next-mdx-remote';
 type MDXComponents = MDXRemoteProps['components'];
 import { authors } from '../../data/blog/authors';
 import type { BlogPost } from '../../types/blog';
-import { ServerMDXCodeBlock } from '../../components/ui/mdx-code-block';
+import { ServerMDXCodeBlock } from '../../components/ui/mdxCodeBlock.server';
 
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), 'data/blog/posts');
+
+// Cache for processed MDX posts
+const postCache = new Map<string, { post: BlogPost | null; lastModified: string }>();
 
 /**
  * MDX components map for server-side rendering
@@ -46,17 +53,6 @@ function toISOString(date: string | Date | undefined): string {
 }
 
 /**
- * Gets file creation and modification dates
- */
-async function getFileDates(filePath: string): Promise<{ created: string; modified: string }> {
-  const stats = await fs.stat(filePath);
-  return {
-    created: stats.birthtime.toISOString(),
-    modified: stats.mtime.toISOString()
-  };
-}
-
-/**
  * Retrieves and processes a single MDX blog post
  *
  * @param {string} slug - The URL slug of the post to retrieve
@@ -64,7 +60,6 @@ async function getFileDates(filePath: string): Promise<{ created: string; modifi
  */
 export async function getMDXPost(slug: string): Promise<BlogPost | null> {
   try {
-    // First check if the post actually exists to avoid unnecessary file read attempts
     const fullPath = path.join(POSTS_DIRECTORY, `${slug}.mdx`);
 
     // Check if the file exists before trying to read it
@@ -76,6 +71,16 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
       return null;
     }
 
+    // Get file stats for cache validation and dates
+    const stats = await fs.stat(fullPath);
+    const lastModified = stats.mtime.toISOString();
+
+    // Check cache
+    const cached = postCache.get(slug);
+    if (cached && cached.lastModified === lastModified) {
+      return cached.post;
+    }
+
     const fileContents = await fs.readFile(fullPath, 'utf8');
 
     // Parse frontmatter
@@ -85,12 +90,15 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
     const authorId = data.author as string;
     const author = authors[authorId];
     if (!author) {
-      console.error(`Author not found: ${authorId}`);
+      console.error(`Author not found: ${authorId} in post ${slug}`);
       return null;
     }
 
     // Get file dates as fallback
-    const fileDates = await getFileDates(fullPath);
+    const fileDates = {
+      created: stats.birthtime.toISOString(),
+      modified: stats.mtime.toISOString()
+    };
 
     // Serialize the content with options for proper MDX features
     const mdxSource = await serialize(content, {
@@ -110,8 +118,6 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
       },
       scope: {},
       parseFrontmatter: true,
-      // @ts-expect-error - next-mdx-remote types are not up to date
-      components: serverComponents
     });
 
     // Use frontmatter dates or fall back to file dates
@@ -119,7 +125,7 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
     const updatedAt = toISOString(data.updatedAt || data.modifiedAt || fileDates.modified);
 
     // Construct the full blog post object
-    return {
+    const post = {
       id: `mdx-${slug}`,
       title: data.title,
       slug: data.slug,
@@ -132,8 +138,13 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
       readingTime: data.readingTime,
       coverImage: data.coverImage
     };
+
+    // Update cache
+    postCache.set(slug, { post, lastModified });
+
+    return post;
   } catch (error) {
-    console.error(`Error loading post ${slug}:`, error);
+    console.error(`Error processing post ${slug}:`, error);
     return null;
   }
 }
@@ -146,17 +157,17 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
 export async function getAllMDXPosts(): Promise<BlogPost[]> {
   try {
     const files = await fs.readdir(POSTS_DIRECTORY);
+    const mdxFiles = files.filter(file => file.endsWith('.mdx'));
+
+    // Process all files in parallel
     const posts = await Promise.all(
-      files
-        .filter(file => file.endsWith('.mdx'))
-        .map(async file => {
-          const slug = file.replace(/\.mdx$/, '');
-          const post = await getMDXPost(slug);
-          return post;
-        })
+      mdxFiles.map(async (file) => {
+        const slug = file.replace(/\.mdx$/, '');
+        return await getMDXPost(slug);
+      })
     );
 
-    return posts.filter((post: BlogPost | null): post is BlogPost => post !== null);
+    return posts.filter((post): post is BlogPost => post !== null);
   } catch (error) {
     console.error('Error loading posts:', error);
     return [];

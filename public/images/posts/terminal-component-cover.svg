@@ -1,0 +1,105 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <style>
+    .font { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; }
+    .mono { font-family: 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; }
+    .title { font-size: 14px; fill: #E0E0E0; }
+    .prompt { font-size: 16px; fill: #82aaff; } /* Updated color */
+    .input { font-size: 16px; fill: #ffffff; } /* Updated color */
+    .output { font-size: 16px; fill: #9aa5ce; } /* Updated color */
+    .output-cmd { fill: #89ddff; } /* Updated color */
+    .output-header { fill: #ff5370; } /* Updated color */
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+  </style>
+
+  <defs>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Terminal Window -->
+  <rect x="50" y="50" width="1100" height="530" rx="10" fill="#1a1b26" stroke="#4C566A" stroke-width="1" filter="url(#shadow)" />
+
+  <!-- Header -->
+  <rect x="50" y="50" width="1100" height="40" rx="10" fill="#24283b" />
+
+  <!-- Window Controls -->
+  <circle cx="80" cy="71" r="7" fill="#BF616A" />
+  <circle cx="105" cy="71" r="7" fill="#EBCB8B" />
+  <circle cx="130" cy="71" r="7" fill="#A3BE8C" />
+
+  <!-- Title -->
+  <text x="600" y="77" text-anchor="middle" class="font title">~/williamcallahan.com</text>
+
+  <!-- Terminal Content -->
+  <g class="mono" transform="translate(70, 120)">
+    <!-- Command 1: help -->
+    <text y="0">
+      <tspan class="prompt">&gt;</tspan>
+      <tspan x="100" class="input">help</tspan>
+    </text>
+    <!-- Output 1 -->
+    <text y="30" class="output">Available commands:</text>
+    <text y="55">
+       <tspan x="0" class="output-cmd">blog</tspan>
+       <tspan x="100" class="output">[query]</tspan>
+       <tspan x="200" class="output">- Search or navigate blog posts</tspan>
+    </text>
+    <text y="80">
+       <tspan x="0" class="output-cmd">experience</tspan>
+       <tspan x="100" class="output">[query]</tspan>
+       <tspan x="200" class="output">- View professional experience</tspan>
+    </text>
+     <text y="105">
+       <tspan x="0" class="output-cmd">projects</tspan>
+       <tspan x="100" class="output">[query]</tspan>
+       <tspan x="200" class="output">- Browse projects &amp; experiments</tspan>
+    </text>
+    <text y="130">
+       <tspan x="0" class="output-cmd">investments</tspan>
+       <tspan x="100" class="output">[query]</tspan>
+       <tspan x="200" class="output">- See investment portfolio</tspan>
+    </text>
+     <text y="155">
+       <tspan x="0" class="output-cmd">education</tspan>
+       <tspan x="100" class="output">[query]</tspan>
+       <tspan x="200" class="output">- View education history</tspan>
+    </text>
+    <text y="180">
+       <tspan x="0" class="output-cmd">clear</tspan>
+       <tspan x="200" class="output">- Clear terminal history</tspan>
+    </text>
+     <text y="205">
+       <tspan x="0" class="output-cmd">help</tspan>
+       <tspan x="200" class="output">- Show this help message</tspan>
+    </text>
+
+    <!-- Command 2: blog search -->
+     <text y="245">
+      <tspan class="prompt">&gt;</tspan>
+      <tspan x="100" class="input">blog terminal</tspan>
+    </text>
+    <!-- Output 2 (Simulated Search) -->
+    <text y="275" class="output-header">Search Results (Blog):</text>
+     <text y="300">
+       <tspan x="0" class="output-cmd">1.</tspan>
+       <tspan x="100" class="output">Building an Interactive Terminal in Next.js</tspan>
+    </text>
+     <text y="325">
+       <tspan x="0" class="output"> </tspan> <!-- Indent -->
+       <tspan x="100" class="output" fill="#81A1C1">How to build a simulated terminal component UI...</tspan>
+    </text>
+    <text y="350" class="output-header" fill="#88C0D0">Use ↑↓ to navigate, Enter to select.</text>
+
+    <!-- Input Prompt -->
+    <text y="400">
+      <tspan class="prompt">&gt;</tspan>
+      <tspan x="100" class="input"></tspan>
+      <rect x="100" y="386" width="8" height="16" fill="#ffffff">
+        <animate attributeName="opacity" values="0;1;0" dur="1s" repeatCount="indefinite" />
+      </rect>
+    </text>
+  </g>
+</svg>

@@ -7,13 +7,12 @@
 
 // Export components
 export { AcceleratorBadge } from './accelerator-badge';
-export { CodeBlock } from './code-block';
-export { CopyButton } from './copy-button';
-export { ExternalLink } from './external-link';
-export { default as FinancialMetrics } from './financial-metrics';
-export { LogoImage } from './logo-image';
-export { MDXTable } from './mdx-table';
-export { ThemeToggle } from './theme-toggle';
+export { CodeBlock } from './codeBlock';
+export { CopyButton } from './copyButton';
+export { ExternalLink } from './externalLink';
+export { default as FinancialMetrics } from './financialMetrics';
+export { LogoImage } from './logoImage';
+export { MDXTable } from './mdxTable';
 
 // Re-export nested components
 export * from './navigation';

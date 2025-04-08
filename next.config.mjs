@@ -20,11 +20,22 @@ const nextConfig = {
    * @returns {import('webpack').Configuration} Modified webpack config
    */
   webpack(config) {
-    // Configure SVG handling
+    // Configure SVG handling, excluding /public directory
     config.module.rules.push({
-      test: /\.svg$/,
-      use: ['@svgr/webpack']
+      test: /\.svg$/i,
+      issuer: /\.(js|ts|jsx|tsx|mdx)$/,
+      exclude: /public\//, // Exclude SVGs in the public folder
+      use: [{
+        loader: '@svgr/webpack',
+        options: {
+          icon: true, // Optional: Treat SVGs as icons
+        }
+      }]
     });
+
+    // Let default Next.js handle SVGs in /public for next/image
+    // Find the default rule that handles images and ensure it still processes SVGs in public
+    // (This part is usually handled automatically by Next.js unless overridden)
 
     // Handle node modules in API routes
     config.resolve.fallback = {
