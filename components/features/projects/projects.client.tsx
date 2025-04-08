@@ -7,7 +7,8 @@
 
 "use client";
 
-import { useEffect, Suspense } from 'react';
+import { useEffect, Suspense, useState, useMemo } from 'react'; // Added useState, useMemo
+// Removed framer-motion imports
 import Link from 'next/link';
 import { projects } from '@/data/projects';
 import { ProjectCardServer } from './project-card.server';
@@ -21,8 +22,22 @@ import { cn } from '@/lib/utils';
 const PROJECTS_WINDOW_ID = 'projects-window';
 
 // --- Server Component for Content ---
-// (Kept as an inner component for structure)
-function ProjectsContent() {
+// --- Helper to get unique tags ---
+const getAllUniqueTags = () => {
+  const allTags = projects.flatMap(p => p.tags || []);
+  return ['All', ...Array.from(new Set(allTags)).sort()];
+};
+
+// --- Server Component for Content ---
+// (Now needs props for filtered projects and tag handling)
+interface ProjectsContentProps {
+  filteredProjects: typeof projects;
+  allTags: string[];
+  selectedTag: string;
+  onSelectTag: (tag: string) => void;
+}
+
+function ProjectsContent({ filteredProjects, allTags, selectedTag, onSelectTag }: ProjectsContentProps) {
   return (
     <div className="p-6">
       <div className="prose dark:prose-invert max-w-none mb-8">
@@ -34,13 +49,37 @@ function ProjectsContent() {
           if you&apos;d like a better look at some of my more &apos;complete&apos; work as well.
         </p>
       </div>
+
+      {/* Filter Buttons */}
+      <div className="mb-8 flex flex-wrap gap-2">
+        {allTags.map(tag => (
+          <button
+            key={tag}
+            onClick={() => onSelectTag(tag)}
+            className={cn(
+              "px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200",
+              selectedTag === tag
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+            )}
+          >
+            {tag}
+          </button>
+        ))}
+      </div>
+
       <Suspense fallback={<div>Loading GitHub activity...</div>}>
         <GitHubActivity />
       </Suspense>
-      {/* Use a responsive grid layout - fewer columns on large screens for bigger cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 mt-8"> {/* Changed lg:grid-cols-2 and increased gap */}
-        {projects.map((project) => (
-          <ProjectCardServer key={project.name} project={project} />
+
+      {/* Use a responsive grid layout - Reverted from Framer Motion */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 mt-8">
+        {/* Map over filtered projects and add stagger using inline style for CSS animation */}
+        {filteredProjects.map((project, index) => (
+          // Keep the wrapper div for applying animation delay
+          <div key={project.name} style={{ animationDelay: `${index * 100}ms` }}>
+            <ProjectCardServer project={project} />
+          </div>
         ))}
       </div>
     </div>
@@ -57,6 +96,19 @@ export function ProjectsClient() {
     maximize: maximizeWindow,
     isRegistered
   } = useRegisteredWindowState(PROJECTS_WINDOW_ID, FolderKanban, 'Restore Projects', 'normal');
+
+  // State for filtering
+  const [selectedTag, setSelectedTag] = useState<string>('All');
+
+  // Memoize tags and filtered projects
+  const allTags = useMemo(() => getAllUniqueTags(), []);
+  const filteredProjects = useMemo(() => {
+    if (selectedTag === 'All') {
+      return projects;
+    }
+    return projects.filter(p => p.tags?.includes(selectedTag));
+  }, [selectedTag]);
+
 
   // Log state changes (optional, for debugging)
   useEffect(() => {
@@ -113,7 +165,13 @@ export function ProjectsClient() {
       {/* Render the server component content here */}
       {/* Add overflow-y-auto for scrollable content when maximized */}
       <div className={cn("h-full", isMaximized ? "overflow-y-auto" : "")}>
-        <ProjectsContent />
+        {/* Pass necessary props to ProjectsContent */}
+        <ProjectsContent
+          filteredProjects={filteredProjects}
+          allTags={allTags}
+          selectedTag={selectedTag}
+          onSelectTag={setSelectedTag}
+        />
       </div>
     </div>
   );
