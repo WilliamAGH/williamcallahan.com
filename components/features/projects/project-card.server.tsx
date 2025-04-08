@@ -4,13 +4,13 @@ import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import type { Project } from '@/types/project';
 import { ExternalLink } from '@/components/ui/externalLink';
 
-// Placeholder for centered top image
+// Placeholder for centered top image with gradient
 function PlaceholderImageTop() {
   return (
-    <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500 rounded-md"> {/* Adjusted rounding */}
+    <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center text-gray-400 dark:text-gray-500 rounded-md"> {/* Added gradient */}
       <svg xmlns="http://www.w3.org/2000/svg"
            aria-label="Placeholder image"
-           className="h-12 w-12"
+           className="h-16 w-16 opacity-50" // Slightly larger and more subtle
            fill="none"
            viewBox="0 0 24 24"
            stroke="currentColor"
@@ -30,11 +30,11 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
   const { name, description, url, image, tags } = project;
 
   return (
-    <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 group-hover:shadow-lg"> {/* Removed flex */}
+    // Enhanced card styling with more hover effects and entrance transition base
+    <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-blue-400 dark:hover:border-blue-500 opacity-0 animate-fade-in-up"> {/* Added animation class, adjusted hover */}
 
-      {/* Image Section (Top, Centered, Constrained Width) */}
-      <div className="p-4 sm:p-5"> {/* Add padding around image container */}
-        <div className="max-w-lg mx-auto aspect-[16/10] relative overflow-hidden rounded-md"> {/* Constrained width, centered, aspect ratio */}
+      {/* Image Section (Top) - Increased prominence */}
+      <div className="aspect-[16/9] relative overflow-hidden"> {/* Removed group-hover opacity here */}
           <ExternalLink
             href={url}
             title={`Visit ${name}'s website`}
@@ -47,58 +47,55 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
                 src={image}
                 alt={`${name} screenshot`}
                 fill
-                className="object-cover" // Removed rounding here, added to container
+                // Added image zoom on hover
+                className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
               />
             ) : (
               <PlaceholderImageTop />
             )}
+             {/* Title Overlay on Hover */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+              <h3 className="text-white text-lg font-semibold drop-shadow-md translate-y-2 group-hover:translate-y-0 transition-transform duration-300 ease-in-out">
+                {name}
+              </h3>
+            </div>
           </ExternalLink>
         </div>
-      </div>
+      {/* Removed the div wrapper for the image */}
 
-      {/* Content Section (Below Image) */}
-      <div className="p-4 sm:p-5 pt-0"> {/* Adjusted padding */}
-        <div className="flex flex-col gap-3"> {/* Adjusted gap */}
-          {/* Header */}
-          <div className="flex items-center gap-2">
-            {/* Optional: Small logo can go here if desired */}
-            {/* <div className="w-8 h-8 relative flex-shrink-0 rounded border border-gray-100 dark:border-gray-700 overflow-hidden"> ... </div> */}
-            <div className="flex-1 min-w-0">
-              <ExternalLink
-                href={url}
-                title={`Visit ${name}'s website`}
-                showIcon={false}
-                className="text-lg font-semibold hover:text-gray-600 dark:hover:text-gray-300 truncate" // Reverted text size
-              >
-                {name}
-              </ExternalLink>
-            </div>
+      {/* Content Section (Below Image) - Increased padding */}
+      <div className="p-4 sm:p-5"> {/* Slightly reduced padding for balance */}
+        <div className="flex flex-col gap-3"> {/* Increased gap */}
+          {/* Header - Title is now primarily shown on image hover */}
+          <div className="flex items-center justify-end gap-3 h-5"> {/* Justify end for link icon, added fixed height */}
+            {/* Removed title link from here as it's on the image overlay */}
+            {/* The ExternalLink icon is the only content here now */}
             {url && (
               <ExternalLink
                 href={url}
                 title={`Visit ${name}'s website`}
                 showIcon={false}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0"
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 flex-shrink-0" // Adjusted colors
               >
-                <ExternalLinkIcon className="w-4 h-4" />
+                <ExternalLinkIcon className="w-5 h-5" /> {/* Slightly larger icon */}
               </ExternalLink>
             )}
           </div>
 
           {/* Description */}
           {description && (
-            <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-sm mt-1"> {/* Reverted margin */}
+            <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mt-2 line-clamp-3"> {/* Increased font size, adjusted colors/margin */}
               {description}
             </p>
           )}
 
           {/* Tags */}
           {tags && tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3"> {/* Adjusted gap/margin */}
+            <div className="flex flex-wrap gap-2 mt-4"> {/* Increased gap/margin */}
               {tags.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300" // Reverted size/padding
+                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200" // Increased size/padding, adjusted colors
                 >
                   {tag}
                 </span>

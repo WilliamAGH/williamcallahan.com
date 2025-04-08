@@ -21,6 +21,8 @@ export interface GitHubActivityApiResponse {
   source: 'scraping' | 'api'; // Indicates how the data was obtained
   data: ContributionDay[];
   totalContributions?: string; // Optional total count (especially from scraping)
+  linesAdded?: number; // Total lines of code added in the last 365 days
+  linesRemoved?: number; // Total lines of code removed in the last 365 days
   error?: string; // Error message if fetching failed
   details?: string; // Additional error details
 }
