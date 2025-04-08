@@ -83,7 +83,7 @@ export function BlogArticle({ post }: BlogArticleProps): JSX.Element {
             alt={post.title}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className={post.coverImage.endsWith('.svg') ? "object-contain p-2" : "object-cover"}
+            className={post.coverImage.endsWith('.svg') ? 'object-contain' : 'object-cover'}
             priority
           />
         </div>

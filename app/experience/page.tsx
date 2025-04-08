@@ -12,6 +12,9 @@ import { JsonLdScript } from "../../components/seo/json-ld";
 import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
 import { formatSeoDate } from "../../lib/seo/utils";
 import type { Metadata } from "next";
+import { experiences } from "../../data/experience";
+import { ExperienceCard } from "../../components/ui/experience-card";
+import type { Experience as ExperienceType } from "../../types";
 
 /**
  * Generate metadata for the experience page
@@ -21,10 +24,17 @@ export const metadata: Metadata = getStaticPageMetadata('/experience', 'experien
 /**
  * Experience page component
  */
-export default function ExperiencePage() {
+export default async function ExperiencePage() {
   const pageMetadata = PAGE_METADATA.experience;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
+
+  const experienceCardsData = await Promise.all(
+    experiences.map(async (exp: ExperienceType) => ({
+      id: exp.id,
+      card: await ExperienceCard(exp)
+    }))
+  );
 
   return (
     <>
@@ -44,7 +54,7 @@ export default function ExperiencePage() {
           }
         }}
       />
-      <Experience />
+      <Experience experienceCards={experienceCardsData} />
     </>
   );
 }
