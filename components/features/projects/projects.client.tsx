@@ -72,8 +72,8 @@ function ProjectsContent({ filteredProjects, allTags, selectedTag, onSelectTag }
         <GitHubActivity />
       </Suspense>
 
-      {/* Use a responsive grid layout - Reverted from Framer Motion */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 mt-8">
+      {/* Use a vertical stack layout for single column */}
+      <div className="space-y-8 mt-8">
         {/* Map over filtered projects and add stagger using inline style for CSS animation */}
         {filteredProjects.map((project, index) => (
           // Keep the wrapper div for applying animation delay

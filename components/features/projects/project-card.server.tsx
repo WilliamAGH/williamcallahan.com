@@ -30,17 +30,17 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
   const { name, description, url, image, tags } = project;
 
   return (
-    // Enhanced card styling with more hover effects and entrance transition base
-    <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-300 ease-in-out hover:shadow-xl hover:-translate-y-1.5 hover:border-blue-400 dark:hover:border-blue-500 opacity-0 animate-fade-in-up"> {/* Added animation class, adjusted hover */}
+    // Redesigned card for horizontal layout on medium screens and up
+    <div className="group rounded-lg border border-gray-300 dark:border-gray-900 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-400 opacity-0 animate-fade-in-up md:flex h-64"> {/* Use flex on md+ */}
 
-      {/* Image Section (Top) - Increased prominence */}
-      <div className="aspect-[16/9] relative overflow-hidden"> {/* Removed group-hover opacity here */}
+      {/* Image Section (Left side on md+) */}
+      <div className="md:w-2/5 relative aspect-[16/10] md:aspect-auto overflow-hidden flex-shrink-0 hover:scale-105 transition-transform duration-300 ease-in-out"> {/* Fixed width on md+, adjusted aspect ratio */}
           <ExternalLink
             href={url}
             title={`Visit ${name}'s website`}
-            rawTitle={true}
+            rawTitle={true} // Keep raw title for accessibility
             showIcon={false}
-            className="block w-full h-full"
+            className="block w-full h-full" // Ensure link covers the area
           >
             {image ? (
               <Image
@@ -48,57 +48,58 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
                 alt={`${name} screenshot`}
                 fill
                 quality={80}
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                sizes="(max-width: 767px) 100vw, 40vw" // Adjusted sizes for new layout
                 placeholder="blur"
                 blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFdwI2QJIiBQAAAABJRU5ErkJggg=="
-                className="object-cover" // Image covers the container
+                // Subtle zoom on hover
+                className="object-cover w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105"
               />
             ) : (
               <PlaceholderImageTop />
             )}
-             {/* Title Overlay on Hover */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-              <h3 className="text-white text-lg font-semibold drop-shadow-md translate-y-2 group-hover:translate-y-0 transition-transform duration-300 ease-in-out">
-                {name}
-              </h3>
-            </div>
+            {/* Removed Title Overlay */}
           </ExternalLink>
         </div>
       {/* Removed the div wrapper for the image */}
 
-      {/* Content Section (Below Image) - Increased padding */}
-      <div className="p-4 sm:p-5"> {/* Slightly reduced padding for balance */}
-        <div className="flex flex-col gap-3"> {/* Increased gap */}
-          {/* Header - Title is now primarily shown on image hover */}
-          <div className="flex items-center justify-end gap-3 h-5"> {/* Justify end for link icon, added fixed height */}
-            {/* Removed title link from here as it's on the image overlay */}
-            {/* The ExternalLink icon is the only content here now */}
-            {url && (
-              <ExternalLink
-                href={url}
-                title={`Visit ${name}'s website`}
-                showIcon={false}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 flex-shrink-0" // Adjusted colors
-              >
-                <ExternalLinkIcon className="w-5 h-5" /> {/* Slightly larger icon */}
-              </ExternalLink>
+      {/* Content Section (Right side on md+) */}
+      <div className="p-5 md:p-6 flex-1"> {/* Use flex-1 to take remaining space */}
+        <div className="flex flex-col h-full justify-between"> {/* Allow content to space out vertically */}
+          <div> {/* Top content group */}
+            {/* Header */}
+            <div className="flex items-center justify-between gap-3 mb-2"> {/* Justify between */}
+              {/* Title */}
+              <h3 className="text-xl font-mono font-semibold text-gray-800 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                <ExternalLink href={url} title={`Visit ${name}'s website`} showIcon={false} className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                  {name}
+                </ExternalLink>
+              </h3>
+              {/* Topic-Based Icon */}
+              {tags && tags.includes('Next.js') && <span className="text-blue-400">🔗</span>}
+              {tags && tags.includes('VS Code') && <span className="text-blue-400">🖥️</span>}
+              {tags && tags.includes('AI') && <span className="text-blue-400">🤖</span>}
+            </div>
+
+            {/* Code Snippet */}
+            <pre className="bg-gray-800 text-green-400 p-2 rounded-md text-sm font-mono whitespace-pre-wrap">
+              <code>{`// ${project.shortSummary}`}</code>
+            </pre>
+
+            {/* Description */}
+            {description && (
+              <p className="text-gray-400 leading-relaxed text-sm mt-1"> {/* Adjusted text size/color */}
+                {description}
+              </p>
             )}
           </div>
 
-          {/* Description */}
-          {description && (
-            <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base mt-2 line-clamp-3"> {/* Increased font size, adjusted colors/margin */}
-              {description}
-            </p>
-          )}
-
-          {/* Tags */}
+          {/* Tags (Bottom aligned) */}
           {tags && tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-4"> {/* Increased gap/margin */}
+            <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-700"> {/* Added top border */}
               {tags.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200" // Increased size/padding, adjusted colors
+                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-300" // Adjusted size/color
                 >
                   {tag}
                 </span>
