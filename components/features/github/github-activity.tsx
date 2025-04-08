@@ -260,7 +260,7 @@ const GitHubActivity = () => {
     const gridCols = Math.ceil(Math.sqrt(activityData.length)); // Simple square grid layout
 
     return (
-      <div className="grid grid-flow-col grid-rows-7 gap-1 p-2 overflow-x-auto custom-scrollbar">
+      <div className="grid grid-flow-col grid-rows-7 gap-1 p-2 overflow-x-auto custom-scrollbar sm:grid-cols-7">
         {activityData.map((day) => (
           <div
             key={day.date}
