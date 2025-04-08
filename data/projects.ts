@@ -12,7 +12,7 @@ export const projects: Project[] = [
     name: 'Filey -- Flag Deprecated Files Extension',
     description: 'A VS Code extension (compatible with Cursor, Windsurf, etc.) that visually flags deprecated files based on customizable configuration settings.',
     url: '/blog/introducing-flag-deprecated-files-vscode-extension/',
-    image: '/images/filey-flag-deprecated-files-vscode-extension.png',
+    image: '/images/posts/filey-flag-deprecated-files.png',
     tags: ['VS Code', 'Visual Studio Code', 'Cursor', 'Windsurf', 'TypeScript', 'Files', 'Extension', 'Flag Deprecation','IDE'],
   },
   {
