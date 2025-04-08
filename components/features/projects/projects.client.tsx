@@ -39,10 +39,10 @@ interface ProjectsContentProps {
 
 function ProjectsContent({ filteredProjects, allTags, selectedTag, onSelectTag }: ProjectsContentProps) {
   return (
-    <div className="p-6">
-      <div className="prose dark:prose-invert max-w-none mb-8">
+    <div className="p-6 sm:p-4">
+      <div className="prose dark:prose-invert max-w-none mb-8 text-sm sm:text-base">
         <p>
-          Welcome to my a sandbox of my various experiments / projects / works-in-progress. Be sure to visit my{' '}
+          Welcome to my sandbox of various experiments / projects / works-in-progress. Be sure to visit my{' '}
           <Link href="/experience" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
             experience page
           </Link>{' '}
@@ -51,7 +51,7 @@ function ProjectsContent({ filteredProjects, allTags, selectedTag, onSelectTag }
       </div>
 
       {/* Filter Buttons */}
-      <div className="mb-8 flex flex-wrap gap-2">
+      <div className="mb-8 flex-wrap gap-2 hidden sm:flex"> {/* Hide on mobile, show on larger screens */}
         {allTags.map(tag => (
           <button
             key={tag}
