@@ -14,6 +14,7 @@ import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 import Image from 'next/image';
 import { MDXCodeBlock } from '../../../ui/mdxCodeBlock.server';
 import FinancialMetrics from '../../../ui/financialMetrics';
+import { BackgroundInfo } from '../../../ui/backgroundInfo';
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {
   caption?: string;
@@ -111,7 +112,8 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     MetricsGroup: FinancialMetrics,
     img: MdxImage,
     ArticleGallery,
-    ArticleImage: MdxImage
+    ArticleImage: MdxImage,
+    BackgroundInfo
   };
 
   return (
