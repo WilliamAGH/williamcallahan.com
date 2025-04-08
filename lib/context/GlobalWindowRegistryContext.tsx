@@ -44,42 +44,7 @@ interface GlobalWindowRegistryProviderProps {
 // Define the provider component
 export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryProviderProps) => {
   const [windows, setWindows] = useState<Record<string, WindowInstanceInfo>>({});
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isMounted) {
-      return;
-    }
-    // Check states separately
-    const isAnyWindowMaximized = Object.values(windows).some(w => w.state === 'maximized');
-    const isAnyWindowMinimized = Object.values(windows).some(w => w.state === 'minimized');
-
-    // Manage maximized class
-    if (isAnyWindowMaximized) {
-      document.body.classList.add('window-maximized');
-    } else {
-      document.body.classList.remove('window-maximized');
-    }
-
-    // Manage minimized class
-    if (isAnyWindowMinimized) {
-      document.body.classList.add('window-minimized');
-    } else {
-      document.body.classList.remove('window-minimized');
-    }
-
-    // Cleanup MUST remove both potential classes
-    return () => {
-      if (isMounted) {
-        document.body.classList.remove('window-maximized');
-        document.body.classList.remove('window-minimized');
-      }
-    };
-  }, [windows, isMounted]);
+  // Removed isMounted state and associated useEffects
 
   const registerWindow = useCallback((id: string, icon: LucideIcon, title: string, initialState: WindowState = 'normal') => {
     console.log(`WindowRegistry: Registering window '${id}' with initial state '${initialState}'`);
@@ -177,8 +142,16 @@ export const useRegisteredWindowState = (id: string, icon: LucideIcon, title: st
 
    // Register on mount, unregister on unmount
    useEffect(() => {
-     registerWindow(id, icon, title, initialState);
-     return () => unregisterWindow(id);
+     // Delay registration slightly to potentially improve HMR stability
+     const timerId = setTimeout(() => {
+       registerWindow(id, icon, title, initialState);
+     }, 0);
+
+     // Cleanup function: clear timeout and unregister
+     return () => {
+       clearTimeout(timerId);
+       unregisterWindow(id);
+     };
      // Ensure dependencies cover potential changes that require re-registration
    }, [registerWindow, unregisterWindow, id, icon, title, initialState]);
 
