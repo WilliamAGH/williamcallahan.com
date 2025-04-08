@@ -37,17 +37,12 @@ const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
   output: 'Welcome! Type "help" for available commands.'
 };
 
+const initialHistoryState = [INITIAL_WELCOME_MESSAGE]; // Define as constant
+
 export function TerminalProvider({ children }: { children: React.ReactNode }) {
   console.log("--- TerminalProvider Instance Mounting/Rendering ---");
   // Initialize history with the welcome message if it's truly empty initially
-  const [history, setHistory] = useState<TerminalCommand[]>(() => {
-    // Check if history is truly empty on initial render
-    // This avoids adding the message multiple times if the provider re-renders
-    // but retains state.
-    // Note: This assumes the initial state is always empty. If hydration from
-    // storage were added here, this logic would need adjustment.
-    return [INITIAL_WELCOME_MESSAGE];
-  });
+  const [history, setHistory] = useState<TerminalCommand[]>(initialHistoryState); // Use constant
 
   // Function to update state AND sessionStorage
   // Removed setTerminalMode function

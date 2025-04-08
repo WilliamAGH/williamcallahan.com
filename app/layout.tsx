@@ -17,11 +17,11 @@ import { Inter } from "next/font/google";
 import { Suspense } from 'react'
 import "./globals.css";
 import { Providers } from "./providers";
-// Import the new ClientTerminal wrapper and other UI components
+// Re-add direct imports
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
 import { ClientTerminal } from "../components/ui/terminal/terminal.client";
-import { GlobalWindowRegistryProvider } from "@/lib/context/GlobalWindowRegistryContext"; // Import the new provider
-import { FloatingRestoreButtons } from "@/components/ui/window/FloatingRestoreButtons"; // Import the new buttons container
+import { GlobalWindowRegistryProvider } from "@/lib/context/GlobalWindowRegistryContext";
+import { FloatingRestoreButtons } from "@/components/ui/window/FloatingRestoreButtons";
 import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "../data/metadata";
 
 import { Analytics } from '@/components/analytics/Analytics'
@@ -87,15 +87,16 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
-          {/* Use the new global provider */}
           <GlobalWindowRegistryProvider>
+            {/* Revert to direct rendering */}
             <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
-              {/* Header remains outside the main content area that interacts with terminal state */}
               <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
                 <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
                   <Suspense fallback={null}>
+                    {/* Navigation component doesn't need props anymore */}
                     <Navigation />
                   </Suspense>
+                  {/* Render secondary icons directly again */}
                   <div className="flex items-center space-x-4">
                     <SocialIcons />
                     <ThemeToggle />
@@ -103,11 +104,9 @@ export default function RootLayout({
                 </div>
               </header>
               <main className="pt-24 pb-16 px-4">
-                {/* Render the ClientTerminal (which uses the context) */}
                 <ClientTerminal />
                 {children}
               </main>
-              {/* Render the container for all floating restore buttons */}
               <FloatingRestoreButtons />
             </div>
           </GlobalWindowRegistryProvider>

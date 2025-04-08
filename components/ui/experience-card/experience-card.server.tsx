@@ -9,22 +9,9 @@
 import type { Experience } from '../../../types/experience';
 import { ExperienceCardClient } from './experience-card.client';
 import { fetchLogo, normalizeDomain } from '../../../lib/logo-fetcher';
-import fs from 'fs/promises';
-import path from 'path';
 
-// Cache for placeholder SVG
-let placeholderSvg: Buffer | null = null;
-
-/**
- * Get placeholder SVG content
- * @returns {Promise<Buffer>} Placeholder SVG buffer
- */
-async function getPlaceholder(): Promise<Buffer> {
-  if (!placeholderSvg) {
-    placeholderSvg = await fs.readFile(path.join(process.cwd(), 'public/images/company-placeholder.svg'));
-  }
-  return placeholderSvg;
-}
+// Define the path to the static placeholder image
+const PLACEHOLDER_IMAGE_URL = '/images/company-placeholder.svg';
 
 /**
  * Experience Card Server Component
@@ -62,24 +49,20 @@ export async function ExperienceCard(props: Experience): Promise<JSX.Element> {
     }
 
     // Use placeholder for failed fetches
-    const placeholder = await getPlaceholder();
-    const base64 = placeholder.toString('base64');
     return <ExperienceCardClient
       {...props}
       logoData={{
-        url: `data:image/svg+xml;base64,${base64}`,
+        url: PLACEHOLDER_IMAGE_URL, // Use the static path
         source: null
       }}
     />;
   } catch (error) {
     console.error('Error in ExperienceCard:', error);
     // Return placeholder on any error
-    const placeholder = await getPlaceholder();
-    const base64 = placeholder.toString('base64');
     return <ExperienceCardClient
       {...props}
       logoData={{
-        url: `data:image/svg+xml;base64,${base64}`,
+        url: PLACEHOLDER_IMAGE_URL, // Use the static path
         source: null
       }}
     />;

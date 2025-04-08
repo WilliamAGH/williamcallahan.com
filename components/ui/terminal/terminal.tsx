@@ -7,7 +7,7 @@
 
  "use client";
 
- import { useEffect, useRef } from 'react'; // Import useEffect and useRef
+ import { useEffect, useRef, useCallback } from 'react'; // Import useEffect, useRef, and useCallback
  import { TerminalHeader } from './terminal-header';
  import { History } from "./history";
 import { CommandInput } from "./command-input";
@@ -15,8 +15,9 @@ import { SelectionView } from "./selection-view";
 import { useTerminal } from "./use-terminal";
 // Import the history context hook
 import { useTerminalContext } from "./terminalContext";
-// Import the new window state hook
-import { useWindowState, WindowState } from "@/lib/hooks/use-window-state";
+// Import the new generalized context hook
+import { useRegisteredWindowState } from "@/lib/context/GlobalWindowRegistryContext";
+import { TerminalSquare } from 'lucide-react'; // Import specific icon
 import { cn } from "@/lib/utils";
 
 // Define a unique ID for this instance of a window-like component
@@ -37,14 +38,15 @@ export function Terminal() {
    // --- Get State from Hooks ---
    // History state from TerminalContext
    const { history: terminalHistory } = useTerminalContext();
-  // Window state managed by the useWindowState hook for this specific terminal instance
+
+  // Register this window instance and get its state/actions
   const {
     windowState,
-    closeWindow,
-    minimizeWindow,
-    maximizeWindow,
-    isReady // Use readiness from the window state hook
-  } = useWindowState(TERMINAL_WINDOW_ID, 'normal'); // Provide ID and initial state
+    close: closeWindow,       // Rename actions for consistency if desired
+    minimize: minimizeWindow,
+    maximize: maximizeWindow,
+    isRegistered           // Flag if the window is ready in the context
+  } = useRegisteredWindowState(TERMINAL_WINDOW_ID, TerminalSquare, 'Restore Terminal', 'normal');
 
   // Local terminal interaction logic (input, selection, etc.)
   const {
@@ -59,14 +61,6 @@ export function Terminal() {
     focusInput,
   } = useTerminal();
 
-  // Log current window state whenever it changes
-  useEffect(() => {
-    // Only log if client is ready (from useWindowState)
-    if (isReady) {
-      console.log(`Terminal Component Render (${TERMINAL_WINDOW_ID}) - Window State:`, windowState);
-     }
-   }, [windowState, isReady]);
-
   // Effect to scroll to bottom when history changes
   useEffect(() => {
     if (scrollContainerRef.current) {
@@ -74,83 +68,143 @@ export function Terminal() {
     }
   }, [terminalHistory]); // Dependency on history from context
 
+  // Determine maximized state - moved up before hooks that depend on it
+  const isMaximized = windowState === 'maximized';
+
+  // Function to handle clicks outside the terminal when maximized
+  const handleBackdropClick = () => {
+    if (isMaximized) {
+      maximizeWindow(); // Toggle back to normal state
+    }
+  };
+
+  // Add keydown handler for ESC key when maximized - MOVED BEFORE CONDITIONAL RETURNS
+  const handleEscapeKey = useCallback((event: KeyboardEvent) => {
+    if (event.key === 'Escape' && isMaximized) {
+      maximizeWindow(); // Toggle back to normal state
+    }
+  }, [isMaximized, maximizeWindow]);
+
+  // Add effect to register/unregister ESC key handler - MOVED BEFORE CONDITIONAL RETURNS
+  useEffect(() => {
+    if (isMaximized) {
+      // Only add the event listener when maximized
+      document.addEventListener('keydown', handleEscapeKey);
+    }
+
+    // Cleanup function to remove the event listener
+    return () => {
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [isMaximized, handleEscapeKey]);
+
    // --- Conditional Rendering ---
 
-   // If not yet ready (mounted and potentially hydrated from storage), render nothing.
-  if (!isReady) {
-    console.log(`Terminal Component (${TERMINAL_WINDOW_ID}): Not ready (pre-mount/hydration), rendering null.`);
+   // If not yet ready (mounted and registered in context), render nothing.
+  if (!isRegistered) {
+    console.log(`Terminal Component: Not ready (pre-mount/hydration from context), rendering null.`);
     return null;
   }
 
   // Now that we are ready (mounted), render based on the current windowState
-  if (windowState === "closed") {
-    console.log(`Terminal Component (${TERMINAL_WINDOW_ID}): Rendering null (windowState is closed)`);
+  // If closed or minimized, render null - the FloatingTerminalButton handles this
+  if (windowState === "closed" || windowState === "minimized") {
+    console.log(`Terminal Component: Rendering null (windowState is ${windowState})`);
     return null;
   }
 
-  if (windowState === "minimized") {
-    console.log(`Terminal Component (${TERMINAL_WINDOW_ID}): Rendering minimized view (windowState is minimized)`);
-    // Render minimized view
-    return (
-      <div className="bg-[#1a1b26] rounded-lg p-2 font-mono text-sm mx-auto mt-8 border border-gray-700 shadow-xl w-fit">
-        <div className="flex items-center gap-2">
-          <TerminalHeader
-            onClose={closeWindow}
-            onMinimize={minimizeWindow}
-            onMaximize={maximizeWindow}
-          />
-        </div>
-      </div>
-    );
-  }
-
   // Render normal or maximized view (implicit else, because we checked !isReady earlier)
-  console.log(`Terminal Component (${TERMINAL_WINDOW_ID}): Rendering ${windowState} view`);
+  console.log(`Terminal Component: Rendering ${windowState} view`);
+
+  // Define class sets for clarity
+  const commonTerminalClasses = "bg-[#1a1b26] border border-gray-700 font-mono text-sm cursor-text overflow-hidden flex flex-col rounded-lg shadow-xl";
+  const normalTerminalClasses = "relative mx-auto mt-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl p-4 sm:p-6";
+  const maximizedTerminalClasses = "w-full max-w-6xl h-full !max-h-none p-6"; // No positioning here!
+
+  // Define classes for the inner scrollable area
+  const commonScrollClasses = "text-gray-300 custom-scrollbar overflow-y-auto";
+  const normalScrollClasses = "max-h-[300px] sm:max-h-[400px]";
+  const maximizedScrollClasses = "flex-grow"; // No padding here, handled by outer div now
+
   return (
-    <div
-      // Apply width conditionally based on windowState
-      className={cn(
-        "bg-[#1a1b26] rounded-lg p-4 sm:p-6 font-mono text-sm mx-auto mt-8 border border-gray-700 shadow-xl cursor-text w-full max-w-[calc(100vw-2rem)] transition-all duration-300 ease-in-out", // Base styles + transition
-        // Apply correct classes: 'sm:max-w-full' for maximized, 'sm:max-w-3xl' for normal
-        windowState === 'maximized' ? 'sm:max-w-full' : 'sm:max-w-3xl'
+    <>
+      {/* Backdrop: Rendered only when maximized, handles click outside */}
+      {isMaximized && (
+        <div
+          data-testid="terminal-backdrop"
+          className="fixed inset-0 z-[59] bg-black/50 backdrop-blur-sm"
+          onClick={handleBackdropClick}
+          aria-hidden="true"
+        />
       )}
-      onClick={(e) => focusInput(e)} // Pass event to focusInput
-    >
-      <div className="mb-4">
-         {/* Pass the correct handlers from useWindowState down */}
-         <TerminalHeader
-            onClose={closeWindow}
-            onMinimize={minimizeWindow}
-            onMaximize={maximizeWindow}
-          />
-      </div>
-      {/* Inner container for scrollable content - height changes based on windowState */}
-      <div className={cn(
-          "text-gray-300 overflow-y-auto custom-scrollbar max-h-[300px]", // Base height for mobile
-          // Use windowState for height
-           windowState === "maximized" ? "sm:max-h-[600px]" : "sm:max-h-[400px]" // Conditional height for sm+ screens
-       )}
-       ref={scrollContainerRef} // Attach the ref here
-       >
-         <div className="whitespace-pre-wrap break-words select-text">
-           {/* Use history from TerminalContext */}
-           <History history={terminalHistory} />
-          {selection ? (
-            <SelectionView
-              items={selection}
-              onSelect={handleSelection}
-              onExit={cancelSelection}
-            />
-          ) : (
-            <CommandInput
-              ref={inputRef}
-              value={input}
-              onChange={setInput}
-              onSubmit={handleSubmit}
-            />
-          )}
+
+      {/* Conditional Centering Wrapper for Maximized State */}
+      {isMaximized ? (
+        <div
+          data-testid="maximized-wrapper"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 md:py-16 md:px-8" // Flexbox centering, covers viewport, correct z-index, padding
+        >
+          {/* Terminal Div (Maximized State) - Uses appearance/dimension classes ONLY */}
+          <div
+            data-testid="terminal-container" // Added test ID
+            className={cn(commonTerminalClasses, maximizedTerminalClasses)}
+          >
+            {/* Header */}
+            <div className="flex-shrink-0">
+              <TerminalHeader
+                 onClose={closeWindow}
+                 onMinimize={minimizeWindow}
+                 onMaximize={maximizeWindow}
+               />
+            </div>
+            {/* Scrollable Content Area (Maximized) */}
+            <div
+              className={cn(commonScrollClasses, maximizedScrollClasses)}
+              ref={scrollContainerRef}
+              onClick={focusInput}
+            >
+              <div className="whitespace-pre-wrap break-words select-text">
+                <History history={terminalHistory} />
+                {selection ? (
+                  <SelectionView items={selection} onSelect={handleSelection} onExit={cancelSelection} />
+                ) : (
+                  <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={handleSubmit} />
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      ) : (
+        /* Terminal Div (Normal State) - Uses relative positioning classes */
+        <div
+          data-testid="terminal-container" // Added test ID
+          className={cn(commonTerminalClasses, normalTerminalClasses)}
+        >
+          {/* Header */}
+          <div className="flex-shrink-0">
+            <TerminalHeader
+               onClose={closeWindow}
+               onMinimize={minimizeWindow}
+               onMaximize={maximizeWindow}
+             />
+          </div>
+          {/* Scrollable Content Area (Normal) */}
+          <div
+            className={cn(commonScrollClasses, normalScrollClasses)}
+            ref={scrollContainerRef}
+            onClick={focusInput}
+          >
+            <div className="whitespace-pre-wrap break-words select-text">
+              <History history={terminalHistory} />
+              {selection ? (
+                <SelectionView items={selection} onSelect={handleSelection} onExit={cancelSelection} />
+              ) : (
+                <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={handleSubmit} />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
