@@ -1,7 +1,7 @@
 ---
-title: "Setting JAVA_HOME on macOS with zshrc and IntelliJ IDEA"
-slug: "setting-java-home-on-macos"
-excerpt: "A quick guide to setting up JAVA_HOME on macOS using zshrc and configuring it in IntelliJ IDEA."
+title: "How to setup the Java SDK and use JavaFX on macOS/Windows"
+slug: "how-to-setup-the-java-sdk-and-use-javafx-on-macos-windows"
+excerpt: "A quick guide to installing the Java SDK, setting the JAVA_HOME path, and setting up a new JavaFX project on macOS/Windows using IntelliJ IDEA or VS Code."
 publishedAt: "2025-04-10"
 updatedAt: "2025-04-10"
 author: "william-callahan"
@@ -10,63 +10,59 @@ coverImage: ""
 readingTime: 3
 ---
 
-Here's a quick guide to setup `JAVA_HOME` on macOS with zshrc and configure it in IntelliJ IDEA.
+## Part 1: Setting Up Global JAVA_HOME
 
-## Checking Your Java Version
+Here's how to set up `JAVA_HOME` globally on macOS and Windows, ensuring your system is ready for Java applications.
 
-First, let's verify the Java version installed on your system. Open your terminal and run:
+1. **Download Java SDK**: Visit the [Oracle website](https://www.oracle.com/java/technologies/downloads/) to download the latest Java SDK.
 
-```bash
-java --version
-```
+### For macOS
 
-You should see something like:
+2. **Verify Java Version**: Open your terminal and run:
+   ```bash
+   java --version
+   ```
+   Ensure you have the correct version installed.
 
-```plaintext
-openjdk 23.0.2 2025-01-21
-OpenJDK Runtime Environment (build 23.0.2+7-58)
-OpenJDK 64-Bit Server VM (build 23.0.2+7-58, mixed mode, sharing)
-```
+3. **Set JAVA_HOME**: Edit your `.zshrc` file:
+   ```bash
+   nano ~/.zshrc
+   ```
+   Then type:
+   ```bash
+   export JAVA_HOME=$(/usr/libexec/java_home)
+   ```
+   Type this to apply changes:
+   ```bash
+   source ~/.zshrc
+   ```
 
-## Setting JAVA_HOME in zshrc
+But the GUI should let you set it via a dropdown menu.
 
-To set `JAVA_HOME`, you'll need to edit your `.zshrc` file. This file is located in your home directory. You can open it with your favorite text editor:
+---
+### For Windows 10/11
 
-```bash
-nano ~/.zshrc
-```
+2. **Set JAVA_HOME**: Open **System Properties** (Win + Pause/Break), go to **Advanced system settings**, and under **Environment Variables**, add:
+   - **Variable name**: `JAVA_HOME`
+   - **Variable value**: `C:\Program Files\Java\jdk-23.0.2` (or the path to the Java SDK you downloaded if different)
 
-Add the following line to set `JAVA_HOME`:
+3. NA for Windows
 
-```bash
-export JAVA_HOME=$(/usr/libexec/java_home)
-```
+---
+4. **Configure IntelliJ IDEA**: Go to **File > Project Structure > SDKs** and ensure the correct JDK is selected. Set `JAVA_HOME` globally under **Preferences > Appearance & Behavior > Path Variables**:
+   - **Name**: `JAVA_HOME`
+   - **macOS Value**: `/Users/<username>/Library/Java/JavaVirtualMachines/openjdk-23.0.2/Contents/Home` (or the path to the Java SDK you downloaded if different)
+   - **Windows Value**: `C:\Program Files\Java\jdk-23.0.2` (or the path to the Java SDK you downloaded if different)
 
-This command dynamically sets `JAVA_HOME` to the current Java version's home directory.
+---
 
-After saving the changes, apply them by running:
+## Part 2: Project-Level Settings for JavaFX
 
-```bash
-source ~/.zshrc
-```
+Now you'll use JavaFX in your project.
 
-## Verifying the Setup
+1. **Integrated Setup in IntelliJ IDEA and VS Code**: Both IntelliJ IDEA and VS Code offer seamless onboarding for JavaFX projects. When creating a new project, select Java > JavaFX from the project templates, and the IDE will automatically configure the necessary settings.
 
-Finally, verify that `JAVA_HOME` is set correctly by running:
+2. **Alternative - Download JavaFX**: If needed, visit the [Gluon website](https://gluonhq.com/products/javafx/) to download the latest LTS version.
 
-```bash
-echo $JAVA_HOME
-```
+3. **Place the SDK**: You'll need to place the JavaFX SDK in a path under something like `~/Library/Java/JavaVirtualMachines/openjdk-23.0.2/Contents/Home/lib/ext`
 
-You should see the path to your Java installation, confirming that everything is set up correctly.
-
-## Configuring IntelliJ IDEA
-
-In IntelliJ IDEA, you can set the `JAVA_HOME` environment variable for your projects. Go to **File > Project Structure > SDKs** and ensure the correct JDK is selected.
-
-To set `JAVA_HOME` globally in IntelliJ, navigate to **Preferences > Appearance & Behavior > Path Variables** and add a new variable:
-
-- **Name**: `JAVA_HOME`
-- **Value**: `/Users/williamcallahan/Library/Java/JavaVirtualMachines/openjdk-23.0.2/Contents/Home`
-
-This ensures IntelliJ uses the correct Java version for all your projects.
