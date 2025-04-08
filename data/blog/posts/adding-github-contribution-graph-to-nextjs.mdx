@@ -47,30 +47,34 @@ const { user } = await graphql<GitHubGraphQLContributionResponse>(`
   },
 });
 
-// Flatten and transform the nested response data
-const contributionDays = user.contributionsCollection.contributionCalendar.weeks.flatMap(
-  week => week.contributionDays
-);
+ const { user } = await graphql<GitHubGraphQLContributionResponse>(/* ... */);
 
-// Map string levels to numeric values for rendering
-const mapContributionLevel = (level: string): number => {
-  switch (level) {
-    case 'NONE': return 0;
-    case 'FIRST_QUARTILE': return 1;
-    case 'SECOND_QUARTILE': return 2;
-    case 'THIRD_QUARTILE': return 3;
-    case 'FOURTH_QUARTILE': return 4;
-    default: return 0;
-  }
-};
+ if (!user?.contributionsCollection) {
+   throw new Error("Incomplete data received from GitHub GraphQL.");
+ }
 
-const contributions: ContributionDay[] = contributionDays.map(day => ({
-  date: day.date,
-  count: day.contributionCount,
-  level: mapContributionLevel(day.contributionLevel),
-}));
+ // Flatten and transform the nested response data
+ const contributionDays = user.contributionsCollection.contributionCalendar.weeks.flatMap(
+   week => week.contributionDays
+ );
 
-```
+ // Map string levels to numeric values for rendering
+ const mapContributionLevel = (level: string): number => {
+   switch (level) {
+     case 'NONE': return 0;
+     case 'FIRST_QUARTILE': return 1;
+     case 'SECOND_QUARTILE': return 2;
+     case 'THIRD_QUARTILE': return 3;
+     case 'FOURTH_QUARTILE': return 4;
+     default: return 0;
+   }
+ };
+
+ const contributions: ContributionDay[] = contributionDays.map(day => ({
+   date: day.date,
+   count: day.contributionCount,
+   level: mapContributionLevel(day.contributionLevel),
+ }));
 
 ## HTML Scraping Fallback
 
