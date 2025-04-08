@@ -1,0 +1,107 @@
+---
+title: "Building an Interactive Terminal in Next.js"
+slug: "building-interactive-terminal-nextjs"
+excerpt: "How to build a simulated terminal component UI with macOS-like window behavior (minimize/maximize/close) in a Next.js App Router project."
+publishedAt: "2025-04-07"
+updatedAt: "2025-04-07"
+author: "william-callahan"
+tags: ["nextjs", "react", "typescript", "hooks", "state management", "app router", "hydration", "context"]
+coverImage: "/images/posts/terminal-component-cover.svg"
+readingTime: 5 # Adjusted estimate
+---
+
+This is how I built a functional, embedded terminal for site navigation with macOS-like window controls (minimize/maximize/close) in Next.js. It involved managing shared state across different components and routes in the App Router in Next.js 14/15. Hope you enjoy and find this helpful!
+
+## Component Architecture
+
+The core components I used for this are:
+
+-   **Global Provider ([`GlobalWindowRegistryProvider`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/lib/context/GlobalWindowRegistryContext.tsx))**: Wraps the root layout, managing state for all registered "windows".
+-   **Feature Client Components (`Blog`, `Experience`, etc.)**: Use a hook ([`useRegisteredWindowState`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/lib/context/GlobalWindowRegistryContext.tsx#L142)) to connect to the global provider, get their state, and access actions (minimize, maximize, close).
+-   **Floating Buttons ([`FloatingRestoreButtons`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/ui/window/FloatingRestoreButtons.tsx))**: A separate component that also uses the global state to render restore buttons for minimized/closed windows.
+-   **Terminal ([`ClientTerminal`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/ui/terminal/terminal.client.tsx))**: The main terminal UI, also registered as a window.
+-   **Window Controls ([`WindowControls`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/ui/navigation/window-controls.tsx))**: Simple UI buttons, taking callbacks (onMinimize, etc.) as props.
+
+## Window State Management: The Final Approach
+
+Initial attempts using component-local state with `localStorage` caused hydration issues and didn't scale well across multiple window-like components on different pages. The final, working solution uses a global registry via React Context.
+
+1.  **Global Context (`GlobalWindowRegistryContext`)**: Defined with `createContext` in [`lib/context/GlobalWindowRegistryContext.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/lib/context/GlobalWindowRegistryContext.tsx), it holds a record of all registered windows (`{ [id: string]: WindowInstanceInfo }`) and provides functions (`registerWindow`, `setWindowState`, `minimizeWindow`, etc.).
+2.  **Provider (`GlobalWindowRegistryProvider`)**: Wraps the `RootLayout`. It uses `useState` to manage the `windows` record and provides the context value. Crucially, it also uses a client-side `useEffect` (with an `isMounted` check for safety) to add specific classes (`window-maximized` or `window-minimized`) to the `<body>` element whenever any registered window enters those states.
+
+    ```tsx
+    // app/layout.tsx
+    import { GlobalWindowRegistryProvider } from '@/lib/context/GlobalWindowRegistryContext';
+    import { FloatingRestoreButtons } from "@/components/ui/window/FloatingRestoreButtons";
+    // ... other imports
+
+    export default function RootLayout({ children }) {
+      return (
+        <html lang="en">
+          <body>
+            <Providers>{/* ThemeProvider, etc. */}
+              <GlobalWindowRegistryProvider>
+                {/* ... header, main ... */}
+                <main>
+                  <ClientTerminal /> {/* Uses the context */}
+                  {children} {/* Page content also uses context */}
+                </main>
+                <FloatingRestoreButtons /> {/* Reads context for minimized windows */}
+              </GlobalWindowRegistryProvider>
+            </Providers>
+          </body>
+        </html>
+      );
+    }
+    ```
+    (See the full [`app/layout.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/app/layout.tsx))
+
+3.  **Registration Hook (`useRegisteredWindowState`)**: This is the key for individual components. Defined in [`lib/context/GlobalWindowRegistryContext.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/lib/context/GlobalWindowRegistryContext.tsx#L142), it calls `useWindowRegistry` (the context consumer hook) and handles registration/unregistration via `useEffect`. It returns the specific window's current state (`windowState`) and bound action functions (`minimize`, `maximize`, `close`, `restore`). Crucially, it also returns an `isRegistered` flag.
+
+    ```typescript
+    // lib/context/GlobalWindowRegistryContext.tsx (Hook definition)
+    export const useRegisteredWindowState = (id, icon, title, initialState = 'normal') => {
+      const { registerWindow, unregisterWindow, windows, ...actions } = useWindowRegistry();
+
+      useEffect(() => {
+        // Register on mount, passing ID, icon, title
+        registerWindow(id, icon, title, initialState);
+        // Unregister on unmount
+        return () => unregisterWindow(id);
+      }, [/* dependencies: id, registerWindow, etc. */]);
+
+      const windowInfo = windows[id];
+
+      // Return state for this ID and memoized/bound actions
+      return useMemo(() => ({
+        windowState: windowInfo?.state ?? initialState,
+        isRegistered: !!windowInfo, // IMPORTANT for hydration
+        minimize: () => actions.minimizeWindow(id),
+        // ... maximize, close, restore, setState
+      }), [id, windowInfo, initialState, /* actions */]);
+    };
+    ```
+    (See the full [`components/features/blog/blog.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/features/blog/blog.tsx))
+
+    **Key Points**: Checking `isRegistered` before rendering based on `windowState` prevents hydration mismatches. Components are responsible for applying their own `fixed` positioning and layout classes (like `top-16`, `bottom-16`, `z-[60]`, `flex`, etc.) directly via conditional logic (e.g., using `cn`) when `isMaximized` is true. Conditional classes handle the visual change between normal and maximized states. Minimized/closed states render `null`, letting `FloatingRestoreButtons` handle restoration. Global CSS rules in `globals.css` then target the `body.window-maximized` and `body.window-minimized` classes solely to hide secondary elements in the shared site header (like theme/social icons), simplifying the navigation bar without interfering with the component's own layout.
+
+## Server/Client Data Flow
+
+For components needing server-fetched data (like logos for education entries), passing complex props (like pre-rendered JSX) from Server Components to the main Client Component wrapper caused issues (`fs` module errors, HMR instability). The fix involved:
+
+1.  Creating server-only utility functions (e.g., in `lib/education` using `import "server-only"`) to fetch/process data (e.g., read placeholder SVGs, fetch logos, return data URLs).
+2.  Having the top-level Server Component (e.g., [`app/education/education.server.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/app/education/education.server.tsx)) call these utilities to get fully *processed*, serializable data.
+3.  Passing this *processed data* (JSON-compatible) to the main Client Component wrapper (e.g., `EducationClient`).
+4.  Having the Client Component wrapper (`EducationClient`) import and render the final *client* UI components (`EducationCardClient`, `CertificationCardClient`), passing the processed data down.
+
+This keeps server logic strictly on the server and avoids non-serializable data crossing the boundary.
+
+## Auto-Scrolling
+
+Ensuring the terminal view scrolled to the latest output required a `useRef` on the scrollable container and a `useEffect` hook observing changes in the command history from `TerminalContext`. See [`components/ui/terminal/terminal.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/ui/terminal/terminal.tsx) for the implementation.
+
+## Command Handling
+
+Command execution is delegated from [`useTerminal`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/ui/terminal/use-terminal.ts) to an async `handleCommand` function ([`components/ui/terminal/commands.ts`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/ui/terminal/commands.ts)). This parses input, matches commands/routes, invokes search logic ([`lib/search.ts`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/lib/search.ts)), and returns output or triggers navigation.
+
+Getting the window state right across multiple components and routes in the App Router needed a global context approach. The `useRegisteredWindowState` hook was key to simplifying component integration and handling hydration safety via the `isRegistered` flag. Separating server-only data processing from client rendering was also essential for stability.
