@@ -8,15 +8,13 @@
 
 "use client";
 
-import { ThemeProvider } from "next-themes";
-import { TerminalProvider } from "@/components/ui/terminal";import { Suspense } from "react";
+import { ThemeProvider } from "@/components/ui/theme/theme-provider";
+import { TerminalProvider } from "@/components/ui/terminal";
+import { Suspense } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
       disableTransitionOnChange
     >
       {/* Remove WindowControlsProvider wrapper */}
