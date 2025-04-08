@@ -1,16 +1,37 @@
 /**
  * Terminal Header Component
- * 
+ *
  * Renders the decorative header of the terminal interface with
  * macOS-style window control buttons.
  */
 
-export function TerminalHeader() {
+// No longer needs "use client" if it doesn't use hooks directly
+// Removed import { useTerminalContext } from './terminalContext';
+import { WindowControls } from '@/components/ui/navigation/window-controls';
+
+// Define props for the handlers
+interface TerminalHeaderProps {
+  onClose?: () => void;
+  onMinimize?: () => void;
+  onMaximize?: () => void;
+}
+
+export function TerminalHeader({
+  onClose,
+  onMinimize,
+  onMaximize,
+}: TerminalHeaderProps) {
+  // Remove internal handlers and context usage
+
   return (
     <div className="flex items-center gap-2 mb-3">
-      <div className="w-3 h-3 rounded-full bg-red-500"></div>
-      <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-      <div className="w-3 h-3 rounded-full bg-green-500"></div>
+      {/* Pass the received handlers directly to WindowControls */}
+      <WindowControls
+        onClose={onClose}
+        onMinimize={onMinimize}
+        onMaximize={onMaximize}
+      />
+      {/* Add any other header elements here if needed */}
     </div>
   );
 }

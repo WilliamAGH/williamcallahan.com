@@ -78,12 +78,13 @@ describe('Analytics', () => {
     // Wait for scripts to "load"
     await waitFor(() => {
       expect(global.umami).toBeDefined()
+      expect(global.umami?.track).toHaveBeenCalled() // Wait for the track function itself
       expect(global.plausible).toBeDefined()
     })
 
-    // Verify tracking was called
+    // Verify tracking was called with correct arguments
     expect(global.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
-      path: '/test-page',
+      path: '/test-page', // Path should be the initial one
       website: mockWebsiteId
     }))
   })
@@ -94,13 +95,14 @@ describe('Analytics', () => {
 
     render(<Analytics />)
 
+    // Wait specifically for the track function to be called
     await waitFor(() => {
-      expect(global.umami).toBeDefined()
+      expect(global.umami?.track).toHaveBeenCalled()
     })
 
-    // Verify path was normalized
+    // Verify path was normalized and tracked correctly
     expect(global.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
-      path: '/blog/:slug'
+      path: '/blog/:slug' // Path should be normalized
     }))
   })
 
@@ -116,21 +118,27 @@ describe('Analytics', () => {
   it('tracks page views on route changes', async () => {
     const { rerender } = render(<Analytics />)
 
-    // Wait for initial load
+    // Wait for initial load and track call
     await waitFor(() => {
-      expect(global.umami).toBeDefined()
+      expect(global.umami?.track).toHaveBeenCalled()
     })
 
-    // Clear tracking calls
-    ;(global.umami?.track as jest.Mock).mockClear()
+    // Clear tracking calls AFTER the initial one has happened
+    const umamiTrackMock = global.umami?.track as jest.Mock
+    umamiTrackMock.mockClear()
 
     // Simulate route change
     ;(usePathname as jest.Mock).mockReturnValue('/new-page')
     rerender(<Analytics />)
 
+    // Wait for the track function to be called again after rerender/path change
+    await waitFor(() => {
+      expect(umamiTrackMock).toHaveBeenCalled()
+    })
+
     // Verify new page was tracked
-    expect(global.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
-      path: '/new-page'
+    expect(umamiTrackMock).toHaveBeenCalledWith('pageview', expect.objectContaining({
+      path: '/new-page' // Path should be the new one
     }))
   })
 

@@ -12,6 +12,8 @@ import { JsonLdScript } from "../../components/seo/json-ld";
 import { PAGE_METADATA } from "../../data/metadata";
 import { formatSeoDate } from "../../lib/seo/utils";
 import type { Metadata } from "next";
+import { getAllPosts } from '../../lib/blog';
+import type { BlogPost } from '../../types/blog';
 
 /**
  * Generate metadata for the blog index page
@@ -21,11 +23,18 @@ export const metadata: Metadata = getStaticPageMetadata('/blog', 'blog');
 /**
  * Blog index page component
  */
-export default function BlogPage() {
+export default async function BlogPage() {
   const pageMetadata = PAGE_METADATA.blog;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 
+  let posts: BlogPost[] = [];
+  try {
+    posts = await getAllPosts();
+  } catch (error) {
+    console.error('Failed to fetch blog posts:', error);
+    // Could also set an error state to display to the user
+  }
   return (
     <>
       <JsonLdScript
@@ -36,7 +45,7 @@ export default function BlogPage() {
           "dateModified": formattedModified
         }}
       />
-      <Blog />
+      <Blog initialPosts={posts} />
     </>
   );
 }

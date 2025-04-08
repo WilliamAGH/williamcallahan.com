@@ -1,8 +1,8 @@
 "use client";
 
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
-import { LogoImage } from '../logo-image';
-import { ExternalLink } from '../external-link';
+import { LogoImage } from '../logoImage';
+import { ExternalLink } from '../externalLink';
 import type { Experience } from '../../../types/experience';
 
 interface LogoData {

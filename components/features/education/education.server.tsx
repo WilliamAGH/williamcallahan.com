@@ -2,91 +2,36 @@
  * Education Server Component
  * @module components/features/education/education.server
  * @description
- * Server component that handles pre-rendering education and certification cards.
+ * Server component that fetches education data and processes logos using server-only functions.
  */
+import "server-only"; // Ensure this component also remains server-only
 
-import { WindowControls } from "../../../components/ui/navigation/window-controls";
-import { EducationCard } from "./education-card.server";
-import { CertificationCard } from "./certification-card.server";
 import { education, certifications, recentCourses } from "../../../data/education";
-import type { Education as EducationType, Certification, Class } from "../../../types/education";
+import { EducationClient } from './education.client';
+// Import the new server-only processing functions
+import {
+  processEducationItem,
+  processCertificationItem,
+} from '../../../lib/education-data-processor';
 
 // Force static generation
 export const dynamic = 'force-static';
 
+// Make the component async again to use await for processing
 export async function Education(): Promise<JSX.Element> {
-  // Pre-render education cards
-  const educationCards = await Promise.all(
-    education.map(async (edu: EducationType) => ({
-      ...edu,
-      card: await EducationCard(edu)
-    }))
-  );
+  // Process all items concurrently using the server-only functions
+  const [processedEducation, processedRecentCourses, processedCertifications] = await Promise.all([
+    Promise.all(education.map(processEducationItem)),
+    Promise.all(recentCourses.map(processCertificationItem)), // Use processCertificationItem for courses too
+    Promise.all(certifications.map(processCertificationItem))
+  ]);
 
-  // Pre-render recent course cards
-  const recentCourseCards = await Promise.all(
-    recentCourses.map(async (course: Class) => ({
-      ...course,
-      card: await CertificationCard(course)
-    }))
-  );
-
-  // Pre-render certification cards
-  const certificationCards = await Promise.all(
-    certifications.map(async (cert: Certification) => ({
-      ...cert,
-      card: await CertificationCard(cert)
-    }))
-  );
-
+  // Pass the processed data (including logoData) to the client component
   return (
-    <div className="max-w-5xl mx-auto mt-8">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
-        <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4">
-          <div className="flex items-center">
-            <WindowControls />
-            <h1 className="text-xl font-mono ml-4">~/education</h1>
-          </div>
-        </div>
-
-        <div className="p-6">
-          {/* Recent Courses Section */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold mb-6">Highlighted & Recent Courses</h2>
-            <div className="space-y-6">
-              {recentCourseCards.map((course) => (
-                <div key={course.id}>
-                  {course.card}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Education Section */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold mb-6">Education</h2>
-            <div className="space-y-6">
-              {educationCards.map((edu) => (
-                <div key={edu.id}>
-                  {edu.card}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Certifications Section */}
-          <div>
-            <h2 className="text-2xl font-bold mb-6">Certifications</h2>
-            <div className="space-y-6">
-              {certificationCards.map((cert) => (
-                <div key={cert.id}>
-                  {cert.card}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <EducationClient
+      education={processedEducation}
+      recentCourses={processedRecentCourses}
+      certifications={processedCertifications}
+    />
   );
 }

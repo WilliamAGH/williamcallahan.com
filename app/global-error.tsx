@@ -1,13 +1,16 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
+import * as Sentry from "@sentry/nextjs"; // Restore import
 import NextError from "next/error";
-import { useEffect } from "react";
+import { useEffect } from "react"; // Restore import
 
 export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    Sentry.captureException(error); // Restore Sentry call
   }, [error]);
+
+  // Remove console.error added for debugging
+  // console.error("Global Error Boundary Caught:", error);
 
   return (
     <html>

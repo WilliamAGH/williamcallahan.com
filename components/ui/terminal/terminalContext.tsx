@@ -6,57 +6,77 @@
 
 "use client";
 
-import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
-import type { TerminalCommand } from './types';
+import React, { createContext, useContext, useCallback, useState, useMemo, useEffect } from 'react';
+import type { TerminalCommand } from '@/types/terminal';
 
+// Define the context type including history and mode state
 interface TerminalContextType {
   clearHistory: () => void;
-  isReady: boolean;
   history: TerminalCommand[];
   addToHistory: (command: TerminalCommand) => void;
+  // terminalMode: TerminalMode; // Removed
+  // setTerminalMode: Dispatch<SetStateAction<TerminalMode>>; // Removed
+  // isReady: boolean; // Removed - readiness handled by useWindowState hook
 }
 
+// Define default context value
 const defaultContext: TerminalContextType = {
   clearHistory: () => {},
-  isReady: false,
   history: [],
-  addToHistory: () => {}
+  addToHistory: () => {},
+  // terminalMode: 'normal', // Removed
+  // setTerminalMode: () => {}, // Removed
+  // isReady: false, // Removed
 };
 
+// Function to get initial mode, safely checking sessionStorage
 export const TerminalContext = createContext<TerminalContextType>(defaultContext);
 
-export function TerminalProvider({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  const [history, setHistory] = useState<TerminalCommand[]>([]);
+const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
+  input: '',
+  output: 'Welcome! Type "help" for available commands.'
+};
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+const initialHistoryState = [INITIAL_WELCOME_MESSAGE]; // Define as constant
+
+export function TerminalProvider({ children }: { children: React.ReactNode }) {
+  console.log("--- TerminalProvider Instance Mounting/Rendering ---");
+  // Initialize history with the welcome message if it's truly empty initially
+  const [history, setHistory] = useState<TerminalCommand[]>(initialHistoryState); // Use constant
+
+  // Function to update state AND sessionStorage
+  // Removed setTerminalMode function
 
   const clearHistory = useCallback(() => {
+    console.log("TerminalProvider: Clearing history");
     setHistory([]);
   }, []);
 
   const addToHistory = useCallback((command: TerminalCommand) => {
+    console.log("TerminalProvider: Adding to history:", command.input);
     setHistory(prev => [...prev, command]);
   }, []);
 
-  if (!mounted) {
-    return null;
-  }
+  // Memoize the context value
+  const contextValue = useMemo(() => ({
+    clearHistory,
+    history,
+    addToHistory,
+  }), [clearHistory, history, addToHistory]);
+
+  // Log history changes for debugging
+  useEffect(() => {
+    console.log("TerminalProvider History Updated:", history);
+  }, [history]);
 
   return (
-    <TerminalContext.Provider value={{
-      clearHistory,
-      isReady: mounted,
-      history,
-      addToHistory
-    }}>
+    <TerminalContext.Provider value={contextValue}>
       {children}
     </TerminalContext.Provider>
   );
 }
 
+// Restore original hook name - but it only provides history now
 export function useTerminalContext() {
   const context = useContext(TerminalContext);
   if (!context) {

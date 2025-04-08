@@ -1,10 +1,10 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { CodeBlock } from '../../../components/ui/code-block';
-import { CopyButton } from '../../../components/ui/copy-button';
+import { CodeBlock } from '../../../components/ui/codeBlock';
+import { CopyButton } from '../../../components/ui/copyButton';
 
 // Mock CopyButton component
-jest.mock('../../../components/ui/copy-button', () => ({
+jest.mock('../../../components/ui/copyButton', () => ({
   CopyButton: jest.fn(({ content }) => (
     <button data-testid="mock-copy-button" data-content={content}>
       Copy
@@ -18,23 +18,22 @@ describe('CodeBlock', () => {
   });
 
   describe('Basic Rendering', () => {
-    it('renders children within a pre element', () => {
+    it('renders children within a code element', () => {
       render(<CodeBlock>const x = 1;</CodeBlock>);
-      const pre = screen.getByText('const x = 1;');
-      expect(pre).toBeInTheDocument();
-      expect(pre.tagName).toBe('PRE');
+      const code = screen.getByText('const x = 1;');
+      expect(code).toBeInTheDocument();
+      expect(code.tagName).toBe('CODE');
     });
 
     it('applies correct styling classes', () => {
       render(<CodeBlock>test code</CodeBlock>);
-      const pre = screen.getByText('test code');
-      expect(pre).toHaveClass(
-        'not-prose',
-        'rounded-lg',
-        'overflow-x-auto',
-        'bg-gray-800',
-        'p-4',
-        'text-gray-100'
+      const code = screen.getByText('test code');
+      expect(code).toHaveClass(
+        'text-gray-100',
+        'bg-transparent',
+        'text-[13px]',
+        '[&_*]:!text-gray-100',
+        '[&_*]:!bg-transparent'
       );
     });
 
@@ -160,7 +159,8 @@ const y = 2;`}
         'overflow-x-auto',
         'bg-gray-800',
         'p-4',
-        'text-gray-100'
+        'text-gray-100',
+        'text-[13px]'
       );
     });
 
