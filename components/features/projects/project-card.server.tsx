@@ -47,8 +47,11 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
                 src={image}
                 alt={`${name} screenshot`}
                 fill
-                // Added image zoom on hover
-                className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
+                quality={80}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                placeholder="blur"
+                blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFdwI2QJIiBQAAAABJRU5ErkJggg=="
+                className="object-cover" // Image covers the container
               />
             ) : (
               <PlaceholderImageTop />
