@@ -37,7 +37,7 @@ export function Terminal() {
 
    // --- Get State from Hooks ---
    // History state from TerminalContext
-   const { history: terminalHistory } = useTerminalContext();
+   const { history: terminalHistory, addToHistory } = useTerminalContext();
 
   // Register this window instance and get its state/actions
   const {
@@ -71,32 +71,31 @@ export function Terminal() {
   // Determine maximized state - moved up before hooks that depend on it
   const isMaximized = windowState === 'maximized';
 
-  // Function to handle clicks outside the terminal when maximized
-  const handleBackdropClick = () => {
-    if (isMaximized) {
-      maximizeWindow(); // Toggle back to normal state
-    }
-  };
-
-  // Add keydown handler for ESC key when maximized - MOVED BEFORE CONDITIONAL RETURNS
-  const handleEscapeKey = useCallback((event: KeyboardEvent) => {
-    if (event.key === 'Escape' && isMaximized) {
-      maximizeWindow(); // Toggle back to normal state
-    }
-  }, [isMaximized, maximizeWindow]);
-
-  // Add effect to register/unregister ESC key handler - MOVED BEFORE CONDITIONAL RETURNS
+  // Add effect to register/unregister click outside handler
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isMaximized && !scrollContainerRef.current?.contains(event.target as Node)) {
+        maximizeWindow(); // Toggle back to normal state
+      }
+    };
+
     if (isMaximized) {
-      // Only add the event listener when maximized
-      document.addEventListener('keydown', handleEscapeKey);
+      document.addEventListener('mousedown', handleClickOutside);
     }
 
     // Cleanup function to remove the event listener
     return () => {
-      document.removeEventListener('keydown', handleEscapeKey);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isMaximized, handleEscapeKey]);
+  }, [isMaximized, maximizeWindow]);
+
+  // Initialize history with the welcome message
+  useEffect(() => {
+    const welcomeMessage = 'Welcome! Type "help" for available commands.';
+    if (!terminalHistory.some(entry => entry.output === welcomeMessage)) {
+      addToHistory({ input: '', output: welcomeMessage });
+    }
+  }, [addToHistory, terminalHistory]);
 
    // --- Conditional Rendering ---
 
@@ -133,8 +132,11 @@ export function Terminal() {
         <div
           data-testid="terminal-backdrop"
           className="fixed inset-0 z-[59] bg-black/50 backdrop-blur-sm"
-          onClick={handleBackdropClick}
-          onKeyDown={(e) => e.key === 'Enter' && handleBackdropClick()}
+          onClick={(e) => {
+            if (!scrollContainerRef.current?.contains(e.target as Node)) {
+              maximizeWindow();
+            }
+          }}
           tabIndex={0}
           aria-hidden="true"
         />

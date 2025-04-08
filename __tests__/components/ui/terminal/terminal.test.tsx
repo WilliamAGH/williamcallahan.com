@@ -28,10 +28,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Terminal } from '../../../../components/ui/terminal/terminal';
 import { TerminalProvider } from '../../../../components/ui/terminal/terminalContext';
 import { TerminalWindowStateProvider } from '../../../../lib/context/TerminalWindowStateContext';
-// GlobalWindowRegistryProvider is mocked below, so no need to import it here
+// GlobalWindowRegistryProvider and useRegisteredWindowState are mocked below
 import { useRouter } from 'next/navigation';
 import { setupTests } from '../../../../lib/test/setup';
-import { GlobalWindowRegistryContextType } from '../../../../lib/context/GlobalWindowRegistryContext'; // Import type for mocking
+import { GlobalWindowRegistryContextType, WindowState } from '../../../../lib/context/GlobalWindowRegistryContext'; // Import types for mocking
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -41,7 +41,7 @@ jest.mock('next/navigation', () => ({
 // --- Mock GlobalWindowRegistryContext ---
 // Keep state external for potential modification by mocked actions if needed,
 // but primarily control return values via mockImplementationOnce in tests.
-let mockWindowState: 'normal' | 'minimized' | 'maximized' | 'closed' = 'normal';
+let mockWindowState: WindowState = 'normal';
 const MockIcon = React.forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>((props, ref) => (
   <svg ref={ref} {...props} data-testid="mock-icon" />
 ));
@@ -59,16 +59,16 @@ jest.mock('../../../../lib/context/GlobalWindowRegistryContext', () => {
   return {
     GlobalWindowRegistryProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     useWindowRegistry: jest.fn((): Partial<GlobalWindowRegistryContextType> => ({
-      windows: { 'test-terminal': { id: 'test-terminal', state: mockWindowState, icon: MockIcon, title: 'Test Terminal' } },
+      windows: { 'main-terminal': { id: 'main-terminal', state: mockWindowState, icon: MockIcon, title: 'Terminal' } },
       registerWindow: jest.fn(),
       unregisterWindow: jest.fn(),
-      setWindowState: jest.fn((id, state) => { if (id === 'test-terminal') setMockState(state); }),
-      minimizeWindow: jest.fn((id) => { if (id === 'test-terminal') minimizeMock(); }),
-      maximizeWindow: jest.fn((id) => { if (id === 'test-terminal') maximizeMock(); }),
-      closeWindow: jest.fn((id) => { if (id === 'test-terminal') closeMock(); }),
-      restoreWindow: jest.fn((id) => { if (id === 'test-terminal') restoreMock(); }),
-      getWindowState: jest.fn((id) => id === 'test-terminal'
-        ? { id: 'test-terminal', state: mockWindowState, icon: MockIcon, title: 'Test Terminal' }
+      setWindowState: jest.fn((id, state) => { if (id === 'main-terminal') setMockState(state); }),
+      minimizeWindow: jest.fn((id) => { if (id === 'main-terminal') minimizeMock(); }),
+      maximizeWindow: jest.fn((id) => { if (id === 'main-terminal') maximizeMock(); }),
+      closeWindow: jest.fn((id) => { if (id === 'main-terminal') closeMock(); }),
+      restoreWindow: jest.fn((id) => { if (id === 'main-terminal') restoreMock(); }),
+      getWindowState: jest.fn((id) => id === 'main-terminal'
+        ? { id: 'main-terminal', state: mockWindowState, icon: MockIcon, title: 'Terminal' }
         : undefined
       ),
     })),
@@ -95,14 +95,12 @@ jest.mock('../../../../lib/search', () => ({
   searchInvestments: jest.fn().mockResolvedValue([])
 }));
 
-// Helper function to render with providers (Providers related to window state are mocked via the hook)
+// Helper function to render with providers
 const renderTerminal = () => {
   return render(
-    // <TerminalWindowStateProvider terminalId="test-terminal"> // Removed provider, hook is mocked
-      <TerminalProvider>
-        <Terminal />
-      </TerminalProvider>
-    // </TerminalWindowStateProvider>
+    <TerminalProvider>
+      <Terminal />
+    </TerminalProvider>
   );
 };
 
@@ -125,10 +123,8 @@ describe('Terminal Component', () => {
       restore: jest.fn(restoreMock),
       setState: jest.fn(setMockState),
     }));
-    // Reset the external state variable (might not be strictly needed with mockImplementation, but good practice)
+    // Reset the external state variable
     mockWindowState = 'normal';
-    // Clear all other Jest mocks (ensure this doesn't clear the default implementation if needed, though mockClear should be sufficient)
-    // jest.clearAllMocks(); // Let's rely on mockClear for the specific hook for now.
   });
 
   describe('Rendering', () => {
@@ -231,7 +227,6 @@ describe('Terminal Component', () => {
       }));
 
       fireEvent.click(minimizeButton);
-      // Rerender without the provider to match renderTerminal
       rerender(
         <TerminalProvider><Terminal /></TerminalProvider>
       );
@@ -268,7 +263,6 @@ describe('Terminal Component', () => {
       mockUseRegisteredWindowState.mockImplementationOnce(() => maximizedState);
 
       fireEvent.click(maximizeButton); // Click to maximize
-      // Rerender without the provider
       rerender(
         <TerminalProvider><Terminal /></TerminalProvider>
       );
@@ -294,7 +288,6 @@ describe('Terminal Component', () => {
 
       // Set mock state *immediately before* the rerender that should show the restored state
       mockUseRegisteredWindowState.mockImplementationOnce(() => normalState);
-      // Rerender without the provider
       rerender(
         <TerminalProvider><Terminal /></TerminalProvider>
       );

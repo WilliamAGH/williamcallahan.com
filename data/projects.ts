@@ -22,7 +22,7 @@ export const projects: Project[] = [
     description: 'An experimental web app to retrieve live data from one or more LLMs, parse the JSON response, and display nested/cleaned text for diagnostics in researching companies and competitive intelligence.',
     shortSummary: 'Web app for AI-driven company research',
     url: 'https://company-lookup.iocloudhost.net/',
-    image: '/images/Company-Research-Screenshot.png',
+    image: '/images/company-research-experimental-ai-tool.png',
     tags: ['LLM', 'AI', 'JSON', 'Company Research', 'Web App', 'Experimental'],
   },
   // Add more projects here later
