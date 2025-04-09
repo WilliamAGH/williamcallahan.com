@@ -22,6 +22,34 @@ module.exports = {
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
             },
+            // Reduce paragraph spacing
+            p: {
+              marginTop: '0.75em',
+              marginBottom: '0.75em',
+            },
+            // Better heading spacing
+            'h1, h2, h3, h4, h5, h6': {
+              marginTop: '1.5em',
+              marginBottom: '0.75em',
+            },
+            // Specific heading spacing adjustments
+            h2: {
+              marginTop: '6em', // Much more space before major section headings
+              marginBottom: '1.5em',
+              paddingTop: '2em', // Add significant padding at the top
+              fontWeight: '700',
+              lineHeight: '1.3',
+              position: 'relative',
+            },
+            // Reduce list spacing
+            'ul, ol': {
+              marginTop: '0.75em',
+              marginBottom: '0.75em',
+            },
+            li: {
+              marginTop: '0.25em',
+              marginBottom: '0.25em',
+            },
             a: {
               color: 'inherit',
               textDecoration: 'underline',
@@ -43,23 +71,17 @@ module.exports = {
             'code::after': { content: '""' },
             'blockquote p:first-of-type::before': { content: '""' },
             'blockquote p:last-of-type::after': { content: '""' },
-            // Reduce HR margins
+            // Hide horizontal rules completely as we use heading styles for section breaks
             hr: {
-              marginTop: '1.5em', // Default is often larger
-              marginBottom: '1.5em', // Default is often larger
-              borderColor: 'inherit', // Ensure border color respects theme
+              display: 'none',
+            },
+            // Reduce blockquote spacing
+            blockquote: {
+              marginTop: '0.75em',
+              marginBottom: '0.75em',
             },
           },
         },
-        // Add dark mode specific styles for inline code if needed
-        // dark: {
-        //   css: {
-        //     ':not(pre) > code': {
-        //       backgroundColor: 'rgba(255, 255, 255, 0.1)', // Example dark mode style
-        //       color: '#e5e7eb',
-        //     },
-        //   },
-        // },
       },
     },
   },

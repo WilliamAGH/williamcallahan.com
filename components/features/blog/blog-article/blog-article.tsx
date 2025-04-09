@@ -14,7 +14,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, Clock, Calendar } from 'lucide-react';
+import { ArrowLeft, Calendar } from 'lucide-react';
 import { BlogAuthor } from '../shared/blog-author';
 import { BlogTags } from './blog-tags';
 import { formatDate } from '../../../../lib/utils';
@@ -44,11 +44,11 @@ interface BlogArticleProps {
  */
 export function BlogArticle({ post }: BlogArticleProps): JSX.Element {
   return (
-    <article className="max-w-4xl mx-auto mt-4 sm:mt-8 px-4">
+    <article className="max-w-4xl mx-auto mt-4 sm:mt-8 px-4 pb-8">
       {/* Back to Blog */}
       <Link
         href="/blog"
-        className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors mb-6 sm:mb-8"
+        className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mb-5 sm:mb-6 font-medium bg-gray-50 dark:bg-gray-800/40 px-4 py-2 rounded-md border border-gray-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-900"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back to Blog
@@ -56,18 +56,14 @@ export function BlogArticle({ post }: BlogArticleProps): JSX.Element {
 
       {/* Article Header */}
       <header className="mb-6 sm:mb-8">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-5 text-gray-900 dark:text-white leading-tight">
           {post.title}
         </h1>
 
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4 sm:mb-6">
-          <div className="flex items-center">
-            <Calendar className="w-4 h-4 mr-2" />
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm text-gray-600 dark:text-gray-400 mb-5 sm:mb-6">
+          <div className="flex items-center bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-full shadow-sm">
+            <Calendar className="w-4 h-4 mr-2 text-blue-500 dark:text-blue-400" />
             {formatDate(post.publishedAt)}
-          </div>
-          <div className="flex items-center">
-            <Clock className="w-4 h-4 mr-2" />
-            {post.readingTime} min read
           </div>
         </div>
 
@@ -77,21 +73,21 @@ export function BlogArticle({ post }: BlogArticleProps): JSX.Element {
 
       {/* Cover Image */}
       {post.coverImage && (
-        <div className="relative aspect-[2/1] mb-6 sm:mb-8 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+        <div className="relative aspect-[2/1] mb-6 sm:mb-8 rounded-lg overflow-hidden bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 shadow-md">
           <Image
             src={post.coverImage}
             alt={post.title}
             title={post.title}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className={post.coverImage.endsWith('.svg') ? 'object-contain' : 'object-cover'}
+            className={post.coverImage.endsWith('.svg') ? 'object-contain p-4' : 'object-cover'}
             priority
           />
         </div>
       )}
 
       {/* Article Content */}
-      <div className="relative">
+      <div className="relative bg-white dark:bg-transparent rounded-lg shadow-md dark:shadow-none p-5 sm:p-6 border border-gray-100 dark:border-gray-800">
         <MDXContent content={post.content} />
       </div>
     </article>

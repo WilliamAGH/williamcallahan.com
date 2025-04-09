@@ -19,22 +19,25 @@ interface BlogAuthorProps {
 
 export function BlogAuthor({ author }: BlogAuthorProps) {
   return (
-    <Link href="/" className="flex items-center gap-4 mb-6 hover:opacity-80 transition-opacity">
+    <Link
+      href="/"
+      className="flex items-center gap-4 mb-6 p-4 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/10 dark:to-indigo-950/10 border border-blue-100 dark:border-gray-800 hover:border-blue-200 dark:hover:border-blue-900/50 transition-all shadow-sm hover:shadow-md"
+    >
       {author.avatar && (
-        <div className="relative w-12 h-12">
+        <div className="relative w-14 h-14 rounded-full overflow-hidden ring-2 ring-blue-200 dark:ring-blue-900/50 shadow-inner">
           <Image
             src={author.avatar}
             alt={author.name}
             fill
-            sizes="48px"
+            sizes="56px"
             className="rounded-full object-cover"
           />
         </div>
       )}
       <div>
-        <div className="font-medium">{author.name}</div>
+        <div className="font-semibold text-gray-900 dark:text-white text-lg">{author.name}</div>
         {author.bio && (
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-gray-700 dark:text-gray-400 mt-1">
             {author.bio}
           </p>
         )}
