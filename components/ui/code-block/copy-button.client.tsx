@@ -1,3 +1,12 @@
+
+/**
+ * CopyButton Component
+ *
+ * A button component that copies content (e.g., code in a code block) to clipboard with visual feedback
+ *
+ * @module components/ui/code-block/copy-button.client
+ */
+
 'use client';
 
 import { useState } from 'react';

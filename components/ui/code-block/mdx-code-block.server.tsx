@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { CodeBlock } from './code-block';
+import { CodeBlock } from './code-block.client';
 import type { DetailedHTMLProps, HTMLAttributes } from 'react';
 
 type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>;

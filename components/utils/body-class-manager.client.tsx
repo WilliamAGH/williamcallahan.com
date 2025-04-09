@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useWindowRegistry } from '@/lib/context/GlobalWindowRegistryContext';
+import { useWindowRegistry } from '@/lib/context/global-window-registry-context.client';
 
 /**
  * BodyClassManager Component

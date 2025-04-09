@@ -11,19 +11,16 @@
 import dynamic from 'next/dynamic';
 import React from 'react';
 
-// Dynamically import the actual Terminal component with SSR disabled
+// Import the renamed implementation file
 const TerminalComponent = dynamic(
-  () => import('./terminal').then((mod) => mod.Terminal),
+  () => import('./terminal-implementation.client').then((mod) => mod.Terminal),
   {
     ssr: false,
-    // Optional: Add a loading placeholder if needed
-    // loading: () => <div className="h-[400px] w-full max-w-3xl mx-auto mt-8">Loading Terminal...</div>,
   }
 );
 
-// This Client Component simply renders the dynamically imported Terminal
+// This Client Component renders the Terminal
 export function ClientTerminal() {
-  // You could potentially add context providers or other client-side logic here if needed
   return <TerminalComponent />;
 }
 

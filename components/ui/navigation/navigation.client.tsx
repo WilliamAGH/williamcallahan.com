@@ -11,7 +11,7 @@ import { useState, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { navigationLinks } from './navigation-links';
-import { NavigationLink } from './navigation-link';
+import { NavigationLink } from './navigation-link.client';
 
 export function Navigation() {
   const pathname = usePathname();

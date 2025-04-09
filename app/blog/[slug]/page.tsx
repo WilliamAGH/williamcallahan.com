@@ -9,6 +9,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getMDXPost } from '../../../lib/blog/mdx';
+import { getAllPosts } from '../../../lib/blog';
 import { formatSeoDate } from '../../../lib/seo/utils';
 import { BlogArticle } from '../../../components/features/blog/blog-article/blog-article';
 import { JsonLdScript } from "../../../components/seo/json-ld";
@@ -17,6 +18,22 @@ import { SITE_NAME } from "../../../data/metadata";
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
 }
+
+/**
+ * Generate static paths for all blog posts at build time
+ * with ISR revalidation for newer content
+ */
+export const generateStaticParams = async () => {
+  const posts = await getAllPosts();
+  return posts.map((post) => ({
+    slug: post.slug,
+  }));
+};
+
+// Set revalidation time for ISR (Incremental Static Regeneration)
+// Using a fixed value as conditional expressions aren't supported in config exports
+export const dynamic = 'force-static'; // Add dynamic option for static generation
+export const revalidate = 3600; // Revalidate every hour
 
 /**
  * Generate metadata for blog post pages

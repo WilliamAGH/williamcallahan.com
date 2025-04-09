@@ -21,7 +21,13 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@/server-components/*": ["./components/server/*"],
+      "@/client-components/*": ["./components/client/*"],
+      "@/shared/*": ["./components/shared/*", "./lib/shared/*"],
+      "@/hooks/*": ["./lib/hooks/*"],
+      "@/types/*": ["./types/*"],
+      "@/utils/*": ["./lib/utils/*"]
     }
   },
   "include": [

@@ -1,5 +1,11 @@
 /**
  * Navigation Configuration
+ *
+ * This file contains the configuration for the navigation links.
+ * It is used to generate the navigation links for the application.
+ *
+ * @module components/ui/navigation/navigation-links
+ * It is a shared component (server and client)
  */
 
 import type { NavigationLink } from '@/types/navigation';

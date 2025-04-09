@@ -1,8 +1,10 @@
 /**
- * Terminal Commands Handler
+ * Terminal Commands Handler (Client)
  *
  * Handles command processing and navigation for the terminal interface.
  */
+
+"use client";
 
 import { searchPosts, searchExperience, searchEducation, searchInvestments } from '@/lib/search';
 import { sections, type SectionKey } from './sections';

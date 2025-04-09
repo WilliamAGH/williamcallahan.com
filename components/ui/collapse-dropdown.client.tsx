@@ -1,3 +1,12 @@
+/**
+ * CollapseDropdown Component
+ *
+ * @module components/ui/collapse-dropdown.client
+ * @description
+ * A styled wrapper around the native HTML <details> and <summary> elements
+ * for creating accessible expand/collapse sections (dropdowns).
+ */
+
 'use client';
 
 import { ReactNode } from 'react';

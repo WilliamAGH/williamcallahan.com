@@ -2,9 +2,8 @@
  * Home Page Component
  *
  * Landing page content with personal introduction and profile image.
+ * Converted to a server component for faster initial rendering.
  */
-
-"use client";
 
 import Image from "next/image";
 

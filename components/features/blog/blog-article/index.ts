@@ -10,5 +10,5 @@
 
 export { BlogArticle } from './blog-article';
 export { BlogAuthor } from '../shared/blog-author';
-export { BlogTags } from './blog-tags';
+export { BlogTags } from '../shared/blog-tags';
 export { MDXContent } from './mdx-content';

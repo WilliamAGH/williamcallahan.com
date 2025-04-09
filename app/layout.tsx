@@ -26,12 +26,12 @@ import { Providers } from "./providers";
 // Re-add direct imports
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
 import { ClientTerminal } from "../components/ui/terminal/terminal.client";
-import { GlobalWindowRegistryProvider } from "@/lib/context/GlobalWindowRegistryContext";
+import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-registry-context.client";
 import { BodyClassManager } from "@/components/utils/body-class-manager.client"; // Import the new component
-import { FloatingRestoreButtons } from "@/components/ui/window/FloatingRestoreButtons";
+import { FloatingRestoreButtons } from "@/components/ui/window/floating-restore-buttons.client";
 import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "../data/metadata";
 
-import { Analytics } from '@/components/analytics/Analytics'
+import { Analytics } from '@/components/analytics/analytics.client'
 
 /** Load Inter font with Latin subset */
 const inter = Inter({ subsets: ["latin"] });
@@ -92,6 +92,23 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Resource hints for faster initial page load */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://images.unsplash.com" />
+        <link rel="dns-prefetch" href="https://williamcallahan.com" />
+        <link rel="dns-prefetch" href="https://icons.duckduckgo.com" />
+
+        {/* Preload critical fonts */}
+        <link
+          rel="preload"
+          href="/_next/static/media/c29e1ba9fda9b6a5.p.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
           <GlobalWindowRegistryProvider>

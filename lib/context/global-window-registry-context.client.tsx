@@ -64,7 +64,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
   const unregisterWindow = useCallback((id: string) => {
      console.log(`WindowRegistry: Unregistering window '${id}'`);
     setWindows(prev => {
-      const { [id]: _, ...rest } = prev;
+      const { [id]: removed, ...rest } = prev;
       return rest;
     });
     // TODO: Consider removing from sessionStorage on unregister?

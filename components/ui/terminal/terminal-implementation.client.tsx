@@ -5,18 +5,18 @@
  * and search functionality. Fully responsive across all device sizes.
  */
 
- "use client";
+"use client";
 
- import { useEffect, useRef, useCallback } from 'react'; // Import useEffect, useRef, and useCallback
- import { TerminalHeader } from './terminal-header';
- import { History } from "./history";
-import { CommandInput } from "./command-input";
-import { SelectionView } from "./selection-view";
-import { useTerminal } from "./use-terminal";
+import { useEffect, useRef, useCallback } from 'react'; // Import useEffect, useRef, and useCallback
+import { TerminalHeader } from './terminal-header';
+import { History } from "./history";
+import { CommandInput } from "./command-input.client";
+import { SelectionView } from "./selection-view.client";
+import { useTerminal } from "./use-terminal.client";
 // Import the history context hook
-import { useTerminalContext } from "./terminalContext";
+import { useTerminalContext } from "./terminal-context.client";
 // Import the new generalized context hook
-import { useRegisteredWindowState } from "@/lib/context/GlobalWindowRegistryContext";
+import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { TerminalSquare } from 'lucide-react'; // Import specific icon
 import { cn } from "@/lib/utils";
 
