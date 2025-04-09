@@ -20,7 +20,7 @@
 
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import { LogoImage } from '../../../components/ui';
-import { ExternalLink } from '../../ui/externalLink';
+import { ExternalLink } from '../../ui/external-link.client';
 import type { Certification } from '../../../types/education';
 
 /**

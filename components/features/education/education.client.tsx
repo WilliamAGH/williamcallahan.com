@@ -20,7 +20,7 @@
 import { useEffect, useState, useMemo } from 'react'; // Added useMemo
 import { WindowControls } from '../../../components/ui/navigation/window-controls';
 import type { Education, Certification, Class } from '../../../types/education';
-import { useRegisteredWindowState } from "@/lib/context/GlobalWindowRegistryContext"; // Use new hook
+import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client"; // Use new hook
 import { GraduationCap, Search, ChevronDown, ChevronUp } from 'lucide-react'; // Import additional icons
 import { cn } from '@/lib/utils'; // Import cn utility
 import { EducationCardClient } from './education-card.client';
