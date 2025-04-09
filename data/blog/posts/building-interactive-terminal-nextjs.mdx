@@ -15,38 +15,38 @@ import { CollapseDropdown } from '@/components/ui/collapseDropdown';
 import { ArticleImage } from '@/components/features/blog/blog-article/article-image'; // Assuming this component exists and is needed
 
 <BackgroundInfo title="Overview: Goal & Key Challenges">
-This article details implementing an embedded terminal UI with macOS-like window controls (minimize/maximize/close) in Next.js (App Router v14/15). The main challenge was managing shared window state across components/routes reliably, avoiding hydration errors.
+This article walks through building an embedded terminal UI with macOS-style window controls (minimize/maximize/close) within a Next.js App Router project (v14/15). The core challenge lay in reliably managing shared window state across different components and routes while sidestepping common hydration errors.
 </BackgroundInfo>
 
 ## 1: Component Architecture {/* mt-8 */}
 
-The system uses several interconnected components:
+Let's look at the key components that make up this system:
 
 <CollapseDropdown summary="1.1: Global State Provider">
-  - **Role**: A central hub (implemented via React Context) placed in the root layout (`app/layout.tsx`) to manage state for all registered "window" components.
+  - **Role**: A central hub, implemented using React Context and placed in the root layout (`app/layout.tsx`). It's responsible for managing the state of all registered "window" components.
   - **Source**: [`lib/context/GlobalWindowRegistryContext.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/lib/context/GlobalWindowRegistryContext.tsx)
 </CollapseDropdown>
 
 <CollapseDropdown summary="1.2: Feature Client Components">
-  - **Role**: Individual features or pages (e.g., Blog, Experience) designed to act like windows.
-  - **Integration**: Use a custom hook (`useRegisteredWindowState`) to connect to the global provider, retrieving their specific state (`windowState`) and action functions (`minimize`, `maximize`, etc.).
+  - **Role**: These represent individual features or pages (like Blog or Experience sections) that need to behave like independent windows.
+  - **Integration**: They use a custom hook (`useRegisteredWindowState`) to connect to the global provider. This hook gives them access to their specific state (`windowState`) and the functions to change it (`minimize`, `maximize`, etc.).
   - **Source (Hook)**: [`useRegisteredWindowState` in `GlobalWindowRegistryContext.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/lib/context/GlobalWindowRegistryContext.tsx#L142)
   - **Source (Example)**: [`components/features/blog/blog.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/features/blog/blog.tsx)
 </CollapseDropdown>
 
 <CollapseDropdown summary="1.3: Floating Restore Buttons">
-  - **Role**: A component that reads the global context to render buttons for restoring any minimized or closed windows.
+  - **Role**: This component reads the global state to display buttons at the screen's bottom, allowing users to restore any windows they've minimized or closed.
   - **Source**: [`components/ui/window/FloatingRestoreButtons.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/ui/window/FloatingRestoreButtons.tsx)
 </CollapseDropdown>
 
 <CollapseDropdown summary="1.4: Terminal Component">
-  - **Role**: The main interactive terminal UI. It's also registered as a window using the same registration hook as feature components.
+  - **Role**: The main interactive terminal UI itself. Importantly, it's also registered as a window using the same hook, allowing it to be controlled just like other feature windows.
   - **Source**: [`components/ui/terminal/terminal.client.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/ui/terminal/terminal.client.tsx)
 </CollapseDropdown>
 
 <CollapseDropdown summary="1.5: Window Control Buttons">
-  - **Role**: Standard macOS-style UI buttons (red/yellow/green) for window actions.
-  - **Integration**: A simple UI component accepting `onMinimize`, `onMaximize`, `onClose` callbacks, typically supplied by the parent window component via the registration hook.
+  - **Role**: Provides the familiar macOS-style UI buttons (red/yellow/green) for standard window actions.
+  - **Integration**: It's a straightforward UI component that accepts callback functions (`onMinimize`, `onMaximize`, `onClose`) provided by the parent window component (which usually gets them from the registration hook).
   - **Source**: [`components/ui/navigation/window-controls.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/ui/navigation/window-controls.tsx)
 </CollapseDropdown>
 
@@ -54,23 +54,23 @@ The system uses several interconnected components:
 
 ## 2: Window State Management {/* mt-8 */}
 
-Managing window state (normal, minimized, maximized, closed) across components and routes required a solution beyond component-local state due to scaling and hydration issues.
+Handling the state of multiple 'windows' (like normal, minimized, or maximized) across different pages presented a challenge. Simple component-local state didn't scale well and led to tricky hydration issues.
 
-<BackgroundInfo title="Problem Context: Local State & Hydration">
-Using component-local state (even with `localStorage`) caused hydration mismatches between server-rendered UI and client state, and didn't scale for multiple independent windows. The adopted solution is a global registry via React Context.
+<BackgroundInfo title="The Problem: Local State & Hydration Conflicts">
+Initial attempts using component-local state, even persisting with `localStorage`, resulted in hydration mismatches – the UI rendered on the server didn't match the client-side state after JavaScript loaded. This approach also proved cumbersome for managing several independent windows. The robust solution involves a global registry pattern using React Context.
 </BackgroundInfo>
 
 <CollapseDropdown summary="2.1: Global Context Details">
-  - **Definition**: The context is created using `React.createContext`.
-  - **State Structure**: It holds a record mapping window IDs to their info (`id`, `icon`, `title`, `state`).
-  - **Provided Value**: Exposes the `windows` state record and management functions (`registerWindow`, `setWindowState`, etc.).
+  - **How it's Made**: Defined using `React.createContext`.
+  - **What it Holds**: A central record (a JavaScript object) mapping unique window IDs to their current information (like `id`, `icon`, `title`, and `state`).
+  - **What it Provides**: Access to the shared `windows` state record and functions to manage windows (`registerWindow`, `setWindowState`, etc.).
   - **Source**: [`lib/context/GlobalWindowRegistryContext.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/lib/context/GlobalWindowRegistryContext.tsx)
 </CollapseDropdown>
 
 <CollapseDropdown summary="2.2: Provider Implementation">
-  - **Placement**: Wraps the `RootLayout` in `app/layout.tsx` to make the context available globally.
-  - **State Management**: Uses `useState` internally to manage the `windows` record.
-  - **Body Class Manipulation**: Employs a client-side `useEffect` hook (with an `isMounted` check to prevent execution during SSR) to dynamically add `window-maximized` or `window-minimized` classes to the `<body>` element when any registered window enters these states. This allows global CSS rules to adjust layout elements (like hiding secondary header items) based on the window state.
+  - **Where it Lives**: The Provider component wraps the `RootLayout` in `app/layout.tsx`, ensuring the context is available throughout the application.
+  - **State Keeping**: It uses `useState` internally to hold and update the central `windows` record.
+  - **Syncing with CSS**: A client-side `useEffect` hook (carefully checking `isMounted` to avoid server-side execution) dynamically adds `window-maximized` or `window-minimized` classes to the `<body>` tag. This clever trick allows global CSS to subtly adjust shared layout elements (like hiding secondary header icons) based on the overall window state, without complex prop drilling.
 
   ```tsx
   // app/layout.tsx (Simplified Example)
@@ -102,10 +102,10 @@ Using component-local state (even with `localStorage`) caused hydration mismatch
 </CollapseDropdown>
 
 <CollapseDropdown summary="2.3: Registration Hook Details">
-  - **Purpose**: Provides the primary interface for components to register themselves with the global state and access their specific state/actions.
-  - **Implementation**: A custom hook (`useRegisteredWindowState`) that wraps the logic for consuming the context and managing registration/unregistration.
-  - **Lifecycle Management**: Uses `useEffect` to automatically register the window on mount and unregister it on unmount.
-  - **Return Value**: Provides the component's specific `windowState`, bound action functions (`minimize`, `maximize`, etc.), and an `isRegistered` flag for hydration safety.
+  - **Purpose**: This hook acts as the main way for individual components to "sign up" with the global registry, get their current state, and receive functions to modify that state.
+  - **How it Works**: It's a custom hook (`useRegisteredWindowState`) encapsulating the logic to consume the global context and handle the registration/unregistration process cleanly.
+  - **Automatic Cleanup**: It uses `useEffect` to ensure a window automatically registers when its component mounts and unregisters when it unmounts, preventing memory leaks.
+  - **What it Returns**: Crucially, it gives the component its specific `windowState`, ready-to-use action functions (`minimize`, `maximize`, etc.), and the vital `isRegistered` flag to ensure rendering only happens safely after hydration.
   - **Source**: [`useRegisteredWindowState` in `GlobalWindowRegistryContext.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/lib/context/GlobalWindowRegistryContext.tsx#L142)
 
   ```typescript
@@ -154,42 +154,42 @@ Using component-local state (even with `localStorage`) caused hydration mismatch
 </CollapseDropdown>
 
 <BackgroundInfo title="Key Implementation Points">
-- **Hydration Safety**: Use the `isRegistered` flag (derived from client mount & context state) before rendering based on `windowState` to prevent mismatches. Render default/loading state until `isRegistered` is true.
-- **Component Layout**: Each window component manages its own layout styles (`position: fixed`, dimensions, z-index) based on its `windowState`.
-- **Minimized/Closed State**: Components render `null` when minimized/closed; `FloatingRestoreButtons` handles their restoration UI.
-- **Global CSS**: `body.window-maximized` / `body.window-minimized` classes (set by provider) are used minimally to adjust shared layout (e.g., header) without affecting component-specific styles.
+- **Avoiding Hydration Errors**: Always check the `isRegistered` flag (which confirms client-side mounting and context availability) before rendering UI based on `windowState`. Render a default or loading state until `isRegistered` becomes true. This is key to preventing server/client mismatches.
+- **Self-Contained Layout**: Each window component is responsible for its own layout styling (`position: fixed`, dimensions, z-index) based on its current `windowState`.
+- **Handling Minimized/Closed**: When a window is minimized or closed, its component typically renders `null`. The separate `FloatingRestoreButtons` component takes care of the UI needed to bring them back.
+- **Targeted Global CSS**: The `body.window-maximized` and `body.window-minimized` classes are used sparingly. Their main job is to adjust shared elements (like the site header) without interfering with the individual layout logic within each window component.
 </BackgroundInfo>
 
 ---
 
 ## 3: Server/Client Data Flow {/* mt-8 */}
 
-Fetching server data for use in interactive client components presented challenges with non-serializable data types.
+Getting data fetched on the server into these interactive client components wasn't straightforward, especially when dealing with data that isn't easily passed between server and client.
 
-<BackgroundInfo title="Problem Context: Non-Serializable Props">
-Passing complex data (JSX, functions) from Server Components to Client Components caused errors (`fs` module errors, HMR instability) because the Server-Client boundary requires serializable (JSON-compatible) data.
+<BackgroundInfo title="The Problem: Non-Serializable Data Across Boundaries">
+Trying to pass complex data structures (like ready-made JSX elements or objects containing functions) directly from Server Components to Client Components leads to errors. This happens because the data crossing the Server-Client boundary must be serializable (convertible to JSON). Things like functions or certain complex objects can't be serialized, causing issues like `fs` module errors on the client or breaking Hot Module Replacement (HMR).
 </BackgroundInfo>
 
-<CollapseDropdown summary="Solution: Data Processing Separation">
-  The effective solution involves keeping server-side logic strictly on the server and passing only processed, serializable data to the client:
-  1.  **Server-Only Utilities**: Create utility functions specifically for server-side execution (e.g., in `lib/` marked with `import "server-only"`). These functions handle data fetching (e.g., database queries, API calls, reading local files like SVGs) and processing (e.g., converting images to data URLs).
-  2.  **Server Component Orchestration**: The top-level Server Component responsible for the feature (e.g., [`app/education/page.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/app/education/page.tsx) which might render `EducationServer`) calls these server-only utilities to retrieve and process all necessary data into a serializable format (like plain JSON objects or arrays).
-  3.  **Pass Processed Data**: The Server Component passes this fully processed, serializable data as props to the main Client Component wrapper (e.g., `EducationClient`).
-  4.  **Client Component Rendering**: The Client Component wrapper (`EducationClient`) receives the serializable data and then imports and renders the final *client* UI sub-components (e.g., `EducationCardClient`, `CertificationCardClient`), passing the processed data down to them as needed.
+<CollapseDropdown summary="The Solution: Keep Server Logic on the Server">
+  The reliable way to handle this is to perform all server-specific work on the server and only pass clean, serializable data to the client:
+  1.  **Isolate Server Logic**: Create utility functions designed *only* for server execution (using `import "server-only"` is a good practice). These handle tasks like fetching from databases, calling external APIs, or reading local files (like SVGs). They process this raw data into a simple format.
+  2.  **Orchestrate in Server Component**: The main Server Component for a feature (e.g., the page component for `/education`) calls these server-only utilities. It gathers all the needed data and ensures it's fully processed into a serializable structure (like plain JavaScript objects or arrays).
+  3.  **Pass Clean Data**: This processed, serializable data is then passed as props to the top-level Client Component wrapper for that feature.
+  4.  **Render on Client**: The Client Component wrapper receives this clean data. It then imports and renders the necessary *client-side* UI sub-components, passing the data down as props for them to display.
 
-  This pattern ensures that no server-specific modules or non-serializable data types attempt to cross the Server-Client boundary.
+  This strict separation prevents server-only code or non-serializable data from ever trying to run on or be sent to the client.
 </CollapseDropdown>
 
 ---
 
 ## 4: Auto-Scrolling Terminal {/* mt-8 */}
 
-Ensuring the terminal view scrolls to the latest output involves:
+To make the terminal automatically scroll down as new output appears, the implementation uses a couple of standard React techniques:
 
-<CollapseDropdown summary="Implementation Details">
-  - Attaching a `useRef` to the scrollable terminal container.
-  - Using a `useEffect` hook to observe changes in command history (from `TerminalContext`).
-  - On history update, setting `ref.current.scrollTop = ref.current.scrollHeight` to scroll down.
+<CollapseDropdown summary="How it Works">
+  - A `useRef` hook is used to get a direct reference to the scrollable container element in the terminal's DOM.
+  - A `useEffect` hook watches for changes in the command history (which is managed in a separate `TerminalContext`).
+  - Whenever the command history updates (meaning new output has been added), the `useEffect` triggers and programmatically sets the container's `scrollTop` to its `scrollHeight`. This effectively scrolls the view to the very bottom, ensuring the latest output is always visible.
   - **Source**: Scrolling logic in [`components/ui/terminal/terminal.tsx`](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/ui/terminal/terminal.tsx).
 </CollapseDropdown>
 
@@ -197,22 +197,25 @@ Ensuring the terminal view scrolls to the latest output involves:
 
 ## 5: Command Handling {/* mt-8 */}
 
-Command processing is centralized for clarity:
+To keep command processing logic organized and maintainable, it's centralized:
 
-<CollapseDropdown summary="Execution Flow">
-  - Input is captured by the terminal component.
-  - `useTerminal` hook ([source](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/ui/terminal/use-terminal.ts)) delegates the command string to async `handleCommand`.
-  - `handleCommand` ([source](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/ui/terminal/commands.ts)) parses input, matches commands/routes, and performs actions:
-      - Returns direct output (e.g., `help`).
-      - Invokes search logic ([source](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/lib/search.ts)).
-      - Triggers navigation (`useRouter`) for route commands (e.g., `cd blog`).
-      - Returns errors for invalid commands.
+<CollapseDropdown summary="How Commands Are Processed">
+  - When the user enters input, it's captured by the terminal component.
+  - A `useTerminal` hook ([source](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/ui/terminal/use-terminal.ts)) takes the submitted command string and passes it off to an asynchronous `handleCommand` function.
+  - This central `handleCommand` function ([source](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/components/ui/terminal/commands.ts)) is responsible for:
+      - Parsing the input string to identify the command and any arguments.
+      - Matching the command against a list of predefined commands or known application routes.
+      - Performing the appropriate action based on the match, such as:
+          - Returning formatted text output directly (e.g., for a `help` command).
+          - Calling separate search logic ([source](https://github.com/WilliamAGH/williamcallahan.com/blob/dev/lib/search.ts)) for commands like `search` or `find`.
+          - Using Next.js's `useRouter` to trigger client-side navigation for commands that map to page routes (e.g., `cd blog`).
+          - Returning specific error messages if the command is invalid or arguments are missing.
 </CollapseDropdown>
 
 ---
 
-<BackgroundInfo title="Summary: Key Solutions">
-- **Global State**: Use a global React Context provider in the root layout for shared UI state (window status) across App Router routes.
-- **Hydration Safety**: Employ the registration hook pattern with an `isRegistered` flag (based on mount status & context data) to prevent hydration errors with client-side state.
-- **Data Flow**: Separate server-side data fetching/processing from client rendering. Pass only serializable data across the Server-Client boundary to maintain stability.
+<BackgroundInfo title="Summary: Key Takeaways & Solutions">
+- **Global State for UI**: For managing shared UI state (like window positions and status) across different routes in the Next.js App Router, a global React Context provider placed in the root layout is a very effective pattern.
+- **Handling Hydration**: The custom hook pattern (`useRegisteredWindowState`) combined with an `isRegistered` flag (checking mount status and context availability) is crucial for safely managing client-side state and preventing hydration errors.
+- **Server/Client Data Integrity**: Maintaining a strict separation between server-side data fetching/processing and client-side rendering is key. Always ensure only serializable data is passed from server to client components to avoid errors and ensure stability.
 </BackgroundInfo>
