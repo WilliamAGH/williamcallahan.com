@@ -117,11 +117,17 @@ interface MDXContentProps {
 export function MDXContent({ content }: MDXContentProps): JSX.Element {
   // Define components map for MDX rendering
   const components = {
-    pre: MDXCodeBlock,
+    // Use MDXCodeBlock with a custom class that will override prose styling
+    pre: (props: ComponentProps<'pre'>) => (
+      <div className="not-prose">
+        <MDXCodeBlock {...props} />
+      </div>
+    ),
+    // Restore custom 'code' component override for inline code (to fix regression)
     code: (codeProps: ComponentProps<'code'>) => {
       const { children, className, ...rest } = codeProps;
       return (
-        <code className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-0.5 rounded font-medium" {...rest}>
+        <code className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-0.5 rounded font-medium text-sm break-words whitespace-normal" {...rest}>
           {children}
         </code>
       );

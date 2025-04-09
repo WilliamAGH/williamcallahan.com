@@ -57,12 +57,14 @@ html {
   }
 }
 
-/* Prism Syntax Highlighting */
+/* === Custom Prism Theme (Dracula-like) === */
+/* Start Custom Prism Theme */
 code[class*="language-"],
 pre[class*="language-"] {
   color: #f8f8f2;
   background: none;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  /* Updated font stack to prioritize IBM Plex Mono */
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   text-align: left;
   white-space: pre;
   word-spacing: normal;
@@ -77,11 +79,12 @@ pre[class*="language-"] {
 }
 
 pre[class*="language-"] {
-  padding: 1em;
-  margin: 0.5em 0;
+  padding: 0 1em; /* 0 vertical, 1em horizontal */
+  margin: 0; /* Remove margin */
   overflow: auto;
   border-radius: 0.3em;
-  background: #1e1e1e !important;
+  /* Change background to a dark cyan/blue */
+  background: #1c3a4a;
 }
 
 :not(pre) > code[class*="language-"] {
@@ -90,11 +93,14 @@ pre[class*="language-"] {
   white-space: normal;
 }
 
+/* Apply token rules */
+
 .token.comment,
 .token.prolog,
 .token.doctype,
 .token.cdata {
   color: #6272a4;
+  font-style: italic;
 }
 
 .token.punctuation {
@@ -163,6 +169,80 @@ pre[class*="language-"] {
 
 .token.entity {
   cursor: help;
+}
+
+/* End Custom Prism Theme */
+/* === End of Custom Prism Theme === */
+
+/* Global code block overrides - completely remove any potential highlighting */
+pre[class*="language-"],
+pre[class*="language-"] *,
+code[class*="language-"],
+code[class*="language-"] * {
+  text-shadow: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important; /* Remove any potential borders around tokens */
+  outline: none !important;
+  text-decoration: none !important;
+}
+
+/* Remove backgrounds from all token types */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata,
+.token.punctuation,
+.token.namespace,
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted,
+.token.boolean,
+.token.number,
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted,
+.token.operator,
+.token.entity,
+.token.url,
+.token.variable,
+.token.atrule,
+.token.attr-value,
+.token.keyword,
+.token.function,
+.token.regex,
+.token.important {
+  background: transparent !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
+/* Make sure code blocks don't inherit glitch animations */
+pre, pre *, code[class*="language-"], code[class*="language-"] * {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+  clip-path: none !important;
+}
+
+/* Ensure inline code still has proper styling */
+:not(pre) > code {
+  background-color: #f3f4f6; /* bg-gray-100 */
+  color: #111827; /* text-gray-900 */
+  padding: 0.125rem 0.375rem; /* px-1.5 py-0.5 */
+  border-radius: 0.25rem; /* rounded */
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+}
+
+.dark :not(pre) > code {
+  background-color: #1f2937; /* dark:bg-gray-800 */
+  color: #f9fafb; /* dark:text-gray-50 */
 }
 
 /**
@@ -292,3 +372,19 @@ pre[class*="language-"] {
     display: none;
   }
 }
+
+/* The following fix is no longer needed with our simplified approach */
+/* Fix for code block corner rendering */
+/* .rounded-b-lg {
+  border-bottom-left-radius: 0.5rem !important;
+  border-bottom-right-radius: 0.5rem !important;
+}
+
+.rounded-t-lg {
+  border-top-left-radius: 0.5rem !important;
+  border-top-right-radius: 0.5rem !important;
+}
+
+.rounded-lg {
+  border-radius: 0.5rem !important;
+} */

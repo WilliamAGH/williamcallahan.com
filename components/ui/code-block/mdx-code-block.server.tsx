@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { CodeBlock } from './codeBlock';
+import { CodeBlock } from './code-block';
 import type { DetailedHTMLProps, HTMLAttributes } from 'react';
 
 type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>;
@@ -10,16 +10,41 @@ type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement
  * Server component for initial render
  * This is what gets used during MDX serialization
  */
+import { cn } from '@/lib/utils'; // Import cn utility
+
 export function ServerMDXCodeBlock(props: PreProps) {
+  // Destructure className and children from props
   const { children, className, ...rest } = props;
+
+  // Define default classes for the PRE tag - make sure they match the CodeBlock component
+  const preClasses = cn(
+    'not-prose',
+    'overflow-x-auto',
+    'text-gray-100',
+    'text-[13px]',
+    'break-words',
+    'whitespace-pre-wrap',
+    'custom-scrollbar',
+    'p-4',
+    // No rounded borders or margin here to ensure proper alignment
+    'border-t-0'
+  );
+
+  // Define classes for the wrapping DIV
+  const wrapperClasses = cn(
+    'relative'
+    // No border, rounded corners handled by CodeBlock on client hydration
+  );
+
   return (
-    <pre
-      // Added responsive styling for mobile
-      className="not-prose rounded-lg overflow-x-auto bg-gray-800 text-gray-100 text-[13px] break-words whitespace-pre-wrap"
-      {...rest}
-    >
-      <code className="text-gray-100 bg-transparent text-[13px]">{children}</code>
-    </pre>
+    // Keep a simple wrapper structure for server-side rendering
+    // The full styling will be applied when CodeBlock hydrates
+    <div className={wrapperClasses}>
+      {/* Merge incoming className (from rehypePrism) with default pre classes */}
+      <pre className={cn(preClasses, className)} {...rest}>
+        {children}
+      </pre>
+    </div>
   );
 }
 
