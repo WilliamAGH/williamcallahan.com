@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { CopyButton } from '../../../components/ui/copyButton';
+import { CopyButton } from '../../../components/ui/code-block/copy-button';
 
 describe('CopyButton', () => {
   const mockClipboard = {

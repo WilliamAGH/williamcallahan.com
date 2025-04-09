@@ -1,0 +1,118 @@
+/**
+ * Custom Code Block Styling
+ *
+ * Base styles are now handled by the PrismJS theme imported in app/layout.tsx
+ * (components/ui/code-block/prism-syntax-highlighting/prism.css)
+ * and Tailwind classes applied in the CodeBlock component.
+ * This file is kept for potential future overrides if needed.
+ */
+
+/* Add any specific overrides below if necessary, but prefer using Tailwind */
+/* or adjusting the PrismJS theme if possible. */
+
+/* Dark mode overrides for Prism syntax highlighting */
+.dark code[class*="language-"],
+.dark pre[class*="language-"] {
+  color: #f8f8f2; /* Light text for dark mode */
+  background: transparent;
+  text-shadow: none; /* Remove text shadow in dark mode */
+  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+}
+
+/* Remove ALL backgrounds from code blocks and their tokens */
+.dark pre[class*="language-"] *,
+.dark code[class*="language-"] * {
+  background: transparent !important;
+  text-shadow: none !important;
+}
+
+/* Selection in dark mode */
+.dark code[class*="language-"]::selection,
+.dark code[class*="language-"] ::selection,
+.dark pre[class*="language-"]::selection,
+.dark pre[class*="language-"] ::selection {
+  background: rgba(29, 59, 83, 0.99); /* Dark blue selection background */
+  text-shadow: none;
+}
+
+/* Background for code blocks in dark mode */
+.dark :not(pre) > code[class*="language-"],
+.dark pre[class*="language-"] {
+  background: #282a36; /* Dark background */
+}
+
+/* Token colors for dark mode */
+.dark .token.comment,
+.dark .token.prolog,
+.dark .token.doctype,
+.dark .token.cdata {
+  color: #6272a4; /* Light blue-gray */
+}
+
+.dark .token.punctuation {
+  color: #f8f8f2; /* Light gray */
+}
+
+.dark .token.namespace {
+  opacity: 0.7;
+}
+
+.dark .token.property,
+.dark .token.tag,
+.dark .token.constant,
+.dark .token.symbol,
+.dark .token.deleted {
+  color: #ff79c6; /* Pink */
+}
+
+.dark .token.boolean,
+.dark .token.number {
+  color: #bd93f9; /* Purple */
+}
+
+.dark .token.selector,
+.dark .token.attr-name,
+.dark .token.string,
+.dark .token.char,
+.dark .token.builtin,
+.dark .token.inserted {
+  color: #50fa7b; /* Green */
+}
+
+.dark .token.operator,
+.dark .token.entity,
+.dark .token.url,
+.dark .language-css .token.string,
+.dark .style .token.string {
+  color: #f8f8f2; /* Light gray */
+}
+
+.dark .token.atrule,
+.dark .token.attr-value,
+.dark .token.keyword {
+  color: #ff79c6; /* Pink */
+}
+
+.dark .token.function,
+.dark .token.class-name {
+  color: #8be9fd; /* Cyan */
+}
+
+.dark .token.regex,
+.dark .token.important,
+.dark .token.variable {
+  color: #f1fa8c; /* Yellow */
+}
+
+.dark .token.important,
+.dark .token.bold {
+  font-weight: bold;
+}
+
+.dark .token.italic {
+  font-style: italic;
+}
+
+.dark .token.entity {
+  cursor: help;
+}

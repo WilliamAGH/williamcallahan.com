@@ -8,6 +8,9 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        mono: ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', '"Liberation Mono"', '"Courier New"', 'monospace'],
+      },
       typography: {
         DEFAULT: {
           css: {
@@ -17,11 +20,7 @@ module.exports = {
             overflowWrap: 'break-word',
             wordWrap: 'break-word',
             hyphens: 'auto',
-            // Ensure all code blocks wrap properly
-            'pre, code': {
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            },
+            // Removed 'pre, code' block to resolve potential parsing error
             // Reduce paragraph spacing
             p: {
               marginTop: '0.75em',
@@ -92,4 +91,10 @@ module.exports = {
   plugins: [
     require('@tailwindcss/typography'),
   ],
+  // Remove the safelist that's causing warnings
+  // safelist: [
+  //   {
+  //     pattern: /^(token|language-|line-numbers|data-line-)/, // Matches Prism classes and line number related classes if added later
+  //   },
+  // ],
 }

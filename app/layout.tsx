@@ -16,6 +16,12 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from 'react'
 import "./globals.css";
+// Import IBM Plex Mono font (regular weight)
+import "@fontsource/ibm-plex-mono/400.css";
+// Import our custom code block styling
+import './code-blocks.css';
+// Import PrismJS theme
+import '../components/ui/code-block/prism-syntax-highlighting/prism.css';
 import { Providers } from "./providers";
 // Re-add direct imports
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";

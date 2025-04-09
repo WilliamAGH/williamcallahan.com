@@ -17,7 +17,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { serialize } from 'next-mdx-remote/serialize';
-import rehypePrism from 'rehype-prism';
 import remarkGfm from 'remark-gfm';
 import type { MDXRemoteProps } from 'next-mdx-remote';
 type MDXComponents = MDXRemoteProps['components'];
@@ -102,14 +101,7 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
         remarkPlugins: [
           [remarkGfm, { singleTilde: false, breaks: true }]
         ],
-        rehypePlugins: [
-          [rehypePrism, {
-            ignoreMissing: true,
-            aliases: {
-              bash: ['shell', 'sh', 'zsh']
-            }
-          }]
-        ],
+        rehypePlugins: [],
         format: 'mdx'
       },
       scope: {},
