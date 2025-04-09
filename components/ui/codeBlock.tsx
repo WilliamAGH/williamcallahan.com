@@ -88,7 +88,8 @@ export const CodeBlock = ({ children, className, ...props }: CodeBlockProps): JS
   const defaultClasses = cn(
     'not-prose',
     'rounded-lg',
-    'overflow-x-auto',
+    'whitespace-pre-wrap',
+    'break-words',
     'bg-gray-800',
     'p-4',
     'text-gray-100',
