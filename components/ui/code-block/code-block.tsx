@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react'; // Import useEffect, useRef, and useCallback
 import type { ComponentProps } from 'react';
 import { CopyButton } from './copy-button';
 import { cn } from '../../../lib/utils';
@@ -84,6 +84,9 @@ export const CodeBlock = ({ children, className, ...props }: CodeBlockProps): JS
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
 
+  // Ref for the main window element to check clicks against
+  const windowRef = useRef<HTMLDivElement>(null);
+
   // Get window size to determine control size
   const windowSize = useWindowSize();
 
@@ -101,10 +104,38 @@ export const CodeBlock = ({ children, className, ...props }: CodeBlockProps): JS
     if (isMaximized) setIsMaximized(false); // Exit maximized mode if active
   };
 
-  const handleMaximize = () => {
+  // Wrap in useCallback to prevent recreation on each render
+  const handleMaximize = useCallback(() => {
     setIsMaximized(prev => !prev);
     if (isMinimized) setIsMinimized(false); // Exit minimized mode if active
-  };
+  }, [isMinimized]); // Add dependencies
+
+  // Effect for handling Escape key and click outside when maximized
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isMaximized) {
+        handleMaximize(); // Close maximized view on Escape
+      }
+    };
+
+    const handleClickOutside = (event: MouseEvent) => {
+      // Check if maximized and the click is outside the windowRef element
+      if (isMaximized && windowRef.current && !windowRef.current.contains(event.target as Node)) {
+        handleMaximize(); // Close maximized view
+      }
+    };
+
+    if (isMaximized) {
+      document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener('mousedown', handleClickOutside); // Use mousedown like Terminal
+    }
+
+    // Cleanup function
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMaximized, handleMaximize]); // Dependencies
 
   // Extract the text content
   const content = Array.isArray(children)
@@ -145,10 +176,13 @@ export const CodeBlock = ({ children, className, ...props }: CodeBlockProps): JS
   return (
     <div className={cn(
       "relative my-6 w-full",
+      // When maximized, this outer div becomes the fixed positioning wrapper
       isMaximized && "fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 sm:p-8"
     )}>
-      <div className={cn(
+      {/* This inner div is the actual window content, assign the ref here */}
+      <div ref={windowRef} className={cn(
         "max-w-full w-full bg-[#f5f2f0] dark:bg-[#282a36] rounded-lg shadow-md overflow-hidden",
+        // Styles for the inner div when maximized
         isMaximized && "w-full max-w-[95vw] sm:max-w-5xl max-h-[90vh] sm:max-h-[80vh] flex flex-col"
       )}>
         {/* Header */}
@@ -188,14 +222,17 @@ export const CodeBlock = ({ children, className, ...props }: CodeBlockProps): JS
         )}
       </div>
 
-      {/* Exit maximized mode when clicking outside */}
+      {/* Backdrop - Renders only when maximized, but click logic is now handled by the useEffect */}
+      {/* We keep a basic backdrop for visual effect if desired, or remove if the effect handles it */}
+      {/*
       {isMaximized && (
         <div
-          className="absolute inset-0 -z-10"
-          onClick={handleMaximize}
+          className="absolute inset-0 -z-10 bg-transparent" // Make it transparent, click handled by effect
           aria-hidden="true"
         />
       )}
+      */}
+      {/* The useEffect now handles the click outside logic */}
     </div>
   );
 };

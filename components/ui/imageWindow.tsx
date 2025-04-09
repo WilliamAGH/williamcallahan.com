@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react'; // Import useEffect and useCallback
 import type { ComponentProps } from 'react';
 import Image, { type ImageProps } from 'next/image';
 import { cn } from '../../lib/utils';
@@ -41,8 +41,8 @@ export const ImageWindow = ({
   const [isVisible, setIsVisible] = useState(true);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
-  // Create ref for the image container to track actual dimensions
-  const imageRef = useRef<HTMLDivElement>(null);
+  // Create ref for the main window container to check clicks against
+  const windowRef = useRef<HTMLDivElement>(null); // Renamed from imageRef for consistency
   // Get window size to determine control size
   const windowSize = useWindowSize();
 
@@ -60,10 +60,38 @@ export const ImageWindow = ({
     if (isMaximized) setIsMaximized(false); // Exit maximized mode if active
   };
 
-  const handleMaximize = () => {
+  // Wrap in useCallback to prevent recreation on each render
+  const handleMaximize = useCallback(() => {
     setIsMaximized(prev => !prev);
     if (isMinimized) setIsMinimized(false); // Exit minimized mode if active
-  };
+  }, [isMinimized]); // Add dependencies
+
+  // Effect for handling Escape key and click outside when maximized
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isMaximized) {
+        handleMaximize(); // Close maximized view on Escape
+      }
+    };
+
+    const handleClickOutside = (event: MouseEvent) => {
+      // Check if maximized and the click is outside the windowRef element
+      if (isMaximized && windowRef.current && !windowRef.current.contains(event.target as Node)) {
+        handleMaximize(); // Close maximized view
+      }
+    };
+
+    if (isMaximized) {
+      document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener('mousedown', handleClickOutside); // Use mousedown like Terminal/CodeBlock
+    }
+
+    // Cleanup function
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMaximized, handleMaximize]); // Dependencies
 
   // Return early if window is closed
   if (!isVisible) {
@@ -140,7 +168,8 @@ export const ImageWindow = ({
 
   return (
     <div className={outerWrapperClasses}>
-      <div className={containerClasses} style={{
+      {/* Assign the ref to the main container div */}
+      <div ref={windowRef} className={containerClasses} style={{
         transform: 'scale(1.001)', // Tiny scale enlargement to close subpixel gaps
         transformOrigin: 'top center',
         overflow: 'hidden', // Ensure content doesn't overflow rounded corners
@@ -166,7 +195,8 @@ export const ImageWindow = ({
         </div>
 
         {/* Image container - only shown if not minimized */}
-        <div className={contentClasses} ref={imageRef} style={{ marginTop: '-1px' }}>
+        {/* Removed ref={imageRef} as windowRef is now on the main container */}
+        <div className={contentClasses} style={{ marginTop: '-1px' }}>
           <div className={imageWrapperClasses}>
             <Image
               src={src}
@@ -190,14 +220,7 @@ export const ImageWindow = ({
         </div>
       </div>
 
-      {/* Exit maximized mode when clicking outside */}
-      {isMaximized && (
-        <div
-          className="absolute inset-0 -z-10"
-          onClick={handleMaximize}
-          aria-hidden="true"
-        />
-      )}
+      {/* The old click-outside div is removed; logic is handled by the useEffect */}
     </div>
   );
 };
