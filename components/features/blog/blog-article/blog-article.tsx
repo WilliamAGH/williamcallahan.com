@@ -44,7 +44,7 @@ interface BlogArticleProps {
  */
 export function BlogArticle({ post }: BlogArticleProps): JSX.Element {
   return (
-    <article className="max-w-4xl mx-auto mt-4 sm:mt-8 px-4 pb-8">
+    <article className="max-w-4xl mx-auto px-4 pb-8">
       {/* Back to Blog */}
       <Link
         href="/blog"
