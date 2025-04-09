@@ -12,9 +12,12 @@ import type { ComponentProps, ReactNode } from 'react';
 import { MDXRemote } from 'next-mdx-remote';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 import Image from 'next/image';
+import Link from 'next/link'; // Import Next.js Link
 import { MDXCodeBlock } from '../../../ui/mdxCodeBlock.server';
 import FinancialMetrics from '../../../ui/financialMetrics';
 import { BackgroundInfo } from '../../../ui/backgroundInfo';
+import { CollapseDropdown } from '../../../ui/collapseDropdown';
+import { ExternalLink } from '../../../ui/externalLink'; // Import ExternalLink
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {
   caption?: string;
@@ -113,7 +116,26 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     img: MdxImage,
     ArticleGallery,
     ArticleImage: MdxImage,
-    BackgroundInfo
+    BackgroundInfo,
+    CollapseDropdown, // Register the new component
+    // Custom anchor tag renderer
+    a: (props: ComponentProps<'a'>) => {
+      const { href, children, ...rest } = props;
+      if (!href) {
+        // Handle case where href might be missing, though unlikely in valid MDX
+        return <a {...rest}>{children}</a>;
+      }
+      // Check if it's an external link
+      if (href.startsWith('http://') || href.startsWith('https://')) {
+        return <ExternalLink href={href} {...rest}>{children}</ExternalLink>;
+      }
+      // Check if it's an internal link (starts with /)
+      if (href.startsWith('/')) {
+        return <Link href={href} {...rest}>{children}</Link>;
+      }
+      // Otherwise, assume it's an anchor link or similar, render standard anchor
+      return <a href={href} {...rest}>{children}</a>;
+    },
   };
 
   return (

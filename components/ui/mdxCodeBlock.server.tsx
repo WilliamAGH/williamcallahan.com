@@ -14,7 +14,8 @@ export function ServerMDXCodeBlock(props: PreProps) {
   const { children, className, ...rest } = props;
   return (
     <pre
-      className="not-prose rounded-lg overflow-x-auto bg-gray-800 p-4 text-gray-100 text-[13px]"
+      // Removed p-4 from here, as CodeBlock applies it
+      className="not-prose rounded-lg overflow-x-auto bg-gray-800 text-gray-100 text-[13px]"
       {...rest}
     >
       <code className="text-gray-100 bg-transparent text-[13px]">{children}</code>

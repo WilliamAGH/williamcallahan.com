@@ -38,7 +38,7 @@ export function BackgroundInfo({
   return (
     <div className={cn(
       "mt-[-2px] mb-1 py-1 px-6 rounded-lg border", // Reduced top margin by 2px (from my-1 to mt-[-2px] mb-1)
-      "bg-blue-50 dark:bg-blue-900/20",
+      "bg-blue-100 dark:bg-blue-900/20", // Changed light mode background from blue-50 to blue-100
       "border-blue-200 dark:border-blue-800",
       className
     )}>
