@@ -154,7 +154,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
 
   return (
     // Use base prose for mobile, scale up to prose-lg on medium screens+
-    <article className="prose dark:prose-invert md:prose-lg mx-auto px-4 prose-headings:text-gray-900 dark:prose-headings:text-white prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300 prose-p:my-4 prose-p:whitespace-pre-line">
+    <article className="prose dark:prose-invert md:prose-lg mx-auto px-4 prose-headings:text-gray-900 dark:prose-headings:text-white prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300 prose-p:my-4 prose-p:break-words blog-content">
       <MDXRemote {...content} components={components} />
     </article>
   );
