@@ -34,6 +34,12 @@ module.exports = {
             'code::after': { content: '""' },
             'blockquote p:first-of-type::before': { content: '""' },
             'blockquote p:last-of-type::after': { content: '""' },
+            // Reduce HR margins
+            hr: {
+              marginTop: '1.5em', // Default is often larger
+              marginBottom: '1.5em', // Default is often larger
+              borderColor: 'inherit', // Ensure border color respects theme
+            },
           },
         },
         // Add dark mode specific styles for inline code if needed
@@ -50,5 +56,6 @@ module.exports = {
   },
   plugins: [
     require('@tailwindcss/typography'),
+    require('@tailwindcss/line-clamp'), // Add the line-clamp plugin
   ],
 }
