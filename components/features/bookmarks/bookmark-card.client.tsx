@@ -22,8 +22,8 @@
  */
 
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
-import { ExternalLink } from '../../ui/externalLink';
-import { LogoImage } from '../../ui/logoImage';
+import { ExternalLink } from '../../ui/external-link.client';
+import { LogoImage } from '../../ui/logo-image.client';
 import type { Bookmark } from '../../../types/bookmark';
 import { normalizeDomain } from '../../../lib/logo-fetcher';
 

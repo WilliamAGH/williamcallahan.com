@@ -2,6 +2,9 @@
  * Window Controls Component
  *
  * Renders macOS-style window control buttons with optional click handlers.
+ *
+ * @module components/ui/navigation/window-controls
+ * It is a shared component (server and client)
  */
 
 // No longer needs "use client" as it's purely presentational again
@@ -16,8 +19,8 @@ interface WindowControlsProps {
 
 // Helper component for the hover icons
 const HoverIcon = ({ icon, size = 'md' }: { icon: string; size?: 'sm' | 'md' | 'lg' }) => {
-  // Smaller text sizes across all breakpoints
-  const textSizeClass = size === 'sm' ? 'text-[4px]' : size === 'lg' ? 'text-[7px]' : 'text-[5px]';
+  // Slightly larger text sizes across all breakpoints
+  const textSizeClass = size === 'sm' ? 'text-[5px]' : size === 'lg' ? 'text-[8px]' : 'text-[6px]';
 
   return (
     <span className={`absolute inset-0 flex items-center justify-center text-black ${textSizeClass} font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none select-none`}>
@@ -34,13 +37,13 @@ export function WindowControls({
   onMaximize,
   size = 'md', // Default to medium size
 }: WindowControlsProps) {
-  // Slightly smaller button sizes
-  const buttonSize = size === 'sm' ? 'w-1.5 h-1.5' : size === 'lg' ? 'w-3 h-3' : 'w-2 h-2';
+  // Use standard Tailwind size w-2.5 for md, keep lg larger
+  const buttonSize = size === 'sm' ? 'w-1.5 h-1.5' : size === 'lg' ? 'w-3.5 h-3.5' : 'w-2.5 h-2.5'; // Use w-2.5 h-2.5 for md
   const spacingClass = size === 'sm' ? 'space-x-1' : size === 'lg' ? 'space-x-2' : 'space-x-1.5';
   const marginClass = size === 'sm' ? 'mr-1.5' : size === 'lg' ? 'mr-3.5' : 'mr-2.5';
 
   return (
-    <div className={`flex items-center ${spacingClass} ${marginClass} ${className}`}>
+    <div className={`flex items-center flex-shrink-0 ${spacingClass} ${marginClass} ${className}`}> {/* Added flex-shrink-0 */}
       {/* Close Button */}
       <button
         aria-label="Close"

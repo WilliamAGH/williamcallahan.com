@@ -15,10 +15,10 @@
 
 import { useEffect } from 'react';
 import { WindowControls } from '../../../components/ui/navigation/window-controls';
-import { ExternalLink } from '../../ui/externalLink';
+import { ExternalLink } from '../../ui/external-link.client';
 import type { Investment } from '../../../types/investment';
 import Link from 'next/link';
-import { useRegisteredWindowState } from "@/lib/context/GlobalWindowRegistryContext";
+import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

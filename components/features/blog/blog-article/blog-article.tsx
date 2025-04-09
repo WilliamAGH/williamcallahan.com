@@ -16,7 +16,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Calendar } from 'lucide-react';
 import { BlogAuthor } from '../shared/blog-author';
-import { BlogTags } from './blog-tags';
+import { BlogTags } from '../shared/blog-tags';
 import { formatDate } from '../../../../lib/utils';
 import type { Article, WithContext } from 'schema-dts';
 import { MDXContent } from './mdx-content';

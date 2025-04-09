@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Terminal as TerminalIcon } from 'lucide-react'; // Assuming you use lucide-react for icons
-import { useTerminalWindow } from '@/lib/context/TerminalWindowStateContext';
+import { useTerminalWindow } from '@/lib/context/terminal-window-state-context.client';
 import { cn } from '@/lib/utils';
 
 export function FloatingTerminalButton() {

@@ -14,11 +14,11 @@ import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 import Image from 'next/image';
 import Link from 'next/link'; // Import Next.js Link
 import { MDXCodeBlock } from '../../../ui/code-block/mdx-code-block.server';
-import FinancialMetrics from '../../../ui/financialMetrics';
-import { BackgroundInfo } from '../../../ui/backgroundInfo';
-import { CollapseDropdown } from '../../../ui/collapseDropdown';
-import { ExternalLink } from '../../../ui/externalLink';
-import { ImageWindow } from '../../../ui/imageWindow'; // Import the new component
+import FinancialMetrics from '../../../ui/financial-metrics.server';
+import { BackgroundInfo } from '../../../ui/background-info.client';
+import { CollapseDropdown } from '../../../ui/collapse-dropdown.client';
+import { ExternalLink } from '../../../ui/external-link.client';
+import { ImageWindow } from '../../../ui/window/image-window.client'; // Import the new component
 import { cn } from '@/lib/utils'; // Import cn utility
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {

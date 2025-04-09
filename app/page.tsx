@@ -15,6 +15,7 @@ import { JsonLdScript } from "../components/seo/json-ld";
 import { PAGE_METADATA } from "../data/metadata";
 import { formatSeoDate } from "../lib/seo/utils";
 import type { Metadata } from "next";
+import { unstable_noStore as noStore } from "next/cache";
 
 /**
  * Generate metadata for the home page using Next.js 14 Metadata API
@@ -23,10 +24,21 @@ import type { Metadata } from "next";
 export const metadata: Metadata = getStaticPageMetadata('/', 'home');
 
 /**
+ * Enable Partial Prerendering (PPR) for home page
+ * This will prerender static parts while dynamically rendering others
+ */
+export const dynamic = 'force-dynamic';
+export const revalidate = 3600; // Revalidate every hour
+export const prefetch = true; // Enable prefetching
+
+/**
  * Home page component
  * Renders the main landing page with JSON-LD structured data
  */
 export default function HomePage() {
+  // Mark this component for dynamic rendering in a static page (PPR)
+  noStore();
+
   const pageMetadata = PAGE_METADATA.home;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
