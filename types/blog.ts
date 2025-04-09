@@ -41,8 +41,8 @@ export interface BlogPost {
   author: Author;
   /** Array of tag names */
   tags: string[];
-  /** Estimated reading time in minutes */
-  readingTime: number;
+  /** Estimated reading time in minutes (optional) */
+  readingTime?: number;
   /** URL of the post's cover image (optional) */
   coverImage?: string;
 }
