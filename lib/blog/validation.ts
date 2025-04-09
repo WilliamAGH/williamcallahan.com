@@ -13,8 +13,7 @@ const REQUIRED_FIELDS = [
   'excerpt',
   'publishedAt',
   'author',
-  'tags',
-  'readingTime'
+  'tags'
 ] as const;
 
 /**
