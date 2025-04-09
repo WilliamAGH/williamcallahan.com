@@ -14,8 +14,8 @@ export function ServerMDXCodeBlock(props: PreProps) {
   const { children, className, ...rest } = props;
   return (
     <pre
-      // Removed p-4 from here, as CodeBlock applies it
-      className="not-prose rounded-lg overflow-x-auto bg-gray-800 text-gray-100 text-[13px]"
+      // Added responsive styling for mobile
+      className="not-prose rounded-lg overflow-x-auto bg-gray-800 text-gray-100 text-[13px] break-words whitespace-pre-wrap"
       {...rest}
     >
       <code className="text-gray-100 bg-transparent text-[13px]">{children}</code>

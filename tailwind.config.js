@@ -13,6 +13,15 @@ module.exports = {
           css: {
             maxWidth: 'none',
             color: 'inherit',
+            // Add global text wrapping for all content
+            overflowWrap: 'break-word',
+            wordWrap: 'break-word',
+            hyphens: 'auto',
+            // Ensure all code blocks wrap properly
+            'pre, code': {
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            },
             a: {
               color: 'inherit',
               textDecoration: 'underline',

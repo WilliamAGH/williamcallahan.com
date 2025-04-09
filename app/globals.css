@@ -252,6 +252,31 @@ pre[class*="language-"] {
     /* Add animation-delay with stagger in component if needed */
   }
 
+  /* Blog content wrapping for mobile screens */
+  .blog-content {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word; /* For Firefox */
+    -webkit-hyphens: auto;
+    hyphens: auto;
+  }
+
+  /* Force code blocks to wrap properly */
+  .blog-content pre,
+  .blog-content code {
+    white-space: pre-wrap !important;
+    overflow-wrap: break-word !important;
+    word-wrap: break-word !important;
+  }
+
+  /* Force long URLs and paths to break */
+  .blog-content a[href],
+  .blog-content [class*="language-bash"],
+  .blog-content [class*="language-shell"],
+  .blog-content [class*="language-zsh"] {
+    word-break: break-all;
+  }
+
   /* Positioning is handled by components */
   /* Hiding secondary elements is handled here via body classes */
 
