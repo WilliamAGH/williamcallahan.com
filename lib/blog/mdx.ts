@@ -1,4 +1,5 @@
 import { assertServerOnly } from '../utils/ensure-server-only';
+import { formatSeoDate } from '../seo/utils'; // Import the Pacific Time formatter
 
 assertServerOnly('lib/blog/mdx.ts'); // Ensure this module runs only on the server
 
@@ -39,17 +40,12 @@ const serverComponents: MDXComponents = {
 };
 
 /**
- * Converts a date string or Date object to ISO string with time
- * If the input is just a date (YYYY-MM-DD), adds midnight time
+ * Converts a date string or Date object to a Pacific Time ISO string
+ * Uses the formatSeoDate utility to handle PT/DST correctly.
+ * If no date is provided, uses the current time.
  */
-function toISOString(date: string | Date | undefined): string {
-  if (!date) return new Date().toISOString();
-
-  const parsed = typeof date === 'string'
-    ? new Date(date + (date.includes('T') ? '' : 'T00:00:00.000Z'))
-    : date;
-
-  return parsed.toISOString();
+function toPacificISOString(date: string | Date | undefined): string {
+  return formatSeoDate(date);
 }
 
 /**
@@ -120,9 +116,9 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
       parseFrontmatter: true,
     });
 
-    // Use frontmatter dates or fall back to file dates
-    const publishedAt = toISOString(data.publishedAt || fileDates.created);
-    const updatedAt = toISOString(data.updatedAt || data.modifiedAt || fileDates.modified);
+    // Use frontmatter dates, ensuring they are Pacific Time ISO strings
+    const publishedAt = toPacificISOString(data.publishedAt || fileDates.created);
+    const updatedAt = toPacificISOString(data.updatedAt || data.modifiedAt || fileDates.modified);
 
     // Construct the full blog post object
     const post = {

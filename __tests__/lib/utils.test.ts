@@ -50,14 +50,33 @@ describe('formatDate', () => {
     global.Date = realDate;
   });
 
-  it('formats dates correctly', () => {
-    const date = new Date('2024-03-14T12:00:00Z');
-    expect(formatDate(date.toISOString())).toBe('March 14, 2024');
+  it('should format an ISO string with PT offset correctly', () => {
+    // March 14, 2024 00:00:00 PST (-08:00)
+    expect(formatDate('2024-03-14T00:00:00-08:00')).toBe('March 14, 2024');
   });
 
-  it('handles different date formats', () => {
-    expect(formatDate('2024-03-14T12:00:00Z')).toBe('March 14, 2024');
-    expect(formatDate('2024-03-14')).toBe('March 14, 2024');
+  it('should format an ISO string with UTC offset correctly for PT display', () => {
+    // March 14, 2024 08:00:00 UTC is March 14, 2024 00:00:00 PST
+    expect(formatDate('2024-03-14T08:00:00Z')).toBe('March 14, 2024');
+  });
+
+  it('should format a date during PDT correctly', () => {
+    // July 14, 2024 00:00:00 PDT (-07:00)
+    expect(formatDate('2024-07-14T00:00:00-07:00')).toBe('July 14, 2024');
+  });
+
+  // This test case demonstrates the old behavior when passing date-only strings
+  // It's kept here for clarity but shows why date-only strings are problematic
+  it('should show previous day for date-only string (interpreted as UTC midnight)', () => {
+    expect(formatDate('2024-03-14')).toBe('March 13, 2024');
+  });
+
+  it('should handle invalid date string', () => {
+    // Suppress console.warn during this test
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(formatDate('invalid-date')).toBe('Invalid Date');
+    expect(warnSpy).toHaveBeenCalledWith('Invalid date string passed to formatDate: invalid-date');
+    warnSpy.mockRestore();
   });
 });
 

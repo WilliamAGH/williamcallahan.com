@@ -12,8 +12,12 @@ import type { ComponentProps, ReactNode } from 'react';
 import { MDXRemote } from 'next-mdx-remote';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 import Image from 'next/image';
+import Link from 'next/link'; // Import Next.js Link
 import { MDXCodeBlock } from '../../../ui/mdxCodeBlock.server';
 import FinancialMetrics from '../../../ui/financialMetrics';
+import { BackgroundInfo } from '../../../ui/backgroundInfo';
+import { CollapseDropdown } from '../../../ui/collapseDropdown';
+import { ExternalLink } from '../../../ui/externalLink';
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {
   caption?: string;
@@ -45,7 +49,8 @@ const MdxImage = ({
   }
 
   return (
-    <figure className="mt-4 mb-12 max-w-3xl mx-auto grid grid-cols-1 gap-6">
+    // Removed max-w-3xl and mx-auto from figure, let prose handle it
+    <figure className="mt-4 mb-12 grid grid-cols-1 gap-6">
       <div className="w-full h-0 pt-[66.67%] relative">
         <Image
           src={src}
@@ -111,11 +116,32 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     MetricsGroup: FinancialMetrics,
     img: MdxImage,
     ArticleGallery,
-    ArticleImage: MdxImage
+    ArticleImage: MdxImage,
+    BackgroundInfo,
+    CollapseDropdown, // Register the new component
+    // Custom anchor tag renderer
+    a: (props: ComponentProps<'a'>) => {
+      const { href, children, ...rest } = props;
+      if (!href) {
+        // Handle case where href might be missing, though unlikely in valid MDX
+        return <a {...rest}>{children}</a>;
+      }
+      // Check if it's an external link
+      if (href.startsWith('http://') || href.startsWith('https://')) {
+        return <ExternalLink href={href} {...rest}>{children}</ExternalLink>;
+      }
+      // Check if it's an internal link (starts with /)
+      if (href.startsWith('/')) {
+        return <Link href={href} {...rest}>{children}</Link>;
+      }
+      // Otherwise, assume it's an anchor link or similar, render standard anchor
+      return <a href={href} {...rest}>{children}</a>;
+    },
   };
 
   return (
-    <article className="prose dark:prose-invert prose-lg max-w-[85ch] mx-auto prose-headings:text-gray-900 dark:prose-headings:text-white prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300 prose-p:my-4 prose-p:whitespace-pre-line">
+    // Use base prose for mobile, scale up to prose-lg on medium screens+
+    <article className="prose dark:prose-invert md:prose-lg mx-auto px-4 prose-headings:text-gray-900 dark:prose-headings:text-white prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300 prose-p:my-4 prose-p:whitespace-pre-line">
       <MDXRemote {...content} components={components} />
     </article>
   );

@@ -88,7 +88,8 @@ export const CodeBlock = ({ children, className, ...props }: CodeBlockProps): JS
   const defaultClasses = cn(
     'not-prose',
     'rounded-lg',
-    'overflow-x-auto',
+    'whitespace-pre-wrap',
+    'break-words',
     'bg-gray-800',
     'p-4',
     'text-gray-100',
@@ -106,7 +107,8 @@ export const CodeBlock = ({ children, className, ...props }: CodeBlockProps): JS
         className={cn(defaultClasses, className)}
         {...props}
       >
-        <code className="text-gray-100 bg-transparent text-[13px] [&_*]:!text-gray-100 [&_*]:!bg-transparent">
+        {/* Reduce negative margin slightly to fix overshoot */}
+        <code className="-ml-1.5 text-gray-100 bg-transparent text-[13px] [&_*]:!text-gray-100 [&_*]:!bg-transparent">
           {children}
         </code>
       </pre>
