@@ -1,8 +1,8 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { Navigation } from '../../../../components/ui/navigation/navigation';
+import { Navigation } from '../../../../components/ui/navigation/navigation.client';
 import { usePathname } from 'next/navigation';
 import { navigationLinks } from '../../../../components/ui/navigation/navigation-links';
-import { useTerminalContext } from '../../../../components/ui/terminal/terminalContext';
+import { useTerminalContext } from '../../../../components/ui/terminal/terminal-context.client';
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -10,7 +10,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 // Mock terminal context
-jest.mock('../../../../components/ui/terminal/terminalContext', () => ({
+jest.mock('../../../../components/ui/terminal/terminal-context.client', () => ({
   useTerminalContext: jest.fn()
 }));
 
@@ -25,8 +25,9 @@ jest.mock('../../../../components/ui/navigation/window-controls', () => {
 
 // Mock next/link
 jest.mock('next/link', () => {
-  function MockLink({ children, ...props }: any) {
-    return <a {...props}>{children}</a>;
+  function MockLink({ children, href, prefetch, ...props }: any) {
+    // Filter out Next.js specific props and only pass HTML-valid ones to <a>
+    return <a href={href} {...props}>{children}</a>;
   }
   MockLink.displayName = 'MockLink';
   return MockLink;

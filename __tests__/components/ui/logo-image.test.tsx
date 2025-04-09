@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { useTheme } from 'next-themes';
-import { LogoImage } from '../../../components/ui/logoImage';
+import { LogoImage } from '../../../components/ui/logo-image.client';
 
 // Mock next/image
 jest.mock('next/image', () => ({

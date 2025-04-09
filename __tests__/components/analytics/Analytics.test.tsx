@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import { Analytics } from '@/components/analytics/Analytics'
+import { Analytics } from '@/components/analytics/analytics.client'
 import { usePathname } from 'next/navigation'
 
 type UmamiMock = {
