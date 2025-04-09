@@ -34,12 +34,16 @@ module.exports = {
             },
             // Specific heading spacing adjustments
             h2: {
-              marginTop: '6em', // Much more space before major section headings
-              marginBottom: '1.5em',
-              paddingTop: '2em', // Add significant padding at the top
+              marginTop: '3em', // Less space on smaller screens (will be enhanced by component)
+              marginBottom: '1em',
+              paddingTop: '1em', // Reduced padding for mobile
               fontWeight: '700',
               lineHeight: '1.3',
               position: 'relative',
+              '@screen md': {
+                marginTop: '4em', // More space on larger screens
+                paddingTop: '1.5em',
+              },
             },
             // Reduce list spacing
             'ul, ol': {

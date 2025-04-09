@@ -152,13 +152,13 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     },
     // Enhance headings with better styling
     h1: (props: ComponentProps<'h1'>) => (
-      <h1 className="text-3xl font-bold mt-16 mb-6 pt-6 text-gray-900 dark:text-white leading-tight" {...props} />
+      <h1 className="text-3xl font-bold mt-8 md:mt-12 mb-4 md:mb-6 pt-4 md:pt-6 text-gray-900 dark:text-white leading-tight" {...props} />
     ),
     h2: (props: ComponentProps<'h2'>) => (
-      <h2 className="text-2xl font-bold mt-24 mb-8 pt-8 text-gray-900 dark:text-white leading-tight" {...props} />
+      <h2 className="text-2xl font-bold mt-12 md:mt-16 mb-5 md:mb-6 pt-3 md:pt-6 text-gray-900 dark:text-white leading-tight" {...props} />
     ),
     h3: (props: ComponentProps<'h3'>) => (
-      <h3 className="text-xl font-bold mt-12 mb-4 pt-4 text-gray-900 dark:text-white leading-tight" {...props} />
+      <h3 className="text-xl font-bold mt-8 md:mt-10 mb-3 md:mb-4 pt-2 md:pt-3 text-gray-900 dark:text-white leading-tight" {...props} />
     ),
     p: (props: ComponentProps<'p'>) => (
       <p className="my-3 text-gray-700 dark:text-gray-300 leading-relaxed" {...props} />
