@@ -6,12 +6,12 @@ import type { Education, Certification, Class } from 'types/education';
 
 export const recentCourses: Class[] = [
   {
-    id: 'de-anza-data-structures',
-    institution: 'De Anza College',
+    id: 'uc-berkeley-data-structures',
+    institution: 'University of California Berkeley',
     name: 'Data Abstractions & Structures',
-    logo: '/images/de_anza_college_logo.png',
-    website: 'https://deanza.edu',
-    location: 'Cupertino, California'
+    logo: '/images/uc_berkeley_logo.png',
+    website: 'https://www.berkeley.edu',
+    location: 'Berkeley, California'
   },
   {
     id: 'san-mateo-object-oriented',
