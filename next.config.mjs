@@ -109,7 +109,6 @@ const nextConfig = {
     contentSecurityPolicy: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net; img-src 'self' data: https://images.unsplash.com https://williamcallahan.com https://icons.duckduckgo.com https://www.google.com https://external-content.duckduckgo.com https://logo.clearbit.com https://dev.williamcallahan.com https://*.iocloudhost.net`,
     formats: ['image/avif', 'image/webp'],
     // Allow unoptimized images as fallback in production
-    unoptimized: process.env.NODE_ENV === 'production',
     remotePatterns: [
       {
         protocol: 'https',
