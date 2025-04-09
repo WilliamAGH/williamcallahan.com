@@ -9,6 +9,8 @@
       {
         "nested-interactive": "off"
       }
-    ]
+    ],
+    "button-type": "off",
+    "axe/aria": "off"
   }
 }

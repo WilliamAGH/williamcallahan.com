@@ -41,29 +41,26 @@ export function formatPercentage(value: number): string {
 
 /**
  * Format a date string (e.g., "March 14, 2024")
- * @param {string} dateString - The date string to format
+ * Uses Pacific Time (America/Los_Angeles).
+ * @param {string} dateString - The date string to format (expects ISO format like YYYY-MM-DDTHH:mm:ssZ or YYYY-MM-DDTHH:mm:ss-08:00)
  * @returns {string} Formatted date string
  */
 export function formatDate(dateString: string): string {
-  // Create date in UTC to avoid timezone issues
+  // Parse the date string directly. new Date() handles ISO strings correctly.
   const date = new Date(dateString);
-  const utcDate = new Date(
-    Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate(),
-      12, // noon UTC to avoid any date boundary issues
-      0,
-      0,
-      0
-    )
-  );
 
-  return utcDate.toLocaleDateString('en-US', {
+  // Check if the date is valid
+  if (isNaN(date.getTime())) {
+    console.warn(`Invalid date string passed to formatDate: ${dateString}`);
+    return 'Invalid Date';
+  }
+
+  // Format the date using Pacific Time
+  return date.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
-    timeZone: 'UTC'
+    timeZone: 'America/Los_Angeles' // Use Pacific Time
   });
 }
 
