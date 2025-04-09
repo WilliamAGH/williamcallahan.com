@@ -67,6 +67,34 @@ export function middleware(request: NextRequest): NextResponse {
     response.headers.set(header, value)
   })
 
+  // Add caching headers for static assets
+  const url = request.nextUrl.pathname
+  // Skip caching in development mode
+  const isDev = process.env.NODE_ENV === 'development'
+
+  if (!isDev && (
+    url.includes('/_next/image') ||
+    url.includes('/_next/static') ||
+    url.endsWith('.jpg') ||
+    url.endsWith('.jpeg') ||
+    url.endsWith('.png') ||
+    url.endsWith('.webp') ||
+    url.endsWith('.svg') ||
+    url.endsWith('.css') ||
+    url.endsWith('.woff2')
+  )) {
+    // Cache static assets for 1 week
+    response.headers.set('Cache-Control', 'public, max-age=604800, immutable')
+  } else if (!isDev && (url === '/' || !url.includes('.'))) {
+    // For HTML pages - shorter cache with revalidation
+    response.headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
+  } else if (isDev) {
+    // Explicitly prevent caching in development
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+  }
+
   // Log the request with the real IP
   const log: RequestLog = {
     timestamp: new Date().toISOString(),
