@@ -36,8 +36,43 @@ export function BackgroundInfo({
   icon = <InfoIcon className="w-4 h-4" />
 }: BackgroundInfoProps): JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [canOverflow, setCanOverflow] = useState(false); // State for potential overflow
-  const contentRef = useRef<HTMLDivElement>(null); // Ref for content div
+  const [showToggleButton, setShowToggleButton] = useState(false); // State for button visibility
+  const contentRef = useRef<HTMLDivElement>(null); // Ref to measure content
+
+  // Effect to check content height and determine if button is needed, includes resize handling
+  useEffect(() => {
+    // Function to check the content height against the threshold
+    const checkHeight = () => {
+      // Use timeout to ensure layout calculations are complete
+      setTimeout(() => {
+        if (contentRef.current) {
+          const buffer = 16; // Buffer to prevent button showing for minimal overflow (adjust as needed)
+          const collapsedHeightThreshold = 144; // Corresponds to max-h-36 (9rem * 16px/rem)
+
+          // Check if the actual content height significantly exceeds the collapsed threshold
+          const isContentSignificantlyTaller =
+            contentRef.current.scrollHeight > (collapsedHeightThreshold + buffer);
+
+          // Update state only if the visibility status needs to change
+          // This prevents unnecessary re-renders
+          setShowToggleButton(prev =>
+            prev !== isContentSignificantlyTaller ? isContentSignificantlyTaller : prev
+          );
+        }
+      }, 0); // 0ms delay helps push this check after the current render cycle
+    };
+
+    checkHeight(); // Perform initial check on mount or when children change
+
+    // Add resize listener to re-evaluate height when window size changes
+    window.addEventListener('resize', checkHeight);
+
+    // Cleanup: remove the resize listener when the component unmounts
+    return () => {
+      window.removeEventListener('resize', checkHeight);
+    };
+    // Dependencies: This effect runs when the component mounts and whenever the `children` prop changes.
+  }, [children]);
 
   // Restore original container classes, add mobile width override
   const containerClasses = cn(
@@ -50,37 +85,11 @@ export function BackgroundInfo({
     className
   );
 
-  // Effect to check if content *can* overflow and button is needed
-  useEffect(() => {
-    const checkCanOverflow = () => {
-      if (contentRef.current && window.innerWidth < 768) {
-        // Check if the scroll height exceeds the visible client height
-        const needsButton = contentRef.current.scrollHeight > contentRef.current.clientHeight;
-        setCanOverflow(needsButton);
-      } else {
-        // No button needed on desktop or if ref is not available
-        setCanOverflow(false);
-      }
-    };
-
-    // Check initially and on resize
-    checkCanOverflow();
-    // Use timeout to allow layout to settle after potential children changes
-    const timeoutId = setTimeout(checkCanOverflow, 50);
-    window.addEventListener('resize', checkCanOverflow);
-
-    // Cleanup listener and timeout
-    return () => {
-      clearTimeout(timeoutId);
-      window.removeEventListener('resize', checkCanOverflow);
-    };
-  }, [children]); // Re-check only when children change
-
-  // Apply line clamp and overflow ONLY below md breakpoint AND when not expanded
+  // Define content classes with conditional max-height and transition for mobile
   const contentClasses = cn(
-    "prose-sm dark:prose-invert text-blue-800 dark:text-blue-200", // Original content classes
-    // Remove conditional negative margin, rely on prose and title margin
-    isExpanded ? '' : 'max-md:line-clamp-7 max-md:max-h-[12em] max-md:overflow-hidden'
+    "prose-sm dark:prose-invert text-blue-800 dark:text-blue-200", // Base styles
+    "max-md:overflow-hidden transition-[max-height] duration-300 ease-in-out", // Mobile transition/overflow
+    isExpanded ? "max-md:max-h-[1000px]" : "max-md:max-h-36" // Conditional mobile height
   );
 
   // Restore original title container classes, reduce bottom margin
@@ -106,23 +115,24 @@ export function BackgroundInfo({
           {title}
         </h4>
       </div>
-      {/* Content div with conditional clamping and ref */}
+      {/* Content div with conditional max-height and ref */}
       <div ref={contentRef} className={contentClasses}>
         {children}
       </div>
-      {/* Button only shown below md breakpoint AND if content can overflow */}
-      {canOverflow && (
+      {/* Button container: Render only if needed (content taller than collapsed) AND below md breakpoint */}
+      {showToggleButton && (
         <div className="md:hidden">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-          className={toggleButtonClasses}
-          aria-expanded={isExpanded} // Use boolean directly
-        >
-          {isExpanded ? "Read less" : "Read more"}
-            {isExpanded ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />}
-          </button>
-        </div>
+            className={toggleButtonClasses}
+            aria-expanded={isExpanded} // Use boolean directly
+          >
+            {isExpanded ? "Read less" : "Read more"}
+              {isExpanded ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />}
+            </button>
+          </div>
       )}
+      {/* Removed conditional rendering based on isClampedInitially */}
     </div>
   );
 }
