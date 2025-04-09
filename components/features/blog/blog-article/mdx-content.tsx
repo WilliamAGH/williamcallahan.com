@@ -21,12 +21,14 @@ import { ExternalLink } from '../../../ui/externalLink';
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {
   caption?: string;
+  size?: 'full' | 'medium' | 'small';
 }
 
 const MdxImage = ({
   src = '',
   alt = '',
   caption,
+  size = 'full',
   ...props
 }: ArticleImageProps) => {
   if (!src) return null;
@@ -48,20 +50,31 @@ const MdxImage = ({
     );
   }
 
+  let widthClass = 'max-w-4xl';
+  let imageSizes = "(max-width: 1024px) 100vw, 896px";
+
+  if (size === 'medium') {
+    widthClass = 'max-w-2xl';
+    imageSizes = "(max-width: 768px) 100vw, 672px";
+  } else if (size === 'small') {
+    widthClass = 'max-w-lg';
+    imageSizes = "(max-width: 640px) 100vw, 512px";
+  }
+
   return (
-    // Removed max-w-3xl and mx-auto from figure, let prose handle it
-    <figure className="mt-4 mb-12 grid grid-cols-1 gap-6">
-      <div className="w-full h-0 pt-[66.67%] relative">
+    <figure className={`my-8 ${widthClass} mx-auto`}>
+      <div className="w-full h-auto relative">
         <Image
           src={src}
           alt={alt}
-          fill
-          sizes="(max-width: 768px) 100vw, 768px"
-          className="absolute top-0 left-0 w-full h-full rounded-lg object-cover shadow-lg"
+          width={1600}
+          height={800}
+          sizes={imageSizes}
+          className="w-full h-auto rounded-lg object-contain shadow-lg"
         />
       </div>
       {caption && (
-        <figcaption className="text-base text-gray-600 dark:text-gray-400 italic text-center px-4">
+        <figcaption className="text-base text-gray-600 dark:text-gray-400 italic text-center">
           {caption}
         </figcaption>
       )}
