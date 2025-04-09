@@ -28,13 +28,39 @@ async function getPlaceholderSvgDataUrl(): Promise<string> {
   assertServerOnly("getPlaceholderSvgDataUrl"); // Assert server context
   if (!placeholderSvgDataUrl) {
     try {
-      const buffer = await fs.readFile(path.join(process.cwd(), 'public/images/company-placeholder.svg'));
-      const base64 = buffer.toString('base64');
-      placeholderSvgDataUrl = `data:image/svg+xml;base64,${base64}`;
+      // Try multiple possible paths for Docker environment compatibility
+      const possiblePaths = [
+        path.join(process.cwd(), 'public/images/company-placeholder.svg'),
+        path.join(process.cwd(), '/public/images/company-placeholder.svg'),
+        path.join(process.cwd(), '../public/images/company-placeholder.svg'),
+        '/app/public/images/company-placeholder.svg' // Direct Docker container path
+      ];
+
+      let buffer = null;
+      let loadedPath = '';
+
+      // Try each path until we find one that works
+      for (const p of possiblePaths) {
+        try {
+          buffer = await fs.readFile(p);
+          loadedPath = p;
+          break;
+        } catch (err) {
+          // Continue to next path
+        }
+      }
+
+      if (buffer) {
+        console.info(`Successfully loaded placeholder SVG from: ${loadedPath}`);
+        const base64 = buffer.toString('base64');
+        placeholderSvgDataUrl = `data:image/svg+xml;base64,${base64}`;
+      } else {
+        throw new Error("Could not read placeholder SVG from any known path");
+      }
     } catch (error) {
       console.error("Failed to read placeholder SVG:", error);
       // Fallback to a minimal inline SVG to avoid complete failure
-      placeholderSvgDataUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3C/svg%3E";
+      placeholderSvgDataUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f0f0f0'/%3E%3Cpath d='M50,30 L70,50 L50,70 L30,50 Z' fill='%23aaa'/%3E%3C/svg%3E";
     }
   }
   return placeholderSvgDataUrl;

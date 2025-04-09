@@ -27,6 +27,8 @@ export function LogoImage({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<boolean>(false);
   const [triedApi, setTriedApi] = useState<boolean>(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 2; // Maximum number of retries
 
   const isApiUrl = (url: string): boolean => url.startsWith("/api/logo");
   const isDataUrl = (url: string): boolean => url.startsWith("data:");
@@ -42,6 +44,7 @@ export function LogoImage({
     setError(false);
     setIsLoading(true);
     setTriedApi(false);
+    setRetryCount(0);
 
     if (!url) {
       setError(true);
@@ -60,6 +63,17 @@ export function LogoImage({
   }, [url]);
 
   const handleError = (): void => {
+    // If we've already tried the maximum number of retries, give up
+    if (retryCount >= maxRetries) {
+      setError(true);
+      setIsLoading(false);
+      return;
+    }
+
+    // Increment retry count
+    setRetryCount(prev => prev + 1);
+
+    // If we haven't tried the API fallback yet and have a website, try that
     if (!triedApi && website && !isApiUrl(currentUrl)) {
       try {
         setTriedApi(true);
@@ -67,6 +81,20 @@ export function LogoImage({
         return;
       } catch (err) {
         console.error("Failed to generate API fallback URL:", err);
+      }
+    }
+
+    // If it's a relative URL that might need a different base path in production
+    if (currentUrl.startsWith('/') && !isApiUrl(currentUrl) && !triedApi) {
+      try {
+        setTriedApi(true);
+        // Try with different path pattern
+        if (currentUrl.startsWith('/images/')) {
+          setCurrentUrl(`/public${currentUrl}`);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to adjust URL path:", err);
       }
     }
 
@@ -96,7 +124,7 @@ export function LogoImage({
       className={`${className} ${error ? "opacity-50" : ""} ${getInversionClass()}`}
       onError={handleError}
       priority
-      {...(isDataUrl(imageUrl) ? { unoptimized: true } : {})} // Skip optimization for data URLs since they're already optimized
+      unoptimized={isDataUrl(imageUrl) || error} // Skip optimization for data URLs and fallback images
     />
   );
 }
