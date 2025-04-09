@@ -105,9 +105,11 @@ const nextConfig = {
   images: {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
-    // CSP configuration allowing analytics scripts from configured domains
-    contentSecurityPolicy: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net`,
+    // CSP configuration allowing analytics scripts and images from configured domains
+    contentSecurityPolicy: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net; img-src 'self' data: https://images.unsplash.com https://williamcallahan.com https://icons.duckduckgo.com https://www.google.com https://external-content.duckduckgo.com https://logo.clearbit.com; https://dev.williamcallahan.com, https://*.iocloudhost.net`,
     formats: ['image/avif', 'image/webp'],
+    // Allow unoptimized images as fallback in production
+    unoptimized: process.env.NODE_ENV === 'production',
     remotePatterns: [
       {
         protocol: 'https',
@@ -133,7 +135,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'logo.clearbit.com'
       }
-    ]
+    ],
+    // Set larger size limits to avoid issues with large images
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   }
 };
 

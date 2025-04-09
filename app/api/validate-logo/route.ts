@@ -118,11 +118,25 @@ async function compareImages(image1: Buffer, image2: Buffer): Promise<boolean> {
  */
 async function loadReferenceIcon(): Promise<void> {
   if (referenceGlobeIcon) return;
-  try {
-    referenceGlobeIcon = await fs.readFile(path.join(process.cwd(), 'public/images/reference-globe-icon.png'));
-  } catch (error) {
-    console.warn('Failed to load reference globe icon:', error);
+
+  const possiblePaths = [
+    path.join(process.cwd(), 'public/images/reference-globe-icon.png'),
+    path.join(process.cwd(), '/public/images/reference-globe-icon.png'),
+    path.join(process.cwd(), '../public/images/reference-globe-icon.png'),
+    '/app/public/images/reference-globe-icon.png' // Direct Docker container path
+  ];
+
+  for (const p of possiblePaths) {
+    try {
+      referenceGlobeIcon = await fs.readFile(p);
+      console.info(`Successfully loaded reference globe icon from: ${p}`);
+      return;
+    } catch (err) {
+      // Try next path
+    }
   }
+
+  console.warn('Failed to load reference globe icon from any known path');
 }
 
 /**
