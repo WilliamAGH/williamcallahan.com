@@ -37,14 +37,14 @@ const MdxImage = ({
 
   if (isCoverImage) {
     return (
-      <div className="mt-4 mb-8">
+      <div className="mt-4 mb-6">
         <Image
           src={src}
           alt={alt}
           priority
           width={1600}
           height={800}
-          className="rounded-lg mx-auto"
+          className="rounded-lg mx-auto shadow-md"
         />
       </div>
     );
@@ -62,19 +62,19 @@ const MdxImage = ({
   }
 
   return (
-    <figure className={`my-8 ${widthClass} mx-auto`}>
-      <div className="w-full h-auto relative">
+    <figure className={`my-6 ${widthClass} mx-auto`}>
+      <div className="w-full h-auto relative bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 p-1 rounded-lg shadow-md">
         <Image
           src={src}
           alt={alt}
           width={1600}
           height={800}
           sizes={imageSizes}
-          className="w-full h-auto rounded-lg object-contain shadow-lg"
+          className="w-full h-auto rounded-md object-contain"
         />
       </div>
       {caption && (
-        <figcaption className="text-base text-gray-600 dark:text-gray-400 italic text-center">
+        <figcaption className="text-base text-gray-600 dark:text-gray-400 italic text-center mt-2 px-4">
           {caption}
         </figcaption>
       )}
@@ -92,7 +92,7 @@ const ArticleGallery = ({
   className = ''
 }: ArticleGalleryProps) => {
   return (
-    <div className={`flow-root space-y-12 my-8 ${className}`}>
+    <div className={`flow-root space-y-8 my-6 p-4 bg-gray-50 dark:bg-gray-800/30 rounded-lg ${className}`}>
       {children}
     </div>
   );
@@ -121,7 +121,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     code: (codeProps: ComponentProps<'code'>) => {
       const { children, className, ...rest } = codeProps;
       return (
-        <code className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-1.5 py-0.5 rounded" {...rest}>
+        <code className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-0.5 rounded font-medium" {...rest}>
           {children}
         </code>
       );
@@ -131,7 +131,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     ArticleGallery,
     ArticleImage: MdxImage,
     BackgroundInfo,
-    CollapseDropdown, // Register the new component
+    CollapseDropdown,
     // Custom anchor tag renderer
     a: (props: ComponentProps<'a'>) => {
       const { href, children, ...rest } = props;
@@ -150,11 +150,50 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
       // Otherwise, assume it's an anchor link or similar, render standard anchor
       return <a href={href} {...rest}>{children}</a>;
     },
+    // Enhance headings with better styling
+    h1: (props: ComponentProps<'h1'>) => (
+      <h1 className="text-3xl font-bold mt-8 md:mt-12 mb-4 md:mb-6 pt-4 md:pt-6 text-gray-900 dark:text-white leading-tight" {...props} />
+    ),
+    h2: (props: ComponentProps<'h2'>) => (
+      <h2 className="text-2xl font-bold mt-12 md:mt-16 mb-5 md:mb-6 pt-3 md:pt-6 text-gray-900 dark:text-white leading-tight" {...props} />
+    ),
+    h3: (props: ComponentProps<'h3'>) => (
+      <h3 className="text-xl font-bold mt-8 md:mt-10 mb-3 md:mb-4 pt-2 md:pt-3 text-gray-900 dark:text-white leading-tight" {...props} />
+    ),
+    p: (props: ComponentProps<'p'>) => (
+      <p className="my-3 text-gray-700 dark:text-gray-300 leading-relaxed" {...props} />
+    ),
+    ul: (props: ComponentProps<'ul'>) => (
+      <ul className="my-3 pl-6 list-disc text-gray-700 dark:text-gray-300" {...props} />
+    ),
+    ol: (props: ComponentProps<'ol'>) => (
+      <ol className="my-3 pl-6 list-decimal text-gray-700 dark:text-gray-300" {...props} />
+    ),
+    li: (props: ComponentProps<'li'>) => (
+      <li className="my-1 pl-1 text-gray-700 dark:text-gray-300" {...props} />
+    ),
+    blockquote: (props: ComponentProps<'blockquote'>) => (
+      <blockquote className="my-3 pl-4 border-l-4 border-blue-500 dark:border-blue-400 italic text-gray-700 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 py-3 px-4 rounded-r-md shadow-sm" {...props} />
+    ),
+    hr: (props: ComponentProps<'hr'>) => (
+      <hr className="hidden" {...props} />
+    ),
+    table: (props: ComponentProps<'table'>) => (
+      <div className="my-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800" {...props} />
+      </div>
+    ),
+    th: (props: ComponentProps<'th'>) => (
+      <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left text-sm font-medium text-gray-700 dark:text-gray-300" {...props} />
+    ),
+    td: (props: ComponentProps<'td'>) => (
+      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 border-t border-gray-100 dark:border-gray-800" {...props} />
+    ),
   };
 
   return (
     // Use base prose for mobile, scale up to prose-lg on medium screens+
-    <article className="prose dark:prose-invert md:prose-lg mx-auto px-4 prose-headings:text-gray-900 dark:prose-headings:text-white prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300 prose-p:my-4 prose-p:break-words blog-content">
+    <article className="prose dark:prose-invert md:prose-lg mx-auto prose-headings:text-gray-900 dark:prose-headings:text-white prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300 prose-p:my-3 prose-p:break-words prose-img:rounded-lg prose-img:shadow-md prose-hr:hidden blog-content">
       <MDXRemote {...content} components={components} />
     </article>
   );

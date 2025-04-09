@@ -13,8 +13,7 @@ jest.mock('../../data/blog/posts', () => ({
       content: {} as any,
       publishedAt: '2024-01-01T00:00:00Z',
       author: { id: '1', name: 'John Doe' },
-      tags: ['react', 'javascript'],
-      readingTime: 5
+      tags: ['react', 'javascript']
     },
     {
       id: '2',
@@ -24,8 +23,7 @@ jest.mock('../../data/blog/posts', () => ({
       content: {} as any,
       publishedAt: '2024-01-02T00:00:00Z',
       author: { id: '1', name: 'John Doe' },
-      tags: ['typescript', 'javascript'],
-      readingTime: 5
+      tags: ['typescript', 'javascript']
     }
   ]
 }));

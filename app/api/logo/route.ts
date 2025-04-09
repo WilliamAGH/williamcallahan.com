@@ -84,24 +84,48 @@ function getLogoPath(domain: string, source: string): string {
  * @returns {Promise<boolean>} Whether the directory is available and writable
  */
 async function ensureLogosDirectory(): Promise<boolean> {
-  const logosDir = path.join(process.cwd(), 'public', 'logos');
-  try {
-    // Try to access or create the directory
-    try {
-      await fs.access(logosDir);
-    } catch {
-      await fs.mkdir(logosDir, { recursive: true });
-    }
+  // Try different potential paths for the logos directory
+  const basePaths = [
+    path.join(process.cwd(), 'public', 'logos'),
+    path.join(process.cwd(), '/public/logos'),
+    path.join(process.cwd(), '../public/logos'),
+    '/app/public/logos' // Direct Docker container path
+  ];
 
-    // Verify we can write to the directory
-    const testFile = path.join(logosDir, '.write-test');
-    await fs.writeFile(testFile, '');
-    await fs.unlink(testFile);
-    return true;
-  } catch (error) {
-    console.warn('Logo directory not writable:', error);
-    return false;
+  for (const logosDir of basePaths) {
+    try {
+      // Try to access or create the directory
+      try {
+        await fs.access(logosDir);
+        console.info(`Found logos directory at: ${logosDir}`);
+      } catch {
+        console.info(`Creating logos directory at: ${logosDir}`);
+        await fs.mkdir(logosDir, { recursive: true });
+      }
+
+      // Verify we can write to the directory
+      const testFile = path.join(logosDir, '.write-test');
+      await fs.writeFile(testFile, '');
+      await fs.unlink(testFile);
+
+      // Update the getLogoPath function to use this working path
+      const originalGetLogoPath = getLogoPath;
+      // @ts-ignore - Dynamic function replacement
+      getLogoPath = (domain: string, source: string): string => {
+        const hash = getDomainHash(domain);
+        return path.join(logosDir, `${hash}-${source}.png`);
+      };
+
+      console.info(`Using logos directory: ${logosDir}`);
+      return true;
+    } catch (error) {
+      console.warn(`Logos directory not writable at ${logosDir}:`, error);
+      // Try next path
+    }
   }
+
+  console.warn('No writable logos directory found, falling back to memory-only mode');
+  return false;
 }
 
 /**

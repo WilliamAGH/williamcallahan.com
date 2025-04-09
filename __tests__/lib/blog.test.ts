@@ -36,8 +36,7 @@ jest.mock('../../data/blog/posts', () => ({
         name: 'William Callahan'
       },
       coverImage: 'https://example.com/image1.jpg',
-      tags: ['test'],
-      readingTime: 5
+      tags: ['test']
     },
     {
       id: 'test-post-2',
@@ -51,8 +50,7 @@ jest.mock('../../data/blog/posts', () => ({
         name: 'William Callahan'
       },
       coverImage: 'https://example.com/image2.jpg',
-      tags: ['test'],
-      readingTime: 3
+      tags: ['test']
     }
   ]
 }));
@@ -74,8 +72,7 @@ jest.mock('../../lib/blog/mdx', () => ({
           name: 'William Callahan'
         },
         coverImage: 'https://example.com/image1.jpg',
-        tags: ['test'],
-        readingTime: 5
+        tags: ['test']
       },
       {
         id: 'test-post-2',
@@ -89,8 +86,7 @@ jest.mock('../../lib/blog/mdx', () => ({
           name: 'William Callahan'
         },
         coverImage: 'https://example.com/image2.jpg',
-        tags: ['test'],
-        readingTime: 3
+        tags: ['test']
       }
     ];
     const post = posts.find(p => p.slug === slug);

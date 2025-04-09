@@ -131,7 +131,7 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
       updatedAt,
       author,
       tags: data.tags,
-      readingTime: data.readingTime,
+      ...(data.readingTime !== undefined && { readingTime: data.readingTime }),
       coverImage: data.coverImage
     };
 
