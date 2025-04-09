@@ -60,8 +60,24 @@ export function CollapseDropdown({
         {/* Ensure summary text doesn't overflow weirdly */}
         <span className="flex-grow">{summary}</span>
       </summary>
-      {/* Adjusted margin for content based on summary padding */}
-      <div className={cn("ml-6 mt-4 mb-4", contentClassName)}> {/* Indent content slightly, added margin top/bottom */}
+      {/* Content container with improved styling */}
+      <div className={cn(
+        "ml-6 mt-4 mb-4",
+        "prose prose-sm dark:prose-invert max-w-none", // Base prose styling
+        "overflow-visible",
+        // General code formatting (applied first)
+        "[&_code]:text-sm [&_code]:break-words [&_code]:whitespace-normal",
+        // Specific overrides for CODE inside LINKS:
+        "[&_a>code]:text-blue-600 dark:[&_a>code]:text-blue-400", // Force link color
+        "[&_a>code]:bg-transparent dark:[&_a>code]:bg-transparent", // Remove background
+        "[&_a>code]:px-0 [&_a>code]:py-0", // Remove padding
+        "[&_a:hover>code]:text-blue-500 dark:[&_a:hover>code]:text-blue-300", // Hover color
+        // Pre/code block formatting
+        "[&_pre]:overflow-x-auto [&_pre]:my-2",
+        // List formatting
+        "[&_ul]:pl-5 [&_li]:ml-0 [&_li]:my-1",
+        contentClassName
+      )}>
         {children}
       </div>
     </details>
