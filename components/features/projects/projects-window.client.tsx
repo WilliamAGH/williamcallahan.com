@@ -19,6 +19,7 @@ import { FolderKanban } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 import type { ClientBoundaryProps } from '@/types/component-types';
+import { ProjectsListClient } from './projects-list.client';
 
 // Define a unique ID for this window instance
 const PROJECTS_WINDOW_ID = 'projects-window';
@@ -79,6 +80,7 @@ const ProjectsWindowContent = dynamic(
             </div>
           }>
             {children}
+            <ProjectsListClient />
           </Suspense>
         </div>
       </div>

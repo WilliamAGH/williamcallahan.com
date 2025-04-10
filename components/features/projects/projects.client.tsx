@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Projects Component
  * Using hybrid architecture with server components for content
@@ -5,12 +7,16 @@
  */
 
 import { ProjectsWindow } from './projects-window.client';
-import { ProjectsListServer } from './projects-list.server';
+import { ProjectTagsClient } from './project-tags.client';
 
 export function ProjectsClient() {
   return (
     <ProjectsWindow>
-      <ProjectsListServer />
+      <div className="relative">
+        <ProjectTagsClient />
+        {/* ProjectsListServer is now imported and rendered by the page,
+            not directly by this client component */}
+      </div>
     </ProjectsWindow>
   );
 }
