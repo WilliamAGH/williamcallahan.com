@@ -21,12 +21,7 @@ declare global {
     }
   }
 
-  interface Window {
-    plausible: (...args: any[]) => void;
-    umami: {
-      track: (event: string, data?: Record<string, any>) => void;
-    } & ((...args: any[]) => void);
-  }
+  // Window interface is defined in analytics.d.ts
 }
 
 export {}

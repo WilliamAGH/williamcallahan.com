@@ -106,7 +106,7 @@ const nextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     // CSP configuration allowing analytics scripts and images from configured domains
-    contentSecurityPolicy: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net; img-src 'self' data: https://images.unsplash.com https://williamcallahan.com https://icons.duckduckgo.com https://www.google.com https://external-content.duckduckgo.com https://logo.clearbit.com https://dev.williamcallahan.com https://*.iocloudhost.net https://*.popos-sf1.com, https://*.popos-sf2.com, https://*.popos-sf3.com`,
+    contentSecurityPolicy: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://static.cloudflareinsights.com; connect-src 'self' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://static.cloudflareinsights.com; img-src 'self' data: https://images.unsplash.com https://williamcallahan.com https://icons.duckduckgo.com https://www.google.com https://external-content.duckduckgo.com https://logo.clearbit.com https://dev.williamcallahan.com https://*.iocloudhost.net https://*.popos-sf1.com https://*.popos-sf2.com https://*.popos-sf3.com`,
     formats: ['image/webp', 'image/avif'], // Prioritize webp over avif for speed
     minimumCacheTTL: 60 * 60 * 24 * 7, // 7 days cache
     path: '/_next/image',

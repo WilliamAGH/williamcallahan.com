@@ -2,7 +2,7 @@
 
 import Script from 'next/script'
 import { usePathname } from 'next/navigation'
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useState } from 'react'
 
 /**
  * Analytics event data structure based on official specs
@@ -49,15 +49,13 @@ function createBaseEventData(): BaseAnalyticsEvent {
 function trackPlausible(path: string): void {
   if (typeof window !== 'undefined' && typeof window.plausible === 'function') {
     try {
-      // Directly track without fetching IP. Plausible collects IP server-side.
       const eventData = {
         ...createBaseEventData(),
         path,
       }
       window.plausible('pageview', { props: eventData })
-      console.log('[Plausible Debug] Event sent with data:', eventData)
     } catch (error) {
-      console.error('Plausible tracking error:', error)
+      console.error('[Analytics Error] Plausible tracking error:', error)
     }
   }
 }
@@ -66,7 +64,7 @@ function trackPlausible(path: string): void {
  * Safely tracks a pageview in Umami
  * @param path - The normalized page path
  */
-function trackUmami(path: string): void {
+export function trackUmami(path: string): void {
   if (typeof window !== 'undefined' && window.umami?.track && typeof window.umami.track === 'function') {
     try {
       const eventData: UmamiEvent = {
@@ -77,7 +75,7 @@ function trackUmami(path: string): void {
       }
       window.umami.track('pageview', eventData)
     } catch (error) {
-      console.error('Umami tracking error:', error)
+      console.error('[Analytics Error] Umami tracking error:', error)
     }
   }
 }
@@ -89,37 +87,44 @@ function trackUmami(path: string): void {
  */
 export function Analytics(): JSX.Element | null {
   const pathname = usePathname()
+  const [scriptsLoaded, setScriptsLoaded] = useState({
+    umami: false,
+    plausible: false
+  })
 
   const trackPageview = useCallback((path: string) => {
-    // Ensure we're in the browser
     if (typeof window === 'undefined') return
-    trackPlausible(path)
-    trackUmami(path)
-  }, [])
+
+    const normalizedPath = path
+      .replace(/\/blog\/[^/]+/, '/blog/:slug')
+      .replace(/\?.+$/, '')
+
+    if (scriptsLoaded.umami) {
+      trackUmami(normalizedPath)
+    }
+    if (scriptsLoaded.plausible) {
+      trackPlausible(normalizedPath)
+    }
+  }, [scriptsLoaded])
 
   // Track page views on route changes
   useEffect(() => {
     if (!pathname) return
 
+    // Don't continue if scripts aren't loaded
+    if (!scriptsLoaded.umami && !scriptsLoaded.plausible) return
+
     const normalizedPath = pathname
       .replace(/\/blog\/[^/]+/, '/blog/:slug')
       .replace(/\?.+$/, '')
 
-    // Debug analytics script status
-    console.debug('[Analytics Debug] Script status:', {
-      umamiLoaded: typeof window.umami?.track === 'function',
-      plausibleLoaded: typeof window.plausible === 'function',
-      path: normalizedPath
-    })
-
-    // Only track if scripts are loaded and initialized
-    if (typeof window.umami?.track === 'function' || typeof window.plausible === 'function') {
-      console.debug('[Analytics Debug] Tracking pageview:', normalizedPath)
+    // Add a small delay to ensure scripts are fully initialized
+    const trackingTimeout = setTimeout(() => {
       trackPageview(normalizedPath)
-    } else {
-      console.debug('[Analytics Debug] Scripts not ready, skipping pageview')
-    }
-  }, [pathname, trackPageview])
+    }, 100)
+
+    return () => clearTimeout(trackingTimeout)
+  }, [pathname, trackPageview, scriptsLoaded])
 
   // Early return if missing config or not in browser
   if (typeof window === 'undefined' || !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || !process.env.NEXT_PUBLIC_SITE_URL) {
@@ -127,29 +132,21 @@ export function Analytics(): JSX.Element | null {
   }
 
   const domain = new URL(process.env.NEXT_PUBLIC_SITE_URL).hostname
-  const normalizedPath = pathname
-    ? pathname.replace(/\/blog\/[^/]+/, '/blog/:slug').replace(/\?.+$/, '')
-    : ''
 
   return (
     <>
       <Script
         id="umami"
-        strategy="afterInteractive"
+        strategy="lazyOnload"
         src="https://umami.iocloudhost.net/script.js"
         data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+        data-auto-track="false"
+        data-do-not-track="true"
+        data-cache="true"
         onLoad={() => {
-          console.debug('[Analytics Debug] Umami script loaded');
-          // Trigger initial track *after* script is confirmed loaded
-          // Ensure track function exists before calling
-          if (typeof window.umami?.track === 'function') {
-            const initialPath = (pathname || window.location.pathname)
-              .replace(/\/blog\/[^/]+/, '/blog/:slug')
-              .replace(/\?.+$/, '');
-            console.debug('[Analytics Debug] Tracking initial pageview from onLoad:', initialPath);
-            trackPageview(initialPath);
-          } else {
-             console.warn('[Analytics Debug] Umami track function not found immediately after onLoad');
+          setScriptsLoaded(prev => ({ ...prev, umami: true }))
+          if (pathname) {
+            trackPageview(pathname)
           }
         }}
         onError={(e) => {
@@ -158,9 +155,16 @@ export function Analytics(): JSX.Element | null {
       />
       <Script
         id="plausible"
-        strategy="afterInteractive"
+        strategy="lazyOnload"
         src="https://plausible.iocloudhost.net/js/script.js"
         data-domain={domain}
+        data-api="https://plausible.iocloudhost.net/api/event"
+        onLoad={() => {
+          setScriptsLoaded(prev => ({ ...prev, plausible: true }))
+          if (pathname) {
+            trackPageview(pathname)
+          }
+        }}
         onError={(e) => {
           console.error('[Analytics Error] Failed to load Plausible script:', e)
         }}
