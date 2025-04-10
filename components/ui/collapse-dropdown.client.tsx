@@ -39,13 +39,17 @@ function checkUrlHashForDropdowns() {
   if (!window.location.hash) return;
 
   const hash = window.location.hash.slice(1);
-  console.log('Global hash check:', hash);
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Global hash check:', hash);
+  }
   let dropdownToOpen = null;
   let targetElement = null;
 
   // First, check if we have an exact ID match in our registry
   if (dropdownRegistry[hash]) {
-    console.log('Found exact dropdown match:', hash);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Found exact dropdown match:', hash);
+    }
     dropdownToOpen = dropdownRegistry[hash];
   } else {
     // If no exact match, check if any dropdown contains keywords from the hash
@@ -54,7 +58,9 @@ function checkUrlHashForDropdowns() {
       // Check if most words from hash match this dropdown id
       const matchCount = hashWords.filter(word => id.includes(word)).length;
       if (matchCount > 0 && matchCount >= hashWords.length * 0.5) { // At least half the words match
-        console.log('Found partial dropdown match:', id, 'for hash:', hash);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Found partial dropdown match:', id, 'for hash:', hash);
+        }
         dropdownToOpen = detailsElement;
         break;
       }
@@ -66,7 +72,9 @@ function checkUrlHashForDropdowns() {
       // Check all dropdowns to see if the target is inside
       for (const detailsElement of Object.values(dropdownRegistry)) {
         if (detailsElement.contains(targetElement)) {
-          console.log('Found dropdown containing element:', hash);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Found dropdown containing element:', hash);
+          }
           dropdownToOpen = detailsElement;
           break;
         }
@@ -86,7 +94,9 @@ function checkUrlHashForDropdowns() {
 
     // Wait for DOM update, then scroll to target
     setTimeout(() => {
-      console.log('Attempting to scroll to:', hash);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Attempting to scroll to:', hash);
+      }
 
       // Try element by ID first
       const element = document.getElementById(hash);
@@ -160,14 +170,18 @@ export function CollapseDropdown({
 
     // Only register if we have an ID
     if (dropdownId) {
-      console.log('Registering dropdown:', dropdownId);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Registering dropdown:', dropdownId);
+      }
       dropdownRegistry[dropdownId] = detailsRef.current;
 
       // Check if the current hash matches this dropdown
       if (window.location.hash) {
         const hash = window.location.hash.slice(1);
         if (hash === dropdownId || (hash.includes(dropdownId))) {
-          console.log('Current hash matches this dropdown, opening:', dropdownId);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Current hash matches this dropdown, opening:', dropdownId);
+          }
           detailsRef.current.open = true;
         }
       }
