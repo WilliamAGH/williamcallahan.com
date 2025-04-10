@@ -19,6 +19,8 @@ import matter from 'gray-matter';
 import { serialize } from 'next-mdx-remote/serialize';
 import remarkGfm from 'remark-gfm';
 import rehypePrismPlus from 'rehype-prism-plus'; // Import the plugin
+import rehypeSlug from 'rehype-slug'; // Add this import
+import rehypeAutolinkHeadings from 'rehype-autolink-headings'; // Add this import
 import type { MDXRemoteProps } from 'next-mdx-remote';
 type MDXComponents = MDXRemoteProps['components'];
 import { authors } from '../../data/blog/authors';
@@ -103,7 +105,15 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
           [remarkGfm, { singleTilde: false, breaks: true }]
         ],
         rehypePlugins: [
-          [rehypePrismPlus, { ignoreMissing: true }] as any // Use 'as any' to bypass type check
+          rehypeSlug as any, // Add rehype-slug with type assertion
+          [rehypeAutolinkHeadings, { // Add rehype-autolink-headings with options
+            properties: {
+              className: ['anchor'], // Add a class for styling
+              ariaLabel: 'Link to section'
+            },
+            behavior: 'append' // Append the link inside the heading
+          }] as any, // Add type assertion here too
+          [rehypePrismPlus, { ignoreMissing: true }] as any // Keep existing plugin, ensure it also has type assertion
         ],
         format: 'mdx'
       },
