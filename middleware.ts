@@ -76,6 +76,9 @@ export function middleware(request: NextRequest): NextResponse {
     if (url.includes('/_next/image')) {
       // Aggressive caching for image optimization API
       response.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+      // Add additional performance headers
+      response.headers.set('X-Content-Type-Options', 'nosniff')
+      response.headers.set('Accept-CH', 'DPR, Width, Viewport-Width')
     } else if (
       url.includes('/_next/static') ||
       url.endsWith('.jpg') ||
@@ -89,6 +92,15 @@ export function middleware(request: NextRequest): NextResponse {
     ) {
       // Cache other static assets for 1 year (immutable)
       response.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+      // Add additional performance headers
+      response.headers.set('X-Content-Type-Options', 'nosniff')
+
+      // Add hints for image pre-optimization
+      if (url.endsWith('.jpg') || url.endsWith('.jpeg') ||
+          url.endsWith('.png') || url.endsWith('.webp') ||
+          url.endsWith('.avif')) {
+        response.headers.set('Accept-CH', 'DPR, Width, Viewport-Width')
+      }
     } else if (url === '/' || !url.includes('.')) {
       // For HTML pages - shorter cache with revalidation
       response.headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')

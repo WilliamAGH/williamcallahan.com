@@ -57,6 +57,7 @@ RUN adduser --system --uid 1001 nextjs
 # Copy standalone output and required assets
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
 
 # Copy public directory and set permissions
 COPY --from=builder /app/public ./public
