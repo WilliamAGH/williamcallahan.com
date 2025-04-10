@@ -51,6 +51,7 @@ export function CollapseDropdown({
       open={defaultOpen}
     >
       <summary
+        style={{ listStyle: 'none' }} // Explicitly hide the default marker
         className={cn(
           "text-lg font-semibold cursor-pointer list-none", // list-none removes default marker, removed mb-4
           "flex items-center gap-2", // Use flex for icon alignment
