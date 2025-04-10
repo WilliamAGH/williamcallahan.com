@@ -6,6 +6,7 @@
  * @component
  * @param {Object} props
  * @param {BlogPost} props.post - The blog post to display
+ * @param {boolean} props.isPriority - Optional priority flag
  */
 
 import Link from 'next/link';
@@ -17,9 +18,10 @@ import type { BlogPost } from '@/types/blog';
 
 interface BlogCardProps {
   post: BlogPost;
+  isPriority?: boolean;
 }
 
-export function BlogCard({ post }: BlogCardProps) {
+export function BlogCard({ post, isPriority = false }: BlogCardProps) {
   return (
     <Link
       href={`/blog/${post.slug}`}
@@ -32,7 +34,7 @@ export function BlogCard({ post }: BlogCardProps) {
               src={post.coverImage}
               alt={post.title}
               fill
-              priority
+              priority={isPriority}
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               className="object-cover transition-transform duration-300 group-hover:scale-105"
             />
