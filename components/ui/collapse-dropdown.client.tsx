@@ -10,6 +10,7 @@
 'use client';
 
 import { ReactNode, useRef, useEffect } from 'react';
+import { usePathname } from 'next/navigation'; // Import usePathname
 import { cn } from '../../lib/utils';
 
 // Create a registry of all dropdowns so we can find them by related anchors
@@ -35,12 +36,12 @@ interface CollapseDropdownProps {
 
 // A global function to check URL hash and open relevant dropdown
 // We'll call this after page load and after navigation
-function checkUrlHashForDropdowns() {
+function checkUrlHashForDropdowns(attempt = 1, maxAttempts = 5) {
   if (!window.location.hash) return;
 
   const hash = window.location.hash.slice(1);
   if (process.env.NODE_ENV === 'development') {
-    console.log('Global hash check:', hash);
+    console.log('Global hash check:', hash, 'attempt:', attempt);
   }
   let dropdownToOpen = null;
   let targetElement = null;
@@ -113,8 +114,40 @@ function checkUrlHashForDropdowns() {
       }
 
       // Restore the hash to enable browser's native scrolling as a fallback
-      window.location.hash = hash;
-    }, 100); // Short delay for DOM update
+      // Wait for the next paint cycle after opening the details element
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Scrolling to:', hash);
+          }
+          // Try element by ID first
+          const element = document.getElementById(hash);
+          if (element) {
+            element.scrollIntoView({ block: 'start' }); // No smooth scrolling
+            return;
+          }
+
+          // Try an anchor with matching ID
+          const anchor = document.querySelector(`a[id="${hash}"]`);
+          if (anchor) {
+            anchor.scrollIntoView({ block: 'start' });
+            return;
+          }
+
+          // Restore the hash to enable browser's native scrolling as a fallback
+          // Only restore if we couldn't find the element/anchor after opening
+          window.location.hash = hash;
+        });
+      });
+    }); // End requestAnimationFrame
+  } else if (attempt < maxAttempts) {
+    // If we didn't find the dropdown and haven't exceeded max attempts,
+    // try again with exponential backoff
+    const delay = Math.min(200 * Math.pow(2, attempt - 1), 3000); // Cap at 3 seconds
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Retrying hash check in ${delay}ms (attempt ${attempt + 1}/${maxAttempts})`);
+    }
+    setTimeout(() => checkUrlHashForDropdowns(attempt + 1, maxAttempts), delay);
   }
 }
 
@@ -122,15 +155,29 @@ function checkUrlHashForDropdowns() {
 if (typeof window !== 'undefined') {
   // Handle initial page load with hash
   window.addEventListener('load', () => {
-    // Use a single attempt with adequate delay
-    setTimeout(checkUrlHashForDropdowns, 400);
+    // Start checking immediately after load
+    checkUrlHashForDropdowns();
   });
 
   // Handle navigation to a hash
   window.addEventListener('hashchange', () => {
-    setTimeout(checkUrlHashForDropdowns, 100);
+    checkUrlHashForDropdowns();
   });
 }
+
+// Remove global listeners as we'll handle this within the component's effect
+// if (typeof window !== 'undefined') {
+//   // Handle initial page load with hash
+//   window.addEventListener('load', () => {
+//     // Start checking immediately after load
+//     checkUrlHashForDropdowns();
+//   });
+//
+//   // Handle navigation to a hash
+//   window.addEventListener('hashchange', () => {
+//     checkUrlHashForDropdowns();
+//   });
+// }
 
 /**
  * CollapseDropdown Component
@@ -153,8 +200,9 @@ export function CollapseDropdown({
 }: CollapseDropdownProps): JSX.Element {
   // Ref to access the details element
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  const pathname = usePathname(); // Get current pathname
 
-  // Effect to register this dropdown
+  // Effect to register this dropdown AND handle initial hash check + route changes
   useEffect(() => {
     // Skip if no ref or no summary
     if (!detailsRef.current || !summary) return;
@@ -193,7 +241,23 @@ export function CollapseDropdown({
         delete dropdownRegistry[dropdownId];
       }
     };
-  }, [summary, id]);
+  }, [summary, id]); // Keep original dependencies for registration
+
+  // Get the current hash safely outside the effect to satisfy exhaustive-deps
+  const currentHash = typeof window !== 'undefined' ? window.location.hash : '';
+
+  // Effect to handle hash checking on mount and route/hash changes
+  useEffect(() => {
+    // Check hash on initial mount or when path/hash changes
+    if (currentHash) {
+      // Use a small delay to allow other components (like MDX content) to potentially render
+      const timer = setTimeout(() => {
+        checkUrlHashForDropdowns();
+      }, 50); // Reduced delay, rAF handles the scroll timing
+      return () => clearTimeout(timer); // Cleanup timeout
+    }
+    // No cleanup needed if there's no hash initially
+  }, [pathname, currentHash]); // Depend on pathname and the calculated hash
 
   return (
     <details
