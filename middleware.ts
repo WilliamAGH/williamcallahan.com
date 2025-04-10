@@ -72,23 +72,40 @@ export function middleware(request: NextRequest): NextResponse {
   // Skip caching in development mode
   const isDev = process.env.NODE_ENV === 'development'
 
-  if (!isDev && (
-    url.includes('/_next/image') ||
-    url.includes('/_next/static') ||
-    url.endsWith('.jpg') ||
-    url.endsWith('.jpeg') ||
-    url.endsWith('.png') ||
-    url.endsWith('.webp') ||
-    url.endsWith('.svg') ||
-    url.endsWith('.css') ||
-    url.endsWith('.woff2')
-  )) {
-    // Cache static assets for 1 week
-    response.headers.set('Cache-Control', 'public, max-age=604800, immutable')
-  } else if (!isDev && (url === '/' || !url.includes('.'))) {
-    // For HTML pages - shorter cache with revalidation
-    response.headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
-  } else if (isDev) {
+  if (!isDev) {
+    if (url.includes('/_next/image')) {
+      // Aggressive caching for image optimization API
+      response.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+      // Add additional performance headers
+      response.headers.set('X-Content-Type-Options', 'nosniff')
+      response.headers.set('Accept-CH', 'DPR, Width, Viewport-Width')
+    } else if (
+      url.includes('/_next/static') ||
+      url.endsWith('.jpg') ||
+      url.endsWith('.jpeg') ||
+      url.endsWith('.png') ||
+      url.endsWith('.webp') ||
+      url.endsWith('.avif') ||
+      url.endsWith('.svg') ||
+      url.endsWith('.css') ||
+      url.endsWith('.woff2')
+    ) {
+      // Cache other static assets for 1 year (immutable)
+      response.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
+      // Add additional performance headers
+      response.headers.set('X-Content-Type-Options', 'nosniff')
+
+      // Add hints for image pre-optimization
+      if (url.endsWith('.jpg') || url.endsWith('.jpeg') ||
+          url.endsWith('.png') || url.endsWith('.webp') ||
+          url.endsWith('.avif')) {
+        response.headers.set('Accept-CH', 'DPR, Width, Viewport-Width')
+      }
+    } else if (url === '/' || !url.includes('.')) {
+      // For HTML pages - shorter cache with revalidation
+      response.headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
+    }
+  } else {
     // Explicitly prevent caching in development
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
     response.headers.set('Pragma', 'no-cache')
@@ -116,7 +133,7 @@ export function middleware(request: NextRequest): NextResponse {
 
 /**
  * Route matcher configuration
- * Excludes static files and API routes from middleware processing
+ * Includes image optimization routes and excludes other static files from middleware processing
  */
 export const config = {
   matcher: [
@@ -124,11 +141,13 @@ export const config = {
      * Match all request paths except for the ones starting with:
      * - api (API routes)
      * - _next/static (static files)
-     * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - robots.txt
      * - sitemap.xml
+     * But include:
+     * - _next/image (image optimization files)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)',
+    '/((?!api|_next/static|favicon.ico|robots.txt|sitemap.xml).*)',
+    '/_next/image(.*)',
   ],
 }

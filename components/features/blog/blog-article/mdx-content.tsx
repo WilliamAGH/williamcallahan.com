@@ -49,6 +49,8 @@ const MdxImage = ({
           width={1600}
           height={800}
           className="rounded-lg mx-auto shadow-md"
+          unoptimized={src.endsWith('.svg') || src.startsWith('data:')}
+          sizes="(max-width: 768px) 100vw, 1600px"
         />
       </div>
     );
@@ -81,7 +83,8 @@ const MdxImage = ({
         width={1600} // Pass original intended dimensions
         height={800}
         sizes={imageSizes}
-        priority={priority} // Pass destructured priority
+        priority={priority || src.endsWith('.svg')} // Always prioritize SVGs
+        unoptimized={src.endsWith('.svg') || src.startsWith('data:')} // Skip optimization for SVGs and data URLs
         wrapperClassName={windowWrapperClass}
         noMargin={Boolean(caption)} // Use noMargin when we have a caption to avoid margin conflicts
         // Pass any other relevant ImageProps via ...props if needed

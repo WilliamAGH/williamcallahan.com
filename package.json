@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.2",
   "scripts": {
-    "dev": "next dev",
+    "dev": "pnpm run cleanCache && next dev",
     "build": "pnpm run validate && next build",
     "start": "node .next/standalone/server.js",
     "start:plain": "next start",
@@ -13,6 +13,7 @@
     "type-check": "tsc --noEmit",
     "validate": "pnpm run lint && pnpm run type-check",
     "clean": "rm -rf .next out node_modules",
+    "cleanCache": "rm -rf .next/cache",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
     "prepare": "node .husky/install.mjs"

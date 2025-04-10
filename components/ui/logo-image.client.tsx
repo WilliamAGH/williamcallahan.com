@@ -1,4 +1,3 @@
-
 /**
  * LogoImage Component
  *
@@ -132,8 +131,10 @@ export function LogoImage({
       height={height}
       className={`${className} ${error ? "opacity-50" : ""} ${getInversionClass()}`}
       onError={handleError}
-      priority
-      unoptimized={isDataUrl(imageUrl) || error} // Skip optimization for data URLs and fallback images
+      priority={false}
+      unoptimized={isDataUrl(imageUrl)} // Only skip optimization for data URLs
+      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+      loading="lazy"
     />
   );
 }
