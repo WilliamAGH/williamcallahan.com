@@ -49,8 +49,26 @@ export default async function ExperiencePage() {
           "mainEntity": {
             "@type": "Person",
             "name": SITE_NAME,
-            "description": siteMetadata.shortDescription,
-            "sameAs": siteMetadata.social.profiles
+            "description": pageMetadata.bio,
+            "sameAs": siteMetadata.social.profiles,
+            "image": siteMetadata.defaultImage.url,
+            "interactionStatistic": [
+              {
+                "@type": "InteractionCounter",
+                "interactionType": "https://schema.org/FollowAction",
+                "userInteractionCount": 200
+              },
+              {
+                "@type": "InteractionCounter",
+                "interactionType": "https://schema.org/LikeAction",
+                "userInteractionCount": 350
+              }
+            ],
+            "agentInteractionStatistic": {
+              "@type": "InteractionCounter",
+              "interactionType": "https://schema.org/WriteAction",
+              "userInteractionCount": 45
+            }
           }
         }}
       />

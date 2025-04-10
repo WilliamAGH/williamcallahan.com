@@ -19,6 +19,9 @@ import type {
   DatasetSchema,
   CollectionPageSchema,
   BreadcrumbListSchema,
+  ProfilePageSchema,
+  NewsArticleSchema,
+  SoftwareApplicationSchema,
 } from '../../types/seo/schema';
 
 /**
@@ -210,6 +213,180 @@ function createCollectionPageEntity(
 }
 
 /**
+ * Creates a ProfilePage entity for personal profile pages
+ */
+function createProfilePageEntity(params: SchemaParams): ProfilePageSchema {
+  // Get profile-specific metadata if available
+  const profileMetadata = params.profileMetadata || {};
+
+  // Process interaction statistics to ensure proper typing
+  const interactionStats = profileMetadata.interactionStats;
+  const interactionStatistics = interactionStats?.follows ? [
+    {
+      '@type': 'InteractionCounter' as const,
+      interactionType: 'https://schema.org/FollowAction',
+      userInteractionCount: interactionStats.follows
+    },
+    ...(interactionStats?.likes ? [{
+      '@type': 'InteractionCounter' as const,
+      interactionType: 'https://schema.org/LikeAction',
+      userInteractionCount: interactionStats.likes
+    }] : [])
+  ] : undefined;
+
+  // Create agent interaction statistic with proper typing
+  const agentInteractionStatistic = interactionStats?.posts ? {
+    '@type': 'InteractionCounter' as const,
+    interactionType: 'https://schema.org/WriteAction',
+    userInteractionCount: interactionStats.posts
+  } : undefined;
+
+  return {
+    '@type': 'ProfilePage',
+    '@id': createIdUrl(params.path, 'profile'),
+    name: params.title,
+    description: params.description,
+    dateCreated: params.datePublished, // Using datePublished as dateCreated
+    dateModified: params.dateModified,
+    mainEntity: {
+      '@type': 'Person',
+      name: SITE_NAME,
+      ...(profileMetadata.alternateName && { alternateName: profileMetadata.alternateName }),
+      ...(profileMetadata.identifier && { identifier: profileMetadata.identifier }),
+      description: profileMetadata.bio || metadata.shortDescription,
+      sameAs: metadata.social.profiles,
+      ...(profileMetadata.profileImage
+          ? { image: ensureAbsoluteUrl(profileMetadata.profileImage) }
+          : params.image && { image: ensureAbsoluteUrl(params.image.url) }),
+      ...(interactionStatistics && { interactionStatistic: interactionStatistics }),
+      ...(agentInteractionStatistic && { agentInteractionStatistic })
+    }
+  };
+}
+
+/**
+ * Creates a NewsArticle entity for news-style blog posts
+ */
+function createNewsArticleEntity(params: SchemaParams): NewsArticleSchema {
+  // Create array of images
+  const images = params.images ||
+    (params.image ? [params.image.url] : [ensureAbsoluteUrl(metadata.defaultImage.url)]);
+
+  // Format author information
+  const authorEntities = params.authors
+    ? params.authors.map(author => ({
+        '@type': 'Person' as const,
+        name: author.name,
+        ...(author.url && { url: author.url })
+      }))
+    : [{
+        '@type': 'Person' as const,
+        name: SITE_NAME,
+        url: ensureAbsoluteUrl('/')
+      }];
+
+  return {
+    '@type': 'NewsArticle',
+    '@id': createIdUrl(params.path, 'newsarticle'),
+    headline: params.title,
+    image: images,
+    datePublished: params.datePublished,
+    dateModified: params.dateModified,
+    author: authorEntities,
+    description: params.description,
+    ...(params.mainEntityOfPage && { mainEntityOfPage: params.mainEntityOfPage }),
+    publisher: { '@id': createIdUrl('/', 'person') }
+  };
+}
+
+/**
+ * Creates a SoftwareApplication entity for software and extensions
+ */
+function createSoftwareApplicationEntity(params: SchemaParams): SoftwareApplicationSchema {
+  if (!params.softwareMetadata) {
+    throw new Error('Software metadata is required for SoftwareApplication schema');
+  }
+
+  const softwareMetadata = params.softwareMetadata;
+
+  // Create base schema
+  const schema: SoftwareApplicationSchema = {
+    '@type': 'SoftwareApplication',
+    '@id': createIdUrl(params.path, 'software'),
+    name: softwareMetadata.name,
+    description: params.description,
+  };
+
+  // Add operating system if provided
+  if (softwareMetadata.operatingSystem) {
+    schema.operatingSystem = softwareMetadata.operatingSystem;
+  }
+
+  // Add application category if provided
+  if (softwareMetadata.applicationCategory) {
+    schema.applicationCategory = softwareMetadata.applicationCategory;
+  }
+
+  // Add pricing information
+  if (softwareMetadata.isFree) {
+    schema.offers = {
+      '@type': 'Offer',
+      price: 0.00,
+      priceCurrency: softwareMetadata.priceCurrency || 'USD',
+      availability: 'https://schema.org/InStock'
+    };
+  } else if (softwareMetadata.price !== undefined) {
+    schema.offers = {
+      '@type': 'Offer',
+      price: softwareMetadata.price,
+      priceCurrency: softwareMetadata.priceCurrency || 'USD',
+      availability: 'https://schema.org/InStock'
+    };
+  }
+
+  // Add rating information if provided
+  if (softwareMetadata.ratingValue !== undefined && softwareMetadata.ratingCount !== undefined) {
+    schema.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: softwareMetadata.ratingValue,
+      ratingCount: softwareMetadata.ratingCount,
+      bestRating: 5,
+      worstRating: 1
+    };
+  }
+
+  // Add download URL if provided
+  if (softwareMetadata.downloadUrl) {
+    schema.downloadUrl = ensureAbsoluteUrl(softwareMetadata.downloadUrl);
+  }
+
+  // Add version if provided
+  if (softwareMetadata.softwareVersion) {
+    schema.softwareVersion = softwareMetadata.softwareVersion;
+  }
+
+  // Add screenshots if provided
+  if (softwareMetadata.screenshot) {
+    schema.screenshot = Array.isArray(softwareMetadata.screenshot)
+      ? softwareMetadata.screenshot.map(url => ensureAbsoluteUrl(url))
+      : ensureAbsoluteUrl(softwareMetadata.screenshot);
+  }
+
+  // Add author/publisher (default to the site owner)
+  schema.author = params.authors
+    ? {
+        '@type': 'Person' as const,
+        name: params.authors[0].name,
+        ...(params.authors[0].url && { url: params.authors[0].url })
+      }
+    : { '@id': createIdUrl('/', 'person') };
+
+  schema.publisher = { '@id': createIdUrl('/', 'person') };
+
+  return schema;
+}
+
+/**
  * Generates complete schema graph for a page
  */
 export function generateSchemaGraph(params: SchemaParams): SchemaGraph {
@@ -242,11 +419,20 @@ export function generateSchemaGraph(params: SchemaParams): SchemaGraph {
 
   // Add type-specific entities
   switch (params.type) {
+    case 'profile':
+      graph['@graph'].push(createProfilePageEntity(params));
+      break;
+    case 'newsarticle':
+      graph['@graph'].push(createNewsArticleEntity(params));
+      break;
     case 'article':
       graph['@graph'].push(createArticleEntity(params));
       break;
     case 'dataset':
       graph['@graph'].push(createDatasetEntity(params));
+      break;
+    case 'software':
+      graph['@graph'].push(createSoftwareApplicationEntity(params));
       break;
     case 'collection':
       if (!params.breadcrumbs) {

@@ -41,8 +41,21 @@ export default function EducationPage() {
           "mainEntity": {
             "@type": "Person",
             "name": SITE_NAME,
-            "description": siteMetadata.shortDescription,
-            "sameAs": siteMetadata.social.profiles
+            "description": pageMetadata.bio,
+            "sameAs": siteMetadata.social.profiles,
+            "image": siteMetadata.defaultImage.url,
+            "interactionStatistic": [
+              {
+                "@type": "InteractionCounter",
+                "interactionType": "https://schema.org/FollowAction",
+                "userInteractionCount": 150
+              }
+            ],
+            "agentInteractionStatistic": {
+              "@type": "InteractionCounter",
+              "interactionType": "https://schema.org/WriteAction",
+              "userInteractionCount": 15
+            }
           }
         }}
       />

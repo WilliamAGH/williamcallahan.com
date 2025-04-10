@@ -73,16 +73,49 @@ const mockBookmarks: Bookmark[] = [
 ];
 
 /**
+ * Generate metadata for the Bookmarks page
+ */
+export function generateMetadata(): Metadata {
+  return getStaticPageMetadata('/bookmarks', 'bookmarks');
+}
+
+/**
+ * ASCII Art for Coming Soon Page
+ */
+const asciiArt = `
+       (\_/)
+       (='.'=)
+       (")_(")
+`;
+
+/**
  * Bookmarks Page Component
- * @returns {JSX.Element} Rendered bookmarks page
- *
- * @remarks
- * This component:
- * - Transforms bookmark data to include pre-rendered preview components
- * - Handles server-side rendering of the bookmarks page
- * - Will integrate with the API for real data in the future
+ * Conditionally renders a "Coming Soon" page in production.
  */
 export default function BookmarksPage() {
+
+  // Check if the environment is production
+  /* REMOVED PRODUCTION CHECK
+  if (process.env.NODE_ENV === 'production') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
+        <h1 className="text-4xl font-bold mb-4">Bookmarks Coming Soon!</h1>
+        <p className="text-lg mb-8 text-muted-foreground">
+          I&apos;m busy curating the best resources just for you. Check back later!
+        </p>
+        <pre className="text-sm text-primary font-mono whitespace-pre">
+          {asciiArt}
+        </pre>
+        <p className="mt-8 text-sm text-muted-foreground">
+          In the meantime, explore the rest of the site.
+        </p>
+      </div>
+    );
+  }
+  */
+
+  // --- Development/Preview Mode --- // /* REMOVED COMMENT */
+
   const pageMetadata = PAGE_METADATA.bookmarks;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
@@ -110,6 +143,7 @@ export default function BookmarksPage() {
           }
         }}
       />
+      {/* Render the actual bookmarks client component */}
       <BookmarksClient bookmarks={mockBookmarks} />
     </>
   );

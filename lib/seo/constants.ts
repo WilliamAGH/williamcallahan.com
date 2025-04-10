@@ -82,4 +82,41 @@ export interface ArticleParams {
   dateModified: string;
   tags?: string[];
   articleBody?: string;
+  /** Whether to use NewsArticle schema (recommended for better SEO) */
+  useNewsArticle?: boolean;
+  /** Authors information for multiple authors */
+  authors?: Array<{
+    name: string;
+    url?: string;
+  }>;
+}
+
+/**
+ * Shared interfaces for software application metadata
+ * @see {@link "https://schema.org/SoftwareApplication"} - Schema.org SoftwareApplication
+ */
+export interface SoftwareAppParams {
+  title: string;
+  description: string;
+  url: string;
+  image?: string;
+  datePublished: string;
+  dateModified: string;
+  tags?: string[];
+  articleBody?: string;
+  softwareName: string;
+  operatingSystem?: string;
+  applicationCategory?: string;
+  isFree?: boolean;
+  price?: number;
+  priceCurrency?: string;
+  ratingValue?: number;
+  ratingCount?: number;
+  downloadUrl?: string;
+  softwareVersion?: string;
+  screenshot?: string | string[];
+  authors?: Array<{
+    name: string;
+    url?: string;
+  }>;
 }

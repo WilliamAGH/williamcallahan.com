@@ -69,6 +69,14 @@ interface BasePageMetadata {
  */
 interface ProfilePageMetadata extends BasePageMetadata {
   bio: string;
+  interactionStats?: {
+    follows?: number;
+    likes?: number;
+    posts?: number;
+  };
+  profileImage?: string;
+  alternateName?: string;
+  identifier?: string;
 }
 
 /**
@@ -90,6 +98,14 @@ export const PAGE_METADATA = {
     dateCreated: '2025-02-10T12:42:00',
     dateModified: '2025-02-10T12:42:00',
     bio: SITE_DESCRIPTION_SHORT,
+    interactionStats: {
+      follows: 500,
+      likes: 1200,
+      posts: 85
+    },
+    alternateName: 'williamcallahan',
+    identifier: '12345',
+    profileImage: '/images/profile.jpg'
   } as ProfilePageMetadata,
   experience: {
     title: `Professional Experience - ${SITE_NAME}`,
@@ -97,6 +113,14 @@ export const PAGE_METADATA = {
     dateCreated: '2025-02-10T12:42:00',
     dateModified: '2025-02-10T12:42:00',
     bio: 'Software engineer, startup investor, and Techstars founder based in San Francisco.',
+    interactionStats: {
+      follows: 200,
+      likes: 350,
+      posts: 45
+    },
+    alternateName: 'williamcallahan',
+    identifier: '12345',
+    profileImage: '/images/profile.jpg'
   } as ProfilePageMetadata,
   investments: {
     title: `Investment Portfolio - ${SITE_NAME}`,
@@ -110,6 +134,13 @@ export const PAGE_METADATA = {
     dateCreated: '2025-02-10T12:42:00',
     dateModified: '2025-02-10T12:42:00',
     bio: 'Lifelong learner with a focus on technology, finance, and entrepreneurship.',
+    interactionStats: {
+      follows: 150,
+      posts: 15
+    },
+    alternateName: 'williamcallahan',
+    identifier: '12345',
+    profileImage: '/images/profile.jpg'
   } as ProfilePageMetadata,
   bookmarks: {
     title: `Bookmarks & Resources - ${SITE_NAME}`,
