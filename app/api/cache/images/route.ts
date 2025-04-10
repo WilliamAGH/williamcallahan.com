@@ -26,6 +26,53 @@ const CACHE_DURATION = 60 * 60 * 24 * 365;
 // Valid image formats
 const VALID_IMAGE_FORMATS = ['jpeg', 'jpg', 'png', 'webp', 'avif', 'gif'];
 
+// Trusted domains from Next.js config (keep in sync with next.config.mjs)
+const ALLOWED_DOMAINS = [
+  'images.unsplash.com',
+  'williamcallahan.com',
+  'dev.williamcallahan.com',
+  'icons.duckduckgo.com',
+  'www.google.com',
+  'external-content.duckduckgo.com',
+  'logo.clearbit.com',
+  'umami.iocloudhost.net',
+  'plausible.iocloudhost.net'
+];
+
+// Also allow subdomains of trusted domains
+const ALLOWED_DOMAIN_PATTERNS = [
+  '.iocloudhost.net',
+  '.williamcallahan.com',
+];
+
+/**
+ * Validate URL against allowed domains
+ * @param {string} urlString - URL to validate
+ * @returns {boolean} Whether URL is from an allowed domain
+ */
+function isAllowedUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+
+    // Check if hostname is in allowed domains
+    if (ALLOWED_DOMAINS.includes(url.hostname)) {
+      return true;
+    }
+
+    // Check if hostname matches any allowed patterns (like *.example.com)
+    for (const pattern of ALLOWED_DOMAIN_PATTERNS) {
+      if (pattern.startsWith('.') && url.hostname.endsWith(pattern)) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Invalid URL:', error);
+    return false;
+  }
+}
+
 /**
  * GET handler for image caching
  * @param {NextRequest} request - Incoming request
@@ -43,6 +90,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       { error: 'URL parameter required' },
       { status: 400 }
+    );
+  }
+
+  // SECURITY: Validate URL against allowed domains
+  if (!isAllowedUrl(url)) {
+    return NextResponse.json(
+      { error: 'URL domain not allowed' },
+      { status: 403 }
     );
   }
 
