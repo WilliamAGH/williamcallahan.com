@@ -151,21 +151,21 @@ function checkUrlHashForDropdowns(attempt = 1, maxAttempts = 5) {
   }
 }
 
-// Set up global hash change listener
+// Set up global hash change listener for same-page hash changes AFTER initial load
 if (typeof window !== 'undefined') {
-  // Handle initial page load with hash
-  window.addEventListener('load', () => {
-    // Start checking immediately after load
-    checkUrlHashForDropdowns();
-  });
+  // REMOVE the 'load' listener - initial check is handled by component registration effect
+  // window.addEventListener('load', () => {
+  //   checkUrlHashForDropdowns();
+  // });
 
-  // Handle navigation to a hash
+  // Keep 'hashchange' listener for clicks on same-page anchors
   window.addEventListener('hashchange', () => {
-    checkUrlHashForDropdowns();
+    // Add a small delay to allow potential state updates before checking
+    setTimeout(() => checkUrlHashForDropdowns(), 100);
   });
 }
 
-// Remove global listeners as we'll handle this within the component's effect
+// Remove commented out global listeners block as well
 // if (typeof window !== 'undefined') {
 //   // Handle initial page load with hash
 //   window.addEventListener('load', () => {
@@ -223,15 +223,15 @@ export function CollapseDropdown({
       }
       dropdownRegistry[dropdownId] = detailsRef.current;
 
-      // Check if the current hash matches this dropdown
-      if (window.location.hash) {
-        const hash = window.location.hash.slice(1);
-        if (hash === dropdownId || (hash.includes(dropdownId))) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Current hash matches this dropdown, opening:', dropdownId);
-          }
-          detailsRef.current.open = true;
+      // Check if the current hash matches THIS dropdown right after registration
+      const currentHashValue = window.location.hash ? window.location.hash.slice(1) : '';
+      if (currentHashValue && (currentHashValue === dropdownId || currentHashValue.includes(dropdownId))) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Dropdown registration matches current hash, triggering check:', dropdownId);
         }
+        // Use timeout 0 to defer check slightly, allowing other components to potentially mount
+        setTimeout(() => checkUrlHashForDropdowns(), 0);
+        // No need to manually open here, checkUrlHashForDropdowns handles it
       }
     }
 
@@ -243,21 +243,22 @@ export function CollapseDropdown({
     };
   }, [summary, id]); // Keep original dependencies for registration
 
-  // Get the current hash safely outside the effect to satisfy exhaustive-deps
-  const currentHash = typeof window !== 'undefined' ? window.location.hash : '';
-
-  // Effect to handle hash checking on mount and route/hash changes
-  useEffect(() => {
-    // Check hash on initial mount or when path/hash changes
-    if (currentHash) {
-      // Use a small delay to allow other components (like MDX content) to potentially render
-      const timer = setTimeout(() => {
-        checkUrlHashForDropdowns();
-      }, 50); // Reduced delay, rAF handles the scroll timing
-      return () => clearTimeout(timer); // Cleanup timeout
-    }
-    // No cleanup needed if there's no hash initially
-  }, [pathname, currentHash]); // Depend on pathname and the calculated hash
+  // REMOVE the separate effect that checked hash based on pathname/currentHash
+  // // Get the current hash safely outside the effect to satisfy exhaustive-deps
+  // const currentHash = typeof window !== 'undefined' ? window.location.hash : '';
+  //
+  // // Effect to handle hash checking on mount and route/hash changes
+  // useEffect(() => {
+  //   // Check hash on initial mount or when path/hash changes
+  //   if (currentHash) {
+  //     // Use a small delay to allow other components (like MDX content) to potentially render
+  //     const timer = setTimeout(() => {
+  //       checkUrlHashForDropdowns();
+  //     }, 50); // Reduced delay, rAF handles the scroll timing
+  //     return () => clearTimeout(timer); // Cleanup timeout
+  //   }
+  //   // No cleanup needed if there's no hash initially
+  // }, [pathname, currentHash]); // Depend on pathname and the calculated hash
 
   return (
     <details
