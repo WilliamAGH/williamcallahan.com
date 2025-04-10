@@ -6,7 +6,7 @@
 "use client";
 
 import React from 'react';
-import { useWindowRegistry } from '@/lib/context/GlobalWindowRegistryContext';
+import { useWindowRegistry } from '@/lib/context/global-window-registry-context.client';
 import { cn } from '@/lib/utils';
 
 export function FloatingRestoreButtons() {

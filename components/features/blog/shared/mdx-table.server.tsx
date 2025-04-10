@@ -1,3 +1,12 @@
+
+/**
+ * MDX Table Component
+ *
+ * A server-side component for rendering tables in MDX documents.
+ *
+ * @module components/ui/mdx-table.server
+ */
+
 import React from 'react';
 
 import type { DetailedHTMLProps, TableHTMLAttributes, HTMLAttributes, ThHTMLAttributes, TdHTMLAttributes } from 'react';

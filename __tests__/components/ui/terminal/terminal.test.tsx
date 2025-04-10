@@ -25,13 +25,12 @@
 
 import React from 'react'; // Ensure React is imported first
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { Terminal } from '../../../../components/ui/terminal/terminal';
-import { TerminalProvider } from '../../../../components/ui/terminal/terminalContext';
-import { TerminalWindowStateProvider } from '../../../../lib/context/TerminalWindowStateContext';
-// GlobalWindowRegistryProvider and useRegisteredWindowState are mocked below
+import { Terminal } from '../../../../components/ui/terminal/terminal-implementation.client';
+import { TerminalProvider } from '../../../../components/ui/terminal/terminal-context.client';
+import { TerminalWindowStateProvider } from '../../../../lib/context/terminal-window-state-context.client';
 import { useRouter } from 'next/navigation';
 import { setupTests } from '../../../../lib/test/setup';
-import { GlobalWindowRegistryContextType, WindowState } from '../../../../lib/context/GlobalWindowRegistryContext'; // Import types for mocking
+import { GlobalWindowRegistryContextType, WindowState } from '../../../../lib/context/global-window-registry-context.client'; // Import types for mocking
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -54,7 +53,7 @@ const maximizeMock = () => setMockState(mockWindowState === 'maximized' ? 'norma
 const closeMock = () => setMockState('closed');
 const restoreMock = () => setMockState('normal');
 
-jest.mock('../../../../lib/context/GlobalWindowRegistryContext', () => {
+jest.mock('../../../../lib/context/global-window-registry-context.client', () => {
   // Functions defined above
   return {
     GlobalWindowRegistryProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -79,7 +78,7 @@ jest.mock('../../../../lib/context/GlobalWindowRegistryContext', () => {
 // --- End Mock ---
 
 // Get a handle *after* jest.mock has run
-const mockUseRegisteredWindowState = jest.requireMock('../../../../lib/context/GlobalWindowRegistryContext').useRegisteredWindowState;
+const mockUseRegisteredWindowState = jest.requireMock('../../../../lib/context/global-window-registry-context.client').useRegisteredWindowState;
 
 // Mock search functions
 jest.mock('../../../../lib/search', () => ({

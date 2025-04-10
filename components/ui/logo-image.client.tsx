@@ -1,3 +1,12 @@
+
+/**
+ * LogoImage Component
+ *
+ * A client-side component for displaying a company logo image.
+ *
+ * @module components/ui/logo-image.client
+ */
+
 'use client';
 
 import { useState, useEffect } from "react";

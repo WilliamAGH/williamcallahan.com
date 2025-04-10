@@ -1,8 +1,17 @@
+
+/**
+ * CodeBlock Component
+ *
+ * A component that renders a code block with syntax highlighting and a copy button.
+ *
+ * @module components/ui/code-block/code-block.client
+ */
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react'; // Import useEffect, useRef, and useCallback
 import type { ComponentProps } from 'react';
-import { CopyButton } from './copy-button';
+import { CopyButton } from './copy-button.client';
 import { cn } from '../../../lib/utils';
 import { WindowControls } from '../navigation/window-controls';
 import { useWindowSize } from '../../../hooks/useWindowSize';
@@ -194,7 +203,7 @@ export const CodeBlock = ({ children, className, ...props }: CodeBlockProps): JS
             size={controlSize}
           />
           {language && (
-            <div className="ml-auto px-1.5 py-0.5 text-[8px] sm:text-xs font-mono rounded-md bg-gray-600/70 text-gray-300 uppercase">
+            <div className="ml-auto flex-shrink min-w-0 px-1.5 py-0.5 text-[8px] sm:text-xs font-mono rounded-md bg-gray-600/70 text-gray-300 uppercase truncate"> {/* Allow shrinking and truncate */}
               {language}
             </div>
           )}

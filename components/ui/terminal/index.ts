@@ -1,13 +1,24 @@
 /**
  * Terminal Components Index
  * @module components/ui/terminal
- * @description Exports Terminal related components.
+ * @description Exports Terminal related components properly separated into client/server/shared components.
  */
 
-export { Terminal } from './terminal'; // Export the main Terminal component
-// Export the provider and the original hook name from terminalContext
-export { TerminalProvider, useTerminalContext } from './terminalContext';
-// Export relevant types from the correct path
+// Export the client terminal component
+export { ClientTerminal as Terminal } from './terminal.client';
+
+// Export the provider and hook from client context
+export { TerminalProvider, useTerminalContext } from './terminal-context.client';
+
+// Export shared components
+export { TerminalHeader } from './terminal-header';
+export { History } from './history';
+
+// Export client-only components explicitly
+export { CommandInput } from './command-input.client';
+export { SelectionView } from './selection-view.client';
+
+// Export relevant types
 export type { TerminalCommand, SelectionItem } from '@/types/terminal';
 // Remove export of TerminalMode as it's no longer defined here
 // If WindowState is needed externally, it should be imported from '@/lib/hooks/use-window-state'

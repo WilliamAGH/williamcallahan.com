@@ -8,7 +8,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { handleCommand } from './commands';
+import { handleCommand } from './commands.client';
 import { TerminalHeader } from './terminal-header';
 import { History } from './history';
 import type { TerminalCommand } from '@/types/terminal';

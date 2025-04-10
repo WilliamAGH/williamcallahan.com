@@ -5,6 +5,8 @@
  * Uses CSS transform to scale down the visually larger font size.
  */
 
+"use client";
+
 import { forwardRef } from 'react';
 
 interface CommandInputProps {

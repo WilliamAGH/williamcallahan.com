@@ -1,14 +1,16 @@
 /**
- * Terminal Hook
+ * Terminal Hook (Client)
  *
  * Custom hook for terminal state and command handling.
  */
 
+"use client";
+
 import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { handleCommand } from './commands';
+import { handleCommand } from './commands.client';
 import type { SelectionItem } from '@/types/terminal';
-import { useTerminalContext } from './terminalContext';
+import { useTerminalContext } from './terminal-context.client';
 
 const MAX_HISTORY = 100;
 

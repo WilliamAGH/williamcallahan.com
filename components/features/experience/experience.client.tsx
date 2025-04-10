@@ -1,15 +1,18 @@
-"use client"; // Make this a Client Component wrapper
 
 /**
  * Experience Section Component - Client Wrapper
- *
- * Manages the window state (minimize, maximize, close) for the Experience section.
+ * @module components/features/experience/experience.client
+ * @description
+ * Client component for the experience section.
+ * Manages the window state (minimize, maximize, close) for the experience section.
  * Renders the ExperienceContent server component within a window frame.
  */
 
+"use client";
+
 import { useEffect } from 'react'; // Import hooks (useState might not be needed)
-import { WindowControls } from "../../../components/ui/navigation/window-controls";
-import { useRegisteredWindowState } from "@/lib/context/GlobalWindowRegistryContext";
+import { WindowControls } from "../../ui/navigation/window-controls";
+import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { Briefcase } from 'lucide-react'; // Import specific icon
 import { cn } from '@/lib/utils'; // Import cn utility
 import type { ReactElement } from 'react'; // Import ReactElement type for JSX props

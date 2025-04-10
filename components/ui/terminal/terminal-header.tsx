@@ -3,10 +3,11 @@
  *
  * Renders the decorative header of the terminal interface with
  * macOS-style window control buttons.
+ *
+ * This is a shared component that can be used in both client and server contexts.
  */
 
-// No longer needs "use client" if it doesn't use hooks directly
-// Removed import { useTerminalContext } from './terminalContext';
+// No "use client" directive needed as it doesn't use client-side hooks directly
 import { WindowControls } from '@/components/ui/navigation/window-controls';
 
 // Define props for the handlers

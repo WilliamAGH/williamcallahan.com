@@ -5,7 +5,7 @@
 
 import Link from 'next/link';
 // Revert to original hook name
-import { useTerminalContext } from '@/components/ui/terminal/terminalContext';
+import { useTerminalContext } from '@/components/ui/terminal/terminal-context.client';
 import type { NavigationLinkProps } from '@/types/navigation';
 
 // Important pages that should be prefetched for faster navigation

@@ -1,8 +1,10 @@
 /**
  * Terminal History Component
- * 
+ *
  * Displays command history with proper word wrapping and
  * prevents unwanted text truncation on mobile devices.
+ *
+ * This is a shared component that can be used in both client and server contexts.
  */
 
 import type { TerminalCommand } from '@/types/terminal';

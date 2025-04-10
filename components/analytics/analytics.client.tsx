@@ -135,7 +135,7 @@ export function Analytics(): JSX.Element | null {
     <>
       <Script
         id="umami"
-        strategy="lazyOnload"
+        strategy="afterInteractive"
         src="https://umami.iocloudhost.net/script.js"
         data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
         onLoad={() => {
@@ -158,7 +158,7 @@ export function Analytics(): JSX.Element | null {
       />
       <Script
         id="plausible"
-        strategy="lazyOnload"
+        strategy="afterInteractive"
         src="https://plausible.iocloudhost.net/js/script.js"
         data-domain={domain}
         onError={(e) => {

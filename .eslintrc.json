@@ -9,5 +9,130 @@
     "ecmaFeatures": {
       "jsx": true
     }
-  }
+  },
+  "rules": {
+    // Prevent client-only hooks in server components
+    "react-hooks/rules-of-hooks": "error",
+    // Custom rules for file naming convention
+    "react/no-unknown-property": ["error", { "ignore": ["jsx", "global"] }],
+
+    // Custom naming convention enforcement
+    "@typescript-eslint/naming-convention": [
+      "warn",
+      // Remove filename rule from here
+      {
+        "selector": "variable",
+        "format": ["camelCase", "UPPER_CASE", "PascalCase"]
+      },
+      {
+        "selector": "function",
+        "format": ["camelCase", "PascalCase"]
+      },
+      {
+        "selector": "typeLike",
+        "format": ["PascalCase"]
+      }
+      // Filename rule moved to overrides
+    ],
+
+    // Prevent using window/document in server components
+    "no-restricted-globals": [
+      "error",
+      {
+        "name": "window",
+        "message": "Use only in client components (*.client.tsx) or with proper checks"
+      },
+      {
+        "name": "document",
+        "message": "Use only in client components (*.client.tsx) or with proper checks"
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["**/*.server.ts", "**/*.server.tsx"],
+      "rules": {
+        // Prevent 'use client' directive in server components
+        "react-hooks/exhaustive-deps": "off",
+        "no-restricted-syntax": [
+          "error",
+          {
+            // Individual rule for react-dom
+            "selector": "ImportDeclaration[source.value='react-dom']",
+            "message": "Cannot import react-dom in server components"
+          },
+          {
+            // Individual rule for next/navigation
+            "selector": "ImportDeclaration[source.value='next/navigation']",
+            "message": "Cannot import next/navigation in server components"
+          },
+          {
+            "selector": "StringLiteral[value='use client']",
+            "message": "Server components cannot have 'use client' directive"
+          }
+        ]
+      }
+    },
+    {
+      "files": ["**/*.client.ts", "**/*.client.tsx"],
+      "rules": {
+        // Ensure 'use client' directive is present in client components
+        "react-hooks/exhaustive-deps": "warn",
+        // Allow window/document in client files
+        "no-restricted-globals": "off"
+      }
+    },
+    // Exemption for investment-card.client.tsx
+    {
+      "files": ["**/investment-card.client.tsx"],
+      "rules": {
+        "@typescript-eslint/naming-convention": "off"
+      }
+    },
+    // Exemption for prism.js
+    {
+      "files": ["**/prism-syntax-highlighting/prism.js"],
+      "rules": {
+        "no-restricted-globals": "off",
+        "@typescript-eslint/naming-convention": "off"
+      }
+    },
+    // Exemption for utility files that check for window/document
+    {
+      "files": [
+        "**/lib/hooks/use-isomorphic-layout-effect.ts",
+        "**/lib/logo.ts",
+        "**/lib/utils/ensure-server-only.ts",
+        "**/lib/utils/runtime-guards.ts",
+        "**/lib/context/GlobalWindowRegistryContext.tsx"
+      ],
+      "rules": {
+        "no-restricted-globals": "off",
+        "@typescript-eslint/naming-convention": "off"
+      }
+    },
+    // Exemption for root-level configuration files
+    {
+      "files": [
+        "*.config.js",
+        "*.config.ts",
+        "*.config.mjs",
+        "*.config.cjs",
+        "jest.setup.js",
+        "jest.setup.ts",
+        "next.config.*",
+        "postcss.config.*",
+        "tailwind.config.*",
+        ".eslintrc.*",
+        "middleware.ts",
+        "sentry.*.config.*",
+        "instrumentation.ts"
+      ],
+      "rules": {
+        "no-restricted-globals": "off",
+        "no-restricted-syntax": "off",
+        "@typescript-eslint/naming-convention": "off"
+      }
+    }
+  ]
 }
