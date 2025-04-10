@@ -49,25 +49,6 @@ export async function ProjectsListServer({ selectedTag = 'All' }: ProjectsListSe
         </p>
       </div>
 
-      {/* Filter Buttons - these will be hydrated by client component */}
-      <div className="mb-8 flex-wrap gap-2 hidden sm:flex">
-        {allTags.map(tag => (
-          <button
-            key={tag}
-            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
-              selectedTag === tag
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
-            }`}
-            data-tag={tag}
-            aria-pressed={selectedTag === tag}
-            disabled={true} // Since this is server-rendered and will be hydrated by client
-          >
-            {tag}
-          </button>
-        ))}
-      </div>
-
       {/* GitHub Activity */}
       <GitHubActivity />
 

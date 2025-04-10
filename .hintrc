@@ -12,5 +12,10 @@
     ],
     "button-type": "off",
     "axe/aria": "off"
-  }
+  },
+  "browserslist": [
+    "defaults",
+    "not ie 11",
+    "not firefox <= 90"
+  ]
 }

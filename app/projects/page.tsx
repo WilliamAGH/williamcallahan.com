@@ -21,7 +21,7 @@ export const revalidate = 3600; // Revalidate every hour
 
 export default function ProjectsPage() {
   return (
-    <div className="max-w-5xl mx-auto"> {/* Added container div */}
+    <div className="max-w-5xl mx-auto">
       <ProjectsClient />
     </div>
   );
