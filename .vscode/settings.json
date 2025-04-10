@@ -9,9 +9,11 @@
   "files.trimTrailingWhitespace": true,
   "css.validate": true,
   "css.customData": [".vscode/css-data.json"],
+  "scss.validate": false,
   "editor.quickSuggestions": {
     "strings": true
   },
+  "css.lint.unknownAtRules": "ignore",
   "workbench.colorCustomizations": {
     "activityBar.background": "#093238",
     "titleBar.activeBackground": "#0D464F",
