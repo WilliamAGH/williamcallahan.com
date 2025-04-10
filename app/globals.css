@@ -7,6 +7,11 @@
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
   }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 0 0% 100%;
+  }
 }
 
 /* Smooth scrolling */
@@ -388,3 +393,30 @@ pre, pre *, code[class*="language-"], code[class*="language-"] * {
 .rounded-lg {
   border-radius: 0.5rem !important;
 } */
+
+/* Dark mode link styles */
+.dark .prose a > code {
+  @apply bg-transparent text-blue-400;
+}
+
+.dark .prose a:hover > code {
+  @apply text-blue-300;
+}
+
+.dark .prose-headings h1,
+.dark .prose-headings h2,
+.dark .prose-headings h3,
+.dark .prose-headings h4,
+.dark .prose-headings h5,
+.dark .prose-headings h6 {
+  @apply text-white;
+}
+
+/* Group hover styles */
+.group:hover .dark .group-hover\:text-green-400 {
+  @apply text-green-400;
+}
+
+.group:hover .dark .group-hover\:text-red-400 {
+  @apply text-red-400;
+}
