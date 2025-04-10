@@ -211,7 +211,7 @@ export const ImageWindow = ({
               alt={alt}
               width={width}
               height={height}
-              sizes={sizes || "(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 50vw"} // Responsive sizes
+              sizes={sizes || "(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 50vw"}
               priority={priority}
               loading={priority ? "eager" : "lazy"}
               className={imageClasses}
@@ -221,6 +221,7 @@ export const ImageWindow = ({
                 margin: '0 auto', // Center the image
                 display: 'block', // Remove any inline spacing
                 verticalAlign: 'bottom', // Ensure bottom alignment
+                objectFit: 'contain', // Ensure image fits correctly
                 lineHeight: 0 // Remove line height spacing
               }}
               {...props} // Pass remaining props

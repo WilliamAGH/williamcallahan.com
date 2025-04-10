@@ -19,8 +19,8 @@ interface WindowControlsProps {
 
 // Helper component for the hover icons
 const HoverIcon = ({ icon, size = 'md' }: { icon: string; size?: 'sm' | 'md' | 'lg' }) => {
-  // Slightly larger text sizes across all breakpoints
-  const textSizeClass = size === 'sm' ? 'text-[5px]' : size === 'lg' ? 'text-[8px]' : 'text-[6px]';
+  // Unified text sizes - medium now matches large to standardize appearance
+  const textSizeClass = size === 'sm' ? 'text-[5px]' : 'text-[8px]'; // 'md' and 'lg' both use text-[8px]
 
   return (
     <span className={`absolute inset-0 flex items-center justify-center text-black ${textSizeClass} font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none select-none`}>
@@ -37,10 +37,10 @@ export function WindowControls({
   onMaximize,
   size = 'md', // Default to medium size
 }: WindowControlsProps) {
-  // Use standard Tailwind size w-2.5 for md, keep lg larger
-  const buttonSize = size === 'sm' ? 'w-1.5 h-1.5' : size === 'lg' ? 'w-3.5 h-3.5' : 'w-2.5 h-2.5'; // Use w-2.5 h-2.5 for md
-  const spacingClass = size === 'sm' ? 'space-x-1' : size === 'lg' ? 'space-x-2' : 'space-x-1.5';
-  const marginClass = size === 'sm' ? 'mr-1.5' : size === 'lg' ? 'mr-3.5' : 'mr-2.5';
+  // Unify the 'md' size with 'lg' to make traffic lights consistent across components
+  const buttonSize = size === 'sm' ? 'w-1.5 h-1.5' : 'w-3.5 h-3.5'; // Both 'md' and 'lg' use w-3.5 h-3.5
+  const spacingClass = size === 'sm' ? 'space-x-1' : 'space-x-2'; // Both 'md' and 'lg' use space-x-2
+  const marginClass = size === 'sm' ? 'mr-1.5' : 'mr-3.5'; // Both 'md' and 'lg' use mr-3.5
 
   return (
     <div className={`flex items-center flex-shrink-0 ${spacingClass} ${marginClass} ${className}`}> {/* Added flex-shrink-0 */}
