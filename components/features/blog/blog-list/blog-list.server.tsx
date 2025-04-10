@@ -35,8 +35,8 @@ export async function BlogListServer({ posts }: BlogListServerProps): Promise<JS
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {posts.map((post) => (
-          <BlogCard key={post.slug} post={post} />
+        {posts.map((post, index) => (
+          <BlogCard key={post.slug} post={post} isPriority={index < 2} />
         ))}
       </div>
     </div>
