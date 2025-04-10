@@ -171,7 +171,7 @@ export const ImageWindow = ({
     'align-bottom', // Eliminate any potential gap at the bottom
     'select-none', // Prevent selection behavior
     isMinimized ? 'hidden' : '',
-    isMaximized && 'object-contain max-h-[70vh] w-auto' // Ensures image fits in modal
+    isMaximized && 'object-contain w-auto' // Ensures image fits in modal (Removed max-h-[70vh])
   );
 
   return (

@@ -28,8 +28,12 @@ Set up `JAVA_HOME` globally on macOS and Windows to prepare your system for Java
     - **For macOS ARM64 (M1/M2/M3)**: Download the macOS ARM64 DMG Installer
     - **For macOS Intel**: Download the macOS x64 DMG Installer
     - **For Windows**: Download the Windows x64 Installer
+
+  - **OpenJDK Alternative**: [OpenJDK](https://openjdk.org/projects/jdk/21/) offers a free, open-source implementation of Java with identical functionality.
+    - For macOS, you can also install via Homebrew: `brew install openjdk@21`
+
   <BackgroundInfo title="Note on JDK version">
-  I recommend always using the current long-term stable branch (LTS), which is 21 as of this writing.
+  I recommend always using the current long-term stable branch (LTS), which is 21 as of this writing. Additionally, a lot of conflicts can be most easily resolved with just one Java version installed on your system. If you already have multiple versions installed, see <a href="#managing-multiple-java-versions">Section 6.2</a> on managing multiple Java versions.
   </BackgroundInfo>
 </CollapseDropdown>
 
@@ -59,7 +63,7 @@ While modern IDEs often manage their own JDK settings, setting `JAVA_HOME` globa
 ## Part 2: Setting up Java & JavaFX in IntelliJ IDEA and VS Code
 
 <BackgroundInfo title="What is JavaFX?">
-JavaFX is a toolkit/library for developing JavaFX graphical (GUI) applications. It is no longer included with the JDK, though. While you can still download it from [Gluon JavaFX](https://gluonhq.com/products/javafx/), it's best practice to let your build tool (Maven/Gradle) manage it as a project dependency. **Avoid installing JavaFX system-wide.**
+JavaFX is a toolkit/library for developing graphical (GUI) applications in Java. It is no longer included with the JDK since Java 11. While you can still download it from [Gluon JavaFX](https://gluonhq.com/products/javafx/), it's best practice to let your build tool (Maven/Gradle) manage it as a project dependency. **Avoid installing JavaFX system-wide.**
 </BackgroundInfo>
 
 **Integrated Setup in IntelliJ IDEA and VS Code**: Both IDEs offer seamless onboarding for JavaFX projects. Select JavaFX from the project templates, and the IDE will configure the necessary settings.
@@ -80,6 +84,8 @@ JavaFX is a toolkit/library for developing JavaFX graphical (GUI) applications. 
 
 <BackgroundInfo title="Version Compatibility is Key">
 Based on my experience, using the latest Long-Term Support (LTS) versions consistently across tools minimizes compatibility issues. I recommend sticking to **JDK 21**, **JavaFX 21**, and **Scene Builder 23** (or the latest corresponding LTS versions) for a smoother setup. Using other versions on my ARM64-based Mac resulted in errors, so watch out for that.
+
+_**Tip:** Ensure your build configuration (`pom.xml` or `build.gradle`) also uses the same Java LTS version. See <a href="#build-system-configurations">Section 6.4</a> for an example._
 </BackgroundInfo>
 
 ---
@@ -247,18 +253,83 @@ Once your project is open and you have configured the Scene Builder path (as sho
 
 ## 6: Diagnosing Errors
 
-<CollapseDropdown summary="6.1: Common Issues & Fixes">
-  - **`java: command not found` (or similar)**:
-      - **Likely Cause**: Incorrect `JAVA_HOME` or `PATH` environment variables.
-      - **Fix**: Review the environment variable setup steps (Part 1). Ensure paths point to your JDK 21 `bin` directory. **Important**: Restart your terminal *and* IDE after making changes.
+<a id="java_home-and-path-issues"></a>
+<CollapseDropdown summary="6.1: JAVA_HOME and Path Issues">
+  - **Issue**: `java: command not found` or wrong Java version used for command-line tools.
+  - **Fix**: Ensure `JAVA_HOME` points to your preferred JDK and your `PATH` includes JDK bin directory.
+    ```bash
+    # macOS/Linux: Add to ~/.zshrc or ~/.bash_profile
+    export JAVA_HOME=$(/usr/libexec/java_home -v 21)
+    export PATH=$JAVA_HOME/bin:$PATH
 
-  - **Multiple JDK Conflicts**:
-      - **Issue**: Wrong JDK used if `JAVA_HOME` or IDE settings point to an older version.
-      - **Check**: List installed JDKs (`/usr/libexec/java_home -V` on macOS; check `C:\Program Files\Java` on Windows).
-      - **Fix**: Explicitly set `JAVA_HOME` to the JDK 21 path. Configure the correct JDK in your IDE's project settings. Consider uninstalling unused JDKs.
-  <BackgroundInfo title="Quick verification checks">
-  After setup (and restarting your terminal/IDE), run these commands to confirm:
-  ```bash
+    # Windows: Set in System Properties > Environment Variables
+    # JAVA_HOME=C:\Program Files\Java\jdk-21
+    # Add %JAVA_HOME%\bin to PATH
+    ```
+  - **After Changes**: Restart your terminal and IDE and run `java -version` to verify.
+  - **Note**: While `JAVA_HOME` influences many tools, IDEs and build systems may use their own configurations to determine which JDK to use (see sections below).
+</CollapseDropdown>
+
+<a id="managing-multiple-java-versions"></a>
+<CollapseDropdown summary="6.2: Managing Multiple Java Versions">
+  - **Check Installed Versions**:
+    - **macOS**: `/usr/libexec/java_home -V`
+    - **Windows**: Check `C:\Program Files\Java`
+
+  - **Remove Unwanted Versions**:
+    - **macOS**: `sudo rm -rf /Library/Java/JavaVirtualMachines/jdk-17.jdk`
+    - **Homebrew**: `brew uninstall openjdk@17`
+    - **Windows**: Use Control Panel > Programs > Uninstall
+
+  - **After Removal**: Update your <a href="#java_home-and-path-issues">JAVA_HOME</a> to point to your preferred version.
+</CollapseDropdown>
+
+<a id="ide-specific-jdk-settings"></a>
+<CollapseDropdown summary="6.3: IDE-Specific JDK Settings">
+  - **Important**: IDEs often maintain their own JDK settings independent of `JAVA_HOME`.
+
+  - **VS Code**:
+    1. Command Palette: "Java: Configure Java Runtime"
+    2. Select project and installed JDK version
+    3. Clean cache: "Java: Clean Java Language Server Workspace" if needed
+
+  - **IntelliJ IDEA**:
+    1. **File > Project Structure** (**Cmd+;** / **Ctrl+Alt+Shift+S**)
+    2. Set JDK under **Project Settings > Project**
+    3. Remove obsolete JDKs: **Platform Settings > SDKs**
+
+  <ArticleImage
+    src="/images/posts/idea-edit-default-sdk-project-structure.png"
+    alt="IntelliJ IDEA Project Structure dialog showing JDK configuration"
+    caption="IntelliJ IDEA's Project Structure dialog for managing JDK references"
+    size="medium"
+  />
+</CollapseDropdown>
+
+<a id="build-system-configurations"></a>
+<CollapseDropdown summary="6.4: Build System Configurations">
+  - **Maven/Gradle Errors**: "package does not exist" or version mismatches
+
+  - **Consistency Checks**:
+    - Maven: `mvn dependency:resolve`
+    - Gradle: `./gradlew dependencies`
+
+  - **Simple Fix**: Match your build config version with your JDK version
+    ```xml
+    <!-- Maven: Ensure these match your JDK -->
+    <maven.compiler.release>21</maven.compiler.release>
+    <javafx.version>21</javafx.version>
+    ```
+
+  - **Specifying Exact JDK**:
+    - Simple approach: `JAVA_HOME=/path/to/jdk mvn compile`
+    - Gradle properties: `org.gradle.java.home=/path/to/jdk`
+    - For team consistency, use toolchains (Maven) or the Java toolchain API (Gradle)
+</CollapseDropdown>
+
+<BackgroundInfo title="Quick verification checks">
+After setup (and restarting your terminal/IDE), run these commands to confirm:
+```bash
 # Verify JAVA_HOME (use correct command for your OS)
 echo $JAVA_HOME   # macOS/Linux
 echo %JAVA_HOME%  # Windows
@@ -271,5 +342,4 @@ where java       # Windows
 java -version    # Should show JDK 21
   ```
   If commands fail or show the wrong version, re-check environment variable settings.
-  </BackgroundInfo>
-</CollapseDropdown>
+</BackgroundInfo>

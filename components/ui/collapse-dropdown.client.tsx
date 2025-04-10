@@ -9,8 +9,12 @@
 
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useRef, useEffect } from 'react';
 import { cn } from '../../lib/utils';
+
+// Create a registry of all dropdowns so we can find them by related anchors
+// This is globally accessible across all instances of CollapseDropdown
+const dropdownRegistry: {[key: string]: HTMLDetailsElement} = {};
 
 interface CollapseDropdownProps {
   /** The text or element to display in the summary/trigger */
@@ -25,6 +29,97 @@ interface CollapseDropdownProps {
   contentClassName?: string;
   /** Whether the dropdown should be open by default */
   defaultOpen?: boolean;
+  /** Optional ID for direct anchor targeting */
+  id?: string;
+}
+
+// A global function to check URL hash and open relevant dropdown
+// We'll call this after page load and after navigation
+function checkUrlHashForDropdowns() {
+  if (!window.location.hash) return;
+
+  const hash = window.location.hash.slice(1);
+  console.log('Global hash check:', hash);
+  let dropdownToOpen = null;
+  let targetElement = null;
+
+  // First, check if we have an exact ID match in our registry
+  if (dropdownRegistry[hash]) {
+    console.log('Found exact dropdown match:', hash);
+    dropdownToOpen = dropdownRegistry[hash];
+  } else {
+    // If no exact match, check if any dropdown contains keywords from the hash
+    const hashWords = hash.split('-').filter(Boolean);
+    for (const [id, detailsElement] of Object.entries(dropdownRegistry)) {
+      // Check if most words from hash match this dropdown id
+      const matchCount = hashWords.filter(word => id.includes(word)).length;
+      if (matchCount > 0 && matchCount >= hashWords.length * 0.5) { // At least half the words match
+        console.log('Found partial dropdown match:', id, 'for hash:', hash);
+        dropdownToOpen = detailsElement;
+        break;
+      }
+    }
+
+    // See if the target element exists
+    targetElement = document.getElementById(hash);
+    if (targetElement && !dropdownToOpen) {
+      // Check all dropdowns to see if the target is inside
+      for (const detailsElement of Object.values(dropdownRegistry)) {
+        if (detailsElement.contains(targetElement)) {
+          console.log('Found dropdown containing element:', hash);
+          dropdownToOpen = detailsElement;
+          break;
+        }
+      }
+    }
+  }
+
+  // If we found a dropdown to open, do it once and then scroll
+  if (dropdownToOpen) {
+    // First open the dropdown
+    dropdownToOpen.open = true;
+
+    // Prevent browser's automatic scrolling
+    if (history.replaceState) {
+      history.replaceState(null, document.title, window.location.pathname + window.location.search);
+    }
+
+    // Wait for DOM update, then scroll to target
+    setTimeout(() => {
+      console.log('Attempting to scroll to:', hash);
+
+      // Try element by ID first
+      const element = document.getElementById(hash);
+      if (element) {
+        element.scrollIntoView({ block: 'start' }); // No smooth scrolling
+        return;
+      }
+
+      // Try an anchor with matching ID
+      const anchor = document.querySelector(`a[id="${hash}"]`);
+      if (anchor) {
+        anchor.scrollIntoView({ block: 'start' });
+        return;
+      }
+
+      // Restore the hash to enable browser's native scrolling as a fallback
+      window.location.hash = hash;
+    }, 100); // Short delay for DOM update
+  }
+}
+
+// Set up global hash change listener
+if (typeof window !== 'undefined') {
+  // Handle initial page load with hash
+  window.addEventListener('load', () => {
+    // Use a single attempt with adequate delay
+    setTimeout(checkUrlHashForDropdowns, 400);
+  });
+
+  // Handle navigation to a hash
+  window.addEventListener('hashchange', () => {
+    setTimeout(checkUrlHashForDropdowns, 100);
+  });
 }
 
 /**
@@ -43,11 +138,53 @@ export function CollapseDropdown({
   className = '',
   summaryClassName = '',
   contentClassName = '',
-  defaultOpen = false
+  defaultOpen = false,
+  id
 }: CollapseDropdownProps): JSX.Element {
+  // Ref to access the details element
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+
+  // Effect to register this dropdown
+  useEffect(() => {
+    // Skip if no ref or no summary
+    if (!detailsRef.current || !summary) return;
+
+    // Generate ID if not provided
+    let dropdownId = id || '';
+    if (!dropdownId && typeof summary === 'string') {
+      dropdownId = summary.toLowerCase()
+        .replace(/^\d+\.\d+:\s+/, '') // Remove section numbers like "6.1: "
+        .replace(/\s+/g, '-')        // Replace spaces with hyphens
+        .replace(/[^a-z0-9-_]/g, ''); // Remove special chars
+    }
+
+    // Only register if we have an ID
+    if (dropdownId) {
+      console.log('Registering dropdown:', dropdownId);
+      dropdownRegistry[dropdownId] = detailsRef.current;
+
+      // Check if the current hash matches this dropdown
+      if (window.location.hash) {
+        const hash = window.location.hash.slice(1);
+        if (hash === dropdownId || (hash.includes(dropdownId))) {
+          console.log('Current hash matches this dropdown, opening:', dropdownId);
+          detailsRef.current.open = true;
+        }
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (dropdownId) {
+        delete dropdownRegistry[dropdownId];
+      }
+    };
+  }, [summary, id]);
+
   return (
     <details
-      className={cn("my-6 group", className)} // Added my-6 for spacing
+      ref={detailsRef}
+      className={cn("my-6 group", className)}
       open={defaultOpen}
     >
       <summary
