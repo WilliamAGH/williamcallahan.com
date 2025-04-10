@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'; // Import act
 import { CodeBlock } from '../../../components/ui/code-block/code-block.client';
 import { CopyButton } from '../../../components/ui/code-block/copy-button.client';
 import { WindowControls } from '../../../components/ui/navigation/window-controls';
@@ -232,8 +232,10 @@ const y = 2;`}
       const preElement = container.querySelector('pre');
       expect(preElement).not.toHaveClass('max-h-16');
 
-      // Click minimize button
-      screen.getByTestId('mock-minimize').click();
+      // Click minimize button wrapped in act
+      act(() => {
+        screen.getByTestId('mock-minimize').click();
+      });
 
       // After minimize, container should have max-height class
       // Note: In actual implementation, minimized state hides the pre completely,
@@ -248,8 +250,10 @@ const y = 2;`}
       const wrapperElement = container.firstChild;
       expect(wrapperElement).not.toHaveClass('fixed');
 
-      // Click maximize button
-      screen.getByTestId('mock-maximize').click();
+      // Click maximize button wrapped in act
+      act(() => {
+        screen.getByTestId('mock-maximize').click();
+      });
 
       // After maximize, wrapper should have z-index classes for modal behavior
       // Note: We need to find the wrapper element again as React may have re-rendered
