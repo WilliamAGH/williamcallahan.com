@@ -27,7 +27,8 @@ import { Providers } from "./providers";
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
 import { ClientTerminal } from "../components/ui/terminal/terminal.client";
 import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-registry-context.client";
-import { BodyClassManager } from "@/components/utils/body-class-manager.client"; // Import the new component
+import { BodyClassManager } from "@/components/utils/body-class-manager.client";
+import { AnchorScrollManager } from "@/components/utils/anchor-scroll-manager.client"; // Re-import the anchor handler
 import { FloatingRestoreButtons } from "@/components/ui/window/floating-restore-buttons.client";
 import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "../data/metadata";
 
@@ -36,6 +37,7 @@ import { Analytics } from '@/components/analytics/analytics.client'
 /** Load Inter font with Latin subset */
 const inter = Inter({ subsets: ["latin"] });
 
+// lib/blog/mdx.ts collapse-dropdown.client.tsx mdx-content.tsx
 /**
  * Global metadata configuration for the application
  * Follows Next.js 14 metadata standards and handles different environments
@@ -104,7 +106,8 @@ export default function RootLayout({
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
           <GlobalWindowRegistryProvider>
-            <BodyClassManager /> {/* Add the BodyClassManager here */}
+            <BodyClassManager />
+            <AnchorScrollManager /> {/* Re-activate the anchor scroll handler */}
             {/* Revert to direct rendering */}
             <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
               <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">

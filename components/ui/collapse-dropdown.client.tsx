@@ -1,137 +1,133 @@
 /**
- * CollapseDropdown Component
+ * CollapseDropdown Component & Anchor Handling Logic Helpers
  *
  * @module components/ui/collapse-dropdown.client
- * @description
- * A styled wrapper around the native HTML <details> and <summary> elements
- * for creating accessible expand/collapse sections (dropdowns).
+ * @description Provides the CollapseDropdown component and exports helper functions
+ *              for the global anchor handler to manage dropdown interactions.
  */
-
 'use client';
 
 import { ReactNode, useRef, useEffect } from 'react';
 import { cn } from '../../lib/utils';
 
-// Create a registry of all dropdowns so we can find them by related anchors
-// This is globally accessible across all instances of CollapseDropdown
-const dropdownRegistry: {[key: string]: HTMLDetailsElement} = {};
+// --- Centralized Dropdown Registry and Logic Helpers ---
 
-interface CollapseDropdownProps {
-  /** The text or element to display in the summary/trigger */
-  summary: ReactNode;
-  /** The content to be revealed when expanded */
-  children: ReactNode;
-  /** Optional CSS class name for the details element */
-  className?: string;
-  /** Optional CSS class name for the summary element */
-  summaryClassName?: string;
-  /** Optional CSS class name for the content wrapper */
-  contentClassName?: string;
-  /** Whether the dropdown should be open by default */
-  defaultOpen?: boolean;
-  /** Optional ID for direct anchor targeting */
-  id?: string;
-}
+const dropdownRegistry: { [key: string]: HTMLDetailsElement } = {};
+const isDevelopment = process.env.NODE_ENV === 'development';
 
-// A global function to check URL hash and open relevant dropdown
-// We'll call this after page load and after navigation
-function checkUrlHashForDropdowns() {
-  if (!window.location.hash) return;
-
-  const hash = window.location.hash.slice(1);
-  console.log('Global hash check:', hash);
-  let dropdownToOpen = null;
-  let targetElement = null;
-
-  // First, check if we have an exact ID match in our registry
-  if (dropdownRegistry[hash]) {
-    console.log('Found exact dropdown match:', hash);
-    dropdownToOpen = dropdownRegistry[hash];
-  } else {
-    // If no exact match, check if any dropdown contains keywords from the hash
-    const hashWords = hash.split('-').filter(Boolean);
-    for (const [id, detailsElement] of Object.entries(dropdownRegistry)) {
-      // Check if most words from hash match this dropdown id
-      const matchCount = hashWords.filter(word => id.includes(word)).length;
-      if (matchCount > 0 && matchCount >= hashWords.length * 0.5) { // At least half the words match
-        console.log('Found partial dropdown match:', id, 'for hash:', hash);
-        dropdownToOpen = detailsElement;
-        break;
-      }
-    }
-
-    // See if the target element exists
-    targetElement = document.getElementById(hash);
-    if (targetElement && !dropdownToOpen) {
-      // Check all dropdowns to see if the target is inside
-      for (const detailsElement of Object.values(dropdownRegistry)) {
-        if (detailsElement.contains(targetElement)) {
-          console.log('Found dropdown containing element:', hash);
-          dropdownToOpen = detailsElement;
-          break;
-        }
-      }
-    }
+/**
+ * Registers a dropdown instance. Called by the component's effect.
+ * @param id The unique ID of the dropdown.
+ * @param element The HTMLDetailsElement reference.
+ */
+function registerDropdown(id: string, element: HTMLDetailsElement): void {
+  if (isDevelopment) {
+    console.log(`[Anchor Debug] Registering dropdown: ${id}`);
   }
-
-  // If we found a dropdown to open, do it once and then scroll
-  if (dropdownToOpen) {
-    // First open the dropdown
-    dropdownToOpen.open = true;
-
-    // Prevent browser's automatic scrolling
-    if (history.replaceState) {
-      history.replaceState(null, document.title, window.location.pathname + window.location.search);
-    }
-
-    // Wait for DOM update, then scroll to target
-    setTimeout(() => {
-      console.log('Attempting to scroll to:', hash);
-
-      // Try element by ID first
-      const element = document.getElementById(hash);
-      if (element) {
-        element.scrollIntoView({ block: 'start' }); // No smooth scrolling
-        return;
-      }
-
-      // Try an anchor with matching ID
-      const anchor = document.querySelector(`a[id="${hash}"]`);
-      if (anchor) {
-        anchor.scrollIntoView({ block: 'start' });
-        return;
-      }
-
-      // Restore the hash to enable browser's native scrolling as a fallback
-      window.location.hash = hash;
-    }, 100); // Short delay for DOM update
-  }
-}
-
-// Set up global hash change listener
-if (typeof window !== 'undefined') {
-  // Handle initial page load with hash
-  window.addEventListener('load', () => {
-    // Use a single attempt with adequate delay
-    setTimeout(checkUrlHashForDropdowns, 400);
-  });
-
-  // Handle navigation to a hash
-  window.addEventListener('hashchange', () => {
-    setTimeout(checkUrlHashForDropdowns, 100);
-  });
+  dropdownRegistry[id] = element;
 }
 
 /**
- * CollapseDropdown Component
- *
- * A styled wrapper around the native HTML <details> and <summary> elements
- * for creating accessible expand/collapse sections (dropdowns).
- *
- * @component
- * @param {CollapseDropdownProps} props - Component props
- * @returns {JSX.Element} Rendered component
+ * Unregisters a dropdown instance. Called by the component's effect cleanup.
+ * @param id The unique ID of the dropdown.
  */
+function unregisterDropdown(id: string): void {
+  if (isDevelopment) {
+    console.log(`[Anchor Debug] Unregistering dropdown: ${id}`);
+  }
+  delete dropdownRegistry[id];
+}
+
+/**
+ * Attempts to find the dropdown element associated with a given hash.
+ * Called by the global anchor handler hook.
+ * Checks for exact ID match first, then partial match, then containment.
+ * @param hash The URL hash (without '#').
+ * @returns The HTMLDetailsElement or null if not found.
+ */
+export function findDropdownForHash(hash: string): HTMLDetailsElement | null {
+  if (isDevelopment) {
+    console.log(`[Anchor Debug] findDropdownForHash: Searching for dropdown related to #${hash}`);
+  }
+  // 1. Exact ID match in registry
+  if (dropdownRegistry[hash]) {
+    if (isDevelopment) console.log(`[Anchor Debug] findDropdownForHash: Found exact match for #${hash}`);
+    return dropdownRegistry[hash];
+  }
+  // 2. Partial ID match
+  const hashWords = hash.split('-').filter(Boolean);
+  for (const [id, detailsElement] of Object.entries(dropdownRegistry)) {
+    const matchCount = hashWords.filter(word => id.includes(word)).length;
+    if (matchCount > 0 && matchCount >= hashWords.length * 0.5) {
+      if (isDevelopment) console.log(`[Anchor Debug] findDropdownForHash: Found partial match '${id}' for #${hash}`);
+      return detailsElement;
+    }
+  }
+  // 3. Check containment
+  const targetElement = document.getElementById(hash);
+  if (targetElement) {
+    for (const [id, detailsElement] of Object.entries(dropdownRegistry)) {
+      if (detailsElement.contains(targetElement)) {
+        if (isDevelopment) console.log(`[Anchor Debug] findDropdownForHash: Found element #${hash} inside dropdown '${id}'`);
+        return detailsElement;
+      }
+    }
+  }
+  if (isDevelopment) console.log(`[Anchor Debug] findDropdownForHash: No dropdown found for #${hash}`);
+  return null;
+}
+
+/**
+ * Opens a specific dropdown and attempts to scroll to the target hash within it, with retries.
+ * Called by the global anchor handler hook.
+ * @param dropdownToOpen The HTMLDetailsElement to open.
+ * @param hash The target hash (without '#').
+ */
+export function openAndScrollToDropdownAnchor(dropdownToOpen: HTMLDetailsElement, hash: string): void {
+  if (isDevelopment) console.log(`[Anchor Debug] openAndScrollToDropdownAnchor: Opening dropdown for #${hash}.`);
+  dropdownToOpen.open = true;
+
+  if (history.replaceState) {
+    history.replaceState(null, document.title, window.location.pathname + window.location.search);
+  }
+
+  const attemptScroll = (scrollAttempt = 1, maxScrollAttempts = 5) => {
+    if (isDevelopment) console.log(`[Anchor Debug] attemptScroll (Dropdown) #${hash}: Starting attempt ${scrollAttempt}/${maxScrollAttempts}.`);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (isDevelopment) console.log(`[Anchor Debug] attemptScroll (Dropdown) #${hash}: Inside rAF, attempting find for attempt ${scrollAttempt}.`);
+        let targetScrollElement = document.getElementById(hash) || document.querySelector(`a[id="${hash}"]`);
+
+        if (targetScrollElement) {
+          if (isDevelopment) console.log(`[Anchor Debug] attemptScroll (Dropdown) #${hash}: Found element on attempt ${scrollAttempt}. Scrolling.`);
+          targetScrollElement.scrollIntoView({ block: 'start' });
+        } else if (scrollAttempt < maxScrollAttempts) {
+          if (isDevelopment) console.log(`[Anchor Debug] attemptScroll (Dropdown) #${hash}: Element not found on attempt ${scrollAttempt}. Scheduling retry in 200ms.`);
+          setTimeout(() => attemptScroll(scrollAttempt + 1, maxScrollAttempts), 200);
+        } else {
+          if (isDevelopment) console.log(`[Anchor Debug] attemptScroll (Dropdown) #${hash}: Element not found after ${maxScrollAttempts} attempts. Giving up and restoring hash.`);
+          window.location.hash = hash;
+        }
+      });
+    });
+  };
+
+  if (isDevelopment) console.log(`[Anchor Debug] openAndScrollToDropdownAnchor: Calling attemptScroll for #${hash}.`);
+  attemptScroll();
+}
+
+// --- CollapseDropdown Component ---
+
+interface CollapseDropdownProps {
+  summary: ReactNode;
+  children: ReactNode;
+  className?: string;
+  summaryClassName?: string;
+  contentClassName?: string;
+  defaultOpen?: boolean;
+  id?: string;
+}
+
 export function CollapseDropdown({
   summary,
   children,
@@ -139,89 +135,74 @@ export function CollapseDropdown({
   summaryClassName = '',
   contentClassName = '',
   defaultOpen = false,
-  id
+  id: providedId
 }: CollapseDropdownProps): JSX.Element {
-  // Ref to access the details element
   const detailsRef = useRef<HTMLDetailsElement>(null);
 
-  // Effect to register this dropdown
+  // Effect ONLY handles registration/unregistration
   useEffect(() => {
-    // Skip if no ref or no summary
-    if (!detailsRef.current || !summary) return;
+    const element = detailsRef.current;
+    if (!element || !summary) return;
 
-    // Generate ID if not provided
-    let dropdownId = id || '';
+    let dropdownId = providedId || '';
     if (!dropdownId && typeof summary === 'string') {
       dropdownId = summary.toLowerCase()
-        .replace(/^\d+\.\d+:\s+/, '') // Remove section numbers like "6.1: "
-        .replace(/\s+/g, '-')        // Replace spaces with hyphens
-        .replace(/[^a-z0-9-_]/g, ''); // Remove special chars
+        .replace(/^\d+\.\d+:\s+/, '')
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-_]/g, '');
     }
 
-    // Only register if we have an ID
     if (dropdownId) {
-      console.log('Registering dropdown:', dropdownId);
-      dropdownRegistry[dropdownId] = detailsRef.current;
-
-      // Check if the current hash matches this dropdown
-      if (window.location.hash) {
-        const hash = window.location.hash.slice(1);
-        if (hash === dropdownId || (hash.includes(dropdownId))) {
-          console.log('Current hash matches this dropdown, opening:', dropdownId);
-          detailsRef.current.open = true;
-        }
-      }
+      // Register the dropdown
+      registerDropdown(dropdownId, element);
+      // Cleanup function to unregister on unmount
+      return () => {
+        unregisterDropdown(dropdownId);
+      };
     }
+  }, [summary, providedId]);
 
-    // Cleanup on unmount
-    return () => {
-      if (dropdownId) {
-        delete dropdownRegistry[dropdownId];
-      }
-    };
-  }, [summary, id]);
+  // Generate the ID again for assigning to the details element
+  const elementId = providedId || (typeof summary === 'string' ? summary.toLowerCase()
+        .replace(/^\d+\.\d+:\s+/, '')
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-_]/g, '') : undefined);
 
   return (
     <details
       ref={detailsRef}
       className={cn("my-6 group", className)}
       open={defaultOpen}
+      id={elementId} // Assign ID here
     >
       <summary
-        style={{ listStyle: 'none' }} // Explicitly hide the default marker
+        style={{ listStyle: 'none' }}
         className={cn(
-          "text-lg font-semibold cursor-pointer list-none", // list-none removes default marker, removed mb-4
-          "flex items-center gap-2", // Use flex for icon alignment
-          "p-3 rounded-md border", // Added padding, rounded corners, border
-          "bg-slate-50 dark:bg-slate-800/50", // Added background
-          "border-slate-200 dark:border-slate-700", // Added border colors
-          "transition-colors duration-150", // Added transition
-          "hover:bg-slate-100 dark:hover:bg-slate-700/50", // Changed hover to background change
+          "text-lg font-semibold cursor-pointer list-none",
+          "flex items-center gap-2",
+          "p-3 rounded-md border",
+          "bg-slate-50 dark:bg-slate-800/50",
+          "border-slate-200 dark:border-slate-700",
+          "transition-colors duration-150",
+          "hover:bg-slate-100 dark:hover:bg-slate-700/50",
           summaryClassName
         )}
       >
-        {/* Default arrow icon using Tailwind */}
-        <span className="transition-transform duration-200 group-open:rotate-90 flex-shrink-0"> {/* Added flex-shrink-0 */}
+        <span className="transition-transform duration-200 group-open:rotate-90 flex-shrink-0">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>
         </span>
-        {/* Ensure summary text doesn't overflow weirdly */}
         <span className="flex-grow">{summary}</span>
       </summary>
-      {/* Content container with improved styling */}
       <div className={cn(
         "ml-6 mt-4 mb-4",
-        "prose prose-sm dark:prose-invert max-w-none", // Base prose styling
+        "prose prose-sm dark:prose-invert max-w-none",
         "overflow-visible",
-        // General code formatting (applied first)
         "[&_code]:text-sm [&_code]:break-words [&_code]:whitespace-normal",
-        // Specific overrides for CODE inside LINKS:
-        "[&_a>code]:text-blue-600 dark:[&_a>code]:text-blue-400", // Force link color
-        "[&_a>code]:bg-transparent dark:[&_a>code]:bg-transparent", // Remove background
-        "[&_a>code]:px-0 [&_a>code]:py-0", // Remove padding
-        "[&_a:hover>code]:text-blue-500 dark:[&_a:hover>code]:text-blue-300", // Hover color
-        // Pre/code block formatting
+        "[&_a>code]:text-blue-600 dark:[&_a>code]:text-blue-400",
+        "[&_a>code]:bg-transparent dark:[&_a>code]:bg-transparent",
+        "[&_a>code]:px-0 [&_a>code]:py-0",
+        "[&_a:hover>code]:text-blue-500 dark:[&_a:hover>code]:text-blue-300",
         "[&_pre]:overflow-x-auto [&_pre]:my-2",
-        // List formatting
         "[&_ul]:pl-5 [&_li]:ml-0 [&_li]:my-1",
         contentClassName
       )}>

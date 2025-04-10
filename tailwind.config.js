@@ -6,6 +6,12 @@ module.exports = {
     './data/**/*.{js,ts,jsx,tsx,mdx}'
   ],
   darkMode: 'class',
+  future: {
+    hoverOnlyWhenSupported: true,
+    respectDefaultRingColorOpacity: true,
+    disableColorOpacityUtilitiesByDefault: true,
+    relativeContentPathsByDefault: true,
+  },
   theme: {
     extend: {
       fontFamily: {

@@ -1,0 +1,15 @@
+# Modern browsers only
+
+# Default list
+defaults
+not IE 11
+
+# Mobile browsers
+iOS >= 12
+Android >= 6
+
+# Desktop browsers
+Chrome >= 70
+Firefox >= 68
+Safari >= 12
+Edge >= 79 # Chromium-based Edge
