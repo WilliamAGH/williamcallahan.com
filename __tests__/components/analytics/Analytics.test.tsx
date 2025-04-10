@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import { Analytics } from '@/components/analytics/analytics.client'
 import { usePathname } from 'next/navigation'
 
@@ -21,23 +21,36 @@ jest.mock('next/navigation', () => ({
   usePathname: jest.fn()
 }))
 
+// Keep track of loaded scripts in the mock scope
+const loadedScripts: Record<string, boolean> = {};
+
 // Mock next/script
 jest.mock('next/script', () => ({
   __esModule: true,
+  // Function to reset loaded state for each test
+  __resetMockState: () => {
+    loadedScripts.umami = false;
+    loadedScripts.plausible = false;
+  },
   default: function Script({ id, onLoad, onError }: any) {
-    // Simulate script load after a short delay
-    setTimeout(() => {
-      if (id === 'umami') {
-        // Mock Umami initialization
+    // Only set timeout and call onLoad if not already loaded for this id
+    if (!loadedScripts[id]) {
+      setTimeout(() => {
+        if (id === 'umami') {
+          // Mock Umami initialization
         const umamiMock = jest.fn() as UmamiMock
         umamiMock.track = jest.fn()
-        global.umami = umamiMock
-        onLoad?.()
-      } else if (id === 'plausible') {
-        // Mock Plausible initialization
-        global.plausible = jest.fn()
-      }
-    }, 100)
+          global.umami = umamiMock
+          loadedScripts[id] = true; // Mark as loaded
+          onLoad?.()
+        } else if (id === 'plausible') {
+          // Mock Plausible initialization
+          global.plausible = jest.fn()
+          loadedScripts[id] = true; // Mark as loaded
+          onLoad?.()
+        }
+      }, 10) // Reduce timeout for faster tests
+    }
     return null
   }
 }))
@@ -48,6 +61,8 @@ describe('Analytics', () => {
   const mockSiteUrl = 'https://williamcallahan.com'
 
   beforeEach(() => {
+    jest.useFakeTimers()
+
     // Setup environment variables
     process.env = {
       ...originalEnv,
@@ -57,6 +72,9 @@ describe('Analytics', () => {
 
     // Mock pathname
     ;(usePathname as jest.Mock).mockReturnValue('/test-page')
+
+    // Reset the mock script loaded state
+    jest.requireMock('next/script').__resetMockState();
 
     // Reset window objects between tests
     global.umami = undefined
@@ -70,21 +88,27 @@ describe('Analytics', () => {
   afterEach(() => {
     process.env = originalEnv
     jest.clearAllMocks()
+    jest.useRealTimers()
   })
 
   it('initializes analytics scripts correctly', async () => {
     render(<Analytics />)
 
+    // Advance timers to trigger script load
+    await act(async () => {
+      jest.advanceTimersByTime(20)
+    })
+
     // Wait for scripts to "load"
     await waitFor(() => {
       expect(global.umami).toBeDefined()
-      expect(global.umami?.track).toHaveBeenCalled() // Wait for the track function itself
+      expect(global.umami?.track).toHaveBeenCalled()
       expect(global.plausible).toBeDefined()
     })
 
     // Verify tracking was called with correct arguments
     expect(global.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
-      path: '/test-page', // Path should be the initial one
+      path: '/test-page',
       website: mockWebsiteId
     }))
   })
@@ -95,6 +119,11 @@ describe('Analytics', () => {
 
     render(<Analytics />)
 
+    // Advance timers to trigger script load
+    await act(async () => {
+      jest.advanceTimersByTime(20)
+    })
+
     // Wait specifically for the track function to be called
     await waitFor(() => {
       expect(global.umami?.track).toHaveBeenCalled()
@@ -102,7 +131,7 @@ describe('Analytics', () => {
 
     // Verify path was normalized and tracked correctly
     expect(global.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
-      path: '/blog/:slug' // Path should be normalized
+      path: '/blog/:slug'
     }))
   })
 
@@ -116,30 +145,49 @@ describe('Analytics', () => {
   })
 
   it('tracks page views on route changes', async () => {
+    // Start with initial path
+    (usePathname as jest.Mock).mockReturnValue('/initial-path')
     const { rerender } = render(<Analytics />)
 
-    // Wait for initial load and track call
+    // Advance timers to trigger script load (10ms) AND useEffect timeout (100ms)
+    await act(async () => {
+      jest.advanceTimersByTime(150) // Ensure all initial effects fire
+    })
+
+    // Wait for the initial track calls (could be multiple) to settle
     await waitFor(() => {
       expect(global.umami?.track).toHaveBeenCalled()
     })
+    // Verify at least one call was for the initial path
+    expect(global.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
+      path: '/initial-path'
+    }))
 
-    // Clear tracking calls AFTER the initial one has happened
-    const umamiTrackMock = global.umami?.track as jest.Mock
-    umamiTrackMock.mockClear()
+    // Clear the mock for next assertions
+    if (global.umami?.track) {
+      global.umami.track.mockClear()
+    }
 
-    // Simulate route change
-    ;(usePathname as jest.Mock).mockReturnValue('/new-page')
+    // Change pathname
+    (usePathname as jest.Mock).mockReturnValue('/new-path')
+
+    // Re-render the component
     rerender(<Analytics />)
 
-    // Wait for the track function to be called again after rerender/path change
-    await waitFor(() => {
-      expect(umamiTrackMock).toHaveBeenCalled()
+    // Advance timers to allow the timeout in useEffect to trigger
+    await act(async () => {
+      // Advance timers past the 100ms timeout in the useEffect
+      jest.advanceTimersByTime(150) // Give some buffer
     })
 
-    // Verify new page was tracked
-    expect(umamiTrackMock).toHaveBeenCalledWith('pageview', expect.objectContaining({
-      path: '/new-page' // Path should be the new one
-    }))
+    // Wait for the track call triggered by the pathname change
+    await waitFor(() => {
+      expect(global.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
+        path: '/new-path'
+      }))
+    })
+    // Ensure it was called exactly once after the clear
+    expect(global.umami?.track).toHaveBeenCalledTimes(1)
   })
 
   it('handles script load errors gracefully', async () => {
@@ -149,11 +197,16 @@ describe('Analytics', () => {
     jest.requireMock('next/script').default = function Script({ id, onError }: any) {
       setTimeout(() => {
         onError?.(new Error('Failed to load script'))
-      }, 100)
+      }, 10)
       return null
     }
 
     render(<Analytics />)
+
+    // Advance timers to trigger error
+    await act(async () => {
+      jest.advanceTimersByTime(20)
+    })
 
     await waitFor(() => {
       expect(consoleSpy).toHaveBeenCalledWith(
