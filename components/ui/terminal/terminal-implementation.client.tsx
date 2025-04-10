@@ -89,6 +89,25 @@ export function Terminal() {
     };
   }, [isMaximized, maximizeWindow]);
 
+  // Effect for handling Escape key when maximized
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Check if maximized and the key is Escape
+      if (isMaximized && event.key === 'Escape') {
+        maximizeWindow(); // Toggle back to normal state
+      }
+    };
+
+    if (isMaximized) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    // Cleanup function to remove the event listener
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMaximized, maximizeWindow]); // Dependencies: run when isMaximized or maximizeWindow changes
+
   // Initialize history with the welcome message
   useEffect(() => {
     const welcomeMessage = 'Welcome! Type "help" for available commands.';
