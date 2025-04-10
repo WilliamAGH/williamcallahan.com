@@ -141,6 +141,93 @@ export interface BreadcrumbListSchema extends SchemaBase {
 }
 
 /**
+ * ProfilePage entity for personal profile pages
+ */
+export interface ProfilePageSchema extends SchemaBase {
+  '@type': 'ProfilePage';
+  name?: string;
+  description?: string;
+  dateCreated: PacificDateString;
+  dateModified: PacificDateString;
+  datePublished?: PacificDateString;
+  mainEntity: {
+    '@type': 'Person';
+    name: string;
+    alternateName?: string;
+    identifier?: string;
+    description: string;
+    image?: string;
+    sameAs?: string[];
+    interactionStatistic?: Array<{
+      '@type': 'InteractionCounter';
+      interactionType: string;
+      userInteractionCount: number;
+    }>;
+    agentInteractionStatistic?: {
+      '@type': 'InteractionCounter';
+      interactionType: string;
+      userInteractionCount: number;
+    };
+  };
+}
+
+/**
+ * NewsArticle entity for news-style blog posts
+ */
+export interface NewsArticleSchema extends SchemaBase {
+  '@type': 'NewsArticle';
+  headline: string;
+  image: string[];
+  datePublished: PacificDateString;
+  dateModified: PacificDateString;
+  author: Array<{
+    '@type': 'Person';
+    name: string;
+    url?: string;
+  }>;
+  description?: string;
+  mainEntityOfPage?: { '@id': string };
+  publisher?: { '@id': string };
+}
+
+/**
+ * SoftwareApplication entity for software and extensions
+ */
+export interface SoftwareApplicationSchema extends SchemaBase {
+  '@type': 'SoftwareApplication';
+  name: string;
+  description?: string;
+  operatingSystem?: string;
+  applicationCategory?: string;
+  offers?: {
+    '@type': 'Offer';
+    price: number;
+    priceCurrency?: string;
+    availability?: string;
+  };
+  aggregateRating?: {
+    '@type': 'AggregateRating';
+    ratingValue: number;
+    ratingCount: number;
+    bestRating?: number;
+    worstRating?: number;
+  };
+  downloadUrl?: string;
+  softwareVersion?: string;
+  screenshot?: string | string[];
+  author?: { '@id': string } | {
+    '@type': 'Person' | 'Organization';
+    name: string;
+    url?: string;
+  };
+  publisher?: { '@id': string } | {
+    '@type': 'Person' | 'Organization';
+    name: string;
+    url?: string;
+  };
+}
+
+/**
  * Complete schema graph structure
  */
 export interface SchemaGraph {
@@ -154,6 +241,9 @@ export interface SchemaGraph {
     | BreadcrumbListSchema
     | DatasetSchema
     | CollectionPageSchema
+    | ProfilePageSchema
+    | NewsArticleSchema
+    | SoftwareApplicationSchema
   >;
 }
 
@@ -172,11 +262,41 @@ export interface SchemaParams {
     height?: number;
     caption?: string;
   };
+  images?: string[];
   breadcrumbs?: Array<{
     path: string;
     name: string;
   }>;
   articleBody?: string;
   keywords?: string[];
-  type?: 'article' | 'profile' | 'collection' | 'dataset';
+  authors?: Array<{
+    name: string;
+    url?: string;
+  }>;
+  mainEntityOfPage?: { '@id': string };
+  type?: 'article' | 'profile' | 'collection' | 'dataset' | 'newsarticle' | 'software';
+  profileMetadata?: {
+    bio?: string;
+    alternateName?: string;
+    identifier?: string;
+    profileImage?: string;
+    interactionStats?: {
+      follows?: number;
+      likes?: number;
+      posts?: number;
+    };
+  };
+  softwareMetadata?: {
+    name: string;
+    operatingSystem?: string;
+    applicationCategory?: string;
+    price?: number;
+    priceCurrency?: string;
+    isFree?: boolean;
+    ratingValue?: number;
+    ratingCount?: number;
+    downloadUrl?: string;
+    softwareVersion?: string;
+    screenshot?: string | string[];
+  };
 }

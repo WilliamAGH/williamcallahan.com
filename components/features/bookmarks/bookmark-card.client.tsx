@@ -25,7 +25,7 @@ import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import { ExternalLink } from '../../ui/external-link.client';
 import { LogoImage } from '../../ui/logo-image.client';
 import type { Bookmark } from '../../../types/bookmark';
-import { normalizeDomain } from '../../../lib/logo-fetcher';
+import { normalizeDomain } from '../../../lib/utils/domain-utils';
 
 /**
  * Props for the BookmarkCardClient component

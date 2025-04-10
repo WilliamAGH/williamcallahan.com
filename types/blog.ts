@@ -59,6 +59,8 @@ export interface Author {
   avatar?: string;
   /** Short biography or description (optional) */
   bio?: string;
+  /** URL to author's profile or website (optional) */
+  url?: string;
 }
 
 /**

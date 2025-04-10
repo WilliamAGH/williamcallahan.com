@@ -19,6 +19,7 @@ import { BackgroundInfo } from '../../../ui/background-info.client';
 import { CollapseDropdown } from '../../../ui/collapse-dropdown.client';
 import { ExternalLink } from '../../../ui/external-link.client';
 import { ImageWindow } from '../../../ui/window/image-window.client'; // Import the new component
+import { SoftwareSchema } from './software-schema'; // Import SoftwareSchema
 import { cn } from '@/lib/utils'; // Import cn utility
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {
@@ -154,6 +155,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     ArticleImage: MdxImage,
     BackgroundInfo,
     CollapseDropdown,
+    SoftwareSchema, // Add SoftwareSchema to components
     // Custom anchor tag renderer
     a: (props: ComponentProps<'a'>) => {
       const { href, children, ...rest } = props;

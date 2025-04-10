@@ -21,7 +21,7 @@ assertServerOnly('lib/logo-fetcher.ts');
  */
 export async function fetchLogo(domain: string): Promise<{
   buffer: Buffer | null;
-  source: LogoSource;
+  source: LogoSource | null;
   error?: string;
 }> {
   // Check cache first

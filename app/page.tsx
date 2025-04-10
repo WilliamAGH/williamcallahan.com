@@ -12,7 +12,7 @@
 import { Home } from "../components/features";
 import { getStaticPageMetadata } from "../lib/seo/metadata";
 import { JsonLdScript } from "../components/seo/json-ld";
-import { PAGE_METADATA } from "../data/metadata";
+import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../data/metadata";
 import { formatSeoDate } from "../lib/seo/utils";
 import type { Metadata } from "next";
 import { unstable_noStore as noStore } from "next/cache";
@@ -49,8 +49,32 @@ export default function HomePage() {
         data={{
           "@context": "https://schema.org",
           "@type": "ProfilePage",
-          "datePublished": formattedCreated,
-          "dateModified": formattedModified
+          "dateCreated": formattedCreated,
+          "dateModified": formattedModified,
+          "mainEntity": {
+            "@type": "Person",
+            "name": SITE_NAME,
+            "description": pageMetadata.bio,
+            "image": "/images/profile.jpg",
+            "sameAs": siteMetadata.social.profiles,
+            "interactionStatistic": [
+              {
+                "@type": "InteractionCounter",
+                "interactionType": "https://schema.org/FollowAction",
+                "userInteractionCount": 500
+              },
+              {
+                "@type": "InteractionCounter",
+                "interactionType": "https://schema.org/LikeAction",
+                "userInteractionCount": 1200
+              }
+            ],
+            "agentInteractionStatistic": {
+              "@type": "InteractionCounter",
+              "interactionType": "https://schema.org/WriteAction",
+              "userInteractionCount": 85
+            }
+          }
         }}
       />
       <Home />

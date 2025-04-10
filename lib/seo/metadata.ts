@@ -25,7 +25,7 @@ import {
   metadata as siteMetadata,
   PAGE_METADATA
 } from '../../data/metadata';
-import { SEO_DATE_FIELDS, type ArticleParams } from './constants';
+import { SEO_DATE_FIELDS, type ArticleParams, type SoftwareAppParams } from './constants';
 import { formatSeoDate, ensureAbsoluteUrl } from './utils';
 import { createArticleOgMetadata } from './opengraph';
 import { generateSchemaGraph } from './schema';
@@ -72,6 +72,7 @@ export const BASE_METADATA: Metadata = {
  * @returns {ArticleMetadata} Next.js metadata object for the article page
  * @see {@link "./opengraph.ts"} - For OpenGraph metadata generation
  * @see {@link "https://ogp.me/#type_article"} - OpenGraph article specification
+ * @see {@link "https://schema.org/NewsArticle"} - Schema.org NewsArticle specification
  */
 export function createArticleMetadata({
   title,
@@ -82,12 +83,27 @@ export function createArticleMetadata({
   dateModified,
   tags,
   articleBody = 'Article content not available',
+  useNewsArticle = true, // Default to NewsArticle schema for better SEO
+  authors,
 }: ArticleParams): ArticleMetadata {
   // Format dates in Pacific Time with proper offset
   const formattedPublished = formatSeoDate(datePublished);
   const formattedModified = formatSeoDate(dateModified);
 
   const browserTitle = `${title} - ${SITE_NAME}'s Blog`;
+
+  // Create image variations for NewsArticle schema
+  let imageVariations: string[] | undefined;
+
+  if (image) {
+    const baseImageUrl = ensureAbsoluteUrl(image);
+    // Create different image aspect ratios (1:1, 4:3, 16:9) for Google's rich results
+    imageVariations = [
+      image.endsWith('.jpg') ? baseImageUrl.replace('.jpg', '-1x1.jpg') : `${baseImageUrl}?format=1x1`,
+      image.endsWith('.jpg') ? baseImageUrl.replace('.jpg', '-4x3.jpg') : `${baseImageUrl}?format=4x3`,
+      image.endsWith('.jpg') ? baseImageUrl.replace('.jpg', '-16x9.jpg') : `${baseImageUrl}?format=16x9`
+    ];
+  }
 
   // Generate schema graph
   const schemaParams: SchemaParams = {
@@ -96,7 +112,7 @@ export function createArticleMetadata({
     description,
     datePublished: formattedPublished,
     dateModified: formattedModified,
-    type: 'article',
+    type: useNewsArticle ? 'newsarticle' : 'article',
     articleBody,
     keywords: tags,
     image: image ? {
@@ -104,6 +120,8 @@ export function createArticleMetadata({
       width: siteMetadata.defaultImage.width,
       height: siteMetadata.defaultImage.height,
     } : undefined,
+    images: imageVariations,
+    authors: authors || [{ name: SITE_NAME, url: ensureAbsoluteUrl('/') }],
     breadcrumbs: [
       { path: '/', name: 'Home' },
       { path: '/blog', name: 'Blog' },
@@ -206,6 +224,16 @@ export function getStaticPageMetadata(
       width: siteMetadata.defaultImage.width,
       height: siteMetadata.defaultImage.height,
     },
+    // Add profile metadata if this is a profile page
+    ...(isProfilePage && 'bio' in pageMetadata && {
+      profileMetadata: {
+        bio: pageMetadata.bio,
+        ...(('alternateName' in pageMetadata) && { alternateName: pageMetadata.alternateName }),
+        ...(('identifier' in pageMetadata) && { identifier: pageMetadata.identifier }),
+        ...(('profileImage' in pageMetadata) && { profileImage: pageMetadata.profileImage }),
+        ...(('interactionStats' in pageMetadata) && { interactionStats: pageMetadata.interactionStats }),
+      }
+    })
   };
 
   const schema = generateSchemaGraph(schemaParams);
@@ -307,5 +335,133 @@ export function getStaticPageMetadata(
       bookmarks: [], // Will be populated with actual bookmarks
       category: 'Resources',
     }),
+  };
+}
+
+/**
+ * Creates metadata for software application pages
+ * This can be used with blog posts about software or dedicated software pages
+ *
+ * @param {SoftwareAppParams} params - Software application parameters
+ * @returns {ArticleMetadata} Next.js metadata object for the page
+ * @see {@link "https://schema.org/SoftwareApplication"} - Schema.org SoftwareApplication specification
+ */
+export function createSoftwareApplicationMetadata({
+  title,
+  description,
+  url,
+  image,
+  datePublished,
+  dateModified,
+  tags,
+  articleBody = '',
+  softwareName,
+  operatingSystem,
+  applicationCategory = 'DeveloperApplication',
+  isFree = true,
+  price,
+  priceCurrency = 'USD',
+  ratingValue,
+  ratingCount,
+  downloadUrl,
+  softwareVersion,
+  screenshot,
+  authors,
+}: SoftwareAppParams): ArticleMetadata {
+  // Format dates in Pacific Time with proper offset
+  const formattedPublished = formatSeoDate(datePublished);
+  const formattedModified = formatSeoDate(dateModified);
+
+  const browserTitle = `${title} - ${SITE_NAME}'s Blog`;
+
+  // Generate schema graph
+  const schemaParams: SchemaParams = {
+    path: new URL(url).pathname,
+    title,
+    description,
+    datePublished: formattedPublished,
+    dateModified: formattedModified,
+    type: 'software',
+    articleBody,
+    keywords: tags,
+    image: image ? {
+      url: image,
+      width: siteMetadata.defaultImage.width,
+      height: siteMetadata.defaultImage.height,
+    } : undefined,
+    authors,
+    breadcrumbs: [
+      { path: '/', name: 'Home' },
+      { path: '/blog', name: 'Blog' },
+      { path: new URL(url).pathname, name: title },
+    ],
+    // Add software-specific metadata
+    softwareMetadata: {
+      name: softwareName,
+      operatingSystem,
+      applicationCategory,
+      isFree,
+      price,
+      priceCurrency,
+      ratingValue,
+      ratingCount,
+      downloadUrl,
+      softwareVersion,
+      screenshot,
+    }
+  };
+
+  const schema = generateSchemaGraph(schemaParams);
+
+  return {
+    title: browserTitle,
+    description,
+    alternates: {
+      canonical: url,
+    },
+    script: [{
+      type: 'application/ld+json',
+      text: JSON.stringify(schema, null, process.env.NODE_ENV === 'development' ? 2 : 0),
+    }],
+    openGraph: createArticleOgMetadata({
+      title,
+      description,
+      url,
+      image,
+      datePublished,
+      dateModified,
+      tags,
+    }),
+    twitter: {
+      card: 'summary_large_image',
+      site: siteMetadata.social.twitter,
+      creator: siteMetadata.social.twitter,
+      title,
+      description,
+      images: image
+        ? [{ url: ensureAbsoluteUrl(image) }]
+        : [{
+            url: ensureAbsoluteUrl(siteMetadata.defaultImage.url),
+            width: siteMetadata.defaultImage.width,
+            height: siteMetadata.defaultImage.height,
+            alt: siteMetadata.defaultImage.alt,
+          }],
+    },
+    other: {
+      // Standard HTML meta dates
+      [SEO_DATE_FIELDS.meta.published]: formattedPublished,
+      [SEO_DATE_FIELDS.meta.modified]: formattedModified,
+
+      // Optional Dublin Core dates
+      [SEO_DATE_FIELDS.dublinCore.created]: formattedPublished,
+      [SEO_DATE_FIELDS.dublinCore.modified]: formattedModified,
+      [SEO_DATE_FIELDS.dublinCore.issued]: formattedPublished,
+
+      // OpenGraph article dates (as meta properties)
+      [`property=${SEO_DATE_FIELDS.openGraph.published}`]: formattedPublished,
+      [`property=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
+      [`name=${SEO_DATE_FIELDS.openGraph.published}`]: formattedPublished,
+      [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
+    },
   };
 }
