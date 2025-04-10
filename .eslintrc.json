@@ -110,6 +110,29 @@
         "no-restricted-globals": "off",
         "@typescript-eslint/naming-convention": "off"
       }
+    },
+    // Exemption for root-level configuration files
+    {
+      "files": [
+        "*.config.js",
+        "*.config.ts",
+        "*.config.mjs",
+        "*.config.cjs",
+        "jest.setup.js",
+        "jest.setup.ts",
+        "next.config.*",
+        "postcss.config.*",
+        "tailwind.config.*",
+        ".eslintrc.*",
+        "middleware.ts",
+        "sentry.*.config.*",
+        "instrumentation.ts"
+      ],
+      "rules": {
+        "no-restricted-globals": "off",
+        "no-restricted-syntax": "off",
+        "@typescript-eslint/naming-convention": "off"
+      }
     }
   ]
 }
