@@ -1,145 +1,138 @@
 ---
 title: "Adding a GitHub Contribution Graph to Next.js"
 slug: "adding-github-contribution-graph-to-nextjs"
-excerpt: "How to add a GitHub contribution graph via GraphQL and HTML scraping fallbacks, with caching and hydration fixes in Next.js."
+excerpt: "How to add a GitHub contribution graph to your Next.js site using GitHub's GraphQL API, with server-side caching."
 publishedAt: "2025-04-02"
-updatedAt: "2025-04-02"
+updatedAt: "2025-04-10"
 author: "william-callahan"
-tags: ["nextjs", "github", "graphql", "api", "react", "typescript", "scraping", "caching"]
+tags: ["nextjs", "github", "graphql", "api", "react", "typescript", "caching"]
 coverImage: "/images/posts/github-commit-graphic-history.png"
-readingTime: 4 # Adjusted reading time
+readingTime: 3 # Adjust reading time based on removed content
 ---
 
-This is a quick guide on how I added a GitHub contribution graph to my site. It requires handling API access and potential fallbacks. GitHub doesn't offer a simple embed, so a custom solution is needed. This implementation uses the GitHub GraphQL API as the primary data source, falling back to HTML scraping if the API fails or is unavailable.
+Adding your GitHub contribution graph to a personal site is a nice touch. Since GitHub doesn't offer a direct embed, you'll need a custom solution. This guide shows how to fetch contribution data using GitHub's GraphQL API and display it in your Next.js app.
 
-## GraphQL API for Contribution Data
+## 1: Fetching Contribution Data with GraphQL
 
-The primary method involves querying GitHub's GraphQL endpoint, requiring a personal access token (stored as `GITHUB_ACCESS_TOKEN_COMMIT_GRAPH`) with permission to read user contribution data.
+The best way to get contribution data is via GitHub's GraphQL API. You'll need a personal access token with permission to read user contribution data. Store this securely, for example, as an environment variable (`GITHUB_ACCESS_TOKEN_COMMIT_GRAPH`).
 
-The query retrieves the contribution calendar for a specific date range:
+Here's the query to get the contribution calendar for a specific user and date range:
 
 ```typescript
-const GITHUB_USERNAME = 'github-username';
+// lib/github.ts (example location)
+import { graphql } from "@octokit/graphql"; // Assuming you use @octokit/graphql
+
+interface GitHubGraphQLContributionResponse {
+  user: {
+    contributionsCollection: {
+      contributionCalendar: {
+        weeks: Array<{
+          contributionDays: Array<{
+            contributionCount: number;
+            contributionLevel: string; // e.g., NONE, FIRST_QUARTILE
+            date: string; // YYYY-MM-DD
+          }>;
+        }>;
+        totalContributions: number;
+      };
+    };
+  };
+}
+
+interface ContributionDay {
+  date: string;
+  count: number;
+  level: number; // 0-4
+}
+
+const GITHUB_USERNAME = 'your-github-username'; // Replace with your username
 const GITHUB_API_TOKEN = process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH;
-const { user } = await graphql<GitHubGraphQLContributionResponse>(`
-  query($username: String!, $from: DateTime!, $to: DateTime!) {
-    user(login: $username) {
-      contributionsCollection(from: $from, to: $to) {
-        contributionCalendar {
-          weeks {
-            contributionDays {
-              contributionCount
-              contributionLevel # e.g., NONE, FIRST_QUARTILE
-              date
+
+export async function fetchGitHubContributions(fromDate: string, toDate: string): Promise<{ contributions: ContributionDay[], totalContributions: number }> {
+  if (!GITHUB_API_TOKEN) {
+    throw new Error("Missing GITHUB_ACCESS_TOKEN_COMMIT_GRAPH environment variable.");
+  }
+
+  const { user } = await graphql<GitHubGraphQLContributionResponse>(
+    `
+      query($username: String!, $from: DateTime!, $to: DateTime!) {
+        user(login: $username) {
+          contributionsCollection(from: $from, to: $to) {
+            contributionCalendar {
+              weeks {
+                contributionDays {
+                  contributionCount
+                  contributionLevel
+                  date
+                }
+              }
+              totalContributions
             }
           }
-          totalContributions
         }
       }
+    `,
+    {
+      username: GITHUB_USERNAME,
+      from: `${fromDate}T00:00:00Z`,
+      to: `${toDate}T23:59:59Z`,
+      headers: {
+        authorization: `bearer ${GITHUB_API_TOKEN}`,
+      },
     }
+  );
+
+  if (!user?.contributionsCollection) {
+    throw new Error("Incomplete data received from GitHub GraphQL.");
   }
-`, {
-  username: GITHUB_USERNAME,
-  from: fromDate + 'T00:00:00Z',
-  to: toDate + 'T23:59:59Z',
-  headers: {
-    authorization: `bearer ${GITHUB_API_TOKEN}`,
-  },
-});
 
- const { user } = await graphql<GitHubGraphQLContributionResponse>(/* ... */);
+  const contributionDays = user.contributionsCollection.contributionCalendar.weeks.flatMap(
+    (week) => week.contributionDays
+  );
 
- if (!user?.contributionsCollection) {
-   throw new Error("Incomplete data received from GitHub GraphQL.");
- }
-
- // Flatten and transform the nested response data
- const contributionDays = user.contributionsCollection.contributionCalendar.weeks.flatMap(
-   week => week.contributionDays
- );
-
- // Map string levels to numeric values for rendering
- const mapContributionLevel = (level: string): number => {
-   switch (level) {
-     case 'NONE': return 0;
-     case 'FIRST_QUARTILE': return 1;
-     case 'SECOND_QUARTILE': return 2;
-     case 'THIRD_QUARTILE': return 3;
-     case 'FOURTH_QUARTILE': return 4;
-     default: return 0;
-   }
- };
-
- const contributions: ContributionDay[] = contributionDays.map(day => ({
-   date: day.date,
-   count: day.contributionCount,
-   level: mapContributionLevel(day.contributionLevel),
- }));
-
-## HTML Scraping Fallback
-
-If the GraphQL query fails, the system falls back to scraping the public GitHub profile page using `node-fetch` and `cheerio`. This extracts data directly from the SVG contribution graph elements.
-
-```typescript
-import * as cheerio from 'cheerio';
-import fetch from 'node-fetch'; // or use native fetch if available
-
-async function fetchActivityByScraping(): Promise<GitHubActivityApiResponse> {
-  const profileUrl = `https://github.com/${GITHUB_USERNAME}`;
-  const response = await fetch(profileUrl, { /* ... headers ... */ });
-  const html = await response.text();
-  const $ = cheerio.load(html);
-
-  const contributions: ContributionDay[] = [];
-  // Selector targets the <rect> elements within the graph SVG
-  const dailyRectSelector = 'svg.js-calendar-graph-svg g > g > rect[data-date][data-level]';
-
-  $(dailyRectSelector).each((_, element) => {
-    const $rect = $(element);
-    const date = $rect.attr('data-date');
-    const levelAttr = $rect.attr('data-level');
-    const level = levelAttr ? parseInt(levelAttr, 10) : 0;
-
-    // Contribution count requires parsing the associated tooltip text
-    let count = 0;
-    const tooltipId = $rect.attr('id');
-    // Find the tooltip element linked by the 'for' attribute
-    let tooltipText = tooltipId ? $(`tool-tip[for="${tooltipId}"]`).text().trim() : '';
-    const countMatch = tooltipText.match(/^(\d+|No)\s+contribution/);
-    if (countMatch) {
-      count = countMatch[1] === 'No' ? 0 : parseInt(countMatch[1], 10);
+  const mapContributionLevel = (level: string): number => {
+    switch (level) {
+      case 'NONE': return 0;
+      case 'FIRST_QUARTILE': return 1;
+      case 'SECOND_QUARTILE': return 2;
+      case 'THIRD_QUARTILE': return 3;
+      case 'FOURTH_QUARTILE': return 4;
+      default: return 0;
     }
+  };
 
-    if (date && !isNaN(level)) {
-      contributions.push({ date, count: isNaN(count) ? 0 : count, level });
-    }
-  });
-
-  // Extract total contributions from the header text
-  const totalCountSelector = 'div.js-yearly-contributions h2';
-  const totalContributionsHeader = $(totalCountSelector).text().trim();
-  let totalContributionsText = '0'; // Default to '0'
-  const totalMatch = totalContributionsHeader.match(/([\d,]+)\s+contributions/i);
-  if (totalMatch && totalMatch[1]) {
-    totalContributionsText = totalMatch[1].replace(/,/g, '');
-  }
+  const contributions: ContributionDay[] = contributionDays.map((day) => ({
+    date: day.date,
+    count: day.contributionCount,
+    level: mapContributionLevel(day.contributionLevel),
+  }));
 
   return {
-    source: 'scraping',
-    data: contributions,
-    totalContributions: totalContributionsText
+    contributions,
+    totalContributions: user.contributionsCollection.contributionCalendar.totalContributions
   };
 }
 ```
-*Note: Scraping is inherently fragile and may break if GitHub changes its page structure.*
 
-## Caching Strategy
+This function fetches the data and transforms the `contributionLevel` strings (like `FIRST_QUARTILE`) into simple numbers (0-4) for easier rendering.
 
-To minimize external requests, fetched data (whether from API or scraping) is cached server-side using an in-memory cache (`node-cache` or similar) with a 24-hour TTL. Manual cache invalidation is supported via a `?refresh=true` query parameter on the API endpoint serving this data.
+## 2: Caching the Data
+
+To avoid hitting the GitHub API on every request, cache the results server-side. An in-memory cache like `node-cache` works well for this. Set a reasonable Time-To-Live (TTL), like 24 hours. You can also add a way to manually bust the cache if needed.
+
+Here's an example API route in Next.js:
 
 ```typescript
-// Example API route logic
-import cache from '@/lib/cache'; // Assuming a simple cache instance
+// app/api/github-activity/route.ts (example location)
+import { NextResponse } from 'next/server';
+import cache from '@/lib/cache'; // Your cache implementation
+import { fetchGitHubContributions } from '@/lib/github'; // The function from Step 1
+
+interface GitHubActivityApiResponse {
+  source: 'graphql' | 'cache';
+  data: ContributionDay[];
+  totalContributions: number;
+}
 
 const GITHUB_ACTIVITY_CACHE_KEY = 'github_activity_data';
 const CACHE_TTL_DAILY = 24 * 60 * 60; // 24 hours in seconds
@@ -154,84 +147,129 @@ export async function GET(request: Request) {
 
   const cachedData = cache.get<GitHubActivityApiResponse>(GITHUB_ACTIVITY_CACHE_KEY);
   if (cachedData && !refreshCache) {
-    return NextResponse.json(cachedData);
+    // Add source indication for debugging/transparency
+    return NextResponse.json({ ...cachedData, source: 'cache' });
   }
 
-  let activityData: GitHubActivityApiResponse;
   try {
-    // Attempt GraphQL fetch
-    activityData = await fetchActivityFromGraphQL();
+    const today = new Date();
+    const oneYearAgo = new Date(today);
+    oneYearAgo.setFullYear(today.getFullYear() - 1);
+
+    const fromDate = oneYearAgo.toISOString().split('T')[0]; // YYYY-MM-DD
+    const toDate = today.toISOString().split('T')[0];       // YYYY-MM-DD
+
+    const { contributions, totalContributions } = await fetchGitHubContributions(fromDate, toDate);
+
+    const activityData: GitHubActivityApiResponse = {
+      source: 'graphql',
+      data: contributions,
+      totalContributions: totalContributions
+    };
+
+    cache.set(GITHUB_ACTIVITY_CACHE_KEY, activityData, CACHE_TTL_DAILY);
+    return NextResponse.json(activityData);
+
   } catch (error) {
-    console.warn('GraphQL fetch failed, falling back to scraping:', error);
-    // Attempt scraping fetch
-    activityData = await fetchActivityByScraping();
+    console.error('Error fetching GitHub contributions:', error);
+    // Return an error response or potentially stale cache data if available
+    return NextResponse.json(
+      { error: 'Failed to fetch GitHub activity', details: (error as Error).message },
+      { status: 500 }
+    );
   }
-
-  // Store fetched data in cache
-  cache.set(GITHUB_ACTIVITY_CACHE_KEY, activityData, CACHE_TTL_DAILY);
-
-  return NextResponse.json(activityData);
 }
 ```
+This API route first checks the cache. If data is missing or a refresh is requested, it fetches fresh data from GitHub using the function created in Step 1, caches it, and then returns it.
 
-## Rendering the Graph
+## 3: Rendering the Graph
 
-The fetched `contributions` array is rendered as a grid, mimicking the GitHub style. Tailwind CSS classes map contribution levels to background colors, including dark mode variants.
+With the data fetched (likely via a client-side fetch to your API route or passed as props from a server component), you can render the graph. A simple grid using CSS Grid and Tailwind CSS works well.
 
 ```tsx
-// Simplified rendering component excerpt
+// components/ContributionGraph.tsx (example component)
+import React from 'react';
+
+interface ContributionDay {
+  date: string;
+  count: number;
+  level: number; // 0-4
+}
+
 const getLevelColor = (level: number): string => {
-  // Map level (0-4) to Tailwind background color classes
-  // (e.g., bg-gray-100 dark:bg-gray-800 for level 0,
-  //  bg-green-200 dark:bg-green-900 for level 1, etc.)
+  // Tailwind classes for different contribution levels
+  // Adjust colors to match your site's theme
   switch (level) {
-    case 0: return 'bg-gray-100 dark:bg-gray-800';
-    case 1: return 'bg-green-200 dark:bg-green-900';
-    case 2: return 'bg-green-400 dark:bg-green-700';
-    case 3: return 'bg-green-600 dark:bg-green-500';
-    case 4: return 'bg-green-800 dark:bg-green-300';
+    case 0: return 'bg-gray-100 dark:bg-gray-800'; // No contributions
+    case 1: return 'bg-green-200 dark:bg-green-900'; // Low
+    case 2: return 'bg-green-400 dark:bg-green-700'; // Medium
+    case 3: return 'bg-green-600 dark:bg-green-500'; // High
+    case 4: return 'bg-green-800 dark:bg-green-300'; // Very high
     default: return 'bg-gray-100 dark:bg-gray-800';
   }
 };
 
-function ContributionGraph({ data }: { data: ContributionDay[] }) {
+interface ContributionGraphProps {
+  data: ContributionDay[];
+  totalContributions: number;
+  isLoading?: boolean;
+}
+
+export function ContributionGraph({ data, totalContributions, isLoading }: ContributionGraphProps) {
+  if (isLoading) {
+    // Optional: Add a loading skeleton state
+    return <div className="p-2">Loading contributions...</div>;
+  }
+
+  if (!data || data.length === 0) {
+    return <div className="p-2">Could not load contribution data.</div>;
+  }
+
   return (
-    <div className="grid grid-flow-col grid-rows-7 gap-1 p-2 overflow-x-auto">
-      {data.map((day) => (
-        <div
-          key={day.date}
-          className={`w-3 h-3 rounded-sm ${getLevelColor(day.level)}`}
-          title={`${day.count} contributions on ${day.date}`}
-        />
-      ))}
+    <div>
+      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+        {totalContributions.toLocaleString()} contributions in the last year
+      </p>
+      <div className="grid grid-flow-col grid-rows-7 gap-1 p-2 border rounded-md dark:border-gray-700 overflow-x-auto bg-white dark:bg-gray-900/50">
+        {data.map((day) => (
+          <div
+            key={day.date}
+            className={`w-3 h-3 rounded-sm ${getLevelColor(day.level)}`}
+            title={`${day.count} contribution${day.count !== 1 ? 's' : ''} on ${day.date}`} // Tooltip
+          />
+        ))}
+      </div>
     </div>
   );
 }
 ```
+This component maps each `ContributionDay` to a colored square, using the `level` (0-4) to determine the background color via the `getLevelColor` helper.
 
-## Fixing Hydration Errors from Nested Links
+## Bonus: Fixing Hydration Errors
 
-A common issue when making complex components clickable is invalid HTML nesting, such as `<a>` tags within `<a>` tags, which leads to React hydration errors.
+Sometimes when making components interactive, like wrapping them in links, you might encounter React hydration errors due to invalid HTML nesting (e.g., an `<a>` inside another `<a>`).
 
-**Incorrect (causes hydration error):**
+**Problematic (can cause errors):**
 ```jsx
 <a href="URL">
   <div> {isLoading ? <a href="URL">Loading...</a> : content } </div>
 </a>
 ```
 
-**Correct (using clickable div):**
+**Solution (use a clickable `div`):**
 ```jsx
-const navigateToUrl= () => window.open(URL, '_blank', 'noopener,noreferrer');
+const navigateToUrl = (url: string) => {
+  window.open(url, '_blank', 'noopener,noreferrer');
+};
 
 <div
-  onClick={navigateToUrl}
-  className="cursor-pointer"
-  role="button" // Accessibility
-  tabIndex={0}  // Accessibility
-  onKeyDown={(e) => e.key === 'Enter' && navigateToUrl()} // Accessibility
+  onClick={() => navigateToUrl(URL)}
+  className="cursor-pointer" // Make it look clickable
+  role="button"
+  tabIndex={0} // Make it focusable
+  onKeyDown={(e) => e.key === 'Enter' && navigateToUrl(URL)} // Keyboard accessible
 >
-  {isLoading ? <span>Loading...</span> : content }
+  {isLoading ? <span>Loading...</span> : content}
 </div>
 ```
-Using a `div` with an `onClick` handler, `role="button"`, `tabIndex="0"`, and an `onKeyDown` handler for keyboard accessibility provides the same user experience without causing hydration errors.
+Using a `div` with an `onClick` handler and proper accessibility attributes (`role`, `tabIndex`, `onKeyDown`) achieves the same result without the nesting issues.
