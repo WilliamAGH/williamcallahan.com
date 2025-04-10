@@ -9,6 +9,7 @@
 import { searchPosts, searchExperience, searchEducation, searchInvestments } from '@/lib/search';
 import { sections, type SectionKey } from './sections';
 import type { CommandResult, SearchResult } from '@/types/terminal';
+import { usePathname } from 'next/navigation'; // Not used directly since this is not a React component
 
 export const terminalCommands = {
   home: '/',
@@ -45,10 +46,64 @@ Examples:
   experience 2020
   blog investing
   clear
+
+Secret Commands:
+  schema.org         Show the structured data for the current page
 `.trim();
+
+/**
+ * Get the Schema.org data for the current page
+ * @returns Schema.org JSON-LD data as a formatted string
+ */
+function getSchemaOrgData(): string {
+  try {
+    // Find all script tags with type application/ld+json
+    const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+
+    if (!scripts || scripts.length === 0) {
+      return 'No Schema.org data found on this page.';
+    }
+
+    // Collect all JSON-LD data from scripts
+    const schemas = Array.from(scripts).map(script => {
+      try {
+        return JSON.parse(script.textContent || '{}');
+      } catch (err) {
+        return { error: 'Invalid JSON in schema' };
+      }
+    });
+
+    // Get the current path to include in the diagnostics
+    const path = window.location.pathname;
+
+    // Format the diagnostics output
+    const output = {
+      path,
+      url: window.location.href,
+      timestamp: new Date().toISOString(),
+      schemas
+    };
+
+    // Return formatted JSON
+    return `Schema.org Diagnostics for ${path}:\n\n${JSON.stringify(output, null, 2)}`;
+  } catch (error) {
+    console.error('Error retrieving schema data:', error);
+    return 'Error retrieving Schema.org data. Check the console for details.';
+  }
+}
 
 export async function handleCommand(input: string): Promise<CommandResult> {
   const [command, ...args] = input.toLowerCase().trim().split(' ');
+
+  // Schema.org easter egg command
+  if (command === 'schema.org') {
+    return {
+      results: [{
+        input: '',
+        output: getSchemaOrgData()
+      }]
+    };
+  }
 
   // Clear command
   if (command === 'clear') {
