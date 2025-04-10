@@ -13,15 +13,18 @@ import { MDXRemote } from 'next-mdx-remote';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 import Image from 'next/image';
 import Link from 'next/link'; // Import Next.js Link
-import { MDXCodeBlock } from '../../../ui/mdxCodeBlock.server';
+import { MDXCodeBlock } from '../../../ui/code-block/mdx-code-block.server';
 import FinancialMetrics from '../../../ui/financialMetrics';
 import { BackgroundInfo } from '../../../ui/backgroundInfo';
 import { CollapseDropdown } from '../../../ui/collapseDropdown';
 import { ExternalLink } from '../../../ui/externalLink';
+import { ImageWindow } from '../../../ui/imageWindow'; // Import the new component
+import { cn } from '@/lib/utils'; // Import cn utility
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {
   caption?: string;
   size?: 'full' | 'medium' | 'small';
+  priority?: boolean; // Add priority prop here
 }
 
 const MdxImage = ({
@@ -29,6 +32,7 @@ const MdxImage = ({
   alt = '',
   caption,
   size = 'full',
+  priority, // Destructure priority here
   ...props
 }: ArticleImageProps) => {
   if (!src) return null;
@@ -61,24 +65,33 @@ const MdxImage = ({
     imageSizes = "(max-width: 640px) 100vw, 512px";
   }
 
+  // Determine wrapper class based on size prop for ImageWindow
+  const windowWrapperClass = cn(
+    'mx-auto', // Remove my-6, keep centering
+    size === 'full' ? 'max-w-4xl' : '',
+    size === 'medium' ? 'max-w-2xl' : '',
+    size === 'small' ? 'max-w-lg' : ''
+  );
+
   return (
-    <figure className={`my-6 ${widthClass} mx-auto`}>
-      <div className="w-full h-auto relative bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 p-1 rounded-lg shadow-md">
-        <Image
-          src={src}
-          alt={alt}
-          width={1600}
-          height={800}
-          sizes={imageSizes}
-          className="w-full h-auto rounded-md object-contain"
-        />
-      </div>
+    <>
+      <ImageWindow
+        src={src}
+        alt={alt}
+        width={1600} // Pass original intended dimensions
+        height={800}
+        sizes={imageSizes}
+        priority={priority} // Pass destructured priority
+        wrapperClassName={windowWrapperClass}
+        noMargin={Boolean(caption)} // Use noMargin when we have a caption to avoid margin conflicts
+        // Pass any other relevant ImageProps via ...props if needed
+      />
       {caption && (
-        <figcaption className="text-base text-gray-600 dark:text-gray-400 italic text-center mt-2 px-4">
+        <figcaption className={`text-base text-gray-600 dark:text-gray-400 italic text-center mt-2 mb-6 px-4 ${widthClass} mx-auto`}>
           {caption}
         </figcaption>
       )}
-    </figure>
+    </>
   );
 };
 
@@ -117,11 +130,17 @@ interface MDXContentProps {
 export function MDXContent({ content }: MDXContentProps): JSX.Element {
   // Define components map for MDX rendering
   const components = {
-    pre: MDXCodeBlock,
+    // Use MDXCodeBlock with a custom class that will override prose styling
+    pre: (props: ComponentProps<'pre'>) => (
+      <div className="not-prose">
+        <MDXCodeBlock {...props} />
+      </div>
+    ),
+    // Restore custom 'code' component override for inline code (to fix regression)
     code: (codeProps: ComponentProps<'code'>) => {
       const { children, className, ...rest } = codeProps;
       return (
-        <code className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-0.5 rounded font-medium" {...rest}>
+        <code className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-1 sm:px-1.5 py-0.5 rounded font-medium text-sm break-words whitespace-normal align-middle" {...rest}>
           {children}
         </code>
       );

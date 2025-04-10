@@ -1,7 +1,7 @@
 ---
 title: "How to setup the Java SDK and use JavaFX on macOS/Windows"
 slug: "how-to-setup-the-java-sdk-and-use-javafx-on-macos-windows"
-excerpt: "A modern guide to setting up Java development with JavaFX on macOS and Windows using IntelliJ IDEA or VS Code. While setting `JAVA_HOME` is still useful for some tools like Maven and Gradle, many modern Java environments have reduced reliance on it. This guide covers both legacy and current best practices, including integration with Scene Builder and modern IDEs."
+excerpt: "A modern guide to setting up Java development with JavaFX on macOS and Windows using IntelliJ IDEA or VS Code. While setting `JAVA_HOME` is still useful for some tools like Maven and Gradle, many modern Java environments have reduced reliance on it. This guide includes integration with Scene Builder and modern IDEs."
 publishedAt: "2025-04-08"
 updatedAt: "2025-04-08"
 author: "william-callahan"
@@ -29,7 +29,7 @@ Set up `JAVA_HOME` globally on macOS and Windows to prepare your system for Java
     - **For macOS Intel**: Download the macOS x64 DMG Installer
     - **For Windows**: Download the Windows x64 Installer
   <BackgroundInfo title="Note on JDK version">
-  I recommend always using the current long-term stable branch (LTS), which is 21 as of this writing. I encountered errors between JavaFX and Java's JDK with other versions.
+  I recommend always using the current long-term stable branch (LTS), which is 21 as of this writing.
   </BackgroundInfo>
 </CollapseDropdown>
 
@@ -51,12 +51,12 @@ Set up `JAVA_HOME` globally on macOS and Windows to prepare your system for Java
     - Then edit the `Path` variable and add `%JAVA_HOME%\bin`
 </CollapseDropdown>
 <BackgroundInfo title="Do you still need JAVA_HOME?">
-While modern IDEs often manage their own JDK settings, setting `JAVA_HOME` globally is still crucial for command-line tools like Maven and Gradle. If not set, you might encounter errors like `The JAVA_HOME environment variable is not defined correctly`. This step ensures broader compatibility.
+While modern IDEs often manage their own JDK settings, setting `JAVA_HOME` globally is still crucial for command-line tools like Maven and Gradle.
 </BackgroundInfo>
 
 ---
 
-## Part 2: Project-Level Settings for JavaFX
+## Part 2: Setting up Java & JavaFX in IntelliJ IDEA and VS Code
 
 <BackgroundInfo title="What is JavaFX?">
 JavaFX is a toolkit/library for developing JavaFX graphical (GUI) applications. It is no longer included with the JDK, though. While you can still download it from [Gluon JavaFX](https://gluonhq.com/products/javafx/), it's best practice to let your build tool (Maven/Gradle) manage it as a project dependency. **Avoid installing JavaFX system-wide.**
@@ -64,11 +64,11 @@ JavaFX is a toolkit/library for developing JavaFX graphical (GUI) applications. 
 
 **Integrated Setup in IntelliJ IDEA and VS Code**: Both IDEs offer seamless onboarding for JavaFX projects. Select JavaFX from the project templates, and the IDE will configure the necessary settings.
 
-<CollapseDropdown summary="2.1: Setup for Microsoft VSCode">
+<CollapseDropdown summary="2.1: Setup for Microsoft VS Code">
   <BackgroundInfo title="What is the Java extension pack?">
-  The Extension Pack for Java is a great way to get Java setup in one click in VSCode with things like IntelliSense, debugging, and more.
+  The Extension Pack for Java is a great way to get Java setup in one click in VS Code with things like IntelliSense, debugging, and more.
   </BackgroundInfo>
-  **[Download Microsoft VSCode](https://code.visualstudio.com/download)**: Then install the [Extension Pack for Java](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack)
+  **[Download Microsoft VS Code](https://code.visualstudio.com/download)**: Then install the [Extension Pack for Java](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack)
 </CollapseDropdown>
 
 <CollapseDropdown summary="2.2: Setup for IntelliJ IDEA">
@@ -79,7 +79,7 @@ JavaFX is a toolkit/library for developing JavaFX graphical (GUI) applications. 
 </CollapseDropdown>
 
 <BackgroundInfo title="Version Compatibility is Key">
-Based on my experience, using the latest Long-Term Support (LTS) versions consistently across tools minimizes compatibility issues. I recommend sticking to **JDK 21**, **JavaFX 21**, and **Scene Builder 23** (or the latest corresponding LTS versions) for a smoother setup. Mismatched versions can lead to unexpected errors during development or build time.
+Based on my experience, using the latest Long-Term Support (LTS) versions consistently across tools minimizes compatibility issues. I recommend sticking to **JDK 21**, **JavaFX 21**, and **Scene Builder 23** (or the latest corresponding LTS versions) for a smoother setup. Using other versions on my ARM64-based Mac resulted in errors, so watch out for that.
 </BackgroundInfo>
 
 ---
@@ -152,8 +152,7 @@ Now that the JDK and Scene Builder are set up, here's how to create a new JavaFX
 <CollapseDropdown summary="4.2: Create New Project in VS Code">
   - Open the Command Palette (**Cmd+Shift+P** on macOS, **Ctrl+Shift+P** on Windows).
   - Type `Java: Create Java Project` and press Enter
-  - Select **JavaFX**
-  - Select **Maven** or **Gradle** as the build system
+  - Select **JavaFX** from the list
   - It'll ask for your desired repository version number for this new project, you can just hit enter to proceed with the default (_'version' 1.0-SNAPSHOT_)
   - When prompted to confirm (Y/N), make sure you hit N to be able to change the JavaFX version to 21 (_no other details should need changed, just hit enter to proceed with the default each time_)
   - Choose a folder location for your new project

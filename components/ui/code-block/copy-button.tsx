@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { cn } from '../../../lib/utils';
 
 /**
  * Props for the CopyButton component
@@ -43,8 +43,8 @@ export const CopyButton: React.FC<CopyButtonProps> = ({ content, className }) =>
       onClick={handleCopy}
       className={cn(
         'absolute right-2 top-2 p-2 rounded-md',
-        'bg-gray-800/50 hover:bg-gray-700/50',
-        'text-gray-400 hover:text-gray-200',
+        'bg-gray-700/60 hover:bg-gray-600/60',
+        'text-gray-300 hover:text-gray-100',
         'transition-all duration-200',
         'opacity-0 group-hover:opacity-100',
         'focus:outline-none focus:ring-2 focus:ring-blue-500/40',

@@ -72,7 +72,7 @@ export function EducationCardClient({
                 url={logoData.url}
                 width={64}
                 height={64}
-                className="object-contain w-full h-full rounded-lg"
+                className="object-contain w-full h-full rounded-md"
                 alt={institution}
                 enableInversion={false}
                 showPlaceholder={true}

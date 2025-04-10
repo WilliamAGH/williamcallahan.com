@@ -117,7 +117,7 @@ export function Terminal() {
 
   // Define class sets for clarity
   const commonTerminalClasses = "bg-[#1a1b26] border border-gray-700 font-mono text-sm cursor-text overflow-hidden flex flex-col rounded-lg shadow-xl";
-  const normalTerminalClasses = "relative mx-auto mt-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl p-4 sm:p-6";
+  const normalTerminalClasses = "relative mx-auto mt-8 mb-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl p-4 sm:p-6";
   const maximizedTerminalClasses = "w-full max-w-6xl h-full !max-h-none p-6"; // No positioning here!
 
   // Define classes for the inner scrollable area

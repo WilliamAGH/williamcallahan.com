@@ -17,13 +17,13 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { serialize } from 'next-mdx-remote/serialize';
-import rehypePrism from 'rehype-prism';
 import remarkGfm from 'remark-gfm';
+import rehypePrismPlus from 'rehype-prism-plus'; // Import the plugin
 import type { MDXRemoteProps } from 'next-mdx-remote';
 type MDXComponents = MDXRemoteProps['components'];
 import { authors } from '../../data/blog/authors';
 import type { BlogPost } from '../../types/blog';
-import { ServerMDXCodeBlock } from '../../components/ui/mdxCodeBlock.server';
+import { ServerMDXCodeBlock } from '../../components/ui/code-block/mdx-code-block.server';
 
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), 'data/blog/posts');
@@ -103,12 +103,7 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
           [remarkGfm, { singleTilde: false, breaks: true }]
         ],
         rehypePlugins: [
-          [rehypePrism, {
-            ignoreMissing: true,
-            aliases: {
-              bash: ['shell', 'sh', 'zsh']
-            }
-          }]
+          [rehypePrismPlus, { ignoreMissing: true }] as any // Use 'as any' to bypass type check
         ],
         format: 'mdx'
       },
