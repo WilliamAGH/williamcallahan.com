@@ -92,7 +92,7 @@ export function Analytics(): JSX.Element | null {
     plausible: false
   })
 
-  const trackPageview = useCallback((path: string) => {
+  const trackPageview = useCallback((path: string, attempt = 1, maxAttempts = 3) => {
     if (typeof window === 'undefined') return
 
     const normalizedPath = path
@@ -100,8 +100,16 @@ export function Analytics(): JSX.Element | null {
       .replace(/\?.+$/, '')
 
     if (scriptsLoaded.umami) {
-      trackUmami(normalizedPath)
+      if (window.umami?.track && typeof window.umami.track === 'function') {
+        trackUmami(normalizedPath)
+      } else if (attempt < maxAttempts) {
+        // Retry with exponential backoff
+        setTimeout(() => {
+          trackPageview(normalizedPath, attempt + 1, maxAttempts)
+        }, attempt * 300) // Increase delay with each attempt
+      }
     }
+
     if (scriptsLoaded.plausible) {
       trackPlausible(normalizedPath)
     }
@@ -118,10 +126,10 @@ export function Analytics(): JSX.Element | null {
       .replace(/\/blog\/[^/]+/, '/blog/:slug')
       .replace(/\?.+$/, '')
 
-    // Add a small delay to ensure scripts are fully initialized
+    // Add a longer delay to ensure scripts are fully initialized
     const trackingTimeout = setTimeout(() => {
       trackPageview(normalizedPath)
-    }, 100)
+    }, 500) // Increased from 100ms to 500ms
 
     return () => clearTimeout(trackingTimeout)
   }, [pathname, trackPageview, scriptsLoaded])
