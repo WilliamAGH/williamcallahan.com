@@ -108,6 +108,9 @@ const nextConfig = {
     // CSP configuration allowing analytics scripts and images from configured domains
     contentSecurityPolicy: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net; img-src 'self' data: https://images.unsplash.com https://williamcallahan.com https://icons.duckduckgo.com https://www.google.com https://external-content.duckduckgo.com https://logo.clearbit.com https://dev.williamcallahan.com https://*.iocloudhost.net`,
     formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60 * 60 * 24 * 7, // 7 days cache
+    domains: ['williamcallahan.com', 'dev.williamcallahan.com'], // Add your domains for direct access
+    path: '/_next/image', // Ensure this matches your deployment config
     // Allow unoptimized images as fallback in production
     remotePatterns: [
       {

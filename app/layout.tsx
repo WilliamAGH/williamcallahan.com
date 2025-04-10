@@ -99,15 +99,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://williamcallahan.com" />
         <link rel="dns-prefetch" href="https://icons.duckduckgo.com" />
-
-        {/* Preload critical fonts */}
-        <link
-          rel="preload"
-          href="/_next/static/media/c29e1ba9fda9b6a5.p.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
+        {/* Next.js automatically handles font preloading */}
       </head>
       <body className={inter.className} suppressHydrationWarning>
         <Providers>
