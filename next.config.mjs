@@ -56,6 +56,16 @@ const nextConfig = {
     // We no longer need to externalize require-in-the-middle since we've added it as a dependency
     // Externalizing was causing the runtime error in production
 
+    // Fix source map issues
+    if (process.env.NODE_ENV === 'development') {
+      // Remove the devtool setting that's causing warnings
+      config.optimization.minimizer.forEach((minimizer) => {
+        if (minimizer.constructor.name === 'TerserPlugin') {
+          minimizer.options.sourceMap = true;
+        }
+      });
+    }
+
     return config;
   },
 
