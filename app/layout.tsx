@@ -28,7 +28,7 @@ import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
 import { ClientTerminal } from "../components/ui/terminal/terminal.client";
 import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-registry-context.client";
 import { BodyClassManager } from "@/components/utils/body-class-manager.client";
-import { AnchorScrollManager } from "@/components/utils/anchor-scroll-manager.client"; // Import the anchor handler
+import { AnchorScrollManager } from "@/components/utils/anchor-scroll-manager.client"; // Re-import the anchor handler
 import { FloatingRestoreButtons } from "@/components/ui/window/floating-restore-buttons.client";
 import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "../data/metadata";
 
@@ -107,7 +107,7 @@ export default function RootLayout({
         <Providers>
           <GlobalWindowRegistryProvider>
             <BodyClassManager />
-            <AnchorScrollManager /> {/* Activate the anchor scroll handler */}
+            <AnchorScrollManager /> {/* Re-activate the anchor scroll handler */}
             {/* Revert to direct rendering */}
             <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
               <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
