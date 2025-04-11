@@ -94,8 +94,9 @@ const nextConfig = {
       }
     }
   },
-  // Keep standalone output for Docker deployments
+  // Keep standalone output for Docker deployments but add specific configuration
   output: 'standalone',
+  poweredByHeader: false,
   reactStrictMode: true,
   // Next.js 15 uses SWC by default; swcMinify option is no longer needed
   // Add transpilePackages to handle ESM packages and instrumentation packages
