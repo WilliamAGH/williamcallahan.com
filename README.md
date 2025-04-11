@@ -74,9 +74,6 @@ docker run -d \
   williamcallahan-website
 ```
 
-
-
-
 ## Terminal Component
 
 The site includes an interactive terminal component with the following features:
