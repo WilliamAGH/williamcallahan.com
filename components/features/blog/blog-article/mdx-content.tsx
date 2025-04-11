@@ -135,11 +135,29 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
   // Define components map for MDX rendering
   const components = {
     // Use MDXCodeBlock with a custom class that will override prose styling
-    pre: (props: ComponentProps<'pre'>) => (
-      <div className="not-prose">
-        <MDXCodeBlock {...props} />
-      </div>
-    ),
+    pre: (props: ComponentProps<'pre'>) => {
+      // Check if this is just inline code that got wrapped in a pre tag
+      const children = props.children as React.ReactElement;
+      const childClassName = children?.props?.className || '';
+      // If there's no language class (like language-bash), treat it as inline code
+      const isProperCodeBlock = childClassName.includes('language-');
+
+      if (!isProperCodeBlock) {
+        // For inline code or plain text that somehow got wrapped in a pre tag
+        return (
+          <pre className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-3 rounded font-mono text-sm break-words whitespace-pre-wrap my-4">
+            {props.children}
+          </pre>
+        );
+      }
+
+      // Regular code blocks with language specification
+      return (
+        <div className="not-prose">
+          <MDXCodeBlock {...props} />
+        </div>
+      );
+    },
     // Restore custom 'code' component override for inline code (to fix regression)
     code: (codeProps: ComponentProps<'code'>) => {
       const { children, className, ...rest } = codeProps;
