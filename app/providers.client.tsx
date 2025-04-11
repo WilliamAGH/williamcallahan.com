@@ -159,10 +159,14 @@ const ErrorLogger = memo(function ErrorLogger() {
 // Create a constant instance of the ErrorLogger to prevent re-creation
 const ERROR_LOGGER_INSTANCE = <ErrorLogger />;
 
-export function Providers({ children }: { children: React.ReactNode }) {
+// Memoize the entire providers component to prevent rerendering during navigation
+const Providers = memo(function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider
       disableTransitionOnChange
+      enableSystem
+      attribute="class"
+      defaultTheme="system"
     >
       {/* Remove WindowControlsProvider wrapper */}
       <TerminalProvider>
@@ -174,4 +178,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
       </TerminalProvider>
     </ThemeProvider>
   );
-}
+});
+
+export { Providers };
