@@ -32,7 +32,7 @@ export function ServerMDXCodeBlock(props: PreProps) {
 
   // Define classes for the wrapping DIV
   const wrapperClasses = cn(
-    'relative'
+    'relative group'
     // No border, rounded corners handled by CodeBlock on client hydration
   );
 
@@ -65,7 +65,7 @@ export function MDXCodeBlock(props: PreProps) {
   }, []);
 
   return (
-    <div ref={codeRef} data-mdx-code>
+    <div ref={codeRef} data-mdx-code className="group">
       <CodeBlock className={className} {...rest}>
         {children}
       </CodeBlock>

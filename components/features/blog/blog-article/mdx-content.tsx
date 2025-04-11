@@ -145,9 +145,11 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
       if (!isProperCodeBlock) {
         // For inline code or plain text that somehow got wrapped in a pre tag
         return (
-          <pre className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-3 rounded font-mono text-sm break-words whitespace-pre-wrap my-4">
-            {props.children}
-          </pre>
+          <div className="group relative">
+            <pre className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-3 rounded font-mono text-sm break-words whitespace-pre-wrap my-4">
+              {props.children}
+            </pre>
+          </div>
         );
       }
 
