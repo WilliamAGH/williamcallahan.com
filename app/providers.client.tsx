@@ -10,7 +10,7 @@
 
 import { ThemeProvider } from "@/components/ui/theme/theme-provider";
 import { TerminalProvider } from "@/components/ui/terminal";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, memo } from "react";
 
 /**
  * Send error to server-side logging API with rate limiting and debouncing
@@ -61,8 +61,9 @@ const reportErrorToServer = (() => {
 /**
  * Client-side error logging for catching JavaScript errors,
  * particularly chunk loading errors in production.
+ * Memoized to prevent unnecessary re-renders during navigation.
  */
-function ErrorLogger() {
+const ErrorLogger = memo(function ErrorLogger() {
   // Track errors to avoid spamming the console and server
   const errorCount = useRef<number>(0);
   const maxErrorsToReport = 5; // Maximum number of errors to report in a session
@@ -153,20 +154,30 @@ function ErrorLogger() {
   }, []);
 
   return null; // This component doesn't render anything
-}
+});
 
-export function Providers({ children }: { children: React.ReactNode }) {
+// Create a constant instance of the ErrorLogger to prevent re-creation
+const ERROR_LOGGER_INSTANCE = <ErrorLogger />;
+
+// Memoize the entire providers component to prevent rerendering during navigation
+const Providers = memo(function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider
       disableTransitionOnChange
+      enableSystem
+      attribute="class"
+      defaultTheme="system"
     >
       {/* Remove WindowControlsProvider wrapper */}
       <TerminalProvider>
-        <ErrorLogger />
+        {/* Use the constant instance to prevent rerenders */}
+        {ERROR_LOGGER_INSTANCE}
         <Suspense fallback={null}>
           {children}
         </Suspense>
       </TerminalProvider>
     </ThemeProvider>
   );
-}
+});
+
+export { Providers };
