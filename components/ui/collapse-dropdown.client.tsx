@@ -126,7 +126,7 @@ export function openAndScrollToDropdownAnchor(dropdownToOpen: HTMLDetailsElement
   frameId = requestAnimationFrame(pollForElement);
 
   // Optional: Add a safety timeout to cancel polling if rAF somehow gets stuck (unlikely)
-  const safetyTimeoutId = setTimeout(() => {
+  let safetyTimeoutId: ReturnType<typeof setTimeout> = setTimeout(() => {
       if (frameId) {
           cancelAnimationFrame(frameId);
           if (enableDebugLogs) console.warn(`[Anchor Debug] pollForElement #${hash}: Safety timeout triggered, cancelling polling.`);
