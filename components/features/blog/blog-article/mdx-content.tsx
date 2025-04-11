@@ -222,3 +222,9 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     </article>
   );
 }
+
+// Create a named variable for the default export
+const MDXContentExport = { MDXContent };
+
+// Default export for next/dynamic
+export default MDXContentExport;

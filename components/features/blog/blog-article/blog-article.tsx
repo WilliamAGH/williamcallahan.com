@@ -19,8 +19,17 @@ import { BlogAuthor } from '../shared/blog-author';
 import { BlogTags } from '../shared/blog-tags';
 import { formatDate } from '../../../../lib/utils';
 import type { Article, WithContext } from 'schema-dts';
-import { MDXContent } from './mdx-content';
+import dynamic from 'next/dynamic';
+import { Suspense } from 'react';
 import type { BlogPost } from '../../../../types/blog';
+
+// Dynamically import MDXContent to avoid chunk loading issues
+const MDXContent = dynamic(() => import('./mdx-content').then(mod => ({ default: mod.MDXContent })), {
+  ssr: true,
+  loading: () => (
+    <div className="animate-pulse bg-gray-200 dark:bg-gray-800 h-96 rounded-lg"></div>
+  )
+});
 
 interface BlogArticleProps {
   /** The blog post data to render */
@@ -89,7 +98,9 @@ export function BlogArticle({ post }: BlogArticleProps): JSX.Element {
 
       {/* Article Content */}
       <div className="relative bg-white dark:bg-transparent rounded-lg shadow-md dark:shadow-none p-5 sm:p-6 border border-gray-100 dark:border-gray-800">
-        <MDXContent content={post.content} />
+        <Suspense fallback={<div className="animate-pulse bg-gray-200 dark:bg-gray-800 h-96 rounded-lg"></div>}>
+          <MDXContent content={post.content} />
+        </Suspense>
       </div>
     </article>
   );

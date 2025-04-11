@@ -22,7 +22,7 @@ import "@fontsource/ibm-plex-mono/400.css";
 import './code-blocks.css';
 // Import PrismJS theme
 import '../components/ui/code-block/prism-syntax-highlighting/prism.css';
-import { Providers } from "./providers";
+import { Providers } from "./providers.client";
 // Re-add direct imports
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
 import { ClientTerminal } from "../components/ui/terminal/terminal.client";
