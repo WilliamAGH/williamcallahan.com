@@ -231,8 +231,8 @@ function AnalyticsScripts() {
         src="https://umami.iocloudhost.net/script.js"
         data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
         data-auto-track="false"
-        data-do-not-track="true"
-        data-cache="true"
+        data-do-not-track="false"
+        data-cache="false"
         onLoad={() => {
           try {
             setScriptsLoaded(prev => ({ ...prev, umami: true }))
