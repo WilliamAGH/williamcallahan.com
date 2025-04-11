@@ -41,9 +41,9 @@ export function Navigation() {
         </button>
       </div>
 
-      {/* Desktop Navigation */}
+      {/* Desktop Navigation - keep sm:flex for test compatibility */}
       <div className="hidden sm:flex items-center">
-        <div className="flex space-x-1">
+        <div className="flex flex-nowrap whitespace-nowrap space-x-1">
           {navigationLinks.map((link) => (
             <NavigationLink
               key={link.path}

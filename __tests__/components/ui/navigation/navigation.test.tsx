@@ -92,7 +92,7 @@ describe('Navigation', () => {
       const nav = screen.getByRole('navigation');
 
       // Check desktop view
-      const desktopView = nav.querySelector('.sm\\:flex');
+      const desktopView = nav.querySelector('.sm\\:block');
       expect(desktopView).toBeInTheDocument();
       expect(within(desktopView as HTMLElement).queryByTestId('window-controls')).not.toBeInTheDocument();
 
