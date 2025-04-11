@@ -2,30 +2,43 @@
  * Social Media Links Configuration
  */
 
-import { Github, Linkedin } from 'lucide-react';
 import { X } from './x-icon';
 import { Discord } from './discord-icon';
-import type { SocialLink } from '@/types/social';
+import { Bluesky } from './bluesky-icon';
+import { LinkedIn } from './linkedin-icon';
+import { GitHub } from './github-icon';
+import { socialLinksSchema, type SocialLink } from '@/types/social';
 
-export const socialLinks: SocialLink[] = [
-  { 
-    icon: X, 
-    href: 'https://x.com/williamcallahan',
-    label: 'X (formerly Twitter)'
+// Define the social links data
+const socialLinksData = [
+  {
+    icon: GitHub,
+    href: 'https://github.com/williamagh',
+    label: 'GitHub',
+    emphasized: true
   },
-  { 
-    icon: Linkedin, 
+  {
+    icon: Discord,
+    href: 'https://discord.com/users/WilliamDscord',
+    label: 'Discord'
+  },
+  {
+    icon: LinkedIn,
     href: 'https://linkedin.com/in/williamacallahan',
     label: 'LinkedIn'
   },
-  { 
-    icon: Github, 
-    href: 'https://github.com/williamagh',
-    label: 'GitHub'
+  {
+    icon: Bluesky,
+    href: 'https://bsky.app/profile/williamcallahan.com',
+    label: 'Bluesky'
   },
-  { 
-    icon: Discord, 
-    href: 'https://discord.com/users/WilliamDscord',
-    label: 'Discord'
+  {
+    icon: X,
+    href: 'https://x.com/williamcallahan',
+    label: 'X (Twitter)',
+    emphasized: true
   }
 ];
+
+// Runtime validation ensures data meets expected format
+export const socialLinks: SocialLink[] = socialLinksSchema.parse(socialLinksData);

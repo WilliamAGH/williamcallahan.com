@@ -90,7 +90,7 @@ The site includes an interactive terminal component with the following features:
 
 It uses React Context for managing history and global state for window position (normal, minimized, maximized).
 
-## Resilience
+## Crashes
 
 The app tries to be less fragile about failures:
 - Checks if the filesystem directory (`/app/public/logos`) is usable on startup. Warns if not, but continues in memory-only mode.
