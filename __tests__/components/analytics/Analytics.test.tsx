@@ -67,7 +67,8 @@ describe('Analytics', () => {
     process.env = {
       ...originalEnv,
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: mockWebsiteId,
-      NEXT_PUBLIC_SITE_URL: mockSiteUrl
+      NEXT_PUBLIC_SITE_URL: mockSiteUrl,
+      NODE_ENV: 'development' // Ensure we're in development mode for testing
     }
 
     // Mock pathname
@@ -83,6 +84,7 @@ describe('Analytics', () => {
     // Clear console mocks
     jest.spyOn(console, 'debug').mockImplementation(() => {})
     jest.spyOn(console, 'error').mockImplementation(() => {})
+    jest.spyOn(console, 'warn').mockImplementation(() => {})
   })
 
   afterEach(() => {
@@ -177,7 +179,7 @@ describe('Analytics', () => {
     // Advance timers to allow the timeout in useEffect to trigger
     await act(async () => {
       // Advance timers past the 100ms timeout in the useEffect
-      jest.advanceTimersByTime(150) // Give some buffer
+      jest.advanceTimersByTime(550) // Increased from 150 to 550 to account for the new 500ms delay
     })
 
     // Wait for the track call triggered by the pathname change
@@ -191,7 +193,8 @@ describe('Analytics', () => {
   })
 
   it('handles script load errors gracefully', async () => {
-    const consoleSpy = jest.spyOn(console, 'error')
+    // Now using warn instead of error
+    const consoleSpy = jest.spyOn(console, 'warn')
 
     // Mock Script to simulate error
     jest.requireMock('next/script').default = function Script({ id, onError }: any) {
@@ -209,9 +212,9 @@ describe('Analytics', () => {
     })
 
     await waitFor(() => {
+      // Check for the new warning message format
       expect(consoleSpy).toHaveBeenCalledWith(
-        '[Analytics Error] Failed to load Umami script:',
-        expect.any(Error)
+        '[Analytics] Failed to load Umami script - continuing without analytics'
       )
     })
   })
