@@ -12,6 +12,14 @@
  * @see https://nextjs.org/docs/app/api-reference/next-config-js
  */
 
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+// Get package.json version to use in build ID
+const packageJson = JSON.parse(
+  readFileSync(resolve('./package.json'), 'utf8')
+);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /**
@@ -67,6 +75,67 @@ const nextConfig = {
     }
 
     return config;
+  },
+
+  /**
+   * Generate a consistent build ID across servers
+   * This ensures chunk filenames are identical between deployments
+   * Only change this when intentionally refreshing all cached assets
+   */
+  generateBuildId: async () => {
+    // Base the build ID on package.json version for consistent hashing
+    return `v${packageJson.version}-stable`;
+  },
+
+  /**
+   * Configure headers to improve caching
+   * Key for ensuring Cloudflare caches assets properly
+   */
+  async headers() {
+    return [
+      {
+        // Set strong cache headers for all static assets
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+          {
+            key: 'CDN-Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+          {
+            key: 'Cloudflare-CDN-Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          }
+        ],
+      },
+      {
+        // Set reasonable cache for data requests
+        source: '/_next/data/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600, stale-while-revalidate=86400',
+          }
+        ],
+      },
+      {
+        // Set cache control for image optimization API
+        source: '/_next/image:params*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=60, stale-while-revalidate=3600, stale-if-error=86400',
+          },
+          {
+            key: 'CDN-Cache-Control',
+            value: 'public, max-age=3600, stale-while-revalidate=86400',
+          }
+        ],
+      },
+    ];
   },
 
   /**
