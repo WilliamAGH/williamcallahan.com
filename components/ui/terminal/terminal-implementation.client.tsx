@@ -22,15 +22,21 @@ import { cn } from "@/lib/utils";
 
 // Define a unique ID for this instance of a window-like component
 const TERMINAL_WINDOW_ID = 'main-terminal';
+const isDevelopment = process.env.NODE_ENV === 'development';
+const enableDebugLogs = isDevelopment && false; // Set to true only when debugging terminal
 
 export function Terminal() {
   // Log component mount/unmount
   useEffect(() => {
-    console.log("--- Terminal Component Mounted ---");
+    if (enableDebugLogs) {
+      console.debug("--- Terminal Component Mounted ---");
+    }
     return () => {
-      console.log("--- Terminal Component Unmounted ---");
-   };
- }, []); // Empty dependency array ensures this runs only on mount/unmount
+      if (enableDebugLogs) {
+        console.debug("--- Terminal Component Unmounted ---");
+      }
+    };
+  }, []); // Empty dependency array ensures this runs only on mount/unmount
 
   // Ref for the scrollable content area
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -120,19 +126,25 @@ export function Terminal() {
 
    // If not yet ready (mounted and registered in context), render nothing.
   if (!isRegistered) {
-    console.log(`Terminal Component: Not ready (pre-mount/hydration from context), rendering null.`);
+    if (enableDebugLogs) {
+      console.debug(`Terminal Component: Not ready (pre-mount/hydration from context), rendering null.`);
+    }
     return null;
   }
 
   // Now that we are ready (mounted), render based on the current windowState
   // If closed or minimized, render null - the FloatingTerminalButton handles this
   if (windowState === "closed" || windowState === "minimized") {
-    console.log(`Terminal Component: Rendering null (windowState is ${windowState})`);
+    if (enableDebugLogs) {
+      console.debug(`Terminal Component: Rendering null (windowState is ${windowState})`);
+    }
     return null;
   }
 
   // Render normal or maximized view (implicit else, because we checked !isReady earlier)
-  console.log(`Terminal Component: Rendering ${windowState} view`);
+  if (enableDebugLogs) {
+    console.debug(`Terminal Component: Rendering ${windowState} view`);
+  }
 
   // Define class sets for clarity
   const commonTerminalClasses = "bg-[#1a1b26] border border-gray-700 font-mono text-sm cursor-text overflow-hidden flex flex-col rounded-lg shadow-xl";

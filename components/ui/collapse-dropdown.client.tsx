@@ -14,6 +14,7 @@ import { cn } from '../../lib/utils';
 
 const dropdownRegistry: { [key: string]: HTMLDetailsElement } = {};
 const isDevelopment = process.env.NODE_ENV === 'development';
+const enableDebugLogs = isDevelopment && false; // Set to true only when debugging dropdowns
 
 /**
  * Registers a dropdown instance. Called by the component's effect.
@@ -21,8 +22,8 @@ const isDevelopment = process.env.NODE_ENV === 'development';
  * @param element The HTMLDetailsElement reference.
  */
 function registerDropdown(id: string, element: HTMLDetailsElement): void {
-  if (isDevelopment) {
-    console.log(`[Anchor Debug] Registering dropdown: ${id}`);
+  if (enableDebugLogs) {
+    console.debug(`Registering dropdown: ${id}`);
   }
   dropdownRegistry[id] = element;
 }
@@ -32,8 +33,8 @@ function registerDropdown(id: string, element: HTMLDetailsElement): void {
  * @param id The unique ID of the dropdown.
  */
 function unregisterDropdown(id: string): void {
-  if (isDevelopment) {
-    console.log(`[Anchor Debug] Unregistering dropdown: ${id}`);
+  if (enableDebugLogs) {
+    console.debug(`Unregistering dropdown: ${id}`);
   }
   delete dropdownRegistry[id];
 }
@@ -46,12 +47,12 @@ function unregisterDropdown(id: string): void {
  * @returns The HTMLDetailsElement or null if not found.
  */
 export function findDropdownForHash(hash: string): HTMLDetailsElement | null {
-  if (isDevelopment) {
-    console.log(`[Anchor Debug] findDropdownForHash: Searching for dropdown related to #${hash}`);
+  if (enableDebugLogs) {
+    console.debug(`[Anchor Debug] findDropdownForHash: Searching for dropdown related to #${hash}`);
   }
   // 1. Exact ID match in registry
   if (dropdownRegistry[hash]) {
-    if (isDevelopment) console.log(`[Anchor Debug] findDropdownForHash: Found exact match for #${hash}`);
+    if (enableDebugLogs) console.debug(`[Anchor Debug] findDropdownForHash: Found exact match for #${hash}`);
     return dropdownRegistry[hash];
   }
   // 2. Partial ID match
@@ -59,7 +60,7 @@ export function findDropdownForHash(hash: string): HTMLDetailsElement | null {
   for (const [id, detailsElement] of Object.entries(dropdownRegistry)) {
     const matchCount = hashWords.filter(word => id.includes(word)).length;
     if (matchCount > 0 && matchCount >= hashWords.length * 0.5) {
-      if (isDevelopment) console.log(`[Anchor Debug] findDropdownForHash: Found partial match '${id}' for #${hash}`);
+      if (enableDebugLogs) console.debug(`[Anchor Debug] findDropdownForHash: Found partial match '${id}' for #${hash}`);
       return detailsElement;
     }
   }
@@ -68,12 +69,12 @@ export function findDropdownForHash(hash: string): HTMLDetailsElement | null {
   if (targetElement) {
     for (const [id, detailsElement] of Object.entries(dropdownRegistry)) {
       if (detailsElement.contains(targetElement)) {
-        if (isDevelopment) console.log(`[Anchor Debug] findDropdownForHash: Found element #${hash} inside dropdown '${id}'`);
+        if (enableDebugLogs) console.debug(`[Anchor Debug] findDropdownForHash: Found element #${hash} inside dropdown '${id}'`);
         return detailsElement;
       }
     }
   }
-  if (isDevelopment) console.log(`[Anchor Debug] findDropdownForHash: No dropdown found for #${hash}`);
+  if (enableDebugLogs) console.debug(`[Anchor Debug] findDropdownForHash: No dropdown found for #${hash}`);
   return null;
 }
 
@@ -84,36 +85,63 @@ export function findDropdownForHash(hash: string): HTMLDetailsElement | null {
  * @param hash The target hash (without '#').
  */
 export function openAndScrollToDropdownAnchor(dropdownToOpen: HTMLDetailsElement, hash: string): void {
-  if (isDevelopment) console.log(`[Anchor Debug] openAndScrollToDropdownAnchor: Opening dropdown for #${hash}.`);
+  if (enableDebugLogs) console.debug(`[Anchor Debug] openAndScrollToDropdownAnchor: Opening dropdown for #${hash}.`);
   dropdownToOpen.open = true;
 
   if (history.replaceState) {
     history.replaceState(null, document.title, window.location.pathname + window.location.search);
   }
 
-  const attemptScroll = (scrollAttempt = 1, maxScrollAttempts = 5) => {
-    if (isDevelopment) console.log(`[Anchor Debug] attemptScroll (Dropdown) #${hash}: Starting attempt ${scrollAttempt}/${maxScrollAttempts}.`);
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (isDevelopment) console.log(`[Anchor Debug] attemptScroll (Dropdown) #${hash}: Inside rAF, attempting find for attempt ${scrollAttempt}.`);
-        let targetScrollElement = document.getElementById(hash) || document.querySelector(`a[id="${hash}"]`);
+  // Use requestAnimationFrame polling to find the element after opening
+  let frameId: number | null = null;
+  let startTime: number | null = null;
+  const maxPollingDuration = 500; // Max time to poll in ms
 
-        if (targetScrollElement) {
-          if (isDevelopment) console.log(`[Anchor Debug] attemptScroll (Dropdown) #${hash}: Found element on attempt ${scrollAttempt}. Scrolling.`);
-          targetScrollElement.scrollIntoView({ block: 'start' });
-        } else if (scrollAttempt < maxScrollAttempts) {
-          if (isDevelopment) console.log(`[Anchor Debug] attemptScroll (Dropdown) #${hash}: Element not found on attempt ${scrollAttempt}. Scheduling retry in 200ms.`);
-          setTimeout(() => attemptScroll(scrollAttempt + 1, maxScrollAttempts), 200);
-        } else {
-          if (isDevelopment) console.log(`[Anchor Debug] attemptScroll (Dropdown) #${hash}: Element not found after ${maxScrollAttempts} attempts. Giving up and restoring hash.`);
-          window.location.hash = hash;
-        }
-      });
-    });
+  const pollForElement = (timestamp: number) => {
+    if (!startTime) {
+      startTime = timestamp;
+    }
+    const elapsed = timestamp - startTime;
+
+    if (enableDebugLogs) console.debug(`[Anchor Debug] pollForElement #${hash}: Polling frame. Elapsed: ${elapsed.toFixed(0)}ms`);
+
+    let targetScrollElement = document.getElementById(hash) || document.querySelector(`a[id="${hash}"]`);
+
+    if (targetScrollElement) {
+      if (enableDebugLogs) console.debug(`[Anchor Debug] pollForElement #${hash}: Found element after ${elapsed.toFixed(0)}ms. Scrolling.`);
+      targetScrollElement.scrollIntoView({ block: 'start' });
+      // No need to cancel frameId here, the loop stops
+    } else if (elapsed < maxPollingDuration) {
+      // Element not found, continue polling
+      frameId = requestAnimationFrame(pollForElement);
+    } else {
+      // Polling timed out
+      if (enableDebugLogs) console.debug(`[Anchor Debug] pollForElement #${hash}: Element not found after ${maxPollingDuration}ms. Giving up and restoring hash.`);
+      window.location.hash = hash;
+    }
   };
 
-  if (isDevelopment) console.log(`[Anchor Debug] openAndScrollToDropdownAnchor: Calling attemptScroll for #${hash}.`);
-  attemptScroll();
+  // Start the polling loop
+  if (enableDebugLogs) console.debug(`[Anchor Debug] openAndScrollToDropdownAnchor: Starting rAF polling for #${hash}.`);
+  frameId = requestAnimationFrame(pollForElement);
+
+  // Optional: Add a safety timeout to cancel polling if rAF somehow gets stuck (unlikely)
+  let safetyTimeoutId: ReturnType<typeof setTimeout> = setTimeout(() => {
+      if (frameId) {
+          cancelAnimationFrame(frameId);
+          if (enableDebugLogs) console.warn(`[Anchor Debug] pollForElement #${hash}: Safety timeout triggered, cancelling polling.`);
+          // Restore hash if polling was cancelled by safety timeout without success
+          if (!document.getElementById(hash) && !document.querySelector(`a[id="${hash}"]`)) {
+              window.location.hash = hash;
+          }
+      }
+  }, maxPollingDuration + 100); // Slightly longer than max polling duration
+
+  // We need a way to clear the safety timeout if polling succeeds or finishes early.
+  // This is tricky as pollForElement doesn't return status.
+  // For now, let's rely on the polling duration limit.
+  // A more complex implementation could use a Promise or callback.
+
 }
 
 // --- CollapseDropdown Component ---
