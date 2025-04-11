@@ -15,8 +15,9 @@ export function SocialIcon({ href, label, icon: Icon }: SocialIconProps) {
       className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
       aria-label={label}
       title={label}
+      suppressHydrationWarning
     >
-      <Icon className="w-5 h-5" />
+      <Icon className="w-5 h-5" suppressHydrationWarning />
     </a>
   );
 }

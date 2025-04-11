@@ -44,22 +44,30 @@ interface GlobalWindowRegistryProviderProps {
 // Define the provider component
 export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryProviderProps) => {
   const [windows, setWindows] = useState<Record<string, WindowInstanceInfo>>({});
-  // Removed isMounted state and associated useEffects
+  // Add client-side initialization flag
+  const [isClient, setIsClient] = useState(false);
+
+  // Initialize on client-side only
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const registerWindow = useCallback((id: string, icon: LucideIcon, title: string, initialState: WindowState = 'normal') => {
+    // Skip registration during server rendering
+    if (!isClient) return;
+
     console.log(`WindowRegistry: Registering window '${id}' with initial state '${initialState}'`);
     setWindows(prev => {
       // Avoid re-registering if already present with the same info
       if (prev[id] && prev[id].state === initialState && prev[id].icon === icon) {
         return prev;
       }
-      // TODO: Add logic here to potentially restore from sessionStorage if needed, like in useWindowState
       return {
         ...prev,
         [id]: { id, state: initialState, icon, title },
       };
     });
-  }, []);
+  }, [isClient]);
 
   const unregisterWindow = useCallback((id: string) => {
      console.log(`WindowRegistry: Unregistering window '${id}'`);

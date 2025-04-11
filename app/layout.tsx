@@ -34,6 +34,9 @@ import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } fro
 
 import { Analytics } from '@/components/analytics/analytics.client'
 
+// Add server transition handler
+import Script from 'next/script';
+
 /** Load Inter font with Latin subset */
 const inter = Inter({ subsets: ["latin"] });
 
@@ -93,7 +96,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className="overflow-x-hidden">
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className="overflow-x-hidden"
+    >
       <head>
         {/* Resource hints for faster initial page load */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -102,8 +109,35 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://williamcallahan.com" />
         <link rel="dns-prefetch" href="https://icons.duckduckgo.com" />
         {/* Next.js automatically handles font preloading */}
+        {/* Add meta tag to signal native theme handling */}
+        <meta name="color-scheme" content="light dark" />
       </head>
       <body className={`${inter.className} overflow-x-hidden`} suppressHydrationWarning>
+        {/* Add script to help with state preservation during server transitions */}
+        <Script id="server-transition-handler" strategy="beforeInteractive">
+          {`
+            // Track page loads to detect potential server transitions
+            (function() {
+              try {
+                const lastLoadTime = parseInt(sessionStorage.getItem('_last_load_time') || '0');
+                const currentTime = Date.now();
+
+                // If reloading within 2 seconds, likely a server transition
+                if (currentTime - lastLoadTime < 2000) {
+                  document.documentElement.classList.add('server-transition');
+                  setTimeout(() => {
+                    document.documentElement.classList.remove('server-transition');
+                  }, 1000);
+                }
+
+                // Update last load time
+                sessionStorage.setItem('_last_load_time', currentTime.toString());
+              } catch(e) {
+                console.error('Error in transition handler:', e);
+              }
+            })();
+          `}
+        </Script>
         <Providers>
           <GlobalWindowRegistryProvider>
             <BodyClassManager />

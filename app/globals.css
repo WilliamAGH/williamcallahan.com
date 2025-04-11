@@ -441,8 +441,55 @@ main {
 }
 
 /* Make all transitions smoother but exclude specific elements to avoid hydration issues */
-*:not(a):not(button):not(.nav-link) {
-  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+*:not(a):not(button):not(.nav-link):not([data-no-transition]) {
+  transition-property: background-color, border-color, color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
+}
+
+/* Prevent transition on window controls and terminal to avoid hydration issues */
+[data-no-transition] {
+  transition: none !important;
+  animation: none !important;
+  will-change: auto !important;
+}
+
+/* Disable all animations and transitions during server transitions */
+.server-transition * {
+  transition: none !important;
+  animation: none !important;
+  will-change: auto !important;
+  opacity: 1 !important;
+}
+
+/* Handle browser extension modifications (Dark Reader) by working with it, not against it */
+[data-darkreader-scheme],
+html[data-darkreader-mode] {
+  /* Respect Dark Reader by not interfering with it */
+  color-scheme: dark !important;
+}
+
+/* When Dark Reader is active, make our dark mode styles work with it */
+.dark-reader-active {
+  /* Override conflicts between Dark Reader & our dark mode */
+  --background: 222.2 84% 4.9% !important;
+  --foreground: 0 0% 100% !important;
+
+  /* Let Dark Reader handle the color transformations */
+  transition: none !important;
+}
+
+/* Reset our previous Dark Reader overrides which were fighting against it */
+[data-darkreader-inline-stroke],
+[data-darkreader-inline-fill],
+[data-darkreader-inline-color],
+[data-darkreader-inline-bgcolor] {
+  /* Allow Dark Reader to control these elements */
+  filter: none !important;
+}
+
+/* Don't override Dark Reader specific inline CSS variables */
+*[style*="--darkreader-inline"] {
+  /* Let Dark Reader handle its styling */
+  transition: inherit !important;
 }
