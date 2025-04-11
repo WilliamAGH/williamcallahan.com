@@ -84,14 +84,9 @@ export function NavigationLink({
     'aria-current': isActive ? ('page' as const) : undefined,
     onClick: handleClick,
 
-    // Let Next.js handle default prefetching behavior
-    // prefetch: true, // Removed to avoid passing boolean to mock <a>
-
-    // Add scroll restoration to prevent page position jumps.
-    // scroll={false} is the correct prop for Next.js <Link> to disable scroll restoration.
-    // React might show a dev warning because the underlying <a> tag doesn't typically
-    // accept a boolean 'scroll' attribute. We prioritize Next.js functionality and
-    // type safety over silencing this specific React dev warning.
+    // Use scroll={false} to prevent scroll position jumps
+    // This property will cause a React warning in tests but is needed for Next.js functionality
+    // We accept this warning as it doesn't affect production functionality
     scroll: false
   };
 
