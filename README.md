@@ -1,239 +1,140 @@
 # William Callahan's Personal Website
 
-## Logo Storage and Docker Deployment
+This is the repo for my personal website. Below is some info on how the logo fetching works and other stuff to help me remember.
 
-### Volume Configuration
+> "I don't know what I think until I read what I'm writing" - Shirley MacLaine
 
-**Docker Volume Details:**
-- Volume Name: `logo_storage`
-- Container Mount Path: `/app/public/logos`
-- Purpose: Persistent storage for fetched company logos
+> "I write to find out what I think" - Joan Didion
 
-Example mount:
+## Logo Storage and Caching
+
+The site fetches company logos on demand. To avoid hitting APIs constantly and speed things up, it uses a couple of caching layers:
+
+1.  **Memory Cache:** Super fast, but clears whenever the app restarts. Good for logos you just looked up.
+2.  **Filesystem Cache (Optional):** If you set up a Docker volume, logos get saved to disk (`/app/public/logos` inside the container). This way, they stick around even if the container restarts. If there's no volume, it just uses the container's temporary filesystem (which also clears on restart). Logos are saved like `{md5(domain)}-{source}.png`.
+3.  **External Fetching:** If a logo isn't in memory or on disk, the app tries fetching it from Google, Clearbit, or DuckDuckGo. It does a quick check to make sure it's not a generic placeholder and converts everything to PNG.
+
+**Bottom line:** The logo system works whether you set up persistent storage or not. Without it, it just relies on memory caching and re-fetches more often.
+
+### Using a Docker Volume for Persistent Logos
+
+If you want logos to persist across restarts, use a named Docker volume:
+
+- **Volume Name:** `logo_storage`
+- **Mount Point in Container:** `/app/public/logos`
+
+Example `docker run` command:
 ```bash
-docker run -v logo_storage:/app/public/logos ...
+# Create the volume first if it doesn't exist
+docker volume create logo_storage
+
+# Run the container, mounting the volume
+docker run -v logo_storage:/app/public/logos ... your-other-options ... williamcallahan-website
 ```
 
-The system works with or without this volume configured. When the volume is not available, it automatically falls back to memory-only caching and re-fetches logos as needed.
+You might need to fix permissions on the volume the first time:
+```bash
+# Make sure the container user (1001:1001) can write to the volume
+docker run --rm -v logo_storage:/data alpine chown -R 1001:1001 /data
+```
 
-### How Logo Storage Works
+## Running the Site
 
-The logo system follows a multi-layered caching approach:
+### Simple Docker Run (No Persistent Logos)
 
-1. **Memory Cache** (Ephemeral, Fast)
-   - First layer of caching using `ServerCache`
-   - Clears when the container restarts
-   - Provides fastest access for frequently requested logos
+Good for quick tests or if you don't care about keeping logos between restarts.
 
-2. **Filesystem Cache** (Optional Persistence)
-   - Stored in `/app/public/logos`
-   - Can be persistent with Docker volume
-   - Falls back to ephemeral storage if volume isn't mounted
-   - Logos stored with hashed filenames: `{md5(domain)}-{source}.png`
-
-3. **External Fetching** (Fallback)
-   - Attempts multiple sources (Google, Clearbit, DuckDuckGo)
-   - Validates logos to filter out generic icons
-   - Converts all logos to PNG for consistency
-
-### Deployment Instructions
-
-#### 1. Basic Deployment (Ephemeral Storage)
 ```bash
 # Build the image
 docker build -t williamcallahan-website .
 
-# Run with ephemeral storage
+# Run it (logos stored temporarily inside the container)
 docker run -d \
   -p 3000:3000 \
   --name williamcallahan-website \
   williamcallahan-website
 ```
-In this mode:
-- Logos are stored in container's filesystem
-- Storage clears on container restart
-- System automatically re-fetches logos as needed
-- No volume management required
-- Suitable for testing or when persistence isn't critical
 
-#### 2. Persistent Storage Deployment
+### Docker Run with Persistent Logos
+
+Use this if you want logos saved to the `logo_storage` volume.
+
 ```bash
-# Create a named volume
+# Make sure the volume exists
 docker volume create logo_storage
 
-# Build the image
+# Build if you haven't already
 docker build -t williamcallahan-website .
 
-# Run with persistent storage
+# Run with the volume mounted
 docker run -d \
   -p 3000:3000 \
   -v logo_storage:/app/public/logos \
   --name williamcallahan-website \
   williamcallahan-website
-
-# Optional: Fix volume permissions if needed
-docker run --rm \
-  -v logo_storage:/data \
-  alpine chown -R 1001:1001 /data
 ```
 
-#### 3. Production Deployment with Docker Compose
-```yaml
-# docker-compose.yml
-version: '3.8'
-services:
-  website:
-    build: .
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    volumes:
-      - logo_storage:/app/public/logos
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - HOSTNAME=0.0.0.0
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+## Terminal Component
 
-volumes:
-  logo_storage:
-    driver: local  # Use local for development
-    # For production, you might use:
-    # driver: your-storage-driver
-    # driver_opts:
-    #   type: nfs
-    #   o: addr=storage-server,rw
-    #   device: ":/path/to/storage"
-```
+The site includes an interactive terminal component with the following features:
 
-#### 4. Kubernetes Deployment
-```yaml
-# deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: williamcallahan-website
-spec:
-  replicas: 2
-  template:
-    spec:
-      containers:
-      - name: website
-        image: williamcallahan-website
-        volumeMounts:
-        - name: logo-storage
-          mountPath: /app/public/logos
-      volumes:
-      - name: logo-storage
-        persistentVolumeClaim:
-          claimName: logo-storage-pvc
+- **Command History:** Persisted in SessionStorage, remembers commands within a browser session
+- **Window Controls:** Standard macOS-style controls (close, minimize, maximize) that function like a macOS app on the site
+- **Maximize Mode:** Full-screen view with backdrop, dismissable by clicking outside or pressing `Escape`
+- **Navigation:** Use commands like `home`, `blog`, `experience`, etc., to navigate the site
+- **Section Search:** Search within specific sections like `blog`, `experience`, `investments` using commands like `blog <query>`
+- **Selection View:** Displays search results or other options for interactive selection
+- **Responsive:** Works across different screen sizes
+- **Basic Commands:** `help`, `clear`
+- **Easter Egg:** `schema.org` command displays structured data for the current page (more to come!)
 
----
-# pvc.yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: logo-storage-pvc
-spec:
-  accessModes:
-    - ReadWriteMany
-  resources:
-    requests:
-      storage: 10Gi
-```
+It uses React Context for managing history and global state for window position (normal, minimized, maximized).
 
-### System Resilience
+## Resilience
 
-The logo system is designed to be resilient and self-healing:
+The app tries to be less fragile about failures:
+- Checks if the filesystem directory (`/app/public/logos`) is usable on startup. Warns if not, but continues in memory-only mode.
+- If fetching fails, it might retry. If it keeps failing for a specific domain, it'll cache the error for a bit to avoid hammering APIs.
+- Falls back to a placeholder if it can't get a real logo.
 
-1. **Filesystem Availability Check**
-```typescript
-// Automatic filesystem check on startup
-const hasFileSystem = await ensureLogosDirectory();
-if (!hasFileSystem) {
-  console.warn('Filesystem storage unavailable, falling back to memory-only mode');
-}
-```
+### Clear Caches
 
-2. **Storage Fallback Chain**
-```mermaid
-graph TD
-    A[Logo Request] --> B{Check Memory Cache}
-    B -->|Hit| C[Return Logo]
-    B -->|Miss| D{Filesystem Available?}
-    D -->|Yes| E{Check Disk Cache}
-    D -->|No| G[Fetch from External]
-    E -->|Hit| F[Return & Cache in Memory]
-    E -->|Miss| G
-    G -->|Success| H{Filesystem Available?}
-    G -->|Failure| K[Return Placeholder]
-    H -->|Yes| I[Store on Disk]
-    H -->|No| J[Store in Memory Only]
-```
-
-3. **Error Recovery**
-- Automatic retry on transient failures
-- Graceful fallback to placeholder images
-- Separate error caching to prevent API hammering
-
-### Maintenance Operations
-
-1. **Clear Cache**
 ```bash
-# Memory cache only (soft reset)
+# Clear just the in-memory cache (quick refresh)
 curl -X POST http://localhost:3000/api/cache/clear
 
-# Full reset (memory + disk)
+# Nuke the persistent disk cache (requires recreating volume & restarting)
+# 1. Stop the container/service
+docker stop williamcallahan-website # Or docker-compose down
+# 2. Remove the volume
 docker volume rm logo_storage
+# 3. Recreate the volume
 docker volume create logo_storage
-docker restart williamcallahan-website
+# 4. Restart the container/service
+docker start williamcallahan-website # Or docker-compose up -d
+# (Optional: Re-run chown command if needed)
 ```
 
-2. **Backup Logos**
-```bash
-# Create backup
-docker run --rm \
-  -v logo_storage:/data \
-  -v $(pwd)/backup:/backup \
-  alpine tar czf /backup/logos.tar.gz /data
+### Backup / Restore Logos (if using persistent volume)
 
-# Restore backup
+```bash
+# Backup logos to a tarball in your current directory
+docker run --rm \
+  -v logo_storage:/data:ro \
+  -v "$(pwd):/backup" \
+  alpine tar czf /backup/logos-backup-$(date +%Y%m%d).tar.gz -C /data .
+
+# Restore logos from a backup tarball
+# Assumes the volume 'logo_storage' exists but might be empty
 docker run --rm \
   -v logo_storage:/data \
-  -v $(pwd)/backup:/backup \
-  alpine tar xzf /backup/logos.tar.gz -C /
+  -v "$(pwd):/backup" \
+  alpine sh -c "tar xzf /backup/logos-backup-YYYYMMDD.tar.gz -C /data && chown -R 1001:1001 /data"
 ```
 
-3. **Health Check**
+### Check Health & Logs
+
 ```bash
-# Check system health
+# Check the health endpoint
 curl http://localhost:3000/api/health
 
-# View logs
-docker logs williamcallahan-website
-```
-
-### Best Practices
-
-1. **Production Deployment**
-- Always use persistent volumes in production
-- Implement regular backups
-- Monitor storage usage
-- Set up health checks
-
-2. **Development/Testing**
-- Use ephemeral storage for faster iteration
-- Clear cache frequently during testing
-- Monitor API rate limits
-
-3. **Maintenance**
-- Regular health checks
-- Periodic cache cleanup
-- Storage usage monitoring
-- API access verification
-
-The system is designed to be resilient and self-healing, automatically adapting to the available storage options while maintaining functionality in all scenarios. Whether running with persistent storage or in ephemeral mode, the logo fetching and caching system will continue to function effectively.

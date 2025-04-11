@@ -1,4 +1,3 @@
-
 /**
  * CopyButton Component
  *
@@ -55,7 +54,6 @@ export const CopyButton: React.FC<CopyButtonProps> = ({ content, className }) =>
         'bg-gray-700/60 hover:bg-gray-600/60',
         'text-gray-300 hover:text-gray-100',
         'transition-all duration-200',
-        'opacity-0 group-hover:opacity-100',
         'focus:outline-none focus:ring-2 focus:ring-blue-500/40',
         className
       )}
