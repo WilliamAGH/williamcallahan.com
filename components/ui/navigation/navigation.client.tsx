@@ -12,6 +12,7 @@ import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { navigationLinks } from './navigation-links';
 import { NavigationLink } from './navigation-link.client';
+import { HydrationSafeIcon } from '@/components/utils/hydration-safe-icon.client';
 
 export function Navigation() {
   const pathname = usePathname();
@@ -26,8 +27,12 @@ export function Navigation() {
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
           aria-label="Toggle menu"
+          suppressHydrationWarning
         >
-          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          {isMenuOpen ?
+            <HydrationSafeIcon icon={X} size={24} /> :
+            <HydrationSafeIcon icon={Menu} size={24} />
+          }
         </button>
       </div>
 

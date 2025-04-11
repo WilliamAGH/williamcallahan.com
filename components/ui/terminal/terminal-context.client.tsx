@@ -12,24 +12,19 @@ import type { TerminalCommand } from '@/types/terminal';
 // Define the context type including history and mode state
 interface TerminalContextType {
   clearHistory: () => void;
+  resetTerminal: () => void;
   history: TerminalCommand[];
   addToHistory: (command: TerminalCommand) => void;
-  // terminalMode: TerminalMode; // Removed
-  // setTerminalMode: Dispatch<SetStateAction<TerminalMode>>; // Removed
-  // isReady: boolean; // Removed - readiness handled by useWindowState hook
 }
 
 // Define default context value
 const defaultContext: TerminalContextType = {
   clearHistory: () => {},
+  resetTerminal: () => {},
   history: [],
   addToHistory: () => {},
-  // terminalMode: 'normal', // Removed
-  // setTerminalMode: () => {}, // Removed
-  // isReady: false, // Removed
 };
 
-// Function to get initial mode, safely checking sessionStorage
 export const TerminalContext = createContext<TerminalContextType>(defaultContext);
 
 const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
@@ -37,37 +32,83 @@ const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
   output: 'Welcome! Type "help" for available commands.'
 };
 
-const initialHistoryState = [INITIAL_WELCOME_MESSAGE]; // Define as constant
+const HISTORY_STORAGE_KEY = "terminal_history";
 
 export function TerminalProvider({ children }: { children: React.ReactNode }) {
-  console.log("--- TerminalProvider Instance Mounting/Rendering ---");
-  // Initialize history with the welcome message if it's truly empty initially
-  const [history, setHistory] = useState<TerminalCommand[]>(initialHistoryState); // Use constant
+  // Initialize state lazily to read from sessionStorage only on the client
+  const [history, setHistory] = useState<TerminalCommand[]>(() => {
+    if (typeof window === 'undefined') {
+      // Server-side rendering: start with empty history
+      return [];
+    }
+    try {
+      // Client-side: try loading from sessionStorage
+      const saved = sessionStorage.getItem(HISTORY_STORAGE_KEY);
+      if (saved) {
+        const parsedHistory = JSON.parse(saved);
+        // Ensure it's an array
+        if (Array.isArray(parsedHistory)) {
+          // Check if welcome message exists, add if not
+          const hasWelcome = parsedHistory.some((cmd: TerminalCommand) =>
+            cmd.input === INITIAL_WELCOME_MESSAGE.input &&
+            cmd.output === INITIAL_WELCOME_MESSAGE.output
+          );
+          return hasWelcome ? parsedHistory : [INITIAL_WELCOME_MESSAGE, ...parsedHistory];
+        }
+      }
+    } catch (e) {
+      console.error("Error loading terminal history:", e);
+      // Fallback on error
+    }
+    // Default initial state if nothing loaded or error occurred
+    return [INITIAL_WELCOME_MESSAGE];
+  });
 
-  // Function to update state AND sessionStorage
-  // Removed setTerminalMode function
+  // Effect to save history to sessionStorage whenever it changes
+  useEffect(() => {
+    // Only run on client
+    if (typeof window !== 'undefined') {
+      try {
+        // Don't save the initial empty array during SSR/initial client render before state is properly set
+        if (history.length > 0 || sessionStorage.getItem(HISTORY_STORAGE_KEY)) {
+           sessionStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+        }
+      } catch (e) {
+        console.error("Error saving terminal history:", e);
+      }
+    }
+    // Run whenever history state changes
+  }, [history]);
 
+  // Clear history, leaving only welcome message
   const clearHistory = useCallback(() => {
-    console.log("TerminalProvider: Clearing history");
-    setHistory([]);
+    setHistory([INITIAL_WELCOME_MESSAGE]);
   }, []);
 
+  // Reset terminal (clear storage and reset history)
+  const resetTerminal = useCallback(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem(HISTORY_STORAGE_KEY);
+      }
+    } catch (e) {
+      console.error("Error clearing terminal history storage:", e);
+    }
+    setHistory([INITIAL_WELCOME_MESSAGE]);
+  }, []);
+
+  // Add command to history
   const addToHistory = useCallback((command: TerminalCommand) => {
-    console.log("TerminalProvider: Adding to history:", command.input);
     setHistory(prev => [...prev, command]);
   }, []);
 
-  // Memoize the context value
+  // Memoize context value for performance
   const contextValue = useMemo(() => ({
     clearHistory,
+    resetTerminal,
     history,
     addToHistory,
-  }), [clearHistory, history, addToHistory]);
-
-  // Log history changes for debugging
-  useEffect(() => {
-    console.log("TerminalProvider History Updated:", history);
-  }, [history]);
+  }), [clearHistory, resetTerminal, history, addToHistory]);
 
   return (
     <TerminalContext.Provider value={contextValue}>
@@ -76,7 +117,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Restore original hook name - but it only provides history now
+// Hook to access terminal context
 export function useTerminalContext() {
   const context = useContext(TerminalContext);
   if (!context) {

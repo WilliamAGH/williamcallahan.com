@@ -15,6 +15,7 @@ interface WindowControlsProps {
   onMinimize?: () => void;
   onMaximize?: () => void;
   size?: 'sm' | 'md' | 'lg'; // Add size prop for responsive controls
+  isMaximized?: boolean; // Add flag to indicate if window is maximized
 }
 
 // Helper component for the hover icons
@@ -36,6 +37,7 @@ export function WindowControls({
   onMinimize,
   onMaximize,
   size = 'md', // Default to medium size
+  isMaximized = false, // Default to not maximized
 }: WindowControlsProps) {
   // Unify the 'md' size with 'lg' to make traffic lights consistent across components
   const buttonSize = size === 'sm' ? 'w-1.5 h-1.5' : 'w-3.5 h-3.5'; // Both 'md' and 'lg' use w-3.5 h-3.5
@@ -66,13 +68,13 @@ export function WindowControls({
       </button>
       {/* Maximize/Restore Button */}
       <button
-        aria-label="Maximize/Restore" // Keep updated label
-        title="Maximize/Restore" // Keep updated title
+        aria-label={isMaximized ? "Restore" : "Maximize"}
+        title={isMaximized ? "Restore" : "Maximize"}
         className={`relative group ${buttonSize} rounded-full bg-green-500 hover:bg-green-600 transition-colors flex items-center justify-center`}
         onClick={onMaximize}
-        disabled={!onMaximize} // Disable based solely on prop presence
+        disabled={!onMaximize}
       >
-        <HoverIcon icon="+" size={size} /> {/* Icon remains static for now */}
+        <HoverIcon icon={isMaximized ? "□" : "+"} size={size} />
       </button>
     </div>
   );

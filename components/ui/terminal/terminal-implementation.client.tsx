@@ -77,6 +77,44 @@ export function Terminal() {
   // Determine maximized state - moved up before hooks that depend on it
   const isMaximized = windowState === 'maximized';
 
+  // Add effect to scroll to the bottom when maximized
+  useEffect(() => {
+    // When terminal becomes maximized, scroll to bottom after a brief delay to ensure rendering is complete
+    if (isMaximized && scrollContainerRef.current) {
+      // Initial scroll attempt
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+
+      // Focus the input immediately
+      inputRef.current?.focus();
+
+      // Use MutationObserver to detect when content changes and scroll again
+      const observer = new MutationObserver(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        }
+      });
+
+      // Start observing the scroll container for DOM changes
+      observer.observe(scrollContainerRef.current, {
+        childList: true,
+        subtree: true,
+        characterData: true
+      });
+
+      // Also set a timeout as a fallback
+      const timer = setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        }
+      }, 100);
+
+      return () => {
+        observer.disconnect();
+        clearTimeout(timer);
+      };
+    }
+  }, [isMaximized, inputRef]);
+
   // Add effect to register/unregister click outside handler
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -114,14 +152,6 @@ export function Terminal() {
     };
   }, [isMaximized, maximizeWindow]); // Dependencies: run when isMaximized or maximizeWindow changes
 
-  // Initialize history with the welcome message
-  useEffect(() => {
-    const welcomeMessage = 'Welcome! Type "help" for available commands.';
-    if (!terminalHistory.some(entry => entry.output === welcomeMessage)) {
-      addToHistory({ input: '', output: welcomeMessage });
-    }
-  }, [addToHistory, terminalHistory]);
-
    // --- Conditional Rendering ---
 
    // If not yet ready (mounted and registered in context), render nothing.
@@ -147,9 +177,9 @@ export function Terminal() {
   }
 
   // Define class sets for clarity
-  const commonTerminalClasses = "bg-[#1a1b26] border border-gray-700 font-mono text-sm cursor-text overflow-hidden flex flex-col rounded-lg shadow-xl";
-  const normalTerminalClasses = "relative mx-auto mt-8 mb-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl p-4 sm:p-6";
-  const maximizedTerminalClasses = "w-full max-w-6xl h-full !max-h-none p-6"; // No positioning here!
+  const commonTerminalClasses = "bg-[#1a1b26] border border-gray-700 font-mono text-sm cursor-text overflow-hidden flex flex-col shadow-xl";
+  const normalTerminalClasses = "relative mx-auto mt-8 mb-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl p-4 sm:p-6 rounded-lg";
+  const maximizedTerminalClasses = "fixed left-0 right-0 top-14 bottom-0 z-[60] w-full h-[calc(100vh-56px)] p-6 border-0 rounded-none"; // Full window below nav
 
   // Define classes for the inner scrollable area
   const commonScrollClasses = "text-gray-300 custom-scrollbar overflow-y-auto";
@@ -158,88 +188,54 @@ export function Terminal() {
 
   return (
     <>
-      {/* Backdrop: Rendered only when maximized, handles click outside */}
+      {/* Backdrop for maximized state */}
       {isMaximized && (
         <div
           data-testid="terminal-backdrop"
-          className="fixed inset-0 z-[59] bg-black/50 backdrop-blur-sm"
+          className="fixed left-0 right-0 top-14 bottom-0 z-[59] bg-black/50 backdrop-blur-sm"
           onClick={(e) => {
-            if (!scrollContainerRef.current?.contains(e.target as Node)) {
-              maximizeWindow();
-            }
+            maximizeWindow();
           }}
           tabIndex={0}
           aria-hidden="true"
         />
       )}
 
-      {/* Conditional Centering Wrapper for Maximized State */}
-      {isMaximized ? (
+      {/* Terminal Container - conditionally styled for maximized/normal state */}
+      <div
+        data-testid="terminal-container"
+        data-no-transition
+        className={cn(
+          commonTerminalClasses,
+          isMaximized ? maximizedTerminalClasses : normalTerminalClasses
+        )}
+      >
+        {/* Header */}
+        <div className="flex-shrink-0">
+          <TerminalHeader
+            onClose={closeWindow}
+            onMinimize={minimizeWindow}
+            onMaximize={maximizeWindow}
+            isMaximized={isMaximized}
+          />
+        </div>
+
+        {/* Scrollable Content Area */}
         <div
-          data-testid="maximized-wrapper"
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 md:py-16 md:px-8" // Flexbox centering, covers viewport, correct z-index, padding
+          className={cn(commonScrollClasses, isMaximized ? maximizedScrollClasses : normalScrollClasses)}
+          ref={scrollContainerRef}
+          onClick={focusInput}
         >
-          {/* Terminal Div (Maximized State) - Uses appearance/dimension classes ONLY */}
-          <div
-            data-testid="terminal-container" // Added test ID
-            className={cn(commonTerminalClasses, maximizedTerminalClasses)}
-          >
-            {/* Header */}
-            <div className="flex-shrink-0">
-              <TerminalHeader
-                 onClose={closeWindow}
-                 onMinimize={minimizeWindow}
-                 onMaximize={maximizeWindow}
-               />
-            </div>
-            {/* Scrollable Content Area (Maximized) */}
-            <div
-              className={cn(commonScrollClasses, maximizedScrollClasses)}
-              ref={scrollContainerRef}
-              onClick={focusInput}
-            >
-              <div className="whitespace-pre-wrap break-words select-text">
-                <History history={terminalHistory} />
-                {selection ? (
-                  <SelectionView items={selection} onSelect={handleSelection} onExit={cancelSelection} />
-                ) : (
-                  <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={handleSubmit} />
-                )}
-              </div>
-            </div>
+          <div className="whitespace-pre-wrap break-words select-text">
+            <History history={terminalHistory} />
+            {selection ? (
+              <SelectionView items={selection} onSelect={handleSelection} onExit={cancelSelection} />
+            ) : (
+              <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={handleSubmit} />
+            )}
           </div>
         </div>
-      ) : (
-        /* Terminal Div (Normal State) - Uses relative positioning classes */
-        <div
-          data-testid="terminal-container" // Added test ID
-          className={cn(commonTerminalClasses, normalTerminalClasses)}
-        >
-          {/* Header */}
-          <div className="flex-shrink-0">
-            <TerminalHeader
-               onClose={closeWindow}
-               onMinimize={minimizeWindow}
-               onMaximize={maximizeWindow}
-             />
-          </div>
-          {/* Scrollable Content Area (Normal) */}
-          <div
-            className={cn(commonScrollClasses, normalScrollClasses)}
-            ref={scrollContainerRef}
-            onClick={focusInput}
-          >
-            <div className="whitespace-pre-wrap break-words select-text">
-              <History history={terminalHistory} />
-              {selection ? (
-                <SelectionView items={selection} onSelect={handleSelection} onExit={cancelSelection} />
-              ) : (
-                <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={handleSubmit} />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </>
   );
 }

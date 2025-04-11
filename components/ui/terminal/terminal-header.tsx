@@ -15,12 +15,14 @@ interface TerminalHeaderProps {
   onClose?: () => void;
   onMinimize?: () => void;
   onMaximize?: () => void;
+  isMaximized?: boolean;
 }
 
 export function TerminalHeader({
   onClose,
   onMinimize,
   onMaximize,
+  isMaximized = false,
 }: TerminalHeaderProps) {
   // Remove internal handlers and context usage
 
@@ -31,6 +33,7 @@ export function TerminalHeader({
         onClose={onClose}
         onMinimize={onMinimize}
         onMaximize={onMaximize}
+        isMaximized={isMaximized}
       />
       {/* Add any other header elements here if needed */}
     </div>

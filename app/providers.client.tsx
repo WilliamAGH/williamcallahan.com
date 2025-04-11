@@ -8,7 +8,7 @@
 
 "use client";
 
-import { ThemeProvider } from "@/components/ui/theme/theme-provider";
+import { ThemeProvider } from "@/components/ui/theme/theme-provider.client";
 import { TerminalProvider } from "@/components/ui/terminal";
 import { Suspense, useEffect, useRef, memo } from "react";
 
@@ -161,14 +161,16 @@ const ERROR_LOGGER_INSTANCE = <ErrorLogger />;
 
 // Memoize the entire providers component to prevent rerendering during navigation
 const Providers = memo(function Providers({ children }: { children: React.ReactNode }) {
+  // NOTE: Dark Reader detection and class addition is handled by an inline script in app/layout.tsx
+
   return (
     <ThemeProvider
       disableTransitionOnChange
       enableSystem
       attribute="class"
       defaultTheme="system"
+      // forcedTheme logic removed - relying solely on enableSystem
     >
-      {/* Remove WindowControlsProvider wrapper */}
       <TerminalProvider>
         {/* Use the constant instance to prevent rerenders */}
         {ERROR_LOGGER_INSTANCE}
