@@ -6,18 +6,9 @@ import { TerminalProvider } from '../../../../components/ui/terminal/terminal-co
 
 // REMOVE ALL MOCKING FOR terminal-context.client
 
-// Mock next/link
-jest.mock('next/link', () => {
-  const MockLink = ({ children, ...props }: any) => {
-    return <a {...props}>{children}</a>;
-  };
-  MockLink.displayName = 'MockLink';
-  return MockLink;
-});
-
 // Mock next/link (keep this)
 jest.mock('next/link', () => {
-  const MockLink = ({ children, ...props }: any) => {
+  const MockLink = ({ children, scroll, ...props }: any) => {
     return <a {...props}>{children}</a>;
   };
   MockLink.displayName = 'MockLink';
