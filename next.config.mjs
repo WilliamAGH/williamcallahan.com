@@ -20,6 +20,9 @@ const packageJson = JSON.parse(
   readFileSync(resolve('./package.json'), 'utf8')
 );
 
+// Make the app version available to client code
+process.env.NEXT_PUBLIC_APP_VERSION = packageJson.version;
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /**
