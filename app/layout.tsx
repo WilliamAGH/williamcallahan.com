@@ -150,10 +150,14 @@ export default function RootLayout({
                     {/* Navigation component doesn't need props anymore */}
                     <Navigation />
                   </Suspense>
-                  {/* Render secondary icons directly again */}
-                  <div className="flex items-center space-x-4">
-                    <SocialIcons />
-                    <ThemeToggle />
+                  {/* Secondary toolbar items with their own container */}
+                  <div className="flex items-center">
+                    <Suspense fallback={null}>
+                      <SocialIcons />
+                    </Suspense>
+                    <div className="ml-2">
+                      <ThemeToggle />
+                    </div>
                   </div>
                 </div>
               </header>
