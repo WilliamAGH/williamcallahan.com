@@ -12,8 +12,7 @@ import { useCallback, useState, useEffect } from 'react';
 // Important pages that should be prefetched for faster navigation
 const PRIORITY_PATHS = ['/projects', '/blog', '/experience', '/contact'];
 
-// Keep last navigation timestamp to prevent rapid navigation
-let lastNavigationTime = 0;
+// Navigation cooldown settings
 const NAVIGATION_COOLDOWN = 300; // ms
 
 export function NavigationLink({
