@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       const logEntry = `[${new Date().toISOString()}] ${JSON.stringify(enrichedErrorData)}\n`;
 
       // Append to log file
-      fs.appendFileSync(logFile, logEntry);
+      await fs.promises.appendFile(logFile, logEntry);
     } catch (fsError) {
       // If file logging fails, don't prevent console logging
       console.error('File logging error:', fsError);
