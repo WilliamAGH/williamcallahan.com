@@ -11,8 +11,7 @@ interface HydrationSafeIconProps {
 
 /**
  * Wrapper component for Lucide icons that prevents hydration mismatches
- * caused by browser extensions modifying SVGs before hydration.
- * It achieves this by only rendering the icon on the client-side.
+ * by using strict client-side rendering.
  */
 export function HydrationSafeIcon({ icon: IconComponent, size = 24, className = '' }: HydrationSafeIconProps) {
   const [isMounted, setIsMounted] = useState(false);
@@ -21,21 +20,20 @@ export function HydrationSafeIcon({ icon: IconComponent, size = 24, className = 
     setIsMounted(true);
   }, []);
 
-  // Only render the icon component on the client after mount
+  // Before client-side hydration completes, render a placeholder with exact same dimensions
   if (!isMounted) {
-    // Render a placeholder or null on the server and initial client render
-    // A simple span matching size might be good to prevent layout shifts
-    return <span style={{ width: size, height: size, display: 'inline-block' }} className={className} />;
-    // Alternatively, return null if layout shift isn't a concern:
-    // return null;
+    return (
+      <span
+        style={{
+          width: `${size}px`,
+          height: `${size}px`,
+          display: 'inline-block'
+        }}
+        className={className}
+      />
+    );
   }
 
-  // Client-side: Render the actual icon
-  // No need for suppressHydrationWarning here as it's client-only render
-  return (
-    <IconComponent
-      size={size}
-      className={className}
-    />
-  );
+  // Only render the actual icon on the client after hydration
+  return <IconComponent size={size} className={className} />;
 }

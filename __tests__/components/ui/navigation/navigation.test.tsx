@@ -24,26 +24,8 @@ jest.mock('../../../../components/ui/navigation/window-controls', () => {
 
 // Mock next/link
 jest.mock('next/link', () => {
-  function MockLink({ children, href, prefetch, ...props }: any) {
-    // Filter out Next.js specific props and only pass HTML-valid ones to <a>
-    return <a href={href} {...props}>{children}</a>;
-  }
-  MockLink.displayName = 'MockLink';
-  return MockLink;
-});
-
-// Mock window-controls component (keep this)
-jest.mock('../../../../components/ui/navigation/window-controls', () => {
-  function MockWindowControls() {
-    return <div data-testid="window-controls">Window Controls</div>;
-  }
-  MockWindowControls.displayName = 'MockWindowControls';
-  return { WindowControls: MockWindowControls };
-});
-
-// Mock next/link (keep this)
-jest.mock('next/link', () => {
-  function MockLink({ children, href, prefetch, ...props }: any) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function MockLink({ children, href, scroll, ...props }: any) { // Destructure and ignore scroll
     // Filter out Next.js specific props and only pass HTML-valid ones to <a>
     return <a href={href} {...props}>{children}</a>;
   }

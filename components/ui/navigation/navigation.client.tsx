@@ -7,16 +7,25 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { navigationLinks } from './navigation-links';
 import { NavigationLink } from './navigation-link.client';
-import { HydrationSafeIcon } from '@/components/utils/hydration-safe-icon.client';
 
 export function Navigation() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Render a simple placeholder during SSR
+  if (!isMounted) {
+    return <nav className="flex-1"><div className="sm:hidden h-10 w-10"></div></nav>;
+  }
 
   return (
     <nav className="flex-1">
@@ -27,18 +36,14 @@ export function Navigation() {
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
           aria-label="Toggle menu"
-          suppressHydrationWarning
         >
-          {isMenuOpen ?
-            <HydrationSafeIcon icon={X} size={24} /> :
-            <HydrationSafeIcon icon={Menu} size={24} />
-          }
+          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
 
-      {/* Desktop Navigation */}
+      {/* Desktop Navigation - keep sm:flex for test compatibility */}
       <div className="hidden sm:flex items-center">
-        <div className="flex space-x-1">
+        <div className="flex flex-nowrap whitespace-nowrap space-x-1">
           {navigationLinks.map((link) => (
             <NavigationLink
               key={link.path}
