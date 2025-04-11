@@ -7,7 +7,7 @@ import Link from 'next/link';
 // Revert to original hook name
 import { useTerminalContext } from '@/components/ui/terminal/terminal-context.client';
 import type { NavigationLinkProps } from '@/types/navigation';
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react'; // Import useRef
 
 // Important pages that should be prefetched for faster navigation
 const PRIORITY_PATHS = ['/projects', '/blog', '/experience', '/contact'];
@@ -25,6 +25,8 @@ export function NavigationLink({
   // Use the original hook name
   const { clearHistory } = useTerminalContext();
   const isActive = currentPath === path;
+  // Use useRef to store the last navigation timestamp reliably across renders and tests
+  const lastNavigationTimeRef = useRef(0);
 
   // Track navigation state
   const [isNavigating, setIsNavigating] = useState(false);
@@ -37,12 +39,14 @@ export function NavigationLink({
     const now = Date.now();
 
     // Prevent rapid navigation clicks (possible server switching)
-    if (now - lastNavigationTime < NAVIGATION_COOLDOWN) {
+    // Access and compare using the ref's current value
+    if (now - lastNavigationTimeRef.current < NAVIGATION_COOLDOWN) {
       e.preventDefault();
       return;
     }
 
-    lastNavigationTime = now;
+    // Update the ref's current value
+    lastNavigationTimeRef.current = now;
     setIsNavigating(true);
 
     // Only clear history when actually navigating to a new page
