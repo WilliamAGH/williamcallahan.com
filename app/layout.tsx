@@ -93,7 +93,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="overflow-x-hidden">
       <head>
         {/* Resource hints for faster initial page load */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -103,7 +103,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://icons.duckduckgo.com" />
         {/* Next.js automatically handles font preloading */}
       </head>
-      <body className={inter.className} suppressHydrationWarning>
+      <body className={`${inter.className} overflow-x-hidden`} suppressHydrationWarning>
         <Providers>
           <GlobalWindowRegistryProvider>
             <BodyClassManager />
@@ -123,7 +123,7 @@ export default function RootLayout({
                   </div>
                 </div>
               </header>
-              <main className="pt-24 pb-16 px-4">
+              <main className="pt-24 pb-16 px-4 motion-safe:transition-opacity motion-safe:duration-200">
                 <ClientTerminal />
                 {children}
               </main>
