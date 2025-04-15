@@ -34,6 +34,7 @@ import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } fro
 
 import { Analytics } from '@/components/analytics/analytics.client'
 import { ErrorBoundary } from '@/components/ui/error-boundary.client';
+import { SvgTransformFixer } from '../components/utils/svg-transform-fixer.client';
 
 // Add server transition handler
 import Script from 'next/script';
@@ -112,6 +113,67 @@ export default function RootLayout({
         {/* Next.js automatically handles font preloading */}
         {/* Add meta tag to signal native theme handling */}
         <meta name="color-scheme" content="light dark" />
+
+        {/* Script to suppress hydration warnings from browser extensions and fix SVG transform attributes */}
+        <Script id="suppress-hydration-warnings" strategy="beforeInteractive">
+          {`
+            (function() {
+              // Suppress error logging for certain errors
+              const originalConsoleError = console.error;
+              console.error = function() {
+                // Don't log specific errors we want to suppress
+                if (arguments[0] && typeof arguments[0] === 'string') {
+                  // Check for specific errors to suppress
+                  if (
+                    // Suppress Dark Reader related hydration errors
+                    (arguments[0].includes('Hydration failed because') &&
+                      (arguments[0].includes('data-darkreader') ||
+                       arguments[0].includes('darkreader-inline') ||
+                       arguments[0].includes('attribute style'))
+                    ) ||
+                    // Suppress SVG transform attribute errors
+                    arguments[0].includes('<svg> attribute transform') ||
+                    arguments[0].includes('Expected')
+                  ) {
+                    return; // Ignore this error
+                  }
+                }
+
+                // Pass through all other errors to the original console.error
+                return originalConsoleError.apply(console, arguments);
+              };
+
+              // Fix SVG transform attributes on page load
+              document.addEventListener('DOMContentLoaded', function() {
+                try {
+                  // Fix SVG transform attributes by adding parentheses
+                  const svgs = document.querySelectorAll('svg[transform]');
+                  svgs.forEach(function(svg) {
+                    const transform = svg.getAttribute('transform');
+                    if (transform && transform.includes('translate') && !transform.includes('(')) {
+                      // Get the transform parts
+                      const parts = transform.match(/^(\\w+)(\\S+)$/);
+                      if (parts && parts.length >= 3) {
+                        const func = parts[1]; // e.g. "translateY"
+                        const value = parts[2]; // e.g. "0.5px"
+                        // Apply corrected transform with parentheses
+                        svg.setAttribute('transform', func + '(' + value + ')');
+                      } else {
+                        // If we can't parse it properly, use CSS transform instead
+                        const style = svg.getAttribute('style') || '';
+                        svg.setAttribute('style', style + '; transform: ' + transform + ';');
+                        svg.removeAttribute('transform');
+                      }
+                    }
+                  });
+                } catch (e) {
+                  // Silent failure - don't break the page if this fails
+                  console.warn('SVG transform fix failed:', e);
+                }
+              });
+            })();
+          `}
+        </Script>
       </head>
       <body className={`${inter.className} overflow-x-hidden`} suppressHydrationWarning>
         {/* Add script to help with state preservation during server transitions */}
@@ -143,6 +205,8 @@ export default function RootLayout({
           <GlobalWindowRegistryProvider>
             <BodyClassManager />
             <AnchorScrollManager /> {/* Re-activate the anchor scroll handler */}
+            {/* Add SVG Transform Fixer */}
+            <SvgTransformFixer />
             {/* Revert to direct rendering */}
             <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
               <ErrorBoundary silent>

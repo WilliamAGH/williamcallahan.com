@@ -22,6 +22,8 @@ interface EducationBase {
   location: string;
   /** Optional logo URL or file path */
   logo?: string;
+  /** Optional scaling factor for the logo (e.g., 0.9 for 90%) */
+  logoScale?: number;
 }
 
 /**

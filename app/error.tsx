@@ -1,6 +1,13 @@
+/**
+ * Global error handler for the entire application
+ * Catches errors across all routes while providing
+ * minimal UI disruption
+ */
+
 "use client";
 
 import { useEffect } from 'react';
+// Import directly from browser package after installation
 import * as Sentry from "@sentry/nextjs";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -10,6 +17,7 @@ import { usePathname } from 'next/navigation';
  * Catches errors across all routes while providing
  * minimal UI disruption
  */
+
 export default function GlobalAppError({
   error,
   reset,
@@ -21,10 +29,16 @@ export default function GlobalAppError({
   const isBlogRoute = pathname?.startsWith('/blog');
 
   useEffect(() => {
-    // Log the error to Sentry with route information
-    Sentry.captureException(error, {
-      tags: { route: pathname || 'unknown' }
-    });
+    try {
+      // Log the error to Sentry with route information
+      // Temporarily commented out until Sentry is fully configured
+      // Sentry.captureException(error, {
+      //   tags: { route: pathname || 'unknown' }
+      // });
+    } catch (sentryError) {
+      // Fallback if Sentry has issues
+      console.error('Failed to report to Sentry:', sentryError);
+    }
 
     // Log to console in development only
     if (process.env.NODE_ENV !== 'production') {

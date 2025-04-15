@@ -75,7 +75,8 @@ export const education: Education[] = [
     degree: 'Master of Investment Management & Financial Analysis (MIMFA)',
     year: '2016',
     website: 'https://www.creighton.edu',
-    location: 'Omaha, Nebraska'
+    location: 'Omaha, Nebraska',
+    logoScale: 1.00
   },
   {
     id: 'creighton-mba',
@@ -83,7 +84,8 @@ export const education: Education[] = [
     degree: 'Master of Business Administration (MBA)',
     year: '2016',
     website: 'https://www.creighton.edu',
-    location: 'Omaha, Nebraska'
+    location: 'Omaha, Nebraska',
+    logoScale: 1.00
   },
   {
     id: 'uno-bsba',
