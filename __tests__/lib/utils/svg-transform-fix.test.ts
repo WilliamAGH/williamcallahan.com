@@ -1,6 +1,18 @@
+
+/**
+ * Tests for SVG Transform Fix Utilities
+ *
+ * These tests verify that malformed SVG transform attributes
+ * are properly fixed by adding parentheses when missing.
+ */
+
 import { fixSvgTransform, processSvgTransforms } from 'lib/utils/svg-transform-fix';
 
 describe('SVG Transform Fix Utilities', () => {
+  /**
+   * Tests for the fixSvgTransform function which handles
+   * individual transform attribute values
+   */
   describe('fixSvgTransform', () => {
     it('should return empty string if transform is empty', () => {
       expect(fixSvgTransform('')).toBe('');
@@ -29,6 +41,10 @@ describe('SVG Transform Fix Utilities', () => {
     });
   });
 
+  /**
+   * Tests for the processSvgTransforms function which processes
+   * entire SVG strings or elements to fix all transform attributes
+   */
   describe('processSvgTransforms', () => {
     it('should fix a single transform in SVG string', () => {
       const svgString = '<svg><rect transform="translate10,20" /></svg>';
@@ -56,6 +72,11 @@ describe('SVG Transform Fix Utilities', () => {
       expect(processSvgTransforms(svgString)).toBe(expected);
     });
 
+    /**
+     * Tests handling of multiple transform attributes in a complex SVG
+     * This is critical for verifying that all transforms are properly fixed
+     * regardless of their position in the document
+     */
     it('should handle complex SVG with mixed transform attributes', () => {
       const svgString = `
         <svg width="100" height="100">
@@ -82,6 +103,10 @@ describe('SVG Transform Fix Utilities', () => {
       expect(processSvgTransforms(svgString)).toBe(svgString);
     });
 
+    /**
+     * Tests that multiple elements with the same transform type
+     * are all properly fixed in a single pass
+     */
     it('should handle SVG with multiple identical transform types', () => {
       const svgString = `
         <svg>
