@@ -33,7 +33,7 @@ import { FloatingRestoreButtons } from "@/components/ui/window/floating-restore-
 import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "../data/metadata";
 
 import { Analytics } from '@/components/analytics/analytics.client'
-import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { ErrorBoundary } from '@/components/ui/error-boundary.client';
 
 // Add server transition handler
 import Script from 'next/script';
@@ -145,30 +145,38 @@ export default function RootLayout({
             <AnchorScrollManager /> {/* Re-activate the anchor scroll handler */}
             {/* Revert to direct rendering */}
             <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
-              <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
-                <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-                  <Suspense fallback={null}>
-                    {/* Navigation component doesn't need props anymore */}
-                    <Navigation />
-                  </Suspense>
-                  {/* Secondary toolbar items with their own container */}
-                  <div className="flex items-center">
+              <ErrorBoundary silent>
+                <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
+                  <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
                     <Suspense fallback={null}>
-                      <SocialIcons />
+                      {/* Navigation component doesn't need props anymore */}
+                      <Navigation />
                     </Suspense>
-                    <div className="ml-2">
-                      <ThemeToggle />
+                    {/* Secondary toolbar items with their own container */}
+                    <div className="flex items-center">
+                      <Suspense fallback={null}>
+                        <SocialIcons />
+                      </Suspense>
+                      <div className="ml-2">
+                        <ThemeToggle />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </header>
+                </header>
+              </ErrorBoundary>
+
               <main className="pt-24 pb-16 px-4 motion-safe:transition-opacity motion-safe:duration-200">
-                <ClientTerminal />
+                <ErrorBoundary silent>
+                  <ClientTerminal />
+                </ErrorBoundary>
                 <ErrorBoundary>
                   {children}
                 </ErrorBoundary>
               </main>
-              <FloatingRestoreButtons />
+
+              <ErrorBoundary silent>
+                <FloatingRestoreButtons />
+              </ErrorBoundary>
             </div>
           </GlobalWindowRegistryProvider>
         </Providers>
