@@ -6,8 +6,9 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect, useReducer, useRef } from 'react';
 import type { LucideIcon } from 'lucide-react'; // Assuming lucide-react for icons
+import { useFixSvgTransforms } from '../../hooks/use-fix-svg-transforms';
 
 // Define the possible states (same as before)
 export type WindowState = 'normal' | 'minimized' | 'maximized' | 'closed';
@@ -118,9 +119,17 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
     getWindowState,
   }), [windows, registerWindow, unregisterWindow, setWindowState, minimizeWindow, maximizeWindow, closeWindow, restoreWindow, getWindowState]);
 
+  // Add ref to fix SVG transforms
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Use the hook to fix SVG transforms
+  useFixSvgTransforms({ rootRef: containerRef });
+
   return (
     <GlobalWindowRegistryContext.Provider value={value}>
-      {children}
+      <div ref={containerRef}>
+        {children}
+      </div>
     </GlobalWindowRegistryContext.Provider>
   );
 };

@@ -80,7 +80,8 @@ const ErrorLogger = memo(function ErrorLogger() {
       if (errorCount.current < maxErrorsToReport) {
         errorCount.current += 1;
 
-        // Log to console
+        // Log to console - REMOVED as app/error.tsx handles logging
+        /*
         console.error('[Client Error Logger]', {
           message: event.message,
           source: event.filename || 'unknown',
@@ -90,6 +91,7 @@ const ErrorLogger = memo(function ErrorLogger() {
           timestamp: new Date().toISOString(),
           url: window.location.href
         });
+        */
 
         // Send to server if it's a chunk error (what we're tracking)
         if (isChunkError) {

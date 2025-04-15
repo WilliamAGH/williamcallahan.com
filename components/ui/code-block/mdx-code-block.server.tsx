@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { CodeBlock } from './code-block.client';
 import type { DetailedHTMLProps, HTMLAttributes } from 'react';
+import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
 
 type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>;
 
@@ -61,6 +62,12 @@ export function MDXCodeBlock(props: PreProps) {
     if (codeRef.current) {
       const codeContent = codeRef.current.textContent || '';
       codeRef.current.setAttribute('data-code-content', codeContent);
+
+      // Fix SVG transform attributes in any SVGs within code blocks
+      const svgs = codeRef.current.querySelectorAll('svg');
+      svgs.forEach(svg => {
+        processSvgTransforms(svg);
+      });
     }
   }, []);
 

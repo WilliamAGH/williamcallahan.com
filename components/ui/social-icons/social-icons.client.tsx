@@ -11,6 +11,7 @@ import { GitHub } from './github-icon';
 import { LinkedIn } from './linkedin-icon';
 import { X } from './x-icon';
 import { ErrorBoundary } from '../error-boundary.client';
+import { IconWrapper } from '@/components/utils/icon-wrapper.client';
 
 interface SocialIconsProps {
   className?: string;
@@ -35,7 +36,7 @@ export function SocialIcons({ className = '' }: SocialIconsProps) {
           rel="noopener noreferrer"
           aria-label="GitHub Profile"
         >
-          <GitHub className="w-5 h-5" />
+          <IconWrapper icon={GitHub} className="w-5 h-5" />
         </Link>
       </ErrorBoundary>
 
@@ -47,7 +48,7 @@ export function SocialIcons({ className = '' }: SocialIconsProps) {
           rel="noopener noreferrer"
           aria-label="LinkedIn Profile"
         >
-          <LinkedIn className="w-5 h-5" />
+          <IconWrapper icon={LinkedIn} className="w-5 h-5" />
         </Link>
       </ErrorBoundary>
 
@@ -59,7 +60,7 @@ export function SocialIcons({ className = '' }: SocialIconsProps) {
           rel="noopener noreferrer"
           aria-label="Twitter Profile"
         >
-          <X className="w-5 h-5" />
+          <IconWrapper icon={X} className="w-5 h-5" />
         </Link>
       </ErrorBoundary>
     </div>

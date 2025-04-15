@@ -39,7 +39,7 @@ export function LogoImage({
   const maxRetries = 2; // Maximum number of retries
 
   const isApiUrl = (url: string): boolean => url.startsWith("/api/logo");
-  const isDataUrl = (url: string): boolean => url.startsWith("data:");
+  const isDataUrl = (url: string): boolean => url?.startsWith('data:');
 
   const getApiFallbackUrl = (website: string): string => {
     if (!website) {
@@ -135,6 +135,7 @@ export function LogoImage({
       unoptimized={isDataUrl(imageUrl)} // Only skip optimization for data URLs
       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
       loading="lazy"
+      style={isDataUrl(imageUrl) ? { width: 'auto', height: 'auto' } : undefined} // Fix aspect ratio for data URLs
     />
   );
 }

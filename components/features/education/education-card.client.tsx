@@ -42,6 +42,7 @@ interface LogoData {
 interface EducationCardClientProps extends Education {
   /** Pre-fetched logo data from server */
   logoData: LogoData;
+  logoScale?: number;
 }
 
 /**
@@ -55,28 +56,35 @@ export function EducationCardClient({
   year,
   website,
   location,
-  logoData
+  logoData,
+  logoScale
 }: EducationCardClientProps): JSX.Element {
   return (
     <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
       <div className="p-6">
-        <div className="flex items-start gap-6">
-          <div className="w-16 h-16 relative flex-shrink-0">
+        <div className="flex items-start gap-4">
+          <div className="w-6 h-6 relative flex-shrink-0 rounded overflow-hidden flex items-center justify-center">
             <ExternalLink
               href={website}
               title={institution}
               rawTitle={true}
               showIcon={false}
+              className="block w-full h-full"
             >
-              <LogoImage
-                url={logoData.url}
-                width={64}
-                height={64}
-                className="object-contain w-full h-full rounded-md"
-                alt={institution}
-                enableInversion={false}
-                showPlaceholder={true}
-              />
+              <span
+                className="block w-full h-full"
+                style={{ transform: logoScale ? `scale(${logoScale})` : undefined }}
+              >
+                <LogoImage
+                  url={logoData.url}
+                  width={24}
+                  height={24}
+                  className="object-contain w-full h-full"
+                  alt={institution}
+                  enableInversion={false}
+                  showPlaceholder={true}
+                />
+              </span>
             </ExternalLink>
           </div>
           <div className="flex-1 min-w-0">

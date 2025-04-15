@@ -21,6 +21,9 @@ import { ExternalLink } from '../../../ui/external-link.client';
 import { ImageWindow } from '../../../ui/window/image-window.client'; // Import the new component
 import { SoftwareSchema } from './software-schema'; // Import SoftwareSchema
 import { cn } from '@/lib/utils'; // Import cn utility
+import { useEffect, useRef } from 'react';
+import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
+import { Base64Image } from '@/components/utils/base64-image.client';
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {
   caption?: string;
@@ -39,6 +42,7 @@ const MdxImage = ({
   if (!src) return null;
 
   const isCoverImage = src === props.title;
+  const isDataUrl = src.startsWith('data:');
 
   if (isCoverImage) {
     return (
@@ -50,8 +54,9 @@ const MdxImage = ({
           width={1600}
           height={800}
           className="rounded-lg mx-auto shadow-md"
-          unoptimized={src.endsWith('.svg') || src.startsWith('data:')}
+          unoptimized={src.endsWith('.svg') || isDataUrl}
           sizes="(max-width: 768px) 100vw, 1600px"
+          style={{ width: '100%', height: 'auto' }} // Maintain aspect ratio
         />
       </div>
     );
@@ -76,6 +81,29 @@ const MdxImage = ({
     size === 'small' ? 'max-w-lg' : ''
   );
 
+  // Special handling for data: URLs
+  if (isDataUrl) {
+    return (
+      <>
+        <div className={`${widthClass} mx-auto my-6`}>
+          <Base64Image
+            src={src}
+            alt={alt}
+            width={1600}
+            height={800}
+            className="rounded-lg shadow-md"
+            priority={priority}
+          />
+        </div>
+        {caption && (
+          <figcaption className={`text-base text-gray-600 dark:text-gray-400 italic text-center mt-2 mb-6 px-4 ${widthClass} mx-auto`}>
+            {caption}
+          </figcaption>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       <ImageWindow
@@ -85,9 +113,10 @@ const MdxImage = ({
         height={800}
         sizes={imageSizes}
         priority={priority || src.endsWith('.svg')} // Always prioritize SVGs
-        unoptimized={src.endsWith('.svg') || src.startsWith('data:')} // Skip optimization for SVGs and data URLs
+        unoptimized={src.endsWith('.svg')} // Only skip optimization for SVGs now
         wrapperClassName={windowWrapperClass}
         noMargin={Boolean(caption)} // Use noMargin when we have a caption to avoid margin conflicts
+        style={{ width: '100%', height: 'auto' }} // Ensure auto height to maintain aspect ratio
         // Pass any other relevant ImageProps via ...props if needed
       />
       {caption && (
@@ -132,6 +161,18 @@ interface MDXContentProps {
  * @returns {JSX.Element} Rendered MDX content
  */
 export function MDXContent({ content }: MDXContentProps): JSX.Element {
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Fix all SVG transforms in the rendered MDX content
+    if (contentRef.current) {
+      const svgs = contentRef.current.querySelectorAll('svg');
+      svgs.forEach(svg => {
+        processSvgTransforms(svg);
+      });
+    }
+  }, [content]);
+
   // Define components map for MDX rendering
   const components = {
     // Use MDXCodeBlock with a custom class that will override prose styling
@@ -237,7 +278,10 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
 
   return (
     // Use base prose for mobile, scale up to prose-lg on medium screens+
-    <article className="prose dark:prose-invert md:prose-lg mx-auto prose-headings:text-gray-900 dark:prose-headings:text-white prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300 prose-p:my-3 prose-p:break-words prose-img:rounded-lg prose-img:shadow-md prose-hr:hidden blog-content">
+    <article
+      ref={contentRef}
+      className="prose dark:prose-invert md:prose-lg mx-auto prose-headings:text-gray-900 dark:prose-headings:text-white prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300 prose-p:my-3 prose-p:break-words prose-img:rounded-lg prose-img:shadow-md prose-hr:hidden blog-content"
+    >
       <MDXRemote {...content} components={components} />
     </article>
   );

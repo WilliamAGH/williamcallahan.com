@@ -7,6 +7,7 @@
 import { forwardRef } from 'react';
 import type { LucideProps } from 'lucide-react';
 import { Github as GithubOriginal } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export const GitHub = forwardRef<SVGSVGElement, LucideProps>(function GitHub(
   props,
@@ -16,7 +17,10 @@ export const GitHub = forwardRef<SVGSVGElement, LucideProps>(function GitHub(
     <GithubOriginal
       ref={ref}
       {...props}
-      transform="translateY(0.5px)" // Adjust vertical alignment - add 'px' to fix parsing
+      className={cn(
+        'translate-y-[0.5px]',
+        props.className
+      )}
     />
   );
 });
