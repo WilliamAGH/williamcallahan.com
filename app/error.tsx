@@ -7,8 +7,8 @@
 "use client";
 
 import { useEffect } from 'react';
-// Import directly from browser package after installation
-import * as Sentry from "@sentry/nextjs";
+// Update Sentry import to be more specific
+import * as Sentry from "@sentry/browser";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -30,14 +30,17 @@ export default function GlobalAppError({
 
   useEffect(() => {
     try {
-      // Log the error to Sentry with route information
-      // Temporarily commented out until Sentry is fully configured
-      // Sentry.captureException(error, {
-      //   tags: { route: pathname || 'unknown' }
-      // });
+      // Minimal Sentry reporting
+      Sentry.captureException(error);
+
+      // Add route information as context data
+      Sentry.setContext("route", {
+        pathname: pathname || 'unknown'
+      });
     } catch (sentryError) {
-      // Fallback if Sentry has issues
+      // Fallback if Sentry has issues with configuration or is unreachable
       console.error('Failed to report to Sentry:', sentryError);
+      // Continue execution - UI should not be affected by Sentry failures
     }
 
     // Log to console in development only
