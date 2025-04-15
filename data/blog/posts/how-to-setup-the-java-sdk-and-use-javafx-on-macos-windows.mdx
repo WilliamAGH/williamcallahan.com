@@ -276,6 +276,14 @@ Once your project is open and you have configured the Scene Builder path (as sho
     - **macOS**: `/usr/libexec/java_home -V`
     - **Windows**: Check `C:\Program Files\Java`
 
+  - **Watch Out for User vs. System JDKs (macOS):**
+
+  Official installers often put them in `/Library/Java/JavaVirtualMachines/` (system-wide).
+
+  Tools like JetBrains IDEs (e.g., IDEA), Homebrew (`/opt/homebrew/opt/openjdk@21` on M-series Macs), or SDKMAN install them in the same path, but in your user directory ~/ with the same path otherwise.
+
+  The `/usr/libexec/java_home` tool (which helps set `JAVA_HOME`) might pick a different JDK even if you *think* you've set your user one in your shell config. You can diagnose this with `java -version` and `/usr/libexec/java_home -V` to see which is active. If you find duplicates, removing the one(s) you don't need is usually the simplest fix.
+
   - **Remove Unwanted Versions**:
     - **macOS**: `sudo rm -rf /Library/Java/JavaVirtualMachines/jdk-17.jdk`
     - **Homebrew**: `brew uninstall openjdk@17`
