@@ -16,7 +16,7 @@ export const GitHub = forwardRef<SVGSVGElement, LucideProps>(function GitHub(
     <GithubOriginal
       ref={ref}
       {...props}
-      transform="translateY(0.5)" // Adjust vertical alignment
+      transform="translateY(0.5px)" // Adjust vertical alignment - add 'px' to fix parsing
     />
   );
 });
