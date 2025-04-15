@@ -16,6 +16,6 @@ export { MDXTable } from '../features/blog/shared/mdx-table.server';
 
 // Re-export nested components
 export * from './navigation';
-export * from './social-icons';
+export * from './social-icons/social-icons.client';
 export * from './terminal';
 export * from './theme';
