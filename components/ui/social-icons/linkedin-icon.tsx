@@ -17,7 +17,7 @@ export const LinkedIn = forwardRef<SVGSVGElement, LucideProps>(function LinkedIn
     <LinkedinOriginal
       ref={ref}
       {...props}
-      transform="translateY(0.5)" // Adjust vertical alignment
+      transform="translateY(0.5px)" // Adjust vertical alignment - add 'px' to fix parsing
     />
   );
 });

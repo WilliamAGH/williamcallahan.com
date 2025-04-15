@@ -33,6 +33,7 @@ import { FloatingRestoreButtons } from "@/components/ui/window/floating-restore-
 import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "../data/metadata";
 
 import { Analytics } from '@/components/analytics/analytics.client'
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 // Add server transition handler
 import Script from 'next/script';
@@ -163,7 +164,9 @@ export default function RootLayout({
               </header>
               <main className="pt-24 pb-16 px-4 motion-safe:transition-opacity motion-safe:duration-200">
                 <ClientTerminal />
-                {children}
+                <ErrorBoundary>
+                  {children}
+                </ErrorBoundary>
               </main>
               <FloatingRestoreButtons />
             </div>
