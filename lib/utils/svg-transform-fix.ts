@@ -3,6 +3,23 @@
  *
  * Functions to fix SVG transform attributes that cause errors
  * in the browser when not properly formatted.
+ *
+ * USAGE:
+ * 1. For client components: Import and use the SvgTransformFixer component
+ * 2. For specific elements: Use the useFixSvgTransforms hook
+ * 3. For direct usage: Call processSvgTransforms(yourSvgElement)
+ *
+ * Example usage in layout component:
+ * import { SvgTransformFixer } from '@/components/utils/svg-transform-fixer.client';
+ *
+ * function Layout() {
+ *   return (
+ *     <div>
+ *       <SvgTransformFixer />
+ *       Your components with SVGs
+ *     </div>
+ *   );
+ * }
  */
 
 /**
@@ -11,6 +28,10 @@
  *
  * @param {string} transform - The transform attribute value to fix
  * @returns {string} - Fixed transform value
+ *
+ * Example:
+ * // Fixes "translate10,20" to "translate(10,20)"
+ * const fixed = fixSvgTransform("translate10,20");
  */
 export function fixSvgTransform(transform: string): string {
   if (!transform) return transform;
@@ -47,6 +68,17 @@ export function fixSvgTransform(transform: string): string {
  *
  * @param {string|SVGElement} svg - SVG content or element to process
  * @returns {string|void} - Fixed SVG string or void if element was processed
+ *
+ * Examples:
+ * // For DOM elements:
+ * const svgElement = document.querySelector('svg');
+ * processSvgTransforms(svgElement);
+ *
+ * // For SVG strings:
+ * const fixedSvgString = processSvgTransforms('<svg transform="translate10,20"></svg>');
+ *
+ * @see {@link components/utils/svg-transform-fixer.client} For automatic fixing
+ * @see {@link hooks/use-fix-svg-transforms} For React hook-based fixing
  */
 export function processSvgTransforms(svg: string | SVGElement): string | void {
   // If it's a DOM element
