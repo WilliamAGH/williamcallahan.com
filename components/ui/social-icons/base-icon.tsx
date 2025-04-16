@@ -1,6 +1,6 @@
 /**
  * Base Icon Props
- * 
+ *
  * Common SVG properties for social icons.
  */
 

@@ -42,7 +42,7 @@ export function ProjectCard({ project }: ProjectCardProps): JSX.Element {
             title={`Visit ${name}'s website`}
             rawTitle={true} // Keep raw title for accessibility
             showIcon={false}
-            className="block w-full h-full" // Ensure link covers the area
+            className="block w-full h-full relative" // Added relative positioning here
           >
             {image ? (
               <Image

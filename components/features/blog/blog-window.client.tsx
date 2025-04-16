@@ -19,7 +19,7 @@ import { Newspaper } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 import type { ClientBoundaryProps } from '@/types/component-types';
-import { useFixSvgTransforms } from '../../../hooks/use-fix-svg-transforms';
+import { useFixSvgTransforms } from '@/hooks/use-fix-svg-transforms';
 
 // Define a unique ID for this window instance
 const BLOG_WINDOW_ID = 'blog-window';
