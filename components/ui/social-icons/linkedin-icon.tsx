@@ -1,24 +1,30 @@
 /**
- * LinkedIn Icon Component Wrapper
+ * LinkedIn Icon Component
  *
- * Custom wrapper for the LinkedIn icon to ensure proper vertical alignment.
+ * Custom SVG icon component that implements the LucideIcon interface.
+ * Uses the SVG transform fix utilities via SvgTransformFixer.
+ *
+ * @see {@link lib/utils/svg-transform-fix} - For transform processing
  */
 
 import { forwardRef } from 'react';
 import type { LucideProps } from 'lucide-react';
-import { Linkedin as LinkedinOriginal } from 'lucide-react';
 import { baseIconProps } from './base-icon';
 
-export const LinkedIn = forwardRef<SVGSVGElement, LucideProps>(function LinkedIn(
-  props,
-  ref
-) {
+export const LinkedIn = forwardRef<SVGSVGElement, LucideProps>(function LinkedIn(props, ref) {
   return (
-    <LinkedinOriginal
+    <svg
       ref={ref}
+      {...baseIconProps}
       {...props}
-      style={{ transform: 'translateY(0.5px)' }} // Use CSS transform instead of SVG attribute
-    />
+      className={`${props.className || ''} linkedin-icon`}
+      viewBox="0 0 24 24"
+      data-transform-fix="true"
+    >
+      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2a2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+      <rect x="2" y="9" width="4" height="12" />
+      <circle cx="4" cy="4" r="2" />
+    </svg>
   );
 });
 
