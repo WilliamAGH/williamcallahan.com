@@ -493,3 +493,41 @@ html[data-darkreader-mode] {
   /* Let Dark Reader handle its styling */
   transition: inherit !important;
 }
+
+/* Twitter/X Icon Fix for all devices */
+.x-icon,
+.github-icon,
+.linkedin-icon,
+.discord-icon,
+.bluesky-icon {
+  /* Base styling for all social icons */
+  transform: translateY(0.5px);
+  transition: transform 0.1s ease-out;
+}
+
+/* Mobile-specific fixes */
+@media (max-width: 640px) {
+  .x-icon {
+    /* Add mobile-specific styling for X icon */
+    margin-right: 2px; /* Ensure icon has space on the right */
+    margin-left: 2px; /* Ensure icon has space on the left */
+    width: 18px !important; /* Slightly smaller icon on mobile */
+    height: 18px !important;
+    transform: translateX(-1px) !important; /* Shift slightly to prevent cutoff */
+  }
+
+  /* Ensure all social icons are properly sized on mobile */
+  header .flex.items-center.space-x-1 {
+    padding-right: 4px;
+  }
+
+  /* Add a bit more spacing around social icons in header */
+  header .flex.items-center.space-x-1 a {
+    padding: 6px !important;
+  }
+}
+
+/* Prevent transition on social icons to avoid hydration issues */
+[data-transform-fix="true"] {
+  transition: none !important;
+}
