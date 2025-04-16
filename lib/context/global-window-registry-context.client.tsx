@@ -8,7 +8,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect, useReducer, useRef } from 'react';
 import type { LucideIcon } from 'lucide-react'; // Assuming lucide-react for icons
-import { useFixSvgTransforms } from '../../hooks/use-fix-svg-transforms';
+import { useFixSvgTransforms } from '@/hooks/use-fix-svg-transforms';
 
 // Define the possible states (same as before)
 export type WindowState = 'normal' | 'minimized' | 'maximized' | 'closed';
