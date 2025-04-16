@@ -31,6 +31,7 @@ import { TerminalWindowStateProvider } from '../../../../lib/context/terminal-wi
 import { useRouter } from 'next/navigation';
 import { setupTests } from '../../../../lib/test/setup';
 import { GlobalWindowRegistryContextType, WindowState } from '../../../../lib/context/global-window-registry-context.client'; // Import types for mocking
+import type { SearchResult } from '@/types/search'; // Import SearchResult type
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -94,6 +95,10 @@ jest.mock('../../../../lib/search', () => ({
   searchInvestments: jest.fn().mockResolvedValue([])
 }));
 
+// Mock global fetch
+const mockFetch = jest.fn();
+global.fetch = mockFetch;
+
 // Helper function to render with providers
 const renderTerminal = () => {
   return render(
@@ -108,9 +113,10 @@ describe('Terminal Component', () => {
   const { mockRouter } = setupTests();
 
   beforeEach(() => {
-    // Reset Next.js router mock
+    // Reset mocks before each test
+    jest.clearAllMocks();
+    mockFetch.mockClear(); // Clear fetch mock specifically
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
-    // Reset the mock hook's implementations AND calls
     mockUseRegisteredWindowState.mockClear();
     // Set a default implementation for the hook for tests that don't override it
     mockUseRegisteredWindowState.mockImplementation(() => ({
@@ -152,11 +158,23 @@ describe('Terminal Component', () => {
       const input = screen.getByRole('textbox');
 
       fireEvent.change(input, { target: { value: 'invalid-command' } });
+
+      // Mock the fetch call *before* submitting
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => [] as SearchResult[], // No results found
+      });
+
       fireEvent.submit(input);
 
+      // Check if fetch was called correctly
       await waitFor(() => {
-        // Updated expectation to match actual error message
-        expect(screen.getByText(/Command not recognized. Type "help" for available commands./i)).toBeInTheDocument();
+        expect(mockFetch).toHaveBeenCalledWith('/api/search/all?q=invalid-command');
+      });
+
+      await waitFor(() => {
+        // Expect the "no site-wide results" message now
+        expect(screen.getByText(/No site-wide results found for "invalid-command"/i)).toBeInTheDocument();
       });
     });
   });
@@ -181,10 +199,24 @@ describe('Terminal Component', () => {
       const input = screen.getByRole('textbox');
 
       fireEvent.change(input, { target: { value: 'blog test' } });
+
+      // Mock the fetch call *before* submitting
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ label: '[Blog] Test Post', description: 'Test excerpt', path: '/blog/test-post' }] as SearchResult[],
+      });
+
       fireEvent.submit(input);
 
+      // Check if fetch was called correctly
       await waitFor(() => {
-        expect(screen.getByText('Test Post')).toBeInTheDocument();
+         expect(mockFetch).toHaveBeenCalledWith('/api/search/blog?q=test');
+      });
+
+      await waitFor(() => {
+        // Expect the prefixed label from the API response
+        expect(screen.getByText('[Blog] Test Post')).toBeInTheDocument();
+        // Check that the selection view helper text is present
         expect(screen.getByText(/Use ↑↓ to navigate/i)).toBeInTheDocument();
       });
     });
