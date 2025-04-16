@@ -1,6 +1,6 @@
 /**
  * Selection View Component
- * 
+ *
  * Displays a list of selectable items with keyboard navigation
  */
 
@@ -44,12 +44,15 @@ export function SelectionView({ items, onSelect, onExit }: SelectionViewProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [items, selectedIndex, onSelect, onExit]);
 
+  // Ensure items is an array before mapping
+  const validItems = Array.isArray(items) ? items : [];
+
   return (
-    <div className="border border-gray-700 rounded-lg p-2 mt-2">
-      <div className="text-sm text-gray-400 mb-2">
+    <div className="mt-1">
+      <div className="text-gray-400 text-xs mb-1">
         Use ↑↓ to navigate, Enter to select, Esc to cancel
       </div>
-      {items.map((item, index) => (
+      {validItems.map((item, index) => (
         <div
           key={index}
           className={`px-2 py-1 rounded cursor-pointer ${
