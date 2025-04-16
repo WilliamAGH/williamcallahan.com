@@ -12,61 +12,23 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getAllMDXPosts } from '@/lib/blog/mdx';
-import type { BlogPost } from '@/types/blog';
-import type { SearchResult } from '@/types/search'; // Use the existing SearchResult type
+import { searchBlogPostsServerSide } from '@/lib/blog/server-search'; // Import the refactored search function
+import type { SearchResult } from '@/types/search'; // Keep SearchResult type
 
 // Ensure this route is not statically cached
 export const dynamic = 'force-dynamic';
 
 /**
- * Server-side function to filter blog posts based on a query.
- * Searches title, excerpt, tags, and author name.
+ * Server-side API route for blog search.
+ *
+ * This route handles GET requests to search for blog posts based on a query.
+ * It extracts the search query from the request URL parameters and passes it
+ * to the server-side search function. The results are then returned as a JSON
+ * response.
+ *
+ * @param request - The HTTP request object.
+ * @returns A JSON response containing the search results or an error message.
  */
-async function filterBlogPosts(query: string): Promise<SearchResult[]> {
-  const allPosts = await getAllMDXPosts();
-
-  if (!query) {
-    // Return empty if no query provided for a search endpoint
-    return [];
-  }
-
-  const searchTerms = query.toLowerCase().split(' ').filter(Boolean);
-
-  const results = allPosts.filter(post => {
-    // Ensure post and necessary fields exist before searching
-    if (!post) return false;
-
-    // Exact title match first
-    if (post.title?.toLowerCase() === query.toLowerCase()) {
-      return true;
-    }
-
-    // Aggregate searchable fields, handling potential undefined values
-    const searchFields = [
-      post.title,
-      post.excerpt,
-      ...(post.tags || []), // Use empty array if tags are undefined
-      post.author?.name,    // Safely access author name
-      post.rawContent       // Include the raw content for searching
-    ].filter((field): field is string => typeof field === 'string' && field.length > 0);
-
-    // Check if all search terms are included in any of the fields
-    return searchTerms.every(term =>
-      searchFields.some(field => field.toLowerCase().includes(term))
-    );
-  });
-
-  // Map results to the SearchResult format needed by the terminal
-  return results
-    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()) // Sort newest first
-    .map(post => ({
-      label: post.title || 'Untitled Post', // Provide fallback label
-      description: post.excerpt || 'No excerpt available.', // Provide fallback description
-      path: `/blog/${post.slug}`
-    }));
-}
-
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -76,7 +38,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Search query parameter "q" is required' }, { status: 400 });
     }
 
-    const searchResults = await filterBlogPosts(query);
+    // Call the imported server-side search function
+    const searchResults = await searchBlogPostsServerSide(query);
 
     return NextResponse.json(searchResults);
 
