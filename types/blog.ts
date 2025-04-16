@@ -33,6 +33,8 @@ export interface BlogPost {
   excerpt: string;
   /** Serialized MDX content */
   content: MDXRemoteSerializeResult;
+  /** Raw MDX content string (optional, for searching) */
+  rawContent?: string;
   /** Publication date in ISO format */
   publishedAt: string;
   /** Last update date in ISO format (optional) */

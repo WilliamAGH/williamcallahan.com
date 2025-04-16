@@ -131,7 +131,8 @@ export async function getMDXPost(slug: string): Promise<BlogPost | null> {
       title: data.title,
       slug: data.slug,
       excerpt: data.excerpt,
-      content: mdxSource,
+      content: mdxSource, // Serialized content for rendering
+      rawContent: content, // Raw content string for searching
       publishedAt,
       updatedAt,
       author,

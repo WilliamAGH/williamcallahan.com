@@ -43,7 +43,7 @@ export function useTerminal() {
     if (!input.trim()) return;
 
     const commandInput = input.trim();
-    addToHistory({ input: commandInput, output: '' }); // Use context addToHistory
+    // Removed immediate addToHistory call here
 
     try {
       const result = await handleCommand(commandInput); // Use trimmed input
@@ -54,17 +54,17 @@ export function useTerminal() {
         if (result.selectionItems) {
           setSelection(result.selectionItems);
         } else {
-          // Update the last history entry's output or add new ones
-          result.results.forEach((item, index) => {
-            if (index === 0 && history.length > 0 && history[history.length - 1].input === commandInput) {
-               // This logic might need refinement depending on how handleCommand structures results
-               // For now, just add new entries for simplicity
-               addToHistory({ input: '', output: item.output });
-            } else {
-               addToHistory({ input: '', output: item.output });
-            }
-          });
-          // History slicing should ideally happen within the context provider if MAX_HISTORY is enforced globally
+          // Add command and first output line together
+          if (result.results.length > 0) {
+            addToHistory({ input: commandInput, output: result.results[0].output });
+            // Add subsequent output lines without input
+            result.results.slice(1).forEach(item => {
+              addToHistory({ input: '', output: item.output });
+            });
+          } else {
+            // If handleCommand returns no results (e.g., unexpected case), still add the input
+            addToHistory({ input: commandInput, output: '' });
+          }
 
           if (result.navigation) {
             router.push(result.navigation);
@@ -73,8 +73,9 @@ export function useTerminal() {
       }
     } catch (error) {
       console.error("Command execution error:", error); // Log error
-      addToHistory({ // Use context addToHistory
-        input: '',
+      // Add error output associated with the input command
+      addToHistory({
+        input: commandInput, // Associate error with the command that caused it
         output: 'An error occurred while processing the command.'
       });
     }
