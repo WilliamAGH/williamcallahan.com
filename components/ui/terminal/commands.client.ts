@@ -6,10 +6,10 @@
 
 "use client";
 
-import { searchPosts, searchExperience, searchEducation, searchInvestments } from '@/lib/search';
+import { searchExperience, searchEducation, searchInvestments } from '@/lib/search'; // Removed searchPosts import
 import { sections, type SectionKey } from './sections';
 import type { CommandResult, SearchResult } from '@/types/terminal';
-import { usePathname } from 'next/navigation'; // Not used directly since this is not a React component
+// Removed unused usePathname import
 
 export const terminalCommands = {
   home: '/',
@@ -128,7 +128,7 @@ export async function handleCommand(input: string): Promise<CommandResult> {
     return section in sections;
   };
 
-  // Section-specific search
+  // Section-specific search (e.g., "blog javafx")
   if (isValidSection(command) && args.length > 0) {
     const searchTerms = args.join(' ');
     const section = command.charAt(0).toUpperCase() + command.slice(1);
@@ -137,16 +137,25 @@ export async function handleCommand(input: string): Promise<CommandResult> {
 
     switch (command) {
       case 'blog': {
-        const posts = await searchPosts(searchTerms);
-        results = posts.map(post => ({
-          label: post.title,
-          description: post.excerpt,
-          path: `/blog/${post.slug}`
-        }));
+        try {
+          const response = await fetch(`/api/search/blog?q=${encodeURIComponent(searchTerms)}`);
+          if (!response.ok) {
+            throw new Error(`API request failed with status ${response.status}`);
+          }
+          results = await response.json() as SearchResult[]; // Assume API returns SearchResult[]
+        } catch (error) {
+          console.error("Blog search API call failed:", error);
+          return {
+            results: [{
+              input: '',
+              output: `Error searching blog: ${error instanceof Error ? error.message : 'Unknown error'}`
+            }]
+          };
+        }
         break;
       }
       case 'experience':
-        results = await searchExperience(searchTerms);
+        results = await searchExperience(searchTerms); // Keep existing logic for other sections
         break;
       case 'education':
         results = await searchEducation(searchTerms);
@@ -174,8 +183,8 @@ export async function handleCommand(input: string): Promise<CommandResult> {
     };
   }
 
-  // Navigation command
-  if (isValidSection(command)) {
+  // Navigation command (e.g., "blog")
+  if (isValidSection(command) && args.length === 0) { // Check for no args here
     return {
       results: [{
         input: '',
@@ -185,6 +194,48 @@ export async function handleCommand(input: string): Promise<CommandResult> {
     };
   }
 
+  // Fallback: Treat as site-wide search if it's not a known command/section
+  // Check if it's a single word and not in terminalCommands or sections
+  if (args.length === 0 && !(command in terminalCommands) && !(command in sections)) {
+    const searchTerms = command; // The command itself is the search term
+    try {
+      const response = await fetch(`/api/search/all?q=${encodeURIComponent(searchTerms)}`);
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+      const allResults = await response.json() as SearchResult[];
+
+      if (allResults.length === 0) {
+        return {
+          results: [{
+            input: '',
+            output: `No site-wide results found for "${searchTerms}"`
+          }]
+        };
+      }
+
+      return {
+        results: [{
+          input: '',
+          output: `Found ${allResults.length} site-wide results for "${searchTerms}"`
+        }],
+        selectionItems: allResults
+      };
+
+    } catch (error) {
+      console.error("Site-wide search API call failed:", error);
+      // Type check for error before accessing message
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during the search.';
+      return {
+        results: [{
+          input: '',
+          output: `Error during site-wide search: ${errorMessage}`
+        }]
+      };
+    }
+  }
+
+  // If none of the above matched, it's an unrecognized command
   return {
     results: [{
       input: '',

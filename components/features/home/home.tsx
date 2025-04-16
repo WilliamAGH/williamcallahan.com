@@ -5,7 +5,7 @@
  * Converted to a server component for faster initial rendering.
  */
 
-import Image from "next/image";
+import { ProfileImage } from './profile-image';
 
 export function Home() {
   return (
@@ -32,16 +32,7 @@ export function Home() {
       </p>
         </div>
         <div className="w-full sm:w-80 md:w-64">
-          <div className="relative aspect-square overflow-hidden rounded-2xl shadow-lg">
-            <Image
-              src="/images/william-callahan-san-francisco.png"
-              alt="William Callahan in San Francisco"
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 768px) 320px, 256px"
-              className="object-cover"
-              priority
-            />
-          </div>
+          <ProfileImage />
         </div>
       </div>
     </div>

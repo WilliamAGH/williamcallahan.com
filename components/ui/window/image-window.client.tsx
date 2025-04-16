@@ -18,7 +18,7 @@ import { useWindowSize } from '../../../hooks/useWindowSize';
 /**
  * Props for the ImageWindow component
  */
-export interface ImageWindowProps extends Omit<ImageProps, 'className' | 'style'> {
+export interface ImageWindowProps extends Omit<ImageProps, 'className'> {
   /** Optional className override for the main wrapper */
   wrapperClassName?: string;
   /** Alt text for the image (used as accessible title potentially) */
@@ -222,7 +222,8 @@ export const ImageWindow = ({
                 display: 'block', // Remove any inline spacing
                 verticalAlign: 'bottom', // Ensure bottom alignment
                 objectFit: 'contain', // Ensure image fits correctly
-                lineHeight: 0 // Remove line height spacing
+                lineHeight: 0, // Remove line height spacing
+                ...props.style, // Merge with user-provided styles
               }}
               {...props} // Pass remaining props
             />

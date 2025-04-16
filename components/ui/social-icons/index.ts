@@ -4,7 +4,7 @@
  * Public API for the social icons components.
  */
 
-export { SocialIcons } from './social-icons';
+export { SocialIcons } from './social-icons.client';
 export { SocialIcon } from './social-icon';
 export { socialLinks } from './social-links';
 export { Bluesky } from './bluesky-icon';

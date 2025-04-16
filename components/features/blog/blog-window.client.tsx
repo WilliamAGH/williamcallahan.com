@@ -12,13 +12,14 @@
  * @clientComponent - This component uses client-side APIs and must be rendered on the client.
  */
 
-import { useEffect, Suspense } from 'react';
+import { useEffect, Suspense, useRef } from 'react';
 import { WindowControls } from '@/components/ui/navigation/window-controls';
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { Newspaper } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 import type { ClientBoundaryProps } from '@/types/component-types';
+import { useFixSvgTransforms } from '@/hooks/use-fix-svg-transforms';
 
 // Define a unique ID for this window instance
 const BLOG_WINDOW_ID = 'blog-window';
@@ -38,26 +39,33 @@ interface BlogWindowProps extends ClientBoundaryProps {
  * This ensures any layout effects or DOM manipulations only run on the client
  */
 const BlogWindowContent = dynamic(
-  () => Promise.resolve(({ children, windowState, onClose, onMinimize, onMaximize }: {
+  () => Promise.resolve(({ children, windowState, onClose, onMinimize, onMaximize, contentRef }: {
     children: React.ReactNode;
     windowState: string;
     onClose: () => void;
     onMinimize: () => void;
     onMaximize: () => void;
+    contentRef: React.RefObject<HTMLDivElement>;
   }) => {
     const isMaximized = windowState === 'maximized';
 
+    // Use the hook to fix SVG transforms
+    useFixSvgTransforms({ rootRef: contentRef });
+
     return (
-      <div className={cn(
-        // Base styles
-        "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-hidden",
-        "transition-all duration-300 ease-in-out",
-        // Normal state styles
-        "relative max-w-5xl mx-auto mt-8 rounded-lg shadow-lg",
-        // Maximized state overrides
-        isMaximized &&
-          "fixed inset-0 z-[60] max-w-none m-0 rounded-none shadow-none flex flex-col h-full top-16 bottom-16 md:bottom-4"
-      )}>
+      <div
+        ref={contentRef}
+        className={cn(
+          // Base styles
+          "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-hidden",
+          "transition-all duration-300 ease-in-out",
+          // Normal state styles
+          "relative max-w-5xl mx-auto mt-8 rounded-lg shadow-lg",
+          // Maximized state overrides
+          isMaximized &&
+            "fixed inset-0 z-[60] max-w-none m-0 rounded-none shadow-none flex flex-col h-full top-16 bottom-16 md:bottom-4"
+        )}
+      >
         {/* Sticky Header */}
         <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 flex-shrink-0 sticky top-0 z-10">
           <div className="flex items-center">
@@ -100,6 +108,9 @@ const BlogWindowContent = dynamic(
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
  */
 export function BlogWindow({ children }: BlogWindowProps) {
+  // Ref for the content container
+  const contentRef = useRef<HTMLDivElement>(null);
+
   // Register this window instance and get its state/actions
   const {
     windowState,
@@ -137,6 +148,7 @@ export function BlogWindow({ children }: BlogWindowProps) {
       onClose={closeWindow}
       onMinimize={minimizeWindow}
       onMaximize={maximizeWindow}
+      contentRef={contentRef}
     >
       {children}
     </BlogWindowContent>
