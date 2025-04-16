@@ -3,13 +3,14 @@
  * @module next.config
  * @description
  * Configuration file for Next.js application settings including:
- * - Webpack/Turbopack customization for SVG handling
+ * - Webpack customization for SVG handling
  * - Node.js polyfills for API routes
  * - Image optimization settings
  * - Build output configuration
  * - Content Security Policy for scripts and images
  *
  * @see https://nextjs.org/docs/app/api-reference/next-config-js
+ * @type {import('next').NextConfig}
  */
 
 import { readFileSync } from 'fs';
@@ -23,14 +24,13 @@ const packageJson = JSON.parse(
 // Make the app version available to client code
 process.env.NEXT_PUBLIC_APP_VERSION = packageJson.version;
 
-/** @type {import('next').NextConfig} */
 const nextConfig = {
   /**
    * Custom webpack configuration
    * @param {import('webpack').Configuration} config - Webpack config object
    * @returns {import('webpack').Configuration} Modified webpack config
    */
-  webpack(config) {
+  webpack: (config) => {
     // Configure SVG handling, excluding /public directory
     config.module.rules.push({
       test: /\.svg$/i,
@@ -91,82 +91,52 @@ const nextConfig = {
   },
 
   /**
-   * Configure headers to improve caching
-   * Key for ensuring Cloudflare caches assets properly
+   * Configure headers for caching and security
+   * @returns {Promise<Array<{source: string, headers: Array<{key: string, value: string}>>}
    */
-  async headers() {
-    return [
-      {
-        // Set strong cache headers for all static assets
-        source: '/_next/static/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-          {
-            key: 'CDN-Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-          {
-            key: 'Cloudflare-CDN-Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          }
-        ],
-      },
-      {
-        // Set reasonable cache for data requests
-        source: '/_next/data/:path*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=3600, stale-while-revalidate=86400',
-          }
-        ],
-      },
-      {
-        // Set cache control for image optimization API
-        source: '/_next/image:params*',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=60, stale-while-revalidate=3600, stale-if-error=86400',
-          },
-          {
-            key: 'CDN-Cache-Control',
-            value: 'public, max-age=3600, stale-while-revalidate=86400',
-          }
-        ],
-      },
-    ];
-  },
-
-  /**
-   * Turbopack configuration
-   * Ensures compatibility when running with --turbo flag
-   */
-  experimental: {
-    turbo: {
-      rules: {
-        // Configure SVG handling in Turbopack
-        '*.svg': {
-          loaders: ['@svgr/webpack']
+  headers: async () => [
+    {
+      source: '/_next/static/:path*',
+      headers: [
+        {
+          key: 'Cache-Control',
+          value: 'public, max-age=31536000, immutable',
+        },
+        {
+          key: 'CDN-Cache-Control',
+          value: 'public, max-age=31536000, immutable',
+        },
+        {
+          key: 'Cloudflare-CDN-Cache-Control',
+          value: 'public, max-age=31536000, immutable',
         }
-      },
-      // Important resolvers for node modules in API routes
-      resolveAliases: {
-        'fs': false,
-        'crypto': false,
-        'path': false,
-        // Add Sentry and OpenTelemetry package aliases for Turbopack
-        'require-in-the-middle': 'commonjs require-in-the-middle',
-        '@sentry/nextjs': { type: 'commonjs' },
-        '@sentry/node': { type: 'commonjs' },
-        '@opentelemetry/instrumentation': { type: 'commonjs' }
-      }
-    }
-  },
-  // Keep standalone output for Docker deployments but add specific configuration
+      ],
+    },
+    {
+      source: '/_next/data/:path*',
+      headers: [
+        {
+          key: 'Cache-Control',
+          value: 'public, max-age=3600, stale-while-revalidate=86400',
+        }
+      ],
+    },
+    {
+      source: '/_next/image:params*',
+      headers: [
+        {
+          key: 'Cache-Control',
+          value: 'public, max-age=60, stale-while-revalidate=3600, stale-if-error=86400',
+        },
+        {
+          key: 'CDN-Cache-Control',
+          value: 'public, max-age=3600, stale-while-revalidate=86400',
+        }
+      ],
+    },
+  ],
+
+  // Standard Next.js config options
   output: 'standalone',
   poweredByHeader: false,
   reactStrictMode: true,
