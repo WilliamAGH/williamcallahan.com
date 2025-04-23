@@ -213,15 +213,16 @@ export default function RootLayout({
                 <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
                   <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
                     <Suspense fallback={null}>
-                      {/* Navigation component doesn't need props anymore */}
+                      {/* Navigation component */}
                       <Navigation />
                     </Suspense>
-                    {/* Secondary toolbar items with their own container */}
-                    <div className="flex items-center">
+                    {/* Secondary toolbar items with their own container - Add styling here */}
+                    <div className="flex items-center ml-4 p-1 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700/50 shadow-sm">
                       <Suspense fallback={null}>
                         <SocialIcons />
                       </Suspense>
-                      <div className="ml-2">
+                      {/* Slightly adjust margin for ThemeToggle within the new container */}
+                      <div className="ml-1 border-l border-gray-300 dark:border-gray-600 pl-1">
                         <ThemeToggle />
                       </div>
                     </div>
