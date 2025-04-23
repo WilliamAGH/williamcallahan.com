@@ -9,12 +9,18 @@ import { LinkedIn } from './linkedin-icon';
 import { GitHub } from './github-icon';
 import { socialLinksSchema, type SocialLink } from '@/types/social';
 
-// Define the social links data
+// Define the social links data - Reordered X to be after GitHub
 const socialLinksData = [
   {
     icon: GitHub,
     href: 'https://github.com/williamagh',
     label: 'GitHub',
+    emphasized: true
+  },
+  {
+    icon: X,
+    href: 'https://x.com/williamcallahan',
+    label: 'X (Twitter)',
     emphasized: true
   },
   {
@@ -31,12 +37,6 @@ const socialLinksData = [
     icon: Bluesky,
     href: 'https://bsky.app/profile/williamcallahan.com',
     label: 'Bluesky'
-  },
-  {
-    icon: X,
-    href: 'https://x.com/williamcallahan',
-    label: 'X (Twitter)',
-    emphasized: true
   }
 ];
 
