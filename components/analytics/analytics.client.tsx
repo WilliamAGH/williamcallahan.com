@@ -230,6 +230,7 @@ function AnalyticsScripts() {
         strategy="lazyOnload"
         src={`https://umami.iocloudhost.net/script.js?t=${Date.now()}`}
         data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+        data-cache="false"
         onLoad={() => {
           try {
             setScriptsLoaded(prev => ({ ...prev, umami: true }))
