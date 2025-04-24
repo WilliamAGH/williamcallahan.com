@@ -83,9 +83,24 @@ export function middleware(request: NextRequest): NextResponse {
 
   // Add caching headers for static assets and analytics scripts
   const url = request.nextUrl.pathname
+  const host = request.headers.get('host') || ''
+  const referer = request.headers.get('referer') || ''
   const isDev = process.env.NODE_ENV === 'development'
 
-  if (!isDev) {
+  // Check if the request is for an analytics script
+  const isAnalyticsScript =
+    url.includes('/script.js') &&
+    (host.includes('umami.iocloudhost.net') || host.includes('plausible.iocloudhost.net'))
+
+  if (isAnalyticsScript) {
+    // Prevent caching for analytics scripts
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    // Add Cloudflare specific cache control
+    response.headers.set('CDN-Cache-Control', 'no-store, max-age=0')
+    response.headers.set('Cloudflare-CDN-Cache-Control', 'no-store, max-age=0')
+  } else if (!isDev) {
     if (url.includes('/_next/image')) {
       response.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
       response.headers.set('X-Content-Type-Options', 'nosniff')
@@ -99,11 +114,7 @@ export function middleware(request: NextRequest): NextResponse {
       url.endsWith('.avif') ||
       url.endsWith('.svg') ||
       url.endsWith('.css') ||
-      url.endsWith('.woff2') ||
-      // Add caching for analytics scripts
-      url.includes('umami.iocloudhost.net/script.js') ||
-      url.includes('plausible.iocloudhost.net/js/script.js') ||
-      url.includes('static.cloudflareinsights.com/beacon.min.js')
+      url.endsWith('.woff2')
     ) {
       response.headers.set('Cache-Control', 'public, max-age=31536000, immutable')
       response.headers.set('X-Content-Type-Options', 'nosniff')
