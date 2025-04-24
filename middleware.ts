@@ -84,7 +84,6 @@ export function middleware(request: NextRequest): NextResponse {
   // Add caching headers for static assets and analytics scripts
   const url = request.nextUrl.pathname
   const host = request.headers.get('host') || ''
-  const referer = request.headers.get('referer') || ''
   const isDev = process.env.NODE_ENV === 'development'
 
   // Check if the request is for an analytics script
