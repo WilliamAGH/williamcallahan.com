@@ -228,7 +228,7 @@ function AnalyticsScripts() {
       <Script
         id="umami"
         strategy="lazyOnload"
-        src="https://umami.iocloudhost.net/script.js"
+        src={`https://umami.iocloudhost.net/script.js?t=${Date.now()}`}
         data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
         data-auto-track="false"
         data-do-not-track="false"
@@ -248,7 +248,7 @@ function AnalyticsScripts() {
       <Script
         id="plausible"
         strategy="lazyOnload"
-        src="https://plausible.iocloudhost.net/js/script.js"
+        src={`https://plausible.iocloudhost.net/js/script.js?t=${Date.now()}`}
         data-domain={domain}
         data-api="https://plausible.iocloudhost.net/api/event"
         onLoad={() => {
