@@ -122,7 +122,8 @@ export function middleware(request: NextRequest): NextResponse {
         response.headers.set('Accept-CH', 'DPR, Width, Viewport-Width')
       }
     } else if (url === '/' || !url.includes('.')) {
-      response.headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
+      // Ensure HTML pages are freshly served so analytics scripts always update
+      response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
     }
   } else {
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
