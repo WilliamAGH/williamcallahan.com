@@ -293,7 +293,7 @@ export function EducationClient({
                             <img
                               src={item.logoData.url}
                               alt={`${item.institution} logo`}
-                              className="h-5 w-5 mr-2 object-contain rounded-md"
+                              className="h-6 w-6 mr-2 object-contain rounded-md"
                             />
                           )}
                           {item.institution}
