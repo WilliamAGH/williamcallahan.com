@@ -15,11 +15,17 @@ import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 
-// Helper function to safely get date from frontmatter
+// Refined helper function to safely get date from frontmatter
 const getSafeDate = (dateInput: any): Date | undefined => {
   if (!dateInput) return undefined;
   try {
-    const date = new Date(dateInput);
+    let dateStr = String(dateInput);
+    // If it's just a date (YYYY-MM-DD), append a time to make it specific
+    // and parse consistently, e.g., end of day UTC.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      dateStr = `${dateStr}T23:59:59.999Z`; // Assume end of day UTC
+    }
+    const date = new Date(dateStr);
     // Check if the date is valid
     if (!isNaN(date.getTime())) {
       return date;
@@ -74,11 +80,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
         const fileContents = fs.readFileSync(filePath, 'utf8');
         const { data } = matter(fileContents);
         const slug = filename.replace(/\.mdx$/, '');
-        let postLastModifiedDate = getSafeDate(data.dateModified || data.date);
 
+        // Use the refined getSafeDate
+        let postLastModifiedDate = getSafeDate(data.updatedAt || data.publishedAt);
+
+        // Fallback to file system mtime if frontmatter dates are missing/invalid
         if (!postLastModifiedDate) {
           try {
             postLastModifiedDate = fs.statSync(filePath).mtime;
+            console.warn(`Sitemap: Falling back to mtime for blog post: ${slug}`); // Add warning
           } catch (statError) {
             console.error(`Failed to get mtime for blog post ${filePath}:`, statError);
           }

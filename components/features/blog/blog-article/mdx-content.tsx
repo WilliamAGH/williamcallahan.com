@@ -292,7 +292,15 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     // Use base prose for mobile, scale up to prose-lg on medium screens+
     <article
       ref={contentRef}
-      className="prose dark:prose-invert md:prose-lg mx-auto prose-headings:text-gray-900 dark:prose-headings:text-white prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300 prose-p:my-3 prose-p:break-words prose-img:rounded-lg prose-img:shadow-md prose-hr:hidden blog-content"
+      className={cn(
+        "prose dark:prose-invert md:prose-lg mx-auto",
+        "prose-headings:text-gray-900 dark:prose-headings:text-white",
+        "prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300",
+        "prose-p:my-3 prose-p:break-words",
+        "prose-img:rounded-lg prose-img:shadow-md",
+        "prose-hr:hidden",
+        "blog-content" // Keep existing class if needed
+      )}
     >
       <MDXRemote {...content} components={components} />
     </article>
