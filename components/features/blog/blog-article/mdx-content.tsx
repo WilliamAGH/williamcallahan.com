@@ -224,6 +224,14 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
         // Handle case where href might be missing, though unlikely in valid MDX
         return <a {...rest}>{children}</a>;
       }
+
+      // Check if it's a footnote reference link (e.g., href="#fn1") or back-link (e.g., href="#fnref1")
+      if (href.startsWith('#fn')) {
+        // Render footnote links as plain text (just the number/arrow)
+        // We might need to adjust styling further if needed, but remove link behavior
+        return <span {...rest}>{children}</span>;
+      }
+
       // Check if it's an external link
       if (href.startsWith('http://') || href.startsWith('https://')) {
         return <ExternalLink href={href} {...rest}>{children}</ExternalLink>;
@@ -233,7 +241,8 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
         return <Link href={href} {...rest}>{children}</Link>;
       }
       // Otherwise, assume it's an anchor link or similar, render standard anchor
-      return <a href={href} {...rest}>{children}</a>;
+      // Retain default anchor styling for intra-page links like headings
+      return <a href={href} className="text-inherit no-underline hover:underline" {...rest}>{children}</a>;
     },
     // Enhance headings with better styling
     h1: (props: ComponentProps<'h1'>) => (
@@ -263,17 +272,18 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     hr: (props: ComponentProps<'hr'>) => (
       <hr className="hidden" {...props} />
     ),
-    table: (props: ComponentProps<'table'>) => (
-      <div className="my-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800" {...props} />
-      </div>
-    ),
-    th: (props: ComponentProps<'th'>) => (
-      <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left text-sm font-medium text-gray-700 dark:text-gray-300" {...props} />
-    ),
-    td: (props: ComponentProps<'td'>) => (
-      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 border-t border-gray-100 dark:border-gray-800" {...props} />
-    ),
+    // Remove custom table styling to let Prose handle it
+    // table: (props: ComponentProps<'table'>) => (
+    //   <div className="my-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
+    //     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800" {...props} />
+    //   </div>
+    // ),
+    // th: (props: ComponentProps<'th'>) => (
+    //   <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left text-sm font-medium text-gray-700 dark:text-gray-300" {...props} />
+    // ),
+    // td: (props: ComponentProps<'td'>) => (
+    //   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 border-t border-gray-100 dark:border-gray-800" {...props} />
+    // ),
   };
 
   return (
