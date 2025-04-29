@@ -1,5 +1,8 @@
 import type { Project } from '@/types/project';
 
+// Remember to update this date whenever the projects data or the Projects page design changes
+export const updatedAt = '2025-04-30';
+
 export const projects: Project[] = [
   {
     name: 'aVenture.vc',

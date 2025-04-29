@@ -7,6 +7,9 @@
 
 import type { Experience } from '../types/experience';
 
+// Remember to update this date whenever the experience data or the Experience page design changes
+export const updatedAt = '2025-04-30';
+
 export const experiences: Experience[] = [
   {
     id: 'aventure',
