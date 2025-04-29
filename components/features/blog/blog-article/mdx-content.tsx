@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils'; // Import cn utility
 import { useEffect, useRef } from 'react';
 import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
 import { Base64Image } from '@/components/utils/base64-image.client';
+import { ResponsiveTable } from '../../../ui/responsive-table.client'; // Import the new component
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {
   caption?: string;
@@ -272,17 +273,18 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     hr: (props: ComponentProps<'hr'>) => (
       <hr className="hidden" {...props} />
     ),
-    // Remove custom table styling to let Prose handle it
-    // table: (props: ComponentProps<'table'>) => (
-    //   <div className="my-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800 shadow-sm">
-    //     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800" {...props} />
-    //   </div>
-    // ),
+    // Use the new ResponsiveTable component for markdown tables
+    table: (props: ComponentProps<'table'>) => {
+      // Destructure children and pass the rest of the props
+      const { children, ...restProps } = props;
+      return <ResponsiveTable {...restProps}>{children}</ResponsiveTable>;
+    },
+    // Comment out old table styling overrides if they weren't already
     // th: (props: ComponentProps<'th'>) => (
-    //   <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left text-sm font-medium text-gray-700 dark:text-gray-300" {...props} />
+    //   <th className="..." {...props} />
     // ),
     // td: (props: ComponentProps<'td'>) => (
-    //   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 border-t border-gray-100 dark:border-gray-800" {...props} />
+    //   <td className="..." {...props} />
     // ),
   };
 

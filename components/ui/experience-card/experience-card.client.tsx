@@ -31,8 +31,8 @@ export function ExperienceCardClient({
       className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200"
     >
       <div className="p-6">
-        <div className="flex items-start gap-6">
-          <div className="w-16 h-16 relative flex-shrink-0">
+        <div className="flex items-start gap-5">
+          <div className="w-12 h-12 relative flex-shrink-0">
             <ExternalLink
               href={website}
               title={company}
@@ -41,8 +41,8 @@ export function ExperienceCardClient({
             >
               <LogoImage
                 url={logoData.url}
-                width={64}
-                height={64}
+                width={48}
+                height={48}
                 className="object-contain rounded-lg"
                 alt={company}
                 enableInversion={false}
