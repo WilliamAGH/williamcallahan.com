@@ -139,7 +139,7 @@ export default async function TagPage({ params }: { params: { tagSlug: string } 
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="mb-8 text-3xl font-bold leading-tight tracking-tighter text-primary md:text-5xl">
-        Posts on <span className="capitalize">{tagName}</span>
+        <span className="capitalize">{tagName}</span> Posts
       </h1>
       {filteredPosts.length > 0 ? (
         <BlogList posts={filteredPosts} />
