@@ -14,7 +14,7 @@ import { MetadataRoute } from 'next';
 /**
  * Generate robots.txt for the application
  * Handles different rules for production and non-production environments:
- * - Production: Allow all except /api/, include sitemap
+ * - Production: Allow all except /api/ and specific problematic paths, include sitemap
  * - Non-production: All instances other than https://williamcallahan.com, prevent all crawling
  *
  * @returns {MetadataRoute.Robots} Robots.txt configuration
@@ -23,13 +23,32 @@ import { MetadataRoute } from 'next';
 export default function robots(): MetadataRoute.Robots {
   const isProd = process.env.NEXT_PUBLIC_SITE_URL === 'https://williamcallahan.com';
 
+  // Define common problematic paths to disallow in production
+  const disallowedProdPaths = [
+    '/api/',
+    '/opt/',
+    '/Library/',
+    '/Applications/',
+    '/bin/',
+    '/etc/',
+    '/$/', // Match the single dollar sign path
+    '/comments/feed/',
+    // Add specific old/invalid paths if needed, though redirects might be better
+    '/investments/flutterflow/',
+    '/2023certificates/mit/',
+    '/legacy-homepage/',
+    '/home/', // Also handled by redirect, but good failsafe
+    '/tag/', // Disallow old tag structure base
+    '/author/' // Disallow author base
+  ];
+
   return {
     rules: {
       userAgent: '*',
       ...(isProd
         ? {
             allow: '/',
-            disallow: ['/api/']
+            disallow: disallowedProdPaths
           }
         : {
             disallow: '/'
