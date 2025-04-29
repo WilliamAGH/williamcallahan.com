@@ -77,7 +77,7 @@ export function BlogArticle({ post }: BlogArticleProps): JSX.Element {
         </div>
 
         <BlogAuthor author={post.author} />
-        <BlogTags tags={post.tags} />
+        <BlogTags tags={post.tags} interactive={true} />
       </header>
 
       {/* Cover Image */}
