@@ -74,11 +74,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
         const fileContents = fs.readFileSync(filePath, 'utf8');
         const { data } = matter(fileContents);
         const slug = filename.replace(/\.mdx$/, '');
-        let postLastModifiedDate = getSafeDate(data.dateModified || data.date);
+        // Prioritize updatedAt, then publishedAt from frontmatter
+        let postLastModifiedDate = getSafeDate(data.updatedAt || data.publishedAt);
 
+        // Fallback to file system mtime if frontmatter dates are missing/invalid
         if (!postLastModifiedDate) {
           try {
             postLastModifiedDate = fs.statSync(filePath).mtime;
+            // Add a console warning if falling back to mtime? Optional.
+            // console.warn(`Falling back to mtime for blog post: ${slug}`);
           } catch (statError) {
             console.error(`Failed to get mtime for blog post ${filePath}:`, statError);
           }
