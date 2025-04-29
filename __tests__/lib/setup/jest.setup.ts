@@ -7,6 +7,7 @@
  * - Test utilities
  */
 
+import '@testing-library/jest-dom';
 import { NextRequest } from 'next/server';
 import { logger } from '../../../lib/logger';
 
@@ -15,6 +16,28 @@ logger.setSilent(true);
 
 // Mock environment variables
 process.env.NEXT_PUBLIC_SITE_URL = 'https://williamcallahan.com';
+
+// Mock window object if it doesn't exist (for Node environment)
+if (typeof window === 'undefined') {
+  // biome-ignore lint/suspicious/noExplicitAny: Required for test environment
+  (global as any).window = {};
+}
+
+// Mock window.matchMedia
+// biome-ignore lint/suspicious/noExplicitAny: Required for test environment
+Object.defineProperty((global as any).window, 'matchMedia', {
+  writable: true,
+  value: jest.fn().mockImplementation(query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(), // deprecated
+    removeListener: jest.fn(), // deprecated
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })),
+});
 
 // Define the structure we need for NextURL
 interface MockNextURL {
