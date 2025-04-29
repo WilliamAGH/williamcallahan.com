@@ -86,7 +86,7 @@ export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: I
       <div className="p-4 sm:p-6">
         <div className="flex flex-col gap-5 sm:gap-6">
           {/* Header */}
-          <div className="flex items-start gap-4">
+          <div className="flex items-start gap-5">
             <div className="flex items-start gap-3 flex-1 min-w-0">
               <div className="w-12 h-12 relative flex-shrink-0">
                 <ExternalLink
