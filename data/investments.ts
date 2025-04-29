@@ -2,6 +2,9 @@
  * Investments Data
  */
 
+// Remember to update this date whenever the investment data or the Investments page design changes
+export const updatedAt = '2025-04-30';
+
 import type { Investment } from "../types/investment";
 
 export const investments: Investment[] = [

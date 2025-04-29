@@ -2,6 +2,9 @@
  * Education Data
  */
 
+// Remember to update this date whenever the education data or the Education page design changes
+export const updatedAt = '2025-05-01';
+
 import type { Education, Certification, Class } from 'types/education';
 
 export const recentCourses: Class[] = [
