@@ -42,7 +42,7 @@ export function BlogCard({ post, isPriority = false }: BlogCardProps) {
         )}
 
         <div className="flex flex-col flex-grow p-6">
-          <BlogTags tags={post.tags} />
+          <BlogTags tags={post.tags} interactive={false} />
 
           <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
             {post.title}
