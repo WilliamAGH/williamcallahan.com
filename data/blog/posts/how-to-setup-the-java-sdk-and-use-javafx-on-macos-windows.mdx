@@ -3,7 +3,7 @@ title: "How to setup the Java SDK and use JavaFX on macOS/Windows"
 slug: "how-to-setup-the-java-sdk-and-use-javafx-on-macos-windows"
 excerpt: "A modern guide to setting up Java development with JavaFX on macOS and Windows using IntelliJ IDEA or VS Code. While setting `JAVA_HOME` is still useful for some tools like Maven and Gradle, many modern Java environments have reduced reliance on it. This guide includes integration with Scene Builder and modern IDEs."
 publishedAt: "2025-04-08"
-updatedAt: "2025-04-26"
+updatedAt: "2025-05-01"
 author: "william-callahan"
 tags: ["macos", "java", "zsh", "intellij", "environment variables", "javafx", "scene builder"]
 coverImage: "/images/posts/JavaFX-logo.png"
@@ -351,3 +351,23 @@ java -version    # Should show JDK 21
   ```
   If commands fail or show the wrong version, re-check environment variable settings.
 </BackgroundInfo>
+
+<a id="intellij-maven-menu"></a>
+<CollapseDropdown summary="6.5: IntelliJ IDEA's Maven Project Options">
+  When you right-click on your project's `pom.xml` file or the project root in IntelliJ IDEA, you get a Maven-specific context menu. Here's what the common options do:
+
+  <ArticleImage
+    src="/images/posts/jetbrains-idea-maven-context-menu.png"
+    alt="IntelliJ IDEA Maven context menu options"
+    caption="Common Maven actions accessible via right-click in IntelliJ IDEA"
+    size="medium"
+  />
+
+  - **Sync Project**: Reads your `pom.xml` file and updates IntelliJ IDEA's project structure, dependencies, and settings to match. Use this after making changes to the `pom.xml` or if you suspect the IDE is out of sync.
+  - **Generate Sources and Update Folders**: Runs Maven phases that might generate source code (e.g., from annotation processors or build plugins) and tells IDEA to recognize these generated sources/folders correctly.
+  - **Ignore Projects**: Temporarily tells IntelliJ IDEA to stop treating the selected module as a Maven project. This can be useful for troubleshooting or excluding a module without removing it.
+  - **Unlink Maven Projects**: Completely removes the Maven integration from the project within IntelliJ IDEA. The `pom.xml` file remains, but IDEA will no longer manage dependencies or build configurations through Maven for this project until you re-import it.
+  - **Create 'settings.xml'**: Creates a Maven `settings.xml` file in your user's `.m2` directory (`~/.m2/settings.xml`) if one doesn't exist. This file allows you to configure user-specific Maven settings like custom repository locations, proxy settings, or server credentials.
+  - **Download Sources / Documentation**: Fetches the source code (`.java` files) or Javadoc documentation for your project's dependencies from the Maven repositories. This allows you to navigate into library code or view documentation directly within the IDE. "Download Sources and Documentation" does both.
+  - **Show Effective POM**: Calculates and displays the complete Project Object Model (POM) that Maven uses for the build. This includes configurations inherited from parent POMs, profiles, and settings, giving you the final, consolidated view of the build configuration.
+</CollapseDropdown>
