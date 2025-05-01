@@ -46,9 +46,6 @@ Examples:
   experience 2020
   blog investing
   clear
-
-Secret Commands:
-  schema.org         Show the structured data for the current page
 `.trim();
 
 /**
