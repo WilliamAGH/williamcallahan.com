@@ -13,7 +13,7 @@ import type { ComponentProps } from 'react';
 import Image, { type ImageProps } from 'next/image';
 import { cn } from '../../../lib/utils';
 import { WindowControls } from '../navigation/window-controls';
-import { useWindowSize } from '../../../hooks/useWindowSize';
+import { useWindowSize } from '../../../lib/hooks/use-window-size.client';
 
 /**
  * Props for the ImageWindow component

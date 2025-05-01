@@ -14,7 +14,7 @@ import type { ComponentProps } from 'react';
 import { CopyButton } from './copy-button.client';
 import { cn } from '../../../lib/utils';
 import { WindowControls } from '../navigation/window-controls';
-import { useWindowSize } from '../../../hooks/useWindowSize';
+import { useWindowSize } from '../../../lib/hooks/use-window-size.client';
 
 /**
  * Props for the CodeBlock component
