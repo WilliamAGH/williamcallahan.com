@@ -146,7 +146,7 @@ describe('Bookmarks Module', () => {
     // Verify it returned normalized bookmarks
     expect(bookmarks.length).toBe(2);
     expect(bookmarks[0].id).toBe('bookmark1');
-    expect(bookmarks[0].title).toBe('Test Bookmark 1'); // Updated to match new title priority
+    expect(bookmarks[0].title).toBe('Test Bookmark 1'); // Prioritizing raw.title
     expect(bookmarks[0].tags.length).toBe(2);
     
     // Verify it called setBookmarks to store in cache
