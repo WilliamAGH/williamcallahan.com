@@ -3,12 +3,13 @@
  * @module lib/server-cache
  * @description
  * Provides server-side caching for logos, validation results,
- * and image analysis data.
+ * image analysis data, and bookmarks.
  */
 
 import NodeCache from 'node-cache';
-import { SERVER_CACHE_DURATION, LOGO_CACHE_DURATION } from './constants';
+import { SERVER_CACHE_DURATION, LOGO_CACHE_DURATION, BOOKMARKS_CACHE_DURATION } from './constants';
 import type { LogoInversion, LogoSource } from '../types/logo';
+import type { UnifiedBookmark } from '../types/bookmark';
 import { assertServerOnly } from './utils/ensure-server-only';
 
 assertServerOnly('lib/server-cache.ts');
@@ -59,12 +60,26 @@ const LOGO_VALIDATION_PREFIX = 'logo-validation:';
 const LOGO_FETCH_PREFIX = 'logo-fetch:';
 const INVERTED_LOGO_PREFIX = 'logo-inverted:';
 const LOGO_ANALYSIS_PREFIX = 'logo-analysis:';
+const BOOKMARKS_CACHE_KEY = 'bookmarks-data';
 
 /**
  * Server-side cache management class
  * @class ServerCache
  * @extends NodeCache
  */
+/**
+ * Bookmarks cache entry
+ * @interface
+ */
+interface BookmarksCacheEntry {
+  /** Bookmarks data */
+  bookmarks: UnifiedBookmark[];
+  /** Last successful API fetch timestamp */
+  lastFetchedAt: number;
+  /** Last fetch attempt timestamp */
+  lastAttemptedAt: number;
+}
+
 export class ServerCache extends NodeCache {
   constructor() {
     super({
@@ -210,6 +225,56 @@ export class ServerCache extends NodeCache {
    */
   clear(): void {
     super.flushAll();
+  }
+
+  /**
+   * Get cached bookmarks
+   * @returns {BookmarksCacheEntry | undefined} Cached bookmarks
+   */
+  getBookmarks(): BookmarksCacheEntry | undefined {
+    return this.get<BookmarksCacheEntry>(BOOKMARKS_CACHE_KEY);
+  }
+
+  /**
+   * Cache bookmarks
+   * @param {UnifiedBookmark[]} bookmarks - Bookmarks to cache
+   * @param {boolean} isFailure - Whether this was a failed fetch attempt
+   */
+  setBookmarks(bookmarks: UnifiedBookmark[], isFailure: boolean = false): void {
+    const now = Date.now();
+    const existing = this.getBookmarks();
+
+    const entry: BookmarksCacheEntry = {
+      bookmarks: isFailure ? (existing?.bookmarks || []) : bookmarks,
+      lastFetchedAt: isFailure ? (existing?.lastFetchedAt || 0) : now,
+      lastAttemptedAt: now
+    };
+
+    this.set(
+      BOOKMARKS_CACHE_KEY, 
+      entry, 
+      isFailure ? BOOKMARKS_CACHE_DURATION.FAILURE : BOOKMARKS_CACHE_DURATION.SUCCESS
+    );
+  }
+
+  /**
+   * Check if bookmarks cache needs refreshing
+   * @returns {boolean} True if cache should be refreshed
+   */
+  shouldRefreshBookmarks(): boolean {
+    const cached = this.getBookmarks();
+    if (!cached) return true;
+    
+    const now = Date.now();
+    const timeSinceLastFetch = now - cached.lastFetchedAt;
+    return timeSinceLastFetch > BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
+  }
+
+  /**
+   * Clear bookmarks cache
+   */
+  clearBookmarks(): void {
+    this.del(BOOKMARKS_CACHE_KEY);
   }
 }
 

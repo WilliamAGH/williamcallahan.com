@@ -198,9 +198,10 @@ export async function handleCommand(input: string): Promise<CommandResult> {
   }
 
   // Fallback: Treat as site-wide search if it's not a known command/section
-  // Check if it's a single word and not in terminalCommands or sections
-  if (args.length === 0 && !(command in terminalCommands) && !(command in sections)) {
-    const searchTerms = command; // The command itself is the search term
+  // This handles both single word searches and multi-word searches that don't match any commands
+  if (!(command in terminalCommands) && !(command in sections)) {
+    // Combine command and args to handle multi-word searches
+    const searchTerms = [command, ...args].join(' ');
     try {
       const response = await fetch(`/api/search/all?q=${encodeURIComponent(searchTerms)}`);
       if (!response.ok) {
