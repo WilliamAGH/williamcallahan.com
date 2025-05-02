@@ -43,11 +43,13 @@ export interface Investment {
   /** Current investment status */
   status: 'Active' | 'Realized';
   /** Company operating status */
-  operating_status: 'Operating' | 'Shut Down' | 'Acquired';
+  operating_status: 'Operating' | 'Shut Down' | 'Acquired' | 'Inactive';
   /** Company logo URL */
   logo?: string | null;
   /** Company website */
   website?: string;
+  /** aVenture URL for Company */
+  aventure_url?: string | null;
   /** Location (city, state) */
   location?: string;
   /** Investment metrics */

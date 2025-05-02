@@ -3,7 +3,7 @@
  */
 
 // Remember to update this date whenever the investment data or the Investments page design changes
-export const updatedAt = '2025-04-30';
+export const updatedAt = '2024-07-30';
 
 import type { Investment } from "../types/investment";
 
@@ -26,6 +26,7 @@ export const investments: Investment[] = [
     "multiple": 0.97,
     "holding_return": -0.03,
     "accelerator": null,
+    "aventure_url": null,
     "details": [
       {
         "label": "Investment Type",
@@ -67,6 +68,7 @@ export const investments: Investment[] = [
     "multiple": 1.93,
     "holding_return": 0.93,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/aescape-new-york-city-ny-us",
     "details": [
       {
         "label": "Investment Type",
@@ -105,9 +107,10 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://airgarage.com",
-    "multiple": 0.98,
-    "holding_return": -0.02,
+    "multiple": 1.60,
+    "holding_return": 0.60,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/airgarage-san-francisco-ca-us",
     "details": [
       {
         "label": "Investment Type",
@@ -190,6 +193,7 @@ export const investments: Investment[] = [
     "multiple": 0.39,
     "holding_return": -0.61,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/alto-pharmacy-san-francisco-ca-us",
     "details": [
       {
         "label": "Investment Type",
@@ -269,8 +273,8 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://angellist.com",
-    "multiple": 1.0,
-    "holding_return": 0.0,
+    "multiple": 0.65,
+    "holding_return": -0.35,
     "accelerator": null,
     "details": [
       {
@@ -354,6 +358,7 @@ export const investments: Investment[] = [
     "multiple": 0.98,
     "holding_return": -0.02,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/bastille-san-francisco-ca-us",
     "details": [
       {
         "label": "Investment Type",
@@ -383,7 +388,7 @@ export const investments: Investment[] = [
     "description": "US-regulated cryptocurrency exchange offering trading of digital assets.",
     "category": "Blockchain / Crypto",
     "type": "Direct",
-    "stage": "Seed",
+    "stage": "Series B+",
     "founded_year": "2019",
     "invested_year": "2022",
     "shutdown_year": null,
@@ -391,10 +396,11 @@ export const investments: Investment[] = [
     "status": "Active",
     "operating_status": "Operating",
     "logo": null,
-    "website": "https://binance.us",
-    "multiple": 0.99,
-    "holding_return": -0.01,
+    "website": "https://www.binance.us",
+    "multiple": 0.62,
+    "holding_return": -0.38,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/binance-us-san-francisco-ca-usa",
     "details": [
       {
         "label": "Investment Type",
@@ -402,7 +408,7 @@ export const investments: Investment[] = [
       },
       {
         "label": "Entry Stage",
-        "value": "Seed"
+        "value": "Series B+"
       },
       {
         "label": "Sector",
@@ -410,7 +416,7 @@ export const investments: Investment[] = [
       },
       {
         "label": "Round Size",
-        "value": "$300,000,000"
+        "value": "$200,000,000"
       },
       {
         "label": "Valuation",
@@ -515,9 +521,10 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://capgains.io",
-    "multiple": 0.96,
-    "holding_return": -0.04,
+    "multiple": 1.34,
+    "holding_return": 0.34,
     "accelerator": null,
+    "aventure_url": null,
     "details": [
       {
         "label": "Investment Type",
@@ -556,8 +563,8 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://castoredc.com",
-    "multiple": 0.97,
-    "holding_return": -0.03,
+    "multiple": 0.00,
+    "holding_return": -1.00,
     "accelerator": null,
     "details": [
       {
@@ -597,8 +604,8 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://ceresimaging.net",
-    "multiple": 1.0,
-    "holding_return": 0.0,
+    "multiple": 1.00,
+    "holding_return": 0.00,
     "accelerator": null,
     "details": [
       {
@@ -675,12 +682,12 @@ export const investments: Investment[] = [
     "invested_year": "2022",
     "shutdown_year": null,
     "acquired_year": null,
-    "status": "Active",
-    "operating_status": "Operating",
+    "status": "Realized",
+    "operating_status": "Shut Down",
     "logo": null,
     "website": "https://cogitocorp.com",
-    "multiple": 1.0,
-    "holding_return": 0.0,
+    "multiple": 0.0,
+    "holding_return": -1.0,
     "accelerator": null,
     "details": [
       {
@@ -723,6 +730,7 @@ export const investments: Investment[] = [
     "multiple": 1.4,
     "holding_return": 0.4,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/copilot-new-york-ny-us",
     "details": [
       {
         "label": "Investment Type",
@@ -805,6 +813,7 @@ export const investments: Investment[] = [
     "multiple": 0.94,
     "holding_return": -0.06,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/curebase-san-francisco-ca-usa",
     "details": [
       {
         "label": "Investment Type",
@@ -884,9 +893,10 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://databerry.ai",
-    "multiple": 0.9,
-    "holding_return": -0.1,
+    "multiple": 0.90,
+    "holding_return": -0.10,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/databerry-san-francisco-ca-us",
     "details": [
       {
         "label": "Investment Type",
@@ -1044,13 +1054,14 @@ export const investments: Investment[] = [
     "invested_year": "2021",
     "shutdown_year": null,
     "acquired_year": null,
-    "status": "Active",
-    "operating_status": "Operating",
+    "status": "Realized",
+    "operating_status": "Shut Down",
     "logo": null,
     "website": "https://easyknock.com",
-    "multiple": 1.52,
-    "holding_return": 0.52,
+    "multiple": 0.0,
+    "holding_return": -1.0,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/easyknock-new-york-ny-us",
     "details": [
       {
         "label": "Investment Type",
@@ -1130,8 +1141,8 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://fithub.com",
-    "multiple": 0.9,
-    "holding_return": -0.1,
+    "multiple": 0.90,
+    "holding_return": -0.10,
     "accelerator": null,
     "details": [
       {
@@ -1256,6 +1267,7 @@ export const investments: Investment[] = [
     "multiple": 1.01,
     "holding_return": 0.01,
     "accelerator": null,
+    "aventure_url": null,
     "details": [
       {
         "label": "Investment Type",
@@ -1413,8 +1425,8 @@ export const investments: Investment[] = [
     "invested_year": "2022",
     "shutdown_year": null,
     "acquired_year": null,
-    "status": "Active",
-    "operating_status": "Operating",
+    "status": "Realized",
+    "operating_status": "Inactive",
     "logo": null,
     "website": "https://healthiq.com",
     "multiple": 0.98,
@@ -1461,6 +1473,7 @@ export const investments: Investment[] = [
     "multiple": 1.24,
     "holding_return": 0.24,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/heard-mental-health-san-francisco-ca-usa",
     "details": [
       {
         "label": "Investment Type",
@@ -1625,6 +1638,7 @@ export const investments: Investment[] = [
     "multiple": 0.0,
     "holding_return": -1.0,
     "accelerator": null,
+    "aventure_url": null,
     "details": [
       {
         "label": "Investment Type",
@@ -1704,8 +1718,8 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://jetty.com",
-    "multiple": 1.12,
-    "holding_return": 0.12,
+    "multiple": 0.07,
+    "holding_return": -0.93,
     "accelerator": null,
     "details": [
       {
@@ -1786,8 +1800,8 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://kin.com",
-    "multiple": 1.0,
-    "holding_return": 0.0,
+    "multiple": 1.08,
+    "holding_return": 0.08,
     "accelerator": null,
     "details": [
       {
@@ -1830,6 +1844,7 @@ export const investments: Investment[] = [
     "multiple": 1.14,
     "holding_return": 0.14,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/kins-new-york-ny-us",
     "details": [
       {
         "label": "Investment Type",
@@ -2035,6 +2050,7 @@ export const investments: Investment[] = [
     "multiple": 1.59,
     "holding_return": 0.59,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/lula-new-york-ny-us",
     "details": [
       {
         "label": "Investment Type",
@@ -2196,8 +2212,8 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://northone.com",
-    "multiple": 1.0,
-    "holding_return": 0.0,
+    "multiple": 1.00,
+    "holding_return": 0.00,
     "accelerator": null,
     "details": [
       {
@@ -2240,6 +2256,7 @@ export const investments: Investment[] = [
     "multiple": 0.0,
     "holding_return": -1.0,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/oliver-space-san-francisco-ca-us",
     "details": [
       {
         "label": "Investment Type",
@@ -2442,9 +2459,10 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://point.app",
-    "multiple": 0.95,
-    "holding_return": -0.05,
+    "multiple": 0.37,
+    "holding_return": -0.63,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/point-palo-alto-ca-us",
     "details": [
       {
         "label": "Investment Type",
@@ -2650,6 +2668,7 @@ export const investments: Investment[] = [
     "multiple": 0.93,
     "holding_return": -0.07,
     "accelerator": null,
+    "aventure_url": null,
     "details": [
       {
         "label": "Investment Type",
@@ -2852,9 +2871,10 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://safe.global",
-    "multiple": 0.95,
-    "holding_return": -0.05,
+    "multiple": 0.00,
+    "holding_return": -1.00,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/gnosis-safe-berlin-de",
     "details": [
       {
         "label": "Investment Type",
@@ -2975,8 +2995,9 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://simplist.com",
-    "multiple": 1.0,
-    "holding_return": 0.0,
+    "aventure_url": null,
+    "multiple": 1.00,
+    "holding_return": 0.00,
     "accelerator": null,
     "details": [
       {
@@ -3057,8 +3078,9 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://sora.id",
-    "multiple": 0.95,
-    "holding_return": -0.05,
+    "aventure_url": "https://aventure.vc/companies/sora-id",
+    "multiple": 0.94,
+    "holding_return": -0.06,
     "accelerator": null,
     "details": [
       {
@@ -3265,6 +3287,7 @@ export const investments: Investment[] = [
     "multiple": 0.98,
     "holding_return": -0.02,
     "accelerator": null,
+    "aventure_url": null,
     "details": [
       {
         "label": "Investment Type",
@@ -3303,6 +3326,7 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://bytandym.com",
+    "aventure_url": "https://aventure.vc/investors/firms/tandym-chicago-il-us",
     "multiple": 0.97,
     "holding_return": -0.03,
     "accelerator": null,
@@ -3344,6 +3368,7 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://tellie.io",
+    "aventure_url": "https://aventure.vc/companies/tellie-los-angeles-ca-us",
     "multiple": 0.91,
     "holding_return": -0.09,
     "accelerator": null,
@@ -3470,6 +3495,7 @@ export const investments: Investment[] = [
     "multiple": 0.02,
     "holding_return": -0.98,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/turbodega-mexico-city-mx",
     "details": [
       {
         "label": "Investment Type",
@@ -3675,6 +3701,7 @@ export const investments: Investment[] = [
     "multiple": 0.98,
     "holding_return": -0.02,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/upstream-new-york-city-ny-us",
     "details": [
       {
         "label": "Investment Type",
@@ -3754,6 +3781,7 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://userinterviews.com",
+    "aventure_url": "https://aventure.vc/companies/user-interviews-ny-us",
     "multiple": 0.94,
     "holding_return": -0.06,
     "accelerator": null,
@@ -3836,6 +3864,7 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://whimstay.com",
+    "aventure_url": "https://aventure.vc/companies/whimstay-san-francisco-ca-us",
     "multiple": 0.94,
     "holding_return": -0.06,
     "accelerator": null,
@@ -3880,6 +3909,7 @@ export const investments: Investment[] = [
     "multiple": 0.96,
     "holding_return": -0.04,
     "accelerator": null,
+    "aventure_url": "https://aventure.vc/companies/wibond-c-rdoba-ar",
     "details": [
       {
         "label": "Investment Type",
@@ -3900,47 +3930,6 @@ export const investments: Investment[] = [
       {
         "label": "Valuation",
         "value": "$6,000,000"
-      }
-    ]
-  },
-  {
-    "id": "wibond",
-    "name": "Wibond",
-    "description": "Payment infrastructure platform for Latin American businesses enabling flexible payment solutions.",
-    "category": "Payments",
-    "type": "Direct",
-    "stage": "Seed",
-    "founded_year": "2019",
-    "invested_year": "2022",
-    "shutdown_year": null,
-    "acquired_year": null,
-    "status": "Active",
-    "operating_status": "Operating",
-    "logo": null,
-    "website": "https://wibond.co",
-    "multiple": 0.94,
-    "holding_return": -0.06,
-    "accelerator": null,
-    "details": [
-      {
-        "label": "Investment Type",
-        "value": "Direct Investment"
-      },
-      {
-        "label": "Entry Stage",
-        "value": "Seed"
-      },
-      {
-        "label": "Sector",
-        "value": "Payments"
-      },
-      {
-        "label": "Round Size",
-        "value": "$2,000,000"
-      },
-      {
-        "label": "Valuation",
-        "value": "$37,000,000"
       }
     ]
   },
@@ -4041,6 +4030,7 @@ export const investments: Investment[] = [
     "operating_status": "Operating",
     "logo": null,
     "website": "https://zoefin.com",
+    "aventure_url": "https://aventure.vc/investors/firms/zoe-financial-ny-us",
     "multiple": 0.97,
     "holding_return": -0.03,
     "accelerator": null,
