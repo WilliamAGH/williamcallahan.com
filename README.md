@@ -6,6 +6,28 @@ This is the repo for my personal website. Below is some info on how the logo fet
 
 > "I write to find out what I think" - Joan Didion
 
+## Hydration Safety Pattern
+
+To avoid React hydration mismatches in client components that use formatting or locale-specific operations:
+
+```tsx
+// 1. Track mounted state
+const [mounted, setMounted] = useState(false);
+
+// 2. Set mounted flag after hydration is complete
+useEffect(() => { setMounted(true) }, []);
+
+// 3. Render placeholder during SSR and initial client render
+if (!mounted) {
+  return <div className="placeholder-styles" suppressHydrationWarning />;
+}
+
+// 4. Only render actual content on client after hydration
+return <ActualContent />;
+```
+
+This pattern is essential for components that format text differently on server vs client (like dates, titles with case formatting, or dynamic content).
+
 ## Logo Storage and Caching
 
 The site fetches company logos on demand. To avoid hitting APIs constantly and speed things up, it uses a couple of caching layers:
