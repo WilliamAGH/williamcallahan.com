@@ -173,8 +173,8 @@ describe('Terminal Component', () => {
       });
 
       await waitFor(() => {
-        // Expect the "no site-wide results" message now
-        expect(screen.getByText(/No site-wide results found for "invalid-command"/i)).toBeInTheDocument();
+        // Look for the "command not recognized" message instead of "no site-wide results"
+        expect(screen.getByText(/Command not recognized. Type "help" for available commands./i)).toBeInTheDocument();
       });
     });
   });
