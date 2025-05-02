@@ -36,7 +36,8 @@ const ALLOWED_DOMAINS = [
   'external-content.duckduckgo.com',
   'logo.clearbit.com',
   'umami.iocloudhost.net',
-  'plausible.iocloudhost.net'
+  'plausible.iocloudhost.net',
+  'bookmark.iocloudhost.net',
 ];
 
 // Also allow subdomains of trusted domains
@@ -45,30 +46,12 @@ const ALLOWED_DOMAIN_PATTERNS = [
   '.williamcallahan.com',
 ];
 
-/**
- * Validate URL against allowed domains
- * @param {string} urlString - URL to validate
- * @returns {boolean} Whether URL is from an allowed domain
- */
+// Allow any http or https URL for image caching
 function isAllowedUrl(urlString: string): boolean {
   try {
-    const url = new URL(urlString);
-
-    // Check if hostname is in allowed domains
-    if (ALLOWED_DOMAINS.includes(url.hostname)) {
-      return true;
-    }
-
-    // Check if hostname matches any allowed patterns (like *.example.com)
-    for (const pattern of ALLOWED_DOMAIN_PATTERNS) {
-      if (pattern.startsWith('.') && url.hostname.endsWith(pattern)) {
-        return true;
-      }
-    }
-
-    return false;
-  } catch (error) {
-    console.error('Invalid URL:', error);
+    const parsed = new URL(urlString);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
     return false;
   }
 }
@@ -82,16 +65,22 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const { searchParams } = request.nextUrl;
-  const url = searchParams.get('url');
-  const width = searchParams.get('width');
-  const format = searchParams.get('format') || 'webp';
-
-  if (!url) {
+  const encodedUrl = searchParams.get('url');
+  if (!encodedUrl) {
     return NextResponse.json(
       { error: 'URL parameter required' },
       { status: 400 }
     );
   }
+  // Decode percent-encoded URL before validation
+  let url: string;
+  try {
+    url = decodeURIComponent(encodedUrl);
+  } catch {
+    url = encodedUrl;
+  }
+  const width = searchParams.get('width');
+  const format = searchParams.get('format') || 'webp';
 
   // SECURITY: Validate URL against allowed domains
   if (!isAllowedUrl(url)) {
