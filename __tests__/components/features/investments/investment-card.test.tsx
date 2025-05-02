@@ -15,10 +15,7 @@ jest.mock('../../../../components/ui/external-link.client', () => ({
   ),
 }));
 
-// Mock the AVenture icon
-jest.mock('../../../../components/ui/social-icons/aventure-icon', () => ({
-  AVenture: () => <div data-testid="aventure-icon" />,
-}));
+// We don't need to mock the AVenture icon component anymore since we're using an img directly
 
 // Mock the LogoImage component
 jest.mock('../../../../components/ui', () => ({
