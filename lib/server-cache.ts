@@ -246,7 +246,8 @@ export class ServerCache extends NodeCache {
 
     const entry: BookmarksCacheEntry = {
       bookmarks: isFailure ? (existing?.bookmarks || []) : bookmarks,
-      lastFetchedAt: isFailure ? (existing?.lastFetchedAt || 0) : now,
+      // Preserve the last successful fetch time on failures to prevent re-fetch loops
+      lastFetchedAt: isFailure ? (existing?.lastFetchedAt ?? now) : now,
       lastAttemptedAt: now
     };
 

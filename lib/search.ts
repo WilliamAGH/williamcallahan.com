@@ -152,16 +152,21 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
   const { fetchExternalBookmarks } = await import('./bookmarks');
   const bookmarks = await fetchExternalBookmarks();
 
+  // Pre-compute slugs once
+  const slugMap = new Map<string, string>();
+  const getSlug = (b: typeof bookmarks[number]) => {
+    if (!slugMap.has(b.id)) {
+      slugMap.set(b.id, generateUniqueSlug(b.url, bookmarks, b.id));
+    }
+    return slugMap.get(b.id)!;
+  };
+
   if (!query) {
-    return bookmarks.map(b => {
-      const uniqueSlug = generateUniqueSlug(b.url, bookmarks, b.id);
-      
-      return {
-        label: b.title,
-        description: b.description,
-        path: `/bookmarks/${uniqueSlug}`
-      };
-    });
+    return bookmarks.map(b => ({
+      label: b.title,
+      description: b.description,
+      path: `/bookmarks/${getSlug(b)}`
+    }));
   }
 
   // Split the query into individual words for more flexible matching
@@ -185,13 +190,9 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     // Check if all search terms exist in any of the fields
     // This approach matches terms across fields (e.g., "jina" in title, "ai" in description)
     return searchTerms.every(term => allContentText.includes(term));
-  }).map(b => {
-    const uniqueSlug = generateUniqueSlug(b.url, bookmarks, b.id);
-    
-    return {
-      label: b.title,
-      description: b.description,
-      path: `/bookmarks/${uniqueSlug}`
-    };
-  });
+  }).map(b => ({
+    label: b.title,
+    description: b.description,
+    path: `/bookmarks/${getSlug(b)}`
+  }));
 }
