@@ -52,22 +52,63 @@ interface ApiResponse {
   nextCursor: string | null;
 }
 
+import { ServerCacheInstance } from './server-cache';
+
 /**
- * Fetches bookmarks from the external Hoarder/Karakeep API
+ * Fetches bookmarks from the server cache or external API
  *
  * @returns {Promise<UnifiedBookmark[]>} A promise that resolves to an array of unified bookmarks.
- * @throws {Error} If the API request fails or the environment variable is missing.
+ * @throws {Error} If the API request fails and no cached data is available.
  */
 export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
+  // Check cache first
+  const cachedData = ServerCacheInstance.getBookmarks();
+  
+  // If we have cached data and it doesn't need refreshing, return it immediately
+  if (cachedData && !ServerCacheInstance.shouldRefreshBookmarks()) {
+    console.log('Using cached bookmarks data');
+    return cachedData.bookmarks;
+  }
+  
+  // Either we have no cache or it's time to refresh
+  // If we have cached data, we'll still use it as a fallback
+  const hasCachedFallback = !!cachedData?.bookmarks.length;
+  
+  // Start a background refresh if we have cached data
+  if (hasCachedFallback) {
+    console.log('Using cached bookmarks while refreshing in background');
+    // Don't await this - run in background
+    refreshBookmarksData().catch(error => {
+      console.error('Background refresh of bookmarks failed:', error);
+    });
+    return cachedData!.bookmarks;
+  }
+  
+  // No cached data, must fetch and wait
+  try {
+    return await refreshBookmarksData();
+  } catch (error) {
+    console.error('Failed to fetch bookmarks with no cache available:', error);
+    // If we have no cached data and the fetch fails, return an empty array
+    return [];
+  }
+}
+
+/**
+ * Refreshes bookmarks data from the external API
+ * 
+ * @returns {Promise<UnifiedBookmark[]>} A promise that resolves to an array of unified bookmarks.
+ * @throws {Error} If the API request fails.
+ */
+async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
   const apiUrl = 'https://bookmark.iocloudhost.net/api/v1/lists/xrfqu4awxsqkr1ch404qwd9i/bookmarks';
   const bearerToken = process.env.BOOKMARK_BEARER_TOKEN;
 
   if (!bearerToken) {
     console.error('BOOKMARK_BEARER_TOKEN environment variable is not set.');
-    // Decide how to handle this: throw error, return empty array, etc.
-    // For now, return empty to avoid breaking the build if the token is missing locally.
+    // Mark as failure but keep any existing cache
+    ServerCacheInstance.setBookmarks([], true);
     return [];
-    // Alternatively: throw new Error('BOOKMARK_BEARER_TOKEN environment variable is not set.');
   }
 
   try {
@@ -77,9 +118,7 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
         'Accept': 'application/json',
         'Authorization': `Bearer ${bearerToken}`,
       },
-      // Consider adding cache control if appropriate for your use case
-      // cache: 'no-store', // Example: Force fresh data every time
-      next: { revalidate: 3600 } // Example: Revalidate data every hour
+      cache: 'no-store', // Force fresh data every time
     });
 
     if (!response.ok) {
@@ -130,14 +169,17 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
         // telegramUsername: undefined, // Not present in API data
       };
     });
-
+    
+    // Update the cache with the new data
+    ServerCacheInstance.setBookmarks(normalizedBookmarks);
+    
     return normalizedBookmarks;
 
   } catch (error) {
     console.error('Failed to fetch external bookmarks:', error);
-    // Decide how to handle fetch errors: throw, return empty, return cached?
-    // Returning empty for now to allow the page to render potentially with just mock data.
-    return [];
-    // Alternatively: throw error; // Re-throw the error to be handled upstream
+    // Mark as failure but keep any existing cache
+    ServerCacheInstance.setBookmarks([], true);
+    // Re-throw to let the caller handle it
+    throw error;
   }
 }

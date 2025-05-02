@@ -40,26 +40,53 @@ interface TagPageProps {
 
 export default async function TagPage({ params }: TagPageProps) {
   const allBookmarks = await fetchExternalBookmarks();
-  const tag = params.tagSlug.replace(/-/g, ' ');
+  const tagSlug = params.tagSlug;
+  const tagQuery = tagSlug.replace(/-/g, ' ');
+  
   const filtered = allBookmarks.filter(b => {
     const names = (Array.isArray(b.tags) ? b.tags : []).map(t =>
       typeof t === 'string' ? t : t.name
     );
-    return names.some(n => n.toLowerCase() === tag.toLowerCase());
+    return names.some(n => n.toLowerCase() === tagQuery.toLowerCase());
   });
+  
+  // Find the original tag with proper capitalization
+  let displayTag = tagQuery;
+  if (filtered.length > 0) {
+    // Loop through filtered bookmarks to find the original tag format
+    for (const bookmark of filtered) {
+      const tags = (Array.isArray(bookmark.tags) ? bookmark.tags : []);
+      for (const t of tags) {
+        const tagName = typeof t === 'string' ? t : t.name;
+        if (tagName.toLowerCase() === tagQuery.toLowerCase()) {
+          // Format the tag: preserve if mixed-case (like aVenture or iPhone)
+          if (/[A-Z]/.test(tagName.slice(1))) {
+            displayTag = tagName;
+          } else {
+            // Title case otherwise
+            displayTag = tagQuery
+              .split(/[\s-]+/)
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+              .join(' ');
+          }
+          break;
+        }
+      }
+    }
+  }
 
   const jsonLdData = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    "name": `Bookmarks tagged ${tag}`,
-    "description": `All bookmarks tagged with ${tag}`
+    "name": `Bookmarks tagged ${displayTag}`,
+    "description": `All bookmarks tagged with ${displayTag}`
   };
 
   return (
     <>
       <JsonLdScript data={jsonLdData} />
       <div className="container mx-auto p-8">
-        <h1 className="text-3xl font-bold mb-6">{`Bookmarks tagged ${tag}`}</h1>
+        <h1 className="text-3xl font-bold mb-6">{`Bookmarks tagged ${displayTag}`}</h1>
         <BookmarksClient bookmarks={filtered} />
       </div>
     </>

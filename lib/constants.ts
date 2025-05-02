@@ -36,6 +36,20 @@ export const LOGO_CACHE_DURATION = {
 } as const;
 
 /**
+ * Cache duration for bookmarks fetching
+ * @constant
+ * @type {Object}
+ */
+export const BOOKMARKS_CACHE_DURATION = {
+  /** Success cache duration (7 days in seconds) */
+  SUCCESS: 7 * 24 * 60 * 60,
+  /** Failed attempt cache duration (1 hour in seconds) */
+  FAILURE: 60 * 60,
+  /** Revalidation interval (12 hours in seconds) - how often to check for new data */
+  REVALIDATION: 12 * 60 * 60
+} as const;
+
+/**
  * Base URL for the website
  * @constant
  * @type {string}

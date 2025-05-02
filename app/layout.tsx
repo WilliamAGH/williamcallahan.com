@@ -217,7 +217,7 @@ export default function RootLayout({
                       <Navigation />
                     </Suspense>
                     {/* Secondary toolbar items with their own container - Add styling here */}
-                    <div className="hidden [@media(min-width:800px)]:flex items-center ml-4 p-1 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700/50 shadow-sm">
+                    <div className="flex sm:hidden [@media(min-width:800px)]:flex items-center ml-4 p-1 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700/50 shadow-sm">
                       <Suspense fallback={null}>
                         <SocialIcons />
                       </Suspense>
