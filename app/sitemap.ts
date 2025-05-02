@@ -14,6 +14,9 @@ import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 import { kebabCase } from '@/lib/utils/formatters';
+import { fetchExternalBookmarks } from '@/lib/bookmarks';
+import { generateUniqueSlug } from '@/lib/utils/domain-utils';
+import { tagToSlug } from '@/lib/utils/tag-utils';
 
 // Import data file update timestamps
 import { updatedAt as experienceUpdatedAt } from '../data/experience';
@@ -53,7 +56,7 @@ const getLatestDate = (...dates: (Date | undefined)[]): Date | undefined => {
 };
 
 // --- Main Sitemap Generation ---
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = siteMetadata.site.url;
   const postsDirectory = path.join(process.cwd(), 'data/blog/posts');
 
@@ -127,14 +130,79 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6, // Slightly lower than individual posts
   }));
 
-  // --- 2. Process Static Pages ---
+  // --- 2. Process Bookmarks and Bookmark Tags ---
+  let bookmarkEntries: MetadataRoute.Sitemap = [];
+  let bookmarkTagEntries: MetadataRoute.Sitemap = [];
+  let latestBookmarkUpdateTime: Date | undefined = undefined;
+  const bookmarkTagLastModifiedMap: { [tagSlug: string]: Date } = {};
+
+  try {
+    // Fetch all bookmarks from API or cache
+    const bookmarks = await fetchExternalBookmarks();
+    
+    // Process each bookmark for individual pages
+    bookmarks.forEach(bookmark => {
+      // Use the bookmark's creation or modification date
+      const bookmarkLastModified = getSafeDate(bookmark.modifiedAt || bookmark.createdAt || bookmark.dateBookmarked);
+      if (bookmarkLastModified) {
+        // Update latest overall bookmark time
+        latestBookmarkUpdateTime = getLatestDate(latestBookmarkUpdateTime, bookmarkLastModified);
+      }
+
+      // Generate the unique slug for this bookmark
+      const slug = generateUniqueSlug(bookmark.url, bookmarks, bookmark.id);
+      
+      // Add bookmark entry
+      bookmarkEntries.push({
+        url: `${siteUrl}/bookmarks/${slug}`,
+        lastModified: bookmarkLastModified,
+        changeFrequency: 'weekly',
+        priority: 0.65, // Same priority level as blog posts
+      });
+
+      // Process tags for this bookmark
+      const tags = Array.isArray(bookmark.tags) ? 
+        bookmark.tags.map(t => typeof t === 'string' ? t : t.name) : 
+        [];
+      
+      // Update lastModified time for each tag
+      if (bookmarkLastModified && tags.length > 0) {
+        tags.forEach(tag => {
+          const tagSlug = tagToSlug(tag);
+          bookmarkTagLastModifiedMap[tagSlug] = getLatestDate(
+            bookmarkTagLastModifiedMap[tagSlug], 
+            bookmarkLastModified
+          ) || bookmarkLastModified;
+        });
+      }
+    });
+
+    // Create bookmark tag sitemap entries
+    bookmarkTagEntries = Object.entries(bookmarkTagLastModifiedMap).map(([tagSlug, lastModified]) => ({
+      url: `${siteUrl}/bookmarks/tags/${tagSlug}`,
+      lastModified: lastModified,
+      changeFrequency: 'weekly',
+      priority: 0.6, // Same priority as blog tags
+    }));
+  } catch (error) {
+    console.error("Sitemap: Error processing bookmarks:", error);
+  }
+
+  // --- 3. Process Static Pages ---
   const staticPages = {
     '/': { priority: 1.0, lastModified: getLatestDate(getPageFileMtime('page.tsx'), getSafeDate(PAGE_METADATA.home.dateModified)) },
     '/experience': { priority: 0.8, lastModified: getSafeDate(experienceUpdatedAt) },
     '/investments': { priority: 0.9, lastModified: getSafeDate(investmentsUpdatedAt) },
     '/education': { priority: 0.7, lastModified: getSafeDate(educationUpdatedAt) }, // Adjusted priority
     '/projects': { priority: 0.9, lastModified: getSafeDate(projectsUpdatedAt) },   // Added projects
-    '/bookmarks': { priority: 0.6, lastModified: getLatestDate(getPageFileMtime('bookmarks/page.tsx'), getSafeDate(PAGE_METADATA.bookmarks.dateModified)) }, // Adjusted priority
+    '/bookmarks': { 
+      priority: 0.7, 
+      lastModified: getLatestDate( 
+        getPageFileMtime('bookmarks/page.tsx'), 
+        getSafeDate(PAGE_METADATA.bookmarks?.dateModified), 
+        latestBookmarkUpdateTime 
+      ) 
+    },
     '/blog': {
       priority: 0.9,
       lastModified: getLatestDate( // Use latest of blog page mtime, metadata date, or latest post update
@@ -154,8 +222,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     })
   );
 
-  // --- 3. Combine and Return ---
-  return [...staticEntries, ...blogPostEntries, ...blogTagEntries];
+  // --- 4. Combine and Return ---
+  return [
+    ...staticEntries, 
+    ...blogPostEntries, 
+    ...blogTagEntries,
+    ...bookmarkEntries,
+    ...bookmarkTagEntries
+  ];
 }
 
 // Helper function to get mtime of a specific app page file

@@ -131,7 +131,10 @@ export function generateUniqueSlug(url: string, allBookmarks: Array<{ id: string
     
     return `${baseSlug}-${sameHostBookmarks.length + 1}`;
   } catch (error) {
-    console.error(`Failed to generate unique slug for URL: ${url}`, error);
+    // Don't log during tests - silently handle the error
+    if (process.env.NODE_ENV !== 'test') {
+      console.error(`Failed to generate unique slug for URL: ${url}`, error);
+    }
     return 'unknown-url';
   }
 }
