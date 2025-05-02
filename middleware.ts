@@ -61,14 +61,13 @@ export function middleware(request: NextRequest): NextResponse {
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'X-Real-IP': ip,
-    // Add Permissions-Policy header to control features
     'Permissions-Policy': 'geolocation=(), interest-cohort=()',
-    // Update CSP to allow analytics
+    // Content Security Policy: allow all HTTPS image sources dynamically
     'Content-Security-Policy': `
       default-src 'self';
       script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://static.cloudflareinsights.com;
       connect-src 'self' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://static.cloudflareinsights.com;
-      img-src 'self' data: https://*.iocloudhost.net https://*.popos-sf1.com https://*.popos-sf2.com https://*.popos-sf3.com https://images.unsplash.com https://williamcallahan.com https://icons.duckduckgo.com https://www.google.com https://external-content.duckduckgo.com https://logo.clearbit.com https://dev.williamcallahan.com;
+      img-src 'self' data: https:;
       style-src 'self' 'unsafe-inline';
       font-src 'self' data:;
       frame-ancestors 'none';
