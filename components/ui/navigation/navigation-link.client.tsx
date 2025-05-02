@@ -92,7 +92,13 @@ export function NavigationLink({
 
   return (
     <Link {...linkProps}>
-      {name}
+      {name === 'Projects Sandbox' ? (
+        <>
+          Projects<span className="hidden md:inline"> Sandbox</span>
+        </>
+      ) : (
+        name
+      )}
     </Link>
   );
 }
