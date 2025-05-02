@@ -100,7 +100,7 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
  * @returns {Promise<UnifiedBookmark[]>} A promise that resolves to an array of unified bookmarks.
  * @throws {Error} If the API request fails.
  */
-async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
+export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
   const apiUrl = 'https://bookmark.iocloudhost.net/api/v1/lists/xrfqu4awxsqkr1ch404qwd9i/bookmarks';
   const bearerToken = process.env.BOOKMARK_BEARER_TOKEN;
 

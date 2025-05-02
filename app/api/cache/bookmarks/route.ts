@@ -64,13 +64,9 @@ export async function POST(request: Request) {
   }
   
   try {
-    const bookmarks = await fetchExternalBookmarks();
-    
     // Forcibly refresh by calling the actual API
     const { refreshBookmarksData } = await import('@/lib/bookmarks');
-    if (typeof refreshBookmarksData === 'function') {
-      await refreshBookmarksData();
-    }
+    await refreshBookmarksData();
     
     const cached = ServerCacheInstance.getBookmarks();
     
