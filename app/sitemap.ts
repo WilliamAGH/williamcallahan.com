@@ -14,7 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 import { kebabCase } from '@/lib/utils/formatters';
-import { fetchExternalBookmarks } from '@/lib/bookmarks';
+import { fetchExternalBookmarksCached } from '@/lib/bookmarks';
 import { generateUniqueSlug } from '@/lib/utils/domain-utils';
 import { tagToSlug } from '@/lib/utils/tag-utils';
 
@@ -138,7 +138,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     // Fetch all bookmarks from API or cache
-    const bookmarks = await fetchExternalBookmarks();
+    const bookmarks = await fetchExternalBookmarksCached();
+    
+    // Pre-compute slugs to avoid O(n²) complexity
+    const slugCache = new Map<string, string>();
     
     // Process each bookmark for individual pages
     bookmarks.forEach(bookmark => {
@@ -149,8 +152,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         latestBookmarkUpdateTime = getLatestDate(latestBookmarkUpdateTime, bookmarkLastModified);
       }
 
-      // Generate the unique slug for this bookmark
-      const slug = generateUniqueSlug(bookmark.url, bookmarks, bookmark.id);
+      // Get or generate the unique slug for this bookmark
+      let slug = slugCache.get(bookmark.id);
+      if (!slug) {
+        slug = generateUniqueSlug(bookmark.url, bookmarks, bookmark.id);
+        slugCache.set(bookmark.id, slug);
+      }
       
       // Add bookmark entry
       bookmarkEntries.push({
