@@ -32,6 +32,19 @@ export const BookmarksClient: React.FC<BookmarksClientProps> = ({ bookmarks }) =
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
+  // Format tag for display: Title Case unless mixed-case proper nouns
+  const formatTagDisplay = (tag: string): string => {
+    // Preserve if mixed-case beyond first char (e.g. iPhone, aVenture)
+    if (/[A-Z]/.test(tag.slice(1))) {
+      return tag;
+    }
+    // Otherwise convert to title case
+    return tag
+      .split(/[\s-]+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
   // Extract all unique tags from bookmarks
   const allTags = bookmarks.flatMap(bookmark => {
     return getTagsAsStringArray(bookmark.tags);
@@ -102,7 +115,7 @@ export const BookmarksClient: React.FC<BookmarksClientProps> = ({ bookmarks }) =
                     : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
-                {tag}
+                {formatTagDisplay(tag)}
               </button>
             ))}
             {selectedTag && (
