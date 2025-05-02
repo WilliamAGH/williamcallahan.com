@@ -1,5 +1,4 @@
-"use client";
-
+/* eslint-disable @next/next/no-img-element */
 /**
  * Bookmark Card Client Component
  * @module components/features/bookmarks/bookmark-card.client
@@ -21,20 +20,26 @@
  * ```
  */
 
-import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
+"use client";
+
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { ExternalLink as LucideExternalLinkIcon, Bookmark, Calendar } from 'lucide-react';
+import Link from 'next/link';
 import { ExternalLink } from '../../ui/external-link.client';
 import { LogoImage } from '../../ui/logo-image.client';
-import type { Bookmark } from '../../../types/bookmark';
+import type { UnifiedBookmark, BookmarkTag } from '@/types';
 import { normalizeDomain } from '../../../lib/utils/domain-utils';
 
 /**
  * Props for the BookmarkCardClient component
  * @interface
- * @extends {Bookmark}
+ * @extends {UnifiedBookmark}
  */
-interface BookmarkCardClientProps extends Bookmark {
+interface BookmarkCardClientProps extends UnifiedBookmark {
   /** Whether dark theme is active */
   isDarkTheme?: boolean;
+  favourited?: boolean;
 }
 
 /**
@@ -60,98 +65,156 @@ export function BookmarkCardClient({
   ogImage,
   dateBookmarked,
   datePublished,
-  isDarkTheme
+  isDarkTheme,
+  content,
+  assets,
+  createdAt,
+  favourited,
 }: BookmarkCardClientProps): JSX.Element {
-  const formattedBookmarkDate = new Date(dateBookmarked).toLocaleDateString('en-US', {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Handle dates
+  const displayBookmarkDate = createdAt ?? dateBookmarked;
+  const formattedBookmarkDate = new Date(displayBookmarkDate).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   });
 
-  const formattedPublishDate = datePublished ? new Date(datePublished).toLocaleDateString('en-US', {
+  const displayPublishDate = content?.datePublished ?? datePublished;
+  const formattedPublishDate = displayPublishDate ? new Date(displayPublishDate).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   }) : null;
 
+  // Handle image sources with fallbacks
+  const displayImageUrl = content?.imageUrl ?? ogImage;
+  const domain = normalizeDomain(url);
+  const domainWithoutWWW = domain.replace(/^www\./, '');
+
+  // Get author/publisher info
+  const author = content?.author || null;
+  const publisher = content?.publisher || domainWithoutWWW;
+
+  // Process tags for display
+  const rawTags: string[] = (Array.isArray(tags) ? tags : []).map(tag =>
+    typeof tag === 'string' ? tag : (tag.name || '')
+  ).filter(Boolean);
+
+  // Format tags: Title Case unless mixed-case proper nouns
+  const renderableTags = rawTags.map(tag => {
+    // preserve if mixed-case beyond first char (e.g. iPhone)
+    if (/[A-Z]/.test(tag.slice(1))) {
+      return tag;
+    }
+    return tag
+      .split(/[\s-]+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  });
+
+  // Truncate title to max 10 words
+  const maxTitleWords = 10;
+  const titleWords = title.split(' ');
+  const displayTitle = titleWords.length > maxTitleWords
+    ? titleWords.slice(0, maxTitleWords).join(' ') + '...'
+    : title;
+
   return (
-    <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
-      <div className="p-4 sm:p-6">
-        <div className="flex flex-col gap-5 sm:gap-6">
-          {/* Header with OG Image */}
-          <div className="flex items-start gap-4">
-            <div className="flex items-start gap-3 flex-1 min-w-0">
-              <div className="w-24 h-24 relative flex-shrink-0 rounded-md overflow-hidden">
-                <ExternalLink
-                  href={url}
-                  title={title}
-                  rawTitle={true}
-                  showIcon={false}
-                >
-                  <LogoImage
-                    url={`/api/logo?website=${encodeURIComponent(normalizeDomain(url))}`}
-                    width={96}
-                    height={96}
-                    website={url}
-                    alt={title}
-                    className="w-full h-full object-contain"
-                    enableInversion
-                    isDarkTheme={isDarkTheme}
-                  />
-                </ExternalLink>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1">
-                  <ExternalLink
-                    href={url}
-                    title={`Visit ${title}`}
-                    showIcon={false}
-                    className="text-lg font-semibold hover:text-gray-600 dark:hover:text-gray-300 line-clamp-2"
-                  >
-                    {title}
-                  </ExternalLink>
-                  <ExternalLink
-                    href={url}
-                    title={`Visit ${title}`}
-                    showIcon={false}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0"
-                  >
-                    <ExternalLinkIcon className="w-4 h-4" />
-                  </ExternalLink>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {formattedPublishDate && (
-                    <>
-                      <span>Published {formattedPublishDate}</span>
-                      <span className="text-gray-400 dark:text-gray-500">•</span>
-                    </>
-                  )}
-                  <span>Bookmarked {formattedBookmarkDate}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Description */}
-          <p className="text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-3">
-            {description}
-          </p>
-
-          {/* Tags */}
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ scale: 1.005 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
+      className="relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transform transition-all duration-200"
+    >
+      {/* Image Section with domain overlay */}
+      <div className="relative w-full aspect-video overflow-hidden rounded-t-3xl">
+        {displayImageUrl ? (
+          <img
+            src={displayImageUrl}
+            alt={title}
+            loading="lazy"
+            className="w-full h-full object-cover"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <LogoImage
+            src={`/api/logo?website=${encodeURIComponent(domain)}`}
+            width={160}
+            height={90}
+            alt={title}
+            className="object-contain w-full h-full"
+          />
+        )}
+        {/* Clickable domain overlay */}
+        <ExternalLink href={url} showIcon={false} className="absolute bottom-3 left-3 bg-white/80 dark:bg-gray-800/80 px-3 py-1 flex items-center space-x-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+          <LucideExternalLinkIcon className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+          <span className="text-sm text-gray-700 dark:text-gray-200">{domainWithoutWWW}</span>
+        </ExternalLink>
       </div>
-    </div>
+
+      {/* Content Section */}
+      <div className="flex-1 p-6 flex flex-col gap-4">
+        {/* Title */}
+        <ExternalLink href={url} rawTitle title={displayTitle} showIcon={false} className="text-2xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 transition-colors">
+          {displayTitle}
+        </ExternalLink>
+
+        {/* Description */}
+        <p className="flex-1 text-gray-700 dark:text-gray-300 text-base leading-6 overflow-hidden">
+          {description}
+        </p>
+
+        {/* Meta Information */}
+        <div className="mt-auto space-y-2 text-sm text-gray-500 dark:text-gray-400">
+          {/* Dates */}
+          <div className="flex items-center gap-1">
+            <Calendar className="w-4 h-4" />
+            {formattedPublishDate ? (
+              <><span>Published {formattedPublishDate}</span><span>·</span><span>Saved {formattedBookmarkDate}</span></>
+            ) : (
+              <span>Saved {formattedBookmarkDate}</span>
+            )}
+          </div>
+        </div>
+
+        {/* Tags */}
+        {renderableTags.length > 0 && (
+          <div className="flex flex-wrap gap-3.5 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            {renderableTags.map((label, idx) => {
+              const raw = rawTags[idx];
+              return (
+                <Link
+                  key={raw}
+                  href={`/bookmarks/tags/${encodeURIComponent(raw.toLowerCase().replace(/\s+/g, '-'))}`}
+                >
+                  <motion.span
+                    whileHover={{ scale: 1.02 }}
+                    className="px-3.5 py-1.5 rounded-full bg-indigo-600 text-white text-sm transition-colors"
+                  >
+                    {label}
+                  </motion.span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Favorite Icon */}
+      {favourited && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.15 }}
+          className="absolute top-5 right-5 bg-yellow-500 p-2 rounded-full shadow-lg"
+        >
+          <Bookmark className="w-5 h-5 text-white" />
+        </motion.div>
+      )}
+    </motion.div>
   );
 }

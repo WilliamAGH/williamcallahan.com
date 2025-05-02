@@ -2,75 +2,77 @@
  * Bookmarks Page
  * @module app/bookmarks/page
  * @description
- * Displays curated collection of bookmarked resources.
- * Implements proper SEO with schema.org structured data.
+ * Displays curated collection of bookmarked resources
+ * Implements proper SEO with schema.org structured data
  *
  * @see {@link "https://nextjs.org/docs/app/api-reference/functions/generate-metadata"} - Next.js Metadata API
  * @see {@link "https://schema.org/CollectionPage"} - Schema.org CollectionPage specification
  */
 
-import type { Metadata } from 'next';
-import { BookmarksClient } from '../../components/features/bookmarks/bookmarks.client';
-import { BookmarkCardClient } from '../../components/features/bookmarks/bookmark-card.client';
-import type { Bookmark, BookmarkWithPreview } from '../../types/bookmark';
+import { Suspense } from 'react';
+import { BookmarksClient } from '@/components/features/bookmarks/bookmarks.client';
 import { getStaticPageMetadata } from '../../lib/seo/metadata';
 import { JsonLdScript } from "../../components/seo/json-ld";
-import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
-import { formatSeoDate } from "../../lib/seo/utils";
+import type { Metadata } from 'next';
+import { fetchExternalBookmarks } from '@/lib/bookmarks';
 
 /**
- * Mock bookmarks data for UI development
- * @type {Bookmark[]}
+ * Page Metadata
+ * Used for SEO and JSON-LD data
  */
-const mockBookmarks: Bookmark[] = [
-  {
-    id: '1',
-    url: 'https://console.groq.com/docs/overview',
-    title: 'Groq API Documentation',
-    description: 'Comprehensive documentation for the Groq API, covering LLM models like llama-3.3-70b-versatile and their capabilities for natural language processing tasks.',
-    tags: ['AI', 'LLM', 'API', 'Documentation'],
-    ogImage: 'https://console.groq.com/og-image.png',
-    dateBookmarked: '2024-03-20T08:00:00Z',
-    datePublished: '2024-01-15T00:00:00Z'
+const PAGE_METADATA = {
+  bookmarks: {
+    title: 'Bookmarks',
+    description: 'A collection of articles, websites, and resources I\'ve bookmarked for future reference.',
+    path: '/bookmarks',
   },
-  {
-    id: '2',
-    url: 'https://jina.ai/',
-    title: 'Jina AI - Cloud Native Neural Search Framework',
-    description: 'Jina AI is a cloud-native neural search framework that allows developers to build cross-modal and multi-modal applications powered by deep learning.',
-    tags: ['AI', 'Search', 'Neural Networks', 'Cloud'],
-    dateBookmarked: '2024-03-19T15:30:00Z',
-    datePublished: '2023-12-01T00:00:00Z'
-  },
-  {
-    id: '3',
-    url: 'https://nextjs.org/blog/next-14',
-    title: 'Next.js 14',
-    description: 'Introducing Next.js 14: The latest version of the React Framework for the Web. Features improved performance, enhanced developer experience, and new data fetching patterns.',
-    tags: ['Web Development', 'React', 'Next.js', 'Framework'],
-    ogImage: 'https://nextjs.org/og.png',
-    dateBookmarked: '2024-02-15T10:00:00Z',
-    datePublished: '2023-10-26T00:00:00Z'
-  },
-  {
-    id: '4',
-    url: 'https://www.typescriptlang.org/docs/handbook/release-notes/typescript-5-4.html',
-    title: 'TypeScript 5.4 Release Notes',
-    description: 'TypeScript 5.4 brings new features and improvements including better type inference, enhanced control flow analysis, and more precise narrowing behaviors.',
-    tags: ['TypeScript', 'Programming', 'JavaScript', 'Release'],
-    dateBookmarked: '2024-02-10T14:20:00Z',
-    datePublished: '2024-02-09T00:00:00Z'
-  },
-  {
-    id: '5',
-    url: 'https://tailwindcss.com/blog/tailwindcss-v4-alpha',
-    title: 'Tailwind CSS v4.0 Alpha',
-    description: 'A first look at Tailwind CSS v4.0: Exploring the next generation of the utility-first CSS framework with improved performance and new features.',
-    tags: ['CSS', 'Web Development', 'Tailwind', 'Frontend'],
-    dateBookmarked: '2024-01-05T09:15:00Z',
-    datePublished: '2024-01-04T00:00:00Z'
-  }
-];
+};
+
+/**
+ * JSON-LD Data for the page
+ */
+const jsonLdData = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": PAGE_METADATA.bookmarks.title,
+  "description": PAGE_METADATA.bookmarks.description
+};
+
+// This will show while the bookmarks are loading
+export function BookmarksLoading() {
+  return (
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mb-8 space-y-6">
+        <div className="w-full h-12 rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
+        <div className="flex gap-2">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-9 w-20 rounded-lg bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3, 4, 5, 6].map(i => (
+          <div key={i} className="rounded-xl overflow-hidden">
+            <div className="w-full aspect-video bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
+            <div className="p-5 space-y-4 bg-white dark:bg-gray-800">
+              <div className="h-3 w-24 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse"></div>
+              <div className="h-6 w-3/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              <div className="space-y-2">
+                <div className="h-3 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                <div className="h-3 w-5/6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              </div>
+              <div className="pt-4 flex gap-1.5">
+                {[1, 2, 3].map(j => (
+                  <div key={j} className="h-5 w-16 rounded-md bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Generate metadata for the Bookmarks page
@@ -79,72 +81,29 @@ export function generateMetadata(): Metadata {
   return getStaticPageMetadata('/bookmarks', 'bookmarks');
 }
 
-/**
- * ASCII Art for Coming Soon Page
- */
-const asciiArt = `
-       (\_/)
-       (='.'=)
-       (")_(")
-`;
-
-/**
- * Bookmarks Page Component
- * Conditionally renders a "Coming Soon" page in production.
- */
-export default function BookmarksPage() {
-
-  // Check if the environment is production
-  /* REMOVED PRODUCTION CHECK
-  if (process.env.NODE_ENV === 'production') {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
-        <h1 className="text-4xl font-bold mb-4">Bookmarks Coming Soon!</h1>
-        <p className="text-lg mb-8 text-muted-foreground">
-          I&apos;m busy curating the best resources just for you. Check back later!
-        </p>
-        <pre className="text-sm text-primary font-mono whitespace-pre">
-          {asciiArt}
-        </pre>
-        <p className="mt-8 text-sm text-muted-foreground">
-          In the meantime, explore the rest of the site.
-        </p>
-      </div>
-    );
-  }
-  */
-
-  // --- Development/Preview Mode --- // /* REMOVED COMMENT */
+export default async function BookmarksPage() {
+  // Fetch bookmarks
+  const bookmarks = await fetchExternalBookmarks();
 
   const pageMetadata = PAGE_METADATA.bookmarks;
-  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
-  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+
+  // Sort bookmarks by date (newest first)
+  const sortedBookmarks = [...bookmarks].sort((a, b) => {
+    const dateA = a.dateBookmarked ? new Date(a.dateBookmarked).getTime() : 0;
+    const dateB = b.dateBookmarked ? new Date(b.dateBookmarked).getTime() : 0;
+    return dateB - dateA;
+  });
 
   return (
     <>
-      <JsonLdScript
-        data={{
-          "@context": "https://schema.org",
-          "@type": "CollectionPage",
-          "name": `${SITE_NAME}'s Bookmarked Resources`,
-          "description": pageMetadata.description,
-          "datePublished": formattedCreated,
-          "dateModified": formattedModified,
-          "author": {
-            "@type": "Person",
-            "name": SITE_NAME,
-            "description": siteMetadata.shortDescription,
-            "sameAs": siteMetadata.social.profiles
-          },
-          "isPartOf": {
-            "@type": "WebSite",
-            "name": SITE_NAME,
-            "url": "https://williamcallahan.com"
-          }
-        }}
-      />
-      {/* Render the actual bookmarks client component */}
-      <BookmarksClient bookmarks={mockBookmarks} />
+      <JsonLdScript data={jsonLdData} />
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-6">{pageMetadata.title}</h1>
+        <p className="text-gray-600 dark:text-gray-300 mb-8">{pageMetadata.description}</p>
+        <Suspense fallback={<BookmarksLoading />}>
+          <BookmarksClient bookmarks={sortedBookmarks} />
+        </Suspense>
+      </div>
     </>
   );
 }
