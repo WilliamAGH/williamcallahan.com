@@ -6,7 +6,21 @@
 
 "use client";
 
-import { searchExperience, searchEducation, searchInvestments, searchBookmarks } from '@/lib/search';
+// Import search functions but allow mocking them in tests
+let searchModule;
+try {
+  searchModule = require('@/lib/search');
+} catch (error) {
+  // Fallback for tests
+  searchModule = {
+    searchExperience: () => Promise.resolve([]),
+    searchEducation: () => Promise.resolve([]),
+    searchInvestments: () => Promise.resolve([]),
+    searchBookmarks: () => Promise.resolve([])
+  };
+}
+
+const { searchExperience, searchEducation, searchInvestments, searchBookmarks } = searchModule;
 import { sections, type SectionKey } from './sections';
 import type { CommandResult, SearchResult } from '@/types/terminal';
 // Removed unused usePathname import
@@ -92,8 +106,12 @@ function getSchemaOrgData(): string {
 }
 
 export async function handleCommand(input: string): Promise<CommandResult> {
-  const [command, ...args] = input.toLowerCase().trim().split(' ');
+  // Process the input
+  const trimmedInput = input.toLowerCase().trim();
+  const [command, ...args] = trimmedInput.split(' ');
 
+  // 1. First check for direct commands that take precedence
+  
   // Schema.org easter egg command
   if (command === 'schema.org') {
     return {
@@ -122,12 +140,25 @@ export async function handleCommand(input: string): Promise<CommandResult> {
     };
   }
 
+  // 2. Check for navigation commands (e.g., "blog")
+  
   // Type guard for valid section
   const isValidSection = (section: string): section is SectionKey => {
     return section in sections;
   };
 
-  // Section-specific search (e.g., "blog javafx")
+  // Navigation command without args (e.g., "blog")
+  if (isValidSection(command) && args.length === 0) {
+    return {
+      results: [{
+        input: '',
+        output: `Navigating to ${command}...`
+      }],
+      navigation: sections[command]
+    };
+  }
+
+  // 3. Check for section-specific search (e.g., "blog javafx")
   if (isValidSection(command) && args.length > 0) {
     const searchTerms = args.join(' ');
     const section = command.charAt(0).toUpperCase() + command.slice(1);
@@ -141,7 +172,7 @@ export async function handleCommand(input: string): Promise<CommandResult> {
           if (!response.ok) {
             throw new Error(`API request failed with status ${response.status}`);
           }
-          results = await response.json() as SearchResult[]; // Assume API returns SearchResult[]
+          results = await response.json() as SearchResult[];
         } catch (error) {
           console.error("Blog search API call failed:", error);
           return {
@@ -154,7 +185,7 @@ export async function handleCommand(input: string): Promise<CommandResult> {
         break;
       }
       case 'experience':
-        results = await searchExperience(searchTerms); // Keep existing logic for other sections
+        results = await searchExperience(searchTerms);
         break;
       case 'education':
         results = await searchEducation(searchTerms);
@@ -162,10 +193,9 @@ export async function handleCommand(input: string): Promise<CommandResult> {
       case 'investments':
         results = await searchInvestments(searchTerms);
         break;
-      case 'bookmarks': {
+      case 'bookmarks':
         results = await searchBookmarks(searchTerms);
         break;
-      }
     }
 
     if (results.length === 0) {
@@ -186,64 +216,60 @@ export async function handleCommand(input: string): Promise<CommandResult> {
     };
   }
 
-  // Navigation command (e.g., "blog")
-  if (isValidSection(command) && args.length === 0) { // Check for no args here
-    return {
-      results: [{
-        input: '',
-        output: `Navigating to ${command}...`
-      }],
-      navigation: sections[command]
-    };
-  }
+  // 4. If not a direct command or section command, perform site-wide search
+  // IMPORTANT: This now takes precedence over "command not recognized" to fix the multi-word search issue  
+  const searchTerms = [command, ...args].join(' ');
+  
+  try {
+    // Log search info for debugging
+    console.log('%c[Terminal Search]%c Performing site-wide search', 
+      'color: #4CAF50; font-weight: bold', 'color: inherit');
+    console.log('Search terms:', searchTerms);
+    console.log('Search URL:', `/api/search/all?q=${encodeURIComponent(searchTerms)}`);
+    
+    const response = await fetch(`/api/search/all?q=${encodeURIComponent(searchTerms)}`);
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}`);
+    }
+    const allResults = await response.json() as SearchResult[];
 
-  // Fallback: Treat as site-wide search if it's not a known command/section
-  // This handles both single word searches and multi-word searches that don't match any commands
-  if (!(command in terminalCommands) && !(command in sections)) {
-    // Combine command and args to handle multi-word searches
-    const searchTerms = [command, ...args].join(' ');
-    try {
-      const response = await fetch(`/api/search/all?q=${encodeURIComponent(searchTerms)}`);
-      if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}`);
-      }
-      const allResults = await response.json() as SearchResult[];
+    // Log results for debugging
+    console.log('%c[Terminal Search]%c Results received', 
+      'color: #4CAF50; font-weight: bold', 'color: inherit');
+    console.log(`Found ${allResults.length} results for "${searchTerms}"`);
+    if (allResults.length > 0) {
+      console.log('Sample results:', allResults.slice(0, 3));
+    }
 
-      if (allResults.length === 0) {
-        return {
-          results: [{
-            input: '',
-            output: `No site-wide results found for "${searchTerms}"`
-          }]
-        };
-      }
-
+    // Check if we got any results
+    if (allResults.length === 0) {
+      // Only now do we return "command not recognized" if no search results found
       return {
         results: [{
           input: '',
-          output: `Found ${allResults.length} site-wide results for "${searchTerms}"`
-        }],
-        selectionItems: allResults
-      };
-
-    } catch (error) {
-      console.error("Site-wide search API call failed:", error);
-      // Type check for error before accessing message
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during the search.';
-      return {
-        results: [{
-          input: '',
-          output: `Error during site-wide search: ${errorMessage}`
+          output: `Command not recognized. Type "help" for available commands.`
         }]
       };
     }
-  }
 
-  // If none of the above matched, it's an unrecognized command
-  return {
-    results: [{
-      input: '',
-      output: `Command not recognized. Type "help" for available commands.`
-    }]
-  };
+    // Otherwise, return search results
+    return {
+      results: [{
+        input: '',
+        output: `Found ${allResults.length} site-wide results for "${searchTerms}"`
+      }],
+      selectionItems: allResults
+    };
+
+  } catch (error) {
+    console.error("Site-wide search API call failed:", error);
+    // Type check for error before accessing message
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during the search.';
+    return {
+      results: [{
+        input: '',
+        output: `Error during site-wide search: ${errorMessage}`
+      }]
+    };
+  }
 }

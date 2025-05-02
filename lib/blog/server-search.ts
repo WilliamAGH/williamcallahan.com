@@ -27,7 +27,7 @@ export async function searchBlogPostsServerSide(query: string): Promise<SearchRe
     return []; // Return empty if no query provided for a search
   }
 
-  const searchTerms = query.toLowerCase().split(' ').filter(Boolean);
+  const searchTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
 
   const results = allPosts.filter(post => {
     if (!post) return false;
@@ -36,17 +36,19 @@ export async function searchBlogPostsServerSide(query: string): Promise<SearchRe
       return true;
     }
 
-    const searchFields = [
-      post.title,
-      post.excerpt,
+    // Combine all searchable fields into one long string for better matching
+    const allContentText = [
+      post.title || '',
+      post.excerpt || '',
       ...(post.tags || []),
-      post.author?.name,
-      post.rawContent // Include raw content
-    ].filter((field): field is string => typeof field === 'string' && field.length > 0);
-
-    return searchTerms.every(term =>
-      searchFields.some(field => field.toLowerCase().includes(term))
-    );
+      post.author?.name || '',
+      post.rawContent || '' // Include raw content
+    ].filter(field => typeof field === 'string' && field.length > 0)
+      .join(' ')
+      .toLowerCase();
+    
+    // Check if all search terms exist in the combined text
+    return searchTerms.every(term => allContentText.includes(term));
   });
 
   // Map results to the SearchResult format

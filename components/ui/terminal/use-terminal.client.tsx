@@ -87,6 +87,8 @@ export function useTerminal() {
     setSelection(null);
     if (item.path) {
       router.push(item.path);
+      
+      // For paths with hash fragments (like /bookmarks#id), scroll to the element
       setTimeout(() => {
         const id = item.path.split('#')[1];
         if (id) {
