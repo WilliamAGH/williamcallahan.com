@@ -6,7 +6,7 @@
 
 "use client";
 
-import { searchExperience, searchEducation, searchInvestments } from '@/lib/search'; // Removed searchPosts import
+import { searchExperience, searchEducation, searchInvestments, searchBookmarks } from '@/lib/search';
 import { sections, type SectionKey } from './sections';
 import type { CommandResult, SearchResult } from '@/types/terminal';
 // Removed unused usePathname import
@@ -36,15 +36,17 @@ Navigation:
   experience         Go to experience page
   education          Go to education page
   blog               Go to blog page
+  bookmarks          Go to bookmarks page
 
 Search:
   <section> <terms>  Search within a section
                      Example: investments fintech
+                     Example: bookmarks AI
 
 Examples:
   investments fintech
   experience 2020
-  blog investing
+  bookmarks AI
   clear
 `.trim();
 
@@ -160,6 +162,10 @@ export async function handleCommand(input: string): Promise<CommandResult> {
       case 'investments':
         results = await searchInvestments(searchTerms);
         break;
+      case 'bookmarks': {
+        results = await searchBookmarks(searchTerms);
+        break;
+      }
     }
 
     if (results.length === 0) {
