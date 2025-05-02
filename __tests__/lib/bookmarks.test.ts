@@ -259,17 +259,22 @@ describe('Bookmarks Module', () => {
     // Mock API error
     (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
     
-    try {
-      await fetchExternalBookmarks();
-      // Should not reach here - should throw
-      fail('Expected function to throw');
-    } catch (error) {
-      // Verify it logged error
-      expect(console.error).toHaveBeenCalledWith('Failed to fetch external bookmarks:', expect.any(Error));
-      
-      // Verify it called setBookmarks with empty array and true for isFailure
-      expect(ServerCacheInstance.setBookmarks).toHaveBeenCalledWith([], true);
-    }
+    // Clear any cached bookmarks first
+    mockHelpers._mockClearBookmarks();
+    
+    const bookmarks = await fetchExternalBookmarks();
+    
+    // Should return empty array
+    expect(bookmarks).toEqual([]);
+    
+    // Verify it logged error
+    expect(console.error).toHaveBeenCalledWith(
+      'Failed to fetch bookmarks with no cache available:',
+      expect.any(Error)
+    );
+    
+    // Verify it called setBookmarks with empty array and true for isFailure
+    expect(ServerCacheInstance.setBookmarks).toHaveBeenCalledWith([], true);
   });
 
   it('should handle API error responses', async () => {
