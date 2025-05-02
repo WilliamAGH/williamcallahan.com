@@ -146,3 +146,36 @@ export async function searchEducation(query: string): Promise<SearchResult[]> {
     );
   });
 }
+
+export async function searchBookmarks(query: string): Promise<SearchResult[]> {
+  // Import fetchExternalBookmarks dynamically to avoid circular dependencies
+  const { fetchExternalBookmarks } = await import('./bookmarks');
+  const bookmarks = await fetchExternalBookmarks();
+
+  if (!query) {
+    return bookmarks.map(b => ({
+      label: b.title,
+      description: b.description,
+      path: `/bookmarks#${b.id}`
+    }));
+  }
+
+  const searchTerms = query.toLowerCase().split(' ').filter(Boolean);
+  return bookmarks.filter(b => {
+    const fields = [
+      b.title,
+      b.description,
+      ...((Array.isArray(b.tags) ? b.tags : []).map(t => typeof t === 'string' ? t : t.name)),
+      b.content?.author,
+      b.content?.publisher
+    ].filter((f): f is string => typeof f === 'string' && f.length > 0);
+
+    return searchTerms.every(term =>
+      fields.some(field => field.toLowerCase().includes(term))
+    );
+  }).map(b => ({
+    label: b.title,
+    description: b.description,
+    path: `/bookmarks#${b.id}`
+  }));
+}
