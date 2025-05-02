@@ -141,8 +141,9 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
     // Normalize the raw API data to the UnifiedBookmark structure
     const normalizedBookmarks = data.bookmarks.map((raw): UnifiedBookmark => {
       // Choose the best title and description (prefer title field that user edits)
-      const bestTitle = raw.title ?? raw.content.title ?? 'Untitled Bookmark';
-      const bestDescription = raw.summary ?? raw.content.description ?? 'No description available.';
+      // First check if either field exists, otherwise use fallbacks
+      const bestTitle = raw.title || raw.content?.title || 'Untitled Bookmark';
+      const bestDescription = raw.summary || raw.content?.description || 'No description available.';
 
       // Normalize tags to BookmarkTag interface (though UnifiedBookmark allows string[] for now)
        const normalizedTags: BookmarkTag[] = raw.tags.map(tag => ({
@@ -152,21 +153,25 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
        }));
 
        // Create a non-nullable content object for UnifiedBookmark
+       // Ensure content exists, even if raw.content is missing
        const unifiedContent: BookmarkContent = {
-         ...raw.content,
-         title: bestTitle,
-         description: bestDescription,
+         ...raw.content, // Spread existing content properties first
+         // Then override with our preferred values
+         type: 'link',
+         url: raw.content?.url || '',
+         title: bestTitle || 'Untitled Bookmark',
+         description: bestDescription || 'No description available.'
        };
 
       return {
         id: raw.id,
-        url: raw.content.url,
+        url: raw.content?.url || '',
         title: bestTitle,
         description: bestDescription,
         tags: normalizedTags, // Use the normalized tags
-        ogImage: raw.content.imageUrl, // Map imageUrl to ogImage
+        ogImage: raw.content?.imageUrl, // Map imageUrl to ogImage
         dateBookmarked: raw.createdAt, // Map createdAt to dateBookmarked
-        datePublished: raw.content.datePublished, // Map content.datePublished
+        datePublished: raw.content?.datePublished, // Map content.datePublished
         // --- Include other fields from RawApiBookmark if needed ---
         createdAt: raw.createdAt,
         modifiedAt: raw.modifiedAt,
