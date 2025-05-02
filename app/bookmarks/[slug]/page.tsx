@@ -6,11 +6,11 @@
  * @module app/bookmarks/[slug]/page
  */
 
-import { fetchExternalBookmarks } from '@/lib/bookmarks';
+import { fetchExternalBookmarksCached } from '@/lib/bookmarks';
 import { BookmarksWithOptions } from '@/components/features/bookmarks/bookmarks-with-options.client';
 import { JsonLdScript } from '@/components/seo/json-ld';
 import { getStaticPageMetadata } from '@/lib/seo/metadata';
-import { generateUniqueSlug, slugToDomain } from '@/lib/utils/domain-utils';
+import { generateUniqueSlug } from '@/lib/utils/domain-utils';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
@@ -18,7 +18,7 @@ import { notFound } from 'next/navigation';
  * Generate static paths for slug pages
  */
 export async function generateStaticParams() {
-  const bookmarks = await fetchExternalBookmarks();
+  const bookmarks = await fetchExternalBookmarksCached();
   return bookmarks.map(bookmark => ({ 
     slug: generateUniqueSlug(bookmark.url, bookmarks, bookmark.id)
   }));
@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const baseMetadata = getStaticPageMetadata(path, 'bookmarks');
   
   // Fetch bookmark data to create more specific metadata
-  const allBookmarks = await fetchExternalBookmarks();
+  const allBookmarks = await fetchExternalBookmarksCached();
   const { slug } = params;
   
   // Find the bookmark that matches this slug
@@ -113,7 +113,7 @@ interface BookmarkPageProps {
 }
 
 export default async function BookmarkPage({ params }: BookmarkPageProps) {
-  const allBookmarks = await fetchExternalBookmarks();
+  const allBookmarks = await fetchExternalBookmarksCached();
   const { slug } = params;
   
   // Find the bookmark that matches this slug

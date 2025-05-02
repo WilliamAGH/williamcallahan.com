@@ -60,6 +60,17 @@ import { ServerCacheInstance } from './server-cache';
  * @returns {Promise<UnifiedBookmark[]>} A promise that resolves to an array of unified bookmarks.
  * @throws {Error} If the API request fails and no cached data is available.
  */
+// Module-level cache to avoid multiple API calls during build
+let cachedBookmarksPromise: Promise<UnifiedBookmark[]> | null = null;
+
+/**
+ * Cached version of fetchExternalBookmarks that reuses the same promise
+ * for multiple calls during build time
+ */
+export function fetchExternalBookmarksCached(): Promise<UnifiedBookmark[]> {
+  return cachedBookmarksPromise ??= fetchExternalBookmarks();
+}
+
 export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
   // Check cache first
   const cachedData = ServerCacheInstance.getBookmarks();

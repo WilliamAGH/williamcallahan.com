@@ -7,7 +7,7 @@
 import { NextResponse } from 'next/server';
 import { fetchExternalBookmarks } from '@/lib/bookmarks';
 
-// Ensure this route is cached for better performance
+// This route always bypasses the cache for up-to-date bookmark data
 export const dynamic = 'force-dynamic';
 
 /**
