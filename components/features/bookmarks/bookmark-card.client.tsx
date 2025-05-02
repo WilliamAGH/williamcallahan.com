@@ -1,5 +1,4 @@
-"use client";
-
+/* eslint-disable @next/next/no-img-element */
 /**
  * Bookmark Card Client Component
  * @module components/features/bookmarks/bookmark-card.client
@@ -21,20 +20,27 @@
  * ```
  */
 
-import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
+"use client";
+
+import { useState, useEffect } from 'react';
+import { ExternalLink as LucideExternalLinkIcon, Bookmark, Calendar } from 'lucide-react';
+import Link from 'next/link';
 import { ExternalLink } from '../../ui/external-link.client';
 import { LogoImage } from '../../ui/logo-image.client';
-import type { Bookmark } from '../../../types/bookmark';
+import { ShareButton } from './share-button.client';
+import type { UnifiedBookmark, BookmarkTag } from '@/types';
 import { normalizeDomain } from '../../../lib/utils/domain-utils';
+import { formatTagDisplay, normalizeTagsToStrings, tagToSlug } from '@/lib/utils/tag-utils';
 
 /**
  * Props for the BookmarkCardClient component
  * @interface
- * @extends {Bookmark}
+ * @extends {UnifiedBookmark}
  */
-interface BookmarkCardClientProps extends Bookmark {
+interface BookmarkCardClientProps extends UnifiedBookmark {
   /** Whether dark theme is active */
   isDarkTheme?: boolean;
+  favourited?: boolean;
 }
 
 /**
@@ -60,98 +66,215 @@ export function BookmarkCardClient({
   ogImage,
   dateBookmarked,
   datePublished,
-  isDarkTheme
+  isDarkTheme,
+  content,
+  assets,
+  createdAt,
+  favourited,
+  ...props
 }: BookmarkCardClientProps): JSX.Element {
-  const formattedBookmarkDate = new Date(dateBookmarked).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  const [imageError, setImageError] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [allBookmarks, setAllBookmarks] = useState<Array<Pick<UnifiedBookmark, 'id' | 'url'>>>([]);
+  
+  // Effects for handling client-side initialization
+  useEffect(() => {
+    setMounted(true);
+    
+    // Fetch all bookmarks for URL generation (only need id and url)
+    async function fetchBookmarks() {
+      try {
+        const response = await fetch('/api/bookmarks');
+        if (response.ok) {
+          const bookmarks = await response.json();
+          // Only keep the id and url fields to minimize memory usage
+          setAllBookmarks(bookmarks.map((b: UnifiedBookmark) => ({ id: b.id, url: b.url })));
+        }
+      } catch (error) {
+        console.error('Failed to fetch bookmarks for share URLs:', error);
+      }
+    }
+    
+    fetchBookmarks();
+  }, []);
+  
+  // Reset image error state when URLs change
+  useEffect(() => {
+    setImageError(false);
+  }, [ogImage, content?.imageUrl, content?.screenshotAssetId, content?.imageAssetId]);
 
-  const formattedPublishDate = datePublished ? new Date(datePublished).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  }) : null;
+  // Define the date variables but only format them when mounted to avoid hydration mismatches
+  const displayBookmarkDate = createdAt ?? dateBookmarked;
+  const displayPublishDate = content?.datePublished ?? datePublished;
+  
+  // Format dates only after component is mounted to avoid hydration issues
+  const formatDate = (dateString: string) => {
+    if (!mounted) return '';
+    
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+  
+  const formattedBookmarkDate = mounted ? formatDate(displayBookmarkDate) : '';
+  const formattedPublishDate = mounted && displayPublishDate ? formatDate(displayPublishDate) : null;
+
+  // Handle image sources with multiple fallbacks
+  // Priority: content.imageUrl > ogImage > screenshotAssetId > imageAssetId > logo
+  const displayImageUrl = content?.imageUrl ?? ogImage;
+  
+  // Get screenshot or image asset URL from the content
+  const getAssetUrl = () => {
+    // Try screenshot first - most reliable
+    if (content?.screenshotAssetId) {
+      return `https://bookmark.iocloudhost.net/_next/image?url=%2Fapi%2Fassets%2F${content.screenshotAssetId}&w=3840&q=75`;
+    }
+    
+    // Then try image asset
+    if (content?.imageAssetId) {
+      return `https://bookmark.iocloudhost.net/_next/image?url=%2Fapi%2Fassets%2F${content.imageAssetId}&w=3840&q=75`;
+    }
+    
+    return null;
+  };
+  
+  const assetImageUrl = getAssetUrl();
+  const domain = normalizeDomain(url);
+  const domainWithoutWWW = domain.replace(/^www\./, '');
+
+  // Get author/publisher info
+  const author = content?.author || null;
+  const publisher = content?.publisher || domainWithoutWWW;
+
+  // Process tags using shared utilities for consistency
+  const rawTags = normalizeTagsToStrings(tags || []);
+  
+  // Format the tags for display
+  const renderableTags = rawTags
+    .map(tag => formatTagDisplay(tag))
+    .filter(Boolean);
+
+  // Truncate title to max 10 words
+  const maxTitleWords = 10;
+  const titleWords = title.split(' ');
+  const displayTitle = titleWords.length > maxTitleWords
+    ? titleWords.slice(0, maxTitleWords).join(' ') + '...'
+    : title;
+
+  // Don't use a placeholder for SSR - render full card without interactive elements
+  // Server will render as much as possible for SEO, client will hydrate
 
   return (
-    <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
-      <div className="p-4 sm:p-6">
-        <div className="flex flex-col gap-5 sm:gap-6">
-          {/* Header with OG Image */}
-          <div className="flex items-start gap-4">
-            <div className="flex items-start gap-3 flex-1 min-w-0">
-              <div className="w-24 h-24 relative flex-shrink-0 rounded-md overflow-hidden">
-                <ExternalLink
-                  href={url}
-                  title={title}
-                  rawTitle={true}
-                  showIcon={false}
-                >
-                  <LogoImage
-                    url={`/api/logo?website=${encodeURIComponent(normalizeDomain(url))}`}
-                    width={96}
-                    height={96}
-                    website={url}
-                    alt={title}
-                    className="w-full h-full object-contain"
-                    enableInversion
-                    isDarkTheme={isDarkTheme}
-                  />
-                </ExternalLink>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1">
-                  <ExternalLink
-                    href={url}
-                    title={`Visit ${title}`}
-                    showIcon={false}
-                    className="text-lg font-semibold hover:text-gray-600 dark:hover:text-gray-300 line-clamp-2"
-                  >
-                    {title}
-                  </ExternalLink>
-                  <ExternalLink
-                    href={url}
-                    title={`Visit ${title}`}
-                    showIcon={false}
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0"
-                  >
-                    <ExternalLinkIcon className="w-4 h-4" />
-                  </ExternalLink>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  {formattedPublishDate && (
-                    <>
-                      <span>Published {formattedPublishDate}</span>
-                      <span className="text-gray-400 dark:text-gray-500">•</span>
-                    </>
-                  )}
-                  <span>Bookmarked {formattedBookmarkDate}</span>
-                </div>
-              </div>
-            </div>
+    <div 
+      className={`relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transform transition-all duration-200 ${mounted ? 'hover:scale-[1.005]' : ''}`}
+    >
+      {/* Image Section with domain overlay */}
+      <div className="relative w-full aspect-video overflow-hidden rounded-t-3xl bg-gray-100 dark:bg-gray-800">
+        {/* First try display image (OG or content image) */}
+        {displayImageUrl && !imageError ? (
+          <img
+            src={displayImageUrl}
+            alt={title}
+            loading="lazy"
+            className="w-full h-full object-cover"
+            onError={() => setImageError(true)}
+          />
+        ) : assetImageUrl ? (
+          /* Then try asset image (screenshot or banner) */
+          <img
+            src={assetImageUrl}
+            alt={title}
+            loading="lazy"
+            className="w-full h-full object-cover"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          /* Finally fallback to logo */
+          <div className="flex items-center justify-center w-full h-full">
+            <LogoImage
+              src={`/api/logo?website=${encodeURIComponent(domain)}`}
+              width={130}
+              height={80}
+              alt={title}
+              className="object-contain max-w-[60%] max-h-[60%]"
+            />
           </div>
-
-          {/* Description */}
-          <p className="text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-3">
-            {description}
-          </p>
-
-          {/* Tags */}
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
+        {/* Clickable domain overlay */}
+        <ExternalLink href={url} showIcon={false} className="absolute bottom-3 left-3 bg-white/80 dark:bg-gray-800/80 px-3 py-1 flex items-center space-x-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+          <LucideExternalLinkIcon className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+          <span className="text-sm text-gray-700 dark:text-gray-200">{domainWithoutWWW}</span>
+        </ExternalLink>
       </div>
+
+      {/* Content Section */}
+      <div className="flex-1 p-6 flex flex-col gap-3.5">
+        {/* Title */}
+        <ExternalLink href={url} rawTitle title={displayTitle} showIcon={false} className="text-2xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 transition-colors">
+          {displayTitle}
+        </ExternalLink>
+
+        {/* Description */}
+        <p className="flex-1 text-gray-700 dark:text-gray-300 text-base leading-6 overflow-hidden">
+          {description}
+        </p>
+
+        {/* Meta Information */}
+        <div className="mt-auto space-y-2 text-sm text-gray-500 dark:text-gray-400">
+          {/* Dates */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <Calendar className="w-4 h-4" />
+              {formattedPublishDate ? (
+                <><span>Published {formattedPublishDate}</span><span>·</span><span>Saved {formattedBookmarkDate}</span></>
+              ) : (
+                <span>Saved {formattedBookmarkDate}</span>
+              )}
+            </div>
+            
+            {/* Share button right-aligned - always render for layout stability */}
+            <ShareButton 
+              bookmark={{ id, url }} 
+              allBookmarks={allBookmarks.length > 0 ? allBookmarks : [{ id, url }]}
+            />
+          </div>
+        </div>
+
+        {/* Tags - always render for SEO, motion effects only when mounted */}
+        {rawTags.length > 0 && (
+          <div className="flex flex-wrap gap-2.5 mt-3 pt-4 pb-4 border-t border-gray-200 dark:border-gray-700">
+            {rawTags.map((raw, idx) => {
+              const label = formatTagDisplay(raw);
+              return (
+                <Link
+                  key={raw}
+                  href={`/bookmarks/tags/${tagToSlug(raw)}`}
+                  className="inline-block"
+                >
+                  <span
+                    className={`inline-block px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-medium transition-colors hover:bg-indigo-200 dark:hover:bg-indigo-800/60 ${mounted ? 'transform hover:scale-102' : ''}`}
+                  >
+                    {label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Favorite Icon - simplified for SSR */}
+      {favourited && (
+        <div
+          className="absolute top-5 right-5 bg-yellow-500 p-2 rounded-full shadow-lg"
+        >
+          <Bookmark className="w-5 h-5 text-white" />
+        </div>
+      )}
+      
+      {/* Share button moved inline with the date */}
     </div>
   );
 }

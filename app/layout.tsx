@@ -216,13 +216,39 @@ export default function RootLayout({
                       {/* Navigation component */}
                       <Navigation />
                     </Suspense>
-                    {/* Secondary toolbar items with their own container - Add styling here */}
-                    <div className="flex items-center ml-4 p-1 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700/50 shadow-sm">
-                      <Suspense fallback={null}>
-                        <SocialIcons />
-                      </Suspense>
-                      {/* Slightly adjust margin for ThemeToggle within the new container */}
-                      <div className="ml-1 border-l border-gray-300 dark:border-gray-600 pl-1">
+                    {/* Navigation bar actions container - NEVER hide, but manage content responsively */}
+                    <div className="flex items-center gap-2">
+                      {/* 
+                        Create THREE completely separate containers for different viewport sizes:
+                        1. Mobile: Only theme toggle (0-639px)
+                        2. Tablet: Theme toggle + minimal icons (640px-1023px)
+                        3. Desktop: Theme toggle + full social icons (1024px+)
+                      */}
+                      
+                      {/* 1. MOBILE: Only theme toggle */}
+                      <div className="sm:hidden">
+                        <ThemeToggle />
+                      </div>
+                      
+                      {/* 2. TABLET: Theme toggle + X (Twitter) icon only */}
+                      <div className="hidden sm:flex lg:hidden items-center gap-2">
+                        <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700/50 shadow-sm">
+                          <Suspense fallback={null}>
+                            {/* SocialIcons component now handles hydration safety internally */}
+                            <SocialIcons showXOnly={true} />
+                          </Suspense>
+                        </div>
+                        <ThemeToggle />
+                      </div>
+                      
+                      {/* 3. DESKTOP: Theme toggle + all social icons */}
+                      <div className="hidden lg:flex items-center gap-2">
+                        <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700/50 shadow-sm">
+                          <Suspense fallback={null}>
+                            {/* SocialIcons component handles hydration safety internally */}
+                            <SocialIcons />
+                          </Suspense>
+                        </div>
                         <ThemeToggle />
                       </div>
                     </div>

@@ -12,7 +12,7 @@ import path from 'path';
 
 // Define the structure for logo data
 export interface LogoData {
-  url: string;
+  src: string;
   source: string | null;
 }
 
@@ -78,7 +78,7 @@ export async function processEducationItem<T extends Education>(item: T): Promis
 
   try {
     if (logo) {
-      logoData = { url: logo, source: null };
+      logoData = { src: logo, source: null };
     } else {
       const domain = website ? normalizeDomain(website) : normalizeDomain(institution);
       const result = await fetchLogo(domain);
@@ -86,14 +86,14 @@ export async function processEducationItem<T extends Education>(item: T): Promis
       if (result.buffer) {
         const base64 = result.buffer.toString('base64');
         const mimeType = result.buffer.subarray(0, 4).toString() === '<svg' ? 'image/svg+xml' : 'image/png';
-        logoData = { url: `data:${mimeType};base64,${base64}`, source: result.source };
+        logoData = { src: `data:${mimeType};base64,${base64}`, source: result.source };
       } else {
-        logoData = { url: await getPlaceholderSvgDataUrl(), source: 'placeholder' };
+        logoData = { src: await getPlaceholderSvgDataUrl(), source: 'placeholder' };
       }
     }
   } catch (error) {
     console.error(`Error processing logo for education item "${institution}":`, error);
-    logoData = { url: await getPlaceholderSvgDataUrl(), source: 'placeholder-error' };
+    logoData = { src: await getPlaceholderSvgDataUrl(), source: 'placeholder-error' };
   }
 
   return { ...item, logoData };
@@ -111,7 +111,7 @@ export async function processCertificationItem<T extends Certification | Class>(
 
   try {
     if (logo) {
-      logoData = { url: logo, source: null };
+      logoData = { src: logo, source: null };
     } else {
       const domain = website ? normalizeDomain(website) : normalizeDomain(name);
       const result = await fetchLogo(domain);
@@ -120,14 +120,14 @@ export async function processCertificationItem<T extends Certification | Class>(
         const base64 = result.buffer.toString('base64');
         // Simple check for SVG based on first few characters
         const mimeType = result.buffer.subarray(0, 4).toString() === '<svg' ? 'image/svg+xml' : 'image/png';
-        logoData = { url: `data:${mimeType};base64,${base64}`, source: result.source };
+        logoData = { src: `data:${mimeType};base64,${base64}`, source: result.source };
       } else {
-        logoData = { url: await getPlaceholderSvgDataUrl(), source: 'placeholder' };
+        logoData = { src: await getPlaceholderSvgDataUrl(), source: 'placeholder' };
       }
     }
   } catch (error) {
     console.error(`Error processing logo for certification item "${name}":`, error);
-    logoData = { url: await getPlaceholderSvgDataUrl(), source: 'placeholder-error' };
+    logoData = { src: await getPlaceholderSvgDataUrl(), source: 'placeholder-error' };
   }
 
   return { ...item, logoData };

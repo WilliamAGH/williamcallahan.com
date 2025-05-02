@@ -21,6 +21,7 @@ import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import { LogoImage } from '../../../components/ui';
 import { ExternalLink } from '../../ui/external-link.client';
 import FinancialMetrics from '../../ui/financial-metrics.server';
+import { AVenture } from '../../ui/social-icons/aventure-icon';
 import type { Investment } from '../../../types/investment';
 import type { LogoData } from '../../../types/logo';
 
@@ -66,7 +67,8 @@ export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: I
     invested_year,
     acquired_year,
     shutdown_year,
-    stage
+    stage,
+    aventure_url
   } = investment;
 
   // Combine metrics into one object
@@ -96,13 +98,11 @@ export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: I
                   showIcon={false}
                 >
                   <LogoImage
-                    url={logoData.url}
+                    src={logoData.url} 
                     width={48}
                     height={48}
                     className="object-contain"
                     alt={name}
-                    website={website}
-                    isDarkTheme={isDarkTheme}
                   />
                 </ExternalLink>
               </div>
@@ -158,21 +158,41 @@ export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: I
           </p>
 
           {/* Status Badges */}
-          <div className="flex flex-wrap gap-2">
-            {status && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
-                {status}
-              </span>
-            )}
-            {stage && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
-                {stage}
-              </span>
-            )}
-            {category && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
-                {category}
-              </span>
+          <div className="flex flex-wrap gap-2 justify-between items-center">
+            <div className="flex flex-wrap gap-2">
+              {status && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                  {status}
+                </span>
+              )}
+              {stage && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+                  {stage}
+                </span>
+              )}
+              {category && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                  {category}
+                </span>
+              )}
+            </div>
+            {aventure_url && (
+              <ExternalLink
+                href={aventure_url}
+                title={`${name} - aVenture Startup Research`}
+                showIcon={false}
+                className="flex items-center bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-gray-700/50 px-3 py-2 rounded-full transition-colors"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src="/images/aVenture Favicon.png" 
+                  alt="aVenture" 
+                  width={32} 
+                  height={32}
+                  className="inline-block"
+                  data-testid="aventure-icon"
+                />
+              </ExternalLink>
             )}
           </div>
 

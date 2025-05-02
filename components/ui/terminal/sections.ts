@@ -1,6 +1,6 @@
 /**
  * Terminal Navigation Sections
- * 
+ *
  * Defines available navigation paths for the terminal interface.
  */
 
@@ -11,6 +11,7 @@ export const sections = {
   education: '/education',
   skills: '/skills',
   blog: '/blog',
+  bookmarks: '/bookmarks',
   aventure: '/experience#aventure',
   tsbank: '/experience#tsbank',
   seekinvest: '/experience#seekinvest',

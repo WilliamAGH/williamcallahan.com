@@ -1,3 +1,11 @@
+/**
+ * Bookmarks API Types
+ *
+ * Types for the bookmarks API
+ *
+ * @module types/bookmark
+ */
+
 export interface Bookmark {
   id: string;
   url: string;
@@ -12,4 +20,84 @@ export interface Bookmark {
 
 export interface BookmarkWithPreview extends Bookmark {
   preview: JSX.Element;
+}
+
+// Added unified bookmark types
+export interface BookmarkTag {
+  /** Optional ID from API */
+  id?: string;
+  /** Tag name */
+  name: string;
+  /** Source of tagging (ai or user) */
+  attachedBy?: 'ai' | 'user';
+}
+
+export interface BookmarkContent {
+  /** Content type (e.g., link) */
+  type: 'link' | string;
+  /** URL of the content */
+  url: string;
+  /** Resolved title */
+  title: string;
+  /** Resolved description */
+  description: string;
+  /** Optional OG image URL */
+  imageUrl?: string;
+  /** Optional favicon URL */
+  favicon?: string;
+  /** Raw HTML if available */
+  htmlContent?: string;
+  /** Crawl timestamp */
+  crawledAt?: string;
+  /** Optional author */
+  author?: string | null;
+  /** Optional publisher */
+  publisher?: string | null;
+  /** Published date */
+  datePublished?: string | null;
+  /** Modified date */
+  dateModified?: string | null;
+  /** Asset IDs for images */
+  imageAssetId?: string;
+  screenshotAssetId?: string;
+}
+
+export interface BookmarkAsset {
+  /** Asset ID */
+  id: string;
+  /** Type of asset (screenshot or bannerImage) */
+  assetType: 'screenshot' | 'bannerImage' | string;
+}
+
+export interface UnifiedBookmark {
+  /** Globally unique bookmark ID */
+  id: string;
+  /** Canonical URL */
+  url: string;
+  /** Primary title */
+  title: string;
+  /** Primary description */
+  description: string;
+  /** Tags can be either strings or fully typed Tag objects */
+  tags: BookmarkTag[] | string[];
+  /** Optional fallback image */
+  ogImage?: string;
+  /** When the bookmark was created */
+  dateBookmarked: string;
+  /** When the content was originally published */
+  datePublished?: string | null;
+  /** Raw API metadata fields */
+  createdAt?: string;
+  modifiedAt?: string;
+  archived?: boolean;
+  favourited?: boolean;
+  taggingStatus?: 'success' | string;
+  note?: string | null;
+  summary?: string | null;
+  /** Full content payload */
+  content?: BookmarkContent;
+  /** Associated assets */
+  assets?: BookmarkAsset[];
+  /** Legacy field */
+  telegramUsername?: string;
 }

@@ -12,7 +12,7 @@
  * <EducationCardClient
  *   institution="UC Berkeley"
  *   degree="Computer Science"
- *   logoData={{ url: "/api/logo?website=berkeley.edu", source: null }}
+ *   logoData={{ src: "/api/logo?website=berkeley.edu", source: null }}
  *   // ... other props
  * />
  * ```
@@ -28,9 +28,9 @@ import type { Education } from '../../../types/education';
  * @interface
  */
 interface LogoData {
-  /** URL of the logo image */
+  /** Source URL of the logo image */
   /** Source of the logo (e.g., 'google', 'clearbit', etc.) */
-  url: string;
+  src: string;
   source: string | null;
 }
 
@@ -76,13 +76,12 @@ export function EducationCardClient({
                 style={{ transform: logoScale ? `scale(${logoScale})` : undefined }}
               >
                 <LogoImage
-                  url={logoData.url}
+                  src={logoData.src}
                   width={48}
                   height={48}
                   className="object-contain w-full h-full"
                   alt={institution}
-                  enableInversion={false}
-                  showPlaceholder={true}
+                  // Removed invalid props: enableInversion, showPlaceholder
                 />
               </span>
             </ExternalLink>

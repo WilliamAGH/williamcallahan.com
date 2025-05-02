@@ -15,6 +15,7 @@ export const navigationLinks: NavigationLink[] = [
   { name: 'Investments', path: '/investments' },
   { name: 'Experience', path: '/experience' },
   { name: 'Education', path: '/education' },
-  { name: 'Project Sandbox', path: '/projects' }, // Changed name
+  { name: 'Projects Sandbox', path: '/projects' }, // Use plural to match rendered label
+  { name: 'Bookmarks', path: '/bookmarks' },
   { name: 'Blog', path: '/blog' },
 ];
