@@ -140,9 +140,9 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
 
     // Normalize the raw API data to the UnifiedBookmark structure
     const normalizedBookmarks = data.bookmarks.map((raw): UnifiedBookmark => {
-      // Choose the best title and description (prefer content object)
-      const bestTitle = raw.content.title ?? raw.title ?? 'Untitled Bookmark';
-      const bestDescription = raw.content.description ?? raw.summary ?? 'No description available.';
+      // Choose the best title and description (prefer title field that user edits)
+      const bestTitle = raw.title ?? raw.content.title ?? 'Untitled Bookmark';
+      const bestDescription = raw.summary ?? raw.content.description ?? 'No description available.';
 
       // Normalize tags to BookmarkTag interface (though UnifiedBookmark allows string[] for now)
        const normalizedTags: BookmarkTag[] = raw.tags.map(tag => ({
