@@ -37,7 +37,7 @@ export async function EducationCard(props: Education): Promise<JSX.Element> {
   try {
     // If logo is provided directly, use it
     if (logo) {
-      return <EducationCardClient {...props} logoData={{ url: logo, source: null }} />;
+      return <EducationCardClient {...props} logoData={{ src: logo, source: null }} />;
     }
 
     // Get domain from website or institution name
@@ -55,7 +55,7 @@ export async function EducationCard(props: Education): Promise<JSX.Element> {
       return <EducationCardClient
         {...props}
         logoData={{
-          url: dataUrl,
+          src: dataUrl,
           source: result.source
         }}
       />;
@@ -67,7 +67,7 @@ export async function EducationCard(props: Education): Promise<JSX.Element> {
     return <EducationCardClient
       {...props}
       logoData={{
-        url: `data:image/svg+xml;base64,${base64}`,
+        src: `data:image/svg+xml;base64,${base64}`,
         source: null
       }}
     />;
@@ -79,7 +79,7 @@ export async function EducationCard(props: Education): Promise<JSX.Element> {
     return <EducationCardClient
       {...props}
       logoData={{
-        url: `data:image/svg+xml;base64,${base64}`,
+        src: `data:image/svg+xml;base64,${base64}`,
         source: null
       }}
     />;
