@@ -1,141 +1,71 @@
+/* eslint-disable @next/next/no-img-element */
 /**
  * LogoImage Component
  *
  * A client-side component for displaying a company logo image.
+ * Uses next/image for standard URLs and a plain <img> for data URLs
+ * to ensure compatibility.
  *
  * @module components/ui/logo-image.client
  */
 
 'use client';
 
-import { useState, useEffect } from "react";
-import Image from "next/image";
-import { useTheme } from "next-themes";
-import type { LogoDisplayOptions } from "../../types/logo";
+import React from "react";
+import Image from 'next/image'; // Import next/image
 
-interface LogoImageProps extends LogoDisplayOptions {
-  url: string;
+interface LogoImageProps {
+  /** Source URL for the image (can be a regular URL or a data URL) */
+  src: string;
+  /** Width of the image in pixels */
   width: number;
+  /** Height of the image in pixels */
   height: number;
-  website?: string;
+  /** Alternate text for accessibility */
+  alt?: string;
+  /** Additional CSS classes to apply to the container/image */
+  className?: string;
+  /** Optional: Priority loading (only applies to next/image) */
+  priority?: boolean;
 }
 
 export function LogoImage({
-  url,
+  src,
   width,
   height,
-  className = "",
   alt = "Company Logo",
-  showPlaceholder = true,
-  enableInversion = false,
-  isDarkTheme,
-  website
-}: LogoImageProps): JSX.Element | null {
-  const [currentUrl, setCurrentUrl] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<boolean>(false);
-  const [triedApi, setTriedApi] = useState<boolean>(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 2; // Maximum number of retries
+  className = "",
+  priority = false,
+}: LogoImageProps): JSX.Element {
+  // Determine if the src is a data URL
+  const isDataUrl = src.startsWith('data:');
 
-  const isApiUrl = (url: string): boolean => url.startsWith("/api/logo");
-  const isDataUrl = (url: string): boolean => url?.startsWith('data:');
-
-  const getApiFallbackUrl = (website: string): string => {
-    if (!website) {
-      throw new Error("Website parameter is required for API fallback");
-    }
-    return `/api/logo?website=${encodeURIComponent(website)}`;
-  };
-
-  useEffect(() => {
-    setError(false);
-    setIsLoading(true);
-    setTriedApi(false);
-    setRetryCount(0);
-
-    if (!url) {
-      setError(true);
-      setIsLoading(false);
-      return;
-    }
-
-    if (isApiUrl(url) || isDataUrl(url)) {
-      setCurrentUrl(url);
-      setIsLoading(false);
-      return;
-    }
-
-    setCurrentUrl(url);
-    setIsLoading(false);
-  }, [url]);
-
-  const handleError = (): void => {
-    // If we've already tried the maximum number of retries, give up
-    if (retryCount >= maxRetries) {
-      setError(true);
-      setIsLoading(false);
-      return;
-    }
-
-    // Increment retry count
-    setRetryCount(prev => prev + 1);
-
-    // If we haven't tried the API fallback yet and have a website, try that
-    if (!triedApi && website && !isApiUrl(currentUrl)) {
-      try {
-        setTriedApi(true);
-        setCurrentUrl(getApiFallbackUrl(website));
-        return;
-      } catch (err) {
-        console.error("Failed to generate API fallback URL:", err);
-      }
-    }
-
-    // If it's a relative URL that might need a different base path in production
-    if (currentUrl.startsWith('/') && !isApiUrl(currentUrl) && !triedApi) {
-      try {
-        setTriedApi(true);
-        // Try with different path pattern
-        if (currentUrl.startsWith('/images/')) {
-          setCurrentUrl(`/public${currentUrl}`);
-          return;
-        }
-      } catch (err) {
-        console.error("Failed to adjust URL path:", err);
-      }
-    }
-
-    setError(true);
-    setIsLoading(false);
-  };
-
-  const imageUrl = error || !currentUrl
-    ? "/images/company-placeholder.svg"
-    : currentUrl;
-
-  const getInversionClass = (): string => {
-    if (!enableInversion) return "";
-    return isDarkTheme ? "dark:invert" : "invert-0";
-  };
-
-  if (error && !showPlaceholder) {
-    return null;
+  if (isDataUrl) {
+    // Render plain <img> for data URLs
+    return (
+      <img
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        className={`${className} object-contain`} // Apply className directly
+        loading="lazy" // Standard lazy loading
+      />
+    );
+  } else {
+    // Render next/image for standard URLs
+    return (
+      // Wrapper div needed for layout="fill"
+      <div data-testid="logo-image-wrapper" className={`relative ${className}`} style={{ width, height }}>
+        <Image
+          src={src}
+          alt={alt}
+          layout="fill"
+          objectFit="contain"
+          priority={priority}
+          // unoptimized is not needed here as we only use next/image for non-data URLs
+        />
+      </div>
+    );
   }
-
-  return (
-    <Image
-      src={imageUrl}
-      alt={alt}
-      width={width}
-      height={height}
-      className={`${className} ${error ? "opacity-50" : ""} ${getInversionClass()}`}
-      onError={handleError}
-      priority={false}
-      unoptimized={isDataUrl(imageUrl)} // Only skip optimization for data URLs
-      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-      loading="lazy"
-      style={isDataUrl(imageUrl) ? { width: 'auto', height: 'auto' } : undefined} // Fix aspect ratio for data URLs
-    />
-  );
 }

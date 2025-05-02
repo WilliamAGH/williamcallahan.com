@@ -76,13 +76,12 @@ export function EducationCardClient({
                 style={{ transform: logoScale ? `scale(${logoScale})` : undefined }}
               >
                 <LogoImage
-                  url={logoData.url}
+                  src={logoData.url} // Renamed 'url' to 'src'
                   width={48}
                   height={48}
                   className="object-contain w-full h-full"
                   alt={institution}
-                  enableInversion={false}
-                  showPlaceholder={true}
+                  // Removed invalid props: enableInversion, showPlaceholder
                 />
               </span>
             </ExternalLink>

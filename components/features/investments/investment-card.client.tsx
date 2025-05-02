@@ -96,13 +96,12 @@ export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: I
                   showIcon={false}
                 >
                   <LogoImage
-                    url={logoData.url}
+                    src={logoData.url} // Renamed 'url' to 'src'
                     width={48}
                     height={48}
                     className="object-contain"
                     alt={name}
-                    website={website}
-                    isDarkTheme={isDarkTheme}
+                    // Removed invalid props: website, isDarkTheme
                   />
                 </ExternalLink>
               </div>

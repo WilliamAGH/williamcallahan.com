@@ -40,13 +40,11 @@ export function ExperienceCardClient({
               showIcon={false}
             >
               <LogoImage
-                url={logoData.url}
+                src={logoData.url}
                 width={48}
                 height={48}
                 className="object-contain rounded-lg"
                 alt={company}
-                enableInversion={false}
-                showPlaceholder={true}
               />
             </ExternalLink>
           </div>

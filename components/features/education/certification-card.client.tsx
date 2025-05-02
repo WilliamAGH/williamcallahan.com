@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Certification Card Client Component
  * @module components/features/education/certification-card.client
@@ -17,6 +15,8 @@
  * />
  * ```
  */
+
+"use client";
 
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import { LogoImage } from '../../../components/ui';
@@ -68,15 +68,13 @@ export function CertificationCardClient({
               rawTitle={true}
               showIcon={false}
             >
-              <LogoImage
-                url={logoData.url}
-                width={64}
-                height={64}
-                className="object-contain w-full h-full rounded-md"
-                alt={institution}
-                enableInversion={false}
-                showPlaceholder={true}
-              />
+                <LogoImage
+                  src={logoData.url} // Renamed 'url' to 'src'
+                  width={32}
+                  height={32}
+                  className="object-contain"
+                  alt={name}
+                />
             </ExternalLink>
           </div>
           <div className="flex-1 min-w-0">
