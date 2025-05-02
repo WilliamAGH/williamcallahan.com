@@ -18,6 +18,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // Clear all caches
     ServerCacheInstance.clearAllLogoFetches();
+    ServerCacheInstance.clearBookmarks(); // Add this line to clear bookmarks cache
 
     return NextResponse.json({
       message: 'Cache cleared successfully',
