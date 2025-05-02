@@ -79,8 +79,8 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
             viewBox="0 0 50 50" 
-            width={18} 
-            height={18}
+            width={24} 
+            height={24}
             className="text-gray-500 dark:text-gray-400"
           >
             <path fill="currentColor" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z"/>
@@ -105,8 +105,8 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
             viewBox="0 0 50 50" 
-            width={18} 
-            height={18}
+            width={24} 
+            height={24}
             className="text-gray-500 dark:text-gray-400"
           >
             <path fill="currentColor" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z"/>
