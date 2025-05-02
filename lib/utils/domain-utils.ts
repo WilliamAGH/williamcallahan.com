@@ -100,10 +100,38 @@ export function generateUniqueSlug(url: string, allBookmarks: Array<{ id: string
       }
     }
     
-    // Check if this slug is unique
+    // Generate base slugs for all bookmarks once instead of recursively calling
+    const getBaseSlugFromUrl = (url: string): string => {
+      try {
+        const urlToProcess = url.startsWith('http') ? url : `https://${url}`;
+        const urlObj = new URL(urlToProcess);
+        let domain = urlObj.hostname.replace(/^www\./, '');
+        let slug = domain.replace(/\./g, '-');
+        
+        // If there's a meaningful path, include it
+        const path = urlObj.pathname;
+        if (path && path !== '/' && path.length > 1) {
+          const cleanPath = path
+            .replace(/^\/|\/$/g, '') // Remove leading/trailing slashes
+            .replace(/\//g, '-')      // Replace slashes with dashes
+            .replace(/[^a-zA-Z0-9-]/g, '-') // Replace non-alphanumeric with dashes
+            .replace(/-+/g, '-')      // Replace multiple dashes with single dash
+            .replace(/-+$/g, '');     // Remove trailing dashes
+          
+          if (cleanPath) {
+            slug = `${slug}-${cleanPath}`;
+          }
+        }
+        return slug;
+      } catch {
+        return 'unknown-url';
+      }
+    };
+    
+    // Check if this slug is unique - without recursive calls
     const otherBookmarkWithSameSlug = allBookmarks.find(b => 
       b.id !== currentBookmarkId && // Skip the current bookmark
-      generateUniqueSlug(b.url, [], b.id) === baseSlug // Compare with the same base slug generation
+      getBaseSlugFromUrl(b.url) === baseSlug
     );
     
     if (!otherBookmarkWithSameSlug) {

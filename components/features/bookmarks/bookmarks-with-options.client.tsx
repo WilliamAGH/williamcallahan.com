@@ -39,13 +39,15 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
   const [allBookmarks, setAllBookmarks] = useState<UnifiedBookmark[]>(bookmarks);
   const [isSearching, setIsSearching] = useState(false);
 
-  // After mount, we can safely use client-side rendering
+  // Set mounted state once after hydration
   useEffect(() => {
     setMounted(true);
+  }, []);
 
-    // If we need to search all bookmarks, fetch them
+  // Separate effect for fetching bookmarks
+  useEffect(() => {
     if (searchAllBookmarks && mounted) {
-      const loadAllBookmarks = async () => {
+      (async () => {
         try {
           const allBookmarksData = await fetchExternalBookmarks();
           setAllBookmarks(allBookmarksData);
@@ -54,16 +56,14 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
           // Fallback to provided bookmarks
           setAllBookmarks(bookmarks);
         }
-      };
-
-      loadAllBookmarks();
+      })();
     }
   }, [searchAllBookmarks, bookmarks, mounted]);
 
   // Tag formatting is now handled in the TagsList component
 
-  // Extract all unique tags from bookmarks
-  const allTags = bookmarks.flatMap(bookmark => {
+  // Extract all unique tags from all available bookmarks
+  const allTags = (searchAllBookmarks ? allBookmarks : bookmarks).flatMap(bookmark => {
     return getTagsAsStringArray(bookmark.tags);
   }).filter((tag, index, self) => tag && self.indexOf(tag) === index).sort();
 

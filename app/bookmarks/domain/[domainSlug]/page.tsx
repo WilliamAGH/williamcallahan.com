@@ -16,13 +16,14 @@ import { getDomainSlug, generateUniqueSlug } from '@/lib/utils/domain-utils';
 
 interface DomainPageRedirectorProps {
   params: { domainSlug: string };
-  searchParams: { id?: string };
+  searchParams: { id?: string | string[] };
 }
 
 export default async function DomainPageRedirector({ params, searchParams }: DomainPageRedirectorProps) {
   const allBookmarks = await fetchExternalBookmarks();
   const { domainSlug } = params;
-  const { id } = searchParams;
+  const rawId = searchParams.id;
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
   
   // If ID is provided, find that specific bookmark
   if (id) {
