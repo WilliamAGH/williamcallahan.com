@@ -19,7 +19,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      // Render an empty button with the same dimensions to prevent layout shift
+      // Render an empty button with the same dimensions to prevent layout shift during hydration
       <button
         className="p-2 rounded-lg"
         aria-hidden="true"
@@ -42,15 +42,41 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 rounded-lg transition-colors hover:bg-gray-200 dark:hover:bg-gray-800"
+      className="group flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 
+      bg-gray-200 dark:bg-gray-700 
+      hover:bg-indigo-100 dark:hover:bg-indigo-900 
+      border border-gray-300 dark:border-gray-600 
+      text-gray-700 dark:text-gray-300
+      hover:shadow-md hover:scale-105 active:scale-100"
       aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
       title={`Current theme: ${theme} (Resolved: ${resolvedTheme})`}
     >
-      {isDark ? (
-        <Sun className="h-5 w-5" data-testid="sun-icon" />
-      ) : (
-        <Moon className="h-5 w-5" data-testid="moon-icon" />
-      )}
+      <div className="hidden [@media(min-width:1000px)]:block text-sm font-medium whitespace-nowrap overflow-hidden relative">
+        <span className="inline-block transition-transform duration-200 group-hover:-translate-y-full">
+          {isDark ? "Dark" : "Light"}
+          <span className="hidden [@media(min-width:1100px)]:inline"> Mode</span>
+        </span>
+        <span className="absolute top-0 left-0 translate-y-full transition-transform duration-200 group-hover:translate-y-0">
+          {isDark ? "Light" : "Dark"}
+          <span className="hidden [@media(min-width:1100px)]:inline"> Mode</span>
+        </span>
+      </div>
+      <div className="relative h-4 w-4 overflow-hidden">
+        <div className="transition-transform duration-200 group-hover:-translate-y-full">
+          {isDark ? (
+            <Moon className="h-4 w-4" data-testid="moon-icon" />
+          ) : (
+            <Sun className="h-4 w-4" data-testid="sun-icon" />
+          )}
+        </div>
+        <div className="absolute top-0 left-0 translate-y-full transition-transform duration-200 group-hover:translate-y-0">
+          {isDark ? (
+            <Sun className="h-4 w-4" data-testid="sun-icon" />
+          ) : (
+            <Moon className="h-4 w-4" data-testid="moon-icon" />
+          )}
+        </div>
+      </div>
     </button>
   );
 }
