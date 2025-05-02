@@ -108,6 +108,17 @@ function getSchemaOrgData(): string {
 export async function handleCommand(input: string): Promise<CommandResult> {
   // Process the input
   const trimmedInput = input.toLowerCase().trim();
+
+  // Short-circuit: do nothing if the user entered only whitespace
+  if (trimmedInput.length === 0) {
+    return {
+      results: [{
+        input: '',
+        output: 'No command entered. Type "help" for available commands.'
+      }]
+    };
+  }
+
   const [command, ...args] = trimmedInput.split(' ');
 
   // 1. First check for direct commands that take precedence
