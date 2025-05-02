@@ -38,21 +38,25 @@ export function SocialIcons({ className = '' }: SocialIconsProps) {
   return (
     <div className={`flex items-center space-x-1 ${className}`}>
       {/* Revert to mapping all links */}
-      {socialLinks.map((link: SocialLink) => (
-        <ErrorBoundary key={link.label} silent>
-          <Link
-            href={link.href}
-            className={iconButtonClasses} // Apply updated classes
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={link.label}
-            title={link.label} // Add title for better accessibility/tooltip
-          >
-            {/* Use the icon from the link data */}
-            <IconWrapper icon={link.icon} className="w-5 h-5" />
-          </Link>
-        </ErrorBoundary>
-      ))}
+      {socialLinks.map((link: SocialLink) => {
+        const isXLink = link.label === 'X (Twitter)';
+        // X icon always visible when container shows (>=800px), other icons only at >=950px
+        const visibilityClasses = isXLink ? '' : 'hidden [@media(min-width:950px)]:inline-flex';
+        return (
+          <ErrorBoundary key={link.label} silent>
+            <Link
+              href={link.href}
+              className={`${iconButtonClasses} ${visibilityClasses}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={link.label}
+              title={link.label}
+            >
+              <IconWrapper icon={link.icon} className="w-5 h-5" />
+            </Link>
+          </ErrorBoundary>
+        );
+      })}
 
       {/* Remove the manual Discord rendering */}
       {/* {discordLinkData && (...)} */}
