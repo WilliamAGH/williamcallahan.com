@@ -74,10 +74,7 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
                   {name}
                 </ExternalLink>
               </h3>
-              {/* Topic-Based Icon */}
-              {tags && tags.includes('Next.js') && <span className="text-blue-400">🔗</span>}
-              {tags && tags.includes('VS Code') && <span className="text-blue-400">🖥️</span>}
-              {tags && tags.includes('AI') && <span className="text-blue-400">🤖</span>}
+              {/* Topic-Based Icon removed */}
             </div>
 
             {/* Code Snippet */}
