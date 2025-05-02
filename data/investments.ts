@@ -3,7 +3,7 @@
  */
 
 // Remember to update this date whenever the investment data or the Investments page design changes
-export const updatedAt = '2024-07-30';
+export const updatedAt = '2025-05-02';
 
 import type { Investment } from "../types/investment";
 
