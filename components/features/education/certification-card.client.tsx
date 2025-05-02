@@ -10,7 +10,7 @@
  * <CertificationCardClient
  *   institution="AWS"
  *   name="Solutions Architect"
- *   logoData={{ url: "/api/logo?website=aws.amazon.com", source: null }}
+ *   logoData={{ src: "/api/logo?website=aws.amazon.com", source: null }}
  *   // ... other props
  * />
  * ```
@@ -28,9 +28,9 @@ import type { Certification } from '../../../types/education';
  * @interface
  */
 interface LogoData {
-  /** URL of the logo image */
+  /** Source URL of the logo image */
   /** Source of the logo (e.g., 'google', 'clearbit', etc.) */
-  url: string;
+  src: string;
   source: string | null;
 }
 
@@ -69,7 +69,7 @@ export function CertificationCardClient({
               showIcon={false}
             >
                 <LogoImage
-                  src={logoData.url} // Renamed 'url' to 'src'
+                  src={logoData.src}
                   width={32}
                   height={32}
                   className="object-contain"

@@ -37,7 +37,7 @@ export async function CertificationCard(props: Certification): Promise<JSX.Eleme
   try {
     // If logo is provided directly, use it
     if (logo) {
-      return <CertificationCardClient {...props} logoData={{ url: logo, source: null }} />;
+      return <CertificationCardClient {...props} logoData={{ src: logo, source: null }} />;
     }
 
     // Get domain from website or certification name
@@ -55,7 +55,7 @@ export async function CertificationCard(props: Certification): Promise<JSX.Eleme
       return <CertificationCardClient
         {...props}
         logoData={{
-          url: dataUrl,
+          src: dataUrl,
           source: result.source
         }}
       />;
@@ -67,7 +67,7 @@ export async function CertificationCard(props: Certification): Promise<JSX.Eleme
     return <CertificationCardClient
       {...props}
       logoData={{
-        url: `data:image/svg+xml;base64,${base64}`,
+        src: `data:image/svg+xml;base64,${base64}`,
         source: null
       }}
     />;
@@ -79,7 +79,7 @@ export async function CertificationCard(props: Certification): Promise<JSX.Eleme
     return <CertificationCardClient
       {...props}
       logoData={{
-        url: `data:image/svg+xml;base64,${base64}`,
+        src: `data:image/svg+xml;base64,${base64}`,
         source: null
       }}
     />;

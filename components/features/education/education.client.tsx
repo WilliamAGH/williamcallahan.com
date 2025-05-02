@@ -288,10 +288,10 @@ export function EducationClient({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         <div className="flex items-center">
-                          {item.logoData?.url && (
+                          {item.logoData?.src && (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
-                              src={item.logoData.url}
+                              src={item.logoData.src}
                               alt={`${item.institution} logo`}
                               className="h-6 w-6 mr-2 object-contain rounded-md"
                             />
