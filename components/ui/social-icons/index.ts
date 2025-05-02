@@ -12,3 +12,4 @@ export { X } from './x-icon';
 export { Discord } from './discord-icon';
 export { LinkedIn } from './linkedin-icon';
 export { GitHub } from './github-icon';
+export { AVenture } from './aventure-icon';
