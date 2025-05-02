@@ -7,7 +7,8 @@ jest.mock('../../lib/utils/ensure-server-only', () => ({
 
 import { ServerCacheInstance } from '../../lib/server-cache';
 import type { LogoInversion, LogoSource } from '../../types/logo';
-import { SERVER_CACHE_DURATION } from '../../lib/constants';
+import type { UnifiedBookmark } from '../../types/bookmark';
+import { SERVER_CACHE_DURATION, BOOKMARKS_CACHE_DURATION } from '../../lib/constants';
 
 // Mock NodeCache
 jest.mock('node-cache', () => {
@@ -183,6 +184,93 @@ describe('ServerCache', () => {
     });
   });
 
+  describe('bookmarks cache', () => {
+    const mockBookmarks: UnifiedBookmark[] = [
+      {
+        id: 'bookmark1',
+        url: 'https://example.com/article1',
+        title: 'Test Bookmark 1',
+        description: 'Test description',
+        tags: [
+          { id: 'tag1', name: 'JavaScript', attachedBy: 'user' },
+          { id: 'tag2', name: 'Web Development', attachedBy: 'ai' }
+        ],
+        createdAt: '2023-01-01T12:00:00Z',
+        dateBookmarked: '2023-01-01T12:00:00Z',
+        content: {
+          url: 'https://example.com/article1',
+          title: 'Test Bookmark 1',
+          description: 'Test description',
+          type: 'link'
+        }
+      }
+    ];
+
+    it('should store and retrieve bookmarks', () => {
+      ServerCacheInstance.setBookmarks(mockBookmarks);
+      const result = ServerCacheInstance.getBookmarks();
+
+      expect(result).toBeDefined();
+      expect(result?.bookmarks).toHaveLength(1);
+      expect(result?.bookmarks[0].id).toBe('bookmark1');
+      expect(result?.lastFetchedAt).toBeLessThanOrEqual(Date.now());
+      expect(result?.lastAttemptedAt).toBeLessThanOrEqual(Date.now());
+    });
+
+    it('should handle bookmark fetch failures correctly', () => {
+      // First set successful bookmarks
+      ServerCacheInstance.setBookmarks(mockBookmarks);
+      
+      // Then simulate a failure
+      ServerCacheInstance.setBookmarks([], true);
+      
+      const result = ServerCacheInstance.getBookmarks();
+      
+      // Should keep the original bookmarks on failure
+      expect(result).toBeDefined();
+      expect(result?.bookmarks).toHaveLength(1);
+      expect(result?.bookmarks[0].id).toBe('bookmark1');
+      
+      // lastAttemptedAt should be updated
+      expect(result?.lastAttemptedAt).toBeLessThanOrEqual(Date.now());
+    });
+
+    it('should clear bookmarks cache', () => {
+      ServerCacheInstance.setBookmarks(mockBookmarks);
+      ServerCacheInstance.clearBookmarks();
+      
+      const result = ServerCacheInstance.getBookmarks();
+      expect(result).toBeUndefined();
+    });
+
+    it('should correctly determine if bookmarks need refreshing', () => {
+      // Set initial time
+      const startTime = 1000000;
+      jest.spyOn(Date, 'now').mockImplementation(() => startTime);
+      
+      // Set bookmarks
+      ServerCacheInstance.setBookmarks(mockBookmarks);
+      
+      // Just after setting, shouldn't need refresh
+      expect(ServerCacheInstance.shouldRefreshBookmarks()).toBe(false);
+      
+      // Just before revalidation time
+      jest.spyOn(Date, 'now').mockImplementation(() => 
+        startTime + (BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000) - 1
+      );
+      expect(ServerCacheInstance.shouldRefreshBookmarks()).toBe(false);
+      
+      // After revalidation time
+      jest.spyOn(Date, 'now').mockImplementation(() => 
+        startTime + (BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000) + 1
+      );
+      expect(ServerCacheInstance.shouldRefreshBookmarks()).toBe(true);
+      
+      // Restore Date.now
+      jest.spyOn(Date, 'now').mockRestore();
+    });
+  });
+
   describe('cache management', () => {
     it('should clear all caches', () => {
       // Set some test data
@@ -191,11 +279,22 @@ describe('ServerCache', () => {
         url: 'https://example.com/logo.png',
         source: 'google' as LogoSource
       });
+      ServerCacheInstance.setBookmarks([{
+        id: 'bookmark1',
+        url: 'https://example.com',
+        title: 'Test',
+        description: 'Test',
+        tags: [],
+        createdAt: 'test',
+        dateBookmarked: 'test',
+        content: { url: 'test', title: 'test', description: 'test', type: 'link' }
+      }]);
 
       ServerCacheInstance.clear();
 
       expect(ServerCacheInstance.getLogoValidation('test-hash')).toBeUndefined();
       expect(ServerCacheInstance.getLogoFetch('example.com')).toBeUndefined();
+      expect(ServerCacheInstance.getBookmarks()).toBeUndefined();
     });
 
     it('should get cache statistics', () => {
