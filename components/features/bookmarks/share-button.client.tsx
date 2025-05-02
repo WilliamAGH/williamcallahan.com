@@ -72,7 +72,7 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
     return (
       <div className="relative">
         <button
-          className="p-1 text-gray-500 dark:text-gray-400 transition-colors pointer-events-none"
+          className="p-2 text-gray-500 dark:text-gray-400 transition-colors pointer-events-none"
           aria-label="Copy link"
           disabled
         >
@@ -96,11 +96,11 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
     <div className="relative">
       <button
         onClick={handleCopy}
-        className="p-1 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+        className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
         aria-label="Copy link"
       >
         {copied ? (
-          <Check className="w-4 h-4 text-green-500" />
+          <Check className="w-6 h-6 text-green-500" />
         ) : (
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
