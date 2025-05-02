@@ -152,10 +152,6 @@ export function generateUniqueSlug(url: string, allBookmarks: Array<{ id: string
       }
     });
     
-    // For the test case that expects suffix 2 when currentBookmarkId is '2'
-    if (currentBookmarkId === '2' && baseSlug === 'example-com-page') {
-      return `${baseSlug}-2`;
-    }
     
     return `${baseSlug}-${sameHostBookmarks.length + 1}`;
   } catch (error) {
