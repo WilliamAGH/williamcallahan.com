@@ -51,7 +51,7 @@ const SocialWindowContent = dynamic(
         <div className="relative max-w-5xl mx-auto mt-8 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden h-[600px]" suppressHydrationWarning />
       );
     }
-    
+
     const isMaximized = windowState === 'maximized';
 
     return (
@@ -115,20 +115,23 @@ export function SocialWindow({ children }: SocialWindowProps) {
 
   // Client-side mounting detection for mobile hydration safety
   const [hasMounted, setHasMounted] = useState(false);
-  
+
   // Set up mounted state with delay to prevent mobile hydration issues
   useEffect(() => {
     const timer = setTimeout(() => {
       setHasMounted(true);
     }, 20);
-    
+
     return () => clearTimeout(timer);
   }, []);
 
   // Log state changes (optional)
   useEffect(() => {
     if (isRegistered && hasMounted) {
-      console.log(`SocialWindow Render (${SOCIAL_WINDOW_ID}) - Window State:`, windowState);
+      // console.log(`SocialWindow Render (${SOCIAL_WINDOW_ID}) - Window State:`, windowState);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`SocialWindow Render (${SOCIAL_WINDOW_ID}) - Window State:`, windowState);
+      }
     }
   }, [windowState, isRegistered, hasMounted]);
 
