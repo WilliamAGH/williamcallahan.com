@@ -10,7 +10,7 @@
 export const dynamic = 'force-dynamic';
 
 import { fetchExternalBookmarksCached } from '@/lib/bookmarks';
-import { BookmarksWithOptions } from '@/components/features/bookmarks/bookmarks-with-options.client';
+import { BookmarksServer } from '@/components/features/bookmarks/bookmarks.server';
 import { JsonLdScript } from '@/components/seo/json-ld';
 import { getStaticPageMetadata } from '@/lib/seo/metadata';
 import { generateUniqueSlug } from '@/lib/utils/domain-utils';
@@ -194,15 +194,12 @@ export default async function BookmarkPage({ params }: BookmarkPageProps) {
   return (
     <>
       <JsonLdScript data={jsonLdData} />
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">{pageTitle}</h1>
-        <p className="text-gray-600 dark:text-gray-300 mb-8">{pageDescription}</p>
-        
-        {/* Show the bookmark and related bookmarks from the same domain */}
-        <BookmarksWithOptions 
-          bookmarks={domainBookmarks} 
-          showFilterBar={false} 
-          searchAllBookmarks={true} 
+      <div className="max-w-5xl mx-auto">
+        <BookmarksServer 
+          title={`Bookmark: ${foundBookmark.title || domainName}`}
+          description={foundBookmark.description || `A bookmark from ${domainName} I found useful.`}
+          bookmarks={domainBookmarks}
+          showFilterBar={false}
         />
       </div>
     </>
