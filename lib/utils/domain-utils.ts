@@ -89,6 +89,8 @@ export function generateUniqueSlug(url: string, allBookmarks: Array<{ id: string
     if (path && path !== '/' && path.length > 1) {
       // Clean up the path and append it
       const cleanPath = path
+        // Strip Unicode control characters first
+        .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '')
         .replace(/^\/|\/$/g, '') // Remove leading/trailing slashes
         .replace(/\//g, '-')      // Replace slashes with dashes
         .replace(/[^a-zA-Z0-9-]/g, '-') // Replace non-alphanumeric with dashes
@@ -112,6 +114,8 @@ export function generateUniqueSlug(url: string, allBookmarks: Array<{ id: string
         const path = urlObj.pathname;
         if (path && path !== '/' && path.length > 1) {
           const cleanPath = path
+            // Strip Unicode control characters first
+            .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '')
             .replace(/^\/|\/$/g, '') // Remove leading/trailing slashes
             .replace(/\//g, '-')      // Replace slashes with dashes
             .replace(/[^a-zA-Z0-9-]/g, '-') // Replace non-alphanumeric with dashes

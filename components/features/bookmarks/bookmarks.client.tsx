@@ -23,6 +23,10 @@ export const BookmarksClient: React.FC<BookmarksClientProps> = ({
   // Debug log to check if bookmarks are passed correctly to client component
   console.log('BookmarksClient receiving bookmarks:', bookmarks?.length || 0, 'forceClientFetch:', forceClientFetch);
   
+  // Force client-side indicators in development
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  console.log('BookmarksClient running in development mode:', isDevelopment);
+  
   // Use our configurable component with default settings
   return <BookmarksWithOptions 
     bookmarks={bookmarks} 

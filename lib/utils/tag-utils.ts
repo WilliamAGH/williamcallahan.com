@@ -64,7 +64,10 @@ export function normalizeTagsToStrings(tags: Array<string | BookmarkTag>): strin
 export function tagToSlug(tag: string): string {
   if (!tag) return '';
   
-  return tag
+  // Strip Unicode control characters (including bidi controls)
+  const cleanTag = tag.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '');
+  
+  return cleanTag
     .toLowerCase()
     .replace(/[^\w\s-]/g, '') // Remove special chars except spaces and hyphens
     .replace(/\s+/g, '-') // Replace spaces with hyphens

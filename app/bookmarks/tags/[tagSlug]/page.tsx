@@ -23,9 +23,11 @@ export async function generateStaticParams() {
   const tags = bookmarks.flatMap(b =>
     (Array.isArray(b.tags) ? b.tags : []).map(t => (typeof t === 'string' ? t : t.name))
   );
-  const uniqueSlugs = Array.from(new Set(tags)).map(tag =>
-    tag.toLowerCase().replace(/\s+/g, '-')
-  );
+  const uniqueSlugs = Array.from(new Set(tags)).map(tag => {
+    // Strip Unicode control characters
+    const cleanTag = tag.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '');
+    return cleanTag.toLowerCase().replace(/\s+/g, '-');
+  });
   return uniqueSlugs.map(tagSlug => ({ tagSlug }));
 }
 
@@ -35,7 +37,8 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: { tagSlug: string }}): Promise<Metadata> {
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
-  const tagSlug = paramsResolved.tagSlug;
+  // Strip any Unicode control characters from the slug
+  const tagSlug = paramsResolved.tagSlug.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '');
   const tagQuery = tagSlug.replace(/-/g, ' ');
   
   // Try to find the original tag capitalization
@@ -96,7 +99,8 @@ export default async function TagPage({ params }: TagPageProps) {
   const allBookmarks = await fetchExternalBookmarks();
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
-  const tagSlug = paramsResolved.tagSlug;
+  // Strip any Unicode control characters from the slug
+  const tagSlug = paramsResolved.tagSlug.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '');
   const tagQuery = tagSlug.replace(/-/g, ' ');
   
   const filtered = allBookmarks.filter(b => {

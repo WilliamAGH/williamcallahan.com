@@ -72,9 +72,6 @@ export function fetchExternalBookmarksCached(): Promise<UnifiedBookmark[]> {
 }
 
 export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
-  // Add detailed logging for debugging
-  console.log('fetchExternalBookmarks: Server-side fetch starting');
-  
   // Check cache first
   const cachedData = ServerCacheInstance.getBookmarks();
   
@@ -85,8 +82,6 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
     // Double-check the cached data is valid
     if (Array.isArray(cachedData.bookmarks) && cachedData.bookmarks.length > 0) {
       return cachedData.bookmarks;
-    } else {
-      console.warn('fetchExternalBookmarks: Cached data exists but is empty or invalid, will fetch fresh data');
     }
   }
   
@@ -192,8 +187,8 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
         const unifiedContent: BookmarkContent = {
           // Spread existing content properties first, omitting htmlContent which can be very large
           ...(raw.content ? {
-            ...raw.content,
-            htmlContent: undefined // Explicitly remove htmlContent to reduce payload size
+            // exclude htmlContent to shrink payload
+            ...((({ htmlContent, ...rest }) => rest)(raw.content))
           } : {}),
           // Then override with our preferred values
           type: 'link',
