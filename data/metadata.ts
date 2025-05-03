@@ -160,6 +160,12 @@ export const PAGE_METADATA = {
     dateCreated: '2025-04-07T10:11:00',
     dateModified: '2025-04-07T10:58:00', // Update modified date
   } as CollectionPageMetadata,
+  contact: {
+    title: `Contact & Social Media - ${SITE_NAME}`,
+    description: `Connect with ${SITE_NAME} on various social media platforms and professional networks.`,
+    dateCreated: '2025-05-03T15:00:00',
+    dateModified: '2025-05-03T15:00:00',
+  } as CollectionPageMetadata,
 } as const;
 
 export const metadata = {

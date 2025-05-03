@@ -17,5 +17,11 @@ export const navigationLinks: NavigationLink[] = [
   { name: 'Education', path: '/education' },
   { name: 'Projects Sandbox', path: '/projects' }, // Use plural to match rendered label
   { name: 'Bookmarks', path: '/bookmarks' },
+  // Contact tab is shown before Blog, but only on XL viewports and above
+  { 
+    name: 'Contact', 
+    path: '/contact',
+    responsive: { hideBelow: 'xl' } 
+  },
   { name: 'Blog', path: '/blog' },
 ];

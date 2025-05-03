@@ -163,6 +163,53 @@ const nextConfig = {
     path: '/_next/image',
     // Allow unoptimized images as fallback in production
     remotePatterns: [
+      // Social media domains - specific for better security
+      {
+        protocol: 'https',
+        hostname: 'cdn.discordapp.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'media.discordapp.net'
+      },
+      {
+        protocol: 'https',
+        hostname: 'avatars.githubusercontent.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'github.githubassets.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'raw.githubusercontent.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'pbs.twimg.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'abs.twimg.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'media.licdn.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'static.licdn.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.bsky.app'
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.bsky.social'
+      },
+      
+      // Original patterns
       {
         protocol: 'https',
         hostname: 'images.unsplash.com'
@@ -214,7 +261,19 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: '*.popos-sf3.com'
-      }
+      },
+      
+      // Allow all domains in development
+      ...(process.env.NODE_ENV === 'development' ? [
+        {
+          protocol: 'https',
+          hostname: '**'
+        },
+        {
+          protocol: 'http', 
+          hostname: '**'
+        }
+      ] : [])
     ],
     // Set larger size limits to avoid issues with large images
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],

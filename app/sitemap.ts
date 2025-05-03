@@ -219,6 +219,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         latestPostUpdateTime
       )
     },
+    '/contact': { 
+      priority: 0.8, 
+      lastModified: getLatestDate(
+        getPageFileMtime('contact/page.tsx'),
+        getSafeDate(PAGE_METADATA.contact?.dateModified),
+        new Date() // If no date is found, use current date to ensure it's included
+      ) 
+    },
   } as const;
 
   const staticEntries: MetadataRoute.Sitemap = Object.entries(staticPages).map(

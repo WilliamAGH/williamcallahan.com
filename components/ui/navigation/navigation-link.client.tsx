@@ -18,6 +18,7 @@ const NAVIGATION_COOLDOWN = 300; // ms
 export function NavigationLink({
   path,
   name,
+  responsive,
   currentPath,
   className = '',
   onClick
@@ -67,6 +68,35 @@ export function NavigationLink({
     }
   }, [isNavigating]);
 
+  // Handle responsive display classes based on responsive settings
+  const getResponsiveClasses = () => {
+    if (!responsive) return '';
+    
+    let classes = '';
+    
+    if (responsive.hideBelow) {
+      switch (responsive.hideBelow) {
+        case 'sm': classes += 'hidden sm:inline-block '; break;
+        case 'md': classes += 'hidden md:inline-block '; break;
+        case 'lg': classes += 'hidden lg:inline-block '; break;
+        case 'xl': classes += 'hidden xl:inline-block '; break;
+        case '2xl': classes += 'hidden 2xl:inline-block '; break;
+      }
+    }
+    
+    if (responsive.hideAbove) {
+      switch (responsive.hideAbove) {
+        case 'sm': classes += 'sm:hidden '; break;
+        case 'md': classes += 'md:hidden '; break;
+        case 'lg': classes += 'lg:hidden '; break;
+        case 'xl': classes += 'xl:hidden '; break;
+        case '2xl': classes += '2xl:hidden '; break;
+      }
+    }
+    
+    return classes;
+  };
+
   // Create link props conditionally to avoid passing false for prefetch
   const linkProps = {
     href: path,
@@ -78,6 +108,7 @@ export function NavigationLink({
         : 'hover:bg-gray-100 dark:hover:bg-gray-700'
       }
       ${isNavigating ? 'pointer-events-none opacity-80' : ''}
+      ${getResponsiveClasses()}
       ${className}
     `,
     // Explicitly type aria-current to match the expected values

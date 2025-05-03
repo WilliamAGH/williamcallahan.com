@@ -98,6 +98,12 @@ pre[class*="language-"] {
   white-space: normal;
 }
 
+/* Custom spacing classes */
+.terminal-reduced-margin {
+  margin-top: 1rem !important; /* Override mt-8 (2rem) with 1rem */
+  margin-bottom: 1rem !important; /* Symmetrical spacing */
+}
+
 /* Apply token rules */
 
 .token.comment,
@@ -509,21 +515,43 @@ html[data-darkreader-mode] {
 @media (max-width: 640px) {
   .x-icon {
     /* Add mobile-specific styling for X icon */
-    margin-right: 2px; /* Ensure icon has space on the right */
-    margin-left: 2px; /* Ensure icon has space on the left */
+    margin-right: 0px; /* Adjust spacing */
+    margin-left: 4px; /* Increase left margin to center the icon */
     width: 18px !important; /* Slightly smaller icon on mobile */
     height: 18px !important;
-    transform: translateX(-1px) !important; /* Shift slightly to prevent cutoff */
+    transform: translateX(2px) !important; /* Shift right to center the icon */
   }
 
   /* Ensure all social icons are properly sized on mobile */
   header .flex.items-center.space-x-1 {
     padding-right: 4px;
+    min-width: 32px; /* Ensure minimum width for the container */
+    min-height: 32px; /* Ensure minimum height */
+    display: flex !important; /* Force display */
+    visibility: visible !important; /* Ensure visibility */
+    z-index: 1100 !important; /* Highest z-index for mobile */
   }
 
   /* Add a bit more spacing around social icons in header */
   header .flex.items-center.space-x-1 a {
     padding: 6px !important;
+    display: flex !important; /* Force display */
+    visibility: visible !important; /* Ensure visibility */
+  }
+  
+  /* Force display social icons container on mobile */
+  header .sm\:hidden .flex.items-center.p-1,
+  #mobile-social-container {
+    display: flex !important;
+    visibility: visible !important;
+    z-index: 1100 !important;
+    opacity: 1 !important;
+  }
+  
+  /* Simplified X icon styling - matching theme toggle dimensions */
+  .x-icon {
+    display: inline-block;
+    vertical-align: middle;
   }
 }
 
