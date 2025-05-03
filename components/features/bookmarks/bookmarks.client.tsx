@@ -13,9 +13,21 @@ import type { UnifiedBookmark } from '@/types';
 
 interface BookmarksClientProps {
   bookmarks: UnifiedBookmark[];
+  forceClientFetch?: boolean;
 }
 
-export const BookmarksClient: React.FC<BookmarksClientProps> = ({ bookmarks }) => {
+export const BookmarksClient: React.FC<BookmarksClientProps> = ({ 
+  bookmarks, 
+  forceClientFetch = false 
+}) => {
+  // Debug log to check if bookmarks are passed correctly to client component
+  console.log('BookmarksClient receiving bookmarks:', bookmarks?.length || 0, 'forceClientFetch:', forceClientFetch);
+  
   // Use our configurable component with default settings
-  return <BookmarksWithOptions bookmarks={bookmarks} showFilterBar={true} searchAllBookmarks={true} />;
+  return <BookmarksWithOptions 
+    bookmarks={bookmarks} 
+    showFilterBar={true} 
+    // If forcing client fetch, bypass the passed bookmarks
+    searchAllBookmarks={forceClientFetch} 
+  />;
 };
