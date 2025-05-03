@@ -22,7 +22,6 @@ interface SocialCardProps {
 
 export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.Element {
   const { href, label, icon: Icon, emphasized } = social;
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -134,19 +133,16 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
         if (data.profileImageUrl) {
           console.log(`🖼️ [${label}] Using profile image: ${data.profileImageUrl}`);
           setProfileImageUrl(data.profileImageUrl);
-          setImageUrl(data.profileImageUrl); // For backwards compatibility
         } else {
           console.log(`⚠️ [${label}] No profile image found, using fallback`);
           const fallbackImage = getProfileFallbackImage(label);
           setProfileImageUrl(fallbackImage);
-          setImageUrl(fallbackImage);
         }
       } else {
         console.error(`❌ [${label}] API request failed for profile: ${response.status}`);
         // Set fallbacks
         const fallbackImage = getProfileFallbackImage(label);
         setProfileImageUrl(fallbackImage);
-        setImageUrl(fallbackImage);
       }
     } catch (error) {
       console.error(`❌ [${label}] Error: ${error}`);
@@ -158,7 +154,7 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
     } finally {
       setIsLoading(false);
     }
-  }, [label, setProfileImageUrl, setImageUrl, setDomainImageUrl, setIsLoading, setImageError]);
+  }, [label, setProfileImageUrl, setDomainImageUrl, setIsLoading, setImageError]);
 
   // Set banner immediately and fetch profile image when component mounts
   useEffect(() => {

@@ -17,6 +17,8 @@ const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const RATE_LIMIT_MAX = 5; // 5 requests per window
 
 // Simple in-memory rate limiting
+// TODO: Replace this with a distributed rate limiter (e.g., Redis, Upstash) for production scalability.
+// In-memory store resets on deploys and doesn't scale horizontally.
 const rateLimitStore: { [ip: string]: { count: number; resetAt: number } } = {};
 
 /**
@@ -52,14 +54,14 @@ export async function POST(request: Request) {
   const forwardedFor = request.headers.get('x-forwarded-for') || 'unknown';
   // Take first IP if there are multiple
   const clientIp = forwardedFor.split(',')[0].trim();
-  
+
   // Check rate limit
   if (!checkRateLimit(clientIp)) {
-    return NextResponse.json({ 
-      error: 'Rate limit exceeded. Try again later.' 
+    return NextResponse.json({
+      error: 'Rate limit exceeded. Try again later.'
     }, { status: 429 });
   }
-  
+
   try {
     // Check if refresh is actually needed
     if (!ServerCacheInstance.shouldRefreshBookmarks()) {
@@ -77,7 +79,7 @@ export async function POST(request: Request) {
 
     // Refresh the cache
     const bookmarks = await refreshBookmarksData();
-    
+
     return NextResponse.json({
       status: 'success',
       message: 'Bookmarks cache refreshed successfully',
@@ -102,7 +104,7 @@ export async function POST(request: Request) {
 export async function GET() {
   const cached = ServerCacheInstance.getBookmarks();
   const needsRefresh = ServerCacheInstance.shouldRefreshBookmarks();
-  
+
   return NextResponse.json({
     status: 'success',
     data: {
