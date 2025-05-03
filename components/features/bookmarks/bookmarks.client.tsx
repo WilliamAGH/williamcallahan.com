@@ -14,11 +14,13 @@ import type { UnifiedBookmark } from '@/types';
 interface BookmarksClientProps {
   bookmarks: UnifiedBookmark[];
   forceClientFetch?: boolean;
+  showFilterBar?: boolean;
 }
 
 export const BookmarksClient: React.FC<BookmarksClientProps> = ({ 
   bookmarks, 
-  forceClientFetch = false 
+  forceClientFetch = false,
+  showFilterBar = true
 }) => {
   // Debug log to check if bookmarks are passed correctly to client component
   console.log('BookmarksClient receiving bookmarks:', bookmarks?.length || 0, 'forceClientFetch:', forceClientFetch);
@@ -27,10 +29,10 @@ export const BookmarksClient: React.FC<BookmarksClientProps> = ({
   const isDevelopment = process.env.NODE_ENV === 'development';
   console.log('BookmarksClient running in development mode:', isDevelopment);
   
-  // Use our configurable component with default settings
+  // Use our configurable component with passed settings
   return <BookmarksWithOptions 
     bookmarks={bookmarks} 
-    showFilterBar={true} 
+    showFilterBar={showFilterBar} 
     // If forcing client fetch, bypass the passed bookmarks
     searchAllBookmarks={forceClientFetch} 
   />;

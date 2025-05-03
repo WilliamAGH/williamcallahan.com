@@ -146,9 +146,9 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8">
       {/* Search and filtering */}
-      <div className="mb-8 space-y-6">
+      <div className="mb-6 space-y-5">
         <form onSubmit={handleSearchSubmit} className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-gray-400" />

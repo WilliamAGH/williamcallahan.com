@@ -10,7 +10,7 @@
 export const dynamic = 'force-dynamic';
 
 import { fetchExternalBookmarks } from '@/lib/bookmarks';
-import { BookmarksWithOptions } from '@/components/features/bookmarks/bookmarks-with-options.client';
+import { BookmarksServer } from '@/components/features/bookmarks/bookmarks.server';
 import { JsonLdScript } from '@/components/seo/json-ld';
 import { getStaticPageMetadata } from '@/lib/seo/metadata';
 import type { Metadata } from 'next';
@@ -150,13 +150,13 @@ export default async function TagPage({ params }: TagPageProps) {
   return (
     <>
       <JsonLdScript data={jsonLdData} />
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">{pageTitle}</h1>
-        <p className="text-gray-600 dark:text-gray-300 mb-8">{pageDescription}</p>
-        <BookmarksWithOptions 
-          bookmarks={filtered} 
-          showFilterBar={true} 
-          searchAllBookmarks={true} 
+      <div className="max-w-5xl mx-auto">
+        <BookmarksServer 
+          title={pageTitle}
+          description={pageDescription}
+          bookmarks={filtered}
+          showFilterBar={true}
+          titleSlug={tagSlug}
         />
       </div>
     </>
