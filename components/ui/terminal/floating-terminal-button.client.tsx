@@ -29,7 +29,7 @@ export function FloatingTerminalButton() {
       type="button"
       onClick={restoreWindow}
       className={cn(
-        "fixed bottom-4 right-4 z-[100] p-3 rounded-full",
+        "fixed bottom-4 right-4 z-[950] p-3 rounded-full",
         "bg-blue-600 hover:bg-blue-700 text-white",
         "shadow-lg transition-opacity duration-300 ease-in-out",
         "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",

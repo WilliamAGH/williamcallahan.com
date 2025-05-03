@@ -30,7 +30,7 @@ export function Navigation() {
   return (
     <nav className="flex-1">
       {/* Mobile Menu Button */}
-      <div className="sm:hidden flex items-center relative z-20">
+      <div className="sm:hidden flex items-center relative z-[1010]">
         <button
           type="button"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -58,17 +58,25 @@ export function Navigation() {
       {isMenuOpen && (
         <div
           data-testid="mobile-menu"
-          className="sm:hidden absolute top-full left-0 right-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-2 z-10"
+          className="sm:hidden absolute top-full left-0 right-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 py-2 z-[1005]"
         >
-          {navigationLinks.map((link) => (
-            <NavigationLink
-              key={link.path}
-              currentPath={pathname}
-              {...link}
-              className="block w-full px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
-              onClick={() => setIsMenuOpen(false)}
-            />
-          ))}
+          {/* For mobile, show all navigation links including Contact regardless of screen size */}
+          {navigationLinks.map((link) => {
+            // Override the responsive settings for Contact in mobile menu to ensure it always appears
+            const mobileProps = link.path === '/contact' ? 
+              { ...link, responsive: undefined } : 
+              link;
+              
+            return (
+              <NavigationLink
+                key={link.path}
+                currentPath={pathname}
+                {...mobileProps}
+                className="block w-full px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                onClick={() => setIsMenuOpen(false)}
+              />
+            );
+          })}
         </div>
       )}
     </nav>

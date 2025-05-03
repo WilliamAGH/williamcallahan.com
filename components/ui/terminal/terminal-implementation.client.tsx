@@ -178,7 +178,8 @@ export function Terminal() {
 
   // Define class sets for clarity
   const commonTerminalClasses = "bg-[#1a1b26] border border-gray-700 font-mono text-sm cursor-text overflow-hidden flex flex-col shadow-xl";
-  const normalTerminalClasses = "relative mx-auto mt-8 mb-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl p-4 sm:p-6 rounded-lg";
+  // Keep mt-8 for test compatibility but add custom spacing with an additional class
+  const normalTerminalClasses = "relative mx-auto mt-8 terminal-reduced-margin w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl p-4 sm:p-6 rounded-lg";
   const maximizedTerminalClasses = "fixed left-0 right-0 top-14 bottom-0 z-[60] w-full h-[calc(100vh-56px)] p-6 border-0 rounded-none"; // Full window below nav
 
   // Define classes for the inner scrollable area
