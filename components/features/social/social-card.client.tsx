@@ -27,8 +27,15 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
   const [isLoading, setIsLoading] = useState(true);
 
   // Extract domain from the URL for display
-  const urlObj = new URL(href);
-  const domain = urlObj.hostname.replace(/^www\./, '');
+  let domain = '';
+  try {
+    const urlObj = new URL(href);
+    domain = urlObj.hostname.replace(/^www\./, '');
+  } catch (error) {
+    console.error(`Invalid URL format: ${href}`, error);
+    // Basic fallback: remove protocol and www., take first part of path
+    domain = href.replace(/^https?:\/\/|www\./g, '').split('/')[0] || 'unknown';
+  }
 
   // Determine the service name from the domain or label with proper naming for X/Twitter and Bluesky
   let serviceName = label.includes('(')
@@ -106,6 +113,19 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
 
   // Fetch OG images with error handling and fallback - using useCallback to prevent infinite loops
   const fetchSocialImages = useCallback(async (url: string) => {
+    // --- START LinkedIn Specific Handling ---
+    if (label.includes('LinkedIn')) {
+      console.log(`⭐ [${label}] Skipping API call, using local fallbacks directly.`);
+      const fallbackProfile = getProfileFallbackImage(label);
+      const fallbackBanner = getDomainFallbackImage(label);
+      setProfileImageUrl(fallbackProfile);
+      setDomainImageUrl(fallbackBanner);
+      setIsLoading(false);
+      setImageError(false); // Ensure error state is reset
+      return; // Exit early, skip API call
+    }
+    // --- END LinkedIn Specific Handling ---
+
     try {
       setIsLoading(true);
       setImageError(false); // Reset error state

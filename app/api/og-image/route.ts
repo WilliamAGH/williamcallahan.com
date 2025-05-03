@@ -152,7 +152,9 @@ async function fetchOgDataForUrl(url: string) {
     }
 
     // Fetch HTML from the URL
-    console.log(`📥 Sending request to ${url} with headers:`, headers);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`📥 Sending request to ${url} with headers:`, headers);
+    }
     const response = await fetch(url, options);
 
     if (!response.ok) {
@@ -169,33 +171,46 @@ async function fetchOgDataForUrl(url: string) {
     // General handling for platforms with known OG pattern limitations
     // Note: We have specific handlers for each network below
 
+    // Configuration for default/fallback profiles (could be moved to env vars)
+    const DEFAULT_PROFILES: Record<string, string> = {
+      GitHub: 'https://avatars.githubusercontent.com/u/99231285?v=4',
+      X: 'https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg',
+      Twitter: 'https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg',
+      LinkedIn: 'https://media.licdn.com/dms/image/C5603AQGjv8C3WhrUfQ/profile-displayphoto-shrink_800_800/0/1651775977276',
+      Bluesky: 'https://cdn.bsky.app/img/avatar/plain/did:plc:o3rar2atqxlmczkaf6npbcqz/bafkreidpq75jyggvzlm5ddgpzhfkm4vprgitpxukqpgkrwr6sqx54b2oka@jpeg',
+      Discord: '/images/william.jpeg' // Local fallback for Discord
+    };
+
     // Special handling for GitHub profile
-    if (domain === 'GitHub' && url.includes('williamagh')) {
+    // Use the default profile if no specific user logic is needed
+    if (domain === 'GitHub') {
       console.log(`ℹ️ Using GitHub-specific images`);
       return {
-        imageUrl: 'https://avatars.githubusercontent.com/u/99231285?v=4',
+        imageUrl: DEFAULT_PROFILES.GitHub,
         bannerImageUrl: '/images/social-banners/github.svg',
-        ogMetadata: { title: 'William Callahan on GitHub' }
+        ogMetadata: { title: 'Profile on GitHub' } // Generic title
       };
     }
 
     // Special handling for X/Twitter
-    if ((domain === 'X' || domain === 'Twitter') && url.includes('williamcallahan')) {
+    // Use the default profile if no specific user logic is needed
+    if (domain === 'X' || domain === 'Twitter') {
       console.log(`ℹ️ Using X/Twitter-specific images`);
       return {
-        imageUrl: 'https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg',
+        imageUrl: DEFAULT_PROFILES[domain], // Use domain (X or Twitter)
         bannerImageUrl: '/images/social-banners/twitter-x.svg',
-        ogMetadata: { title: 'William Callahan (@williamcallahan) on X' }
+        ogMetadata: { title: 'Profile on X' } // Generic title
       };
     }
 
     // Special handling for LinkedIn
-    if (domain === 'LinkedIn' && url.includes('williamacallahan')) {
+    // Use the default profile if no specific user logic is needed
+    if (domain === 'LinkedIn') {
       console.log(`ℹ️ Using LinkedIn-specific images`);
       return {
-        imageUrl: 'https://media.licdn.com/dms/image/C5603AQGjv8C3WhrUfQ/profile-displayphoto-shrink_800_800/0/1651775977276?e=1716422400&v=beta&t=UwKIV3BKofXiG88FRnc7yp0oN75lmbQNHNTR2lqTJrY',
+        imageUrl: DEFAULT_PROFILES.LinkedIn,
         bannerImageUrl: '/images/social-banners/linkedin.svg',
-        ogMetadata: { title: 'William Callahan on LinkedIn' }
+        ogMetadata: { title: 'Profile on LinkedIn' } // Generic title
       };
     }
 
@@ -203,19 +218,20 @@ async function fetchOgDataForUrl(url: string) {
     if (domain === 'Discord') {
       console.log(`ℹ️ Using Discord-specific local images`);
       return {
-        imageUrl: '/images/william.jpeg', // Discord doesn't provide easy profile access
+        imageUrl: DEFAULT_PROFILES.Discord,
         bannerImageUrl: '/images/social-banners/discord.svg',
-        ogMetadata: { title: 'William on Discord' }
+        ogMetadata: { title: 'Profile on Discord' } // Generic title
       };
     }
 
     // Special handling for Bluesky
-    if (domain === 'Bluesky' && url.includes('williamcallahan.com')) {
+    // Use the default profile if no specific user logic is needed
+    if (domain === 'Bluesky') {
       console.log(`ℹ️ Using Bluesky-specific images`);
       return {
-        imageUrl: 'https://cdn.bsky.app/img/avatar/plain/did:plc:o3rar2atqxlmczkaf6npbcqz/bafkreidpq75jyggvzlm5ddgpzhfkm4vprgitpxukqpgkrwr6sqx54b2oka@jpeg',
+        imageUrl: DEFAULT_PROFILES.Bluesky,
         bannerImageUrl: '/images/social-banners/bluesky.png',
-        ogMetadata: { title: 'William Callahan on Bluesky' }
+        ogMetadata: { title: 'Profile on Bluesky' } // Generic title
       };
     }
 
@@ -366,7 +382,7 @@ function extractOpenGraphTags(html: string, url: string = '') {
       const avatarPattern = /<img[^>]*class="[^"]*avatar[^"]*"[^>]*src="([^"]+)"/i;
       const avatarMatch = html.match(avatarPattern);
 
-      if (avatarMatch && avatarMatch[1]) {
+      if (avatarMatch?.[1]) {
         console.log(`✅ Found Bluesky avatar: ${avatarMatch[1]}`);
         result.profileImage = avatarMatch[1];
       } else {
@@ -374,7 +390,7 @@ function extractOpenGraphTags(html: string, url: string = '') {
         const blueskyUserPattern = /did:plc:[a-zA-Z0-9]+/i;
         const didMatch = html.match(blueskyUserPattern);
 
-        if (didMatch && didMatch[0]) {
+        if (didMatch?.[0]) {
           console.log(`✅ Found Bluesky DID: ${didMatch[0]}`);
           // This is a fallback since we know William's avatar URL pattern
           result.profileImage = `https://cdn.bsky.app/img/avatar/plain/${didMatch[0]}/bafkreidpq75jyggvzlm5ddgpzhfkm4vprgitpxukqpgkrwr6sqx54b2oka@jpeg`;
@@ -385,7 +401,7 @@ function extractOpenGraphTags(html: string, url: string = '') {
       const avatarPattern = /<img[^>]*class="[^"]*avatar[^"]*"[^>]*src="([^"]+)"/i;
       const avatarMatch = html.match(avatarPattern);
 
-      if (avatarMatch && avatarMatch[1]) {
+      if (avatarMatch?.[1]) {
         console.log(`✅ Found GitHub avatar: ${avatarMatch[1]}`);
         result.profileImage = avatarMatch[1];
       }
@@ -402,7 +418,7 @@ function extractOpenGraphTags(html: string, url: string = '') {
 
       for (const pattern of twitterPatterns) {
         const match = html.match(pattern);
-        if (match && match[1]) {
+        if (match?.[1]) {
           // Found a profile image
           console.log(`✅ Found X/Twitter profile image: ${match[1]}`);
           result.profileImage = match[1];
@@ -414,7 +430,7 @@ function extractOpenGraphTags(html: string, url: string = '') {
       const bannerPattern = /<img[^>]*class="[^"]*css-1dbjc4n[^"]*"[^>]*style="background-image: url\(&quot;([^&]+)&quot;\)"/i;
       const bannerMatch = html.match(bannerPattern);
 
-      if (bannerMatch && bannerMatch[1]) {
+      if (bannerMatch?.[1]) {
         console.log(`✅ Found X/Twitter banner image: ${bannerMatch[1]}`);
         result.bannerImage = bannerMatch[1];
       }
@@ -431,7 +447,7 @@ function extractOpenGraphTags(html: string, url: string = '') {
 
       for (const pattern of linkedinPatterns) {
         const match = html.match(pattern);
-        if (match && match[1]) {
+        if (match?.[1]) {
           console.log(`✅ Found LinkedIn profile image: ${match[1]}`);
           result.profileImage = match[1];
           break;
@@ -442,7 +458,7 @@ function extractOpenGraphTags(html: string, url: string = '') {
       const backgroundPattern = /<img[^>]*class="[^"]*profile-background-image[^"]*"[^>]*src="([^"]+)"/i;
       const backgroundMatch = html.match(backgroundPattern);
 
-      if (backgroundMatch && backgroundMatch[1]) {
+      if (backgroundMatch?.[1]) {
         console.log(`✅ Found LinkedIn background image: ${backgroundMatch[1]}`);
         result.bannerImage = backgroundMatch[1];
       }
