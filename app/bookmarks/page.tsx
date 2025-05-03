@@ -106,8 +106,12 @@ export default async function BookmarksPage() {
   // Sort bookmarks by date (newest first) if we have any
   const sortedBookmarks: UnifiedBookmark[] = bookmarks.length ? 
     [...bookmarks].sort((a, b) => {
-      const dateA = a.dateBookmarked ? new Date(a.dateBookmarked).getTime() : 0;
-      const dateB = b.dateBookmarked ? new Date(b.dateBookmarked).getTime() : 0;
+      const toTs = (d?: string) => {
+        const ts = d ? Date.parse(d) : NaN;
+        return Number.isFinite(ts) ? ts : 0;
+      };
+      const dateA = toTs(a.dateBookmarked);
+      const dateB = toTs(b.dateBookmarked);
       return dateB - dateA;
     }) : [];
 

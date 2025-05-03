@@ -16,6 +16,8 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     console.log('API route: Starting to fetch bookmarks');
+    // Add additional debug info
+    console.log('API route: Using dynamic rendering with force-dynamic');
     const bookmarks = await fetchExternalBookmarks();
     console.log(`API route: Fetched ${bookmarks.length} bookmarks`);
     

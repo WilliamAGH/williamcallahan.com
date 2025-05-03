@@ -186,7 +186,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // Create bookmark tag sitemap entries
     bookmarkTagEntries = Object.entries(bookmarkTagLastModifiedMap).map(([tagSlug, lastModified]) => ({
-      url: `${siteUrl}/bookmarks/tags/${tagSlug}`,
+      // Strip any remaining unicode control characters
+      url: `${siteUrl}/bookmarks/tags/${tagSlug.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '')}`,
       lastModified: lastModified,
       changeFrequency: 'weekly',
       priority: 0.6, // Same priority as blog tags
