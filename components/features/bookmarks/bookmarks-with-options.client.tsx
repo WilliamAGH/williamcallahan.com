@@ -49,10 +49,31 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
     if (searchAllBookmarks && mounted) {
       (async () => {
         try {
-          console.log('Client-side: Attempting to fetch bookmarks');
-          const allBookmarksData = await fetchExternalBookmarks();
-          console.log('Client-side bookmarks count:', allBookmarksData.length);
-          setAllBookmarks(allBookmarksData);
+          console.log('Client-side: Attempting to fetch bookmarks from API');
+          // Add a random query parameter to bust cache
+          const timestamp = new Date().getTime();
+          const response = await fetch(`/api/bookmarks?t=${timestamp}`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+            },
+            cache: 'no-store',
+          });
+          
+          if (!response.ok) {
+            throw new Error(`API request failed with status ${response.status}`);
+          }
+          
+          const allBookmarksData = await response.json();
+          console.log('Client-side direct fetch bookmarks count:', allBookmarksData.length);
+          
+          if (Array.isArray(allBookmarksData) && allBookmarksData.length > 0) {
+            setAllBookmarks(allBookmarksData);
+          } else {
+            console.error('Client-side: API returned empty or invalid data');
+            // Fallback to provided bookmarks 
+            setAllBookmarks(bookmarks);
+          }
         } catch (error) {
           console.error('Failed to load all bookmarks:', error);
           // Fallback to provided bookmarks

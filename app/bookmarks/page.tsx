@@ -82,21 +82,30 @@ export function generateMetadata(): Metadata {
 }
 
 export default async function BookmarksPage() {
-  // Fetch bookmarks
-  const bookmarks = await fetchExternalBookmarks();
-  
-  // Debug log for server-side rendering
-  console.log('Server-side bookmarks count:', bookmarks.length);
-  console.log('First bookmark title:', bookmarks[0]?.title || 'No bookmarks found');
+  // Fetch bookmarks with error handling
+  let bookmarks = [];
+  try {
+    bookmarks = await fetchExternalBookmarks();
+    console.log('Server-side bookmarks count:', bookmarks.length);
+    if (bookmarks.length > 0) {
+      console.log('First bookmark title:', bookmarks[0]?.title);
+    } else {
+      console.warn('No bookmarks found in server-side rendering');
+    }
+  } catch (error) {
+    console.error('Error fetching bookmarks in server-side rendering:', error);
+    // Continue with empty bookmarks array
+  }
 
   const pageMetadata = PAGE_METADATA.bookmarks;
 
-  // Sort bookmarks by date (newest first)
-  const sortedBookmarks = [...bookmarks].sort((a, b) => {
-    const dateA = a.dateBookmarked ? new Date(a.dateBookmarked).getTime() : 0;
-    const dateB = b.dateBookmarked ? new Date(b.dateBookmarked).getTime() : 0;
-    return dateB - dateA;
-  });
+  // Sort bookmarks by date (newest first) if we have any
+  const sortedBookmarks = bookmarks.length ? 
+    [...bookmarks].sort((a, b) => {
+      const dateA = a.dateBookmarked ? new Date(a.dateBookmarked).getTime() : 0;
+      const dateB = b.dateBookmarked ? new Date(b.dateBookmarked).getTime() : 0;
+      return dateB - dateA;
+    }) : [];
 
   return (
     <>
@@ -105,7 +114,8 @@ export default async function BookmarksPage() {
         <h1 className="text-3xl font-bold mb-6">{pageMetadata.title}</h1>
         <p className="text-gray-600 dark:text-gray-300 mb-8">{pageMetadata.description}</p>
         <Suspense fallback={<BookmarksLoading />}>
-          <BookmarksClient bookmarks={sortedBookmarks} />
+          {/* Force client-side fetching to ensure data appears */}
+          <BookmarksClient bookmarks={sortedBookmarks} forceClientFetch={true} />
         </Suspense>
       </div>
     </>
