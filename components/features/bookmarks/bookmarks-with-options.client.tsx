@@ -21,6 +21,9 @@ interface BookmarksWithOptionsProps {
   searchAllBookmarks?: boolean;
 }
 
+// Environment detection helper
+const isDevelopment = process.env.NODE_ENV === 'development';
+
 // Use the shared utility for tag normalization
 const getTagsAsStringArray = (tags: UnifiedBookmark['tags']): string[] => {
   return normalizeTagsToStrings(tags);
@@ -38,6 +41,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
   // Tag expansion is now handled in the TagsList component
   const [allBookmarks, setAllBookmarks] = useState<UnifiedBookmark[]>(bookmarks);
   const [isSearching, setIsSearching] = useState(false);
+  const [dataSource, setDataSource] = useState<'server' | 'client'>('server');
 
   // Set mounted state once after hydration
   useEffect(() => {
@@ -69,6 +73,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
           
           if (Array.isArray(allBookmarksData) && allBookmarksData.length > 0) {
             setAllBookmarks(allBookmarksData);
+            setDataSource('client');
           } else {
             console.error('Client-side: API returned empty or invalid data');
             // Fallback to provided bookmarks 
@@ -182,14 +187,29 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
       {/* Results count */}
       <div className="mb-6">
         {mounted ? (
-          <p className="text-gray-500 dark:text-gray-400">
-            {filteredBookmarks.length === 0
-              ? 'No bookmarks found'
-              : `Showing ${filteredBookmarks.length} bookmark${filteredBookmarks.length === 1 ? '' : 's'}`}
-            {searchQuery && ` for "${searchQuery}"`}
-            {selectedTag && ` tagged with "${selectedTag}"`}
-            {searchQuery && searchAllBookmarks && ' across all bookmarks'}
-          </p>
+          <div>
+            <p className="text-gray-500 dark:text-gray-400">
+              {filteredBookmarks.length === 0
+                ? 'No bookmarks found'
+                : `Showing ${filteredBookmarks.length} bookmark${filteredBookmarks.length === 1 ? '' : 's'}`}
+              {searchQuery && ` for "${searchQuery}"`}
+              {selectedTag && ` tagged with "${selectedTag}"`}
+              {searchQuery && searchAllBookmarks && ' across all bookmarks'}
+            </p>
+            
+            {/* Debug indicator for development mode only */}
+            {isDevelopment && (
+              <div className="mt-2 text-xs inline-flex items-center">
+                <span className={`px-2 py-1 rounded-lg font-mono ${
+                  dataSource === 'server' 
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                }`}>
+                  Data source: {dataSource === 'server' ? 'Server-side' : 'Client-side API'}
+                </span>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded" suppressHydrationWarning />
         )}
