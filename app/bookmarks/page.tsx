@@ -9,6 +9,9 @@
  * @see {@link "https://schema.org/CollectionPage"} - Schema.org CollectionPage specification
  */
 
+// Configure dynamic rendering
+export const dynamic = 'force-dynamic';
+
 import { Suspense } from 'react';
 import { BookmarksClient } from '@/components/features/bookmarks/bookmarks.client';
 import { getStaticPageMetadata } from '../../lib/seo/metadata';

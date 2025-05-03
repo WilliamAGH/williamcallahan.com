@@ -6,6 +6,9 @@
  * @module app/bookmarks/domain/[domainSlug]/page
  */
 
+// Configure dynamic rendering
+export const dynamic = 'force-dynamic';
+
 import { redirect } from 'next/navigation';
 import { fetchExternalBookmarks } from '@/lib/bookmarks';
 import { getDomainSlug, generateUniqueSlug } from '@/lib/utils/domain-utils';
@@ -21,8 +24,11 @@ interface DomainPageRedirectorProps {
 
 export default async function DomainPageRedirector({ params, searchParams }: DomainPageRedirectorProps) {
   const allBookmarks = await fetchExternalBookmarks();
-  const { domainSlug } = params;
-  const rawId = searchParams.id;
+  // Make sure to await the params object
+  const paramsResolved = await Promise.resolve(params);
+  const { domainSlug } = paramsResolved;
+  const searchParamsResolved = await Promise.resolve(searchParams);
+  const rawId = searchParamsResolved.id;
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
   
   // If ID is provided, find that specific bookmark

@@ -6,6 +6,9 @@
  * @module app/bookmarks/tags/[tagSlug]/page
  */
 
+// Configure dynamic rendering
+export const dynamic = 'force-dynamic';
+
 import { fetchExternalBookmarks } from '@/lib/bookmarks';
 import { BookmarksWithOptions } from '@/components/features/bookmarks/bookmarks-with-options.client';
 import { JsonLdScript } from '@/components/seo/json-ld';
@@ -30,7 +33,9 @@ export async function generateStaticParams() {
  * Generate metadata for this tag page
  */
 export async function generateMetadata({ params }: { params: { tagSlug: string }}): Promise<Metadata> {
-  const tagSlug = params.tagSlug;
+  // Make sure to await the params object
+  const paramsResolved = await Promise.resolve(params);
+  const tagSlug = paramsResolved.tagSlug;
   const tagQuery = tagSlug.replace(/-/g, ' ');
   
   // Try to find the original tag capitalization
@@ -89,7 +94,9 @@ interface TagPageProps {
 
 export default async function TagPage({ params }: TagPageProps) {
   const allBookmarks = await fetchExternalBookmarks();
-  const tagSlug = params.tagSlug;
+  // Make sure to await the params object
+  const paramsResolved = await Promise.resolve(params);
+  const tagSlug = paramsResolved.tagSlug;
   const tagQuery = tagSlug.replace(/-/g, ' ');
   
   const filtered = allBookmarks.filter(b => {
