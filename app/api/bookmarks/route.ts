@@ -15,7 +15,15 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
   try {
+    console.log('API route: Starting to fetch bookmarks');
     const bookmarks = await fetchExternalBookmarks();
+    console.log(`API route: Fetched ${bookmarks.length} bookmarks`);
+    
+    // Log the first bookmark to verify data structure
+    if (bookmarks.length > 0) {
+      console.log('API route: First bookmark title:', bookmarks[0].title);
+    }
+    
     return NextResponse.json(bookmarks);
   } catch (error) {
     console.error('Error fetching bookmarks:', error);

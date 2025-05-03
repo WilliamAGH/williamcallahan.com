@@ -84,6 +84,10 @@ export function generateMetadata(): Metadata {
 export default async function BookmarksPage() {
   // Fetch bookmarks
   const bookmarks = await fetchExternalBookmarks();
+  
+  // Debug log for server-side rendering
+  console.log('Server-side bookmarks count:', bookmarks.length);
+  console.log('First bookmark title:', bookmarks[0]?.title || 'No bookmarks found');
 
   const pageMetadata = PAGE_METADATA.bookmarks;
 
