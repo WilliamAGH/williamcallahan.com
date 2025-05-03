@@ -9,7 +9,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { BookmarkCardClient } from './bookmark-card.client';
-import { Search, ArrowRight } from 'lucide-react';
+import { Search, ArrowRight, RefreshCw } from 'lucide-react';
 import type { UnifiedBookmark, BookmarkTag } from '@/types';
 import { fetchExternalBookmarks } from '@/lib/bookmarks.client';
 import { TagsList } from './tags-list.client';
@@ -41,6 +41,8 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
   // Tag expansion is now handled in the TagsList component
   const [allBookmarks, setAllBookmarks] = useState<UnifiedBookmark[]>(bookmarks);
   const [isSearching, setIsSearching] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [dataSource, setDataSource] = useState<'server' | 'client'>('server');
 
   // Set mounted state once after hydration
@@ -144,39 +146,109 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
   const handleTagClick = (tag: string) => {
     setSelectedTag(selectedTag === tag ? null : tag);
   };
+  
+  // Function to refresh bookmarks data
+  const refreshBookmarks = async () => {
+    if (isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      // Call the refresh API endpoint
+      const response = await fetch('/api/bookmarks/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Refresh failed: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('Bookmarks refresh result:', result);
+      
+      // If refresh was successful, fetch the new bookmarks
+      if (result.status === 'success') {
+        const timestamp = new Date().getTime();
+        const bookmarksResponse = await fetch(`/api/bookmarks?t=${timestamp}`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+          cache: 'no-store',
+        });
+        
+        if (!bookmarksResponse.ok) {
+          throw new Error(`Failed to fetch updated bookmarks: ${bookmarksResponse.status}`);
+        }
+        
+        const refreshedBookmarks = await bookmarksResponse.json();
+        
+        if (Array.isArray(refreshedBookmarks) && refreshedBookmarks.length > 0) {
+          setAllBookmarks(refreshedBookmarks);
+          setLastRefreshed(new Date());
+          setDataSource('client');
+          console.log('Bookmarks refreshed successfully:', refreshedBookmarks.length);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing bookmarks:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8">
       {/* Search and filtering */}
       <div className="mb-6 space-y-5">
-        <form onSubmit={handleSearchSubmit} className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
-          {mounted ? (
-            <>
-              <input
-                type="text"
-                placeholder="Search bookmarks by title, description, URL, author..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="block w-full pl-10 pr-12 py-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+        <div className="flex items-center justify-between">
+          <form onSubmit={handleSearchSubmit} className="relative flex-1 mr-2">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
+            {mounted ? (
+              <>
+                <input
+                  type="text"
+                  placeholder="Search bookmarks by title, description, URL, author..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className="block w-full pl-10 pr-12 py-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                />
+                <button
+                  type="submit"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  aria-label="Submit search"
+                >
+                  <ArrowRight className="h-5 w-5" />
+                </button>
+              </>
+            ) : (
+              <div
+                className="block w-full pl-10 pr-4 py-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 h-12"
+                suppressHydrationWarning
               />
-              <button
-                type="submit"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                aria-label="Submit search"
-              >
-                <ArrowRight className="h-5 w-5" />
-              </button>
-            </>
-          ) : (
-            <div
-              className="block w-full pl-10 pr-4 py-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 h-12"
-              suppressHydrationWarning
-            />
+            )}
+          </form>
+          
+          {/* Refresh button */}
+          {mounted && (
+            <button
+              onClick={refreshBookmarks}
+              disabled={isRefreshing}
+              className="p-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700"
+              title="Refresh bookmarks data"
+              aria-label="Refresh bookmarks data"
+            >
+              <RefreshCw
+                size={20}
+                className={`${isRefreshing ? 'animate-spin text-blue-500' : 'text-gray-500'}`}
+              />
+            </button>
           )}
-        </form>
+        </div>
 
         {/* Tags filter - only show if showFilterBar is true */}
         {showFilterBar && allTags.length > 0 && (
@@ -191,19 +263,28 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
       {/* Results count */}
       <div className="mb-6">
         {mounted ? (
-          <div>
-            <p className="text-gray-500 dark:text-gray-400">
-              {filteredBookmarks.length === 0
-                ? 'No bookmarks found'
-                : `Showing ${filteredBookmarks.length} bookmark${filteredBookmarks.length === 1 ? '' : 's'}`}
-              {searchQuery && ` for "${searchQuery}"`}
-              {selectedTag && ` tagged with "${selectedTag}"`}
-              {searchQuery && searchAllBookmarks && ' across all bookmarks'}
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">
+                {filteredBookmarks.length === 0
+                  ? 'No bookmarks found'
+                  : `Showing ${filteredBookmarks.length} bookmark${filteredBookmarks.length === 1 ? '' : 's'}`}
+                {searchQuery && ` for "${searchQuery}"`}
+                {selectedTag && ` tagged with "${selectedTag}"`}
+                {searchQuery && searchAllBookmarks && ' across all bookmarks'}
+              </p>
+              
+              {/* Last refreshed timestamp */}
+              {lastRefreshed && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  Last refreshed: {lastRefreshed.toLocaleString()}
+                </p>
+              )}
+            </div>
             
             {/* Debug indicator - only show in development mode */}
             {isDevelopment && (
-              <div className="mt-2 text-xs inline-flex items-center">
+              <div className="mt-2 sm:mt-0 text-xs inline-flex items-center">
                 <span className={`px-2 py-1 rounded-lg font-mono ${
                   dataSource === 'server' 
                     ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
