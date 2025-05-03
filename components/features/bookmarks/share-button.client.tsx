@@ -7,10 +7,11 @@
  */
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Check } from 'lucide-react';
 import { generateUniqueSlug } from '@/lib/utils/domain-utils';
 import type { UnifiedBookmark } from '@/types';
+import { useFixSvgTransforms } from '@/lib/hooks/use-fix-svg-transforms';
 
 interface ShareButtonProps {
   bookmark: Pick<UnifiedBookmark, 'id' | 'url'>;
@@ -21,6 +22,14 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
   const [mounted, setMounted] = useState(false);
   const [copied, setCopied] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(false);
+  
+  // Create refs for the buttons to fix SVG transform issues
+  const placeholderButtonRef = useRef<HTMLButtonElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  
+  // Apply SVG transform fixes to both button refs
+  useFixSvgTransforms({ rootRef: buttonRef });
+  useFixSvgTransforms({ rootRef: placeholderButtonRef });
 
   // Track mounted state for hydration safety
   useEffect(() => {
@@ -72,6 +81,8 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
     return (
       <div className="relative">
         <button
+          ref={placeholderButtonRef}
+          data-transform-fix-container="true"
           className="p-2 text-gray-500 dark:text-gray-400 transition-colors pointer-events-none"
           aria-label="Copy link"
           disabled
@@ -82,6 +93,7 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
             width={24} 
             height={24}
             className="text-gray-500 dark:text-gray-400"
+            data-transform-fix="true"
           >
             <path fill="currentColor" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z"/>
             <path fill="currentColor" d="M24 7h2v21h-2z"/>
@@ -95,7 +107,9 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
   return (
     <div className="relative">
       <button
+        ref={buttonRef}
         onClick={handleCopy}
+        data-transform-fix-container="true"
         className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
         aria-label="Copy link"
       >
@@ -108,6 +122,7 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
             width={24} 
             height={24}
             className="text-gray-500 dark:text-gray-400"
+            data-transform-fix="true"
           >
             <path fill="currentColor" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z"/>
             <path fill="currentColor" d="M24 7h2v21h-2z"/>

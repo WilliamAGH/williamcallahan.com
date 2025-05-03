@@ -56,6 +56,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
           console.log('Client-side: Attempting to fetch bookmarks from API');
           // Add a random query parameter to bust cache
           const timestamp = new Date().getTime();
+          console.log('BookmarksWithOptions: Fetching client-side data with timestamp', timestamp);
           const response = await fetch(`/api/bookmarks?t=${timestamp}`, {
             method: 'GET',
             headers: {
@@ -63,6 +64,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
             },
             cache: 'no-store',
           });
+          console.log('BookmarksWithOptions: Fetch response status:', response.status);
           
           if (!response.ok) {
             throw new Error(`API request failed with status ${response.status}`);
@@ -73,6 +75,8 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
           
           if (Array.isArray(allBookmarksData) && allBookmarksData.length > 0) {
             setAllBookmarks(allBookmarksData);
+            // Explicitly force the dataSource to client
+            console.log('BookmarksWithOptions: Setting data source to client-side');
             setDataSource('client');
           } else {
             console.error('Client-side: API returned empty or invalid data');
@@ -142,9 +146,9 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="w-full px-4 sm:px-6 lg:px-8">
       {/* Search and filtering */}
-      <div className="mb-8 space-y-6">
+      <div className="mb-6 space-y-5">
         <form onSubmit={handleSearchSubmit} className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-gray-400" />
@@ -197,7 +201,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
               {searchQuery && searchAllBookmarks && ' across all bookmarks'}
             </p>
             
-            {/* Debug indicator for development mode only */}
+            {/* Debug indicator - only show in development mode */}
             {isDevelopment && (
               <div className="mt-2 text-xs inline-flex items-center">
                 <span className={`px-2 py-1 rounded-lg font-mono ${

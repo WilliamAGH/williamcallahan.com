@@ -52,6 +52,36 @@ export function normalizeTagsToStrings(tags: Array<string | BookmarkTag>): strin
 }
 
 /**
+ * Sanitize a string by removing Unicode control characters
+ * 
+ * @param text - String to sanitize
+ * @returns Sanitized string without Unicode control characters
+ */
+export function sanitizeUnicode(text: string): string {
+  if (!text) return '';
+  
+  // Strip Unicode control characters (including bidi controls)
+  return text.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '');
+}
+
+/**
+ * Convert a string to a URL-friendly slug format
+ * 
+ * @param text - String to convert to slug
+ * @returns URL-friendly slug
+ */
+export function sanitizeTagSlug(text: string): string {
+  if (!text) return '';
+  
+  // First sanitize Unicode control characters
+  const cleanText = sanitizeUnicode(text);
+  
+  return cleanText
+    .toLowerCase()
+    .replace(/\s+/g, '-'); // Replace spaces with hyphens
+}
+
+/**
  * Convert tag string to URL-friendly slug
  * 
  * @param tag - Raw tag string
@@ -64,7 +94,10 @@ export function normalizeTagsToStrings(tags: Array<string | BookmarkTag>): strin
 export function tagToSlug(tag: string): string {
   if (!tag) return '';
   
-  return tag
+  // First sanitize Unicode control characters
+  const cleanTag = sanitizeUnicode(tag);
+  
+  return cleanTag
     .toLowerCase()
     .replace(/[^\w\s-]/g, '') // Remove special chars except spaces and hyphens
     .replace(/\s+/g, '-') // Replace spaces with hyphens
