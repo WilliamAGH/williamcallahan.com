@@ -49,14 +49,19 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
     if (searchAllBookmarks && mounted) {
       (async () => {
         try {
+          console.log('Client-side: Attempting to fetch bookmarks');
           const allBookmarksData = await fetchExternalBookmarks();
+          console.log('Client-side bookmarks count:', allBookmarksData.length);
           setAllBookmarks(allBookmarksData);
         } catch (error) {
           console.error('Failed to load all bookmarks:', error);
           // Fallback to provided bookmarks
+          console.log('Client-side: Falling back to provided bookmarks. Count:', bookmarks.length);
           setAllBookmarks(bookmarks);
         }
       })();
+    } else {
+      console.log('Client-side: Using provided bookmarks directly. Count:', bookmarks.length);
     }
   }, [searchAllBookmarks, bookmarks, mounted]);
 

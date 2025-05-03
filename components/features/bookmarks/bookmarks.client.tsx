@@ -16,6 +16,14 @@ interface BookmarksClientProps {
 }
 
 export const BookmarksClient: React.FC<BookmarksClientProps> = ({ bookmarks }) => {
+  // Debug log to check if bookmarks are passed correctly to client component
+  console.log('BookmarksClient receiving bookmarks:', bookmarks?.length || 0);
+  
   // Use our configurable component with default settings
-  return <BookmarksWithOptions bookmarks={bookmarks} showFilterBar={true} searchAllBookmarks={true} />;
+  return <BookmarksWithOptions 
+    bookmarks={bookmarks} 
+    showFilterBar={true} 
+    // TEMPORARY: Disable searchAllBookmarks to isolate the issue
+    searchAllBookmarks={false} 
+  />;
 };
