@@ -72,18 +72,26 @@ export function fetchExternalBookmarksCached(): Promise<UnifiedBookmark[]> {
 }
 
 export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
+  // Add detailed logging for debugging
+  console.log('fetchExternalBookmarks: Server-side fetch starting');
+  
   // Check cache first
   const cachedData = ServerCacheInstance.getBookmarks();
   
   // If we have cached data and it doesn't need refreshing, return it immediately
   if (cachedData && !ServerCacheInstance.shouldRefreshBookmarks()) {
     console.log('Using cached bookmarks data');
-    return cachedData.bookmarks;
+    
+    // Double-check the cached data is valid
+    if (Array.isArray(cachedData.bookmarks) && cachedData.bookmarks.length > 0) {
+      return cachedData.bookmarks;
+    } else {
+      console.warn('fetchExternalBookmarks: Cached data exists but is empty or invalid, will fetch fresh data');
+    }
   }
   
-  // Either we have no cache or it's time to refresh
-  // If we have cached data, we'll still use it as a fallback
-  const hasCachedFallback = !!cachedData?.bookmarks.length;
+  // Check for cached fallback
+  const hasCachedFallback = !!cachedData?.bookmarks?.length;
   
   // Start a background refresh if we have cached data
   if (hasCachedFallback) {
@@ -97,7 +105,10 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
   
   // No cached data, must fetch and wait
   try {
-    return await refreshBookmarksData();
+    console.log('fetchExternalBookmarks: No cache available, fetching fresh data');
+    const freshBookmarks = await refreshBookmarksData();
+    console.log('fetchExternalBookmarks: Successfully fetched fresh bookmarks, count:', freshBookmarks.length);
+    return freshBookmarks;
   } catch (error) {
     console.error('Failed to fetch bookmarks with no cache available:', error);
     // If we have no cached data and the fetch fails, return an empty array
@@ -112,6 +123,8 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
  * @throws {Error} If the API request fails.
  */
 export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
+  console.log('refreshBookmarksData: Starting fresh fetch from API');
+  
   const apiUrl = 'https://bookmark.iocloudhost.net/api/v1/lists/xrfqu4awxsqkr1ch404qwd9i/bookmarks';
   const bearerToken = process.env.BOOKMARK_BEARER_TOKEN;
 
@@ -122,7 +135,12 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
     return [];
   }
 
+  // Add timeout to prevent hanging requests
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10-second timeout
+
   try {
+    console.log('refreshBookmarksData: Fetching from API with authorization');
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
@@ -130,65 +148,88 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
         'Authorization': `Bearer ${bearerToken}`,
       },
       cache: 'no-store', // Force fresh data every time
+      signal: controller.signal,
+      next: { revalidate: 0 } // For Next.js cache control
     });
 
+    clearTimeout(timeoutId); // Clear the timeout
+
     if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}: ${await response.text()}`);
+      const responseText = await response.text();
+      console.error(`refreshBookmarksData: API request failed with status ${response.status}:`, responseText);
+      throw new Error(`API request failed with status ${response.status}: ${responseText}`);
     }
 
+    console.log('refreshBookmarksData: API response received, parsing JSON');
     const data: ApiResponse = await response.json();
 
     // Normalize the raw API data to the UnifiedBookmark structure
-    const normalizedBookmarks = data.bookmarks.map((raw): UnifiedBookmark => {
-      // Choose the best title and description (prefer title field that user edits)
-      // First check if either field exists, otherwise use fallbacks
-      const bestTitle = raw.title || raw.content?.title || 'Untitled Bookmark';
-      const bestDescription = raw.summary || raw.content?.description || 'No description available.';
+    console.log('refreshBookmarksData: Normalizing', data.bookmarks.length, 'bookmarks from API');
+    
+    const normalizedBookmarks = data.bookmarks.map((raw): UnifiedBookmark | null => {
+      if (!raw || typeof raw !== 'object') {
+        console.warn('refreshBookmarksData: Invalid bookmark data received', raw);
+        return null;
+      }
+      
+      try {
+        // Choose the best title and description (prefer title field that user edits)
+        // First check if either field exists, otherwise use fallbacks
+        const bestTitle = raw.title || raw.content?.title || 'Untitled Bookmark';
+        const bestDescription = raw.summary || raw.content?.description || 'No description available.';
 
-      // Normalize tags to BookmarkTag interface (though UnifiedBookmark allows string[] for now)
-       const normalizedTags: BookmarkTag[] = raw.tags.map(tag => ({
-         id: tag.id,
-         name: tag.name,
-         attachedBy: tag.attachedBy as 'ai' | 'user', // Cast assuming API uses these values
-       }));
+        // Normalize tags to BookmarkTag interface (though UnifiedBookmark allows string[] for now)
+        const normalizedTags: BookmarkTag[] = Array.isArray(raw.tags) 
+          ? raw.tags.map(tag => ({
+              id: tag.id,
+              name: tag.name,
+              attachedBy: tag.attachedBy as 'ai' | 'user', // Cast assuming API uses these values
+            }))
+          : [];
 
-       // Create a non-nullable content object for UnifiedBookmark
-       // Ensure content exists, even if raw.content is missing
-       const unifiedContent: BookmarkContent = {
-         // Spread existing content properties first, omitting htmlContent which can be very large
-         ...(raw.content ? {
-           ...raw.content,
-           htmlContent: undefined // Explicitly remove htmlContent to reduce payload size
-         } : {}),
-         // Then override with our preferred values
-         type: 'link',
-         url: raw.content?.url || '',
-         title: bestTitle || 'Untitled Bookmark',
-         description: bestDescription || 'No description available.'
-       };
+        // Create a non-nullable content object for UnifiedBookmark
+        // Ensure content exists, even if raw.content is missing
+        const unifiedContent: BookmarkContent = {
+          // Spread existing content properties first, omitting htmlContent which can be very large
+          ...(raw.content ? {
+            ...raw.content,
+            htmlContent: undefined // Explicitly remove htmlContent to reduce payload size
+          } : {}),
+          // Then override with our preferred values
+          type: 'link',
+          url: raw.content?.url || '',
+          title: bestTitle || 'Untitled Bookmark',
+          description: bestDescription || 'No description available.'
+        };
 
-      return {
-        id: raw.id,
-        url: raw.content?.url || '',
-        title: bestTitle,
-        description: bestDescription,
-        tags: normalizedTags, // Use the normalized tags
-        ogImage: raw.content?.imageUrl, // Map imageUrl to ogImage
-        dateBookmarked: raw.createdAt, // Map createdAt to dateBookmarked
-        datePublished: raw.content?.datePublished, // Map content.datePublished
-        // --- Include other fields from RawApiBookmark if needed ---
-        createdAt: raw.createdAt,
-        modifiedAt: raw.modifiedAt,
-        archived: raw.archived,
-        favourited: raw.favourited,
-        taggingStatus: raw.taggingStatus,
-        note: raw.note,
-        summary: raw.summary,
-        content: unifiedContent, // Assign the corrected content object
-        assets: raw.assets, // Keep the original assets array
-        // telegramUsername: undefined, // Not present in API data
-      };
-    });
+        return {
+          id: raw.id,
+          url: raw.content?.url || '',
+          title: bestTitle,
+          description: bestDescription,
+          tags: normalizedTags, // Use the normalized tags
+          ogImage: raw.content?.imageUrl, // Map imageUrl to ogImage
+          dateBookmarked: raw.createdAt, // Map createdAt to dateBookmarked
+          datePublished: raw.content?.datePublished, // Map content.datePublished
+          // --- Include other fields from RawApiBookmark if needed ---
+          createdAt: raw.createdAt,
+          modifiedAt: raw.modifiedAt,
+          archived: raw.archived,
+          favourited: raw.favourited,
+          taggingStatus: raw.taggingStatus,
+          note: raw.note,
+          summary: raw.summary,
+          content: unifiedContent, // Assign the corrected content object
+          assets: Array.isArray(raw.assets) ? raw.assets : [], // Make sure assets is an array
+          // telegramUsername: undefined, // Not present in API data
+        };
+      } catch (error) {
+        console.error('refreshBookmarksData: Error normalizing bookmark', error, raw);
+        return null;
+      }
+    }).filter((bookmark): bookmark is UnifiedBookmark => bookmark !== null); // Remove any null items
+    
+    console.log('refreshBookmarksData: Successfully normalized', normalizedBookmarks.length, 'bookmarks');
     
     // Update the cache with the new data
     ServerCacheInstance.setBookmarks(normalizedBookmarks);
@@ -196,10 +237,17 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
     return normalizedBookmarks;
 
   } catch (error) {
-    console.error('Failed to fetch external bookmarks:', error);
+    console.error('refreshBookmarksData: Failed to fetch external bookmarks:', error);
+    
+    // Always clean up the timeout
+    clearTimeout(timeoutId);
+    
     // Mark as failure but keep any existing cache
     ServerCacheInstance.setBookmarks([], true);
+    
     // Re-throw to let the caller handle it
     throw error;
+  } finally {
+    clearTimeout(timeoutId); // Ensure timeout is cleared in all cases
   }
 }

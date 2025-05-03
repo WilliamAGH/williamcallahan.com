@@ -264,11 +264,28 @@ export class ServerCache extends NodeCache {
    */
   shouldRefreshBookmarks(): boolean {
     const cached = this.getBookmarks();
-    if (!cached) return true;
+    if (!cached) {
+      console.log('shouldRefreshBookmarks: No cache entry, refresh required');
+      return true;
+    }
+    
+    // Verify the cached bookmarks are valid
+    if (!cached.bookmarks || !Array.isArray(cached.bookmarks) || cached.bookmarks.length === 0) {
+      console.log('shouldRefreshBookmarks: Empty or invalid cache, refresh required');
+      return true;
+    }
     
     const now = Date.now();
     const timeSinceLastFetch = now - cached.lastFetchedAt;
-    return timeSinceLastFetch > BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
+    const shouldRefresh = timeSinceLastFetch > BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
+    
+    if (shouldRefresh) {
+      console.log(`shouldRefreshBookmarks: Cache expired (${timeSinceLastFetch}ms old), refresh required`);
+    } else {
+      console.log(`shouldRefreshBookmarks: Cache still valid (${timeSinceLastFetch}ms old), using cached data`);
+    }
+    
+    return shouldRefresh;
   }
 
   /**

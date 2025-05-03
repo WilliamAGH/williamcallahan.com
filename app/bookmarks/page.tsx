@@ -14,6 +14,7 @@ import { BookmarksClient } from '@/components/features/bookmarks/bookmarks.clien
 import { getStaticPageMetadata } from '../../lib/seo/metadata';
 import { JsonLdScript } from "../../components/seo/json-ld";
 import type { Metadata } from 'next';
+import type { UnifiedBookmark } from '@/types';
 import { fetchExternalBookmarks } from '@/lib/bookmarks';
 
 /**
@@ -83,7 +84,7 @@ export function generateMetadata(): Metadata {
 
 export default async function BookmarksPage() {
   // Fetch bookmarks with error handling
-  let bookmarks = [];
+  let bookmarks: UnifiedBookmark[] = [];
   try {
     bookmarks = await fetchExternalBookmarks();
     console.log('Server-side bookmarks count:', bookmarks.length);
@@ -100,7 +101,7 @@ export default async function BookmarksPage() {
   const pageMetadata = PAGE_METADATA.bookmarks;
 
   // Sort bookmarks by date (newest first) if we have any
-  const sortedBookmarks = bookmarks.length ? 
+  const sortedBookmarks: UnifiedBookmark[] = bookmarks.length ? 
     [...bookmarks].sort((a, b) => {
       const dateA = a.dateBookmarked ? new Date(a.dateBookmarked).getTime() : 0;
       const dateB = b.dateBookmarked ? new Date(b.dateBookmarked).getTime() : 0;
