@@ -201,8 +201,8 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
               {searchQuery && searchAllBookmarks && ' across all bookmarks'}
             </p>
             
-            {/* Debug indicator for development mode - always show during development */}
-            {(
+            {/* Debug indicator - only show in development mode */}
+            {isDevelopment && (
               <div className="mt-2 text-xs inline-flex items-center">
                 <span className={`px-2 py-1 rounded-lg font-mono ${
                   dataSource === 'server' 
