@@ -2,7 +2,7 @@
  * Tests for domain utilities
  */
 import * as DomainUtils from '../../../lib/utils/domain-utils';
-import { normalizeDomain, getDomainSlug, generateUniqueSlug, slugToDomain, getDisplayDomain } from '../../../lib/utils/domain-utils';
+const { normalizeDomain, getDomainSlug, generateUniqueSlug, slugToDomain, getDisplayDomain } = DomainUtils;
 
 // Mock for special test case
 jest.mock('../../../lib/utils/domain-utils', () => {
