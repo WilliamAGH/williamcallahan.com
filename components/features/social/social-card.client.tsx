@@ -276,15 +276,8 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
                     onError={() => {
                       console.log(`Error loading profile image for ${label}: ${profileImageUrl}`);
 
-                      // Get local fallback based on network
-                      let localFallback = '';
-                      if (label.includes('GitHub')) localFallback = '/images/social-pics/github.jpg';
-                      else if (label.includes('X') || label.includes('Twitter')) localFallback = '/images/social-pics/x.jpg';
-                      else if (label.includes('LinkedIn')) localFallback = '/images/social-pics/linkedin.jpg';
-                      else if (label.includes('Bluesky')) localFallback = '/images/social-pics/bluesky.jpg';
-                      else if (label.includes('Discord')) localFallback = '/images/social-pics/discord.jpg';
-                      else localFallback = '/images/william.jpeg';
-
+                      // Use our existing helper function
+                      const localFallback = getProfileFallbackImage(label);
                       console.log(`Using local fallback: ${localFallback}`);
                       setProfileImageUrl(localFallback);
                     }}
