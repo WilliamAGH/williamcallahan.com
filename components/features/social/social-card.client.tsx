@@ -26,16 +26,16 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
   const [imageError, setImageError] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Extract domain from the URL for display
   const urlObj = new URL(href);
   const domain = urlObj.hostname.replace(/^www\./, '');
-  
+
   // Determine the service name from the domain or label with proper naming for X/Twitter and Bluesky
-  let serviceName = label.includes('(') 
-    ? label.split('(')[0].trim() 
+  let serviceName = label.includes('(')
+    ? label.split('(')[0].trim()
     : domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
-    
+
   // Override for specific networks
   if (serviceName === 'X') serviceName = 'Twitter';
   if (serviceName === 'Bsky') serviceName = 'Bluesky';
@@ -45,14 +45,14 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
     const timer = setTimeout(() => {
       setMounted(true);
     }, 20); // Slightly longer delay for mobile-specific hydration
-    
+
     return () => clearTimeout(timer);
   }, []);
-  
+
   // State for both profile and domain OG images
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [domainImageUrl, setDomainImageUrl] = useState<string | null>(null);
-  
+
   // Helper to get appropriate profile image based on network
   const getProfileFallbackImage = (networkLabel: string): string => {
     // Use exact URLs with try/catch to handle errors
@@ -61,22 +61,22 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
         // Primary GitHub avatar
         return 'https://avatars.githubusercontent.com/u/99231285?v=4';
       }
-      
+
       if (networkLabel.includes('X') || networkLabel.includes('Twitter')) {
         // Use local Twitter/X profile image
         return '/images/social-pics/x.jpg';
       }
-      
+
       if (networkLabel.includes('LinkedIn')) {
         // Use local LinkedIn profile image
         return '/images/social-pics/linkedin.jpg';
       }
-      
+
       if (networkLabel.includes('Bluesky')) {
         // Updated Bluesky avatar URL
         return 'https://cdn.bsky.app/img/avatar/plain/did:plc:6y3lzhinepgneechfrv3w55d/bafkreicuryva5uglksh2tqrc5tu66kwvnjwnpd2fdb6epsa6fjhhdehhyy@jpeg';
       }
-      
+
       if (networkLabel.includes('Discord')) {
         // Use local Discord profile image
         return '/images/social-pics/discord.jpg';
@@ -90,11 +90,11 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
       if (networkLabel.includes('Bluesky')) return '/images/social-pics/bluesky.jpg';
       if (networkLabel.includes('Discord')) return '/images/social-pics/discord.jpg';
     }
-    
+
     // Default fallback
     return '/images/william.jpeg';
   };
-  
+
   // Helper to get appropriate domain banner image based on network
   const getDomainFallbackImage = (networkLabel: string): string => {
     if (networkLabel.includes('GitHub')) return '/images/social-banners/github.svg';
@@ -104,32 +104,32 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
     if (networkLabel.includes('Bluesky')) return '/images/social-banners/bluesky.png';
     return '/images/company-placeholder.svg';
   };
-  
+
   // Fetch OG images with error handling and fallback - using useCallback to prevent infinite loops
   const fetchSocialImages = useCallback(async (url: string) => {
     try {
       setIsLoading(true);
       setImageError(false); // Reset error state
-      
+
       // DIRECTLY USE SOCIAL BANNER FROM PUBLIC FOLDER - NO API CALL
       console.log(`⭐ [${label}] Using direct social banner from public folder`);
-      
+
       // Set local banner image immediately - no API needed
       const localBanner = getDomainFallbackImage(label);
       console.log(`⭐ [${label}] Setting social banner: ${localBanner}`);
       setDomainImageUrl(localBanner);
-      
+
       // Improved logging with network type
       console.log(`🔄 [${label}] Fetching profile image only from ${url}...`);
-      
+
       // Only fetch profile image
       const apiUrl = `/api/og-image?url=${encodeURIComponent(url)}&fetchDomain=false`;
       const response = await fetch(apiUrl);
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log(`✅ [${label}] API response for profile:`, data);
-        
+
         // Set profile image only
         if (data.profileImageUrl) {
           console.log(`🖼️ [${label}] Using profile image: ${data.profileImageUrl}`);
@@ -164,12 +164,12 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
   useEffect(() => {
     if (mounted) {
       setImageError(false);
-      
+
       // ALWAYS set the banner image immediately from local files
       const localBanner = getDomainFallbackImage(label);
       console.log(`⭐ [${label}] Initial banner set: ${localBanner}`);
       setDomainImageUrl(localBanner);
-      
+
       // Fetch profile image separately
       fetchSocialImages(href);
     }
@@ -179,9 +179,9 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
   if (!mounted) {
     return <div className="relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl h-[400px]"></div>;
   }
-  
+
   // Determine brand-specific card styling
-  const cardBrandClass = 
+  const cardBrandClass =
     (label.includes('LinkedIn') || domain.includes('linkedin')) ? 'linkedin-card' :
     (label.includes('GitHub') || domain.includes('github')) ? 'github-card' :
     (label.includes('X') || label.includes('Twitter') || domain.includes('twitter') || domain.includes('x.com')) ? 'twitter-card' :
@@ -198,22 +198,22 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
             <div className="w-8 h-8 border-2 border-gray-400 border-t-blue-500 rounded-full animate-spin"></div>
           </div>
         )}
-        
+
         {/* Combined creative banner + profile overlay */}
         <div className="absolute inset-0 w-full h-full overflow-hidden rounded-t-3xl">
           {/* Base domain branding image with hyperlink - covers the entire banner area */}
           {domainImageUrl && (
             <div className="absolute inset-0 w-full h-full overflow-hidden">
-              <a 
-                href={href} 
-                target="_blank" 
-                rel="noopener noreferrer" 
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="absolute inset-0 z-20 w-full h-full cursor-pointer block"
               >
                 {/* Transparent overlay for click handling */}
                 <span className="sr-only">Visit {serviceName} profile</span>
               </a>
-              
+
               <div className={`absolute inset-0 w-full h-full transform transition-all duration-500 ease-in-out group-hover:scale-105`}>
                 {domain.includes('linkedin') ? (
                   <Image
@@ -257,14 +257,14 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
 
           {/* Semi-transparent gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-transparent via-black/10 to-black/30 dark:from-transparent dark:via-black/20 dark:to-black/50"></div>
-          
+
           {/* Profile image moved to bottom right, replacing network logo - now clickable */}
           {profileImageUrl && (
             <div className="absolute bottom-4 right-4 z-10">
-              <a 
-                href={href} 
-                target="_blank" 
-                rel="noopener noreferrer" 
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="block relative w-12 h-12 md:w-16 md:h-16 transform transition-all duration-300 group-hover:scale-110 cursor-pointer rounded-full"
               >
                 {/* Profile image with better blending for bottom right */}
@@ -279,7 +279,7 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
                     className="object-cover transition-all duration-500"
                     onError={() => {
                       console.log(`Error loading profile image for ${label}: ${profileImageUrl}`);
-                      
+
                       // Get local fallback based on network
                       let localFallback = '';
                       if (label.includes('GitHub')) localFallback = '/images/social-pics/github.jpg';
@@ -288,31 +288,31 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
                       else if (label.includes('Bluesky')) localFallback = '/images/social-pics/bluesky.jpg';
                       else if (label.includes('Discord')) localFallback = '/images/social-pics/discord.jpg';
                       else localFallback = '/images/william.jpeg';
-                      
+
                       console.log(`Using local fallback: ${localFallback}`);
                       setProfileImageUrl(localFallback);
                     }}
                   />
                 </div>
-                
+
                 {/* Subtle glow for profile pic */}
                 <div className="absolute -inset-1 -z-0 rounded-full bg-white/30 dark:bg-white/20 blur-sm"></div>
               </a>
             </div>
           )}
         </div>
-        
+
         {/* Fallback to icon when both images failed or during loading */}
         {(!profileImageUrl || !domainImageUrl || imageError) && !isLoading && (
           <div className="absolute inset-0 z-5 flex items-center justify-center w-full h-full bg-gray-100 dark:bg-gray-800">
             <Icon className="w-32 h-32 text-gray-800 dark:text-gray-200" />
           </div>
         )}
-        
+
         {/* Clickable domain overlay */}
-        <ExternalLink 
-          href={href} 
-          showIcon={false} 
+        <ExternalLink
+          href={href}
+          showIcon={false}
           className="absolute bottom-3 left-3 bg-white/80 dark:bg-gray-800/80 px-3 py-1 flex items-center space-x-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
         >
           <LucideExternalLinkIcon className="w-4 h-4 text-gray-700 dark:text-gray-200" />
@@ -323,9 +323,9 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
       {/* Content Section */}
       <div className="flex-1 p-6 flex flex-col gap-3.5">
         {/* Title with Icon - as a single clickable unit */}
-        <a 
-          href={href} 
-          target="_blank" 
+        <a
+          href={href}
+          target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2.5 group/title"
           title={`Visit ${serviceName} profile`}
@@ -344,10 +344,10 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
         {/* User handle - now as hyperlink with consistent styling */}
         <div className="mt-auto space-y-2 text-sm text-gray-500 dark:text-gray-400">
           <div className="flex items-center gap-1">
-            <a 
-              href={href} 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
               className="font-mono hover:text-blue-600 transition-colors"
               title={`Visit ${serviceName} profile`}
             >
@@ -375,9 +375,9 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
 // Helper functions to generate content based on the social network
 function getNetworkDescription(label: string): string {
   if (label.includes('GitHub')) return 'code projects and open source contributions';
-  if (label.includes('X') || label.includes('Twitter')) return 'thoughts on tech, startups, and investing';
-  if (label.includes('LinkedIn')) return 'professional updates and career highlights';
-  if (label.includes('Discord')) return 'real-time discussions and community engagement';
+  if (label.includes('X') || label.includes('Twitter')) return 'humor and discussion around tech, startups, and investing';
+  if (label.includes('LinkedIn')) return 'professional updates and highlights';
+  if (label.includes('Discord')) return "live chat and focused tech community 'servers'";
   if (label.includes('Bluesky')) return 'decentralized social content and conversations';
   return 'content and updates';
 }
@@ -393,21 +393,21 @@ function getNetworkCategory(label: string): string {
 function getUserHandle(url: string): string {
   const parts = url.split('/');
   const handle = parts[parts.length - 1];
-  
+
   // If the URL structure is standard, return with @ prefix
   if (handle && !handle.includes('.')) {
     return `@${handle}`;
   }
-  
+
   // For Bluesky's profile format
   if (url.includes('bsky.app/profile/')) {
     return `@${handle}`;
   }
-  
+
   // For Discord's format
   if (url.includes('discord.com/users/')) {
     return handle;
   }
-  
+
   return handle;
 }
