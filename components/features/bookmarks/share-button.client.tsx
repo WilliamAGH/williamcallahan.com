@@ -23,11 +23,13 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
   const [copied, setCopied] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(false);
   
-  // Create a ref for the button to fix SVG transform issues
+  // Create refs for the buttons to fix SVG transform issues
+  const placeholderButtonRef = useRef<HTMLButtonElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   
-  // Apply SVG transform fixes to this component
+  // Apply SVG transform fixes to both button refs
   useFixSvgTransforms({ rootRef: buttonRef });
+  useFixSvgTransforms({ rootRef: placeholderButtonRef });
 
   // Track mounted state for hydration safety
   useEffect(() => {
@@ -79,7 +81,7 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
     return (
       <div className="relative">
         <button
-          ref={buttonRef}
+          ref={placeholderButtonRef}
           data-transform-fix-container="true"
           className="p-2 text-gray-500 dark:text-gray-400 transition-colors pointer-events-none"
           aria-label="Copy link"

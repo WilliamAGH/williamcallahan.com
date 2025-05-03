@@ -13,6 +13,7 @@ import { fetchExternalBookmarks } from '@/lib/bookmarks';
 import { BookmarksServer } from '@/components/features/bookmarks/bookmarks.server';
 import { JsonLdScript } from '@/components/seo/json-ld';
 import { getStaticPageMetadata } from '@/lib/seo/metadata';
+import { sanitizeTagSlug, sanitizeUnicode } from '@/lib/utils/tag-utils';
 import type { Metadata } from 'next';
 
 /**
@@ -24,9 +25,8 @@ export async function generateStaticParams() {
     (Array.isArray(b.tags) ? b.tags : []).map(t => (typeof t === 'string' ? t : t.name))
   );
   const uniqueSlugs = Array.from(new Set(tags)).map(tag => {
-    // Strip Unicode control characters
-    const cleanTag = tag.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '');
-    return cleanTag.toLowerCase().replace(/\s+/g, '-');
+    // Use the sanitized tag from utility function
+    return sanitizeTagSlug(tag);
   });
   return uniqueSlugs.map(tagSlug => ({ tagSlug }));
 }
@@ -37,8 +37,8 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: { params: { tagSlug: string }}): Promise<Metadata> {
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
-  // Strip any Unicode control characters from the slug
-  const tagSlug = paramsResolved.tagSlug.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '');
+  // Use sanitizeUnicode utility for consistency
+  const tagSlug = sanitizeUnicode(paramsResolved.tagSlug);
   const tagQuery = tagSlug.replace(/-/g, ' ');
   
   // Try to find the original tag capitalization
@@ -99,8 +99,8 @@ export default async function TagPage({ params }: TagPageProps) {
   const allBookmarks = await fetchExternalBookmarks();
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
-  // Strip any Unicode control characters from the slug
-  const tagSlug = paramsResolved.tagSlug.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '');
+  // Use sanitizeUnicode utility for consistency
+  const tagSlug = sanitizeUnicode(paramsResolved.tagSlug);
   const tagQuery = tagSlug.replace(/-/g, ' ');
   
   const filtered = allBookmarks.filter(b => {

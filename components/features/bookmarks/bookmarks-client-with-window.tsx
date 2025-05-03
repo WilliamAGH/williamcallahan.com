@@ -68,7 +68,10 @@ export function BookmarksClientWithWindow({
   titleSlug
 }: BookmarksClientWithWindowProps) {
   return (
-    <BookmarksWindow titleSlug={titleSlug}>
+    <BookmarksWindow 
+      titleSlug={titleSlug}
+      windowTitle={title} // Pass the title to be used as window title
+    >
       <div className="w-full mx-auto py-8">
         {/* Only show description if provided */}
         {description && (
