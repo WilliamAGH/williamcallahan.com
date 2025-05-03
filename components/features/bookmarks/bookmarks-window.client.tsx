@@ -40,6 +40,12 @@ interface BookmarksWindowProps extends ClientBoundaryProps {
   titleSlug?: string;
   
   /**
+   * Optional custom window title to display instead of the default.
+   * This overrides the titleSlug if both are provided.
+   */
+  windowTitle?: string;
+  
+  /**
    * Optional window ID. If not provided, uses the default 'bookmarks-window'
    */
   windowId?: string;
@@ -50,20 +56,23 @@ interface BookmarksWindowProps extends ClientBoundaryProps {
  * This ensures any layout effects or DOM manipulations only run on the client
  */
 const BookmarksWindowContent = dynamic(
-  () => Promise.resolve(({ children, windowState, onClose, onMinimize, onMaximize, titleSlug }: {
+  () => Promise.resolve(({ children, windowState, onClose, onMinimize, onMaximize, titleSlug, windowTitle }: {
     children: React.ReactNode;
     windowState: string;
     onClose: () => void;
     onMinimize: () => void;
     onMaximize: () => void;
     titleSlug?: string;
+    windowTitle?: string;
   }) => {
     const isMaximized = windowState === 'maximized';
     
     // Format the title slug for display
-    const formattedTitle = titleSlug 
-      ? `~/${titleSlug}/bookmarks` 
-      : '~/bookmarks';
+    const formattedTitle = windowTitle 
+      ? windowTitle // Use explicit window title if provided
+      : (titleSlug 
+          ? `~/${titleSlug}/bookmarks` 
+          : '~/bookmarks');
 
     return (
       <div
@@ -114,7 +123,7 @@ const BookmarksWindowContent = dynamic(
  * @param {BookmarksWindowProps} props - Component props
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
  */
-export function BookmarksWindow({ children, titleSlug, windowId }: BookmarksWindowProps) {
+export function BookmarksWindow({ children, titleSlug, windowTitle, windowId }: BookmarksWindowProps) {
   // Generate a unique windowId if a slug is provided
   const uniqueId = windowId 
     || (titleSlug ? `bookmarks-${titleSlug}-window` : DEFAULT_BOOKMARKS_WINDOW_ID);
@@ -161,6 +170,7 @@ export function BookmarksWindow({ children, titleSlug, windowId }: BookmarksWind
       onMinimize={minimizeWindow}
       onMaximize={maximizeWindow}
       titleSlug={titleSlug}
+      windowTitle={windowTitle}
     >
       {children}
     </BookmarksWindowContent>

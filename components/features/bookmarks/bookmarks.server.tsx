@@ -28,8 +28,19 @@ export async function BookmarksServer({
   // If bookmarks are provided via props, use those; otherwise fetch from API
   let bookmarks: UnifiedBookmark[] = [];
   
+  // Helper function to sort bookmarks by date (newest first)
+  const sortByDateDesc = (list: UnifiedBookmark[]) =>
+    [...list].sort((a, b) => {
+      const safeTs = (d?: string) => {
+        const ts = d ? Date.parse(d) : NaN;
+        return Number.isFinite(ts) ? ts : 0;
+      };
+      return safeTs(b.dateBookmarked) - safeTs(a.dateBookmarked);
+    });
+  
   if (propsBookmarks) {
-    bookmarks = propsBookmarks;
+    // Apply the same consistent sorting even when bookmarks are provided externally
+    bookmarks = sortByDateDesc(propsBookmarks);
     console.log('Using provided bookmarks, count:', bookmarks.length);
   } else {
     // Fetch bookmarks with error handling
@@ -47,16 +58,7 @@ export async function BookmarksServer({
     }
 
     // Sort bookmarks by date (newest first) if we have any
-    bookmarks = bookmarks.length ? 
-      [...bookmarks].sort((a, b) => {
-        const toTs = (d?: string) => {
-          const ts = d ? Date.parse(d) : NaN;
-          return Number.isFinite(ts) ? ts : 0;
-        };
-        const dateA = toTs(a.dateBookmarked);
-        const dateB = toTs(b.dateBookmarked);
-        return dateB - dateA;
-      }) : [];
+    bookmarks = bookmarks.length ? sortByDateDesc(bookmarks) : [];
   }
 
   // Pass the processed data to the client component
