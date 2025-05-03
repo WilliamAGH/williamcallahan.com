@@ -6,6 +6,9 @@
  * @module app/bookmarks/[slug]/page
  */
 
+// Configure dynamic rendering
+export const dynamic = 'force-dynamic';
+
 import { fetchExternalBookmarksCached } from '@/lib/bookmarks';
 import { BookmarksWithOptions } from '@/components/features/bookmarks/bookmarks-with-options.client';
 import { JsonLdScript } from '@/components/seo/json-ld';
@@ -28,12 +31,14 @@ export async function generateStaticParams() {
  * Generate metadata for this bookmark page
  */
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const path = `/bookmarks/${params.slug}`;
+  // Make sure to await the params object
+  const paramsResolved = await Promise.resolve(params);
+  const path = `/bookmarks/${paramsResolved.slug}`;
   const baseMetadata = getStaticPageMetadata(path, 'bookmarks');
   
   // Fetch bookmark data to create more specific metadata
   const allBookmarks = await fetchExternalBookmarksCached();
-  const { slug } = params;
+  const { slug } = paramsResolved;
   
   // Find the bookmark that matches this slug
   let foundBookmark = null;
@@ -114,7 +119,9 @@ interface BookmarkPageProps {
 
 export default async function BookmarkPage({ params }: BookmarkPageProps) {
   const allBookmarks = await fetchExternalBookmarksCached();
-  const { slug } = params;
+  // Await params to fix Next.js warning
+  const paramsResolved = await Promise.resolve(params);
+  const { slug } = paramsResolved;
   
   // Find the bookmark that matches this slug
   let foundBookmark = null;

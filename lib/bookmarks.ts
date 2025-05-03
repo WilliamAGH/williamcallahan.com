@@ -147,9 +147,9 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
         'Accept': 'application/json',
         'Authorization': `Bearer ${bearerToken}`,
       },
-      cache: 'no-store', // Force fresh data every time
       signal: controller.signal,
-      next: { revalidate: 0 } // For Next.js cache control
+      // Use longer cache time to enable static generation
+      next: { revalidate: 3600 } // Cache for 1 hour
     });
 
     clearTimeout(timeoutId); // Clear the timeout
