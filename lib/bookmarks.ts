@@ -155,7 +155,11 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
        // Create a non-nullable content object for UnifiedBookmark
        // Ensure content exists, even if raw.content is missing
        const unifiedContent: BookmarkContent = {
-         ...raw.content, // Spread existing content properties first
+         // Spread existing content properties first, omitting htmlContent which can be very large
+         ...(raw.content ? {
+           ...raw.content,
+           htmlContent: undefined // Explicitly remove htmlContent to reduce payload size
+         } : {}),
          // Then override with our preferred values
          type: 'link',
          url: raw.content?.url || '',
