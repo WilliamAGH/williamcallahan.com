@@ -210,34 +210,86 @@ export default function RootLayout({
             {/* Revert to direct rendering */}
             <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
               <ErrorBoundary silent>
-                <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-50">
+                <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-[1000]">
                   <div className="w-full max-w-[95%] xl:max-w-[1400px] 2xl:max-w-[1800px] mx-auto px-4 py-4 flex items-center justify-between">
                     <Suspense fallback={null}>
                       {/* Navigation component */}
                       <Navigation />
                     </Suspense>
                     {/* Navigation bar actions container - NEVER hide, but manage content responsively */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 relative z-[1050]">
                       {/* 
                         Create THREE completely separate containers for different viewport sizes:
-                        1. Mobile: Only theme toggle (0-639px)
-                        2. Tablet: Theme toggle + minimal icons (640px-1023px)
+                        1. Mobile: Theme toggle + X icon (0-639px)
+                        2. Tablet: Theme toggle + X icon (640px-1023px)
                         3. Desktop: Theme toggle + full social icons (1024px+)
                       */}
                       
-                      {/* 1. MOBILE: Only theme toggle */}
-                      <div className="sm:hidden">
+                      {/* 1. MOBILE: Theme toggle + X icon */}
+                      <div className="sm:hidden flex items-center gap-2">
+                        <a 
+                          href="https://x.com/williamcallahan"
+                          target="_blank"
+                          rel="noopener noreferrer" 
+                          className="group flex items-center justify-center rounded-lg transition-all
+                          bg-gray-200 dark:bg-gray-700 
+                          hover:bg-indigo-100 dark:hover:bg-indigo-900
+                          border border-gray-300 dark:border-gray-600
+                          text-gray-700 dark:text-gray-300
+                          hover:shadow-md hover:scale-105 active:scale-100
+                          z-[1050]"
+                          style={{width: "34px", height: "34px"}}
+                          aria-label="X (Twitter)"
+                        >
+                          <svg 
+                            viewBox="0 0 24 24" 
+                            width="16" 
+                            height="16"
+                            stroke="currentColor" 
+                            fill="none" 
+                            strokeWidth="2"
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                            style={{ transform: "translateX(-1px)" }}
+                          >
+                            <path d="M5 4l11.733 16h3.267l-11.733 -16z" />
+                            <path d="M5 20l6.768 -6.768m2.46 -2.46l5.772 -6.772" />
+                          </svg>
+                        </a>
                         <ThemeToggle />
                       </div>
                       
-                      {/* 2. TABLET: Theme toggle + X (Twitter) icon only */}
+                      {/* 2. TABLET: Theme toggle + X (Twitter) icon */}
                       <div className="hidden sm:flex lg:hidden items-center gap-2">
-                        <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700/50 shadow-sm">
-                          <Suspense fallback={null}>
-                            {/* SocialIcons component now handles hydration safety internally */}
-                            <SocialIcons showXOnly={true} />
-                          </Suspense>
-                        </div>
+                        <a 
+                          href="https://x.com/williamcallahan"
+                          target="_blank"
+                          rel="noopener noreferrer" 
+                          className="group flex items-center justify-center rounded-lg transition-all
+                          bg-gray-200 dark:bg-gray-700 
+                          hover:bg-indigo-100 dark:hover:bg-indigo-900
+                          border border-gray-300 dark:border-gray-600
+                          text-gray-700 dark:text-gray-300
+                          hover:shadow-md hover:scale-105 active:scale-100
+                          z-[1050]"
+                          style={{width: "34px", height: "34px"}}
+                          aria-label="X (Twitter)"
+                        >
+                          <svg 
+                            viewBox="0 0 24 24" 
+                            width="16" 
+                            height="16"
+                            stroke="currentColor" 
+                            fill="none" 
+                            strokeWidth="2"
+                            strokeLinecap="round" 
+                            strokeLinejoin="round"
+                            style={{ transform: "translateX(-1px)" }}
+                          >
+                            <path d="M5 4l11.733 16h3.267l-11.733 -16z" />
+                            <path d="M5 20l6.768 -6.768m2.46 -2.46l5.772 -6.772" />
+                          </svg>
+                        </a>
                         <ThemeToggle />
                       </div>
                       
@@ -245,7 +297,6 @@ export default function RootLayout({
                       <div className="hidden lg:flex items-center gap-2">
                         <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700/50 shadow-sm">
                           <Suspense fallback={null}>
-                            {/* SocialIcons component handles hydration safety internally */}
                             <SocialIcons />
                           </Suspense>
                         </div>
@@ -256,7 +307,7 @@ export default function RootLayout({
                 </header>
               </ErrorBoundary>
 
-              <main className="pt-24 pb-16 px-4 motion-safe:transition-opacity motion-safe:duration-200">
+              <main className="pt-16 pb-16 px-4 motion-safe:transition-opacity motion-safe:duration-200">
                 <ErrorBoundary silent>
                   <ClientTerminal />
                 </ErrorBoundary>

@@ -9,11 +9,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { BookmarkCardClient } from './bookmark-card.client';
-import { Search, ArrowRight } from 'lucide-react';
+import { Search, ArrowRight, RefreshCw, Loader2 } from 'lucide-react';
 import type { UnifiedBookmark, BookmarkTag } from '@/types';
 import { fetchExternalBookmarks } from '@/lib/bookmarks.client';
 import { TagsList } from './tags-list.client';
 import { normalizeTagsToStrings } from '@/lib/utils/tag-utils';
+import { ExternalLink } from '@/components/ui/external-link.client';
+import { useRouter } from 'next/navigation';
 
 interface BookmarksWithOptionsProps {
   bookmarks: UnifiedBookmark[];
@@ -41,7 +43,13 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
   // Tag expansion is now handled in the TagsList component
   const [allBookmarks, setAllBookmarks] = useState<UnifiedBookmark[]>(bookmarks);
   const [isSearching, setIsSearching] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [dataSource, setDataSource] = useState<'server' | 'client'>('server');
+  const [showFilters, setShowFilters] = useState(false);
+  const [showSort, setShowSort] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const router = useRouter();
 
   // Set mounted state once after hydration
   useEffect(() => {
@@ -65,14 +73,14 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
             cache: 'no-store',
           });
           console.log('BookmarksWithOptions: Fetch response status:', response.status);
-          
+
           if (!response.ok) {
             throw new Error(`API request failed with status ${response.status}`);
           }
-          
+
           const allBookmarksData = await response.json();
           console.log('Client-side direct fetch bookmarks count:', allBookmarksData.length);
-          
+
           if (Array.isArray(allBookmarksData) && allBookmarksData.length > 0) {
             setAllBookmarks(allBookmarksData);
             // Explicitly force the dataSource to client
@@ -80,7 +88,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
             setDataSource('client');
           } else {
             console.error('Client-side: API returned empty or invalid data');
-            // Fallback to provided bookmarks 
+            // Fallback to provided bookmarks
             setAllBookmarks(bookmarks);
           }
         } catch (error) {
@@ -145,38 +153,127 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
     setSelectedTag(selectedTag === tag ? null : tag);
   };
 
+  // Function to refresh bookmarks data
+  const refreshBookmarks = async () => {
+    setIsRefreshing(true);
+    setRefreshError(null);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      // Call the refresh API endpoint
+      const response = await fetch('/api/bookmarks/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData?.error || `Refresh failed: ${response.status}`;
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('Bookmarks refresh result:', result);
+
+      // If refresh was successful, fetch the new bookmarks
+      if (result.status === 'success') {
+        const timestamp = new Date().getTime();
+        const bookmarksResponse = await fetch(`/api/bookmarks?t=${timestamp}`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+          cache: 'no-store',
+        });
+
+        if (!bookmarksResponse.ok) {
+          throw new Error(`Failed to fetch updated bookmarks: ${bookmarksResponse.status}`);
+        }
+
+        const refreshedBookmarks = await bookmarksResponse.json();
+
+        if (Array.isArray(refreshedBookmarks) && refreshedBookmarks.length > 0) {
+          setAllBookmarks(refreshedBookmarks);
+          setLastRefreshed(new Date());
+          setDataSource('client');
+          console.log('Bookmarks refreshed successfully:', refreshedBookmarks.length);
+          router.refresh();
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing bookmarks:', error);
+      const message = error instanceof Error ? error.message : 'Failed to refresh bookmarks';
+      setRefreshError(message);
+
+      setTimeout(() => setRefreshError(null), 5000);
+    } finally {
+      setIsRefreshing(false);
+      clearTimeout(timeoutId);
+    }
+  };
+
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8">
       {/* Search and filtering */}
       <div className="mb-6 space-y-5">
-        <form onSubmit={handleSearchSubmit} className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
-          {mounted ? (
-            <>
-              <input
-                type="text"
-                placeholder="Search bookmarks by title, description, URL, author..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="block w-full pl-10 pr-12 py-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+        <div className="flex items-center justify-between">
+          <form onSubmit={handleSearchSubmit} className="relative flex-1 mr-2">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
+            {mounted ? (
+              <>
+                <input
+                  type="text"
+                  placeholder="Search bookmarks by title, description, URL, author..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className="block w-full pl-10 pr-12 py-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                />
+                <button
+                  type="submit"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  aria-label="Submit search"
+                >
+                  <ArrowRight className="h-5 w-5" />
+                </button>
+              </>
+            ) : (
+              <div
+                className="block w-full pl-10 pr-4 py-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 h-12"
+                suppressHydrationWarning
               />
-              <button
-                type="submit"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                aria-label="Submit search"
-              >
-                <ArrowRight className="h-5 w-5" />
-              </button>
-            </>
-          ) : (
-            <div
-              className="block w-full pl-10 pr-4 py-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 h-12"
-              suppressHydrationWarning
-            />
+            )}
+          </form>
+
+          {/* Refresh button */}
+          {mounted && (
+            <button
+              onClick={refreshBookmarks}
+              disabled={isRefreshing}
+              className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              aria-label="Refresh Bookmarks"
+            >
+              {isRefreshing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+            </button>
           )}
-        </form>
+          {/* Display Refresh Error */}
+          {refreshError && (
+            <div className="mt-2 text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">
+              {refreshError}
+            </div>
+          )}
+        </div>
 
         {/* Tags filter - only show if showFilterBar is true */}
         {showFilterBar && allTags.length > 0 && (
@@ -191,22 +288,31 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
       {/* Results count */}
       <div className="mb-6">
         {mounted ? (
-          <div>
-            <p className="text-gray-500 dark:text-gray-400">
-              {filteredBookmarks.length === 0
-                ? 'No bookmarks found'
-                : `Showing ${filteredBookmarks.length} bookmark${filteredBookmarks.length === 1 ? '' : 's'}`}
-              {searchQuery && ` for "${searchQuery}"`}
-              {selectedTag && ` tagged with "${selectedTag}"`}
-              {searchQuery && searchAllBookmarks && ' across all bookmarks'}
-            </p>
-            
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+            <div>
+              <p className="text-gray-500 dark:text-gray-400">
+                {filteredBookmarks.length === 0
+                  ? 'No bookmarks found'
+                  : `Showing ${filteredBookmarks.length} bookmark${filteredBookmarks.length === 1 ? '' : 's'}`}
+                {searchQuery && ` for "${searchQuery}"`}
+                {selectedTag && ` tagged with "${selectedTag}"`}
+                {searchQuery && searchAllBookmarks && ' across all bookmarks'}
+              </p>
+
+              {/* Last refreshed timestamp */}
+              {lastRefreshed && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  Last refreshed: {lastRefreshed.toLocaleString()}
+                </p>
+              )}
+            </div>
+
             {/* Debug indicator - only show in development mode */}
             {isDevelopment && (
-              <div className="mt-2 text-xs inline-flex items-center">
+              <div className="mt-2 sm:mt-0 text-xs inline-flex items-center">
                 <span className={`px-2 py-1 rounded-lg font-mono ${
-                  dataSource === 'server' 
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                  dataSource === 'server'
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                     : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                 }`}>
                   Data source: {dataSource === 'server' ? 'Server-side' : 'Client-side API'}
