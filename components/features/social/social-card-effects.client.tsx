@@ -28,10 +28,18 @@ export function SocialCardEffects() {
         transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.3s ease !important;
       }
       
+      /* Default state styles for all SVG backgrounds - add solid white rectangle background for consistency */
+      .linkedin-card img[src*="linkedin.svg"],
+      .github-card img[src*="github.svg"],
+      .twitter-card img[src*="twitter-x.svg"] {
+        background-color: #ffffff !important;
+        border-radius: 2px;
+      }
+      
       /* LinkedIn: blue (#0A66C2) */
       .linkedin-card:hover img[src*="linkedin.svg"] {
-        filter: invert(36%) sepia(71%) saturate(6695%) hue-rotate(196deg) brightness(92%) contrast(98%);
-        opacity: 0.9;
+        filter: invert(36%) sepia(71%) saturate(6695%) hue-rotate(196deg) brightness(92%) contrast(98%) !important;
+        opacity: 0.9 !important;
       }
       
       /* GitHub: purple-ish (#6e5494) for hover */
