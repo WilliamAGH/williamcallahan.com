@@ -100,8 +100,14 @@ pre[class*="language-"] {
 
 /* Custom spacing classes */
 .terminal-reduced-margin {
-  margin-top: 1rem !important; /* Override mt-8 (2rem) with 1rem */
+  /* On mobile, use reduced margin */
+  margin-top: 1rem !important; /* Override mt-8 (2rem) with 1rem for mobile */
   margin-bottom: 1rem !important; /* Symmetrical spacing */
+
+  /* On screens larger than mobile, use original spacing */
+  @media (min-width: 640px) {
+    margin-top: 2rem !important; /* Restore mt-8 (2rem) for desktop */
+  }
 }
 
 /* Apply token rules */
