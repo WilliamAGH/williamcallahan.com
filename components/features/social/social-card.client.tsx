@@ -205,7 +205,7 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
     (label.includes('Discord') || domain.includes('discord')) ? 'discord-card' : '';
 
   return (
-    <div className={`relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl hover:shadow-xl transform hover:scale-[1.002] border border-transparent group ${cardBrandClass}`}>
+    <div className={`relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl border border-transparent group ${cardBrandClass}`}>
       {/* Image Section with beautiful profile/domain overlay */}
       <div className="relative w-full aspect-video overflow-hidden rounded-t-3xl bg-gray-100 dark:bg-gray-800">
         {/* Loading state */}
@@ -230,24 +230,16 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
                 <span className="sr-only">Visit {serviceName} profile</span>
               </a>
 
-              <div className={`absolute inset-0 w-full h-full transform transition-all duration-500 ease-in-out group-hover:scale-105`}>
+              <div className={`absolute inset-0 w-full h-full`}>
                 {domain.includes('linkedin') ? (
                   <Image
                     src={domainImageUrl}
                     alt={`${serviceName} branding`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover linkedin-banner"
                     fill
                     unoptimized={true}
-                    style={{
-                      filter: 'brightness(1)',
-                      transition: 'all 0.3s ease-in-out'
-                    }}
-                    onLoad={(e) => {
-                      // This is needed to ensure the SVG elements are modifiable via CSS
-                      const img = e.target as HTMLImageElement;
-                      if (img.style) {
-                        img.style.filter = 'brightness(1)';
-                      }
+                    onLoad={() => {
+                      // No JS style manipulation for now
                     }}
                     onError={() => {
                       console.error(`Error loading domain image for ${label}: ${domainImageUrl}`);
@@ -258,7 +250,7 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
                   <Image
                     src={domainImageUrl}
                     alt={`${serviceName} branding`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover social-banner"
                     fill
                     unoptimized={true}
                     onError={() => {
@@ -281,10 +273,10 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block relative w-12 h-12 md:w-16 md:h-16 transform transition-all duration-300 group-hover:scale-110 cursor-pointer rounded-full"
+                className="block relative w-12 h-12 md:w-16 md:h-16 cursor-pointer rounded-full"
               >
                 {/* Profile image with better blending for bottom right */}
-                <div className="absolute inset-0 rounded-full overflow-hidden shadow-lg border-2 border-white/70 dark:border-gray-700/70 mix-blend-normal group-hover:mix-blend-normal transition-all duration-500">
+                <div className="absolute inset-0 rounded-full overflow-hidden shadow-lg border-2 border-white/70 dark:border-gray-700/70">
                   <Image
                     src={profileImageUrl}
                     alt={`${serviceName} profile`}
@@ -292,7 +284,7 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
                     unoptimized={true}
                     priority={true}
                     sizes="(max-width: 767px) 48px, 64px"
-                    className="object-cover transition-all duration-500"
+                    className="object-cover"
                     onError={() => {
                       console.log(`Error loading profile image for ${label}: ${profileImageUrl}`);
 
@@ -347,7 +339,7 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
 
         {/* Description - more detailed for social profiles */}
         <p className="flex-1 text-gray-700 dark:text-gray-300 text-base leading-6 overflow-hidden">
-          Connect with me on {serviceName}, where I share {getNetworkDescription(label)}.
+          {getNetworkDescription(label)}
         </p>
 
         {/* User handle - now as hyperlink with consistent styling */}
@@ -383,12 +375,12 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
 
 // Helper functions to generate content based on the social network
 function getNetworkDescription(label: string): string {
-  if (label.includes('GitHub')) return 'code projects and open source contributions';
-  if (label.includes('X') || label.includes('Twitter')) return 'humor and discussion around tech, startups, and investing';
-  if (label.includes('LinkedIn')) return 'professional updates and highlights';
-  if (label.includes('Discord')) return "live chat and focused tech community 'servers'";
-  if (label.includes('Bluesky')) return 'decentralized social content and conversations';
-  return 'content and updates';
+  if (label.includes('GitHub')) return 'My code repositories and open source contributions.';
+  if (label.includes('X') || label.includes('Twitter')) return 'Sharing thoughts on tech, startups, and investing while enjoying Twitter humor!';
+  if (label.includes('LinkedIn')) return 'Obligatory LinkedIn updates and professional profile.';
+  if (label.includes('Discord')) return 'Live chat and messaging on ~100 topic-based servers.';
+  if (label.includes('Bluesky')) return 'Decentralized Twitter alternative.';
+  return 'Connecting and sharing updates.';
 }
 
 function getNetworkCategory(label: string): string {
