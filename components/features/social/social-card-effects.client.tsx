@@ -4,7 +4,7 @@
  * Social Brand Hover Effects Component
  * 
  * This component applies subtle brand color effects to social media cards on hover.
- * It uses CSS filters which work universally on SVGs regardless of implementation.
+ * Uses a simple, reliable approach compatible with all browsers.
  */
 
 import React from 'react';
@@ -12,65 +12,103 @@ import React from 'react';
 export function SocialCardEffects() {
   return (
     <style jsx global>{`
-      /* Base transition for all cards to reduce jerkiness */
-      .linkedin-card img[src*="linkedin.svg"],
-      .github-card img[src*="github.svg"],
-      .twitter-card img[src*="twitter-x.svg"] {
-        transition: filter 0.3s ease, opacity 0.3s ease;
+      /* Base white background for all social cards */
+      .linkedin-card img.linkedin-banner,
+      .github-card img.social-banner,
+      .twitter-card img.social-banner,
+      .bluesky-card img.social-banner,
+      .discord-card img.social-banner {
+        background-color: #ffffff !important;
+        border-radius: 4px;
+        transition: transform 0.4s ease;
       }
       
-      /* Shared card hover behavior */
+      /* Position relative on cards for border effects */
       .linkedin-card,
       .github-card,
       .twitter-card,
       .bluesky-card,
       .discord-card {
-        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.3s ease !important;
+        position: relative;
+        border: 1px solid transparent;
+        transition: border-color 0.3s ease, box-shadow 0.4s ease !important;
       }
       
-      /* Default state styles for all SVG backgrounds - add solid white rectangle background for consistency */
-      .linkedin-card img[src*="linkedin.svg"],
-      .github-card img[src*="github.svg"],
-      .twitter-card img[src*="twitter-x.svg"] {
-        background-color: #ffffff !important;
-        border-radius: 2px;
-      }
-      
-      /* LinkedIn: blue (#0A66C2) */
-      .linkedin-card:hover img[src*="linkedin.svg"] {
-        filter: invert(36%) sepia(71%) saturate(6695%) hue-rotate(196deg) brightness(92%) contrast(98%) !important;
-        opacity: 0.9 !important;
-      }
-      
-      /* GitHub: purple-ish (#6e5494) for hover */
-      .github-card:hover img[src*="github.svg"] {
-        filter: invert(32%) sepia(11%) saturate(1500%) hue-rotate(208deg) brightness(94%) contrast(87%);
-        opacity: 0.9;
-      }
-      
-      /* X/Twitter: blue (#1DA1F2) */
-      .twitter-card:hover img[src*="twitter-x.svg"] {
-        filter: invert(55%) sepia(98%) saturate(1195%) hue-rotate(176deg) brightness(100%) contrast(89%);
-        opacity: 0.9;
-      }
-      
-      /* Subtle card highlights with brand colors */
+      /* Simple glow effect on the card itself - much more reliable */
       .linkedin-card:hover {
-        border-color: rgba(10, 102, 194, 0.3) !important;
+        border-color: rgba(10, 102, 194, 0.5) !important;
+        box-shadow: 0 0 15px 0px rgba(10, 102, 194, 0.4) !important;
       }
       
       .github-card:hover {
-        border-color: rgba(110, 84, 148, 0.3) !important;
+        border-color: rgba(110, 84, 148, 0.5) !important;
+        box-shadow: 0 0 15px 0px rgba(110, 84, 148, 0.4) !important;
       }
       
       .twitter-card:hover {
-        border-color: rgba(29, 161, 242, 0.3) !important;
+        border-color: rgba(29, 161, 242, 0.5) !important;
+        box-shadow: 0 0 15px 0px rgba(29, 161, 242, 0.4) !important;
       }
       
-      /* Generic hover for other cards */
-      .bluesky-card:hover,
+      .bluesky-card:hover {
+        border-color: rgba(0, 153, 255, 0.5) !important;
+        box-shadow: 0 0 15px 0px rgba(0, 153, 255, 0.4) !important;
+      }
+      
       .discord-card:hover {
-        border-color: rgba(99, 102, 241, 0.3) !important;
+        border-color: rgba(114, 137, 218, 0.5) !important;
+        box-shadow: 0 0 15px 0px rgba(114, 137, 218, 0.4) !important;
+      }
+      
+      /* Slight scale effect on the banner images */
+      .linkedin-card:hover img.linkedin-banner,
+      .github-card:hover img.social-banner,
+      .twitter-card:hover img.social-banner,
+      .bluesky-card:hover img.social-banner,
+      .discord-card:hover img.social-banner {
+        transform: scale(1.02);
+      }
+      
+      /* Add a colored bar at the top of each card */
+      .linkedin-card::after,
+      .github-card::after,
+      .twitter-card::after,
+      .bluesky-card::after,
+      .discord-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 0;
+        transition: height 0.3s ease;
+        border-radius: 24px 24px 0 0;
+        opacity: 0.8;
+      }
+      
+      .linkedin-card:hover::after {
+        height: 4px;
+        background-color: #0A66C2;
+      }
+      
+      .github-card:hover::after {
+        height: 4px;
+        background-color: #6e5494;
+      }
+      
+      .twitter-card:hover::after {
+        height: 4px;
+        background-color: #1DA1F2;
+      }
+      
+      .bluesky-card:hover::after {
+        height: 4px;
+        background-color: #0099ff;
+      }
+      
+      .discord-card:hover::after {
+        height: 4px;
+        background-color: #7289da;
       }
     `}</style>
   );
