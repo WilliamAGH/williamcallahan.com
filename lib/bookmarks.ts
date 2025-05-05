@@ -74,20 +74,20 @@ export function fetchExternalBookmarksCached(): Promise<UnifiedBookmark[]> {
 export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
   // Check cache first
   const cachedData = ServerCacheInstance.getBookmarks();
-  
+
   // If we have cached data and it doesn't need refreshing, return it immediately
   if (cachedData && !ServerCacheInstance.shouldRefreshBookmarks()) {
     console.log('Using cached bookmarks data');
-    
+
     // Double-check the cached data is valid
     if (Array.isArray(cachedData.bookmarks) && cachedData.bookmarks.length > 0) {
       return cachedData.bookmarks;
     }
   }
-  
+
   // Check for cached fallback
   const hasCachedFallback = !!cachedData?.bookmarks?.length;
-  
+
   // Start a background refresh if we have cached data
   if (hasCachedFallback) {
     console.log('Using cached bookmarks while refreshing in background');
@@ -97,7 +97,7 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
     });
     return cachedData!.bookmarks;
   }
-  
+
   // No cached data, must fetch and wait
   try {
     console.log('fetchExternalBookmarks: No cache available, fetching fresh data');
@@ -113,13 +113,13 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
 
 /**
  * Refreshes bookmarks data from the external API
- * 
+ *
  * @returns {Promise<UnifiedBookmark[]>} A promise that resolves to an array of unified bookmarks.
  * @throws {Error} If the API request fails.
  */
 export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
   console.log('refreshBookmarksData: Starting fresh fetch from API');
-  
+
   const apiUrl = 'https://bookmark.iocloudhost.net/api/v1/lists/xrfqu4awxsqkr1ch404qwd9i/bookmarks';
   const bearerToken = process.env.BOOKMARK_BEARER_TOKEN;
 
@@ -160,13 +160,13 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
 
     // Normalize the raw API data to the UnifiedBookmark structure
     console.log('refreshBookmarksData: Normalizing', data.bookmarks.length, 'bookmarks from API');
-    
+
     const normalizedBookmarks = data.bookmarks.map((raw): UnifiedBookmark | null => {
       if (!raw || typeof raw !== 'object') {
         console.warn('refreshBookmarksData: Invalid bookmark data received', raw);
         return null;
       }
-      
+
       try {
         // Choose the best title and description (prefer title field that user edits)
         // First check if either field exists, otherwise use fallbacks
@@ -174,7 +174,7 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
         const bestDescription = raw.summary || raw.content?.description || 'No description available.';
 
         // Normalize tags to BookmarkTag interface (though UnifiedBookmark allows string[] for now)
-        const normalizedTags: BookmarkTag[] = Array.isArray(raw.tags) 
+        const normalizedTags: BookmarkTag[] = Array.isArray(raw.tags)
           ? raw.tags.map(tag => ({
               id: tag.id,
               name: tag.name,
@@ -223,23 +223,19 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
         return null;
       }
     }).filter((bookmark): bookmark is UnifiedBookmark => bookmark !== null); // Remove any null items
-    
+
     console.log('refreshBookmarksData: Successfully normalized', normalizedBookmarks.length, 'bookmarks');
-    
+
     // Update the cache with the new data
     ServerCacheInstance.setBookmarks(normalizedBookmarks);
-    
+
     return normalizedBookmarks;
 
   } catch (error) {
     console.error('refreshBookmarksData: Failed to fetch external bookmarks:', error);
-    
-    // Always clean up the timeout
     clearTimeout(timeoutId);
-    
     // Mark as failure but keep any existing cache
     ServerCacheInstance.setBookmarks([], true);
-    
     // Re-throw to let the caller handle it
     throw error;
   } finally {
