@@ -18,16 +18,16 @@ interface BookmarksServerProps {
   titleSlug?: string;
 }
 
-export async function BookmarksServer({ 
-  title, 
-  description, 
+export async function BookmarksServer({
+  title,
+  description,
   bookmarks: propsBookmarks,
   showFilterBar,
   titleSlug
 }: BookmarksServerProps): Promise<JSX.Element> {
   // If bookmarks are provided via props, use those; otherwise fetch from API
   let bookmarks: UnifiedBookmark[] = [];
-  
+
   // Helper function to sort bookmarks by date (newest first)
   const sortByDateDesc = (list: UnifiedBookmark[]) =>
     [...list].sort((a, b) => {
@@ -37,7 +37,7 @@ export async function BookmarksServer({
       };
       return safeTs(b.dateBookmarked) - safeTs(a.dateBookmarked);
     });
-  
+
   if (propsBookmarks) {
     // Apply the same consistent sorting even when bookmarks are provided externally
     bookmarks = sortByDateDesc(propsBookmarks);
@@ -59,12 +59,17 @@ export async function BookmarksServer({
 
     // Sort bookmarks by date (newest first) if we have any
     bookmarks = bookmarks.length ? sortByDateDesc(bookmarks) : [];
+
+    // If no bookmarks were fetched in production, trigger error to show boundary
+    if (!propsBookmarks && bookmarks.length === 0 && process.env.NODE_ENV === 'production') {
+      throw new Error('BookmarksUnavailable');
+    }
   }
 
   // Pass the processed data to the client component
   return (
-    <BookmarksClientWithWindow 
-      bookmarks={bookmarks} 
+    <BookmarksClientWithWindow
+      bookmarks={bookmarks}
       title={title}
       description={description}
       forceClientFetch={!propsBookmarks} // Only force client fetch if we didn't get bookmarks from props
