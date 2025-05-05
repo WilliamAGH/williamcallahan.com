@@ -6,6 +6,11 @@ import { navigationLinks } from '../../../../components/ui/navigation/navigation
 // Import the REAL provider
 import { TerminalProvider } from '../../../../components/ui/terminal/terminal-context.client';
 
+// Mock the useWindowSize hook
+// Use relative path for Jest compatibility
+import { useWindowSize } from '../../../../lib/hooks/use-window-size.client';
+jest.mock('../../../../lib/hooks/use-window-size.client');
+
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
   usePathname: jest.fn()
@@ -34,6 +39,9 @@ jest.mock('next/link', () => {
 });
 
 describe('Navigation', () => {
+  // Cast the mock for easier typing
+  const mockedUseWindowSize = useWindowSize as jest.Mock;
+
   // Remove context mock setup
   beforeEach(() => {
     (usePathname as jest.Mock).mockReturnValue('/');
@@ -46,8 +54,10 @@ describe('Navigation', () => {
   describe('Desktop View', () => {
     beforeEach(() => {
       // Set viewport to desktop size
-      global.innerWidth = 1024;
-      global.dispatchEvent(new Event('resize'));
+      // global.innerWidth = 1024;
+      // global.dispatchEvent(new Event('resize'));
+      // Mock the hook to return a desktop width
+      mockedUseWindowSize.mockReturnValue({ width: 1280, height: 800 });
     });
 
     it('renders all navigation links', () => {
@@ -88,8 +98,10 @@ describe('Navigation', () => {
   describe('Mobile View', () => {
     beforeEach(() => {
       // Set viewport to mobile size
-      global.innerWidth = 375;
-      global.dispatchEvent(new Event('resize'));
+      // global.innerWidth = 375;
+      // global.dispatchEvent(new Event('resize'));
+      // Mock the hook to return a mobile width
+      mockedUseWindowSize.mockReturnValue({ width: 500, height: 600 });
     });
 
     it('shows menu button on mobile', () => {
