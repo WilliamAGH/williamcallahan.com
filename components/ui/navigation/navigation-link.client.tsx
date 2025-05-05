@@ -8,6 +8,8 @@ import Link from 'next/link';
 import { useTerminalContext } from '@/components/ui/terminal/terminal-context.client';
 import type { NavigationLinkProps } from '@/types/navigation';
 import { useCallback, useState, useEffect, useRef } from 'react'; // Import useRef
+// Import the window size hook
+import { useWindowSize } from '@/lib/hooks/use-window-size.client';
 
 // Important pages that should be prefetched for faster navigation
 const PRIORITY_PATHS = ['/projects', '/blog', '/experience', '/contact'];
@@ -23,6 +25,11 @@ export function NavigationLink({
   className = '',
   onClick
 }: NavigationLinkProps) {
+  // Use the window size hook
+  const { width } = useWindowSize();
+  // Define the xl breakpoint (Tailwind default)
+  const xlBreakpoint = 1280;
+
   // Use the original hook name
   const { clearHistory } = useTerminalContext();
   const isActive = currentPath === path;
@@ -68,12 +75,20 @@ export function NavigationLink({
     }
   }, [isNavigating]);
 
+  // Determine if the link should be hidden based on window size and responsive prop
+  const shouldHide = responsive?.hideBelow === 'xl' && width !== undefined && width < xlBreakpoint;
+
+  // Conditionally return null if the link should be hidden
+  if (shouldHide) {
+    return null;
+  }
+
   // Handle responsive display classes based on responsive settings
   const getResponsiveClasses = () => {
     if (!responsive) return '';
-    
+
     let classes = '';
-    
+
     if (responsive.hideBelow) {
       switch (responsive.hideBelow) {
         case 'sm': classes += 'hidden sm:inline-block '; break;
@@ -83,7 +98,7 @@ export function NavigationLink({
         case '2xl': classes += 'hidden 2xl:inline-block '; break;
       }
     }
-    
+
     if (responsive.hideAbove) {
       switch (responsive.hideAbove) {
         case 'sm': classes += 'sm:hidden '; break;
@@ -93,7 +108,7 @@ export function NavigationLink({
         case '2xl': classes += '2xl:hidden '; break;
       }
     }
-    
+
     return classes;
   };
 
@@ -125,7 +140,7 @@ export function NavigationLink({
     <Link {...linkProps}>
       {name === 'Projects Sandbox' ? (
         <>
-          Projects<span className="hidden lg:inline"> Sandbox</span>
+          Projects<span className="hidden md:inline"> Sandbox</span>
         </>
       ) : (
         name
