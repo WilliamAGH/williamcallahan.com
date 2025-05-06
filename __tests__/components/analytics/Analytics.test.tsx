@@ -27,27 +27,35 @@ mock.module('next/navigation', () => ({
 const loadedScripts: Record<string, boolean> = {};
 
 // Mock next/script using mock.module
+console.log("[MOCK] next/script mock.module registered");
 mock.module('next/script', () => ({
   __esModule: true,
   // Remove __resetMockState from here
   default: function Script({ id, onLoad, onError }: any) {
+    // eslint-disable-next-line no-console
+    console.log("[MOCK] next/script default export CALLED with id:", id);
     // Only set timeout and call onLoad if not already loaded for this id
     if (!loadedScripts[id]) {
       setTimeout(() => {
         if (id === 'umami') {
           // Mock Umami initialization
-        const umamiMock = jest.fn() as UmamiMock
-        umamiMock.track = jest.fn()
-          global.umami = umamiMock
+          // Mock Umami initialization
+          const umamiMock: UmamiMock = Object.assign(jest.fn(), {
+            track: jest.fn(),
+          });
+          global.umami = umamiMock;
+          // Debug log to check if the mock is firing and global.umami is being set
+          // eslint-disable-next-line no-console
+          console.log("[MOCK] global.umami set in next/script mock:", global.umami);
           loadedScripts[id] = true; // Mark as loaded
-          onLoad?.()
+          onLoad?.();
         } else if (id === 'plausible') {
           // Mock Plausible initialization
           global.plausible = jest.fn()
           loadedScripts[id] = true; // Mark as loaded
           onLoad?.()
         }
-      }, 10) // Reduce timeout for faster tests
+      }, 50) // Increase timeout slightly for testing
     }
     return null
   }
@@ -66,14 +74,12 @@ describe('Analytics', () => {
   const mockSiteUrl = 'https://williamcallahan.com'
 
   beforeEach(() => {
-    // mock.timers.enable(); // Remove Bun timer mocks
-
     // Setup environment variables
     process.env = {
       ...originalEnv,
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: mockWebsiteId,
       NEXT_PUBLIC_SITE_URL: mockSiteUrl,
-      NODE_ENV: 'development' // Ensure we're in development mode for testing
+      NODE_ENV: 'production' // Force production mode so Umami script is rendered in test
     }
 
     // Mock pathname
@@ -95,7 +101,6 @@ describe('Analytics', () => {
 
   afterEach(() => {
     process.env = originalEnv
-    // mock.timers.reset(); // Remove Bun timer mocks
   })
 
   /* // Skip test requiring timer mocks
@@ -126,12 +131,27 @@ describe('Analytics', () => {
     // Mock a blog post path
     usePathnameMock.mockReturnValue('/blog/test-post')
 
-    render(<Analytics />)
+    render(<Analytics />);
 
-    // Wait specifically for the track function to be called
+    // Advance timers to trigger script load
+    // Wait for the mock's setTimeout to fire (simulate script load)
+    // Wait longer to ensure the mock's setTimeout fires in all environments
+    await new Promise(res => setTimeout(res, 200));
+    // Debug log to check the value of global.umami before waitFor
+    // eslint-disable-next-line no-console
+    console.log("[TEST] global.umami before waitFor:", global.umami);
+
+    // Explicitly wait for the umami mock to be initialized and available
     await waitFor(() => {
-      expect(global.umami?.track).toHaveBeenCalled()
-    })
+      expect(global.umami).toBeDefined();
+      expect(global.umami?.track).toBeDefined();
+      expect(typeof global.umami?.track).toBe('function');
+    });
+
+    // Now wait specifically for the track function to be called
+    await waitFor(() => {
+      expect(global.umami?.track).toHaveBeenCalled();
+    });
 
     // Verify path was normalized and tracked correctly
     expect(global.umami?.track).toHaveBeenCalledWith('pageview', expect.objectContaining({
