@@ -28,7 +28,8 @@
       "@/hooks/*": ["./lib/hooks/*", "./hooks/*"],
       "@/types/*": ["./types/*"],
       "@/utils/*": ["./lib/utils/*"]
-    }
+    },
+    "types": ["bun-types", "jest"]
   },
   "include": [
     "next-env.d.ts",

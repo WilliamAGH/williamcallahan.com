@@ -252,8 +252,8 @@ export class ServerCache extends NodeCache {
     };
 
     this.set(
-      BOOKMARKS_CACHE_KEY, 
-      entry, 
+      BOOKMARKS_CACHE_KEY,
+      entry,
       isFailure ? BOOKMARKS_CACHE_DURATION.FAILURE : BOOKMARKS_CACHE_DURATION.SUCCESS
     );
   }
@@ -268,23 +268,23 @@ export class ServerCache extends NodeCache {
       console.log('shouldRefreshBookmarks: No cache entry, refresh required');
       return true;
     }
-    
+
     // Verify the cached bookmarks are valid
     if (!cached.bookmarks || !Array.isArray(cached.bookmarks) || cached.bookmarks.length === 0) {
       console.log('shouldRefreshBookmarks: Empty or invalid cache, refresh required');
       return true;
     }
-    
+
     const now = Date.now();
     const timeSinceLastFetch = now - cached.lastFetchedAt;
     const shouldRefresh = timeSinceLastFetch > BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
-    
+
     if (shouldRefresh) {
       console.log(`shouldRefreshBookmarks: Cache expired (${timeSinceLastFetch}ms old), refresh required`);
     } else {
       console.log(`shouldRefreshBookmarks: Cache still valid (${timeSinceLastFetch}ms old), using cached data`);
     }
-    
+
     return shouldRefresh;
   }
 

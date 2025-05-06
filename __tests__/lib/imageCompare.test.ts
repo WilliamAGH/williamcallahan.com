@@ -1,4 +1,4 @@
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it, jest, mock, beforeEach } from 'bun:test';
 import { compareImages } from '../../lib/imageCompare';
 import { logger } from '../../lib/logger';
 import type { Metadata, FormatEnum } from 'sharp';
@@ -27,27 +27,31 @@ const createMockSharp = (metadata: Partial<Metadata> = {}): SharpInstance => ({
   resize: function() { return this; }
 });
 
-const mockSharp = jest.fn(() => createMockSharp());
+const mockSharpFactory = jest.fn(createMockSharp);
 
-jest.mock('sharp', () => ({
+mock.module('sharp', () => ({
   __esModule: true,
-  default: mockSharp,
+  default: mockSharpFactory,
 }));
+
+// Static import - Bun should intercept
+import sharp from 'sharp';
 
 describe('Image Comparison', () => {
   beforeEach(() => {
     logger.setSilent(true);
-    mockSharp.mockClear();
+    mockSharpFactory.mockClear();
+    mockSharpFactory.mockImplementation(createMockSharp);
   });
 
   it('should handle different image sizes', async () => {
-    mockSharp.mockImplementationOnce(() => createMockSharp({
+    mockSharpFactory.mockImplementationOnce(() => createMockSharp({
       width: 64,
       height: 64,
       format: 'png' as keyof FormatEnum
     }));
 
-    mockSharp.mockImplementationOnce(() => createMockSharp({
+    mockSharpFactory.mockImplementationOnce(() => createMockSharp({
       width: 256,
       height: 256,
       format: 'png' as keyof FormatEnum
@@ -60,13 +64,13 @@ describe('Image Comparison', () => {
   });
 
   it('should handle invalid image formats', async () => {
-    mockSharp.mockImplementationOnce(() => createMockSharp({
+    mockSharpFactory.mockImplementationOnce(() => createMockSharp({
       width: 256,
       height: 256,
       format: 'raw' as keyof FormatEnum
     }));
 
-    mockSharp.mockImplementationOnce(() => createMockSharp({
+    mockSharpFactory.mockImplementationOnce(() => createMockSharp({
       width: 256,
       height: 256,
       format: 'png' as keyof FormatEnum

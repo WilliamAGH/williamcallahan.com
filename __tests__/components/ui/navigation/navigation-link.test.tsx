@@ -3,17 +3,22 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { NavigationLink } from '../../../../components/ui/navigation/navigation-link.client';
 // Import the REAL provider (hook is used internally by NavigationLink)
 import { TerminalProvider } from '../../../../components/ui/terminal/terminal-context.client';
+import { mock, jest, describe, beforeEach, it, expect } from 'bun:test';
+import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
 
 // REMOVE ALL MOCKING FOR terminal-context.client
 
-// Mock next/link (keep this)
-jest.mock('next/link', () => {
+// Mock next/link using mock.module
+mock.module('next/link', () => {
   const MockLink = ({ children, scroll, ...props }: any) => {
     return <a {...props}>{children}</a>;
   };
   MockLink.displayName = 'MockLink';
-  return MockLink;
+  return { default: MockLink };
 });
+
+// Import after mocking
+import Link from 'next/link';
 
 describe('NavigationLink', () => {
   // No need to mock clearHistory directly anymore,

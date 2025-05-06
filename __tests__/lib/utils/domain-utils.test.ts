@@ -1,24 +1,30 @@
+import { jest, describe, it, mock, expect } from 'bun:test';
 /**
  * Tests for domain utilities
  */
 import * as DomainUtils from '../../../lib/utils/domain-utils';
 const { normalizeDomain, getDomainSlug, generateUniqueSlug, slugToDomain, getDisplayDomain } = DomainUtils;
 
-// Mock for special test case
-jest.mock('../../../lib/utils/domain-utils', () => {
-  const originalModule = jest.requireActual('../../../lib/utils/domain-utils');
+// Mock the module using mock.module
+mock.module('../../../lib/utils/domain-utils', () => {
+  // Import the original module *inside* the factory to avoid cycles and get actual implementation
+  const originalModule = require('../../../lib/utils/domain-utils'); // Use require for simplicity here
+
   return {
-    ...originalModule,
+    ...originalModule, // Spread original exports
     generateUniqueSlug: jest.fn((url, allBookmarks, currentBookmarkId) => {
       // Special case for specific test
       if (currentBookmarkId === '2' && url === 'https://example.com/page') {
         return 'example-com-page-2';
       }
-      // Otherwise, call the original function
+      // Otherwise, call the original function from the imported module
       return originalModule.generateUniqueSlug(url, allBookmarks, currentBookmarkId);
     })
   };
 });
+
+// Import after mocking (though might not be strictly necessary if tests use the already imported consts)
+import * as MockedDomainUtils from '../../../lib/utils/domain-utils';
 
 describe('Domain Utilities', () => {
   describe('normalizeDomain', () => {

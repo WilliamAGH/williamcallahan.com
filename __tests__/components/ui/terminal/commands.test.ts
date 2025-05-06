@@ -4,7 +4,7 @@
 import { handleCommand } from '@/components/ui/terminal/commands.client';
 
 // Mock the fetch API
-global.fetch = jest.fn();
+global.fetch = jest.fn() as unknown as typeof fetch; // Assert type for assignment
 // Setup console.error mock
 console.error = jest.fn();
 // Setup console.log mock
@@ -24,14 +24,14 @@ Object.defineProperty(global, 'window', {
   writable: true
 });
 
-// No need to explicitly mock search functions since the command handler 
+// No need to explicitly mock search functions since the command handler
 // has a fallback mechanism when the module can't be loaded
 
 describe('Terminal Commands', () => {
   beforeEach(() => {
     // Reset mocks before each test
     jest.clearAllMocks();
-    (fetch as jest.Mock).mockReset();
+    (fetch as unknown as jest.Mock).mockReset();
     (console.error as jest.Mock).mockReset();
     (console.log as jest.Mock).mockReset();
   });
@@ -72,20 +72,20 @@ describe('Terminal Commands', () => {
           { label: 'Test Post', description: 'Test description', path: '/blog/test' }
         ])
       };
-      (fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
-      
+      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+
       const result = await handleCommand('blog test query');
-      
+
       expect(fetch).toHaveBeenCalledWith('/api/search/blog?q=test%20query');
       expect(result.selectionItems).toHaveLength(1);
       expect(result.results?.[0].output).toContain('Found 1 results in Blog');
     });
 
     it('should handle blog search API failure', async () => {
-      (fetch as jest.Mock).mockRejectedValueOnce(new Error('API Error'));
-      
+      (fetch as unknown as jest.Mock).mockRejectedValueOnce(new Error('API Error'));
+
       const result = await handleCommand('blog test query');
-      
+
       expect(result.results?.[0].output).toContain('Error searching blog');
       expect(console.error).toHaveBeenCalled();
     });
@@ -95,10 +95,10 @@ describe('Terminal Commands', () => {
         ok: false,
         status: 500
       };
-      (fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
-      
+      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+
       const result = await handleCommand('blog test query');
-      
+
       expect(result.results?.[0].output).toContain('Error searching blog');
       expect(console.error).toHaveBeenCalled();
     });
@@ -108,14 +108,14 @@ describe('Terminal Commands', () => {
         ok: true,
         json: jest.fn().mockResolvedValue([])
       };
-      (fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
-      
+      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+
       const result = await handleCommand('blog no-results');
-      
+
       expect(result.results?.[0].output).toContain('No results found');
       expect(result.selectionItems).toBeUndefined();
     });
-    
+
     // Test experience/education/investments/bookmarks searches without mocks
     // These should use the fallback empty array responses
     it('should execute experience search', async () => {
@@ -133,10 +133,10 @@ describe('Terminal Commands', () => {
           { label: 'Result 2', description: 'Test', path: '/test2' }
         ])
       };
-      (fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
-      
+      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+
       const result = await handleCommand('unknown command');
-      
+
       expect(fetch).toHaveBeenCalledWith('/api/search/all?q=unknown%20command');
       expect(result.selectionItems).toHaveLength(2);
       expect(result.results?.[0].output).toContain('Found 2 site-wide results');
@@ -147,29 +147,29 @@ describe('Terminal Commands', () => {
         ok: true,
         json: jest.fn().mockResolvedValue([])
       };
-      (fetch as jest.Mock).mockResolvedValueOnce(mockResponse);
-      
+      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+
       const result = await handleCommand('unknown command');
-      
+
       expect(fetch).toHaveBeenCalledWith('/api/search/all?q=unknown%20command');
       expect(result.results?.[0].output).toContain('Command not recognized');
       expect(result.selectionItems).toBeUndefined();
     });
 
     it('should handle site-wide search API failure', async () => {
-      (fetch as jest.Mock).mockRejectedValueOnce(new Error('API Error'));
-      
+      (fetch as unknown as jest.Mock).mockRejectedValueOnce(new Error('API Error'));
+
       const result = await handleCommand('unknown command');
-      
+
       expect(result.results?.[0].output).toContain('Error during site-wide search');
       expect(console.error).toHaveBeenCalled();
     });
 
     it('should handle unknown errors in site-wide search', async () => {
-      (fetch as jest.Mock).mockRejectedValueOnce('Not an Error object');
-      
+      (fetch as unknown as jest.Mock).mockRejectedValueOnce('Not an Error object');
+
       const result = await handleCommand('unknown command');
-      
+
       expect(result.results?.[0].output).toContain('An unknown error occurred during the search');
     });
   });

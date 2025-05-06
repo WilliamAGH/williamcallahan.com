@@ -3,19 +3,21 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { CodeBlock } from '../../../components/ui/code-block/code-block.client';
 import { CopyButton } from '../../../components/ui/code-block/copy-button.client';
 import { WindowControls } from '../../../components/ui/navigation/window-controls';
+import { mock, jest, describe, beforeEach, it, expect } from 'bun:test'; // Add mock, expect
+import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
 
-// Mock CopyButton component
-jest.mock('../../../components/ui/code-block/copy-button.client', () => ({
-  CopyButton: jest.fn(({ content }) => (
+// Mock CopyButton component using mock.module
+mock.module('../../../components/ui/code-block/copy-button.client', () => ({ // Use mock.module
+  CopyButton: jest.fn(({ content }: { content: string }) => ( // Keep jest.fn, add type
     <button data-testid="mock-copy-button" data-content={content}>
       Copy
     </button>
   ))
 }));
 
-// Mock WindowControls component
-jest.mock('../../../components/ui/navigation/window-controls', () => ({
-  WindowControls: jest.fn(({ onClose, onMinimize, onMaximize }) => (
+// Mock WindowControls component using mock.module
+mock.module('../../../components/ui/navigation/window-controls', () => ({ // Use mock.module
+  WindowControls: jest.fn(({ onClose, onMinimize, onMaximize }: { onClose: () => void; onMinimize: () => void; onMaximize: () => void }) => ( // Keep jest.fn, add types
     <div data-testid="mock-window-controls">
       <button data-testid="mock-close" onClick={onClose}>Close</button>
       <button data-testid="mock-minimize" onClick={onMinimize}>Minimize</button>
@@ -24,10 +26,19 @@ jest.mock('../../../components/ui/navigation/window-controls', () => ({
   ))
 }));
 
+// Import mocked components *after* mocking
+import { CopyButton as ImportedCopyButton } from '../../../components/ui/code-block/copy-button.client';
+import { WindowControls as ImportedWindowControls } from '../../../components/ui/navigation/window-controls';
+
+// Cast to Jest mock type for easier testing (if needed)
+const MockedCopyButton = ImportedCopyButton as jest.Mock;
+const MockedWindowControls = ImportedWindowControls as jest.Mock;
+
 describe('CodeBlock', () => {
   beforeEach(() => {
-    (CopyButton as jest.Mock).mockClear();
-    (WindowControls as jest.Mock).mockClear();
+    // Clear the mocks
+    MockedCopyButton.mockClear();
+    MockedWindowControls.mockClear();
   });
 
   describe('Basic Rendering', () => {

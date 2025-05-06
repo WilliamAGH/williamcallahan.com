@@ -2,9 +2,11 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { LogoImage } from '../../../components/ui/logo-image.client';
+import { mock, describe, it, expect } from 'bun:test';
+import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
 
-// Mock next/image for testing the non-data URL path
-jest.mock('next/image', () => ({
+// Mock next/image using mock.module
+mock.module('next/image', () => ({
   __esModule: true,
   // eslint-disable-next-line @next/next/no-img-element
   default: ({ src, alt, priority, layout, objectFit, ...props }: any) => {
@@ -23,6 +25,9 @@ jest.mock('next/image', () => ({
     );
   },
 }));
+
+// Static import after mocking
+import Image from 'next/image';
 
 describe('LogoImage Conditional Rendering', () => {
   const regularUrlProps = {

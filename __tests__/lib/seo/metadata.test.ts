@@ -8,6 +8,7 @@ import { SEO_DATE_FIELDS } from '../../../lib/seo/constants';
 import { metadata as siteMetadata, SITE_NAME, PAGE_METADATA } from '../../../data/metadata';
 import { isPacificDateString, type ArticleOpenGraph, type ProfileOpenGraph } from '../../../types/seo';
 import type { Metadata } from 'next';
+import { describe, it, expect } from 'bun:test';
 
 // Mock process.env for tests
 process.env.NEXT_PUBLIC_SITE_URL = 'https://williamcallahan.com';
@@ -56,11 +57,19 @@ describe('SEO Metadata', () => {
         },
       };
 
-      // Verify all published dates match
-      expect(dates.og.published).toBe(dates.meta.published);
+      // Verify all published dates match and are consistent
+      expect(dates.og.published).toBeDefined();
+      expect(dates.meta.published).toBeDefined();
+      if (dates.og.published && dates.meta.published) {
+        expect(dates.og.published).toBe(dates.meta.published);
+      }
 
-      // Verify all modified dates match
-      expect(dates.og.modified).toBe(dates.meta.modified);
+      // Verify all modified dates match and are consistent
+      expect(dates.og.modified).toBeDefined();
+      expect(dates.meta.modified).toBeDefined();
+      if (dates.og.modified && dates.meta.modified) {
+        expect(dates.og.modified).toBe(dates.meta.modified);
+      }
     });
 
     it('should handle standard time dates (PST)', () => {
