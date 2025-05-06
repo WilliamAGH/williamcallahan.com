@@ -1,11 +1,11 @@
 // This file configures the initialization of Sentry on the client.
-// The config you add here will be used whenever a user loads a page in their browser.
+// The added config here will be used whenever a users loads a page in their browser.
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
-  dsn: "https://0042fbb70c614148ae924921ffb9320a@glitchtip.iocloudhost.net/1",
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
   // Add optional integrations for additional features
   integrations: [
@@ -27,6 +27,4 @@ Sentry.init({
   debug: false,
 });
 
-// This export will instrument router navigations, and is only relevant if you enable tracing.
-// `captureRouterTransitionStart` is available from SDK version 9.12.0 onwards
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
