@@ -10,6 +10,7 @@ import type { NavigationLinkProps } from '@/types/navigation';
 import { useCallback, useState, useEffect, useRef } from 'react'; // Import useRef
 // Import the window size hook
 import { useWindowSize } from '@/lib/hooks/use-window-size.client';
+import { BREAKPOINTS } from '@/lib/constants';
 
 // Important pages that should be prefetched for faster navigation
 const PRIORITY_PATHS = ['/projects', '/blog', '/experience', '/contact'];
@@ -27,8 +28,6 @@ export function NavigationLink({
 }: NavigationLinkProps) {
   // Use the window size hook
   const { width } = useWindowSize();
-  // Define the xl breakpoint (Tailwind default)
-  const xlBreakpoint = 1280;
 
   // Use the original hook name
   const { clearHistory } = useTerminalContext();
@@ -76,7 +75,7 @@ export function NavigationLink({
   }, [isNavigating]);
 
   // Determine if the link should be hidden based on window size and responsive prop
-  const shouldHide = responsive?.hideBelow === 'xl' && width !== undefined && width < xlBreakpoint;
+  const shouldHide = responsive?.hideBelow && width !== undefined && width < (BREAKPOINTS[responsive.hideBelow] || 0);
 
   // Conditionally return null if the link should be hidden
   if (shouldHide) {
