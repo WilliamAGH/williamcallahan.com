@@ -1,9 +1,10 @@
+import { describe, it, expect, mock, jest } from 'bun:test';
 import { searchPosts, searchInvestments, searchExperience, searchEducation } from '../../lib/search';
 import type { BlogPost } from '../../types/blog';
 import type { SearchResult } from '../../types/search';
 
-// Mock the imported data modules
-jest.mock('../../data/blog/posts', () => ({
+// Mock the imported data modules using mock.module
+mock.module('../../data/blog/posts', () => ({
   posts: [
     {
       id: '1',
@@ -28,7 +29,7 @@ jest.mock('../../data/blog/posts', () => ({
   ]
 }));
 
-jest.mock('../../data/investments', () => ({
+mock.module('../../data/investments', () => ({
   investments: [
     {
       id: '1',
@@ -52,7 +53,7 @@ jest.mock('../../data/investments', () => ({
   ]
 }));
 
-jest.mock('../../data/experience', () => ({
+mock.module('../../data/experience', () => ({
   experiences: [
     {
       id: '1',
@@ -69,7 +70,7 @@ jest.mock('../../data/experience', () => ({
   ]
 }));
 
-jest.mock('../../data/education', () => ({
+mock.module('../../data/education', () => ({
   education: [
     {
       id: '1',

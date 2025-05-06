@@ -57,7 +57,10 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
     // Skip registration during server rendering
     if (!isClient) return;
 
-    console.log(`WindowRegistry: Registering window '${id}' with initial state '${initialState}'`);
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.log(`WindowRegistry: Registering window '${id}' with initial state '${initialState}'`);
+    }
     setWindows(prev => {
       // Avoid re-registering if already present with the same info
       if (prev[id] && prev[id].state === initialState && prev[id].icon === icon) {
@@ -71,7 +74,10 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
   }, [isClient]);
 
   const unregisterWindow = useCallback((id: string) => {
-     console.log(`WindowRegistry: Unregistering window '${id}'`);
+     if (process.env.NODE_ENV !== 'production') {
+       // eslint-disable-next-line no-console
+       console.log(`WindowRegistry: Unregistering window '${id}'`);
+     }
     setWindows(prev => {
       const { [id]: removed, ...rest } = prev;
       return rest;
@@ -82,7 +88,10 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
   const setWindowState = useCallback((id: string, state: WindowState) => {
     setWindows(prev => {
       if (!prev[id] || prev[id].state === state) return prev; // No change needed
-      console.log(`WindowRegistry: Setting state for '${id}' to '${state}'`);
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.log(`WindowRegistry: Setting state for '${id}' to '${state}'`);
+      }
       // TODO: Persist to sessionStorage here?
       return { ...prev, [id]: { ...prev[id], state } };
     });
@@ -96,7 +105,10 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
     setWindows(prev => {
       if (!prev[id]) return prev;
       const newState = prev[id].state === 'maximized' ? 'normal' : 'maximized';
-      console.log(`WindowRegistry: Toggling state for '${id}' to '${newState}'`);
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.log(`WindowRegistry: Toggling state for '${id}' to '${newState}'`);
+      }
        // TODO: Persist to sessionStorage here?
       return { ...prev, [id]: { ...prev[id], state: newState } };
     });

@@ -2,9 +2,16 @@ import * as Sentry from '@sentry/nextjs';
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    await import('./sentry.server.config');
-    
-    // Preload bookmarks into server cache at startup
+    // Initialize Sentry for the Node.js runtime
+    Sentry.init({
+      dsn: "https://f1769f8b48304aabc42fee1425b225d4@o4509274058391557.ingest.us.sentry.io/4509274059309056",
+      // Adjust this value in production, or use tracesSampler for greater control
+      tracesSampleRate: 1.0,
+      // Setting this option to true will print useful information to the console while you're setting up Sentry.
+      debug: false,
+    });
+
+    // Preload bookmarks into server cache at startup (Keep this server-side logic here for now)
     if (process.env.NODE_ENV === 'production') {
       try {
         // Dynamic import to avoid issues with Next.js bundling
@@ -19,7 +26,14 @@ export async function register() {
   }
 
   if (process.env.NEXT_RUNTIME === 'edge') {
-    await import('./sentry.edge.config');
+    // Initialize Sentry for the Edge runtime
+    Sentry.init({
+      dsn: "https://f1769f8b48304aabc42fee1425b225d4@o4509274058391557.ingest.us.sentry.io/4509274059309056",
+      // Adjust this value in production, or use tracesSampler for greater control
+      tracesSampleRate: 1.0,
+      // Setting this option to true will print useful information to the console while you're setting up Sentry.
+      debug: false,
+    });
   }
 }
 

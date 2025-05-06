@@ -1,3 +1,10 @@
+/// <reference path="../../types/analytics.d.ts" />
+
+/* eslint-disable @next/next/no-img-element */
+/**
+ * Client-side component for loading and managing third-party analytics scripts.
+ * Includes Plausible, Umami, Simple Analytics, and Clicky.
+ */
 'use client'
 
 import Script from 'next/script'
@@ -139,66 +146,82 @@ export function trackUmami(path: string): void {
  * Analytics scripts with error handling to prevent app crashes
  */
 function AnalyticsScripts() {
-  const pathname = usePathname()
+  // All hooks must be called unconditionally at the top level
+  const pathname = usePathname();
   const [scriptsLoaded, setScriptsLoaded] = useState({
     umami: false,
-    plausible: false
-  })
+    plausible: false,
+    clicky: false
+  });
+  const [isMounted, setIsMounted] = useState(false);
 
-  const trackPageview = useCallback((path: string, attempt = 1, maxAttempts = 3) => {
-    if (typeof window === 'undefined') return
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
-    try {
-      const normalizedPath = path
-        .replace(/\/blog\/[^/]+/, '/blog/:slug')
-        .replace(/\?.+$/, '')
+  const trackPageview = useCallback(
+    (path: string) => {
+      if (!path) return
 
-      if (scriptsLoaded.umami) {
-        if (window.umami?.track && typeof window.umami.track === 'function') {
-          trackUmami(normalizedPath)
-        } else if (attempt < maxAttempts) {
-          // Retry with exponential backoff
-          setTimeout(() => {
-            trackPageview(normalizedPath, attempt + 1, maxAttempts)
-          }, attempt * 300) // Increase delay with each attempt
+      const normalizedPath = path.replace(/\?.+$/, '');
+
+      try {
+        if (scriptsLoaded.umami) {
+          trackUmami(normalizedPath);
         }
-      }
 
-      if (scriptsLoaded.plausible) {
-        trackPlausible(normalizedPath)
+        if (scriptsLoaded.plausible) {
+          trackPlausible(normalizedPath);
+        }
+      } catch (error) {
+        // Silent error handling to prevent app crashes
+        return;
       }
-    } catch (error) {
-      // Silent error handling to prevent app crashes
-      if (process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
-        console.warn('[Analytics] Error during page tracking');
-      }
-    }
-  }, [scriptsLoaded])
+    },
+    [scriptsLoaded]
+  );
 
   // Track page views on route changes
   useEffect(() => {
-    if (!pathname) return
+    if (!pathname) return;
 
     // Don't continue if scripts aren't loaded
-    if (!scriptsLoaded.umami && !scriptsLoaded.plausible) return
+    if (
+      !scriptsLoaded.umami &&
+      !scriptsLoaded.plausible &&
+      !scriptsLoaded.clicky
+    )
+      return;
 
     try {
       const normalizedPath = pathname
         .replace(/\/blog\/[^/]+/, '/blog/:slug')
-        .replace(/\?.+$/, '')
+        .replace(/\?.+$/, '');
 
       // Add a longer delay to ensure scripts are fully initialized
       const trackingTimeout = setTimeout(() => {
-        trackPageview(normalizedPath)
-      }, 500) // Increased from 100ms to 500ms
+        trackPageview(normalizedPath);
+        // Use type assertion as a workaround for persistent TS error
+        if ((window as any).clicky) {
+          (window as any).clicky.pageview(normalizedPath);
+        }
+      }, 500); // Increased from 100ms to 500ms
 
-      return () => clearTimeout(trackingTimeout)
+      return () => clearTimeout(trackingTimeout);
     } catch (error) {
       // Silent failure
       return undefined;
     }
-  }, [pathname, trackPageview, scriptsLoaded])
+  }, [pathname, trackPageview, scriptsLoaded]);
+
+  // Prevent loading analytics scripts on localhost
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.info('[Analytics] Skipping analytics script loading on localhost.');
+    }
+    return null;
+  }
 
   // Early return if missing config or not in browser
   if (typeof window === 'undefined' || !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || !process.env.NEXT_PUBLIC_SITE_URL) {
@@ -217,29 +240,31 @@ function AnalyticsScripts() {
   const safeScriptErrorHandler = (source: string) => () => {
     // Only log in development, silently ignore in production
     if (process.env.NODE_ENV !== 'production') {
-      // Use warn level instead of error to avoid triggering Next.js error handling
+      // Use info level in development to make it less prominent
       // eslint-disable-next-line no-console
-      console.warn(`[Analytics] Failed to load ${source} script - continuing without analytics`);
+      console.info(`[Analytics] Not loading ${source} tracking script (likely due to browser content blocker) - continuing without analytics`);
     }
   };
 
   return (
     <>
-      <Script
-        id="umami"
-        strategy="lazyOnload"
-        src={`https://umami.iocloudhost.net/script.js?t=${Date.now()}`}
-        data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
-        data-cache="false"
-        onLoad={() => {
-          try {
-            setScriptsLoaded(prev => ({ ...prev, umami: true }))
-          } catch (e) {
-            // Silent failure
-          }
-        }}
-        onError={safeScriptErrorHandler('Umami')}
-      />
+      {process.env.NODE_ENV === 'production' && (
+        <Script
+          id="umami"
+          strategy="lazyOnload"
+          src={`https://umami.iocloudhost.net/script.js?t=${Date.now()}`}
+          data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+          data-cache="false"
+          onLoad={() => {
+            try {
+              setScriptsLoaded(prev => ({ ...prev, umami: true }))
+            } catch (e) {
+              // Silent failure
+            }
+          }}
+          onError={safeScriptErrorHandler('Umami')}
+        />
+      )}
       <Script
         id="plausible"
         strategy="lazyOnload"
@@ -258,13 +283,59 @@ function AnalyticsScripts() {
         }}
         onError={safeScriptErrorHandler('Plausible')}
       />
+      {/* Simple Analytics */}
+      <Script
+        id="simple-analytics"
+        strategy="lazyOnload"
+        src="https://scripts.simpleanalyticscdn.com/latest.js"
+        data-collect-dnt="true"
+        onLoad={() => {
+          // Optional: Add logic if needed after Simple Analytics loads
+          if (process.env.NODE_ENV !== 'production') {
+            // eslint-disable-next-line no-console
+            console.log('[Analytics] Simple Analytics script loaded.');
+          }
+        }}
+        onError={safeScriptErrorHandler('Simple Analytics')}
+      />
+      {isMounted && (
+        <noscript>
+          <img
+            src="https://queue.simpleanalyticscdn.com/noscript.gif?collect-dnt=true"
+            alt=""
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        </noscript>
+      )}
+
+      {/* Clicky Analytics */}
+      {/* Using Next/Script component, equivalent to <script async src="..."> */}
+      <Script
+        id="clicky-analytics"
+        strategy="afterInteractive" // Use afterInteractive to mimic 'async' behavior
+        src="https://static.getclicky.com/101484018.js" // Use https protocol
+        onLoad={() => {
+          if (process.env.NODE_ENV !== 'production') {
+            // eslint-disable-next-line no-console
+            console.log('[Analytics] Clicky script loaded.');
+          }
+          setScriptsLoaded(prev => ({ ...prev, clicky: true }))
+        }}
+        onError={safeScriptErrorHandler('Clicky')}
+      />
+      {isMounted && (
+        <noscript>
+          {/* Standard Clicky noscript tag */}
+          <p><img alt="Clicky" width="1" height="1" src="https://in.getclicky.com/101484018ns.gif" /></p> {/* Use https protocol */}
+        </noscript>
+      )}
     </>
   )
 }
 
 /**
  * Analytics component that handles pageview tracking
- * Supports both Plausible and Umami analytics
+ * Supports Plausible, Umami, Simple Analytics, and Clicky
  * @returns JSX.Element | null
  */
 export function Analytics(): JSX.Element | null {

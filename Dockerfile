@@ -1,35 +1,34 @@
-FROM node:20-alpine AS base
+FROM oven/bun:alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
+# Install dependencies required for packages like Sharp
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Set environment variables for dependency installation
-ENV PNPM_HOME=/root/.local/share/pnpm
-ENV PATH=$PATH:$PNPM_HOME
+# Set environment variable for Bun
+ENV BUN_INSTALL_CACHE=/root/.bun/install/cache
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
 
-# Install pnpm first
-RUN npm install -g pnpm
-
 # Copy only package files first
-COPY package.json pnpm-lock.yaml* ./
+# Copying bun.lockb separately ensures Docker caches the layer correctly
+COPY package.json ./
+COPY bun.lockb* ./
+COPY .husky ./.husky
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile --unsafe-perm --ignore-scripts
+# Install dependencies with Bun, allowing necessary lifecycle scripts
+RUN bun install --frozen-lockfile
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 
 # Set environment variables for build
-ENV PNPM_HOME=/root/.local/share/pnpm
-ENV PATH=$PATH:$PNPM_HOME
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
-ENV NODE_ENV=development
+# Set NODE_ENV for the build process
+ENV NODE_ENV=production
 
 # Accept and propagate public env vars for Next.js build
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
@@ -37,21 +36,18 @@ ARG NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
-# Install pnpm globally
-RUN npm install -g pnpm
-
 # Copy dependencies and source code
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the application
-RUN NODE_ENV=production pnpm build
+# Build the application using Bun
+RUN bun run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
 
-# Install sharp dependencies and curl for healthchecks
+# Install runtime dependencies (like Sharp's) and curl for healthchecks
 RUN apk add --no-cache vips-dev build-base curl
 
 ENV NODE_ENV=production
@@ -66,9 +62,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy public directory and set permissions
 COPY --from=builder /app/public ./public
+# Ensure the logos directory exists within public before chown
 RUN mkdir -p /app/public/logos && chown -R nextjs:nodejs /app/public
 
-# Create a volume for persisting logos
+# Create a volume for persisting logos (if needed, though usually served from build)
 VOLUME /app/public/logos
 
 USER nextjs
@@ -79,7 +76,8 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Add healthcheck to ensure the container is properly running
-HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 CMD curl -f http://localhost:3000/api/health || exit 1
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
 
-# Use the Next.js standalone server directly
-CMD ["node", "server.js"]
+# Run the Next.js standalone server using Bun
+CMD ["bun", "server.js"]

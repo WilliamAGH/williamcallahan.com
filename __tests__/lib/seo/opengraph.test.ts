@@ -8,6 +8,7 @@ import { metadata as siteMetadata } from '../../../data/metadata';
 import { isPacificDateString, type OpenGraphImage } from '../../../types/seo';
 import { ensureAbsoluteUrl } from '../../../lib/seo/utils';
 import type { OpenGraph } from 'next/dist/lib/metadata/types/opengraph-types';
+import { describe, it, expect } from 'bun:test';
 
 // Mock process.env for tests
 process.env.NEXT_PUBLIC_SITE_URL = 'https://williamcallahan.com';

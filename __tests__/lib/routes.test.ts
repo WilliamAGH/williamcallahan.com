@@ -17,7 +17,7 @@ import path from 'path';
 
 // Mock fetch globally
 const mockFetch = jest.fn();
-global.fetch = mockFetch;
+global.fetch = mockFetch as unknown as typeof fetch; // Assert type for assignment
 
 // Constants for test configuration
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';

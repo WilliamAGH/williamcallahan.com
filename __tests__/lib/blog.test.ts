@@ -1,3 +1,5 @@
+console.log('[TEST FILE] blog.test.ts starting');
+
 /**
  * Blog Module Tests
  *
@@ -20,9 +22,15 @@
 
 import { getAllPosts, getPostBySlug } from '../../lib/blog';
 import type { BlogPost } from '../../types/blog';
+import { describe, it, expect, mock, jest } from 'bun:test';
 
-// Mock static posts
-jest.mock('../../data/blog/posts', () => ({
+// Explicitly mock assertServerOnly for this test file
+mock.module('../../lib/utils/ensure-server-only', () => ({
+  assertServerOnly: jest.fn(() => undefined)
+}));
+
+// Mock static posts using mock.module
+mock.module('../../data/blog/posts', () => ({
   posts: [
     {
       id: 'test-post-1',
@@ -55,8 +63,8 @@ jest.mock('../../data/blog/posts', () => ({
   ]
 }));
 
-// Mock MDX functionality
-jest.mock('../../lib/blog/mdx', () => ({
+// Mock MDX functionality using mock.module
+mock.module('../../lib/blog/mdx', () => ({
   getAllMDXPosts: jest.fn().mockResolvedValue([]),
   getMDXPost: jest.fn().mockImplementation((slug: string) => {
     const posts = [

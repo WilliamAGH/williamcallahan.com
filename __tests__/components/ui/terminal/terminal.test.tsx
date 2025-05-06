@@ -23,6 +23,7 @@
  * - Uses React Testing Library for DOM interactions
  */
 
+import { mock, jest, spyOn, describe, beforeEach, it, expect, afterEach, beforeAll, afterAll } from 'bun:test';
 import React from 'react'; // Ensure React is imported first
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Terminal } from '../../../../components/ui/terminal/terminal-implementation.client';
@@ -32,13 +33,28 @@ import { useRouter } from 'next/navigation';
 import { setupTests } from '../../../../lib/test/setup';
 import { GlobalWindowRegistryContextType, WindowState } from '../../../../lib/context/global-window-registry-context.client'; // Import types for mocking
 import type { SearchResult } from '@/types/search'; // Import SearchResult type
+import type { TerminalCommand } from '@/types/terminal'; // Remove unused/missing types
 
-// Mock next/navigation
-jest.mock('next/navigation', () => ({
-  useRouter: jest.fn()
+// --- Mock TerminalHeader ---
+mock.module('../../../../components/ui/terminal/terminal-header', () => ({
+  TerminalHeader: ({ onClose, onMinimize, onMaximize, isMaximized }: any) => (
+    <div data-testid="mock-terminal-header">
+      <button title="Close" onClick={onClose} disabled={!onClose}>Close</button>
+      <button title="Minimize" onClick={onMinimize} disabled={!onMinimize}>Minimize</button>
+      <button title={isMaximized ? "Restore" : "Maximize"} onClick={onMaximize} disabled={!onMaximize}>
+        {isMaximized ? "Restore" : "Maximize"}
+      </button>
+    </div>
+  )
+}));
+// --- End Mock ---
+
+// Mock next/navigation using mock.module
+mock.module('next/navigation', () => ({ // Use mock.module
+  useRouter: jest.fn(() => ({ push: jest.fn() })) // Provide default mock implementation
 }));
 
-// --- Mock GlobalWindowRegistryContext ---
+// --- Mock GlobalWindowRegistryContext using mock.module ---
 // Keep state external for potential modification by mocked actions if needed,
 // but primarily control return values via mockImplementationOnce in tests.
 let mockWindowState: WindowState = 'normal';
@@ -54,7 +70,7 @@ const maximizeMock = () => setMockState(mockWindowState === 'maximized' ? 'norma
 const closeMock = () => setMockState('closed');
 const restoreMock = () => setMockState('normal');
 
-jest.mock('../../../../lib/context/global-window-registry-context.client', () => {
+mock.module('../../../../lib/context/global-window-registry-context.client', () => { // Use mock.module
   // Functions defined above
   return {
     GlobalWindowRegistryProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -62,7 +78,7 @@ jest.mock('../../../../lib/context/global-window-registry-context.client', () =>
       windows: { 'main-terminal': { id: 'main-terminal', state: mockWindowState, icon: MockIcon, title: 'Terminal' } },
       registerWindow: jest.fn(),
       unregisterWindow: jest.fn(),
-      setWindowState: jest.fn((id, state) => { if (id === 'main-terminal') setMockState(state); }),
+      setWindowState: jest.fn((id, state) => { if (id === 'main-terminal') setMockState(state as WindowState); }), // Cast state
       minimizeWindow: jest.fn((id) => { if (id === 'main-terminal') minimizeMock(); }),
       maximizeWindow: jest.fn((id) => { if (id === 'main-terminal') maximizeMock(); }),
       closeWindow: jest.fn((id) => { if (id === 'main-terminal') closeMock(); }),
@@ -72,17 +88,19 @@ jest.mock('../../../../lib/context/global-window-registry-context.client', () =>
         : undefined
       ),
     })),
-    // The key hook we need to control precisely
-    useRegisteredWindowState: jest.fn(), // Initially just a plain mock
+    useRegisteredWindowState: jest.fn(), // Mock the hook used by the component
   };
 });
 // --- End Mock ---
 
-// Get a handle *after* jest.mock has run
-const mockUseRegisteredWindowState = jest.requireMock('../../../../lib/context/global-window-registry-context.client').useRegisteredWindowState;
+// Get handles *after* mocking
+import { useRouter as useRouterImported } from 'next/navigation';
+import { useRegisteredWindowState as useRegisteredWindowStateImported } from '../../../../lib/context/global-window-registry-context.client';
+const mockUseRegisteredWindowState = useRegisteredWindowStateImported as jest.Mock;
+const mockUseRouter = useRouterImported as jest.Mock;
 
-// Mock search functions
-jest.mock('../../../../lib/search', () => ({
+// Mock search functions using mock.module
+mock.module('../../../../lib/search', () => ({ // Use mock.module
   searchPosts: jest.fn().mockResolvedValue([
     {
       title: 'Test Post',
@@ -95,9 +113,18 @@ jest.mock('../../../../lib/search', () => ({
   searchInvestments: jest.fn().mockResolvedValue([])
 }));
 
-// Mock global fetch
+// Mock fetch globally *before* importing Terminal or CommandProcessor
 const mockFetch = jest.fn();
-global.fetch = mockFetch;
+let originalFetch: typeof global.fetch;
+
+beforeAll(() => {
+  originalFetch = global.fetch;
+  global.fetch = mockFetch as any; // Use any to avoid type conflict for now
+});
+
+afterAll(() => {
+  global.fetch = originalFetch; // Restore original fetch
+});
 
 // Helper function to render with providers
 const renderTerminal = () => {
@@ -108,15 +135,19 @@ const renderTerminal = () => {
   );
 };
 
-
 describe('Terminal Component', () => {
-  const { mockRouter } = setupTests();
+  // Get router push mock handle *inside* describe
+  let mockRouterPush: jest.Mock;
 
   beforeEach(() => {
     // Reset mocks before each test
     jest.clearAllMocks();
     mockFetch.mockClear(); // Clear fetch mock specifically
-    (useRouter as jest.Mock).mockReturnValue(mockRouter);
+
+    // Reset router mock and get push handle
+    mockRouterPush = jest.fn();
+    mockUseRouter.mockReturnValue({ push: mockRouterPush });
+
     mockUseRegisteredWindowState.mockClear();
     // Set a default implementation for the hook for tests that don't override it
     mockUseRegisteredWindowState.mockImplementation(() => ({
@@ -130,6 +161,11 @@ describe('Terminal Component', () => {
     }));
     // Reset the external state variable
     mockWindowState = 'normal';
+  });
+
+  // Add afterEach if needed for global mocks like fetch
+  afterEach(() => {
+    // Potentially restore global mocks if they were changed
   });
 
   describe('Rendering', () => {
@@ -188,7 +224,7 @@ describe('Terminal Component', () => {
       fireEvent.submit(input);
 
       await waitFor(() => {
-        expect(mockRouter.push).toHaveBeenCalledWith('/blog');
+        expect(mockRouterPush).toHaveBeenCalledWith('/blog'); // Check the push mock
       });
     });
   });
@@ -250,7 +286,7 @@ describe('Terminal Component', () => {
       }));
 
       const { rerender } = renderTerminal();
-      const minimizeButton = screen.getByRole('button', { name: /minimize/i });
+      const minimizeButton = screen.getByTitle(/minimize/i); // Query by title
 
       // Setup state for *after* minimize click
       mockUseRegisteredWindowState.mockImplementationOnce(() => ({
@@ -276,7 +312,7 @@ describe('Terminal Component', () => {
       mockUseRegisteredWindowState.mockImplementation(() => normalState);
 
       const { rerender } = renderTerminal();
-      const maximizeButton = screen.getByRole('button', { name: /maximize/i });
+      const maximizeButton = screen.getByTitle(/maximize/i); // Query by title
       // Use data-testid for querying the container
       const terminalTestId = 'terminal-container';
       const innerContentSelector = 'div.custom-scrollbar';
@@ -354,7 +390,7 @@ describe('Terminal Component', () => {
       }));
 
       const { rerender } = renderTerminal();
-      const closeButton = screen.getByRole('button', { name: /close/i });
+      const closeButton = screen.getByTitle(/close/i); // Query by title
 
       // Set state for *after* close click
       mockUseRegisteredWindowState.mockImplementationOnce(() => ({

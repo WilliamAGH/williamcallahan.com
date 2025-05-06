@@ -3,30 +3,38 @@
  * @module __tests__/api/bookmarks/route.test
  */
 
+import { mock, jest, describe, beforeEach, it, expect, spyOn, afterEach } from 'bun:test';
 import { GET } from '../../../../app/api/bookmarks/route';
-import { fetchExternalBookmarks } from '../../../../lib/bookmarks';
-import { ServerCacheInstance } from '../../../../lib/server-cache';
-import { NextResponse } from 'next/server';
 import type { UnifiedBookmark } from '../../../../types';
 
-// Mock dependencies
-jest.mock('../../../../lib/utils/ensure-server-only', () => ({
-  assertServerOnly: jest.fn(),
+// Mock dependencies using mock.module
+mock.module('../../../../lib/bookmarks', () => ({
+  fetchExternalBookmarks: jest.fn()
 }));
-jest.mock('../../../../lib/bookmarks');
-jest.mock('../../../../lib/server-cache');
-jest.mock('next/server', () => ({
+mock.module('../../../../lib/server-cache', () => ({
+  ServerCacheInstance: {
+    getBookmarks: jest.fn(),
+  }
+}));
+mock.module('next/server', () => ({
   NextResponse: {
     json: jest.fn(),
   },
 }));
 
-// Mock console
-global.console = { ...console, log: jest.fn(), error: jest.fn() };
+// Import *after* mocking
+import { fetchExternalBookmarks as ImportedFetchBookmarks } from '../../../../lib/bookmarks';
+import { ServerCacheInstance as ImportedServerCache } from '../../../../lib/server-cache';
+import { NextResponse as ImportedNextResponse } from 'next/server';
 
-const mockFetchBookmarks = fetchExternalBookmarks as jest.Mock;
-const mockGetCache = ServerCacheInstance.getBookmarks as jest.Mock;
-const mockResponseJson = NextResponse.json as jest.Mock;
+// Spy on console (no need to mock the whole object)
+let consoleLogSpy: ReturnType<typeof spyOn>;
+let consoleErrorSpy: ReturnType<typeof spyOn>;
+
+// Get handles to the mocks
+const mockFetchBookmarks = ImportedFetchBookmarks as jest.Mock;
+const mockGetCache = ImportedServerCache.getBookmarks as jest.Mock;
+const mockResponseJson = ImportedNextResponse.json as jest.Mock;
 
 describe('GET /api/bookmarks', () => {
   const mockBookmarksData: UnifiedBookmark[] = [
@@ -41,6 +49,19 @@ describe('GET /api/bookmarks', () => {
   beforeEach(() => {
     // Reset mocks before each test
     jest.clearAllMocks();
+    mockFetchBookmarks.mockClear();
+    mockGetCache.mockClear();
+    mockResponseJson.mockClear();
+
+    // Setup spies
+    consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
+    consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    // Restore spies
+    consoleLogSpy?.mockRestore();
+    consoleErrorSpy?.mockRestore();
   });
 
   it('should return fetched bookmarks on success', async () => {
@@ -51,9 +72,9 @@ describe('GET /api/bookmarks', () => {
     expect(mockFetchBookmarks).toHaveBeenCalledTimes(1);
     expect(mockGetCache).not.toHaveBeenCalled();
     expect(mockResponseJson).toHaveBeenCalledWith(mockBookmarksData, { status: 200, headers: cacheHeaders });
-    expect(console.log).toHaveBeenCalledWith('API route: Starting to fetch bookmarks');
-    expect(console.log).toHaveBeenCalledWith(`API route: Fetched ${mockBookmarksData.length} bookmarks`);
-    expect(console.error).not.toHaveBeenCalled();
+    expect(consoleLogSpy).toHaveBeenCalledWith('API route: Starting to fetch bookmarks');
+    expect(consoleLogSpy).toHaveBeenCalledWith(`API route: Fetched ${mockBookmarksData.length} bookmarks`);
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 
   it('should return cached bookmarks when fetch fails but cache exists', async () => {
@@ -66,8 +87,8 @@ describe('GET /api/bookmarks', () => {
     expect(mockFetchBookmarks).toHaveBeenCalledTimes(1);
     expect(mockGetCache).toHaveBeenCalledTimes(1);
     expect(mockResponseJson).toHaveBeenCalledWith(mockCachedData, { status: 200, headers: cacheHeaders });
-    expect(console.error).toHaveBeenCalledWith('Error fetching bookmarks:', fetchError);
-    expect(console.log).toHaveBeenCalledWith(`API route: Returning stale cached bookmarks, count: ${mockCachedData.length}`);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching bookmarks:', fetchError);
+    expect(consoleLogSpy).toHaveBeenCalledWith(`API route: Returning stale cached bookmarks, count: ${mockCachedData.length}`);
   });
 
   it('should return 500 error when fetch fails and cache is empty', async () => {
@@ -80,8 +101,8 @@ describe('GET /api/bookmarks', () => {
     expect(mockFetchBookmarks).toHaveBeenCalledTimes(1);
     expect(mockGetCache).toHaveBeenCalledTimes(1);
     expect(mockResponseJson).toHaveBeenCalledWith({ error: 'Fetch failed' }, { status: 500 });
-    expect(console.error).toHaveBeenCalledWith('Error fetching bookmarks:', fetchError);
-    expect(console.log).not.toHaveBeenCalledWith(expect.stringContaining('Returning stale cached'));
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching bookmarks:', fetchError);
+    expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('Returning stale cached'));
   });
 
   it('should return 500 error when fetch fails and cache has empty array', async () => {
@@ -94,7 +115,7 @@ describe('GET /api/bookmarks', () => {
     expect(mockFetchBookmarks).toHaveBeenCalledTimes(1);
     expect(mockGetCache).toHaveBeenCalledTimes(1);
     expect(mockResponseJson).toHaveBeenCalledWith({ error: 'Fetch failed' }, { status: 500 });
-    expect(console.error).toHaveBeenCalledWith('Error fetching bookmarks:', fetchError);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching bookmarks:', fetchError);
   });
 
   it('should return 500 with generic message for non-Error objects', async () => {
@@ -105,6 +126,6 @@ describe('GET /api/bookmarks', () => {
     await GET();
 
     expect(mockResponseJson).toHaveBeenCalledWith({ error: 'Unknown error' }, { status: 500 });
-    expect(console.error).toHaveBeenCalledWith('Error fetching bookmarks:', fetchError);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching bookmarks:', fetchError);
   });
 });

@@ -91,12 +91,13 @@ export const ENDPOINTS = {
  */
 export const LOGO_SOURCES = {
   google: {
+    // Updated to use the www.google.com/s2/favicons endpoint
     hd: (domain: string) =>
-      `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=256`,
+      `https://www.google.com/s2/favicons?domain=${domain}&sz=256`,
     md: (domain: string) =>
-      `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=128`,
+      `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
     sm: (domain: string) =>
-      `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=64`
+      `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
   },
   clearbit: {
     hd: (domain: string) =>
@@ -145,6 +146,22 @@ export const VALID_IMAGE_FORMATS = ['jpeg', 'png', 'webp', 'gif', 'svg', 'ico'] 
  * @default 64 pixels
  */
 export const MIN_LOGO_SIZE = 64;
+
+/**
+ * Standard Tailwind CSS breakpoints
+ * @constant
+ * @type {Object}
+ * @remarks
+ * Values correspond to the 'min-width' for each breakpoint.
+ * Used for JavaScript calculations based on screen size.
+ */
+export const BREAKPOINTS = {
+  sm: 640,
+  md: 768,
+  lg: 1024,
+  xl: 1280,
+  '2xl': 1536,
+} as const;
 
 /**
  * Desired logo sizes

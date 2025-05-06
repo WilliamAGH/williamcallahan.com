@@ -39,6 +39,9 @@ import { SvgTransformFixer } from '../components/utils/svg-transform-fixer.clien
 // Add server transition handler
 import Script from 'next/script';
 
+// Import the new wrapper
+import { PageTransitionWrapper } from '../components/utils/page-transition-wrapper.client';
+
 /** Load Inter font with Latin subset */
 const inter = Inter({ subsets: ["latin"] });
 
@@ -202,6 +205,8 @@ export default function RootLayout({
           `}
         </Script>
         <Providers>
+          {/* Add PageLoader here */}
+          {/* <PageLoader /> */}
           <GlobalWindowRegistryProvider>
             <BodyClassManager />
             <AnchorScrollManager /> {/* Re-activate the anchor scroll handler */}
@@ -210,109 +215,53 @@ export default function RootLayout({
             {/* Revert to direct rendering */}
             <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
               <ErrorBoundary silent>
-                <header className="fixed top-0 w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-[1000]">
-                  <div className="w-full max-w-[95%] xl:max-w-[1400px] 2xl:max-w-[1800px] mx-auto px-4 py-4 flex items-center justify-between">
-                    <Suspense fallback={null}>
-                      {/* Navigation component */}
-                      <Navigation />
-                    </Suspense>
-                    {/* Navigation bar actions container - NEVER hide, but manage content responsively */}
-                    <div className="flex items-center gap-2 relative z-[1050]">
-                      {/* 
-                        Create THREE completely separate containers for different viewport sizes:
-                        1. Mobile: Theme toggle + X icon (0-639px)
-                        2. Tablet: Theme toggle + X icon (640px-1023px)
-                        3. Desktop: Theme toggle + full social icons (1024px+)
-                      */}
-                      
-                      {/* 1. MOBILE: Theme toggle + X icon */}
-                      <div className="sm:hidden flex items-center gap-2">
-                        <a 
-                          href="https://x.com/williamcallahan"
-                          target="_blank"
-                          rel="noopener noreferrer" 
-                          className="group flex items-center justify-center rounded-lg transition-all
-                          bg-gray-200 dark:bg-gray-700 
-                          hover:bg-indigo-100 dark:hover:bg-indigo-900
-                          border border-gray-300 dark:border-gray-600
-                          text-gray-700 dark:text-gray-300
-                          hover:shadow-md hover:scale-105 active:scale-100
-                          z-[1050]"
-                          style={{width: "34px", height: "34px"}}
-                          aria-label="X (Twitter)"
-                        >
-                          <svg 
-                            viewBox="0 0 24 24" 
-                            width="16" 
-                            height="16"
-                            stroke="currentColor" 
-                            fill="none" 
-                            strokeWidth="2"
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                            style={{ transform: "translateX(-1px)" }}
-                          >
-                            <path d="M5 4l11.733 16h3.267l-11.733 -16z" />
-                            <path d="M5 20l6.768 -6.768m2.46 -2.46l5.772 -6.772" />
-                          </svg>
-                        </a>
-                        <ThemeToggle />
+                <header className="w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-[1000]">
+                  {/* Add overflow-hidden for safety, ensure items can shrink */}
+                  <div className="w-full max-w-[95%] xl:max-w-[1400px] 2xl:max-w-[1800px] mx-auto px-4 py-4 flex items-center justify-between overflow-hidden gap-4">
+                    {/* Navigation should shrink if needed, but prioritize it */}
+                    <div className="flex-1 min-w-0">
+                      <Suspense fallback={null}>
+                        {/* Navigation component */}
+                        <Navigation />
+                      </Suspense>
+                    </div>
+                    {/* Right-side actions container - Allow shrinking */}
+                    {/* Add ml-2 to ensure minimum left margin matches right-side gap */}
+                    <div className="flex items-center gap-2 ml-2 min-w-0 relative z-[1050]">
+                      {/* Social Icons: Render condensed below lg, full above lg */}
+
+                      {/* Condensed Version (X Only) - Hidden on lg and up */}
+                      <div className="lg:hidden">
+                        <Suspense fallback={null}>
+                           {/* Render X icon only via prop */}
+                           <SocialIcons showXOnly={true} />
+                        </Suspense>
                       </div>
-                      
-                      {/* 2. TABLET: Theme toggle + X (Twitter) icon */}
-                      <div className="hidden sm:flex lg:hidden items-center gap-2">
-                        <a 
-                          href="https://x.com/williamcallahan"
-                          target="_blank"
-                          rel="noopener noreferrer" 
-                          className="group flex items-center justify-center rounded-lg transition-all
-                          bg-gray-200 dark:bg-gray-700 
-                          hover:bg-indigo-100 dark:hover:bg-indigo-900
-                          border border-gray-300 dark:border-gray-600
-                          text-gray-700 dark:text-gray-300
-                          hover:shadow-md hover:scale-105 active:scale-100
-                          z-[1050]"
-                          style={{width: "34px", height: "34px"}}
-                          aria-label="X (Twitter)"
-                        >
-                          <svg 
-                            viewBox="0 0 24 24" 
-                            width="16" 
-                            height="16"
-                            stroke="currentColor" 
-                            fill="none" 
-                            strokeWidth="2"
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                            style={{ transform: "translateX(-1px)" }}
-                          >
-                            <path d="M5 4l11.733 16h3.267l-11.733 -16z" />
-                            <path d="M5 20l6.768 -6.768m2.46 -2.46l5.772 -6.772" />
-                          </svg>
-                        </a>
-                        <ThemeToggle />
+
+                      {/* Full Version - Hidden below lg */}
+                      <div className="hidden lg:flex items-center p-1 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700/50 shadow-sm">
+                        <Suspense fallback={null}>
+                          {/* Render all icons */}
+                          <SocialIcons />
+                        </Suspense>
                       </div>
-                      
-                      {/* 3. DESKTOP: Theme toggle + all social icons */}
-                      <div className="hidden lg:flex items-center gap-2">
-                        <div className="flex items-center p-1 bg-gray-100 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700/50 shadow-sm">
-                          <Suspense fallback={null}>
-                            <SocialIcons />
-                          </Suspense>
-                        </div>
-                        <ThemeToggle />
-                      </div>
+
+                      {/* Theme Toggle - Always visible */}
+                      <ThemeToggle />
                     </div>
                   </div>
                 </header>
               </ErrorBoundary>
 
-              <main className="pt-16 pb-16 px-4 motion-safe:transition-opacity motion-safe:duration-200">
+              <main className="pb-16 px-4 motion-safe:transition-opacity motion-safe:duration-200">
                 <ErrorBoundary silent>
                   <ClientTerminal />
                 </ErrorBoundary>
                 <ErrorBoundary>
-                  {children}
+                  {/* Wrap children with the transition wrapper */}
+                  <PageTransitionWrapper>
+                    {children}
+                  </PageTransitionWrapper>
                 </ErrorBoundary>
               </main>
 
