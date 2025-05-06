@@ -2,8 +2,13 @@ import * as Sentry from '@sentry/nextjs';
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    await import('./sentry.server.config');
-    
+    // Initialize Sentry for the Node.js server runtime
+    Sentry.init({
+      dsn: "https://0042fbb70c614148ae924921ffb9320a@glitchtip.iocloudhost.net/1",
+      tracesSampleRate: 1,
+      debug: false, // Adjust in production
+    });
+
     // Preload bookmarks into server cache at startup
     if (process.env.NODE_ENV === 'production') {
       try {
@@ -19,7 +24,12 @@ export async function register() {
   }
 
   if (process.env.NEXT_RUNTIME === 'edge') {
-    await import('./sentry.edge.config');
+    // Initialize Sentry for the Edge runtime
+    Sentry.init({
+      dsn: "https://0042fbb70c614148ae924921ffb9320a@glitchtip.iocloudhost.net/1",
+      tracesSampleRate: 1,
+      debug: false, // Adjust in production
+    });
   }
 }
 
