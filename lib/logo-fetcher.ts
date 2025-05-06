@@ -19,27 +19,27 @@ assertServerOnly('lib/logo-fetcher.ts');
 
 // --- Filesystem Helper Functions (adapted from app/api/logo/route.ts) ---
 
-let _fs_logosDir: string | null = null; // Cache the determined logos directory path
-let _fs_checkedLogosDir = false;
+let fsLogosDir: string | null = null; // Cache the determined logos directory path
+let fsCheckedLogosDir = false;
 
 /** Generate a hash for the domain to use as filename */
-function _fs_getDomainHash(domain: string): string {
+function fsGetDomainHash(domain: string): string {
   return createHash('md5').update(domain).digest('hex');
 }
 
 /** Get the potential path for storing/reading a logo */
-function _fs_getLogoPath(domain: string, source: string): string | null {
-  if (!_fs_logosDir) {
+function fsGetLogoPath(domain: string, source: string): string | null {
+  if (!fsLogosDir) {
     console.warn('[logo-fetcher] Logos directory not initialized.');
     return null; // Cannot determine path if directory is not set
   }
-  const hash = _fs_getDomainHash(domain);
+  const hash = fsGetDomainHash(domain);
   // Always use .png for consistency, even if fetched format differs initially
-  return path.join(_fs_logosDir, `${hash}-${source}.png`);
+  return path.join(fsLogosDir, `${hash}-${source}.png`);
 }
 
 /** Try to read a logo from disk */
-async function _fs_readLogoFromDisk(logoPath: string | null): Promise<Buffer | null> {
+async function fsReadLogoFromDisk(logoPath: string | null): Promise<Buffer | null> {
   if (!logoPath) return null;
   try {
     return await fs.readFile(logoPath);
@@ -53,7 +53,7 @@ async function _fs_readLogoFromDisk(logoPath: string | null): Promise<Buffer | n
 }
 
 /** Try to write a logo to disk */
-async function _fs_writeLogoToDisk(logoPath: string | null, buffer: Buffer): Promise<boolean> {
+async function fsWriteLogoToDisk(logoPath: string | null, buffer: Buffer): Promise<boolean> {
   if (!logoPath) return false;
   try {
     await fs.writeFile(logoPath, buffer);
@@ -65,9 +65,9 @@ async function _fs_writeLogoToDisk(logoPath: string | null, buffer: Buffer): Pro
 }
 
 /** Ensure the logos directory exists and set the cached path */
-async function _fs_ensureLogosDirectory(): Promise<boolean> {
-  if (_fs_checkedLogosDir) return !!_fs_logosDir; // Return cached status after first check
-  _fs_checkedLogosDir = true; // Mark as checked
+async function fsEnsureLogosDirectory(): Promise<boolean> {
+  if (fsCheckedLogosDir) return !!fsLogosDir; // Return cached status after first check
+  fsCheckedLogosDir = true; // Mark as checked
 
   const basePaths = [
     // Most likely path in production build relative to server.js in .next/standalone
@@ -90,8 +90,8 @@ async function _fs_ensureLogosDirectory(): Promise<boolean> {
       const testFile = path.join(logosDir, '.write-test');
       await fs.writeFile(testFile, '');
       await fs.unlink(testFile);
-      _fs_logosDir = logosDir; // Cache the working directory path
-      console.info(`[logo-fetcher] Using logos directory: ${_fs_logosDir}`);
+      fsLogosDir = logosDir; // Cache the working directory path
+      console.info(`[logo-fetcher] Using logos directory: ${fsLogosDir}`);
       return true;
     } catch (error: any) {
       // Log only if it's not a simple "not found" error during access check
@@ -106,7 +106,7 @@ async function _fs_ensureLogosDirectory(): Promise<boolean> {
 }
 
 // Initialize directory check asynchronously (don't block initial load)
-const filesystemReadyPromise = _fs_ensureLogosDirectory();
+const filesystemReadyPromise = fsEnsureLogosDirectory();
 
 // --- Constants ---
 const IS_BUILD_PHASE = process.env.NEXT_PHASE === 'phase-production-build';
@@ -143,10 +143,10 @@ export async function fetchLogo(domain: string): Promise<{
 
   // 2. Check Filesystem Cache (if directory is available)
   const hasFileSystem = await filesystemReadyPromise;
-  if (hasFileSystem && _fs_logosDir) { // Ensure directory path is set
+  if (hasFileSystem && fsLogosDir) { // Ensure directory path is set
     for (const source of ['google', 'clearbit', 'duckduckgo'] as const) {
-      const logoPath = _fs_getLogoPath(domain, source);
-      const diskBuffer = await _fs_readLogoFromDisk(logoPath);
+      const logoPath = fsGetLogoPath(domain, source);
+      const diskBuffer = await fsReadLogoFromDisk(logoPath);
       if (diskBuffer) {
         console.debug(`[logo-fetcher] Cache hit (Disk): ${domain} from ${source}`);
         // Update memory cache as well
@@ -154,7 +154,7 @@ export async function fetchLogo(domain: string): Promise<{
         return { buffer: diskBuffer, source };
       }
     }
-  } else if (!hasFileSystem && !_fs_checkedLogosDir) {
+  } else if (!hasFileSystem && !fsCheckedLogosDir) {
       // Log only once if filesystem check is still pending or failed initially
       console.debug("[logo-fetcher] Filesystem cache not available or check pending.");
   }
@@ -214,8 +214,8 @@ export async function fetchLogo(domain: string): Promise<{
       ServerCacheInstance.setLogoFetch(domain, { url: null, source, buffer });
       // Attempt to cache on disk (fire and forget)
       if (hasFileSystem) {
-         const logoPath = _fs_getLogoPath(domain, source);
-          _fs_writeLogoToDisk(logoPath, buffer).catch(err => {
+         const logoPath = fsGetLogoPath(domain, source);
+          fsWriteLogoToDisk(logoPath, buffer).catch(err => {
              console.warn(`[logo-fetcher] Background disk write failed for ${logoPath}:`, err);
           }); // Don't await, don't let it block
       }
