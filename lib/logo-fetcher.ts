@@ -67,7 +67,6 @@ async function fsWriteLogoToDisk(logoPath: string | null, buffer: Buffer): Promi
 /** Ensure the logos directory exists and set the cached path */
 async function fsEnsureLogosDirectory(): Promise<boolean> {
   if (fsCheckedLogosDir) return !!fsLogosDir; // Return cached status after first check
-  fsCheckedLogosDir = true; // Mark as checked
 
   const basePaths = [
     // Most likely path in production build relative to server.js in .next/standalone
@@ -80,6 +79,7 @@ async function fsEnsureLogosDirectory(): Promise<boolean> {
     '/app/public/logos'
   ];
 
+  let dirFound = false; // Track if a directory was found
   for (const logosDir of basePaths) {
     try {
       try {
@@ -92,7 +92,8 @@ async function fsEnsureLogosDirectory(): Promise<boolean> {
       await fs.unlink(testFile);
       fsLogosDir = logosDir; // Cache the working directory path
       console.info(`[logo-fetcher] Using logos directory: ${fsLogosDir}`);
-      return true;
+      dirFound = true; // Mark as found
+      break; // Exit loop once a working directory is found
     } catch (error: any) {
       // Log only if it's not a simple "not found" error during access check
       if (error.code !== 'ENOENT' || !error.message.includes('access')) {
@@ -101,8 +102,14 @@ async function fsEnsureLogosDirectory(): Promise<boolean> {
     }
   }
 
-  console.warn('[logo-fetcher] No writable logos directory found. Filesystem cache disabled.');
-  return false;
+  // Mark as checked only after trying all paths
+  fsCheckedLogosDir = true;
+
+  if (!dirFound) {
+    console.warn('[logo-fetcher] No writable logos directory found. Filesystem cache disabled.');
+  }
+
+  return dirFound;
 }
 
 // Initialize directory check asynchronously (don't block initial load)
@@ -177,8 +184,12 @@ export async function fetchLogo(domain: string): Promise<{
         next: { revalidate: IS_BUILD_PHASE ? 60 * 60 * 24 : 60 * 60 } // 24h during build, 1h runtime
       });
 
-      const response = await fetchPromise;
-      clearTimeout(timeoutId);
+      let response;
+      try {
+        response = await fetchPromise;
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (response.ok) {
         const fetchedBuffer = Buffer.from(await response.arrayBuffer());
