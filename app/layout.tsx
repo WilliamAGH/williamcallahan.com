@@ -221,7 +221,8 @@ export default function RootLayout({
                       </Suspense>
                     </div>
                     {/* Right-side actions container - Allow shrinking */}
-                    <div className="flex items-center gap-2 min-w-0 relative z-[1050]">
+                    {/* Add ml-2 to ensure minimum left margin matches right-side gap */}
+                    <div className="flex items-center gap-2 ml-2 min-w-0 relative z-[1050]">
                       {/* Social Icons: Render condensed below lg, full above lg */}
 
                       {/* Condensed Version (X Only) - Hidden on lg and up */}
