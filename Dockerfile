@@ -66,7 +66,7 @@ COPY --from=builder /app/public ./public
 RUN mkdir -p /app/public/logos && chown -R nextjs:nodejs /app/public
 
 # Create a volume for persisting logos (if needed, though usually served from build)
-# VOLUME /app/public/logos
+VOLUME /app/public/logos
 
 USER nextjs
 
