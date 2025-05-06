@@ -1,3 +1,4 @@
+import { mock, jest, describe, beforeEach, it, expect } from 'bun:test';
 import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { Navigation } from '../../../../components/ui/navigation/navigation.client';
@@ -6,57 +7,64 @@ import { navigationLinks } from '../../../../components/ui/navigation/navigation
 // Import the REAL provider
 import { TerminalProvider } from '../../../../components/ui/terminal/terminal-context.client';
 
-// Mock the useWindowSize hook
+// Mock the useWindowSize hook using mock.module
 // Use relative path for Jest compatibility
-import { useWindowSize } from '../../../../lib/hooks/use-window-size.client';
-jest.mock('../../../../lib/hooks/use-window-size.client');
+// import { useWindowSize } from '../../../../lib/hooks/use-window-size.client'; // Remove original import
+mock.module('../../../../lib/hooks/use-window-size.client', () => ({ // Use mock.module
+  useWindowSize: jest.fn(() => ({ width: 1280, height: 800 })) // Keep jest.fn, provide default
+}));
 
-// Mock next/navigation
-jest.mock('next/navigation', () => ({
-  usePathname: jest.fn()
+// Mock next/navigation using mock.module
+mock.module('next/navigation', () => ({ // Use mock.module
+  usePathname: jest.fn(() => '/') // Keep jest.fn, provide default
 }));
 
 // REMOVE ALL MOCKING FOR terminal-context.client
 
-// Mock window-controls component
-jest.mock('../../../../components/ui/navigation/window-controls', () => {
+// Mock window-controls component using mock.module
+mock.module('../../../../components/ui/navigation/window-controls', () => { // Use mock.module
   function MockWindowControls() {
     return <div data-testid="window-controls">Window Controls</div>;
   }
   MockWindowControls.displayName = 'MockWindowControls';
-  return { WindowControls: MockWindowControls };
+  return { WindowControls: MockWindowControls }; // Return the component directly
 });
 
-// Mock next/link
-jest.mock('next/link', () => {
+// Mock next/link using mock.module
+mock.module('next/link', () => { // Use mock.module
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function MockLink({ children, href, scroll, ...props }: any) { // Destructure and ignore scroll
     // Filter out Next.js specific props and only pass HTML-valid ones to <a>
     return <a href={href} {...props}>{children}</a>;
   }
   MockLink.displayName = 'MockLink';
-  return MockLink;
+  return { default: MockLink }; // Export as default
 });
 
-describe('Navigation', () => {
-  // Cast the mock for easier typing
-  const mockedUseWindowSize = useWindowSize as jest.Mock;
+// Import mocks *after* setting them up
+import { useWindowSize as useWindowSizeImported } from '../../../../lib/hooks/use-window-size.client';
+import { usePathname as usePathnameImported } from 'next/navigation';
 
-  // Remove context mock setup
+// Get handles to the mocks
+const mockedUseWindowSize = useWindowSizeImported as jest.Mock;
+const mockedUsePathname = usePathnameImported as jest.Mock;
+
+describe('Navigation', () => {
+  // Removed cast of mockedUseWindowSize here, already done above
+
   beforeEach(() => {
-    (usePathname as jest.Mock).mockReturnValue('/');
+    mockedUsePathname.mockReturnValue('/'); // Use mock handle
     // Reset any other necessary mocks
-    jest.clearAllMocks();
+    mockedUseWindowSize.mockClear(); // Clear window size mock
+    mockedUseWindowSize.mockReturnValue({ width: 1280, height: 800 }); // Set default desktop size
+    mockedUsePathname.mockClear(); // Clear pathname mock
   });
 
   // afterEach likely not needed for context mocks anymore
 
   describe('Desktop View', () => {
     beforeEach(() => {
-      // Set viewport to desktop size
-      // global.innerWidth = 1024;
-      // global.dispatchEvent(new Event('resize'));
-      // Mock the hook to return a desktop width
+      // Set viewport to desktop size via the mock handle
       mockedUseWindowSize.mockReturnValue({ width: 1280, height: 800 });
     });
 
@@ -70,7 +78,7 @@ describe('Navigation', () => {
     });
 
     it('highlights current path', () => {
-      (usePathname as jest.Mock).mockReturnValue('/blog');
+      mockedUsePathname.mockReturnValue('/blog'); // Use mock handle
       // Wrap with Provider
       render(<TerminalProvider><Navigation /></TerminalProvider>);
 
@@ -97,10 +105,7 @@ describe('Navigation', () => {
 
   describe('Mobile View', () => {
     beforeEach(() => {
-      // Set viewport to mobile size
-      // global.innerWidth = 375;
-      // global.dispatchEvent(new Event('resize'));
-      // Mock the hook to return a mobile width
+      // Set viewport to mobile size via the mock handle
       mockedUseWindowSize.mockReturnValue({ width: 500, height: 600 });
     });
 
@@ -180,7 +185,7 @@ describe('Navigation', () => {
     });
 
     it('marks current page link with aria-current', () => {
-      (usePathname as jest.Mock).mockReturnValue('/blog');
+      mockedUsePathname.mockReturnValue('/blog'); // Use mock handle
       // Wrap with Provider
       render(<TerminalProvider><Navigation /></TerminalProvider>);
 

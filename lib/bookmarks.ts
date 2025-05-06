@@ -81,7 +81,8 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
 
     // Double-check the cached data is valid
     if (Array.isArray(cachedData.bookmarks) && cachedData.bookmarks.length > 0) {
-      return cachedData.bookmarks;
+      // Return a copy to avoid mutation by background refresh
+      return [...cachedData.bookmarks];
     }
   }
 
@@ -95,7 +96,8 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
     refreshBookmarksData().catch(error => {
       console.error('Background refresh of bookmarks failed:', error);
     });
-    return cachedData!.bookmarks;
+    // Return a copy to avoid subsequent mutations
+    return [...cachedData!.bookmarks];
   }
 
   // No cached data, must fetch and wait

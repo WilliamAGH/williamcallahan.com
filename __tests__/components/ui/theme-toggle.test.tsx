@@ -1,30 +1,39 @@
+import { jest, describe, beforeEach, it, mock, expect } from 'bun:test';
 import { render, fireEvent, screen } from '@testing-library/react';
 import { ThemeToggle } from '@/components/ui/theme/theme-toggle';
 import { useTheme } from 'next-themes';
 
-// Mock next-themes
-jest.mock('next-themes', () => ({
-  useTheme: jest.fn()
+// Mock next-themes using mock.module
+const mockSetTheme = jest.fn();
+mock.module('next-themes', () => ({
+  useTheme: jest.fn(() => ({
+    theme: 'system',
+    setTheme: mockSetTheme,
+    resolvedTheme: 'light',
+    systemTheme: 'light'
+  }))
 }));
 
+// Import useTheme *after* mocking
+import { useTheme as useThemeImported } from 'next-themes';
+const useThemeMock = useThemeImported as jest.Mock;
+
 describe('ThemeToggle', () => {
-  const mockSetTheme = jest.fn();
-
   beforeEach(() => {
-    // Reset mock between tests
-    (useTheme as jest.Mock).mockReset();
+    // Reset mock before each test
+    useThemeMock.mockClear();
     mockSetTheme.mockClear();
-  });
-
-  it('cycles between light and dark themes correctly', () => {
-    // Start with system theme resolving to light
-    (useTheme as jest.Mock).mockReturnValue({
+    // Set a default implementation for useTheme for the start of each test
+    useThemeMock.mockImplementation(() => ({
       theme: 'system',
       setTheme: mockSetTheme,
       resolvedTheme: 'light',
       systemTheme: 'light'
-    });
+    }));
+  });
 
+  it('cycles between light and dark themes correctly', () => {
+    // Start with system theme resolving to light (default mock implementation)
     const { rerender } = render(<ThemeToggle />);
     const button = screen.getByRole('button');
 
@@ -32,13 +41,13 @@ describe('ThemeToggle', () => {
     fireEvent.click(button);
     expect(mockSetTheme).toHaveBeenCalledWith('dark');
 
-    // Update mock for dark theme
-    (useTheme as jest.Mock).mockReturnValue({
+    // Update mock for dark theme using mockImplementationOnce
+    useThemeMock.mockImplementationOnce(() => ({
       theme: 'dark',
       setTheme: mockSetTheme,
       resolvedTheme: 'dark',
       systemTheme: 'light'
-    });
+    }));
     rerender(<ThemeToggle />);
 
     // Dark -> Light
@@ -46,12 +55,12 @@ describe('ThemeToggle', () => {
     expect(mockSetTheme).toHaveBeenCalledWith('light');
 
     // Update mock for light theme
-    (useTheme as jest.Mock).mockReturnValue({
+    useThemeMock.mockImplementationOnce(() => ({
       theme: 'light',
       setTheme: mockSetTheme,
       resolvedTheme: 'light',
       systemTheme: 'light'
-    });
+    }));
     rerender(<ThemeToggle />);
 
     // Light -> Dark
@@ -61,12 +70,12 @@ describe('ThemeToggle', () => {
 
   it('respects system theme preference for initial icon', () => {
     // System theme is dark
-    (useTheme as jest.Mock).mockReturnValue({
+    useThemeMock.mockImplementationOnce(() => ({
       theme: 'system',
       setTheme: mockSetTheme,
       resolvedTheme: 'dark',
       systemTheme: 'dark'
-    });
+    }));
 
     render(<ThemeToggle />);
 
@@ -77,58 +86,51 @@ describe('ThemeToggle', () => {
 
   it('shows correct icon based on resolved theme', () => {
     // Test light theme
-    (useTheme as jest.Mock).mockReturnValue({
+    useThemeMock.mockImplementationOnce(() => ({
       theme: 'light',
       setTheme: mockSetTheme,
       resolvedTheme: 'light',
       systemTheme: 'light'
-    });
+    }));
 
     const { rerender } = render(<ThemeToggle />);
     expect(screen.getByTestId('moon-icon')).toBeInTheDocument();
 
     // Test dark theme
-    (useTheme as jest.Mock).mockReturnValue({
+    useThemeMock.mockImplementationOnce(() => ({
       theme: 'dark',
       setTheme: mockSetTheme,
       resolvedTheme: 'dark',
       systemTheme: 'light'
-    });
+    }));
 
     rerender(<ThemeToggle />);
     expect(screen.getByTestId('sun-icon')).toBeInTheDocument();
   });
 
   it('displays correct title based on current and resolved theme', () => {
-    // Test system theme (resolved light)
-    (useTheme as jest.Mock).mockReturnValue({
-      theme: 'system',
-      setTheme: mockSetTheme,
-      resolvedTheme: 'light',
-      systemTheme: 'light'
-    });
-
+    // Test system theme (resolved light) - uses default beforeEach mock state
     const { rerender } = render(<ThemeToggle />);
     expect(screen.getByTitle('Current theme: system (Resolved: light)')).toBeInTheDocument();
 
     // Test light theme
-    (useTheme as jest.Mock).mockReturnValue({
+    useThemeMock.mockImplementationOnce(() => ({
       theme: 'light',
       setTheme: mockSetTheme,
       resolvedTheme: 'light',
       systemTheme: 'light'
-    });
+    }));
 
     rerender(<ThemeToggle />);
     expect(screen.getByTitle('Current theme: light (Resolved: light)')).toBeInTheDocument();
 
     // Test dark theme
-    (useTheme as jest.Mock).mockReturnValue({
+    useThemeMock.mockImplementationOnce(() => ({
       theme: 'dark',
       setTheme: mockSetTheme,
       resolvedTheme: 'dark',
       systemTheme: 'light'
-    });
+    }));
 
     rerender(<ThemeToggle />);
     expect(screen.getByTitle('Current theme: dark (Resolved: dark)')).toBeInTheDocument();
