@@ -23,7 +23,7 @@
  * - Uses React Testing Library for DOM interactions
  */
 
-import { mock, jest, spyOn, describe, beforeEach, it, expect, afterEach } from 'bun:test';
+import { mock, jest, spyOn, describe, beforeEach, it, expect, afterEach, beforeAll, afterAll } from 'bun:test';
 import React from 'react'; // Ensure React is imported first
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Terminal } from '../../../../components/ui/terminal/terminal-implementation.client';
@@ -33,6 +33,7 @@ import { useRouter } from 'next/navigation';
 import { setupTests } from '../../../../lib/test/setup';
 import { GlobalWindowRegistryContextType, WindowState } from '../../../../lib/context/global-window-registry-context.client'; // Import types for mocking
 import type { SearchResult } from '@/types/search'; // Import SearchResult type
+import type { TerminalCommand } from '@/types/terminal'; // Remove unused/missing types
 
 // --- Mock TerminalHeader ---
 mock.module('../../../../components/ui/terminal/terminal-header', () => ({
@@ -112,9 +113,18 @@ mock.module('../../../../lib/search', () => ({ // Use mock.module
   searchInvestments: jest.fn().mockResolvedValue([])
 }));
 
-// Mock global fetch
+// Mock fetch globally *before* importing Terminal or CommandProcessor
 const mockFetch = jest.fn();
-global.fetch = mockFetch as any; // Use any to avoid type conflict for now
+let originalFetch: typeof global.fetch;
+
+beforeAll(() => {
+  originalFetch = global.fetch;
+  global.fetch = mockFetch as any; // Use any to avoid type conflict for now
+});
+
+afterAll(() => {
+  global.fetch = originalFetch; // Restore original fetch
+});
 
 // Helper function to render with providers
 const renderTerminal = () => {
