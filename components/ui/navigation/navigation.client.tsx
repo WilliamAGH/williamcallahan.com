@@ -43,7 +43,7 @@ export function Navigation() {
 
       {/* Desktop Navigation - keep sm:flex for test compatibility */}
       <div className="hidden sm:flex items-center">
-        <div className="flex flex-nowrap whitespace-nowrap space-x-1">
+        <div className="flex flex-wrap whitespace-nowrap space-x-1"> {/* Allow wrapping */}
           {navigationLinks.map((link) => (
             <NavigationLink
               key={link.path}
@@ -63,10 +63,10 @@ export function Navigation() {
           {/* For mobile, show all navigation links including Contact regardless of screen size */}
           {navigationLinks.map((link) => {
             // Override the responsive settings for Contact in mobile menu to ensure it always appears
-            const mobileProps = link.path === '/contact' ? 
-              { ...link, responsive: undefined } : 
+            const mobileProps = link.path === '/contact' ?
+              { ...link, responsive: undefined } :
               link;
-              
+
             return (
               <NavigationLink
                 key={link.path}
