@@ -65,7 +65,7 @@ export function middleware(request: NextRequest): NextResponse {
     // Content Security Policy: allow all HTTPS image sources dynamically
     'Content-Security-Policy': `
       default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://static.cloudflareinsights.com https://*.sentry.io https://scripts.simpleanalyticscdn.com https://static.getclicky.com;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://static.cloudflareinsights.com https://*.sentry.io https://scripts.simpleanalyticscdn.com https://static.getclicky.com https://in.getclicky.com;
       connect-src 'self' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://static.cloudflareinsights.com https://*.sentry.io;
       worker-src 'self' blob:;
       img-src 'self' data: https:;
