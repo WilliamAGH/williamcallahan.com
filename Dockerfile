@@ -15,6 +15,7 @@ ENV HUSKY=0
 # Copying bun.lockb separately ensures Docker caches the layer correctly
 COPY package.json ./
 COPY bun.lockb* ./
+COPY .husky ./.husky
 
 # Install dependencies with Bun, allowing necessary lifecycle scripts
 RUN bun install --frozen-lockfile
