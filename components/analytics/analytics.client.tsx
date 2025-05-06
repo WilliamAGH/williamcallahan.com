@@ -178,7 +178,7 @@ function AnalyticsScripts() {
         return;
       }
     },
-    [scriptsLoaded, trackPlausible, trackUmami]
+    [scriptsLoaded]
   );
 
   // Track page views on route changes
