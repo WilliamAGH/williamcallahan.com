@@ -79,5 +79,5 @@ ENV HOSTNAME="0.0.0.0"
 HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:3000/api/health || exit 1
 
-# Use the Next.js standalone server directly
-CMD ["node", "server.js"]
+# Run the Next.js standalone server using Bun
+CMD ["bun", "server.js"]
