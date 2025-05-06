@@ -1,12 +1,27 @@
 // types/global/matchers.d.ts
 import type { TestingLibraryMatchers } from '@testing-library/jest-dom/matchers';
-import type { Matchers } from 'bun:test'; // Import Matchers type from bun:test
+import type { Matchers } from 'bun:test';
 
-// Extend the bun:test module declarations
+declare namespace Jest {
+  interface Matchers<R, T = unknown> {
+    advanceTimersByTime(ms: number): void;
+    useFakeTimers(): void;
+    useRealTimers(): void;
+  }
+}
+
+declare global {
+  var jest: {
+    advanceTimersByTime(ms: number): void;
+    useFakeTimers(): void;
+    useRealTimers(): void;
+  };
+}
+
 declare module 'bun:test' {
-  // Extend the interface for synchronous matchers
-  interface Matchers<T = unknown> // Use default type parameter 'unknown'
-    extends TestingLibraryMatchers<typeof expect.stringContaining, T> {}
+  interface Matchers<T = unknown>
+    extends TestingLibraryMatchers<typeof expect.stringContaining, T>,
+            Jest.Matchers<void, T> {}
 
   // Extend the interface for asymmetric matchers (e.g., expect.any(String))
   // Note: Bun's types might not explicitly have AsymmetricMatchers in the same way Jest does.

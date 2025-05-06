@@ -1,5 +1,5 @@
 // __tests__/lib/setup/testing-library.ts
-import { afterEach, expect } from 'bun:test';
+import { afterEach, expect } from 'bun:test'; // Use only Bun's expect
 import { cleanup } from '@testing-library/react';
 import * as matchers from '@testing-library/jest-dom/matchers';
 

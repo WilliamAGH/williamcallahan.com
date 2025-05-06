@@ -14,12 +14,12 @@ type SharpInstance = {
 
 // Mock sharp
 const createMockSharp = (metadata: Partial<Metadata> = {}): SharpInstance => ({
-  metadata: () => Promise.resolve({
+  metadata: (): Promise<Metadata> => Promise.resolve({ // Explicitly type the return promise
     width: 256,
     height: 256,
     format: 'png' as keyof FormatEnum,
     ...metadata
-  }),
+  } as Metadata), // Add type assertion here
   toBuffer: () => Promise.resolve(Buffer.from('test-image')),
   png: function() { return this; },
   grayscale: function() { return this; },
