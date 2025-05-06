@@ -544,7 +544,7 @@ html[data-darkreader-mode] {
     display: flex !important; /* Force display */
     visibility: visible !important; /* Ensure visibility */
   }
-  
+
   /* Force display social icons container on mobile */
   header .sm\:hidden .flex.items-center.p-1,
   #mobile-social-container {
@@ -553,7 +553,7 @@ html[data-darkreader-mode] {
     z-index: 1100 !important;
     opacity: 1 !important;
   }
-  
+
   /* Simplified X icon styling - matching theme toggle dimensions */
   .x-icon {
     display: inline-block;
