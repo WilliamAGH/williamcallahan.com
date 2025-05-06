@@ -39,6 +39,9 @@ import { SvgTransformFixer } from '../components/utils/svg-transform-fixer.clien
 // Add server transition handler
 import Script from 'next/script';
 
+// Import the new wrapper
+import { PageTransitionWrapper } from '../components/utils/page-transition-wrapper.client';
+
 /** Load Inter font with Latin subset */
 const inter = Inter({ subsets: ["latin"] });
 
@@ -202,6 +205,8 @@ export default function RootLayout({
           `}
         </Script>
         <Providers>
+          {/* Add PageLoader here */}
+          {/* <PageLoader /> */}
           <GlobalWindowRegistryProvider>
             <BodyClassManager />
             <AnchorScrollManager /> {/* Re-activate the anchor scroll handler */}
@@ -253,7 +258,10 @@ export default function RootLayout({
                   <ClientTerminal />
                 </ErrorBoundary>
                 <ErrorBoundary>
-                  {children}
+                  {/* Wrap children with the transition wrapper */}
+                  <PageTransitionWrapper>
+                    {children}
+                  </PageTransitionWrapper>
                 </ErrorBoundary>
               </main>
 

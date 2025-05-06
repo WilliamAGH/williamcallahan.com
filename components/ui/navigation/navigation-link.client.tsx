@@ -52,6 +52,14 @@ export function NavigationLink({
       return;
     }
 
+    // Only clear history if navigating to a new page
+    if (path !== currentPath) {
+      // console.log(`[NavigationLink] Navigating to new path: ${path}`);
+      clearHistory(); // Clear history when navigating to a new page
+    } else {
+      // console.log(`[NavigationLink] Clicked active path: ${path}.`);
+    }
+
     // Update the ref's current value
     lastNavigationTimeRef.current = now;
     setIsNavigating(true);

@@ -15,7 +15,7 @@ import React from 'react';
 const TerminalComponent = dynamic(
   () => import('./terminal-implementation.client').then((mod) => mod.Terminal),
   {
-    ssr: false,
+    // ssr: false, // <-- Temporarily remove this to allow server rendering
   }
 );
 

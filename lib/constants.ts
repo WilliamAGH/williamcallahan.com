@@ -91,12 +91,13 @@ export const ENDPOINTS = {
  */
 export const LOGO_SOURCES = {
   google: {
+    // Updated to use the www.google.com/s2/favicons endpoint
     hd: (domain: string) =>
-      `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=256`,
+      `https://www.google.com/s2/favicons?domain=${domain}&sz=256`,
     md: (domain: string) =>
-      `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=128`,
+      `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
     sm: (domain: string) =>
-      `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://${domain}&size=64`
+      `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
   },
   clearbit: {
     hd: (domain: string) =>

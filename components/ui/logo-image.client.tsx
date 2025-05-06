@@ -60,10 +60,10 @@ export function LogoImage({
         <Image
           src={src}
           alt={alt}
-          layout="fill"
-          objectFit="contain"
+          fill
+          sizes="100vw" // Add sizes prop
+          style={{ objectFit: 'contain' }} // Add style for object-fit
           priority={priority}
-          // unoptimized is not needed here as we only use next/image for non-data URLs
         />
       </div>
     );
