@@ -1,3 +1,5 @@
+/// <reference path="../../types/analytics.d.ts" />
+
 /* eslint-disable @next/next/no-img-element */
 /**
  * Client-side component for loading and managing third-party analytics scripts.
@@ -148,7 +150,8 @@ function AnalyticsScripts() {
   const pathname = usePathname();
   const [scriptsLoaded, setScriptsLoaded] = useState({
     umami: false,
-    plausible: false
+    plausible: false,
+    clicky: false
   });
   const [isMounted, setIsMounted] = useState(false);
 
@@ -156,43 +159,39 @@ function AnalyticsScripts() {
     setIsMounted(true);
   }, []);
 
-  const trackPageview = useCallback((path: string, attempt = 1, maxAttempts = 3) => {
-    if (typeof window === 'undefined') return;
+  const trackPageview = useCallback(
+    (path: string) => {
+      if (!path) return
 
-    try {
-      const normalizedPath = path
-        .replace(/\/blog\/[^/]+/, '/blog/:slug')
-        .replace(/\?.+$/, '');
+      const normalizedPath = path.replace(/\?.+$/, '');
 
-      if (scriptsLoaded.umami) {
-        if (window.umami?.track && typeof window.umami.track === 'function') {
+      try {
+        if (scriptsLoaded.umami) {
           trackUmami(normalizedPath);
-        } else if (attempt < maxAttempts) {
-          // Retry with exponential backoff
-          setTimeout(() => {
-            trackPageview(normalizedPath, attempt + 1, maxAttempts);
-          }, attempt * 300); // Increase delay with each attempt
         }
-      }
 
-      if (scriptsLoaded.plausible) {
-        trackPlausible(normalizedPath);
+        if (scriptsLoaded.plausible) {
+          trackPlausible(normalizedPath);
+        }
+      } catch (error) {
+        // Silent error handling to prevent app crashes
+        return;
       }
-    } catch (error) {
-      // Silent error handling to prevent app crashes
-      if (process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
-        console.warn('[Analytics] Error during page tracking');
-      }
-    }
-  }, [scriptsLoaded]);
+    },
+    [scriptsLoaded, trackPlausible, trackUmami]
+  );
 
   // Track page views on route changes
   useEffect(() => {
     if (!pathname) return;
 
     // Don't continue if scripts aren't loaded
-    if (!scriptsLoaded.umami && !scriptsLoaded.plausible) return;
+    if (
+      !scriptsLoaded.umami &&
+      !scriptsLoaded.plausible &&
+      !scriptsLoaded.clicky
+    )
+      return;
 
     try {
       const normalizedPath = pathname
@@ -202,6 +201,10 @@ function AnalyticsScripts() {
       // Add a longer delay to ensure scripts are fully initialized
       const trackingTimeout = setTimeout(() => {
         trackPageview(normalizedPath);
+        // Use type assertion as a workaround for persistent TS error
+        if ((window as any).clicky) {
+          (window as any).clicky.pageview(normalizedPath);
+        }
       }, 500); // Increased from 100ms to 500ms
 
       return () => clearTimeout(trackingTimeout);
@@ -316,6 +319,7 @@ function AnalyticsScripts() {
             // eslint-disable-next-line no-console
             console.log('[Analytics] Clicky script loaded.');
           }
+          setScriptsLoaded(prev => ({ ...prev, clicky: true }))
         }}
         onError={safeScriptErrorHandler('Clicky')}
       />
