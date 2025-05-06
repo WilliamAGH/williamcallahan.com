@@ -10,5 +10,9 @@ declare global {
   interface Window {
     umami?: UmamiAnalytics
     plausible?: PlausibleAnalytics
+    clicky?: {
+      pageview: (path: string) => void;
+      // Add other Clicky methods if needed
+    }
   }
 }
