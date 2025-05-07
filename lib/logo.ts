@@ -15,7 +15,7 @@
  * ```
  */
 
-import { LogoResult, LogoCache, LogoSource } from "../types/logo";
+import type { LogoResult, LogoCache, LogoSource } from "../types/logo";
 import { ENDPOINTS } from "./constants";
 
 /**
@@ -124,6 +124,7 @@ function extractDomain(input: string): string {
       return url.hostname.replace(/^www\./, "");
     }
     return input.toLowerCase().replace(/\s+/g, "");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     // If URL parsing fails, treat as company name
     return input.toLowerCase().replace(/\s+/g, "");
@@ -219,11 +220,13 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
     }
 
     let result;
-    try {
-      result = await response.json();
-    } catch (error) {
-      throw new LogoError("Invalid response format");
-    }
+  try {
+    result = await response.json();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_) {
+    // We don't need the error details here, as we're throwing a new descriptive error
+    throw new LogoError("Invalid response format");
+  }
 
     // If the result has an error, preserve it
     if (result.error) {
@@ -250,11 +253,18 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
 
     // Cache the successful result
     // Use source from API response if provided, otherwise determine from URL
-    const source = result.source || determineSource(result.url);
+    // Type the result to ensure safe member access
+    const typedResult = result as {
+      url: string;
+      source?: LogoSource;
+      inversion?: any;
+    };
+
+    const source = typedResult.source || determineSource(typedResult.url);
     const successResult = {
-      url: result.url,
+      url: typedResult.url,
       source,
-      inversion: result.inversion
+      inversion: typedResult.inversion
     };
 
     cache[domain] = {

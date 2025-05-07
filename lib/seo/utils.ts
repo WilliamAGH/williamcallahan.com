@@ -56,7 +56,7 @@ export function ensureAbsoluteUrl(path: string): string {
 export function getImageTypeFromUrl(url: string): string {
   // Remove query parameters and fragments before getting extension
   const cleanUrl = url.split(/[?#]/)[0];
-  const extension = cleanUrl.split('.').pop()?.toLowerCase();
+  const extension = cleanUrl?.split('.').pop()?.toLowerCase();
   switch (extension) {
     case 'svg': return 'image/svg+xml';
     case 'jpg':
@@ -103,7 +103,7 @@ export function formatSeoDate(date: string | Date | undefined): PacificDateStrin
 
   // If it's a string with time component, keep it as-is and just append timezone
   if (typeof date === 'string' && date.includes('T')) {
-    return `${date}${offset}` as PacificDateString;
+    return `${date}${offset}`;
   }
 
   // Format with components
@@ -119,7 +119,9 @@ export function formatSeoDate(date: string | Date | undefined): PacificDateStrin
 
   // Validate the format
   if (!isPacificDateString(formatted)) {
-    throw new Error(`Invalid date format: ${formatted}`);
+    // Convert to string explicitly to appease type checking
+    const formattedStr = String(formatted);
+    throw new Error(`Invalid date format: ${formattedStr}`);
   }
 
   return formatted;

@@ -6,17 +6,18 @@
  * @module lib/bookmarks
  */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { UnifiedBookmark, BookmarkTag, BookmarkContent, BookmarkAsset } from '@/types';
 
 // Define the raw structure expected from the API based on the user's example
 interface RawApiBookmarkTag {
   id: string;
   name: string;
-  attachedBy: 'ai' | 'user' | string;
+  attachedBy: string;
 }
 
 interface RawApiBookmarkContent {
-  type: 'link' | string;
+  type: string;
   url: string;
   title: string | null;
   description: string | null;
@@ -39,7 +40,7 @@ interface RawApiBookmark {
   title: string | null; // Note: API seems to have title/desc here AND in content
   archived: boolean;
   favourited: boolean;
-  taggingStatus: 'success' | string;
+  taggingStatus: string;
   note: string | null;
   summary: string | null;
   tags: RawApiBookmarkTag[];
@@ -97,7 +98,7 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
       console.error('Background refresh of bookmarks failed:', error);
     });
     // Return a copy to avoid subsequent mutations
-    return [...cachedData!.bookmarks];
+    return [...cachedData.bookmarks];
   }
 
   // No cached data, must fetch and wait
@@ -156,7 +157,7 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
     }
 
     console.log('refreshBookmarksData: API response received, parsing JSON');
-    const data: ApiResponse = await response.json();
+    const data: ApiResponse = await response.json() as ApiResponse;
 
     // Normalize the raw API data to the UnifiedBookmark structure
     console.log('refreshBookmarksData: Normalizing', data.bookmarks.length, 'bookmarks from API');
@@ -174,11 +175,11 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
         const bestDescription = raw.summary || raw.content?.description || 'No description available.';
 
         // Normalize tags to BookmarkTag interface (though UnifiedBookmark allows string[] for now)
-        const normalizedTags: BookmarkTag[] = Array.isArray(raw.tags)
+        const normalizedTags = Array.isArray(raw.tags)
           ? raw.tags.map(tag => ({
               id: tag.id,
               name: tag.name,
-              attachedBy: tag.attachedBy as 'ai' | 'user', // Cast assuming API uses these values
+              attachedBy: tag.attachedBy as ("user" | "ai" | undefined)
             }))
           : [];
 
@@ -188,6 +189,7 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
           // Spread existing content properties first, omitting htmlContent which can be very large
           ...(raw.content ? {
             // exclude htmlContent to shrink payload
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             ...((({ htmlContent, ...rest }) => rest)(raw.content))
           } : {}),
           // Then override with our preferred values

@@ -140,7 +140,8 @@ function convertToLegacyFormat(analysis: LogoBrightnessAnalysis): LogoInversion 
  * ```
  */
 function validateImage(metadata: sharp.Metadata): void {
-  if (!metadata.format || !CONFIG.FORMATS.includes(metadata.format as any)) {
+  const formatStr = metadata.format as string;
+  if (!formatStr || !CONFIG.FORMATS.includes(formatStr as "png" | "jpeg" | "webp" | "gif" | "svg" | "ico")) {
     throw new ImageAnalysisError(
       `Invalid image format: ${metadata.format}. Must be one of: ${CONFIG.FORMATS.join(", ")}`
     );
@@ -208,12 +209,12 @@ export async function analyzeLogo(buffer: Buffer): Promise<LogoBrightnessAnalysi
     const brightness = pixels[i];
     const alpha = info.channels === 4 ? pixels[i + 3] : 255;
 
-    if (alpha < 255) {
+    if (alpha !== undefined && alpha < 255) {
       hasTransparency = true;
     }
 
-    if (alpha > 0) {
-      totalBrightness += brightness;
+    if (alpha !== undefined && alpha > 0) {
+      totalBrightness += brightness !== undefined ? brightness : 0;
       totalPixels++;
     }
   }

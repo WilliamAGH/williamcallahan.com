@@ -3,7 +3,7 @@
  */
 
 import { posts as staticPosts } from '@/data/blog/posts';
-import { getAllMDXPosts, getMDXPost } from './blog/mdx';
+import { getAllMDXPosts } from './blog/mdx';
 import type { BlogPost } from '@/types/blog';
 import { BlogPostDataError } from './errors';
 
