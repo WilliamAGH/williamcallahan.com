@@ -14,7 +14,8 @@ import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 import { kebabCase } from '@/lib/utils/formatters';
-import { fetchExternalBookmarksCached } from '@/lib/bookmarks';
+import { refreshBookmarksData } from '@/lib/bookmarks.client';
+import type { UnifiedBookmark } from '@/types';
 import { generateUniqueSlug } from '@/lib/utils/domain-utils';
 import { tagToSlug } from '@/lib/utils/tag-utils';
 
@@ -137,12 +138,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const bookmarkTagLastModifiedMap: { [tagSlug: string]: Date } = {};
 
   try {
-    // Fetch all bookmarks from API or cache
-    const bookmarks = await fetchExternalBookmarksCached();
-    
+    // Read bookmarks directly from the persisted JSON file during build
+    console.log('[Sitemap] Reading bookmarks directly from persisted JSON file...');
+    let bookmarks: UnifiedBookmark[] = [];
+    const persistedBookmarksPath = path.join(process.cwd(), 'data', 'bookmarks', 'bookmarks.json');
+    try {
+      const fileContents = fs.readFileSync(persistedBookmarksPath, 'utf-8');
+      bookmarks = JSON.parse(fileContents);
+      console.log(`[Sitemap] Successfully read ${bookmarks.length} bookmarks from persisted file.`);
+    } catch (readError) {
+      console.error("[Sitemap] Failed to read persisted bookmarks:", readError);
+      // Sitemap will have no bookmark entries if this fails
+    }
+
     // Pre-compute slugs to avoid O(n²) complexity
     const slugCache = new Map<string, string>();
-    
+
     // Process each bookmark for individual pages
     bookmarks.forEach(bookmark => {
       // Use the bookmark's creation or modification date
@@ -158,7 +169,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         slug = generateUniqueSlug(bookmark.url, bookmarks, bookmark.id);
         slugCache.set(bookmark.id, slug);
       }
-      
+
       // Add bookmark entry
       bookmarkEntries.push({
         url: `${siteUrl}/bookmarks/${slug}`,
@@ -168,16 +179,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       });
 
       // Process tags for this bookmark
-      const tags = Array.isArray(bookmark.tags) ? 
-        bookmark.tags.map(t => typeof t === 'string' ? t : t.name) : 
+      const tags = Array.isArray(bookmark.tags) ?
+        bookmark.tags.map(t => typeof t === 'string' ? t : t.name) :
         [];
-      
+
       // Update lastModified time for each tag
       if (bookmarkLastModified && tags.length > 0) {
         tags.forEach(tag => {
           const tagSlug = tagToSlug(tag);
           bookmarkTagLastModifiedMap[tagSlug] = getLatestDate(
-            bookmarkTagLastModifiedMap[tagSlug], 
+            bookmarkTagLastModifiedMap[tagSlug],
             bookmarkLastModified
           ) || bookmarkLastModified;
         });
@@ -203,13 +214,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/investments': { priority: 0.9, lastModified: getSafeDate(investmentsUpdatedAt) },
     '/education': { priority: 0.7, lastModified: getSafeDate(educationUpdatedAt) }, // Adjusted priority
     '/projects': { priority: 0.9, lastModified: getSafeDate(projectsUpdatedAt) },   // Added projects
-    '/bookmarks': { 
-      priority: 0.7, 
-      lastModified: getLatestDate( 
-        getPageFileMtime('bookmarks/page.tsx'), 
-        getSafeDate(PAGE_METADATA.bookmarks?.dateModified), 
-        latestBookmarkUpdateTime 
-      ) 
+    '/bookmarks': {
+      priority: 0.7,
+      lastModified: getLatestDate(
+        getPageFileMtime('bookmarks/page.tsx'),
+        getSafeDate(PAGE_METADATA.bookmarks?.dateModified),
+        latestBookmarkUpdateTime
+      )
     },
     '/blog': {
       priority: 0.9,
@@ -219,13 +230,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         latestPostUpdateTime
       )
     },
-    '/contact': { 
-      priority: 0.8, 
+    '/contact': {
+      priority: 0.8,
       lastModified: getLatestDate(
         getPageFileMtime('contact/page.tsx'),
         getSafeDate(PAGE_METADATA.contact?.dateModified),
         new Date() // If no date is found, use current date to ensure it's included
-      ) 
+      )
     },
   } as const;
 
@@ -240,8 +251,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // --- 4. Combine and Return ---
   return [
-    ...staticEntries, 
-    ...blogPostEntries, 
+    ...staticEntries,
+    ...blogPostEntries,
     ...blogTagEntries,
     ...bookmarkEntries,
     ...bookmarkTagEntries
