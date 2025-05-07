@@ -43,3 +43,4 @@ tsconfig.tsbuildinfo
 /data/images/logos/**
 /data/images/bookmarks/**
 .populate-volumes-last-run-success
+**/.claude/settings.local.json

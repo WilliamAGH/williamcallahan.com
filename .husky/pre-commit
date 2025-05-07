@@ -1,1 +1,1 @@
-bun run test && bun run validate
+bun run validate && bun run test:smoke:blog && bun run test:smoke:pages
