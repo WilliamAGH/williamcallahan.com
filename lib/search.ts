@@ -10,7 +10,7 @@ import { generateUniqueSlug } from './utils/domain-utils';
 import type { BlogPost } from '../types/blog';
 import type { SearchResult } from '../types/search';
 
-export async function searchPosts(query: string): Promise<BlogPost[]> {
+export function searchPosts(query: string): BlogPost[] {
   if (!query) return posts;
 
   const searchTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
@@ -29,7 +29,7 @@ export async function searchPosts(query: string): Promise<BlogPost[]> {
     ].filter(field => typeof field === 'string' && field.length > 0)
       .join(' ')
       .toLowerCase();
-    
+
     // Check if all search terms exist in the combined text
     return searchTerms.every(term => allContentText.includes(term));
   }).sort((a, b) =>
@@ -37,7 +37,7 @@ export async function searchPosts(query: string): Promise<BlogPost[]> {
   );
 }
 
-export async function searchInvestments(query: string): Promise<SearchResult[]> {
+export function searchInvestments(query: string): SearchResult[] {
   if (!query) return investments.map(inv => ({
     label: inv.name,
     description: inv.description,
@@ -46,7 +46,7 @@ export async function searchInvestments(query: string): Promise<SearchResult[]> 
 
   // Split the query into individual words for more flexible matching
   const searchTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  
+
   return investments.filter(inv => {
     // First try exact name match
     if (inv.name.toLowerCase() === query.toLowerCase()) {
@@ -63,10 +63,10 @@ export async function searchInvestments(query: string): Promise<SearchResult[]> 
       inv.invested_year,
       inv.acquired_year,
       inv.shutdown_year
-    ].filter((field): field is string => 
+    ].filter((field): field is string =>
       typeof field === 'string' && field.length > 0
     ).join(' ').toLowerCase();
-    
+
     // Check if all search terms exist in the combined text
     return searchTerms.every(term => allContentText.includes(term));
   }).map(inv => ({
@@ -76,7 +76,7 @@ export async function searchInvestments(query: string): Promise<SearchResult[]> 
   }));
 }
 
-export async function searchExperience(query: string): Promise<SearchResult[]> {
+export function searchExperience(query: string): SearchResult[] {
   if (!query) return experiences.map(exp => ({
     label: exp.company,
     description: exp.role,
@@ -85,7 +85,7 @@ export async function searchExperience(query: string): Promise<SearchResult[]> {
 
   // Split the query into individual words for more flexible matching
   const searchTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  
+
   return experiences.filter(exp => {
     // First try exact company match
     if (exp.company.toLowerCase() === query.toLowerCase()) {
@@ -100,7 +100,7 @@ export async function searchExperience(query: string): Promise<SearchResult[]> {
     ].filter((field): field is string =>
       typeof field === 'string' && field.length > 0
     ).join(' ').toLowerCase();
-    
+
     // Check if all search terms exist in the combined text
     return searchTerms.every(term => allContentText.includes(term));
   }).map(exp => ({
@@ -110,7 +110,7 @@ export async function searchExperience(query: string): Promise<SearchResult[]> {
   }));
 }
 
-export async function searchEducation(query: string): Promise<SearchResult[]> {
+export function searchEducation(query: string): SearchResult[] {
   const allItems = [
     ...education.map(edu => ({
       label: edu.institution,
@@ -141,7 +141,7 @@ export async function searchEducation(query: string): Promise<SearchResult[]> {
     ].filter(field => typeof field === 'string' && field.length > 0)
       .join(' ')
       .toLowerCase();
-    
+
     // Check if all search terms exist in the combined text
     return searchTerms.every(term => allContentText.includes(term));
   });
@@ -171,7 +171,7 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
 
   // Split the query into individual words for more flexible matching
   const searchTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  
+
   return bookmarks.filter(b => {
     // Combine all searchable fields into one long string for better matching
     const allContentText = [
@@ -186,7 +186,7 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     ].filter(text => text.length > 0)
       .join(' ')
       .toLowerCase();
-    
+
     // Check if all search terms exist in any of the fields
     // This approach matches terms across fields (e.g., "jina" in title, "ai" in description)
     return searchTerms.every(term => allContentText.includes(term));

@@ -6,7 +6,8 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode, useEffect, useReducer, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import type { ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react'; // Assuming lucide-react for icons
 import { useFixSvgTransforms } from '@/hooks/use-fix-svg-transforms';
 
@@ -58,7 +59,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
     if (!isClient) return;
 
     if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
+
       console.log(`WindowRegistry: Registering window '${id}' with initial state '${initialState}'`);
     }
     setWindows(prev => {
@@ -75,11 +76,13 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
 
   const unregisterWindow = useCallback((id: string) => {
      if (process.env.NODE_ENV !== 'production') {
-       // eslint-disable-next-line no-console
+
        console.log(`WindowRegistry: Unregistering window '${id}'`);
      }
     setWindows(prev => {
-      const { [id]: removed, ...rest } = prev;
+    // Destructure to get all windows except the one we're removing
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { [id]: removed, ...rest } = prev; // Using _prefix convention for unused vars
       return rest;
     });
     // TODO: Consider removing from sessionStorage on unregister?
@@ -89,7 +92,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
     setWindows(prev => {
       if (!prev[id] || prev[id].state === state) return prev; // No change needed
       if (process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
+
         console.log(`WindowRegistry: Setting state for '${id}' to '${state}'`);
       }
       // TODO: Persist to sessionStorage here?
@@ -106,7 +109,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
       if (!prev[id]) return prev;
       const newState = prev[id].state === 'maximized' ? 'normal' : 'maximized';
       if (process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
+
         console.log(`WindowRegistry: Toggling state for '${id}' to '${newState}'`);
       }
        // TODO: Persist to sessionStorage here?

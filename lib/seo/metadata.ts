@@ -17,7 +17,7 @@
  * @see {@link "https://nextjs.org/docs/app/api-reference/functions/generate-metadata"} - Next.js Metadata API
  */
 
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import {
   SITE_TITLE,
   SITE_DESCRIPTION_SHORT,

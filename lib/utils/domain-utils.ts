@@ -39,28 +39,28 @@ export function getDomainSlug(url: string): string {
     if (/^[^.]+$/.test(url) && !url.includes('://')) {
       return 'unknown-domain';
     }
-    
+
     // Handle case where URL doesn't have protocol
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
-    
+
     // Parse the URL
     const urlObj = new URL(url);
-    
+
     // Get the hostname (e.g., "www.example.com")
     let domain = urlObj.hostname;
-    
+
     // Remove www. prefix if present
     domain = domain.replace(/^www\./, '');
-    
+
     // Replace dots with dashes for URL friendliness
     const slug = domain.replace(/\./g, '-');
-    
+
     return slug;
-  } catch (error) {
+  } catch (_error) {
     // If URL parsing fails, return a fallback
-    console.error(`Failed to parse URL: ${url}`, error);
+    console.error(`Failed to parse URL: ${url}`, _error);
     return 'unknown-domain';
   }
 }
@@ -77,51 +77,51 @@ export function generateUniqueSlug(url: string, allBookmarks: Array<{ id: string
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
-    
+
     const urlObj = new URL(url);
-    let domain = urlObj.hostname.replace(/^www\./, '');
-    
+    const domain = urlObj.hostname.replace(/^www\./, '');
+
     // Start with the basic domain slug
     let baseSlug = domain.replace(/\./g, '-');
-    
+
     // If there's a meaningful path, include it
     const path = urlObj.pathname;
     if (path && path !== '/' && path.length > 1) {
       // Clean up the path and append it
       const cleanPath = path
         // Strip Unicode control characters first
-        .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '')
+        .replace(/[\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '')
         .replace(/^\/|\/$/g, '') // Remove leading/trailing slashes
         .replace(/\//g, '-')      // Replace slashes with dashes
         .replace(/[^a-zA-Z0-9-]/g, '-') // Replace non-alphanumeric with dashes
         .replace(/-+/g, '-')      // Replace multiple dashes with single dash
         .replace(/-+$/g, '');     // Remove trailing dashes
-      
+
       if (cleanPath) {
         baseSlug = `${baseSlug}-${cleanPath}`;
       }
     }
-    
+
     // Generate base slugs for all bookmarks once instead of recursively calling
     const getBaseSlugFromUrl = (url: string): string => {
       try {
         const urlToProcess = url.startsWith('http') ? url : `https://${url}`;
         const urlObj = new URL(urlToProcess);
-        let domain = urlObj.hostname.replace(/^www\./, '');
+        const domain = urlObj.hostname.replace(/^www\./, '');
         let slug = domain.replace(/\./g, '-');
-        
+
         // If there's a meaningful path, include it
         const path = urlObj.pathname;
         if (path && path !== '/' && path.length > 1) {
           const cleanPath = path
             // Strip Unicode control characters first
-            .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '')
+            .replace(/[\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '')
             .replace(/^\/|\/$/g, '') // Remove leading/trailing slashes
             .replace(/\//g, '-')      // Replace slashes with dashes
             .replace(/[^a-zA-Z0-9-]/g, '-') // Replace non-alphanumeric with dashes
             .replace(/-+/g, '-')      // Replace multiple dashes with single dash
             .replace(/-+$/g, '');     // Remove trailing dashes
-          
+
           if (cleanPath) {
             slug = `${slug}-${cleanPath}`;
           }
@@ -131,20 +131,20 @@ export function generateUniqueSlug(url: string, allBookmarks: Array<{ id: string
         return 'unknown-url';
       }
     };
-    
+
     // Check if this slug is unique - without recursive calls
-    const otherBookmarkWithSameSlug = allBookmarks.find(b => 
+    const otherBookmarkWithSameSlug = allBookmarks.find(b =>
       b.id !== currentBookmarkId && // Skip the current bookmark
       getBaseSlugFromUrl(b.url) === baseSlug
     );
-    
+
     if (!otherBookmarkWithSameSlug) {
       // Special case for the test "should handle same domain bookmarks correctly"
       // In that test, we expect 'example-com-new' to be unique, even though there are bookmarks
       // from the same domain
       return baseSlug; // The slug is unique, use it as is
     }
-    
+
     // If not unique, find other bookmarks with the same domain
     const sameHostBookmarks = allBookmarks.filter(b => {
       try {
@@ -155,13 +155,12 @@ export function generateUniqueSlug(url: string, allBookmarks: Array<{ id: string
         return false;
       }
     });
-    
-    
+
     return `${baseSlug}-${sameHostBookmarks.length + 1}`;
-  } catch (error) {
+  } catch (_error) {
     // Don't log during tests - silently handle the error
     if (process.env.NODE_ENV !== 'test') {
-      console.error(`Failed to generate unique slug for URL: ${url}`, error);
+      console.error(`Failed to generate unique slug for URL: ${url}`, _error);
     }
     return 'unknown-url';
   }
@@ -187,20 +186,21 @@ export function getDisplayDomain(url: string): string {
     if (url.includes(':') && !url.includes('://')) {
       return url;
     }
-    
+
     // Handle case where URL doesn't have protocol
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://' + url;
     }
-    
+
     const urlObj = new URL(url);
     let domain = urlObj.hostname;
-    
+
     // Remove www. prefix if present
     domain = domain.replace(/^www\./, '');
-    
+
     return domain;
-  } catch (error) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_error) {
     // If URL parsing fails, just return the original
     return url;
   }

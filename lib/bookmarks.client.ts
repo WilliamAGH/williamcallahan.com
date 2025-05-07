@@ -61,7 +61,7 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
       throw new Error(`API request to /api/bookmarks failed with status ${response.status}: ${errorText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as UnifiedBookmark[];
     console.log('Client library: Received response from /api/bookmarks with', Array.isArray(data) ? `${data.length} bookmarks` : 'non-array data');
     return data;
   } catch (error) {
@@ -123,13 +123,14 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
       throw new Error(`API request to /api/bookmarks?refresh=true failed with status ${response.status}: ${errorText}`);
     }
 
-    const bookmarks = await response.json();
+    const bookmarks = await response.json() as unknown;
 
     if (Array.isArray(bookmarks)) {
-      console.log(`Client library: Refreshed ${bookmarks.length} bookmarks successfully from API.`);
-      ServerCacheInstance.setBookmarks(bookmarks); // Update memory cache
-      console.log(`Client library: Updated memory cache with ${bookmarks.length} refreshed bookmarks.`);
-      return bookmarks;
+      const typedBookmarks = bookmarks as UnifiedBookmark[];
+      console.log(`Client library: Refreshed ${typedBookmarks.length} bookmarks successfully from API.`);
+      ServerCacheInstance.setBookmarks(typedBookmarks); // Update memory cache
+      console.log(`Client library: Updated memory cache with ${typedBookmarks.length} refreshed bookmarks.`);
+      return typedBookmarks;
     } else {
       throw new Error('No valid bookmarks array received from refresh operation via API');
     }

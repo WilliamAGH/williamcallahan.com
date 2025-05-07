@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, RefObject } from 'react';
+import { useEffect, useRef } from 'react';
+import type { RefObject } from 'react';
 import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
 
 /**
@@ -47,8 +48,6 @@ export function useFixSvgTransforms<T extends HTMLElement = HTMLDivElement>(
 
     // Set up a MutationObserver to fix SVGs added dynamically
     const observer = new MutationObserver(mutations => {
-      let hasSvgs = false;
-
       // Check if any mutations involve SVGs
       mutations.forEach(mutation => {
         if (mutation.type === 'childList') {
@@ -56,14 +55,12 @@ export function useFixSvgTransforms<T extends HTMLElement = HTMLDivElement>(
             // If the node itself is an SVG
             if (node instanceof SVGElement) {
               processSvgTransforms(node);
-              hasSvgs = true;
             }
 
             // Check for SVGs inside the added node
             if (node.nodeType === Node.ELEMENT_NODE) {
               const svgsInNode = (node as Element).querySelectorAll(selector);
               if (svgsInNode.length > 0) {
-                hasSvgs = true;
                 svgsInNode.forEach(svg => {
                   if (svg instanceof SVGElement) {
                     processSvgTransforms(svg);
