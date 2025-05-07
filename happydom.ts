@@ -6,6 +6,7 @@ GlobalRegistrator.register();
 // Polyfill clipboard API with a stub for writeText so tests can override it
 Object.defineProperty(navigator, 'clipboard', {
   value: {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     writeText: async (_text: string) => Promise.resolve(),
   },
   writable: true,
