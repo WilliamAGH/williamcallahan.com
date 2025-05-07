@@ -6,7 +6,7 @@
  * Implements proper SEO with schema.org structured data.
  */
 
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 // Import getPostBySlug and getAllPosts from the main blog library
 import { getAllPosts, getPostBySlug } from '../../../lib/blog';
