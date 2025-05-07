@@ -153,15 +153,15 @@ export async function getMDXPost(
           [remarkGfm, { singleTilde: false, breaks: true }]
         ],
         rehypePlugins: [
-          rehypeSlug as any, // Reverted to as any
-          [rehypeAutolinkHeadings, { // Reverted to as any
+          rehypeSlug as any, // Add back 'as any'
+          [rehypeAutolinkHeadings, { // Add back 'as any'
             properties: {
               className: ['anchor'],
               ariaLabel: 'Link to section'
             },
             behavior: 'append'
           }] as any,
-          [rehypePrismPlus, { ignoreMissing: true }] as any // Reverted to as any
+          [rehypePrismPlus, { ignoreMissing: true }] as any // Add back 'as any'
         ],
         format: 'mdx'
       },
