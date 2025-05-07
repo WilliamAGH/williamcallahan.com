@@ -18,20 +18,26 @@ describe('Blog MDX Smoke Tests', () => {
     try {
       const files = await fs.readdir(POSTS_DIRECTORY);
       mdxFiles = files.filter(file => file.endsWith('.mdx'));
+      console.log(`Found ${mdxFiles.length} MDX files in ${POSTS_DIRECTORY}`);
     } catch (error) {
       console.error('Failed to read blog posts directory:', POSTS_DIRECTORY, error);
       throw error; // Fail the setup
     }
+
     if (mdxFiles.length === 0) {
       console.warn(`No .mdx files found in ${POSTS_DIRECTORY}. Skipping file tests.`);
     }
   });
 
-  mdxFiles.forEach(fileName => {
-    const fullPath = path.join(POSTS_DIRECTORY, fileName);
+  test('blog post directory exists and contains MDX files', () => {
+    expect(mdxFiles.length).toBeGreaterThan(0);
+  });
 
-    test(`should correctly process MDX file: ${fileName}`, async () => {
-      let fileContents;
+  test('all blog posts have valid frontmatter', async () => {
+    for (const fileName of mdxFiles) {
+      const fullPath = path.join(POSTS_DIRECTORY, fileName);
+      let fileContents: string;
+
       try {
         fileContents = await fs.readFile(fullPath, 'utf8');
       } catch (readError) {
@@ -44,25 +50,24 @@ describe('Blog MDX Smoke Tests', () => {
 
       expect(frontmatter.slug).toBeString();
       expect(frontmatter.slug.trim()).not.toBe('');
-      if (!frontmatter.slug || typeof frontmatter.slug !== 'string' || frontmatter.slug.trim() === '') {
-        // This expectation primarily serves to make the test fail if slug is bad,
-        // as getMDXPost might also catch it but this is an earlier check.
-        throw new Error(`Missing or invalid slug in frontmatter for ${fileName}`);
-      }
+    }
+  });
+
+  test('all blog posts can be processed by getMDXPost', async () => {
+    for (const fileName of mdxFiles) {
+      const fullPath = path.join(POSTS_DIRECTORY, fileName);
+      const fileContents = await fs.readFile(fullPath, 'utf8');
+      const { data: frontmatter } = matter(fileContents) as unknown as { data: BlogFrontmatter };
       const frontmatterSlug = frontmatter.slug.trim();
 
       const post = await getMDXPost(frontmatterSlug, fullPath, fileContents);
 
-      // getMDXPost returns null on error and logs specifics internally
-      if (!post) {
-        // To make the test output clearer about *which* post failed at the getMDXPost stage
-        console.error(`getMDXPost returned null for ${fileName} (slug: ${frontmatterSlug}), indicating a processing error. Check logs above for details from getMDXPost.`);
-      }
+      // Check that the post was processed correctly
       expect(post).not.toBeNull();
       if (post) {
-        expect(post.title).toBeString(); // Basic check for successful processing
-        expect(post.content).toBeDefined(); // Check that MDX content was serialized
+        expect(post.title).toBeString();
+        expect(post.content).toBeDefined();
       }
-    });
+    }
   });
 });

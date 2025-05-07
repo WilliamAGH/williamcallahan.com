@@ -1,1 +1,18 @@
-bun run validate && bun run test:smoke:blog && bun run test:smoke:pages
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🧪 Running pre-commit checks..."
+
+# Run validate (linting and type-checking)
+echo "📝 Validating code..."
+bun run validate || { echo "❌ Code validation failed!"; exit 1; }
+
+# Run blog smoke tests
+echo "📚 Testing blog functionality..."
+bun run test:smoke:blog || { echo "❌ Blog smoke tests failed!"; exit 1; }
+
+# Run pages smoke tests
+echo "📄 Testing pages functionality..."
+bun run test:smoke:pages || { echo "❌ Pages smoke tests failed!"; exit 1; }
+
+echo "✅ All pre-commit checks passed!"
