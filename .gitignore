@@ -33,3 +33,13 @@ tsconfig.tsbuildinfo
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Fetched/cached data directories (local dev caches)
+/data/github-projects/**
+/data/github-activity/**
+/data/bookmarks/**
+
+# Fetched logos in public directory (ignore all files, keep directory with .gitkeep if needed)
+/data/images/logos/**
+/data/images/bookmarks/**
+.populate-volumes-last-run-success

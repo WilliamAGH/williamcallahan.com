@@ -29,6 +29,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
 # Set NODE_ENV for the build process
 ENV NODE_ENV=production
+# Indicate process is running inside Docker container
+ENV RUNNING_IN_DOCKER=true
+ENV CONTAINER=true
 
 # Accept and propagate public env vars for Next.js build
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
@@ -38,10 +41,23 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
 # Copy dependencies and source code
 COPY --from=deps /app/node_modules ./node_modules
+
+# Directory creation is now handled by the populate-volumes.ts script
+# RUN mkdir -p /app/data/images/logos # For logos data (Handled by script)
+# RUN mkdir -p /app/data/images/logos/byId # For ID-based logos (Handled by script)
+# RUN mkdir -p /app/data/github-activity # For GitHub projects/activity data (Handled by script)
+# RUN mkdir -p /app/data/github-activity/repo_raw_weekly_stats # For granular GitHub stats (Handled by script)
+# RUN mkdir -p /app/data/bookmarks # For bookmarks data (Handled by script)
+
+# Copy entire source code
 COPY . .
 
-# Build the application using Bun
-RUN bun run build
+# CRITICAL STEP: Fill volumes directly BEFORE any server or build processes
+# This ensures all data volumes are properly populated with external data
+RUN echo "🚀 Populating all data volumes directly..." && bun scripts/populate-volumes.ts
+
+# Now build the app with preloaded data volumes
+RUN echo "📦 Building the application with populated data volumes..." && bun run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -52,6 +68,9 @@ RUN apk add --no-cache vips-dev build-base curl
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# Indicate process is running inside Docker container
+ENV RUNNING_IN_DOCKER=true
+ENV CONTAINER=true
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -60,13 +79,32 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Copy scripts directory for prefetch capabilities
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+
 # Copy public directory and set permissions
 COPY --from=builder /app/public ./public
-# Ensure the logos directory exists within public before chown
-RUN mkdir -p /app/public/logos && chown -R nextjs:nodejs /app/public
 
-# Create a volume for persisting logos (if needed, though usually served from build)
-VOLUME /app/public/logos
+# Copy data from builder image into staging directories for volume seeding
+COPY --from=builder --chown=nextjs:nodejs /app/data/images/logos /app/.initial-logos
+COPY --from=builder --chown=nextjs:nodejs /app/data/github-activity /app/.initial-github-activity
+COPY --from=builder --chown=nextjs:nodejs /app/data/bookmarks /app/.initial-bookmarks
+
+# Ensure the data directories exist and have correct permissions
+RUN mkdir -p /app/data/images/logos && chown -R nextjs:nodejs /app/data/images/logos
+RUN mkdir -p /app/data/github-activity && chown -R nextjs:nodejs /app/data/github-activity
+RUN mkdir -p /app/data/bookmarks && chown -R nextjs:nodejs /app/data/bookmarks
+
+# Copy entrypoint script to seed logos volume on startup
+COPY --chown=nextjs:nodejs scripts/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Create a volume for persisting logos
+VOLUME /app/data/images/logos
+# Create a volume for persisting github-projects data
+VOLUME /app/data/github-activity
+# Create a volume for persisting bookmarks data
+VOLUME /app/data/bookmarks
 
 USER nextjs
 
@@ -79,5 +117,6 @@ ENV HOSTNAME="0.0.0.0"
 HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:3000/api/health || exit 1
 
-# Run the Next.js standalone server using Bun
+# Use entrypoint to seed logos, then start server
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["bun", "server.js"]
