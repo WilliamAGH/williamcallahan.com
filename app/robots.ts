@@ -34,11 +34,7 @@ export default function robots(): MetadataRoute.Robots {
     '/$/', // Match the single dollar sign path
     '/comments/feed/',
     // Add specific old/invalid paths if needed, though redirects might be better
-    '/investments/flutterflow/',
-    '/2023certificates/mit/',
     '/legacy-homepage/',
-    '/home/', // Also handled by redirect, but good failsafe
-    '/tag/', // Disallow old tag structure base
     '/author/' // Disallow author base
   ];
 
