@@ -20,378 +20,500 @@ This guide covers setting up a modern Django project, including:
 - **Fast-Start Resources**: Libraries and communities to accelerate development.
 </BackgroundInfo>
 
-## Part 1: Project Foundation & Environment Setup
+## Part 1: Setting Up Your Initial Django Project
 
-To begin, ensure you have Python 3 installed. You'll then need a package manager to handle project dependencies. We recommend `uv` for its speed and modern features, but traditional `pip` with `venv` is also covered.
+This part covers setting up a standard, default Django project. Choose one of the following methods based on your preferred workflow (Terminal, VS Code, or PyCharm). All methods achieve the same goal: a basic, running Django project.
 
-<CollapseDropdown summary="0.1: Installing `uv` (Recommended Package Manager)">
-  - `uv` is a fast Python package installer and resolver, written in Rust.
-  - **Installation**:
-    - **macOS and Linux (Shell)**:
-      ```bash
-      curl -LsSf https://astral.sh/uv/install.sh | sh
-      ```
-    - **Windows (PowerShell)**:
-      ```powershell
-      irm https://astral.sh/uv/install.ps1 | iex
-      ```
-    - **Other Methods**: `uv` can also be installed via `pipx`, `pip`, Homebrew, Cargo, WinGet, Scoop, or by downloading binaries directly from [GitHub Releases](https://docs.astral.sh/uv/getting-started/installation/#github-releases). See the [official `uv` installation guide](https://docs.astral.sh/uv/install/) for all options.
-  - After installation, you might need to restart your terminal or add `uv`'s installation directory to your PATH. Verify with `uv --version`.
+### 1.1: Prerequisites
+
+- **Python 3**: Ensure you have a recent version of Python 3 installed. Check with `python3 --version` or `python --version`.
+- **Package Manager**: You'll need a way to install Python packages. We strongly recommend `uv` for its speed and features. `pip` (which comes with Python) is the traditional alternative.
+
+<CollapseDropdown summary="Installing `uv` (Recommended)">
+  - If you don't have `uv`:
+    ```bash
+    # macOS/Linux
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    # Windows PowerShell
+    irm https://astral.sh/uv/install.ps1 | iex
+    ```
+  - Verify: `uv --version`. See [official `uv` installation guide](https://docs.astral.sh/uv/install/) for more methods.
 </CollapseDropdown>
 
-<BackgroundInfo title="Option 1: Using `uv` (Recommended)">
-The following sections detail setting up your project using `uv`.
+### 1.2: Method 1: Terminal Setup (`uv` / `pip` + `django-admin`)
+
+This method uses only terminal commands for setup.
+
+<CollapseDropdown summary="Step 1: Create Project Directory & Environment (uv Recommended)">
+  ```bash
+  # Navigate to parent directory
+  mkdir my_django_project && cd my_django_project
+  # Create/activate venv using uv
+  uv venv
+  # Initialize uv project (creates pyproject.toml)
+  uv init
+  ```
+  (If venv doesn't activate, use `source .venv/bin/activate` or `.\.venv\Scripts\activate`).
+</CollapseDropdown>
+
+<CollapseDropdown summary="Step 2: Install Django (uv Recommended)">
+  ```bash
+  # Add Django to pyproject.toml and install
+  uv add django
+  # Verify
+  uv run django-admin --version
+  ```
+</CollapseDropdown>
+
+<CollapseDropdown summary="(Alternative) Step 1 & 2 using `pip` & `venv`">
+  ```bash
+  # Navigate to parent directory
+  mkdir my_django_project && cd my_django_project
+  # Create venv using standard Python
+  python3 -m venv .venv
+  # Activate venv (macOS/Linux: source .venv/bin/activate | Windows: .\.venv\Scripts\activate)
+  # Install Django using pip
+  pip install django
+  # Verify
+  django-admin --version
+  ```
+</CollapseDropdown>
+
+<CollapseDropdown summary="Step 3: Create Default Django Project Files">
+  - Regardless of how you installed Django (uv or pip), use `django-admin` to create the project files. Use `.` to create in the current directory.
+  ```bash
+  # Using uv run (if uv project exists)
+  uv run django-admin startproject config .
+
+  # Or directly (if venv active)
+  django-admin startproject config .
+  ```
+  (Replace `config` with your preferred project configuration directory name).
+  - This creates `manage.py` and the `config/` directory (`settings.py`, `urls.py`, etc.).
+</CollapseDropdown>
+
+<CollapseDropdown summary="Step 4: Run Initial Migrations & Dev Server">
+  - Apply the initial database migrations (creates necessary tables for auth, etc.):
+  ```bash
+  # Using uv run
+  uv run manage.py migrate
+  # Or directly
+  python manage.py migrate
+  ```
+  - Run the development server:
+  ```bash
+  # Using uv run
+  uv run manage.py runserver
+  # Or directly
+  python manage.py runserver
+  ```
+  - Access at `http://127.0.0.1:8000/`. Stop server with `Ctrl+C`.
+</CollapseDropdown>
+
+<CollapseDropdown summary="Step 5: Create Superuser (Optional but Recommended)">
+  - To use the admin panel later:
+  ```bash
+  # Using uv run
+  uv run manage.py createsuperuser
+  # Or directly
+  python manage.py createsuperuser
+  ```
+  - Follow prompts for username/password.
+</CollapseDropdown>
+
+### 1.3: Method 2: VS Code Setup (Using Extensions & Terminal)
+
+This method uses VS Code's features to assist with managing the default project created via terminal or opened from existing code.
+
+<CollapseDropdown summary="Setup & Configuration">
+  - **Install VS Code Extensions**:
+    - **Python (Microsoft)**
+    - **Pylance (Microsoft)**
+    - **Django (Baptiste Darthenay)** ([Marketplace Link](https://marketplace.visualstudio.com/items?itemName=batisteo.vscode-django)) - Adds Django-specific features.
+  - **Open Project Folder**: Open your `my_django_project` folder (created using terminal steps 1 & 3 from Method 1, or cloned) in VS Code.
+  - **Select Interpreter**: Ensure VS Code uses the Python interpreter from your `.venv`. It should auto-detect. If not, use Command Palette (**Cmd+Shift+P** / **Ctrl+Shift+P**) > "Python: Select Interpreter".
+  - **Integrated Terminal**: Use VS Code's integrated terminal (**View > Terminal**) to run all `uv` / `python manage.py` commands shown in Method 1 (Steps 2, 4, 5). The extensions often provide syntax highlighting and command assistance here.
+</CollapseDropdown>
+
+<CollapseDropdown summary="Running & Debugging in VS Code">
+  - **Run Server via Terminal**: The primary way is still using `uv run manage.py runserver` or `python manage.py runserver` in the integrated terminal.
+  - **Debugging**: Configure `.vscode/launch.json` (example in old Part 4/6) to attach the debugger or launch the server with debugging enabled.
+</CollapseDropdown>
+
+### 1.4: Method 3: PyCharm Setup (Using New Project Wizard)
+
+PyCharm Professional has excellent built-in support for creating and managing default Django projects.
+
+<CollapseDropdown summary="Creating Project with Wizard">
+  - Go to **File > New Project**.
+  - Select **Django** on the left.
+  - Configure location.
+  - Choose environment type: Select **uv** (recommended) or **Virtualenv** (for `venv`/`pip`). Point PyCharm to your base Python interpreter and your `uv` executable if using `uv`.
+  - PyCharm will create the default Django project structure (`manage.py`, project config folder) and set up the virtual environment.
+    <ArticleImage
+      src="/images/posts/new-django-project-pycharm.png"
+      alt="PyCharm New Project dialog showing Django selected with 'uv' as the environment type"
+      caption="PyCharm's New Project wizard creating a default Django project."
+    />
+</CollapseDropdown>
+
+<CollapseDropdown summary="Running & Managing in PyCharm">
+  - **Run Server**: PyCharm automatically creates a "Django server" run configuration. Select it in the toolbar and click the Run button (▶️).
+  - **Run manage.py Tasks**: Use PyCharm's integrated terminal (**Alt+F12** / **Option+F12**) for `uv run manage.py ...` or `python manage.py ...` commands (like `migrate`, `createsuperuser`). Alternatively, use **Tools > Run manage.py Task...** GUI.
+  - **Debugging**: Use the Debug button (🐞) with the "Django server" configuration.
+</CollapseDropdown>
+
+<BackgroundInfo title="Next Steps & Modern Templates">
+Now that you have a basic Django project running using your preferred setup method, the next step is typically adding your own application logic (see Part 2). Once comfortable, consider advanced starting points: <a href="#modern-project-templates">Part 3: Level Up with Modern Project Templates</a>.
 </BackgroundInfo>
-
-<CollapseDropdown summary="1.1: Python Version Management with `uv` (Optional)">
-  - While a system Python 3 is sufficient, `uv` can also install and manage specific Python versions for your projects.
-  - **Install Latest Python with `uv`**:
-    ```bash
-    uv python install
-    ```
-  - **Install a Specific Python Version**:
-    ```bash
-    uv python install 3.11 # Or your desired version
-    ```
-  - **List `uv`-managed Python installations**:
-    ```bash
-    uv python list
-    ```
-  - `uv` will use a managed Python or an existing system Python if compatible. See the [uv Python documentation](https://docs.astral.sh/uv/guides/install-python/).
-</CollapseDropdown>
-
-<CollapseDropdown summary="1.2: Virtual Environments with `uv`">
-  - **Purpose**: Isolate project dependencies.
-  - **Creating and Activating a Virtual Environment**:
-    ```bash
-    # Navigate to your project directory (e.g., my_django_project)
-    # mkdir my_django_project && cd my_django_project
-    uv venv
-    ```
-  - This creates a `.venv` directory and activates it if your shell is supported. Otherwise, activate manually (e.g., `source .venv/bin/activate`).
-</CollapseDropdown>
-
-<CollapseDropdown summary="1.3: Installing Django with `uv` (Project-based)">
-  - For a `uv`-managed project (typically using a `pyproject.toml` file), use `uv add` to include Django as a dependency. If you haven't initialized your project, you can do so with `uv init`.
-  - With an active `uv` virtual environment in your project directory:
-    ```bash
-    uv add django
-    ```
-  - This command updates your `pyproject.toml` file, adding Django to your project dependencies. See [Managing dependencies with `uv`](https://docs.astral.sh/uv/concepts/projects/dependencies/#adding-dependencies) for details.
-  - To install a specific version or set constraints:
-    ```bash
-    uv add "django>=5.0,<5.1" # Example version constraint
-    ```
-  - Verify Django is available: `django-admin --version` (after `uv sync` if needed, or by running commands via `uv run django-admin --version`).
-  <BackgroundInfo title="Quick Install (Non-Project based)">
-  If you just want to quickly install Django into an active virtual environment without managing it through `pyproject.toml` yet, you can use:
-  `uv pip install django`
-  This is similar to using traditional `pip`.
-  </BackgroundInfo>
-</CollapseDropdown>
-
-<BackgroundInfo title="Option 2: Using `pip` & `venv` (Alternative)">
-If you prefer to use `pip` and `venv` directly, follow these steps.
-</BackgroundInfo>
-
-<CollapseDropdown summary="1.4: Checking Python & `pip` (for `pip` users)">
-  - **Verify Python 3 Installation**:
-    ```bash
-    python3 --version
-    # Or on some systems
-    python --version
-    ```
-  - **Ensure `pip` is Available** (usually included with Python 3.4+):
-    ```bash
-    pip3 --version
-    # Or
-    pip --version
-    ```
-  - If Python 3 is not installed, download it from [python.org](https://www.python.org/).
-</CollapseDropdown>
-
-<CollapseDropdown summary="1.5: Virtual Environments with `venv` (for `pip` users)">
-  - **Purpose**: Isolate project dependencies.
-  - **Creating a Virtual Environment**:
-    ```bash
-    # Navigate to your project directory
-    # mkdir my_django_project && cd my_django_project
-    python3 -m venv .venv # Or your preferred name like 'env'
-    ```
-  - **Activating the Virtual Environment**:
-    - **macOS/Linux**:
-      ```bash
-      source .venv/bin/activate
-      ```
-    - **Windows**:
-      ```bash
-      .\.venv\Scripts\activate
-      ```
-</CollapseDropdown>
-
-<CollapseDropdown summary="1.6: Installing Django with `pip` (for `pip` users)">
-  - With your `venv` virtual environment activated:
-    ```bash
-    pip install django
-    ```
-  - To install a specific version:
-    ```bash
-    pip install django==5.0 # Or desired version
-    ```
-  - Verify: `django-admin --version`
-</CollapseDropdown>
 
 ---
 
-## Part 2: Choosing a Modern Template
+## Part 2: Adding Your First App & Core Concepts
 
-Using a template accelerates development and provides a professional UI.
+With the default project running, let's create your first Django app to understand core concepts like apps, models, views, and URLs.
 
-<BackgroundInfo title="Benefits of Templates">
-Templates offer pre-built UI/UX, responsive design, and common functionalities like authentication. I think this is important so you don't spend all your time on the boilerplate (you avoid "reinventing the wheel") and can spend your time focusing on what you can innovate on!
-</BackgroundInfo>
+<CollapseDropdown summary="5.1: Create Your First App (Terminal)">
+  - Django projects are composed of one or more "apps." An app is a self-contained module that handles a specific piece of functionality (e.g., a blog, polls, user accounts).
+  - From your project root (where `manage.py` is), with your virtual environment active:
+    ```bash
+    # Using uv
+    uv run manage.py startapp my_first_app
 
-<CollapseDropdown summary="2.1: Popular Template Options">
-  - **[Cookiecutter Django](https://github.com/cookiecutter/cookiecutter-django)**:
-    - **Pros**: Highly configurable, production-ready (Docker, Caddy/Traefik, Celery, etc.), includes many best practices. Great for building robust applications.
-    - **Cons**: Can be overwhelming for beginners due to its many options.
-  - **[SaaS Pegasus](https://www.saaspegasus.com/)**:
-    - **Pros**: Specifically designed for SaaS applications, includes features like subscriptions, teams, and pre-built UI components. Offers extensive documentation and support.
-    - **Cons**: Paid product.
-  - **[Creative Tim](https://www.creative-tim.com/templates/django)** / **[ThemeForest](https://themeforest.net/category/site-templates/admin-templates?term=django)**:
-    - **Pros**: Wide variety of admin and frontend themes, often visually appealing.
-    - **Cons**: Quality and Django integration can vary. May require more effort to integrate with Django's backend logic.
-  - **[DjangoX](https://github.com/saadmk11/djangox)**:
-    - **Pros**: A simpler starter template with a focus on modern frontend (Tailwind CSS) and essential features like user auth.
-    - **Cons**: Less feature-rich than Cookiecutter or Pegasus but easier to get started with.
+    # Or directly
+    python manage.py startapp my_first_app
+    ```
+    (Replace `my_first_app` with a suitable name, following Python identifier rules: lowercase, underscores, no hyphens).
+  - This creates a new directory `my_first_app/` with files like `models.py`, `views.py`, `apps.py`, etc.
 </CollapseDropdown>
 
-<CollapseDropdown summary="2.2: Integrating Your Chosen Template">
-  - **General Steps**:
-    1.  **Download/Clone**: Obtain the template files, often via Git or by running a project generator command (like with Cookiecutter).
-    2.  **Follow Documentation**: Most templates come with specific setup instructions. Pay close attention to these.
-    3.  **Install Dependencies**:
-        - If the template provides a `requirements.txt`:
-          ```bash
-          # To install into your active uv environment:
-          uv pip install -r requirements.txt
-          ```
-        - <BackgroundInfo title="Importing to `pyproject.toml`">
-          If you are integrating this template into a `uv`-managed project (with `pyproject.toml`), you can import these dependencies by running:
-          `uv add -r requirements.txt`
-          This will add the dependencies from `requirements.txt` to your `pyproject.toml` file. See the [`uv add` documentation](https://docs.astral.sh/uv/concepts/projects/dependencies/#importing-dependencies).
-          </BackgroundInfo>
-        - If the template already uses `pyproject.toml` and a lock file (e.g., `uv.lock`), you might use `uv sync` to install dependencies.
-    4.  **Configure Settings**: Adjust `settings.py` for your database, static files, etc., as per the template's guidelines.
-    5.  **Run Initial Migrations**:
-        ```bash
-        python manage.py migrate
-        ```
-
-</CollapseDropdown>
-
----
-
-## Part 3: Implementing a SaaS Core with SQL Database
-
-A SaaS application requires user management, an admin interface, and a database.
-
-<BackgroundInfo title="Core SaaS Features in Django">
-Django provides these with minimal configuration:
-- **User Authentication**: `django.contrib.auth` for user accounts, groups, permissions, sessions.
-- **Admin Panel**: `django.contrib.admin` auto-generates an admin interface.
-- **ORM & Models**: Django's ORM simplifies defining data structure and database interaction.
-</BackgroundInfo>
-
-<CollapseDropdown summary="3.1: Django's User Model and Admin">
-  - **`django.contrib.auth`**: Handles user registration, login, logout, password hashing, permissions.
-  - **Customizing User Model**: Extend `AbstractUser` or `AbstractBaseUser` for needs like email as username or profile fields. Refer to Django's [customizing authentication documentation](https://docs.djangoproject.com/en/stable/topics/auth/customizing/).
-  - **Django Admin**: Available at `/admin/`. Register models to manage their data.
-</CollapseDropdown>
-
-<CollapseDropdown summary="3.2: Database Setup (PostgreSQL or MySQL)">
-  - **PostgreSQL/MySQL**: Offer robustness and scalability for production over SQLite.
-  - **Install Database Drivers (using `uv`)**:
-    - **PostgreSQL**:
-      ```bash
-      uv pip install psycopg2-binary
-      ```
-    - **MySQL**:
-      ```bash
-      uv pip install mysqlclient
-      ```
-  - **Configure `settings.py`**: Update the `DATABASES` setting.
-  <BackgroundInfo title="Database Credentials">
-  Never hardcode sensitive credentials directly in `settings.py` for production. Use environment variables (e.g., with `python-decouple` or `django-environ`).
-  </BackgroundInfo>
-</CollapseDropdown>
-
-<CollapseDropdown summary="3.3: Defining Core Data Models (`models.py`)">
-  - Define your application's data structure in `your_app_name/models.py`.
-  - **Example**: A simple SaaS product might have models for `Tenant`, `Subscription`, `ProductFeature`.
+<CollapseDropdown summary="5.2: Register Your App & Basic Model">
+  - **Register App**: Add your new app to `INSTALLED_APPS` in your project's `settings.py` file (e.g., `your_project_name/settings.py`):
     ```python
-    # In your_app_name/models.py
+    INSTALLED_APPS = [
+        # ... other apps
+        'my_first_app', # Or 'my_first_app.apps.MyFirstAppConfig' if using AppConfig
+        # ... django apps ...
+    ]
+    ```
+  - **Define a Simple Model**: Edit `my_first_app/models.py`:
+    ```python
     from django.db import models
-    from django.contrib.auth.models import User # Or your custom user model
 
-    class SubscriptionPlan(models.Model):
-        name = models.CharField(max_length=100)
-        price = models.DecimalField(max_digits=6, decimal_places=2)
-        # ... other fields
-
-        def __str__(self):
-            return self.name
-
-    class Tenant(models.Model):
-        name = models.CharField(max_length=200)
-        owner = models.ForeignKey(User, on_delete=models.CASCADE)
-        subscription_plan = models.ForeignKey(SubscriptionPlan, null=True, blank=True, on_delete=models.SET_NULL)
+    class Greeting(models.Model):
+        message = models.CharField(max_length=255)
         created_at = models.DateTimeField(auto_now_add=True)
 
         def __str__(self):
-            return self.name
+            return self.message
     ```
-  - **Running Migrations**: After defining or changing models, create and apply database migrations:
+</CollapseDropdown>
+
+<CollapseDropdown summary="5.3: Create Migrations for Your App (Terminal)">
+  - After defining or changing models in your app:
     ```bash
-    python manage.py makemigrations your_app_name
+    # Using uv
+    uv run manage.py makemigrations my_first_app
+
+    # Or directly
+    python manage.py makemigrations my_first_app
+    ```
+  - Then apply the migrations:
+    ```bash
+    # Using uv
+    uv run manage.py migrate
+
+    # Or directly
     python manage.py migrate
     ```
 </CollapseDropdown>
 
-<CollapseDropdown summary="3.4: Admin Panel Integration (`admin.py`)">
-  - Register your models in `your_app_name/admin.py` to make them manageable via the Django admin interface.
+<CollapseDropdown summary="5.4: Basic View and URL Configuration">
+  - **Create a View**: Edit `my_first_app/views.py`:
     ```python
-    # In your_app_name/admin.py
-    from django.contrib import admin
-    from .models import Tenant, SubscriptionPlan
+    from django.http import HttpResponse
+    from .models import Greeting
 
-    @admin.register(Tenant)
-    class TenantAdmin(admin.ModelAdmin):
-        list_display = ('name', 'owner', 'subscription_plan', 'created_at')
-        list_filter = ('subscription_plan', 'created_at')
-        search_fields = ('name', 'owner__username')
-
-    @admin.register(SubscriptionPlan)
-    class SubscriptionPlanAdmin(admin.ModelAdmin):
-        list_display = ('name', 'price')
-
-    # Alternatively, without decorator:
-    # admin.site.register(Tenant, TenantAdmin)
-    # admin.site.register(SubscriptionPlan, SubscriptionPlanAdmin)
+    def hello_world(request):
+        greeting = Greeting.objects.first() # Get the first greeting, or create one
+        if not greeting:
+            greeting_text = "No greetings yet!"
+        else:
+            greeting_text = greeting.message
+        return HttpResponse(f"<h1>{greeting_text}</h1><p>From my_first_app!</p>")
     ```
+  - **App URLs**: Create `my_first_app/urls.py`:
+    ```python
+    from django.urls import path
+    from . import views
+
+    urlpatterns = [
+        path('hello/', views.hello_world, name='hello_world'),
+    ]
+    ```
+  - **Project URLs**: Include your app's URLs in your project's `urls.py` (e.g., `your_project_name/urls.py`):
+    ```python
+    from django.contrib import admin
+    from django.urls import path, include
+
+    urlpatterns = [
+        path('admin/', admin.site.urls),
+        path('app/', include('my_first_app.urls')), # Example path for your app
+    ]
+    ```
+  - Now, if your server is running, you should be able to visit `http://127.0.0.1:8000/app/hello/`.
+</CollapseDropdown>
+
+<CollapseDropdown summary="5.5: Project Structuring & Key Concepts Recap">
+  - **Apps for Features**: Key to Django is organizing functionality into reusable apps.
+  - **MVT (Model-View-Template)**: Django follows this pattern. Models interact with data, Views handle logic and request/response, Templates present information.
+  - **URL Routing**: `urls.py` files map web addresses to views.
+  - **Templates**: HTML files (we used a direct `HttpResponse` here for simplicity, but typically you'd use Django templates).
+  - **Static Files & Media**: For CSS, JS, images, and user uploads (covered more with advanced templates or specific setup).
 </CollapseDropdown>
 
 ---
 
-## Part 4: IDE Setup: VSCode & IntelliJ IDEA (PyCharm)
+## Part 3: Level Up with Modern Project Templates
 
-A well-configured IDE boosts Django development productivity.
+While the default Django project is great for learning, starting new projects often benefits from feature-rich templates that provide modern UI, CI/CD setup, SaaS features, and more out-of-the-box.
 
-<BackgroundInfo title="IDE Productivity Benefits">
-Features like code completion, debugging, Django tools, database integration, and version control accelerate development.
+<BackgroundInfo title="Benefits of Modern Templates">
+These templates reduce boilerplate for common functionalities (auth, UI components, deployment setup), allowing you to focus on your unique application logic.
 </BackgroundInfo>
 
-<CollapseDropdown summary="4.1: Setup for Microsoft VS Code">
-  - **Essential Extensions**:
-    - **Python (Microsoft)**: Core Python support.
-    - **Django (Batiste Plantation)**: Django snippets, commands, utilities.
-    - **Pylance (Microsoft)**: Language server for Python.
-  - **Configuration (`.vscode/settings.json`)**:
-    ```json
-    {
-        "python.defaultInterpreterPath": ".venv/bin/python", // Path to uv created venv python
-        "python.linting.flake8Enabled": true,
-        "python.formatting.provider": "black", // Assuming Black formatter
-        "editor.formatOnSave": true,
-        "python.linting.flake8Args": ["--max-line-length=88"],
-        "[python]": {
-            "editor.defaultFormatter": "ms-python.black-formatter"
-        }
-    }
-    ```
-  - **Debugging (`.vscode/launch.json`)**: Configuration for the Django development server.
+<CollapseDropdown summary="6.1: Popular Modern Template Options">
+  - **[Cookiecutter Django](https://github.com/cookiecutter/cookiecutter-django)**:
+    - **Pros**: Highly configurable, production-ready (Docker, Celery), many best practices.
+    - **Cons**: Can be complex for beginners.
+  - **[SaaS Pegasus](https://www.saaspegasus.com/)**:
+    - **Pros**: For SaaS apps; includes subscriptions, teams, pre-built UI. Good documentation.
+    - **Cons**: Paid.
+  - **[Creative Tim](https://www.creative-tim.com/templates/django)** / **[ThemeForest](https://themeforest.net/category/site-templates/admin-templates?term=django)**:
+    - **Pros**: Wide variety of themes.
+    - **Cons**: Quality and Django integration vary.
+  - **[DjangoX](https://github.com/saadmk11/djangox)**:
+    - **Pros**: Simpler starter; Tailwind CSS, user auth.
+    - **Cons**: Less feature-rich.
 </CollapseDropdown>
 
-<CollapseDropdown summary="4.2: Setup for IntelliJ IDEA (PyCharm)">
-  - **PyCharm Professional**: Has comprehensive, out-of-the-box Django support.
-  - **IntelliJ IDEA Ultimate with Python Plugin**: Can also be configured for robust Django development.
-  - **Creating/Importing a Django Project**:
-    - PyCharm will often auto-detect a Django project or allow you to create one with Django support enabled. You can also select `uv` as the project environment type, as shown below.
-    - Ensure the correct Python interpreter (from your virtual environment or a `uv`-managed one) is selected for the project.
-  <ArticleImage
-    src="/images/posts/new-django-project-pycharm.png"
-    alt="PyCharm New Project dialog showing Django selected with 'uv' as the environment type"
-    caption="PyCharm's New Project dialog allows selecting Django and `uv` for environment management."
-  />
-  - **Run/Debug Configurations**:
-    - PyCharm typically creates a "Django server" run configuration automatically. You can customize it in **Run > Edit Configurations**.
-  - **Key Features**:
-    - Smart code completion for Django templates, models, views, and URLs.
-    - Integrated database tools.
-    - Visual debugger.
-    - Manage.py task execution from the IDE.
+<CollapseDropdown summary="6.2: Integrating a Modern Template (Terminal Focus)">
+  - **General Terminal Steps for Integration**:
+    1.  **Generate/Clone Template** (Terminal):
+        ```bash
+        # Example using Cookiecutter Django
+        # uv run cookiecutter gh:cookiecutter/cookiecutter-django
+
+        # Example using git clone (for other templates)
+        # git clone <repository_url> my_modern_project
+        # cd my_modern_project
+        ```
+        Follow the specific template's instructions for generation or cloning.
+    2.  **Follow Documentation**: Template-specific setup is crucial.
+    3.  **Install Dependencies (Terminal)**:
+        - Check the template's documentation for dependency management (it might use `uv`, `pip`, `poetry`, `pdm`, or Docker).
+        - **If `requirements.txt`**:
+          ```bash
+          # Using uv (recommended, if creating a new .venv)
+          # uv venv
+          # uv pip install -r requirements.txt
+          # Or if importing into existing uv project:
+          # uv add -r requirements.txt
+
+          # Using pip (if creating new .venv)
+          # python3 -m venv .venv && source .venv/bin/activate
+          # pip install -r requirements.txt
+          ```
+        - **If `pyproject.toml` (uv/poetry/pdm)**:
+          ```bash
+          # uv sync
+          # poetry install
+          # pdm install
+          ```
+        - **If Docker**: Follow the template's `docker-compose up --build` or similar instructions.
+    4.  **Configure Settings**: Adjust `.env` files or `settings.py` as per template docs.
+    5.  **Run Initial Setup/Migrations (Terminal)**:
+        - Templates often have specific initial setup commands.
+        - Common command:
+          ```bash
+          # Using uv (if applicable)
+          # uv run manage.py migrate
+          # Or directly
+          # python manage.py migrate
+          # Or via Docker
+          # docker-compose exec web python manage.py migrate
+          ```
+        Refer to the template's documentation for exact commands.
 </CollapseDropdown>
 
 ---
 
-## Part 5: Kickstarting Development & Fast-Track Resources
+## Part 4: Implementing a SaaS Core with SQL Database
 
-With the project and IDE set up, begin development.
+This involves terminal commands for setup and migrations, alongside Python code for models and admin configuration. The Django admin panel itself is a web interface.
 
-<CollapseDropdown summary="5.1: Essential `manage.py` Commands">
-  - `python manage.py runserver`: Starts the development server.
-  - `python manage.py createsuperuser`: Creates an admin user.
-  - `python manage.py startapp <app_name>`: Creates a new Django app within your project.
-  - `python manage.py makemigrations [app_name]`: Creates new migration files based on model changes.
-  - `python manage.py migrate [app_name] [migration_name]`: Applies migrations to the database.
-  - `python manage.py shell`: Opens an interactive Python shell with your Django project loaded.
-  - `python manage.py check`: Checks for common problems in your project.
-  - `python manage.py collectstatic`: Collects static files into one directory for deployment.
+<BackgroundInfo title="Core SaaS Features in Django">
+Django offers robust features for SaaS applications:
+- **User Authentication**: `django.contrib.auth` for user management.
+- **Admin Panel**: `django.contrib.admin` for data management (web interface).
+- **ORM & Models**: Django's ORM for database interaction via Python.
+</BackgroundInfo>
+
+<CollapseDropdown summary="5.1: Django User Model & Admin Interface">
+  - **User Model (`django.contrib.auth`)**: Handles user accounts, login, permissions. For custom needs (e.g., email as username), extend `AbstractUser`/`AbstractBaseUser`. See [Django auth docs](https://docs.djangoproject.com/en/stable/topics/auth/customizing/).
+  - **Admin Interface**: Web-based panel at `/admin/`. Register models to manage their data here (see 3.4).
 </CollapseDropdown>
 
-<CollapseDropdown summary="5.2: Structuring Your Django Project">
-  - **Apps for Features**: Organize your project into reusable "apps." Each app should handle a distinct piece of functionality (e.g., `users`, `products`, `blog`).
-  - **Templates**: Store HTML templates in a `templates` directory, typically within each app or at the project level.
-  - **Static Files**: CSS, JavaScript, and images go into a `static` directory, also within each app or at the project level.
-  - **Media Files**: User-uploaded files are typically handled by `MEDIA_ROOT` and `MEDIA_URL` settings.
-</CollapseDropdown>
-
-<CollapseDropdown summary="5.3: Key Django Concepts to Master">
-  - **MVT (Model-View-Template) Architecture**: Understand how data (Model), logic (View), and presentation (Template) interact.
-  - **URL Routing (`urls.py`)**: How Django maps web requests to your view functions or classes.
-  - **Views (Function-Based Views & Class-Based Views)**: The logic that handles requests and returns responses.
-  - **Django ORM & QuerySets**: Interacting with your database using Python objects.
-  - **Forms (`forms.py`)**: Handling user input, validation, and rendering HTML forms.
-  - **Django Templates Language (DTL)**: Syntax for embedding dynamic content in HTML.
-</CollapseDropdown>
-
-<CollapseDropdown summary="5.4: Deploying Your Application (_Brief Overview_)">
-  - **Considerations**: `DEBUG = False`, static file serving, WSGI server (Gunicorn), web server (Nginx), database configuration, environment variables.
-  - **Popular Platforms**:
-    - PaaS: Heroku, PythonAnywhere, Google App Engine, AWS Elastic Beanstalk.
-    - IaaS/VPS: DigitalOcean, Linode, AWS EC2.
-    - Containerization: Docker with Docker Compose or Kubernetes.
-  <BackgroundInfo title="Deployment is a Topic of Its Own">
-  Deployment involves many steps beyond Django. Refer to specific platform documentation and Django deployment guides. Many starter templates (e.g., Cookiecutter Django) include deployment configurations.
+<CollapseDropdown summary="5.2: Database Setup (Terminal & Config)">
+  - **Database Choice**: PostgreSQL or MySQL recommended for production.
+  - **Install Drivers (Terminal)**:
+    - Activate your virtual environment first.
+    - **PostgreSQL**:
+      ```bash
+      # Using uv (recommended)
+      uv add psycopg2-binary
+      # Or using pip
+      # pip install psycopg2-binary
+      ```
+    - **MySQL**:
+      ```bash
+      # Using uv (recommended)
+      uv add mysqlclient
+      # Or using pip
+      # pip install mysqlclient
+      ```
+  - **Configure `settings.py`**: Update `DATABASES` with your credentials (refer to Django docs).
+  <BackgroundInfo title="Database Credentials Tip">
+  For production, use environment variables for database credentials, not hardcoded values.
   </BackgroundInfo>
 </CollapseDropdown>
 
+<CollapseDropdown summary="5.3: Models & Migrations (Code & Terminal)">
+  - **Define Models**: Code your models in `your_app_name/models.py`.
+  - **Create & Apply Migrations (Terminal)**:
+    - After defining or changing models, run these commands from your project root (with virtual environment active):
+    - **Create Migrations**:
+      ```bash
+      # Using uv (recommended)
+      uv run manage.py makemigrations your_app_name
+      # Or directly
+      # python manage.py makemigrations your_app_name
+      ```
+    - **Apply Migrations**:
+      ```bash
+      # Using uv (recommended)
+      uv run manage.py migrate
+      # Or directly
+      # python manage.py migrate
+      ```
+</CollapseDropdown>
+
+<CollapseDropdown summary="5.4: Admin Panel Setup (Code & Web)">
+  - **Register Models**: In `your_app_name/admin.py`, register models for the admin web interface.
+  - **Accessing Admin**: After creating a superuser (Part 5), access via browser at `/admin/`.
+<CollapseDropdown summary="5.4: Admin Panel Integration (Code & Web Interface)">
+  - **Register Models**: In `your_app_name/admin.py`, register your models to make them manageable via the Django admin web interface (example code provided in previous versions).
+  - **Accessing Admin**: Once models are registered and you have created a superuser (see Part 5), access the admin panel through your browser at the `/admin/` URL of your running development server.
+</CollapseDropdown>
+
 ---
 
-## Part 6: Further Learning and Resources
+## Part 5: Development Workflow & Key `manage.py` Commands
 
-Django has a vast community and extensive resources.
+This section covers essential Django `manage.py` commands, executed via the terminal. These are fundamental to your development loop.
+
+<CollapseDropdown summary="7.1: Running the Development Server (Terminal First)">
+  - **Terminal Command**:
+    ```bash
+    # Using uv (recommended)
+    uv run manage.py runserver
+    # Or directly
+    # python manage.py runserver
+    ```
+</CollapseDropdown>
+
+<CollapseDropdown summary="7.2: Other Essential `manage.py` Commands (Terminal)">
+  - Execute from project root with virtual environment active. Examples show `uv run` and direct `python`.
+
+  - **Create Superuser** (for admin access):
+    ```bash
+    # Using uv (recommended)
+    uv run manage.py createsuperuser
+    # Or directly
+    # python manage.py createsuperuser
+    ```
+</CollapseDropdown>
+
+<CollapseDropdown summary="7.3: Project Structuring Tips">
+  - **Apps for Features**: Organize into reusable apps (e.g., `users`, `products`, `blog`).
+  - **Templates**: Store HTML in `templates/` (app-specific or project-level).
+  - **Static Files**: CSS, JS, images in `static/` (app-specific or project-level).
+  - **Media Files**: User uploads via `MEDIA_ROOT` and `MEDIA_URL`.
+</CollapseDropdown>
+
+---
+
+## Part 6: Diagnosing Common Issues
+
+Troubleshooting tips for common Django and environment problems.
+
+<CollapseDropdown summary="8.1: Stopping Dev Server">
+  - **Clean Stop**: `Ctrl+C` in the server terminal for graceful shutdown.
+  - **`Ctrl+Z` (Unix-like systems)**: Suspends, not stops. Use `fg` then `Ctrl+C`, or `jobs` and `kill %<job_id>`.
+</CollapseDropdown>
+
+<CollapseDropdown summary="8.2: Migration Issues">
+  - **`makemigrations` shows "No changes detected"**: Check `INSTALLED_APPS`, saved `models.py`, or app name if specified.
+  - **`migrate` errors**: Check database connection; resolve inconsistent history (cautiously).
+  - **View migration status**: `uv run manage.py showmigrations`.
+</CollapseDropdown>
+
+<CollapseDropdown summary="8.3: Static Files Not Loading (404s)">
+  - **Development (`DEBUG = True`)**: Check `STATIC_URL`, ensure files in `app_name/static/app_name/` or dirs in `STATICFILES_DIRS`.
+  - **Production (`DEBUG = False`)**: Run `collectstatic`; configure web server for `STATIC_ROOT`.
+</CollapseDropdown>
+
+<CollapseDropdown summary="8.4: `TemplateDoesNotExist`">
+  - Check template path in error. Ensure app in `INSTALLED_APPS`. Templates in `app_name/templates/app_name/` or `TEMPLATES[0]['DIRS']`. Check for typos.
+</CollapseDropdown>
+
+<CollapseDropdown summary="8.5: Import Errors (`ModuleNotFound` etc.)">
+  - **Check venv**: Ensure virtual environment is active.
+  - **Package installed?**: `uv add <pkg>` (for `pyproject.toml`) or `uv pip install <pkg>`. Verify with `uv pip list`.
+  - **Typos/Circular Imports**: Review import statements and module dependencies.
+</CollapseDropdown>
+
+<CollapseDropdown summary="8.6: Database Connection Problems">
+  - Verify `DATABASES` in `settings.py`. Ensure DB server is running/accessible. Check firewall. Confirm driver installed.
+</CollapseDropdown>
+
+<CollapseDropdown summary="8.7: Django Shell for Debugging">
+  - Test queries, models, utilities: `uv run manage.py shell`.
+  - Import models (e.g., `from my_app.models import MyModel`) and test.
+</CollapseDropdown>
+
+<CollapseDropdown summary="8.8: Checking `uv` Environment Info">
+  - **Active venv details**: `uv venv` (from project root).
+  - **List installed packages**: `uv pip list`.
+</CollapseDropdown>
+
+---
+
+## Part 7: Further Learning and Resources
+
+Explore these resources to continue your Django and `uv` journey.
 
 <BackgroundInfo title="Continue Your Django Journey">
-The official documentation is primary, supplemented by tutorials, best practices, and community support.
+Official documentation is primary, supplemented by tutorials and community support.
 </BackgroundInfo>
 
-- **[Official Django Documentation](https://docs.djangoproject.com/en/stable/)**: Comprehensive and the ultimate source of truth.
-- **[LearnDjango.com](https://learndjango.com/)**: Clear tutorials and guides for Django topics.
-- **[Django Girls Tutorial](https://tutorial.djangogirls.org/)**: Beginner-friendly tutorial (builds a blog).
-- **[Two Scoops of Django by Daniel Roy Greenfeld and Audrey Roy Greenfeld](https://www.feldroy.com/books/two-scoops-of-django-3-x)**: Highly recommended for best practices.
-- **[Real Python Django Tutorials](https://realpython.com/tutorials/django/)**: Quality tutorials on Python and Django.
-- **[Django Packages](https://djangopackages.org/)**: Directory of reusable apps, tools, and packages.
-- **[MDN Web Docs - Django](https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django)**: Mozilla's tutorial series for server-side Django.
-- **[William Vincent's Blog & Books](https://wsvincent.com/)**: Author of "Django for Beginners," "Django for APIs," "Django for Professionals."
-- **[Astral `uv` Documentation](https://docs.astral.sh/uv/)**: For `uv` specific commands and Python environment management.
+- **[Official Django Documentation](https://docs.djangoproject.com/en/stable/)**: Comprehensive truth source.
+- **[LearnDjango.com](https://learndjango.com/)**: Clear Django tutorials/guides.
+- **[Django Girls Tutorial](https://tutorial.djangogirls.org/)**: Beginner-friendly blog tutorial.
+- **[Two Scoops of Django (Greenfeld & Roy Greenfeld)](https://www.feldroy.com/books/two-scoops-of-django-3-x)**: Best practices book.
+- **[Real Python Django Tutorials](https://realpython.com/tutorials/django/)**: Quality Python/Django tutorials.
+- **[Django Packages](https://djangopackages.org/)**: Directory of reusable apps/tools.
+- **[MDN Web Docs - Django](https://developer.mozilla.org/en-US/docs/Learn/Server-side/Django)**: Mozilla's server-side Django tutorial.
+- **[William Vincent's Content](https://wsvincent.com/)**: Django books and blog.
+- **[Astral `uv` Documentation](https://docs.astral.sh/uv/)**: For `uv` commands and environment management.
+- **[YouTube Video Resource](https://www.youtube.com/watch?v=SlHBNXW1rTk)**: Additional video learning resource.
