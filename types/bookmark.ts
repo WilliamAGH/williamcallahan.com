@@ -101,3 +101,49 @@ export interface UnifiedBookmark {
   /** Legacy field */
   telegramUsername?: string;
 }
+
+/**
+ * Raw API types for external bookmark provider (modular, for server fetch/normalization)
+ */
+export interface RawApiBookmarkTag {
+  id: string;
+  name: string;
+  attachedBy: 'ai' | 'user' | string;
+}
+
+export interface RawApiBookmarkContent {
+  type: 'link' | string;
+  url: string;
+  title: string | null;
+  description: string | null;
+  imageUrl?: string;
+  imageAssetId?: string;
+  screenshotAssetId?: string;
+  favicon?: string;
+  htmlContent?: string;
+  crawledAt?: string;
+  author?: string | null;
+  publisher?: string | null;
+  datePublished?: string | null;
+  dateModified?: string | null;
+}
+
+export interface RawApiBookmark {
+  id: string;
+  createdAt: string;
+  modifiedAt: string;
+  title: string | null;
+  archived: boolean;
+  favourited: boolean;
+  taggingStatus: 'success' | string;
+  note: string | null;
+  summary: string | null;
+  tags: RawApiBookmarkTag[];
+  content: RawApiBookmarkContent;
+  assets: BookmarkAsset[];
+}
+
+export interface BookmarksApiResponse {
+  bookmarks: RawApiBookmark[];
+  nextCursor: string | null;
+}

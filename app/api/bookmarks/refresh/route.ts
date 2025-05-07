@@ -6,7 +6,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { refreshBookmarksData } from '@/lib/bookmarks';
+import { refreshBookmarksData } from '@/lib/bookmarks.client';
 import { ServerCacheInstance } from '@/lib/server-cache';
 
 // Ensure this route is not statically cached

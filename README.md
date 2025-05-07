@@ -33,7 +33,7 @@ This pattern is essential for components that format text differently on server 
 The site fetches company logos on demand. To avoid hitting APIs constantly and speed things up, it uses a couple of caching layers:
 
 1.  **Memory Cache:** Super fast, but clears whenever the app restarts. Good for logos you just looked up.
-2.  **Filesystem Cache (Optional):** If you set up a Docker volume, logos get saved to disk (`/app/public/logos` inside the container). This way, they stick around even if the container restarts. If there's no volume, it just uses the container's temporary filesystem (which also clears on restart). Logos are saved like `{md5(domain)}-{source}.png`.
+2.  **Filesystem Cache (Optional):** If you set up a Docker volume, logos get saved to disk (`/app/data/images/logos` inside the container). This way, they stick around even if the container restarts. If there's no volume, it just uses the container's temporary filesystem (which also clears on restart). Logos are saved like `{md5(domain)}-{source}.png`.
 3.  **External Fetching:** If a logo isn't in memory or on disk, the app tries fetching it from Google, Clearbit, or DuckDuckGo. It does a quick check to make sure it's not a generic placeholder and converts everything to PNG.
 
 **Bottom line:** The logo system works whether you set up persistent storage or not. Without it, it just relies on memory caching and re-fetches more often.
@@ -43,7 +43,7 @@ The site fetches company logos on demand. To avoid hitting APIs constantly and s
 If you want logos to persist across restarts, use a named Docker volume:
 
 - **Volume Name:** `logo_storage`
-- **Mount Point in Container:** `/app/public/logos`
+- **Mount Point in Container:** `/app/data/images/logos`
 
 Example `docker run` command:
 ```bash
@@ -51,7 +51,7 @@ Example `docker run` command:
 docker volume create logo_storage
 
 # Run the container, mounting the volume
-docker run -v logo_storage:/app/public/logos ... your-other-options ... williamcallahan-website
+docker run -v logo_storage:/app/data/images/logos ... your-other-options ... williamcallahan-website
 ```
 
 You might need to fix permissions on the volume the first time:
@@ -91,7 +91,7 @@ docker build -t williamcallahan-website .
 # Run with the volume mounted
 docker run -d \
   -p 3000:3000 \
-  -v logo_storage:/app/public/logos \
+  -v logo_storage:/app/data/images/logos \
   --name williamcallahan-website \
   williamcallahan-website
 ```
@@ -115,7 +115,7 @@ It uses React Context for managing history and global state for window position 
 ## Crashes
 
 The app tries to be less fragile about failures:
-- Checks if the filesystem directory (`/app/public/logos`) is usable on startup. Warns if not, but continues in memory-only mode.
+- Checks if the filesystem directory (`/app/data/images/logos`) is usable on startup. Warns if not, but continues in memory-only mode.
 - If fetching fails, it might retry. If it keeps failing for a specific domain, it'll cache the error for a bit to avoid hammering APIs.
 - Falls back to a placeholder if it can't get a real logo.
 
@@ -159,4 +159,24 @@ docker run --rm \
 ```bash
 # Check the health endpoint
 curl http://localhost:3000/api/health
+
+## Recalculating Persisted Data (e.g., GitHub Activity)
+
+If significant changes are made to the underlying data fetching or processing logic (e.g., in `lib/data-access.ts` for how GitHub contributions are calculated), the persisted JSON files in the `data/` directory (like `data/github-activity/activity_data.json`, `data/github-activity/repo_raw_weekly_stats/`, `data/github-activity/aggregated_weekly_activity.json`, etc.) might become stale or reflect incorrect calculations.
+
+To force a refresh of all persisted GitHub activity data, ensuring accuracy and bypassing any local development skip intervals:
+
+1.  **Run the Volume Population Script with the `--force-refresh-github` flag:**
+    This command will instruct the script to first delete any existing persisted GitHub activity files and then re-fetch and re-process all GitHub data from scratch.
+
+    ```bash
+    # If you use bun
+    bun run scripts/populate-volumes.ts --force-refresh-github
+
+    # Or, if you use ts-node directly
+    # npx ts-node ./scripts/populate-volumes.ts --force-refresh-github
+    ```
+
+This process ensures that the `data/github-activity/` directory is populated with freshly calculated data based on the latest logic in `lib/data-access.ts`.
+For other data types (bookmarks, logos), the script will follow its normal caching and fetching logic.
 

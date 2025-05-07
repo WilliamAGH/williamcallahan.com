@@ -50,6 +50,20 @@ export const BOOKMARKS_CACHE_DURATION = {
 } as const;
 
 /**
+ * Cache duration for GitHub activity fetching
+ * @constant
+ * @type {Object}
+ */
+export const GITHUB_ACTIVITY_CACHE_DURATION = {
+  /** Success cache duration (24 hours in seconds) */
+  SUCCESS: 24 * 60 * 60,
+  /** Failed attempt or incomplete data cache duration (1 hour in seconds) */
+  FAILURE: 60 * 60,
+  /** Revalidation interval (6 hours in seconds) - how often to check for new data */
+  REVALIDATION: 6 * 60 * 60
+} as const;
+
+/**
  * Base URL for the website
  * @constant
  * @type {string}

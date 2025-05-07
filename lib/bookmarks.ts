@@ -127,8 +127,6 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
 
   if (!bearerToken) {
     console.error('BOOKMARK_BEARER_TOKEN environment variable is not set.');
-    // Mark as failure but keep any existing cache
-    ServerCacheInstance.setBookmarks([], true);
     return [];
   }
 
@@ -228,16 +226,11 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
 
     console.log('refreshBookmarksData: Successfully normalized', normalizedBookmarks.length, 'bookmarks');
 
-    // Update the cache with the new data
-    ServerCacheInstance.setBookmarks(normalizedBookmarks);
-
     return normalizedBookmarks;
 
   } catch (error) {
     console.error('refreshBookmarksData: Failed to fetch external bookmarks:', error);
     clearTimeout(timeoutId);
-    // Mark as failure but keep any existing cache
-    ServerCacheInstance.setBookmarks([], true);
     // Re-throw to let the caller handle it
     throw error;
   } finally {

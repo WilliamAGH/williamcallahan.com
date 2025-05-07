@@ -8,7 +8,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { fetchExternalBookmarks } from '@/lib/bookmarks';
+import { fetchExternalBookmarks } from '@/lib/bookmarks.client';
 import { ServerCacheInstance } from '@/lib/server-cache';
 
 // Ensure this route is not statically cached
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
   
   try {
     // Forcibly refresh by calling the actual API
-    const { refreshBookmarksData } = await import('@/lib/bookmarks');
+    const { refreshBookmarksData } = await import('@/lib/bookmarks.client');
     await refreshBookmarksData();
     
     const cached = ServerCacheInstance.getBookmarks();

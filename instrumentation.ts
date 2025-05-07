@@ -15,7 +15,7 @@ export async function register() {
     if (process.env.NODE_ENV === 'production') {
       try {
         // Dynamic import to avoid issues with Next.js bundling
-        const { fetchExternalBookmarks } = await import('./lib/bookmarks');
+        const { fetchExternalBookmarks } = await import('./lib/bookmarks.client');
         console.log('Preloading bookmarks into server cache...');
         await fetchExternalBookmarks();
         console.log('Bookmarks preloaded successfully');

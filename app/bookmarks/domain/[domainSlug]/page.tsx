@@ -10,7 +10,7 @@
 export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
-import { fetchExternalBookmarks } from '@/lib/bookmarks';
+import { fetchExternalBookmarks } from '@/lib/bookmarks.client';
 import { getDomainSlug, generateUniqueSlug } from '@/lib/utils/domain-utils';
 
 /**

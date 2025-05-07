@@ -7,9 +7,10 @@
  */
 
 import NodeCache from 'node-cache';
-import { SERVER_CACHE_DURATION, LOGO_CACHE_DURATION, BOOKMARKS_CACHE_DURATION } from './constants';
+import { SERVER_CACHE_DURATION, LOGO_CACHE_DURATION, BOOKMARKS_CACHE_DURATION, GITHUB_ACTIVITY_CACHE_DURATION } from './constants'; // Added GITHUB_ACTIVITY_CACHE_DURATION
 import type { LogoInversion, LogoSource } from '../types/logo';
 import type { UnifiedBookmark } from '../types/bookmark';
+import type { GitHubActivityApiResponse } from '../types/github'; // Added GitHubActivityApiResponse
 import { assertServerOnly } from './utils/ensure-server-only';
 
 assertServerOnly('lib/server-cache.ts');
@@ -61,6 +62,20 @@ const LOGO_FETCH_PREFIX = 'logo-fetch:';
 const INVERTED_LOGO_PREFIX = 'logo-inverted:';
 const LOGO_ANALYSIS_PREFIX = 'logo-analysis:';
 const BOOKMARKS_CACHE_KEY = 'bookmarks-data';
+const GITHUB_ACTIVITY_CACHE_KEY = 'github-activity-data'; // Added GitHub activity cache key
+
+/**
+ * GitHub Activity cache entry
+ * @interface
+ */
+interface GitHubActivityCacheEntry extends GitHubActivityApiResponse {
+  /** Timestamp when the cache entry was created */
+  timestamp: number;
+  /** Last successful API fetch timestamp */
+  lastFetchedAt: number;
+  /** Last fetch attempt timestamp */
+  lastAttemptedAt: number;
+}
 
 /**
  * Server-side cache management class
@@ -293,6 +308,44 @@ export class ServerCache extends NodeCache {
    */
   clearBookmarks(): void {
     this.del(BOOKMARKS_CACHE_KEY);
+  }
+
+  /**
+   * Get cached GitHub activity
+   * @returns {GitHubActivityCacheEntry | undefined} Cached GitHub activity
+   */
+  getGithubActivity(): GitHubActivityCacheEntry | undefined {
+    return this.get<GitHubActivityCacheEntry>(GITHUB_ACTIVITY_CACHE_KEY);
+  }
+
+  /**
+   * Cache GitHub activity
+   * @param {GitHubActivityApiResponse} activityData - GitHub activity data to cache
+   * @param {boolean} isFailure - Whether this was a failed fetch attempt
+   */
+  setGithubActivity(activityData: GitHubActivityApiResponse, isFailure: boolean = false): void {
+    const now = Date.now();
+    const existing = this.getGithubActivity();
+
+    const entry: GitHubActivityCacheEntry = {
+      ...activityData,
+      timestamp: now,
+      lastFetchedAt: isFailure ? (existing?.lastFetchedAt ?? now) : now,
+      lastAttemptedAt: now,
+    };
+
+    this.set(
+      GITHUB_ACTIVITY_CACHE_KEY,
+      entry,
+      isFailure || !activityData.dataComplete ? GITHUB_ACTIVITY_CACHE_DURATION.FAILURE : GITHUB_ACTIVITY_CACHE_DURATION.SUCCESS
+    );
+  }
+
+  /**
+   * Clear GitHub activity cache
+   */
+  clearGithubActivity(): void {
+    this.del(GITHUB_ACTIVITY_CACHE_KEY);
   }
 }
 
