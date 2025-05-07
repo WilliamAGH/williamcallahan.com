@@ -316,8 +316,13 @@ Features like code completion, debugging, Django tools, database integration, an
   - **PyCharm Professional**: Has comprehensive, out-of-the-box Django support.
   - **IntelliJ IDEA Ultimate with Python Plugin**: Can also be configured for robust Django development.
   - **Creating/Importing a Django Project**:
-    - PyCharm will often auto-detect a Django project or allow you to create one with Django support enabled.
-    - Ensure the correct Python interpreter (from your virtual environment) is selected for the project.
+    - PyCharm will often auto-detect a Django project or allow you to create one with Django support enabled. You can also select `uv` as the project environment type, as shown below.
+    - Ensure the correct Python interpreter (from your virtual environment or a `uv`-managed one) is selected for the project.
+  <ArticleImage
+    src="/images/posts/new-django-project-pycharm.png"
+    alt="PyCharm New Project dialog showing Django selected with 'uv' as the environment type"
+    caption="PyCharm's New Project dialog allows selecting Django and `uv` for environment management."
+  />
   - **Run/Debug Configurations**:
     - PyCharm typically creates a "Django server" run configuration automatically. You can customize it in **Run > Edit Configurations**.
   - **Key Features**:
