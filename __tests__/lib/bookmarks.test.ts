@@ -96,6 +96,25 @@ import { fetchExternalBookmarks, fetchExternalBookmarksCached } from '../../lib/
 let consoleLogSpy: ConsoleSpy;
 let consoleErrorSpy: ConsoleSpy;
 
+// Simplify our approach - we'll use type assertions more directly but with better structure
+const createMockResponse = (options: {
+  ok: boolean;
+  status?: number;
+  statusText?: string;
+  json?: () => Promise<unknown>;
+  text?: () => Promise<string>;
+}): Response => {
+  // Create a minimal implementation with required fields
+  return {
+    ok: options.ok,
+    status: options.status ?? 200,
+    statusText: options.statusText ?? 'OK',
+    headers: new Headers(),
+    json: options.json ?? (() => Promise.resolve({})),
+    text: options.text ?? (() => Promise.resolve(''))
+  } as Response;
+};
+
 describe('Bookmarks Module', () => {
   // Define properly typed API response
   const mockApiResponse: {
@@ -182,10 +201,12 @@ describe('Bookmarks Module', () => {
 
   it('should fetch bookmarks from API when cache is empty', async () => {
     // Spy on global fetch for this test
-    const fetchSpy = spyOn(global, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockApiResponse.bookmarks)
-    } as unknown as Response);
+    const fetchSpy = spyOn(global, 'fetch').mockResolvedValueOnce(
+      createMockResponse({
+        ok: true,
+        json: () => Promise.resolve(mockApiResponse.bookmarks)
+      })
+    );
 
     const bookmarks = await fetchExternalBookmarks();
 
@@ -328,12 +349,14 @@ describe('Bookmarks Module', () => {
     mockHelpers._mockClearBookmarks();
 
     // Spy on global fetch and return error response
-    const fetchSpy = spyOn(global, 'fetch').mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-      statusText: 'Unauthorized',
-      text: () => Promise.resolve('Unauthorized')
-    } as unknown as Response); // Use unknown as intermediate cast
+    const fetchSpy = spyOn(global, 'fetch').mockResolvedValueOnce(
+      createMockResponse({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        text: () => Promise.resolve('Unauthorized')
+      })
+    );
 
     // With no cache, fetchExternalBookmarks will try to fetch and return empty when failed
     const bookmarks = await fetchExternalBookmarks();
@@ -358,27 +381,29 @@ describe('Bookmarks Module', () => {
   it('should handle API response with missing fields', async () => {
     // Spy on global fetch and return minimal data
     // The client implementation expects the API to return an array directly, not an object with a bookmarks property
-    const fetchSpy = spyOn(global, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve([
-        {
-          id: 'minimal',
-          createdAt: '2023-01-01T12:00:00Z',
-          modifiedAt: '2023-01-01T12:00:00Z',
-          title: null,
-          archived: false,
-          favourited: false,
-          taggingStatus: 'success',
-          tags: [],
-          content: {
-            type: 'link',
-            url: 'https://example.com/minimal'
-            // Title and description missing
-          },
-          assets: []
-        }
-      ])
-    } as unknown as Response); // Use unknown as intermediate cast
+    const fetchSpy = spyOn(global, 'fetch').mockResolvedValueOnce(
+      createMockResponse({
+        ok: true,
+        json: () => Promise.resolve([
+          {
+            id: 'minimal',
+            createdAt: '2023-01-01T12:00:00Z',
+            modifiedAt: '2023-01-01T12:00:00Z',
+            title: null,
+            archived: false,
+            favourited: false,
+            taggingStatus: 'success',
+            tags: [],
+            content: {
+              type: 'link',
+              url: 'https://example.com/minimal'
+              // Title and description missing
+            },
+            assets: []
+          }
+        ])
+      })
+    );
 
     const bookmarks = await fetchExternalBookmarks();
 

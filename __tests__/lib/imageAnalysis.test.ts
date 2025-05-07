@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { describe, it, expect, jest, mock, beforeEach } from 'bun:test';
 import type { Sharp, Metadata } from 'sharp';
 import {
@@ -150,7 +149,7 @@ describe("Logo Analysis Module", () => {
         })
       }));
 
-      expect(analyzeLogo(Buffer.from([0]))).rejects.toThrow(
+      return expect(analyzeLogo(Buffer.from([0]))).rejects.toThrow(
         `Invalid image format: invalid. Must be one of: ${TEST_DATA.FORMATS.join(", ")}`
       );
     });
@@ -164,7 +163,7 @@ describe("Logo Analysis Module", () => {
         })
       }));
 
-      expect(analyzeLogo(Buffer.from([0]))).rejects.toThrow(
+      return expect(analyzeLogo(Buffer.from([0]))).rejects.toThrow(
         "Invalid image dimensions: 0x0. Must be positive numbers."
       );
     });
@@ -175,7 +174,7 @@ describe("Logo Analysis Module", () => {
         metadata: jest.fn().mockRejectedValue(new ImageAnalysisError(errorMessage))
       }));
 
-      expect(analyzeLogo(Buffer.from([0]))).rejects.toThrow(errorMessage);
+      return expect(analyzeLogo(Buffer.from([0]))).rejects.toThrow(errorMessage);
     });
 
     it('should detect logo transparency correctly', async () => {
@@ -228,7 +227,7 @@ describe("Logo Analysis Module", () => {
         })
       }));
 
-      expect(invertLogo(Buffer.from([0]))).rejects.toThrow(
+      return expect(invertLogo(Buffer.from([0]))).rejects.toThrow(
         `Invalid image format: invalid. Must be one of: ${TEST_DATA.FORMATS.join(", ")}`
       );
     });
@@ -239,7 +238,7 @@ describe("Logo Analysis Module", () => {
         metadata: jest.fn().mockRejectedValue(new ImageAnalysisError(errorMessage))
       }));
 
-      expect(invertLogo(Buffer.from([0]))).rejects.toThrow(errorMessage);
+      return expect(invertLogo(Buffer.from([0]))).rejects.toThrow(errorMessage);
     });
   });
 
@@ -382,7 +381,7 @@ describe("Logo Analysis Module", () => {
         metadata: jest.fn().mockRejectedValue(new ImageAnalysisError(errorMessage))
       }));
 
-      expect(doesLogoNeedInversion(Buffer.from([0]), true)).rejects.toThrow(errorMessage);
+      return expect(doesLogoNeedInversion(Buffer.from([0]), true)).rejects.toThrow(errorMessage);
     });
   });
 
