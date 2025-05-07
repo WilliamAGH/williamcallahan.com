@@ -179,7 +179,9 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
           ? raw.tags.map(tag => ({
               id: tag.id,
               name: tag.name,
-              attachedBy: tag.attachedBy as ("user" | "ai" | undefined)
+              attachedBy: ((value): 'user' | 'ai' | undefined => {
+                return value === 'user' || value === 'ai' ? value : undefined;
+              })(tag.attachedBy)
             }))
           : [];
 
