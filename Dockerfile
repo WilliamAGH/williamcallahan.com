@@ -77,8 +77,8 @@ RUN echo "📦 Building the application with populated data volumes..." && bun r
 FROM base AS runner
 WORKDIR /app
 
-# Install runtime dependencies (like Sharp's) and curl for healthchecks
-RUN apk add --no-cache vips-dev build-base curl
+# Install runtime dependencies (like Sharp's), curl for healthchecks, AND BASH
+RUN apk add --no-cache vips-dev build-base curl bash
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

@@ -198,8 +198,9 @@ async function populateAllVolumes() {
   }
 
   // Timestamp check for local development to avoid running too frequently
-  if (!forceRefreshGithub && process.env.NODE_ENV !== 'production' && process.env.CI !== 'true') { // Only apply this logic in non-production, non-CI environments
-    console.log('[Debug] Condition for timestamp check met (NODE_ENV is not "production" and CI is not "true"). Attempting timestamp check.');
+  if (process.env.NODE_ENV === 'development' && process.env.CI !== 'true') { // Only apply this logic in non-production, non-CI environments
+    console.log('[Debug] Condition for timestamp check met (NODE_ENV is "development" and CI is not "true"). Attempting timestamp check.');
+    console.log(`[Debug] LAST_RUN_SUCCESS_TIMESTAMP_FILE path: ${LAST_RUN_SUCCESS_TIMESTAMP_FILE}`);
     try {
       const stats = await fs.stat(LAST_RUN_SUCCESS_TIMESTAMP_FILE).catch((err) => {
         console.log(`[Debug] fs.stat error: ${err.message}. File might not exist or is inaccessible.`);
