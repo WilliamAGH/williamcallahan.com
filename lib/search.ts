@@ -149,7 +149,7 @@ export async function searchEducation(query: string): Promise<SearchResult[]> {
 
 export async function searchBookmarks(query: string): Promise<SearchResult[]> {
   // Import fetchExternalBookmarks dynamically to avoid circular dependencies
-  const { fetchExternalBookmarks } = await import('./bookmarks');
+  const { fetchExternalBookmarks } = await import('./bookmarks.client');
   const bookmarks = await fetchExternalBookmarks();
 
   // Pre-compute slugs once

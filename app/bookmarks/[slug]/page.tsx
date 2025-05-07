@@ -1,15 +1,15 @@
 /**
  * Domain-specific Bookmark Page with user-friendly URLs
- * 
+ *
  * Displays bookmarks for a specific domain using a clean URL.
- * 
+ *
  * @module app/bookmarks/[slug]/page
  */
 
 // Configure dynamic rendering
 export const dynamic = 'force-dynamic';
 
-import { fetchExternalBookmarksCached } from '@/lib/bookmarks';
+import { getBookmarksForStaticBuild } from '@/lib/bookmarks.client';
 import { BookmarksServer } from '@/components/features/bookmarks/bookmarks.server';
 import { JsonLdScript } from '@/components/seo/json-ld';
 import { getStaticPageMetadata } from '@/lib/seo/metadata';
@@ -21,8 +21,8 @@ import { notFound } from 'next/navigation';
  * Generate static paths for slug pages
  */
 export async function generateStaticParams() {
-  const bookmarks = await fetchExternalBookmarksCached();
-  return bookmarks.map(bookmark => ({ 
+  const bookmarks = await getBookmarksForStaticBuild();
+  return bookmarks.map(bookmark => ({
     slug: generateUniqueSlug(bookmark.url, bookmarks, bookmark.id)
   }));
 }
@@ -35,11 +35,11 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const paramsResolved = await Promise.resolve(params);
   const path = `/bookmarks/${paramsResolved.slug}`;
   const baseMetadata = getStaticPageMetadata(path, 'bookmarks');
-  
+
   // Fetch bookmark data to create more specific metadata
-  const allBookmarks = await fetchExternalBookmarksCached();
+  const allBookmarks = await getBookmarksForStaticBuild();
   const { slug } = paramsResolved;
-  
+
   // Find the bookmark that matches this slug
   let foundBookmark = null;
   for (const bookmark of allBookmarks) {
@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       break;
     }
   }
-  
+
   // If no bookmark is found, return basic metadata
   if (!foundBookmark) {
     return {
@@ -57,7 +57,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       title: `Bookmark | William Callahan`
     };
   }
-  
+
   // Extract domain for display
   let domainName = '';
   try {
@@ -66,17 +66,17 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   } catch {
     domainName = 'website';
   }
-  
+
   // Create custom title and description based on the bookmark
   const customTitle = `${foundBookmark.title || 'Bookmark'} | William Callahan`;
   const customDescription = foundBookmark.description || `A bookmark from ${domainName} that I've saved for future reference.`;
-  
+
   // Create image URL if available
   let imageUrl = foundBookmark.ogImage;
   if (!imageUrl && foundBookmark.content?.imageUrl) {
     imageUrl = foundBookmark.content.imageUrl;
   }
-  
+
   return {
     ...baseMetadata,
     title: customTitle,
@@ -87,24 +87,24 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       description: customDescription,
       type: 'article',
       url: `https://williamcallahan.com/bookmarks/${slug}`,
-      ...(imageUrl && { 
-        images: [{ 
+      ...(imageUrl && {
+        images: [{
           url: imageUrl,
           width: 1200,
           height: 630,
           alt: foundBookmark.title || 'Bookmark image'
-        }] 
+        }]
       })
     },
     twitter: {
       ...baseMetadata.twitter,
       title: customTitle,
       description: customDescription,
-      ...(imageUrl && { 
-        images: [{ 
+      ...(imageUrl && {
+        images: [{
           url: imageUrl,
           alt: foundBookmark.title || 'Bookmark image'
-        }] 
+        }]
       })
     },
     alternates: {
@@ -118,14 +118,14 @@ interface BookmarkPageProps {
 }
 
 export default async function BookmarkPage({ params }: BookmarkPageProps) {
-  const allBookmarks = await fetchExternalBookmarksCached();
+  const allBookmarks = await getBookmarksForStaticBuild();
   // Await params to fix Next.js warning
   const paramsResolved = await Promise.resolve(params);
   const { slug } = paramsResolved;
-  
+
   // Find the bookmark that matches this slug
   let foundBookmark = null;
-  
+
   for (const bookmark of allBookmarks) {
     const bookmarkSlug = generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id);
     if (bookmarkSlug === slug) {
@@ -133,12 +133,12 @@ export default async function BookmarkPage({ params }: BookmarkPageProps) {
       break;
     }
   }
-  
+
   // If no bookmark matches this slug, show a 404
   if (!foundBookmark) {
     return notFound();
   }
-  
+
   // Create a collection of related bookmarks from the same domain
   let domainBookmarks = allBookmarks.filter(b => {
     try {
@@ -151,11 +151,11 @@ export default async function BookmarkPage({ params }: BookmarkPageProps) {
       return false;
     }
   });
-  
+
   // Use consistent header with main bookmarks page
   const pageTitle = 'Bookmarks';
   const pageDescription = 'A collection of articles, websites, and resources I\'ve bookmarked for future reference.';
-  
+
   // Extract domain for display purposes (still needed for JSON-LD)
   let domainName = '';
   try {
@@ -164,7 +164,7 @@ export default async function BookmarkPage({ params }: BookmarkPageProps) {
   } catch {
     domainName = 'website';
   }
-  
+
   // Create enhanced JSON-LD data for better SEO
   const jsonLdData = {
     "@context": "https://schema.org",
@@ -195,7 +195,7 @@ export default async function BookmarkPage({ params }: BookmarkPageProps) {
     <>
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-5xl mx-auto">
-        <BookmarksServer 
+        <BookmarksServer
           title={`Bookmark: ${foundBookmark.title || domainName}`}
           description={foundBookmark.description || `A bookmark from ${domainName} I found useful.`}
           bookmarks={domainBookmarks}

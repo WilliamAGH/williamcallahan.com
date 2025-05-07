@@ -8,7 +8,7 @@ import "server-only"; // Ensure this component remains server-only
 
 import { BookmarksClientWithWindow } from './bookmarks-client-with-window';
 import type { UnifiedBookmark } from '@/types';
-import { fetchExternalBookmarks } from '@/lib/bookmarks';
+import { getBookmarksForStaticBuild } from '@/lib/bookmarks.client';
 
 interface BookmarksServerProps {
   title: string;
@@ -45,7 +45,7 @@ export async function BookmarksServer({
   } else {
     // Fetch bookmarks with error handling
     try {
-      bookmarks = await fetchExternalBookmarks();
+      bookmarks = await getBookmarksForStaticBuild();
       console.log('Server-side bookmarks count:', bookmarks.length);
       if (bookmarks.length > 0) {
         console.log('First bookmark title:', bookmarks[0]?.title);

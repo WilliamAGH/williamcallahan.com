@@ -10,3 +10,5 @@ export * from './navigation';
 export * from './social';
 export * from './terminal';
 export * from './bookmark';
+export * from './github';
+export * from './logo';
