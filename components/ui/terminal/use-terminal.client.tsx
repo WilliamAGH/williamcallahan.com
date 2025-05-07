@@ -12,8 +12,6 @@ import { handleCommand } from './commands.client';
 import type { SelectionItem } from '@/types/terminal';
 import { useTerminalContext } from './terminal-context.client';
 
-const MAX_HISTORY = 100;
-
 export function useTerminal() {
   // Get only history functions from TerminalContext
   const {
@@ -56,10 +54,10 @@ export function useTerminal() {
         } else {
           // Add command and first output line together
           if (result.results.length > 0) {
-            addToHistory({ input: commandInput, output: result.results[0].output });
+            addToHistory({ input: commandInput, output: result.results[0]?.output ?? '' });
             // Add subsequent output lines without input
             result.results.slice(1).forEach(item => {
-              addToHistory({ input: '', output: item.output });
+              addToHistory({ input: '', output: item?.output ?? '' });
             });
           } else {
             // If handleCommand returns no results (e.g., unexpected case), still add the input
@@ -87,7 +85,7 @@ export function useTerminal() {
     setSelection(null);
     if (item.path) {
       router.push(item.path);
-      
+
       // For paths with hash fragments (like /bookmarks#id), scroll to the element
       setTimeout(() => {
         const id = item.path.split('#')[1];

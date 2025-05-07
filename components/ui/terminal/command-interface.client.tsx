@@ -50,7 +50,7 @@ export function CommandInterface() {
         <div className="flex-1 overflow-y-auto">
           <History history={history} />
         </div>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={(e) => { void handleSubmit(e); }}>
           <div className="flex items-center">
             <span className="text-[#7aa2f7] mr-2">$</span>
             <input

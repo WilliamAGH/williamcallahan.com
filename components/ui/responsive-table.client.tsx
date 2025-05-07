@@ -1,6 +1,7 @@
 'use client';
 
-import React, { Children, isValidElement, useMemo, ReactNode, HTMLAttributes } from 'react';
+import React, { Children, isValidElement, useMemo } from 'react';
+import type { ReactNode, HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
 // Helper types for parsing
@@ -94,8 +95,26 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
       suppressHydrationWarning={true} // Add suppression here as structure differs from original table
     >
       {rows.map((row, rowIndex) => {
-        const programPeriodIndex = headers.findIndex(h => /program period/i.test(String(h)));
-        const investmentIndex = headers.findIndex(h => /investment/i.test(String(h)));
+        // Safely convert header to string for regex testing
+        const headerToString = (node: ReactNode): string => {
+          if (node === null || node === undefined) return '';
+          if (typeof node === 'string' || typeof node === 'number' || typeof node === 'boolean') return String(node);
+          if (Array.isArray(node)) return node.map(childNode => headerToString(childNode)).join('');
+          if (React.isValidElement(node)) {
+            // Handle elements with no children (e.g. <img />) or void elements
+            // or if children prop is not what we expect for stringification
+            if (!node.props.children) return '';
+            // Ensure we are not trying to stringify objects like {current: ...} from refs etc.
+            if (typeof node.props.children === 'object' && !Array.isArray(node.props.children) && !React.isValidElement(node.props.children)) {
+                return '';
+            }
+            return headerToString(node.props.children);
+          }
+          return ''; // For other object types that are not React elements or arrays
+        };
+
+        const programPeriodIndex = headers.findIndex(h => /program period/i.test(headerToString(h)));
+        const investmentIndex = headers.findIndex(h => /investment/i.test(headerToString(h)));
         const isEven = rowIndex % 2 === 0;
 
         return (

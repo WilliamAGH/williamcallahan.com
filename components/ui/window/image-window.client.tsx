@@ -9,7 +9,6 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react'; // Import useEffect and useCallback
-import type { ComponentProps } from 'react';
 import Image, { type ImageProps } from 'next/image';
 import { cn } from '../../../lib/utils';
 import { WindowControls } from '../navigation/window-controls';
