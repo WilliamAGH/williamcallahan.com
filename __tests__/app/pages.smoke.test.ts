@@ -68,7 +68,7 @@ describe('App Router Page Smoke Tests (Static Routes)', () => {
         console.log(`Skipping import test for ${pageInfo.name} due to server-only module restrictions`);
         return;
       }
-      
+
       let PageComponentModule: PageComponentModule;
       try {
         // Add type assertion to the dynamic import
@@ -94,7 +94,7 @@ describe('App Router Page Smoke Tests (Static Routes)', () => {
           expect(typeof PageComponent).toBe('function');
           return;
         }
-        
+
         const pageComponentInstance = await PageComponent({ params: {}, searchParams: {} });
 
         let elementToRender: JSX.Element | null = null; // Initialize as null
@@ -122,14 +122,11 @@ describe('App Router Page Smoke Tests (Static Routes)', () => {
             expect(typeof pageComponentInstance).toBe('object'); // Fail test if not object or null
         }
 
-        // Only render if we have a valid element or null
-        if (elementToRender !== undefined) { // renderToString handles null
+        // Only render if we have a valid element (not null or undefined)
+        if (elementToRender) { // Only truthy values (valid React elements) should be rendered
              const html = renderToString(elementToRender);
              expect(html).toBeString();
-             // Allow empty string for null components, check length only if not null
-             if (elementToRender !== null) {
-                expect(html.length).toBeGreaterThan(0);
-             }
+             expect(html.length).toBeGreaterThan(0);
         } else {
              // This case should ideally not be hit due to the checks above
              console.error(`Skipping renderToString for ${pageInfo.name} due to invalid element type.`);

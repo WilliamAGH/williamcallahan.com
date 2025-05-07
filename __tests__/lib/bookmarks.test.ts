@@ -201,7 +201,7 @@ describe('Bookmarks Module', () => {
 
   it('should fetch bookmarks from API when cache is empty', async () => {
     // Spy on global fetch for this test
-    const fetchSpy = spyOn(global, 'fetch').mockResolvedValueOnce(
+    const fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       createMockResponse({
         ok: true,
         json: () => Promise.resolve(mockApiResponse.bookmarks)
@@ -246,7 +246,7 @@ describe('Bookmarks Module', () => {
 
   it('should return cached bookmarks when available and no refresh needed', async () => {
     // Spy on global fetch to ensure it's NOT called
-    const fetchSpy = spyOn(global, 'fetch');
+    const fetchSpy = spyOn(globalThis, 'fetch');
 
     // Set up mock cached data
     const cachedBookmarksData: UnifiedBookmark[] = [
@@ -298,7 +298,7 @@ describe('Bookmarks Module', () => {
 
   it('should handle missing BOOKMARK_BEARER_TOKEN', async () => {
     // Spy on global fetch to ensure it's NOT called
-    const fetchSpy = spyOn(global, 'fetch');
+    const fetchSpy = spyOn(globalThis, 'fetch');
     // Remove token
     delete process.env.BOOKMARK_BEARER_TOKEN;
 
@@ -320,7 +320,7 @@ describe('Bookmarks Module', () => {
 
   it('should handle API fetch errors', async () => {
     // Spy on global fetch and make it reject
-    const fetchSpy = spyOn(global, 'fetch').mockRejectedValueOnce(new Error('Network error'));
+    const fetchSpy = spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Network error'));
 
     // Clear any cached bookmarks first
     mockHelpers._mockClearBookmarks();
@@ -349,7 +349,7 @@ describe('Bookmarks Module', () => {
     mockHelpers._mockClearBookmarks();
 
     // Spy on global fetch and return error response
-    const fetchSpy = spyOn(global, 'fetch').mockResolvedValueOnce(
+    const fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       createMockResponse({
         ok: false,
         status: 401,
@@ -381,7 +381,7 @@ describe('Bookmarks Module', () => {
   it('should handle API response with missing fields', async () => {
     // Spy on global fetch and return minimal data
     // The client implementation expects the API to return an array directly, not an object with a bookmarks property
-    const fetchSpy = spyOn(global, 'fetch').mockResolvedValueOnce(
+    const fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       createMockResponse({
         ok: true,
         json: () => Promise.resolve([
@@ -419,7 +419,7 @@ describe('Bookmarks Module', () => {
 
   it.skip('should use cached data while refreshing in background when cache exists but needs refresh', async () => {
     // Spy on global fetch and make it reject for the background refresh
-    const fetchSpy = spyOn(global, 'fetch').mockRejectedValueOnce(new Error('Network error'));
+    const fetchSpy = spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Network error'));
 
     // Set up mock cached data
     const cachedBookmarks: UnifiedBookmark[] = [
