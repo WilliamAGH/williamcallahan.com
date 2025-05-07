@@ -8,7 +8,6 @@
  */
 
 import { NextResponse } from 'next/server';
-import { fetchExternalBookmarks } from '@/lib/bookmarks.client';
 import { ServerCacheInstance } from '@/lib/server-cache';
 
 // Ensure this route is not statically cached
@@ -22,14 +21,14 @@ export const dynamic = 'force-dynamic';
 function validateApiKey(request: Request): boolean {
   const apiKey = process.env.ADMIN_API_KEY;
   if (!apiKey) return false;
-  
+
   const authHeader = request.headers.get('Authorization');
   if (!authHeader) return false;
-  
+
   // Check 'Bearer TOKEN' format
   const [type, token] = authHeader.split(' ');
   if (type !== 'Bearer' || !token) return false;
-  
+
   return token === apiKey;
 }
 
@@ -42,7 +41,7 @@ export async function GET(request: Request) {
   }
 
   const cached = ServerCacheInstance.getBookmarks();
-  
+
   return NextResponse.json({
     status: 'success',
     data: {
@@ -62,14 +61,14 @@ export async function POST(request: Request) {
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  
+
   try {
     // Forcibly refresh by calling the actual API
     const { refreshBookmarksData } = await import('@/lib/bookmarks.client');
     await refreshBookmarksData();
-    
+
     const cached = ServerCacheInstance.getBookmarks();
-    
+
     return NextResponse.json({
       status: 'success',
       message: 'Bookmarks cache refreshed successfully',
@@ -95,10 +94,10 @@ export async function DELETE(request: Request) {
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  
+
   try {
     ServerCacheInstance.clearBookmarks();
-    
+
     return NextResponse.json({
       status: 'success',
       message: 'Bookmarks cache cleared successfully'

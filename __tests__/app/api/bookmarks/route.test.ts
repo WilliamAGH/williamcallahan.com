@@ -17,7 +17,9 @@ function createRequest(options: { url?: string } = {}): NextRequest {
     method: 'GET',
     headers: {
       'Accept': 'application/json',
-      'Authorization': `Bearer ${process.env.BOOKMARK_BEARER_TOKEN}`
+      ...(process.env.BOOKMARK_BEARER_TOKEN
+        ? { 'Authorization': `Bearer ${process.env.BOOKMARK_BEARER_TOKEN}` }
+        : {})
     }
   });
 }
@@ -96,7 +98,9 @@ describe('GET /api/bookmarks', () => {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'Authorization': `Bearer ${process.env.BOOKMARK_BEARER_TOKEN}`
+        ...(process.env.BOOKMARK_BEARER_TOKEN
+          ? { 'Authorization': `Bearer ${process.env.BOOKMARK_BEARER_TOKEN}` }
+          : {})
       }
     });
 

@@ -147,8 +147,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       bookmarks = JSON.parse(fileContents);
       console.log(`[Sitemap] Successfully read ${bookmarks.length} bookmarks from persisted file.`);
     } catch (readError) {
-      console.error("[Sitemap] Failed to read persisted bookmarks:", readError);
-      // Sitemap will have no bookmark entries if this fails
+      console.error("[Sitemap] Failed to read or parse persisted bookmarks:", readError);
+      // Attempt to refresh the local cache as a fallback
+      try {
+        await refreshBookmarksData();
+        const fallbackContents = fs.readFileSync(persistedBookmarksPath, 'utf-8');
+        bookmarks = JSON.parse(fallbackContents);
+        console.log(`[Sitemap] Successfully recovered ${bookmarks.length} bookmarks after refresh.`);
+      } catch (fallbackErr) {
+        console.error("[Sitemap] Fallback refresh failed; continuing without bookmark entries.", fallbackErr);
+      }
     }
 
     // Pre-compute slugs to avoid O(n²) complexity

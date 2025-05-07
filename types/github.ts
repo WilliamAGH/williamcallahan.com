@@ -20,7 +20,7 @@ export interface ContributionDay {
 export interface GitHubActivityApiResponse {
   source: 'scraping' | 'api' | 'api_multi_file_cache'; // Added 'api_multi_file_cache'
   data: ContributionDay[];
-  totalContributions: string; // Ensure this is always present
+  totalContributions: number; // Ensure this is always present
   linesAdded?: number; // Total lines of code added in the last 365 days
   linesRemoved?: number; // Total lines of code removed in the last 365 days
   dataComplete?: boolean; // Indicates if all repositories' stats were successfully retrieved

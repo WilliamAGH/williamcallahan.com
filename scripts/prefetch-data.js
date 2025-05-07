@@ -11,7 +11,8 @@
 
 const http = require('node:http');
 const https = require('node:https');
-const { resolve } = require('node:path');
+const path = require('node:path');
+const { resolve } = path;
 const fs = require('node:fs/promises');
 // Assuming data-access.js is the compiled output in the same relative location
 const { getBookmarks, getGithubActivity, getLogo, getInvestmentDomainsAndIds } = require('../lib/data-access');

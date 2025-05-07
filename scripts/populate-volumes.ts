@@ -11,7 +11,8 @@ import path from 'node:path';
 import { getBookmarks, getGithubActivity, getLogo, getInvestmentDomainsAndIds, calculateAndStoreAggregatedWeeklyActivity } from '../lib/data-access';
 
 // CONFIG
-const VERBOSE = process.env.VERBOSE === 'true' || true;
+// Default to `false` when the env-var is absent
+const VERBOSE = process.env.VERBOSE === 'true';
 const LAST_RUN_SUCCESS_TIMESTAMP_FILE = path.join(process.cwd(), '.populate-volumes-last-run-success');
 const RUN_INTERVAL_HOURS = 12;
 
@@ -287,10 +288,7 @@ async function populateAllVolumes() {
     const bookmarks = await populateBookmarksData();
     await populateGithubActivityData();
 
-    // Call calculateAndStoreAggregatedWeeklyActivity after raw stats are populated
-    console.log('🔄 Aggregating weekly GitHub activity data...');
-    await calculateAndStoreAggregatedWeeklyActivity();
-    console.log('✅ Weekly GitHub activity aggregation complete.');
+    // No need to call calculateAndStoreAggregatedWeeklyActivity again as it's already called in populateGithubActivityData()
 
     await populateLogosData(bookmarks); // Pass bookmarks for domain extraction
 
