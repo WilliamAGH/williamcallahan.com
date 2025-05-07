@@ -32,9 +32,12 @@ export interface BookmarkTag {
   attachedBy?: 'ai' | 'user';
 }
 
+// Define known content types with a catch-all fallback
+export type ContentType = 'link' | 'image' | 'video' | (string & {});
+
 export interface BookmarkContent {
-  /** Content type (e.g., link) */
-  type: string;
+  /** Content type (e.g., link | image | video) */
+  type: ContentType;
   /** URL of the content */
   url: string;
   /** Resolved title */
