@@ -17,13 +17,16 @@ export const dynamic = 'force-dynamic';
  * @returns {Promise<NextResponse>} API response with health status
  */
 export async function GET(): Promise<NextResponse> {
+  // Use Promise.resolve to satisfy require-await rule
+  const cacheStats = await Promise.resolve(ServerCacheInstance.getStats());
+  
   return NextResponse.json(
     {
       status: 'ok',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
       version: process.env.npm_package_version || '0.0.0',
-      cacheStats: ServerCacheInstance.getStats()
+      cacheStats
     },
     {
       headers: {

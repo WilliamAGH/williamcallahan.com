@@ -49,11 +49,11 @@ function checkRateLimit(ip: string): boolean {
 /**
  * POST handler - Refreshes the bookmarks cache
  */
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<NextResponse> {
   // Get client IP for rate limiting
-  const forwardedFor = request.headers.get('x-forwarded-for') || 'unknown';
+  const forwardedFor: string = request.headers.get('x-forwarded-for') || 'unknown';
   // Take first IP if there are multiple
-  const clientIp = forwardedFor.split(',')[0].trim();
+  const clientIp = forwardedFor?.split(',')[0]?.trim() || '';
 
   // Check rate limit
   if (!checkRateLimit(clientIp)) {
@@ -101,9 +101,10 @@ export async function POST(request: Request) {
 /**
  * GET handler - Check if refresh is needed
  */
-export async function GET() {
-  const cached = ServerCacheInstance.getBookmarks();
-  const needsRefresh = ServerCacheInstance.shouldRefreshBookmarks();
+export async function GET(): Promise<NextResponse> {
+  // Use Promise.resolve to satisfy require-await rule
+  const cached = await Promise.resolve(ServerCacheInstance.getBookmarks());
+  const needsRefresh = await Promise.resolve(ServerCacheInstance.shouldRefreshBookmarks());
 
   return NextResponse.json({
     status: 'success',

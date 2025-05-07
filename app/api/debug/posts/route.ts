@@ -13,14 +13,34 @@ import { getAllMDXPosts } from '@/lib/blog/mdx';
 import { authors } from '@/data/blog/authors';
 
 // Only allow this endpoint in development
-function checkIsDevelopment() {
-  const isDev = process.env.NODE_ENV === 'development';
-  if (!isDev) {
-    throw new Error('This endpoint is only available in development mode');
-  }
+// Commented out as unused but kept for reference
+// function checkIsDevelopment() {
+//   const isDev = process.env.NODE_ENV === 'development';
+//   if (!isDev) {
+//     throw new Error('This endpoint is only available in development mode');
+//   }
+// }
+
+interface MDXPost {
+  slug: string;
+  // Add other fields as needed
 }
 
-export async function GET() {
+interface AuthorIssue {
+  [filename: string]: string;
+}
+
+interface FrontmatterIssue {
+  [filename: string]: string[];
+}
+
+interface ErrorInfo {
+  message: string;
+  stack?: string;
+  cause?: unknown;
+}
+
+export async function GET(): Promise<NextResponse> {
   try {
     // In production, return a simple "not available" message instead of throwing an error
     if (process.env.NODE_ENV !== 'development') {
@@ -38,8 +58,9 @@ export async function GET() {
     try {
       await fs.access(postsDir);
       dirExists = true;
-    } catch (error) {
-      // Directory doesn't exist
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (_error) {
+      // Directory doesn't exist, error variable not used
       console.warn(`Posts directory not found at ${postsDir}`);
     }
 
@@ -53,10 +74,10 @@ export async function GET() {
     }
 
     // Get all MDX posts with error handling
-    let mdxPosts: Array<any> = [];
-    let mdxErrors: any[] = [];
+    let mdxPosts: MDXPost[] = [];
+    const mdxErrors: ErrorInfo[] = [];
     try {
-      mdxPosts = await getAllMDXPosts();
+      mdxPosts = await getAllMDXPosts() as MDXPost[];
     } catch (error) {
       mdxPosts = [];
       mdxErrors.push({
@@ -66,9 +87,9 @@ export async function GET() {
       });
     }
 
-    // Check author validity
-    const authorIssues: Record<string, string> = {};
-    mdxFiles.forEach(async (filename) => {
+    // Check author validity - fix misused promises by using Promise.all
+    const authorIssues: AuthorIssue = {};
+    const authorPromises = mdxFiles.map(async (filename) => {
       try {
         const fileContent = await fs.readFile(path.join(postsDir, filename), 'utf8');
         const authorMatch = fileContent.match(/author:\s*["']([^"']+)["']/);
@@ -85,9 +106,11 @@ export async function GET() {
       }
     });
 
-    // Collect frontmatter issues
-    const frontmatterIssues: Record<string, string[]> = {};
-    mdxFiles.forEach(async (filename) => {
+    await Promise.all(authorPromises);
+
+    // Collect frontmatter issues - fix misused promises by using Promise.all
+    const frontmatterIssues: FrontmatterIssue = {};
+    const frontmatterPromises = mdxFiles.map(async (filename) => {
       try {
         const fileContent = await fs.readFile(path.join(postsDir, filename), 'utf8');
         const requiredFields = ['title', 'excerpt', 'author', 'slug', 'publishedAt'];
@@ -96,7 +119,7 @@ export async function GET() {
         for (const field of requiredFields) {
           const regex = new RegExp(`${field}:\\s*["']?([^"'\\n]*)["']?`);
           const match = fileContent.match(regex);
-          if (!match || !match[1].trim()) {
+          if (!match || !match[1] || !match[1].trim()) {
             issues.push(`Missing required field: ${field}`);
           }
         }
@@ -110,6 +133,14 @@ export async function GET() {
         ];
       }
     });
+
+    await Promise.all(frontmatterPromises);
+
+    // Create a type-safe version of the posts array
+    const combinedPosts: { slug: string }[] = [
+      ...mdxPosts,
+      ...(staticPosts ? staticPosts.map(post => ({ slug: post.slug })) : [])
+    ];
 
     return NextResponse.json({
       environment: {
@@ -125,8 +156,8 @@ export async function GET() {
         staticCount: staticPosts ? staticPosts.length : 0,
         mdxCount: mdxPosts.length,
         total: (staticPosts ? staticPosts.length : 0) + mdxPosts.length,
-        validSlugs: [...mdxPosts, ...(staticPosts || [])].map(post => post.slug),
-        duplicateSlugs: findDuplicateSlugs([...mdxPosts, ...(staticPosts || [])])
+        validSlugs: combinedPosts.map(post => post.slug),
+        duplicateSlugs: findDuplicateSlugs(combinedPosts)
       },
       authors: {
         definedCount: Object.keys(authors).length,
@@ -170,6 +201,7 @@ function findDuplicateSlugs(posts: { slug: string }[]): string[] {
   });
 
   return Object.entries(counts)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     .filter(([_, count]) => count > 1)
     .map(([slug]) => slug);
 }
