@@ -29,7 +29,7 @@ export const dynamic = 'force-dynamic';
  * @param request - The HTTP request object.
  * @returns A JSON response containing the search results or an error message.
  */
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');

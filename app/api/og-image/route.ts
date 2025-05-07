@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     let parsedUrl;
     try {
       parsedUrl = new URL(url);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       console.log('Error: Invalid URL format');
       return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
@@ -480,7 +481,7 @@ function extractMetaContent(html: string, attributePattern: string): string | nu
   const alternatePattern = new RegExp(`<meta[^>]*content=["']([^"']+)["'][^>]*${attributePattern}[^>]*>`, 'i');
 
   const match = html.match(pattern) || html.match(alternatePattern);
-  return match ? match[1] : null;
+  return match && match[1] ? match[1] : null;
 }
 
 /**

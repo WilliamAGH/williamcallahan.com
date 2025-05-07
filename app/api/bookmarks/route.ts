@@ -11,16 +11,19 @@ import type { NextRequest } from 'next/server';
 // This route can leverage the caching within getBookmarks
 export const dynamic = 'force-dynamic'; // Or 'auto' if getBookmarks handles revalidation well
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   console.log('[API Bookmarks] Received GET request for bookmarks');
 
-  // The build_prefetch query param can be handled by getBookmarks if needed,
-  // or the data-access layer can be designed to always ensure data freshness
-  // for build processes if it detects such an environment.
-  // For simplicity, we'll assume getBookmarks handles this.
+  // Check if this is a refresh request
+  const isRefresh = request.nextUrl.searchParams.has('refresh');
+
+  // When handling API requests, we want to avoid circular dependencies
+  // For regular GET requests, we'll skip external fetching if we're in the API route
+  // For explicit refresh requests, we'll allow the external fetch
+  const skipExternalFetch = !isRefresh;
 
   try {
-    const bookmarks = await getBookmarks();
+    const bookmarks = await getBookmarks(skipExternalFetch);
 
     if (bookmarks && bookmarks.length > 0) {
       console.log(`[API Bookmarks] Successfully retrieved ${bookmarks.length} bookmarks via data-access layer.`);

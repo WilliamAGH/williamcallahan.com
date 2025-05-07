@@ -11,7 +11,7 @@ import type { NextRequest } from 'next/server';
 // This route can leverage the caching within getGithubActivity
 export const dynamic = 'force-dynamic';
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   console.log('[API GitHub Activity] Received GET request for GitHub activity');
 
   const searchParams = request.nextUrl.searchParams;

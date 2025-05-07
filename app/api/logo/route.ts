@@ -28,30 +28,42 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    let domain: string;
+    // Declare domain with an empty string default value
+    let domain = '';
+
+    // Process website parameter if available
     if (website) {
       try {
         // Normalize domain: remove protocol, www, and path
-        domain = new URL(website).hostname.replace(/^www\./, '');
+        // TypeScript needs reassurance that website is a string here
+        const websiteStr = website;
+        domain = new URL(websiteStr).hostname.replace(/^www\./, '');
       } catch {
         // If URL parsing fails, try to extract domain from the string
-        domain = website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+        // Since we're in this block, we know website cannot be null
+        const websiteStr = website;
+        const domainParts = websiteStr.replace(/^https?:\/\/(www\.)?/, '').split('/');
+        domain = domainParts[0] || '';
       }
-    } else if (company) {
-      // Use company name to form a potential domain (e.g., "Example Inc" -> "exampleinc.com")
-      // This is a heuristic and might not always be accurate.
-      // A more robust solution might involve a search or a pre-defined mapping.
-      domain = company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
-      console.log(`[API Logo] Attempting domain from company name: ${company} -> ${domain}`);
-    } else {
-      // This case should be caught by the initial check, but as a safeguard:
+    }
+    // Otherwise process company parameter
+    else if (company) {
+      // Use company name to form a potential domain
+      // Since we've checked company is not null here, we can safely use it as a string
+      const companyStr: string = company;
+      domain = companyStr.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
+      console.log(`[API Logo] Attempting domain from company name: ${companyStr} -> ${domain}`);
+    }
+
+    // Extra safeguard in case domain wasn't set (though our initial check should prevent this)
+    if (!domain) {
       return NextResponse.json({ error: 'Internal error: domain could not be determined' }, { status: 500 });
     }
 
     // Use the centralized getLogo function
     // Pass request.nextUrl.origin as the baseUrlForValidation if your getLogo needs it
     // for constructing absolute URLs for internal validation APIs.
-    const logoResult = await getLogo(domain, request.nextUrl.origin);
+    const logoResult = await getLogo(domain);
 
     if (logoResult && logoResult.buffer) {
       return new NextResponse(logoResult.buffer, {
