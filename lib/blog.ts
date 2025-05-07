@@ -51,23 +51,21 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
 
   try {
     // Check static posts first
-    const staticPost = staticPosts.find(post => post.slug === slug);
-    if (staticPost) return staticPost;
+    // To get a post by slug, we first get all posts (which are cached and use frontmatter slugs)
+    // and then find the one with the matching slug.
+    // This avoids needing to guess filenames or re-implement file iteration logic here.
+    const allPosts = await getAllPosts();
+    const foundPost = allPosts.find(post => post.slug === slug);
 
-    // Then check MDX posts
-    const mdxPost = await getMDXPost(slug);
-
-    // Instead of throwing an error for missing posts, just return null
-    // This allows the caller to decide how to handle missing posts
-    if (!mdxPost) {
-      console.log(`Blog post not found: ${slug}`);
+    if (!foundPost) {
+      console.log(`[getPostBySlug] Blog post not found with slug: ${slug}`);
       return null;
     }
 
-    return mdxPost;
+    return foundPost;
   } catch (error) {
     // Log the error but don't crash the server
-    console.error(`[getPostBySlug] Error retrieving post "${slug}":`, error);
+    console.error(`[getPostBySlug] Error retrieving post by slug "${slug}":`, error);
 
     // For unexpected errors, we still throw to allow API error handling
     if (!(error instanceof BlogPostDataError)) {

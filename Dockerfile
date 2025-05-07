@@ -58,22 +58,40 @@ COPY . .
 
 # CRITICAL STEP: Fill volumes directly BEFORE any server or build processes
 # This ensures all data volumes are properly populated with external data
-RUN echo "📡 Pinging GitHub API before populating volumes..." && \
-    (curl -L -v --connect-timeout 10 https://api.github.com/zen && echo "GitHub API ping successful") || \
-    (echo "⚠️ GitHub API ping failed before populating volumes. Check network/DNS." && false) # Fail build if critical ping fails
+# Conditionally skip these steps in Coolify environments
+RUN if [ -n "$COOLIFY_FQDN" ] || \
+       [ -n "$COOLIFY_URL" ] || \
+       [ -n "$COOLIFY_BRANCH" ] || \
+       [ -n "$COOLIFY_RESOURCE_UUID" ] || \
+       [ -n "$COOLIFY_CONTAINER_NAME" ]; then \
+    echo "Coolify environment detected. Skipping GitHub/Sentry pings and populate-volumes.ts script."; \
+else \
+    echo "Not a Coolify environment (or Coolify vars not set), running pre-build steps normally." && \
+    ( \
+        echo "📡 Pinging GitHub API before populating volumes..." && \
+        (curl -L -v --connect-timeout 10 https://api.github.com/zen && echo "GitHub API ping successful") || \
+        (echo "⚠️ GitHub API ping failed before populating volumes. Check network/DNS." && exit 1) \
+    ) && \
+    ( \
+        echo "🚀 Populating all data volumes directly..." && \
+        bun scripts/populate-volumes.ts \
+    ) && \
+    ( \
+        echo "📡 Pinging GitHub API before Next build..." && \
+        (curl -L -v --connect-timeout 10 https://api.github.com/zen && echo "GitHub API ping successful") || \
+        (echo "⚠️ GitHub API ping failed before Next build. Check network/DNS." && exit 1) \
+    ) && \
+    ( \
+        echo "📡 Pinging Sentry before Next build..." && \
+        (curl -L -v --connect-timeout 10 https://o4509274058391557.ingest.us.sentry.io && echo "Sentry ping successful") || \
+        (echo "⚠️ Sentry ping failed before Next build. Check network/DNS." && exit 1) \
+    ); \
+fi
 
-RUN echo "🚀 Populating all data volumes directly..." && bun scripts/populate-volumes.ts
-
-# Now build the app with preloaded data volumes
-RUN echo "📡 Pinging GitHub API before Next build..." && \
-    (curl -L -v --connect-timeout 10 https://api.github.com/zen && echo "GitHub API ping successful") || \
-    (echo "⚠️ GitHub API ping failed before Next build. Check network/DNS." && false) # Fail build if critical ping fails
-
-RUN echo "📡 Pinging Sentry before Next build..." && \
-    (curl -L -v --connect-timeout 10 https://o4509274058391557.ingest.us.sentry.io && echo "Sentry ping successful") || \
-    (echo "⚠️ Sentry ping failed before Next build. Check network/DNS." && false) # Fail build if critical ping fails
-
-RUN echo "📦 Building the application with populated data volumes..." && bun run build
+# Now build the app
+# The original echo was: # RUN echo "📦 Building the application with populated data volumes..." && bun run build
+# Changed to reflect that volumes might not be populated in all environments.
+RUN echo "📦 Building the application..." && bun run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
