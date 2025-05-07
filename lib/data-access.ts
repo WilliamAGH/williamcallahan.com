@@ -57,9 +57,19 @@ async function ensureDirectoryExists(dirPath: string) {
 }
 
 (async () => {
-  await ensureDirectoryExists(BOOKMARKS_VOLUME_DIR);
-  await ensureDirectoryExists(GITHUB_ACTIVITY_VOLUME_DIR);
-  await ensureDirectoryExists(LOGOS_VOLUME_DIR);
+  try {
+    await ensureDirectoryExists(BOOKMARKS_VOLUME_DIR);
+    await ensureDirectoryExists(GITHUB_ACTIVITY_VOLUME_DIR);
+    await ensureDirectoryExists(REPO_RAW_WEEKLY_STATS_DIR);
+    await ensureDirectoryExists(LOGOS_VOLUME_DIR);
+    console.log('[DataAccess] Data directories initialized successfully');
+  } catch (error) {
+    console.error('[DataAccess] CRITICAL ERROR: Failed to initialize one or more data directories:', error);
+    // In a real production scenario, you might want to:
+    // - Send an alert to an error monitoring service
+    // - Exit the process if these directories are absolutely essential for startup:
+    //   process.exit(1);
+  }
 })();
 
 

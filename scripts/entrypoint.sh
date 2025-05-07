@@ -87,5 +87,5 @@ if [ $CRITICAL_SEEDING_FAILED -ne 0 ]; then
   exit 1
 fi
 
-echo "[Entrypoint] Volume seeding process complete (or skipped for non-empty volumes / non-critical failures). Executing CMD: $@"
+echo "[Entrypoint] Volume seeding process complete (or skipped for non-empty volumes / non-critical failures). Executing CMD:" "$@"
 exec "$@"
