@@ -107,6 +107,23 @@ async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
 }
 
 /**
+ * Determines if an image is SVG and processes it accordingly
+ * @param buffer The image buffer
+ * @returns Object with processed buffer, whether it's SVG, and appropriate content type
+ */
+async function processImageBuffer(buffer: Buffer): Promise<{
+  processedBuffer: Buffer;
+  isSvg: boolean;
+  contentType: string
+}> {
+  const metadata = await sharp(buffer).metadata();
+  const isSvg = metadata.format === 'svg';
+  const contentType = isSvg ? 'image/svg+xml' : 'image/png';
+  const processedBuffer = isSvg ? buffer : await sharp(buffer).png().toBuffer();
+  return { processedBuffer, isSvg, contentType };
+}
+
+/**
  * Reads a binary file (e.g., an image).
  * @param filePath Path to the file.
  * @returns Buffer or null.
@@ -676,9 +693,7 @@ async function fetchExternalLogo(domain: string, baseUrlForValidation: string): 
       if (!rawBuffer || rawBuffer.byteLength < 100) continue; // Skip tiny/error images
 
       if (await validateLogoBuffer(rawBuffer, url)) {
-        const metadata = await sharp(rawBuffer).metadata();
-        const isSvg = metadata.format === 'svg';
-        const processedBuffer = isSvg ? rawBuffer : await sharp(rawBuffer).png().toBuffer();
+        const { processedBuffer } = await processImageBuffer(rawBuffer);
         console.log(`[DataAccess] Fetched logo for ${domain} from ${name}.`);
         return { buffer: processedBuffer, source: name };
       }
@@ -697,9 +712,7 @@ export async function getLogo(domain: string, baseUrlForValidation: string): Pro
   const cached = ServerCacheInstance.getLogoFetch(domain);
   if (cached && cached.buffer) {
     console.log(`[DataAccess] Returning logo for ${domain} from cache (source: ${cached.source || 'unknown'}).`);
-    const metadata = await sharp(cached.buffer).metadata();
-    const isSvg = metadata.format === 'svg';
-    const contentType = isSvg ? 'image/svg+xml' : 'image/png';
+    const { contentType } = await processImageBuffer(cached.buffer);
     return { buffer: cached.buffer, source: cached.source || 'unknown', contentType };
   }
 
@@ -707,9 +720,7 @@ export async function getLogo(domain: string, baseUrlForValidation: string): Pro
   const volumeLogo = await findLogoInVolume(domain);
   if (volumeLogo) {
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: volumeLogo.source, buffer: volumeLogo.buffer });
-    const metadata = await sharp(volumeLogo.buffer).metadata();
-    const isSvg = metadata.format === 'svg';
-    const contentType = isSvg ? 'image/svg+xml' : 'image/png';
+    const { contentType } = await processImageBuffer(volumeLogo.buffer);
     return { ...volumeLogo, contentType };
   }
 
@@ -720,9 +731,7 @@ export async function getLogo(domain: string, baseUrlForValidation: string): Pro
     const logoPath = getLogoVolumePath(domain, externalLogo.source);
     await writeBinaryFile(logoPath, externalLogo.buffer);
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: externalLogo.source, buffer: externalLogo.buffer });
-    const metadata = await sharp(externalLogo.buffer).metadata();
-    const isSvg = metadata.format === 'svg';
-    const contentType = isSvg ? 'image/svg+xml' : 'image/png';
+    const { contentType } = await processImageBuffer(externalLogo.buffer);
     return { ...externalLogo, contentType };
   }
 
