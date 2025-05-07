@@ -1,11 +1,10 @@
 import { jest, describe, beforeEach, it, mock, expect } from 'bun:test';
 import { render, fireEvent, screen } from '@testing-library/react';
 import { ThemeToggle } from '@/components/ui/theme/theme-toggle';
-import { useTheme } from 'next-themes';
 
 // Mock next-themes using mock.module
 const mockSetTheme = jest.fn();
-mock.module('next-themes', () => ({
+void mock.module('next-themes', () => ({
   useTheme: jest.fn(() => ({
     theme: 'system',
     setTheme: mockSetTheme,

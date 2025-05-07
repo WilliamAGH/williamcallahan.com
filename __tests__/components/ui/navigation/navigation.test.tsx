@@ -2,7 +2,6 @@ import { mock, jest, describe, beforeEach, it, expect } from 'bun:test';
 import React from 'react';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { Navigation } from '../../../../components/ui/navigation/navigation.client';
-import { usePathname } from 'next/navigation';
 import { navigationLinks } from '../../../../components/ui/navigation/navigation-links';
 // Import the REAL provider
 import { TerminalProvider } from '../../../../components/ui/terminal/terminal-context.client';
@@ -10,19 +9,19 @@ import { TerminalProvider } from '../../../../components/ui/terminal/terminal-co
 // Mock the useWindowSize hook using mock.module
 // Use relative path for Jest compatibility
 // import { useWindowSize } from '../../../../lib/hooks/use-window-size.client'; // Remove original import
-mock.module('../../../../lib/hooks/use-window-size.client', () => ({ // Use mock.module
+void mock.module('../../../../lib/hooks/use-window-size.client', () => ({ // Use mock.module
   useWindowSize: jest.fn(() => ({ width: 1280, height: 800 })) // Keep jest.fn, provide default
 }));
 
 // Mock next/navigation using mock.module
-mock.module('next/navigation', () => ({ // Use mock.module
+void mock.module('next/navigation', () => ({ // Use mock.module
   usePathname: jest.fn(() => '/') // Keep jest.fn, provide default
 }));
 
 // REMOVE ALL MOCKING FOR terminal-context.client
 
 // Mock window-controls component using mock.module
-mock.module('../../../../components/ui/navigation/window-controls', () => { // Use mock.module
+void mock.module('../../../../components/ui/navigation/window-controls', () => { // Use mock.module
   function MockWindowControls() {
     return <div data-testid="window-controls">Window Controls</div>;
   }
@@ -31,9 +30,8 @@ mock.module('../../../../components/ui/navigation/window-controls', () => { // U
 });
 
 // Mock next/link using mock.module
-mock.module('next/link', () => { // Use mock.module
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function MockLink({ children, href, scroll, ...props }: any) { // Destructure and ignore scroll
+void mock.module('next/link', () => { // Use mock.module
+  function MockLink({ children, href, ...props }: { children: React.ReactNode; href: string; [key: string]: any }) {
     // Filter out Next.js specific props and only pass HTML-valid ones to <a>
     return <a href={href} {...props}>{children}</a>;
   }

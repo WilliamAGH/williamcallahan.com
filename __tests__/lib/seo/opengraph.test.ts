@@ -59,8 +59,8 @@ describe('OpenGraph Metadata', () => {
       // Verify date formats
       expect(metadata.article?.publishedTime).toBeDefined();
       expect(metadata.article?.modifiedTime).toBeDefined();
-      expect(isPacificDateString(metadata.article?.publishedTime as string)).toBe(true);
-      expect(isPacificDateString(metadata.article?.modifiedTime as string)).toBe(true);
+      expect(isPacificDateString(metadata.article?.publishedTime)).toBe(true);
+      expect(isPacificDateString(metadata.article?.modifiedTime)).toBe(true);
 
       // January = PST (-08:00)
       expect(metadata.article?.publishedTime).toMatch(/-08:00$/);
