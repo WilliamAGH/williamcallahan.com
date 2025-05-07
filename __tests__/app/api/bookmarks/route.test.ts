@@ -26,6 +26,11 @@ function createRequest(options: { url?: string } = {}): NextRequest {
 
 describe('GET /api/bookmarks', () => {
   // These tests use the real APIs - no mocking
+  // CAUTION: These tests will fail in CI environments if BOOKMARK_BEARER_TOKEN is not set.
+  // Consider one of the following approaches to prevent CI failures:
+  // 1. Skip tests conditionally: if (!process.env.BOOKMARK_BEARER_TOKEN) test.skip('test description', ...)
+  // 2. Use mock responses in CI: if (!process.env.BOOKMARK_BEARER_TOKEN) { /* setup mock */ }
+  // 3. Fail early with clear message: if (!process.env.BOOKMARK_BEARER_TOKEN) throw new Error('BOOKMARK_BEARER_TOKEN required')
 
   it('should fetch bookmarks from the real API endpoint', async () => {
     // Actual request to the real endpoint

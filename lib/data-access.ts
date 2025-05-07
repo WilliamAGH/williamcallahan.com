@@ -22,7 +22,7 @@ import sharp from 'sharp';
 import { createHash } from 'node:crypto';
 
 // --- Configuration & Constants ---
-const GITHUB_REPO_OWNER = 'WilliamAGH'; // TODO: Make configurable if needed
+const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || 'WilliamAGH'; // Default fallback if not configured
 const GITHUB_API_TOKEN = process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH;
 const API_FETCH_TIMEOUT_MS = 30000; // 30 second timeout
 const VERBOSE = process.env.VERBOSE === 'true' || false; // Ensure VERBOSE is defined at the module level
@@ -670,7 +670,8 @@ async function fetchExternalLogo(domain: string, baseUrlForValidation: string): 
       if (!rawBuffer || rawBuffer.byteLength < 100) continue; // Skip tiny/error images
 
       if (await validateLogoBuffer(rawBuffer, url)) {
-        const isSvg = (await sharp(rawBuffer).metadata()).format === 'svg';
+        const metadata = await sharp(rawBuffer).metadata();
+        const isSvg = metadata.format === 'svg';
         const processedBuffer = isSvg ? rawBuffer : await sharp(rawBuffer).png().toBuffer();
         console.log(`[DataAccess] Fetched logo for ${domain} from ${name}.`);
         return { buffer: processedBuffer, source: name };
@@ -690,7 +691,8 @@ export async function getLogo(domain: string, baseUrlForValidation: string): Pro
   const cached = ServerCacheInstance.getLogoFetch(domain);
   if (cached && cached.buffer) {
     console.log(`[DataAccess] Returning logo for ${domain} from cache (source: ${cached.source || 'unknown'}).`);
-    const isSvg = (await sharp(cached.buffer).metadata()).format === 'svg';
+    const metadata = await sharp(cached.buffer).metadata();
+    const isSvg = metadata.format === 'svg';
     const contentType = isSvg ? 'image/svg+xml' : 'image/png';
     return { buffer: cached.buffer, source: cached.source || 'unknown', contentType };
   }
@@ -699,7 +701,8 @@ export async function getLogo(domain: string, baseUrlForValidation: string): Pro
   const volumeLogo = await findLogoInVolume(domain);
   if (volumeLogo) {
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: volumeLogo.source, buffer: volumeLogo.buffer });
-    const isSvg = (await sharp(volumeLogo.buffer).metadata()).format === 'svg';
+    const metadata = await sharp(volumeLogo.buffer).metadata();
+    const isSvg = metadata.format === 'svg';
     const contentType = isSvg ? 'image/svg+xml' : 'image/png';
     return { ...volumeLogo, contentType };
   }
@@ -711,7 +714,8 @@ export async function getLogo(domain: string, baseUrlForValidation: string): Pro
     const logoPath = getLogoVolumePath(domain, externalLogo.source);
     await writeBinaryFile(logoPath, externalLogo.buffer);
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: externalLogo.source, buffer: externalLogo.buffer });
-    const isSvg = (await sharp(externalLogo.buffer).metadata()).format === 'svg';
+    const metadata = await sharp(externalLogo.buffer).metadata();
+    const isSvg = metadata.format === 'svg';
     const contentType = isSvg ? 'image/svg+xml' : 'image/png';
     return { ...externalLogo, contentType };
   }

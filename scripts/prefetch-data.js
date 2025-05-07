@@ -23,7 +23,7 @@ https.globalAgent.maxSockets = 10;
 http.globalAgent.keepAlive = true;
 https.globalAgent.keepAlive = true;
 
-const VERBOSE = process.env.VERBOSE === 'true' || true;
+const VERBOSE = process.env.VERBOSE === 'true';
 const ROOT_DIR = process.cwd();
 
 
