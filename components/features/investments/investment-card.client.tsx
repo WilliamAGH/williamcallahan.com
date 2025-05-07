@@ -54,7 +54,7 @@ interface InvestmentCardClientProps extends Investment {
  * - Displaying financial metrics
  * - Theme-aware rendering
  */
-export function InvestmentCardClient({ logoData, /* isDarkTheme, */ ...investment }: InvestmentCardClientProps): JSX.Element {
+export function InvestmentCardClient({ logoData, /* isDarkTheme, */ renderedMetrics, ...investment }: InvestmentCardClientProps): JSX.Element {
   const {
     name,
     website,
@@ -220,6 +220,8 @@ export function InvestmentCardClient({ logoData, /* isDarkTheme, */ ...investmen
                 </div>
               </div>
             </div>
+            {/* Pre-rendered Financial Metrics */}
+            {renderedMetrics}
           </div>
         </div>
       </div>

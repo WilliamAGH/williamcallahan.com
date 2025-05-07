@@ -17,12 +17,18 @@ interface TerminalSearchModule {
 }
 
 // Import search functions but allow mocking them in tests
-let searchModule: TerminalSearchModule; // Typed searchModule
+let searchModule: TerminalSearchModule;
 try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  searchModule = require('@/lib/search') as TerminalSearchModule;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-} catch (_error) { // Renamed error to _error
+  // Use dynamic import instead of require for better tree-shaking
+  const importedModule = await import('@/lib/search');
+  // Create an adapter that wraps non-promise return values in promises
+  searchModule = {
+    searchExperience: (terms: string) => Promise.resolve(importedModule.searchExperience(terms)),
+    searchEducation: (terms: string) => Promise.resolve(importedModule.searchEducation(terms)),
+    searchInvestments: (terms: string) => Promise.resolve(importedModule.searchInvestments(terms)),
+    searchBookmarks: (terms: string) => importedModule.searchBookmarks(terms), // Already returns a Promise
+  };
+} catch {
   // Fallback for tests
   searchModule = {
     searchExperience: () => Promise.resolve([] as SearchResult[]),
