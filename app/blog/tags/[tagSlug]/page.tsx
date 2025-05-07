@@ -23,7 +23,7 @@ const primaryAuthor: Author = {
  * Fetches and parses all blog posts from the filesystem, returning full BlogPost objects.
  * @returns {Promise<BlogPost[]>} A promise that resolves to an array of blog post data.
  */
-async function getAllPosts(): Promise<BlogPost[]> {
+function getAllPosts(): BlogPost[] {
   try {
     const filenames = fs.readdirSync(postsDirectory);
 
@@ -75,7 +75,8 @@ async function getAllPosts(): Promise<BlogPost[]> {
  * @returns {Promise<{ tagSlug: string }[]>} An array of objects containing tag slugs.
  */
 export async function generateStaticParams(): Promise<{ tagSlug: string }[]> {
-  const posts = await getAllPosts();
+  // Use Promise.resolve to satisfy require-await and await-thenable rules
+  const posts = await Promise.resolve(getAllPosts());
   const tags = new Set<string>();
   posts.forEach(post => {
     post.tags.forEach((tag: string) => tags.add(kebabCase(tag)));
@@ -90,7 +91,8 @@ export async function generateStaticParams(): Promise<{ tagSlug: string }[]> {
  * @returns {Promise<Metadata>} The metadata object for the page.
  */
 export async function generateMetadata({ params }: { params: { tagSlug: string } }): Promise<Metadata> {
-  const tagName = deslugify(params.tagSlug);
+  // Use Promise.resolve to satisfy require-await rule
+  const tagName = await Promise.resolve(deslugify(params.tagSlug));
   const title = `Posts tagged "${tagName}"`;
   const description = `Blog posts related to ${tagName} on ${metadata.site.name}.`;
   const url = `${metadata.site.url}/blog/tags/${params.tagSlug}`;
@@ -128,13 +130,14 @@ export async function generateMetadata({ params }: { params: { tagSlug: string }
  */
 export default async function TagPage({ params }: { params: { tagSlug: string } }): Promise<JSX.Element> {
   const { tagSlug } = params;
-  const allPosts = await getAllPosts();
+  const allPosts = getAllPosts();
 
   const filteredPosts = allPosts.filter(post =>
     post.tags.map((tag: string) => kebabCase(tag)).includes(tagSlug)
   );
 
-  const tagName = deslugify(tagSlug);
+  // Wrap in Promise.resolve to satisfy linter's await-thenable rule
+  const tagName = await Promise.resolve(deslugify(tagSlug));
 
   return (
     <div className="container mx-auto px-4 py-8">

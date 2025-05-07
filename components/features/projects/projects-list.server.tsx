@@ -13,7 +13,7 @@
 import { projects } from '@/data/projects';
 import { ProjectCardServer } from './project-card.server';
 import GitHubActivity from '@/components/features/github/github-activity.client';
-import { ServerComponent } from '@/types/component-types';
+import type { ServerComponent } from '@/types/component-types';
 
 /**
  * Props for the ProjectsListServer component
@@ -32,7 +32,7 @@ interface ProjectsListServerProps {
  * @param {ProjectsListServerProps} props - Component props
  * @returns {Promise<JSX.Element>} Server-rendered projects list
  */
-export async function ProjectsListServer({ selectedTag = 'All' }: ProjectsListServerProps): Promise<JSX.Element> {
+export function ProjectsListServer({ selectedTag = 'All' }: ProjectsListServerProps): JSX.Element {
   // Filter projects based on tag
   const filteredProjects = selectedTag === 'All'
     ? projects

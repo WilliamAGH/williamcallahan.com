@@ -9,7 +9,7 @@
  * @see {@link "../data/metadata.ts"} - Source of page metadata including dates
  */
 
-import { MetadataRoute } from 'next';
+import type { MetadataRoute } from 'next';
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
@@ -28,7 +28,7 @@ import { updatedAt as projectsUpdatedAt } from '../data/projects';
 import { PAGE_METADATA, metadata as siteMetadata } from '../data/metadata';
 
 // Helper function to safely parse a date string (including simple YYYY-MM-DD)
-const getSafeDate = (dateInput: any): Date | undefined => {
+const getSafeDate = (dateInput: string | Date | number | undefined | null): Date | undefined => {
   if (!dateInput) return undefined;
   try {
     let dateStr = String(dateInput);
@@ -41,7 +41,7 @@ const getSafeDate = (dateInput: any): Date | undefined => {
       return date;
     }
   } catch (error) {
-    console.error(`Sitemap: Error parsing date: ${dateInput}`, error);
+    console.error(`Sitemap: Error parsing date: ${String(dateInput)}`, error);
   }
   return undefined;
 };
@@ -85,8 +85,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
         // Prioritize frontmatter date, fallback to file mtime
         const postLastModified = getLatestDate(
-          getSafeDate(data.updatedAt),
-          getSafeDate(data.publishedAt),
+          getSafeDate(data.updatedAt as string | Date | number | undefined | null),
+          getSafeDate(data.publishedAt as string | Date | number | undefined | null),
           fileMtime
         );
 
@@ -132,7 +132,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // --- 2. Process Bookmarks and Bookmark Tags ---
-  let bookmarkEntries: MetadataRoute.Sitemap = [];
+  const bookmarkEntries: MetadataRoute.Sitemap = [];
   let bookmarkTagEntries: MetadataRoute.Sitemap = [];
   let latestBookmarkUpdateTime: Date | undefined = undefined;
   const bookmarkTagLastModifiedMap: { [tagSlug: string]: Date } = {};
@@ -144,7 +144,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const persistedBookmarksPath = path.join(process.cwd(), 'data', 'bookmarks', 'bookmarks.json');
     try {
       const fileContents = fs.readFileSync(persistedBookmarksPath, 'utf-8');
-      bookmarks = JSON.parse(fileContents);
+      bookmarks = JSON.parse(fileContents) as unknown as UnifiedBookmark[];
       console.log(`[Sitemap] Successfully read ${bookmarks.length} bookmarks from persisted file.`);
     } catch (readError) {
       console.error("[Sitemap] Failed to read or parse persisted bookmarks:", readError);
@@ -152,7 +152,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       try {
         await refreshBookmarksData();
         const fallbackContents = fs.readFileSync(persistedBookmarksPath, 'utf-8');
-        bookmarks = JSON.parse(fallbackContents);
+        bookmarks = JSON.parse(fallbackContents) as unknown as UnifiedBookmark[];
         console.log(`[Sitemap] Successfully recovered ${bookmarks.length} bookmarks after refresh.`);
       } catch (fallbackErr) {
         console.error("[Sitemap] Fallback refresh failed; continuing without bookmark entries.", fallbackErr);
@@ -205,8 +205,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // Create bookmark tag sitemap entries
     bookmarkTagEntries = Object.entries(bookmarkTagLastModifiedMap).map(([tagSlug, lastModified]) => ({
-      // Strip any remaining unicode control characters
-      url: `${siteUrl}/bookmarks/tags/${tagSlug.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '')}`,
+      // Strip any remaining unicode control characters using a safe approach
+      url: `${siteUrl}/bookmarks/tags/${tagSlug.replace(/[^\u0020-\u007E]/g, '')}`, // Keep only printable ASCII
       lastModified: lastModified,
       changeFrequency: 'weekly',
       priority: 0.6, // Same priority as blog tags

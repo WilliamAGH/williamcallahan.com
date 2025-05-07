@@ -12,16 +12,20 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { ExternalLink as LucideExternalLinkIcon } from 'lucide-react';
 import { ExternalLink } from '@/components/ui/external-link.client';
-import { SocialLink } from '@/types/social';
-import { SocialCardEffects } from './social-card-effects.client';
+import { type SocialLink } from '@/types/social';
+// SocialCardEffects is unused and can be removed
 
 interface SocialCardProps {
   social: SocialLink;
-  isDarkTheme?: boolean;
+  // Removed isDarkTheme as it's unused
 }
 
-export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.Element {
-  const { href, label, icon: Icon, emphasized } = social;
+export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
+  // Type assertion to avoid unsafe destructuring
+  const href = social.href;
+  const label = social.label;
+  const Icon = social.icon;
+  const emphasized = social.emphasized;
   const [imageError, setImageError] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,9 +42,19 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
   }
 
   // Determine the service name from the domain or label with proper naming for X/Twitter and Bluesky
-  let serviceName = label.includes('(')
-    ? label.split('(')[0].trim()
-    : domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
+  let serviceName = '';
+  if (label && label.includes('(')) {
+    const parts = label.split('(');
+    if (parts.length > 0 && parts[0]) {
+      serviceName = parts[0].trim();
+    }
+  } else if (domain) {
+    const parts = domain.split('.');
+    if (parts.length > 0 && parts[0]) {
+      // Use optional chaining to handle possibly undefined parts[0]
+      serviceName = parts[0]?.charAt(0).toUpperCase() + parts[0]?.slice(1) || '';
+    }
+  }
 
   // Override for specific networks
   if (serviceName === 'X') serviceName = 'Twitter';
@@ -146,7 +160,7 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
       const response = await fetch(apiUrl);
 
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as { profileImageUrl?: string };
         console.log(`✅ [${label}] API response for profile:`, data);
 
         // Set profile image only
@@ -165,7 +179,8 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
         setProfileImageUrl(fallbackImage);
       }
     } catch (error) {
-      console.error(`❌ [${label}] Error: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`❌ [${label}] Error: ${errorMessage}`);
       // Set fallbacks
       const fallbackImage = getProfileFallbackImage(label);
       const localBanner = getDomainFallbackImage(label);
@@ -187,7 +202,7 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
       setDomainImageUrl(localBanner);
 
       // Fetch profile image separately
-      fetchSocialImages(href);
+      void fetchSocialImages(href);
     }
   }, [href, label, mounted, fetchSocialImages]);
 
@@ -226,15 +241,15 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
                 rel="noopener noreferrer"
                 className="absolute inset-0 z-20 w-full h-full cursor-pointer block"
               >
-                {/* Transparent overlay for click handling */}
-                <span className="sr-only">Visit {serviceName} profile</span>
+        {/* Transparent overlay for click handling */}
+        <span className="sr-only">Visit {serviceName || 'social'} profile</span>
               </a>
 
               <div className={`absolute inset-0 w-full h-full`}>
                 {domain.includes('linkedin') ? (
                   <Image
                     src={domainImageUrl}
-                    alt={`${serviceName} branding`}
+                    alt={`${serviceName || 'Social media'} branding`}
                     className="w-full h-full object-cover linkedin-banner"
                     fill
                     unoptimized={true}
@@ -249,7 +264,7 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
                 ) : (
                   <Image
                     src={domainImageUrl}
-                    alt={`${serviceName} branding`}
+                    alt={`${serviceName || 'Social media'} branding`}
                     className="w-full h-full object-cover social-banner"
                     fill
                     unoptimized={true}
@@ -279,7 +294,7 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
                 <div className="absolute inset-0 rounded-full overflow-hidden shadow-lg border-2 border-white/70 dark:border-gray-700/70">
                   <Image
                     src={profileImageUrl}
-                    alt={`${serviceName} profile`}
+                    alt={`${serviceName || 'Social media'} profile`}
                     fill
                     unoptimized={true}
                     priority={true}
@@ -329,7 +344,7 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2.5 group/title"
-          title={`Visit ${serviceName} profile`}
+          title={`Visit ${serviceName || 'social'} profile`}
         >
           <Icon className="w-6 h-6 text-gray-700 dark:text-gray-300 group-hover/title:text-blue-600 transition-colors" />
           <span className="text-2xl font-semibold text-gray-900 dark:text-white group-hover/title:text-blue-600 transition-colors">
@@ -350,7 +365,7 @@ export function SocialCardClient({ social, isDarkTheme }: SocialCardProps): JSX.
               target="_blank"
               rel="noopener noreferrer"
               className="font-mono hover:text-blue-600 transition-colors"
-              title={`Visit ${serviceName} profile`}
+              title={`Visit ${serviceName || 'social'} profile`}
             >
               {getUserHandle(href)}
             </a>
@@ -392,8 +407,11 @@ function getNetworkCategory(label: string): string {
 }
 
 function getUserHandle(url: string): string {
+  if (!url) return '';
+
   const parts = url.split('/');
-  const handle = parts[parts.length - 1];
+  // Ensure handle is always a string by providing a default empty string
+  const handle = parts.length > 0 ? parts[parts.length - 1] || '' : '';
 
   // If the URL structure is standard, return with @ prefix
   if (handle && !handle.includes('.')) {
@@ -410,5 +428,6 @@ function getUserHandle(url: string): string {
     return handle;
   }
 
+  // Ensure we always return a string
   return handle;
 }

@@ -20,8 +20,10 @@
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import { LogoImage } from '../../../components/ui';
 import { ExternalLink } from '../../ui/external-link.client';
-import FinancialMetrics from '../../ui/financial-metrics.server';
-import { AVenture } from '../../ui/social-icons/aventure-icon';
+// FinancialMetrics was unused
+// import FinancialMetrics from '../../ui/financial-metrics.server';
+// AVenture was unused
+// import { AVenture } from '../../ui/social-icons/aventure-icon';
 import type { Investment } from '../../../types/investment';
 import type { LogoData } from '../../../types/logo';
 
@@ -35,6 +37,8 @@ interface InvestmentCardClientProps extends Investment {
   logoData: LogoData;
   /** Whether dark theme is active */
   isDarkTheme?: boolean;
+  /** Rendered financial metrics */
+  renderedMetrics?: JSX.Element;
 }
 
 /**
@@ -50,12 +54,12 @@ interface InvestmentCardClientProps extends Investment {
  * - Displaying financial metrics
  * - Theme-aware rendering
  */
-export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: InvestmentCardClientProps): JSX.Element {
+export function InvestmentCardClient({ logoData, /* isDarkTheme, */ ...investment }: InvestmentCardClientProps): JSX.Element {
   const {
     name,
     website,
     description,
-    location,
+    // location, // Unused
     status,
     metrics,
     multiple,
@@ -72,11 +76,11 @@ export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: I
   } = investment;
 
   // Combine metrics into one object
-  const allMetrics = {
-    ...(metrics || {}),
-    multiple,
-    holding_return
-  };
+  // const allMetrics = { // Unused
+  //   ...(metrics || {}),
+  //   multiple,
+  //   holding_return
+  // };
 
   // Get accelerator display name
   const acceleratorName = accelerator?.program === 'techstars' ? 'Techstars' :
@@ -98,7 +102,7 @@ export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: I
                   showIcon={false}
                 >
                   <LogoImage
-                    src={logoData.url} 
+                    src={logoData.url}
                     width={48}
                     height={48}
                     className="object-contain"
@@ -184,10 +188,10 @@ export function InvestmentCardClient({ logoData, isDarkTheme, ...investment }: I
                 className="flex items-center bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-gray-700/50 px-3 py-2 rounded-full transition-colors"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img 
-                  src="/images/aVenture Favicon.png" 
-                  alt="aVenture" 
-                  width={32} 
+                <img
+                  src="/images/aVenture Favicon.png"
+                  alt="aVenture"
+                  width={32}
                   height={32}
                   className="inline-block"
                   data-testid="aventure-icon"

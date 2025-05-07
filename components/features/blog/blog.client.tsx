@@ -15,7 +15,7 @@
  * and client components for interactivity
  */
 
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { BlogWindow } from './blog-window.client';
 
 // Define props for the Blog component

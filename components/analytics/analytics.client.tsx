@@ -1,5 +1,3 @@
-/// <reference path="../../types/analytics.d.ts" />
-
 /* eslint-disable @next/next/no-img-element */
 /**
  * Client-side component for loading and managing third-party analytics scripts.
@@ -9,7 +7,7 @@
 
 import Script from 'next/script'
 import { usePathname } from 'next/navigation'
-import { useEffect, useCallback, useState, Component, ErrorInfo } from 'react'
+import React, { useEffect, useCallback, useState, Component, type ErrorInfo } from 'react'
 
 /**
  * Analytics event data structure based on official specs
@@ -32,6 +30,8 @@ interface UmamiEvent extends BaseAnalyticsEvent {
   hostname?: string
 }
 
+// Used for type checking but not directly referenced
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface PlausibleEvent extends BaseAnalyticsEvent {
   /** Additional custom properties */
   [key: string]: unknown
@@ -53,7 +53,7 @@ class AnalyticsErrorBoundary extends Component<{ children: React.ReactNode }> {
     if (process.env.NODE_ENV !== 'production') {
       // Only log in development, silently fail in production
       // This prevents the error from being shown in the console
-      // eslint-disable-next-line no-console
+
       console.warn('[Analytics] Error boundary caught:', {
         error: error.message,
         componentStack: errorInfo.componentStack
@@ -86,6 +86,7 @@ function createBaseEventData(): BaseAnalyticsEvent {
       url: window.location.href,
       referrer: document.referrer
     };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     // Fallback if there's any issue accessing window/document
     return { path: '', url: '', referrer: '' };
@@ -107,10 +108,11 @@ function trackPlausible(path: string): void {
       }
       window.plausible('pageview', { props: eventData })
     }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     // Silent failure in production, log in development
     if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
+
       console.warn('[Analytics] Plausible tracking error - silent failure');
     }
   }
@@ -133,10 +135,11 @@ export function trackUmami(path: string): void {
       }
       window.umami.track('pageview', eventData)
     }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     // Silent failure in production, log in development
     if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
+
       console.warn('[Analytics] Umami tracking error - silent failure');
     }
   }
@@ -173,6 +176,7 @@ function AnalyticsScripts() {
         if (scriptsLoaded.plausible) {
           trackPlausible(normalizedPath);
         }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         // Silent error handling to prevent app crashes
         return;
@@ -208,6 +212,7 @@ function AnalyticsScripts() {
       }, 500); // Increased from 100ms to 500ms
 
       return () => clearTimeout(trackingTimeout);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       // Silent failure
       return undefined;
@@ -217,7 +222,7 @@ function AnalyticsScripts() {
   // Prevent loading analytics scripts on localhost
   if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
     if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
+
       console.info('[Analytics] Skipping analytics script loading on localhost.');
     }
     return null;
@@ -231,6 +236,7 @@ function AnalyticsScripts() {
   let domain;
   try {
     domain = new URL(process.env.NEXT_PUBLIC_SITE_URL).hostname;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (e) {
     // Fallback if URL parsing fails
     domain = 'williamcallahan.com';
@@ -241,7 +247,7 @@ function AnalyticsScripts() {
     // Only log in development, silently ignore in production
     if (process.env.NODE_ENV !== 'production') {
       // Use info level in development to make it less prominent
-      // eslint-disable-next-line no-console
+
       console.info(`[Analytics] Not loading ${source} tracking script (likely due to browser content blocker) - continuing without analytics`);
     }
   };
@@ -258,6 +264,7 @@ function AnalyticsScripts() {
           onLoad={() => {
             try {
               setScriptsLoaded(prev => ({ ...prev, umami: true }))
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (e) {
               // Silent failure
             }
@@ -277,6 +284,7 @@ function AnalyticsScripts() {
             if (pathname) {
               trackPageview(pathname)
             }
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           } catch (e) {
             // Silent failure
           }
@@ -292,7 +300,7 @@ function AnalyticsScripts() {
         onLoad={() => {
           // Optional: Add logic if needed after Simple Analytics loads
           if (process.env.NODE_ENV !== 'production') {
-            // eslint-disable-next-line no-console
+
             console.log('[Analytics] Simple Analytics script loaded.');
           }
         }}
@@ -316,7 +324,7 @@ function AnalyticsScripts() {
         src="https://static.getclicky.com/101484018.js" // Use https protocol
         onLoad={() => {
           if (process.env.NODE_ENV !== 'production') {
-            // eslint-disable-next-line no-console
+
             console.log('[Analytics] Clicky script loaded.');
           }
           setScriptsLoaded(prev => ({ ...prev, clicky: true }))
