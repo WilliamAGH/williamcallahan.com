@@ -3,6 +3,7 @@
  */
 
 import type { Accelerator } from './accelerator';
+import type { LogoData } from './logo';
 
 /**
  * Financial metrics for an investment
@@ -65,4 +66,22 @@ export interface Investment {
     label: string;
     value: string;
   }[];
+}
+
+/**
+ * Props for the ThemeWrapper client component.
+ */
+export interface ThemeWrapperProps {
+  investment: Investment;
+  logoData: LogoData;
+  renderedMetrics: JSX.Element;
+}
+
+/**
+ * Props for the InvestmentCardClient client component.
+ */
+export interface InvestmentCardClientProps extends Investment {
+  logoData: LogoData;
+  isDarkTheme: boolean;
+  renderedMetrics?: JSX.Element;
 }

@@ -34,7 +34,7 @@ export interface BookmarkTag {
 
 export interface BookmarkContent {
   /** Content type (e.g., link) */
-  type: 'link' | string;
+  type: string;
   /** URL of the content */
   url: string;
   /** Resolved title */
@@ -66,7 +66,7 @@ export interface BookmarkAsset {
   /** Asset ID */
   id: string;
   /** Type of asset (screenshot or bannerImage) */
-  assetType: 'screenshot' | 'bannerImage' | string;
+  assetType: string;
 }
 
 export interface UnifiedBookmark {
@@ -91,7 +91,7 @@ export interface UnifiedBookmark {
   modifiedAt?: string;
   archived?: boolean;
   favourited?: boolean;
-  taggingStatus?: 'success' | string;
+  taggingStatus?: string;
   note?: string | null;
   summary?: string | null;
   /** Full content payload */
@@ -108,11 +108,11 @@ export interface UnifiedBookmark {
 export interface RawApiBookmarkTag {
   id: string;
   name: string;
-  attachedBy: 'ai' | 'user' | string;
+  attachedBy: string;
 }
 
 export interface RawApiBookmarkContent {
-  type: 'link' | string;
+  type: string;
   url: string;
   title: string | null;
   description: string | null;
@@ -135,7 +135,7 @@ export interface RawApiBookmark {
   title: string | null;
   archived: boolean;
   favourited: boolean;
-  taggingStatus: 'success' | string;
+  taggingStatus: string;
   note: string | null;
   summary: string | null;
   tags: RawApiBookmarkTag[];
