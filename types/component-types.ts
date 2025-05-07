@@ -5,7 +5,7 @@
  * between server and client components.
  */
 
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 /**
  * @serverComponent
@@ -13,7 +13,7 @@ import { ReactNode } from 'react';
  * These components can only be used in server contexts and
  * should never include 'use client' directives.
  */
-export type ServerComponent<P = {}> = React.FC<P> & {
+export type ServerComponent<P = Record<string, unknown>> = React.FC<P> & {
   /**
    * Server components should never have 'use client' directive.
    * This property is for type checking only and does not exist at runtime.
@@ -27,7 +27,7 @@ export type ServerComponent<P = {}> = React.FC<P> & {
  * These components must include 'use client' directive and
  * can use browser APIs and React hooks.
  */
-export type ClientComponent<P = {}> = React.FC<P> & {
+export type ClientComponent<P = Record<string, unknown>> = React.FC<P> & {
   /**
    * Client components must include 'use client' directive.
    * This property is for type checking only and does not exist at runtime.
@@ -40,7 +40,7 @@ export type ClientComponent<P = {}> = React.FC<P> & {
  * Type definition for components that can work in both server and client contexts.
  * These are typically pure presentational components with no side effects.
  */
-export type SharedComponent<P = {}> = React.FC<P>;
+export type SharedComponent<P = Record<string, unknown>> = React.FC<P>;
 
 /**
  * @clientBoundary
@@ -57,4 +57,4 @@ export interface ClientBoundaryProps {
 /**
  * Helper type for React.FC with explicit children
  */
-export type FCWithChildren<P = {}> = React.FC<P & { children: ReactNode }>;
+export type FCWithChildren<P = Record<string, unknown>> = React.FC<P & { children: ReactNode }>;
