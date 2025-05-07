@@ -8,8 +8,8 @@
 
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getMDXPost } from '../../../lib/blog/mdx';
-import { getAllPosts } from '../../../lib/blog';
+// Import getPostBySlug and getAllPosts from the main blog library
+import { getAllPosts, getPostBySlug } from '../../../lib/blog';
 import { formatSeoDate } from '../../../lib/seo/utils';
 import { BlogArticle } from '../../../components/features/blog/blog-article/blog-article';
 import { JsonLdScript } from "../../../components/seo/json-ld";
@@ -18,7 +18,8 @@ import { ensureAbsoluteUrl } from "../../../lib/seo/utils";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "../../../lib/seo/metadata";
 
 interface BlogPostPageProps {
-  params: Promise<{ slug: string }>;
+  // params is awaited in generateMetadata and the page component, so it's the resolved value
+  params: { slug: string };
 }
 
 /**
@@ -76,10 +77,19 @@ const SOFTWARE_DETAILS: Record<string, {
  * @see {@link "https://schema.org/SoftwareApplication"} - Schema.org SoftwareApplication specification
  */
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const post = await getMDXPost(slug);
+  // params is already resolved here by Next.js
+  const { slug } = params;
+  // Use getPostBySlug which handles finding the post correctly using the canonical frontmatter slug
+  const post = await getPostBySlug(slug);
 
-  if (!post) return {};
+  if (!post) {
+     console.warn(`[generateMetadata] Post not found for slug: ${slug}. Returning empty metadata.`);
+     // Optionally return metadata for a 404 page here if desired
+     return {
+       title: "Post Not Found",
+       description: "The blog post you are looking for could not be found.",
+     };
+  }
 
   // Full URL for the blog post
   const postUrl = ensureAbsoluteUrl(`/blog/${post.slug}`);
@@ -99,7 +109,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       datePublished: post.publishedAt,
       dateModified: post.updatedAt || post.publishedAt,
       tags: post.tags,
-      articleBody: JSON.stringify(post.content),
+      articleBody: JSON.stringify(post.content), // Note: content is MDXRemoteSerializeResult, might need rawContent
       softwareName: softwareDetails.name,
       operatingSystem: softwareDetails.operatingSystem,
       applicationCategory: softwareDetails.applicationCategory,
@@ -109,7 +119,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       screenshot: softwareDetails.screenshot,
       authors: [{
         name: post.author.name,
-        url: post.author.url || ensureAbsoluteUrl('/about')
+        url: post.author.url || ensureAbsoluteUrl('/about') // Assuming /about exists or use a default
       }]
     });
 
@@ -133,11 +143,11 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       datePublished: post.publishedAt,
       dateModified: post.updatedAt || post.publishedAt,
       tags: post.tags,
-      articleBody: JSON.stringify(post.content),
+      articleBody: JSON.stringify(post.content), // Note: content is MDXRemoteSerializeResult, might need rawContent
       useNewsArticle: true,
       authors: [{
         name: post.author.name,
-        url: post.author.url || ensureAbsoluteUrl('/about')
+        url: post.author.url || ensureAbsoluteUrl('/about') // Assuming /about exists or use a default
       }]
     });
 
@@ -160,10 +170,12 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
  * injected into the page at render time, which can help with immediate indexing
  */
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
-  const { slug } = await params;
+  // params is already resolved here by Next.js
+  const { slug } = params;
 
   try {
-    const post = await getMDXPost(slug);
+    // Use getPostBySlug which handles finding the post correctly using the canonical frontmatter slug
+    const post = await getPostBySlug(slug);
 
     // If post not found, use Next.js built-in 404 page
     if (!post) {

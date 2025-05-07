@@ -28,7 +28,7 @@ export function BlogCard({ post, isPriority = false }: BlogCardProps) {
       className="block group h-full"
     >
       <article className="flex flex-col h-full rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden bg-gray-50 dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-200">
-        {post.coverImage && (
+        {post.coverImage && typeof post.coverImage === 'string' && post.coverImage.trim() !== '' && (
           <div className="relative h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
             <Image
               src={post.coverImage}
