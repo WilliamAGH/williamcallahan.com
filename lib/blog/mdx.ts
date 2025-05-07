@@ -18,11 +18,11 @@ import path from 'node:path';
 import matter from 'gray-matter';
 import { serialize } from 'next-mdx-remote/serialize';
 import remarkGfm from 'remark-gfm';
-import rehypePrismPlus from 'rehype-prism-plus'; // Import the plugin
-import rehypeSlug from 'rehype-slug'; // Add this import
-import rehypeAutolinkHeadings from 'rehype-autolink-headings'; // Add this import
+import rehypePrismPlus from 'rehype-prism-plus';
+import rehypeSlug from 'rehype-slug';
+import rehypeAutolinkHeadings from 'rehype-autolink-headings';
 import type { MDXRemoteProps } from 'next-mdx-remote';
-type MDXComponents = MDXRemoteProps['components'];
+// Removed unused type imports: Plugin, Root
 import { authors } from '../../data/blog/authors';
 import type { BlogPost } from '../../types/blog';
 import { ServerMDXCodeBlock } from '../../components/ui/code-block/mdx-code-block.server';
@@ -33,11 +33,13 @@ const POSTS_DIRECTORY = path.join(process.cwd(), 'data/blog/posts');
 // Cache for processed MDX posts
 const postCache = new Map<string, { post: BlogPost | null; lastModified: string }>();
 
+// Removed type alias: RehypePlugin
+
 /**
  * MDX components map for server-side rendering
  * These components are used during serialization
  */
-const serverComponents: MDXComponents = {
+const serverComponents: MDXRemoteProps['components'] = { // Correctly using imported type
   pre: ServerMDXCodeBlock,
 };
 
@@ -51,20 +53,43 @@ function toPacificISOString(date: string | Date | undefined): string {
 }
 
 /**
+ * Validates and sanitizes the coverImage value from frontmatter.
+ * @param coverImageValue - The value from frontmatter.
+ * @param contextSlug - The slug of the post for logging purposes.
+ * @param contextFilePath - The file path of the post for logging purposes.
+ * @returns Sanitized cover image string or undefined.
+ */
+function sanitizeCoverImage(
+  coverImageValue: unknown,
+  contextSlug: string,
+  contextFilePath: string
+): string | undefined {
+  if (!coverImageValue) {
+    return undefined;
+  }
+  if (typeof coverImageValue === 'string' && coverImageValue.trim() !== '') {
+    return coverImageValue.trim();
+  }
+  console.warn(`[sanitizeCoverImage] Invalid coverImage frontmatter for slug "${contextSlug}" (file: ${contextFilePath}): Not a non-empty string. Received:`, coverImageValue);
+  return undefined;
+}
+
+
+/**
  * Retrieves and processes a single MDX blog post.
  * Prioritizes frontmatter slug for identification and caching.
  *
- * @param {string} identifier - The slug from frontmatter, used as the primary key.
+ * @param {string} frontmatterSlug - The slug from frontmatter, used as the primary key.
  * @param {string} filePathForPost - The full path to the .mdx file.
  * @param {string} [fileContentOverride] - Optional. Pre-read content of the file. If not provided, reads from filePathForPost.
  * @returns {Promise<BlogPost | null>} The processed blog post or null if not found/error.
  */
 export async function getMDXPost(
-  identifier: string, // This should be the frontmatter slug
+  frontmatterSlug: string, // Renamed from identifier
   filePathForPost: string,
   fileContentOverride?: string
 ): Promise<BlogPost | null> {
-  const cacheKey = identifier; // Use the frontmatter slug for caching
+  const cacheKey = frontmatterSlug; // Use the frontmatter slug for caching
 
   try {
     let fileContents: string;
@@ -73,16 +98,20 @@ export async function getMDXPost(
     if (fileContentOverride) {
       fileContents = fileContentOverride;
       // Need stats for lastModified, even with content override
-      stats = await fs.stat(filePathForPost);
-    } else {
-      // Check if the file exists before trying to read it
       try {
-        await fs.access(filePathForPost);
-      } catch (error) {
-        console.warn(`Blog post file not found at path ${filePathForPost} (identifier: ${identifier})`);
+        stats = await fs.stat(filePathForPost);
+      } catch (statError) {
+         console.warn(`[getMDXPost] Could not stat file ${filePathForPost} even with content override:`, statError);
+         stats = { mtime: new Date(0) } as import('fs').Stats;
+      }
+    } else {
+      // Stat once; failure means the file is missing or unreadable
+      try {
+        stats = await fs.stat(filePathForPost);
+      } catch (statError) {
+        console.warn(`[getMDXPost] Blog post file not found or unreadable at path ${filePathForPost} (slug: ${frontmatterSlug})`);
         return null;
       }
-      stats = await fs.stat(filePathForPost);
       fileContents = await fs.readFile(filePathForPost, 'utf8');
     }
 
@@ -97,15 +126,10 @@ export async function getMDXPost(
     // Parse frontmatter
     const { data, content } = matter(fileContents);
 
-    // Validate frontmatter slug consistency (identifier should be data.slug)
-    if (!data.slug || typeof data.slug !== 'string' || data.slug.trim() === '') {
-      console.warn(`[getMDXPost] Missing or invalid slug in frontmatter for file ${filePathForPost}. Expected "${identifier}". Skipping.`);
+    // Validate frontmatter slug consistency
+    if (!data.slug || typeof data.slug !== 'string' || data.slug.trim() === '' || data.slug.trim() !== frontmatterSlug) {
+      console.warn(`[getMDXPost] Mismatch or invalid slug in frontmatter for file ${filePathForPost}. Expected "${frontmatterSlug}", got "${data.slug}". Skipping.`);
       return null;
-    }
-    const frontmatterSlug = data.slug.trim();
-    if (frontmatterSlug !== identifier) {
-      console.warn(`[getMDXPost] Frontmatter slug "${frontmatterSlug}" in file ${filePathForPost} does not match the identifier "${identifier}" used for processing. This might indicate an issue in getAllMDXPosts. Using frontmatter slug "${frontmatterSlug}" for the post object, but cache key remains "${identifier}".`);
-      // This case should ideally be prevented by getAllMDXPosts logic
     }
 
     // Look up author data
@@ -118,7 +142,6 @@ export async function getMDXPost(
 
     // Get file dates as fallback
     const fileDates = {
-      // birthtime might not be available on all systems/filesystems
       created: stats.birthtimeMs ? stats.birthtime.toISOString() : stats.mtime.toISOString(),
       modified: stats.mtime.toISOString()
     };
@@ -130,39 +153,35 @@ export async function getMDXPost(
           [remarkGfm, { singleTilde: false, breaks: true }]
         ],
         rehypePlugins: [
-          rehypeSlug as any,
-          [rehypeAutolinkHeadings, {
+          rehypeSlug as any, // Reverted to as any
+          [rehypeAutolinkHeadings, { // Reverted to as any
             properties: {
               className: ['anchor'],
               ariaLabel: 'Link to section'
             },
             behavior: 'append'
           }] as any,
-          [rehypePrismPlus, { ignoreMissing: true }] as any
+          [rehypePrismPlus, { ignoreMissing: true }] as any // Reverted to as any
         ],
         format: 'mdx'
       },
       scope: {},
-      parseFrontmatter: true,
+      // Front-matter was already parsed by `gray-matter`
+      parseFrontmatter: false,
     });
 
     // Use frontmatter dates, ensuring they are Pacific Time ISO strings
     const publishedAt = toPacificISOString(data.publishedAt || fileDates.created);
     const updatedAt = toPacificISOString(data.updatedAt || data.modifiedAt || fileDates.modified);
 
-    // Validate coverImage
-    let coverImage: string | undefined = undefined;
-    if (data.coverImage && typeof data.coverImage === 'string' && data.coverImage.trim() !== '') {
-      coverImage = data.coverImage.trim();
-    } else if (data.coverImage) {
-      console.warn(`[getMDXPost] Invalid coverImage frontmatter for slug "${frontmatterSlug}" (file: ${filePathForPost}): Not a non-empty string. Received:`, data.coverImage);
-    }
+    // Validate coverImage using helper
+    const coverImage = sanitizeCoverImage(data.coverImage, frontmatterSlug, filePathForPost);
 
     // Construct the full blog post object
-    const post: BlogPost = { // Explicitly type here for clarity
-      id: `mdx-${frontmatterSlug}`, // Use frontmatter slug for ID
+    const post: BlogPost = {
+      id: `mdx-${frontmatterSlug}`,
       title: data.title,
-      slug: frontmatterSlug, // Ensure this is the one from frontmatter
+      slug: frontmatterSlug,
       excerpt: data.excerpt,
       content: mdxSource,
       rawContent: content,
@@ -175,18 +194,18 @@ export async function getMDXPost(
       filePath: filePathForPost
     };
 
-    // Update cache using the frontmatter slug (identifier) as key
+    // Update cache using the frontmatter slug as key
     postCache.set(cacheKey, { post, lastModified });
 
     return post;
   } catch (error) {
-    console.error(`Error processing post from file ${filePathForPost} (identifier: ${identifier}):`, error);
+    console.error(`Error processing post from file ${filePathForPost} (slug: ${frontmatterSlug}):`, error);
     return null;
   }
 }
 
 /**
- * Retrieves and processes all MDX blog posts.
+ * Retrieves and processes all MDX blog posts concurrently.
  * Uses frontmatter slug as the canonical identifier.
  *
  * @returns {Promise<BlogPost[]>} Array of all processed blog posts
@@ -199,8 +218,10 @@ export async function getAllMDXPosts(): Promise<BlogPost[]> {
     const files = await fs.readdir(POSTS_DIRECTORY);
     const mdxFiles = files.filter(file => file.endsWith('.mdx'));
 
-    for (const fileName of mdxFiles) {
+    // Map filenames to promises that read/parse frontmatter and then fully process
+    const postPromises = mdxFiles.map(async (fileName) => {
       const fullPath = path.join(POSTS_DIRECTORY, fileName);
+      let frontmatterSlug: string | null = null;
       try {
         const fileContents = await fs.readFile(fullPath, 'utf8');
         // Parse frontmatter just to get the slug
@@ -208,31 +229,44 @@ export async function getAllMDXPosts(): Promise<BlogPost[]> {
 
         if (!data.slug || typeof data.slug !== 'string' || data.slug.trim() === '') {
           console.warn(`[getAllMDXPosts] MDX file ${fileName} has missing or invalid slug in frontmatter. Skipping.`);
-          continue;
+          return null; // Skip this file
         }
-        const frontmatterSlug = data.slug.trim();
-
-        if (seenSlugs.has(frontmatterSlug)) {
-          console.warn(`[getAllMDXPosts] Duplicate slug "${frontmatterSlug}" found in MDX frontmatter (file: ${fileName}). Skipping subsequent instance to avoid conflicts.`);
-          continue;
-        }
-        seenSlugs.add(frontmatterSlug);
+        frontmatterSlug = data.slug.trim();
 
         // Now fully process the post using its frontmatter slug as the identifier,
         // and pass the fullPath and pre-read fileContents.
-        const post = await getMDXPost(frontmatterSlug, fullPath, fileContents);
-        if (post) {
+        return await getMDXPost(frontmatterSlug!, fullPath, fileContents);
+
+      } catch (fileError) {
+        console.error(`[getAllMDXPosts] Error initially processing file ${fileName} (slug: ${frontmatterSlug ?? 'unknown'}):`, fileError);
+        return null; // Ensure errors in this map return null
+      }
+    });
+
+    // Wait for all processing attempts to settle
+    const settledResults = await Promise.allSettled(postPromises);
+
+    // Process settled results, ensuring uniqueness and filtering out failures/nulls
+    for (const result of settledResults) {
+      if (result.status === 'fulfilled' && result.value) {
+        const post = result.value;
+        // Final duplicate check after all promises settled
+        if (seenSlugs.has(post.slug)) {
+           console.warn(`[getAllMDXPosts] Duplicate slug "${post.slug}" detected after processing (file: ${post.filePath}). Skipping subsequent instance.`);
+        } else {
+          seenSlugs.add(post.slug);
           processedPosts.push(post);
         }
-      } catch (fileError) {
-        console.error(`[getAllMDXPosts] Error processing file ${fileName}:`, fileError);
-        // Continue to next file
+      } else if (result.status === 'rejected') {
+        // Log errors from promises that were rejected
+        console.error('[getAllMDXPosts] A post processing promise was rejected:', result.reason);
       }
     }
 
     return processedPosts;
   } catch (error) {
-    console.error('Error loading MDX posts:', error);
+    // Catch errors from fs.readdir itself
+    console.error('Error reading posts directory:', error);
     return [];
   }
 }
