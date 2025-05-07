@@ -298,15 +298,18 @@ async function populateAllVolumes() {
     console.log('-'.repeat(50));
 
     // Update the last successful run timestamp file only on successful completion
-    // if it's not a CI environment. This allows local 'bun run build' to update the timestamp,
-    // which subsequent local 'bun run dev' can then use to skip.
-    if (process.env.CI !== 'true') {
+    // if it's a local development environment and not explicitly a CI run.
+    if (process.env.NODE_ENV === 'development' && process.env.CI !== 'true') {
       try {
         await fs.writeFile(LAST_RUN_SUCCESS_TIMESTAMP_FILE, new Date().toISOString());
-        console.log(`✅ Successfully updated last run timestamp for populate-volumes (Local/Non-CI run).`);
+        console.log(`✅ Successfully updated last run timestamp for populate-volumes (Development run).`);
       } catch (e) {
         console.warn('⚠️ Could not update last run timestamp file:', e);
       }
+    } else {
+      // In production, CI, or other non-development environments, we don't update the timestamp.
+      // The script should run fully each time during builds in these environments.
+      console.log(`ℹ️ Skipping update of last run timestamp for populate-volumes (Production/CI/Non-Dev run).`);
     }
 
     process.exit(0);
