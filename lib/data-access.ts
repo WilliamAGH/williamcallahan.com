@@ -22,6 +22,12 @@ import sharp from 'sharp';
 import { createHash } from 'node:crypto';
 
 // --- Configuration & Constants ---
+/**
+ * The primary GitHub username for whom activity (contributions, repositories contributed to,
+ * and lines of code changes) is fetched and processed. This user's activity is tracked
+ * across all repositories they have contributed to, regardless of who owns those repositories.
+ * Defaults to 'WilliamAGH' if the GITHUB_REPO_OWNER environment variable is not set.
+ */
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || 'WilliamAGH'; // Default fallback if not configured
 const GITHUB_API_TOKEN = process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH;
 const API_FETCH_TIMEOUT_MS = 30000; // 30 second timeout
@@ -793,9 +799,6 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
 // Type definitions moved to types/github.ts
 
 export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ aggregatedActivity: AggregatedWeeklyActivity[], overallDataComplete: boolean } | null> {
-  // Define VERBOSE locally within the function to ensure it's available
-  const VERBOSE = process.env.VERBOSE === 'true' || false;
-
   console.log('[DataAccess] Calculating aggregated weekly activity...');
   // Ensure the source directory exists before trying to read from it
   try {
