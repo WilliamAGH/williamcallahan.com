@@ -34,6 +34,8 @@ ENV NODE_ENV=production
 # Indicate process is running inside Docker container
 ENV RUNNING_IN_DOCKER=true
 ENV CONTAINER=true
+# Enable verbose Sentry logs during build for better diagnostics
+ENV SENTRY_LOG_LEVEL=debug
 
 # Accept and propagate public env vars for Next.js build
 ARG NEXT_PUBLIC_UMAMI_WEBSITE_ID
@@ -78,7 +80,9 @@ FROM base AS runner
 WORKDIR /app
 
 # Install runtime dependencies (like Sharp's), curl for healthchecks, AND BASH
-RUN apk add --no-cache vips-dev build-base curl bash
+# Try using just 'vips' instead of 'vips-dev' and remove 'build-base' to reduce size.
+# This assumes Sharp successfully installed its pre-compiled binaries in the 'deps' stage.
+RUN apk add --no-cache vips curl bash
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
