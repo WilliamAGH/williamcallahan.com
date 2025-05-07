@@ -21,11 +21,13 @@ import remarkGfm from 'remark-gfm';
 import rehypePrismPlus from 'rehype-prism-plus';
 import rehypeSlug from 'rehype-slug';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
-import type { MDXRemoteProps } from 'next-mdx-remote';
+// Removing unused imports
+// import type { MDXRemoteProps } from 'next-mdx-remote';
 // Removed unused type imports: Plugin, Root
 import { authors } from '../../data/blog/authors';
 import type { BlogPost } from '../../types/blog';
-import { ServerMDXCodeBlock } from '../../components/ui/code-block/mdx-code-block.server';
+// Removing unused import
+// import { ServerMDXCodeBlock } from '../../components/ui/code-block/mdx-code-block.server';
 
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), 'data/blog/posts');
@@ -95,13 +97,20 @@ export async function getMDXPost(
         stats = await fs.stat(filePathForPost);
       } catch (_statError) { // Parameter is unused
          console.warn(`[getMDXPost] Could not stat file ${filePathForPost} even with content override:`, _statError);
-         stats = { mtime: new Date(0) } as import('fs').Stats;
+         stats = {
+           mtime: new Date(0),
+           birthtime: new Date(0),
+           birthtimeMs: 0,
+           mtimeMs: 0,
+           // Include all properties that are accessed later in the code
+         } as unknown as import('fs').Stats;
       }
     } else {
       // Stat once; failure means the file is missing or unreadable
       try {
         stats = await fs.stat(filePathForPost);
-      } catch (statError) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_statError) {
         console.warn(`[getMDXPost] Blog post file not found or unreadable at path ${filePathForPost} (slug: ${frontmatterSlug})`);
         return null;
       }

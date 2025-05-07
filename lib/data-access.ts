@@ -199,9 +199,8 @@ async function fetchExternalBookmarks(): Promise<UnifiedBookmark[] | null> {
     // For example, if using Telegram/Jina/Groq as described in docs/bookmarks-integration.mdx,
     // implement the direct API calls to those services here.
 
-    // For now, we'll return null as a fallback since we don't have the direct implementation
-    console.warn('[DataAccess] Direct external bookmarks fetch not implemented, returning null');
-    return null;
+    // Throw an error to make the failure explicit rather than silently returning null
+    throw new Error('[DataAccess] External bookmarks fetch not implemented');
 
     // When implementing the direct fetch, use a timeout like this:
     /*
@@ -291,20 +290,9 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 5)
     retryCount++;
   }
   if (!lastResponse) {
-    // This case should ideally not be reached if maxRetries > 0,
-    // but as a fallback, throw or return an error response.
-    // For now, let's assume it might return null if all retries fail with 202
-    // and the initial fetch also resulted in a 202.
-    // However, the original logic implies it will return the last 202 response.
-    // To satisfy TypeScript's non-null assertion, we ensure it's handled.
-    // A more robust solution might throw an error here.
-    console.error(`[DataAccess] fetchWithRetry for ${url} exhausted retries with 202 status.`);
-    // Depending on how this function is used, returning a specific error Response might be better.
-    // For now, to match existing logic that expects a Response, we'll stick to the non-null assertion,
-    // assuming the loop structure guarantees lastResponse is set if retries occur.
-    // If maxRetries is 0 and the first response is 202, it would return that.
+    throw new Error(`All ${maxRetries} retries returned 202 for ${url}`);
   }
-  return lastResponse!;
+  return lastResponse;
 }
 
 // Removed unused fetchAllRepositories function
@@ -740,8 +728,12 @@ async function fetchExternalLogo(domain: string): Promise<{ buffer: Buffer; sour
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch(url, { signal: controller.signal, headers: {'User-Agent': 'Mozilla/5.0'} });
-      clearTimeout(timeoutId);
+      let response: Response;
+      try {
+        response = await fetch(url, { signal: controller.signal, headers: {'User-Agent': 'Mozilla/5.0'} });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) continue;
       const rawBuffer = Buffer.from(await response.arrayBuffer());
