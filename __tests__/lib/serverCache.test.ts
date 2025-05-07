@@ -1,13 +1,12 @@
-import { jest, describe, beforeEach, mock, spyOn, expect, it, test } from 'bun:test';
+import { jest, describe, beforeEach, mock, test } from 'bun:test';
 
 // Import type only initially, actual instance will be re-imported
 import type { ServerCache } from '../../lib/server-cache';
 import type { LogoInversion, LogoSource } from '../../types/logo';
 import type { UnifiedBookmark } from '../../types/bookmark';
-import { SERVER_CACHE_DURATION, BOOKMARKS_CACHE_DURATION } from '../../lib/constants';
 
 // Mock the cache module *before* importing ServerCache
-mock.module('../../lib/cache', () => ({
+void mock.module('../../lib/cache', () => ({
   SimpleCache: jest.fn().mockImplementation(() => ({
     get: jest.fn(),
     set: jest.fn(),
@@ -19,7 +18,7 @@ mock.module('../../lib/cache', () => ({
 }));
 
 // Mock the logger
-mock.module('../../lib/utils/logger', () => ({
+void mock.module('../../lib/utils/logger', () => ({
   logger: {
     info: jest.fn(),
     warn: jest.fn(),
@@ -29,12 +28,12 @@ mock.module('../../lib/utils/logger', () => ({
 }));
 
 // Mock the fetchBookmark function
-mock.module('../../lib/bookmarks', () => ({
+void mock.module('../../lib/bookmarks', () => ({
   fetchBookmark: jest.fn(),
 }));
 
 // Mock the analyzeLogo and doesLogoNeedInversion functions from the same module
-mock.module('../../lib/analysis/logoAnalysis', () => ({
+void mock.module('../../lib/analysis/logoAnalysis', () => ({
   analyzeLogo: jest.fn(),
   doesLogoNeedInversion: jest.fn(),
 }));
@@ -47,19 +46,20 @@ mock.module('../../lib/analysis/logoAnalysis', () => ({
 describe('ServerCache', () => {
   let ServerCacheInstance: ServerCache;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Reset mocks
     jest.clearAllMocks();
 
-    // Tell bun to re-evaluate the module next time it's required
-    // The factory function here re-requires it immediately
-    mock.module('../../lib/server-cache', () => {
-      return require('../../lib/server-cache');
+    // Tell bun to re-evaluate the module next time it's imported
+    // The factory function here imports it immediately
+    void mock.module('../../lib/server-cache', () => {
+      // Using dynamic import to avoid ESLint no-require-imports warnings
+      return import('../../lib/server-cache');
     });
 
     // Now require the module to get the instance (after mock setup)
     // Ensure the path is correct relative to this test file
-    const cacheModule = require('../../lib/server-cache');
+    const cacheModule = await import('../../lib/server-cache');
     ServerCacheInstance = cacheModule.ServerCacheInstance;
 
     if (!ServerCacheInstance) {
@@ -93,6 +93,7 @@ describe('ServerCache', () => {
   });
 
   describe('logo fetch', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const mockFetchResult = {
       url: 'https://example.com/logo.png',
       source: 'google' as LogoSource,
@@ -148,6 +149,7 @@ describe('ServerCache', () => {
   });
 
   describe('inverted logo', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const mockAnalysis: LogoInversion = {
       needsDarkInversion: true,
       needsLightInversion: false,
@@ -181,6 +183,7 @@ describe('ServerCache', () => {
   });
 
   describe('logo analysis', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const mockAnalysis: LogoInversion = {
       needsDarkInversion: true,
       needsLightInversion: false,
@@ -210,6 +213,7 @@ describe('ServerCache', () => {
   });
 
   describe('bookmarks cache', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const mockBookmarks: UnifiedBookmark[] = [
       {
         id: 'bookmark1',

@@ -3,7 +3,7 @@
  * @module __tests__/api/bookmarks/route.test
  */
 
-import { describe, beforeEach, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 import { GET } from '../../../../app/api/bookmarks/route';
 import type { UnifiedBookmark } from '../../../../types';
 import { NextRequest } from 'next/server'; // Import NextRequest
@@ -50,24 +50,26 @@ describe('GET /api/bookmarks', () => {
     // If bookmarks were returned, validate their structure
     if (bookmarks.length > 0) {
       const bookmark = bookmarks[0];
+      // Add check for bookmark being defined
+      if (bookmark) {
+        // Verify bookmark has required properties from UnifiedBookmark
+        expect(bookmark).toHaveProperty('id');
+        expect(bookmark).toHaveProperty('url');
 
-      // Verify bookmark has required properties from UnifiedBookmark
-      expect(bookmark).toHaveProperty('id');
-      expect(bookmark).toHaveProperty('url');
+        // Title might be null for some bookmarks, but should exist as a property
+        expect(bookmark).toHaveProperty('title');
 
-      // Title might be null for some bookmarks, but should exist as a property
-      expect(bookmark).toHaveProperty('title');
+        // Verify tags array exists
+        expect(bookmark).toHaveProperty('tags');
+        expect(Array.isArray(bookmark.tags)).toBe(true);
 
-      // Verify tags array exists
-      expect(bookmark).toHaveProperty('tags');
-      expect(Array.isArray(bookmark.tags)).toBe(true);
+        // Should have a date property
+        expect(bookmark).toHaveProperty('dateBookmarked');
 
-      // Should have a date property
-      expect(bookmark).toHaveProperty('dateBookmarked');
-
-      // Content property should exist for most bookmarks
-      if (bookmark.content) {
-        expect(bookmark.content).toHaveProperty('url');
+        // Content property should exist for most bookmarks
+        if (bookmark.content) {
+          expect(bookmark.content).toHaveProperty('url');
+        }
       }
     }
 
@@ -116,7 +118,7 @@ describe('GET /api/bookmarks', () => {
     expect(response.status).toBe(200);
 
     // We should get bookmarks data back
-    const data = await response.json();
+    const data: UnifiedBookmark[] = await response.json() as unknown as UnifiedBookmark[];
     expect(Array.isArray(data)).toBe(true);
 
     // We can't guarantee exactly 5 bookmarks, but we can check that data is returned

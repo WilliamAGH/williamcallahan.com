@@ -1,4 +1,4 @@
- import React from 'react';
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CopyButton } from '../../../components/ui/code-block/copy-button.client';
 import { jest, spyOn, describe, beforeEach, afterEach, it, expect } from 'bun:test';
@@ -7,6 +7,7 @@ describe('CopyButton', () => {
   // Keep the mock function separate
   const mockWriteText = jest.fn<(data: string) => Promise<void>>();
   let consoleErrorSpy: ReturnType<typeof spyOn>; // Infer type from spyOn
+  // Store the original clipboard descriptor in the test scope
   let originalClipboardDescriptor: PropertyDescriptor | undefined;
 
   // Simplified beforeEach for debugging
@@ -50,7 +51,7 @@ describe('CopyButton', () => {
   it.skip('copies content and shows success state', async () => { // Skip this test for now
     render(<CopyButton content="test" />);
     const button = screen.getByRole('button');
-    await fireEvent.click(button); // Add await
+    void fireEvent.click(button); // fireEvent doesn't return a promise
 
     // Wait for the clipboard writeText to be called
     await waitFor(() => {
@@ -78,12 +79,11 @@ describe('CopyButton', () => {
 
   it.skip('handles missing clipboard API', async () => { // Skip this test for now
     // Set clipboard to undefined *before* rendering for this test
-    const originalClipboard = navigator.clipboard; // Store the original value
     Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
 
     render(<CopyButton content="test" />); // Render after setting to undefined
     const button = screen.getByRole('button');
-    await fireEvent.click(button); // Add await
+    void fireEvent.click(button); // fireEvent doesn't return a promise
 
     // Missing clipboard writeText should log error
     await waitFor(() => { // Re-introduce waitFor

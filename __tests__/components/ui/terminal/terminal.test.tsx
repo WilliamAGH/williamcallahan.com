@@ -31,12 +31,12 @@ import { TerminalProvider } from '../../../../components/ui/terminal/terminal-co
 import { TerminalWindowStateProvider } from '../../../../lib/context/terminal-window-state-context.client';
 import { useRouter } from 'next/navigation';
 import { setupTests } from '../../../../lib/test/setup';
-import { GlobalWindowRegistryContextType, WindowState } from '../../../../lib/context/global-window-registry-context.client'; // Import types for mocking
+import type { GlobalWindowRegistryContextType, WindowState } from '../../../../lib/context/global-window-registry-context.client'; // Import types for mocking
 import type { SearchResult } from '@/types/search'; // Import SearchResult type
 import type { TerminalCommand } from '@/types/terminal'; // Remove unused/missing types
 
 // --- Mock TerminalHeader ---
-mock.module('../../../../components/ui/terminal/terminal-header', () => ({
+void mock.module('../../../../components/ui/terminal/terminal-header', () => ({
   TerminalHeader: ({ onClose, onMinimize, onMaximize, isMaximized }: any) => (
     <div data-testid="mock-terminal-header">
       <button title="Close" onClick={onClose} disabled={!onClose}>Close</button>
@@ -50,7 +50,7 @@ mock.module('../../../../components/ui/terminal/terminal-header', () => ({
 // --- End Mock ---
 
 // Mock next/navigation using mock.module
-mock.module('next/navigation', () => ({ // Use mock.module
+void mock.module('next/navigation', () => ({ // Use mock.module
   useRouter: jest.fn(() => ({ push: jest.fn() })) // Provide default mock implementation
 }));
 
@@ -70,7 +70,7 @@ const maximizeMock = () => setMockState(mockWindowState === 'maximized' ? 'norma
 const closeMock = () => setMockState('closed');
 const restoreMock = () => setMockState('normal');
 
-mock.module('../../../../lib/context/global-window-registry-context.client', () => { // Use mock.module
+void mock.module('../../../../lib/context/global-window-registry-context.client', () => { // Use mock.module
   // Functions defined above
   return {
     GlobalWindowRegistryProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -100,7 +100,7 @@ const mockUseRegisteredWindowState = useRegisteredWindowStateImported as jest.Mo
 const mockUseRouter = useRouterImported as jest.Mock;
 
 // Mock search functions using mock.module
-mock.module('../../../../lib/search', () => ({ // Use mock.module
+void mock.module('../../../../lib/search', () => ({ // Use mock.module
   searchPosts: jest.fn().mockResolvedValue([
     {
       title: 'Test Post',
@@ -198,7 +198,7 @@ describe('Terminal Component', () => {
       // Mock the fetch call *before* submitting
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => [] as SearchResult[], // No results found
+        json: () => Promise.resolve([]) as Promise<SearchResult[]>, // No results found
       });
 
       fireEvent.submit(input);
@@ -239,7 +239,7 @@ describe('Terminal Component', () => {
       // Mock the fetch call *before* submitting
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => [{ label: '[Blog] Test Post', description: 'Test excerpt', path: '/blog/test-post' }] as SearchResult[],
+        json: () => Promise.resolve([{ label: '[Blog] Test Post', description: 'Test excerpt', path: '/blog/test-post' }] as SearchResult[]),
       });
 
       fireEvent.submit(input);

@@ -1,7 +1,7 @@
 import { describe, expect, it, jest, mock, beforeEach } from 'bun:test';
 import { compareImages } from '../../lib/imageCompare';
 import { logger } from '../../lib/logger';
-import type { Metadata, FormatEnum } from 'sharp';
+import type { Metadata, FormatEnum, ResizeOptions } from 'sharp';
 
 type SharpInstance = {
   metadata: () => Promise<Metadata>;
@@ -9,7 +9,7 @@ type SharpInstance = {
   png: () => SharpInstance;
   grayscale: () => SharpInstance;
   raw: () => SharpInstance;
-  resize: (width: number, height: number, options: any) => SharpInstance;
+  resize: (width: number, height: number, options: ResizeOptions) => SharpInstance;
 };
 
 // Mock sharp
@@ -29,12 +29,13 @@ const createMockSharp = (metadata: Partial<Metadata> = {}): SharpInstance => ({
 
 const mockSharpFactory = jest.fn(createMockSharp);
 
-mock.module('sharp', () => ({
+void mock.module('sharp', () => ({
   __esModule: true,
   default: mockSharpFactory,
 }));
 
 // Static import - Bun should intercept
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Required for mocking to work properly
 import sharp from 'sharp';
 
 describe('Image Comparison', () => {

@@ -1,10 +1,8 @@
-import { describe, it, expect, mock, jest } from 'bun:test';
+import { describe, it, expect, mock } from 'bun:test';
 import { searchPosts, searchInvestments, searchExperience, searchEducation } from '../../lib/search';
-import type { BlogPost } from '../../types/blog';
-import type { SearchResult } from '../../types/search';
 
 // Mock the imported data modules using mock.module
-mock.module('../../data/blog/posts', () => ({
+void mock.module('../../data/blog/posts', () => ({
   posts: [
     {
       id: '1',
@@ -29,7 +27,7 @@ mock.module('../../data/blog/posts', () => ({
   ]
 }));
 
-mock.module('../../data/investments', () => ({
+void mock.module('../../data/investments', () => ({
   investments: [
     {
       id: '1',
@@ -53,7 +51,7 @@ mock.module('../../data/investments', () => ({
   ]
 }));
 
-mock.module('../../data/experience', () => ({
+void mock.module('../../data/experience', () => ({
   experiences: [
     {
       id: '1',
@@ -70,7 +68,7 @@ mock.module('../../data/experience', () => ({
   ]
 }));
 
-mock.module('../../data/education', () => ({
+void mock.module('../../data/education', () => ({
   education: [
     {
       id: '1',
@@ -89,151 +87,151 @@ mock.module('../../data/education', () => ({
 
 describe('search', () => {
   describe('searchPosts', () => {
-    it('should return all posts when query is empty', async () => {
-      const results = await searchPosts('');
+    it('should return all posts when query is empty', () => {
+      const results = searchPosts('');
       expect(results).toHaveLength(2);
     });
 
-    it('should find posts by title', async () => {
-      const results = await searchPosts('Test Post 1');
+    it('should find posts by title', () => {
+      const results = searchPosts('Test Post 1');
       expect(results).toHaveLength(1);
-      expect(results[0].title).toBe('Test Post 1');
+      expect(results?.[0]?.title).toBe('Test Post 1');
     });
 
-    it('should find posts by content', async () => {
-      const results = await searchPosts('react');
+    it('should find posts by content', () => {
+      const results = searchPosts('react');
       expect(results).toHaveLength(1);
-      expect(results[0].excerpt).toContain('React');
+      expect(results?.[0]?.excerpt).toContain('React');
     });
 
-    it('should find posts by tags', async () => {
-      const results = await searchPosts('javascript');
+    it('should find posts by tags', () => {
+      const results = searchPosts('javascript');
       expect(results).toHaveLength(2);
     });
 
-    it('should find posts by author', async () => {
-      const results = await searchPosts('John Doe');
+    it('should find posts by author', () => {
+      const results = searchPosts('John Doe');
       expect(results).toHaveLength(2);
     });
 
-    it('should handle multi-word search', async () => {
-      const results = await searchPosts('test typescript');
+    it('should handle multi-word search', () => {
+      const results = searchPosts('test typescript');
       expect(results).toHaveLength(1);
-      expect(results[0].title).toBe('Test Post 2');
+      expect(results?.[0]?.title).toBe('Test Post 2');
     });
 
-    it('should be case insensitive', async () => {
-      const results = await searchPosts('REACT');
+    it('should be case insensitive', () => {
+      const results = searchPosts('REACT');
       expect(results).toHaveLength(1);
     });
 
-    it('should return empty array when no matches', async () => {
-      const results = await searchPosts('nonexistent');
+    it('should return empty array when no matches', () => {
+      const results = searchPosts('nonexistent');
       expect(results).toHaveLength(0);
     });
 
-    it('should sort by publishedAt in descending order', async () => {
-      const results = await searchPosts('test');
-      expect(results[0].publishedAt).toBe('2024-01-02T00:00:00Z');
-      expect(results[1].publishedAt).toBe('2024-01-01T00:00:00Z');
+    it('should sort by publishedAt in descending order', () => {
+      const results = searchPosts('test');
+      expect(results?.[0]?.publishedAt).toBe('2024-01-02T00:00:00Z');
+      expect(results?.[1]?.publishedAt).toBe('2024-01-01T00:00:00Z');
     });
   });
 
   describe('searchInvestments', () => {
-    it('should return all investments when query is empty', async () => {
-      const results = await searchInvestments('');
+    it('should return all investments when query is empty', () => {
+      const results = searchInvestments('');
       expect(results).toHaveLength(2);
     });
 
-    it('should find investments by name', async () => {
-      const results = await searchInvestments('fintech startup');
+    it('should find investments by name', () => {
+      const results = searchInvestments('fintech startup');
       expect(results).toHaveLength(1);
-      expect(results[0].label).toBe('Test Company 1');
+      expect(results?.[0]?.label).toBe('Test Company 1');
     });
 
-    it('should find exact investment matches', async () => {
-      const results = await searchInvestments('Test Company 1 fintech');
+    it('should find exact investment matches', () => {
+      const results = searchInvestments('Test Company 1 fintech');
       expect(results).toHaveLength(1);
-      expect(results[0].label).toBe('Test Company 1');
+      expect(results?.[0]?.label).toBe('Test Company 1');
 
-      const results2 = await searchInvestments('Test Company 2 AI');
+      const results2 = searchInvestments('Test Company 2 AI');
       expect(results2).toHaveLength(1);
-      expect(results2[0].label).toBe('Test Company 2');
+      expect(results2?.[0]?.label).toBe('Test Company 2');
     });
 
-    it('should find investments by description', async () => {
-      const results = await searchInvestments('fintech');
+    it('should find investments by description', () => {
+      const results = searchInvestments('fintech');
       expect(results).toHaveLength(1);
-      expect(results[0].description).toContain('fintech');
+      expect(results?.[0]?.description).toContain('fintech');
     });
 
-    it('should find investments by type and status', async () => {
-      const results = await searchInvestments('Seed Active');
+    it('should find investments by type and status', () => {
+      const results = searchInvestments('Seed Active');
       expect(results).toHaveLength(1);
     });
 
-    it('should include correct path in results', async () => {
-      const results = await searchInvestments('Test Company 1');
-      expect(results[0].path).toBe('/investments#1');
+    it('should include correct path in results', () => {
+      const results = searchInvestments('Test Company 1');
+      expect(results?.[0]?.path).toBe('/investments#1');
     });
   });
 
   describe('searchExperience', () => {
-    it('should return all experiences when query is empty', async () => {
-      const results = await searchExperience('');
+    it('should return all experiences when query is empty', () => {
+      const results = searchExperience('');
       expect(results).toHaveLength(2);
     });
 
-    it('should find experiences by company', async () => {
-      const results = await searchExperience('Tech Corp');
+    it('should find experiences by company', () => {
+      const results = searchExperience('Tech Corp');
       expect(results).toHaveLength(1);
-      expect(results[0].label).toBe('Tech Corp');
+      expect(results?.[0]?.label).toBe('Tech Corp');
     });
 
-    it('should find experiences by role', async () => {
-      const results = await searchExperience('Senior Engineer');
+    it('should find experiences by role', () => {
+      const results = searchExperience('Senior Engineer');
       expect(results).toHaveLength(1);
-      expect(results[0].description).toBe('Senior Engineer');
+      expect(results?.[0]?.description).toBe('Senior Engineer');
     });
 
-    it('should find experiences by period', async () => {
-      const results = await searchExperience('2022');
+    it('should find experiences by period', () => {
+      const results = searchExperience('2022');
       expect(results).toHaveLength(2);
     });
 
-    it('should include correct path in results', async () => {
-      const results = await searchExperience('Tech Corp');
-      expect(results[0].path).toBe('/experience#1');
+    it('should include correct path in results', () => {
+      const results = searchExperience('Tech Corp');
+      expect(results?.[0]?.path).toBe('/experience#1');
     });
   });
 
   describe('searchEducation', () => {
-    it('should return all education items when query is empty', async () => {
-      const results = await searchEducation('');
+    it('should return all education items when query is empty', () => {
+      const results = searchEducation('');
       expect(results).toHaveLength(2); // 1 education + 1 certification
     });
 
-    it('should find education by institution', async () => {
-      const results = await searchEducation('Test University');
+    it('should find education by institution', () => {
+      const results = searchEducation('Test University');
       expect(results).toHaveLength(1);
-      expect(results[0].label).toBe('Test University');
+      expect(results?.[0]?.label).toBe('Test University');
     });
 
-    it('should find education by degree', async () => {
-      const results = await searchEducation('Computer Science');
+    it('should find education by degree', () => {
+      const results = searchEducation('Computer Science');
       expect(results).toHaveLength(1);
-      expect(results[0].description).toBe('Computer Science');
+      expect(results?.[0]?.description).toBe('Computer Science');
     });
 
-    it('should find certifications by name', async () => {
-      const results = await searchEducation('Advanced Programming');
+    it('should find certifications by name', () => {
+      const results = searchEducation('Advanced Programming');
       expect(results).toHaveLength(1);
-      expect(results[0].description).toBe('Advanced Programming');
+      expect(results?.[0]?.description).toBe('Advanced Programming');
     });
 
-    it('should include correct path in results', async () => {
-      const results = await searchEducation('Test University');
-      expect(results[0].path).toBe('/education#1');
+    it('should include correct path in results', () => {
+      const results = searchEducation('Test University');
+      expect(results?.[0]?.path).toBe('/education#1');
     });
   });
 });

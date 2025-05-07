@@ -1,13 +1,10 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'; // Import act
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { CodeBlock } from '../../../components/ui/code-block/code-block.client';
-import { CopyButton } from '../../../components/ui/code-block/copy-button.client';
-import { WindowControls } from '../../../components/ui/navigation/window-controls';
-import { mock, jest, describe, beforeEach, it, expect } from 'bun:test'; // Add mock, expect
-import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
+import { mock, jest, describe, beforeEach, it, expect } from 'bun:test';
 
 // Mock CopyButton component using mock.module
-mock.module('../../../components/ui/code-block/copy-button.client', () => ({ // Use mock.module
+void mock.module('../../../components/ui/code-block/copy-button.client', () => ({ // Use mock.module
   CopyButton: jest.fn(({ content }: { content: string }) => ( // Keep jest.fn, add type
     <button data-testid="mock-copy-button" data-content={content}>
       Copy
@@ -16,7 +13,7 @@ mock.module('../../../components/ui/code-block/copy-button.client', () => ({ // 
 }));
 
 // Mock WindowControls component using mock.module
-mock.module('../../../components/ui/navigation/window-controls', () => ({ // Use mock.module
+void mock.module('../../../components/ui/navigation/window-controls', () => ({ // Use mock.module
   WindowControls: jest.fn(({ onClose, onMinimize, onMaximize }: { onClose: () => void; onMinimize: () => void; onMaximize: () => void }) => ( // Keep jest.fn, add types
     <div data-testid="mock-window-controls">
       <button data-testid="mock-close" onClick={onClose}>Close</button>
