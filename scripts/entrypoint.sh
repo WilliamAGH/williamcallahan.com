@@ -15,8 +15,6 @@ seed_volume() {
   local CP_FAILED=0 # Flag to indicate if copy operation itself failed
 
   echo "[Entrypoint - $PNAME] Seeding volume at $TGT_DIR"
-  echo "[Entrypoint - $PNAME] Current contents of target $TGT_DIR (volume mount):"
-  ls -Al "$TGT_DIR" || echo "[Entrypoint - $PNAME] Target directory $TGT_DIR might not exist yet or ls failed."
 
   # Check if target is empty or doesn't exist (mkdir -p handles non-existence)
   # The -d check is mostly for sanity; mount should ensure it exists.
@@ -31,23 +29,18 @@ seed_volume() {
       echo "[Entrypoint - $PNAME] WARNING: Source directory $SRC_DIR (from image) does not exist or is empty. Nothing to seed for $PNAME."
       CP_FAILED=0 # Not a copy failure, just nothing to copy. Considered success for this step.
     else
-      echo "[Entrypoint - $PNAME] Contents of source $SRC_DIR (from image):"
-      ls -AlR "$SRC_DIR" || echo "[Entrypoint - $PNAME] ls on source $SRC_DIR failed (this is unexpected if dir exists and has content)."
-
-      echo "[Entrypoint - $PNAME] Attempting to copy from $SRC_DIR to $TGT_DIR..."
-      if cp -rv "$SRC_DIR"/. "$TGT_DIR"/; then
+      echo "[Entrypoint - $PNAME] Attempting to copy from $SRC_DIR to $TGT_DIR using 'cp -a'..."
+      if cp -a "$SRC_DIR"/. "$TGT_DIR"/; then
         echo "[Entrypoint - $PNAME] Copy successful."
         CP_FAILED=0
-        echo "[Entrypoint - $PNAME] Contents of $TGT_DIR after copy:"
-        ls -AlR "$TGT_DIR"
 
         echo "[Entrypoint - $PNAME] Attempting to chown contents of $TGT_DIR to nextjs:nodejs..."
-        if find "$TGT_DIR" -mindepth 1 -exec chown -v nextjs:nodejs {} +; then
+        if find "$TGT_DIR" -mindepth 1 -exec chown nextjs:nodejs {} +; then
            echo "[Entrypoint - $PNAME] Chown contents successful."
         else
            echo "[Entrypoint - $PNAME] WARNING: Chown contents for $TGT_DIR failed for some items."
         fi
-        chown -v nextjs:nodejs "$TGT_DIR" || echo "[Entrypoint - $PNAME] Warning: Could not chown top-level directory $TGT_DIR."
+        chown nextjs:nodejs "$TGT_DIR" || echo "[Entrypoint - $PNAME] Warning: Could not chown top-level directory $TGT_DIR."
       else
         local exit_code=$?
         echo "[Entrypoint - $PNAME] ERROR: Copy from $SRC_DIR to $TGT_DIR FAILED. Exit code: $exit_code"
@@ -56,8 +49,6 @@ seed_volume() {
     fi
   else
     echo "[Entrypoint - $PNAME] Target $TGT_DIR is not empty. Skipping seed."
-    echo "[Entrypoint - $PNAME] Current non-empty contents of $TGT_DIR:"
-    ls -AlR "$TGT_DIR"
     CP_FAILED=0 # Not a failure, already seeded or pre-populated
   fi
   echo "[Entrypoint - $PNAME] ----- Finished $PNAME seeding -----"
