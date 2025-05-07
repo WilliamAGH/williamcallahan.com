@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
 The bookmark cards integrate with the site's existing logo fetching and caching system, using the same infrastructure as /companies and /education sections:
 
 1. Logo Storage:
-   - Primary storage in Docker volume at `/app/public/logos`
+   - Primary storage in Docker volume at `/app/data/images/logos`
    - Filesystem caching with hashed filenames: `{md5(domain)}-{source}.png`
    - Memory caching via ServerCacheInstance for fast access
    - Automatic fallback to memory-only mode if volume isn't available

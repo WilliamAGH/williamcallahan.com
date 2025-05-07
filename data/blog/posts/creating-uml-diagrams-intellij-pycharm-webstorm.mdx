@@ -1,0 +1,117 @@
+---
+title: "Creating UML Diagrams in IntelliJ IDEA, PyCharm, and WebStorm"
+slug: "creating-uml-diagrams-intellij-pycharm-webstorm"
+excerpt: "A guide to generating and using UML class diagrams in JetBrains IDEs like IntelliJ IDEA (Ultimate), PyCharm (Professional), and WebStorm, covering features, limitations, and language support."
+publishedAt: "2025-05-06"
+updatedAt: "2025-05-06"
+author: "william-callahan"
+tags: ["uml", "intellij", "pycharm", "webstorm", "diagrams", "ide", "java", "python", "kotlin", "javascript", "jetbrains"]
+coverImage: "/images/posts/jetbrains-uml-cover.png"
+---
+
+<BackgroundInfo title="Overview: UML Diagramming in JetBrains IDEs">
+JetBrains IDEs like [IntelliJ IDEA Ultimate](https://www.jetbrains.com/idea/) and [PyCharm Professional](https://www.jetbrains.com/pycharm/) provide built-in tools to generate UML class diagrams from source code. This relies on the "Diagrams" plugin, which is bundled and enabled by default in these editions. Community editions do not include this feature. WebStorm's diagramming is limited and does not provide full UML class diagram support for JavaScript/TypeScript.
+
+</BackgroundInfo>
+
+## 1: Understanding Built-in UML Diagramming
+
+JetBrains IDEs generate UML class diagrams from code. These are not general-purpose UML modeling tools and do not support designing diagrams before code ("model-first" means creating diagrams and generating code from them; JetBrains tools only generate diagrams from existing code).
+
+<CollapseDropdown summary="1.1: What it is">
+  The built-in UML diagramming tool generates **Class Diagrams** showing classes, their members, and relationships (inheritance, dependencies) as found in your code.
+</CollapseDropdown>
+
+<CollapseDropdown summary="1.2: Key Considerations">
+  - **Code-First**: Diagrams reflect the current state of your code. Some refactoring (like renaming) can be performed from the diagram.
+  - **Plugin**: The "Diagrams" plugin must be enabled (Settings/Preferences > Plugins).
+  - **Editions**: Requires IntelliJ IDEA Ultimate or PyCharm Professional. WebStorm does not provide full UML class diagram support for JS/TS.
+</CollapseDropdown>
+
+---
+
+## 2: How to Generate UML Class Diagrams
+
+The process for generating UML class diagrams is as follows:
+
+<CollapseDropdown summary="2.1: IntelliJ IDEA (Java/Kotlin)">
+  - Right-click a package, class, or multiple classes in the Project tool window.
+  - Select **Diagrams > Show Diagram...** (`Ctrl+Alt+Shift+U` on Windows/Linux, `⌥⇧⌘U` on macOS).
+  - If prompted, select **Java Class Diagram**.
+  - The diagram opens in a new editor tab.
+</CollapseDropdown>
+
+<CollapseDropdown summary="2.2: PyCharm (Python)">
+  - Right-click a Python file, class, or package in the Project tool window.
+  - Select **Diagrams > Show Diagram...**.
+  - Select **Python Class Diagram**.
+  - The diagram opens in a new editor tab.
+  - PyCharm can also visualize database schemas (separate from UML class diagrams).
+</CollapseDropdown>
+
+<CollapseDropdown summary="2.3: WebStorm and IntelliJ support for JavaScript/TypeScript">
+  While WebStorm doesn't include built-in UML class diagram support for JavaScript/TypeScript, you can use the third-party plugin [UML JavaScript and TypeScript](https://plugins.jetbrains.com/plugin/17380-uml-javascript-and-typescript) to add this functionality to any IntelliJ IDE:
+
+  - Install the plugin from Settings/Preferences > Plugins > Marketplace
+  - Right-click a JavaScript/TypeScript file or directory in the Project tool window
+  - Select **Diagrams > Show Diagram...**
+  - Select **JavaScript Class Diagram** or **TypeScript Class Diagram**
+  - The diagram opens in a new editor tab
+</CollapseDropdown>
+
+---
+
+## 3: What Built-in UML Diagrams Can Do
+
+<CollapseDropdown summary="3.1: Key Features and Capabilities">
+  - Visualize classes, interfaces, enums, and their members (fields, methods) with visibility modifiers.
+  - Show inheritance, implementation, and dependencies.
+  - Double-click to navigate to source code.
+  - Some refactorings (e.g., renaming) can be performed from the diagram.
+  - Toggle member visibility, filter by visibility, show/hide dependencies, rearrange layout.
+  - Export diagrams as images (PNG, SVG).
+  - Add classes to the diagram (press `Space` in the diagram editor).
+  - IntelliJ IDEA offers graph analysis features (focus on paths, measure node centrality).
+</CollapseDropdown>
+
+---
+
+## 4: Limitations of Built-in UML Tools
+
+<CollapseDropdown summary="4.1: What to Keep in Mind">
+  - Only visualizes existing code; not for model-first UML design.
+  - Only available in IntelliJ IDEA Ultimate and PyCharm Professional.
+  - Full built-in support is limited to Java, Kotlin, and Python. Support for other languages is available via plugins in the IntelliJ Marketplace.
+  - Large diagrams can be cluttered.
+  - Visual customization is limited.
+</CollapseDropdown>
+
+---
+
+## 5: Supported Languages for UML Diagramming
+
+Support for UML class diagram generation:
+
+<CollapseDropdown summary="5.1: Supported Languages">
+  - Java: IntelliJ IDEA Ultimate
+  - Kotlin: IntelliJ IDEA Ultimate
+  - Python: PyCharm Professional
+</CollapseDropdown>
+
+<CollapseDropdown summary="5.2: Not Supported or Limited">
+  - JavaScript/TypeScript: WebStorm does not provide built-in UML class diagrams, but the [UML JavaScript and TypeScript](https://plugins.jetbrains.com/plugin/17380-uml-javascript-and-typescript) plugin adds this capability.
+  - Other languages: No built-in UML class diagram generation.
+</CollapseDropdown>
+
+---
+
+## 6: When to Look for Alternatives
+
+If you need other UML diagram types or to design diagrams before code:
+
+<CollapseDropdown summary="6.1: Dedicated UML Tools and Plugins">
+  - Use dedicated UML tools for full modeling: [Visual Paradigm](https://www.visual-paradigm.com/), [StarUML](https://staruml.io/), [Lucidchart](https://www.lucidchart.com/), [PlantUML](https://plantuml.com/), or [draw.io](https://www.drawio.com/) (also sometimes referred to as diagrams.net).
+  - JetBrains Marketplace has plugins for additional diagram types and language support:
+    - [UML JavaScript and TypeScript](https://plugins.jetbrains.com/plugin/17380-uml-javascript-and-typescript) for JS/TS UML diagrams
+    - Other diagram plugins may be available for specific languages or diagram types
+</CollapseDropdown>

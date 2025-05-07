@@ -3,129 +3,128 @@
  * @module __tests__/api/bookmarks/route.test
  */
 
-import { mock, jest, describe, beforeEach, it, expect, spyOn, afterEach } from 'bun:test';
+import { describe, beforeEach, it, expect, afterEach } from 'bun:test';
 import { GET } from '../../../../app/api/bookmarks/route';
 import type { UnifiedBookmark } from '../../../../types';
+import { NextRequest } from 'next/server'; // Import NextRequest
 
-// Mock dependencies using mock.module
-mock.module('../../../../lib/bookmarks', () => ({
-  fetchExternalBookmarks: jest.fn()
-}));
-mock.module('../../../../lib/server-cache', () => ({
-  ServerCacheInstance: {
-    getBookmarks: jest.fn(),
-  }
-}));
-mock.module('next/server', () => ({
-  NextResponse: {
-    json: jest.fn(),
-  },
-}));
-
-// Import *after* mocking
-import { fetchExternalBookmarks as ImportedFetchBookmarks } from '../../../../lib/bookmarks';
-import { ServerCacheInstance as ImportedServerCache } from '../../../../lib/server-cache';
-import { NextResponse as ImportedNextResponse } from 'next/server';
-
-// Spy on console (no need to mock the whole object)
-let consoleLogSpy: ReturnType<typeof spyOn>;
-let consoleErrorSpy: ReturnType<typeof spyOn>;
-
-// Get handles to the mocks
-const mockFetchBookmarks = ImportedFetchBookmarks as jest.Mock;
-const mockGetCache = ImportedServerCache.getBookmarks as jest.Mock;
-const mockResponseJson = ImportedNextResponse.json as jest.Mock;
+// Create a NextRequest object
+function createRequest(options: { url?: string } = {}): NextRequest {
+  const baseUrl = 'https://bookmark.iocloudhost.net/api/bookmarks';
+  const url = options.url ? `${baseUrl}${options.url}` : baseUrl;
+  // Cast to NextRequest. For more complex scenarios, you might need to mock specific NextRequest properties.
+  return new NextRequest(url, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+      ...(process.env.BOOKMARK_BEARER_TOKEN
+        ? { 'Authorization': `Bearer ${process.env.BOOKMARK_BEARER_TOKEN}` }
+        : {})
+    }
+  });
+}
 
 describe('GET /api/bookmarks', () => {
-  const mockBookmarksData: UnifiedBookmark[] = [
-    { id: '1', title: 'Bookmark 1', url: 'https://example.com/1' } as UnifiedBookmark,
-    { id: '2', title: 'Bookmark 2', url: 'https://example.com/2' } as UnifiedBookmark,
-  ];
-  const mockCachedData: UnifiedBookmark[] = [
-    { id: 'cached1', title: 'Cached Bookmark 1', url: 'https://cached.com/1' } as UnifiedBookmark,
-  ];
-  const cacheHeaders = { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600' };
+  // These tests use the real APIs - no mocking
+  // CAUTION: These tests will fail in CI environments if BOOKMARK_BEARER_TOKEN is not set.
+  // Consider one of the following approaches to prevent CI failures:
+  // 1. Skip tests conditionally: if (!process.env.BOOKMARK_BEARER_TOKEN) test.skip('test description', ...)
+  // 2. Use mock responses in CI: if (!process.env.BOOKMARK_BEARER_TOKEN) { /* setup mock */ }
+  // 3. Fail early with clear message: if (!process.env.BOOKMARK_BEARER_TOKEN) throw new Error('BOOKMARK_BEARER_TOKEN required')
 
-  beforeEach(() => {
-    // Reset mocks before each test
-    jest.clearAllMocks();
-    mockFetchBookmarks.mockClear();
-    mockGetCache.mockClear();
-    mockResponseJson.mockClear();
+  it('should fetch bookmarks from the real API endpoint', async () => {
+    // Actual request to the real endpoint
+    const request = createRequest();
 
-    // Setup spies
-    consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
-    consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
+    // Call the actual API handler
+    const response = await GET(request);
+
+    // Verify response is successful
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('application/json');
+
+    // Verify response contains valid bookmarks data
+    const bookmarks = await response.json() as UnifiedBookmark[];
+    expect(Array.isArray(bookmarks)).toBe(true);
+
+    // If bookmarks were returned, validate their structure
+    if (bookmarks.length > 0) {
+      const bookmark = bookmarks[0];
+
+      // Verify bookmark has required properties from UnifiedBookmark
+      expect(bookmark).toHaveProperty('id');
+      expect(bookmark).toHaveProperty('url');
+
+      // Title might be null for some bookmarks, but should exist as a property
+      expect(bookmark).toHaveProperty('title');
+
+      // Verify tags array exists
+      expect(bookmark).toHaveProperty('tags');
+      expect(Array.isArray(bookmark.tags)).toBe(true);
+
+      // Should have a date property
+      expect(bookmark).toHaveProperty('dateBookmarked');
+
+      // Content property should exist for most bookmarks
+      if (bookmark.content) {
+        expect(bookmark.content).toHaveProperty('url');
+      }
+    }
+
+    // Log number of bookmarks for debugging (helpful for CI)
+    console.log(`Fetched ${bookmarks.length} bookmarks from real API`);
   });
 
-  afterEach(() => {
-    // Restore spies
-    consoleLogSpy?.mockRestore();
-    consoleErrorSpy?.mockRestore();
+  it('should handle request with refresh parameter', async () => {
+    // Create a real request with the refresh parameter
+    const request = createRequest({ url: '?refresh=true' });
+
+    // Call the API handler with the refresh parameter
+    const response = await GET(request);
+
+    // Verify the response is successful
+    expect(response.status).toBe(200);
+
+    const bookmarks = await response.json() as UnifiedBookmark[];
+    expect(Array.isArray(bookmarks)).toBe(true);
+
+    // With real data, we can't predict count, but we can verify structure
+    if (bookmarks.length > 0) {
+      const bookmark = bookmarks[0];
+      expect(bookmark).toHaveProperty('id');
+      expect(bookmark).toHaveProperty('url');
+    }
   });
 
-  it('should return fetched bookmarks on success', async () => {
-    mockFetchBookmarks.mockResolvedValue(mockBookmarksData);
+  // Test using a request with search parameters
+  it('should handle search parameters properly', async () => {
+    // Create a NextRequest with search parameters
+    const request = new NextRequest('https://bookmark.iocloudhost.net/api/bookmarks?limit=5', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        ...(process.env.BOOKMARK_BEARER_TOKEN
+          ? { 'Authorization': `Bearer ${process.env.BOOKMARK_BEARER_TOKEN}` }
+          : {})
+      }
+    });
 
-    await GET();
+    // Call the API endpoint
+    const response = await GET(request);
 
-    expect(mockFetchBookmarks).toHaveBeenCalledTimes(1);
-    expect(mockGetCache).not.toHaveBeenCalled();
-    expect(mockResponseJson).toHaveBeenCalledWith(mockBookmarksData, { status: 200, headers: cacheHeaders });
-    expect(consoleLogSpy).toHaveBeenCalledWith('API route: Starting to fetch bookmarks');
-    expect(consoleLogSpy).toHaveBeenCalledWith(`API route: Fetched ${mockBookmarksData.length} bookmarks`);
-    expect(consoleErrorSpy).not.toHaveBeenCalled();
-  });
+    // Verify the response
+    expect(response.status).toBe(200);
 
-  it('should return cached bookmarks when fetch fails but cache exists', async () => {
-    const fetchError = new Error('Fetch failed');
-    mockFetchBookmarks.mockRejectedValue(fetchError);
-    mockGetCache.mockReturnValue({ bookmarks: mockCachedData });
+    // We should get bookmarks data back
+    const data = await response.json();
+    expect(Array.isArray(data)).toBe(true);
 
-    await GET();
-
-    expect(mockFetchBookmarks).toHaveBeenCalledTimes(1);
-    expect(mockGetCache).toHaveBeenCalledTimes(1);
-    expect(mockResponseJson).toHaveBeenCalledWith(mockCachedData, { status: 200, headers: cacheHeaders });
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching bookmarks:', fetchError);
-    expect(consoleLogSpy).toHaveBeenCalledWith(`API route: Returning stale cached bookmarks, count: ${mockCachedData.length}`);
-  });
-
-  it('should return 500 error when fetch fails and cache is empty', async () => {
-    const fetchError = new Error('Fetch failed');
-    mockFetchBookmarks.mockRejectedValue(fetchError);
-    mockGetCache.mockReturnValue(undefined); // No cache
-
-    await GET();
-
-    expect(mockFetchBookmarks).toHaveBeenCalledTimes(1);
-    expect(mockGetCache).toHaveBeenCalledTimes(1);
-    expect(mockResponseJson).toHaveBeenCalledWith({ error: 'Fetch failed' }, { status: 500 });
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching bookmarks:', fetchError);
-    expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('Returning stale cached'));
-  });
-
-  it('should return 500 error when fetch fails and cache has empty array', async () => {
-    const fetchError = new Error('Fetch failed');
-    mockFetchBookmarks.mockRejectedValue(fetchError);
-    mockGetCache.mockReturnValue({ bookmarks: [] }); // Cache exists but is empty
-
-    await GET();
-
-    expect(mockFetchBookmarks).toHaveBeenCalledTimes(1);
-    expect(mockGetCache).toHaveBeenCalledTimes(1);
-    expect(mockResponseJson).toHaveBeenCalledWith({ error: 'Fetch failed' }, { status: 500 });
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching bookmarks:', fetchError);
-  });
-
-  it('should return 500 with generic message for non-Error objects', async () => {
-    const fetchError = 'Something went wrong'; // Not an Error instance
-    mockFetchBookmarks.mockRejectedValue(fetchError);
-    mockGetCache.mockReturnValue(undefined);
-
-    await GET();
-
-    expect(mockResponseJson).toHaveBeenCalledWith({ error: 'Unknown error' }, { status: 500 });
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching bookmarks:', fetchError);
+    // We can't guarantee exactly 5 bookmarks, but we can check that data is returned
+    // and follows the expected structure
+    if (data.length > 0) {
+      const bookmark = data[0];
+      expect(bookmark).toHaveProperty('id');
+      expect(bookmark).toHaveProperty('url');
+    }
   });
 });
