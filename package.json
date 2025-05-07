@@ -1,4 +1,4 @@
- {
+{
   "name": "william-callahan-dot-com",
   "private": true,
   "version": "0.0.3",
@@ -7,7 +7,6 @@
     "benchmark": "bun scripts/benchmark.js",
     "benchmark-api": "bun scripts/benchmark-api.js",
     "predev": "mkdir -p data/bookmarks data/github-activity data/images/logos",
-    "prebuild": "bun scripts/populate-volumes.ts",
     "prestart": "mkdir -p data/bookmarks data/github-activity data/images/logos",
     "prefetch": "node scripts/prefetch-data.js",
     "populate-volumes": "NODE_ENV=development bun scripts/populate-volumes.ts",

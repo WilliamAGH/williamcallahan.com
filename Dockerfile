@@ -54,9 +54,21 @@ COPY . .
 
 # CRITICAL STEP: Fill volumes directly BEFORE any server or build processes
 # This ensures all data volumes are properly populated with external data
+RUN echo "📡 Pinging GitHub API before populating volumes..." && \
+    (curl -L -v --connect-timeout 10 https://api.github.com/zen && echo "GitHub API ping successful") || \
+    (echo "⚠️ GitHub API ping failed before populating volumes. Check network/DNS." && false) # Fail build if critical ping fails
+
 RUN echo "🚀 Populating all data volumes directly..." && bun scripts/populate-volumes.ts
 
 # Now build the app with preloaded data volumes
+RUN echo "📡 Pinging GitHub API before Next build..." && \
+    (curl -L -v --connect-timeout 10 https://api.github.com/zen && echo "GitHub API ping successful") || \
+    (echo "⚠️ GitHub API ping failed before Next build. Check network/DNS." && false) # Fail build if critical ping fails
+
+RUN echo "📡 Pinging Sentry before Next build..." && \
+    (curl -L -v --connect-timeout 10 https://o4509274058391557.ingest.us.sentry.io && echo "Sentry ping successful") || \
+    (echo "⚠️ Sentry ping failed before Next build. Check network/DNS." && false) # Fail build if critical ping fails
+
 RUN echo "📦 Building the application with populated data volumes..." && bun run build
 
 # Production image, copy all the files and run next
