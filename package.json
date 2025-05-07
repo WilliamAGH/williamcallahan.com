@@ -18,7 +18,8 @@
     "docker:start": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production williamcallahan-web:latest",
     "docker:prefetch": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production -e CONTAINER=true williamcallahan-web:latest node scripts/prefetch-data.js",
     "docker:populate-volumes": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production -e CONTAINER=true williamcallahan-web:latest bun scripts/populate-volumes.ts",
-    "lint": "next lint",
+    "lint": "eslint . --config eslint.config.ts",
+    "lint:errors": "eslint . --config eslint.config.ts --quiet",
     "type-check": "tsc --noEmit",
     "validate": "bun run lint && bun run type-check",
     "clean": "rm -rf .next out node_modules",
@@ -26,6 +27,8 @@
     "test": "bun test",
     "test:watch": "bun test --watch",
     "coverage": "bun test --coverage",
+    "test:smoke:blog": "bun test __tests__/blog/blog.smoke.test.ts",
+    "test:smoke:pages": "bun test __tests__/app/pages.smoke.test.ts",
     "prepare": "node .husky/install.mjs"
   },
   "dependencies": {
@@ -60,8 +63,10 @@
     "zod": "^3.24.4"
   },
   "devDependencies": {
+    "@eslint/js": "^9.26.0",
     "@happy-dom/global-registrator": "^17.4.6",
     "@mdx-js/react": "^3.1.0",
+    "@next/eslint-plugin-next": "^15.3.2",
     "@svgr/webpack": "^8.1.0",
     "@swc/core": "^1.10.1",
     "@testing-library/jest-dom": "^6.6.3",
@@ -72,14 +77,19 @@
     "@types/node-fetch": "^2.6.12",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
-    "@typescript-eslint/eslint-plugin": "^8.30.1",
+    "@typescript-eslint/eslint-plugin": "^8.32.0",
     "@typescript-eslint/parser": "^8.30.1",
     "@typescript-eslint/typescript-estree": "^8.30.1",
     "autoprefixer": "^10.4.20",
     "bun-types": "^1.2.12",
-    "eslint": "^8.57.0",
-    "eslint-config-next": "^15.3.1",
+    "eslint": "^9.26.0",
+    "eslint-config-next": "^15.3.2",
+    "eslint-plugin-mdx": "^3.4.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.1.0",
     "husky": "^9.1.7",
+    "jiti": "^2.4.2",
     "node-fetch": "^2.7.0",
     "postcss": "^8.4.35",
     "postcss-preset-env": "^10.1.5",
@@ -88,7 +98,8 @@
     "rehype-slug": "^6.0.0",
     "tailwindcss": "^3.4.17",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.32.0"
   },
   "packageManager": "bun@1.2.5"
 }
