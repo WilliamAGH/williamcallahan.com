@@ -1,35 +1,66 @@
 #!/bin/sh
 set -e
 
-# Seed logos directory from image if it's empty
-if [ ! -d "/app/data/images/logos" ] || [ -z "$(ls -A /app/data/images/logos)" ]; then
-  echo "Seeding logos volume from image..."
-  mkdir -p /app/data/images/logos # Ensure target exists
-  cp -a /app/.initial-logos/. /app/data/images/logos/
-  # Ensure permissions for nextjs user on the contents
-  find /app/data/images/logos -mindepth 1 -exec chown nextjs:nodejs {} + 2>/dev/null || echo "Could not chown contents of /app/data/images/logos, or directory empty."
-fi
+echo "[Entrypoint] Starting volume seeding process..."
 
-# Seed github-activity directory from image if it's empty
-if [ ! -d "/app/data/github-activity" ] || [ -z "$(ls -A /app/data/github-activity)" ]; then
-  echo "Seeding github-activity volume from image..."
-  mkdir -p /app/data/github-activity # Ensure target exists
-  # Copy from the staging area in the image, attempt to preserve attributes
-  cp -a /app/.initial-github-activity/. /app/data/github-activity/ 2>/dev/null || echo "No initial github-activity data found, or cp -a failed."
-  # Ensure permissions for nextjs user on the contents
-  # This will only apply to successfully copied files/dirs
-  find /app/data/github-activity -mindepth 1 -exec chown nextjs:nodejs {} + 2>/dev/null || echo "Could not chown contents of /app/data/github-activity, or directory empty."
-fi
+# Helper function for seeding
+# $1: Pretty name for logs (e.g., "Logos")
+# $2: Source directory in image (e.g., "/app/.initial-logos")
+# $3: Target volume directory in container (e.g., "/app/data/images/logos")
+seed_volume() {
+  local PNAME="$1"
+  local SRC_DIR="$2"
+  local TGT_DIR="$3"
 
-# Seed bookmarks directory from image if it's empty
-if [ ! -d "/app/data/bookmarks" ] || [ -z "$(ls -A /app/data/bookmarks)" ]; then
-  echo "Seeding bookmarks volume from image..."
-  mkdir -p /app/data/bookmarks # Ensure target exists
-  # Copy from the staging area in the image, attempt to preserve attributes
-  cp -a /app/.initial-bookmarks/. /app/data/bookmarks/ 2>/dev/null || echo "No initial bookmarks data found, or cp -a failed."
-  # Ensure permissions for nextjs user on the contents
-  find /app/data/bookmarks -mindepth 1 -exec chown nextjs:nodejs {} + 2>/dev/null || echo "Could not chown contents of /app/data/bookmarks, or directory empty."
-fi
+  echo "[Entrypoint - $PNAME] Seeding volume at $TGT_DIR"
+  echo "[Entrypoint - $PNAME] Current contents of target $TGT_DIR (volume mount):"
+  ls -Al "$TGT_DIR" || echo "[Entrypoint - $PNAME] Target directory $TGT_DIR might not exist yet or ls failed."
 
-# Execute the command passed to the container
+  # Check if target is empty or doesn't exist (mkdir -p handles non-existence)
+  # The -d check is mostly for sanity; mount should ensure it exists.
+  # The ls -A check is key for emptiness.
+  if [ ! -d "$TGT_DIR" ] || [ -z "$(ls -A "$TGT_DIR" 2>/dev/null)" ]; then
+    echo "[Entrypoint - $PNAME] Target $TGT_DIR is empty or does not exist. Proceeding with seed."
+
+    echo "[Entrypoint - $PNAME] Ensuring target directory exists: $TGT_DIR"
+    mkdir -p "$TGT_DIR"
+
+    echo "[Entrypoint - $PNAME] Contents of source $SRC_DIR (from image):"
+    ls -AlR "$SRC_DIR" || echo "[Entrypoint - $PNAME] Source directory $SRC_DIR might be empty or ls failed."
+
+    echo "[Entrypoint - $PNAME] Attempting to copy from $SRC_DIR to $TGT_DIR..."
+    # Use cp -r. We will chown everything afterwards. Add -v for verbose.
+    if cp -rv "$SRC_DIR"/. "$TGT_DIR"/; then
+      echo "[Entrypoint - $PNAME] Copy successful."
+      echo "[Entrypoint - $PNAME] Contents of $TGT_DIR after copy:"
+      ls -AlR "$TGT_DIR"
+
+      echo "[Entrypoint - $PNAME] Attempting to chown contents of $TGT_DIR to nextjs:nodejs..."
+      # Chown the contents. The -R on the directory itself was problematic.
+      # Using find is more robust for contents.
+      if find "$TGT_DIR" -mindepth 1 -exec chown -v nextjs:nodejs {} +; then
+         echo "[Entrypoint - $PNAME] Chown contents successful."
+      else
+         echo "[Entrypoint - $PNAME] WARNING: Chown contents for $TGT_DIR failed for some items."
+      fi
+      # Also chown the top-level directory itself, if possible (might fail, but contents are more important)
+      chown -v nextjs:nodejs "$TGT_DIR" || echo "[Entrypoint - $PNAME] Warning: Could not chown top-level directory $TGT_DIR (this might be okay if contents were chowned)."
+
+    else
+      echo "[Entrypoint - $PNAME] ERROR: Copy from $SRC_DIR to $TGT_DIR FAILED. Exit code: $?"
+    fi
+  else
+    echo "[Entrypoint - $PNAME] Target $TGT_DIR is not empty. Skipping seed."
+    echo "[Entrypoint - $PNAME] Current non-empty contents of $TGT_DIR:"
+    ls -AlR "$TGT_DIR"
+  fi
+  echo "[Entrypoint - $PNAME] ----- Finished $PNAME seeding -----"
+}
+
+# Seed actual volumes based on Dockerfile VOLUME declarations and Coolify mounts
+seed_volume "Logos" "/app/.initial-logos" "/app/data/images/logos" # Corrected target
+seed_volume "GitHub Activity" "/app/.initial-github-activity" "/app/data/github-activity"
+seed_volume "Bookmarks" "/app/.initial-bookmarks" "/app/data/bookmarks"
+
+echo "[Entrypoint] Volume seeding process complete. Executing CMD: $@"
 exec "$@"
