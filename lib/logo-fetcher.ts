@@ -70,9 +70,12 @@ export async function fetchLogo(domain: string): Promise<{
   if (IS_BUILD_PHASE) {
     console.debug(`[logo-fetcher] Build phase detected, using direct data access for logo: ${normalizedDomain}`);
     try {
-      // Use a placeholder baseUrl for validation - this is typically used for internal API calls
-      // which won't be made during build time
-      const logoResult = await getLogoFromDataAccess(normalizedDomain, 'http://localhost:3000');
+      // Use empty string as baseUrl to signal "no network validation"
+      // or use API_BASE_URL which is guaranteed to exist in the build context
+      const logoResult = await getLogoFromDataAccess(
+        normalizedDomain,
+        process.env.API_BASE_URL || '',
+      );
 
       if (logoResult && logoResult.buffer) {
         console.debug(`[logo-fetcher] Successfully retrieved logo for ${normalizedDomain} via direct data access (source: ${logoResult.source || 'unknown'})`);
@@ -98,14 +101,19 @@ export async function fetchLogo(domain: string): Promise<{
     const baseUrl = getBaseUrl(); // Added
     const apiUrl = `${baseUrl}/api/logo?website=${encodeURIComponent(normalizedDomain)}`; // Modified
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 7_000); // 7 s hard-stop
+
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'Accept': 'image/png, image/svg+xml, */*', // Accept expected logo types
       },
+      signal: controller.signal,
       // next: { revalidate: 60 } // Client-side fetch revalidation, API route controls its own revalidation
       // cache: 'no-store' // Let the browser and Next.js handle caching based on API response headers
     });
+    clearTimeout(timer);
 
     if (response.ok) {
       const buffer = Buffer.from(await response.arrayBuffer());

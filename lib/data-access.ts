@@ -35,6 +35,11 @@ const GITHUB_ACTIVITY_VOLUME_DIR = path.join(ROOT_DIR, 'data', 'github-activity'
 const GITHUB_ACTIVITY_VOLUME_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'activity_data.json');
 const LOGOS_VOLUME_DIR = path.join(ROOT_DIR, 'data', 'images', 'logos'); // Primary logo location
 
+// GitHub Activity Data Paths
+const DAILY_CONTRIBUTIONS_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'daily_contribution_counts.json');
+const REPO_RAW_WEEKLY_STATS_DIR = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'repo_raw_weekly_stats');
+const AGGREGATED_WEEKLY_ACTIVITY_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'aggregated_weekly_activity.json');
+
 // Ensure directories exist (run once at startup or on first use)
 async function ensureDirectoryExists(dirPath: string) {
   try {
@@ -467,7 +472,7 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
     const activityApiResponse: GitHubActivityApiResponse = {
       source: 'api',
       data: contributions,
-      totalContributions: calculatedTotalContributions.toString(),
+      totalContributions: calculatedTotalContributions,
       linesAdded: linesAddedTotal365Days,
       linesRemoved: linesRemovedTotal365Days,
       dataComplete: overallDataComplete,
@@ -486,7 +491,7 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
 
       const summaryData = {
         lastUpdatedAtPacific: nowPacTime,
-        totalContributions: activityApiResponse.totalContributions,
+        totalContributions: activityApiResponse.totalContributions.toString(), // Convert to string for summary file
         totalLinesAdded: activityApiResponse.linesAdded,
         totalLinesRemoved: activityApiResponse.linesRemoved,
         netLinesOfCode: netLinesOfCode,
@@ -532,7 +537,7 @@ async function fetchGithubActivityByScraping(): Promise<GitHubActivityApiRespons
     const totalMatch = totalContributionsHeader.match(/([\d,]+)\s+contributions/i);
     const totalContributionsText = totalMatch && totalMatch[1] ? totalMatch[1].replace(/,/g, '') : '0';
     if (contributions.length === 0) console.warn('[DataAccess] Cheerio scraping found 0 contribution days.');
-    return { source: 'scraping', data: contributions, totalContributions: totalContributionsText, linesAdded: 0, linesRemoved: 0, dataComplete: contributions.length > 0 };
+    return { source: 'scraping', data: contributions, totalContributions: parseInt(totalContributionsText, 10), linesAdded: 0, linesRemoved: 0, dataComplete: contributions.length > 0 };
   } catch (error) {
     console.error('[DataAccess] Error during GitHub scraping:', error);
     return null;
@@ -685,7 +690,8 @@ export async function getLogo(domain: string, baseUrlForValidation: string): Pro
   const cached = ServerCacheInstance.getLogoFetch(domain);
   if (cached && cached.buffer) {
     console.log(`[DataAccess] Returning logo for ${domain} from cache (source: ${cached.source || 'unknown'}).`);
-    const contentType = cached.buffer[0] === 0x3C && cached.buffer[1] === 0x3F ? 'image/svg+xml' : 'image/png'; // Basic SVG check
+    const isSvg = (await sharp(cached.buffer).metadata()).format === 'svg';
+    const contentType = isSvg ? 'image/svg+xml' : 'image/png';
     return { buffer: cached.buffer, source: cached.source || 'unknown', contentType };
   }
 
@@ -693,7 +699,8 @@ export async function getLogo(domain: string, baseUrlForValidation: string): Pro
   const volumeLogo = await findLogoInVolume(domain);
   if (volumeLogo) {
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: volumeLogo.source, buffer: volumeLogo.buffer });
-    const contentType = volumeLogo.buffer[0] === 0x3C && volumeLogo.buffer[1] === 0x3F ? 'image/svg+xml' : 'image/png';
+    const isSvg = (await sharp(volumeLogo.buffer).metadata()).format === 'svg';
+    const contentType = isSvg ? 'image/svg+xml' : 'image/png';
     return { ...volumeLogo, contentType };
   }
 
@@ -704,7 +711,8 @@ export async function getLogo(domain: string, baseUrlForValidation: string): Pro
     const logoPath = getLogoVolumePath(domain, externalLogo.source);
     await writeBinaryFile(logoPath, externalLogo.buffer);
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: externalLogo.source, buffer: externalLogo.buffer });
-    const contentType = externalLogo.buffer[0] === 0x3C && externalLogo.buffer[1] === 0x3F ? 'image/svg+xml' : 'image/png';
+    const isSvg = (await sharp(externalLogo.buffer).metadata()).format === 'svg';
+    const contentType = isSvg ? 'image/svg+xml' : 'image/png';
     return { ...externalLogo, contentType };
   }
 
@@ -779,11 +787,6 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
 }
 
 // Type definitions moved to types/github.ts
-
-// New GitHub Activity Data Paths
-const DAILY_CONTRIBUTIONS_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'daily_contribution_counts.json');
-const REPO_RAW_WEEKLY_STATS_DIR = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'repo_raw_weekly_stats');
-const AGGREGATED_WEEKLY_ACTIVITY_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'aggregated_weekly_activity.json');
 
 export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ aggregatedActivity: AggregatedWeeklyActivity[], overallDataComplete: boolean } | null> {
   // Define VERBOSE locally within the function to ensure it's available

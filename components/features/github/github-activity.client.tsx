@@ -121,7 +121,7 @@ const GitHubActivity = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [totalContributions, setTotalContributions] = useState<string | null>(null);
+  const [totalContributions, setTotalContributions] = useState<number | null>(null);
   const [linesAdded, setLinesAdded] = useState<number | null>(null);
   const [linesRemoved, setLinesRemoved] = useState<number | null>(null);
   const [dataComplete, setDataComplete] = useState<boolean>(true);
@@ -239,7 +239,7 @@ const GitHubActivity = () => {
     }
     if (activityData.length === 0) {
       // Display total contributions if available, even if graph data is missing
-      const totalText = totalContributions ? ` (${parseInt(totalContributions).toLocaleString()} total contributions found)` : '';
+      const totalText = totalContributions ? ` (${totalContributions.toLocaleString()} total contributions found)` : '';
       return (
         <div
           onClick={navigateToGitHub}
@@ -406,7 +406,7 @@ const GitHubActivity = () => {
         >
           Last 365 days through {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
           {totalContributions && !isLoading && !error && activityData.length > 0 && (
-            <span className="ml-1">• {parseInt(totalContributions).toLocaleString()} total contributions</span>
+            <span className="ml-1">• {totalContributions.toLocaleString()} total contributions</span>
           )}
         </a>
       </p>
