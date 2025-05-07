@@ -45,15 +45,16 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
       // Client-side: try loading from sessionStorage
       const saved = sessionStorage.getItem(HISTORY_STORAGE_KEY);
       if (saved) {
-        const parsedHistory = JSON.parse(saved);
-        // Ensure it's an array
-        if (Array.isArray(parsedHistory)) {
+        const parsedData = JSON.parse(saved) as unknown; // Explicitly type as unknown
+        // Ensure it's an array and assert its type
+        if (Array.isArray(parsedData)) {
+          const parsedHistory = parsedData as TerminalCommand[]; // Assert type here
           // Check if welcome message exists, add if not
           const hasWelcome = parsedHistory.some((cmd: TerminalCommand) =>
             cmd.input === INITIAL_WELCOME_MESSAGE.input &&
             cmd.output === INITIAL_WELCOME_MESSAGE.output
           );
-          return hasWelcome ? parsedHistory : [INITIAL_WELCOME_MESSAGE, ...parsedHistory];
+          return hasWelcome ? parsedHistory : [INITIAL_WELCOME_MESSAGE, ...parsedHistory]; // Now uses typed parsedHistory
         }
       }
     } catch (e) {

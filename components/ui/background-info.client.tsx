@@ -8,7 +8,8 @@
 
 'use client';
 
-import { ReactNode, useState, useRef, useEffect } from 'react'; // Import useRef, useEffect
+import { useState, useRef, useEffect } from 'react';
+import type { ReactNode } from 'react'; // Change to type-only import
 import { InfoIcon, ChevronDown, ChevronUp } from 'lucide-react'; // Import icons
 import { cn } from '../../lib/utils';
 

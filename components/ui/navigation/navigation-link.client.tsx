@@ -39,6 +39,7 @@ export function NavigationLink({
   const [isNavigating, setIsNavigating] = useState(false);
 
   // Determine if this link should be prefetched
+   
   const shouldPrefetch = PRIORITY_PATHS.includes(path);
 
   // Memoize the click handler to prevent rerenders
@@ -136,6 +137,9 @@ export function NavigationLink({
     // Explicitly type aria-current to match the expected values
     'aria-current': isActive ? ('page' as const) : undefined,
     onClick: handleClick,
+
+    // Use the shouldPrefetch variable to determine if this link should be prefetched
+    prefetch: shouldPrefetch,
 
     // Use scroll={false} to prevent scroll position jumps
     // This property will cause a React warning in tests but is needed for Next.js functionality

@@ -31,7 +31,9 @@ export function SelectionView({ items, onSelect, onExit }: SelectionViewProps) {
           break;
         case 'Enter':
           e.preventDefault();
-          onSelect(items[selectedIndex]);
+          if (items[selectedIndex]) {
+            onSelect(items[selectedIndex]);
+          }
           break;
         case 'Escape':
           e.preventDefault();

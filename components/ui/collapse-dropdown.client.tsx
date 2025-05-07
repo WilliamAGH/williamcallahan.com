@@ -7,7 +7,8 @@
  */
 'use client';
 
-import { ReactNode, useRef, useEffect } from 'react';
+import type { ReactNode } from 'react';
+import { useRef, useEffect } from 'react';
 import { cn } from '../../lib/utils';
 
 // --- Centralized Dropdown Registry and Logic Helpers ---
@@ -96,6 +97,8 @@ export function openAndScrollToDropdownAnchor(dropdownToOpen: HTMLDetailsElement
   let frameId: number | null = null;
   let startTime: number | null = null;
   const maxPollingDuration = 500; // Max time to poll in ms
+  // Use a type that works in both browser and Node.js environments
+  let safetyTimeoutId: number | NodeJS.Timeout | null = null;
 
   const pollForElement = (timestamp: number) => {
     if (!startTime) {
@@ -105,37 +108,44 @@ export function openAndScrollToDropdownAnchor(dropdownToOpen: HTMLDetailsElement
 
     if (enableDebugLogs) console.debug(`[Anchor Debug] pollForElement #${hash}: Polling frame. Elapsed: ${elapsed.toFixed(0)}ms`);
 
-    let targetScrollElement = document.getElementById(hash) || document.querySelector(`a[id="${hash}"]`);
+    const targetScrollElement = document.getElementById(hash) || document.querySelector(`a[id="${hash}"]`);
 
     if (targetScrollElement) {
       if (enableDebugLogs) console.debug(`[Anchor Debug] pollForElement #${hash}: Found element after ${elapsed.toFixed(0)}ms. Scrolling.`);
       targetScrollElement.scrollIntoView({ block: 'start' });
-      // No need to cancel frameId here, the loop stops
+      if (frameId) window.cancelAnimationFrame(frameId); // Use window.cancelAnimationFrame
+      frameId = null;
+      if (safetyTimeoutId) window.clearTimeout(safetyTimeoutId); // Use window.clearTimeout
+      safetyTimeoutId = null;
     } else if (elapsed < maxPollingDuration) {
       // Element not found, continue polling
-      frameId = requestAnimationFrame(pollForElement);
+      frameId = window.requestAnimationFrame(pollForElement); // Use window.requestAnimationFrame
     } else {
       // Polling timed out
       if (enableDebugLogs) console.debug(`[Anchor Debug] pollForElement #${hash}: Element not found after ${maxPollingDuration}ms. Giving up and restoring hash.`);
       window.location.hash = hash;
+      if (frameId) window.cancelAnimationFrame(frameId); // Use window.cancelAnimationFrame
+      frameId = null;
+      if (safetyTimeoutId) window.clearTimeout(safetyTimeoutId); // Use window.clearTimeout
+      safetyTimeoutId = null;
     }
   };
 
   // Start the polling loop
   if (enableDebugLogs) console.debug(`[Anchor Debug] openAndScrollToDropdownAnchor: Starting rAF polling for #${hash}.`);
-  frameId = requestAnimationFrame(pollForElement);
+  frameId = window.requestAnimationFrame(pollForElement); // Use window.requestAnimationFrame
 
   // Optional: Add a safety timeout to cancel polling if rAF somehow gets stuck (unlikely)
-  let safetyTimeoutId: ReturnType<typeof setTimeout> = setTimeout(() => {
+  safetyTimeoutId = window.setTimeout(() => { // Use window.setTimeout
       if (frameId) {
-          cancelAnimationFrame(frameId);
+          window.cancelAnimationFrame(frameId); // Use window.cancelAnimationFrame
           if (enableDebugLogs) console.warn(`[Anchor Debug] pollForElement #${hash}: Safety timeout triggered, cancelling polling.`);
-          // Restore hash if polling was cancelled by safety timeout without success
           if (!document.getElementById(hash) && !document.querySelector(`a[id="${hash}"]`)) {
               window.location.hash = hash;
           }
       }
-  }, maxPollingDuration + 100); // Slightly longer than max polling duration
+      safetyTimeoutId = null;
+  }, maxPollingDuration + 100);
 
   // We need a way to clear the safety timeout if polling succeeds or finishes early.
   // This is tricky as pollForElement doesn't return status.

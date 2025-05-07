@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useEffect, useRef, useCallback } from 'react'; // Import useEffect, useRef, and useCallback
+import React, { useEffect, useRef } from 'react'; // Assuming useCallback was here and removed
 import { TerminalHeader } from './terminal-header';
 import { History } from "./history";
 import { CommandInput } from "./command-input.client";
@@ -43,7 +43,7 @@ export function Terminal() {
 
    // --- Get State from Hooks ---
    // History state from TerminalContext
-   const { history: terminalHistory, addToHistory } = useTerminalContext();
+   const { history: terminalHistory } = useTerminalContext();
 
   // Register this window instance and get its state/actions
   const {
@@ -195,7 +195,7 @@ export function Terminal() {
         <div
           data-testid="terminal-backdrop"
           className="fixed left-0 right-0 top-14 bottom-0 z-[59] bg-black/50 backdrop-blur-sm"
-          onClick={(e) => {
+          onClick={() => {
             maximizeWindow();
           }}
           tabIndex={0}
@@ -233,7 +233,7 @@ export function Terminal() {
             {selection ? (
               <SelectionView items={selection} onSelect={handleSelection} onExit={cancelSelection} />
             ) : (
-              <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={handleSubmit} />
+              <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={(e) => { void handleSubmit(e); }} />
             )}
           </div>
         </div>
