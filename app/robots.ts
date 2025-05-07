@@ -9,7 +9,7 @@
  * @see https://nextjs.org/docs/app/api-reference/file-conventions/metadata/robots
  */
 
-import { MetadataRoute } from 'next';
+import type { MetadataRoute } from 'next';
 
 /**
  * Generate robots.txt for the application
@@ -31,7 +31,6 @@ export default function robots(): MetadataRoute.Robots {
     '/Applications/',
     '/bin/',
     '/etc/',
-    '/$/', // Match the single dollar sign path
     '/comments/feed/',
     // Add specific old/invalid paths if needed, though redirects might be better
     '/legacy-homepage/',

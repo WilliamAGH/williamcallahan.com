@@ -193,17 +193,17 @@ const GitHubActivity = () => {
   // Handle refresh button click
   const handleRefresh = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent navigation to GitHub
-    fetchData(true);
+    void fetchData(true);
   };
 
   // Handle force cache button click
   const handleForceCache = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent navigation to GitHub
-    fetchData(true, true);
+    void fetchData(true, true);
   };
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, []);
 
   const renderGraph = () => {

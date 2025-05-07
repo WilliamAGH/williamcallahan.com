@@ -10,10 +10,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 // Import getPostBySlug and getAllPosts from the main blog library
 import { getAllPosts, getPostBySlug } from '../../../lib/blog';
-import { formatSeoDate } from '../../../lib/seo/utils';
 import { BlogArticle } from '../../../components/features/blog/blog-article/blog-article';
-import { JsonLdScript } from "../../../components/seo/json-ld";
-import { SITE_NAME, metadata as siteMetadata } from "../../../data/metadata";
 import { ensureAbsoluteUrl } from "../../../lib/seo/utils";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "../../../lib/seo/metadata";
 

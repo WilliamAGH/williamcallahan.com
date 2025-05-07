@@ -10,11 +10,9 @@
 import React, { useState, useEffect } from 'react';
 import { BookmarkCardClient } from './bookmark-card.client';
 import { Search, ArrowRight, RefreshCw, Loader2 } from 'lucide-react';
-import type { UnifiedBookmark, BookmarkTag } from '@/types';
-import { fetchExternalBookmarks } from '@/lib/bookmarks.client';
+import type { UnifiedBookmark } from '@/types';
 import { TagsList } from './tags-list.client';
 import { normalizeTagsToStrings } from '@/lib/utils/tag-utils';
-import { ExternalLink } from '@/components/ui/external-link.client';
 import { useRouter } from 'next/navigation';
 
 interface BookmarksWithOptionsProps {
@@ -42,12 +40,14 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   // Tag expansion is now handled in the TagsList component
   const [allBookmarks, setAllBookmarks] = useState<UnifiedBookmark[]>(bookmarks);
-  const [isSearching, setIsSearching] = useState(false);
+  // Using setIsSearching in handleSearchSubmit
+  const [, setIsSearching] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [dataSource, setDataSource] = useState<'server' | 'client'>('server');
-  const [showFilters, setShowFilters] = useState(false);
-  const [showSort, setShowSort] = useState(false);
+  // Currently unused filter UI states - can be removed if the feature is not being developed
+  // const [showFilters, setShowFilters] = useState(false);
+  // const [showSort, setShowSort] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -59,7 +59,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
   // Separate effect for fetching bookmarks
   useEffect(() => {
     if (searchAllBookmarks && mounted) {
-      (async () => {
+      void (async () => {
         try {
           console.log('Client-side: Attempting to fetch bookmarks from API');
           // Add a random query parameter to bust cache
@@ -78,7 +78,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
             throw new Error(`API request failed with status ${response.status}`);
           }
 
-          const allBookmarksData = await response.json();
+          const allBookmarksData = await response.json() as UnifiedBookmark[];
           console.log('Client-side direct fetch bookmarks count:', allBookmarksData.length);
 
           if (Array.isArray(allBookmarksData) && allBookmarksData.length > 0) {
@@ -173,12 +173,20 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData?.error || `Refresh failed: ${response.status}`;
+        interface ErrorResponse {
+          error: string | null;
+        }
+        const errorData = await response.json().catch(() => ({ error: null } as ErrorResponse)) as ErrorResponse;
+        const errorMessage = errorData.error || `Refresh failed: ${response.status}`;
         throw new Error(errorMessage);
       }
 
-      const result = await response.json();
+      interface RefreshResult {
+        status: string;
+        message?: string;
+      }
+
+      const result = await response.json() as RefreshResult;
       console.log('Bookmarks refresh result:', result);
 
       // If refresh was successful, fetch the new bookmarks
@@ -196,7 +204,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
           throw new Error(`Failed to fetch updated bookmarks: ${bookmarksResponse.status}`);
         }
 
-        const refreshedBookmarks = await bookmarksResponse.json();
+        const refreshedBookmarks = await bookmarksResponse.json() as UnifiedBookmark[];
 
         if (Array.isArray(refreshedBookmarks) && refreshedBookmarks.length > 0) {
           setAllBookmarks(refreshedBookmarks);
@@ -255,7 +263,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
           {/* Refresh button */}
           {mounted && (
             <button
-              onClick={refreshBookmarks}
+              onClick={() => void refreshBookmarks()}
               disabled={isRefreshing}
               className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               aria-label="Refresh Bookmarks"
