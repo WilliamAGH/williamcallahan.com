@@ -26,26 +26,6 @@ const CACHE_DURATION = 60 * 60 * 24 * 365;
 // Valid image formats
 const VALID_IMAGE_FORMATS = ['jpeg', 'jpg', 'png', 'webp', 'avif', 'gif'];
 
-// Trusted domains from Next.js config (keep in sync with next.config.mjs)
-const ALLOWED_DOMAINS = [
-  'images.unsplash.com',
-  'williamcallahan.com',
-  'dev.williamcallahan.com',
-  'icons.duckduckgo.com',
-  'www.google.com',
-  'external-content.duckduckgo.com',
-  'logo.clearbit.com',
-  'umami.iocloudhost.net',
-  'plausible.iocloudhost.net',
-  'bookmark.iocloudhost.net',
-];
-
-// Also allow subdomains of trusted domains
-const ALLOWED_DOMAIN_PATTERNS = [
-  '.iocloudhost.net',
-  '.williamcallahan.com',
-];
-
 // Allow any http or https URL for image caching
 function isAllowedUrl(urlString: string): boolean {
   try {

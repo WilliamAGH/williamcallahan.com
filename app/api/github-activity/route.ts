@@ -11,12 +11,9 @@ import type { NextRequest } from 'next/server';
 // This route can leverage the caching within getGithubActivity
 export const dynamic = 'force-dynamic';
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(request: NextRequest): Promise<NextResponse> {
   console.log('[API GitHub Activity] Received GET request for GitHub activity');
-
-  const searchParams = request.nextUrl.searchParams;
-  const refresh = searchParams.get('refresh') === 'true';
-  const forceCache = searchParams.get('force-cache') === 'true';
 
   try {
     // In a more sophisticated implementation, you might want to pass refresh and forceCache
