@@ -67,14 +67,16 @@ export class BlogPostDataError extends AppError {
 
 /**
  * Utility function to wrap errors with more context
+ * NOTE: This function assumes the provided ErrorClass constructor
+ * can be called with (message: string, code: string, cause?: unknown).
+ * It might not be safe for subclasses with different required constructor arguments.
  */
 export function wrapError<T extends AppError>(
   message: string,
   error: unknown,
-  ErrorClass: new (message: string, code: string, cause?: unknown) => T = AppError as any
+  ErrorClass: new (message: string, code: string, cause?: unknown) => T
 ): T {
   if (error instanceof Error) {
-    // For custom errors that need specific arguments like filePath, we'll use the default code
     return new ErrorClass(message, 'ERROR', error);
   }
   return new ErrorClass(message + ': ' + String(error), 'ERROR');
@@ -83,6 +85,9 @@ export function wrapError<T extends AppError>(
 /**
  * Check if an error is of a specific custom error type
  */
-export function isErrorOfType<T extends Error>(error: unknown, errorType: new (...args: any[]) => T): error is T {
+export function isErrorOfType<T extends Error>(
+  error: unknown,
+  errorType: new (...args: unknown[]) => T
+): error is T {
   return error instanceof Error && error.name === errorType.name;
 }

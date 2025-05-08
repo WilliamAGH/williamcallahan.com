@@ -15,7 +15,13 @@
  * ```
  */
 
-import type { LogoResult, LogoCache, LogoSource } from "../types/logo";
+import type {
+  LogoResult,
+  LogoCache,
+  LogoSource,
+  LogoApiResponse,
+  LogoCacheEntry // Import the missing type
+} from "../types/logo";
 import { ENDPOINTS } from "./constants";
 
 /**
@@ -63,12 +69,70 @@ function loadCache(): LogoCache {
     const cached = localStorage.getItem(CONFIG.CACHE_KEY);
     if (!cached) return {};
 
-    const parsed = JSON.parse(cached);
-    if (typeof parsed !== "object" || parsed === null) {
-      throw new LogoError("Invalid cache format");
+    const parsedJson: unknown = JSON.parse(cached);
+
+    // Validate that parsedJson is an object and not null
+    if (typeof parsedJson !== "object" || parsedJson === null) {
+      console.warn("Invalid cache format: not an object. Clearing cache.");
+      localStorage.removeItem(CONFIG.CACHE_KEY);
+      return {};
     }
 
-    return parsed as LogoCache;
+    const validatedCache: LogoCache = {};
+    let corruptionDetected = false;
+
+    // Treat parsedJson as a potential record of unknown values
+    const potentialCache = parsedJson as Record<string, unknown>;
+
+    for (const key in potentialCache) {
+      if (Object.prototype.hasOwnProperty.call(potentialCache, key)) {
+        const entry = potentialCache[key]; // entry is unknown
+
+        // Type guard to check if entry matches LogoCacheEntry structure
+        if (
+          typeof entry === "object" &&
+          entry !== null &&
+          'timestamp' in entry && typeof entry.timestamp === "number" &&
+          'url' in entry && (typeof entry.url === "string" || entry.url === null) &&
+          // Optional fields check (presence and type if present)
+          (!('error' in entry) || typeof entry.error === 'string') &&
+          (!('source' in entry) || entry.source === null || typeof entry.source === 'string') &&
+          // Add more checks if needed for inversion structure
+          ( (() => {
+              if (!('inversion' in entry) || entry.inversion === undefined) {
+                return true; // No inversion property, or it's undefined, which is fine
+              }
+              const inv = entry.inversion;
+              if (typeof inv !== 'object' || inv === null) {
+                return false; // Invalid inversion type
+              }
+              const inversionObject = inv as Record<string, unknown>;
+              return (
+                'needsDarkInversion' in inversionObject && typeof inversionObject.needsDarkInversion === 'boolean' &&
+                'needsLightInversion' in inversionObject && typeof inversionObject.needsLightInversion === 'boolean' &&
+                'hasTransparency' in inversionObject && typeof inversionObject.hasTransparency === 'boolean' &&
+                'brightness' in inversionObject && typeof inversionObject.brightness === 'number'
+              );
+            })()
+          )
+        ) {
+          // If validation passes, cast entry to LogoCacheEntry and add to validatedCache
+          validatedCache[key] = entry as LogoCacheEntry;
+        } else {
+          console.warn(`Invalid cache entry structure for domain "${key}". Discarding.`);
+          corruptionDetected = true;
+        }
+      }
+    }
+
+    // If corruption was found, potentially save back only the valid entries
+    if (corruptionDetected) {
+      console.warn("Cache corruption detected. Saving only validated entries.");
+      saveCache(validatedCache);
+    }
+
+    // Return the validated cache object, which is guaranteed to be LogoCache type
+    return validatedCache;
   } catch (error) {
     console.warn("Failed to load logo cache:", error);
     return {};
@@ -219,18 +283,18 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
       throw new LogoError(`Failed to fetch logo: ${response.statusText}`);
     }
 
-    let result;
+    let result: LogoApiResponse;
   try {
-    result = await response.json();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (_) {
+    // Cast the JSON result to the specific API response type
+    result = (await response.json()) as LogoApiResponse;
+  } catch { // Removed unused '_' parameter
     // We don't need the error details here, as we're throwing a new descriptive error
     throw new LogoError("Invalid response format");
   }
 
     // If the result has an error, preserve it
     if (result.error) {
-      const errorResult = {
+      const errorResult: LogoResult = {
         url: null,
         source: null,
         error: result.error
@@ -246,25 +310,19 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
       return errorResult;
     }
 
-    // Validate response format
-    if (!result.url) {
-      throw new LogoError("Invalid response: missing URL");
+    // Validate response format (URL should be string if no error)
+    if (typeof result.url !== 'string' || !result.url) {
+      throw new LogoError("Invalid response: missing or invalid URL");
     }
 
     // Cache the successful result
     // Use source from API response if provided, otherwise determine from URL
-    // Type the result to ensure safe member access
-    const typedResult = result as {
-      url: string;
-      source?: LogoSource;
-      inversion?: any;
-    };
-
-    const source = typedResult.source || determineSource(typedResult.url);
-    const successResult = {
-      url: typedResult.url,
+    const source = result.source || determineSource(result.url);
+    const successResult: LogoResult = {
+      url: result.url, // We know this is a string now
       source,
-      inversion: typedResult.inversion
+      // Only include inversion if it exists in the response and is valid
+      inversion: result.inversion && typeof result.inversion === 'object' ? result.inversion : undefined
     };
 
     cache[domain] = {

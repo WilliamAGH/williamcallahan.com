@@ -112,8 +112,12 @@ async function getValidatedMetadata(buffer: Buffer): Promise<ValidatedMetadata> 
       };
     }
 
-    // Validate format
-    if (!CONFIG.FORMATS.includes(format as any)) {
+    // Validate format - Use type assertion if includes needs narrower type
+    // Or check if includes works directly with string now
+    // Let's try without the cast first, assuming TS/ESLint handles it
+    if (!CONFIG.FORMATS.includes(format as typeof CONFIG.FORMATS[number])) {
+      // If the above still fails, we might need a helper or different check
+      // Original failing code: if (!CONFIG.FORMATS.includes(format as any))
       return {
         width,
         height,
@@ -208,7 +212,7 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
       return false;
     }
 
-    let meta1, meta2;
+    let meta1: ValidatedMetadata, meta2: ValidatedMetadata; // Explicitly type meta1 and meta2
     try {
       // Get and validate metadata for both images
       [meta1, meta2] = await Promise.all([
@@ -237,7 +241,7 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
       return false;
     }
 
-    let norm1, norm2;
+    let norm1: Buffer, norm2: Buffer; // Explicitly type norm1 and norm2
     try {
       // Convert both images to PNG for consistent comparison
       [norm1, norm2] = await Promise.all([
@@ -252,8 +256,8 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
     try {
       // Calculate perceptual hashes
       const [hash1, hash2] = await Promise.all([
-        getImageHash(norm1),
-        getImageHash(norm2)
+        getImageHash(norm1), // norm1 is now Buffer
+        getImageHash(norm2)  // norm2 is now Buffer
       ]);
 
       // Compare hashes

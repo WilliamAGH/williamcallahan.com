@@ -178,7 +178,7 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
       b.title || '',
       b.description || '',
       ...((Array.isArray(b.tags) ? b.tags : [])
-        .map(t => typeof t === 'string' ? t : (t.name || '')))
+        .map((t: string | import('@/types').BookmarkTag) => typeof t === 'string' ? t : (t.name || '')))
         .filter(Boolean),
       b.content?.author || '',
       b.content?.publisher || '',

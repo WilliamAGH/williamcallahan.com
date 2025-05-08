@@ -104,7 +104,7 @@ export function processSvgTransforms(svg: string | SVGElement): string | void {
   }
 
   // For string input, use regex to replace transform attributes
-  return svg.replace(/transform="([^"]+)"/g, (match, transform) => {
+  return svg.replace(/transform="([^"]+)"/g, (match: string, transform: string) => {
     return `transform="${fixSvgTransform(transform)}"`;
   });
 }

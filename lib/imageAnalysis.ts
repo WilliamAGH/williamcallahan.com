@@ -81,7 +81,7 @@ export interface LogoInversion {
  * Results of analyzing a logo's brightness and characteristics
  * @interface
  */
-interface LogoBrightnessAnalysis {
+export interface LogoBrightnessAnalysis {
   /** Average brightness value (0-255) */
   averageBrightness: number;
   /** Whether the logo is predominantly light-colored */
