@@ -1,8 +1,8 @@
 /**
  * Share Button Component
- * 
+ *
  * A button that copies a bookmark's URL to the clipboard and shows a success animation.
- * 
+ *
  * @module components/features/bookmarks/share-button.client
  */
 "use client";
@@ -22,11 +22,11 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
   const [mounted, setMounted] = useState(false);
   const [copied, setCopied] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(false);
-  
+
   // Create refs for the buttons to fix SVG transform issues
   const placeholderButtonRef = useRef<HTMLButtonElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  
+
   // Apply SVG transform fixes to both button refs
   useFixSvgTransforms({ rootRef: buttonRef });
   useFixSvgTransforms({ rootRef: placeholderButtonRef });
@@ -58,14 +58,14 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
     try {
       // Generate the unique URL for this bookmark
       const bookmarkUrl = getBookmarkUrl();
-      
+
       // Copy to clipboard
       await navigator.clipboard.writeText(bookmarkUrl);
-      
+
       // Show success state
       setCopied(true);
       setTooltipVisible(true);
-      
+
       // Hide tooltip after a delay
       setTimeout(() => {
         setTooltipVisible(false);
@@ -76,7 +76,7 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
     }
   };
 
-  // During SSR, render a placeholder button for layout stability 
+  // During SSR, render a placeholder button for layout stability
   if (!mounted) {
     return (
       <div className="relative">
@@ -87,10 +87,10 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
           aria-label="Copy link"
           disabled
         >
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            viewBox="0 0 50 50" 
-            width={24} 
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 50 50"
+            width={24}
             height={24}
             className="text-gray-500 dark:text-gray-400"
             data-transform-fix="true"
@@ -103,12 +103,12 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
       </div>
     );
   }
-  
+
   return (
     <div className="relative">
       <button
         ref={buttonRef}
-        onClick={handleCopy}
+        onClick={() => void handleCopy()}
         data-transform-fix-container="true"
         className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
         aria-label="Copy link"
@@ -116,10 +116,10 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
         {copied ? (
           <Check className="w-6 h-6 text-green-500" />
         ) : (
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            viewBox="0 0 50 50" 
-            width={24} 
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 50 50"
+            width={24}
             height={24}
             className="text-gray-500 dark:text-gray-400"
             data-transform-fix="true"
@@ -130,7 +130,7 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
           </svg>
         )}
       </button>
-      
+
       {/* Tooltip - simplified for minimal hydration issues */}
       {tooltipVisible && (
         <div className="absolute top-[-30px] left-1/2 transform -translate-x-1/2 bg-black text-white text-xs py-1 px-2 rounded shadow-sm whitespace-nowrap z-20">

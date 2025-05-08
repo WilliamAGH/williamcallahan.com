@@ -28,7 +28,7 @@ import Link from 'next/link';
 import { ExternalLink } from '../../ui/external-link.client';
 import { LogoImage } from '../../ui/logo-image.client';
 import { ShareButton } from './share-button.client';
-import type { UnifiedBookmark, BookmarkTag } from '@/types';
+import type { UnifiedBookmark } from '@/types';
 import { normalizeDomain } from '../../../lib/utils/domain-utils';
 import { formatTagDisplay, normalizeTagsToStrings, tagToSlug } from '@/lib/utils/tag-utils';
 
@@ -39,7 +39,6 @@ import { formatTagDisplay, normalizeTagsToStrings, tagToSlug } from '@/lib/utils
  */
 interface BookmarkCardClientProps extends UnifiedBookmark {
   /** Whether dark theme is active */
-  isDarkTheme?: boolean;
   favourited?: boolean;
 }
 
@@ -66,38 +65,36 @@ export function BookmarkCardClient({
   ogImage,
   dateBookmarked,
   datePublished,
-  isDarkTheme,
   content,
-  assets,
   createdAt,
-  favourited,
-  ...props
+  favourited
 }: BookmarkCardClientProps): JSX.Element {
   const [imageError, setImageError] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [allBookmarks, setAllBookmarks] = useState<Array<Pick<UnifiedBookmark, 'id' | 'url'>>>([]);
-  
+
   // Effects for handling client-side initialization
   useEffect(() => {
     setMounted(true);
-    
+
     // Fetch all bookmarks for URL generation (only need id and url)
     async function fetchBookmarks() {
       try {
         const response = await fetch('/api/bookmarks');
         if (response.ok) {
-          const bookmarks = await response.json();
-          // Only keep the id and url fields to minimize memory usage
-          setAllBookmarks(bookmarks.map((b: UnifiedBookmark) => ({ id: b.id, url: b.url })));
+          // Explicitly type the expected shape of the API response
+          const bookmarksData = await response.json() as Pick<UnifiedBookmark, 'id' | 'url'>[];
+          // Now map over the typed array
+          setAllBookmarks(bookmarksData.map(b => ({ id: b.id, url: b.url })));
         }
       } catch (error) {
         console.error('Failed to fetch bookmarks for share URLs:', error);
       }
     }
-    
+
     void fetchBookmarks();
   }, []);
-  
+
   // Reset image error state when URLs change
   useEffect(() => {
     setImageError(false);
@@ -106,55 +103,46 @@ export function BookmarkCardClient({
   // Define the date variables but only format them when mounted to avoid hydration mismatches
   const displayBookmarkDate = createdAt ?? dateBookmarked;
   const displayPublishDate = content?.datePublished ?? datePublished;
-  
+
   // Format dates only after component is mounted to avoid hydration issues
   const formatDate = (dateString: string) => {
     if (!mounted) return '';
-    
+
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
   };
-  
+
   const formattedBookmarkDate = mounted ? formatDate(displayBookmarkDate) : '';
   const formattedPublishDate = mounted && displayPublishDate ? formatDate(displayPublishDate) : null;
 
   // Handle image sources with multiple fallbacks
   // Priority: content.imageUrl > ogImage > screenshotAssetId > imageAssetId > logo
   const displayImageUrl = content?.imageUrl ?? ogImage;
-  
+
   // Get screenshot or image asset URL from the content
   const getAssetUrl = () => {
     // Try screenshot first - most reliable
     if (content?.screenshotAssetId) {
       return `https://bookmark.iocloudhost.net/_next/image?url=%2Fapi%2Fassets%2F${content.screenshotAssetId}&w=3840&q=75`;
     }
-    
+
     // Then try image asset
     if (content?.imageAssetId) {
       return `https://bookmark.iocloudhost.net/_next/image?url=%2Fapi%2Fassets%2F${content.imageAssetId}&w=3840&q=75`;
     }
-    
+
     return null;
   };
-  
+
   const assetImageUrl = getAssetUrl();
   const domain = normalizeDomain(url);
   const domainWithoutWWW = domain.replace(/^www\./, '');
 
-  // Get author/publisher info
-  const author = content?.author || null;
-  const publisher = content?.publisher || domainWithoutWWW;
-
   // Process tags using shared utilities for consistency
   const rawTags = normalizeTagsToStrings(tags || []);
-  
-  // Format the tags for display
-  const renderableTags = rawTags
-    .map(tag => formatTagDisplay(tag))
-    .filter(Boolean);
 
   // Truncate title to max 10 words
   const maxTitleWords = 10;
@@ -167,7 +155,7 @@ export function BookmarkCardClient({
   // Server will render as much as possible for SEO, client will hydrate
 
   return (
-    <div 
+    <div
       className={`relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transform transition-all duration-200 ${mounted ? 'hover:scale-[1.005]' : ''}`}
     >
       {/* Image Section with domain overlay */}
@@ -233,10 +221,10 @@ export function BookmarkCardClient({
                 <span>Saved {formattedBookmarkDate}</span>
               )}
             </div>
-            
+
             {/* Share button right-aligned - always render for layout stability */}
-            <ShareButton 
-              bookmark={{ id, url }} 
+            <ShareButton
+              bookmark={{ id, url }}
               allBookmarks={allBookmarks.length > 0 ? allBookmarks : [{ id, url }]}
             />
           </div>
@@ -245,7 +233,7 @@ export function BookmarkCardClient({
         {/* Tags - always render for SEO, motion effects only when mounted */}
         {rawTags.length > 0 && (
           <div className="flex flex-wrap gap-2.5 mt-3 pt-4 pb-4 border-t border-gray-200 dark:border-gray-700">
-            {rawTags.map((raw, idx) => {
+            {rawTags.map((raw) => {
               const label = formatTagDisplay(raw);
               return (
                 <Link
@@ -273,7 +261,7 @@ export function BookmarkCardClient({
           <Bookmark className="w-5 h-5 text-white" />
         </div>
       )}
-      
+
       {/* Share button moved inline with the date */}
     </div>
   );
