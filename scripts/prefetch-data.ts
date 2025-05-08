@@ -9,28 +9,27 @@
  * IT IS NOT YET USED ANYWHERE -- DO WE PREFETCH CACHE AUTOMATICALLY ALREADY WITHOUT IT?
  */
 
-const http = require('node:http');
-const https = require('node:https');
-const path = require('node:path');
-const fs = require('node:fs/promises');
+import http from 'node:http';
+import https from 'node:https';
+import path from 'node:path';
+import fs from 'node:fs/promises';
 // Assuming data-access.js is the compiled output in the same relative location
-const { getBookmarks, getGithubActivity, getLogo, getInvestmentDomainsAndIds } = require('../lib/data-access');
+import { getLogo, getInvestmentDomainsAndIds } from '../lib/data-access';
+import type { UnifiedBookmark } from '../types'; // Import UnifiedBookmark
 
 // Configure longer timeouts for prefetching
 http.globalAgent.maxSockets = 10;
 https.globalAgent.maxSockets = 10;
-http.globalAgent.keepAlive = true;
-https.globalAgent.keepAlive = true;
 
 const VERBOSE = process.env.VERBOSE === 'true';
 const ROOT_DIR = process.cwd();
 
 
 // Wait function for rate limiting
-const wait = (ms) => new Promise(resolvePromise => setTimeout(resolvePromise, ms));
+const wait = (ms: number): Promise<void> => new Promise<void>(resolvePromise => setTimeout(resolvePromise, ms));
 
 // Get hostname and port - works for both local dev and Docker
-function getHostAndPort() {
+function getHostAndPort(): string {
   const isInDocker = process.env.CONTAINER === 'true' || process.env.IN_CONTAINER === 'true';
   const hostApi = isInDocker ? 'http://localhost:3000' : 'http://localhost:3000';
   console.log(`[Prefetch] Running in ${isInDocker ? 'Docker' : 'local'} environment, using API host: ${hostApi}`);
@@ -41,7 +40,7 @@ function getHostAndPort() {
  * Fetch API data with better error handling and retry logic
  * This will call the API endpoints which now use the data-access layer.
  */
-async function fetchApiEndpoint(apiUrl, endpointName, retries = 3, retryDelay = 1000) {
+async function fetchApiEndpoint(apiUrl: string, endpointName: string, retries: number = 3, retryDelay: number = 1000): Promise<unknown> {
   let lastError;
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -55,15 +54,16 @@ async function fetchApiEndpoint(apiUrl, endpointName, retries = 3, retryDelay = 
         const errorText = await response.text().catch(() => `HTTP error ${response.status}`);
         throw new Error(`HTTP error ${response.status}: ${response.statusText}. Response: ${errorText.substring(0, 200)}`);
       }
-      const data = await response.json();
+      const data = await response.json() as unknown; // Explicitly cast to unknown
       console.log(`[Prefetch] Successfully fetched data from ${endpointName}`);
       const isComplete = response.headers.get('X-Data-Complete') === 'true';
       if (!isComplete) {
         console.warn(`[Prefetch] ⚠️ Data from ${endpointName} (${apiUrl}) is marked as incomplete by API.`);
       }
       return data;
-    } catch (error) {
-      console.error(`[Prefetch] Error fetching ${endpointName} (${apiUrl}) (attempt ${attempt}/${retries}):`, error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[Prefetch] Error fetching ${endpointName} (${apiUrl}) (attempt ${attempt}/${retries}):`, errorMessage);
       lastError = error;
       if (attempt < retries) {
         const currentDelay = retryDelay * attempt;
@@ -80,15 +80,16 @@ async function fetchApiEndpoint(apiUrl, endpointName, retries = 3, retryDelay = 
 /**
  * Prefetch all bookmarks data by calling the API endpoint.
  */
-async function prefetchBookmarksData(apiBase) {
+async function prefetchBookmarksData(apiBase: string): Promise<UnifiedBookmark[] | []> {
   try {
     console.log('[Prefetch] Prefetching bookmarks data via API endpoint...');
     // The API endpoint now uses getBookmarks from data-access
-    const bookmarks = await fetchApiEndpoint(`${apiBase}/api/bookmarks`, 'Bookmarks API');
+    const bookmarks = await fetchApiEndpoint(`${apiBase}/api/bookmarks`, 'Bookmarks API') as UnifiedBookmark[] | undefined; // Use UnifiedBookmark
     console.log(`[Prefetch] Successfully triggered bookmark data population. Count: ${bookmarks?.length || 0}`);
-    return bookmarks; // Return for domain extraction
-  } catch (error) {
-    console.error('[Prefetch] Failed to prefetch bookmarks via API:', error.message);
+    return bookmarks || []; // Return for domain extraction
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[Prefetch] Failed to prefetch bookmarks via API:', errorMessage);
     return []; // Return empty array on failure to allow logo prefetch to proceed if possible
   }
 }
@@ -96,14 +97,15 @@ async function prefetchBookmarksData(apiBase) {
 /**
  * Prefetch GitHub activity data by calling the API endpoint.
  */
-async function prefetchGitHubActivityData(apiBase) {
+async function prefetchGitHubActivityData(apiBase: string): Promise<void> {
   try {
     console.log('[Prefetch] Prefetching GitHub activity data via API endpoint...');
     // The API endpoint now uses getGithubActivity from data-access
-    const activity = await fetchApiEndpoint(`${apiBase}/api/github-activity`, 'GitHub Activity API');
+    const activity = await fetchApiEndpoint(`${apiBase}/api/github-activity`, 'GitHub Activity API') as { dataComplete?: boolean } | undefined; // Type assertion
     console.log(`[Prefetch] Successfully triggered GitHub activity data population. Complete: ${activity?.dataComplete}`);
-  } catch (error) {
-    console.error('[Prefetch] Failed to prefetch GitHub activity via API:', error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[Prefetch] Failed to prefetch GitHub activity via API:', errorMessage);
     // Continue even if this fails
   }
 }
@@ -111,15 +113,16 @@ async function prefetchGitHubActivityData(apiBase) {
 /**
  * Prefetch logos for all domains using the getLogo data-access function.
  */
-async function prefetchLogosData(apiBase, bookmarksData) {
-  const domains = new Set();
+async function prefetchLogosData(apiBase: string, bookmarksData: UnifiedBookmark[]): Promise<void> {
+  const domains = new Set<string>();
 
   // 1. Extract domains from prefetched bookmarks
   if (bookmarksData && bookmarksData.length > 0) {
     for (const bookmark of bookmarksData) {
       try {
         if (bookmark.url) domains.add(new URL(bookmark.url).hostname.replace(/^www\./, ''));
-      } catch (e) { /* ignore */ }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_e: unknown) { /* ignore */ }
     }
   }
   console.log(`[Prefetch] Extracted ${domains.size} domains from bookmarks.`);
@@ -129,8 +132,9 @@ async function prefetchLogosData(apiBase, bookmarksData) {
     const investmentDomainsMap = await getInvestmentDomainsAndIds();
     investmentDomainsMap.forEach((_id, domain) => domains.add(domain));
     console.log(`[Prefetch] Added ${investmentDomainsMap.size} domains from investments. Total unique: ${domains.size}`);
-  } catch(e) {
-    console.warn('[Prefetch] Could not get investment domains for logos:', e.message);
+  } catch(e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    console.warn('[Prefetch] Could not get investment domains for logos:', errorMessage);
   }
 
   // 3. Extract domains from experience.ts (simplified, consider moving to data-access)
@@ -141,12 +145,20 @@ async function prefetchLogosData(apiBase, bookmarksData) {
         const block = experienceBlocks[i];
         const urlPatterns = [/companyUrl:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g];
         for (const pattern of urlPatterns) {
-            let urlMatch;
-            while ((urlMatch = pattern.exec(block)) !== null) { if (urlMatch[1]) domains.add(urlMatch[1]); }
+            let urlMatch: RegExpExecArray | null;
+            while ((urlMatch = pattern.exec(block)) !== null) {
+                const capturedDomain = urlMatch[1]; // capturedDomain is string | undefined
+                if (capturedDomain) { // Checks for undefined, null, and empty string
+                    domains.add(capturedDomain); // capturedDomain is narrowed to string here
+                }
+            }
         }
     }
     console.log(`[Prefetch] Extracted domains from experience.ts. Total unique: ${domains.size}`);
-  } catch (e) { console.warn('[Prefetch] Could not read/parse experience.ts for domains.'); }
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    console.warn('[Prefetch] Could not read/parse experience.ts for domains:', errorMessage);
+  }
 
   // 4. Extract domains from education.ts (simplified)
    try {
@@ -156,12 +168,20 @@ async function prefetchLogosData(apiBase, bookmarksData) {
         const block = educationBlocks[i];
         const urlPatterns = [/institutionUrl:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g];
         for (const pattern of urlPatterns) {
-            let urlMatch;
-            while ((urlMatch = pattern.exec(block)) !== null) { if (urlMatch[1]) domains.add(urlMatch[1]); }
+            let urlMatch: RegExpExecArray | null;
+            while ((urlMatch = pattern.exec(block)) !== null) {
+                const capturedDomain = urlMatch[1]; // capturedDomain is string | undefined
+                if (capturedDomain) { // Checks for undefined, null, and empty string
+                    domains.add(capturedDomain); // capturedDomain is narrowed to string here
+                }
+            }
         }
     }
     console.log(`[Prefetch] Extracted domains from education.ts. Total unique: ${domains.size}`);
-  } catch (e) { console.warn('[Prefetch] Could not read/parse education.ts for domains.'); }
+  } catch (e: unknown) {
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    console.warn('[Prefetch] Could not read/parse education.ts for domains:', errorMessage);
+  }
 
   // 5. Add hardcoded domains
   const KNOWN_DOMAINS = ['creighton.edu', 'unomaha.edu', 'stanford.edu', 'columbia.edu', 'gsb.columbia.edu', 'cfp.net', 'seekinvest.com', 'tsbank.com', 'mutualfirst.com', 'morningstar.com'];
@@ -180,7 +200,7 @@ async function prefetchLogosData(apiBase, bookmarksData) {
       try {
         // Call getLogo directly. It handles fetching and storing to volume/cache.
         // The apiBase is used by getLogo if it needs to make internal validation calls.
-        const logoResult = await getLogo(domain, apiBase);
+        const logoResult = await getLogo(domain);
         if (logoResult && logoResult.buffer) {
           if (VERBOSE) console.log(`[Prefetch] Logo for ${domain} ensured by data-access layer.`);
           successCount++;
@@ -188,8 +208,9 @@ async function prefetchLogosData(apiBase, bookmarksData) {
           if (VERBOSE) console.warn(`[Prefetch] Failed to ensure logo for ${domain} via data-access layer.`);
           failureCount++;
         }
-      } catch (error) {
-        console.warn(`[Prefetch] Error ensuring logo for ${domain}:`, error.message);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.warn(`[Prefetch] Error ensuring logo for ${domain}:`, errorMessage);
         failureCount++;
       }
     });
@@ -204,8 +225,8 @@ async function prefetchLogosData(apiBase, bookmarksData) {
 /**
  * Ensure critical data directories exist
  */
-async function ensureDataDirectories() {
-  const dirs = [
+async function ensureDataDirectories(): Promise<void> {
+  const dirs: string[] = [
     'data/bookmarks',
     'data/github-activity',
     'data/images/logos'
@@ -214,8 +235,9 @@ async function ensureDataDirectories() {
     try {
       await fs.mkdir(path.resolve(process.cwd(), dir), { recursive: true });
       console.log(`[Prefetch] Ensured directory exists: ${dir}`);
-    } catch (error) {
-      console.error(`[Prefetch] Failed to create directory ${dir}:`, error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[Prefetch] Failed to create directory ${dir}:`, errorMessage);
       // If critical directories can't be made, we might want to exit.
     }
   }
@@ -224,7 +246,7 @@ async function ensureDataDirectories() {
 /**
  * Main execution function
  */
-async function main() {
+async function main(): Promise<void> {
   console.log('[Prefetch] Starting data prefetch for build...');
   const startTime = Date.now();
 
@@ -251,8 +273,9 @@ async function main() {
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`[Prefetch] ✅ All data prefetch routines completed in ${duration}s`);
     process.exit(0);
-  } catch (error) {
-    console.error('[Prefetch] ❌ Prefetch script failed:', error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[Prefetch] ❌ Prefetch script failed:', errorMessage);
     process.exit(1);
   }
 }
