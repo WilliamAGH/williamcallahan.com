@@ -82,7 +82,7 @@ describe('App Router Page Smoke Tests (Static Routes)', () => {
       const PageComponent = PageComponentModule.default;
       if (typeof PageComponent !== 'function') {
         console.error(`Default export for ${pageInfo.name} is not a function.`);
-        expect(PageComponent).toBeTypeOf('function'); // This will fail and show the type
+        expect(typeof PageComponent).toBe('function'); // More portable than toBeTypeOf
         return;
       }
 
