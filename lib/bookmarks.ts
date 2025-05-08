@@ -6,8 +6,7 @@
  * @module lib/bookmarks
  */
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { UnifiedBookmark, BookmarkTag, BookmarkContent, BookmarkAsset } from '@/types';
+import type { UnifiedBookmark, BookmarkContent, BookmarkAsset } from '@/types';
 
 // Define the raw structure expected from the API based on the user's example
 interface RawApiBookmarkTag {
@@ -17,7 +16,7 @@ interface RawApiBookmarkTag {
 }
 
 interface RawApiBookmarkContent {
-  type: string;
+  type: 'link' | 'image' | (string & {});
   url: string;
   title: string | null;
   description: string | null;
@@ -40,7 +39,7 @@ interface RawApiBookmark {
   title: string | null; // Note: API seems to have title/desc here AND in content
   archived: boolean;
   favourited: boolean;
-  taggingStatus: string;
+  taggingStatus: 'complete' | 'in-progress' | (string & {});
   note: string | null;
   summary: string | null;
   tags: RawApiBookmarkTag[];
@@ -54,6 +53,15 @@ interface ApiResponse {
 }
 
 import { ServerCacheInstance } from './server-cache';
+
+/**
+ * Utility function to remove htmlContent from a content object
+ */
+function omitHtmlContent<T extends RawApiBookmarkContent>(content: T) {
+  // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
+  const { htmlContent: _omit, ...rest } = content;
+  return rest;
+}
 
 /**
  * Fetches bookmarks from the server cache or external API
@@ -180,7 +188,7 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
               id: tag.id,
               name: tag.name,
               attachedBy: ((value): 'user' | 'ai' | undefined => {
-                return value === 'user' || value === 'ai' ? value : undefined;
+                return value === 'user' ? 'user' : value === 'ai' ? 'ai' : undefined;
               })(tag.attachedBy)
             }))
           : [];
@@ -191,8 +199,7 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
           // Spread existing content properties first, omitting htmlContent which can be very large
           ...(raw.content ? {
             // exclude htmlContent to shrink payload
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            ...((({ htmlContent, ...rest }) => rest)(raw.content))
+            ...omitHtmlContent(raw.content)
           } : {}),
           // Then override with our preferred values
           type: 'link',
