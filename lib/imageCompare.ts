@@ -50,6 +50,13 @@ const CONFIG = {
   HASH_ENCODING: "hex" as const
 } as const;
 
+// Narrow a string to a valid format literal
+function isValidFormat(
+  f: string
+): f is typeof CONFIG.FORMATS[number] {
+  return (CONFIG.FORMATS as readonly string[]).includes(f);
+}
+
 /**
  * Custom error class for image comparison errors
  * @class
@@ -115,7 +122,7 @@ async function getValidatedMetadata(buffer: Buffer): Promise<ValidatedMetadata> 
     // Validate format - Use type assertion if includes needs narrower type
     // Or check if includes works directly with string now
     // Let's try without the cast first, assuming TS/ESLint handles it
-    if (!CONFIG.FORMATS.includes(format as typeof CONFIG.FORMATS[number])) {
+    if (!isValidFormat(format)) {
       // If the above still fails, we might need a helper or different check
       // Original failing code: if (!CONFIG.FORMATS.includes(format as any))
       return {
