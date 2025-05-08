@@ -23,21 +23,22 @@
  * - Uses React Testing Library for DOM interactions
  */
 
-import { mock, jest, spyOn, describe, beforeEach, it, expect, afterEach, beforeAll, afterAll } from 'bun:test';
+import { mock, jest, describe, beforeEach, it, expect, afterEach, beforeAll, afterAll } from 'bun:test';
 import React from 'react'; // Ensure React is imported first
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Terminal } from '../../../../components/ui/terminal/terminal-implementation.client';
 import { TerminalProvider } from '../../../../components/ui/terminal/terminal-context.client';
-import { TerminalWindowStateProvider } from '../../../../lib/context/terminal-window-state-context.client';
-import { useRouter } from 'next/navigation';
-import { setupTests } from '../../../../lib/test/setup';
 import type { GlobalWindowRegistryContextType, WindowState } from '../../../../lib/context/global-window-registry-context.client'; // Import types for mocking
 import type { SearchResult } from '@/types/search'; // Import SearchResult type
-import type { TerminalCommand } from '@/types/terminal'; // Remove unused/missing types
 
 // --- Mock TerminalHeader ---
 void mock.module('../../../../components/ui/terminal/terminal-header', () => ({
-  TerminalHeader: ({ onClose, onMinimize, onMaximize, isMaximized }: any) => (
+  TerminalHeader: ({ onClose, onMinimize, onMaximize, isMaximized }: {
+    onClose?: () => void;
+    onMinimize?: () => void;
+    onMaximize?: () => void;
+    isMaximized?: boolean;
+  }) => (
     <div data-testid="mock-terminal-header">
       <button title="Close" onClick={onClose} disabled={!onClose}>Close</button>
       <button title="Minimize" onClick={onMinimize} disabled={!onMinimize}>Minimize</button>
@@ -70,20 +71,29 @@ const maximizeMock = () => setMockState(mockWindowState === 'maximized' ? 'norma
 const closeMock = () => setMockState('closed');
 const restoreMock = () => setMockState('normal');
 
+// Define the type for a window entry in the mock
+type MockedWindowEntry = {
+  id: string;
+  state: WindowState; // WindowState is imported
+  icon: React.ForwardRefExoticComponent<React.SVGProps<SVGSVGElement> & React.RefAttributes<SVGSVGElement>>;
+  title: string;
+};
+
 void mock.module('../../../../lib/context/global-window-registry-context.client', () => { // Use mock.module
   // Functions defined above
   return {
     GlobalWindowRegistryProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
     useWindowRegistry: jest.fn((): Partial<GlobalWindowRegistryContextType> => ({
-      windows: { 'main-terminal': { id: 'main-terminal', state: mockWindowState, icon: MockIcon, title: 'Terminal' } },
+      windows: { 'main-terminal': { id: 'main-terminal', state: mockWindowState, icon: MockIcon, title: 'Terminal' } as MockedWindowEntry },
       registerWindow: jest.fn(),
       unregisterWindow: jest.fn(),
-      setWindowState: jest.fn((id, state) => { if (id === 'main-terminal') setMockState(state as WindowState); }), // Cast state
-      minimizeWindow: jest.fn((id) => { if (id === 'main-terminal') minimizeMock(); }),
-      maximizeWindow: jest.fn((id) => { if (id === 'main-terminal') maximizeMock(); }),
-      closeWindow: jest.fn((id) => { if (id === 'main-terminal') closeMock(); }),
-      restoreWindow: jest.fn((id) => { if (id === 'main-terminal') restoreMock(); }),
-      getWindowState: jest.fn((id) => id === 'main-terminal'
+      setWindowState: jest.fn((id: string, state: WindowState) => { if (id === 'main-terminal') setMockState(state); }),
+      minimizeWindow: jest.fn((id: string) => { if (id === 'main-terminal') minimizeMock(); }),
+      maximizeWindow: jest.fn((id: string) => { if (id === 'main-terminal') maximizeMock(); }),
+      closeWindow: jest.fn((id: string) => { if (id === 'main-terminal') closeMock(); }),
+      restoreWindow: jest.fn((id: string) => { if (id === 'main-terminal') restoreMock(); }),
+      getWindowState: jest.fn((id: string): MockedWindowEntry | undefined =>
+        id === 'main-terminal'
         ? { id: 'main-terminal', state: mockWindowState, icon: MockIcon, title: 'Terminal' }
         : undefined
       ),
@@ -119,7 +129,7 @@ let originalFetch: typeof global.fetch;
 
 beforeAll(() => {
   originalFetch = global.fetch;
-  global.fetch = mockFetch as any; // Use any to avoid type conflict for now
+  global.fetch = mockFetch as unknown as typeof global.fetch;
 });
 
 afterAll(() => {
