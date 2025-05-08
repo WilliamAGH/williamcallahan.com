@@ -76,7 +76,7 @@ WORKDIR /app
 # Install runtime dependencies (like Sharp's), curl for healthchecks, AND BASH
 # Try using just 'vips' instead of 'vips-dev' and remove 'build-base' to reduce size.
 # This assumes Sharp successfully installed its pre-compiled binaries in the 'deps' stage.
-RUN apk add --no-cache vips curl bash
+RUN apk add --no-cache vips curl bash su-exec
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -118,7 +118,7 @@ VOLUME /app/data/github-activity
 # Create a volume for persisting bookmarks data
 VOLUME /app/data/bookmarks
 
-USER nextjs
+# USER nextjs # Entrypoint will handle user switching for the CMD
 
 EXPOSE 3000
 
