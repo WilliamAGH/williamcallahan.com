@@ -201,7 +201,7 @@ async function prefetchLogosData(apiBase: string, bookmarksData: UnifiedBookmark
         // Call getLogo directly. It handles fetching and storing to volume/cache.
         // The apiBase is used by getLogo if it needs to make internal validation calls.
         const logoResult = await getLogo(domain);
-        if (logoResult && logoResult.buffer) {
+        if (logoResult?.buffer) {
           if (VERBOSE) console.log(`[Prefetch] Logo for ${domain} ensured by data-access layer.`);
           successCount++;
         } else {
