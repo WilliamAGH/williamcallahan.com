@@ -834,10 +834,11 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
                     /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g,    // Corrected
                 ];
                 for (const pattern of urlPatterns) {
-                    let urlMatch;
+                    let urlMatch: RegExpExecArray | null;
                     while ((urlMatch = pattern.exec(block)) !== null) {
-                        if (urlMatch[1]) {
-                            const domain = urlMatch[1];
+                        const capturedDomain = urlMatch[1]; // capturedDomain is string | undefined
+                        if (typeof capturedDomain === 'string') { // Type guard
+                            const domain = capturedDomain; // domain is now safely string
                             if (currentId) {
                                 domainToIdMap.set(domain, currentId);
                             }
@@ -938,7 +939,7 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ agg
             weeklyTotals[weekKey as keyof typeof weeklyTotals] = { added: 0, removed: 0 };
           }
           // Use a non-null assertion since we just ensured the key exists
-          const totals = weeklyTotals[weekKey as keyof typeof weeklyTotals]!;
+          const totals = weeklyTotals[weekKey as keyof typeof weeklyTotals];
           totals.added += week.a || 0; // Ensure undefined is treated as 0
           totals.removed += week.d || 0; // Ensure undefined is treated as 0
         }
