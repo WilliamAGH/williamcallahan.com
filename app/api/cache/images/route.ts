@@ -113,7 +113,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const buffer = Buffer.from(await imageResponse.arrayBuffer());
 
     // Process with sharp for optimization
-    let processedImage;
+    let processedImage: Buffer;
 
     try {
       const sharpInstance = sharp(buffer);
