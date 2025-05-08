@@ -20,10 +20,6 @@
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import { LogoImage } from '../../../components/ui';
 import { ExternalLink } from '../../ui/external-link.client';
-// FinancialMetrics was unused
-// import FinancialMetrics from '../../ui/financial-metrics.server';
-// AVenture was unused
-// import { AVenture } from '../../ui/social-icons/aventure-icon';
 import type { Investment } from '../../../types/investment';
 import type { LogoData } from '../../../types/logo';
 
@@ -54,15 +50,15 @@ interface InvestmentCardClientProps extends Investment {
  * - Displaying financial metrics
  * - Theme-aware rendering
  */
-export function InvestmentCardClient({ logoData, /* isDarkTheme, */ renderedMetrics, ...investment }: InvestmentCardClientProps): JSX.Element {
+export function InvestmentCardClient({ logoData, renderedMetrics, ...investment }: InvestmentCardClientProps): JSX.Element {
   const {
     name,
     website,
     description,
     // location, // Unused
     status,
-    metrics,
-    multiple,
+    // metrics, // Unused
+    // multiple, // Unused
     holding_return,
     category,
     accelerator,
@@ -74,13 +70,6 @@ export function InvestmentCardClient({ logoData, /* isDarkTheme, */ renderedMetr
     stage,
     aventure_url
   } = investment;
-
-  // Combine metrics into one object
-  // const allMetrics = { // Unused
-  //   ...(metrics || {}),
-  //   multiple,
-  //   holding_return
-  // };
 
   // Get accelerator display name
   const acceleratorName = accelerator?.program === 'techstars' ? 'Techstars' :
