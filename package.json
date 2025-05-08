@@ -32,6 +32,7 @@
     "prepare": "node .husky/install.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.804.0",
     "@fontsource/ibm-plex-mono": "^5.2.5",
     "@octokit/graphql": "^8.2.1",
     "@sentry/browser": "^9.15.0",
@@ -90,6 +91,7 @@
     "globals": "^16.1.0",
     "husky": "^9.1.7",
     "jiti": "^2.4.2",
+    "lint-staged": "^15.5.2",
     "node-fetch": "^2.7.0",
     "postcss": "^8.4.35",
     "postcss-preset-env": "^10.1.5",
@@ -101,5 +103,8 @@
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.32.0"
   },
-  "packageManager": "bun@1.2.5"
+  "packageManager": "bun@1.2.5",
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mdx}": ["eslint --config eslint.config.ts --fix"]
+  }
 }
