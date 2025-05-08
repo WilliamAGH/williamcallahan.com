@@ -1,6 +1,6 @@
 /**
  * Tags List Component
- * 
+ *
  * Client component for rendering and filtering tags with "Show More" functionality.
  * Follows the hydration safety pattern described in README.md.
  */
@@ -15,35 +15,23 @@ interface TagsListProps {
   onTagSelect: (tag: string) => void;
 }
 
-// Initial set of default tags that are used during SSR and hydration
-const INITIAL_TAGS = [
-  "AI", 
-  "Cloud Deployment", 
-  "UI Components", 
-  "LLM", 
-  "Web Development",
-  "Product Design"
-];
-
 export function TagsList({ tags, selectedTag, onTagSelect }: TagsListProps) {
   const [mounted, setMounted] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
-  
+
   // Set mounted flag after hydration is complete
-  useEffect(() => { 
+  useEffect(() => {
     setMounted(true);
   }, []);
 
   // Using the shared tag formatter from utils
 
-  // Only show the first 6 tags (or all if showAllTags is true)
-  const visibleTags = showAllTags ? tags : tags.slice(0, 6);
   const hasMoreTags = tags.length > 6;
 
   return (
     <div className="flex flex-wrap gap-2 items-center">
       <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Filter by:</span>
-      
+
       {/* Render all tags but cap visibility with CSS */}
       <div className="flex flex-wrap gap-2">
         {tags.map((tag, index) => (
@@ -54,13 +42,13 @@ export function TagsList({ tags, selectedTag, onTagSelect }: TagsListProps) {
               selectedTag === tag
                 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                 : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-            } ${!mounted ? 'pointer-events-none' : ''} ${index >= 6 && !showAllTags ? 'hidden' : ''}`} 
+            } ${!mounted ? 'pointer-events-none' : ''} ${index >= 6 && !showAllTags ? 'hidden' : ''}`}
           >
             {formatTagDisplay(tag)}
           </button>
         ))}
       </div>
-      
+
       {/* Show More/Less button: render a placeholder during SSR for layout stability */}
       {hasMoreTags && (
         <button
@@ -70,7 +58,7 @@ export function TagsList({ tags, selectedTag, onTagSelect }: TagsListProps) {
           {showAllTags ? "Show Less" : `+${tags.length - 6} More`}
         </button>
       )}
-      
+
       {/* Only show the Clear button client-side where it's functional */}
       {mounted && selectedTag && (
         <button
