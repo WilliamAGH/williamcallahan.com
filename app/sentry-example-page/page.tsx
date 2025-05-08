@@ -46,7 +46,7 @@ export default function Page() {
 
         <button
           type="button"
-          onClick={async () => {
+          onClick={() => void (async () => {
             await Sentry.startSpan({
               name: 'Example Frontend Span',
               op: 'test'
@@ -57,7 +57,7 @@ export default function Page() {
                 throw new SentryExampleFrontendError("This error is raised on the frontend of the example page.");
               }
             });
-          }}
+          })()}
         >
           <span>
             Throw Sample Error

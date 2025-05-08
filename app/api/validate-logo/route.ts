@@ -46,12 +46,14 @@ async function getImageHash(buffer: Buffer): Promise<string> {
 async function compareImages(image1: Buffer, image2: Buffer): Promise<boolean> {
   try {
     // Validate image formats first
-    let meta1, meta2;
+    let meta1: sharp.Metadata, meta2: sharp.Metadata;
     try {
-      [meta1, meta2] = await Promise.all([
+      const results = await Promise.all([
         sharp(image1).metadata(),
         sharp(image2).metadata()
       ]);
+      meta1 = results[0];
+      meta2 = results[1];
     } catch (error) {
       console.error('Error getting image metadata:', error);
       return false;
@@ -63,23 +65,33 @@ async function compareImages(image1: Buffer, image2: Buffer): Promise<boolean> {
     }
 
     // Basic format validation
-    if (!meta1.format || !meta2.format ||
-        !VALID_IMAGE_FORMATS.includes(meta1.format as any) ||
-        !VALID_IMAGE_FORMATS.includes(meta2.format as any)) {
-      console.debug('Invalid image format detected');
+    const format1 = meta1.format;
+    const format2 = meta2.format;
+
+    const isFormat1Valid = format1 ? VALID_IMAGE_FORMATS.some(vf => vf === format1) : false;
+    const isFormat2Valid = format2 ? VALID_IMAGE_FORMATS.some(vf => vf === format2) : false;
+
+    if (!format1 || !format2 || !isFormat1Valid || !isFormat2Valid) {
+      console.debug('Invalid image format detected or format not in VALID_IMAGE_FORMATS');
       return false;
     }
 
     // Basic size validation
-    if (!meta1.width || !meta2.width || !meta1.height || !meta2.height ||
-        meta1.width < MIN_LOGO_SIZE || meta1.height < MIN_LOGO_SIZE ||
-        meta2.width < MIN_LOGO_SIZE || meta2.height < MIN_LOGO_SIZE) {
+    // Ensure width and height are numbers before comparing
+    const w1 = typeof meta1.width === 'number' ? meta1.width : 0;
+    const h1 = typeof meta1.height === 'number' ? meta1.height : 0;
+    const w2 = typeof meta2.width === 'number' ? meta2.width : 0;
+    const h2 = typeof meta2.height === 'number' ? meta2.height : 0;
+
+    if (!w1 || !w2 || !h1 || !h2 ||
+        w1 < MIN_LOGO_SIZE || h1 < MIN_LOGO_SIZE ||
+        w2 < MIN_LOGO_SIZE || h2 < MIN_LOGO_SIZE) {
       console.debug('Invalid image dimensions');
       return false;
     }
 
     // Convert both images to PNG for consistent comparison
-    let norm1, norm2;
+    let norm1: Buffer, norm2: Buffer;
     try {
       [norm1, norm2] = await Promise.all([
         sharp(image1).png().toBuffer(),
@@ -131,7 +143,7 @@ async function loadReferenceIcon(): Promise<void> {
       referenceGlobeIcon = await fs.readFile(p);
       console.info(`Successfully loaded reference globe icon from: ${p}`);
       return;
-    } catch (err) {
+    } catch {
       // Try next path
     }
   }
