@@ -16,29 +16,32 @@ interface TerminalSearchModule {
   searchBookmarks: (terms: string) => Promise<SearchResult[]>;
 }
 
-// Import search functions but allow mocking them in tests
-let searchModule: TerminalSearchModule;
-try {
-  // Use dynamic import instead of require for better tree-shaking
-  const importedModule = await import('@/lib/search');
-  // Create an adapter that wraps non-promise return values in promises
-  searchModule = {
-    searchExperience: (terms: string) => Promise.resolve(importedModule.searchExperience(terms)),
-    searchEducation: (terms: string) => Promise.resolve(importedModule.searchEducation(terms)),
-    searchInvestments: (terms: string) => Promise.resolve(importedModule.searchInvestments(terms)),
-    searchBookmarks: (terms: string) => importedModule.searchBookmarks(terms), // Already returns a Promise
-  };
-} catch {
-  // Fallback for tests
-  searchModule = {
-    searchExperience: () => Promise.resolve([] as SearchResult[]),
-    searchEducation: () => Promise.resolve([] as SearchResult[]),
-    searchInvestments: () => Promise.resolve([] as SearchResult[]),
-    searchBookmarks: () => Promise.resolve([] as SearchResult[]),
-  };
-}
+// searchModule becomes a promise that resolves to the actual module
+const searchModulePromise: Promise<TerminalSearchModule> = (async () => {
+  try {
+    // Use dynamic import instead of require for better tree-shaking
+    const importedModule = await import('@/lib/search');
+    // Create an adapter that wraps non-promise return values in promises
+    return {
+      searchExperience: (terms: string) => Promise.resolve(importedModule.searchExperience(terms)),
+      searchEducation: (terms: string) => Promise.resolve(importedModule.searchEducation(terms)),
+      searchInvestments: (terms: string) => Promise.resolve(importedModule.searchInvestments(terms)),
+      searchBookmarks: (terms: string) => importedModule.searchBookmarks(terms), // Already returns a Promise
+    };
+  } catch (e) {
+    console.error("[TerminalCommands] Failed to load search module:", e);
+    // Fallback for tests or if module fails to load
+    return {
+      searchExperience: () => Promise.resolve([] as SearchResult[]),
+      searchEducation: () => Promise.resolve([] as SearchResult[]),
+      searchInvestments: () => Promise.resolve([] as SearchResult[]),
+      searchBookmarks: () => Promise.resolve([] as SearchResult[]),
+    };
+  }
+})();
 
-const { searchExperience, searchEducation, searchInvestments, searchBookmarks } = searchModule;
+// Removed top-level destructuring
+// const { searchExperience, searchEducation, searchInvestments, searchBookmarks } = searchModule;
 import { sections, type SectionKey } from './sections';
 // Removed unused usePathname import
 
@@ -138,6 +141,9 @@ export async function handleCommand(input: string): Promise<CommandResult> {
 
   const [command, ...args] = trimmedInput.split(' ');
 
+  // Await the search module to be loaded before proceeding
+  const searchModule = await searchModulePromise;
+
   // 1. First check for direct commands that take precedence
 
   // Schema.org easter egg command
@@ -213,16 +219,16 @@ export async function handleCommand(input: string): Promise<CommandResult> {
         break;
       }
       case 'experience':
-        results = await searchExperience(searchTerms);
+        results = await searchModule.searchExperience(searchTerms);
         break;
       case 'education':
-        results = await searchEducation(searchTerms);
+        results = await searchModule.searchEducation(searchTerms);
         break;
       case 'investments':
-        results = await searchInvestments(searchTerms);
+        results = await searchModule.searchInvestments(searchTerms);
         break;
       case 'bookmarks':
-        results = await searchBookmarks(searchTerms);
+        results = await searchModule.searchBookmarks(searchTerms);
         break;
     }
 

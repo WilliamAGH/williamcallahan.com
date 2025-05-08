@@ -1,4 +1,3 @@
-
 /**
  * CodeBlock Component
  *
@@ -9,7 +8,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react'; // Import useEffect, useRef, and useCallback
+import { useState, useEffect, useRef, useCallback, isValidElement, ReactNode } from 'react'; // Import useEffect, useRef, useCallback, isValidElement, ReactNode
 import type { ComponentProps } from 'react';
 import { CopyButton } from './copy-button.client';
 import { cn } from '../../../lib/utils';
@@ -37,14 +36,6 @@ const extractLanguage = (className?: string): string => {
 };
 
 /**
- * Generate line numbers for the code block
- */
-const generateLineNumbers = (content: string): string => {
-  const lines = content.split('\n').length;
-  return Array.from({ length: lines }, (_, i) => i + 1).join('\n');
-};
-
-/**
  * Filters out comment lines from text content
  * @param {string} text - The text to filter
  * @returns {string} Text with comments removed
@@ -60,20 +51,24 @@ const filterComments = (text: string): string => {
 
 /**
  * Recursively extracts text content from React nodes
- * @param {React.ReactNode} child - The node to extract text from
+ * @param {React.ReactNode} node - The node to extract text from
  * @returns {string} Extracted text content
  */
-const getTextContent = (child: React.ReactNode): string => {
-  if (typeof child === 'string') return child;
-  if (typeof child === 'number') return String(child);
-  if (!child) return '';
+const getTextContent = (node: ReactNode): string => {
+  if (typeof node === 'string') return node;
+  if (typeof node === 'number') return String(node);
+  if (!node) return ''; // Handles null, undefined, false
 
-  if (typeof child === 'object' && 'props' in child && child.props?.children) {
-    if (typeof child.props.children === 'string') return child.props.children;
-    if (Array.isArray(child.props.children)) {
-      return child.props.children.map(getTextContent).join('');
-    }
-    return getTextContent(child.props.children);
+  // If 'node' is an array of ReactNodes
+  if (Array.isArray(node)) {
+    return node.map(getTextContent).join('');
+  }
+
+  // Check if it's a valid React element that might have children
+  if (isValidElement(node)) {
+    // node.props.children is ReactNode. We need to recurse on it.
+    const props = node.props as { children?: ReactNode; [key: string]: unknown }; // Type assertion for props
+    return getTextContent(props.children); // Recurse
   }
 
   return '';

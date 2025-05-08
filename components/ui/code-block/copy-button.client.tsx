@@ -48,7 +48,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({ content, className }) =>
 
   return (
     <button
-      onClick={handleCopy}
+      onClick={() => void handleCopy()}
       className={cn(
         'absolute right-2 top-2 p-2 rounded-md',
         'bg-gray-700/60 hover:bg-gray-600/60',
