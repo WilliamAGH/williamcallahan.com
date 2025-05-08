@@ -19,6 +19,7 @@ import { graphql } from '@octokit/graphql'; // For GitHub GraphQL
 import * as cheerio from 'cheerio'; // For GitHub scraping fallback
 import sharp from 'sharp';
 import { createHash } from 'node:crypto';
+import { refreshBookmarksData } from '@/lib/bookmarks'; // Added import
 
 // --- Configuration & Constants ---
 /**
@@ -193,14 +194,27 @@ async function fetchExternalBookmarks(): Promise<UnifiedBookmark[] | null> {
   console.log('[DataAccess] Fetching external bookmarks...');
   try {
     isBookmarkFetchInProgress = true;
-    await Promise.resolve(); // Placeholder await to satisfy linter as function is async
+    // await Promise.resolve(); // Placeholder await to satisfy linter as function is async
 
     // TODO: Implement direct external API call here instead of using refreshBookmarksData
     // For example, if using Telegram/Jina/Groq as described in docs/bookmarks-integration.mdx,
     // implement the direct API calls to those services here.
 
+    // Call refreshBookmarksData from lib/bookmarks.ts
+    const bookmarks = await refreshBookmarksData();
+
+    if (bookmarks) {
+      console.log(`[DataAccess] Fetched ${bookmarks.length} bookmarks from external source via refreshBookmarksData.`);
+      // Ensure sorting matches the previous placeholder's intention, if necessary
+      // The refreshBookmarksData itself might already sort, but if not, sort here:
+      // return bookmarks.sort((a, b) => (b.dateBookmarked || "").localeCompare(a.dateBookmarked || ""));
+      return bookmarks; // Assuming refreshBookmarksData returns UnifiedBookmark[]
+    }
+    // If bookmarks is null or undefined, explicitly return null to satisfy the return type.
+    return null;
+
     // Throw an error to make the failure explicit rather than silently returning null
-    throw new Error('[DataAccess] External bookmarks fetch not implemented');
+    // throw new Error('[DataAccess] External bookmarks fetch not implemented');
 
     // When implementing the direct fetch, use a timeout like this:
     /*
