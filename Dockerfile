@@ -46,12 +46,8 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 # Copy dependencies and source code
 COPY --from=deps /app/node_modules ./node_modules
 
-# Directory creation is now handled by the populate-volumes.ts script
-# RUN mkdir -p /app/data/images/logos # For logos data (Handled by script)
-# RUN mkdir -p /app/data/images/logos/byId # For ID-based logos (Handled by script)
-# RUN mkdir -p /app/data/github-activity # For GitHub projects/activity data (Handled by script)
-# RUN mkdir -p /app/data/github-activity/repo_raw_weekly_stats # For granular GitHub stats (Handled by script)
-# RUN mkdir -p /app/data/bookmarks # For bookmarks data (Handled by script)
+# Directory creation for local volumes is removed as data moves to S3.
+# Local cache directories will be created in the runner stage.
 
 # Copy entire source code
 COPY . .
@@ -84,41 +80,42 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV RUNNING_IN_DOCKER=true
 ENV CONTAINER=true
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# REMOVED: User/group creation for non-root user
+# RUN addgroup --system --gid 1001 nodejs
+# RUN adduser --system --uid 1001 nextjs
 
-# Copy standalone output and required assets
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Copy standalone output and required assets (run as root, so no chown needed)
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
-# Copy scripts directory for prefetch capabilities
-COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+# Copy scripts directory (run as root, so no chown needed)
+COPY --from=builder /app/scripts ./scripts
 
-# Copy public directory and set permissions
+# Copy public directory (run as root, so no chown needed)
 COPY --from=builder /app/public ./public
 
-# Copy data from builder image into staging directories for volume seeding
-COPY --from=builder --chown=nextjs:nodejs /app/data/images/logos /app/.initial-logos
-COPY --from=builder --chown=nextjs:nodejs /app/data/github-activity /app/.initial-github-activity
-COPY --from=builder --chown=nextjs:nodejs /app/data/bookmarks /app/.initial-bookmarks
+# REMOVED: Copying initial data from builder stage - data now lives in S3
+# COPY --from=builder --chown=nextjs:nodejs /app/data/images/logos /app/.initial-logos
+# COPY --from=builder --chown=nextjs:nodejs /app/data/github-activity /app/.initial-github-activity
+# COPY --from=builder /app/data/bookmarks /app/.initial-bookmarks
 
-# Ensure the data directories exist and have correct permissions
-RUN mkdir -p /app/data/images/logos && chown -R nextjs:nodejs /app/data/images/logos
-RUN mkdir -p /app/data/github-activity && chown -R nextjs:nodejs /app/data/github-activity
-RUN mkdir -p /app/data/bookmarks && chown -R nextjs:nodejs /app/data/bookmarks
+# Ensure the local S3 cache directory exists (permissions handled by root user)
+RUN mkdir -p /app/cache/s3_data
+# REMOVED: Creating persistent data directories - data now lives in S3
+# RUN mkdir -p /app/data/images/logos
+# RUN mkdir -p /app/data/github-activity
+# RUN mkdir -p /app/data/bookmarks
 
-# Copy entrypoint script to seed logos volume on startup
-COPY --chown=nextjs:nodejs scripts/entrypoint.sh /app/entrypoint.sh
+# Copy entrypoint script (run as root, so no chown needed)
+COPY scripts/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-# Create a volume for persisting logos
-VOLUME /app/data/images/logos
-# Create a volume for persisting github-projects data
-VOLUME /app/data/github-activity
-# Create a volume for persisting bookmarks data
-VOLUME /app/data/bookmarks
+# REMOVED: VOLUME directives for data now in S3
+# VOLUME /app/data/images/logos
+# VOLUME /app/data/github-activity
+# VOLUME /app/data/bookmarks
 
-# USER nextjs # Entrypoint will handle user switching for the CMD
+# REMOVED: USER directive - will run as root
 
 EXPOSE 3000
 
