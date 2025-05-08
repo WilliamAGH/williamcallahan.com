@@ -27,10 +27,11 @@ module.exports = {
             wordWrap: 'break-word',
             hyphens: 'auto',
             // Removed 'pre, code' block to resolve potential parsing error
-            // Reduce paragraph spacing
+            // Reduce paragraph spacing and enforce consistent font size
             p: {
               marginTop: '0.75em',
               marginBottom: '0.75em',
+              fontSize: '16px', // Set fixed font size for all paragraphs
             },
             // Better heading spacing
             'h1, h2, h3, h4, h5, h6': {
@@ -50,14 +51,16 @@ module.exports = {
                 paddingTop: '1.5em',
               },
             },
-            // Reduce list spacing
+            // Reduce list spacing and enforce consistent font size
             'ul, ol': {
               marginTop: '0.75em',
               marginBottom: '0.75em',
+              fontSize: '16px', // Set fixed font size for all lists
             },
             li: {
               marginTop: '0.25em',
               marginBottom: '0.25em',
+              fontSize: '16px', // Set fixed font size for all list items
             },
             a: {
               color: 'inherit',
@@ -84,10 +87,11 @@ module.exports = {
             hr: {
               display: 'none',
             },
-            // Reduce blockquote spacing
+            // Reduce blockquote spacing and enforce consistent font size
             blockquote: {
               marginTop: '0.75em',
               marginBottom: '0.75em',
+              fontSize: '16px', // Set fixed font size for blockquotes
             },
           },
         },

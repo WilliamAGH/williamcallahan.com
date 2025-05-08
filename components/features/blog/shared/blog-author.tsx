@@ -31,6 +31,7 @@ export function BlogAuthor({ author }: BlogAuthorProps) {
             fill
             sizes="56px"
             className="rounded-full object-cover"
+            priority
           />
         </div>
       )}
