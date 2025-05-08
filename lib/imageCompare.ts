@@ -51,6 +51,21 @@ const CONFIG = {
 } as const;
 
 // Narrow a string to a valid format literal
+/**
+ * Checks if a given string is a valid image format.
+ *
+ * @param {string} f - The format string to validate.
+ * @returns {boolean} True if the format is valid, false otherwise.
+ *
+ * @example
+ * ```typescript
+ * if (isValidFormat('png')) {
+ *   console.log('Valid format');
+ * } else {
+ *   console.error('Invalid format');
+ * }
+ * ```
+ */
 function isValidFormat(
   f: string
 ): f is typeof CONFIG.FORMATS[number] {
