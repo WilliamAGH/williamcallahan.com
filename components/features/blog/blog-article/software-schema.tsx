@@ -12,6 +12,13 @@
 
 import { JsonLdScript } from '../../../seo/json-ld';
 import { ensureAbsoluteUrl } from '../../../../lib/seo/utils';
+import type { SoftwareApplicationSchema } from '@/types/seo/schema';
+import { kebabCase } from '@/lib/utils/formatters';
+
+// Define a type for the complete JSON-LD script object this component generates
+type SoftwareScriptSchema = SoftwareApplicationSchema & {
+  '@context': 'https://schema.org';
+};
 
 interface SoftwareSchemaProps {
   /** Name of the software application */
@@ -64,9 +71,13 @@ export function SoftwareSchema({
   authorName,
   authorUrl,
 }: SoftwareSchemaProps) {
-  // Create base schema
-  const schema: any = {
+  // Generate a suitable @id fragment
+  const idFragment = kebabCase(name);
+
+  // Create base schema using the extended script type
+  const schema: SoftwareScriptSchema = {
     '@context': 'https://schema.org',
+    '@id': `#${idFragment}`,
     '@type': 'SoftwareApplication',
     'name': name,
     'description': description,
