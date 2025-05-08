@@ -66,7 +66,10 @@ describe('Blog MDX Smoke Tests', () => {
       expect(post).not.toBeNull();
       if (post) {
         expect(post.title).toBeString();
+        expect(post.title.length).toBeGreaterThan(0);
         expect(post.content).toBeDefined();
+        // Verify other critical properties as needed
+        expect(post.slug).toBe(frontmatterSlug);
       }
     }
   });
