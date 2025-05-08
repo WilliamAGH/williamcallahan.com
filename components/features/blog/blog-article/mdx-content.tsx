@@ -25,6 +25,7 @@ import { useEffect, useRef } from 'react';
 import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
 import { Base64Image } from '@/components/utils/base64-image.client';
 import { ResponsiveTable } from '../../../ui/responsive-table.client'; // Import the new component
+import React, { isValidElement } from 'react';
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {
   caption?: string;
@@ -178,14 +179,20 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
   const components = {
     // Use MDXCodeBlock with a custom class that will override prose styling
     pre: (props: ComponentProps<'pre'>) => {
-      // Check if this is just inline code that got wrapped in a pre tag
-      const children = props.children as React.ReactElement;
-      const childClassName = children?.props?.className || '';
-      // If there's no language class (like language-bash), treat it as inline code
-      const isProperCodeBlock = childClassName.includes('language-');
+      let isProperCodeBlock = false;
+      // Try to safely access the className of the child of <pre>
+      // MDX often wraps code blocks like: <pre><code className="language-xxx">...</code></pre>
+      if (isValidElement(props.children) && props.children.type === 'code') {
+        const codeElement = props.children as React.ReactElement<{ className?: string }>;
+        const className = codeElement.props?.className;
+        if (typeof className === 'string' && className.includes('language-')) {
+          isProperCodeBlock = true;
+        }
+      }
 
       if (!isProperCodeBlock) {
-        // For inline code or plain text that somehow got wrapped in a pre tag
+        // For inline code or plain text that somehow got wrapped in a pre tag,
+        // or if the structure isn't as expected.
         return (
           <div className="group relative">
             <pre className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-3 rounded font-mono text-sm break-words whitespace-pre-wrap my-4">
@@ -204,7 +211,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     },
     // Restore custom 'code' component override for inline code (to fix regression)
     code: (codeProps: ComponentProps<'code'>) => {
-      const { children, className, ...rest } = codeProps;
+      const { children, className, ...rest } = codeProps; // Destructure className, don't use _
       return (
         <code className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-1 sm:px-1.5 py-0.5 rounded font-medium text-sm break-words whitespace-normal align-middle" {...rest}>
           {children}

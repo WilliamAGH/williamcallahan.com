@@ -1,5 +1,5 @@
 // components/features/blog/blog-article/blog-article.tsx
-+'use client';
+"use client";
 
 /**
  * Blog Article Component
