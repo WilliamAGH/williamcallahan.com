@@ -21,9 +21,7 @@ import remarkGfm from 'remark-gfm';
 import rehypePrismPlus from 'rehype-prism-plus';
 import rehypeSlug from 'rehype-slug';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
-// Removing unused imports
-// import type { MDXRemoteProps } from 'next-mdx-remote';
-// Removed unused type imports: Plugin, Root
+// Pluggable import removed as it's no longer used directly
 import { authors } from '../../data/blog/authors';
 import type { BlogPost } from '../../types/blog';
 // Removing unused import
@@ -35,8 +33,7 @@ const POSTS_DIRECTORY = path.join(process.cwd(), 'data/blog/posts');
 // Cache for processed MDX posts
 const postCache = new Map<string, { post: BlogPost | null; lastModified: string }>();
 
-// Removed type alias: RehypePlugin
-// serverComponents was unused
+// Removed unused type definitions
 
 /**
  * Converts a date string or Date object to a Pacific Time ISO string
@@ -68,7 +65,6 @@ function sanitizeCoverImage(
   console.warn(`[sanitizeCoverImage] Invalid coverImage frontmatter for slug "${contextSlug}" (file: ${contextFilePath}): Not a non-empty string. Received:`, coverImageValue);
   return undefined;
 }
-
 
 /**
  * Retrieves and processes a single MDX blog post.
@@ -129,8 +125,9 @@ export async function getMDXPost(
     const { data: frontmatter, content } = matter(fileContents) as unknown as { data: FrontmatterData; content: string };
 
     // Validate frontmatter slug consistency
-    if (!frontmatter.slug || typeof frontmatter.slug !== 'string' || frontmatter.slug.trim() === '' || frontmatter.slug.trim() !== frontmatterSlug) {
-      console.warn(`[getMDXPost] Mismatch or invalid slug in frontmatter for file ${filePathForPost}. Expected "${frontmatterSlug}", got "${frontmatter.slug}". Skipping.`);
+    const normalizedParam = frontmatterSlug.trim();
+    if (!frontmatter.slug || typeof frontmatter.slug !== 'string' || frontmatter.slug.trim() === '' || frontmatter.slug.trim() !== normalizedParam) {
+      console.warn(`[getMDXPost] Mismatch or invalid slug in frontmatter for file ${filePathForPost}. Expected "${normalizedParam}", got "${frontmatter.slug}". Skipping.`);
       return null;
     }
 
@@ -155,16 +152,17 @@ export async function getMDXPost(
           [remarkGfm, { singleTilde: false, breaks: true }]
         ],
         rehypePlugins: [
-          rehypeSlug as any, // Using 'as any' for these due to complex plugin type signatures
+          rehypeSlug,
           [rehypeAutolinkHeadings, {
             properties: {
               className: ['anchor'],
               ariaLabel: 'Link to section'
             },
             behavior: 'append'
-          }] as any,
-          [rehypePrismPlus, { ignoreMissing: true }] as any
-        ],
+          }],
+          [rehypePrismPlus, { ignoreMissing: true }]
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Using any due to complex type conflicts with unified plugin versions
+        ] as any[],
         format: 'mdx'
       },
       scope: {},

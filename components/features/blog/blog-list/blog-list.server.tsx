@@ -12,7 +12,6 @@
 
 import type { BlogPost } from '@/types/blog';
 import { BlogCard } from './blog-card';
-import type { ServerComponent } from '@/types/component-types';
 
 /**
  * Props for the BlogListServer component
@@ -29,7 +28,7 @@ interface BlogListServerProps {
  * This component pre-renders on the server for fast initial loading
  *
  * @param {BlogListServerProps} props - Component props
- * @returns {Promise<JSX.Element>} Server-rendered blog post grid
+ * @returns {JSX.Element} Server-rendered blog post grid
  */
 export function BlogListServer({ posts }: BlogListServerProps): JSX.Element {
   return (
