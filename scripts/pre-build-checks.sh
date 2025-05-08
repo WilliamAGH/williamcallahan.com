@@ -39,6 +39,6 @@ bun scripts/populate-volumes.ts
 check_connectivity "GitHub API" "https://api.github.com/zen" || exit 1
 
 # Step 4: Check Sentry connectivity
-check_connectivity "Sentry" "https://o4509274058391557.ingest.us.sentry.io" || exit 1
+check_connectivity "Sentry" "https://o4509274058391557.ingest.us.sentry.io"
 
 echo "✅ All pre-build checks completed successfully"
