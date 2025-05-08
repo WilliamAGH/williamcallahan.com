@@ -8,12 +8,12 @@
 let isSilent = false;
 
 export const logger = {
-  warn: (...args: any[]) => {
+  warn: (...args: unknown[]) => {
     if (!isSilent) {
       console.warn(...args);
     }
   },
-  error: (...args: any[]) => {
+  error: (...args: unknown[]) => {
     if (!isSilent) {
       console.error(...args);
     }
