@@ -15,8 +15,8 @@ import { ensureAbsoluteUrl } from "../../../lib/seo/utils";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "../../../lib/seo/metadata";
 
 interface BlogPostPageProps {
-  // params is awaited in generateMetadata and the page component, so it's the resolved value
-  params: { slug: string };
+  // params might be a Promise due to instrumentation and needs to be awaited.
+  params: Promise<{ slug: string }>;
 }
 
 /**
@@ -75,7 +75,7 @@ const SOFTWARE_DETAILS: Record<string, {
  */
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   // params is already resolved here by Next.js
-  const { slug } = params;
+  const { slug } = await params;
   // Use getPostBySlug which handles finding the post correctly using the canonical frontmatter slug
   const post = await getPostBySlug(slug);
 
@@ -168,7 +168,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
  */
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   // params is already resolved here by Next.js
-  const { slug } = params;
+  const { slug } = await params;
 
   try {
     // Use getPostBySlug which handles finding the post correctly using the canonical frontmatter slug

@@ -10,6 +10,8 @@
 
 import { useState, useEffect, useRef, useCallback, isValidElement, ReactNode } from 'react'; // Import useEffect, useRef, useCallback, isValidElement, ReactNode
 import type { ComponentProps } from 'react';
+// import Prism from 'prismjs'; // Remove Prism import
+// import 'prismjs/themes/prism-tomorrow.css'; // Remove Prism theme import if it was added here
 import { CopyButton } from './copy-button.client';
 import { cn } from '../../../lib/utils';
 import { WindowControls } from '../navigation/window-controls';
@@ -25,6 +27,8 @@ export interface CodeBlockProps extends ComponentProps<'pre'> {
   children: React.ReactNode;
   /** Optional className override */
   className?: string;
+  /** If true, indicates the CodeBlock is embedded within another tabbed MacOSFrame, influencing its chrome */
+  embeddedInTabFrame?: boolean;
 }
 
 /**
@@ -80,8 +84,9 @@ const getTextContent = (node: ReactNode): string => {
  * @param {CodeBlockProps} props - The component props
  * @returns {JSX.Element} A code block with copy functionality
  */
-export const CodeBlock = ({ children, className, ...props }: CodeBlockProps): JSX.Element => {
+export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...props }: CodeBlockProps): JSX.Element => {
   const language = extractLanguage(className);
+  // const codeElementRef = useRef<HTMLElement>(null); // Remove ref
 
   // Add state for interactive behavior
   const [isVisible, setIsVisible] = useState(true);
@@ -141,6 +146,13 @@ export const CodeBlock = ({ children, className, ...props }: CodeBlockProps): JS
     };
   }, [isMaximized, handleMaximize]); // Dependencies
 
+  // Effect for Prism highlighting when children is a string
+  /*useEffect(() => {
+    if (typeof children === 'string' && codeElementRef.current) {
+      Prism.highlightElement(codeElementRef.current);
+    }
+  }, [children, language]);*/ // Remove useEffect
+
   // Extract the text content
   const content = Array.isArray(children)
     ? children.map(getTextContent).join('')
@@ -151,25 +163,40 @@ export const CodeBlock = ({ children, className, ...props }: CodeBlockProps): JS
 
   // Return early if code block is closed
   if (!isVisible) {
+    // This section defines the appearance when the block is "closed" by its own controls
+    // It should still respect embeddedInTabFrame for its overall container style if applicable,
+    // though typically it won't be closed if it's embedded and frameless.
+    // For simplicity, we'll assume if embeddedInTabFrame, it won't use its own close/minimize.
+    // Or, if it does, the "closed" bar needs to be styled consistently.
+    // Let's assume for now that embeddedInTabFrame means it relies on parent controls.
+    // If an embedded block needs its own independent close, this part would need thought.
     return (
       <div className="relative group overflow-hidden my-6 w-full flex justify-center">
-        <div className="relative max-w-full w-full shadow-md" style={{
+        <div className={cn(
+          "relative max-w-full w-full",
+          !embeddedInTabFrame && "shadow-md"
+        )} style={{
           overflow: 'hidden',
-          borderRadius: '8px'
+          borderRadius: embeddedInTabFrame ? '0px' : '8px'
         }}>
           <div className={cn(
             "flex items-center bg-[#1a2a35] border border-gray-700/50 rounded-lg cursor-pointer",
-            "px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 md:py-1.5" // Reduced height
+            "px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 md:py-1.5"
           )} onClick={handleClose}>
-            <WindowControls
-              onClose={handleClose}
-              onMinimize={handleMinimize}
-              onMaximize={handleMaximize}
-              size={controlSize}
-            />
-            <div className="ml-1.5 sm:ml-2.5 md:ml-3.5 text-[8px] sm:text-[10px] md:text-xs text-gray-400">
+            {!embeddedInTabFrame && ( // Only show controls if not embedded and relying on parent
+              <WindowControls
+                onClose={handleClose}
+                onMinimize={handleMinimize}
+                onMaximize={handleMaximize}
+                size={controlSize}
+              />
+            )}
+            <div className={cn(
+                "text-[8px] sm:text-[10px] md:text-xs text-gray-400",
+                embeddedInTabFrame ? "w-full text-center" : "ml-1.5 sm:ml-2.5 md:ml-3.5"
+            )}>
               <span>Code block hidden (click to show)</span>
-              {language && <span className="ml-1 sm:ml-2 opacity-75">- {language}</span>}
+              {language && !embeddedInTabFrame && <span className="ml-1 sm:ml-2 opacity-75">- {language}</span>}
             </div>
           </div>
         </div>
@@ -179,64 +206,70 @@ export const CodeBlock = ({ children, className, ...props }: CodeBlockProps): JS
 
   return (
     <div className={cn(
-      "relative my-6 w-full",
-      // When maximized, this outer div becomes the fixed positioning wrapper
-      isMaximized && "fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 sm:p-8"
+      "relative w-full",
+      !embeddedInTabFrame && "my-6", // Outer margin only if not embedded
+      isMaximized && !embeddedInTabFrame && "fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 sm:p-8" // Maximize whole screen only if not embedded
     )}>
-      {/* This inner div is the actual window content, assign the ref here */}
       <div ref={windowRef} className={cn(
-        "max-w-full w-full bg-[#f5f2f0] dark:bg-[#282a36] rounded-lg shadow-md overflow-hidden",
-        // Styles for the inner div when maximized
-        isMaximized && "w-full max-w-[95vw] sm:max-w-5xl max-h-[90vh] sm:max-h-[80vh] flex flex-col"
+        "max-w-full w-full overflow-hidden",
+        !embeddedInTabFrame ? "bg-[#f5f2f0] dark:bg-[#282a36] rounded-lg shadow-md" : "!bg-transparent !shadow-none !border-0 !rounded-none",
+        isMaximized && !embeddedInTabFrame && "w-full max-w-[95vw] sm:max-w-5xl max-h-[90vh] sm:max-h-[80vh] flex flex-col"
       )}>
-        {/* Header */}
-        <div className="flex items-center bg-[#1a2a35] dark:bg-[#1a1b26] px-3 py-1.5 rounded-t-lg">
-          <WindowControls
-            onClose={handleClose}
-            onMinimize={handleMinimize}
-            onMaximize={handleMaximize}
-            size={controlSize}
-          />
-          {language && (
-            <div className="ml-auto flex-shrink min-w-0 px-1.5 py-0.5 text-[8px] sm:text-xs font-mono rounded-md bg-gray-600/70 text-gray-300 uppercase truncate"> {/* Allow shrinking and truncate */}
-              {language}
-            </div>
-          )}
-        </div>
+        {/* Header: Rendered differently based on embeddedInTabFrame */}
+        {!embeddedInTabFrame ? (
+          // Full header for standalone CodeBlock
+          <div className="flex items-center bg-[#1a2a35] dark:bg-[#1a1b26] px-3 py-1.5 rounded-t-lg">
+            <WindowControls
+              onClose={handleClose}
+              onMinimize={handleMinimize}
+              onMaximize={handleMaximize}
+              size={controlSize}
+              isMaximized={isMaximized}
+            />
+            {language && (
+              <div className="ml-auto flex-shrink min-w-0 px-1.5 py-0.5 text-[8px] sm:text-xs font-mono rounded-md bg-gray-600/70 text-gray-300 uppercase truncate">
+                {language}
+              </div>
+            )}
+          </div>
+        ) : (
+          // Minimal or no header for embedded CodeBlock, primarily for CopyButton positioning context
+          // The parent div for <pre> and <CopyButton> is already "relative group"
+          // So CopyButton will position itself correctly relative to that.
+          // We don't need a visible header bar here if embedded.
+          null // Or an empty div if CopyButton needed a specific height container: <div className="h-8"></div>
+        )}
 
-        {/* Content */}
+        {/* Content (pre + CopyButton) */}
+        {/* Ensure this div is present and `relative group` for CopyButton positioning */}
         {!isMinimized && (
-          <div className={cn("relative", isMaximized && "flex-1 overflow-hidden")}>
+          <div className={cn("relative group", isMaximized && !embeddedInTabFrame && "flex-1 overflow-hidden")}>
             <pre
               className={cn(
-                'not-prose max-w-full overflow-x-auto p-4',
-                'text-gray-900 dark:text-gray-100 text-[13px]',
+                'not-prose max-w-full overflow-x-auto',
+                embeddedInTabFrame ? '!p-0 !m-0 !bg-transparent !border-0 !rounded-none' : 'p-4 text-gray-900 dark:text-gray-100',
+                'text-[13px]',
                 'custom-scrollbar',
                 '![text-shadow:none] [&_*]:![text-shadow:none]',
+                // Children of pre (like <code>) should be transparent to show pre's bg or parent's bg
+                // This is especially important if pre itself is transparent when embedded
                 '[&_*]:!bg-transparent',
-                isMaximized && 'overflow-auto max-h-full',
-                className
+                isMaximized && !embeddedInTabFrame && 'overflow-auto max-h-full',
+                className // From MDX (e.g., language-bash)
               )}
               {...props}
             >
-              {children}
+              {typeof children === 'string' ? (
+                <code className={className}>{children}</code>
+              ) : (
+                children
+              )}
             </pre>
+            {/* CopyButton is always rendered. It uses group-hover on the parent div. */}
             <CopyButton content={filteredContent} />
           </div>
         )}
       </div>
-
-      {/* Backdrop - Renders only when maximized, but click logic is now handled by the useEffect */}
-      {/* We keep a basic backdrop for visual effect if desired, or remove if the effect handles it */}
-      {/*
-      {isMaximized && (
-        <div
-          className="absolute inset-0 -z-10 bg-transparent" // Make it transparent, click handled by effect
-          aria-hidden="true"
-        />
-      )}
-      */}
-      {/* The useEffect now handles the click outside logic */}
     </div>
   );
 };

@@ -8,10 +8,10 @@
  */
 
 "use client";
-import type { ComponentProps, ReactNode } from 'react';
+import type { ComponentProps, ReactNode, ReactElement } from 'react';
 import { MDXRemote } from 'next-mdx-remote';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
-import Image from 'next/image';
+// import Image from 'next/image';
 import Link from 'next/link'; // Import Next.js Link
 import { MDXCodeBlock } from '../../../ui/code-block/mdx-code-block.server';
 import FinancialMetrics from '../../../ui/financial-metrics.server';
@@ -26,11 +26,14 @@ import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
 import { Base64Image } from '@/components/utils/base64-image.client';
 import { ResponsiveTable } from '../../../ui/responsive-table.client'; // Import the new component
 import React, { isValidElement } from 'react';
+import { InstructionMacOSFrameTabs, InstructionMACOSTab } from '../../../ui/instruction-macos-frame-tabs.client';
+import { ShellParentTabs, ShellTab } from '../../../ui/shell-parent-tabs.client';
+import { MacOSWindow, MacOSCodeWindow } from '../../../ui/macos-window.client';
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {
   caption?: string;
   size?: 'full' | 'medium' | 'small';
-  priority?: boolean; // Add priority prop here
+  priority?: boolean;
 }
 
 const MdxImage = ({
@@ -38,31 +41,11 @@ const MdxImage = ({
   alt = '',
   caption,
   size = 'full',
-  priority, // Destructure priority here
-  ...props
+  priority = false
 }: ArticleImageProps) => {
   if (!src) return null;
 
-  const isCoverImage = src === props.title;
   const isDataUrl = src.startsWith('data:');
-
-  if (isCoverImage) {
-    return (
-      <div className="mt-4 mb-6">
-        <Image
-          src={src}
-          alt={alt}
-          priority
-          width={1600}
-          height={800}
-          className="rounded-lg mx-auto shadow-md"
-          unoptimized={src.endsWith('.svg') || isDataUrl}
-          sizes="(max-width: 768px) 100vw, 1600px"
-          style={{ width: '100%', height: 'auto' }} // Maintain aspect ratio
-        />
-      </div>
-    );
-  }
 
   let widthClass = 'max-w-4xl';
   let imageSizes = "(max-width: 1024px) 100vw, 896px";
@@ -75,15 +58,13 @@ const MdxImage = ({
     imageSizes = "(max-width: 640px) 100vw, 512px";
   }
 
-  // Determine wrapper class based on size prop for ImageWindow
   const windowWrapperClass = cn(
-    'mx-auto', // Remove my-6, keep centering
+    'mx-auto',
     size === 'full' ? 'max-w-4xl' : '',
     size === 'medium' ? 'max-w-2xl' : '',
     size === 'small' ? 'max-w-lg' : ''
   );
 
-  // Special handling for data: URLs
   if (isDataUrl) {
     return (
       <>
@@ -111,15 +92,14 @@ const MdxImage = ({
       <ImageWindow
         src={src}
         alt={alt}
-        width={1600} // Pass original intended dimensions
+        width={1600}
         height={800}
         sizes={imageSizes}
-        priority={priority || src.endsWith('.svg')} // Always prioritize SVGs
-        unoptimized={src.endsWith('.svg')} // Only skip optimization for SVGs now
+        priority={priority || src.endsWith('.svg')}
+        unoptimized={src.endsWith('.svg')}
         wrapperClassName={windowWrapperClass}
-        noMargin={Boolean(caption)} // Use noMargin when we have a caption to avoid margin conflicts
-        style={{ width: '100%', height: 'auto' }} // Ensure auto height to maintain aspect ratio
-        // Pass any other relevant ImageProps via ...props if needed
+        noMargin={Boolean(caption)}
+        style={{ width: '100%', height: 'auto' }}
       />
       {caption && (
         <figcaption className={`text-base text-gray-600 dark:text-gray-400 italic text-center mt-2 mb-6 px-4 ${widthClass} mx-auto`}>
@@ -202,11 +182,22 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
         );
       }
 
-      // Regular code blocks with language specification
+      const parentIsTabs = isValidElement(props.children) && (
+        (props.children.props as Record<string, unknown>)?.__IS_MACOS_FRAME_TAB ||
+        (props.children.props as Record<string, unknown>)?.__IS_SHELL_TAB
+      );
+
+      if (parentIsTabs) {
+        const childElement = props.children as ReactElement;
+        const childProps = childElement.props as { className?: string };
+        return <MDXCodeBlock {...props} embeddedInTabFrame={true} className={childProps.className} />;
+      }
+
+      // For standalone code blocks, wrap with MacOSCodeWindow
       return (
-        <div className="not-prose">
+        <MacOSCodeWindow>
           <MDXCodeBlock {...props} />
-        </div>
+        </MacOSCodeWindow>
       );
     },
     // Restore custom 'code' component override for inline code (to fix regression)
@@ -228,7 +219,15 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     ArticleImage: MdxImage,
     BackgroundInfo,
     CollapseDropdown,
-    SoftwareSchema, // Add SoftwareSchema to components
+    ExternalLink,
+    InstructionToggleTabs: InstructionMacOSFrameTabs,
+    InstructionTab: InstructionMACOSTab,
+    ShellParentTabs,
+    ShellTab,
+    MacOSWindow,
+    MacOSCodeWindow,
+    MDXCodeBlock,
+    SoftwareSchema,
     // Custom anchor tag renderer
     a: (props: ComponentProps<'a'>) => {
       const { href, children, ...rest } = props;
@@ -267,19 +266,19 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
       <h3 className="text-xl font-bold mt-8 md:mt-10 mb-3 md:mb-4 pt-2 md:pt-3 text-gray-900 dark:text-white leading-tight" {...props} />
     ),
     p: (props: ComponentProps<'p'>) => (
-      <p className="my-3 text-gray-700 dark:text-gray-300 leading-relaxed" {...props} />
+      <p className="my-3 text-gray-700 dark:text-gray-300 leading-relaxed text-base" {...props} />
     ),
     ul: (props: ComponentProps<'ul'>) => (
-      <ul className="my-3 pl-6 list-disc text-gray-700 dark:text-gray-300" {...props} />
+      <ul className="my-3 pl-6 list-disc text-gray-700 dark:text-gray-300 text-base" {...props} />
     ),
     ol: (props: ComponentProps<'ol'>) => (
-      <ol className="my-3 pl-6 list-decimal text-gray-700 dark:text-gray-300" {...props} />
+      <ol className="my-3 pl-6 list-decimal text-gray-700 dark:text-gray-300 text-base" {...props} />
     ),
     li: (props: ComponentProps<'li'>) => (
-      <li className="my-1 pl-1 text-gray-700 dark:text-gray-300" {...props} />
+      <li className="my-1 pl-1 text-gray-700 dark:text-gray-300 text-base" {...props} />
     ),
     blockquote: (props: ComponentProps<'blockquote'>) => (
-      <blockquote className="my-3 pl-4 border-l-4 border-blue-500 dark:border-blue-400 italic text-gray-700 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 py-3 px-4 rounded-r-md shadow-sm" {...props} />
+      <blockquote className="my-3 pl-4 border-l-4 border-blue-500 dark:border-blue-400 italic text-gray-700 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 py-3 px-4 rounded-r-md shadow-sm text-base" {...props} />
     ),
     hr: (props: ComponentProps<'hr'>) => (
       <hr className="hidden" {...props} />
@@ -300,16 +299,17 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
   };
 
   return (
-    // Use base prose for mobile, scale up to prose-lg on medium screens+
+    // Use base prose for mobile, maintain consistent text size
     <article
       ref={contentRef}
       className={cn(
-        "prose dark:prose-invert md:prose-lg mx-auto",
+        "prose dark:prose-invert mx-auto",
         "prose-headings:text-gray-900 dark:prose-headings:text-white",
         "prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300",
-        "prose-p:my-3 prose-p:break-words",
+        "prose-p:my-3 prose-p:break-words prose-p:text-base",
         "prose-img:rounded-lg prose-img:shadow-md",
         "prose-hr:hidden",
+        "prose-li:text-base",
         "blog-content" // Keep existing class if needed
       )}
     >

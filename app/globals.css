@@ -356,6 +356,7 @@ pre, pre *, code[class*="language-"], code[class*="language-"] * {
     word-break: break-word; /* For Firefox */
     -webkit-hyphens: auto;
     hyphens: auto;
+    font-size: 16px; /* Ensure consistent paragraph font size */
   }
 
   /* Force code blocks to wrap properly */
