@@ -195,3 +195,10 @@ export const LOGO_SIZES = {
  * @default 10 pixels
  */
 export const MAX_SIZE_DIFF = 10;
+
+/**
+ * Key for storing the theme timestamp in localStorage
+ * @constant
+ * @type {string}
+ */
+export const THEME_TIMESTAMP_KEY = "theme-timestamp";

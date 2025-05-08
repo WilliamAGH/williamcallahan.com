@@ -9,8 +9,8 @@
 import { useTheme } from "next-themes";
 import { Sun, Moon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { THEME_TIMESTAMP_KEY } from "@/lib/constants";
 
-const THEME_TIMESTAMP_KEY = "theme-timestamp";
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 export function ThemeToggle() {
@@ -52,6 +52,7 @@ export function ThemeToggle() {
       if (isDevelopment) {
         console.error("[ThemeDev] ThemeToggle: Error setting theme timestamp in localStorage.", error);
       }
+      // Consider setting a fallback indicator or using an alternative storage method
     }
   };
 
