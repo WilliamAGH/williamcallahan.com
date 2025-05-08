@@ -16,8 +16,8 @@ describe('formatMultiple', () => {
   });
 
   it('handles undefined/null', () => {
-    expect(formatMultiple(undefined as any)).toBe('N/A');
-    expect(formatMultiple(null as any)).toBe('N/A');
+    expect(formatMultiple(undefined)).toBe('N/A');
+    expect(formatMultiple(null)).toBe('N/A');
   });
 });
 
@@ -29,8 +29,8 @@ describe('formatPercentage', () => {
   });
 
   it('handles undefined/null', () => {
-    expect(formatPercentage(undefined as any)).toBe('N/A');
-    expect(formatPercentage(null as any)).toBe('N/A');
+    expect(formatPercentage(undefined)).toBe('N/A');
+    expect(formatPercentage(null)).toBe('N/A');
   });
 });
 
@@ -38,9 +38,8 @@ describe('formatDate', () => {
   // Mock timezone to ensure consistent behavior
   const realDate = global.Date;
   beforeAll(() => {
-    const constantDate = new Date('2024-03-14T12:00:00Z');
     global.Date = class extends realDate {
-      constructor(date: any) {
+      constructor(date?: number | string | Date) {
         super(date || '2024-03-14T12:00:00Z');
       }
     } as DateConstructor;
