@@ -1,9 +1,9 @@
 // types/global/matchers.d.ts
 import type { TestingLibraryMatchers } from '@testing-library/jest-dom/matchers';
-import type { Matchers } from 'bun:test';
+import type { Matchers } from 'bun:test'; // eslint-disable-line @typescript-eslint/no-unused-vars
 
 declare namespace Jest {
-  interface Matchers<R, T = unknown> {
+  interface Matchers<R, T = unknown> { // eslint-disable-line @typescript-eslint/no-unused-vars
     advanceTimersByTime(ms: number): void;
     useFakeTimers(): void;
     useRealTimers(): void;
@@ -18,7 +18,7 @@ declare global {
     useRealTimers(): void;
   };
   // Must be var for React compatibility
-   
+
   let IS_REACT_ACT_ENVIRONMENT: boolean;
 }
 

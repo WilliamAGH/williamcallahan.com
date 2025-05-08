@@ -13,7 +13,7 @@ import type { UnifiedBookmark } from '../types/bookmark';
 import type { GitHubActivityApiResponse } from '../types/github'; // Added GitHubActivityApiResponse
 import { assertServerOnly } from './utils/ensure-server-only';
 
-assertServerOnly('lib/server-cache.ts');
+assertServerOnly();
 
 /**
  * Logo validation result from the server
