@@ -9,8 +9,8 @@
 
 import * as React from "react";
 import { ThemeProvider as NextThemesProvider, useTheme, type ThemeProviderProps } from "next-themes";
+import { THEME_TIMESTAMP_KEY } from "@/lib/constants";
 
-const THEME_TIMESTAMP_KEY = "theme-timestamp";
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -68,8 +68,7 @@ function ThemeExpiryHandler({ storageKey }: { storageKey?: string }) {
       // Decide if we should try to revert to system theme if localStorage fails
       // setTheme("system"); // This might be too aggressive but could prevent blank page
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setTheme, actualStorageKey]);
+  }, [setTheme, actualStorageKey, resolvedTheme]);
 
   return null;
 }
