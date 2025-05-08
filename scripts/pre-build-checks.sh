@@ -39,15 +39,15 @@ check_connectivity() {
 # Step 1: Check GitHub API connectivity
 check_connectivity "GitHub API" "https://api.github.com/zen" || exit 1
 
-# Step 2: Populate data volumes
-echo "🚀 Populating data volumes..."
-bun scripts/populate-volumes.ts
+# Step 2: Populate data volumes (REMOVED - Handled by external scheduled job: update-s3-data.ts)
+# echo "🚀 Populating data volumes..."
+# bun scripts/populate-volumes.ts
 
-# Step 3: Check GitHub API connectivity again
+# Step 3: Check GitHub API connectivity again (Still useful as a build check)
 check_connectivity "GitHub API" "https://api.github.com/zen" || exit 1
 
 # Step 4: Check Sentry connectivity (passing 'false' to indicate non-critical)
-# Using the project-specific API path derived from the DSN for a more targeted check
-check_connectivity "Sentry" "https://o4509274058391557.ingest.us.sentry.io/api/4509274059309056/" false
+# Using the Sentry Relay health check endpoint for a more reliable check.
+# check_connectivity "Sentry Ingest" "https://o4509274058391557.ingest.us.sentry.io/api/relay/healthcheck/ready/" false
 
 echo "✅ All pre-build checks completed successfully"

@@ -27,13 +27,14 @@ export function ServerMDXCodeBlock(props: PreProps) {
     'whitespace-pre-wrap',
     'custom-scrollbar',
     'p-4',
+    'language-*', // Add this so PrismJS styles apply properly
     // No rounded borders or margin here to ensure proper alignment
     'border-t-0'
   );
 
   // Define classes for the wrapping DIV
   const wrapperClasses = cn(
-    'relative group'
+    'relative group w-full'
     // No border, rounded corners handled by CodeBlock on client hydration
   );
 
@@ -42,7 +43,7 @@ export function ServerMDXCodeBlock(props: PreProps) {
     // The full styling will be applied when CodeBlock hydrates
     <div className={wrapperClasses}>
       {/* Merge incoming className (from rehypePrism) with default pre classes */}
-      <pre className={cn(preClasses, className)} {...rest}>
+      <pre className={cn(preClasses, className)} {...rest} style={{ width: '100%' }}>
         {children}
       </pre>
     </div>
@@ -53,8 +54,8 @@ export function ServerMDXCodeBlock(props: PreProps) {
  * Client component that gets hydrated with the CodeBlock component
  * This prevents the useState error during MDX serialization
  */
-export function MDXCodeBlock(props: PreProps) {
-  const { children, className, ...rest } = props;
+export function MDXCodeBlock(props: PreProps & { embeddedInTabFrame?: boolean }) {
+  const { children, className, embeddedInTabFrame, ...rest } = props;
   const codeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,8 +73,8 @@ export function MDXCodeBlock(props: PreProps) {
   }, []);
 
   return (
-    <div ref={codeRef} data-mdx-code className="group">
-      <CodeBlock className={className} {...rest}>
+    <div ref={codeRef} data-mdx-code className="group w-full">
+      <CodeBlock className={className} embeddedInTabFrame={embeddedInTabFrame} {...rest}>
         {children}
       </CodeBlock>
     </div>

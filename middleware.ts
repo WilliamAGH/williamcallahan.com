@@ -50,6 +50,14 @@ function getRealIp(request: NextRequest): string {
  * @returns The modified response with added headers
  */
 export function middleware(request: NextRequest): NextResponse {
+  const { pathname } = request.nextUrl;
+
+  // If the request is for a .map file, let Next.js handle it directly
+  // without applying our custom headers or logic.
+  if (pathname.endsWith('.map')) {
+    return NextResponse.next(); // Pass through without modifications
+  }
+
   const response = NextResponse.next()
   const ip = getRealIp(request)
 

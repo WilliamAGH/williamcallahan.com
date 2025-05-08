@@ -26,6 +26,15 @@ export interface GitHubActivityApiResponse {
   dataComplete?: boolean; // Indicates if all repositories' stats were successfully retrieved
   error?: string; // Error message if fetching failed
   details?: string; // Additional error details
+  summaryDetails?: { // Details used for generating the summary file
+    totalRepositoriesContributedTo: number;
+    linesOfCodeByCategory: {
+      frontend: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
+      backend: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
+      dataEngineer: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
+      other: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
+    };
+  };
 }
 
 /**
