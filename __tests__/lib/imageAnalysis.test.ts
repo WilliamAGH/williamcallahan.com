@@ -5,7 +5,9 @@ import {
   invertLogo,
   doesLogoNeedInversion,
   analyzeImage, // Include legacy export for coverage
-  ImageAnalysisError // Import error class
+  ImageAnalysisError, // Import error class
+  type LogoBrightnessAnalysis, // Import the type
+  type LogoInversion // Import the type
 } from "../../lib/imageAnalysis";
 import { VALID_IMAGE_FORMATS } from "../../lib/constants";
 
@@ -103,23 +105,22 @@ describe("Logo Analysis Module", () => {
           height: TEST_DATA.IMAGE_SIZE,
           format: "png",
           hasAlpha
-        } as Metadata),
-        raw: jest.fn().mockReturnThis(),
-        resize: jest.fn().mockReturnThis(),
-        grayscale: jest.fn().mockReturnThis(),
-        toBuffer: jest.fn().mockImplementation(({ resolveWithObject }: { resolveWithObject?: boolean } = {}) => {
-          if (resolveWithObject) {
-            const pixels = new Uint8Array(TEST_DATA.IMAGE_SIZE * TEST_DATA.IMAGE_SIZE);
-            pixels.fill(brightness);
-            return Promise.resolve({
-              data: Buffer.from(pixels),
-              info: { channels: hasAlpha ? 2 : 1 }
-            });
+        } as Metadata) as jest.Mock<() => Promise<Metadata>>,
+        raw: jest.fn().mockReturnThis() as jest.Mock<() => MockedSharp>,
+        resize: jest.fn().mockReturnThis() as jest.Mock<() => MockedSharp>,
+        grayscale: jest.fn().mockReturnThis() as jest.Mock<() => MockedSharp>,
+        toBuffer: jest.fn(
+          (options?: { resolveWithObject?: boolean }): Promise<Buffer | { data: Buffer; info: import("sharp").OutputInfo }> => {
+            if (options?.resolveWithObject) {
+              const pixels = new Uint8Array(TEST_DATA.IMAGE_SIZE * TEST_DATA.IMAGE_SIZE);
+              pixels.fill(brightness);
+              return Promise.resolve({ data: Buffer.from(pixels), info: { channels: hasAlpha ? 2 : 1 } as import("sharp").OutputInfo });
+            }
+            return Promise.resolve(Buffer.from([brightness]));
           }
-          return Promise.resolve(Buffer.from([brightness]));
-        })
+        ) as MockedSharp['toBuffer']
       };
-      return mock;
+      return mock as MockedSharp; // Cast to full MockedSharp if the partial is compatible enough for usage
     });
     return Buffer.from([0]);
   };
@@ -127,17 +128,21 @@ describe("Logo Analysis Module", () => {
   describe("analyzeLogo", () => {
     it('should analyze logo brightness and transparency', async () => {
       const testBuffer = Buffer.from([0]);
-      const result = await analyzeLogo(testBuffer);
+      const result: LogoBrightnessAnalysis = await analyzeLogo(testBuffer);
 
-      expect(result).toEqual({
-        averageBrightness: expect.any(Number),
-        isLightColored: expect.any(Boolean),
-        needsInversionInLightTheme: expect.any(Boolean),
-        needsInversionInDarkTheme: expect.any(Boolean),
-        hasTransparency: expect.any(Boolean),
-        format: 'png',
-        dimensions: { width: 100, height: 100 }
-      });
+      // Assert types individually
+      expect(typeof result.averageBrightness).toBe('number');
+      expect(typeof result.isLightColored).toBe('boolean');
+      expect(typeof result.needsInversionInLightTheme).toBe('boolean');
+      expect(typeof result.needsInversionInDarkTheme).toBe('boolean');
+      expect(typeof result.hasTransparency).toBe('boolean');
+
+      // Assert specific values for other properties
+      expect(result.format).toBe('png');
+      expect(result.dimensions).toEqual({ width: 100, height: 100 });
+      // You can also assert the boolean values if they are deterministic in this test case
+      // For example, if hasTransparency is always true for this mock:
+      expect(result.hasTransparency).toBe(true);
     });
 
     it("should handle invalid logo formats", () => {
@@ -388,18 +393,22 @@ describe("Logo Analysis Module", () => {
   describe("Legacy API Compatibility", () => {
     it("should maintain backwards compatibility with analyzeImage", async () => {
       const testBuffer = createMockImageBuffer(TEST_DATA.LIGHT_PIXEL, true);
-      const result = await analyzeImage(testBuffer);
+      // Assuming analyzeImage is intended to return LogoInversion or a compatible type.
+      // If analyzeImage's signature is `any`, it should be updated.
+      // For now, if the structure matches, an explicit cast can resolve the ESLint error.
+      const result: LogoInversion = (await analyzeImage(testBuffer));
 
-      expect(result).toEqual({
-        brightness: expect.any(Number),
-        needsDarkInversion: expect.any(Boolean),
-        needsLightInversion: expect.any(Boolean),
-        hasTransparency: true,
-        format: "png",
-        dimensions: {
-          width: TEST_DATA.IMAGE_SIZE,
-          height: TEST_DATA.IMAGE_SIZE
-        }
+      // Assert types individually
+      expect(typeof result.brightness).toBe('number');
+      expect(typeof result.needsDarkInversion).toBe('boolean');
+      expect(typeof result.needsLightInversion).toBe('boolean');
+
+      // Assert specific values for other properties
+      expect(result.hasTransparency).toBe(true);
+      expect(result.format).toBe("png");
+      expect(result.dimensions).toEqual({
+        width: TEST_DATA.IMAGE_SIZE,
+        height: TEST_DATA.IMAGE_SIZE
       });
     });
   });

@@ -9,7 +9,15 @@ import { mock, jest, describe, beforeEach, it, expect } from 'bun:test';
 
 // Mock next/link using mock.module
 void mock.module('next/link', () => {
-  const MockLink = ({ children, ...props }: any) => {
+  // Define a more specific type for the mock Link's props
+  type MockLinkProps = {
+    children: React.ReactNode;
+    href: string; // next/link requires href
+    // Include other common Link props if needed for tests, or use a general type
+  } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'>; // Allow other anchor attributes
+
+  const MockLink = ({ children, ...props }: MockLinkProps) => {
+    // The 'props' will include 'href' and any other anchor attributes
     return <a {...props}>{children}</a>;
   };
   MockLink.displayName = 'MockLink';

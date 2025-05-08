@@ -32,19 +32,19 @@ interface BookmarksWindowProps extends ClientBoundaryProps {
    * Content to be displayed within the window
    */
   children: React.ReactNode;
-  
+
   /**
    * Optional slug to display in the title bar
    * Example: "~/tag-name/bookmarks" instead of just "~/bookmarks"
    */
   titleSlug?: string;
-  
+
   /**
    * Optional custom window title to display instead of the default.
    * This overrides the titleSlug if both are provided.
    */
   windowTitle?: string;
-  
+
   /**
    * Optional window ID. If not provided, uses the default 'bookmarks-window'
    */
@@ -66,12 +66,12 @@ const BookmarksWindowContent = dynamic(
     windowTitle?: string;
   }) => {
     const isMaximized = windowState === 'maximized';
-    
+
     // Format the title slug for display
-    const formattedTitle = windowTitle 
+    const formattedTitle = windowTitle
       ? windowTitle // Use explicit window title if provided
-      : (titleSlug 
-          ? `~/${titleSlug}/bookmarks` 
+      : (titleSlug
+          ? `~/${titleSlug}/bookmarks`
           : '~/bookmarks');
 
     return (
@@ -100,7 +100,7 @@ const BookmarksWindowContent = dynamic(
         <div className={cn("h-full", isMaximized ? "overflow-y-auto" : "")}>
           <Suspense fallback={
             <div className="animate-pulse space-y-4 p-6">
-              {[...Array(6)].map((_, i) => (
+              {Array.from({ length: 6 }).map((_, i) => (
                 <div key={`skeleton-${i}`} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
               ))}
             </div>
@@ -125,14 +125,14 @@ const BookmarksWindowContent = dynamic(
  */
 export function BookmarksWindow({ children, titleSlug, windowTitle, windowId }: BookmarksWindowProps) {
   // Generate a unique windowId if a slug is provided
-  const uniqueId = windowId 
+  const uniqueId = windowId
     || (titleSlug ? `bookmarks-${titleSlug}-window` : DEFAULT_BOOKMARKS_WINDOW_ID);
-  
+
   // Add display title for restore button
-  const restoreTitle = titleSlug 
+  const restoreTitle = titleSlug
     ? `Restore ${titleSlug} Bookmarks`
     : 'Restore Bookmarks';
-    
+
   const {
     windowState,
     close: closeWindow,

@@ -33,8 +33,9 @@ const config = tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        project: true,
-        //tsconfigRootDir: import.meta.dirname, // If using project: ["./tsconfig.json"] for example
+        // Explicitly reference the tsconfig.json file instead of using project: true
+        project: ['./tsconfig.json'],
+        // tsconfigRootDir: import.meta.dirname,
       },
     },
   },
@@ -54,7 +55,6 @@ const config = tseslint.config(
     },
     plugins: {
       ...((reactRecommended as any).plugins || {}), // Merge plugins if present
-      react: (reactRecommended as any).plugins?.react, // Ensure react plugin is explicitly named if needed by rules
     },
     settings: {
       react: {
@@ -106,13 +106,13 @@ const config = tseslint.config(
         { "name": "window", "message": "Use only in client components (*.client.tsx) or with proper checks" },
         { "name": "document", "message": "Use only in client components (*.client.tsx) or with proper checks" }
       ],
-      // Disable type-checking rules (off = completely disable)
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-call": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
-      "@typescript-eslint/no-unsafe-argument": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
-      "@typescript-eslint/no-explicit-any": "off",
+      // Type-checking rules set to warn instead of completely disabled
+      "@typescript-eslint/no-unsafe-assignment": "warn",
+      "@typescript-eslint/no-unsafe-call": "warn",
+      "@typescript-eslint/no-unsafe-member-access": "warn",
+      "@typescript-eslint/no-unsafe-argument": "warn",
+      "@typescript-eslint/no-unsafe-return": "warn",
+      "@typescript-eslint/no-explicit-any": "warn",
       // Code quality rules set to warn
       "@typescript-eslint/no-misused-promises": "warn",
       "@typescript-eslint/no-require-imports": "warn",
@@ -163,6 +163,11 @@ const config = tseslint.config(
     rules: {
       "no-restricted-globals": "off",
       "@typescript-eslint/naming-convention": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
     },
   },
   {

@@ -6,7 +6,7 @@ import { jest, spyOn, describe, beforeEach, afterEach, it, expect } from 'bun:te
 describe('CopyButton', () => {
   // Keep the mock function separate
   const mockWriteText = jest.fn<(data: string) => Promise<void>>();
-  let consoleErrorSpy: ReturnType<typeof spyOn>; // Infer type from spyOn
+  let consoleErrorSpy: jest.SpiedFunction<typeof console.error>; // Explicitly type consoleErrorSpy
   // Store the original clipboard descriptor in the test scope
   let originalClipboardDescriptor: PropertyDescriptor | undefined;
 
@@ -38,7 +38,8 @@ describe('CopyButton', () => {
       Object.defineProperty(navigator, 'clipboard', originalClipboardDescriptor);
     } else {
       // If it didn't exist originally, delete the mock property
-      delete (navigator as any).clipboard;
+      // Type assertion to satisfy deletion, acknowledging this is test-specific DOM manipulation
+      delete (navigator as unknown as { clipboard?: unknown }).clipboard;
     }
   });
 

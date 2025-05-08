@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import type { ClientErrorPayload } from '@/types'; // Assuming @/types maps to ./types/index.ts or similar
 
 /**
  * API route to receive and log client-side errors
@@ -9,10 +10,11 @@ import path from 'path';
  */
 export async function POST(request: Request) {
   try {
-    const errorData = await request.json();
+    // Cast the parsed JSON to our defined type
+    const errorData = (await request.json()) as ClientErrorPayload;
 
     // Add server timestamp and request details
-    const enrichedErrorData = {
+    const enrichedErrorData: ClientErrorPayload & { server_timestamp: string; ip: string; user_agent: string } = {
       ...errorData,
       server_timestamp: new Date().toISOString(),
       ip: request.headers.get('x-forwarded-for') || 'unknown',
@@ -42,10 +44,12 @@ export async function POST(request: Request) {
 
     // Format a detailed, highly visible log entry for Docker container logs
     // IMPORTANT: This will show up in Docker container logs
-    const resource = errorData.resource || 'unknown';
-    const errorType = errorData.type || 'unknown';
-    const url = errorData.url || 'unknown';
-    const message = errorData.message || 'No message provided';
+    // Use type checks for safer access to potentially undefined properties
+    const resource = typeof errorData.resource === 'string' ? errorData.resource : 'unknown';
+    const errorType = typeof errorData.type === 'string' ? errorData.type : 'unknown';
+    const url = typeof errorData.url === 'string' ? errorData.url : 'unknown';
+    const message = typeof errorData.message === 'string' ? errorData.message : 'No message provided';
+    const buildId = typeof errorData.buildId === 'string' ? errorData.buildId : 'unknown';
 
     // Create a prominent, easy-to-spot log entry
     console.error('\n==================================================================');
@@ -55,7 +59,7 @@ export async function POST(request: Request) {
     console.error(`RESOURCE: ${resource}`);
     console.error(`URL: ${url}`);
     console.error(`MESSAGE: ${message}`);
-    console.error(`BUILD_ID: ${errorData.buildId || 'unknown'}`);
+    console.error(`BUILD_ID: ${buildId}`);
     console.error('------------------------------------------------------------------');
     console.error('FULL DATA:', JSON.stringify(enrichedErrorData, null, 2));
     console.error('==================================================================\n');
