@@ -49,7 +49,7 @@ export function SocialListClient() {
           ))
         ) : (
           // Render skeleton placeholders during server-side rendering
-          [...Array(5)].map((_, i) => (
+          Array.from({ length: 5 }).map((_, i) => (
             <div key={`skeleton-${i}`} className="relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl h-[400px]" />
           ))
         )}

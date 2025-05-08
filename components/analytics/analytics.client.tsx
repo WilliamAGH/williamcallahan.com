@@ -205,9 +205,9 @@ function AnalyticsScripts() {
       // Add a longer delay to ensure scripts are fully initialized
       const trackingTimeout = setTimeout(() => {
         trackPageview(normalizedPath);
-        // Use type assertion as a workaround for persistent TS error
-        if ((window as any).clicky) {
-          (window as any).clicky.pageview(normalizedPath);
+        // Use the now typed window.clicky
+        if (window.clicky) {
+          window.clicky.pageview(normalizedPath);
         }
       }, 500); // Increased from 100ms to 500ms
 
@@ -233,12 +233,16 @@ function AnalyticsScripts() {
     return null
   }
 
-  let domain;
+  let domain: string;
   try {
+    if (!process.env.NEXT_PUBLIC_SITE_URL) {
+      console.warn('[Analytics] NEXT_PUBLIC_SITE_URL is not defined. Falling back to default domain.');
+      throw new Error("NEXT_PUBLIC_SITE_URL is not defined");
+    }
     domain = new URL(process.env.NEXT_PUBLIC_SITE_URL).hostname;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (e) {
-    // Fallback if URL parsing fails
+    // Fallback if URL parsing fails or env var is missing
     domain = 'williamcallahan.com';
   }
 

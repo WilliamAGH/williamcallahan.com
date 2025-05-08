@@ -1,3 +1,10 @@
+/**
+ * Responsive Table Component
+ *
+ * A client-side component that converts a <table> element into a responsive grid layout.
+ * The table is transformed into a card-based layout on mobile devices, and a grid layout on desktop.
+ */
+
 'use client';
 
 import React, { Children, isValidElement, useMemo } from 'react';
@@ -97,23 +104,47 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
       {rows.map((row, rowIndex) => {
         // Safely convert header to string for regex testing
         const headerToString = (node: ReactNode): string => {
-          if (node === null || node === undefined) return '';
-          if (typeof node === 'string' || typeof node === 'number' || typeof node === 'boolean') return String(node);
-          if (Array.isArray(node)) return node.map(childNode => headerToString(childNode)).join('');
-          if (React.isValidElement(node)) {
-            // Handle elements with no children (e.g. <img />) or void elements
-            // or if children prop is not what we expect for stringification
-            if (!node.props.children) return '';
-            // Ensure we are not trying to stringify objects like {current: ...} from refs etc.
-            if (typeof node.props.children === 'object' && !Array.isArray(node.props.children) && !React.isValidElement(node.props.children)) {
-                return '';
-            }
-            return headerToString(node.props.children);
+          if (node === null || node === undefined) {
+            return '';
           }
-          return ''; // For other object types that are not React elements or arrays
+          if (typeof node === 'string' || typeof node === 'number' || typeof node === 'boolean') {
+            return String(node);
+          }
+          if (Array.isArray(node)) {
+            // Ensure childNode is ReactNode before recursive call
+            return node.map((childNode: ReactNode) => headerToString(childNode)).join('');
+          }
+
+          if (React.isValidElement(node)) {
+            // Cast props to a known shape including children
+            const props = node.props as { children?: ReactNode };
+            const propsChildren = props.children; // Now propsChildren is ReactNode | undefined
+
+            if (propsChildren === null || propsChildren === undefined) {
+              return '';
+            }
+            // Recursively call headerToString with propsChildren, which is ReactNode.
+            // Keep the cast here for safety, although propsChildren should be narrowed.
+            return headerToString(propsChildren as ReactNode);
+          }
+
+          // Handle non-element objects that might have a custom toString
+          // This check should come after React.isValidElement for elements like <>{obj.toString()}</>
+          // Ensure 'node' is not an array or React element here, as those are handled above.
+          if (typeof node === 'object' && node !== null && !Array.isArray(node) && !React.isValidElement(node)) {
+            // Check for a custom toString method that doesn't produce "[object Object]"
+            if (typeof (node as { toString?: () => string }).toString === 'function' && (node as { toString: () => string }).toString() !== '[object Object]') {
+              return (node as { toString: () => string }).toString();
+            }
+            // console.warn('ResponsiveTable: Cannot reliably stringify object in headerToString:', node);
+            return ''; // Or some placeholder like '[Complex Content]'
+          }
+
+          // Fallback for other unhandled types (e.g. functions)
+          return '';
         };
 
-        const programPeriodIndex = headers.findIndex(h => /program period/i.test(headerToString(h)));
+        const programPeriodIndex = headers.findIndex(h => /program period/i.test(headerToString(h ?? '') ?? ''));
         const investmentIndex = headers.findIndex(h => /investment/i.test(headerToString(h)));
         const isEven = rowIndex % 2 === 0;
 
