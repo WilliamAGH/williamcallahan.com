@@ -109,7 +109,7 @@ module.exports = {
     },
   },
   plugins: [
-    require('@tailwindcss/typography'),
+    (await import('@tailwindcss/typography')).default,
   ],
   // Remove the safelist that's causing warnings
   // safelist: [

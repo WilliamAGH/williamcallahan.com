@@ -14,7 +14,8 @@ import { ServerCacheInstance } from '../../../../lib/server-cache';
  * @param {NextRequest} request - Incoming request
  * @returns {NextResponse} API response
  */
-export function POST(request: NextRequest): NextResponse {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function POST(_request: NextRequest): NextResponse {
   try {
     // Clear all caches
     ServerCacheInstance.clearAllLogoFetches();
@@ -38,7 +39,8 @@ export function POST(request: NextRequest): NextResponse {
  * @param {NextRequest} request - Incoming request
  * @returns {Promise<NextResponse>} API response
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function GET(_request: NextRequest): Promise<NextResponse> {
   try {
     // Use Promise.resolve to satisfy require-await rule
     const stats = await Promise.resolve(ServerCacheInstance.getStats());

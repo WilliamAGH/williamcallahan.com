@@ -1,4 +1,3 @@
-
 /**
  * MDX Table Component
  *
@@ -21,7 +20,7 @@ export const MDXTable: React.FC<TableProps> = ({ children, ...props }) => {
   return (
     <div className="my-8 overflow-hidden rounded-xl bg-white/50 dark:bg-gray-800/50 shadow-xl ring-1 ring-black/5 dark:ring-white/5">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <table {...props} className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <colgroup>
             <col className="w-1/2" />
             <col className="w-1/2" />
@@ -35,7 +34,7 @@ export const MDXTable: React.FC<TableProps> = ({ children, ...props }) => {
 
 export const MDXTableHeader: React.FC<TheadProps> = ({ children, ...props }) => {
   return (
-    <thead>
+    <thead {...props}>
       <tr className="bg-gray-50/80 dark:bg-gray-800/80">
         {children}
       </tr>
@@ -45,7 +44,7 @@ export const MDXTableHeader: React.FC<TheadProps> = ({ children, ...props }) => 
 
 export const MDXTableRow: React.FC<TrProps> = ({ children, ...props }) => {
   return (
-    <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 last:border-0">
+    <tr {...props} className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 last:border-0">
       {children}
     </tr>
   );
@@ -53,20 +52,21 @@ export const MDXTableRow: React.FC<TrProps> = ({ children, ...props }) => {
 
 export const MDXTableHeaderCell: React.FC<ThProps> = ({ children, ...props }) => {
   return (
-    <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+    <th scope="col" {...props} className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 ${props.className || ''}`.trim()}>
       {children}
     </th>
   );
 };
 
 export const MDXTableCell: React.FC<TdProps> = ({ children, ...props }) => {
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string
   const content = children?.toString() || '';
   const isNumeric = /^[€$]?\d/.test(content);
   const isNegative = content.includes('-');
   const isPositive = content.includes('+');
 
   return (
-    <td className={`px-6 py-4 text-sm font-medium ${
+    <td {...props} className={`px-6 py-4 text-sm font-medium ${
       isNumeric
         ? `text-right tabular-nums tracking-tight ${
             isNegative
@@ -76,7 +76,7 @@ export const MDXTableCell: React.FC<TdProps> = ({ children, ...props }) => {
                 : 'text-gray-900 dark:text-gray-100'
           }`
         : 'text-left text-gray-600 dark:text-gray-300'
-    }`}>
+    } ${props.className || ''}`.trim()}>
       {isNumeric ? (
         <span className="inline-block min-w-[140px]">{children}</span>
       ) : (

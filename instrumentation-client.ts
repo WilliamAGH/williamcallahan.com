@@ -27,7 +27,7 @@ Sentry.init({
   debug: false,
 
   // Filter out events from localhost in development to prevent console warnings
-  beforeSend(event, hint) {
+  beforeSend(event, _hint) {
     // Check if it's an error event and if we are in development
     if (process.env.NODE_ENV === 'development') {
       // Optionally, you could inspect the event further, e.g., hint.originalException

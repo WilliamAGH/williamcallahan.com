@@ -24,7 +24,6 @@ import { useRegisteredWindowState } from "@/lib/context/global-window-registry-c
 import { GraduationCap, Search, ChevronDown, ChevronUp } from 'lucide-react'; // Import additional icons
 import { cn } from '@/lib/utils'; // Import cn utility
 import { EducationCardClient } from './education-card.client';
-import { CertificationCardClient } from './certification-card.client';
 import type { LogoData } from '../../../lib/education-data-processor';
 
 // Define a unique ID for this window instance

@@ -25,7 +25,7 @@ let placeholderSvgDataUrl: string | null = null;
  * @returns {Promise<string>} Placeholder SVG data URL.
  */
 async function getPlaceholderSvgDataUrl(): Promise<string> {
-  assertServerOnly("getPlaceholderSvgDataUrl"); // Assert server context
+  assertServerOnly(); // Assert server context
   if (!placeholderSvgDataUrl) {
     try {
       // Try multiple possible paths for Docker environment compatibility
@@ -73,7 +73,7 @@ async function getPlaceholderSvgDataUrl(): Promise<string> {
  * @returns {Promise<Education & { logoData: LogoData }>} The item with added logoData.
  */
 export async function processEducationItem<T extends Education>(item: T): Promise<T & { logoData: LogoData }> {
-  assertServerOnly("processEducationItem"); // Assert server context
+  assertServerOnly(); // Assert server context
   const { website, institution, logo } = item;
   let logoData: LogoData;
 
@@ -106,7 +106,7 @@ export async function processEducationItem<T extends Education>(item: T): Promis
  * @returns {Promise<(Certification | Class) & { logoData: LogoData }>} The item with added logoData.
  */
 export async function processCertificationItem<T extends Certification | Class>(item: T): Promise<T & { logoData: LogoData }> {
-  assertServerOnly("processCertificationItem"); // Assert server context
+  assertServerOnly(); // Assert server context
   const { website, name, logo } = item;
   let logoData: LogoData;
 

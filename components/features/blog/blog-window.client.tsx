@@ -12,7 +12,7 @@
  * @clientComponent - This component uses client-side APIs and must be rendered on the client.
  */
 
-import { useEffect, Suspense, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { WindowControls } from '@/components/ui/navigation/window-controls';
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { Newspaper } from 'lucide-react';
@@ -91,7 +91,7 @@ const BlogWindowContent = dynamic(
   }),
   { ssr: false, loading: () => (
     <div className="animate-pulse space-y-4 p-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg max-w-5xl mx-auto mt-8">
-      {[...Array(3)].map((_, i) => (
+      {Array.from({ length: 3 }).map((_, i) => (
         <div key={i} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
       ))}
     </div>

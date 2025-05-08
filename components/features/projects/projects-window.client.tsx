@@ -12,7 +12,7 @@
  * @clientComponent - This component uses client-side APIs and must be rendered on the client.
  */
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, Suspense } from 'react';
 import { WindowControls } from '@/components/ui/navigation/window-controls';
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { FolderKanban } from 'lucide-react';
@@ -74,7 +74,7 @@ const ProjectsWindowContent = dynamic(
         <div className={cn("h-full", isMaximized ? "overflow-y-auto" : "")}>
           <Suspense fallback={
             <div className="animate-pulse space-y-4 p-6">
-              {[...Array(3)].map((_, i) => (
+              {Array.from({ length: 3 }).map((_, i) => (
                 <div key={`skeleton-${i}`} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
               ))}
             </div>

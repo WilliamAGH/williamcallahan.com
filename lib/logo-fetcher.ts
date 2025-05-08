@@ -22,7 +22,7 @@ const IS_BUILD_PHASE = process.env.NEXT_PHASE === 'phase-production-build' ||
 // import path from 'node:path';
 // import { createHash } from 'node:crypto';
 
-assertServerOnly('lib/logo-fetcher.ts');
+assertServerOnly();
 
 // --- All Filesystem Helper Functions (fsGetDomainHash, fsGetLogoPath, fsReadLogoFromDisk, fsWriteLogoToDisk, fsEnsureLogosDirectory) are REMOVED ---
 // --- The filesystemReadyPromise is REMOVED ---

@@ -33,10 +33,10 @@ async function getPlaceholder(): Promise<Buffer> {
  * @returns {Promise<JSX.Element>} Pre-rendered investment card with fetched logo
  */
 export async function InvestmentCard(props: Investment): Promise<JSX.Element> {
-  const { website, name, logo, holding_return } = props;
+  const { website, name, logo, holding_return: holdingReturn } = props;
 
   // Render FinancialMetrics server-side
-  const metricsElement = <FinancialMetrics holding_return={holding_return} />;
+  const metricsElement = <FinancialMetrics holding_return={holdingReturn} />;
 
   try {
     // If logo is provided directly, use it

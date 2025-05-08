@@ -1,7 +1,7 @@
 import { assertServerOnly } from '../utils/ensure-server-only';
 import { formatSeoDate } from '../seo/utils'; // Import the Pacific Time formatter
 
-assertServerOnly('lib/blog/mdx.ts'); // Ensure this module runs only on the server
+assertServerOnly(); // Ensure this module runs only on the server
 
 /**
  * MDX Processing Utilities
@@ -161,7 +161,7 @@ export async function getMDXPost(
             behavior: 'append'
           }],
           [rehypePrismPlus, { ignoreMissing: true }]
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Using any due to complex type conflicts with unified plugin versions
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- rehype plugins type definition requires this cast
         ] as any[],
         format: 'mdx'
       },

@@ -69,7 +69,11 @@ export function useAnchorScrollHandler(): void {
           }
         };
 
-        isFirefox ? setTimeout(scrollFunction, 50) : scrollFunction();
+        if (isFirefox) {
+          setTimeout(scrollFunction, 50);
+        } else {
+          scrollFunction();
+        }
       } catch (error) {
         console.error(`[Anchor Debug] Error scrolling to direct target #${hash}:`, error);
       }

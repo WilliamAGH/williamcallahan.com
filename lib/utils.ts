@@ -22,9 +22,11 @@ export function cn(...inputs: ClassValue[]) {
  * @param {number} value - The multiple value to format
  * @returns {string} Formatted multiple string
  */
-export function formatMultiple(value: number): string {
+export function formatMultiple(value: number | null | undefined): string {
   if (value === 0) return '0x';
-  if (!value) return 'N/A';
+  if (value === null || typeof value === 'undefined' || Number.isNaN(value)) {
+    return 'N/A';
+  }
   return `${value.toFixed(1)}x`;
 }
 
@@ -33,9 +35,11 @@ export function formatMultiple(value: number): string {
  * @param {number} value - The percentage value to format
  * @returns {string} Formatted percentage string
  */
-export function formatPercentage(value: number): string {
+export function formatPercentage(value: number | null | undefined): string {
   if (value === 0) return '0%';
-  if (!value) return 'N/A';
+  if (value === null || typeof value === 'undefined' || Number.isNaN(value)) {
+    return 'N/A';
+  }
   return `${value.toFixed(1)}%`;
 }
 
