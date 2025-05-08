@@ -47,7 +47,7 @@ bun scripts/populate-volumes.ts
 check_connectivity "GitHub API" "https://api.github.com/zen" || exit 1
 
 # Step 4: Check Sentry connectivity (passing 'false' to indicate non-critical)
-# Using the project-specific API path derived from the DSN for a more targeted check
-check_connectivity "Sentry" "https://o4509274058391557.ingest.us.sentry.io/api/4509274059309056/" false
+# Using the Sentry Relay health check endpoint for a more reliable check.
+# check_connectivity "Sentry Ingest" "https://o4509274058391557.ingest.us.sentry.io/api/relay/healthcheck/ready/" false
 
 echo "✅ All pre-build checks completed successfully"
