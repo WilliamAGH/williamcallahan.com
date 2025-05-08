@@ -109,7 +109,8 @@ module.exports = {
     },
   },
   plugins: [
-    (await import('@tailwindcss/typography')).default,
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- Tailwind config is processed as CommonJS; 'require' is used for plugin compatibility and to prevent runtime errors with Tailwind's Jiti/Node.js execution, despite the project (Bun/Next.js 15) largely using ESM.
+    require('@tailwindcss/typography'),
   ],
   // Remove the safelist that's causing warnings
   // safelist: [

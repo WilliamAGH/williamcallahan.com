@@ -22,10 +22,12 @@ import type { Metadata } from 'next';
 export async function generateStaticParams() {
   const bookmarks = await getBookmarksForStaticBuild();
   const tags = bookmarks.flatMap(b =>
-    (Array.isArray(b.tags) ? b.tags : []).map(t => (typeof t === 'string' ? t : t.name))
+    (Array.isArray(b.tags) ? b.tags : []).map((t: string | import('@/types').BookmarkTag) =>
+      typeof t === 'string' ? t : t.name
+    )
   );
   const uniqueSlugs = Array.from(new Set(tags)).map(tag => {
-    // Use the sanitized tag from utility function
+    // tag should now be string
     return sanitizeTagSlug(tag);
   });
   return uniqueSlugs.map(tagSlug => ({ tagSlug }));
@@ -49,8 +51,8 @@ export async function generateMetadata({ params }: { params: { tagSlug: string }
 
   // Look for the exact tag in bookmarks to get proper capitalization
   for (const bookmark of allBookmarks) {
-    const tags = (Array.isArray(bookmark.tags) ? bookmark.tags : []);
-    for (const t of tags) {
+    const bookmarkTags = (Array.isArray(bookmark.tags) ? bookmark.tags : []);
+    for (const t of bookmarkTags) {
       const tagName = typeof t === 'string' ? t : t.name;
       if (tagName.toLowerCase() === tagQuery.toLowerCase()) {
         if (/[A-Z]/.test(tagName.slice(1))) {
@@ -104,7 +106,7 @@ export default async function TagPage({ params }: TagPageProps) {
   const tagQuery = tagSlug.replace(/-/g, ' ');
 
   const filtered = allBookmarks.filter(b => {
-    const names = (Array.isArray(b.tags) ? b.tags : []).map(t =>
+    const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import('@/types').BookmarkTag) =>
       typeof t === 'string' ? t : t.name
     );
     return names.some(n => n.toLowerCase() === tagQuery.toLowerCase());
@@ -115,8 +117,8 @@ export default async function TagPage({ params }: TagPageProps) {
   if (filtered.length > 0) {
     // Loop through filtered bookmarks to find the original tag format
     for (const bookmark of filtered) {
-      const tags = (Array.isArray(bookmark.tags) ? bookmark.tags : []);
-      for (const t of tags) {
+      const bookmarkTags = (Array.isArray(bookmark.tags) ? bookmark.tags : []);
+      for (const t of bookmarkTags) {
         const tagName = typeof t === 'string' ? t : t.name;
         if (tagName.toLowerCase() === tagQuery.toLowerCase()) {
           // Format the tag: preserve if mixed-case (like aVenture or iPhone)

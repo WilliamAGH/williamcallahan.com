@@ -119,12 +119,13 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
                 currentId = idMatch[1];
                 const urlPatterns = [/companyUrl:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g];
                 for (const pattern of urlPatterns) {
-                    let urlMatch;
+                    let urlMatch: RegExpExecArray | null;
                     while ((urlMatch = pattern.exec(block)) !== null) {
-                        if (urlMatch[1]) {
-                            domains.add(urlMatch[1]);
-                            if (!domainToIdMap.has(urlMatch[1]) && currentId) {
-                                domainToIdMap.set(urlMatch[1], currentId);
+                        if (urlMatch && typeof urlMatch[1] === 'string') {
+                            const domain = urlMatch[1];
+                            domains.add(domain);
+                            if (!domainToIdMap.has(domain) && currentId) {
+                                domainToIdMap.set(domain, currentId);
                             }
                         }
                     }
@@ -151,12 +152,13 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
                 currentId = idMatch[1];
                 const urlPatterns = [/institutionUrl:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g];
                 for (const pattern of urlPatterns) {
-                    let urlMatch;
+                    let urlMatch: RegExpExecArray | null;
                     while ((urlMatch = pattern.exec(block)) !== null) {
-                        if (urlMatch[1]) {
-                            domains.add(urlMatch[1]);
-                            if (!domainToIdMap.has(urlMatch[1]) && currentId) {
-                                domainToIdMap.set(urlMatch[1], currentId);
+                        if (urlMatch && typeof urlMatch[1] === 'string') {
+                            const domain = urlMatch[1];
+                            domains.add(domain);
+                            if (!domainToIdMap.has(domain) && currentId) {
+                                domainToIdMap.set(domain, currentId);
                             }
                         }
                     }

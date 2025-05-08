@@ -45,14 +45,25 @@ export interface ArticleDates {
  * Type guard for ArticleDates
  * Ensures all required date fields are present and properly formatted
  */
-export function isArticleDates(dates: any): dates is ArticleDates {
-  return (
-    typeof dates === 'object' &&
-    dates !== null &&
-    isPacificDateString(dates.datePublished) &&
-    isPacificDateString(dates.dateModified) &&
-    (dates.dateCreated === undefined || isPacificDateString(dates.dateCreated))
-  );
+export function isArticleDates(dates: unknown): dates is ArticleDates {
+  // Check if dates is an object and not null first
+  if (typeof dates !== 'object' || dates === null) {
+    return false;
+  }
+
+  // Check if properties exist and are strings before calling isPacificDateString
+  // Use type assertion to Record<string, unknown> for safe property access
+  const dateObj = dates as Record<string, unknown>;
+
+  const hasValidPublished = typeof dateObj.datePublished === 'string' &&
+                           isPacificDateString(dateObj.datePublished);
+  const hasValidModified = typeof dateObj.dateModified === 'string' &&
+                           isPacificDateString(dateObj.dateModified);
+  const hasValidCreated = dateObj.dateCreated === undefined ||
+                          (typeof dateObj.dateCreated === 'string' &&
+                           isPacificDateString(dateObj.dateCreated));
+
+  return hasValidPublished && hasValidModified && hasValidCreated;
 }
 
 /**

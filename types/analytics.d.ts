@@ -1,9 +1,9 @@
 interface UmamiAnalytics {
-  track: (event: string, data?: Record<string, any>) => void
+  track: (event: string, data?: Record<string, unknown>) => void
 }
 
 interface PlausibleAnalytics {
-  (event: string, options?: { props?: Record<string, any> }): void
+  (event: string, options?: { props?: Record<string, unknown> }): void
 }
 
 declare global {

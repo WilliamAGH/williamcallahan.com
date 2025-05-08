@@ -10,6 +10,18 @@ import { kebabCase, deslugify } from '@/lib/utils/formatters';
 // Directory where blog posts are stored
 const postsDirectory = path.join(process.cwd(), 'data/blog/posts');
 
+// Define the expected structure of frontmatter data for this page
+interface PageFrontmatter {
+  title: string;
+  publishedAt: string | Date; // gray-matter can parse dates
+  tags: string[];
+  author: string; // Assuming author in frontmatter is an ID string for this simplified getter
+  excerpt?: string;
+  updatedAt?: string | Date;
+  coverImage?: string;
+  // Add other fields if used from frontmatter by this specific getAllPosts
+}
+
 // Define the primary author based on site metadata
 const primaryAuthor: Author = {
   id: 'william-callahan', // Assuming a fixed ID for the main author
@@ -32,32 +44,37 @@ function getAllPosts(): BlogPost[] {
       .map((filename) => {
         const filePath = path.join(postsDirectory, filename);
         const fileContents = fs.readFileSync(filePath, 'utf8');
-        const { data, content: rawContent } = matter(fileContents);
+        // Cast the frontmatter data to the defined interface, via unknown
+        const { data: frontmatter, content: rawContent } = matter(fileContents) as unknown as {
+          data: PageFrontmatter;
+          content: string;
+        };
         const slug = filename.replace(/\.mdx$/, '');
 
-        // Basic validation
-        if (!data.title || !data.publishedAt || !data.tags || !data.author) {
+        // Basic validation using the typed frontmatter
+        if (!frontmatter.title || !frontmatter.publishedAt || !frontmatter.tags || !frontmatter.author) {
           console.warn(`Skipping post ${filename}: Missing essential frontmatter (title, publishedAt, tags, author)`);
           return null;
         }
 
         // For now, assume all posts use the primaryAuthor
-        // Later, enhance this to map data.author ID to a list of authors if needed
+        // Later, enhance this to map frontmatter.author ID to a list of authors if needed
         const postAuthor = primaryAuthor;
 
         return {
           id: slug, // Use slug as ID for now
           slug,
-          title: data.title,
-          excerpt: data.excerpt || '',
+          title: frontmatter.title, // Now frontmatter.title is string
+          excerpt: frontmatter.excerpt || '', // frontmatter.excerpt is string | undefined
           // Simulate MDXRemoteSerializeResult - not needed for list view
           content: { compiledSource: '', scope: {}, frontmatter: {} },
           rawContent: rawContent,
-          publishedAt: String(data.publishedAt),
-          updatedAt: data.updatedAt ? String(data.updatedAt) : undefined,
+          publishedAt: String(frontmatter.publishedAt), // Convert Date to string if necessary
+          updatedAt: frontmatter.updatedAt ? String(frontmatter.updatedAt) : undefined,
           author: postAuthor, // Assign the determined author object
-          tags: Array.isArray(data.tags) ? data.tags.map((tag: string) => String(tag)) : [],
-          coverImage: data.coverImage || undefined,
+          // Ensure tags is an array of strings
+          tags: Array.isArray(frontmatter.tags) ? frontmatter.tags.map(String) : [],
+          coverImage: frontmatter.coverImage || undefined, // frontmatter.coverImage is string | undefined
         } as BlogPost;
       })
       .filter((post): post is BlogPost => post !== null)
