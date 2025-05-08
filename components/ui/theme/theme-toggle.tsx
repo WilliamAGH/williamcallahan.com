@@ -9,6 +9,9 @@
 import { useTheme } from "next-themes";
 import { Sun, Moon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { THEME_TIMESTAMP_KEY } from "@/lib/constants";
+
+const isDevelopment = process.env.NODE_ENV === 'development';
 
 export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
@@ -34,18 +37,32 @@ export function ThemeToggle() {
   const isDark = resolvedTheme === "dark";
 
   const toggleTheme = () => {
-    // Always explicitly toggle between light and dark, regardless of current theme
-    // This ensures that even if current theme is "system", clicking still gives predictable toggle
-    setTheme(isDark ? "light" : "dark");
+    const newTheme = isDark ? "light" : "dark";
+    if (isDevelopment) {
+      console.log(`[ThemeDev] ThemeToggle: User clicked. Current resolvedTheme: '${resolvedTheme}'.`);
+      console.log(`[ThemeDev] ThemeToggle: ACTION - Setting theme to '${newTheme}'. (User override)`);
+    }
+    setTheme(newTheme);
+    try {
+      localStorage.setItem(THEME_TIMESTAMP_KEY, Date.now().toString());
+      if (isDevelopment) {
+        console.log("[ThemeDev] ThemeToggle: Stored explicit theme choice timestamp.");
+      }
+    } catch (error) {
+      if (isDevelopment) {
+        console.error("[ThemeDev] ThemeToggle: Error setting theme timestamp in localStorage.", error);
+      }
+      // Consider setting a fallback indicator or using an alternative storage method
+    }
   };
 
   return (
     <button
       onClick={toggleTheme}
-      className="group flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 
-      bg-gray-200 dark:bg-gray-700 
-      hover:bg-indigo-100 dark:hover:bg-indigo-900 
-      border border-gray-300 dark:border-gray-600 
+      className="group flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200
+      bg-gray-200 dark:bg-gray-700
+      hover:bg-indigo-100 dark:hover:bg-indigo-900
+      border border-gray-300 dark:border-gray-600
       text-gray-700 dark:text-gray-300
       hover:shadow-md hover:scale-105 active:scale-100"
       aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}

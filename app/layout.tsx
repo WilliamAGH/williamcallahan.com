@@ -41,11 +41,11 @@ import Script from 'next/script';
 
 // Import the new wrapper
 import { PageTransitionWrapper } from '../components/utils/page-transition-wrapper.client';
+import { cn } from "../lib/utils";
 
 /** Load Inter font with Latin subset */
 const inter = Inter({ subsets: ["latin"] });
 
-// lib/blog/mdx.ts collapse-dropdown.client.tsx mdx-content.tsx
 /**
  * Global metadata configuration for the application
  * Follows Next.js 14 metadata standards and handles different environments
@@ -104,9 +104,14 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className="overflow-x-hidden"
+      className={cn("scroll-smooth")}
     >
       <head>
+        <meta name="darkreader-lock" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1"
+        />
         {/* Resource hints for faster initial page load */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

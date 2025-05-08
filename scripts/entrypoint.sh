@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -e # Exit on error for unhandled commands (but not for if/while conditions by default)
 
+echo "🔑 [Entrypoint] Ensuring correct permissions for volume mounts as root..."
+# Ensure these directories exist before chown, especially if they are fresh volume mounts
+mkdir -p /app/data/images/logos /app/data/github-activity /app/data/bookmarks
+
+chown -R nextjs:nodejs /app/data/images/logos
+chown -R nextjs:nodejs /app/data/github-activity
+chown -R nextjs:nodejs /app/data/bookmarks
+echo "✅ [Entrypoint] Permissions set for volume mounts."
+
+
 echo "🔄 Starting volume seeding process..."
 
 # Helper function for seeding
@@ -67,5 +77,10 @@ if [ $CRITICAL_SEEDING_FAILED -ne 0 ]; then
   exit 1
 fi
 
-echo "✅ Volume seeding complete. Starting application..."
-exec "$@"
+echo "✅ [Entrypoint] Volume seeding complete."
+echo "🚀 [Entrypoint] Switching to 'nextjs' user and starting application..."
+
+# If the CMD of the Dockerfile is to be run as nextjs user
+# The "$@" here expands to the CMD specified in the Dockerfile (e.g., ["bun", "server.js"])
+# Ensure su-exec is installed (should be handled by Dockerfile)
+exec su-exec nextjs "$@"
