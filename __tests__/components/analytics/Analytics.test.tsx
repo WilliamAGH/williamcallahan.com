@@ -26,10 +26,20 @@ const loadedScripts: Record<string, boolean> = {};
 
 // Mock next/script using mock.module
 console.log("[MOCK] next/script mock.module registered");
+
+type MockScriptProps = {
+  id: string;
+  onLoad?: () => void;
+  onError?: (error: Error) => void;
+  src?: string; // Added src as it's a common prop, though not used in this mock
+  strategy?: string; // Added strategy, though not used
+  // Add other props if your mock needs to handle them
+};
+
 void mock.module('next/script', () => ({
   __esModule: true,
   // Remove __resetMockState from here
-  default: function Script({ id, onLoad }: any) {
+  default: function Script({ id, onLoad }: MockScriptProps) {
 
     console.log("[MOCK] next/script default export CALLED with id:", id);
     // Only set timeout and call onLoad if not already loaded for this id
