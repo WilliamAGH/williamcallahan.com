@@ -188,7 +188,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
       // Process tags for this bookmark
       const tags = Array.isArray(bookmark.tags) ?
-        bookmark.tags.map(t => typeof t === 'string' ? t : t.name) :
+        bookmark.tags.map((t: string | import('@/types').BookmarkTag) => typeof t === 'string' ? t : t.name) :
         [];
 
       // Update lastModified time for each tag

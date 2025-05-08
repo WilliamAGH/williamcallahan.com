@@ -130,6 +130,14 @@ export interface LogoCache {
   [domain: string]: LogoCacheEntry;
 }
 
+/** Structure for the raw API response when fetching logos */
+export interface LogoApiResponse {
+  url?: string | null; // URL might be missing or null on error
+  error?: string; // Error message if fetch failed server-side
+  source?: LogoSource; // Source might be provided by server
+  inversion?: LogoInversion; // Inversion analysis might be done server-side
+}
+
 /**
  * Logo data passed from server to client components
  * @interface
