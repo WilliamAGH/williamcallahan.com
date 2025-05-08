@@ -7,11 +7,12 @@
  */
 
 import { assertServerOnly } from '../utils/ensure-server-only';
-assertServerOnly('lib/blog/server-search.ts'); // Ensure this module runs only on the server
+assertServerOnly(); // Ensure this module runs only on the server
 
 import { getAllMDXPosts } from './mdx';
-import type { BlogPost } from '@/types/blog';
 import type { SearchResult } from '@/types/search';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import type { BlogPost } from '@/types/blog';
 
 /**
  * Server-side function to filter blog posts based on a query.
@@ -46,7 +47,7 @@ export async function searchBlogPostsServerSide(query: string): Promise<SearchRe
     ].filter(field => typeof field === 'string' && field.length > 0)
       .join(' ')
       .toLowerCase();
-    
+
     // Check if all search terms exist in the combined text
     return searchTerms.every(term => allContentText.includes(term));
   });
