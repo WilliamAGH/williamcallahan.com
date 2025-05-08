@@ -23,7 +23,7 @@ check_connectivity() {
         echo "✅ ${service_name} connectivity check passed"
         return 0
     else
-        echo "❌ ${service_name} connectivity check failed. Check network/DNS."
+        echo "❌ ${service_name} connectivity check failed. Check network/DNS configuration and ensure your firewall allows outbound connections to ${url}."
         return 1
     fi
 }
