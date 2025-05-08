@@ -376,8 +376,8 @@ function createSoftwareApplicationEntity(params: SchemaParams): SoftwareApplicat
   schema.author = params.authors
     ? {
         '@type': 'Person' as const,
-        name: params.authors[0].name,
-        ...(params.authors[0].url && { url: params.authors[0].url })
+        name: params.authors?.[0]?.name || '',
+        ...(params.authors?.[0]?.url ? { url: params.authors?.[0]?.url } : {})
       }
     : { '@id': createIdUrl('/', 'person') };
 

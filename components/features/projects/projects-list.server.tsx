@@ -13,7 +13,6 @@
 import { projects } from '@/data/projects';
 import { ProjectCardServer } from './project-card.server';
 import GitHubActivity from '@/components/features/github/github-activity.client';
-import { ServerComponent } from '@/types/component-types';
 
 /**
  * Props for the ProjectsListServer component
@@ -30,16 +29,13 @@ interface ProjectsListServerProps {
  * This component renders project cards as static HTML for optimal performance
  *
  * @param {ProjectsListServerProps} props - Component props
- * @returns {Promise<JSX.Element>} Server-rendered projects list
+ * @returns {JSX.Element} Server-rendered projects list
  */
-export async function ProjectsListServer({ selectedTag = 'All' }: ProjectsListServerProps): Promise<JSX.Element> {
+export function ProjectsListServer({ selectedTag = 'All' }: ProjectsListServerProps): JSX.Element {
   // Filter projects based on tag
   const filteredProjects = selectedTag === 'All'
     ? projects
     : projects.filter(p => p.tags?.includes(selectedTag));
-
-  // Calculate all unique tags for filter buttons
-  const allTags = ['All', ...Array.from(new Set(projects.flatMap(p => p.tags || []))).sort()];
 
   return (
     <div className="p-6 sm:p-4">

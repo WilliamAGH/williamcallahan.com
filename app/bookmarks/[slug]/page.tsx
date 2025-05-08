@@ -16,6 +16,7 @@ import { getStaticPageMetadata } from '@/lib/seo/metadata';
 import { generateUniqueSlug } from '@/lib/utils/domain-utils';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import type { UnifiedBookmark } from '@/types';
 
 /**
  * Generate static paths for slug pages
@@ -41,7 +42,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const { slug } = paramsResolved;
 
   // Find the bookmark that matches this slug
-  let foundBookmark = null;
+  let foundBookmark: UnifiedBookmark | null = null;
   for (const bookmark of allBookmarks) {
     const bookmarkSlug = generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id);
     if (bookmarkSlug === slug) {
@@ -124,7 +125,7 @@ export default async function BookmarkPage({ params }: BookmarkPageProps) {
   const { slug } = paramsResolved;
 
   // Find the bookmark that matches this slug
-  let foundBookmark = null;
+  let foundBookmark: UnifiedBookmark | null = null;
 
   for (const bookmark of allBookmarks) {
     const bookmarkSlug = generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id);
@@ -140,7 +141,7 @@ export default async function BookmarkPage({ params }: BookmarkPageProps) {
   }
 
   // Create a collection of related bookmarks from the same domain
-  let domainBookmarks = allBookmarks.filter(b => {
+  const domainBookmarks = allBookmarks.filter(b => {
     try {
       const bookmarkUrl = new URL(b.url.startsWith('http') ? b.url : `https://${b.url}`);
       const foundBookmarkUrl = new URL(
@@ -152,11 +153,7 @@ export default async function BookmarkPage({ params }: BookmarkPageProps) {
     }
   });
 
-  // Use consistent header with main bookmarks page
-  const pageTitle = 'Bookmarks';
-  const pageDescription = 'A collection of articles, websites, and resources I\'ve bookmarked for future reference.';
-
-  // Extract domain for display purposes (still needed for JSON-LD)
+  // Extract domain for display purposes (needed for JSON-LD)
   let domainName = '';
   try {
     const url = new URL(foundBookmark.url.startsWith('http') ? foundBookmark.url : `https://${foundBookmark.url}`);

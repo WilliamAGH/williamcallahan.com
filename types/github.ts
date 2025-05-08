@@ -90,3 +90,21 @@ export interface AggregatedWeeklyActivity {
   linesAdded: number;
   linesRemoved: number;
 }
+
+/**
+ * Represents the author of a commit/contribution, typically part of a contributor stats entry.
+ */
+export interface GithubAuthor {
+  login: string;
+  // Add other author fields if available/needed (e.g., id, avatar_url)
+}
+
+/**
+ * Represents an entry for a single contributor's weekly statistics from the GitHub API.
+ */
+export interface GithubContributorStatsEntry {
+  author: GithubAuthor;
+  weeks: RepoRawWeeklyStat[];
+  total?: number; // Total commits for this contributor in this repo
+  // Add other fields if available/needed
+}

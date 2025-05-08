@@ -36,7 +36,7 @@ async function getPlaceholderSvgDataUrl(): Promise<string> {
         '/app/public/images/company-placeholder.svg' // Direct Docker container path
       ];
 
-      let buffer = null;
+      let buffer: Buffer | null = null;
       let loadedPath = '';
 
       // Try each path until we find one that works
@@ -45,6 +45,7 @@ async function getPlaceholderSvgDataUrl(): Promise<string> {
           buffer = await fs.readFile(p);
           loadedPath = p;
           break;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
           // Continue to next path
         }

@@ -9,6 +9,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getBookmarks, getGithubActivity, getLogo, getInvestmentDomainsAndIds, calculateAndStoreAggregatedWeeklyActivity } from '../lib/data-access';
+import type { UnifiedBookmark } from '../types/bookmark';
 
 // CONFIG
 // Default to `false` when the env-var is absent
@@ -70,7 +71,7 @@ async function populateGithubActivityData() {
   }
 }
 
-async function populateLogosData(bookmarks: any[]) {
+async function populateLogosData(bookmarks: UnifiedBookmark[]) {
   console.log('🖼️ Populating logos volume using data-access layer...');
   const domains = new Set<string>();
   const domainToIdMap = new Map<string, string>(); // Still useful for ID mapping if getLogo needs it
@@ -86,8 +87,11 @@ async function populateLogosData(bookmarks: any[]) {
           domains.add(domain);
           if (bookmark.id) domainToIdMap.set(domain, bookmark.id);
         }
-      } catch (e) {
-        if (VERBOSE) console.log(`⚠️ Could not parse URL for logo: ${bookmark.url || 'undefined'}`);
+      } catch (error: unknown) {
+        if (VERBOSE) {
+            const message = error instanceof Error ? error.message : String(error);
+            console.log(`⚠️ Could not parse URL for logo: ${bookmark.url || 'undefined'}. Error: ${message}`);
+        }
       }
     }
   }
@@ -95,7 +99,7 @@ async function populateLogosData(bookmarks: any[]) {
   // 2. Extract domains from investments data (using data-access)
   console.log('🔍 Fetching investment domains via data-access layer...');
   const investmentDomainsMap = await getInvestmentDomainsAndIds();
-  investmentDomainsMap.forEach((id, domain) => {
+  investmentDomainsMap.forEach((id: string, domain: string) => { // Added types for id and domain
     domains.add(domain);
     if (!domainToIdMap.has(domain)) domainToIdMap.set(domain, id);
   });
@@ -109,20 +113,30 @@ async function populateLogosData(bookmarks: any[]) {
     const experienceBlocks = experienceContent.split(/^\s*{\s*(?:"|')id(?:"|'):/m);
     for (let i = 1; i < experienceBlocks.length; i++) {
         const block = experienceBlocks[i];
-        const idMatch = block.match(/^(?:"|')([^"']+)(?:"|')/);
-        if (idMatch) {
-            currentId = idMatch[1];
-            const urlPatterns = [/companyUrl:\s*['"](?:https?:\/\/)?(?:www\.)?([^\/'"]+)['"]/g, /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^\/'"]+)['"]/g, /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^\/'"]+)['"]/g];
-            for (const pattern of urlPatterns) {
-                let urlMatch;
-                while ((urlMatch = pattern.exec(block)) !== null) {
-                    if (urlMatch[1]) { domains.add(urlMatch[1]); if (!domainToIdMap.has(urlMatch[1])) domainToIdMap.set(urlMatch[1], currentId); }
+        if (block) {
+            const idMatch = block.match(/^(?:"|')([^"']+)(?:"|')/);
+            if (idMatch && idMatch[1]) {
+                currentId = idMatch[1];
+                const urlPatterns = [/companyUrl:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g];
+                for (const pattern of urlPatterns) {
+                    let urlMatch;
+                    while ((urlMatch = pattern.exec(block)) !== null) {
+                        if (urlMatch[1]) {
+                            domains.add(urlMatch[1]);
+                            if (!domainToIdMap.has(urlMatch[1]) && currentId) {
+                                domainToIdMap.set(urlMatch[1], currentId);
+                            }
+                        }
+                    }
                 }
             }
         }
     }
     console.log(`📊 Extracted additional domains from experience.ts. Total unique: ${domains.size}`);
-  } catch (e) { console.warn('⚠️ Could not read/parse experience.ts for domains.'); }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`⚠️ Could not read/parse experience.ts for domains. Error: ${message}`);
+  }
 
   // 4. Extract domains from education data (simplified)
    try {
@@ -131,26 +145,36 @@ async function populateLogosData(bookmarks: any[]) {
     const educationBlocks = educationContent.split(/^\s*{\s*(?:"|')id(?:"|'):/m);
     for (let i = 1; i < educationBlocks.length; i++) {
         const block = educationBlocks[i];
-        const idMatch = block.match(/^(?:"|')([^"']+)(?:"|')/);
-        if (idMatch) {
-            currentId = idMatch[1];
-            const urlPatterns = [/institutionUrl:\s*['"](?:https?:\/\/)?(?:www\.)?([^\/'"]+)['"]/g, /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^\/'"]+)['"]/g, /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^\/'"]+)['"]/g];
-            for (const pattern of urlPatterns) {
-                let urlMatch;
-                while ((urlMatch = pattern.exec(block)) !== null) {
-                    if (urlMatch[1]) { domains.add(urlMatch[1]); if (!domainToIdMap.has(urlMatch[1])) domainToIdMap.set(urlMatch[1], currentId); }
+        if (block) {
+            const idMatch = block.match(/^(?:"|')([^"']+)(?:"|')/);
+            if (idMatch && idMatch[1]) {
+                currentId = idMatch[1];
+                const urlPatterns = [/institutionUrl:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g];
+                for (const pattern of urlPatterns) {
+                    let urlMatch;
+                    while ((urlMatch = pattern.exec(block)) !== null) {
+                        if (urlMatch[1]) {
+                            domains.add(urlMatch[1]);
+                            if (!domainToIdMap.has(urlMatch[1]) && currentId) {
+                                domainToIdMap.set(urlMatch[1], currentId);
+                            }
+                        }
+                    }
                 }
             }
         }
     }
     console.log(`📊 Extracted additional domains from education.ts. Total unique: ${domains.size}`);
-  } catch (e) { console.warn('⚠️ Could not read/parse education.ts for domains.'); }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`⚠️ Could not read/parse education.ts for domains. Error: ${message}`);
+  }
 
 
   // 5. Add hardcoded domains
   const KNOWN_DOMAINS = ['creighton.edu', 'unomaha.edu', 'stanford.edu', 'columbia.edu', 'gsb.columbia.edu', 'cfp.net', 'seekinvest.com', 'tsbank.com', 'mutualfirst.com', 'morningstar.com'];
   KNOWN_DOMAINS.forEach(domain => domains.add(domain));
-  console.log(`📊 Added ${KNOWN_DOMAINS.length} hardcoded domains. Total unique domains: ${domains.size}`);
+  console.log(`[Prefetch] Added ${KNOWN_DOMAINS.length} hardcoded domains. Total unique domains for logos: ${domains.size}`);
 
   const domainArray = Array.from(domains);
   let successCount = 0;
@@ -163,9 +187,7 @@ async function populateLogosData(bookmarks: any[]) {
     const promises = batch.map(async (domain) => {
       try {
         // getLogo handles fetching, validation (if possible), and writing to volume.
-        // The baseUrlForValidation might be problematic here if the validation API isn't running.
-        // The getLogo function in data-access.ts should be robust to this.
-        const logoResult = await getLogo(domain, 'http://localhost:3000'); // Placeholder baseUrl
+        const logoResult = await getLogo(domain); // Removed placeholder baseUrl
         if (logoResult && logoResult.buffer) {
           console.log(`✅ Logo processed for ${domain} via data-access (source: ${logoResult.source})`);
           successCount++;
@@ -173,8 +195,9 @@ async function populateLogosData(bookmarks: any[]) {
           console.log(`⚠️ Could not fetch/process logo for ${domain} via data-access.`);
           failureCount++;
         }
-      } catch (e) {
-        console.error(`❌ Error processing logo for ${domain} via data-access:`, (e as Error).message);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`❌ Error processing logo for ${domain} via data-access:`, message);
         failureCount++;
       }
     });
@@ -202,8 +225,9 @@ async function populateAllVolumes() {
     console.log('[Debug] Condition for timestamp check met (NODE_ENV is "development" and CI is not "true"). Attempting timestamp check.');
     console.log(`[Debug] LAST_RUN_SUCCESS_TIMESTAMP_FILE path: ${LAST_RUN_SUCCESS_TIMESTAMP_FILE}`);
     try {
-      const stats = await fs.stat(LAST_RUN_SUCCESS_TIMESTAMP_FILE).catch((err) => {
-        console.log(`[Debug] fs.stat error: ${err.message}. File might not exist or is inaccessible.`);
+      const stats = await fs.stat(LAST_RUN_SUCCESS_TIMESTAMP_FILE).catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        console.log(`[Debug] fs.stat error: ${message}. File might not exist or is inaccessible.`);
         return null;
       });
       if (stats) {
@@ -223,9 +247,10 @@ async function populateAllVolumes() {
       } else {
         console.log('[Debug] fs.stat returned null (or caught error). File stats not available. Proceeding with full run.');
       }
-    } catch (e: any) {
+    } catch (error: unknown) {
       // Ignore errors reading the timestamp file (e.g., if it doesn't exist on first run)
-      console.log(`[Debug] Error during timestamp check logic: ${(e as Error).message}. Proceeding with volume population.`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.log(`[Debug] Error during timestamp check logic: ${errorMessage}. Proceeding with volume population.`);
       console.log('ℹ️ No recent successful run timestamp found, proceeding with volume population.');
     }
   } else {
@@ -249,9 +274,11 @@ async function populateAllVolumes() {
         try {
           await fs.unlink(file);
           console.log(`🗑️ Deleted ${file}`);
-        } catch (err: any) {
-          if (err.code !== 'ENOENT') { // ENOENT means file not found, which is okay
-            console.warn(`⚠️ Could not delete ${file}: ${err.message}`);
+        } catch (err: unknown) {
+          const code = (err as { code?: string })?.code;
+          const message = err instanceof Error ? err.message : String(err);
+          if (code !== 'ENOENT') {
+            console.warn(`⚠️ Could not delete ${file}: ${message}`);
           } else {
             if (VERBOSE) console.log(`ℹ️ File not found, skipping deletion: ${file}`);
           }
@@ -269,9 +296,11 @@ async function populateAllVolumes() {
         } else {
             if (VERBOSE) console.log(`ℹ️ No files found in ${REPO_RAW_WEEKLY_STATS_DIR}, skipping clearing.`);
         }
-      } catch (err: any) {
-        if (err.code !== 'ENOENT') { // ENOENT means directory not found, also okay
-           console.warn(`⚠️ Could not clear contents of ${REPO_RAW_WEEKLY_STATS_DIR}: ${err.message}`);
+      } catch (err: unknown) {
+        const code = (err as { code?: string })?.code;
+        const message = err instanceof Error ? err.message : String(err);
+        if (code !== 'ENOENT') {
+          console.warn(`⚠️ Could not clear contents of ${REPO_RAW_WEEKLY_STATS_DIR}: ${message}`);
         } else {
           if (VERBOSE) console.log(`ℹ️ Directory not found, skipping clearing: ${REPO_RAW_WEEKLY_STATS_DIR}`);
         }
@@ -304,8 +333,9 @@ async function populateAllVolumes() {
       try {
         await fs.writeFile(LAST_RUN_SUCCESS_TIMESTAMP_FILE, new Date().toISOString());
         console.log(`✅ Successfully updated last run timestamp for populate-volumes (Development run).`);
-      } catch (e) {
-        console.warn('⚠️ Could not update last run timestamp file:', e);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn('⚠️ Could not update last run timestamp file:', message);
       }
     } else {
       // In production, CI, or other non-development environments, we don't update the timestamp.
@@ -321,4 +351,4 @@ async function populateAllVolumes() {
 }
 
 // Run the main function
-populateAllVolumes();
+void populateAllVolumes();

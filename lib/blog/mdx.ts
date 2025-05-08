@@ -21,11 +21,11 @@ import remarkGfm from 'remark-gfm';
 import rehypePrismPlus from 'rehype-prism-plus';
 import rehypeSlug from 'rehype-slug';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
-import type { MDXRemoteProps } from 'next-mdx-remote';
-// Removed unused type imports: Plugin, Root
+// Pluggable import removed as it's no longer used directly
 import { authors } from '../../data/blog/authors';
 import type { BlogPost } from '../../types/blog';
-import { ServerMDXCodeBlock } from '../../components/ui/code-block/mdx-code-block.server';
+// Removing unused import
+// import { ServerMDXCodeBlock } from '../../components/ui/code-block/mdx-code-block.server';
 
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), 'data/blog/posts');
@@ -33,15 +33,7 @@ const POSTS_DIRECTORY = path.join(process.cwd(), 'data/blog/posts');
 // Cache for processed MDX posts
 const postCache = new Map<string, { post: BlogPost | null; lastModified: string }>();
 
-// Removed type alias: RehypePlugin
-
-/**
- * MDX components map for server-side rendering
- * These components are used during serialization
- */
-const serverComponents: MDXRemoteProps['components'] = { // Correctly using imported type
-  pre: ServerMDXCodeBlock,
-};
+// Removed unused type definitions
 
 /**
  * Converts a date string or Date object to a Pacific Time ISO string
@@ -74,7 +66,6 @@ function sanitizeCoverImage(
   return undefined;
 }
 
-
 /**
  * Retrieves and processes a single MDX blog post.
  * Prioritizes frontmatter slug for identification and caching.
@@ -100,15 +91,22 @@ export async function getMDXPost(
       // Need stats for lastModified, even with content override
       try {
         stats = await fs.stat(filePathForPost);
-      } catch (statError) {
-         console.warn(`[getMDXPost] Could not stat file ${filePathForPost} even with content override:`, statError);
-         stats = { mtime: new Date(0) } as import('fs').Stats;
+      } catch (_statError) { // Parameter is unused
+         console.warn(`[getMDXPost] Could not stat file ${filePathForPost} even with content override:`, _statError);
+         stats = {
+           mtime: new Date(0),
+           birthtime: new Date(0),
+           birthtimeMs: 0,
+           mtimeMs: 0,
+           // Include all properties that are accessed later in the code
+         } as unknown as import('fs').Stats;
       }
     } else {
       // Stat once; failure means the file is missing or unreadable
       try {
         stats = await fs.stat(filePathForPost);
-      } catch (statError) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (_statError) {
         console.warn(`[getMDXPost] Blog post file not found or unreadable at path ${filePathForPost} (slug: ${frontmatterSlug})`);
         return null;
       }
@@ -124,16 +122,17 @@ export async function getMDXPost(
     }
 
     // Parse frontmatter
-    const { data, content } = matter(fileContents);
+    const { data: frontmatter, content } = matter(fileContents) as unknown as { data: FrontmatterData; content: string };
 
     // Validate frontmatter slug consistency
-    if (!data.slug || typeof data.slug !== 'string' || data.slug.trim() === '' || data.slug.trim() !== frontmatterSlug) {
-      console.warn(`[getMDXPost] Mismatch or invalid slug in frontmatter for file ${filePathForPost}. Expected "${frontmatterSlug}", got "${data.slug}". Skipping.`);
+    const normalizedParam = frontmatterSlug.trim();
+    if (!frontmatter.slug || typeof frontmatter.slug !== 'string' || frontmatter.slug.trim() === '' || frontmatter.slug.trim() !== normalizedParam) {
+      console.warn(`[getMDXPost] Mismatch or invalid slug in frontmatter for file ${filePathForPost}. Expected "${normalizedParam}", got "${frontmatter.slug}". Skipping.`);
       return null;
     }
 
     // Look up author data
-    const authorId = data.author as string;
+    const authorId = frontmatter.author;
     const author = authors[authorId];
     if (!author) {
       console.error(`Author not found: ${authorId} in post with slug "${frontmatterSlug}" (file: ${filePathForPost})`);
@@ -153,16 +152,17 @@ export async function getMDXPost(
           [remarkGfm, { singleTilde: false, breaks: true }]
         ],
         rehypePlugins: [
-          rehypeSlug as any, // Add back 'as any'
-          [rehypeAutolinkHeadings, { // Add back 'as any'
+          rehypeSlug,
+          [rehypeAutolinkHeadings, {
             properties: {
               className: ['anchor'],
               ariaLabel: 'Link to section'
             },
             behavior: 'append'
-          }] as any,
-          [rehypePrismPlus, { ignoreMissing: true }] as any // Add back 'as any'
-        ],
+          }],
+          [rehypePrismPlus, { ignoreMissing: true }]
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Using any due to complex type conflicts with unified plugin versions
+        ] as any[],
         format: 'mdx'
       },
       scope: {},
@@ -171,25 +171,25 @@ export async function getMDXPost(
     });
 
     // Use frontmatter dates, ensuring they are Pacific Time ISO strings
-    const publishedAt = toPacificISOString(data.publishedAt || fileDates.created);
-    const updatedAt = toPacificISOString(data.updatedAt || data.modifiedAt || fileDates.modified);
+    const publishedAt = toPacificISOString(frontmatter.publishedAt || fileDates.created);
+    const updatedAt = toPacificISOString(frontmatter.updatedAt || frontmatter.modifiedAt || fileDates.modified);
 
     // Validate coverImage using helper
-    const coverImage = sanitizeCoverImage(data.coverImage, frontmatterSlug, filePathForPost);
+    const coverImage = sanitizeCoverImage(frontmatter.coverImage, frontmatterSlug, filePathForPost);
 
     // Construct the full blog post object
     const post: BlogPost = {
       id: `mdx-${frontmatterSlug}`,
-      title: data.title,
+      title: frontmatter.title,
       slug: frontmatterSlug,
-      excerpt: data.excerpt,
+      excerpt: frontmatter.excerpt || '',
       content: mdxSource,
       rawContent: content,
       publishedAt,
       updatedAt,
       author,
-      tags: data.tags,
-      ...(data.readingTime !== undefined && { readingTime: data.readingTime }),
+      tags: frontmatter.tags || [],
+      ...(frontmatter.readingTime !== undefined && { readingTime: frontmatter.readingTime }),
       coverImage,
       filePath: filePathForPost
     };
@@ -198,10 +198,24 @@ export async function getMDXPost(
     postCache.set(cacheKey, { post, lastModified });
 
     return post;
-  } catch (error) {
-    console.error(`Error processing post from file ${filePathForPost} (slug: ${frontmatterSlug}):`, error);
+  } catch (e) {
+    const error = e as Error; // Type assertion for error object
+    console.error(`Error processing post from file ${filePathForPost} (slug: ${frontmatterSlug}):`, error.message, error.stack);
     return null;
   }
+}
+
+interface FrontmatterData {
+  slug: string;
+  title: string;
+  author: string;
+  publishedAt?: string | Date;
+  updatedAt?: string | Date;
+  modifiedAt?: string | Date; // Alias for updatedAt
+  excerpt?: string;
+  tags?: string[];
+  readingTime?: number;
+  coverImage?: unknown; // Keep as unknown for sanitizeCoverImage to handle
 }
 
 /**
@@ -225,17 +239,17 @@ export async function getAllMDXPosts(): Promise<BlogPost[]> {
       try {
         const fileContents = await fs.readFile(fullPath, 'utf8');
         // Parse frontmatter just to get the slug
-        const { data } = matter(fileContents);
+        const { data: frontmatter } = matter(fileContents) as unknown as { data: FrontmatterData; content: string };
 
-        if (!data.slug || typeof data.slug !== 'string' || data.slug.trim() === '') {
+        if (!frontmatter.slug || typeof frontmatter.slug !== 'string' || frontmatter.slug.trim() === '') {
           console.warn(`[getAllMDXPosts] MDX file ${fileName} has missing or invalid slug in frontmatter. Skipping.`);
           return null; // Skip this file
         }
-        frontmatterSlug = data.slug.trim();
+        frontmatterSlug = frontmatter.slug.trim();
 
         // Now fully process the post using its frontmatter slug as the identifier,
         // and pass the fullPath and pre-read fileContents.
-        return await getMDXPost(frontmatterSlug!, fullPath, fileContents);
+        return await getMDXPost(frontmatterSlug, fullPath, fileContents);
 
       } catch (fileError) {
         console.error(`[getAllMDXPosts] Error initially processing file ${fileName} (slug: ${frontmatterSlug ?? 'unknown'}):`, fileError);

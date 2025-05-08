@@ -1,13 +1,16 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "target": "ESNext",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
-    "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
@@ -21,15 +24,39 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@/server-components/*": ["./components/server/*"],
-      "@/client-components/*": ["./components/client/*"],
-      "@/shared/*": ["./components/shared/*", "./lib/shared/*"],
-      "@/hooks/*": ["./lib/hooks/*", "./hooks/*"],
-      "@/types/*": ["./types/*"],
-      "@/utils/*": ["./lib/utils/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@/server-components/*": [
+        "./components/server/*"
+      ],
+      "@/client-components/*": [
+        "./components/client/*"
+      ],
+      "@/shared/*": [
+        "./components/shared/*",
+        "./lib/shared/*"
+      ],
+      "@/hooks/*": [
+        "./lib/hooks/*",
+        "./hooks/*"
+      ],
+      "@/types/*": [
+        "./types/*"
+      ],
+      "@/utils/*": [
+        "./lib/utils/*"
+      ]
     },
-    "types": ["bun-types", "jest"]
+    "types": [
+      "bun-types",
+      "jest"
+    ],
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": false,
+    "noUncheckedIndexedAccess": false,
+    "esModuleInterop": true,
+    "noImplicitAny": false
   },
   "include": [
     "next-env.d.ts",
@@ -42,7 +69,10 @@
     "components/**/*",
     "app/**/*",
     "lib/**/*",
-    "types/**/*"
+    "types/**/*",
+    "eslint.config.ts",
+    "instrumentation.ts",
+    "middleware.ts"
   ],
   "exclude": [
     "node_modules",

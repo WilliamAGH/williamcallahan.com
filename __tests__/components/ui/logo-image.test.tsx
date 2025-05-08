@@ -1,41 +1,47 @@
-/* eslint-disable @next/next/no-img-element */
+
 /* eslint-disable @next/next/no-img-element */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { LogoImage } from '../../../components/ui/logo-image.client';
 import { mock, describe, it, expect } from 'bun:test';
-import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
 
 // Note: We are avoiding jest-dom matchers due to potential environment conflicts
 // import { toHaveAttribute } from '@testing-library/jest-dom/matchers';
 // expect.extend({ toHaveAttribute });
 
 // Mock next/image using mock.module
-mock.module('next/image', () => ({
+import type { ImageProps } from 'next/image'; // Import the type
+// import type { StaticImport } from 'next/dist/shared/lib/get-img-props'; // Import StaticImport type
+
+// Define a custom type for the mock that includes the 'fill' prop
+interface MockImageProps extends ImageProps {
+  fill?: boolean;
+}
+
+void mock.module('next/image', () => ({
   __esModule: true,
-  // eslint-disable-next-line @next/next/no-img-element
-  default: ({ src, alt, priority, layout, objectFit, fill, ...props }: any) => { // Explicitly capture 'fill'
+
+  default: ({ src, alt, priority, layout, objectFit, fill, ...restProps }: MockImageProps) => { // Use MockImageProps type
     // Determine layout based on 'fill' prop if 'layout' isn't provided
     const effectiveLayout = layout ?? (fill ? 'fill' : undefined);
-    // Remove 'fill' from props being spread to avoid the warning
-    const { fill: unusedFill, ...restProps } = props; // Renamed _fill to unusedFill
+    // 'fill' is now part of MockImageProps, no need to extract it from restProps
 
     return (
       <img
-        src={src}
+        src={src as string} // Ensure src is string
         alt={alt}
         data-testid="next-image-mock" // Keep test ID for the img itself
         data-layout={effectiveLayout} // Use determined layout
         data-object-fit={objectFit}
         data-priority={priority ? 'true' : undefined}
-        {...restProps} // Spread remaining props (width, height, etc.), excluding 'fill'
+        {...restProps} // Spread remaining props (width, height, etc.)
       />
     );
   },
 }));
 
 // Static import after mocking
-import Image from 'next/image';
+// import Image from 'next/image'; // This import is no longer needed
 
 describe('LogoImage Conditional Rendering', () => {
   const regularUrlProps = {

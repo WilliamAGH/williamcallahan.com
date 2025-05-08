@@ -6,23 +6,40 @@
 
 "use client";
 
+import type { CommandResult, SearchResult } from '@/types/terminal';
+
+// TODO: Move TerminalSearchModule to @/types/terminal.ts
+interface TerminalSearchModule {
+  searchExperience: (terms: string) => Promise<SearchResult[]>;
+  searchEducation: (terms: string) => Promise<SearchResult[]>;
+  searchInvestments: (terms: string) => Promise<SearchResult[]>;
+  searchBookmarks: (terms: string) => Promise<SearchResult[]>;
+}
+
 // Import search functions but allow mocking them in tests
-let searchModule;
+let searchModule: TerminalSearchModule;
 try {
-  searchModule = require('@/lib/search');
-} catch (error) {
+  // Use dynamic import instead of require for better tree-shaking
+  const importedModule = await import('@/lib/search');
+  // Create an adapter that wraps non-promise return values in promises
+  searchModule = {
+    searchExperience: (terms: string) => Promise.resolve(importedModule.searchExperience(terms)),
+    searchEducation: (terms: string) => Promise.resolve(importedModule.searchEducation(terms)),
+    searchInvestments: (terms: string) => Promise.resolve(importedModule.searchInvestments(terms)),
+    searchBookmarks: (terms: string) => importedModule.searchBookmarks(terms), // Already returns a Promise
+  };
+} catch {
   // Fallback for tests
   searchModule = {
-    searchExperience: () => Promise.resolve([]),
-    searchEducation: () => Promise.resolve([]),
-    searchInvestments: () => Promise.resolve([]),
-    searchBookmarks: () => Promise.resolve([])
+    searchExperience: () => Promise.resolve([] as SearchResult[]),
+    searchEducation: () => Promise.resolve([] as SearchResult[]),
+    searchInvestments: () => Promise.resolve([] as SearchResult[]),
+    searchBookmarks: () => Promise.resolve([] as SearchResult[]),
   };
 }
 
 const { searchExperience, searchEducation, searchInvestments, searchBookmarks } = searchModule;
 import { sections, type SectionKey } from './sections';
-import type { CommandResult, SearchResult } from '@/types/terminal';
 // Removed unused usePathname import
 
 export const terminalCommands = {
@@ -78,11 +95,11 @@ function getSchemaOrgData(): string {
     }
 
     // Collect all JSON-LD data from scripts
-    const schemas = Array.from(scripts).map(script => {
+    const schemas: unknown[] = Array.from(scripts).map(script => { // Typed schemas as unknown[]
       try {
-        return JSON.parse(script.textContent || '{}');
-      } catch (err) {
-        return { error: 'Invalid JSON in schema' };
+        return JSON.parse(script.textContent || '{}') as unknown; // Explicitly cast to unknown
+      } catch (_err) { // Renamed err to _err and used it
+        return { error: 'Invalid JSON in schema', details: _err instanceof Error ? _err.message : String(_err) };
       }
     });
 
@@ -122,7 +139,7 @@ export async function handleCommand(input: string): Promise<CommandResult> {
   const [command, ...args] = trimmedInput.split(' ');
 
   // 1. First check for direct commands that take precedence
-  
+
   // Schema.org easter egg command
   if (command === 'schema.org') {
     return {
@@ -152,14 +169,14 @@ export async function handleCommand(input: string): Promise<CommandResult> {
   }
 
   // 2. Check for navigation commands (e.g., "blog")
-  
+
   // Type guard for valid section
   const isValidSection = (section: string): section is SectionKey => {
-    return section in sections;
+    return Object.hasOwn(sections, section);
   };
 
   // Navigation command without args (e.g., "blog")
-  if (isValidSection(command) && args.length === 0) {
+  if (command && isValidSection(command) && args.length === 0) {
     return {
       results: [{
         input: '',
@@ -170,7 +187,7 @@ export async function handleCommand(input: string): Promise<CommandResult> {
   }
 
   // 3. Check for section-specific search (e.g., "blog javafx")
-  if (isValidSection(command) && args.length > 0) {
+  if (command && isValidSection(command) && args.length > 0) {
     const searchTerms = args.join(' ');
     const section = command.charAt(0).toUpperCase() + command.slice(1);
 
@@ -228,16 +245,16 @@ export async function handleCommand(input: string): Promise<CommandResult> {
   }
 
   // 4. If not a direct command or section command, perform site-wide search
-  // IMPORTANT: This now takes precedence over "command not recognized" to fix the multi-word search issue  
+  // IMPORTANT: This now takes precedence over "command not recognized" to fix the multi-word search issue
   const searchTerms = [command, ...args].join(' ');
-  
+
   try {
     // Log search info for debugging
-    console.log('%c[Terminal Search]%c Performing site-wide search', 
+    console.log('%c[Terminal Search]%c Performing site-wide search',
       'color: #4CAF50; font-weight: bold', 'color: inherit');
     console.log('Search terms:', searchTerms);
     console.log('Search URL:', `/api/search/all?q=${encodeURIComponent(searchTerms)}`);
-    
+
     const response = await fetch(`/api/search/all?q=${encodeURIComponent(searchTerms)}`);
     if (!response.ok) {
       throw new Error(`API request failed with status ${response.status}`);
@@ -245,7 +262,7 @@ export async function handleCommand(input: string): Promise<CommandResult> {
     const allResults = await response.json() as SearchResult[];
 
     // Log results for debugging
-    console.log('%c[Terminal Search]%c Results received', 
+    console.log('%c[Terminal Search]%c Results received',
       'color: #4CAF50; font-weight: bold', 'color: inherit');
     console.log(`Found ${allResults.length} results for "${searchTerms}"`);
     if (allResults.length > 0) {

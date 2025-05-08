@@ -95,7 +95,7 @@ export function BookmarkCardClient({
       }
     }
     
-    fetchBookmarks();
+    void fetchBookmarks();
   }, []);
   
   // Reset image error state when URLs change

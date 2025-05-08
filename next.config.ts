@@ -14,11 +14,17 @@
  */
 
 import {withSentryConfig} from '@sentry/nextjs';
+import type { RuleSetRule } from 'webpack'; // Import RuleSetRule type
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 
+/**
+ * @typedef {{ version: string }} PackageJson
+ */
+
 // Get package.json version to use in build ID
+/** @type {PackageJson} */
 const packageJson = JSON.parse(
   readFileSync(resolve('./package.json'), 'utf8')
 );
@@ -32,9 +38,9 @@ const nextConfig = {
    * @param {import('webpack').Configuration} config - Webpack config object
    * @returns {import('webpack').Configuration} Modified webpack config
    */
-  webpack: (config) => {
+  webpack: (config: import('webpack').Configuration) => { // Added type annotation
     // Configure SVG handling, excluding /public directory
-    config.module.rules.push({
+    const svgRule: RuleSetRule = {
       test: /\.svg$/i,
       issuer: /\.(js|ts|jsx|tsx|mdx)$/,
       exclude: /public\//, // Exclude SVGs in the public folder
@@ -44,13 +50,36 @@ const nextConfig = {
           icon: true, // Optional: Treat SVGs as icons
         }
       }]
-    });
+    };
+    // Ensure module and rules exist before pushing
+    if (!config.module) {
+      config.module = { rules: [] };
+    }
+    if (!config.module.rules) {
+      config.module.rules = [];
+    }
+    config.module.rules.push(svgRule);
+
+    // Exclude .d.ts files from being processed by Webpack
+    if (Array.isArray(config.module.rules)) {
+      config.module.rules.push({
+        test: /\.d\.ts$/,
+        exclude: /.*/,
+      });
+    }
 
     // Let default Next.js handle SVGs in /public for next/image
     // Find the default rule that handles images and ensure it still processes SVGs in public
     // (This part is usually handled automatically by Next.js unless overridden)
 
     // Handle node modules in API routes
+    // Ensure resolve and fallback exist before modifying
+    if (!config.resolve) {
+      config.resolve = {};
+    }
+    if (!config.resolve.fallback) {
+      config.resolve.fallback = {};
+    }
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
@@ -70,11 +99,17 @@ const nextConfig = {
     // Externalizing was causing the runtime error in production
 
     // Fix source map issues
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development' && config.optimization?.minimizer) { // Added check for minimizer array
       // Remove the devtool setting that's causing warnings
-      config.optimization.minimizer.forEach((minimizer) => {
-        if (minimizer.constructor.name === 'TerserPlugin') {
-          minimizer.options.sourceMap = true;
+      config.optimization.minimizer.forEach((minimizer: unknown) => { // Added type annotation
+        // Runtime check is still necessary as minimizer is unknown
+        if (typeof minimizer === 'object' && minimizer !== null && minimizer.constructor.name === 'TerserPlugin') {
+          // Explicitly type options to satisfy ESLint/TypeScript
+          const terserOptions = (minimizer as any).options; // Keep 'as any' for flexibility with webpack plugins
+          if (terserOptions && typeof terserOptions === 'object') {
+             // Set sourceMap, assuming it might exist or needs to be added
+            (terserOptions as { sourceMap?: boolean }).sourceMap = true;
+          }
         }
       });
     }
@@ -87,7 +122,7 @@ const nextConfig = {
    * This ensures chunk filenames are identical between deployments
    * Only change this when intentionally refreshing all cached assets
    */
-  generateBuildId: async () => {
+  generateBuildId: () => {
     // Base the build ID on package.json version for consistent hashing
     return `v${packageJson.version}-stable`;
   },
@@ -96,7 +131,7 @@ const nextConfig = {
    * Configure headers for caching and security
    * @returns {Promise<Array<{source: string, headers: Array<{key: string, value: string}>>}
    */
-  headers: async () => [
+  headers: () => [
     {
       source: '/_next/static/:path*',
       headers: [

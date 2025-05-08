@@ -44,7 +44,7 @@ describe('Terminal Commands', () => {
   describe('Basic Commands', () => {
     it('should return help information', async () => {
       const result = await handleCommand('help');
-      expect(result.results?.[0].output).toContain('Available commands:');
+      expect(result.results?.[0]?.output).toContain('Available commands:');
     });
 
     it('should handle clear command', async () => {
@@ -60,7 +60,7 @@ describe('Terminal Commands', () => {
     it('should navigate to valid sections', async () => {
       const result = await handleCommand('blog');
       expect(result.navigation).toBe('/blog');
-      expect(result.results?.[0].output).toBe('Navigating to blog...');
+      expect(result.results?.[0]?.output).toBe('Navigating to blog...');
     });
   });
 
@@ -78,7 +78,7 @@ describe('Terminal Commands', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/search/blog?q=test%20query');
       expect(result.selectionItems).toHaveLength(1);
-      expect(result.results?.[0].output).toContain('Found 1 results in Blog');
+      expect(result.results?.[0]?.output).toContain('Found 1 results in Blog');
     });
 
     it('should handle blog search API failure', async () => {
@@ -86,7 +86,7 @@ describe('Terminal Commands', () => {
 
       const result = await handleCommand('blog test query');
 
-      expect(result.results?.[0].output).toContain('Error searching blog');
+      expect(result.results?.[0]?.output).toContain('Error searching blog');
       expect(console.error).toHaveBeenCalled();
     });
 
@@ -99,7 +99,7 @@ describe('Terminal Commands', () => {
 
       const result = await handleCommand('blog test query');
 
-      expect(result.results?.[0].output).toContain('Error searching blog');
+      expect(result.results?.[0]?.output).toContain('Error searching blog');
       expect(console.error).toHaveBeenCalled();
     });
 
@@ -112,7 +112,7 @@ describe('Terminal Commands', () => {
 
       const result = await handleCommand('blog no-results');
 
-      expect(result.results?.[0].output).toContain('No results found');
+      expect(result.results?.[0]?.output).toContain('No results found');
       expect(result.selectionItems).toBeUndefined();
     });
 
@@ -120,7 +120,7 @@ describe('Terminal Commands', () => {
     // These should use the fallback empty array responses
     it('should execute experience search', async () => {
       const result = await handleCommand('experience test query');
-      expect(result.results?.[0].output).toContain('No results found');
+      expect(result.results?.[0]?.output).toContain('No results found');
     });
   });
 
@@ -139,7 +139,7 @@ describe('Terminal Commands', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/search/all?q=unknown%20command');
       expect(result.selectionItems).toHaveLength(2);
-      expect(result.results?.[0].output).toContain('Found 2 site-wide results');
+      expect(result.results?.[0]?.output).toContain('Found 2 site-wide results');
     });
 
     it('should show not recognized message when no results found', async () => {
@@ -152,7 +152,7 @@ describe('Terminal Commands', () => {
       const result = await handleCommand('unknown command');
 
       expect(fetch).toHaveBeenCalledWith('/api/search/all?q=unknown%20command');
-      expect(result.results?.[0].output).toContain('Command not recognized');
+      expect(result.results?.[0]?.output).toContain('Command not recognized');
       expect(result.selectionItems).toBeUndefined();
     });
 
@@ -161,7 +161,7 @@ describe('Terminal Commands', () => {
 
       const result = await handleCommand('unknown command');
 
-      expect(result.results?.[0].output).toContain('Error during site-wide search');
+      expect(result.results?.[0]?.output).toContain('Error during site-wide search');
       expect(console.error).toHaveBeenCalled();
     });
 
@@ -170,7 +170,7 @@ describe('Terminal Commands', () => {
 
       const result = await handleCommand('unknown command');
 
-      expect(result.results?.[0].output).toContain('An unknown error occurred during the search');
+      expect(result.results?.[0]?.output).toContain('An unknown error occurred during the search');
     });
   });
 });

@@ -6,7 +6,8 @@
 
 "use client";
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext } from 'react';
+import type { ReactNode } from 'react';
 import { useWindowState, type WindowState } from '@/lib/hooks/use-window-state.client';
 
 // Re-export the WindowState type so consumers can use it

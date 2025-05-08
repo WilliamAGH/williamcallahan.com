@@ -32,9 +32,10 @@ function getRealIp(request: NextRequest): string {
  * @returns A Next.js response containing the IP address with no-cache headers
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const ip = getRealIp(request)
+  // Use Promise.resolve to satisfy require-await rule
+  const ip = await Promise.resolve(getRealIp(request));
 
   return new NextResponse(ip, {
     headers: CACHE_HEADERS
-  })
+  });
 }

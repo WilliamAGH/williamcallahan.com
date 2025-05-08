@@ -5,7 +5,6 @@
  */
 
 import { z } from 'zod';
-import type { LucideIcon } from 'lucide-react';
 
 // Runtime validation schema
 export const socialLinkSchema = z.object({

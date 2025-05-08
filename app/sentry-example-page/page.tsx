@@ -20,7 +20,7 @@ export default function Page() {
       const result = await Sentry.diagnoseSdkConnectivity();
       setIsConnected(result !== 'sentry-unreachable');
     }
-    checkConnectivity();
+    void checkConnectivity();
   }, []);
 
   return (
@@ -40,8 +40,8 @@ export default function Page() {
         </h1>
 
         <p className="description">
-          Click the button below, and view the sample error on the Sentry <a target="_blank" rel="noopener" href="https://callahan-sierra.sentry.io/issues/?project=4509274059309056">Issues Page</a>.
-          For more details about setting up Sentry, <a target="_blank" rel="noopener" href="https://docs.sentry.io/platforms/javascript/guides/nextjs/">read our docs</a>.
+          Click the button below, and view the sample error on the Sentry <a target="_blank" rel="noopener noreferrer" href="https://callahan-sierra.sentry.io/issues/?project=4509274059309056">Issues Page</a>.
+          For more details about setting up Sentry, <a target="_blank" rel="noopener noreferrer" href="https://docs.sentry.io/platforms/javascript/guides/nextjs/">read our docs</a>.
         </p>
 
         <button
@@ -70,7 +70,7 @@ export default function Page() {
           </p>
         ) : !isConnected ? (
           <div className="connectivity-error">
-            <p>The Sentry SDK is not able to reach Sentry right now - this may be due to an adblocker. For more information, see <a target="_blank" rel="noopener" href="https://docs.sentry.io/platforms/javascript/guides/nextjs/troubleshooting/#the-sdk-is-not-sending-any-data">the troubleshooting guide</a>.</p>
+            <p>The Sentry SDK is not able to reach Sentry right now - this may be due to an adblocker. For more information, see <a target="_blank" rel="noopener noreferrer" href="https://docs.sentry.io/platforms/javascript/guides/nextjs/troubleshooting/#the-sdk-is-not-sending-any-data">the troubleshooting guide</a>.</p>
           </div>
         ) : (
           <div className="success_placeholder" />

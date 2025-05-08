@@ -22,8 +22,8 @@ RUN bun install --frozen-lockfile
 
 # Rebuild the source code only when needed
 FROM base AS builder
-# Install curl for diagnostic pings
-RUN apk add --no-cache curl
+# Install curl and bash for scripts and diagnostic pings
+RUN apk add --no-cache curl bash
 WORKDIR /app
 
 # Set environment variables for build
@@ -59,34 +59,10 @@ COPY . .
 # CRITICAL STEP: Fill volumes directly BEFORE any server or build processes
 # This ensures all data volumes are properly populated with external data
 # Conditionally skip these steps in Coolify environments
-RUN if [ -n "$COOLIFY_FQDN" ] || \
-       [ -n "$COOLIFY_URL" ] || \
-       [ -n "$COOLIFY_BRANCH" ] || \
-       [ -n "$COOLIFY_RESOURCE_UUID" ] || \
-       [ -n "$COOLIFY_CONTAINER_NAME" ]; then \
-    echo "Coolify environment detected. Skipping GitHub/Sentry pings and populate-volumes.ts script."; \
-else \
-    echo "Not a Coolify environment (or Coolify vars not set), running pre-build steps normally." && \
-    ( \
-        echo "📡 Pinging GitHub API before populating volumes..." && \
-        (curl -L -v --connect-timeout 10 https://api.github.com/zen && echo "GitHub API ping successful") || \
-        (echo "⚠️ GitHub API ping failed before populating volumes. Check network/DNS." && exit 1) \
-    ) && \
-    ( \
-        echo "🚀 Populating all data volumes directly..." && \
-        bun scripts/populate-volumes.ts \
-    ) && \
-    ( \
-        echo "📡 Pinging GitHub API before Next build..." && \
-        (curl -L -v --connect-timeout 10 https://api.github.com/zen && echo "GitHub API ping successful") || \
-        (echo "⚠️ GitHub API ping failed before Next build. Check network/DNS." && exit 1) \
-    ) && \
-    ( \
-        echo "📡 Pinging Sentry before Next build..." && \
-        (curl -L -v --connect-timeout 10 https://o4509274058391557.ingest.us.sentry.io && echo "Sentry ping successful") || \
-        (echo "⚠️ Sentry ping failed before Next build. Check network/DNS." && exit 1) \
-    ); \
-fi
+# Check if running in a Coolify environment
+# Make pre-build script executable and run it
+COPY scripts/pre-build-checks.sh /app/scripts/
+RUN chmod +x /app/scripts/pre-build-checks.sh && /app/scripts/pre-build-checks.sh
 
 # Now build the app
 # The original echo was: # RUN echo "📦 Building the application with populated data volumes..." && bun run build

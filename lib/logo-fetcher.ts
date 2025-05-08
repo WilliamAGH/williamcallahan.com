@@ -73,8 +73,7 @@ export async function fetchLogo(domain: string): Promise<{
       // Use empty string as baseUrl to signal "no network validation"
       // or use API_BASE_URL which is guaranteed to exist in the build context
       const logoResult = await getLogoFromDataAccess(
-        normalizedDomain,
-        process.env.API_BASE_URL || '',
+        normalizedDomain
       );
 
       if (logoResult && logoResult.buffer) {
@@ -87,10 +86,11 @@ export async function fetchLogo(domain: string): Promise<{
         console.warn(`[logo-fetcher] ${error}`);
         return { buffer: null, source: null, error };
       }
-    } catch (error: any) {
-      const errorMessage = `[logo-fetcher] Error accessing logo for ${normalizedDomain} via direct data access: ${error.message}`;
-      console.error(errorMessage, error);
-      return { buffer: null, source: null, error: error.message };
+  } catch (error) {
+    const errorObj = error as Error;
+    const errorMessage = `[logo-fetcher] Error accessing logo for ${normalizedDomain} via direct data access: ${errorObj.message}`;
+    console.error(errorMessage, error);
+    return { buffer: null, source: null, error: errorObj.message };
     }
   }
 
@@ -139,11 +139,12 @@ export async function fetchLogo(domain: string): Promise<{
       ServerCacheInstance.setLogoFetch(normalizedDomain, { url: null, source: null, error });
       return { buffer: null, source: null, error };
     }
-  } catch (error: any) {
-    const errorMessage = `[logo-fetcher] Network error calling /api/logo for ${normalizedDomain}: ${error.message}`;
+  } catch (error) {
+    const errorObj = error as Error;
+    const errorMessage = `[logo-fetcher] Network error calling /api/logo for ${normalizedDomain}: ${errorObj.message}`;
     console.error(errorMessage, error);
     // Don't cache general network errors here as they might be transient.
-    return { buffer: null, source: null, error: error.message };
+    return { buffer: null, source: null, error: errorObj.message };
   }
 }
 

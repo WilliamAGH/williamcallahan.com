@@ -1,8 +1,6 @@
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, waitFor } from '@testing-library/react'
 import { Analytics } from '@/components/analytics/analytics.client'
-import { usePathname } from 'next/navigation'
 import { mock, jest, spyOn, describe, beforeEach, afterEach, it, expect } from 'bun:test'
-import NextScript from 'next/script'
 
 type UmamiMock = {
   track: jest.Mock
@@ -19,20 +17,20 @@ declare global {
 }
 
 // Mock next/navigation using mock.module
-mock.module('next/navigation', () => ({
+void mock.module('next/navigation', () => ({
   usePathname: jest.fn()
-}))
+}));
 
 // Keep track of loaded scripts in the mock scope
 const loadedScripts: Record<string, boolean> = {};
 
 // Mock next/script using mock.module
 console.log("[MOCK] next/script mock.module registered");
-mock.module('next/script', () => ({
+void mock.module('next/script', () => ({
   __esModule: true,
   // Remove __resetMockState from here
-  default: function Script({ id, onLoad, onError }: any) {
-    // eslint-disable-next-line no-console
+  default: function Script({ id, onLoad }: any) {
+
     console.log("[MOCK] next/script default export CALLED with id:", id);
     // Only set timeout and call onLoad if not already loaded for this id
     if (!loadedScripts[id]) {
@@ -45,7 +43,7 @@ mock.module('next/script', () => ({
           });
           global.umami = umamiMock;
           // Debug log to check if the mock is firing and global.umami is being set
-          // eslint-disable-next-line no-console
+
           console.log("[MOCK] global.umami set in next/script mock:", global.umami);
           loadedScripts[id] = true; // Mark as loaded
           onLoad?.();
@@ -138,7 +136,7 @@ describe('Analytics', () => {
     // Wait longer to ensure the mock's setTimeout fires in all environments
     await new Promise(res => setTimeout(res, 200));
     // Debug log to check the value of global.umami before waitFor
-    // eslint-disable-next-line no-console
+
     console.log("[TEST] global.umami before waitFor:", global.umami);
 
     // Explicitly wait for the umami mock to be initialized and available

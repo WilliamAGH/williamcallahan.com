@@ -6,20 +6,45 @@
  */
 
 // import { fetchExternalBookmarks } from '../../lib/bookmarks'; // Import below after mocking
-import { BOOKMARKS_CACHE_DURATION } from '../../lib/constants';
 import { mock, jest, spyOn, describe, beforeEach, afterEach, expect, it } from 'bun:test'; // Use bun:test imports
+import type { UnifiedBookmark, BookmarkContent, BookmarkTag } from '../../types'; // Import bookmark types
+
+// Define interface for mock helpers to avoid 'any' usage
+interface MockHelpers {
+  _mockSetRefreshState: (shouldRefresh: boolean) => void;
+  _mockSetBookmarks: (bookmarks: UnifiedBookmark[]) => void;
+  _mockClearBookmarks: () => void;
+}
+
+// Define proper Mock type for Bun spies
+type Mock<T extends (...args: unknown[]) => unknown> = {
+  (...args: Parameters<T>): ReturnType<T>;
+  mockImplementation: (fn: (...args: Parameters<T>) => ReturnType<T>) => Mock<T>;
+  mockReturnValue: (value: ReturnType<T>) => Mock<T>;
+  mockReset: () => void;
+  mockRestore: () => void;
+  mockClear: () => void;
+  mock: {
+    calls: unknown[][];
+    results: { type: string; value: unknown }[];
+  };
+};
+
+// Type for console methods
+type ConsoleMethod = typeof console.log | typeof console.error;
+type ConsoleSpy = Mock<ConsoleMethod>;
 
 // Explicitly mock assertServerOnly for this test file
-mock.module('../../lib/utils/ensure-server-only', () => ({
+void mock.module('../../lib/utils/ensure-server-only', () => ({
   assertServerOnly: jest.fn(() => undefined)
 }));
 
 // Declare mockHelpers before the server-cache mock
-const mockHelpers: any = {};
+const mockHelpers: MockHelpers = {} as MockHelpers;
 
 // Mock server-cache using mock.module
-mock.module('../../lib/server-cache', () => { // Use mock.module
-  const mockBookmarks: any[] = [];
+void mock.module('../../lib/server-cache', () => { // Use mock.module
+  const mockBookmarks: UnifiedBookmark[] = [];
   let mockShouldRefresh = true;
 
   // Create mock functions using jest.fn()
@@ -30,7 +55,7 @@ mock.module('../../lib/server-cache', () => { // Use mock.module
       lastAttemptedAt: Date.now() - 1000
     } : undefined;
   });
-  const mockSetBookmarks = jest.fn((bookmarks: any[], isFailure = false) => {
+  const mockSetBookmarks = jest.fn((bookmarks: UnifiedBookmark[], isFailure = false) => {
     if (!isFailure) {
       mockBookmarks.splice(0, mockBookmarks.length, ...bookmarks);
     }
@@ -44,7 +69,7 @@ mock.module('../../lib/server-cache', () => { // Use mock.module
   mockHelpers._mockSetRefreshState = (shouldRefresh: boolean) => {
     mockShouldRefresh = shouldRefresh;
   };
-  mockHelpers._mockSetBookmarks = (bookmarks: any[]) => {
+  mockHelpers._mockSetBookmarks = (bookmarks: UnifiedBookmark[]) => {
     mockBookmarks.splice(0, mockBookmarks.length, ...bookmarks);
   };
   mockHelpers._mockClearBookmarks = () => {
@@ -66,33 +91,53 @@ mock.module('../../lib/server-cache', () => { // Use mock.module
 
 // Import fetchExternalBookmarks *after* mocks are set up
 import { fetchExternalBookmarks, fetchExternalBookmarksCached } from '../../lib/bookmarks.client';
-import { ServerCacheInstance } from '../../lib/server-cache'; // Import the mocked instance
-
-// Remove the later assignment of mockHelpers
-// const mockHelpers = ServerCacheInstance as any; // This line is removed
-
-// Remove global fetch mock: global.fetch = jest.fn();
 
 // Spies for console, setup in beforeEach
-let consoleLogSpy: ReturnType<typeof spyOn>;
-let consoleErrorSpy: ReturnType<typeof spyOn>;
+let consoleLogSpy: ConsoleSpy;
+let consoleErrorSpy: ConsoleSpy;
+
+// Simplify our approach - we'll use type assertions more directly but with better structure
+const createMockResponse = (options: {
+  ok: boolean;
+  status?: number;
+  statusText?: string;
+  json?: () => Promise<unknown>;
+  text?: () => Promise<string>;
+}): Response => {
+  // Create a minimal implementation with required fields
+  return {
+    ok: options.ok,
+    status: options.status ?? 200,
+    statusText: options.statusText ?? 'OK',
+    headers: new Headers(),
+    json: options.json ?? (() => Promise.resolve({})),
+    text: options.text ?? (() => Promise.resolve(''))
+  } as Response;
+};
 
 describe('Bookmarks Module', () => {
-  const mockApiResponse = {
+  // Define properly typed API response
+  const mockApiResponse: {
+    bookmarks: UnifiedBookmark[];
+    nextCursor: null;
+  } = {
     bookmarks: [
       {
         id: 'bookmark1',
         createdAt: '2023-01-01T12:00:00Z',
         modifiedAt: '2023-01-01T12:00:00Z',
         title: 'Test Bookmark 1',
+        url: 'https://example.com/article1',
+        description: 'This is a test article description',
         archived: false,
         favourited: true,
         taggingStatus: 'success',
         note: null,
         summary: 'Test summary',
+        dateBookmarked: '2023-01-01T12:00:00Z',
         tags: [
-          { id: 'tag1', name: 'JavaScript', attachedBy: 'user' },
-          { id: 'tag2', name: 'Web Development', attachedBy: 'ai' }
+          { id: 'tag1', name: 'JavaScript', attachedBy: 'user' } as BookmarkTag,
+          { id: 'tag2', name: 'Web Development', attachedBy: 'ai' } as BookmarkTag
         ],
         content: {
           type: 'link',
@@ -103,30 +148,33 @@ describe('Bookmarks Module', () => {
           author: 'John Doe',
           publisher: 'Example Blog',
           datePublished: '2022-12-15T00:00:00Z'
-        },
+        } as BookmarkContent,
         assets: []
       },
       {
         id: 'bookmark2',
         createdAt: '2023-01-02T12:00:00Z',
         modifiedAt: '2023-01-02T12:00:00Z',
-        title: null,
+        title: 'Test Article 2',
+        url: 'https://example.com/article2',
+        description: 'Description placeholder',
         archived: false,
         favourited: false,
         taggingStatus: 'success',
         note: 'My notes',
         summary: null,
+        dateBookmarked: '2023-01-02T12:00:00Z',
         tags: [
-          { id: 'tag3', name: 'React', attachedBy: 'user' }
+          { id: 'tag3', name: 'React', attachedBy: 'user' } as BookmarkTag
         ],
         content: {
           type: 'link',
           url: 'https://example.com/article2',
           title: 'Test Article 2',
-          description: null,
+          description: 'Description placeholder',
           author: null,
           publisher: null
-        },
+        } as BookmarkContent,
         assets: []
       }
     ],
@@ -140,7 +188,6 @@ describe('Bookmarks Module', () => {
     // Reset the cache helpers (if they track state outside the mock module)
     mockHelpers._mockClearBookmarks();
     mockHelpers._mockSetRefreshState(true);
-    // Reset fetch spy if used (fetchSpy.mockReset();)
     // Setup console spies
     consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
     consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
@@ -148,26 +195,18 @@ describe('Bookmarks Module', () => {
 
   afterEach(() => {
     // Restore console spies
-    consoleLogSpy?.mockRestore();
-    consoleErrorSpy?.mockRestore();
-    // Restore fetch spy if created (fetchSpy?.mockRestore();)
+    consoleLogSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
   });
 
   it('should fetch bookmarks from API when cache is empty', async () => {
     // Spy on global fetch for this test
-    const fetchSpy = spyOn(global, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockApiResponse.bookmarks // The API endpoint returns the array directly
-    } as Response); // Cast to Response type
-
-    // Mock getBaseUrl if it's not available in test environment or to ensure consistency
-    // If getBaseUrl() simply returns '', this might not be strictly needed,
-    // but it's good practice if it involves logic (e.g. reading process.env)
-    // For this example, let's assume getBaseUrl() needs to be determinate.
-    // We need to import it first.
-    // import { getBaseUrl } from '../../lib/getBaseUrl';
-    // mock.module('../../lib/getBaseUrl', () => ({ getBaseUrl: () => 'http://localhost:3000' }));
-    // For simplicity here, we'll expect /api/bookmarks
+    const fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      createMockResponse({
+        ok: true,
+        json: () => Promise.resolve(mockApiResponse.bookmarks)
+      })
+    );
 
     const bookmarks = await fetchExternalBookmarks();
 
@@ -180,38 +219,37 @@ describe('Bookmarks Module', () => {
         method: 'GET',
         headers: expect.objectContaining({
           'Accept': 'application/json',
-        }),
+        }) as Record<string, string>,
         cache: 'no-store',
-      })
+      } as RequestInit)
     );
 
     // Verify it returned normalized bookmarks (mockApiResponse.bookmarks is already an array)
+    expect(bookmarks).toBeDefined();
+    expect(Array.isArray(bookmarks)).toBe(true);
     expect(bookmarks.length).toBe(2);
-    expect(bookmarks[0].id).toBe('bookmark1');
-    // The client fetchExternalBookmarks directly returns data, it does not normalize
-    // or prioritize titles in the same way the server-side one did.
-    // So, we expect the title as it is in mockApiResponse.bookmarks[0]
-    expect(bookmarks[0].title).toBe('Test Bookmark 1');
-    expect(bookmarks[0].tags.length).toBe(2);
 
-    // fetchExternalBookmarks from client does NOT call ServerCacheInstance.setBookmarks directly.
-    // fetchExternalBookmarksCached does. So this expectation should be removed or test fetchExternalBookmarksCached.
-    // expect(ServerCacheInstance.setBookmarks).toHaveBeenCalledTimes(1);
-    // expect(ServerCacheInstance.setBookmarks).toHaveBeenCalledWith(
-    //   expect.arrayContaining([
-    //     expect.objectContaining({ id: 'bookmark1' }),
-    //     expect.objectContaining({ id: 'bookmark2' })
-    //   ])
-    // );
+    // If the above assertions pass, bookmarks[0] is safe to access.
+    const firstBookmark = bookmarks[0];
+    expect(firstBookmark).toBeDefined(); // Explicitly assert firstBookmark is defined
+    if (firstBookmark) { // Add a null check for TypeScript
+      expect(firstBookmark.id).toBe('bookmark1');
+      // The client fetchExternalBookmarks directly returns data, it does not normalize
+      // or prioritize titles in the same way the server-side one did.
+      // So, we expect the title as it is in mockApiResponse.bookmarks[0]
+      expect(firstBookmark.title).toBe('Test Bookmark 1');
+      expect(firstBookmark.tags.length).toBe(2);
+    }
+
     fetchSpy.mockRestore(); // Restore fetch spy
   });
 
   it('should return cached bookmarks when available and no refresh needed', async () => {
     // Spy on global fetch to ensure it's NOT called
-    const fetchSpy = spyOn(global, 'fetch');
+    const fetchSpy = spyOn(globalThis, 'fetch');
 
     // Set up mock cached data
-    const cachedBookmarksData: any = [
+    const cachedBookmarksData: UnifiedBookmark[] = [
       {
         id: 'cached1',
         title: 'Cached Bookmark 1',
@@ -219,7 +257,9 @@ describe('Bookmarks Module', () => {
         description: 'Cached description',
         tags: [{ id: 'tag1', name: 'Cached', attachedBy: 'user' }],
         createdAt: '2023-01-01T12:00:00Z',
+        dateBookmarked: '2023-01-01T12:00:00Z',
         content: {
+          type: 'link',
           url: 'https://example.com/cached1',
           title: 'Cached Bookmark 1',
           description: 'Cached description'
@@ -239,8 +279,16 @@ describe('Bookmarks Module', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
 
     // Verify it returned cached bookmarks
+    expect(bookmarks).toBeDefined();
+    expect(Array.isArray(bookmarks)).toBe(true);
     expect(bookmarks.length).toBe(1);
-    expect(bookmarks[0].id).toBe('cached1');
+
+    // If the above assertions pass, bookmarks[0] is safe to access.
+    const firstBookmark = bookmarks[0];
+    expect(firstBookmark).toBeDefined(); // Explicitly assert firstBookmark is defined
+    if (firstBookmark) { // Add a null check for TypeScript
+      expect(firstBookmark.id).toBe('cached1');
+    }
 
     // Verify the logs using the spy
     // fetchExternalBookmarksCached logs 'Client library: Using memory-cached bookmarks (...)'
@@ -250,7 +298,7 @@ describe('Bookmarks Module', () => {
 
   it('should handle missing BOOKMARK_BEARER_TOKEN', async () => {
     // Spy on global fetch to ensure it's NOT called
-    const fetchSpy = spyOn(global, 'fetch');
+    const fetchSpy = spyOn(globalThis, 'fetch');
     // Remove token
     delete process.env.BOOKMARK_BEARER_TOKEN;
 
@@ -272,7 +320,7 @@ describe('Bookmarks Module', () => {
 
   it('should handle API fetch errors', async () => {
     // Spy on global fetch and make it reject
-    const fetchSpy = spyOn(global, 'fetch').mockRejectedValueOnce(new Error('Network error'));
+    const fetchSpy = spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Network error'));
 
     // Clear any cached bookmarks first
     mockHelpers._mockClearBookmarks();
@@ -301,11 +349,14 @@ describe('Bookmarks Module', () => {
     mockHelpers._mockClearBookmarks();
 
     // Spy on global fetch and return error response
-    const fetchSpy = spyOn(global, 'fetch').mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-      text: async () => 'Unauthorized'
-    } as Response); // Cast to Response
+    const fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      createMockResponse({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        text: () => Promise.resolve('Unauthorized')
+      })
+    );
 
     // With no cache, fetchExternalBookmarks will try to fetch and return empty when failed
     const bookmarks = await fetchExternalBookmarks();
@@ -330,27 +381,29 @@ describe('Bookmarks Module', () => {
   it('should handle API response with missing fields', async () => {
     // Spy on global fetch and return minimal data
     // The client implementation expects the API to return an array directly, not an object with a bookmarks property
-    const fetchSpy = spyOn(global, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => [
-        {
-          id: 'minimal',
-          createdAt: '2023-01-01T12:00:00Z',
-          modifiedAt: '2023-01-01T12:00:00Z',
-          title: null,
-          archived: false,
-          favourited: false,
-          taggingStatus: 'success',
-          tags: [],
-          content: {
-            type: 'link',
-            url: 'https://example.com/minimal'
-            // Title and description missing
-          },
-          assets: []
-        }
-      ]
-    } as Response); // Cast to Response
+    const fetchSpy = spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      createMockResponse({
+        ok: true,
+        json: () => Promise.resolve([
+          {
+            id: 'minimal',
+            createdAt: '2023-01-01T12:00:00Z',
+            modifiedAt: '2023-01-01T12:00:00Z',
+            title: null,
+            archived: false,
+            favourited: false,
+            taggingStatus: 'success',
+            tags: [],
+            content: {
+              type: 'link',
+              url: 'https://example.com/minimal'
+              // Title and description missing
+            },
+            assets: []
+          }
+        ])
+      })
+    );
 
     const bookmarks = await fetchExternalBookmarks();
 
@@ -366,10 +419,10 @@ describe('Bookmarks Module', () => {
 
   it.skip('should use cached data while refreshing in background when cache exists but needs refresh', async () => {
     // Spy on global fetch and make it reject for the background refresh
-    const fetchSpy = spyOn(global, 'fetch').mockRejectedValueOnce(new Error('Network error'));
+    const fetchSpy = spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('Network error'));
 
     // Set up mock cached data
-    const cachedBookmarks = [
+    const cachedBookmarks: UnifiedBookmark[] = [
       {
         id: 'cached1',
         title: 'Cached Bookmark 1',
@@ -377,13 +430,15 @@ describe('Bookmarks Module', () => {
         description: 'Cached description',
         tags: [{ id: 'tag1', name: 'Cached', attachedBy: 'user' }],
         createdAt: '2023-01-01T12:00:00Z',
+        dateBookmarked: '2023-01-01T12:00:00Z',
         content: {
+          type: 'link',
           url: 'https://example.com/cached1',
           title: 'Cached Bookmark 1',
           description: 'Cached description'
         }
       }
-    ] as any[];
+    ];
 
     // Populate cache and flag it for refresh
     mockHelpers._mockSetBookmarks(cachedBookmarks);

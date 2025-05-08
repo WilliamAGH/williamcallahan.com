@@ -11,11 +11,15 @@ declare namespace Jest {
 }
 
 declare global {
-  var jest: {
+  // Using let instead of var for global declarations
+  let jest: {
     advanceTimersByTime(ms: number): void;
     useFakeTimers(): void;
     useRealTimers(): void;
   };
+  // Must be var for React compatibility
+   
+  let IS_REACT_ACT_ENVIRONMENT: boolean;
 }
 
 declare module 'bun:test' {

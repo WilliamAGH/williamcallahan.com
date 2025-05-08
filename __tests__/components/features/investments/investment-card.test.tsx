@@ -5,12 +5,18 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { InvestmentCardClient } from '@/components/features/investments/investment-card.client';
-import { mock, jest, describe, it, expect } from 'bun:test';
-import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
+import { mock, describe, it, expect } from 'bun:test';
+
+interface MockExternalLinkProps {
+  children: React.ReactNode;
+  href: string;
+  title: string;
+  className?: string;
+}
 
 // Mock the external link component using mock.module
-mock.module('../../../../components/ui/external-link.client', () => ({
-  ExternalLink: ({ children, href, title, className }: any) => (
+void mock.module('../../../../components/ui/external-link.client', () => ({
+  ExternalLink: ({ children, href, title, className }: MockExternalLinkProps) => (
     <a href={href} title={title} className={className} data-testid="external-link">
       {children}
     </a>
@@ -20,20 +26,17 @@ mock.module('../../../../components/ui/external-link.client', () => ({
 // We don't need to mock the AVenture icon component anymore since we're using an img directly
 
 // Mock the LogoImage component using mock.module
-mock.module('../../../../components/ui', () => ({
+void mock.module('../../../../components/ui', () => ({
   LogoImage: () => <div data-testid="logo-image" />,
 }));
 
 // Mock the FinancialMetrics component using mock.module
-mock.module('../../../../components/ui/financial-metrics.server', () => ({
+void mock.module('../../../../components/ui/financial-metrics.server', () => ({
   __esModule: true,
   default: () => <div data-testid="financial-metrics" />,
 }));
 
-// Import after mocking
-import { ExternalLink } from '../../../../components/ui/external-link.client';
-import { LogoImage } from '../../../../components/ui';
-import FinancialMetrics from '../../../../components/ui/financial-metrics.server';
+// Imports after mocking are not needed as the mocks are used directly by the component under test.
 
 describe('InvestmentCardClient', () => {
   const defaultProps = {

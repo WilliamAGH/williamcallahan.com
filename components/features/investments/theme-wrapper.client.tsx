@@ -11,25 +11,15 @@
 import { useTheme } from "next-themes";
 import type { Investment } from "../../../types/investment";
 import { InvestmentCardClient } from "./investment-card.client";
+import type { ThemeWrapperProps } from "../../../types/investment";
 import type { LogoData } from "../../../types/logo";
-
-/**
- * Props for the ThemeWrapper component
- * @interface
- */
-interface ThemeWrapperProps {
-  /** Investment data to display */
-  investment: Investment;
-  /** Pre-fetched logo data from server */
-  logoData: LogoData;
-}
 
 /**
  * Theme Wrapper Component
  * @param {ThemeWrapperProps} props - Component properties
  * @returns {JSX.Element} Wrapped investment card with theme context
  */
-export function ThemeWrapper({ investment, logoData }: ThemeWrapperProps): JSX.Element {
+export function ThemeWrapper({ investment, logoData, renderedMetrics }: ThemeWrapperProps): JSX.Element {
   const { theme } = useTheme();
   const isDarkTheme = theme === 'dark';
 
@@ -38,6 +28,7 @@ export function ThemeWrapper({ investment, logoData }: ThemeWrapperProps): JSX.E
       {...investment}
       logoData={logoData}
       isDarkTheme={isDarkTheme}
+      renderedMetrics={renderedMetrics}
     />
   );
 }

@@ -13,13 +13,13 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { ServerCacheInstance } from '@/lib/server-cache';
-import type { UnifiedBookmark, GitHubActivityApiResponse, ContributionDay, GitHubGraphQLContributionResponse, LogoSource, RepoWeeklyStatCache, RepoRawWeeklyStat, AggregatedWeeklyActivity } from '@/types'; // Assuming all types are in @/types
+import type { UnifiedBookmark, GitHubActivityApiResponse, ContributionDay, GitHubGraphQLContributionResponse, LogoSource, RepoWeeklyStatCache, RepoRawWeeklyStat, AggregatedWeeklyActivity, GithubContributorStatsEntry, RepoRawWeeklyStat as GithubRepoRawWeeklyStatType } from '@/types'; // Assuming all types are in @/types
 import { LOGO_SOURCES, GENERIC_GLOBE_PATTERNS, LOGO_SIZES } from '@/lib/constants'; // Assuming constants are in @/lib
-import { refreshBookmarksData } from '@/lib/bookmarks.client'; // For external bookmark fetching
 import { graphql } from '@octokit/graphql'; // For GitHub GraphQL
 import * as cheerio from 'cheerio'; // For GitHub scraping fallback
 import sharp from 'sharp';
 import { createHash } from 'node:crypto';
+import { refreshBookmarksData } from '@/lib/bookmarks'; // Added import
 
 // --- Configuration & Constants ---
 /**
@@ -30,7 +30,7 @@ import { createHash } from 'node:crypto';
  */
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || 'WilliamAGH'; // Default fallback if not configured
 const GITHUB_API_TOKEN = process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH;
-const API_FETCH_TIMEOUT_MS = 30000; // 30 second timeout
+// const API_FETCH_TIMEOUT_MS = 30000; // Unused
 const VERBOSE = process.env.VERBOSE === 'true' || false; // Ensure VERBOSE is defined at the module level
 
 // Volume paths
@@ -42,7 +42,7 @@ const GITHUB_ACTIVITY_VOLUME_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'activ
 const LOGOS_VOLUME_DIR = path.join(ROOT_DIR, 'data', 'images', 'logos'); // Primary logo location
 
 // GitHub Activity Data Paths
-const DAILY_CONTRIBUTIONS_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'daily_contribution_counts.json');
+// const DAILY_CONTRIBUTIONS_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'daily_contribution_counts.json'); // Unused
 const REPO_RAW_WEEKLY_STATS_DIR = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'repo_raw_weekly_stats');
 const AGGREGATED_WEEKLY_ACTIVITY_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'aggregated_weekly_activity.json');
 
@@ -56,6 +56,7 @@ async function ensureDirectoryExists(dirPath: string) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-floating-promises
 (async () => {
   try {
     await ensureDirectoryExists(BOOKMARKS_VOLUME_DIR);
@@ -84,9 +85,11 @@ async function readJsonFile<T>(filePath: string): Promise<T | null> {
   try {
     const fileContents = await fs.readFile(filePath, 'utf-8');
     return JSON.parse(fileContents) as T;
-  } catch (error: any) {
-    if (error.code !== 'ENOENT') { // Log errors other than file not found
-      console.warn(`[DataAccess] Error reading JSON file ${filePath}:`, error.message);
+  } catch (error: unknown) {
+    const nodeError = error as NodeJS.ErrnoException; // Type assertion for common properties
+    if (nodeError.code !== 'ENOENT') { // Log errors other than file not found
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[DataAccess] Error reading JSON file ${filePath}:`, message);
     }
     return null;
   }
@@ -105,13 +108,14 @@ async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
     const jsonData = JSON.stringify(data, null, 2);
     await fs.writeFile(tempFilePath, jsonData, 'utf-8');
     await fs.rename(tempFilePath, filePath);
-  } catch (error) {
-    console.error(`[DataAccess] Failed to write JSON file ${filePath}:`, error);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[DataAccess] Failed to write JSON file ${filePath}:`, message);
     // Attempt to clean up temp file if it exists
     try {
       await fs.unlink(tempFilePath);
-    } catch (cleanupError) {
-      // Ignore cleanup error
+    } catch { // Ignore cleanup error
+      // No action needed for cleanup error
     }
   }
 }
@@ -141,9 +145,11 @@ async function processImageBuffer(buffer: Buffer): Promise<{
 async function readBinaryFile(filePath: string): Promise<Buffer | null> {
   try {
     return await fs.readFile(filePath);
-  } catch (error: any) {
-    if (error.code !== 'ENOENT') {
-      console.warn(`[DataAccess] Error reading binary file ${filePath}:`, error.message);
+  } catch (error: unknown) {
+    const nodeError = error as NodeJS.ErrnoException;
+    if (nodeError.code !== 'ENOENT') {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[DataAccess] Error reading binary file ${filePath}:`, message);
     }
     return null;
   }
@@ -167,26 +173,51 @@ async function writeBinaryFile(filePath: string, data: Buffer): Promise<void> {
 // --- Bookmarks Data Access ---
 
 /**
+ * Flag to prevent circular API calls
+ * This is set when we're already in the process of fetching bookmarks
+ * to prevent the API route from calling back into the data access layer
+ */
+// let isBookmarkFetchInProgress = false; // Replaced by inFlightBookmarkPromise
+let inFlightBookmarkPromise: Promise<UnifiedBookmark[] | null> | null = null;
+
+/**
  * Fetches bookmarks from the external source.
- * (Simplified from api/bookmarks/route.ts, assuming refreshBookmarksData gets all)
+ * This implementation avoids circular API calls by directly fetching from the external source
+ * instead of going through our own API endpoint.
  */
 async function fetchExternalBookmarks(): Promise<UnifiedBookmark[] | null> {
-  console.log('[DataAccess] Fetching external bookmarks...');
-  try {
-    const fetchPromise = refreshBookmarksData(); // Assuming this is already hardened
-    const timeoutPromise = new Promise<UnifiedBookmark[]>((_, reject) =>
-      setTimeout(() => reject(new Error(`Fetch timeout after ${API_FETCH_TIMEOUT_MS}ms for bookmarks`)), API_FETCH_TIMEOUT_MS)
-    );
-    const bookmarks = await Promise.race([fetchPromise, timeoutPromise]);
-    console.log(`[DataAccess] Fetched ${bookmarks.length} bookmarks from external source.`);
-    return bookmarks.sort((a, b) => (b.dateBookmarked || "").localeCompare(a.dateBookmarked || ""));
-  } catch (error) {
-    console.error('[DataAccess] Error fetching external bookmarks:', error);
-    return null;
+  // If a fetch is already in progress, return that promise
+  if (inFlightBookmarkPromise) {
+    console.warn('[DataAccess] Bookmark fetch already in progress, returning existing promise.');
+    return inFlightBookmarkPromise;
   }
+
+  console.log('[DataAccess] Initiating new external bookmarks fetch...');
+  // Create and store the promise for the current fetch operation
+  inFlightBookmarkPromise = (async () => {
+    try {
+      // Call refreshBookmarksData from lib/bookmarks.ts
+      const bookmarks = await refreshBookmarksData();
+
+      if (bookmarks) {
+        console.log(`[DataAccess] Fetched ${bookmarks.length} bookmarks from external source via refreshBookmarksData.`);
+        return bookmarks;
+      }
+      return null; // Explicitly return null if refreshBookmarksData returns falsy
+    } catch (error) {
+      console.error('[DataAccess] Error fetching external bookmarks:', error);
+      return null; // Ensure null is returned on error as per function signature
+    } finally {
+      // Reset the in-flight promise once the operation is complete (success or failure)
+      inFlightBookmarkPromise = null;
+      console.log('[DataAccess] External bookmarks fetch completed, inFlightBookmarkPromise reset.');
+    }
+  })();
+
+  return inFlightBookmarkPromise;
 }
 
-export async function getBookmarks(): Promise<UnifiedBookmark[]> {
+export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBookmark[]> {
   // 1. Try Cache
   const cached = ServerCacheInstance.getBookmarks();
   if (cached && cached.bookmarks && cached.bookmarks.length > 0) {
@@ -202,13 +233,17 @@ export async function getBookmarks(): Promise<UnifiedBookmark[]> {
     return volumeBookmarks;
   }
 
-  // 3. Fetch from External API
-  console.log('[DataAccess] Bookmarks not in cache or volume, fetching from external source.');
-  const externalBookmarks = await fetchExternalBookmarks();
-  if (externalBookmarks) {
-    await writeJsonFile(BOOKMARKS_VOLUME_FILE, externalBookmarks);
-    ServerCacheInstance.setBookmarks(externalBookmarks);
-    return externalBookmarks;
+  // 3. Fetch from External API (only if not explicitly skipped)
+  if (!skipExternalFetch) {
+    console.log('[DataAccess] Bookmarks not in cache or volume, fetching from external source.');
+    const externalBookmarks = await fetchExternalBookmarks();
+    if (externalBookmarks) {
+      await writeJsonFile(BOOKMARKS_VOLUME_FILE, externalBookmarks);
+      ServerCacheInstance.setBookmarks(externalBookmarks);
+      return externalBookmarks;
+    }
+  } else {
+    console.log('[DataAccess] External fetch skipped as requested.');
   }
 
   console.warn('[DataAccess] Failed to fetch bookmarks from all sources. Returning empty array.');
@@ -227,14 +262,15 @@ const mapContributionLevel = (level: string): 0 | 1 | 2 | 3 | 4 => {
     case 'THIRD_QUARTILE': return 3;
     case 'FOURTH_QUARTILE': return 4;
     default: return 0;
-  }
-};
-
-function extractNextPageUrl(linkHeader: string | null | undefined): string | null {
-  if (!linkHeader) return null;
-  const matches = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
-  return matches ? matches[1] : null;
+  } // Corrected closing brace
 }
+
+// Unused function: extractNextPageUrl
+// function extractNextPageUrl(linkHeader: string | null | undefined): string | null {
+//   if (!linkHeader) return null;
+//   const matches = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+//   return matches && matches[1] ? matches[1] : null;
+// }
 
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 5): Promise<Response> {
   let lastResponse: Response | null = null;
@@ -246,38 +282,17 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 5)
     if (response.status !== 202) return response;
     console.log(`[DataAccess] GitHub API returned 202 for ${url}, waiting ${delay}ms before retry ${retryCount + 1}/${maxRetries}`);
     lastResponse = response;
-    await new Promise(resolve => setTimeout(resolve, delay));
+    await new Promise(resolveRequest => setTimeout(resolveRequest, delay)); // Renamed resolve to avoid conflict
     delay *= 2;
     retryCount++;
   }
-  return lastResponse!;
+  if (!lastResponse) {
+    throw new Error(`All ${maxRetries} retries returned 202 for ${url}`);
+  }
+  return lastResponse;
 }
 
-async function fetchAllRepositories(username: string): Promise<any[]> {
-  if (!GITHUB_API_TOKEN) {
-    console.warn('[DataAccess] GitHub API token is missing for repository fetch.');
-    return [];
-  }
-  let allRepos: any[] = [];
-  let nextUrl: string | null = `https://api.github.com/users/${username}/repos?per_page=100`;
-  let pagesProcessed = 0;
-  while (nextUrl && pagesProcessed < 10) { // Safety limit
-    pagesProcessed++;
-    try {
-      const fetchPromise = fetch(nextUrl, { headers: { 'Authorization': `Bearer ${GITHUB_API_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' } });
-      const timeoutPromise = new Promise<Response>((_, reject) => setTimeout(() => reject(new Error(`Timeout fetching repos page ${pagesProcessed}`)), API_FETCH_TIMEOUT_MS));
-      const response = await Promise.race([fetchPromise, timeoutPromise]);
-      if (!response.ok) break;
-      const repos = await response.json();
-      allRepos = [...allRepos, ...repos];
-      nextUrl = extractNextPageUrl(response.headers.get('Link'));
-    } catch (error) {
-      console.error(`[DataAccess] Error fetching repositories page ${pagesProcessed}:`, error);
-      break;
-    }
-  }
-  return allRepos;
-}
+// Removed unused fetchAllRepositories function
 
 async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse | null> {
   if (!GITHUB_API_TOKEN) {
@@ -300,7 +315,13 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
         user(login: $username) {
           contributionsCollection(from: $from, to: $to) {
             contributionCalendar {
-              weeks { contributionDays { contributionCount contributionLevel date } }
+              weeks {
+                contributionDays {
+                  contributionCount
+                  contributionLevel
+                  date
+                }
+              }
               totalContributions
             }
             # commitContributionsByRepository is useful but let's try repositoriesContributedTo for a broader list
@@ -321,21 +342,27 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
       }
     `, { username: GITHUB_REPO_OWNER, from: fromDateIso, to: toDateIso, headers: { authorization: `bearer ${GITHUB_API_TOKEN}` } });
 
-    // Use repositories from the new repositoriesContributedTo field
-    const contributedRepoNodes = user.repositoriesContributedTo?.nodes || [];
-    const allFetchedRepos = contributedRepoNodes.filter((repo: any) => repo && !repo.isFork);
+    // Define a type for the repository nodes from GraphQL for clarity
+    type GithubRepoNode = NonNullable<NonNullable<GitHubGraphQLContributionResponse['user']>['repositoriesContributedTo']>['nodes'][number];
 
-    const uniqueReposMap = new Map<string, any>();
+    const contributedRepoNodes = user.repositoriesContributedTo?.nodes || [];
+    const allFetchedRepos = contributedRepoNodes.filter(
+        (repo): repo is GithubRepoNode => !!(repo && !repo.isFork)
+      );
+
+    const uniqueReposMap = new Map<string, GithubRepoNode>();
     for (const repo of allFetchedRepos) {
-        if (repo && typeof repo.id === 'string' && repo.id.length > 0) {
+        // The filter above ensures repo is not null and has the expected structure
+        if (repo.id && typeof repo.id === 'string' && repo.id.length > 0) { // repo.id is already confirmed by GithubRepoNode type
             if (!uniqueReposMap.has(repo.id)) {
                 uniqueReposMap.set(repo.id, repo);
             }
         } else {
-            console.warn(`[DataAccess] fetchExternalGithubActivity: Repository object without a valid string ID or malformed, excluded from deduplication: ${JSON.stringify(repo).substring(0,150)}`);
+            // This case should be less likely due to the typed filter, but good for robustness
+            console.warn(`[DataAccess] fetchExternalGithubActivity: Repository object without a valid string ID or malformed (should be caught by type guards): ${JSON.stringify(repo).substring(0,150)}`);
         }
     }
-    const uniqueRepoArray = Array.from(uniqueReposMap.values());
+    const uniqueRepoArray: GithubRepoNode[] = Array.from(uniqueReposMap.values());
 
     let linesAddedTotal365Days = 0;
     let linesRemovedTotal365Days = 0;
@@ -379,11 +406,11 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
             if (existingCache?.stats) userWeeklyStats = existingCache.stats;
 
           } else if (statsResponse.ok) {
-            const contributors = await statsResponse.json();
+            const contributors = await statsResponse.json() as GithubContributorStatsEntry[];
             const userStatsEntry = Array.isArray(contributors) ? contributors.find(c => c.author && c.author.login === GITHUB_REPO_OWNER) : null;
 
             if (userStatsEntry && userStatsEntry.weeks && Array.isArray(userStatsEntry.weeks)) {
-              userWeeklyStats = userStatsEntry.weeks.map((w: any) => ({ w: w.w, a: w.a, d: w.d, c: w.c })); // Ensure structure
+              userWeeklyStats = userStatsEntry.weeks.map((w: GithubRepoRawWeeklyStatType) => ({ w: w.w, a: w.a, d: w.d, c: w.c }));
               apiStatus = userWeeklyStats.length > 0 ? 'complete' : 'empty_no_user_contribs';
             } else {
               if (VERBOSE) console.log(`[DataAccess] No contribution stats for ${GITHUB_REPO_OWNER} in ${repoOwnerLogin}/${repoName} or weeks array is missing/empty.`);
@@ -436,8 +463,9 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
           }
           return { repoName, currentRepoLinesAdded365, currentRepoLinesRemoved365, repoDataComplete: currentRepoDataComplete };
 
-        } catch (repoError) {
-          console.warn(`[DataAccess] Critical error processing stats for ${repoOwnerLogin}/${repoName}:`, repoError);
+        } catch (repoError: unknown) {
+          const message = repoError instanceof Error ? repoError.message : String(repoError);
+          console.warn(`[DataAccess] Critical error processing stats for ${repoOwnerLogin}/${repoName}:`, message);
           currentRepoDataComplete = false;
           // Attempt to write a cache entry indicating error, preserving old stats if any
           try {
@@ -450,8 +478,9 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
               stats: existingRepoDataOnError?.stats || [], // Preserve old stats on error
             };
             await writeJsonFile(repoStatFilePath, errorCacheEntry);
-          } catch (writeError) {
-            console.error(`[DataAccess] Failed to write error state for ${repoStatFilename}:`, writeError);
+          } catch (writeError: unknown) {
+            const writeMessage = writeError instanceof Error ? writeError.message : String(writeError);
+            console.error(`[DataAccess] Failed to write error state for ${repoStatFilename}:`, writeMessage);
           }
           return { repoName: repo.name || 'error_repo', currentRepoLinesAdded365: 0, currentRepoLinesRemoved365: 0, repoDataComplete: false };
         }
@@ -494,7 +523,7 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
     const contributions: ContributionDay[] = contributionDays.map(d => ({
       date: d.date,
       count: d.contributionCount,
-      level: mapContributionLevel(d.contributionLevel) as 0 | 1 | 2 | 3 | 4
+      level: mapContributionLevel(d.contributionLevel)
     }));
     const calculatedTotalContributions = contributionDays.reduce((sum: number, day: { contributionCount: number }) => sum + day.contributionCount, 0);
 
@@ -563,7 +592,7 @@ async function fetchGithubActivityByScraping(): Promise<GitHubActivityApiRespons
       const tooltipId = $rect.attr('id');
       const tooltipText = tooltipId ? $(`tool-tip[for="${tooltipId}"]`).text().trim() : '';
       const countMatch = tooltipText.match(/^(\d+|No)\s+contribution/);
-      if (countMatch) count = countMatch[1] === 'No' ? 0 : parseInt(countMatch[1], 10);
+      if (countMatch && countMatch[1]) count = countMatch[1] === 'No' ? 0 : parseInt(countMatch[1], 10);
       if (date) contributions.push({ date, count, level: level as 0 | 1 | 2 | 3 | 4 });
     });
     const totalContributionsHeader = $('div.js-yearly-contributions h2').text().trim();
@@ -660,7 +689,8 @@ async function findLogoInVolume(domain: string): Promise<{ buffer: Buffer; sourc
             return { buffer, source: inferredSource };
         }
     }
-  } catch (e) { /* ignore if readdir fails */ }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (e) { /* ignore if readdir fails */ } // Renamed unused catch variable
   return null;
 }
 
@@ -681,7 +711,7 @@ async function validateLogoBuffer(buffer: Buffer, url: string): Promise<boolean>
   return true;
 }
 
-async function fetchExternalLogo(domain: string, baseUrlForValidation: string): Promise<{ buffer: Buffer; source: LogoSource } | null> {
+async function fetchExternalLogo(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> { // Removed baseUrlForValidation
   const sources: { name: LogoSource; urlFn: (domain: string) => string }[] = [
     { name: 'google', urlFn: LOGO_SOURCES.google.hd },
     { name: 'clearbit', urlFn: LOGO_SOURCES.clearbit.hd },
@@ -695,8 +725,12 @@ async function fetchExternalLogo(domain: string, baseUrlForValidation: string): 
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch(url, { signal: controller.signal, headers: {'User-Agent': 'Mozilla/5.0'} });
-      clearTimeout(timeoutId);
+      let response: Response;
+      try {
+        response = await fetch(url, { signal: controller.signal, headers: {'User-Agent': 'Mozilla/5.0'} });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) continue;
       const rawBuffer = Buffer.from(await response.arrayBuffer());
@@ -707,9 +741,10 @@ async function fetchExternalLogo(domain: string, baseUrlForValidation: string): 
         console.log(`[DataAccess] Fetched logo for ${domain} from ${name}.`);
         return { buffer: processedBuffer, source: name };
       }
-    } catch (error: any) {
-      if (error.name !== 'AbortError') {
-        console.warn(`[DataAccess] Error fetching logo for ${domain} from ${name} (${url}):`, error.message);
+    } catch (error: unknown) {
+      if ((error as Error).name !== 'AbortError') {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`[DataAccess] Error fetching logo for ${domain} from ${name} (${url}):`, message);
       }
     }
   }
@@ -717,7 +752,7 @@ async function fetchExternalLogo(domain: string, baseUrlForValidation: string): 
 }
 
 
-export async function getLogo(domain: string, baseUrlForValidation: string): Promise<{ buffer: Buffer; source: LogoSource; contentType: string } | null> {
+export async function getLogo(domain: string): Promise<{ buffer: Buffer; source: LogoSource; contentType: string } | null> {
   // 1. Try Cache
   const cached = ServerCacheInstance.getLogoFetch(domain);
   if (cached && cached.buffer) {
@@ -736,7 +771,7 @@ export async function getLogo(domain: string, baseUrlForValidation: string): Pro
 
   // 3. Fetch from External API
   console.log(`[DataAccess] Logo for ${domain} not in cache or volume, fetching from external source.`);
-  const externalLogo = await fetchExternalLogo(domain, baseUrlForValidation);
+  const externalLogo = await fetchExternalLogo(domain); // Removed baseUrlForValidation
   if (externalLogo) {
     const logoPath = getLogoVolumePath(domain, externalLogo.source);
     await writeBinaryFile(logoPath, externalLogo.buffer);
@@ -769,14 +804,14 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
             const url = new URL(investment.website);
             const domain = url.hostname.replace(/^www\./, '');
             domainToIdMap.set(domain, investment.id);
-          } catch (e) { /* ignore invalid URLs */ }
+          } catch { /* ignore invalid URLs */ }
         }
       }
       console.log(`[DataAccess] Successfully parsed ${domainToIdMap.size} investment domains via static import.`);
       return domainToIdMap;
     }
-  } catch (importError) {
-    console.warn(`[DataAccess] Could not use static import of investments.ts, falling back to regex parsing: ${importError}`);
+  } catch (importError: unknown) {
+    console.warn(`[DataAccess] Could not use static import of investments.ts, falling back to regex parsing: ${String(importError)}`);
 
     // Fallback to regex parsing if static import fails
     const investmentsPath = path.join(ROOT_DIR, 'data', 'investments.ts');
@@ -785,31 +820,36 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
         const investmentsContent = await fs.readFile(investmentsPath, 'utf-8');
         // Regex logic from populate-volumes.js (simplified for brevity, ensure it's robust)
         let currentId: string | null = null;
-        const investmentBlocks = investmentsContent.split(/^\s*{\s*(?:"|')id(?:"|'):/m);
+            const investmentBlocks = investmentsContent.split(/^\s*{\s*(?:"|')id(?:"|'):/m);
 
         for (let i = 1; i < investmentBlocks.length; i++) {
             const block = investmentBlocks[i];
+            if (!block) continue;
+
             const idMatch = block.match(/^(?:"|')([^"']+)(?:"|')/);
-            if (idMatch) {
+            if (idMatch && idMatch[1]) {
                 currentId = idMatch[1];
                 const urlPatterns = [
-                    /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^\/'"]+)['"]/g,
-                    /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^\/'"]+)['"]/g,
+                    /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, // Corrected
+                    /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g,    // Corrected
                 ];
                 for (const pattern of urlPatterns) {
                     let urlMatch;
                     while ((urlMatch = pattern.exec(block)) !== null) {
                         if (urlMatch[1]) {
                             const domain = urlMatch[1];
-                            domainToIdMap.set(domain, currentId);
+                            if (currentId) {
+                                domainToIdMap.set(domain, currentId);
+                            }
                         }
                     }
                 }
             }
         }
         console.log(`[DataAccess] Successfully parsed ${domainToIdMap.size} investment domains via regex.`);
-      } catch (regexParseError) {
-          console.error('[DataAccess] Failed to parse investment domains via regex:', regexParseError);
+      } catch (regexParseError: unknown) {
+          const message = regexParseError instanceof Error ? regexParseError.message : String(regexParseError);
+          console.error('[DataAccess] Failed to parse investment domains via regex:', message);
       }
   }
   return domainToIdMap;
@@ -822,8 +862,9 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ agg
   // Ensure the source directory exists before trying to read from it
   try {
     await fs.mkdir(REPO_RAW_WEEKLY_STATS_DIR, { recursive: true });
-  } catch (mkdirError) {
-    console.error(`[DataAccess] Aggregation: Critical error creating directory ${REPO_RAW_WEEKLY_STATS_DIR}:`, mkdirError);
+  } catch (mkdirError: unknown) {
+    const message = mkdirError instanceof Error ? mkdirError.message : String(mkdirError);
+    console.error(`[DataAccess] Aggregation: Critical error creating directory ${REPO_RAW_WEEKLY_STATS_DIR}:`, message);
     return null; // Cannot proceed if directory cannot be ensured
   }
 
@@ -837,8 +878,9 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ agg
   let statFiles: string[];
   try {
     statFiles = await fs.readdir(REPO_RAW_WEEKLY_STATS_DIR);
-  } catch (err: any) {
-    if (err.code === 'ENOENT') {
+  } catch (err: unknown) {
+    const nodeError = err as NodeJS.ErrnoException;
+    if (nodeError.code === 'ENOENT') {
       // If the directory itself doesn't exist after trying to create it, it's an issue, but less critical if we just created it.
       // More likely, it's empty.
       if (VERBOSE) console.log(`[DataAccess] Aggregation: Directory ${REPO_RAW_WEEKLY_STATS_DIR} is empty or was just created. No files to aggregate yet.`);
@@ -846,7 +888,8 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ agg
       await writeJsonFile(AGGREGATED_WEEKLY_ACTIVITY_FILE, []);
       return { aggregatedActivity: [], overallDataComplete: true };
     } else {
-      console.error(`[DataAccess] Aggregation: Error reading directory ${REPO_RAW_WEEKLY_STATS_DIR}:`, err);
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[DataAccess] Aggregation: Error reading directory ${REPO_RAW_WEEKLY_STATS_DIR}:`, message);
       return null; // Indicate a more serious error occurred
     }
   }
@@ -890,11 +933,14 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ agg
         // Only include weeks within the last year for this aggregation
         if (weekStartDate >= oneYearAgo && weekStartDate <= today) {
           const weekKey = weekStartDate.toISOString().split('T')[0];
-          if (!weeklyTotals[weekKey]) {
-            weeklyTotals[weekKey] = { added: 0, removed: 0 };
+          // Ensure the key exists in the object
+          if (!weeklyTotals[weekKey as keyof typeof weeklyTotals]) {
+            weeklyTotals[weekKey as keyof typeof weeklyTotals] = { added: 0, removed: 0 };
           }
-          weeklyTotals[weekKey].added += week.a || 0; // Ensure undefined is treated as 0
-          weeklyTotals[weekKey].removed += week.d || 0; // Ensure undefined is treated as 0
+          // Use a non-null assertion since we just ensured the key exists
+          const totals = weeklyTotals[weekKey as keyof typeof weeklyTotals]!;
+          totals.added += week.a || 0; // Ensure undefined is treated as 0
+          totals.removed += week.d || 0; // Ensure undefined is treated as 0
         }
       }
     } else if (VERBOSE && repoData.status === 'complete') {

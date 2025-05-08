@@ -12,7 +12,6 @@
 const http = require('node:http');
 const https = require('node:https');
 const path = require('node:path');
-const { resolve } = path;
 const fs = require('node:fs/promises');
 // Assuming data-access.js is the compiled output in the same relative location
 const { getBookmarks, getGithubActivity, getLogo, getInvestmentDomainsAndIds } = require('../lib/data-access');
@@ -140,7 +139,7 @@ async function prefetchLogosData(apiBase, bookmarksData) {
     const experienceBlocks = experienceContent.split(/^\s*{\s*(?:"|')id(?:"|'):/m);
     for (let i = 1; i < experienceBlocks.length; i++) {
         const block = experienceBlocks[i];
-        const urlPatterns = [/companyUrl:\s*['"](?:https?:\/\/)?(?:www\.)?([^\/'"]+)['"]/g, /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^\/'"]+)['"]/g, /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^\/'"]+)['"]/g];
+        const urlPatterns = [/companyUrl:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g];
         for (const pattern of urlPatterns) {
             let urlMatch;
             while ((urlMatch = pattern.exec(block)) !== null) { if (urlMatch[1]) domains.add(urlMatch[1]); }
@@ -155,7 +154,7 @@ async function prefetchLogosData(apiBase, bookmarksData) {
     const educationBlocks = educationContent.split(/^\s*{\s*(?:"|')id(?:"|'):/m);
     for (let i = 1; i < educationBlocks.length; i++) {
         const block = educationBlocks[i];
-        const urlPatterns = [/institutionUrl:\s*['"](?:https?:\/\/)?(?:www\.)?([^\/'"]+)['"]/g, /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^\/'"]+)['"]/g, /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^\/'"]+)['"]/g];
+        const urlPatterns = [/institutionUrl:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g];
         for (const pattern of urlPatterns) {
             let urlMatch;
             while ((urlMatch = pattern.exec(block)) !== null) { if (urlMatch[1]) domains.add(urlMatch[1]); }
@@ -213,7 +212,7 @@ async function ensureDataDirectories() {
   ];
   for (const dir of dirs) {
     try {
-      await fs.mkdir(resolve(process.cwd(), dir), { recursive: true });
+      await fs.mkdir(path.resolve(process.cwd(), dir), { recursive: true });
       console.log(`[Prefetch] Ensured directory exists: ${dir}`);
     } catch (error) {
       console.error(`[Prefetch] Failed to create directory ${dir}:`, error.message);
@@ -259,4 +258,4 @@ async function main() {
 }
 
 // Execute the main function
-main();
+void main();

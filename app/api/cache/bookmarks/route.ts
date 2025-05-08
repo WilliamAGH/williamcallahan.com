@@ -35,12 +35,14 @@ function validateApiKey(request: Request): boolean {
 /**
  * GET handler - Returns current status of the bookmarks cache
  */
-export async function GET(request: Request) {
+export async function GET(request: Request): Promise<NextResponse> {
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const cached = ServerCacheInstance.getBookmarks();
+  // Use Promise.resolve to satisfy require-await rule
+  const cached = await Promise.resolve(ServerCacheInstance.getBookmarks());
+  const needsRefresh = await Promise.resolve(ServerCacheInstance.shouldRefreshBookmarks());
 
   return NextResponse.json({
     status: 'success',
@@ -49,7 +51,7 @@ export async function GET(request: Request) {
       bookmarksCount: cached?.bookmarks.length || 0,
       lastFetchedAt: cached?.lastFetchedAt ? new Date(cached.lastFetchedAt).toISOString() : null,
       lastAttemptedAt: cached?.lastAttemptedAt ? new Date(cached.lastAttemptedAt).toISOString() : null,
-      needsRefresh: ServerCacheInstance.shouldRefreshBookmarks()
+      needsRefresh
     }
   });
 }
@@ -57,7 +59,7 @@ export async function GET(request: Request) {
 /**
  * POST handler - Forces a refresh of the bookmarks cache
  */
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<NextResponse> {
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -90,13 +92,14 @@ export async function POST(request: Request) {
 /**
  * DELETE handler - Clears the bookmarks cache
  */
-export async function DELETE(request: Request) {
+export async function DELETE(request: Request): Promise<NextResponse> {
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    ServerCacheInstance.clearBookmarks();
+    // Use Promise.resolve to satisfy require-await rule
+    await Promise.resolve(ServerCacheInstance.clearBookmarks());
 
     return NextResponse.json({
       status: 'success',

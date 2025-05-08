@@ -33,7 +33,7 @@ export function useLogo(input: string | undefined) {
       }
     };
 
-    loadLogo();
+    void loadLogo();
 
     return () => {
       mounted = false;
