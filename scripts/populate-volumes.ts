@@ -275,7 +275,7 @@ async function populateAllVolumes() {
           await fs.unlink(file);
           console.log(`🗑️ Deleted ${file}`);
         } catch (err: unknown) {
-          const code = typeof err === 'object' && err !== null && 'code' in err ? (err as { code?: string }).code : undefined;
+          const code = (err as { code?: string })?.code;
           const message = err instanceof Error ? err.message : String(err);
           if (code !== 'ENOENT') {
             console.warn(`⚠️ Could not delete ${file}: ${message}`);
@@ -297,7 +297,7 @@ async function populateAllVolumes() {
             if (VERBOSE) console.log(`ℹ️ No files found in ${REPO_RAW_WEEKLY_STATS_DIR}, skipping clearing.`);
         }
       } catch (err: unknown) {
-        const code = typeof err === 'object' && err !== null && 'code' in err ? (err as { code?: string }).code : undefined;
+        const code = (err as { code?: string })?.code;
         const message = err instanceof Error ? err.message : String(err);
         if (code !== 'ENOENT') {
           console.warn(`⚠️ Could not clear contents of ${REPO_RAW_WEEKLY_STATS_DIR}: ${message}`);

@@ -22,8 +22,8 @@ RUN bun install --frozen-lockfile
 
 # Rebuild the source code only when needed
 FROM base AS builder
-# Install curl for diagnostic pings
-RUN apk add --no-cache curl
+# Install curl and bash for scripts and diagnostic pings
+RUN apk add --no-cache curl bash
 WORKDIR /app
 
 # Set environment variables for build
