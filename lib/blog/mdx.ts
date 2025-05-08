@@ -161,7 +161,7 @@ export async function getMDXPost(
             behavior: 'append'
           }],
           [rehypePrismPlus, { ignoreMissing: true }]
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- rehype plugins type definition requires this cast
         ] as any[],
         format: 'mdx'
       },
