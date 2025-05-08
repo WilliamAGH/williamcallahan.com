@@ -177,7 +177,8 @@ async function writeBinaryFile(filePath: string, data: Buffer): Promise<void> {
  * This is set when we're already in the process of fetching bookmarks
  * to prevent the API route from calling back into the data access layer
  */
-let isBookmarkFetchInProgress = false;
+// let isBookmarkFetchInProgress = false; // Replaced by inFlightBookmarkPromise
+let inFlightBookmarkPromise: Promise<UnifiedBookmark[] | null> | null = null;
 
 /**
  * Fetches bookmarks from the external source.
@@ -185,53 +186,35 @@ let isBookmarkFetchInProgress = false;
  * instead of going through our own API endpoint.
  */
 async function fetchExternalBookmarks(): Promise<UnifiedBookmark[] | null> {
-  // If we're already in the process of fetching bookmarks, return null to avoid circular calls
-  if (isBookmarkFetchInProgress) {
-    console.warn('[DataAccess] Bookmark fetch already in progress, avoiding circular call');
-    return null;
+  // If a fetch is already in progress, return that promise
+  if (inFlightBookmarkPromise) {
+    console.warn('[DataAccess] Bookmark fetch already in progress, returning existing promise.');
+    return inFlightBookmarkPromise;
   }
 
-  console.log('[DataAccess] Fetching external bookmarks...');
-  try {
-    isBookmarkFetchInProgress = true;
-    // await Promise.resolve(); // Placeholder await to satisfy linter as function is async
+  console.log('[DataAccess] Initiating new external bookmarks fetch...');
+  // Create and store the promise for the current fetch operation
+  inFlightBookmarkPromise = (async () => {
+    try {
+      // Call refreshBookmarksData from lib/bookmarks.ts
+      const bookmarks = await refreshBookmarksData();
 
-    // TODO: Implement direct external API call here instead of using refreshBookmarksData
-    // For example, if using Telegram/Jina/Groq as described in docs/bookmarks-integration.mdx,
-    // implement the direct API calls to those services here.
-
-    // Call refreshBookmarksData from lib/bookmarks.ts
-    const bookmarks = await refreshBookmarksData();
-
-    if (bookmarks) {
-      console.log(`[DataAccess] Fetched ${bookmarks.length} bookmarks from external source via refreshBookmarksData.`);
-      // Ensure sorting matches the previous placeholder's intention, if necessary
-      // The refreshBookmarksData itself might already sort, but if not, sort here:
-      // return bookmarks.sort((a, b) => (b.dateBookmarked || "").localeCompare(a.dateBookmarked || ""));
-      return bookmarks; // Assuming refreshBookmarksData returns UnifiedBookmark[]
+      if (bookmarks) {
+        console.log(`[DataAccess] Fetched ${bookmarks.length} bookmarks from external source via refreshBookmarksData.`);
+        return bookmarks;
+      }
+      return null; // Explicitly return null if refreshBookmarksData returns falsy
+    } catch (error) {
+      console.error('[DataAccess] Error fetching external bookmarks:', error);
+      return null; // Ensure null is returned on error as per function signature
+    } finally {
+      // Reset the in-flight promise once the operation is complete (success or failure)
+      inFlightBookmarkPromise = null;
+      console.log('[DataAccess] External bookmarks fetch completed, inFlightBookmarkPromise reset.');
     }
-    // If bookmarks is null or undefined, explicitly return null to satisfy the return type.
-    return null;
+  })();
 
-    // Throw an error to make the failure explicit rather than silently returning null
-    // throw new Error('[DataAccess] External bookmarks fetch not implemented');
-
-    // When implementing the direct fetch, use a timeout like this:
-    /*
-    const fetchPromise = directExternalFetch(); // Replace with actual implementation
-    const timeoutPromise = new Promise<UnifiedBookmark[]>((_, reject) =>
-      setTimeout(() => reject(new Error(`Fetch timeout after ${API_FETCH_TIMEOUT_MS}ms for bookmarks`)), API_FETCH_TIMEOUT_MS)
-    );
-    const bookmarks = await Promise.race([fetchPromise, timeoutPromise]);
-    console.log(`[DataAccess] Fetched ${bookmarks.length} bookmarks from external source.`);
-    return bookmarks.sort((a, b) => (b.dateBookmarked || "").localeCompare(a.dateBookmarked || ""));
-    */
-  } catch (error) {
-    console.error('[DataAccess] Error fetching external bookmarks:', error);
-    return null;
-  } finally {
-    isBookmarkFetchInProgress = false;
-  }
+  return inFlightBookmarkPromise;
 }
 
 export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBookmark[]> {
