@@ -21,11 +21,12 @@ interface SocialCardProps {
 }
 
 export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
-  // Type assertion to avoid unsafe destructuring
-  const href = social.href;
-  const label = social.label;
-  const Icon = social.icon;
-  const emphasized = social.emphasized;
+  // Safe destructuring with explicit typing
+  const href: string = social.href;
+  const label: string = social.label;
+  // Use type assertion to safely convert from 'any' to a specific React component type
+  const Icon = social.icon as React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  const emphasized: boolean = social.emphasized || false;
   const [imageError, setImageError] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,15 +46,10 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
   let serviceName = '';
   if (label && label.includes('(')) {
     const parts = label.split('(');
-    if (parts.length > 0 && parts[0]) {
-      serviceName = parts[0].trim();
-    }
+    serviceName = parts[0]?.trim() || '';
   } else if (domain) {
     const parts = domain.split('.');
-    if (parts.length > 0 && parts[0]) {
-      // Use optional chaining to handle possibly undefined parts[0]
-      serviceName = parts[0]?.charAt(0).toUpperCase() + parts[0]?.slice(1) || '';
-    }
+    serviceName = parts[0]?.charAt(0).toUpperCase() + parts[0]?.slice(1) || '';
   }
 
   // Override for specific networks
@@ -159,8 +155,15 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
       const apiUrl = `/api/og-image?url=${encodeURIComponent(url)}&fetchDomain=false`;
       const response = await fetch(apiUrl);
 
+      // Define a proper interface for the API response structure
+      interface OgImageApiResponse {
+        profileImageUrl?: string;
+        domainImageUrl?: string;
+        // Add any other properties that might be returned
+      }
+
       if (response.ok) {
-        const data = await response.json() as { profileImageUrl?: string };
+        const data = await response.json() as OgImageApiResponse;
         console.log(`✅ [${label}] API response for profile:`, data);
 
         // Set profile image only
