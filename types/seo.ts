@@ -11,7 +11,7 @@
  */
 
 import type { Metadata } from 'next';
-import type { OpenGraph } from 'next/dist/lib/metadata/types/opengraph-types';
+import type { OpenGraph } from 'next/dist/lib/metadata/types/opengraph-types'; // eslint-disable-line @typescript-eslint/no-unused-vars
 import type { SEO_DATE_FIELDS } from '../lib/seo/constants';
 
 /**
@@ -287,12 +287,12 @@ export function isPacificDateString(date: string): date is PacificDateString {
  * Type guard for ArticleDates
  * Ensures all required date fields are present and properly formatted
  */
-export function isArticleDates(dates: any): dates is ArticleDates {
+export function isArticleDates(dates: unknown): dates is ArticleDates {
   return (
     typeof dates === 'object' &&
     dates !== null &&
-    isPacificDateString(dates.datePublished) &&
-    isPacificDateString(dates.dateModified) &&
-    (dates.dateCreated === undefined || isPacificDateString(dates.dateCreated))
+    'datePublished' in dates && typeof dates.datePublished === 'string' && isPacificDateString(dates.datePublished) &&
+    'dateModified' in dates && typeof dates.dateModified === 'string' && isPacificDateString(dates.dateModified) &&
+    (!('dateCreated' in dates) || (typeof dates.dateCreated === 'string' && isPacificDateString(dates.dateCreated)))
   );
 }
