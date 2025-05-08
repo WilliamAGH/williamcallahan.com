@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import type { Project } from '@/types/project';
 import { ExternalLink } from '@/components/ui/external-link.client';
 
