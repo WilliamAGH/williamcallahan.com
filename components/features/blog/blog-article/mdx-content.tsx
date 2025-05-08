@@ -211,10 +211,13 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     },
     // Restore custom 'code' component override for inline code (to fix regression)
     code: (codeProps: ComponentProps<'code'>) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { children, className, ...rest } = codeProps; // Destructure className, don't use _
+      const { children, className, ...rest } = codeProps;
       return (
-        <code className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-1 sm:px-1.5 py-0.5 rounded font-medium text-sm break-words whitespace-normal align-middle" {...rest}>
+        <code className={cn(
+          "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100",
+          "px-1 sm:px-1.5 py-0.5 rounded font-medium text-sm break-words whitespace-normal align-middle",
+          className // Merge incoming className
+        )} {...rest}>
           {children}
         </code>
       );
