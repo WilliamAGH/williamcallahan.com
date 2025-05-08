@@ -71,15 +71,35 @@ export class BlogPostDataError extends AppError {
  * can be called with (message: string, code: string, cause?: unknown).
  * It might not be safe for subclasses with different required constructor arguments.
  */
-export function wrapError<T extends AppError>(
+export function wrapError<T extends Error>(
   message: string,
   error: unknown,
-  ErrorClass: new (message: string, code: string, cause?: unknown) => T
+  factory: (msg: string, cause?: unknown) => T,
 ): T {
-  if (error instanceof Error) {
-    return new ErrorClass(message, 'ERROR', error);
+  // Determine the cause: if the original error is an Error instance, use it, otherwise undefined.
+  const cause = error instanceof Error ? error : undefined;
+
+  // Create the new error using the provided factory function.
+  const newError = factory(message, cause);
+
+  // If the original error was an AppError with a code, and the newError is also an AppError,
+  // try to preserve the original code if the newError doesn't have one set by the factory.
+  // This is a bit more specific to AppError, so consider if this level of detail is needed
+  // or if the factory should be solely responsible for all properties.
+  if (
+    error instanceof AppError &&
+    newError instanceof AppError &&
+    error.code &&
+    !newError.code
+  ) {
+    // This part is tricky because AppError's code is readonly after construction.
+    // A more robust factory might handle this, or AppError might need a way to set code post-construction if desired.
+    // For now, we assume the factory handles setting the code appropriately if it needs to differ from a default.
+    // If the factory always creates a generic AppError, it might lose the original specific code.
+    // A potential improvement to AppError or the factory pattern might be needed for full code propagation control.
   }
-  return new ErrorClass(message + ': ' + String(error), 'ERROR');
+
+  return newError;
 }
 
 /**
@@ -89,5 +109,5 @@ export function isErrorOfType<T extends Error>(
   error: unknown,
   errorType: new (...args: unknown[]) => T
 ): error is T {
-  return error instanceof Error && error.name === errorType.name;
+  return error instanceof errorType;
 }
