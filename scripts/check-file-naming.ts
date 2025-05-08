@@ -15,9 +15,9 @@
  * Usage: node scripts/check-file-naming.js
  */
 
-const fs = require('fs');
-const path = require('path');
-const { promisify } = require('util');
+import fs from 'fs';
+import path from 'path';
+import { promisify } from 'util';
 const readFileAsync = promisify(fs.readFile);
 
 // Directories to scan
@@ -34,7 +34,7 @@ const FILE_PATTERNS = {
   KEBAB_CASE: /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\.(client|server))?\.(tsx|ts)$/
 };
 
-async function checkFile(filePath) {
+async function checkFile(filePath: string): Promise<{ file: string; issue: string; type: 'error' | 'warning' } | null> {
   try {
     const content = await readFileAsync(filePath, 'utf8');
     const fileName = path.basename(filePath);
@@ -88,16 +88,17 @@ async function checkFile(filePath) {
     }
 
     return null;
-  } catch (err) {
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
     return {
       file: filePath,
-      issue: `Error reading file: ${err.message}`,
+      issue: `Error reading file: ${errorMessage}`,
       type: 'error'
     };
   }
 }
 
-async function walkDir(dir, fileList = []) {
+async function walkDir(dir: string, fileList: string[] = []): Promise<string[]> {
   const files = fs.readdirSync(dir);
 
   for (const file of files) {
@@ -119,7 +120,7 @@ async function walkDir(dir, fileList = []) {
 async function main() {
   console.log('\nChecking file naming conventions...\n');
 
-  const files = [];
+  const files: string[] = [];
   for (const dir of DIRS_TO_SCAN) {
     try {
       if (fs.existsSync(dir)) {
@@ -133,7 +134,7 @@ async function main() {
 
   console.log(`Found ${files.length} component files to check.\n`);
 
-  const issues = [];
+  const issues: Array<{ file: string; issue: string; type: 'error' | 'warning' }> = [];
   let progress = 0;
 
   for (const file of files) {
