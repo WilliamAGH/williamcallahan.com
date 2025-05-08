@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import type { OgFetchResult } from '@/types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
     }
 
-    let parsedUrl;
+    let parsedUrl: URL;
     try {
       parsedUrl = new URL(url);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -66,18 +67,22 @@ export async function GET(request: NextRequest) {
     const rootDomainUrl = `${urlObj.protocol}//${urlObj.hostname}`;
 
     // Setup for parallel fetches
-    const fetchPromises = [fetchOgDataForUrl(url)];
+    const fetchPromises: Promise<OgFetchResult>[] = [fetchOgDataForUrl(url)];
 
-    // If we need to fetch the domain-level OG image too
     if (fetchDomain) {
       console.log(`⏳ Also fetching domain-level OpenGraph data from: ${rootDomainUrl}`);
       fetchPromises.push(fetchOgDataForUrl(rootDomainUrl));
     }
 
-    // Execute both fetches in parallel for efficiency
-    const [profileResult, domainResult] = await Promise.all(
-      fetchPromises.concat(fetchDomain ? [] : [Promise.resolve(null as any)])
-    );
+    // Execute fetches
+    let profileResult: OgFetchResult | null = null;
+    let domainResult: OgFetchResult | null = null;
+
+    if (fetchPromises.length === 1) {
+      profileResult = await fetchPromises[0];
+    } else if (fetchPromises.length === 2) {
+      [profileResult, domainResult] = await Promise.all(fetchPromises);
+    }
 
     // Get profile image with fallback
     let profileImageUrl = profileResult?.imageUrl;
@@ -93,6 +98,7 @@ export async function GET(request: NextRequest) {
 
     // If no banner image, try domain result
     if (!domainBrandingImage) {
+      // Ensure domainResult is not null before accessing its properties
       domainBrandingImage = domainResult?.imageUrl || domainResult?.bannerImageUrl;
     }
 
@@ -133,7 +139,7 @@ export async function GET(request: NextRequest) {
 /**
  * Fetch and process OpenGraph data for a specific URL
  */
-async function fetchOgDataForUrl(url: string) {
+async function fetchOgDataForUrl(url: string): Promise<OgFetchResult> {
   try {
     // Determine domain type for specialized handling
     const domain = getDomainType(url);
@@ -162,6 +168,8 @@ async function fetchOgDataForUrl(url: string) {
       console.log(`❌ Failed to fetch from ${url}: ${response.status} ${response.statusText}`);
       return {
         imageUrl: getLocalImageForSocialNetwork(url),
+        bannerImageUrl: null,
+        ogMetadata: {},
         error: `Failed to fetch from ${domain}: ${response.status}`
       };
     }
@@ -242,73 +250,70 @@ async function fetchOgDataForUrl(url: string) {
 
     // First priority: platform-specific profile image extraction
     if (ogTags.profileImage) {
-      let absoluteImageUrl;
+      let absoluteImageUrl: string = ogTags.profileImage; // Default to using as-is
       try {
         absoluteImageUrl = new URL(ogTags.profileImage, url).toString();
       } catch (urlError) {
         console.log(`⚠️ Error creating absolute URL for profile image ${ogTags.profileImage}: ${(urlError as Error).message}`);
-        absoluteImageUrl = ogTags.profileImage; // Use as-is if we can't parse it
+        // absoluteImageUrl remains ogTags.profileImage
       }
 
       console.log(`👤 Found platform-specific profile image for ${domain}: ${absoluteImageUrl}`);
 
-      // If we also have a banner image, return that too
+      let absoluteBannerUrl: string | null = null;
       if (ogTags.bannerImage) {
-        let absoluteBannerUrl;
+        absoluteBannerUrl = ogTags.bannerImage; // Default to using as-is
         try {
           absoluteBannerUrl = new URL(ogTags.bannerImage, url).toString();
           console.log(`🏞️ Also found banner image for ${domain}: ${absoluteBannerUrl}`);
         } catch (urlError) {
-          console.log(`⚠️ Error creating absolute URL for banner image: ${(urlError as Error).message}`);
-          absoluteBannerUrl = ogTags.bannerImage; // Use as-is if we can't parse it
+          console.log(`⚠️ Error creating absolute URL for banner image ${ogTags.bannerImage}: ${(urlError as Error).message}`);
+          // absoluteBannerUrl remains ogTags.bannerImage
         }
-
-        return {
-          imageUrl: absoluteImageUrl,
-          bannerImageUrl: absoluteBannerUrl,
-          ogMetadata: ogTags
-        };
       }
 
       return {
         imageUrl: absoluteImageUrl,
+        bannerImageUrl: absoluteBannerUrl,
         ogMetadata: ogTags
       };
     }
 
     // Second priority: og:image
     if (ogTags.image) {
-      let absoluteImageUrl;
+      let absoluteImageUrl: string = ogTags.image; // Default to using as-is
       try {
         absoluteImageUrl = new URL(ogTags.image, url).toString();
       } catch (urlError) {
         console.log(`⚠️ Error creating absolute URL for og:image ${ogTags.image}: ${(urlError as Error).message}`);
-        absoluteImageUrl = ogTags.image; // Use as-is if we can't parse it
+        // absoluteImageUrl remains ogTags.image
       }
 
       console.log(`🖼️ Found og:image for ${domain}: ${absoluteImageUrl}`);
 
       return {
         imageUrl: absoluteImageUrl,
-        ogMetadata: ogTags
+        ogMetadata: ogTags,
+        bannerImageUrl: null
       };
     }
 
     // Third priority: twitter:image
     if (ogTags.twitterImage) {
-      let absoluteImageUrl;
+      let absoluteImageUrl: string = ogTags.twitterImage; // Default to using as-is
       try {
         absoluteImageUrl = new URL(ogTags.twitterImage, url).toString();
       } catch (urlError) {
         console.log(`⚠️ Error creating absolute URL for twitter:image ${ogTags.twitterImage}: ${(urlError as Error).message}`);
-        absoluteImageUrl = ogTags.twitterImage; // Use as-is if we can't parse it
+        // absoluteImageUrl remains ogTags.twitterImage
       }
 
       console.log(`🖼️ Found twitter:image for ${domain}: ${absoluteImageUrl}`);
 
       return {
         imageUrl: absoluteImageUrl,
-        ogMetadata: ogTags
+        ogMetadata: ogTags,
+        bannerImageUrl: null
       };
     }
 
@@ -316,14 +321,18 @@ async function fetchOgDataForUrl(url: string) {
     console.log(`⚠️ No Open Graph image found for ${domain} (${url})`);
     return {
       imageUrl: getLocalImageForSocialNetwork(url),
-      ogMetadata: ogTags
+      ogMetadata: ogTags,
+      bannerImageUrl: null
     };
 
-  } catch (fetchError) {
-    console.log(`❌ Error during fetch or parsing for ${url}: ${(fetchError as Error).message}`);
+  } catch (fetchError: unknown) {
+    const errorMessage = fetchError instanceof Error ? fetchError.message : 'Unknown fetch error';
+    console.log(`❌ Error during fetch or parsing for ${url}: ${errorMessage}`);
     return {
       imageUrl: getLocalImageForSocialNetwork(url),
-      error: `Fetch error: ${(fetchError as Error).message}`
+      bannerImageUrl: null,
+      ogMetadata: {},
+      error: `Fetch error: ${errorMessage}`
     };
   }
 }
@@ -351,7 +360,16 @@ function extractOpenGraphTags(html: string, url: string = '') {
   const domain = getDomainType(url);
 
   // Standard OG tags extraction
-  const result = {
+  const result: {
+    title: string | null;
+    description: string | null;
+    image: string | null;
+    twitterImage: string | null;
+    site: string | null;
+    type: string | null;
+    profileImage: string | null;
+    bannerImage: string | null;
+  } = {
     title: extractMetaContent(html, 'property="og:title"') ||
            extractMetaContent(html, 'name="twitter:title"'),
 
@@ -428,7 +446,7 @@ function extractOpenGraphTags(html: string, url: string = '') {
       }
 
       // Banner extraction for X/Twitter
-      const bannerPattern = /<img[^>]*class="[^"]*css-1dbjc4n[^"]*"[^>]*style="background-image: url\(&quot;([^&]+)&quot;\)"/i;
+      const bannerPattern = /<img[^>]*class="[^"]*css-1dbjc4n[^"]*"[^>]*style="background-image: url\("([^&]+)"\)"/i;
       const bannerMatch = html.match(bannerPattern);
 
       if (bannerMatch?.[1]) {
@@ -487,7 +505,7 @@ function extractMetaContent(html: string, attributePattern: string): string | nu
 /**
  * Get appropriate network-specific profile images
  */
-function getLocalImageForSocialNetwork(url: string): string {
+function getLocalImageForSocialNetwork(url: string): string | null {
   const domain = getDomainType(url);
 
   // Return appropriate profile image based on domain
@@ -509,10 +527,12 @@ function getLocalImageForSocialNetwork(url: string): string {
       if (url.includes('williamcallahan.com')) {
         return 'https://cdn.bsky.app/img/avatar/plain/did:plc:o3rar2atqxlmczkaf6npbcqz/bafkreidpq75jyggvzlm5ddgpzhfkm4vprgitpxukqpgkrwr6sqx54b2oka@jpeg';
       }
-      return '/images/bluesky_logo.svg';
+      // Fallback to null if not the specific Bluesky profile, or handle generic Bluesky logo if available
+      return '/images/bluesky_logo.svg'; // Or null if this is also a placeholder
 
     default:
-      return '/images/william.jpeg';
+      // Fallback to null if no specific image is available
+      return '/images/william.jpeg'; // Or null
   }
 }
 

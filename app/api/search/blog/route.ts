@@ -1,4 +1,3 @@
-
 /**
  * Blog Search API Route
  *
@@ -13,7 +12,7 @@
 
 import { NextResponse } from 'next/server';
 import { searchBlogPostsServerSide } from '@/lib/blog/server-search'; // Import the refactored search function
-import type { SearchResult } from '@/types/search'; // Keep SearchResult type
+// import type { SearchResult } from '@/types/search'; // Keep SearchResult type - Removed as unused by ESLint
 
 // Ensure this route is not statically cached
 export const dynamic = 'force-dynamic';

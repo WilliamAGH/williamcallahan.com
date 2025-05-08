@@ -16,7 +16,7 @@ function formatErrorResponse(error: unknown) {
   const isDev = process.env.NODE_ENV === 'development';
 
   // Basic error info for any environment
-  const errorResponse: Record<string, any> = {
+  const errorResponse: Record<string, unknown> = {
     message: error instanceof Error ? error.message : 'Unknown error occurred',
     code: 'BLOG_FETCH_ERROR'
   };
@@ -30,7 +30,8 @@ function formatErrorResponse(error: unknown) {
       // Include any custom properties the error might have
       Object.getOwnPropertyNames(error).forEach(prop => {
         if (!['name', 'message', 'stack'].includes(prop)) {
-          errorResponse[prop] = (error as any)[prop];
+          // Safely access additional properties using a two-step cast
+          errorResponse[prop] = (error as unknown as Record<string, unknown>)[prop];
         }
       });
     } else {
