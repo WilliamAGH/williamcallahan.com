@@ -9,7 +9,7 @@ void mock.module('../../data/blog/posts', () => ({
       title: 'Test Post 1',
       slug: 'test-post-1',
       excerpt: 'This is a test post about React',
-      content: {} as any,
+      content: { compiledSource: 'compiled_react_content', scope: {}, frontmatter: {} },
       publishedAt: '2024-01-01T00:00:00Z',
       author: { id: '1', name: 'John Doe' },
       tags: ['react', 'javascript']
@@ -19,7 +19,7 @@ void mock.module('../../data/blog/posts', () => ({
       title: 'Test Post 2',
       slug: 'test-post-2',
       excerpt: 'This is a test post about TypeScript',
-      content: {} as any,
+      content: { compiledSource: 'compiled_typescript_content', scope: {}, frontmatter: {} },
       publishedAt: '2024-01-02T00:00:00Z',
       author: { id: '1', name: 'John Doe' },
       tags: ['typescript', 'javascript']

@@ -31,8 +31,15 @@ void mock.module('../../../../components/ui/navigation/window-controls', () => {
 
 // Mock next/link using mock.module
 void mock.module('next/link', () => { // Use mock.module
-  function MockLink({ children, href, ...props }: { children: React.ReactNode; href: string; [key: string]: any }) {
-    // Filter out Next.js specific props and only pass HTML-valid ones to <a>
+  // Define a more specific type for the mock Link's props
+  type MockLinkProps = {
+    children: React.ReactNode;
+    href: string; // next/link requires href
+    // Allow other anchor attributes, omitting href to avoid conflict
+  } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'>;
+
+  function MockLink({ children, href, ...props }: MockLinkProps) {
+    // The 'props' will include any other anchor attributes
     return <a href={href} {...props}>{children}</a>;
   }
   MockLink.displayName = 'MockLink';
