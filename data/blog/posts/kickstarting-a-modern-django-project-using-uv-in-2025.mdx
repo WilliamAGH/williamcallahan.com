@@ -67,9 +67,8 @@ This part covers setting up a standard, default Django project using your prefer
   <ShellTab label='uv (recommended)'>
     <CollapseDropdown summary='Install and Configure uv'>
       <div>
-        <code>uv</code> is an extremely fast Python package installer and
-        resolver, written in Rust, designed as a drop-in replacement for{' '}
-        <code>pip</code>, <code>pip-tools</code>, and <code>venv</code>.
+        <code>uv</code> is an extremely fast Python package installer and resolver, written in Rust. It's designed as a modern, high-performance alternative to tools like{' '}
+        <code>pip</code> (the standard installer from <ExternalLink href="https://pypi.org/">PyPI</ExternalLink>, the Python Package Index) and <ExternalLink href="https://docs.conda.io/en/latest/">Conda</ExternalLink> (a broader package and environment manager). <code>uv</code> aims to replace <code>pip</code>, <code>pip-tools</code>, and <code>venv</code>.
       </div>
       <div>
         <strong>Installation Methods:</strong>
@@ -168,17 +167,27 @@ This part covers setting up a standard, default Django project using your prefer
           # 1. Create project directory and setup environment
           mkdir my_django_project && cd my_django_project
           uv venv
-          # This command creates a virtual environment in the .venv directory.
+          # `uv venv` creates a lightweight virtual environment in the .venv directory,
+          # isolating project dependencies from the system Python installation.
           # For more details on how uv manages Python environments, see the official documentation: https://docs.astral.sh/uv/pip/environments/
           uv init --bare --python-pin
-          # This creates a minimal pyproject.toml and a .python-version file,
-          # avoiding extra template files before Django sets up its own structure.
+          # `uv init` sets up the project for uv's dependency management, creating
+          # a minimal pyproject.toml and a .python-version file. This is where
+          # uv will track dependencies and can generate a uv.lock file for
+          # reproducible builds.
 
           # 2. Install Django
           uv add django
+          # `uv add` installs the specified package (Django) and automatically
+          # updates pyproject.toml and uv.lock to reflect the new dependency
+          # and its exact version and dependencies.
 
           # 3. Verify installation
           uv run django-admin --version
+          # `uv run` executes a command within the project's virtual environment.
+          # This means you don't need to explicitly activate the environment
+          # with `source .venv/bin/activate` (or similar) every time you open a new terminal,
+          # unlike common workflows with `pip` and `venv`.
           ```
         </InstructionTab>
         <InstructionTab label="pip">
@@ -509,6 +518,8 @@ These templates reduce boilerplate for common functionalities (auth, UI componen
           ```bash
           # Sync dependencies using uv
           uv sync
+          # `uv sync` installs the exact dependencies specified in the uv.lock file,
+          # ensuring that everyone working on the project has the same environment.
           ```
         </InstructionTab>
         <InstructionTab label="Poetry">
@@ -840,6 +851,14 @@ Execute from project root with virtual environment active.
     </InstructionToggleTabs>
   </ShellTab>
 </ShellParentTabs>
+
+---
+
+## Beyond Development: Deployment Considerations
+
+While this guide focuses on setting up your local development environment, deploying your Django application to a production server involves additional steps. Unlike the built-in development server, production deployments typically use a Web Server Gateway Interface (WSGI) server (like Gunicorn or uWSGI) to handle requests, often in conjunction with a web proxy server (like Nginx or Apache, or AWS Lambda).
+
+For a deeper dive into some deployment strategies and easy deployment options, I made a recent past sharing my current hosting preferences: <ExternalLink href="/blog/how-i-host-my-apps-how-to-deploy-in-2025">How I Host My Apps: How to Deploy in 2025</ExternalLink>
 
 ---
 
