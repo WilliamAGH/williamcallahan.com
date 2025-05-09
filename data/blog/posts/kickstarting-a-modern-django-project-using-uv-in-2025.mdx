@@ -288,6 +288,10 @@ This part covers setting up a standard, default Django project using your prefer
         <li>PyCharm will create the project structure and virtual environment</li>
       </ul>
 
+      <div>
+        If the project wizard (like in PyCharm) automatically sets up <code>uv</code> and a <code>pyproject.toml</code> file, you typically just need to run <code>uv sync</code> in the project directory to install the defined packages. After that, you can use <code>uv run</code> for all your commands (e.g., <code>uv run manage.py migrate</code>), as uv automatically handles the virtual environment activation.
+      </div>
+
       <ArticleImage
         src="/images/posts/new-django-project-pycharm.png"
         alt="PyCharm New Project dialog showing Django selected with 'uv' as the environment type"
@@ -311,6 +315,8 @@ method, the next sections will cover creating your first app and using modern pr
 
 ## Part 2: Adding Your First App & Core Concepts
 
+A Django **project** is the overall container for your application's settings and configurations (e.g., database settings, installed apps, URL routing at the project level). A project can contain multiple **apps**, which are modular components that handle specific functionalities (like a blog, a user management system, etc.). Think of the project as the building and apps as the distinct rooms or services within it.
+
 With the default project running, let's create your first Django app and understand core concepts.
 
 <CollapseDropdown summary='Create Your First App & Configure'>
@@ -329,6 +335,10 @@ With the default project running, let's create your first Django app and underst
       ```
     </InstructionTab>
   </InstructionToggleTabs>
+
+  <BackgroundInfo title='App Naming Tip'>
+    When naming your Django app, it may be required to use lowercase alphabet-only characters and avoid special characters like underscores (e.g., avoid "my_first_app").
+  </BackgroundInfo>
 
   <div className="py-[6px]"><strong>2. Register Your App:</strong></div>
   <div>Add your new app to <code>INSTALLED_APPS</code> in your project's <code>settings.py</code> file:</div>
