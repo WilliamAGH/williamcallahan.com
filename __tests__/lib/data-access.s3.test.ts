@@ -1,13 +1,18 @@
 // __tests__/lib/data-access.s3.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { getLogo } from '@/lib/data-access';
-import { writeBinaryS3, deleteFromS3 } from '@/lib/s3-utils';
-import { ServerCacheInstance } from '@/lib/server-cache';
+import { getLogo } from '../../lib/data-access';
+import { writeBinaryS3, deleteFromS3 } from '../../lib/s3-utils';
+import { ServerCacheInstance } from '../../lib/server-cache';
 import { createHash } from 'node:crypto';
-import type { LogoSource } from '@/types';
+import type { LogoSource } from '../../types';
+
+// Determine if S3 integration tests can run
+const canRunSuite = Boolean(
+  process.env.S3_BUCKET && process.env.S3_SERVER_URL && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY && process.env.AWS_REGION
+);
 
 // Helper to calculate expected S3 key (mirroring logic in data-access)
-const S3_LOGOS_KEY_PREFIX = 'data/images/logos';
+const S3_LOGOS_KEY_PREFIX = 'images/logos';
 function getTestLogoS3Key(domain: string, source: LogoSource, extension: string): string {
   const getDomainHash = (d: string): string => createHash('md5').update(d).digest('hex');
   const hash = getDomainHash(domain).substring(0, 8);
@@ -16,7 +21,7 @@ function getTestLogoS3Key(domain: string, source: LogoSource, extension: string)
   return `${S3_LOGOS_KEY_PREFIX}/${domainPart}_${hash}_${sourceAbbr}.${extension}`;
 }
 
-describe.skip('getLogo S3 Integration', () => {
+describe.skipIf(!canRunSuite)('getLogo S3 Integration', () => {
   const testDomain = 's3testdomain.com';
   const testSource: LogoSource = 'google'; // Arbitrary source for testing
   const testExtension = 'png';

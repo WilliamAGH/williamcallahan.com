@@ -122,7 +122,7 @@ describe('OpenGraph Metadata', () => {
     });
 
     it('should handle missing tags', () => {
-      // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       const { tags: _tags, ...articleWithoutTags } = mockArticleParams;
       const metadata = createArticleOgMetadata(articleWithoutTags);
 
