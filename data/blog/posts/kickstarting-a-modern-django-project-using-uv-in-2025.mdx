@@ -217,9 +217,13 @@ This part covers setting up a standard, default Django project using your prefer
 
           # Apply initial migrations
           uv run manage.py migrate
+          # This command applies database migrations, setting up the necessary tables.
+          # By default, Django uses an SQLite database stored in a file named db.sqlite3
+          # in your project's root directory if no other database is configured.
 
           # Run development server
           uv run manage.py runserver
+          # This starts Django's built-in development web server.
           ```
         </InstructionTab>
         <InstructionTab label='pip'>
@@ -229,9 +233,13 @@ This part covers setting up a standard, default Django project using your prefer
 
           # Apply initial migrations
           python manage.py migrate
+          # This command applies database migrations, setting up the necessary tables.
+          # By default, Django uses an SQLite database stored in a file named db.sqlite3
+          # in your project's root directory if no other database is configured.
 
           # Run development server
           python manage.py runserver
+          # This starts Django's built-in development web server.
           ```
         </InstructionTab>
       </InstructionToggleTabs>
