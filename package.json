@@ -24,11 +24,11 @@
     "validate": "bun run lint && bun run type-check",
     "clean": "rm -rf .next out node_modules",
     "cleanCache": "rm -rf .next/cache",
-    "test": "bun test",
-    "test:watch": "bun test --watch",
-    "coverage": "bun test --coverage",
-    "test:smoke:blog": "bun test __tests__/blog/blog.smoke.test.ts",
-    "test:smoke:pages": "bun test __tests__/app/pages.smoke.test.ts",
+    "test": "./scripts/run-tests.sh",
+    "test:watch": "./scripts/run-tests.sh --watch",
+    "coverage": "./scripts/run-tests.sh --coverage",
+    "test:smoke:blog": "./scripts/run-tests.sh __tests__/blog/blog.smoke.test.ts",
+    "test:smoke:pages": "./scripts/run-tests.sh __tests__/app/pages.smoke.test.ts",
     "prepare": "node .husky/install.mjs"
   },
   "dependencies": {
