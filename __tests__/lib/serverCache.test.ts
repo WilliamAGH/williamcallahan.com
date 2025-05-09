@@ -1,4 +1,4 @@
-import { jest, describe, beforeEach, mock, test } from 'bun:test';
+import { describe, beforeEach, test, expect, mock, jest } from 'bun:test';
 
 // Import type only initially, actual instance will be re-imported
 import type { ServerCache } from '../../lib/server-cache';
@@ -93,7 +93,6 @@ describe('ServerCache', () => {
   });
 
   describe('logo fetch', () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const mockFetchResult = {
       url: 'https://example.com/logo.png',
       source: 'google' as LogoSource,
@@ -149,7 +148,6 @@ describe('ServerCache', () => {
   });
 
   describe('inverted logo', () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const mockAnalysis: LogoInversion = {
       needsDarkInversion: true,
       needsLightInversion: false,
@@ -183,7 +181,6 @@ describe('ServerCache', () => {
   });
 
   describe('logo analysis', () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const mockAnalysis: LogoInversion = {
       needsDarkInversion: true,
       needsLightInversion: false,
@@ -213,7 +210,6 @@ describe('ServerCache', () => {
   });
 
   describe('bookmarks cache', () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const mockBookmarks: UnifiedBookmark[] = [
       {
         id: 'bookmark1',
