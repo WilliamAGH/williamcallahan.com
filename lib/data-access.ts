@@ -10,8 +10,7 @@
  * It also handles writing back to the volume and cache after an external fetch.
  */
 
-import fs from 'node:fs/promises';
-import path from 'node:path';
+import { s3Client } from '@/lib/s3'; // Updated import
 import { ServerCacheInstance } from '@/lib/server-cache';
 import type { UnifiedBookmark, GitHubActivityApiResponse, ContributionDay, GitHubGraphQLContributionResponse, LogoSource, RepoWeeklyStatCache, RepoRawWeeklyStat, AggregatedWeeklyActivity, GithubContributorStatsEntry, RepoRawWeeklyStat as GithubRepoRawWeeklyStatType } from '@/types'; // Assuming all types are in @/types
 import { LOGO_SOURCES, GENERIC_GLOBE_PATTERNS, LOGO_SIZES } from '@/lib/constants'; // Assuming constants are in @/lib
@@ -33,140 +32,136 @@ const GITHUB_API_TOKEN = process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH;
 // const API_FETCH_TIMEOUT_MS = 30000; // Unused
 const VERBOSE = process.env.VERBOSE === 'true' || false; // Ensure VERBOSE is defined at the module level
 
-// Volume paths
-const ROOT_DIR = process.cwd();
-const BOOKMARKS_VOLUME_DIR = path.join(ROOT_DIR, 'data', 'bookmarks');
-const BOOKMARKS_VOLUME_FILE = path.join(BOOKMARKS_VOLUME_DIR, 'bookmarks.json');
-const GITHUB_ACTIVITY_VOLUME_DIR = path.join(ROOT_DIR, 'data', 'github-activity');
-const GITHUB_ACTIVITY_VOLUME_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'activity_data.json');
-const LOGOS_VOLUME_DIR = path.join(ROOT_DIR, 'data', 'images', 'logos'); // Primary logo location
+// Volume paths / S3 Object Keys
+// const ROOT_DIR = process.cwd(); // No longer needed for S3 paths
 
-// GitHub Activity Data Paths
-// const DAILY_CONTRIBUTIONS_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'daily_contribution_counts.json'); // Unused
-const REPO_RAW_WEEKLY_STATS_DIR = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'repo_raw_weekly_stats');
-const AGGREGATED_WEEKLY_ACTIVITY_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'aggregated_weekly_activity.json');
+// NOTE: Assuming S3 bucket is the root. Paths are now S3 keys.
+// Example: 'data/bookmarks/bookmarks.json' becomes 'bookmarks/bookmarks.json'
+const BOOKMARKS_S3_KEY_DIR = 'bookmarks'; // Base "directory" for bookmarks
+const BOOKMARKS_S3_KEY_FILE = `${BOOKMARKS_S3_KEY_DIR}/bookmarks.json`;
+
+const GITHUB_ACTIVITY_S3_KEY_DIR = 'github-activity'; // Base "directory" for GitHub activity
+const GITHUB_ACTIVITY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/activity_data.json`;
+const GITHUB_STATS_SUMMARY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/github_stats_summary.json`;
+
+
+const LOGOS_S3_KEY_DIR = 'images/logos'; // Base "directory" for logos
+
+// GitHub Activity Data Paths / S3 Object Keys
+const REPO_RAW_WEEKLY_STATS_S3_KEY_DIR = `${GITHUB_ACTIVITY_S3_KEY_DIR}/repo_raw_weekly_stats`;
+const AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/aggregated_weekly_activity.json`;
 
 // Ensure directories exist (run once at startup or on first use)
-async function ensureDirectoryExists(dirPath: string) {
-  try {
-    await fs.mkdir(dirPath, { recursive: true });
-  } catch (error) {
-    console.error(`[DataAccess] Failed to create directory ${dirPath}:`, error);
-    // Depending on severity, you might want to throw or handle differently
-  }
-}
+// async function ensureDirectoryExists(dirPath: string) { // Removed - S3 doesn't have directories in the same way
+//   try {
+//     await fs.mkdir(dirPath, { recursive: true });
+//   } catch (error) {
+//     console.error(`[DataAccess] Failed to create directory ${dirPath}:`, error);
+//     // Depending on severity, you might want to throw or handle differently
+//   }
+// }
 
-// eslint-disable-next-line @typescript-eslint/no-floating-promises
-(async () => {
-  try {
-    await ensureDirectoryExists(BOOKMARKS_VOLUME_DIR);
-    await ensureDirectoryExists(GITHUB_ACTIVITY_VOLUME_DIR);
-    await ensureDirectoryExists(REPO_RAW_WEEKLY_STATS_DIR);
-    await ensureDirectoryExists(LOGOS_VOLUME_DIR);
-    console.log('[DataAccess] Data directories initialized successfully');
-  } catch (error) {
-    console.error('[DataAccess] CRITICAL ERROR: Failed to initialize one or more data directories:', error);
-    // In a real production scenario, you might want to:
-    // - Send an alert to an error monitoring service
-    // - Exit the process if these directories are absolutely essential for startup:
-    //   process.exit(1);
-  }
-})();
+
+// (async () => { // Removed - No directories to ensure for S3 at this stage
+//   try {
+//     // await ensureDirectoryExists(BOOKMARKS_VOLUME_DIR); // Removed
+//     // await ensureDirectoryExists(GITHUB_ACTIVITY_VOLUME_DIR); // Removed
+//     // await ensureDirectoryExists(REPO_RAW_WEEKLY_STATS_DIR); // Removed
+//     // await ensureDirectoryExists(LOGOS_VOLUME_DIR); // Removed
+//     console.log('[DataAccess] Data directories initialized successfully'); // This log might be misleading now
+//   } catch (error) {
+//     console.error('[DataAccess] CRITICAL ERROR: Failed to initialize one or more data directories:', error);
+//     // In a real production scenario, you might want to:
+//     // - Send an alert to an error monitoring service
+//     // - Exit the process if these directories are absolutely essential for startup:
+//     //   process.exit(1);
+//   }
+// })();
 
 
 // --- Helper Functions ---
 
 /**
- * Reads data from a JSON file.
- * @param filePath Path to the JSON file.
+ * Reads data from a JSON file in S3.
+ * @param s3Key Path to the JSON file in S3.
  * @returns Parsed JSON data or null if an error occurs.
  */
-async function readJsonFile<T>(filePath: string): Promise<T | null> {
+async function readJsonFile<T>(s3Key: string): Promise<T | null> {
   try {
-    const fileContents = await fs.readFile(filePath, 'utf-8');
-    return JSON.parse(fileContents) as T;
+    const s3File = s3Client.file(s3Key);
+    // Check if file exists, Bun's S3 API might not have a direct exists check like fs.
+    // Attempting to get metadata or read might be the way.
+    // For now, we'll rely on json() to throw if not found or not valid JSON.
+    const data = await s3File.json<unknown>();
+    return data as T;
   } catch (error: unknown) {
-    const nodeError = error as NodeJS.ErrnoException; // Type assertion for common properties
-    if (nodeError.code !== 'ENOENT') { // Log errors other than file not found
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[DataAccess] Error reading JSON file ${filePath}:`, message);
+    // Bun's S3 errors might differ from NodeJS.ErrnoException.
+    // We'll need to refine error handling based on actual S3 client behavior.
+    // A common pattern is that .json() or .text() might throw if the object doesn't exist.
+    // For now, a generic catch. We can log more specifically if we identify S3 "not found" errors.
+    const message = error instanceof Error ? error.message : String(error);
+    // Avoid logging "not found" as a warning if it's a common case (e.g., cache miss)
+    // This needs more specific error checking based on Bun S3 behavior for non-existent files.
+    if (!message.toLowerCase().includes('not found') && !message.toLowerCase().includes('no such key')) {
+        console.warn(`[DataAccess-S3] Error reading JSON from S3 key ${s3Key}:`, message);
     }
     return null;
   }
 }
 
 /**
- * Writes data to a JSON file atomically.
- * @param filePath Path to the JSON file.
+ * Writes data to a JSON file in S3.
+ * @param s3Key Path to the JSON file in S3.
  * @param data Data to write.
  */
-async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
-  const tempFilePath = filePath + '.tmp';
+async function writeJsonFile<T>(s3Key: string, data: T): Promise<void> {
+  // const tempFilePath = filePath + '.tmp'; // Temp file strategy not applicable to S3 directly
   try {
-    const dir = path.dirname(filePath);
-    await ensureDirectoryExists(dir);
+    // const dir = path.dirname(filePath); // Not needed for S3
+    // await ensureDirectoryExists(dir); // Not needed for S3
     const jsonData = JSON.stringify(data, null, 2);
-    await fs.writeFile(tempFilePath, jsonData, 'utf-8');
-    await fs.rename(tempFilePath, filePath);
+    const s3File = s3Client.file(s3Key);
+    await s3File.write(jsonData);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[DataAccess] Failed to write JSON file ${filePath}:`, message);
-    // Attempt to clean up temp file if it exists
-    try {
-      await fs.unlink(tempFilePath);
-    } catch { // Ignore cleanup error
-      // No action needed for cleanup error
-    }
+    console.error(`[DataAccess-S3] Failed to write JSON to S3 key ${s3Key}:`, message);
+    // S3 write is generally atomic for the object, so no temp file cleanup needed.
   }
 }
 
 /**
- * Determines if an image is SVG and processes it accordingly
- * @param buffer The image buffer
- * @returns Object with processed buffer, whether it's SVG, and appropriate content type
- */
-async function processImageBuffer(buffer: Buffer): Promise<{
-  processedBuffer: Buffer;
-  isSvg: boolean;
-  contentType: string
-}> {
-  const metadata = await sharp(buffer).metadata();
-  const isSvg = metadata.format === 'svg';
-  const contentType = isSvg ? 'image/svg+xml' : 'image/png';
-  const processedBuffer = isSvg ? buffer : await sharp(buffer).png().toBuffer();
-  return { processedBuffer, isSvg, contentType };
-}
-
-/**
- * Reads a binary file (e.g., an image).
- * @param filePath Path to the file.
+ * Reads a binary file (e.g., an image) from S3.
+ * @param s3Key Path to the file in S3.
  * @returns Buffer or null.
  */
-async function readBinaryFile(filePath: string): Promise<Buffer | null> {
+async function readBinaryFile(s3Key: string): Promise<Buffer | null> {
   try {
-    return await fs.readFile(filePath);
+    const s3File = s3Client.file(s3Key);
+    const arrayBuffer = await s3File.arrayBuffer();
+    return Buffer.from(arrayBuffer);
   } catch (error: unknown) {
-    const nodeError = error as NodeJS.ErrnoException;
-    if (nodeError.code !== 'ENOENT') {
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[DataAccess] Error reading binary file ${filePath}:`, message);
+    const message = error instanceof Error ? error.message : String(error);
+    // Similar to readJsonFile, refine error checking for "not found"
+     if (!message.toLowerCase().includes('not found') && !message.toLowerCase().includes('no such key')) {
+        console.warn(`[DataAccess-S3] Error reading binary file from S3 key ${s3Key}:`, message);
     }
     return null;
   }
 }
 
 /**
- * Writes a binary file (e.g., an image).
- * @param filePath Path to the file.
+ * Writes a binary file (e.g., an image) to S3.
+ * @param s3Key Path to the file in S3.
  * @param data Buffer to write.
  */
-async function writeBinaryFile(filePath: string, data: Buffer): Promise<void> {
+async function writeBinaryFile(s3Key: string, data: Buffer): Promise<void> {
   try {
-    const dir = path.dirname(filePath);
-    await ensureDirectoryExists(dir);
-    await fs.writeFile(filePath, data);
+    const s3File = s3Client.file(s3Key);
+    // Convert Node.js Buffer to ArrayBuffer for S3 write
+    const arrayBuffer = new Uint8Array(data).buffer;
+    await s3File.write(arrayBuffer);
   } catch (error) {
-    console.error(`[DataAccess] Failed to write binary file ${filePath}:`, error);
+    console.error(`[DataAccess-S3] Failed to write binary file to S3 key ${s3Key}:`, error);
   }
 }
 
@@ -225,28 +220,28 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
     return cached.bookmarks;
   }
 
-  // 2. Try Volume
-  const volumeBookmarks = await readJsonFile<UnifiedBookmark[]>(BOOKMARKS_VOLUME_FILE);
+  // 2. Try Volume (now S3)
+  const volumeBookmarks = await readJsonFile<UnifiedBookmark[]>(BOOKMARKS_S3_KEY_FILE);
   if (volumeBookmarks && volumeBookmarks.length > 0) {
-    console.log('[DataAccess] Returning bookmarks from volume.');
+    console.log('[DataAccess-S3] Returning bookmarks from S3.');
     ServerCacheInstance.setBookmarks(volumeBookmarks); // Update cache
     return volumeBookmarks;
   }
 
   // 3. Fetch from External API (only if not explicitly skipped)
   if (!skipExternalFetch) {
-    console.log('[DataAccess] Bookmarks not in cache or volume, fetching from external source.');
+    console.log('[DataAccess-S3] Bookmarks not in cache or S3, fetching from external source.');
     const externalBookmarks = await fetchExternalBookmarks();
     if (externalBookmarks) {
-      await writeJsonFile(BOOKMARKS_VOLUME_FILE, externalBookmarks);
+      await writeJsonFile(BOOKMARKS_S3_KEY_FILE, externalBookmarks);
       ServerCacheInstance.setBookmarks(externalBookmarks);
       return externalBookmarks;
     }
   } else {
-    console.log('[DataAccess] External fetch skipped as requested.');
+    console.log('[DataAccess-S3] External fetch skipped as requested.');
   }
 
-  console.warn('[DataAccess] Failed to fetch bookmarks from all sources. Returning empty array.');
+  console.warn('[DataAccess-S3] Failed to fetch bookmarks from all sources. Returning empty array.');
   return [];
 }
 
@@ -306,8 +301,9 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
   fromDate.setDate(fromDate.getDate() - 365);
   const fromDateIso = fromDate.toISOString().split('T')[0] + 'T00:00:00Z';
 
-  // Ensure REPO_RAW_WEEKLY_STATS_DIR exists
-  await ensureDirectoryExists(REPO_RAW_WEEKLY_STATS_DIR);
+  // Ensure REPO_RAW_WEEKLY_STATS_DIR exists - No longer needed for S3 explicitly,
+  // as objects will be written to their keys directly.
+  // await ensureDirectoryExists(REPO_RAW_WEEKLY_STATS_DIR);
 
   try {
     const { user } = await graphql<GitHubGraphQLContributionResponse>(`
@@ -387,7 +383,7 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
         const repoOwnerLogin = repo.owner.login;
         const repoName = repo.name;
         const repoStatFilename = `${repoOwnerLogin}_${repoName}.json`;
-        const repoStatFilePath = path.join(REPO_RAW_WEEKLY_STATS_DIR, repoStatFilename);
+        const repoStatS3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoStatFilename}`; // Use S3 key
         let currentRepoDataComplete = true;
         let userWeeklyStats: RepoRawWeeklyStat[] = [];
 
@@ -402,7 +398,7 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
             currentRepoDataComplete = false;
             apiStatus = 'pending_202_from_api';
             // Try to load existing data if API is pending
-            const existingCache = await readJsonFile<RepoWeeklyStatCache>(repoStatFilePath);
+            const existingCache = await readJsonFile<RepoWeeklyStatCache>(repoStatS3Key); // Read from S3
             if (existingCache?.stats) userWeeklyStats = existingCache.stats;
 
           } else if (statsResponse.ok) {
@@ -420,13 +416,13 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
              console.warn(`[DataAccess] Error fetching stats for ${repoOwnerLogin}/${repoName}. Status: ${statsResponse.status}. Stats will be incomplete.`);
              currentRepoDataComplete = false;
              // Try to load existing data if API failed
-             const existingCache = await readJsonFile<RepoWeeklyStatCache>(repoStatFilePath);
+             const existingCache = await readJsonFile<RepoWeeklyStatCache>(repoStatS3Key); // Read from S3
              if (existingCache?.stats) userWeeklyStats = existingCache.stats;
           }
 
           // Incremental update logic for the raw weekly stats file
           let finalStatsToSave: RepoRawWeeklyStat[] = [];
-          const existingRepoData = await readJsonFile<RepoWeeklyStatCache>(repoStatFilePath);
+          const existingRepoData = await readJsonFile<RepoWeeklyStatCache>(repoStatS3Key); // Read from S3
 
           if (existingRepoData && existingRepoData.stats && apiStatus !== 'pending_202_from_api' && statsResponse.ok) { // Only merge if new data is good
             const existingStatsMap = new Map(existingRepoData.stats.map(s => [s.w, s]));
@@ -448,8 +444,8 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
             status: apiStatus, // Reflects the latest attempt
             stats: finalStatsToSave,
           };
-          await writeJsonFile(repoStatFilePath, newCacheEntry);
-          if (VERBOSE && (apiStatus === 'complete' || apiStatus === 'empty_no_user_contribs')) console.log(`[DataAccess] Raw weekly stats for ${repoOwnerLogin}/${repoName} saved/updated to ${repoStatFilename}. Status: ${apiStatus}, Weeks: ${finalStatsToSave.length}`);
+          await writeJsonFile(repoStatS3Key, newCacheEntry); // Write to S3
+          if (VERBOSE && (apiStatus === 'complete' || apiStatus === 'empty_no_user_contribs')) console.log(`[DataAccess-S3] Raw weekly stats for ${repoOwnerLogin}/${repoName} saved/updated to ${repoStatS3Key}. Status: ${apiStatus}, Weeks: ${finalStatsToSave.length}`);
 
           // Calculate lines for the 365-day window from potentially merged 'finalStatsToSave'
           let currentRepoLinesAdded365 = 0;
@@ -469,7 +465,7 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
           currentRepoDataComplete = false;
           // Attempt to write a cache entry indicating error, preserving old stats if any
           try {
-            const existingRepoDataOnError = await readJsonFile<RepoWeeklyStatCache>(repoStatFilePath);
+            const existingRepoDataOnError = await readJsonFile<RepoWeeklyStatCache>(repoStatS3Key); // Read from S3
             const errorCacheEntry: RepoWeeklyStatCache = {
               repoOwnerLogin,
               repoName,
@@ -477,10 +473,10 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
               status: 'fetch_error',
               stats: existingRepoDataOnError?.stats || [], // Preserve old stats on error
             };
-            await writeJsonFile(repoStatFilePath, errorCacheEntry);
+            await writeJsonFile(repoStatS3Key, errorCacheEntry); // Write to S3
           } catch (writeError: unknown) {
             const writeMessage = writeError instanceof Error ? writeError.message : String(writeError);
-            console.error(`[DataAccess] Failed to write error state for ${repoStatFilename}:`, writeMessage);
+            console.error(`[DataAccess-S3] Failed to write error state for ${repoStatS3Key}:`, writeMessage);
           }
           return { repoName: repo.name || 'error_repo', currentRepoLinesAdded365: 0, currentRepoLinesRemoved365: 0, repoDataComplete: false };
         }
@@ -542,7 +538,7 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
 
     // Create and save the separate summary file
     try {
-      const summaryFilePath = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'github_stats_summary.json');
+      const summaryS3Key = GITHUB_STATS_SUMMARY_S3_KEY_FILE; // Use S3 key constant
       const netLinesOfCode = (activityApiResponse.linesAdded || 0) - (activityApiResponse.linesRemoved || 0);
       const nowPacTime = new Date().toLocaleString('en-US', {
         timeZone: 'America/Los_Angeles',
@@ -561,10 +557,10 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
         totalRepositoriesContributedTo: uniqueRepoArray.length, // Add total repo count
         linesOfCodeByCategory: categoryStats, // Add categorized stats - defined at line 417
       };
-      await writeJsonFile(summaryFilePath, summaryData);
-      if (VERBOSE) console.log(`[DataAccess] GitHub activity summary saved to ${summaryFilePath}`);
+      await writeJsonFile(summaryS3Key, summaryData); // Write to S3
+      if (VERBOSE) console.log(`[DataAccess-S3] GitHub activity summary saved to ${summaryS3Key}`);
     } catch (summaryError) {
-      console.error('[DataAccess] Failed to write GitHub activity summary file:', summaryError);
+      console.error('[DataAccess-S3] Failed to write GitHub activity summary file:', summaryError);
       // Do not fail the main operation if only summary writing fails
     }
 
@@ -615,35 +611,35 @@ export async function getGithubActivity(): Promise<GitHubActivityApiResponse | n
     return cached;
   }
 
-  // 2. Try Volume
-  const volumeActivity = await readJsonFile<GitHubActivityApiResponse>(GITHUB_ACTIVITY_VOLUME_FILE);
+  // 2. Try Volume (now S3)
+  const volumeActivity = await readJsonFile<GitHubActivityApiResponse>(GITHUB_ACTIVITY_S3_KEY_FILE);
   if (volumeActivity && volumeActivity.data && volumeActivity.data.length > 0 && volumeActivity.dataComplete) {
-    console.log('[DataAccess] Returning GitHub activity from volume.');
+    console.log('[DataAccess-S3] Returning GitHub activity from S3.');
     ServerCacheInstance.setGithubActivity(volumeActivity); // Update cache
     return volumeActivity;
   }
 
   // 3. Fetch from External API
-  console.log('[DataAccess] GitHub activity not in cache or volume (or incomplete), fetching from external source.');
+  console.log('[DataAccess-S3] GitHub activity not in cache or S3 (or incomplete), fetching from external source.');
   const externalActivity = await fetchExternalGithubActivity();
   if (externalActivity) {
-    await writeJsonFile(GITHUB_ACTIVITY_VOLUME_FILE, externalActivity);
+    await writeJsonFile(GITHUB_ACTIVITY_S3_KEY_FILE, externalActivity);
     ServerCacheInstance.setGithubActivity(externalActivity);
     return externalActivity;
   }
 
   // If external fetch failed, but we have incomplete data in volume or cache, return that.
   if (volumeActivity && volumeActivity.data && volumeActivity.data.length > 0) {
-    console.warn('[DataAccess] External GitHub fetch failed, returning incomplete data from volume.');
+    console.warn('[DataAccess-S3] External GitHub fetch failed, returning incomplete data from S3.');
     ServerCacheInstance.setGithubActivity(volumeActivity);
     return volumeActivity;
   }
   if (cached && cached.data && cached.data.length > 0) {
-    console.warn('[DataAccess] External GitHub fetch failed, returning incomplete data from cache.');
+    console.warn('[DataAccess-S3] External GitHub fetch failed, returning incomplete data from cache.');
     return cached;
   }
 
-  console.warn('[DataAccess] Failed to fetch GitHub activity from all sources.');
+  console.warn('[DataAccess-S3] Failed to fetch GitHub activity from all sources.');
   return null;
 }
 
@@ -655,42 +651,51 @@ function getDomainHash(domain: string): string {
   return createHash('md5').update(domain).digest('hex');
 }
 
-function getLogoVolumePath(domain: string, source: LogoSource): string {
+function getLogoS3Key(domain: string, source: LogoSource): string { // Renamed from getLogoVolumePath
   const hash = getDomainHash(domain).substring(0, 8);
   const id = domain.split('.')[0];
   const sourceAbbr = source === 'duckduckgo' ? 'ddg' : source;
-  return path.join(LOGOS_VOLUME_DIR, `${id}_${hash}_${sourceAbbr}.png`);
+  // path.join is for file systems; for S3 keys, we just concatenate strings.
+  return `${LOGOS_S3_KEY_DIR}/${id}_${hash}_${sourceAbbr}.png`;
 }
 
-async function findLogoInVolume(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> {
+async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> { // Renamed from findLogoInVolume
   for (const source of ['google', 'clearbit', 'duckduckgo'] as LogoSource[]) {
-    const logoPath = getLogoVolumePath(domain, source);
-    const buffer = await readBinaryFile(logoPath);
+    const logoS3Key = getLogoS3Key(domain, source); // Use S3 key function
+    const buffer = await readBinaryFile(logoS3Key); // Read from S3
     if (buffer) {
-      console.log(`[DataAccess] Found logo for ${domain} from source ${source} in volume.`);
+      console.log(`[DataAccess-S3] Found logo for ${domain} from source ${source} in S3.`);
       return { buffer, source };
     }
   }
-  // Fallback: search for any file starting with domain ID in LOGOS_VOLUME_DIR
-  // This is to support older naming conventions or if source is unknown.
+  // Fallback: search for any file starting with domain ID in LOGOS_S3_KEY_DIR
+  // This uses the new s3Client.list() method.
   try {
-    const files = await fs.readdir(LOGOS_VOLUME_DIR);
     const id = domain.split('.')[0];
-    const matchingFile = files.find(file => file.startsWith(`${id}_`));
-    if (matchingFile) {
-        const buffer = await readBinaryFile(path.join(LOGOS_VOLUME_DIR, matchingFile));
+    const listResponse = await s3Client.list({ Prefix: `${LOGOS_S3_KEY_DIR}/${id}_` }); // Changed prefix to Prefix
+
+    if (listResponse.contents && listResponse.contents.length > 0) {
+      // Prefer .png files if multiple matches
+      const pngMatch = listResponse.contents.find(item => item.key?.endsWith('.png'));
+      const bestMatch = pngMatch || listResponse.contents[0]; // Fallback to first item if no png
+
+      if (bestMatch && bestMatch.key) {
+        const buffer = await readBinaryFile(bestMatch.key); // Read from S3 using the full key
         if (buffer) {
-            // Try to infer source from filename, default to 'unknown'
             let inferredSource: LogoSource = 'unknown';
-            if (matchingFile.includes('_google')) inferredSource = 'google';
-            else if (matchingFile.includes('_clearbit')) inferredSource = 'clearbit';
-            else if (matchingFile.includes('_ddg')) inferredSource = 'duckduckgo';
-            console.log(`[DataAccess] Found logo for ${domain} by pattern match in volume: ${matchingFile}`);
+            if (bestMatch.key.includes('_google')) inferredSource = 'google';
+            else if (bestMatch.key.includes('_clearbit')) inferredSource = 'clearbit';
+            else if (bestMatch.key.includes('_ddg')) inferredSource = 'duckduckgo';
+            console.log(`[DataAccess-S3] Found logo for ${domain} by S3 list pattern match: ${bestMatch.key}`);
             return { buffer, source: inferredSource };
         }
+      }
     }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (e) { /* ignore if readdir fails */ } // Renamed unused catch variable
+  } catch (listError: unknown) {
+    const message = listError instanceof Error ? listError.message : String(listError);
+    console.warn(`[DataAccess-S3] Error listing logos in S3 for domain ${domain} (prefix: ${LOGOS_S3_KEY_DIR}/${domain.split('.')[0]}_):`, message);
+  }
+  // console.warn(`[DataAccess-S3] S3 listing for logo fallback not yet implemented for domain ${domain}.`); // Old message
   return null;
 }
 
@@ -753,34 +758,44 @@ async function fetchExternalLogo(domain: string): Promise<{ buffer: Buffer; sour
 
 
 export async function getLogo(domain: string): Promise<{ buffer: Buffer; source: LogoSource; contentType: string } | null> {
+  // Allow overriding getLogo in tests via global.getLogo
+  const override = (globalThis as {getLogo?: typeof getLogo}).getLogo;
+  if (typeof override === 'function' && override !== getLogo) {
+    return override(domain);
+  }
   // 1. Try Cache
   const cached = ServerCacheInstance.getLogoFetch(domain);
   if (cached && cached.buffer) {
-    console.log(`[DataAccess] Returning logo for ${domain} from cache (source: ${cached.source || 'unknown'}).`);
+    console.log(`[DataAccess-S3] Returning logo for ${domain} from cache (source: ${cached.source || 'unknown'}).`);
     const { contentType } = await processImageBuffer(cached.buffer);
     return { buffer: cached.buffer, source: cached.source || 'unknown', contentType };
   }
 
-  // 2. Try Volume
-  const volumeLogo = await findLogoInVolume(domain);
-  if (volumeLogo) {
-    ServerCacheInstance.setLogoFetch(domain, { url: null, source: volumeLogo.source, buffer: volumeLogo.buffer });
-    const { contentType } = await processImageBuffer(volumeLogo.buffer);
-    return { ...volumeLogo, contentType };
+  // 2. Try S3
+  const s3Logo = await findLogoInS3(domain); // Use renamed function
+  if (s3Logo) {
+    ServerCacheInstance.setLogoFetch(domain, { url: null, source: s3Logo.source, buffer: s3Logo.buffer });
+    const { contentType } = await processImageBuffer(s3Logo.buffer);
+    return { ...s3Logo, contentType };
   }
 
   // 3. Fetch from External API
-  console.log(`[DataAccess] Logo for ${domain} not in cache or volume, fetching from external source.`);
+  console.log(`[DataAccess-S3] Logo for ${domain} not in cache or S3, fetching from external source.`);
   const externalLogo = await fetchExternalLogo(domain); // Removed baseUrlForValidation
   if (externalLogo) {
-    const logoPath = getLogoVolumePath(domain, externalLogo.source);
-    await writeBinaryFile(logoPath, externalLogo.buffer);
+    const logoS3Key = getLogoS3Key(domain, externalLogo.source); // Use S3 key function
+    // Only write back to S3 outside of the production build phase
+    if (process.env.NEXT_PHASE !== 'phase-production-build') {
+      await writeBinaryFile(logoS3Key, externalLogo.buffer); // Write to S3
+    } else {
+      console.debug(`[DataAccess-S3] Build phase detected, skipping S3 write for logo ${logoS3Key}`);
+    }
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: externalLogo.source, buffer: externalLogo.buffer });
     const { contentType } = await processImageBuffer(externalLogo.buffer);
     return { ...externalLogo, contentType };
   }
 
-  console.warn(`[DataAccess] Failed to fetch logo for ${domain} from all sources.`);
+  console.warn(`[DataAccess-S3] Failed to fetch logo for ${domain} from all sources.`);
   // Cache failure to avoid retrying too often
   ServerCacheInstance.setLogoFetch(domain, { url: null, source: null, error: 'Failed to fetch logo' });
   return null;
@@ -790,6 +805,10 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
 // This function is specific to populate-volumes.js needs and might be better placed there
 // or refactored if investments.ts becomes JSON.
 // Import investments statically to avoid critical dependency warning
+// THIS SECTION USES `fs.readFile` for a local `investments.ts` file.
+// This part seems unrelated to the S3 volume migration for `data/*`
+// and likely should remain as is, or its data source re-evaluated if it's meant to be in S3.
+// For now, assuming `data/investments.ts` is a local config file.
 import { investments } from '@/data/investments';
 
 export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>> {
@@ -814,10 +833,19 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
     console.warn(`[DataAccess] Could not use static import of investments.ts, falling back to regex parsing: ${String(importError)}`);
 
     // Fallback to regex parsing if static import fails
-    const investmentsPath = path.join(ROOT_DIR, 'data', 'investments.ts');
+    const investmentsPath = 'data/investments.ts'; // Assuming this path is still local and not in S3.
+                                                // If it IS in S3, this needs to use readJsonFile/readBinaryFile for S3.
+                                                // Given its .ts extension, it's likely a source file.
       // Fallback to regex parsing if direct import fails (e.g. in a pure Node script without TS compilation)
       try {
-        const investmentsContent = await fs.readFile(investmentsPath, 'utf-8');
+        // This fs.readFile needs to be addressed if 'data/investments.ts' is supposed to be in S3.
+        // For now, assuming it's a local file. If it's in S3, we'd use:
+        // const investmentsContentBuffer = await readBinaryFile(investmentsPath);
+        // const investmentsContent = investmentsContentBuffer ? investmentsContentBuffer.toString('utf-8') : null;
+        // if (!investmentsContent) throw new Error('Failed to read investments data from S3');
+        const localInvestmentsPath = process.cwd() + '/' + investmentsPath; // Construct full path for local read
+        const investmentsContent = await (await import('node:fs/promises')).readFile(localInvestmentsPath, 'utf-8');
+
         // Regex logic from populate-volumes.js (simplified for brevity, ensure it's robust)
         let currentId: string | null = null;
             const investmentBlocks = investmentsContent.split(/^\s*{\s*(?:"|')id(?:"|'):/m);
@@ -859,15 +887,7 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
 // Type definitions moved to types/github.ts
 
 export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ aggregatedActivity: AggregatedWeeklyActivity[], overallDataComplete: boolean } | null> {
-  console.log('[DataAccess] Calculating aggregated weekly activity...');
-  // Ensure the source directory exists before trying to read from it
-  try {
-    await fs.mkdir(REPO_RAW_WEEKLY_STATS_DIR, { recursive: true });
-  } catch (mkdirError: unknown) {
-    const message = mkdirError instanceof Error ? mkdirError.message : String(mkdirError);
-    console.error(`[DataAccess] Aggregation: Critical error creating directory ${REPO_RAW_WEEKLY_STATS_DIR}:`, message);
-    return null; // Cannot proceed if directory cannot be ensured
-  }
+  console.log('[DataAccess-S3] Calculating aggregated weekly activity...');
 
   let overallDataComplete = true;
   const weeklyTotals: { [weekStart: string]: { added: number; removed: number } } = {};
@@ -876,54 +896,63 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ agg
   const oneYearAgo = new Date(today);
   oneYearAgo.setDate(today.getDate() - 365);
 
-  let statFiles: string[];
+  const s3StatFileKeys: string[] = [];
+
   try {
-    statFiles = await fs.readdir(REPO_RAW_WEEKLY_STATS_DIR);
-  } catch (err: unknown) {
-    const nodeError = err as NodeJS.ErrnoException;
-    if (nodeError.code === 'ENOENT') {
-      // If the directory itself doesn't exist after trying to create it, it's an issue, but less critical if we just created it.
-      // More likely, it's empty.
-      if (VERBOSE) console.log(`[DataAccess] Aggregation: Directory ${REPO_RAW_WEEKLY_STATS_DIR} is empty or was just created. No files to aggregate yet.`);
-      // Write an empty aggregation file to signify the process ran but found nothing
-      await writeJsonFile(AGGREGATED_WEEKLY_ACTIVITY_FILE, []);
-      return { aggregatedActivity: [], overallDataComplete: true };
-    } else {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`[DataAccess] Aggregation: Error reading directory ${REPO_RAW_WEEKLY_STATS_DIR}:`, message);
-      return null; // Indicate a more serious error occurred
-    }
+    console.log(`[DataAccess-S3] Listing objects in S3 with prefix: ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/`);
+    let continuationToken: string | undefined;
+    do {
+      const listResponse = await s3Client.list({
+        Prefix: `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/`,
+        ContinuationToken: continuationToken, // Changed continuationToken to ContinuationToken
+      });
+
+      if (listResponse.contents) {
+        for (const item of listResponse.contents) {
+          if (item.key && item.key.endsWith('.json') && item.key !== `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/`) {
+            s3StatFileKeys.push(item.key);
+          }
+        }
+      }
+      continuationToken = listResponse.nextContinuationToken;
+    } while (continuationToken);
+
+    if (VERBOSE) console.log(`[DataAccess-S3] Found ${s3StatFileKeys.length} potential stat files in S3.`);
+
+  } catch (listError: unknown) {
+    const message = listError instanceof Error ? listError.message : String(listError);
+    console.error(`[DataAccess-S3] Aggregation: Error listing S3 objects in ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/:`, message);
+    // Decide if we should attempt to write an empty aggregation or return null
+    // For now, let's try to write an empty one and mark as incomplete
+    await writeJsonFile(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, []);
+    return { aggregatedActivity: [], overallDataComplete: false };
   }
 
-  if (statFiles.length === 0) {
-    if (VERBOSE) console.log(`[DataAccess] Aggregation: No raw weekly stat files found in ${REPO_RAW_WEEKLY_STATS_DIR}. Nothing to aggregate.`);
-    await writeJsonFile(AGGREGATED_WEEKLY_ACTIVITY_FILE, []); // Write empty if no files
-    return { aggregatedActivity: [], overallDataComplete: true };
+  if (s3StatFileKeys.length === 0) {
+    if (VERBOSE) console.log(`[DataAccess-S3] Aggregation: No raw weekly stat files found in S3 path ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/. Nothing to aggregate.`);
+    await writeJsonFile(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, []); // Write empty if no files
+    return { aggregatedActivity: [], overallDataComplete: true }; // Considered complete as there's nothing to process
   }
 
-  for (const repoStatFilename of statFiles) {
-    if (!repoStatFilename.endsWith('.json')) {
-        if (VERBOSE) console.log(`[DataAccess] Aggregation: Skipping non-JSON file ${repoStatFilename} in ${REPO_RAW_WEEKLY_STATS_DIR}`);
-        continue;
-    }
+  for (const repoStatS3Key of s3StatFileKeys) { // Iterate over full S3 keys
+    // const repoStatS3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoStatFilename}`; // No longer needed, repoStatS3Key is the full path
 
-    const repoStatFilePath = path.join(REPO_RAW_WEEKLY_STATS_DIR, repoStatFilename);
-    const repoData = await readJsonFile<RepoWeeklyStatCache>(repoStatFilePath);
+    const repoData = await readJsonFile<RepoWeeklyStatCache>(repoStatS3Key);
 
     if (!repoData) {
-        if (VERBOSE) console.warn(`[DataAccess] Aggregation: Could not read or parse ${repoStatFilePath}, skipping.`);
-        overallDataComplete = false; // If a file can't be read, data might be incomplete
+        if (VERBOSE) console.warn(`[DataAccess-S3] Aggregation: Could not read or parse ${repoStatS3Key}, skipping.`);
+        overallDataComplete = false;
         continue;
     }
 
+    // Existing logic for processing repoData.status
     if (repoData.status !== 'complete' && repoData.status !== 'empty_no_user_contribs') {
       if (repoData.status === 'pending_202_from_api' || repoData.status === 'fetch_error') {
         overallDataComplete = false;
-        if (VERBOSE) console.log(`[DataAccess] Aggregation: Repo ${repoStatFilename} data is status '${repoData.status}', marking overall as incomplete.`);
+        if (VERBOSE) console.log(`[DataAccess-S3] Aggregation: Repo ${repoStatS3Key} data is status '${repoData.status}', marking overall as incomplete.`);
       }
-      // Only skip if the status is not 'complete' or 'empty_no_user_contribs'
       if (repoData.status === 'pending_202_from_api' || repoData.status === 'fetch_error') {
-         if (VERBOSE) console.log(`[DataAccess] Aggregation: Skipping repo ${repoStatFilename} due to status: ${repoData.status}.`);
+         if (VERBOSE) console.log(`[DataAccess-S3] Aggregation: Skipping repo ${repoStatS3Key} due to status: ${repoData.status}.`);
         continue;
       }
     }
@@ -931,26 +960,22 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ agg
     if (repoData.stats && repoData.stats.length > 0) {
       for (const week of repoData.stats) {
         const weekStartDate = new Date(week.w * 1000);
-        // Only include weeks within the last year for this aggregation
         if (weekStartDate >= oneYearAgo && weekStartDate <= today) {
           const weekKey = weekStartDate.toISOString().split('T')[0];
-          // Ensure the key exists in the object
           if (!weeklyTotals[weekKey as keyof typeof weeklyTotals]) {
             weeklyTotals[weekKey as keyof typeof weeklyTotals] = { added: 0, removed: 0 };
           }
-          // Use a non-null assertion since we just ensured the key exists
           const totals = weeklyTotals[weekKey as keyof typeof weeklyTotals];
-          totals.added += week.a || 0; // Ensure undefined is treated as 0
-          totals.removed += week.d || 0; // Ensure undefined is treated as 0
+          totals.added += week.a || 0;
+          totals.removed += week.d || 0;
         }
       }
     } else if (VERBOSE && repoData.status === 'complete') {
-        // This case means status is 'complete' but stats array is empty or null.
-        console.log(`[DataAccess] Aggregation: Repo ${repoStatFilename} has 'complete' status but no stats data to process.`);
+        console.log(`[DataAccess-S3] Aggregation: Repo ${repoStatS3Key} has 'complete' status but no stats data to process.`);
     }
   }
 
-  if (VERBOSE) console.log(`[DataAccess] Aggregation: Processed ${statFiles.filter(f => f.endsWith('.json')).length} potential JSON files from ${REPO_RAW_WEEKLY_STATS_DIR}.`);
+  if (VERBOSE) console.log(`[DataAccess-S3] Aggregation: Processed ${s3StatFileKeys.length} S3 stat files from ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}.`);
 
   const aggregatedActivity: AggregatedWeeklyActivity[] = Object.entries(weeklyTotals)
     .map(([weekStartDate, totals]) => ({
@@ -960,7 +985,30 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ agg
     }))
     .sort((a, b) => new Date(a.weekStartDate).getTime() - new Date(b.weekStartDate).getTime());
 
-  await writeJsonFile(AGGREGATED_WEEKLY_ACTIVITY_FILE, aggregatedActivity);
-  console.log(`[DataAccess] Aggregated weekly activity calculated and stored to ${AGGREGATED_WEEKLY_ACTIVITY_FILE}. Total weeks aggregated: ${aggregatedActivity.length}. Overall data complete: ${overallDataComplete}`);
+  await writeJsonFile(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, aggregatedActivity);
+  console.log(`[DataAccess-S3] Aggregated weekly activity calculated and stored to ${AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE}. Total weeks aggregated: ${aggregatedActivity.length}. Overall data complete: ${overallDataComplete}`);
   return { aggregatedActivity, overallDataComplete };
+}
+
+/**
+ * Determines if an image is SVG and processes it accordingly
+ * @param buffer The image buffer
+ * @returns Object with processed buffer, whether it's SVG, and appropriate content type
+ */
+async function processImageBuffer(buffer: Buffer): Promise<{
+  processedBuffer: Buffer;
+  isSvg: boolean;
+  contentType: string
+}> {
+  try {
+    const metadata = await sharp(buffer).metadata();
+    const isSvg = metadata.format === 'svg';
+    const contentType = isSvg ? 'image/svg+xml' : 'image/png';
+    const processedBuffer = isSvg ? buffer : await sharp(buffer).png().toBuffer();
+    return { processedBuffer, isSvg, contentType };
+  } catch (error: unknown) {
+    // Fallback for unsupported or dummy image data
+    console.warn(`[DataAccess] processImageBuffer fallback for buffer: ${String(error)}`);
+    return { processedBuffer: buffer, isSvg: false, contentType: 'image/png' };
+  }
 }

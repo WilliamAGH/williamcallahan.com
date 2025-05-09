@@ -11,33 +11,35 @@ import {
   HeadObjectCommand,
   ListObjectsV2Command,
   DeleteObjectCommand,
-  NotFound,
 } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 
 // Environment variables for S3 configuration
 const S3_BUCKET_NAME = process.env.S3_BUCKET;
 const S3_ENDPOINT_URL = process.env.S3_SERVER_URL; // For S3-compatible services like DigitalOcean Spaces
-const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY;
-const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_KEY;
+const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
+const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 const S3_REGION = process.env.AWS_REGION || 'us-east-1'; // Default region, can be overridden by env
 const VERBOSE = process.env.VERBOSE === 'true' || false; // Added for logging consistency
 
 if (!S3_BUCKET_NAME || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
   console.warn(
-    '[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY, S3_SECRET_KEY). S3 operations may fail.'
+    '[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3 operations may fail.'
   );
 }
 
-export const s3Client = new S3Client({
-  endpoint: S3_ENDPOINT_URL,
-  region: S3_REGION, // This might be ignored by DO Spaces but is good practice for AWS SDK
-  credentials: {
-    accessKeyId: S3_ACCESS_KEY_ID!,
-    secretAccessKey: S3_SECRET_ACCESS_KEY!,
-  },
-  forcePathStyle: true, // Often required for S3-compatible services
-});
+export const s3Client: S3Client | null =
+  S3_BUCKET_NAME && S3_ENDPOINT_URL && S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY
+    ? new S3Client({
+        endpoint: S3_ENDPOINT_URL,
+        region: S3_REGION,
+        credentials: {
+          accessKeyId: S3_ACCESS_KEY_ID,
+          secretAccessKey: S3_SECRET_ACCESS_KEY,
+        },
+        forcePathStyle: true,
+      })
+    : null;
 
 /**
  * Reads an object from S3.
@@ -47,6 +49,10 @@ export const s3Client = new S3Client({
 export async function readFromS3(key: string): Promise<Buffer | string | null> {
   if (!S3_BUCKET_NAME) {
     console.error('[S3Utils] S3_BUCKET_NAME is not configured. Cannot read from S3.');
+    return null;
+  }
+  if (!s3Client) {
+    console.error('[S3Utils] S3 client is not initialized. Cannot read from S3.');
     return null;
   }
   const command = new GetObjectCommand({
@@ -66,12 +72,14 @@ export async function readFromS3(key: string): Promise<Buffer | string | null> {
     }
     return null;
   } catch (error: unknown) {
-    if (error instanceof NotFound) {
-      // console.log(`[S3Utils] Object not found in S3: ${key}`);
-    } else {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[S3Utils] Error reading from S3 key ${key}:`, message);
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+    const err = error as any;
+    if (err.name === 'NotFound' || err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+      return null;
     }
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[S3Utils] Error reading from S3 key ${key}:`, message);
     return null;
   }
 }
@@ -87,11 +95,17 @@ export async function writeToS3(key: string, data: Buffer | string, contentType?
     console.error('[S3Utils] S3_BUCKET_NAME is not configured. Cannot write to S3.');
     return;
   }
+  if (!s3Client) {
+    console.error('[S3Utils] S3 client is not initialized. Cannot write to S3.');
+    return;
+  }
   const command = new PutObjectCommand({
     Bucket: S3_BUCKET_NAME,
     Key: key,
     Body: data,
     ContentType: contentType,
+    // Ensure uploaded objects are publicly readable
+    ACL: 'public-read',
   });
 
   try {
@@ -113,6 +127,10 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
     console.error('[S3Utils] S3_BUCKET_NAME is not configured. Cannot check S3 object existence.');
     return false;
   }
+  if (!s3Client) {
+    console.error('[S3Utils] S3 client is not initialized. Cannot check S3 object existence.');
+    return false;
+  }
   const command = new HeadObjectCommand({
     Bucket: S3_BUCKET_NAME,
     Key: key,
@@ -122,11 +140,13 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
     await s3Client.send(command);
     return true;
   } catch (error: unknown) {
-    if (error instanceof NotFound) {
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+    const err = error as any;
+    if (err.name === 'NotFound' || err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
       return false;
     }
-    // Log other errors but still return false as we couldn't confirm existence
-    const message = error instanceof Error ? error.message : String(error);
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+    const message = err instanceof Error ? err.message : String(err);
     console.error(`[S3Utils] Error checking S3 object existence for key ${key}:`, message);
     return false;
   }
@@ -142,6 +162,10 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
     console.error('[S3Utils] S3_BUCKET_NAME is not configured. Cannot get S3 object metadata.');
     return null;
   }
+  if (!s3Client) {
+    console.error('[S3Utils] S3 client is not initialized. Cannot get S3 object metadata.');
+    return null;
+  }
   const command = new HeadObjectCommand({
     Bucket: S3_BUCKET_NAME,
     Key: key,
@@ -154,12 +178,14 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
       LastModified: response.LastModified,
     };
   } catch (error: unknown) {
-    if (error instanceof NotFound) {
-      // console.log(`[S3Utils] Metadata: Object not found in S3: ${key}`);
-    } else {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[S3Utils] Error getting S3 object metadata for key ${key}:`, message);
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+    const err = error as any;
+    if (err.name === 'NotFound' || err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+      return null;
     }
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[S3Utils] Error getting S3 object metadata for key ${key}:`, message);
     return null;
   }
 }
@@ -172,6 +198,10 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
 export async function listS3Objects(prefix: string): Promise<string[]> {
   if (!S3_BUCKET_NAME) {
     console.error('[S3Utils] S3_BUCKET_NAME is not configured. Cannot list S3 objects.');
+    return [];
+  }
+  if (!s3Client) {
+    console.error('[S3Utils] S3 client is not initialized. Cannot list S3 objects.');
     return [];
   }
   const keys: string[] = [];
@@ -209,6 +239,10 @@ export async function listS3Objects(prefix: string): Promise<string[]> {
 export async function deleteFromS3(key: string): Promise<void> {
   if (!S3_BUCKET_NAME) {
     console.error('[S3Utils] S3_BUCKET_NAME is not configured. Cannot delete from S3.');
+    return;
+  }
+  if (!s3Client) {
+    console.error('[S3Utils] S3 client is not initialized. Cannot delete from S3.');
     return;
   }
   const command = new DeleteObjectCommand({
