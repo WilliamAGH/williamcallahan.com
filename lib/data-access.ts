@@ -10,7 +10,6 @@
  * It also handles writing back to the volume and cache after an external fetch.
  */
 
-import { s3Client } from '@/lib/s3'; // Updated import
 import { ServerCacheInstance } from '@/lib/server-cache';
 import type { UnifiedBookmark, GitHubActivityApiResponse, ContributionDay, GitHubGraphQLContributionResponse, LogoSource, RepoWeeklyStatCache, RepoRawWeeklyStat, AggregatedWeeklyActivity, GithubContributorStatsEntry, RepoRawWeeklyStat as GithubRepoRawWeeklyStatType } from '@/types'; // Assuming all types are in @/types
 import { LOGO_SOURCES, GENERIC_GLOBE_PATTERNS, LOGO_SIZES } from '@/lib/constants'; // Assuming constants are in @/lib
@@ -19,6 +18,7 @@ import * as cheerio from 'cheerio'; // For GitHub scraping fallback
 import sharp from 'sharp';
 import { createHash } from 'node:crypto';
 import { refreshBookmarksData } from '@/lib/bookmarks'; // Added import
+import { readJsonS3, writeJsonS3, readBinaryS3, writeBinaryS3, listS3Objects } from '@/lib/s3-utils';
 
 // --- Configuration & Constants ---
 /**
@@ -32,20 +32,18 @@ const GITHUB_API_TOKEN = process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH;
 // const API_FETCH_TIMEOUT_MS = 30000; // Unused
 const VERBOSE = process.env.VERBOSE === 'true' || false; // Ensure VERBOSE is defined at the module level
 
-// Volume paths / S3 Object Keys
-// const ROOT_DIR = process.cwd(); // No longer needed for S3 paths
+// Shared data root prefix for S3 keys
+const S3_DATA_ROOT = 'data';
 
-// NOTE: Assuming S3 bucket is the root. Paths are now S3 keys.
-// Example: 'data/bookmarks/bookmarks.json' becomes 'bookmarks/bookmarks.json'
-const BOOKMARKS_S3_KEY_DIR = 'bookmarks'; // Base "directory" for bookmarks
+// Volume paths / S3 Object Keys
+const BOOKMARKS_S3_KEY_DIR = `${S3_DATA_ROOT}/bookmarks`;
 const BOOKMARKS_S3_KEY_FILE = `${BOOKMARKS_S3_KEY_DIR}/bookmarks.json`;
 
-const GITHUB_ACTIVITY_S3_KEY_DIR = 'github-activity'; // Base "directory" for GitHub activity
+const GITHUB_ACTIVITY_S3_KEY_DIR = `${S3_DATA_ROOT}/github-activity`;
 const GITHUB_ACTIVITY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/activity_data.json`;
 const GITHUB_STATS_SUMMARY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/github_stats_summary.json`;
 
-
-const LOGOS_S3_KEY_DIR = 'images/logos'; // Base "directory" for logos
+const LOGOS_S3_KEY_DIR = `${S3_DATA_ROOT}/images/logos`;
 
 // GitHub Activity Data Paths / S3 Object Keys
 const REPO_RAW_WEEKLY_STATS_S3_KEY_DIR = `${GITHUB_ACTIVITY_S3_KEY_DIR}/repo_raw_weekly_stats`;
@@ -87,26 +85,7 @@ const AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/ag
  * @returns Parsed JSON data or null if an error occurs.
  */
 async function readJsonFile<T>(s3Key: string): Promise<T | null> {
-  try {
-    const s3File = s3Client.file(s3Key);
-    // Check if file exists, Bun's S3 API might not have a direct exists check like fs.
-    // Attempting to get metadata or read might be the way.
-    // For now, we'll rely on json() to throw if not found or not valid JSON.
-    const data = await s3File.json<unknown>();
-    return data as T;
-  } catch (error: unknown) {
-    // Bun's S3 errors might differ from NodeJS.ErrnoException.
-    // We'll need to refine error handling based on actual S3 client behavior.
-    // A common pattern is that .json() or .text() might throw if the object doesn't exist.
-    // For now, a generic catch. We can log more specifically if we identify S3 "not found" errors.
-    const message = error instanceof Error ? error.message : String(error);
-    // Avoid logging "not found" as a warning if it's a common case (e.g., cache miss)
-    // This needs more specific error checking based on Bun S3 behavior for non-existent files.
-    if (!message.toLowerCase().includes('not found') && !message.toLowerCase().includes('no such key')) {
-        console.warn(`[DataAccess-S3] Error reading JSON from S3 key ${s3Key}:`, message);
-    }
-    return null;
-  }
+  return await readJsonS3<T>(s3Key);
 }
 
 /**
@@ -115,18 +94,7 @@ async function readJsonFile<T>(s3Key: string): Promise<T | null> {
  * @param data Data to write.
  */
 async function writeJsonFile<T>(s3Key: string, data: T): Promise<void> {
-  // const tempFilePath = filePath + '.tmp'; // Temp file strategy not applicable to S3 directly
-  try {
-    // const dir = path.dirname(filePath); // Not needed for S3
-    // await ensureDirectoryExists(dir); // Not needed for S3
-    const jsonData = JSON.stringify(data, null, 2);
-    const s3File = s3Client.file(s3Key);
-    await s3File.write(jsonData);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`[DataAccess-S3] Failed to write JSON to S3 key ${s3Key}:`, message);
-    // S3 write is generally atomic for the object, so no temp file cleanup needed.
-  }
+  await writeJsonS3<T>(s3Key, data);
 }
 
 /**
@@ -135,18 +103,7 @@ async function writeJsonFile<T>(s3Key: string, data: T): Promise<void> {
  * @returns Buffer or null.
  */
 async function readBinaryFile(s3Key: string): Promise<Buffer | null> {
-  try {
-    const s3File = s3Client.file(s3Key);
-    const arrayBuffer = await s3File.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    // Similar to readJsonFile, refine error checking for "not found"
-     if (!message.toLowerCase().includes('not found') && !message.toLowerCase().includes('no such key')) {
-        console.warn(`[DataAccess-S3] Error reading binary file from S3 key ${s3Key}:`, message);
-    }
-    return null;
-  }
+  return await readBinaryS3(s3Key);
 }
 
 /**
@@ -155,14 +112,7 @@ async function readBinaryFile(s3Key: string): Promise<Buffer | null> {
  * @param data Buffer to write.
  */
 async function writeBinaryFile(s3Key: string, data: Buffer): Promise<void> {
-  try {
-    const s3File = s3Client.file(s3Key);
-    // Convert Node.js Buffer to ArrayBuffer for S3 write
-    const arrayBuffer = new Uint8Array(data).buffer;
-    await s3File.write(arrayBuffer);
-  } catch (error) {
-    console.error(`[DataAccess-S3] Failed to write binary file to S3 key ${s3Key}:`, error);
-  }
+  await writeBinaryS3(s3Key, data, 'application/octet-stream');
 }
 
 // --- Bookmarks Data Access ---
@@ -645,21 +595,15 @@ export async function getGithubActivity(): Promise<GitHubActivityApiResponse | n
 
 
 // --- Logo Data Access ---
-// (Re-using and adapting logic from app/api/logo/route.ts)
 
-function getDomainHash(domain: string): string {
-  return createHash('md5').update(domain).digest('hex');
-}
-
-function getLogoS3Key(domain: string, source: LogoSource): string { // Renamed from getLogoVolumePath
-  const hash = getDomainHash(domain).substring(0, 8);
+function getLogoS3Key(domain: string, source: LogoSource): string {
   const id = domain.split('.')[0];
   const sourceAbbr = source === 'duckduckgo' ? 'ddg' : source;
-  // path.join is for file systems; for S3 keys, we just concatenate strings.
-  return `${LOGOS_S3_KEY_DIR}/${id}_${hash}_${sourceAbbr}.png`;
+  return `${LOGOS_S3_KEY_DIR}/${id}_${sourceAbbr}.png`;
 }
 
-async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> { // Renamed from findLogoInVolume
+async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> {
+  // 1st: specific source keys
   for (const source of ['google', 'clearbit', 'duckduckgo'] as LogoSource[]) {
     const logoS3Key = getLogoS3Key(domain, source); // Use S3 key function
     const buffer = await readBinaryFile(logoS3Key); // Read from S3
@@ -668,34 +612,28 @@ async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; source: L
       return { buffer, source };
     }
   }
-  // Fallback: search for any file starting with domain ID in LOGOS_S3_KEY_DIR
-  // This uses the new s3Client.list() method.
+
+  // Fallback: list objects by prefix
   try {
     const id = domain.split('.')[0];
-    const listResponse = await s3Client.list({ Prefix: `${LOGOS_S3_KEY_DIR}/${id}_` }); // Changed prefix to Prefix
-
-    if (listResponse.contents && listResponse.contents.length > 0) {
-      // Prefer .png files if multiple matches
-      const pngMatch = listResponse.contents.find(item => item.key?.endsWith('.png'));
-      const bestMatch = pngMatch || listResponse.contents[0]; // Fallback to first item if no png
-
-      if (bestMatch && bestMatch.key) {
-        const buffer = await readBinaryFile(bestMatch.key); // Read from S3 using the full key
-        if (buffer) {
-            let inferredSource: LogoSource = 'unknown';
-            if (bestMatch.key.includes('_google')) inferredSource = 'google';
-            else if (bestMatch.key.includes('_clearbit')) inferredSource = 'clearbit';
-            else if (bestMatch.key.includes('_ddg')) inferredSource = 'duckduckgo';
-            console.log(`[DataAccess-S3] Found logo for ${domain} by S3 list pattern match: ${bestMatch.key}`);
-            return { buffer, source: inferredSource };
-        }
+    const keys = await listS3Objects(`${LOGOS_S3_KEY_DIR}/${id}_`);
+    if (keys.length > 0) {
+      const pngMatch = keys.find(key => key.endsWith('.png'));
+      const bestMatch = pngMatch || keys[0];
+      const buffer = await readBinaryS3(bestMatch);
+      if (buffer) {
+        let inferredSource: LogoSource = 'unknown';
+        if (bestMatch.includes('_google')) inferredSource = 'google';
+        else if (bestMatch.includes('_clearbit')) inferredSource = 'clearbit';
+        else if (bestMatch.includes('_ddg')) inferredSource = 'duckduckgo';
+        console.log(`[DataAccess-S3] Found logo for ${domain} by S3 list pattern match: ${bestMatch}`);
+        return { buffer, source: inferredSource };
       }
     }
   } catch (listError: unknown) {
     const message = listError instanceof Error ? listError.message : String(listError);
     console.warn(`[DataAccess-S3] Error listing logos in S3 for domain ${domain} (prefix: ${LOGOS_S3_KEY_DIR}/${domain.split('.')[0]}_):`, message);
   }
-  // console.warn(`[DataAccess-S3] S3 listing for logo fallback not yet implemented for domain ${domain}.`); // Old message
   return null;
 }
 
@@ -771,8 +709,13 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
     return { buffer: cached.buffer, source: cached.source || 'unknown', contentType };
   }
 
+  const force = process.env.FORCE_LOGOS === 'true';
+  if (force) console.log(`[DataAccess-S3] FORCE_LOGOS enabled, skipping S3 for ${domain}, forcing external fetch.`);
   // 2. Try S3
-  const s3Logo = await findLogoInS3(domain); // Use renamed function
+  let s3Logo: { buffer: Buffer; source: LogoSource } | null = null;
+  if (!force) {
+    s3Logo = await findLogoInS3(domain);
+  }
   if (s3Logo) {
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: s3Logo.source, buffer: s3Logo.buffer });
     const { contentType } = await processImageBuffer(s3Logo.buffer);
@@ -783,12 +726,29 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
   console.log(`[DataAccess-S3] Logo for ${domain} not in cache or S3, fetching from external source.`);
   const externalLogo = await fetchExternalLogo(domain); // Removed baseUrlForValidation
   if (externalLogo) {
-    const logoS3Key = getLogoS3Key(domain, externalLogo.source); // Use S3 key function
-    // Only write back to S3 outside of the production build phase
-    if (process.env.NEXT_PHASE !== 'phase-production-build') {
-      await writeBinaryFile(logoS3Key, externalLogo.buffer); // Write to S3
-    } else {
-      console.debug(`[DataAccess-S3] Build phase detected, skipping S3 write for logo ${logoS3Key}`);
+    const logoS3Key = getLogoS3Key(domain, externalLogo.source);
+    try {
+      const existingBuffer = await readBinaryFile(logoS3Key);
+      let didUpload = false;
+      if (existingBuffer) {
+        const existingHash = createHash('md5').update(existingBuffer).digest('hex');
+        const newHash = createHash('md5').update(externalLogo.buffer).digest('hex');
+        if (existingHash === newHash) {
+          console.log(`[DataAccess-S3] Logo for ${domain} unchanged (hash=${newHash}); skipping upload.`);
+        } else {
+          await writeBinaryFile(logoS3Key, externalLogo.buffer);
+          console.log(`[DataAccess-S3] Logo for ${domain} changed (old=${existingHash}, new=${newHash}); uploaded to ${logoS3Key}.`);
+          didUpload = true;
+        }
+      } else {
+        await writeBinaryFile(logoS3Key, externalLogo.buffer);
+        const newHash = createHash('md5').update(externalLogo.buffer).digest('hex');
+        console.log(`[DataAccess-S3] New logo for ${domain}; uploaded to ${logoS3Key} (hash=${newHash}).`);
+        didUpload = true;
+      }
+      if (VERBOSE && !didUpload) console.log(`[DataAccess-S3] VERBOSE: No upload needed for ${domain}.`);
+    } catch (uploadError) {
+      console.error(`[DataAccess-S3] Error writing logo for ${domain} to S3:`, uploadError);
     }
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: externalLogo.source, buffer: externalLogo.buffer });
     const { contentType } = await processImageBuffer(externalLogo.buffer);
@@ -896,37 +856,21 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ agg
   const oneYearAgo = new Date(today);
   oneYearAgo.setDate(today.getDate() - 365);
 
-  const s3StatFileKeys: string[] = [];
-
+  // Gather all raw stat JSON keys under the S3 prefix
+  let s3StatFileKeys: string[] = [];
   try {
     console.log(`[DataAccess-S3] Listing objects in S3 with prefix: ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/`);
-    let continuationToken: string | undefined;
-    do {
-      const listResponse = await s3Client.list({
-        Prefix: `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/`,
-        ContinuationToken: continuationToken, // Changed continuationToken to ContinuationToken
-      });
-
-      if (listResponse.contents) {
-        for (const item of listResponse.contents) {
-          if (item.key && item.key.endsWith('.json') && item.key !== `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/`) {
-            s3StatFileKeys.push(item.key);
-          }
-        }
-      }
-      continuationToken = listResponse.nextContinuationToken;
-    } while (continuationToken);
-
+    s3StatFileKeys = await listS3Objects(REPO_RAW_WEEKLY_STATS_S3_KEY_DIR);
     if (VERBOSE) console.log(`[DataAccess-S3] Found ${s3StatFileKeys.length} potential stat files in S3.`);
-
   } catch (listError: unknown) {
     const message = listError instanceof Error ? listError.message : String(listError);
     console.error(`[DataAccess-S3] Aggregation: Error listing S3 objects in ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/:`, message);
-    // Decide if we should attempt to write an empty aggregation or return null
-    // For now, let's try to write an empty one and mark as incomplete
     await writeJsonFile(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, []);
     return { aggregatedActivity: [], overallDataComplete: false };
   }
+
+  // Filter only JSON file keys
+  s3StatFileKeys = s3StatFileKeys.filter(key => key.endsWith('.json'));
 
   if (s3StatFileKeys.length === 0) {
     if (VERBOSE) console.log(`[DataAccess-S3] Aggregation: No raw weekly stat files found in S3 path ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/. Nothing to aggregate.`);

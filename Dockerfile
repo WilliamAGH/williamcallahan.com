@@ -46,23 +46,26 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 # Copy dependencies and source code
 COPY --from=deps /app/node_modules ./node_modules
 
-# Directory creation for local volumes is removed as data moves to S3.
-# Local cache directories will be created in the runner stage.
-
 # Copy entire source code
 COPY . .
 
-# CRITICAL STEP: Fill volumes directly BEFORE any server or build processes
+# Ensure critical data directories exist before attempting to populate them
+RUN mkdir -p /app/data/bookmarks && \
+    mkdir -p /app/data/github-activity && \
+    mkdir -p /app/data/images/logos
+    # Add other data directories if update-s3-data.ts populates more
+
+# CRITICAL STEP: Populate data from S3 using the script
 # This ensures all data volumes are properly populated with external data
-# Conditionally skip these steps in Coolify environments
-# Check if running in a Coolify environment
-# Make pre-build script executable and run it
-COPY scripts/pre-build-checks.sh /app/scripts/
+# Ensure any necessary ENV VARS for AWS access are available in this build stage
+RUN echo "🚀 Populating data from S3 via update-s3-data.ts..." && \
+    bun /app/scripts/update-s3-data.ts
+    # If this script is defined in package.json, use: bun run <script-name>
+
+# Run pre-build checks (assumes scripts/pre-build-checks.sh was copied by COPY . .)
 RUN chmod +x /app/scripts/pre-build-checks.sh && /app/scripts/pre-build-checks.sh
 
 # Now build the app
-# The original echo was: # RUN echo "📦 Building the application with populated data volumes..." && bun run build
-# Changed to reflect that volumes might not be populated in all environments.
 RUN echo "📦 Building the application..." && bun run build
 
 # Production image, copy all the files and run next

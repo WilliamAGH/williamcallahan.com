@@ -15,54 +15,33 @@ import {
   getInvestmentDomainsAndIds,
   calculateAndStoreAggregatedWeeklyActivity,
 } from '../lib/data-access'; // These will be modified to be S3-aware
-import { readFromS3 } from '../lib/s3-utils';
-import type { UnifiedBookmark } from '../types';
+
+// Command-line argument parsing for selective updates
+const usage = `Usage: update-s3-data.ts [options]
+Options:
+  --bookmarks           Run only the Bookmarks update
+  --github-activity     Run only the GitHub Activity update
+  --logos               Run only the Logos update
+  --help, -h            Show this help message
+If no options are provided, all updates will run.
+`;
+const rawArgs = process.argv.slice(2);
+if (rawArgs.includes('--help') || rawArgs.includes('-h')) {
+  console.log(usage);
+  process.exit(0);
+}
+const runBookmarksFlag = rawArgs.length === 0 || rawArgs.includes('--bookmarks');
+const runGithubFlag = rawArgs.length === 0 || rawArgs.includes('--github-activity');
+const runLogosFlag = rawArgs.length === 0 || rawArgs.includes('--logos');
 
 // --- Configuration & Constants ---
 const VERBOSE = process.env.VERBOSE === 'true';
 const S3_DATA_ROOT = 'data'; // Root prefix in S3 for this application's data
 
-// --- Scheduling Configuration (Pacific Time) ---
-// For simplicity, this script will check if it's "around" the scheduled time.
-// A more robust solution would use a proper cron parser or rely on the scheduler's precision.
-const JOB_WINDOW_MINUTES = 15; // +/- 15 minutes around the scheduled time
-
-const GITHUB_ACTIVITY_SCHEDULE_PT = { hour: 3, minute: 0 }; // 3:00 AM PT
-const LOGO_SCHEDULE_PT = { hour: 3, minute: 15 }; // 3:15 AM PT
-const BOOKMARKS_SCHEDULES_PT = [
-  { hour: 3, minute: 30 }, // 3:30 AM PT
-  { hour: 11, minute: 30 }, // 11:30 AM PT
-  { hour: 19, minute: 30 }, // 7:30 PM PT
-];
-
-// --- Helper Functions ---
-
-function getCurrentPacificTime(): Date {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
-}
-
-function isJobScheduledNow(schedule: { hour: number; minute: number }, nowPt: Date, windowMinutes: number): boolean {
-  const scheduledTimeToday = new Date(nowPt);
-  scheduledTimeToday.setHours(schedule.hour, schedule.minute, 0, 0);
-
-  const diffMillis = Math.abs(nowPt.getTime() - scheduledTimeToday.getTime());
-  const diffMinutes = diffMillis / (1000 * 60);
-
-  return diffMinutes <= windowMinutes;
-}
-
 // --- Data Update Functions ---
 
 async function updateBookmarksInS3() {
-  console.log('[UpdateS3] 📚 Checking schedule for Bookmarks update...');
-  const nowPt = getCurrentPacificTime();
-  const shouldRun = BOOKMARKS_SCHEDULES_PT.some(schedule =>isJobScheduledNow(schedule, nowPt, JOB_WINDOW_MINUTES));
-
-  if (!shouldRun) {
-    if (VERBOSE) console.log('[UpdateS3] Bookmarks update not scheduled for this time.');
-    return;
-  }
-  console.log('[UpdateS3] 🚀 Starting Bookmarks update to S3...');
+  console.log('[UpdateS3] 📚 Starting Bookmarks update to S3...');
 
   try {
     // getBookmarks will internally handle fetching from external if S3 is empty or stale (logic to be added there)
@@ -86,13 +65,7 @@ async function updateBookmarksInS3() {
 }
 
 async function updateGithubActivityInS3() {
-  console.log('[UpdateS3] 🐙 Checking schedule for GitHub Activity update...');
-  const nowPt = getCurrentPacificTime();
-  if (!isJobScheduledNow(GITHUB_ACTIVITY_SCHEDULE_PT, nowPt, JOB_WINDOW_MINUTES)) {
-    if (VERBOSE) console.log('[UpdateS3] GitHub Activity update not scheduled for this time.');
-    return;
-  }
-  console.log('[UpdateS3] 🚀 Starting GitHub Activity update to S3...');
+  console.log('[UpdateS3] 🐙 Starting GitHub Activity update to S3...');
 
   try {
     // getGithubActivity will be modified to:
@@ -116,33 +89,22 @@ async function updateGithubActivityInS3() {
 }
 
 async function updateLogosInS3() {
-  console.log('[UpdateS3] 🖼️ Checking schedule for Logos update...');
-  const nowPt = getCurrentPacificTime();
-  if (!isJobScheduledNow(LOGO_SCHEDULE_PT, nowPt, JOB_WINDOW_MINUTES)) {
-    if (VERBOSE) console.log('[UpdateS3] Logos update not scheduled for this time.');
-    return;
-  }
-  console.log('[UpdateS3] 🚀 Starting Logos update to S3...');
+  console.log('[UpdateS3] 🖼️ Starting Logos update to S3...');
 
   try {
     const domains = new Set<string>();
 
-    // 1. Extract domains from bookmarks (fetch from S3)
-    const bookmarksKey = `${S3_DATA_ROOT}/bookmarks/bookmarks.json`;
-    const s3BookmarksContent = await readFromS3(bookmarksKey);
-    if (s3BookmarksContent && typeof s3BookmarksContent === 'string') {
-      const bookmarks = JSON.parse(s3BookmarksContent) as UnifiedBookmark[];
-      bookmarks.forEach(b => {
-        try {
-          if (b.url) domains.add(new URL(b.url).hostname.replace(/^www\./, ''));
-        } catch { /* ignore */ }
-      });
-      if (VERBOSE) console.log(`[UpdateS3] Extracted ${domains.size} domains from S3 bookmarks.`);
-    }
+    // 1. Extract domains from bookmarks via data-access
+    const bookmarks = await getBookmarks();
+    bookmarks.forEach(b => {
+      try {
+        if (b.url) domains.add(new URL(b.url).hostname.replace(/^www\./, ''));
+      } catch { /* ignore invalid URLs */ }
+    });
+    if (VERBOSE) console.log(`[UpdateS3] Extracted ${domains.size} domains from bookmarks.`);
 
-
-    // 2. Extract domains from investments data (using data-access, which should be S3-aware or read static)
-    const investmentDomainsMap = await getInvestmentDomainsAndIds(); // Added await, removed unnecessary assertion
+    // 2. Extract domains from investments data
+    const investmentDomainsMap = await getInvestmentDomainsAndIds();
     investmentDomainsMap.forEach((_id, domain) => domains.add(domain));
     if (VERBOSE) console.log(`[UpdateS3] Added ${investmentDomainsMap.size} unique domains from investments. Total unique: ${domains.size}`);
 
@@ -203,7 +165,7 @@ async function updateLogosInS3() {
 
 // --- Main Execution ---
 async function runScheduledUpdates() {
-  console.log(`[UpdateS3] Script started. Current PT: ${getCurrentPacificTime().toISOString()}`);
+  console.log(`[UpdateS3] Script started. Current PT: ${new Date().toISOString()}`);
   console.log(`[UpdateS3] Configured S3 Root: ${S3_DATA_ROOT}`);
   console.log(`[UpdateS3] Verbose logging: ${VERBOSE}`);
 
@@ -213,10 +175,16 @@ async function runScheduledUpdates() {
     process.exit(1);
   }
 
-  // Run updates sequentially to avoid overwhelming resources or rate limits
-  await updateBookmarksInS3();
-  await updateGithubActivityInS3(); // This includes sub-calculation for aggregated data
-  await updateLogosInS3();
+  // Run selected updates sequentially
+  if (runBookmarksFlag) {
+    await updateBookmarksInS3();
+  } else if (VERBOSE) console.log('[UpdateS3] Skipping Bookmarks update');
+  if (runGithubFlag) {
+    await updateGithubActivityInS3(); // This includes sub-calculation for aggregated data
+  } else if (VERBOSE) console.log('[UpdateS3] Skipping GitHub Activity update');
+  if (runLogosFlag) {
+    await updateLogosInS3();
+  } else if (VERBOSE) console.log('[UpdateS3] Skipping Logos update');
 
   console.log('[UpdateS3] All scheduled update checks complete.');
   process.exit(0);

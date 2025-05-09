@@ -76,11 +76,9 @@ class S3File {
    */
   async arrayBuffer(): Promise<ArrayBuffer> {
     try {
-      const response = await fetch(`${s3Endpoint}/${this.bucket}/${this.key}`, {
-        headers: {
-          "Authorization": `Basic ${Buffer.from(`${s3AccessKeyId}:${s3SecretAccessKey}`).toString('base64')}`
-        }
-      });
+      const url = `${s3Endpoint}/${this.bucket}/${this.key}`;
+      // Anonymous fetch for public objects; objects are ACL: public-read
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
