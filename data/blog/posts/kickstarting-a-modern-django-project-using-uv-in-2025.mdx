@@ -27,7 +27,7 @@ This guide covers setting up a modern Django project, including:
 
 - **Django**: A Python web framework for rapid development and clean design.
 - **Modern Template**: Using pre-built templates for a responsive UI/UX.
-- **SaaS Core Functionality**: Implementing user authentication, admin panel, and core product models.
+- **Core Admin Functionality**: Implementing user authentication, admin panel, and core product models.
 - **SQL Database Integration (PostgreSQL/MySQL)**: Connecting Django to a relational database.
 - **IDE Tooling (VSCode/IntelliJ IDEA)**: Optimizing development with extensions and configurations.
 - **Fast-Start Resources**: Libraries and communities to accelerate development.
@@ -503,7 +503,29 @@ These templates reduce boilerplate for common functionalities (auth, UI componen
 
   <div><strong>2. Install Dependencies:</strong></div>
   <ShellParentTabs>
-    <ShellTab label="Template with requirements.txt" isDefault={true}>
+    <ShellTab label="pyproject.toml" isDefault={true}>
+      <InstructionToggleTabs>
+        <InstructionTab label="uv" isDefault={true}>
+          ```bash
+          # Sync dependencies using uv
+          uv sync
+          ```
+        </InstructionTab>
+        <InstructionTab label="Poetry">
+          ```bash
+          # Install dependencies using Poetry
+          poetry install
+          ```
+        </InstructionTab>
+        <InstructionTab label="PDM">
+          ```bash
+          # Install dependencies using PDM
+          pdm install
+          ```
+        </InstructionTab>
+      </InstructionToggleTabs>
+    </ShellTab>
+    <ShellTab label="requirements.txt">
       <InstructionToggleTabs>
         <InstructionTab label="uv" isDefault={true}>
           ```bash
@@ -527,29 +549,7 @@ These templates reduce boilerplate for common functionalities (auth, UI componen
         </InstructionTab>
       </InstructionToggleTabs>
     </ShellTab>
-    <ShellTab label="Template with pyproject.toml">
-      <InstructionToggleTabs>
-        <InstructionTab label="uv" isDefault={true}>
-          ```bash
-          # Sync dependencies using uv
-          uv sync
-          ```
-        </InstructionTab>
-        <InstructionTab label="Poetry">
-          ```bash
-          # Install dependencies using Poetry
-          poetry install
-          ```
-        </InstructionTab>
-        <InstructionTab label="PDM">
-          ```bash
-          # Install dependencies using PDM
-          pdm install
-          ```
-        </InstructionTab>
-      </InstructionToggleTabs>
-    </ShellTab>
-    <ShellTab label="Docker-based Template">
+    <ShellTab label="Docker">
       ```bash
       # Build and start containers
       docker-compose up --build
@@ -582,10 +582,10 @@ These templates reduce boilerplate for common functionalities (auth, UI componen
 
 ---
 
-## Part 4: Implementing a SaaS Core with SQL Database
+## Part 4: Implementing Core Admin Features with SQL Database
 
-<BackgroundInfo title='Core SaaS Features in Django'>
-Django offers robust features for SaaS applications:
+<BackgroundInfo title='Core Admin Features in Django'>
+Django offers robust features for web applications:
 - **User Authentication**: `django.contrib.auth` for user management.
 - **Admin Panel**: `django.contrib.admin` for data management.
 - **ORM & Models**: Django's ORM for database interaction via Python.
