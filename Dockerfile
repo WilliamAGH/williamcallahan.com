@@ -55,12 +55,7 @@ RUN mkdir -p /app/data/bookmarks && \
     mkdir -p /app/data/images/logos
     # Add other data directories if update-s3-data.ts populates more
 
-# CRITICAL STEP: Populate data from S3 using the script
-# This ensures all data volumes are properly populated with external data
-# Ensure any necessary ENV VARS for AWS access are available in this build stage
-RUN echo "🚀 Populating data from S3 via update-s3-data.ts..." && \
-    bun /app/scripts/update-s3-data.ts
-    # If this script is defined in package.json, use: bun run <script-name>
+# Build-time S3 data update disabled; will run at runtime via scheduler
 
 # Run pre-build checks (assumes scripts/pre-build-checks.sh was copied by COPY . .)
 RUN chmod +x /app/scripts/pre-build-checks.sh && /app/scripts/pre-build-checks.sh
