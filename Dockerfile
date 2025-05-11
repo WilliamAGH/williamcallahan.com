@@ -57,8 +57,7 @@ RUN mkdir -p /app/data/bookmarks && \
 
 # Build-time S3 data update disabled; will run at runtime via scheduler
 
-# Run pre-build checks (assumes scripts/pre-build-checks.sh was copied by COPY . .)
-RUN chmod +x /app/scripts/pre-build-checks.sh && /app/scripts/pre-build-checks.sh
+# Pre-build checks disabled to avoid network hang during build
 
 # Now build the app
 RUN echo "📦 Building the application..." && bun run build
@@ -67,9 +66,9 @@ RUN echo "📦 Building the application..." && bun run build
 FROM base AS runner
 WORKDIR /app
 
-# Install runtime dependencies (like Sharp's), curl for healthchecks, AND BASH
-# Try using just 'vips' instead of 'vips-dev' and remove 'build-base' to reduce size.
-# This assumes Sharp successfully installed its pre-compiled binaries in the 'deps' stage.
+# Install runtime dependencies (like Sharp), curl for healthchecks, AND BASH
+# Trying to use just 'vips' instead of 'vips-dev' and remove 'build-base' to reduce size
+# This assumes Sharp successfully installed its pre-compiled binaries in the 'deps' stage
 RUN apk add --no-cache vips curl bash su-exec
 
 ENV NODE_ENV=production
