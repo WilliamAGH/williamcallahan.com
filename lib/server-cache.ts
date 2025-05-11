@@ -78,11 +78,6 @@ interface GitHubActivityCacheEntry extends GitHubActivityApiResponse {
 }
 
 /**
- * Server-side cache management class
- * @class ServerCache
- * @extends NodeCache
- */
-/**
  * Bookmarks cache entry
  * @interface
  */
@@ -103,6 +98,12 @@ export class ServerCache extends NodeCache {
       useClones: false, // Don't clone objects for better performance with buffers
       deleteOnExpire: true
     });
+    // The complex binding loop has been removed.
+    // Methods will rely on standard prototype inheritance.
+    // The original loop was intended to handle cases where the NodeCache
+    // constructor might replace `this`. If MockNodeCache (and the current
+    // version of NodeCache) don't do this, the loop might be unnecessary
+    // or problematic in a mocked environment.
   }
 
   /**
@@ -349,5 +350,4 @@ export class ServerCache extends NodeCache {
   }
 }
 
-// Export singleton instance
 export const ServerCacheInstance = new ServerCache();
