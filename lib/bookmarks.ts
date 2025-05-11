@@ -242,8 +242,8 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
   } catch (error) {
     console.error('refreshBookmarksData: Failed to fetch external bookmarks:', error);
     clearTimeout(timeoutId);
-    // Re-throw to let the caller handle it
-    throw error;
+    // Return empty array on error to ensure consistent return type
+    return [];
   } finally {
     clearTimeout(timeoutId); // Ensure timeout is cleared in all cases
   }

@@ -21,6 +21,7 @@ const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
 const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 const S3_REGION = process.env.AWS_REGION || 'us-east-1'; // Default region, can be overridden by env
 const VERBOSE = process.env.VERBOSE === 'true' || false; // Added for logging consistency
+const DRY_RUN = process.env.DRY_RUN === 'true';
 
 if (!S3_BUCKET_NAME || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
   console.warn(
@@ -47,6 +48,10 @@ export const s3Client: S3Client | null =
  * @returns The object content as a string or Buffer, or null if not found or error.
  */
 export async function readFromS3(key: string): Promise<Buffer | string | null> {
+  if (DRY_RUN) {
+    if (VERBOSE) console.log(`[S3Utils][DRY RUN] Would read from S3 key ${key}`);
+    return null;
+  }
   if (!S3_BUCKET_NAME) {
     console.error('[S3Utils] S3_BUCKET_NAME is not configured. Cannot read from S3.');
     return null;
@@ -277,6 +282,10 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
  * @returns Parsed JSON data or null if an error occurs
  */
 export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
+  if (DRY_RUN) {
+    if (VERBOSE) console.log(`[S3Utils][DRY RUN] Would read JSON from S3 key ${s3Key}`);
+    return null;
+  }
   try {
     const content = await readFromS3(s3Key);
     if (typeof content === 'string') {
@@ -323,6 +332,10 @@ export async function writeJsonS3<T>(s3Key: string, data: T): Promise<void> {
  * @returns Buffer or null
  */
 export async function readBinaryS3(s3Key: string): Promise<Buffer | null> {
+  if (DRY_RUN) {
+    if (VERBOSE) console.log(`[S3Utils][DRY RUN] Would read binary from S3 key ${s3Key}`);
+    return null;
+  }
   try {
     const content = await readFromS3(s3Key);
     if (Buffer.isBuffer(content)) {

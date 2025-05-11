@@ -168,6 +168,12 @@ async function runScheduledUpdates() {
   console.log(`[UpdateS3] Script started. Current PT: ${new Date().toISOString()}`);
   console.log(`[UpdateS3] Configured S3 Root: ${S3_DATA_ROOT}`);
   console.log(`[UpdateS3] Verbose logging: ${VERBOSE}`);
+  const DRY_RUN = process.env.DRY_RUN === 'true';
+  if (DRY_RUN) {
+    console.log('[UpdateS3] DRY RUN mode: skipping all update processes.');
+    console.log('[UpdateS3] All scheduled update checks complete.');
+    process.exit(0);
+  }
 
   // Ensure S3_BUCKET is configured before proceeding
   if (!process.env.S3_BUCKET) {
