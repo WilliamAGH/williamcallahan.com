@@ -84,7 +84,6 @@ COPY --from=builder /app/scripts ./scripts
 
 # Copy script package definitions so the scheduler can run
 COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/bun.lockb ./bun.lockb
 
 # Copy public directory (run as root, so no chown needed)
 COPY --from=builder /app/public ./public
