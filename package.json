@@ -12,7 +12,7 @@
     "prefetch": "node scripts/prefetch-data.js",
     "populate-volumes": "NODE_ENV=development bun scripts/populate-volumes.ts",
     "dev": "bun run populate-volumes && bun run cleanCache && next dev",
-    "build": "bun run validate && next build",
+    "build": "bun run validate && bun run scripts/prefetch-data.ts && next build",
     "start": "node .next/standalone/server.js",
     "start:plain": "next start",
     "docker:build": "docker buildx build --platform=linux/amd64 --build-arg NODE_ENV=production --build-arg NEXT_TELEMETRY_DISABLED=1 --load -t williamcallahan-web:latest .",
