@@ -1,4 +1,5 @@
-    // eslint.config.ts - Using TypeScript and ESM syntax
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+// eslint.config.ts - Using TypeScript and ESM syntax
 import globals from "globals";
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
@@ -20,6 +21,7 @@ const config = tseslint.config(
       ".next/",
       ".husky/", // Assuming husky setup files shouldn't be linted
       "out/", // If using static export
+      "__tests__/", // Ignore test files; use bun test and jest for tests
       // Add other global ignores if needed
     ],
   },
@@ -214,7 +216,6 @@ const config = tseslint.config(
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
-      "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unnecessary-type-assertion": "off"
@@ -249,6 +250,12 @@ const config = tseslint.config(
       globals: {
         ...globals.jest, // Add Jest globals
       },
+    },
+  },
+  { // Disable no-unsafe-assignment for MDX processing file
+    files: ["lib/blog/mdx.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
     },
   },
 );

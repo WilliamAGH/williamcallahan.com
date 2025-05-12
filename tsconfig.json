@@ -73,7 +73,6 @@
   ],
   "exclude": [
     "node_modules",
-    "__tests__",
     ".next",
     "out",
     "dist"
