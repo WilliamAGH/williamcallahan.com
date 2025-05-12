@@ -140,6 +140,9 @@ const GitHubActivity = () => {
     setError(null);
     if (refresh) {
       setIsRefreshing(true);
+      console.log('[Client] Requesting GitHub data refresh from API. This may take a moment as it fetches fresh data from GitHub API.');
+    } else {
+      console.log('[Client] Fetching GitHub data from cache/S3. For fresh data, use the refresh button.');
     }
 
     try {
@@ -148,7 +151,7 @@ const GitHubActivity = () => {
       if (forceCache) url += (refresh ? '&' : '?') + 'force-cache=true';
 
       const response = await fetch(url);
-      
+
       // Always try to parse, but wrap to tolerate non-JSON error bodies
       let result: GitHubActivityApiResponse;
       try {
@@ -165,7 +168,7 @@ const GitHubActivity = () => {
         setDataComplete(false);
         return; // Exit early
       }
-      
+
       if (!response.ok || result.error) {
         const errorMessage = result.error || `GitHub Activity API request failed with status ${response.status}`;
         console.error('GitHub Activity API returned an error:', errorMessage, result.details);

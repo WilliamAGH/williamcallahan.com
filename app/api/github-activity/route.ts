@@ -19,7 +19,9 @@ const VERBOSE = process.env.VERBOSE === 'true' || false;
 export async function GET(request: NextRequest): Promise<NextResponse> {
   if (VERBOSE) console.log('[API GitHub Activity] Received GET request.');
   const url = new URL(request.url);
-  if (url.searchParams.get('refresh') === 'true') {
+  const isRefresh = url.searchParams.get('refresh') === 'true';
+
+  if (isRefresh) {
     if (VERBOSE) console.log('[API GitHub Activity] Refresh requested. Clearing relevant S3 caches...');
     try {
       // Clearing the main activity file (which holds trailing year raw data + calendar)
@@ -32,6 +34,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       if (VERBOSE) console.log('[API GitHub Activity] S3 cache files cleared for refresh.');
     } catch (err) {
       if (VERBOSE) console.warn('[API GitHub Activity] Failed to delete one or more S3 cache files for refresh:', err);
+    }
+
+    // Force a refetch from GitHub API by calling the update-s3 script
+    try {
+      if (VERBOSE) console.log('[API GitHub Activity] Refresh requested. Triggering GitHub API fetch...');
+      const { spawnSync } = await import('child_process');
+      const result = spawnSync('bun', ['run', 'update-s3', '--', '--github-activity'], {
+        env: process.env,
+        stdio: 'pipe'
+      });
+
+      if (result.status !== 0) {
+        console.error(`[API GitHub Activity] GitHub API update failed (code ${result.status})`);
+        const stderr = result.stderr ? result.stderr.toString() : 'No error output';
+        if (VERBOSE) console.error(`[API GitHub Activity] Error details: ${stderr}`);
+      } else {
+        if (VERBOSE) console.log('[API GitHub Activity] GitHub API update completed successfully');
+      }
+    } catch (err) {
+      console.error('[API GitHub Activity] Failed to trigger GitHub API update:', err);
     }
   }
 

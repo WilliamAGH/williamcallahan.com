@@ -599,19 +599,54 @@ async function fetchExternalGithubActivity(): Promise<{trailingYearData: RawGitH
 
 /** Returns cached/S3/raw GitHub activity as flat object */
 export async function getGithubActivity(): Promise<GitHubActivityApiResponse | null> {
+  // Check in-memory cache first
   const cached = ServerCacheInstance.getGithubActivity();
-  // The cache stores the final GitHubActivityApiResponse shape (with undefined summaries initially)
   if (cached && cached.trailingYearData && cached.trailingYearData.data.length > 0 && cached.trailingYearData.dataComplete && cached.cumulativeAllTimeData) {
     console.log('[DataAccess] Returning GitHub activity from cache.');
     return cached;
   }
 
-  // fetchExternalGithubActivity now returns { trailingYearData, allTimeData } (raw parts)
-  // It also handles writing:
-  // 1. activity_data.json (with raw trailingYearData including calendar)
-  // 2. github_stats_summary.json (from trailing year calculations)
-  // 3. github_stats_summary_all_time.json (from all-time calculations)
-  console.log('[DataAccess] GitHub activity not in cache or S3 needs refresh, fetching from external source.');
+  // Next, try to load from S3 before making any external API calls
+  console.log('[DataAccess] GitHub activity not in cache, checking S3 first...');
+  const activityFile = s3Client.file(GITHUB_ACTIVITY_S3_KEY_FILE);
+  try {
+    const rawTrailingYearFromS3 = await activityFile.json().catch(() => null) as RawGitHubActivityApiResponse | null;
+    if (rawTrailingYearFromS3 && rawTrailingYearFromS3.data && rawTrailingYearFromS3.data.length > 0) {
+      console.log('[DataAccess-S3] Successfully loaded GitHub activity from S3.');
+      // Ensure all required fields for RawGitHubActivityApiResponse are present or defaulted
+      const validRawTrailingYear = {
+        source: rawTrailingYearFromS3.source || 'api',
+        data: rawTrailingYearFromS3.data,
+        totalContributions: rawTrailingYearFromS3.totalContributions || 0,
+        linesAdded: rawTrailingYearFromS3.linesAdded,
+        linesRemoved: rawTrailingYearFromS3.linesRemoved,
+        dataComplete: rawTrailingYearFromS3.dataComplete !== undefined ? rawTrailingYearFromS3.dataComplete : true,
+      };
+
+      // Construct a response with the S3 data
+      const response: GitHubActivityApiResponse = {
+        trailingYearData: { ...validRawTrailingYear, summaryActivity: undefined },
+        cumulativeAllTimeData: {
+          source: 'api',
+          data: [],
+          totalContributions: 0,
+          linesAdded: 0,
+          linesRemoved: 0,
+          dataComplete: true,
+          summaryActivity: undefined
+        }
+      };
+
+      // Cache the response
+      ServerCacheInstance.setGithubActivity(response);
+      return response;
+    }
+  } catch (s3Error) {
+    console.error(`[DataAccess-S3] Error reading S3 data from ${GITHUB_ACTIVITY_S3_KEY_FILE}:`, s3Error);
+  }
+
+  // Only if S3 data is unavailable or invalid, fetch from external GitHub API
+  console.log('[DataAccess] GitHub activity not in S3 or invalid, fetching from external source.');
   const externalRawParts = await fetchExternalGithubActivity();
 
   if (externalRawParts && externalRawParts.trailingYearData && externalRawParts.allTimeData) {
@@ -622,35 +657,8 @@ export async function getGithubActivity(): Promise<GitHubActivityApiResponse | n
     }
   }
 
-  // Fallback: If external fetch failed, try to serve at least trailing year from S3 if GITHUB_ACTIVITY_S3_KEY_FILE exists
-  console.warn('[DataAccess] External GitHub fetch failed. Attempting to use S3 fallback for trailing year data.');
-  const activityFile = s3Client.file(GITHUB_ACTIVITY_S3_KEY_FILE);
-  try {
-    const rawTrailingYearFromS3 = await activityFile.json().catch(() => null) as RawGitHubActivityApiResponse | null;
-    if (rawTrailingYearFromS3 && rawTrailingYearFromS3.data && rawTrailingYearFromS3.data.length > 0) {
-      console.warn('[DataAccess-S3] External GitHub fetch failed, returning ONLY trailing year data from S3.');
-      // Ensure all required fields for RawGitHubActivityApiResponse are present or defaulted for the placeholder
-      const validRawTrailingYear = {
-        source: rawTrailingYearFromS3.source || 's3_fallback',
-        data: rawTrailingYearFromS3.data,
-        totalContributions: rawTrailingYearFromS3.totalContributions || 0,
-        linesAdded: rawTrailingYearFromS3.linesAdded,
-        linesRemoved: rawTrailingYearFromS3.linesRemoved,
-        dataComplete: rawTrailingYearFromS3.dataComplete !== undefined ? rawTrailingYearFromS3.dataComplete : false,
-      };
-      const partialResponse: GitHubActivityApiResponse = {
-        trailingYearData: { ...validRawTrailingYear, summaryActivity: undefined },
-        cumulativeAllTimeData: { source: 'api', data:[], totalContributions:0, linesAdded:0, linesRemoved:0, dataComplete: false, summaryActivity: undefined },
-        error: "External fetch failed, using stale S3 trailing year data. All-time data unavailable."
-      };
-      ServerCacheInstance.setGithubActivity(partialResponse, true);
-      return partialResponse;
-    }
-  } catch (s3Error) {
-    console.error(`[DataAccess-S3] Error reading S3 fallback ${GITHUB_ACTIVITY_S3_KEY_FILE}:`, s3Error);
-  }
-
-  console.warn('[DataAccess-S3] Failed to fetch GitHub activity from all sources and no S3 fallback available.');
+  // Final fallback: If both S3 and external fetch failed, return null
+  console.warn('[DataAccess-S3] Failed to fetch GitHub activity from all sources.');
   return null;
 }
 
