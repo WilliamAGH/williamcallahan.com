@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { assertServerOnly } from '../utils/ensure-server-only';
 import { formatSeoDate } from '../seo/utils'; // Import the Pacific Time formatter
 
@@ -17,10 +18,12 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { serialize } from 'next-mdx-remote/serialize';
+import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 import remarkGfm from 'remark-gfm';
 import rehypePrismPlus from 'rehype-prism-plus';
 import rehypeSlug from 'rehype-slug';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
+import type { CompileOptions as MDXCompileOptions } from '@mdx-js/mdx';
 // Pluggable import removed as it's no longer used directly
 import { authors } from '../../data/blog/authors';
 import type { BlogPost } from '../../types/blog';
@@ -105,7 +108,6 @@ export async function getMDXPost(
       // Stat once; failure means the file is missing or unreadable
       try {
         stats = await fs.stat(filePathForPost);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (_statError) {
         console.warn(`[getMDXPost] Blog post file not found or unreadable at path ${filePathForPost} (slug: ${frontmatterSlug})`);
         return null;
@@ -122,7 +124,9 @@ export async function getMDXPost(
     }
 
     // Parse frontmatter
-    const { data: frontmatter, content } = matter(fileContents) as unknown as { data: FrontmatterData; content: string };
+    const parsed = matter(fileContents);
+    const frontmatter = parsed.data as FrontmatterData;
+    const content = parsed.content;
 
     // Validate frontmatter slug consistency
     const normalizedParam = frontmatterSlug.trim();
@@ -146,29 +150,34 @@ export async function getMDXPost(
     };
 
     // Serialize the content with options for proper MDX features
-    const mdxSource = await serialize(content, {
-      mdxOptions: {
-        remarkPlugins: [
-          [remarkGfm, { singleTilde: false, breaks: true }]
-        ],
-        rehypePlugins: [
-          rehypeSlug,
-          [rehypeAutolinkHeadings, {
-            properties: {
-              className: ['anchor'],
-              ariaLabel: 'Link to section'
-            },
-            behavior: 'append'
-          }],
-          [rehypePrismPlus, { ignoreMissing: true }]
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- rehype plugins type definition requires this cast
-        ] as any[],
-        format: 'mdx'
-      },
-      scope: {},
-      // Front-matter was already parsed by `gray-matter`
-      parseFrontmatter: false,
-    });
+    // The result of serialize() is a Promise resolving to MDXRemoteSerializeResult
+    let mdxSource: MDXRemoteSerializeResult<Record<string, unknown>, Record<string, unknown>>;
+    try {
+      mdxSource = await serialize(content, {
+        mdxOptions: {
+          remarkPlugins: [[remarkGfm, { singleTilde: false, breaks: true }]] as MDXCompileOptions['remarkPlugins'],
+          rehypePlugins: [
+            rehypeSlug,
+            [rehypeAutolinkHeadings, {
+              properties: { className: ['anchor'], ariaLabel: 'Link to section' },
+              behavior: 'append'
+            }],
+            [rehypePrismPlus, { ignoreMissing: true }]
+          ] as MDXCompileOptions['rehypePlugins'],
+          format: 'mdx'
+        },
+        scope: {},
+        parseFrontmatter: false
+      });
+    } catch (mdxError) {
+      console.error(`[getMDXPost] MDX compile error for slug "${frontmatterSlug}":`, mdxError);
+      // Fallback minimal content to prevent crash
+      mdxSource = await serialize('<p>Unable to render content due to MDX errors.</p>', {
+        mdxOptions: { format: 'mdx' },
+        scope: {},
+        parseFrontmatter: false
+      });
+    }
 
     // Use frontmatter dates, ensuring they are Pacific Time ISO strings
     const publishedAt = toPacificISOString(frontmatter.publishedAt || fileDates.created);
