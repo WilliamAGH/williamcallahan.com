@@ -74,10 +74,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Then get logo normally (will trigger fresh fetch)
       logoResult = await getLogo(domain);
     } else {
-      // Use regular path - check cache, then S3 if needed
-      logoResult = cacheHit ?
-        await getLogo(domain) :
-        await serveLogoFromS3(domain);
+      // Use regular path - check cache, then S3, then external if needed
+      if (cacheHit) {
+        logoResult = await getLogo(domain);          // uses cache
+      } else {
+        // Try S3 first, then external via getLogo if S3 fails
+        logoResult = await serveLogoFromS3(domain);
+        if (!logoResult) {
+          logoResult = await getLogo(domain);  // Attempt external fetch if not in S3
+        }
+      }
     }
 
     if (logoResult) {
