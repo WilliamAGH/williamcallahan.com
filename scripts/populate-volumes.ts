@@ -62,7 +62,8 @@ async function populateGithubActivityData() {
   console.log('🐙 Populating GitHub activity volume using data-access layer...');
   const activity = await getGithubActivity(); // This now handles fetch, volume write, cache
   if (activity) {
-    console.log(`✅ GitHub activity volume populated/updated. Data complete: ${activity.dataComplete}`);
+    // Log completeness of the trailing year data, as that's the primary focus for the calendar display
+    console.log(`✅ GitHub activity volume populated/updated. Trailing year data complete: ${activity?.trailingYearData?.dataComplete}`);
     await calculateAndStoreAggregatedWeeklyActivity();
     return activity;
   } else {

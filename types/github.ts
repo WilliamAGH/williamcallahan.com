@@ -14,26 +14,57 @@ export interface ContributionDay {
 }
 
 /**
- * Represents the structure of the response from the
- * `/api/github-activity` endpoint.
+ * Raw GitHub activity shape returned by getGithubActivity (flat structure)
+ */
+export interface RawGitHubActivityApiResponse {
+  source: 'scraping' | 'api' | 'api_multi_file_cache';
+  data: ContributionDay[];
+  totalContributions: number;
+  linesAdded?: number;
+  linesRemoved?: number;
+  dataComplete?: boolean;
+  error?: string;
+  details?: string;
+}
+
+/**
+ * Represents a segment of GitHub activity data with optional summary
+ */
+export interface GitHubActivitySegment extends RawGitHubActivityApiResponse {
+  /** Summary activity for this period */
+  summaryActivity?: GitHubActivitySummary;
+}
+
+/**
+ * Response from `/api/github-activity` with nested segments
  */
 export interface GitHubActivityApiResponse {
-  source: 'scraping' | 'api' | 'api_multi_file_cache'; // Added 'api_multi_file_cache'
-  data: ContributionDay[];
-  totalContributions: number; // Ensure this is always present
-  linesAdded?: number; // Total lines of code added in the last 365 days
-  linesRemoved?: number; // Total lines of code removed in the last 365 days
-  dataComplete?: boolean; // Indicates if all repositories' stats were successfully retrieved
-  error?: string; // Error message if fetching failed
-  details?: string; // Additional error details
-  summaryDetails?: { // Details used for generating the summary file
-    totalRepositoriesContributedTo: number;
-    linesOfCodeByCategory: {
-      frontend: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
-      backend: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
-      dataEngineer: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
-      other: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
-    };
+  /** Daily contributions over the last 365 days */
+  trailingYearData: GitHubActivitySegment;
+  /** Cumulative all-time contribution data */
+  cumulativeAllTimeData: GitHubActivitySegment;
+  /** Error message if fetching failed */
+  error?: string;
+  /** Additional error details */
+  details?: string;
+}
+
+/**
+ * Structure of the GitHub activity summary JSON file stored in S3
+ */
+export interface GitHubActivitySummary {
+  lastUpdatedAtPacific: string;
+  totalContributions: string;
+  totalLinesAdded: number;
+  totalLinesRemoved: number;
+  netLinesOfCode: number;
+  dataComplete: boolean;
+  totalRepositoriesContributedTo: number;
+  linesOfCodeByCategory: {
+    frontend: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
+    backend: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
+    dataEngineer: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
+    other: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
   };
 }
 
@@ -43,25 +74,12 @@ export interface GitHubActivityApiResponse {
  */
 export interface GitHubGraphQLContributionResponse {
   user: {
-    contributionsCollection: {
-      contributionCalendar: {
-        totalContributions: number;
-        weeks: Array<{
-          contributionDays: Array<{
-            contributionCount: number;
-            contributionLevel: string; // e.g., "NONE", "FIRST_QUARTILE"
-            date: string;
-          }>;
-        }>;
-      };
-    };
-    repositoriesContributedTo?: {
+    /** Repositories the user has committed to */
+    repositoriesContributedTo: {
       nodes: Array<{
         id: string;
         name: string;
-        owner: {
-          login: string;
-        };
+        owner: { login: string };
         nameWithOwner: string;
         isFork: boolean;
         isPrivate: boolean;

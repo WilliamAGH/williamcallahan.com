@@ -126,6 +126,9 @@ const GitHubActivity = () => {
   const [linesRemoved, setLinesRemoved] = useState<number | null>(null);
   const [dataComplete, setDataComplete] = useState<boolean>(true);
 
+  // Ref to track if the initial fetch has been made (to handle Strict Mode double invocation)
+  const fetchInitiatedRef = React.useRef(false);
+
   // Function to navigate to GitHub profile
   const navigateToGitHub = () => {
     window.open(GITHUB_PROFILE_URL, '_blank', 'noopener,noreferrer');
@@ -147,43 +150,73 @@ const GitHubActivity = () => {
       const response = await fetch(url);
       const result = await response.json() as GitHubActivityApiResponse;
 
+      // Enhanced error and structure checking
       if (!response.ok || result.error) {
-        throw new Error(result.error || `API request failed with status ${response.status}`);
+        const errorMessage = result.error || `GitHub Activity API request failed with status ${response.status}`;
+        console.error('GitHub Activity API returned an error:', errorMessage, result.details);
+        setError(errorMessage);
+        setActivityData([]);
+        setTotalContributions(null);
+        setLinesAdded(null);
+        setLinesRemoved(null);
+        setDataComplete(false);
+        // Reset any specific summary states if you have them, e.g.:
+        // setTrailingYearSummaryDetails(null);
+        // setAllTimeSummaryDetails(null);
+        return; // Exit early
       }
 
-      if (result.data && Array.isArray(result.data)) {
-        setActivityData(result.data);
-        if (result.totalContributions) {
-          setTotalContributions(result.totalContributions);
+      // Explicitly log the parts of the condition
+      console.log('[Client Debug] typeof result.trailingYearData:', typeof result.trailingYearData);
+      if (result.trailingYearData) {
+        console.log('[Client Debug] Array.isArray(result.trailingYearData.data):', Array.isArray(result.trailingYearData.data));
+        console.log('[Client Debug] result.trailingYearData.data itself:', result.trailingYearData.data);
+      }
+
+      if (result.trailingYearData && Array.isArray(result.trailingYearData.data)) {
+        setActivityData(result.trailingYearData.data);
+        // Use totalContributions from the raw segment for the main display
+        setTotalContributions(result.trailingYearData.totalContributions);
+        // Use linesAdded/Removed from the raw segment for the main display
+        setLinesAdded(result.trailingYearData.linesAdded ?? null);
+        setLinesRemoved(result.trailingYearData.linesRemoved ?? null);
+        setDataComplete(result.trailingYearData.dataComplete !== false);
+
+        // Log summary if present (client can decide how to display it)
+        if (result.trailingYearData.summaryActivity) {
+          console.log('[Client] Trailing year summary received:', result.trailingYearData.summaryActivity);
+          // Example: if you have a state for summary details:
+          // setTrailingYearSummaryDetails(result.trailingYearData.summaryActivity);
+        } else {
+          console.warn('[Client] Trailing year summaryActivity is missing in API response.');
         }
-        if (typeof result.linesAdded === 'number') {
-          setLinesAdded(result.linesAdded);
-        }
-        if (typeof result.linesRemoved === 'number') {
-          setLinesRemoved(result.linesRemoved);
-        }
-        setDataComplete(result.dataComplete !== false); // Treat undefined as true for backward compatibility
       } else {
-        // Handle cases where scraping might return empty data but no error
-        console.warn('Received empty or invalid data structure from API:', result);
+        console.error('[Client Error] Condition failed: result.trailingYearData && Array.isArray(result.trailingYearData.data). Full result object:', JSON.parse(JSON.stringify(result))); // Deep clone for logging
+        setError('Received empty or invalid data structure for calendar display.');
         setActivityData([]);
-        if (result.totalContributions) {
-          setTotalContributions(result.totalContributions);
-        }
-        if (typeof result.linesAdded === 'number') {
-          setLinesAdded(result.linesAdded);
-        }
-        if (typeof result.linesRemoved === 'number') {
-          setLinesRemoved(result.linesRemoved);
-        }
-        setDataComplete(result.dataComplete !== false);
+        setTotalContributions(result.trailingYearData?.totalContributions ?? null);
+        setLinesAdded(result.trailingYearData?.linesAdded ?? null);
+        setLinesRemoved(result.trailingYearData?.linesRemoved ?? null);
+        setDataComplete(result.trailingYearData?.dataComplete !== false);
+      }
+
+      // Log all-time summary if present
+      if (result.cumulativeAllTimeData && result.cumulativeAllTimeData.summaryActivity) {
+        console.log('[Client] Cumulative all-time summary received:', result.cumulativeAllTimeData.summaryActivity);
+        // Example: if you have a state for all-time summary details:
+        // setAllTimeSummaryDetails(result.cumulativeAllTimeData.summaryActivity);
+      } else {
+        console.warn('[Client] Cumulative all-time summaryActivity is missing in API response.');
       }
 
     } catch (err) {
-      console.error('Failed to fetch GitHub activity:', err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
-      setActivityData([]); // Clear data on error
-      setDataComplete(true); // Reset data completeness on error
+      console.error('Failed to fetch or parse GitHub activity:', err);
+      setError(err instanceof Error ? err.message : 'An unknown error occurred while fetching data.');
+      setActivityData([]);
+      setTotalContributions(null);
+      setLinesAdded(null);
+      setLinesRemoved(null);
+      setDataComplete(true); // Or false, depending on how you want to handle this
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -203,8 +236,28 @@ const GitHubActivity = () => {
   };
 
   useEffect(() => {
-    void fetchData();
-  }, []);
+    if (process.env.NODE_ENV === 'development') {
+      if (!fetchInitiatedRef.current) {
+        fetchInitiatedRef.current = true;
+        console.log('[Client useEffect] Development: Initial fetch triggered.');
+        void fetchData();
+      } else {
+        console.log('[Client useEffect] Development: StrictMode double-run, fetch already initiated, skipping.');
+      }
+    } else {
+      // Production: run fetch normally
+      console.log('[Client useEffect] Production: Initial fetch triggered.');
+      void fetchData();
+    }
+    // Cleanup function to reset ref if component unmounts (optional, but good practice for strict mode)
+    return () => {
+      if (process.env.NODE_ENV === 'development') {
+        // fetchInitiatedRef.current = false; // Reset if you want re-fetch on next mount in dev after HMR
+        // For a true one-time fetch per component lifecycle, don't reset here.
+        console.log('[Client useEffect] Development: Cleanup (Strict Mode unmount).');
+      }
+    };
+  }, []); // Empty dependency array means run on mount (and unmount due to StrictMode)
 
   const renderGraph = () => {
     if (isLoading && !isRefreshing) {
@@ -259,7 +312,7 @@ const GitHubActivity = () => {
     // A more sophisticated approach would parse dates and arrange into a proper calendar grid
 
     return (
-      <div className="grid grid-flow-col grid-rows-7 gap-1 p-2 overflow-x-auto custom-scrollbar sm:grid-cols-7">
+      <div className="grid grid-flow-col grid-rows-7 gap-1 p-2 overflow-x-auto custom-scrollbar">
         {activityData.map((day) => (
           <div
             key={day.date}
