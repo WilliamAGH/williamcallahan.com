@@ -29,6 +29,8 @@ This guide covers setting up a modern Spring Boot application with:
 - A simple REST API endpoint
 - Serving static web content
 - Essential Maven commands and troubleshooting tips
+- Basic application configuration
+- Environment variables setup
 </BackgroundInfo>
 
 ## Part 1: Prerequisites & Initial Setup
@@ -113,7 +115,61 @@ Use Community Edition (free) or Ultimate (full Spring support).
 - `pom.xml` - Maven config and dependency management
 </CollapseDropdown>
 
-## Part 3: Build a Basic REST API
+## Part 3: Application Configuration
+
+<CollapseDropdown summary="application.properties setup">
+Edit `src/main/resources/application.properties` to configure your application:
+
+```properties
+# Server configuration
+server.port=8080
+server.servlet.context-path=/api
+
+# Logging configuration
+logging.level.root=INFO
+logging.level.com.example=DEBUG
+
+# Spring devtools
+spring.devtools.restart.enabled=true
+```
+
+For different environments, create profile-specific properties:
+- `application-dev.properties`
+- `application-prod.properties`
+</CollapseDropdown>
+
+<CollapseDropdown summary="Environment variables with .env">
+For sensitive data like API keys, use environment variables.
+
+1. Add <ExternalLink href="https://central.sonatype.com/artifact/me.paulschwarz/spring-dotenv">spring-dotenv</ExternalLink> dependency to `pom.xml`:
+```xml
+<dependency>
+    <groupId>me.paulschwarz</groupId>
+    <artifactId>spring-dotenv</artifactId>
+    <version>4.0.0</version>
+</dependency>
+```
+
+2. Create `.env.example` file:
+```
+SERVER_PORT=8080
+CUSTOM_API_KEY=your-api-key-here
+```
+
+3. Create your actual `.env` file (don't commit to git):
+```
+SERVER_PORT=8080
+CUSTOM_API_KEY=actual-api-key-value
+```
+
+4. Reference env variables in `application.properties`:
+```properties
+server.port=${SERVER_PORT:8080}
+api.key=${CUSTOM_API_KEY}
+```
+</CollapseDropdown>
+
+## Part 4: Build a Basic REST API
 
 <CollapseDropdown summary="HelloController.java">
 Create `src/main/java/com/example/myspringbootapp/HelloController.java`:
@@ -149,7 +205,7 @@ curl http://localhost:8080/hello?name=Developer
 ```
 </CollapseDropdown>
 
-## Part 4: Serve Static Web Content
+## Part 5: Serve Static Web Content
 
 <CollapseDropdown summary="Static index.html">
 1. Create `src/main/resources/static/index.html`:
@@ -166,7 +222,7 @@ curl http://localhost:8080/hello?name=Developer
 Spring Boot serves files in `static/` automatically.
 </CollapseDropdown>
 
-## Part 5: Essential Maven Commands
+## Part 6: Essential Maven Commands
 
 <CollapseDropdown summary="Maven commands">
 - Build: `mvn clean install`
@@ -175,7 +231,27 @@ Spring Boot serves files in `static/` automatically.
 - Dependencies: `mvn dependency:tree`
 </CollapseDropdown>
 
-## Part 6: Key Concepts & Troubleshooting
+## Part 7: Development & Hot Reload
+
+<CollapseDropdown summary="Hot reload setup">
+Spring Boot DevTools enables hot reload by default. Optimize it with:
+
+1. For IntelliJ IDEA:
+   - In Preferences > Build, Execution, Deployment > Compiler, enable "Build project automatically"
+   - Enable advanced settings: Registry (Ctrl+Alt+Shift+/) > check "compiler.automake.allow.when.app.running"
+
+2. For CLI:
+```bash
+mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dspring.devtools.restart.enabled=true"
+```
+
+3. To run with specific profile:
+```bash
+mvn spring-boot:run -Dspring.profiles.active=dev
+```
+</CollapseDropdown>
+
+## Part 8: Key Concepts & Troubleshooting
 
 <CollapseDropdown summary="Maven Central repository">
 Maven Central (<ExternalLink href="https://central.sonatype.com/">central.sonatype.com</ExternalLink>) is the primary public repository for Java libraries and dependencies, serving a similar role to npm (JavaScript) or PyPI (Python) for the Java ecosystem.
@@ -189,12 +265,41 @@ Spring Boot auto-configures based on classpath; e.g., `spring-boot-starter-web` 
 Add `server.port=8081` to `application.properties` or free port 8080.
 </CollapseDropdown>
 
-## Beyond Development: Deployment
+## Part 9: Deployment Options
 
 <CollapseDropdown summary="Package for production">
 ```bash
 mvn clean package
 java -jar target/*.jar
 ```
-Consider Docker, cloud platforms, and monitoring with Actuator.
+</CollapseDropdown>
+
+<CollapseDropdown summary="Running with different profiles">
+```bash
+java -jar target/*.jar --spring.profiles.active=prod
+```
+
+When running in production, set environment variables externally:
+```bash
+export SERVER_PORT=80
+export CUSTOM_API_KEY=production-key
+java -jar target/*.jar
+```
+</CollapseDropdown>
+
+<CollapseDropdown summary="Docker deployment">
+1. Create `Dockerfile`:
+```dockerfile
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY target/*.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+2. Build and run:
+```bash
+docker build -t myspringbootapp .
+docker run -p 8080:8080 --env-file .env myspringbootapp
+```
 </CollapseDropdown>
