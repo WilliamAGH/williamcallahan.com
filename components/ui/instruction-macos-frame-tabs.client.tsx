@@ -38,7 +38,7 @@ export function InstructionMACOSTab({ children }: InstructionMACOSTabProps): Rea
 
 // Renamed interface for context props
 interface InstructionMacOSFrameTabsContextProps {
-  activeTab: string;
+  activeTab: string | null;
   setActiveTab: (label: string) => void;
   tabs: Array<{ label: string; id: string }>;
   baseId: string;
@@ -50,7 +50,7 @@ const InstructionMacOSFrameTabsContext = createContext<InstructionMacOSFrameTabs
 // Renamed main component
 export function InstructionMacOSFrameTabs({ children, className = '' }: { children: ReactNode, className?: string }) {
   const baseId = useId();
-  const [activeTabLabel, setActiveTabLabel] = useState<string>('');
+  const [activeTabLabel, setActiveTabLabel] = useState<string | null>(null);
 
   // Window state for InstructionMacOSFrameTabs itself
   const [isVisible, setIsVisible] = useState(true);
@@ -100,9 +100,6 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: { childr
         console.warn("InstructionMACOSTab found without a 'label' prop. It will not be rendered.");
         return null;
       }
-      if (childProps.isDefault && !activeTabLabel) {
-        setActiveTabLabel(label);
-      }
       return {
         label,
         id: `${baseId}-tab-${index}`,
@@ -117,9 +114,15 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: { childr
       originalChild: ReactElement<InstructionMACOSTabProps>
     }>;
 
-  if (!activeTabLabel && instructionTabs.length > 0) {
-    setActiveTabLabel(instructionTabs[0].label);
-  }
+  // Set the default tab after the tabs are processed, but outside the render cycle
+  useEffect(() => {
+    if (activeTabLabel === null && instructionTabs.length > 0) {
+      // Prefer an explicitly-marked default, otherwise first tab
+      const defaultTab = instructionTabs.find(t => t.isDefault) ?? instructionTabs[0];
+      if (defaultTab) setActiveTabLabel(defaultTab.label);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instructionTabs.length]);
 
   if (instructionTabs.length === 0) {
     return <div className="my-4 p-4 border border-red-500 rounded-md bg-red-50 text-red-700">No tabs configured. Please add one or more InstructionMACOSTab components.</div>;
@@ -131,7 +134,7 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: { childr
   }));
 
   // Process activeChildContent to open CollapseDropdowns
-  const activeTabDetails = instructionTabs.find(it => it.label === activeTabLabel);
+  const activeTabDetails = activeTabLabel ? instructionTabs.find(it => it.label === activeTabLabel) : undefined;
   let activeChildContentProcessed: ReactNode = null;
 
   if (activeTabDetails) {
@@ -208,7 +211,7 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: { childr
             !isMaximized && className // Apply user-passed className only if not maximized
           )}
           tabs={windowTabs}
-          activeTabId={activeTabLabel}
+          activeTabId={activeTabLabel || ''} // Provide empty string fallback
           onTabClick={(tabId) => setActiveTabLabel(tabId)}
           contentClassName={cn(
             "bg-gray-100 dark:bg-gray-800",
