@@ -77,7 +77,7 @@ async function updateGithubActivityInS3() {
 
     if (activity) {
       // Writes to S3 (raw files, aggregated, summary) should happen within getGithubActivity / calculateAndStoreAggregatedWeeklyActivity
-      console.log(`[UpdateS3] ✅ GitHub Activity update process triggered. Data complete: ${activity.dataComplete} (check data-access logs for S3 write details).`);
+      console.log(`[UpdateS3] ✅ GitHub Activity update process triggered. Trailing year data complete: ${activity?.trailingYearData?.dataComplete} (check data-access logs for S3 write details).`);
       // calculateAndStoreAggregatedWeeklyActivity will also need to be S3-aware
       await calculateAndStoreAggregatedWeeklyActivity(); // This also needs to read/write from/to S3
     } else {

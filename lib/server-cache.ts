@@ -10,7 +10,7 @@ import NodeCache from 'node-cache';
 import { SERVER_CACHE_DURATION, LOGO_CACHE_DURATION, BOOKMARKS_CACHE_DURATION, GITHUB_ACTIVITY_CACHE_DURATION } from './constants'; // Added GITHUB_ACTIVITY_CACHE_DURATION
 import type { LogoInversion, LogoSource } from '../types/logo';
 import type { UnifiedBookmark } from '../types/bookmark';
-import type { GitHubActivityApiResponse } from '../types/github'; // Added GitHubActivityApiResponse
+import type { GitHubActivityApiResponse } from '../types/github';
 import { assertServerOnly } from './utils/ensure-server-only';
 
 assertServerOnly();
@@ -316,7 +316,8 @@ export class ServerCache extends NodeCache {
    * @returns {GitHubActivityCacheEntry | undefined} Cached GitHub activity
    */
   getGithubActivity(): GitHubActivityCacheEntry | undefined {
-    return this.get<GitHubActivityCacheEntry>(GITHUB_ACTIVITY_CACHE_KEY);
+    const key = GITHUB_ACTIVITY_CACHE_KEY;
+    return this.get<GitHubActivityCacheEntry>(key);
   }
 
   /**
@@ -325,20 +326,20 @@ export class ServerCache extends NodeCache {
    * @param {boolean} isFailure - Whether this was a failed fetch attempt
    */
   setGithubActivity(activityData: GitHubActivityApiResponse, isFailure: boolean = false): void {
-    const now = Date.now();
-    const existing = this.getGithubActivity();
-
-    const entry: GitHubActivityCacheEntry = {
+    const key = GITHUB_ACTIVITY_CACHE_KEY;
+    const payload: GitHubActivityCacheEntry = {
       ...activityData,
-      timestamp: now,
-      lastFetchedAt: isFailure ? (existing?.lastFetchedAt ?? now) : now,
-      lastAttemptedAt: now,
+      timestamp: Date.now(),
+      lastFetchedAt: isFailure ? (this.getGithubActivity()?.lastFetchedAt ?? Date.now()) : Date.now(),
+      lastAttemptedAt: Date.now(),
     };
 
     this.set(
-      GITHUB_ACTIVITY_CACHE_KEY,
-      entry,
-      isFailure || !activityData.dataComplete ? GITHUB_ACTIVITY_CACHE_DURATION.FAILURE : GITHUB_ACTIVITY_CACHE_DURATION.SUCCESS
+      key,
+      payload,
+      isFailure || !activityData.trailingYearData.dataComplete
+        ? GITHUB_ACTIVITY_CACHE_DURATION.FAILURE
+        : GITHUB_ACTIVITY_CACHE_DURATION.SUCCESS
     );
   }
 
