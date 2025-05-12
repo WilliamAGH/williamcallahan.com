@@ -12,11 +12,23 @@ export class CacheTester {
     const fullUrl = queryString ? `${endpoint}?${queryString}` : endpoint;
 
     const response1 = await fetch(fullUrl);
-    const data1 = await response1.json() as unknown;
+    if (!response1.ok) return false;
+    let data1: unknown;
+    try {
+      data1 = await response1.clone().json();
+    } catch {
+      data1 = await response1.text();
+    }
     const cacheStats1 = ServerCacheInstance.getStats();
 
     const response2 = await fetch(fullUrl);
-    const data2 = await response2.json() as unknown;
+    if (!response2.ok) return false;
+    let data2: unknown;
+    try {
+      data2 = await response2.clone().json();
+    } catch {
+      data2 = await response2.text();
+    }
     const cacheStats2 = ServerCacheInstance.getStats();
 
     // Verify same data returned
