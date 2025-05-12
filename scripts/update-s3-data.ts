@@ -50,9 +50,9 @@ async function updateBookmarksInS3() {
     // 1. Try local cache (app server cache, not relevant here directly)
     // 2. Try S3
     // 3. If S3 miss/stale, fetch external, COMPARE with S3 data, then write to S3 if different.
-    const bookmarks = await getBookmarks(); // This should now be S3-aware
+    const bookmarks = await getBookmarks();
 
-    if (bookmarks) {
+    if (Array.isArray(bookmarks) && bookmarks.length > 0) {
       // The write to S3 should happen within getBookmarks if data changed.
       // This script mainly triggers the process.
       console.log(`[UpdateS3] ✅ Bookmarks update process triggered. ${bookmarks.length} bookmarks processed (check data-access logs for S3 write details).`);
@@ -96,7 +96,7 @@ async function updateLogosInS3() {
 
     // 1. Extract domains from bookmarks via data-access
     const bookmarks = await getBookmarks();
-    bookmarks.forEach(b => {
+    (bookmarks ?? []).forEach(b => {
       try {
         if (b.url) domains.add(new URL(b.url).hostname.replace(/^www\./, ''));
       } catch { /* ignore invalid URLs */ }
