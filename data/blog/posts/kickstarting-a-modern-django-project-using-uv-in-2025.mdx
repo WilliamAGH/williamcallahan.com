@@ -41,7 +41,7 @@ This part covers setting up a standard, default Django project using your prefer
 
 <ShellParentTabs>
   <ShellTab label="Python Installation" isDefault={true}>
-    <CollapseDropdown summary="Ensure Python 3 is Installed">
+    <CollapseDropdown summary="Ensure Python 3 is installed">
       <div>You'll need Python 3 (ideally a recent version like 3.8 or newer). Check if Python is installed:</div>
       ```bash
       python3 --version
@@ -65,7 +65,7 @@ This part covers setting up a standard, default Django project using your prefer
   </ShellTab>
 
   <ShellTab label='uv (recommended)'>
-    <CollapseDropdown summary='Install and Configure uv'>
+    <CollapseDropdown summary='Install and configure uv'>
       <div>
         <code>uv</code> is an extremely fast Python package installer and resolver, written in Rust. It's designed as a modern, high-performance alternative to tools like{' '}
         <code>pip</code> (the standard installer from <ExternalLink href="https://pypi.org/">PyPI</ExternalLink>, the Python Package Index) and <ExternalLink href="https://docs.conda.io/en/latest/">Conda</ExternalLink> (a broader package and environment manager). <code>uv</code> aims to replace <code>pip</code>, <code>pip-tools</code>, and <code>venv</code>.
@@ -160,7 +160,7 @@ This part covers setting up a standard, default Django project using your prefer
 
 <ShellParentTabs>
   <ShellTab label="Terminal Setup" isDefault={true}>
-    <CollapseDropdown summary="Create Project & Install Django">
+    <CollapseDropdown summary="Create project & install Django">
       <InstructionToggleTabs>
         <InstructionTab label="uv" isDefault={true}>
           ```bash
@@ -207,7 +207,7 @@ This part covers setting up a standard, default Django project using your prefer
       </InstructionToggleTabs>
     </CollapseDropdown>
 
-    <CollapseDropdown summary='Create Django Project Files & Run Server'>
+    <CollapseDropdown summary='Create Django project files & run server'>
       <div className="py-[6px]"><strong>Create the project structure:</strong></div>
       <InstructionToggleTabs>
         <InstructionTab label='uv' isDefault={true}>
@@ -263,7 +263,7 @@ This part covers setting up a standard, default Django project using your prefer
   </ShellTab>
 
   <ShellTab label="VS Code">
-    <CollapseDropdown summary="Setup VS Code for Django Development">
+    <CollapseDropdown summary="Setup VS Code for Django development">
       <div><strong>1. Install Extensions:</strong></div>
       <ul>
         <li><strong>Python (Microsoft)</strong></li>
@@ -287,7 +287,7 @@ This part covers setting up a standard, default Django project using your prefer
   </ShellTab>
 
   <ShellTab label="PyCharm">
-    <CollapseDropdown summary="Setup PyCharm for Django Development">
+    <CollapseDropdown summary="Setup PyCharm for Django development">
       <div><strong>1. Create New Project:</strong></div>
       <ul>
         <li>Go to <strong>File > New Project</strong></li>
@@ -327,7 +327,7 @@ A Django **project** is the overall container for your application's settings an
 
 With the default project running, let's create your first Django app and understand core concepts.
 
-<CollapseDropdown summary='Create Your First App & Configure'>
+<CollapseDropdown summary='Create your first app & configure'>
   <div className="py-[6px]">Django projects are composed of one or more "apps." An app is a self-contained module that handles a specific piece of functionality.</div>
 
   <div className="py-[6px]"><strong>1. Create the App:</strong></div>
@@ -394,7 +394,7 @@ With the default project running, let's create your first Django app and underst
   </InstructionToggleTabs>
 </CollapseDropdown>
 
-<CollapseDropdown summary="Create Views and URL Configuration">
+<CollapseDropdown summary="Create views and URL configuration">
   <div><strong>1. Create a View:</strong></div>
   <div>Edit <code>my_first_app/views.py</code>:</div>
   ```python
@@ -436,7 +436,7 @@ With the default project running, let's create your first Django app and underst
   <div className="py-[6px]">Now visit <code>http://127.0.0.1:8000/app/hello/</code> to see your view in action.</div>
 </CollapseDropdown>
 
-<CollapseDropdown summary='Key Django Concepts'>
+<CollapseDropdown summary='Key Django concepts'>
   <ul>
     <li><div><strong>Apps for Features:</strong> Organize functionality into reusable, modular apps</div></li>
     <li>
@@ -459,7 +459,7 @@ With the default project running, let's create your first Django app and underst
 These templates reduce boilerplate for common functionalities (auth, UI components, deployment setup), allowing you to focus on your unique application logic.
 </BackgroundInfo>
 
-<CollapseDropdown summary='Popular Modern Template Options'>
+<CollapseDropdown summary='Popular modern template options'>
   <ul>
     <li>
       <strong><ExternalLink href="https://github.com/cookiecutter/cookiecutter-django">Cookiecutter Django</ExternalLink></strong>:
@@ -492,7 +492,7 @@ These templates reduce boilerplate for common functionalities (auth, UI componen
   </ul>
 </CollapseDropdown>
 
-<CollapseDropdown summary="Setting Up a Modern Template">
+<CollapseDropdown summary="Setting up a modern template">
   <div>Most templates provide detailed setup instructions, but here's a general workflow:</div>
 
   <div><strong>1. Generate or Clone the Template:</strong></div>
@@ -620,7 +620,7 @@ Django offers robust features for web applications:
 - **ORM & Models**: Django's ORM for database interaction via Python.
 </BackgroundInfo>
 
-<CollapseDropdown summary='Setting Up SQL Database'>
+<CollapseDropdown summary='Setting up SQL database'>
   <div><strong>1. Choose a Database:</strong></div>
   <div>PostgreSQL or MySQL are recommended for production. SQLite (default) works for development.</div>
 
@@ -707,7 +707,7 @@ Django offers robust features for web applications:
   </BackgroundInfo>
 </CollapseDropdown>
 
-<CollapseDropdown summary='Admin Panel Configuration'>
+<CollapseDropdown summary='Admin panel configuration'>
   <div>Django's admin panel provides a powerful interface for managing your application's data.</div>
 
   <div><strong>1. Register Models in admin.py:</strong></div>
@@ -882,7 +882,7 @@ For a deeper dive into some deployment strategies and easy deployment options, I
 
 ## Part 6: Troubleshooting Common Issues
 
-<CollapseDropdown summary="Development Server Issues">
+<CollapseDropdown summary="Development server issues">
   <div><strong>Stopping the Server:</strong></div>
   <ul>
     <li><div><strong>Clean Stop:</strong> <code>Ctrl+C</code> in the terminal</div></li>
@@ -900,7 +900,7 @@ For a deeper dive into some deployment strategies and easy deployment options, I
   ```
 </CollapseDropdown>
 
-<CollapseDropdown summary='Migration Issues'>
+<CollapseDropdown summary='Migration issues'>
   <div><strong>"No changes detected":</strong></div>
   <ul>
     <li>Check that your app is in <code>INSTALLED_APPS</code></li>
@@ -916,7 +916,7 @@ For a deeper dive into some deployment strategies and easy deployment options, I
   </ul>
 </CollapseDropdown>
 
-<CollapseDropdown summary='Static Files & Templates'>
+<CollapseDropdown summary='Static files & templates'>
   <div><strong>Static Files Not Loading (404s):</strong></div>
   <ul>
     <li><strong>Development:</strong> Check <code>STATIC_URL</code>, ensure files are in <code>app_name/static/app_name/</code></li>
@@ -931,7 +931,7 @@ For a deeper dive into some deployment strategies and easy deployment options, I
   </ul>
 </CollapseDropdown>
 
-<CollapseDropdown summary='Import & Package Issues'>
+<CollapseDropdown summary='Import & package issues'>
   <div><strong>ModuleNotFoundError:</strong></div>
   <ul>
     <li>Ensure virtual environment is activated</li>
@@ -967,7 +967,7 @@ For a deeper dive into some deployment strategies and easy deployment options, I
   </ul>
 </CollapseDropdown>
 
-<CollapseDropdown summary='Database Debugging'>
+<CollapseDropdown summary='Database debugging'>
   <div><strong>Connection Problems:</strong></div>
   <ul>
     <li>Verify database settings in <code>settings.py</code></li>
