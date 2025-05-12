@@ -1,5 +1,5 @@
 import { render, waitFor } from '@testing-library/react'
-import { Analytics } from '@/components/analytics/analytics.client'
+import { Analytics } from '../../../components/analytics/analytics.client'
 import { mock, jest, spyOn, describe, beforeEach, afterEach, it, expect } from 'bun:test'
 
 type UmamiMock = {
