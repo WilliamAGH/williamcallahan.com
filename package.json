@@ -4,6 +4,7 @@
   "version": "0.0.3",
   "scripts": {
     "update-s3": "bun scripts/update-s3-data.ts",
+    "scheduler": "bun scripts/scheduler.ts",
     "analyze": "ANALYZE=true next build",
     "benchmark": "bun scripts/benchmark.js",
     "benchmark-api": "bun scripts/benchmark-api.js",
