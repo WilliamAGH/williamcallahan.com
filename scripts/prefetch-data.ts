@@ -260,8 +260,14 @@ async function main(): Promise<void> {
     // Write bookmarks to data/bookmarks/bookmarks.json for static build compatibility
     if (bookmarks && Array.isArray(bookmarks)) {
       const bookmarksPath = path.join(process.cwd(), 'data', 'bookmarks', 'bookmarks.json');
-      await fs.writeFile(bookmarksPath, JSON.stringify(bookmarks, null, 2), 'utf-8');
-      console.log(`[Prefetch] Wrote ${bookmarks.length} bookmarks to ${bookmarksPath}`);
+      try {
+        await fs.writeFile(bookmarksPath, JSON.stringify(bookmarks, null, 2), 'utf-8');
+        console.log(`[Prefetch] Wrote ${bookmarks.length} bookmarks to ${bookmarksPath}`);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[Prefetch] Failed to write bookmarks to ${bookmarksPath}:`, errorMessage);
+        // Continue execution as this is for static build compatibility, but log the error
+      }
     }
     await prefetchGitHubActivityData(apiBase);
 
