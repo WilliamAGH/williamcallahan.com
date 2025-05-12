@@ -8,8 +8,8 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useCallback, isValidElement, ReactNode } from 'react'; // Import useEffect, useRef, useCallback, isValidElement, ReactNode
-import type { ComponentProps } from 'react';
+import { useState, useEffect, useRef, useCallback, isValidElement } from 'react'; // Import useEffect, useRef, useCallback, isValidElement
+import type { ComponentProps, ReactNode } from 'react';
 // import Prism from 'prismjs'; // Remove Prism import
 // import 'prismjs/themes/prism-tomorrow.css'; // Remove Prism theme import if it was added here
 import { CopyButton } from './copy-button.client';
@@ -259,11 +259,7 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
               )}
               {...props}
             >
-              {typeof children === 'string' ? (
-                <code className={className}>{children}</code>
-              ) : (
-                children
-              )}
+              {isValidElement(children) ? children : <code className={className}>{children as string}</code>}
             </pre>
             {/* CopyButton is always rendered. It uses group-hover on the parent div. */}
             <CopyButton content={filteredContent} />
