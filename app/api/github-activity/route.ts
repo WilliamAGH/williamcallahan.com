@@ -17,10 +17,10 @@ export const dynamic = 'force-dynamic';
 const VERBOSE = process.env.VERBOSE === 'true' || false;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  console.log('[API GitHub Activity] Received GET request.');
+  if (VERBOSE) console.log('[API GitHub Activity] Received GET request.');
   const url = new URL(request.url);
   if (url.searchParams.get('refresh') === 'true') {
-    console.log('[API GitHub Activity] Refresh requested. Clearing relevant S3 caches...');
+    if (VERBOSE) console.log('[API GitHub Activity] Refresh requested. Clearing relevant S3 caches...');
     try {
       // Clearing the main activity file (which holds trailing year raw data + calendar)
       // and the two summary files.
@@ -29,9 +29,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         deleteFromS3('github-activity/github_stats_summary.json'),
         deleteFromS3('github-activity/github_stats_summary_all_time.json')
       ]);
-      console.log('[API GitHub Activity] S3 cache files cleared for refresh.');
+      if (VERBOSE) console.log('[API GitHub Activity] S3 cache files cleared for refresh.');
     } catch (err) {
-      console.warn('[API GitHub Activity] Failed to delete one or more S3 cache files for refresh:', err);
+      if (VERBOSE) console.warn('[API GitHub Activity] Failed to delete one or more S3 cache files for refresh:', err);
     }
   }
 
