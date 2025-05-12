@@ -49,12 +49,6 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy entire source code
 COPY . .
 
-# Ensure critical data directories exist before attempting to populate them
-RUN mkdir -p /app/data/bookmarks && \
-    mkdir -p /app/data/github-activity && \
-    mkdir -p /app/data/images/logos
-    # Add other data directories if update-s3-data.ts populates more
-
 # Build-time S3 data update disabled; will run at runtime via scheduler
 
 # Pre-build checks disabled to avoid network hang during build
@@ -96,8 +90,8 @@ COPY --from=builder /app/public ./public
 # COPY --from=builder --chown=nextjs:nodejs /app/data/github-activity /app/.initial-github-activity
 # COPY --from=builder /app/data/bookmarks /app/.initial-bookmarks
 
-# Ensure the local S3 cache directory exists (permissions handled by root user)
-RUN mkdir -p /app/cache/s3_data
+# Ensure the local S3 cache directory exists with proper permissions
+RUN mkdir -p /app/cache/s3_data && chown nextjs:nodejs /app/cache/s3_data
 # REMOVED: Creating persistent data directories - data now lives in S3
 # RUN mkdir -p /app/data/images/logos
 # RUN mkdir -p /app/data/github-activity
