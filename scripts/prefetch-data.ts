@@ -257,6 +257,12 @@ async function main(): Promise<void> {
     // Prefetch bookmarks and GitHub activity by calling their respective API endpoints.
     // These endpoints now use the data-access layer.
     const bookmarks = await prefetchBookmarksData(apiBase);
+    // Write bookmarks to data/bookmarks/bookmarks.json for static build compatibility
+    if (bookmarks && Array.isArray(bookmarks)) {
+      const bookmarksPath = path.join(process.cwd(), 'data', 'bookmarks', 'bookmarks.json');
+      await fs.writeFile(bookmarksPath, JSON.stringify(bookmarks, null, 2), 'utf-8');
+      console.log(`[Prefetch] Wrote ${bookmarks.length} bookmarks to ${bookmarksPath}`);
+    }
     await prefetchGitHubActivityData(apiBase);
 
     // For logos, we gather all domains and then call getLogo from data-access for each.
