@@ -54,7 +54,7 @@ export interface GitHubActivityApiResponse {
  */
 export interface GitHubActivitySummary {
   lastUpdatedAtPacific: string;
-  totalContributions: string;
+  totalContributions: number;
   totalLinesAdded: number;
   totalLinesRemoved: number;
   netLinesOfCode: number;

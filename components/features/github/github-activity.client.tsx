@@ -148,9 +148,24 @@ const GitHubActivity = () => {
       if (forceCache) url += (refresh ? '&' : '?') + 'force-cache=true';
 
       const response = await fetch(url);
-      const result = await response.json() as GitHubActivityApiResponse;
-
-      // Enhanced error and structure checking
+      
+      // Always try to parse, but wrap to tolerate non-JSON error bodies
+      let result: GitHubActivityApiResponse;
+      try {
+        result = await response.json() as GitHubActivityApiResponse;
+      } catch (error) {
+        // Handle JSON parse error
+        const errorMessage = `Failed to parse API response: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        console.error('GitHub Activity API returned invalid JSON:', errorMessage);
+        setError(errorMessage);
+        setActivityData([]);
+        setTotalContributions(null);
+        setLinesAdded(null);
+        setLinesRemoved(null);
+        setDataComplete(false);
+        return; // Exit early
+      }
+      
       if (!response.ok || result.error) {
         const errorMessage = result.error || `GitHub Activity API request failed with status ${response.status}`;
         console.error('GitHub Activity API returned an error:', errorMessage, result.details);
@@ -216,7 +231,9 @@ const GitHubActivity = () => {
       setTotalContributions(null);
       setLinesAdded(null);
       setLinesRemoved(null);
-      setDataComplete(true); // Or false, depending on how you want to handle this
+      // Preserve the last known completeness flag or default to false so UI can
+      // continue surfacing the "partial data" banner.
+      setDataComplete(false);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
