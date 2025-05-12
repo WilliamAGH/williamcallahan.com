@@ -47,9 +47,12 @@ export const s3Client: S3Client | null =
  * @param key The S3 object key.
  * @returns The object content as a string or Buffer, or null if not found or error.
  */
-export async function readFromS3(key: string): Promise<Buffer | string | null> {
+export async function readFromS3(
+  key: string,
+  options?: { range?: string } // Add optional options object
+): Promise<Buffer | string | null> {
   if (DRY_RUN) {
-    if (VERBOSE) console.log(`[S3Utils][DRY RUN] Would read from S3 key ${key}`);
+    if (VERBOSE) console.log(`[S3Utils][DRY RUN] Would read from S3 key ${key}${options?.range ? ' with range ' + options.range : ''}`);
     return null;
   }
   if (!S3_BUCKET_NAME) {
@@ -63,6 +66,7 @@ export async function readFromS3(key: string): Promise<Buffer | string | null> {
   const command = new GetObjectCommand({
     Bucket: S3_BUCKET_NAME,
     Key: key,
+    Range: options?.range, // Pass range option if provided
   });
 
   try {
