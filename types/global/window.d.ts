@@ -10,9 +10,11 @@ interface ClickyAnalytics {
 declare global {
   interface Window {
     clicky?: ClickyAnalytics;
-    // You can also declare other global analytics objects here if needed
-    // umami?: UmamiTracker; // If umami is directly on window and not namespaced
-    // plausible?: PlausibleTracker; // If plausible is directly on window
+    // Global analytics trackers
+    /** Umami analytics tracker */
+    umami?: { track: (eventName: string, data?: Record<string, unknown>) => void };
+    /** Plausible analytics function */
+    plausible?: (eventName: string, options?: { props?: Record<string, unknown> }) => void;
   }
 }
 
