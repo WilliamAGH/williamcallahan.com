@@ -1,26 +1,30 @@
-/**
- * @fileoverview
- * This file is the entry point for the cron scheduler
- * It schedules the update-s3-data script to run at a specified interval
- * The cron expression can be overridden via the S3_CRON_EXPRESSION environment variable
- * This can be run on a serverless function or a cron job, and is used to update the S3 data bucket
- * with the latest data from the source APIs
- * Any can easily be expanded to run other scripts at other intervals as well
- */
+// Continuous Background Scheduler
+//
+// This is a long-running process that schedules and triggers data update tasks
+// at specified intervals:
+// - Bookmarks: Every 2 hours (refreshes external bookmarks data)
+// - GitHub Activity: Daily at midnight PT (refreshes GitHub contribution data)
+// - Logos: Daily at midnight PT (refreshes company logos)
+//
+// How it works:
+// 1. The scheduler starts via 'bun run scheduler' (typically from entrypoint.sh)
+// 2. It registers cron patterns for each task type
+// 3. It remains running indefinitely, waiting for scheduled times to trigger
+// 4. When triggered, it executes the update-s3 script with appropriate arguments
+// 5. The process continues running after task completion, waiting for next trigger
+//
+// Configuration:
+// - Override schedules via environment variables:
+//   - S3_BOOKMARKS_CRON (default: every 2 hours at minute 0)
+//   - S3_GITHUB_CRON (default: daily at midnight)
+//   - S3_LOGOS_CRON (default: daily at midnight)
+// - All times are in Pacific Time (America/Los_Angeles)
+//
+// Note: This process must stay running for scheduled updates to occur.
 
 import rawCron from 'node-cron';
 import { spawnSync } from 'child_process';
 
-/**
- * Scheduler Script
- * Schedules selective S3 data updates on separate intervals using cron
- * - Bookmarks: every 2 hours
- * - GitHub Activity: every 24 hours
- * - Logos: every 24 hours
- * Times are in Pacific Time (PT)
- * Override each schedule via env vars:
- *   S3_BOOKMARKS_CRON, S3_GITHUB_CRON, S3_LOGOS_CRON
- */
 // Ensure Node Cron interprets times in PT
 process.env.TZ = 'America/Los_Angeles';
 console.log('[Scheduler] Starting update-s3-data scheduler (PT)...');
@@ -56,4 +60,6 @@ cron.schedule(logosCron, () => {
   else console.log('[Scheduler] [Logos] Completed successfully');
 });
 
-// Scheduler remains alive listening for cron events
+// The scheduler process remains alive indefinitely, waiting for cron events.
+// DO NOT EXIT this process - it must stay running for scheduled updates to occur.
+console.log('[Scheduler] Setup complete. Scheduler is running and waiting for scheduled trigger times...');
