@@ -91,7 +91,7 @@ COPY --from=builder /app/public ./public
 # COPY --from=builder /app/data/bookmarks /app/.initial-bookmarks
 
 # Ensure the local S3 cache directory exists with proper permissions
-RUN mkdir -p /app/cache/s3_data && chown nextjs:nodejs /app/cache/s3_data
+RUN mkdir -p /app/cache/s3_data
 # REMOVED: Creating persistent data directories - data now lives in S3
 # RUN mkdir -p /app/data/images/logos
 # RUN mkdir -p /app/data/github-activity
