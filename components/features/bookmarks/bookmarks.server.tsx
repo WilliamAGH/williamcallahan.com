@@ -8,7 +8,7 @@ import "server-only"; // Ensure this component remains server-only
 
 import { BookmarksClientWithWindow } from './bookmarks-client-with-window';
 import type { UnifiedBookmark } from '@/types';
-import { getBookmarksForStaticBuild } from '@/lib/bookmarks.client';
+import { getBookmarks } from '@/lib/data-access';
 
 interface BookmarksServerProps {
   title: string;
@@ -41,19 +41,19 @@ export async function BookmarksServer({
   if (propsBookmarks) {
     // Apply the same consistent sorting even when bookmarks are provided externally
     bookmarks = sortByDateDesc(propsBookmarks);
-    console.log('Using provided bookmarks, count:', bookmarks.length);
+    console.log('[BookmarksServer] Using provided bookmarks, count:', bookmarks.length);
   } else {
     // Fetch bookmarks with error handling
     try {
-      bookmarks = await getBookmarksForStaticBuild();
-      console.log('Server-side bookmarks count:', bookmarks.length);
+      bookmarks = await getBookmarks(false);
+      console.log('[BookmarksServer] Fetched via getBookmarks, count:', bookmarks.length);
       if (bookmarks.length > 0) {
-        console.log('First bookmark title:', bookmarks[0]?.title);
+        console.log('[BookmarksServer] First bookmark title:', bookmarks[0]?.title);
       } else {
-        console.warn('No bookmarks found in server-side rendering');
+        console.warn('[BookmarksServer] No bookmarks found via getBookmarks');
       }
     } catch (error) {
-      console.error('Error fetching bookmarks in server-side rendering:', error);
+      console.error('[BookmarksServer] Error fetching bookmarks via getBookmarks:', error);
       // Continue with empty bookmarks array
     }
 
