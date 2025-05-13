@@ -25,6 +25,8 @@
 import rawCron from 'node-cron';
 import { spawnSync } from 'child_process';
 
+console.log('[Scheduler] Process started. Setting up cron jobs...');
+
 // Ensure Node Cron interprets times in PT
 process.env.TZ = 'America/Los_Angeles';
 console.log('[Scheduler] Starting update-s3-data scheduler (PT)...');
@@ -38,26 +40,35 @@ const logosCron     = process.env.S3_LOGOS_CRON     || '0 0 * * *';     // daily
 
 console.log(`[Scheduler] Bookmarks schedule: ${bookmarksCron}`);
 cron.schedule(bookmarksCron, () => {
-  console.log(`[Scheduler] [Bookmarks] Triggering at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}`);
+  console.log(`[Scheduler] [Bookmarks] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Spawning update-s3...`);
   const result = spawnSync('bun', ['run', 'update-s3', '--', '--bookmarks'], { env: process.env, stdio: 'inherit' });
-  if (result.status !== 0) console.error(`[Scheduler] [Bookmarks] Failed (code ${result.status})`);
-  else console.log('[Scheduler] [Bookmarks] Completed successfully');
+  if (result.status !== 0) {
+    console.error(`[Scheduler] [Bookmarks] update-s3 script failed (code ${result.status}). Error: ${result.error}`);
+  } else {
+    console.log('[Scheduler] [Bookmarks] update-s3 script completed successfully');
+  }
 });
 
 console.log(`[Scheduler] GitHub Activity schedule: ${githubCron}`);
 cron.schedule(githubCron, () => {
-  console.log(`[Scheduler] [GitHub] Triggering at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}`);
+  console.log(`[Scheduler] [GitHub] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Spawning update-s3...`);
   const result = spawnSync('bun', ['run', 'update-s3', '--', '--github-activity'], { env: process.env, stdio: 'inherit' });
-  if (result.status !== 0) console.error(`[Scheduler] [GitHub] Failed (code ${result.status})`);
-  else console.log('[Scheduler] [GitHub] Completed successfully');
+  if (result.status !== 0) {
+    console.error(`[Scheduler] [GitHub] update-s3 script failed (code ${result.status}). Error: ${result.error}`);
+  } else {
+    console.log('[Scheduler] [GitHub] update-s3 script completed successfully');
+  }
 });
 
 console.log(`[Scheduler] Logos schedule: ${logosCron}`);
 cron.schedule(logosCron, () => {
-  console.log(`[Scheduler] [Logos] Triggering at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}`);
+  console.log(`[Scheduler] [Logos] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Spawning update-s3...`);
   const result = spawnSync('bun', ['run', 'update-s3', '--', '--logos'], { env: process.env, stdio: 'inherit' });
-  if (result.status !== 0) console.error(`[Scheduler] [Logos] Failed (code ${result.status})`);
-  else console.log('[Scheduler] [Logos] Completed successfully');
+  if (result.status !== 0) {
+    console.error(`[Scheduler] [Logos] update-s3 script failed (code ${result.status}). Error: ${result.error}`);
+  } else {
+    console.log('[Scheduler] [Logos] update-s3 script completed successfully');
+  }
 });
 
 // The scheduler process remains alive indefinitely, waiting for cron events.
