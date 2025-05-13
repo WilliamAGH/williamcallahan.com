@@ -6,7 +6,8 @@
  * @module lib/bookmarks
  */
 
-import request, { type Response } from 'node-fetch'; // Added type Response import
+import request, { type Response } from 'node-fetch';
+import type { AbortSignal as NodeFetchAbortSignal } from 'node-fetch/externals';
 import type { UnifiedBookmark, BookmarkContent, BookmarkAsset } from '@/types';
 import { writeJsonS3, readJsonS3 } from '@/lib/s3-utils';
 import { BOOKMARKS_S3_KEY_FILE } from '@/lib/data-access';
@@ -175,7 +176,7 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
       const pageResponse: Response = await request(pageUrl, { // Typed pageResponse
         method: 'GET',
         headers: requestHeaders, // Use plain object for headers
-        signal: pageController.signal as any, // Added 'as any' to resolve type error
+        signal: pageController.signal as NodeFetchAbortSignal, // Use specific cast
         redirect: 'follow'
       });
       clearTimeout(pageTimeoutId);
@@ -219,12 +220,7 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
 
         // Build content object
         const unifiedContent: BookmarkContent = {
-          // Spread existing content properties first, omitting htmlContent which can be very large
-          ...(raw.content ? {
-            // exclude htmlContent to shrink payload
-            ...omitHtmlContent(raw.content)
-          } : {}),
-          // Then override with our preferred values
+          // Spread existing content properties, excluding htmlContent to shrink payload
           ...(raw.content ? omitHtmlContent(raw.content) : {}),
           type: raw.content?.type ?? 'link',
           url: raw.content?.url || '',
