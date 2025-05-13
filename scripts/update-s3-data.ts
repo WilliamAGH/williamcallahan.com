@@ -38,29 +38,24 @@ const runLogosFlag = rawArgs.length === 0 || rawArgs.includes('--logos');
 const VERBOSE = process.env.VERBOSE === 'true';
 const S3_DATA_ROOT = 'data'; // Root prefix in S3 for this application's data
 
+console.log(`[UpdateS3] Script execution started. Raw args: ${process.argv.slice(2).join(' ')}`);
+
 // --- Data Update Functions ---
 
 async function updateBookmarksInS3() {
-  console.log('[UpdateS3] 📚 Starting Bookmarks update to S3...');
-
+  console.log('[UpdateS3] AB Starting Bookmarks update to S3...');
   try {
-    // getBookmarks will internally handle fetching from external if S3 is empty or stale (logic to be added there)
-    // For this script, we assume getBookmarks is now S3-aware and handles its own differential logic.
-    // The key is that `getBookmarks()` when called without `skipExternalFetch` should:
-    // 1. Try local cache (app server cache, not relevant here directly)
-    // 2. Try S3
-    // 3. If S3 miss/stale, fetch external, COMPARE with S3 data, then write to S3 if different.
-    const bookmarks = await getBookmarks();
+    // Pass skipExternalFetch: false to ensure it tries to get new data
+    console.log('[UpdateS3] [Bookmarks] Calling getBookmarks with skipExternalFetch=false.');
+    const bookmarks = await getBookmarks(false);
 
-    if (Array.isArray(bookmarks) && bookmarks.length > 0) {
-      // The write to S3 should happen within getBookmarks if data changed.
-      // This script mainly triggers the process.
-      console.log(`[UpdateS3] ✅ Bookmarks update process triggered. ${bookmarks.length} bookmarks processed (check data-access logs for S3 write details).`);
+    if (bookmarks && bookmarks.length > 0) {
+      console.log(`[UpdateS3] [Bookmarks] getBookmarks returned ${bookmarks.length} bookmarks. S3 write should have occurred within getBookmarks.`);
     } else {
-      console.error('[UpdateS3] ❌ Failed to process bookmarks for S3 update.');
+      console.warn('[UpdateS3] [Bookmarks] getBookmarks returned no bookmarks or failed. Check data-access logs.');
     }
   } catch (error) {
-    console.error('[UpdateS3] ❌ Error during bookmarks S3 update:', error);
+    console.error('[UpdateS3] [Bookmarks] CRITICAL Error during Bookmarks S3 update process:', error);
   }
 }
 
@@ -165,7 +160,7 @@ async function updateLogosInS3() {
 
 // --- Main Execution ---
 async function runScheduledUpdates() {
-  console.log(`[UpdateS3] Script started. Current PT: ${new Date().toISOString()}`);
+  console.log(`[UpdateS3] runScheduledUpdates called. Current PT: ${new Date().toISOString()}`);
   console.log(`[UpdateS3] Configured S3 Root: ${S3_DATA_ROOT}`);
   console.log(`[UpdateS3] Verbose logging: ${VERBOSE}`);
   const DRY_RUN = process.env.DRY_RUN === 'true';
@@ -183,8 +178,9 @@ async function runScheduledUpdates() {
 
   // Run selected updates sequentially
   if (runBookmarksFlag) {
+    console.log('[UpdateS3] --bookmarks flag is true or no flags provided. Running Bookmarks update.');
     await updateBookmarksInS3();
-  } else if (VERBOSE) console.log('[UpdateS3] Skipping Bookmarks update');
+  } else if (VERBOSE) console.log('[UpdateS3] Skipping Bookmarks update as flag was not set.');
   if (runGithubFlag) {
     await updateGithubActivityInS3(); // This includes sub-calculation for aggregated data
   } else if (VERBOSE) console.log('[UpdateS3] Skipping GitHub Activity update');

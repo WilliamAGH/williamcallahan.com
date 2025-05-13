@@ -192,42 +192,61 @@ function isGitHubActivityApiResponse(obj: unknown): obj is RawGitHubActivityApiR
 export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBookmark[]> {
   // 1. Try Cache
   const cached = ServerCacheInstance.getBookmarks();
-  if (cached && cached.bookmarks && cached.bookmarks.length > 0) {
-    console.log('[DataAccess] Returning bookmarks from cache.');
+  if (cached && cached.bookmarks && cached.bookmarks.length > 0 && skipExternalFetch) {
+    // Only return from cache if skipExternalFetch is true and cache is populated
+    console.log('[DataAccess] Returning bookmarks from cache (skipExternalFetch=true).');
     return cached.bookmarks;
   }
 
-  // 2. Try S3 via Bun
+  // If skipExternalFetch is false, we intend to refresh from external or S3, then external.
+  // So, we bypass returning from cache if skipExternalFetch is false, to ensure fresh data is considered.
+
+  // 2. Try S3 (but only use it as a primary source if skipExternalFetch is true)
   const bookmarksFile = s3Client.file(BOOKMARKS_S3_KEY_FILE);
   let s3Bookmarks: UnifiedBookmark[] | null = null;
   try {
-    const raw = await bookmarksFile.json();
+    const raw = await bookmarksFile.json().catch(() => null); // Add catch here
     if (Array.isArray(raw)) {
       s3Bookmarks = raw as UnifiedBookmark[];
     }
   } catch (error) {
     console.warn('[DataAccess-S3] Error reading bookmarks from S3:', error);
   }
-  if (s3Bookmarks && s3Bookmarks.length > 0) {
-    console.log('[DataAccess-S3] Returning bookmarks from S3.');
+
+  if (s3Bookmarks && s3Bookmarks.length > 0 && skipExternalFetch) {
+    // If S3 has data AND we are skipping external fetch, return S3 data and cache it.
+    console.log('[DataAccess-S3] Returning bookmarks from S3 (skipExternalFetch=true).');
     ServerCacheInstance.setBookmarks(s3Bookmarks);
     return s3Bookmarks;
   }
 
-  // 3. Fetch from External API (only if not explicitly skipped)
-  if (!skipExternalFetch) {
-    console.log('[DataAccess-S3] Bookmarks not in cache or S3, fetching from external source.');
-    const externalBookmarks = await fetchExternalBookmarks();
-    if (externalBookmarks) {
-      // Write to S3 via Bun using writer
+  // 3. Fetch from External API if:
+  //    - skipExternalFetch is false (meaning we WANT to refresh)
+  //    - OR S3 was empty (and skipExternalFetch was true, but S3 had nothing)
+  if (!skipExternalFetch || !s3Bookmarks || s3Bookmarks.length === 0) {
+    console.log(`[DataAccess-S3] Conditions met for external fetch: skipExternalFetch=${skipExternalFetch}, s3Bookmarks found: ${!!(s3Bookmarks && s3Bookmarks.length > 0)}.`);
+    const externalBookmarks = await fetchExternalBookmarks(); // This is the internal fetchExternalBookmarks
+    if (externalBookmarks && externalBookmarks.length > 0) {
+      console.log(`[DataAccess] Fetched ${externalBookmarks.length} bookmarks externally. Writing to S3 and caching.`);
       const bookmarksWriter = bookmarksFile.writer();
       void bookmarksWriter.write(JSON.stringify(externalBookmarks));
       void bookmarksWriter.end();
       ServerCacheInstance.setBookmarks(externalBookmarks);
       return externalBookmarks;
+    } else if (s3Bookmarks && s3Bookmarks.length > 0) {
+      // External fetch failed or returned empty, but we had S3 data. Return S3 data.
+      console.warn('[DataAccess] External fetch failed or returned no bookmarks, but S3 data exists. Returning S3 data.');
+      ServerCacheInstance.setBookmarks(s3Bookmarks); // Ensure S3 data is cached if it wasn't already by an earlier check
+      return s3Bookmarks;
     }
-  } else {
-    console.log('[DataAccess-S3] External fetch skipped as requested.');
+  } else if (s3Bookmarks && s3Bookmarks.length > 0) {
+    // This case is if skipExternalFetch was true, and S3 had data (already handled above, but as a safeguard)
+    console.log('[DataAccess-S3] Returning bookmarks from S3 (already fetched or skipExternalFetch was true and S3 populated).');
+    // Ensure it's cached if we got here through an unexpected path
+    if (!cached || !cached.bookmarks || cached.bookmarks.length === 0) {
+      ServerCacheInstance.setBookmarks(s3Bookmarks);
+    }
+    return s3Bookmarks;
   }
 
   console.warn('[DataAccess-S3] Failed to fetch bookmarks from all sources. Returning empty array.');
