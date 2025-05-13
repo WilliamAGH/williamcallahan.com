@@ -28,6 +28,14 @@ export const projects: Project[] = [
     image: '/images/posts/filey-flag-deprecated-files.png',
     tags: ['VS Code', 'Visual Studio Code', 'Cursor', 'Windsurf', 'TypeScript', 'Files', 'Extension', 'Flag Deprecation','IDE'],
   },
+    {
+    name: 'Book Finder (findmybook.net)',
+    description: 'A Java Spring Boot application that allows users to search for almost any book ever written and receive personalized book recommendations. It integrates with the Google Books API for extensive book data and OpenAI for generating recommendations. The application features a web interface built with Thymeleaf and HTMX, and supports PostgreSQL for data persistence and Spring Session for session management. It includes robust logging and can be deployed via Docker or directly to cloud environments.',
+    shortSummary: 'Java-based book search and recommendation engine with OpenAI integration',
+    url: 'https://book-recommendation-engine.williamcallahan.com/',
+    image: '/images/book-finder-findmybook-net.png',
+    tags: ['Java', 'Spring Boot', 'Spring AI', 'OpenAI', 'Google Books API', 'Thymeleaf', 'HTMX', 'PostgreSQL', 'Docker', 'Web App', 'Book Recommendation'],
+  },
   {
     name: 'AI Company Research Tool',
     description: 'An experimental web app to retrieve live data from one or more LLMs, parse the JSON response, and display nested/cleaned text for diagnostics in researching companies and competitive intelligence.',
@@ -36,5 +44,4 @@ export const projects: Project[] = [
     image: '/images/company-research-experimental-ai-tool.png',
     tags: ['LLM', 'AI', 'JSON', 'Company Research', 'Web App', 'Experimental'],
   },
-  // Add more projects here later
 ];
