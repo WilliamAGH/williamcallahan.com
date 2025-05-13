@@ -77,6 +77,8 @@ ENV CONTAINER=true
 
 # Copy standalone output and required assets (run as root, so no chown needed)
 COPY --from=builder /app/.next/standalone ./
+# Ensure all node_modules (including those for scripts like scheduler) are available
+COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/.next/static ./.next/static
 
 # Copy scripts directory (run as root, so no chown needed)
