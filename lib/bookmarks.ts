@@ -219,11 +219,17 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
 
         // Build content object
         const unifiedContent: BookmarkContent = {
+          // Spread existing content properties first, omitting htmlContent which can be very large
+          ...(raw.content ? {
+            // exclude htmlContent to shrink payload
+            ...omitHtmlContent(raw.content)
+          } : {}),
+          // Then override with our preferred values
           ...(raw.content ? omitHtmlContent(raw.content) : {}),
-          type: 'link',
+          type: raw.content?.type ?? 'link',
           url: raw.content?.url || '',
-          title: bestTitle,
-          description: bestDescription
+          title: bestTitle || 'Untitled Bookmark',
+          description: bestDescription || 'No description available.'
         };
 
         return {

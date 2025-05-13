@@ -90,7 +90,7 @@ async function updateLogosInS3() {
     const domains = new Set<string>();
 
     // 1. Extract domains from bookmarks via data-access
-    const bookmarks = await getBookmarks();
+    const bookmarks = await getBookmarks(true); // reuse freshly-cached data
     (bookmarks ?? []).forEach(b => {
       try {
         if (b.url) domains.add(new URL(b.url).hostname.replace(/^www\./, ''));
@@ -173,7 +173,7 @@ async function runScheduledUpdates() {
   // Ensure S3_BUCKET is configured before proceeding
   if (!process.env.S3_BUCKET) {
     console.error("[UpdateS3] CRITICAL: S3_BUCKET environment variable is not set. Cannot run updates.");
-    process.exit(1);
+    return; // Exit the main function to allow natural termination
   }
 
   // Run selected updates sequentially
