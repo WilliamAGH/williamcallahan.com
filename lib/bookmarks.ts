@@ -187,7 +187,7 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
       }
 
       const data: ApiResponse = await pageResponse.json() as unknown as ApiResponse; // Added 'as unknown'
-      console.log(`refreshBookmarksData: Retrieved ${data.bookmarks.length} bookmarks, nextCursor=${data.nextCursor}`);
+      console.log(`refreshBookmarksData: Retrieved ${data.bookmarks.length} bookmarks. Raw nextCursor from API: '${data.nextCursor}'`);
       allRawBookmarks.push(...data.bookmarks);
       cursor = data.nextCursor;
     } while (cursor);
@@ -253,9 +253,18 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
 
     console.log('refreshBookmarksData: Successfully normalized', normalizedBookmarks.length, 'bookmarks');
     // Persist updated bookmarks list back to S3 to keep it in sync
-    writeJsonS3(BOOKMARKS_S3_KEY_FILE, normalizedBookmarks).catch(error => {
-      console.error('refreshBookmarksData: Failed to write updated bookmarks to S3:', error);
-    });
+    try {
+      await writeJsonS3(BOOKMARKS_S3_KEY_FILE, normalizedBookmarks);
+      console.log('refreshBookmarksData: Successfully wrote updated bookmarks to S3.');
+
+      // Also update the in-memory ServerCacheInstance immediately
+      ServerCacheInstance.setBookmarks(normalizedBookmarks, false); // false indicates not a failure
+      console.log('refreshBookmarksData: Successfully updated ServerCacheInstance with new bookmarks.');
+    } catch (s3OrCacheError) { // Renamed variable for clarity
+      console.error('refreshBookmarksData: Failed to write updated bookmarks to S3 or update cache:', s3OrCacheError);
+      // Depending on desired behavior, you might want to rethrow or handle differently
+      // For now, the function will still return normalizedBookmarks if this block fails
+    }
     return normalizedBookmarks;
   } catch (error) {
     console.error('refreshBookmarksData: Failed to fetch external bookmarks:', error);
