@@ -12,6 +12,13 @@
  * and the Jest runner (for `*.jest.*` files) sequentially.
  */
 import { jest } from 'bun:test'; // Ensure jest namespace is available if running via bun
+import { config } from 'dotenv';
+import path from 'path';
+import { afterEach, beforeAll } from 'bun:test';
+import { cleanup } from '@testing-library/react';
+
+// Explicitly load .env from project root
+config({ path: path.resolve(process.cwd(), '.env') });
 
 export function setupTests() {
   const mockRouter = {
@@ -24,3 +31,8 @@ export function setupTests() {
 
   return { mockRouter };
 }
+
+// Clean up rendered DOM elements after each test to avoid duplicates
+afterEach(() => {
+  cleanup();
+});

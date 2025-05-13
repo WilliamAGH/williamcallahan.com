@@ -38,7 +38,7 @@ describe('scripts/update-s3-data.ts - Dry Run Smoke Test', () => {
     expect(result.exitCode).toBe(0); // Script should exit successfully
 
     // Check for key log messages indicating dry run operation
-    expect(stdout).toContain('[UpdateS3] Script started.');
+    expect(stdout).toContain('[UpdateS3] Script execution started. Raw args:');
     expect(stdout).toContain('[UpdateS3] All scheduled update checks complete.');
 
     // Check for specific DRY RUN log messages from s3-utils
