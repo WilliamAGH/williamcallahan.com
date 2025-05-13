@@ -1,18 +1,18 @@
 import { render, waitFor } from '@testing-library/react'
-import { Analytics } from '@/components/analytics/analytics.client'
+import { Analytics } from '../../../components/analytics/analytics.client'
 import { mock, jest, spyOn, describe, beforeEach, afterEach, it, expect } from 'bun:test'
 
 type UmamiMock = {
   track: jest.Mock
-} & jest.Mock
+} & jest.Mock // eslint-disable-line @typescript-eslint/no-redundant-type-constituents
 
 type PlausibleMock = jest.Mock
 
 // Override the window object for tests
 declare global {
-  // eslint-disable-next-line no-var
+  // eslint-disable-next-line no-var, @typescript-eslint/no-redundant-type-constituents
   var umami: UmamiMock | undefined
-  // eslint-disable-next-line no-var
+  // eslint-disable-next-line no-var, @typescript-eslint/no-redundant-type-constituents
   var plausible: PlausibleMock | undefined
 }
 

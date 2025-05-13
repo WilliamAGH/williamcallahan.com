@@ -46,12 +46,9 @@
       ],
       "@/utils/*": [
         "./lib/utils/*"
-      ]
+      ],
+      "bun:test": ["node_modules/bun-types/test.d.ts"],
     },
-    "types": [
-      "bun-types",
-      "jest"
-    ],
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": false,
     "noUncheckedIndexedAccess": false,

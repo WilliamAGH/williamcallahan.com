@@ -28,6 +28,8 @@ interface UmamiEvent extends BaseAnalyticsEvent {
   website?: string
   /** Current hostname */
   hostname?: string
+  /** Allow additional properties for event data compatibility */
+  [key: string]: unknown
 }
 
 // Used for type checking but not directly referenced

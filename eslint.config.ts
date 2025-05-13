@@ -1,4 +1,5 @@
-    // eslint.config.ts - Using TypeScript and ESM syntax
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+// eslint.config.ts - Using TypeScript and ESM syntax
 import globals from "globals";
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
@@ -6,6 +7,7 @@ import reactRecommended from "eslint-plugin-react/configs/recommended.js";
 import reactJsxRuntime from "eslint-plugin-react/configs/jsx-runtime.js";
 import reactHooks from "eslint-plugin-react-hooks";
 import nextPlugin from "@next/eslint-plugin-next";
+import jestPlugin from "eslint-plugin-jest";
 
 // const mdxPlugin = mdxNamespace.default; // Previous attempt
 // Now using mdxPlugin (the namespace import) directly
@@ -19,6 +21,7 @@ const config = tseslint.config(
       ".next/",
       ".husky/", // Assuming husky setup files shouldn't be linted
       "out/", // If using static export
+      "__tests__/", // Ignore test files; use bun test and jest for tests
       // Add other global ignores if needed
     ],
   },
@@ -213,12 +216,48 @@ const config = tseslint.config(
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
-      "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unnecessary-type-assertion": "off"
     }
-  }
+  },
+  {
+    files: ["**/__tests__/**/*.{ts,tsx}", "**/?(*.)+(spec|test).{js,jsx,ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-unsafe-argument": "off"
+    }
+  } as any, // Disable TS strict rules in test files
+
+  // Jest specific configuration
+  {
+    // Apply Jest plugin rules only to files matching the pattern
+    files: ["**/?(*.)+(jest.spec|jest.test).{js,jsx,ts,tsx}"],
+    plugins: {
+      jest: jestPlugin,
+    },
+    rules: {
+      // Use recommended Jest rules
+      ...(jestPlugin.configs.recommended as any).rules,
+      // Add any Jest-specific overrides here if needed
+    },
+    languageOptions: {
+      globals: {
+        ...globals.jest, // Add Jest globals
+      },
+    },
+  },
+  { // Disable no-unsafe-assignment for MDX processing file
+    files: ["lib/blog/mdx.ts"],
+    rules: {
+      "@typescript-eslint/no-unsafe-assignment": "off",
+    },
+  },
 );
 
 export default config; // Export the config array

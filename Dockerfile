@@ -46,36 +46,23 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 # Copy dependencies and source code
 COPY --from=deps /app/node_modules ./node_modules
 
-# Directory creation is now handled by the populate-volumes.ts script
-# RUN mkdir -p /app/data/images/logos # For logos data (Handled by script)
-# RUN mkdir -p /app/data/images/logos/byId # For ID-based logos (Handled by script)
-# RUN mkdir -p /app/data/github-activity # For GitHub projects/activity data (Handled by script)
-# RUN mkdir -p /app/data/github-activity/repo_raw_weekly_stats # For granular GitHub stats (Handled by script)
-# RUN mkdir -p /app/data/bookmarks # For bookmarks data (Handled by script)
-
 # Copy entire source code
 COPY . .
 
-# CRITICAL STEP: Fill volumes directly BEFORE any server or build processes
-# This ensures all data volumes are properly populated with external data
-# Conditionally skip these steps in Coolify environments
-# Check if running in a Coolify environment
-# Make pre-build script executable and run it
-COPY scripts/pre-build-checks.sh /app/scripts/
-RUN chmod +x /app/scripts/pre-build-checks.sh && /app/scripts/pre-build-checks.sh
+# Build-time S3 data update disabled; will run at runtime via scheduler
+
+# Pre-build checks disabled to avoid network hang during build
 
 # Now build the app
-# The original echo was: # RUN echo "📦 Building the application with populated data volumes..." && bun run build
-# Changed to reflect that volumes might not be populated in all environments.
 RUN echo "📦 Building the application..." && bun run build
 
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
 
-# Install runtime dependencies (like Sharp's), curl for healthchecks, AND BASH
-# Try using just 'vips' instead of 'vips-dev' and remove 'build-base' to reduce size.
-# This assumes Sharp successfully installed its pre-compiled binaries in the 'deps' stage.
+# Install runtime dependencies (like Sharp), curl for healthchecks, AND BASH
+# Trying to use just 'vips' instead of 'vips-dev' and remove 'build-base' to reduce size
+# This assumes Sharp successfully installed its pre-compiled binaries in the 'deps' stage
 RUN apk add --no-cache vips curl bash su-exec
 
 ENV NODE_ENV=production
@@ -84,41 +71,47 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV RUNNING_IN_DOCKER=true
 ENV CONTAINER=true
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# REMOVED: User/group creation for non-root user
+# RUN addgroup --system --gid 1001 nodejs
+# RUN adduser --system --uid 1001 nextjs
 
-# Copy standalone output and required assets
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Copy standalone output and required assets (run as root, so no chown needed)
+COPY --from=builder /app/.next/standalone ./
+# Ensure all node_modules (including those for scripts like scheduler) are available
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/.next/static ./.next/static
 
-# Copy scripts directory for prefetch capabilities
-COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+# Copy scripts directory (run as root, so no chown needed)
+COPY --from=builder /app/scripts ./scripts
 
-# Copy public directory and set permissions
+# Copy script package definitions so the scheduler can run
+COPY --from=builder /app/package.json ./package.json
+
+# Copy public directory (run as root, so no chown needed)
 COPY --from=builder /app/public ./public
 
-# Copy data from builder image into staging directories for volume seeding
-COPY --from=builder --chown=nextjs:nodejs /app/data/images/logos /app/.initial-logos
-COPY --from=builder --chown=nextjs:nodejs /app/data/github-activity /app/.initial-github-activity
-COPY --from=builder --chown=nextjs:nodejs /app/data/bookmarks /app/.initial-bookmarks
+# REMOVED: Copying initial data from builder stage - data now lives in S3
+# COPY --from=builder --chown=nextjs:nodejs /app/data/images/logos /app/.initial-logos
+# COPY --from=builder --chown=nextjs:nodejs /app/data/github-activity /app/.initial-github-activity
+# COPY --from=builder /app/data/bookmarks /app/.initial-bookmarks
 
-# Ensure the data directories exist and have correct permissions
-RUN mkdir -p /app/data/images/logos && chown -R nextjs:nodejs /app/data/images/logos
-RUN mkdir -p /app/data/github-activity && chown -R nextjs:nodejs /app/data/github-activity
-RUN mkdir -p /app/data/bookmarks && chown -R nextjs:nodejs /app/data/bookmarks
+# Ensure the local S3 cache directory exists with proper permissions
+RUN mkdir -p /app/cache/s3_data
+# REMOVED: Creating persistent data directories - data now lives in S3
+# RUN mkdir -p /app/data/images/logos
+# RUN mkdir -p /app/data/github-activity
+# RUN mkdir -p /app/data/bookmarks
 
-# Copy entrypoint script to seed logos volume on startup
-COPY --chown=nextjs:nodejs scripts/entrypoint.sh /app/entrypoint.sh
+# Copy entrypoint script (run as root, so no chown needed)
+COPY scripts/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-# Create a volume for persisting logos
-VOLUME /app/data/images/logos
-# Create a volume for persisting github-projects data
-VOLUME /app/data/github-activity
-# Create a volume for persisting bookmarks data
-VOLUME /app/data/bookmarks
+# REMOVED: VOLUME directives for data now in S3
+# VOLUME /app/data/images/logos
+# VOLUME /app/data/github-activity
+# VOLUME /app/data/bookmarks
 
-# USER nextjs # Entrypoint will handle user switching for the CMD
+# REMOVED: USER directive - will run as root
 
 EXPOSE 3000
 
@@ -126,7 +119,7 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Add healthcheck to ensure the container is properly running
-HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=3s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:3000/api/health || exit 1
 
 # Use entrypoint to seed logos, then start server

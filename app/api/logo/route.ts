@@ -9,16 +9,18 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getLogo } from '@/lib/data-access'; // Use the new data-access layer
+import { getLogo, serveLogoFromS3 } from '@/lib/data-access'; // Update to support both methods
+import { ServerCacheInstance } from '@/lib/server-cache'; // Add cache import
+import type { LogoSource } from '@/types/logo'; // Import LogoSource type
 
 // Configure dynamic API route with caching
 export const dynamic = 'force-dynamic';
-export const revalidate = 3600; // Revalidate every hour
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
   const website = searchParams.get('website');
   const company = searchParams.get('company'); // company can be used as a fallback for domain
+  const refresh = searchParams.get('refresh') === 'true';
 
   if (!website && !company) {
     return NextResponse.json(
@@ -60,29 +62,53 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Internal error: domain could not be determined' }, { status: 500 });
     }
 
-    // Use the centralized getLogo function
-    // Pass request.nextUrl.origin as the baseUrlForValidation if your getLogo needs it
-    // for constructing absolute URLs for internal validation APIs.
-    const logoResult = await getLogo(domain);
+    // Check if we already have this in cache before fetching
+    const cacheHit = !refresh && ServerCacheInstance.getLogoFetch(domain) !== undefined;
 
-    if (logoResult && logoResult.buffer) {
+    // We need to handle refresh differently since getLogo doesn't support options
+    let logoResult: { buffer: Buffer; source: LogoSource; contentType: string } | null = null;
+
+    if (refresh) {
+      // If refresh is requested, clear the cache entry first
+      ServerCacheInstance.clearLogoFetch(domain);
+      // Then get logo normally (will trigger fresh fetch)
+      logoResult = await getLogo(domain);
+    } else {
+      // Use regular path - check cache, then S3, then external if needed
+      if (cacheHit) {
+        logoResult = await getLogo(domain);          // uses cache
+      } else {
+        // Try S3 first, then external via getLogo if S3 fails
+        logoResult = await serveLogoFromS3(domain);
+        if (!logoResult) {
+          logoResult = await getLogo(domain);  // Attempt external fetch if not in S3
+        }
+      }
+    }
+
+    if (logoResult) {
+      // Return the logo with cache headers
       return new NextResponse(logoResult.buffer, {
         status: 200,
         headers: {
           'Content-Type': logoResult.contentType,
           'Cache-Control': 'public, max-age=31536000', // Cache for 1 year
-          'x-logo-source': logoResult.source || 'unknown'
+          'x-logo-source': logoResult.source || '',
+          'x-cache': cacheHit ? 'HIT' : 'MISS' // Add cache hit/miss header for debugging
         }
       });
     } else {
       // If getLogo returns null, it means it failed to fetch from all sources (cache, volume, external)
-      // The data-access layer should have already cached the failure.
-      return new NextResponse(null, {
-        status: 404,
-        headers: {
-          'x-logo-error': 'Failed to fetch logo from all sources'
+      // Logo not available in S3
+      return NextResponse.json(
+        { error: 'Logo not found' },
+        {
+          status: 404,
+          headers: {
+            'x-cache': cacheHit ? 'HIT' : 'MISS'
+          }
         }
-      });
+      );
     }
   } catch (error) {
     console.error('[API Logo] Unexpected error in GET handler:', error);

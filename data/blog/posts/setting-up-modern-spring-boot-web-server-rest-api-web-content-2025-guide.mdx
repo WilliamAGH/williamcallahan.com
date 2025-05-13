@@ -1,0 +1,305 @@
+---
+title: "Setting Up a Modern Spring Boot Web Server with REST API & Web Content (2025 Guide)"
+slug: "setting-up-modern-spring-boot-web-server-rest-api-web-content-2025-guide"
+excerpt: "A comprehensive guide to creating a Spring Boot application with RESTful APIs and static web content using Maven and IntelliJ IDEA's latest features in modern Java."
+publishedAt: "2025-05-12"
+updatedAt: "2025-05-12"
+author: "william-callahan"
+tags:
+  [
+    "spring boot",
+    "java",
+    "maven",
+    "intellij idea",
+    "rest api",
+    "web development",
+    "backend",
+    "tutorial",
+  ]
+coverImage: "/images/posts/spring-for-java.png"
+---
+
+import { BackgroundInfo, CollapseDropdown, ShellParentTabs, ShellTab, InstructionToggleTabs, InstructionTab, ArticleImage, ExternalLink } from '@/components/utils/index';
+
+<BackgroundInfo title="Overview">
+This guide covers setting up a modern Spring Boot application with:
+
+- Apache Maven for builds
+- IntelliJ IDEA Spring Initializr integration
+- A simple REST API endpoint
+- Serving static web content
+- Essential Maven commands and troubleshooting tips
+- Basic application configuration
+- Environment variables setup
+</BackgroundInfo>
+
+## Part 1: Prerequisites & Initial Setup
+
+### Install JDK (e.g., JDK 21 LTS)
+<ShellParentTabs>
+  <ShellTab label="macOS (zsh)" isDefault={true}>
+    ```bash
+    brew install openjdk@21
+    echo 'export JAVA_HOME=$(/usr/libexec/java_home -v21)' >> ~/.zshrc
+    echo 'export PATH="$JAVA_HOME/bin:$PATH"'     >> ~/.zshrc
+    source ~/.zshrc
+    java -version
+    ```
+  </ShellTab>
+  <ShellTab label="Windows">
+    1. Install JDK 21 from Oracle or Adoptium.
+    2. Set environment variable `JAVA_HOME=C:\Program Files\Java\jdk-21`.
+    3. Add `%JAVA_HOME%\bin` to `Path`.
+    4. Run `java -version` to verify.
+  </ShellTab>
+</ShellParentTabs>
+
+### Install Apache Maven
+<ShellParentTabs>
+  <ShellTab label="macOS (zsh)" isDefault={true}>
+    ```bash
+    # Extract Maven and then:
+    echo 'export M2_HOME=/opt/apache-maven-3.9.x' >> ~/.zshrc
+    echo 'export PATH="$M2_HOME/bin:$PATH"'   >> ~/.zshrc
+    source ~/.zshrc
+    mvn -v
+    ```
+  </ShellTab>
+  <ShellTab label="Windows">
+    1. Extract Maven to `C:\Program Files\Maven\apache-maven-3.9.x`.
+    2. Set `M2_HOME` to that path and add `%M2_HOME%\bin` to `Path`.
+    3. Run `mvn -v` to verify.
+  </ShellTab>
+</ShellParentTabs>
+
+### Install IntelliJ IDEA
+Download and install from https://www.jetbrains.com/idea/download/.
+Use Community Edition (free) or Ultimate (full Spring support).
+
+## Part 2: Create a Spring Boot Project
+
+<ShellParentTabs>
+  <ShellTab label="Maven + start.spring.io" isDefault={true}>
+    <CollapseDropdown summary="Generate project via CLI (start.spring.io)">
+      <div>Use <code>curl</code> to fetch and unpack a new Spring Boot starter:</div>
+      ```bash
+      curl https://start.spring.io/starter.zip \
+        -d dependencies=web,devtools,thymeleaf \
+        -d type=maven-project \
+        -d language=java \
+        -d javaVersion=21 \
+        -d groupId=com.example \
+        -d artifactId=myspringbootapp \
+        -d name=MySpringBootApp \
+        -d packageName=com.example.myspringbootapp \
+        | tar -xzvf -
+      ```
+    </CollapseDropdown>
+  </ShellTab>
+  <ShellTab label="IntelliJ IDEA">
+    <CollapseDropdown summary="Using Spring Initializr in IntelliJ IDEA">
+      <ol>
+        <li>In IntelliJ IDEA: File > New > Project… &rarr; Spring Initializr</li>
+        <li>Configure Group <code>com.example</code>, Artifact <code>myspringbootapp</code>, Packaging Jar, Java 21</li>
+        <li>Add Dependencies: Spring Web, Spring Boot DevTools</li>
+        <li>Click Create to generate the project</li>
+      </ol>
+    </CollapseDropdown>
+  </ShellTab>
+</ShellParentTabs>
+
+<CollapseDropdown summary="Project structure">
+- `src/main/java` - Application code (`MySpringBootAppApplication.java`)
+- `src/main/resources/static` - Static assets (HTML, CSS, JS)
+- `src/main/resources/application.properties` - Configuration
+- `pom.xml` - Maven config and dependency management
+</CollapseDropdown>
+
+## Part 3: Application Configuration
+
+<CollapseDropdown summary="application.properties setup">
+Edit `src/main/resources/application.properties` to configure your application:
+
+```properties
+# Server configuration
+server.port=8080
+server.servlet.context-path=/api
+
+# Logging configuration
+logging.level.root=INFO
+logging.level.com.example=DEBUG
+
+# Spring devtools
+spring.devtools.restart.enabled=true
+```
+
+For different environments, create profile-specific properties:
+- `application-dev.properties`
+- `application-prod.properties`
+</CollapseDropdown>
+
+<CollapseDropdown summary="Environment variables with .env">
+For sensitive data like API keys, use environment variables.
+
+1. Add <ExternalLink href="https://central.sonatype.com/artifact/me.paulschwarz/spring-dotenv">spring-dotenv</ExternalLink> dependency to `pom.xml`:
+```xml
+<dependency>
+    <groupId>me.paulschwarz</groupId>
+    <artifactId>spring-dotenv</artifactId>
+    <version>4.0.0</version>
+</dependency>
+```
+
+2. Create `.env.example` file:
+```
+SERVER_PORT=8080
+CUSTOM_API_KEY=your-api-key-here
+```
+
+3. Create your actual `.env` file (don't commit to git):
+```
+SERVER_PORT=8080
+CUSTOM_API_KEY=actual-api-key-value
+```
+
+4. Reference env variables in `application.properties`:
+```properties
+server.port=${SERVER_PORT:8080}
+api.key=${CUSTOM_API_KEY}
+```
+</CollapseDropdown>
+
+## Part 4: Build a Basic REST API
+
+<CollapseDropdown summary="HelloController.java">
+Create `src/main/java/com/example/myspringbootapp/HelloController.java`:
+```java
+package com.example.myspringbootapp;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class HelloController {
+    @GetMapping("/hello")
+    public String sayHello(
+      @RequestParam(defaultValue = "World") String name
+    ) {
+        return String.format("Hello, %s!", name);
+    }
+}
+```
+</CollapseDropdown>
+
+<CollapseDropdown summary="Run and test">
+- **Run** in IntelliJ: click the green play icon next to `main` method
+- **CLI**:
+  ```bash
+  mvn spring-boot:run
+  ```
+Visit http://localhost:8080/hello and http://localhost:8080/hello?name=Spring or use:
+```bash
+curl http://localhost:8080/hello
+curl http://localhost:8080/hello?name=Developer
+```
+</CollapseDropdown>
+
+## Part 5: Serve Static Web Content
+
+<CollapseDropdown summary="Static index.html">
+1. Create `src/main/resources/static/index.html`:
+   ```html
+   <!DOCTYPE html>
+   <html lang="en">
+   <head><meta charset="UTF-8"><title>Static Page</title></head>
+   <body>
+     <h1>Welcome to My Static Page!</h1>
+   </body>
+   </html>
+   ```
+2. Restart app and browse to http://localhost:8080/
+Spring Boot serves files in `static/` automatically.
+</CollapseDropdown>
+
+## Part 6: Essential Maven Commands
+
+<CollapseDropdown summary="Maven commands">
+- Build: `mvn clean install`
+- Run:   `mvn spring-boot:run`
+- Test:  `mvn test`
+- Dependencies: `mvn dependency:tree`
+</CollapseDropdown>
+
+## Part 7: Development & Hot Reload
+
+<CollapseDropdown summary="Hot reload setup">
+Spring Boot DevTools enables hot reload by default. Optimize it with:
+
+1. For IntelliJ IDEA:
+   - In Preferences > Build, Execution, Deployment > Compiler, enable "Build project automatically"
+   - Enable advanced settings: Registry (Ctrl+Alt+Shift+/) > check "compiler.automake.allow.when.app.running"
+
+2. For CLI:
+```bash
+mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dspring.devtools.restart.enabled=true"
+```
+
+3. To run with specific profile:
+```bash
+mvn spring-boot:run -Dspring.profiles.active=dev
+```
+</CollapseDropdown>
+
+## Part 8: Key Concepts & Troubleshooting
+
+<CollapseDropdown summary="Maven Central repository">
+Maven Central (<ExternalLink href="https://central.sonatype.com/">central.sonatype.com</ExternalLink>) is the primary public repository for Java libraries and dependencies, serving a similar role to npm (JavaScript) or PyPI (Python) for the Java ecosystem.
+</CollapseDropdown>
+
+<CollapseDropdown summary="Auto-configuration">
+Spring Boot auto-configures based on classpath; e.g., `spring-boot-starter-web` → embedded Tomcat.
+</CollapseDropdown>
+
+<CollapseDropdown summary="Port conflict">
+Add `server.port=8081` to `application.properties` or free port 8080.
+</CollapseDropdown>
+
+## Part 9: Deployment Options
+
+<CollapseDropdown summary="Package for production">
+```bash
+mvn clean package
+java -jar target/*.jar
+```
+</CollapseDropdown>
+
+<CollapseDropdown summary="Running with different profiles">
+```bash
+java -jar target/*.jar --spring.profiles.active=prod
+```
+
+When running in production, set environment variables externally:
+```bash
+export SERVER_PORT=80
+export CUSTOM_API_KEY=production-key
+java -jar target/*.jar
+```
+</CollapseDropdown>
+
+<CollapseDropdown summary="Docker deployment">
+1. Create `Dockerfile`:
+```dockerfile
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY target/*.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+2. Build and run:
+```bash
+docker build -t myspringbootapp .
+docker run -p 8080:8080 --env-file .env myspringbootapp
+```
+</CollapseDropdown>

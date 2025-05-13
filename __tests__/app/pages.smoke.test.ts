@@ -21,7 +21,7 @@ let originalFetch: typeof global.fetch;
 beforeAll(() => {
   originalFetch = global.fetch;
   // Create a mock fetch function that includes the preconnect method required by Bun
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   const mockFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const urlString = typeof input === 'string' ? input : (input instanceof URL ? input.href : input.url);
 
@@ -40,7 +40,7 @@ beforeAll(() => {
   const mockFetchWithPreconnect = Object.assign(
     mockFetch,
     {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       preconnect: (url: string | URL, options?: {
         dns?: boolean;
         tcp?: boolean;

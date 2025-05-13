@@ -35,7 +35,7 @@ void mock.module('sharp', () => ({
 }));
 
 // Static import - Bun should intercept
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Required for mocking to work properly
+ 
 import sharp from 'sharp';
 
 describe('Image Comparison', () => {

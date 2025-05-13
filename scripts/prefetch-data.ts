@@ -15,6 +15,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 // Assuming data-access.js is the compiled output in the same relative location
 import { getLogo, getInvestmentDomainsAndIds } from '../lib/data-access';
+import { readJsonS3 } from '../lib/s3-utils';
 import type { UnifiedBookmark } from '../types'; // Import UnifiedBookmark
 
 // Configure longer timeouts for prefetching
@@ -23,6 +24,10 @@ https.globalAgent.maxSockets = 10;
 
 const VERBOSE = process.env.VERBOSE === 'true';
 const ROOT_DIR = process.cwd();
+const BUILD_TIME = process.env.NODE_ENV === 'production' || process.env.NEXT_PHASE === 'phase-production-build';
+// Short timeout for build-time API calls to fail fast
+const BUILD_API_TIMEOUT_MS = 5000; // 5 seconds
+const DEFAULT_API_TIMEOUT_MS = 60000; // 60 seconds
 
 
 // Wait function for rate limiting
@@ -41,18 +46,20 @@ function getHostAndPort(): string {
  * This will call the API endpoints which now use the data-access layer.
  */
 async function fetchApiEndpoint(apiUrl: string, endpointName: string, retries: number = 3, retryDelay: number = 1000): Promise<unknown> {
-  let lastError;
+  // Use shorter timeout during build to avoid hanging
+  const timeoutMs = BUILD_TIME ? BUILD_API_TIMEOUT_MS : DEFAULT_API_TIMEOUT_MS;
+
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       console.log(`[Prefetch] Fetching ${endpointName} (attempt ${attempt}/${retries}): ${apiUrl}`);
       const response = await fetch(apiUrl, {
         headers: { 'X-Prefetch-Build': 'true' }, // Keep header for logging/tracking if needed
-        signal: AbortSignal.timeout(60000) // 60 second timeout for prefetch
+        signal: AbortSignal.timeout(timeoutMs) // Short timeout during build
       });
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => `HTTP error ${response.status}`);
-        throw new Error(`HTTP error ${response.status}: ${response.statusText}. Response: ${errorText.substring(0, 200)}`);
+      throw new Error(`HTTP error ${response.status}: ${response.statusText}. Response: ${errorText.substring(0, 200)}`);
       }
       const data = await response.json() as unknown; // Explicitly cast to unknown
       console.log(`[Prefetch] Successfully fetched data from ${endpointName}`);
@@ -64,7 +71,6 @@ async function fetchApiEndpoint(apiUrl: string, endpointName: string, retries: n
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`[Prefetch] Error fetching ${endpointName} (${apiUrl}) (attempt ${attempt}/${retries}):`, errorMessage);
-      lastError = error;
       if (attempt < retries) {
         const currentDelay = retryDelay * attempt;
         console.log(`[Prefetch] Waiting ${currentDelay}ms before retrying ${endpointName}...`);
@@ -73,24 +79,48 @@ async function fetchApiEndpoint(apiUrl: string, endpointName: string, retries: n
     }
   }
   console.error(`[Prefetch] Failed to fetch ${endpointName} from ${apiUrl} after ${retries} attempts.`);
-  throw lastError; // Re-throw the last error
+  // No need to throw, just return null and let caller handle it
+  return null;
 }
 
 
 /**
  * Prefetch all bookmarks data by calling the API endpoint.
+ * If API fails, fall back to S3.
  */
 async function prefetchBookmarksData(apiBase: string): Promise<UnifiedBookmark[] | []> {
+  // Define minimal fallback bookmarks if both API and S3 fail
+  const FALLBACK_BOOKMARKS: UnifiedBookmark[] = [];
+
   try {
     console.log('[Prefetch] Prefetching bookmarks data via API endpoint...');
-    // The API endpoint now uses getBookmarks from data-access
-    const bookmarks = await fetchApiEndpoint(`${apiBase}/api/bookmarks`, 'Bookmarks API') as UnifiedBookmark[] | undefined; // Use UnifiedBookmark
-    console.log(`[Prefetch] Successfully triggered bookmark data population. Count: ${bookmarks?.length || 0}`);
-    return bookmarks || []; // Return for domain extraction
+    // Reduce retries to 1 during build to prevent long hanging
+    const retries = BUILD_TIME ? 1 : 3;
+
+    // First try API endpoint
+    const bookmarks = await fetchApiEndpoint(`${apiBase}/api/bookmarks`, 'Bookmarks API', retries) as UnifiedBookmark[] | null;
+
+    if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
+      console.log(`[Prefetch] Successfully fetched ${bookmarks.length} bookmarks from API.`);
+      return bookmarks;
+    }
+
+    // If API fails, try S3 fallback
+    console.log('[Prefetch] API fetch failed or returned empty data, trying S3 fallback...');
+    const s3Bookmarks = await readJsonS3<UnifiedBookmark[]>('bookmarks/bookmarks.json');
+
+    if (s3Bookmarks && Array.isArray(s3Bookmarks) && s3Bookmarks.length > 0) {
+      console.log(`[Prefetch] Successfully retrieved ${s3Bookmarks.length} bookmarks from S3.`);
+      return s3Bookmarks;
+    }
+
+    // If both fail, return minimal fallback data
+    console.warn('[Prefetch] Both API and S3 fallbacks failed, using minimal fallback bookmarks data.');
+    return FALLBACK_BOOKMARKS;
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[Prefetch] Failed to prefetch bookmarks via API:', errorMessage);
-    return []; // Return empty array on failure to allow logo prefetch to proceed if possible
+    console.error('[Prefetch] Failed to prefetch bookmarks via all methods:', errorMessage);
+    return FALLBACK_BOOKMARKS;
   }
 }
 
@@ -100,9 +130,18 @@ async function prefetchBookmarksData(apiBase: string): Promise<UnifiedBookmark[]
 async function prefetchGitHubActivityData(apiBase: string): Promise<void> {
   try {
     console.log('[Prefetch] Prefetching GitHub activity data via API endpoint...');
+    // Reduce retries to 1 during build
+    const retries = BUILD_TIME ? 1 : 3;
+
     // The API endpoint now uses getGithubActivity from data-access
-    const activity = await fetchApiEndpoint(`${apiBase}/api/github-activity`, 'GitHub Activity API') as { dataComplete?: boolean } | undefined; // Type assertion
-    console.log(`[Prefetch] Successfully triggered GitHub activity data population. Complete: ${activity?.dataComplete}`);
+    const activity = await fetchApiEndpoint(`${apiBase}/api/github-activity`, 'GitHub Activity API', retries) as { dataComplete?: boolean } | null;
+
+    if (activity) {
+      console.log(`[Prefetch] Successfully triggered GitHub activity data population. Complete: ${activity?.dataComplete}`);
+    } else {
+      console.log('[Prefetch] GitHub activity API returned no data, will use static fallbacks.');
+      // S3 fallback or static data could be added here if needed
+    }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[Prefetch] Failed to prefetch GitHub activity via API:', errorMessage);
@@ -257,6 +296,18 @@ async function main(): Promise<void> {
     // Prefetch bookmarks and GitHub activity by calling their respective API endpoints.
     // These endpoints now use the data-access layer.
     const bookmarks = await prefetchBookmarksData(apiBase);
+    // Write bookmarks to data/bookmarks/bookmarks.json for static build compatibility
+    if (bookmarks && Array.isArray(bookmarks)) {
+      const bookmarksPath = path.join(process.cwd(), 'data', 'bookmarks', 'bookmarks.json');
+      try {
+        await fs.writeFile(bookmarksPath, JSON.stringify(bookmarks, null, 2), 'utf-8');
+        console.log(`[Prefetch] Wrote ${bookmarks.length} bookmarks to ${bookmarksPath}`);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error(`[Prefetch] Failed to write bookmarks to ${bookmarksPath}:`, errorMessage);
+        // Continue execution as this is for static build compatibility, but log the error
+      }
+    }
     await prefetchGitHubActivityData(apiBase);
 
     // For logos, we gather all domains and then call getLogo from data-access for each.

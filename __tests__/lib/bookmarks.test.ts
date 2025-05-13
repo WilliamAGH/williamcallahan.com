@@ -9,6 +9,45 @@
 import { mock, jest, spyOn, describe, beforeEach, afterEach, expect, it } from 'bun:test'; // Use bun:test imports
 import type { UnifiedBookmark, BookmarkContent, BookmarkTag } from '../../types'; // Import bookmark types
 
+// Mock for refreshBookmarksData that will be used by data-access
+const mockRefreshBookmarksDataFnGlobal = jest.fn();
+
+// Mock the entire '../../lib/bookmarks' module
+// This is to ensure data-access.ts uses our mocked refreshBookmarksData
+void mock.module('../../lib/bookmarks', () => { // No async here
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const actualBookmarksModule = require('../../lib/bookmarks.client'); // Use require for synchronous import in mock factory
+  return {
+    ...actualBookmarksModule,
+    refreshBookmarksData: mockRefreshBookmarksDataFnGlobal,
+  };
+});
+
+// Mock S3 client and its methods *before* data-access is imported
+const mockS3Writer = {
+  write: jest.fn(),
+  end: jest.fn(),
+};
+const mockS3File = {
+  json: jest.fn(),
+  writer: jest.fn(() => mockS3Writer),
+  text: jest.fn(), // Add text method for completeness if Bun.file uses it
+  exists: jest.fn(), // Add exists method
+  type: 'application/json', // Add type property
+  size: 0, // Add size property
+  lastModified: 0, // Add lastModified property
+  slice: jest.fn(), // Add slice method
+  stream: jest.fn(), // Add stream method
+  arrayBuffer: jest.fn(), // Add arrayBuffer method
+};
+
+void mock.module('../../lib/s3', () => ({
+  s3Client: {
+    file: jest.fn(() => mockS3File),
+  },
+  __esModule: true,
+}));
+
 // Define interface for mock helpers to avoid 'any' usage
 interface MockHelpers {
   _mockSetRefreshState: (shouldRefresh: boolean) => void;
@@ -44,25 +83,25 @@ const mockHelpers: MockHelpers = {} as MockHelpers;
 
 // Mock server-cache using mock.module
 void mock.module('../../lib/server-cache', () => { // Use mock.module
-  const mockBookmarks: UnifiedBookmark[] = [];
+  const mockBookmarksCache: UnifiedBookmark[] = [];
   let mockShouldRefresh = true;
 
   // Create mock functions using jest.fn()
-  const mockGetBookmarks = jest.fn(() => {
-    return mockBookmarks.length ? {
-      bookmarks: mockBookmarks,
+  const mockGetBookmarksCache = jest.fn(() => {
+    return mockBookmarksCache.length ? {
+      bookmarks: mockBookmarksCache,
       lastFetchedAt: Date.now() - 1000,
       lastAttemptedAt: Date.now() - 1000
     } : undefined;
   });
-  const mockSetBookmarks = jest.fn((bookmarks: UnifiedBookmark[], isFailure = false) => {
+  const mockSetBookmarksCache = jest.fn((bookmarks: UnifiedBookmark[], isFailure = false) => {
     if (!isFailure) {
-      mockBookmarks.splice(0, mockBookmarks.length, ...bookmarks);
+      mockBookmarksCache.splice(0, mockBookmarksCache.length, ...bookmarks);
     }
   });
-  const mockShouldRefreshBookmarks = jest.fn(() => mockShouldRefresh);
-  const mockClearBookmarks = jest.fn(() => {
-    mockBookmarks.length = 0; // Clear the array
+  const mockShouldRefreshBookmarksCache = jest.fn(() => mockShouldRefresh);
+  const mockClearBookmarksCache = jest.fn(() => {
+    mockBookmarksCache.length = 0; // Clear the array
   });
 
   // Assign helper methods directly to the pre-declared mockHelpers object
@@ -70,26 +109,29 @@ void mock.module('../../lib/server-cache', () => { // Use mock.module
     mockShouldRefresh = shouldRefresh;
   };
   mockHelpers._mockSetBookmarks = (bookmarks: UnifiedBookmark[]) => {
-    mockBookmarks.splice(0, mockBookmarks.length, ...bookmarks);
+    mockBookmarksCache.splice(0, mockBookmarksCache.length, ...bookmarks);
   };
   mockHelpers._mockClearBookmarks = () => {
-    mockBookmarks.splice(0, mockBookmarks.length);
+    mockBookmarksCache.splice(0, mockBookmarksCache.length);
   };
 
   return {
     // Export the mocked instance with mocked methods
     ServerCacheInstance: {
-      getBookmarks: mockGetBookmarks,
-      setBookmarks: mockSetBookmarks,
-      shouldRefreshBookmarks: mockShouldRefreshBookmarks,
-      clearBookmarks: mockClearBookmarks,
+      getBookmarks: mockGetBookmarksCache,
+      setBookmarks: mockSetBookmarksCache,
+      shouldRefreshBookmarks: mockShouldRefreshBookmarksCache,
+      clearBookmarks: mockClearBookmarksCache,
       // Add other methods if needed by the tested code
     },
     __esModule: true
   };
 });
 
-// Import fetchExternalBookmarks *after* mocks are set up
+// Import getBookmarks *after* s3, server-cache, and lib/bookmarks mocks are set up
+import { getBookmarks } from '../../lib/data-access';
+
+// Re-import from the .client path for other tests if they were using it directly
 import { fetchExternalBookmarks, fetchExternalBookmarksCached } from '../../lib/bookmarks.client';
 
 // Spies for console, setup in beforeEach
@@ -183,12 +225,14 @@ describe('Bookmarks Module', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Reset environment variables
     process.env.BOOKMARK_BEARER_TOKEN = 'test-token';
-    // Reset the cache helpers (if they track state outside the mock module)
     mockHelpers._mockClearBookmarks();
     mockHelpers._mockSetRefreshState(true);
-    // Setup console spies
+    mockRefreshBookmarksDataFnGlobal.mockClear(); // Clear the global mock
+    mockS3File.json.mockClear();
+    mockS3Writer.write.mockClear();
+    mockS3Writer.end.mockClear();
+
     consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
     consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -415,6 +459,50 @@ describe('Bookmarks Module', () => {
     // So we just check that it returns an array
     expect(Array.isArray(bookmarks)).toBe(true);
     fetchSpy.mockRestore(); // Restore fetch spy
+  });
+
+  it('should fetch from external, update S3, and cache when S3 is stale or different', async () => {
+    const oldS3Bookmarks: UnifiedBookmark[] = Array.from({ length: 20 }, (_, i) => ({
+      id: `s3-bookmark-${i + 1}`,
+      title: `Old S3 Bookmark ${i + 1}`,
+      url: `https://s3.example.com/old${i + 1}`,
+      description: 'Old S3 description',
+      tags: [],
+      createdAt: new Date().toISOString(),
+      dateBookmarked: new Date().toISOString(),
+      content: { type: 'link', url: `https://s3.example.com/old${i + 1}`, title: `Old S3 Bookmark ${i + 1}`, description: 'Old S3 description' },
+    }));
+
+    const newApiBookmarks: UnifiedBookmark[] = Array.from({ length: 28 }, (_, i) => ({
+      id: `api-bookmark-${i + 1}`,
+      title: `New API Bookmark ${i + 1}`,
+      url: `https://api.example.com/new${i + 1}`,
+      description: 'New API description',
+      tags: [{id: 'tag-new', name: 'new', attachedBy: 'user'}],
+      createdAt: new Date().toISOString(),
+      dateBookmarked: new Date().toISOString(),
+      content: { type: 'link', url: `https://api.example.com/new${i + 1}`, title: `New API Bookmark ${i + 1}`, description: 'New API description' },
+    }));
+
+    // Mock setup
+    mockHelpers._mockClearBookmarks();
+    mockS3File.json.mockResolvedValueOnce(oldS3Bookmarks);
+    mockRefreshBookmarksDataFnGlobal.mockResolvedValue(newApiBookmarks); // Use the module-level mock
+
+    const resultBookmarks = await getBookmarks(false);
+
+    // Assertions
+    expect(mockS3File.json).toHaveBeenCalledTimes(1);
+    expect(mockRefreshBookmarksDataFnGlobal).toHaveBeenCalledTimes(1); // Check the module-level mock
+
+    expect(mockS3Writer.write).toHaveBeenCalledTimes(1);
+    expect(mockS3Writer.write).toHaveBeenCalledWith(JSON.stringify(newApiBookmarks));
+    expect(mockS3Writer.end).toHaveBeenCalledTimes(1);
+
+    const serverCacheModule = await import('../../lib/server-cache');
+    expect(serverCacheModule.ServerCacheInstance.setBookmarks).toHaveBeenCalledWith(newApiBookmarks);
+
+    expect(resultBookmarks).toEqual(newApiBookmarks);
   });
 
   it.skip('should use cached data while refreshing in background when cache exists but needs refresh', async () => {

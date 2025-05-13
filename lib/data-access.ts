@@ -10,16 +10,36 @@
  * It also handles writing back to the volume and cache after an external fetch.
  */
 
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { ServerCacheInstance } from '@/lib/server-cache';
-import type { UnifiedBookmark, GitHubActivityApiResponse, ContributionDay, GitHubGraphQLContributionResponse, LogoSource, RepoWeeklyStatCache, RepoRawWeeklyStat, AggregatedWeeklyActivity, GithubContributorStatsEntry, RepoRawWeeklyStat as GithubRepoRawWeeklyStatType } from '@/types'; // Assuming all types are in @/types
+import type { UnifiedBookmark, GitHubActivityApiResponse, GitHubActivitySegment, ContributionDay, GitHubGraphQLContributionResponse, LogoSource, RepoWeeklyStatCache, RepoRawWeeklyStat, AggregatedWeeklyActivity, GithubContributorStatsEntry, RawGitHubActivityApiResponse } from '@/types';
 import { LOGO_SOURCES, GENERIC_GLOBE_PATTERNS, LOGO_SIZES } from '@/lib/constants'; // Assuming constants are in @/lib
 import { graphql } from '@octokit/graphql'; // For GitHub GraphQL
-import * as cheerio from 'cheerio'; // For GitHub scraping fallback
 import sharp from 'sharp';
 import { createHash } from 'node:crypto';
 import { refreshBookmarksData } from '@/lib/bookmarks'; // Added import
+import { writeJsonS3, readBinaryS3, writeBinaryS3, listS3Objects as s3UtilsListS3Objects } from '@/lib/s3-utils';
+import { s3Client } from '@/lib/s3';
+
+// JSON write helper for S3 (used for summary file)
+async function writeJsonFile<T>(s3Key: string, data: T): Promise<void> {
+  await writeJsonS3<T>(s3Key, data);
+}
+
+// Helper to wrap raw GitHub activity into nested API response
+function wrapGithubActivity(fetchedParts: {trailingYearData: RawGitHubActivityApiResponse, allTimeData: RawGitHubActivityApiResponse} | null): GitHubActivityApiResponse | null {
+  if (!fetchedParts || !fetchedParts.trailingYearData || !fetchedParts.allTimeData) {
+    console.warn('[DataAccess] wrapGithubActivity received null or incomplete parts.');
+    return null;
+  }
+  // Convert RawGitHubActivityApiResponse to GitHubActivitySegment by adding an empty summaryActivity placeholder
+  const trailingYearSegment: GitHubActivitySegment = { ...fetchedParts.trailingYearData, summaryActivity: undefined };
+  const cumulativeAllTimeSegment: GitHubActivitySegment = { ...fetchedParts.allTimeData, summaryActivity: undefined };
+
+  return {
+    trailingYearData: trailingYearSegment,
+    cumulativeAllTimeData: cumulativeAllTimeSegment,
+  };
+}
 
 // --- Configuration & Constants ---
 /**
@@ -33,141 +53,75 @@ const GITHUB_API_TOKEN = process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH;
 // const API_FETCH_TIMEOUT_MS = 30000; // Unused
 const VERBOSE = process.env.VERBOSE === 'true' || false; // Ensure VERBOSE is defined at the module level
 
-// Volume paths
-const ROOT_DIR = process.cwd();
-const BOOKMARKS_VOLUME_DIR = path.join(ROOT_DIR, 'data', 'bookmarks');
-const BOOKMARKS_VOLUME_FILE = path.join(BOOKMARKS_VOLUME_DIR, 'bookmarks.json');
-const GITHUB_ACTIVITY_VOLUME_DIR = path.join(ROOT_DIR, 'data', 'github-activity');
-const GITHUB_ACTIVITY_VOLUME_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'activity_data.json');
-const LOGOS_VOLUME_DIR = path.join(ROOT_DIR, 'data', 'images', 'logos'); // Primary logo location
+// Volume paths / S3 Object Keys
+export const BOOKMARKS_S3_KEY_DIR = 'bookmarks';
+export const BOOKMARKS_S3_KEY_FILE = `${BOOKMARKS_S3_KEY_DIR}/bookmarks.json`;
 
-// GitHub Activity Data Paths
-// const DAILY_CONTRIBUTIONS_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'daily_contribution_counts.json'); // Unused
-const REPO_RAW_WEEKLY_STATS_DIR = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'repo_raw_weekly_stats');
-const AGGREGATED_WEEKLY_ACTIVITY_FILE = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'aggregated_weekly_activity.json');
+export const GITHUB_ACTIVITY_S3_KEY_DIR = 'github-activity';
+export const GITHUB_ACTIVITY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/activity_data.json`;
+export const GITHUB_STATS_SUMMARY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/github_stats_summary.json`;
+
+export const LOGOS_S3_KEY_DIR = 'images/logos';
+
+// GitHub Activity Data Paths / S3 Object Keys
+export const REPO_RAW_WEEKLY_STATS_S3_KEY_DIR = `${GITHUB_ACTIVITY_S3_KEY_DIR}/repo_raw_weekly_stats`;
+export const AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/aggregated_weekly_activity.json`;
 
 // Ensure directories exist (run once at startup or on first use)
-async function ensureDirectoryExists(dirPath: string) {
-  try {
-    await fs.mkdir(dirPath, { recursive: true });
-  } catch (error) {
-    console.error(`[DataAccess] Failed to create directory ${dirPath}:`, error);
-    // Depending on severity, you might want to throw or handle differently
-  }
-}
+// async function ensureDirectoryExists(dirPath: string) { // Removed - S3 doesn't have directories in the same way
+//   try {
+//     await fs.mkdir(dirPath, { recursive: true });
+//   } catch (error) {
+//     console.error(`[DataAccess] Failed to create directory ${dirPath}:`, error);
+//     // Depending on severity, you might want to throw or handle differently
+//   }
+// }
 
-// eslint-disable-next-line @typescript-eslint/no-floating-promises
-(async () => {
-  try {
-    await ensureDirectoryExists(BOOKMARKS_VOLUME_DIR);
-    await ensureDirectoryExists(GITHUB_ACTIVITY_VOLUME_DIR);
-    await ensureDirectoryExists(REPO_RAW_WEEKLY_STATS_DIR);
-    await ensureDirectoryExists(LOGOS_VOLUME_DIR);
-    console.log('[DataAccess] Data directories initialized successfully');
-  } catch (error) {
-    console.error('[DataAccess] CRITICAL ERROR: Failed to initialize one or more data directories:', error);
-    // In a real production scenario, you might want to:
-    // - Send an alert to an error monitoring service
-    // - Exit the process if these directories are absolutely essential for startup:
-    //   process.exit(1);
-  }
-})();
+
+// (async () => { // Removed - No directories to ensure for S3 at this stage
+//   try {
+//     // await ensureDirectoryExists(BOOKMARKS_VOLUME_DIR); // Removed
+//     // await ensureDirectoryExists(GITHUB_ACTIVITY_VOLUME_DIR); // Removed
+//     // await ensureDirectoryExists(REPO_RAW_WEEKLY_STATS_DIR); // Removed
+//     // await ensureDirectoryExists(LOGOS_VOLUME_DIR); // Removed
+//     console.log('[DataAccess] Data directories initialized successfully'); // This log might be misleading now
+//   } catch (error) {
+//     console.error('[DataAccess] CRITICAL ERROR: Failed to initialize one or more data directories:', error);
+//     // In a real production scenario, you might want to:
+//     // - Send an alert to an error monitoring service
+//     // - Exit the process if these directories are absolutely essential for startup:
+//     //   process.exit(1);
+//   }
+// })();
 
 
 // --- Helper Functions ---
 
 /**
- * Reads data from a JSON file.
- * @param filePath Path to the JSON file.
- * @returns Parsed JSON data or null if an error occurs.
- */
-async function readJsonFile<T>(filePath: string): Promise<T | null> {
-  try {
-    const fileContents = await fs.readFile(filePath, 'utf-8');
-    return JSON.parse(fileContents) as T;
-  } catch (error: unknown) {
-    const nodeError = error as NodeJS.ErrnoException; // Type assertion for common properties
-    if (nodeError.code !== 'ENOENT') { // Log errors other than file not found
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[DataAccess] Error reading JSON file ${filePath}:`, message);
-    }
-    return null;
-  }
-}
-
-/**
- * Writes data to a JSON file atomically.
- * @param filePath Path to the JSON file.
- * @param data Data to write.
- */
-async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
-  const tempFilePath = filePath + '.tmp';
-  try {
-    const dir = path.dirname(filePath);
-    await ensureDirectoryExists(dir);
-    const jsonData = JSON.stringify(data, null, 2);
-    await fs.writeFile(tempFilePath, jsonData, 'utf-8');
-    await fs.rename(tempFilePath, filePath);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`[DataAccess] Failed to write JSON file ${filePath}:`, message);
-    // Attempt to clean up temp file if it exists
-    try {
-      await fs.unlink(tempFilePath);
-    } catch { // Ignore cleanup error
-      // No action needed for cleanup error
-    }
-  }
-}
-
-/**
- * Determines if an image is SVG and processes it accordingly
- * @param buffer The image buffer
- * @returns Object with processed buffer, whether it's SVG, and appropriate content type
- */
-async function processImageBuffer(buffer: Buffer): Promise<{
-  processedBuffer: Buffer;
-  isSvg: boolean;
-  contentType: string
-}> {
-  const metadata = await sharp(buffer).metadata();
-  const isSvg = metadata.format === 'svg';
-  const contentType = isSvg ? 'image/svg+xml' : 'image/png';
-  const processedBuffer = isSvg ? buffer : await sharp(buffer).png().toBuffer();
-  return { processedBuffer, isSvg, contentType };
-}
-
-/**
- * Reads a binary file (e.g., an image).
- * @param filePath Path to the file.
+ * Reads a binary file (e.g., an image) from S3.
+ * @param s3Key Path to the file in S3.
  * @returns Buffer or null.
  */
-async function readBinaryFile(filePath: string): Promise<Buffer | null> {
-  try {
-    return await fs.readFile(filePath);
-  } catch (error: unknown) {
-    const nodeError = error as NodeJS.ErrnoException;
-    if (nodeError.code !== 'ENOENT') {
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[DataAccess] Error reading binary file ${filePath}:`, message);
-    }
-    return null;
-  }
+async function readBinaryFile(s3Key: string): Promise<Buffer | null> {
+  return await readBinaryS3(s3Key);
 }
 
 /**
- * Writes a binary file (e.g., an image).
- * @param filePath Path to the file.
+ * Writes a binary file (e.g., an image) to S3.
+ * @param s3Key Path to the file in S3.
  * @param data Buffer to write.
  */
-async function writeBinaryFile(filePath: string, data: Buffer): Promise<void> {
-  try {
-    const dir = path.dirname(filePath);
-    await ensureDirectoryExists(dir);
-    await fs.writeFile(filePath, data);
-  } catch (error) {
-    console.error(`[DataAccess] Failed to write binary file ${filePath}:`, error);
-  }
+async function writeBinaryFile(s3Key: string, data: Buffer): Promise<void> {
+  await writeBinaryS3(s3Key, data, 'application/octet-stream');
+}
+
+/**
+ * Lists objects in S3 under a given prefix.
+ * @param prefix The prefix to filter objects by.
+ * @returns An array of object keys, or an empty array if error or no objects.
+ */
+async function listS3Objects(prefix: string): Promise<string[]> {
+  return await s3UtilsListS3Objects(prefix);
 }
 
 // --- Bookmarks Data Access ---
@@ -217,60 +171,99 @@ async function fetchExternalBookmarks(): Promise<UnifiedBookmark[] | null> {
   return inFlightBookmarkPromise;
 }
 
+// Helper to narrow unknown JSON to RawGitHubActivityApiResponse
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function isGitHubActivityApiResponse(obj: unknown): obj is RawGitHubActivityApiResponse {
+  if (typeof obj !== 'object' || obj === null) {
+    return false;
+  }
+  const rec = obj as Record<string, unknown>;
+  // Check that 'data' is an array
+  if (!Array.isArray(rec['data'])) {
+    return false;
+  }
+  // Check that 'dataComplete' is a boolean
+  if (typeof rec['dataComplete'] !== 'boolean') {
+    return false;
+  }
+  return true;
+}
+
 export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBookmark[]> {
   // 1. Try Cache
   const cached = ServerCacheInstance.getBookmarks();
-  if (cached && cached.bookmarks && cached.bookmarks.length > 0) {
-    console.log('[DataAccess] Returning bookmarks from cache.');
+  if (cached && cached.bookmarks && cached.bookmarks.length > 0 && skipExternalFetch) {
+    // Only return from cache if skipExternalFetch is true and cache is populated
+    console.log('[DataAccess] Returning bookmarks from cache (skipExternalFetch=true).');
     return cached.bookmarks;
   }
 
-  // 2. Try Volume
-  const volumeBookmarks = await readJsonFile<UnifiedBookmark[]>(BOOKMARKS_VOLUME_FILE);
-  if (volumeBookmarks && volumeBookmarks.length > 0) {
-    console.log('[DataAccess] Returning bookmarks from volume.');
-    ServerCacheInstance.setBookmarks(volumeBookmarks); // Update cache
-    return volumeBookmarks;
+  // If skipExternalFetch is false, we intend to refresh from external or S3, then external.
+  // So, we bypass returning from cache if skipExternalFetch is false, to ensure fresh data is considered.
+
+  // 2. Try S3 (but only use it as a primary source if skipExternalFetch is true)
+  const bookmarksFile = s3Client.file(BOOKMARKS_S3_KEY_FILE);
+  let s3Bookmarks: UnifiedBookmark[] | null = null;
+  try {
+    const raw = await bookmarksFile.json().catch(() => null); // Add catch here
+    if (Array.isArray(raw)) {
+      s3Bookmarks = raw as UnifiedBookmark[];
+    }
+  } catch (error) {
+    console.warn('[DataAccess-S3] Error reading bookmarks from S3:', error);
   }
 
-  // 3. Fetch from External API (only if not explicitly skipped)
-  if (!skipExternalFetch) {
-    console.log('[DataAccess] Bookmarks not in cache or volume, fetching from external source.');
-    const externalBookmarks = await fetchExternalBookmarks();
-    if (externalBookmarks) {
-      await writeJsonFile(BOOKMARKS_VOLUME_FILE, externalBookmarks);
+  if (s3Bookmarks && s3Bookmarks.length > 0 && skipExternalFetch) {
+    // If S3 has data AND we are skipping external fetch, return S3 data and cache it.
+    console.log('[DataAccess-S3] Returning bookmarks from S3 (skipExternalFetch=true).');
+    ServerCacheInstance.setBookmarks(s3Bookmarks);
+    return s3Bookmarks;
+  }
+
+  // 3. Fetch from External API if:
+  //    - skipExternalFetch is false (meaning we WANT to refresh)
+  //    - OR S3 was empty (and skipExternalFetch was true, but S3 had nothing)
+  if (!skipExternalFetch || !s3Bookmarks || s3Bookmarks.length === 0) {
+    console.log(`[DataAccess-S3] Conditions met for external fetch: skipExternalFetch=${skipExternalFetch}, s3Bookmarks found: ${!!(s3Bookmarks && s3Bookmarks.length > 0)}.`);
+    const externalBookmarks = await fetchExternalBookmarks(); // This is the internal fetchExternalBookmarks
+    if (externalBookmarks && externalBookmarks.length > 0) {
+      console.log(`[DataAccess] Fetched ${externalBookmarks.length} bookmarks externally. Writing to S3 and caching.`);
+      const bookmarksWriter = bookmarksFile.writer();
+      void bookmarksWriter.write(JSON.stringify(externalBookmarks));
+      void bookmarksWriter.end();
       ServerCacheInstance.setBookmarks(externalBookmarks);
       return externalBookmarks;
+    } else if (s3Bookmarks && s3Bookmarks.length > 0) {
+      // External fetch failed or returned empty, but we had S3 data. Return S3 data.
+      console.warn('[DataAccess] External fetch failed or returned no bookmarks, but S3 data exists. Returning S3 data.');
+      ServerCacheInstance.setBookmarks(s3Bookmarks); // Ensure S3 data is cached if it wasn't already by an earlier check
+      return s3Bookmarks;
     }
-  } else {
-    console.log('[DataAccess] External fetch skipped as requested.');
+  } else if (s3Bookmarks && s3Bookmarks.length > 0) {
+    // This case is if skipExternalFetch was true, and S3 had data (already handled above, but as a safeguard)
+    console.log('[DataAccess-S3] Returning bookmarks from S3 (already fetched or skipExternalFetch was true and S3 populated).');
+    // Ensure it's cached if we got here through an unexpected path
+    if (!cached || !cached.bookmarks || cached.bookmarks.length === 0) {
+      ServerCacheInstance.setBookmarks(s3Bookmarks);
+    }
+    return s3Bookmarks;
   }
 
-  console.warn('[DataAccess] Failed to fetch bookmarks from all sources. Returning empty array.');
+  console.warn('[DataAccess-S3] Failed to fetch bookmarks from all sources. Returning empty array.');
   return [];
 }
 
 
 // --- GitHub Activity Data Access ---
 
-// (Re-using and adapting logic from app/api/github-activity/route.ts)
-const mapContributionLevel = (level: string): 0 | 1 | 2 | 3 | 4 => {
-  switch (level) {
-    case 'NONE': return 0;
-    case 'FIRST_QUARTILE': return 1;
-    case 'SECOND_QUARTILE': return 2;
-    case 'THIRD_QUARTILE': return 3;
-    case 'FOURTH_QUARTILE': return 4;
-    default: return 0;
-  } // Corrected closing brace
+// Helper to map commit counts into heatmap levels
+function mapCommitLevel(count: number): 0 | 1 | 2 | 3 | 4 {
+  if (count === 0) return 0;
+  if (count === 1) return 1;
+  if (count === 2) return 2;
+  if (count === 3) return 3;
+  return 4;
 }
-
-// Unused function: extractNextPageUrl
-// function extractNextPageUrl(linkHeader: string | null | undefined): string | null {
-//   if (!linkHeader) return null;
-//   const matches = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
-//   return matches && matches[1] ? matches[1] : null;
-// }
 
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 5): Promise<Response> {
   let lastResponse: Response | null = null;
@@ -294,40 +287,31 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 5)
 
 // Removed unused fetchAllRepositories function
 
-async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse | null> {
+const CONCURRENT_REPO_LIMIT = 5; // Module-level constant
+
+/** Fetch from GitHub API and build raw stats */
+async function fetchExternalGithubActivity(): Promise<{trailingYearData: RawGitHubActivityApiResponse, allTimeData: RawGitHubActivityApiResponse} | null> {
   if (!GITHUB_API_TOKEN) {
     console.warn('[DataAccess] GitHub API token is missing. Cannot fetch GitHub activity.');
     return null;
   }
-  console.log(`[DataAccess] Fetching GitHub activity for ${GITHUB_REPO_OWNER} via GraphQL API...`);
+  console.log(`[DataAccess] Initiating GitHub activity fetch for ${GITHUB_REPO_OWNER}...`);
   const now = new Date();
-  const toDateIso = now.toISOString().split('T')[0] + 'T23:59:59Z';
-  const fromDate = new Date(now);
-  fromDate.setDate(fromDate.getDate() - 365);
-  const fromDateIso = fromDate.toISOString().split('T')[0] + 'T00:00:00Z';
 
-  // Ensure REPO_RAW_WEEKLY_STATS_DIR exists
-  await ensureDirectoryExists(REPO_RAW_WEEKLY_STATS_DIR);
+  type GithubRepoNode = NonNullable<NonNullable<GitHubGraphQLContributionResponse['user']>['repositoriesContributedTo']>['nodes'][number];
 
+  let uniqueRepoArray: GithubRepoNode[];
   try {
+    console.log(`[DataAccess] Fetching list of contributed repositories for ${GITHUB_REPO_OWNER} via GraphQL API...`);
     const { user } = await graphql<GitHubGraphQLContributionResponse>(`
-      query($username: String!, $from: DateTime!, $to: DateTime!) {
+      query($username: String!) {
         user(login: $username) {
-          contributionsCollection(from: $from, to: $to) {
-            contributionCalendar {
-              weeks {
-                contributionDays {
-                  contributionCount
-                  contributionLevel
-                  date
-                }
-              }
-              totalContributions
-            }
-            # commitContributionsByRepository is useful but let's try repositoriesContributedTo for a broader list
-          }
-          # Fetch repositories the user has contributed to (includes private if token has scope)
-          repositoriesContributedTo(first: 100, contributionTypes: [COMMIT, PULL_REQUEST, REPOSITORY], includeUserRepositories: true, orderBy: {field: PUSHED_AT, direction: DESC}) {
+          repositoriesContributedTo(
+            first: 100,
+            contributionTypes: [COMMIT],
+            includeUserRepositories: true,
+            orderBy: { field: PUSHED_AT, direction: DESC }
+          ) {
             nodes {
               id
               name
@@ -336,361 +320,413 @@ async function fetchExternalGithubActivity(): Promise<GitHubActivityApiResponse 
               isFork
               isPrivate
             }
-            # pageInfo { hasNextPage, endCursor } # For pagination if needed
           }
         }
       }
-    `, { username: GITHUB_REPO_OWNER, from: fromDateIso, to: toDateIso, headers: { authorization: `bearer ${GITHUB_API_TOKEN}` } });
-
-    // Define a type for the repository nodes from GraphQL for clarity
-    type GithubRepoNode = NonNullable<NonNullable<GitHubGraphQLContributionResponse['user']>['repositoriesContributedTo']>['nodes'][number];
-
+    `, { username: GITHUB_REPO_OWNER, headers: { authorization: `bearer ${GITHUB_API_TOKEN}` } });
     const contributedRepoNodes = user.repositoriesContributedTo?.nodes || [];
-    const allFetchedRepos = contributedRepoNodes.filter(
-        (repo): repo is GithubRepoNode => !!(repo && !repo.isFork)
-      );
+    uniqueRepoArray = contributedRepoNodes.filter((repo): repo is GithubRepoNode => !!(repo && !repo.isFork));
+  } catch (gqlError) {
+    console.error("[DataAccess] CRITICAL: Failed to fetch repository list via GraphQL:", gqlError);
+    return null; // Cannot proceed without repo list
+  }
 
-    const uniqueReposMap = new Map<string, GithubRepoNode>();
-    for (const repo of allFetchedRepos) {
-        // The filter above ensures repo is not null and has the expected structure
-        if (repo.id && typeof repo.id === 'string' && repo.id.length > 0) { // repo.id is already confirmed by GithubRepoNode type
-            if (!uniqueReposMap.has(repo.id)) {
-                uniqueReposMap.set(repo.id, repo);
-            }
-        } else {
-            // This case should be less likely due to the typed filter, but good for robustness
-            console.warn(`[DataAccess] fetchExternalGithubActivity: Repository object without a valid string ID or malformed (should be caught by type guards): ${JSON.stringify(repo).substring(0,150)}`);
-        }
-    }
-    const uniqueRepoArray: GithubRepoNode[] = Array.from(uniqueReposMap.values());
+  if (uniqueRepoArray.length === 0) {
+    console.warn("[DataAccess] No non-forked repositories contributed to found for user.");
+    // Return empty but valid structure
+    const emptyRawResponse: RawGitHubActivityApiResponse = { source: 'api', data: [], totalContributions: 0, linesAdded: 0, linesRemoved: 0, dataComplete: true };
+    return { trailingYearData: emptyRawResponse, allTimeData: emptyRawResponse };
+  }
 
-    let linesAddedTotal365Days = 0;
-    let linesRemovedTotal365Days = 0;
-    let overallDataComplete = true; // Tracks if all repos were fetched successfully for stats
-    const CONCURRENT_REPO_LIMIT = 5;
+  // --- TRAILING YEAR CALCULATIONS ---
+  console.log('[DataAccess] Calculating trailing year stats...');
+  const trailingYearFromDate = new Date(now);
+  trailingYearFromDate.setDate(now.getDate() - 365);
+  const trailingYearSinceIso = trailingYearFromDate.toISOString().split('T')[0] + 'T00:00:00Z';
+  const trailingYearUntilIso = now.toISOString().split('T')[0] + 'T23:59:59Z';
 
-    // Initialize categories for LoC summary
-    const categoryStats = {
-      frontend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-      backend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-      dataEngineer: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-      other: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
-    };
+  let yearLinesAdded = 0;
+  let yearLinesRemoved = 0;
+  let yearOverallDataComplete = true;
+  const yearCategoryStats = { frontend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 }, backend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 }, dataEngineer: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 }, other: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 } };
+  const yearDailyCommitCounts = new Map<string, number>();
 
-    for (let i = 0; i < uniqueRepoArray.length; i += CONCURRENT_REPO_LIMIT) {
-      const batch = uniqueRepoArray.slice(i, i + CONCURRENT_REPO_LIMIT);
-      const batchPromises = batch.map(async (repo) => {
-        if (!(repo && repo.owner && typeof repo.owner.login === 'string' && typeof repo.name === 'string')) {
-            console.warn(`[DataAccess] fetchExternalGithubActivity: Skipping repo in batch due to missing/invalid owner.login or name: ${JSON.stringify(repo).substring(0,150)}`);
-            return { repoName: 'unknown', currentRepoLinesAdded365: 0, currentRepoLinesRemoved365: 0, repoDataComplete: false };
-        }
-        const repoOwnerLogin = repo.owner.login;
-        const repoName = repo.name;
-        const repoStatFilename = `${repoOwnerLogin}_${repoName}.json`;
-        const repoStatFilePath = path.join(REPO_RAW_WEEKLY_STATS_DIR, repoStatFilename);
-        let currentRepoDataComplete = true;
-        let userWeeklyStats: RepoRawWeeklyStat[] = [];
+  for (let i = 0; i < uniqueRepoArray.length; i += CONCURRENT_REPO_LIMIT) {
+    const batch = uniqueRepoArray.slice(i, i + CONCURRENT_REPO_LIMIT);
+    const batchPromises = batch.map(async (repo) => {
+      const repoOwnerLogin = repo.owner.login;
+      const repoName = repo.name;
+      const repoStatS3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwnerLogin}_${repoName}.csv`;
+      let currentRepoLinesAdded365 = 0;
+      let currentRepoLinesRemoved365 = 0;
+      let repoDataCompleteForYear = true;
+      let apiStatus: RepoWeeklyStatCache['status'] = 'fetch_error';
+      let finalStatsToSaveForRepo: RepoRawWeeklyStat[] = [];
 
-        try {
-          const statsUrl = `https://api.github.com/repos/${repoOwnerLogin}/${repoName}/stats/contributors`;
-          const statsResponse = await fetchWithRetry(statsUrl, { headers: { 'Authorization': `Bearer ${GITHUB_API_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' } });
+      try {
+        const statsResponse = await fetchWithRetry(`https://api.github.com/repos/${repoOwnerLogin}/${repoName}/stats/contributors`, { headers: { 'Authorization': `Bearer ${GITHUB_API_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' } });
+        let userWeeklyStatsFromApi: RepoRawWeeklyStat[] = [];
 
-          let apiStatus: RepoWeeklyStatCache['status'] = 'fetch_error';
-
-          if (statsResponse.status === 202) {
-            console.warn(`[DataAccess] GitHub API returned 202 (pending) for ${repoOwnerLogin}/${repoName}. Stats will be incomplete.`);
-            currentRepoDataComplete = false;
-            apiStatus = 'pending_202_from_api';
-            // Try to load existing data if API is pending
-            const existingCache = await readJsonFile<RepoWeeklyStatCache>(repoStatFilePath);
-            if (existingCache?.stats) userWeeklyStats = existingCache.stats;
-
-          } else if (statsResponse.ok) {
-            const contributors = await statsResponse.json() as GithubContributorStatsEntry[];
-            const userStatsEntry = Array.isArray(contributors) ? contributors.find(c => c.author && c.author.login === GITHUB_REPO_OWNER) : null;
-
-            if (userStatsEntry && userStatsEntry.weeks && Array.isArray(userStatsEntry.weeks)) {
-              userWeeklyStats = userStatsEntry.weeks.map((w: GithubRepoRawWeeklyStatType) => ({ w: w.w, a: w.a, d: w.d, c: w.c }));
-              apiStatus = userWeeklyStats.length > 0 ? 'complete' : 'empty_no_user_contribs';
-            } else {
-              if (VERBOSE) console.log(`[DataAccess] No contribution stats for ${GITHUB_REPO_OWNER} in ${repoOwnerLogin}/${repoName} or weeks array is missing/empty.`);
-              apiStatus = 'empty_no_user_contribs';
-            }
+        if (statsResponse.status === 202) {
+          apiStatus = 'pending_202_from_api';
+          repoDataCompleteForYear = false;
+          if (VERBOSE) console.log(`[DataAccess] Trailing Year: GitHub API returned 202 (pending) for ${repoOwnerLogin}/${repoName}.`);
+        } else if (statsResponse.ok) {
+          const contributors = await statsResponse.json() as GithubContributorStatsEntry[];
+          const ownerLoginLower = GITHUB_REPO_OWNER.toLowerCase();
+          const userStatsEntry = Array.isArray(contributors) ? contributors.find(c => c.author && c.author.login.toLowerCase() === ownerLoginLower) : null;
+          if (userStatsEntry && userStatsEntry.weeks && Array.isArray(userStatsEntry.weeks)) {
+            userWeeklyStatsFromApi = userStatsEntry.weeks.map((w: RepoRawWeeklyStat) => ({ w: w.w, a: w.a, d: w.d, c: w.c }));
+            apiStatus = userWeeklyStatsFromApi.length > 0 ? 'complete' : 'empty_no_user_contribs';
           } else {
-             console.warn(`[DataAccess] Error fetching stats for ${repoOwnerLogin}/${repoName}. Status: ${statsResponse.status}. Stats will be incomplete.`);
-             currentRepoDataComplete = false;
-             // Try to load existing data if API failed
-             const existingCache = await readJsonFile<RepoWeeklyStatCache>(repoStatFilePath);
-             if (existingCache?.stats) userWeeklyStats = existingCache.stats;
+            apiStatus = 'empty_no_user_contribs';
           }
+        } else {
+          repoDataCompleteForYear = false;
+          if (VERBOSE) console.warn(`[DataAccess] Trailing Year: Error fetching stats for ${repoOwnerLogin}/${repoName}. Status: ${statsResponse.status}.`);
+        }
 
-          // Incremental update logic for the raw weekly stats file
-          let finalStatsToSave: RepoRawWeeklyStat[] = [];
-          const existingRepoData = await readJsonFile<RepoWeeklyStatCache>(repoStatFilePath);
-
-          if (existingRepoData && existingRepoData.stats && apiStatus !== 'pending_202_from_api' && statsResponse.ok) { // Only merge if new data is good
-            const existingStatsMap = new Map(existingRepoData.stats.map(s => [s.w, s]));
-            userWeeklyStats.forEach(newWeek => {
-              existingStatsMap.set(newWeek.w, newWeek); // Add or overwrite with new data
+        if (apiStatus === 'complete' && userWeeklyStatsFromApi.length > 0) {
+          finalStatsToSaveForRepo = userWeeklyStatsFromApi.sort((a,b) => a.w - b.w);
+        } else {
+          const existingDataBuffer = await readBinaryFile(repoStatS3Key);
+          if (existingDataBuffer && existingDataBuffer.length > 0) {
+            if (VERBOSE) console.log(`[DataAccess-S3] Trailing Year: Using existing S3 CSV data for ${repoOwnerLogin}/${repoName} due to API status: ${apiStatus}`);
+            finalStatsToSaveForRepo = existingDataBuffer.toString().split('\n').filter(Boolean).map(line => {
+              const [w, a, d, c] = line.split(',');
+              return { w: Number(w), a: Number(a), d: Number(d), c: Number(c) };
             });
-            finalStatsToSave = Array.from(existingStatsMap.values()).sort((a,b) => a.w - b.w);
-          } else if (userWeeklyStats.length > 0) { // Use newly fetched if no existing or if API was problematic but gave some data
-            finalStatsToSave = userWeeklyStats.sort((a,b) => a.w - b.w);
-          } else if (existingRepoData?.stats) { // Fallback to existing if API fetch failed entirely and we have old data
-            finalStatsToSave = existingRepoData.stats.sort((a,b) => a.w - b.w);
+          } else {
+             if (apiStatus === 'pending_202_from_api' || apiStatus === 'fetch_error') repoDataCompleteForYear = false;
           }
-          // if finalStatsToSave is still empty, it means no data ever, or API errors and no cache.
-
-          const newCacheEntry: RepoWeeklyStatCache = {
-            repoOwnerLogin,
-            repoName,
-            lastFetched: new Date().toISOString(),
-            status: apiStatus, // Reflects the latest attempt
-            stats: finalStatsToSave,
-          };
-          await writeJsonFile(repoStatFilePath, newCacheEntry);
-          if (VERBOSE && (apiStatus === 'complete' || apiStatus === 'empty_no_user_contribs')) console.log(`[DataAccess] Raw weekly stats for ${repoOwnerLogin}/${repoName} saved/updated to ${repoStatFilename}. Status: ${apiStatus}, Weeks: ${finalStatsToSave.length}`);
-
-          // Calculate lines for the 365-day window from potentially merged 'finalStatsToSave'
-          let currentRepoLinesAdded365 = 0;
-          let currentRepoLinesRemoved365 = 0;
-          for (const week of finalStatsToSave) {
-            const weekDate = new Date(week.w * 1000);
-            if (weekDate >= fromDate && weekDate <= now) {
-              currentRepoLinesAdded365 += week.a || 0;
-              currentRepoLinesRemoved365 += week.d || 0;
-            }
-          }
-          return { repoName, currentRepoLinesAdded365, currentRepoLinesRemoved365, repoDataComplete: currentRepoDataComplete };
-
-        } catch (repoError: unknown) {
-          const message = repoError instanceof Error ? repoError.message : String(repoError);
-          console.warn(`[DataAccess] Critical error processing stats for ${repoOwnerLogin}/${repoName}:`, message);
-          currentRepoDataComplete = false;
-          // Attempt to write a cache entry indicating error, preserving old stats if any
-          try {
-            const existingRepoDataOnError = await readJsonFile<RepoWeeklyStatCache>(repoStatFilePath);
-            const errorCacheEntry: RepoWeeklyStatCache = {
-              repoOwnerLogin,
-              repoName,
-              lastFetched: new Date().toISOString(),
-              status: 'fetch_error',
-              stats: existingRepoDataOnError?.stats || [], // Preserve old stats on error
-            };
-            await writeJsonFile(repoStatFilePath, errorCacheEntry);
-          } catch (writeError: unknown) {
-            const writeMessage = writeError instanceof Error ? writeError.message : String(writeError);
-            console.error(`[DataAccess] Failed to write error state for ${repoStatFilename}:`, writeMessage);
-          }
-          return { repoName: repo.name || 'error_repo', currentRepoLinesAdded365: 0, currentRepoLinesRemoved365: 0, repoDataComplete: false };
-        }
-      });
-
-      const batchResults = await Promise.all(batchPromises);
-
-      for (const result of batchResults) {
-        linesAddedTotal365Days += result.currentRepoLinesAdded365;
-        linesRemovedTotal365Days += result.currentRepoLinesRemoved365;
-        if (!result.repoDataComplete) {
-          overallDataComplete = false;
         }
 
-        // Categorize based on repo name
-        const repoNameLower = result.repoName.toLowerCase();
-        let categoryKey: keyof typeof categoryStats = 'other';
-
-        if (repoNameLower.includes('front')) {
-          categoryKey = 'frontend';
-        } else if (repoNameLower.includes('back')) {
-          categoryKey = 'backend';
-        } else if (repoNameLower.includes('data') || repoNameLower.includes('scraping') || repoNameLower.includes('scraper')) {
-          categoryKey = 'dataEngineer';
+        if (finalStatsToSaveForRepo.length > 0 && (apiStatus === 'complete' || apiStatus === 'empty_no_user_contribs' || (apiStatus !== 'fetch_error' && apiStatus !== 'pending_202_from_api' && finalStatsToSaveForRepo.length >0) )) {
+           await writeBinaryFile(repoStatS3Key, Buffer.from(finalStatsToSaveForRepo.map(w => `${w.w},${w.a},${w.d},${w.c}`).join('\n')));
+           if (VERBOSE) console.log(`[DataAccess-S3] Trailing Year: CSV for ${repoOwnerLogin}/${repoName} updated/written. Weeks: ${finalStatsToSaveForRepo.length}. API Status: ${apiStatus}`);
+        } else if (finalStatsToSaveForRepo.length === 0 && (apiStatus === 'pending_202_from_api' || apiStatus === 'fetch_error')) {
+            console.warn(`[DataAccess-S3] Trailing Year: No stats data to save for ${repoOwnerLogin}/${repoName} (API status: ${apiStatus}, no usable existing S3 data). CSV not written.`);
+            repoDataCompleteForYear = false;
         }
 
-        categoryStats[categoryKey].linesAdded += result.currentRepoLinesAdded365;
-        categoryStats[categoryKey].linesRemoved += result.currentRepoLinesRemoved365;
-        categoryStats[categoryKey].repoCount += 1;
+        for (const week of finalStatsToSaveForRepo) {
+          const weekDate = new Date(week.w * 1000);
+          if (weekDate >= trailingYearFromDate && weekDate <= now) {
+            currentRepoLinesAdded365 += week.a || 0;
+            currentRepoLinesRemoved365 += week.d || 0;
+          }
+        }
+      } catch (repoError: unknown) {
+          console.warn(`[DataAccess] Trailing Year: Critical error processing stats for ${repoOwnerLogin}/${repoName}:`, repoError instanceof Error ? repoError.message : String(repoError));
+          repoDataCompleteForYear = false;
       }
 
-      // Calculate net change for each category
-      (Object.keys(categoryStats) as Array<keyof typeof categoryStats>).forEach(key => {
-        categoryStats[key].netChange = categoryStats[key].linesAdded - categoryStats[key].linesRemoved;
-      });
+      yearLinesAdded += currentRepoLinesAdded365;
+      yearLinesRemoved += currentRepoLinesRemoved365;
+      if (!repoDataCompleteForYear) yearOverallDataComplete = false;
 
-    } // End of for loop for batches
+      const repoNameLower = repo.name.toLowerCase();
+      let categoryKey: keyof typeof yearCategoryStats = 'other';
+      if (repoNameLower.includes('front')) categoryKey = 'frontend';
+      else if (repoNameLower.includes('back')) categoryKey = 'backend';
+      else if (repoNameLower.includes('data') || repoNameLower.includes('scraping')) categoryKey = 'dataEngineer';
 
-    const contributionDays = user.contributionsCollection.contributionCalendar.weeks.flatMap(w => w.contributionDays as { contributionCount: number; contributionLevel: string; date: string }[]);
-    const contributions: ContributionDay[] = contributionDays.map(d => ({
-      date: d.date,
-      count: d.contributionCount,
-      level: mapContributionLevel(d.contributionLevel)
-    }));
-    const calculatedTotalContributions = contributionDays.reduce((sum: number, day: { contributionCount: number }) => sum + day.contributionCount, 0);
-
-    // After processing all repos and their raw stats are saved,
-    // now run the aggregation for aggregated_weekly_activity.json
-    await calculateAndStoreAggregatedWeeklyActivity();
-
-    const activityApiResponse: GitHubActivityApiResponse = {
-      source: 'api',
-      data: contributions,
-      totalContributions: calculatedTotalContributions,
-      linesAdded: linesAddedTotal365Days,
-      linesRemoved: linesRemovedTotal365Days,
-      dataComplete: overallDataComplete,
-    };
-
-    // Create and save the separate summary file
-    try {
-      const summaryFilePath = path.join(GITHUB_ACTIVITY_VOLUME_DIR, 'github_stats_summary.json');
-      const netLinesOfCode = (activityApiResponse.linesAdded || 0) - (activityApiResponse.linesRemoved || 0);
-      const nowPacTime = new Date().toLocaleString('en-US', {
-        timeZone: 'America/Los_Angeles',
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
-        timeZoneName: 'short'
-      });
-
-      const summaryData = {
-        lastUpdatedAtPacific: nowPacTime,
-        totalContributions: activityApiResponse.totalContributions.toString(), // Convert to string for summary file
-        totalLinesAdded: activityApiResponse.linesAdded,
-        totalLinesRemoved: activityApiResponse.linesRemoved,
-        netLinesOfCode: netLinesOfCode,
-        dataComplete: activityApiResponse.dataComplete,
-        totalRepositoriesContributedTo: uniqueRepoArray.length, // Add total repo count
-        linesOfCodeByCategory: categoryStats, // Add categorized stats - defined at line 417
-      };
-      await writeJsonFile(summaryFilePath, summaryData);
-      if (VERBOSE) console.log(`[DataAccess] GitHub activity summary saved to ${summaryFilePath}`);
-    } catch (summaryError) {
-      console.error('[DataAccess] Failed to write GitHub activity summary file:', summaryError);
-      // Do not fail the main operation if only summary writing fails
-    }
-
-    return activityApiResponse;
-  } catch (error) {
-    console.error('[DataAccess] Error fetching GitHub activity via GraphQL:', error);
-    return await fetchGithubActivityByScraping(); // Fallback
-  }
-}
-
-async function fetchGithubActivityByScraping(): Promise<GitHubActivityApiResponse | null> {
-  console.warn(`[DataAccess] Attempting fallback scraping for GitHub activity for ${GITHUB_REPO_OWNER}...`);
-  const profileUrl = `https://github.com/${GITHUB_REPO_OWNER}`;
-  try {
-    const response = await fetch(profileUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!response.ok) throw new Error(`Failed to fetch profile page: ${response.status}`);
-    const html = await response.text();
-    const $ = cheerio.load(html);
-    const contributions: ContributionDay[] = [];
-    $('svg.js-calendar-graph-svg g > g > rect[data-date][data-level]').each((_, el) => {
-      const $rect = $(el);
-      const date = $rect.attr('data-date');
-      const level = parseInt($rect.attr('data-level') || '0', 10);
-      let count = 0;
-      const tooltipId = $rect.attr('id');
-      const tooltipText = tooltipId ? $(`tool-tip[for="${tooltipId}"]`).text().trim() : '';
-      const countMatch = tooltipText.match(/^(\d+|No)\s+contribution/);
-      if (countMatch && countMatch[1]) count = countMatch[1] === 'No' ? 0 : parseInt(countMatch[1], 10);
-      if (date) contributions.push({ date, count, level: level as 0 | 1 | 2 | 3 | 4 });
+      if (currentRepoLinesAdded365 > 0 || currentRepoLinesRemoved365 > 0 || repoDataCompleteForYear ) {
+        yearCategoryStats[categoryKey].linesAdded += currentRepoLinesAdded365;
+        yearCategoryStats[categoryKey].linesRemoved += currentRepoLinesRemoved365;
+        yearCategoryStats[categoryKey].repoCount +=1;
+        yearCategoryStats[categoryKey].netChange = (yearCategoryStats[categoryKey].netChange || 0) + (currentRepoLinesAdded365 - currentRepoLinesRemoved365);
+      }
     });
-    const totalContributionsHeader = $('div.js-yearly-contributions h2').text().trim();
-    const totalMatch = totalContributionsHeader.match(/([\d,]+)\s+contributions/i);
-    const totalContributionsText = totalMatch && totalMatch[1] ? totalMatch[1].replace(/,/g, '') : '0';
-    if (contributions.length === 0) console.warn('[DataAccess] Cheerio scraping found 0 contribution days.');
-    return { source: 'scraping', data: contributions, totalContributions: parseInt(totalContributionsText, 10), linesAdded: 0, linesRemoved: 0, dataComplete: contributions.length > 0 };
-  } catch (error) {
-    console.error('[DataAccess] Error during GitHub scraping:', error);
-    return null;
+    await Promise.all(batchPromises);
   }
+
+  console.log('[DataAccess] Trailing Year: Calculating daily commit counts...');
+  for (const repo of uniqueRepoArray) {
+    const owner = repo.owner.login;
+    const name = repo.name;
+    let page = 1;
+    while (true) {
+      const commitsUrl = `https://api.github.com/repos/${owner}/${name}/commits?author=${GITHUB_REPO_OWNER}&since=${trailingYearSinceIso}&until=${trailingYearUntilIso}&per_page=100&page=${page}`;
+      const res = await fetch(commitsUrl, { headers: { 'Authorization': `Bearer ${GITHUB_API_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' } });
+      if (!res.ok) break;
+      const commits = await res.json() as Array<{ commit: { author: { date: string } } }>;
+      if (!Array.isArray(commits) || commits.length === 0) break;
+      for (const c of commits) {
+        const d = c.commit.author.date.slice(0, 10);
+        yearDailyCommitCounts.set(d, (yearDailyCommitCounts.get(d) || 0) + 1);
+      }
+      if (commits.length < 100) break;
+      page++;
+    }
+  }
+  const trailingYearContributionsCalendar: ContributionDay[] = [];
+  const yearCursor = new Date(trailingYearFromDate);
+  while (yearCursor <= now) {
+    const dayKey = yearCursor.toISOString().slice(0, 10);
+    const count = yearDailyCommitCounts.get(dayKey) || 0;
+    trailingYearContributionsCalendar.push({ date: dayKey, count, level: mapCommitLevel(count) });
+    yearCursor.setDate(yearCursor.getDate() + 1);
+  }
+  const yearTotalCommits = Array.from(yearDailyCommitCounts.values()).reduce((a, b) => a + b, 0);
+
+  const trailingYearData: RawGitHubActivityApiResponse = {
+    source: 'api',
+    data: trailingYearContributionsCalendar,
+    totalContributions: yearTotalCommits,
+    linesAdded: yearLinesAdded,
+    linesRemoved: yearLinesRemoved,
+    dataComplete: yearOverallDataComplete,
+  };
+
+  try {
+    const summaryS3Key = GITHUB_STATS_SUMMARY_S3_KEY_FILE;
+    const netYearLoc = (trailingYearData.linesAdded || 0) - (trailingYearData.linesRemoved || 0);
+    const yearSummaryData = {
+      lastUpdatedAtPacific: new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true, timeZoneName: 'short' }),
+      totalContributions: trailingYearData.totalContributions.toString(),
+      totalLinesAdded: trailingYearData.linesAdded,
+      totalLinesRemoved: trailingYearData.linesRemoved,
+      netLinesOfCode: netYearLoc,
+      dataComplete: trailingYearData.dataComplete,
+      totalRepositoriesContributedTo: uniqueRepoArray.length,
+      linesOfCodeByCategory: yearCategoryStats,
+    };
+    await writeJsonFile(summaryS3Key, yearSummaryData);
+    if (VERBOSE) console.log(`[DataAccess-S3] Trailing year GitHub summary saved to ${summaryS3Key}`);
+  } catch (summaryError) { console.error('[DataAccess-S3] Failed to write trailing year GitHub summary:', summaryError); }
+
+  // --- ALL-TIME CALCULATIONS ---
+  console.log('[DataAccess] Calculating all-time stats...');
+  let allTimeLinesAdded = 0;
+  let allTimeLinesRemoved = 0;
+  let allTimeOverallDataComplete = true;
+  const allTimeCategoryStats = { frontend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 }, backend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 }, dataEngineer: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 }, other: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 } };
+  let allTimeTotalCommits = 0;
+
+  for (let i = 0; i < uniqueRepoArray.length; i += CONCURRENT_REPO_LIMIT) {
+    const batch = uniqueRepoArray.slice(i, i + CONCURRENT_REPO_LIMIT);
+    const batchPromises = batch.map(async (repo) => {
+      const repoOwnerLogin = repo.owner.login;
+      const repoName = repo.name;
+      const repoStatS3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwnerLogin}_${repoName}.csv`; //Ensure these are CSVs
+      let currentRepoLinesAddedAllTime = 0;
+      let currentRepoLinesRemovedAllTime = 0;
+      let repoS3DataProcessed = true;
+
+      try {
+        const s3Buffer = await readBinaryFile(repoStatS3Key);
+        if (s3Buffer && s3Buffer.length > 0) {
+          const lines = s3Buffer.toString().split('\n').filter(Boolean);
+          for (const line of lines) {
+            const [,a,d] = line.split(',');
+            currentRepoLinesAddedAllTime += Number(a) || 0;
+            currentRepoLinesRemovedAllTime += Number(d) || 0;
+          }
+        } else {
+          if (VERBOSE) console.warn(`[DataAccess-S3] All-time LoC: No data in ${repoStatS3Key} for ${repoName}.`);
+          repoS3DataProcessed = false;
+        }
+      } catch (err) {
+          console.warn(`[DataAccess-S3] All-time LoC: Error reading ${repoStatS3Key} for ${repoName}:`, err instanceof Error ? err.message : String(err));
+          repoS3DataProcessed = false;
+      }
+
+      allTimeLinesAdded += currentRepoLinesAddedAllTime;
+      allTimeLinesRemoved += currentRepoLinesRemovedAllTime;
+      if (!repoS3DataProcessed) allTimeOverallDataComplete = false;
+
+      const repoNameLower = repo.name.toLowerCase();
+      let categoryKey: keyof typeof allTimeCategoryStats = 'other';
+      if (repoNameLower.includes('front')) categoryKey = 'frontend';
+      else if (repoNameLower.includes('back')) categoryKey = 'backend';
+      else if (repoNameLower.includes('data') || repoNameLower.includes('scraping')) categoryKey = 'dataEngineer';
+
+      if (repoS3DataProcessed) {
+        allTimeCategoryStats[categoryKey].linesAdded += currentRepoLinesAddedAllTime;
+        allTimeCategoryStats[categoryKey].linesRemoved += currentRepoLinesRemovedAllTime;
+        allTimeCategoryStats[categoryKey].repoCount +=1;
+        allTimeCategoryStats[categoryKey].netChange = (allTimeCategoryStats[categoryKey].netChange || 0) + (currentRepoLinesAddedAllTime - currentRepoLinesRemovedAllTime);
+      }
+    });
+    await Promise.all(batchPromises);
+  }
+
+  console.log('[DataAccess] All-Time: Calculating daily commit counts (all-time)...');
+  for (const repo of uniqueRepoArray) {
+      const owner = repo.owner.login;
+      const name = repo.name;
+      let page = 1;
+      while (true) {
+          const commitsUrl = `https://api.github.com/repos/${owner}/${name}/commits?author=${GITHUB_REPO_OWNER}&per_page=100&page=${page}`;
+          const res = await fetch(commitsUrl, { headers: { 'Authorization': `Bearer ${GITHUB_API_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' } });
+          if (!res.ok) {
+            if(res.status !== 404 && res.status !== 409) {
+                 console.warn(`[DataAccess] All-time commits: Error fetching page ${page} for ${owner}/${name}. Status: ${res.status}`);
+            }
+            break;
+          }
+          const commits = await res.json() as Array<{ sha: string }>; // Just need count
+          if (!Array.isArray(commits) || commits.length === 0) break;
+          allTimeTotalCommits += commits.length;
+          if (commits.length < 100) break;
+          page++;
+      }
+  }
+  if (VERBOSE) console.log(`[DataAccess] All-time total commits calculated: ${allTimeTotalCommits}`);
+
+  const allTimeData: RawGitHubActivityApiResponse = {
+    source: 'api',
+    data: [], // No daily calendar for all-time (this is just the totals object)
+    totalContributions: allTimeTotalCommits,
+    linesAdded: allTimeLinesAdded,
+    linesRemoved: allTimeLinesRemoved,
+    dataComplete: allTimeOverallDataComplete,
+  };
+
+  try {
+    const ALL_TIME_SUMMARY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/github_stats_summary_all_time.json`;
+    const netAllTimeLoc = (allTimeData.linesAdded || 0) - (allTimeData.linesRemoved || 0);
+    const allTimeSummaryData = {
+      lastUpdatedAtPacific: new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true, timeZoneName: 'short' }),
+      totalContributions: allTimeData.totalContributions.toString(),
+      totalLinesAdded: allTimeData.linesAdded,
+      totalLinesRemoved: allTimeData.linesRemoved,
+      netLinesOfCode: netAllTimeLoc,
+      dataComplete: allTimeData.dataComplete,
+      totalRepositoriesContributedTo: uniqueRepoArray.length,
+      linesOfCodeByCategory: allTimeCategoryStats,
+    };
+    await writeJsonFile(ALL_TIME_SUMMARY_S3_KEY_FILE, allTimeSummaryData);
+    if (VERBOSE) console.log(`[DataAccess-S3] All-time GitHub summary saved to ${ALL_TIME_SUMMARY_S3_KEY_FILE}`);
+  } catch (summaryError) { console.error('[DataAccess-S3] Failed to write all-time GitHub summary:', summaryError); }
+
+  // The main activity_data.json is ONLY the trailingYearData (with calendar)
+  try {
+    const activityFile = s3Client.file(GITHUB_ACTIVITY_S3_KEY_FILE);
+    const activityWriter = activityFile.writer();
+    void activityWriter.write(JSON.stringify(trailingYearData)); // Save only trailing year raw data with calendar
+    void activityWriter.end();
+    if (VERBOSE) console.log(`[DataAccess-S3] Trailing year raw activity data (with calendar) saved to ${GITHUB_ACTIVITY_S3_KEY_FILE}`);
+  } catch (writeError) { console.error(`[DataAccess-S3] Error writing trailing year activity data to ${GITHUB_ACTIVITY_S3_KEY_FILE}:`, writeError); }
+
+  // Aggregated weekly activity (for LoC graph) should be based on ALL data in S3 CSVs
+  await calculateAndStoreAggregatedWeeklyActivity(); // This reads all CSVs and sums ALL weeks
+
+  return { trailingYearData, allTimeData };
 }
 
-
+/** Returns cached/S3/raw GitHub activity as flat object */
 export async function getGithubActivity(): Promise<GitHubActivityApiResponse | null> {
-  // 1. Try Cache
+  // Check in-memory cache first
   const cached = ServerCacheInstance.getGithubActivity();
-  if (cached && cached.data && cached.data.length > 0 && cached.dataComplete) {
+  if (cached && cached.trailingYearData && cached.trailingYearData.data.length > 0 && cached.trailingYearData.dataComplete && cached.cumulativeAllTimeData) {
     console.log('[DataAccess] Returning GitHub activity from cache.');
     return cached;
   }
 
-  // 2. Try Volume
-  const volumeActivity = await readJsonFile<GitHubActivityApiResponse>(GITHUB_ACTIVITY_VOLUME_FILE);
-  if (volumeActivity && volumeActivity.data && volumeActivity.data.length > 0 && volumeActivity.dataComplete) {
-    console.log('[DataAccess] Returning GitHub activity from volume.');
-    ServerCacheInstance.setGithubActivity(volumeActivity); // Update cache
-    return volumeActivity;
+  // Next, try to load from S3 before making any external API calls
+  console.log('[DataAccess] GitHub activity not in cache, checking S3 first...');
+  const activityFile = s3Client.file(GITHUB_ACTIVITY_S3_KEY_FILE);
+  try {
+    const rawTrailingYearFromS3 = await activityFile.json().catch(() => null) as RawGitHubActivityApiResponse | null;
+    if (rawTrailingYearFromS3 && rawTrailingYearFromS3.data && rawTrailingYearFromS3.data.length > 0) {
+      console.log('[DataAccess-S3] Successfully loaded GitHub activity from S3.');
+      // Ensure all required fields for RawGitHubActivityApiResponse are present or defaulted
+      const validRawTrailingYear = {
+        source: rawTrailingYearFromS3.source || 'api',
+        data: rawTrailingYearFromS3.data,
+        totalContributions: rawTrailingYearFromS3.totalContributions || 0,
+        linesAdded: rawTrailingYearFromS3.linesAdded,
+        linesRemoved: rawTrailingYearFromS3.linesRemoved,
+        dataComplete: rawTrailingYearFromS3.dataComplete !== undefined ? rawTrailingYearFromS3.dataComplete : true,
+      };
+
+      // Construct a response with the S3 data
+      const response: GitHubActivityApiResponse = {
+        trailingYearData: { ...validRawTrailingYear, summaryActivity: undefined },
+        cumulativeAllTimeData: {
+          source: 'api',
+          data: [],
+          totalContributions: 0,
+          linesAdded: 0,
+          linesRemoved: 0,
+          dataComplete: true,
+          summaryActivity: undefined
+        }
+      };
+
+      // Cache the response
+      ServerCacheInstance.setGithubActivity(response);
+      return response;
+    }
+  } catch (s3Error) {
+    console.error(`[DataAccess-S3] Error reading S3 data from ${GITHUB_ACTIVITY_S3_KEY_FILE}:`, s3Error);
   }
 
-  // 3. Fetch from External API
-  console.log('[DataAccess] GitHub activity not in cache or volume (or incomplete), fetching from external source.');
-  const externalActivity = await fetchExternalGithubActivity();
-  if (externalActivity) {
-    await writeJsonFile(GITHUB_ACTIVITY_VOLUME_FILE, externalActivity);
-    ServerCacheInstance.setGithubActivity(externalActivity);
-    return externalActivity;
+  // Only if S3 data is unavailable or invalid, fetch from external GitHub API
+  console.log('[DataAccess] GitHub activity not in S3 or invalid, fetching from external source.');
+  const externalRawParts = await fetchExternalGithubActivity();
+
+  if (externalRawParts && externalRawParts.trailingYearData && externalRawParts.allTimeData) {
+    const wrappedForApi = wrapGithubActivity(externalRawParts);
+    if (wrappedForApi) {
+      ServerCacheInstance.setGithubActivity(wrappedForApi); // Cache the structure API route expects (sans summaries)
+      return wrappedForApi;
+    }
   }
 
-  // If external fetch failed, but we have incomplete data in volume or cache, return that.
-  if (volumeActivity && volumeActivity.data && volumeActivity.data.length > 0) {
-    console.warn('[DataAccess] External GitHub fetch failed, returning incomplete data from volume.');
-    ServerCacheInstance.setGithubActivity(volumeActivity);
-    return volumeActivity;
-  }
-  if (cached && cached.data && cached.data.length > 0) {
-    console.warn('[DataAccess] External GitHub fetch failed, returning incomplete data from cache.');
-    return cached;
-  }
-
-  console.warn('[DataAccess] Failed to fetch GitHub activity from all sources.');
+  // Final fallback: If both S3 and external fetch failed, return null
+  console.warn('[DataAccess-S3] Failed to fetch GitHub activity from all sources.');
   return null;
 }
 
 
 // --- Logo Data Access ---
-// (Re-using and adapting logic from app/api/logo/route.ts)
 
-function getDomainHash(domain: string): string {
-  return createHash('md5').update(domain).digest('hex');
-}
-
-function getLogoVolumePath(domain: string, source: LogoSource): string {
-  const hash = getDomainHash(domain).substring(0, 8);
+function getLogoS3Key(domain: string, source: LogoSource): string {
   const id = domain.split('.')[0];
   const sourceAbbr = source === 'duckduckgo' ? 'ddg' : source;
-  return path.join(LOGOS_VOLUME_DIR, `${id}_${hash}_${sourceAbbr}.png`);
+  return `${LOGOS_S3_KEY_DIR}/${id}_${sourceAbbr}.png`;
 }
 
-async function findLogoInVolume(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> {
+/**
+ * Attempts to retrieve logo from S3 without performing external fetch.
+ * @param domain Domain name for the logo.
+ * @returns Buffer and source if found in S3, otherwise null.
+ */
+export async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> {
+  // 1st: specific source keys
   for (const source of ['google', 'clearbit', 'duckduckgo'] as LogoSource[]) {
-    const logoPath = getLogoVolumePath(domain, source);
-    const buffer = await readBinaryFile(logoPath);
+    const logoS3Key = getLogoS3Key(domain, source); // Use S3 key function
+    const buffer = await readBinaryFile(logoS3Key); // Read from S3
     if (buffer) {
-      console.log(`[DataAccess] Found logo for ${domain} from source ${source} in volume.`);
+      console.log(`[DataAccess-S3] Found logo for ${domain} from source ${source} in S3.`);
       return { buffer, source };
     }
   }
-  // Fallback: search for any file starting with domain ID in LOGOS_VOLUME_DIR
-  // This is to support older naming conventions or if source is unknown.
+
+  // Fallback: list objects by prefix
   try {
-    const files = await fs.readdir(LOGOS_VOLUME_DIR);
     const id = domain.split('.')[0];
-    const matchingFile = files.find(file => file.startsWith(`${id}_`));
-    if (matchingFile) {
-        const buffer = await readBinaryFile(path.join(LOGOS_VOLUME_DIR, matchingFile));
-        if (buffer) {
-            // Try to infer source from filename, default to 'unknown'
-            let inferredSource: LogoSource = 'unknown';
-            if (matchingFile.includes('_google')) inferredSource = 'google';
-            else if (matchingFile.includes('_clearbit')) inferredSource = 'clearbit';
-            else if (matchingFile.includes('_ddg')) inferredSource = 'duckduckgo';
-            console.log(`[DataAccess] Found logo for ${domain} by pattern match in volume: ${matchingFile}`);
-            return { buffer, source: inferredSource };
-        }
+    const keys = await listS3Objects(`${LOGOS_S3_KEY_DIR}/${id}_`);
+    if (keys.length > 0) {
+      const pngMatch = keys.find(key => key.endsWith('.png'));
+      const bestMatch = pngMatch || keys[0];
+      const buffer = await readBinaryFile(bestMatch);
+      if (buffer) {
+        let inferredSource: LogoSource = 'unknown';
+        if (bestMatch.includes('_google')) inferredSource = 'google';
+        else if (bestMatch.includes('_clearbit')) inferredSource = 'clearbit';
+        else if (bestMatch.includes('_ddg')) inferredSource = 'duckduckgo';
+        console.log(`[DataAccess-S3] Found logo for ${domain} by S3 list pattern match: ${bestMatch}`);
+        return { buffer, source: inferredSource };
+      }
     }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (e) { /* ignore if readdir fails */ } // Renamed unused catch variable
+  } catch (listError: unknown) {
+    const message = listError instanceof Error ? listError.message : String(listError);
+    console.warn(`[DataAccess-S3] Error listing logos in S3 for domain ${domain} (prefix: ${LOGOS_S3_KEY_DIR}/${domain.split('.')[0]}_):`, message);
+  }
   return null;
 }
 
@@ -753,34 +789,72 @@ async function fetchExternalLogo(domain: string): Promise<{ buffer: Buffer; sour
 
 
 export async function getLogo(domain: string): Promise<{ buffer: Buffer; source: LogoSource; contentType: string } | null> {
+  // Allow overriding getLogo in tests via global.getLogo
+  const override = (globalThis as {getLogo?: typeof getLogo}).getLogo;
+  if (typeof override === 'function' && override !== getLogo) {
+    return override(domain);
+  }
   // 1. Try Cache
   const cached = ServerCacheInstance.getLogoFetch(domain);
   if (cached && cached.buffer) {
-    console.log(`[DataAccess] Returning logo for ${domain} from cache (source: ${cached.source || 'unknown'}).`);
+    console.log(`[DataAccess-S3] Returning logo for ${domain} from cache (source: ${cached.source || 'unknown'}).`);
     const { contentType } = await processImageBuffer(cached.buffer);
     return { buffer: cached.buffer, source: cached.source || 'unknown', contentType };
   }
 
-  // 2. Try Volume
-  const volumeLogo = await findLogoInVolume(domain);
-  if (volumeLogo) {
-    ServerCacheInstance.setLogoFetch(domain, { url: null, source: volumeLogo.source, buffer: volumeLogo.buffer });
-    const { contentType } = await processImageBuffer(volumeLogo.buffer);
-    return { ...volumeLogo, contentType };
+  const force = process.env.FORCE_LOGOS === 'true';
+  if (force) console.log(`[DataAccess-S3] FORCE_LOGOS enabled, skipping S3 for ${domain}, forcing external fetch.`);
+  // 2. Try S3
+  let s3Logo: { buffer: Buffer; source: LogoSource } | null = null;
+  if (!force) {
+    s3Logo = await findLogoInS3(domain);
+  }
+  if (s3Logo) {
+    ServerCacheInstance.setLogoFetch(domain, { url: null, source: s3Logo.source, buffer: s3Logo.buffer });
+    const { contentType } = await processImageBuffer(s3Logo.buffer);
+    return { ...s3Logo, contentType };
   }
 
   // 3. Fetch from External API
-  console.log(`[DataAccess] Logo for ${domain} not in cache or volume, fetching from external source.`);
+  const skipExternalLogoFetch = process.env.NODE_ENV === 'test' || process.env.SKIP_EXTERNAL_LOGO_FETCH === 'true';
+  if (skipExternalLogoFetch) {
+    if (VERBOSE) console.log(`[DataAccess-S3] Skipping external logo fetch for ${domain} (test or skip flag).`);
+    ServerCacheInstance.setLogoFetch(domain, { url: null, source: null, error: 'External fetch skipped' });
+    return null;
+  }
+  console.log(`[DataAccess-S3] Logo for ${domain} not in cache or S3, fetching from external source.`);
   const externalLogo = await fetchExternalLogo(domain); // Removed baseUrlForValidation
   if (externalLogo) {
-    const logoPath = getLogoVolumePath(domain, externalLogo.source);
-    await writeBinaryFile(logoPath, externalLogo.buffer);
+    const logoS3Key = getLogoS3Key(domain, externalLogo.source);
+    try {
+      const existingBuffer = await readBinaryFile(logoS3Key);
+      let didUpload = false;
+      if (existingBuffer) {
+        const existingHash = createHash('md5').update(existingBuffer).digest('hex');
+        const newHash = createHash('md5').update(externalLogo.buffer).digest('hex');
+        if (existingHash === newHash) {
+          console.log(`[DataAccess-S3] Logo for ${domain} unchanged (hash=${newHash}); skipping upload.`);
+        } else {
+          await writeBinaryFile(logoS3Key, externalLogo.buffer);
+          console.log(`[DataAccess-S3] Logo for ${domain} changed (old=${existingHash}, new=${newHash}); uploaded to ${logoS3Key}.`);
+          didUpload = true;
+        }
+      } else {
+        await writeBinaryFile(logoS3Key, externalLogo.buffer);
+        const newHash = createHash('md5').update(externalLogo.buffer).digest('hex');
+        console.log(`[DataAccess-S3] New logo for ${domain}; uploaded to ${logoS3Key} (hash=${newHash}).`);
+        didUpload = true;
+      }
+      if (VERBOSE && !didUpload) console.log(`[DataAccess-S3] VERBOSE: No upload needed for ${domain}.`);
+    } catch (uploadError) {
+      console.error(`[DataAccess-S3] Error writing logo for ${domain} to S3:`, uploadError);
+    }
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: externalLogo.source, buffer: externalLogo.buffer });
     const { contentType } = await processImageBuffer(externalLogo.buffer);
     return { ...externalLogo, contentType };
   }
 
-  console.warn(`[DataAccess] Failed to fetch logo for ${domain} from all sources.`);
+  console.warn(`[DataAccess-S3] Failed to fetch logo for ${domain} from all sources.`);
   // Cache failure to avoid retrying too often
   ServerCacheInstance.setLogoFetch(domain, { url: null, source: null, error: 'Failed to fetch logo' });
   return null;
@@ -790,6 +864,10 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
 // This function is specific to populate-volumes.js needs and might be better placed there
 // or refactored if investments.ts becomes JSON.
 // Import investments statically to avoid critical dependency warning
+// THIS SECTION USES `fs.readFile` for a local `investments.ts` file.
+// This part seems unrelated to the S3 volume migration for `data/*`
+// and likely should remain as is, or its data source re-evaluated if it's meant to be in S3.
+// For now, assuming `data/investments.ts` is a local config file.
 import { investments } from '@/data/investments';
 
 export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>> {
@@ -814,10 +892,19 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
     console.warn(`[DataAccess] Could not use static import of investments.ts, falling back to regex parsing: ${String(importError)}`);
 
     // Fallback to regex parsing if static import fails
-    const investmentsPath = path.join(ROOT_DIR, 'data', 'investments.ts');
+    const investmentsPath = 'data/investments.ts'; // Assuming this path is still local and not in S3.
+                                                // If it IS in S3, this needs to use readJsonFile/readBinaryFile for S3.
+                                                // Given its .ts extension, it's likely a source file.
       // Fallback to regex parsing if direct import fails (e.g. in a pure Node script without TS compilation)
       try {
-        const investmentsContent = await fs.readFile(investmentsPath, 'utf-8');
+        // This fs.readFile needs to be addressed if 'data/investments.ts' is supposed to be in S3.
+        // For now, assuming it's a local file. If it's in S3, we'd use:
+        // const investmentsContentBuffer = await readBinaryFile(investmentsPath);
+        // const investmentsContent = investmentsContentBuffer ? investmentsContentBuffer.toString('utf-8') : null;
+        // if (!investmentsContent) throw new Error('Failed to read investments data from S3');
+        const localInvestmentsPath = process.cwd() + '/' + investmentsPath; // Construct full path for local read
+        const investmentsContent = await (await import('node:fs/promises')).readFile(localInvestmentsPath, 'utf-8');
+
         // Regex logic from populate-volumes.js (simplified for brevity, ensure it's robust)
         let currentId: string | null = null;
             const investmentBlocks = investmentsContent.split(/^\s*{\s*(?:"|')id(?:"|'):/m);
@@ -859,98 +946,72 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
 // Type definitions moved to types/github.ts
 
 export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ aggregatedActivity: AggregatedWeeklyActivity[], overallDataComplete: boolean } | null> {
-  console.log('[DataAccess] Calculating aggregated weekly activity...');
-  // Ensure the source directory exists before trying to read from it
-  try {
-    await fs.mkdir(REPO_RAW_WEEKLY_STATS_DIR, { recursive: true });
-  } catch (mkdirError: unknown) {
-    const message = mkdirError instanceof Error ? mkdirError.message : String(mkdirError);
-    console.error(`[DataAccess] Aggregation: Critical error creating directory ${REPO_RAW_WEEKLY_STATS_DIR}:`, message);
-    return null; // Cannot proceed if directory cannot be ensured
+  // Skip aggregation in DRY RUN mode
+  if (process.env.DRY_RUN === 'true') {
+    if (VERBOSE) console.log('[DataAccess-S3] DRY RUN mode: skipping aggregated weekly activity calculation.');
+    return null;
   }
+  // Allow overriding calculateAndStoreAggregatedWeeklyActivity in tests via global.calculateAndStoreAggregatedWeeklyActivity
+  const overrideCalc = (globalThis as { calculateAndStoreAggregatedWeeklyActivity?: typeof calculateAndStoreAggregatedWeeklyActivity }).calculateAndStoreAggregatedWeeklyActivity;
+  if (typeof overrideCalc === 'function' && overrideCalc !== calculateAndStoreAggregatedWeeklyActivity) {
+    return overrideCalc();
+  }
+  console.log('[DataAccess-S3] Calculating aggregated weekly activity...');
 
   let overallDataComplete = true;
   const weeklyTotals: { [weekStart: string]: { added: number; removed: number } } = {};
 
   const today = new Date();
-  const oneYearAgo = new Date(today);
-  oneYearAgo.setDate(today.getDate() - 365);
 
-  let statFiles: string[];
+  // Gather all raw stat JSON keys under the S3 prefix
+  let s3StatFileKeys: string[] = [];
   try {
-    statFiles = await fs.readdir(REPO_RAW_WEEKLY_STATS_DIR);
-  } catch (err: unknown) {
-    const nodeError = err as NodeJS.ErrnoException;
-    if (nodeError.code === 'ENOENT') {
-      // If the directory itself doesn't exist after trying to create it, it's an issue, but less critical if we just created it.
-      // More likely, it's empty.
-      if (VERBOSE) console.log(`[DataAccess] Aggregation: Directory ${REPO_RAW_WEEKLY_STATS_DIR} is empty or was just created. No files to aggregate yet.`);
-      // Write an empty aggregation file to signify the process ran but found nothing
-      await writeJsonFile(AGGREGATED_WEEKLY_ACTIVITY_FILE, []);
-      return { aggregatedActivity: [], overallDataComplete: true };
-    } else {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`[DataAccess] Aggregation: Error reading directory ${REPO_RAW_WEEKLY_STATS_DIR}:`, message);
-      return null; // Indicate a more serious error occurred
-    }
+    console.log(`[DataAccess-S3] Listing objects in S3 with prefix: ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/`);
+    s3StatFileKeys = await listS3Objects(REPO_RAW_WEEKLY_STATS_S3_KEY_DIR);
+    if (VERBOSE) console.log(`[DataAccess-S3] Found ${s3StatFileKeys.length} potential stat files in S3.`);
+  } catch (listError: unknown) {
+    const message = listError instanceof Error ? listError.message : String(listError);
+    console.error(`[DataAccess-S3] Aggregation: Error listing S3 objects in ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/:`, message);
+    await writeJsonFile(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, []);
+    return { aggregatedActivity: [], overallDataComplete: false };
   }
 
-  if (statFiles.length === 0) {
-    if (VERBOSE) console.log(`[DataAccess] Aggregation: No raw weekly stat files found in ${REPO_RAW_WEEKLY_STATS_DIR}. Nothing to aggregate.`);
-    await writeJsonFile(AGGREGATED_WEEKLY_ACTIVITY_FILE, []); // Write empty if no files
-    return { aggregatedActivity: [], overallDataComplete: true };
+  // Filter only JSON file keys
+  s3StatFileKeys = s3StatFileKeys.filter(key => key.endsWith('.csv'));
+
+  if (s3StatFileKeys.length === 0) {
+    if (VERBOSE) console.log(`[DataAccess-S3] Aggregation: No raw weekly stat files found in S3 path ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/. Nothing to aggregate.`);
+    await writeJsonFile(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, []);
+    return { aggregatedActivity: [], overallDataComplete: true }; // Considered complete as there's nothing to process
   }
 
-  for (const repoStatFilename of statFiles) {
-    if (!repoStatFilename.endsWith('.json')) {
-        if (VERBOSE) console.log(`[DataAccess] Aggregation: Skipping non-JSON file ${repoStatFilename} in ${REPO_RAW_WEEKLY_STATS_DIR}`);
-        continue;
-    }
-
-    const repoStatFilePath = path.join(REPO_RAW_WEEKLY_STATS_DIR, repoStatFilename);
-    const repoData = await readJsonFile<RepoWeeklyStatCache>(repoStatFilePath);
-
-    if (!repoData) {
-        if (VERBOSE) console.warn(`[DataAccess] Aggregation: Could not read or parse ${repoStatFilePath}, skipping.`);
-        overallDataComplete = false; // If a file can't be read, data might be incomplete
-        continue;
-    }
-
-    if (repoData.status !== 'complete' && repoData.status !== 'empty_no_user_contribs') {
-      if (repoData.status === 'pending_202_from_api' || repoData.status === 'fetch_error') {
+  for (const repoStatS3Key of s3StatFileKeys) {
+    // Read raw weekly stats (CSV) from S3
+    try {
+      const buf = await readBinaryFile(repoStatS3Key);
+      if (!buf) {
+        if (VERBOSE) console.warn(`[DataAccess-S3] Aggregation: No data in ${repoStatS3Key}, skipping.`);
         overallDataComplete = false;
-        if (VERBOSE) console.log(`[DataAccess] Aggregation: Repo ${repoStatFilename} data is status '${repoData.status}', marking overall as incomplete.`);
-      }
-      // Only skip if the status is not 'complete' or 'empty_no_user_contribs'
-      if (repoData.status === 'pending_202_from_api' || repoData.status === 'fetch_error') {
-         if (VERBOSE) console.log(`[DataAccess] Aggregation: Skipping repo ${repoStatFilename} due to status: ${repoData.status}.`);
         continue;
       }
-    }
-
-    if (repoData.stats && repoData.stats.length > 0) {
-      for (const week of repoData.stats) {
-        const weekStartDate = new Date(week.w * 1000);
-        // Only include weeks within the last year for this aggregation
-        if (weekStartDate >= oneYearAgo && weekStartDate <= today) {
-          const weekKey = weekStartDate.toISOString().split('T')[0];
-          // Ensure the key exists in the object
-          if (!weeklyTotals[weekKey as keyof typeof weeklyTotals]) {
-            weeklyTotals[weekKey as keyof typeof weeklyTotals] = { added: 0, removed: 0 };
-          }
-          // Use a non-null assertion since we just ensured the key exists
-          const totals = weeklyTotals[weekKey as keyof typeof weeklyTotals];
-          totals.added += week.a || 0; // Ensure undefined is treated as 0
-          totals.removed += week.d || 0; // Ensure undefined is treated as 0
-        }
+      const lines = buf.toString('utf-8').split('\n').filter(Boolean);
+      for (const line of lines) {
+        const [w,a,d] = line.split(',');
+        const weekDate = new Date(Number(w) * 1000);
+        if (weekDate > today) continue;
+        const weekKey = weekDate.toISOString().split('T')[0];
+        if (!weeklyTotals[weekKey]) weeklyTotals[weekKey] = { added: 0, removed: 0 };
+        weeklyTotals[weekKey].added += Number(a) || 0;
+        weeklyTotals[weekKey].removed += Number(d) || 0;
       }
-    } else if (VERBOSE && repoData.status === 'complete') {
-        // This case means status is 'complete' but stats array is empty or null.
-        console.log(`[DataAccess] Aggregation: Repo ${repoStatFilename} has 'complete' status but no stats data to process.`);
+    } catch (err) {
+      if (VERBOSE) console.warn(`[DataAccess-S3] Aggregation: Error reading ${repoStatS3Key}, skipping.`, err);
+      overallDataComplete = false;
+      continue;
     }
   }
 
-  if (VERBOSE) console.log(`[DataAccess] Aggregation: Processed ${statFiles.filter(f => f.endsWith('.json')).length} potential JSON files from ${REPO_RAW_WEEKLY_STATS_DIR}.`);
+  if (VERBOSE) console.log(`[DataAccess-S3] Aggregation: Processed ${s3StatFileKeys.length} S3 stat files from ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}.`);
 
   const aggregatedActivity: AggregatedWeeklyActivity[] = Object.entries(weeklyTotals)
     .map(([weekStartDate, totals]) => ({
@@ -960,7 +1021,44 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ agg
     }))
     .sort((a, b) => new Date(a.weekStartDate).getTime() - new Date(b.weekStartDate).getTime());
 
-  await writeJsonFile(AGGREGATED_WEEKLY_ACTIVITY_FILE, aggregatedActivity);
-  console.log(`[DataAccess] Aggregated weekly activity calculated and stored to ${AGGREGATED_WEEKLY_ACTIVITY_FILE}. Total weeks aggregated: ${aggregatedActivity.length}. Overall data complete: ${overallDataComplete}`);
+  await writeJsonFile(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, aggregatedActivity);
+  console.log(`[DataAccess-S3] Aggregated weekly activity calculated and stored to ${AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE}. Total weeks aggregated: ${aggregatedActivity.length}. Overall data complete: ${overallDataComplete}`);
   return { aggregatedActivity, overallDataComplete };
 }
+
+/**
+ * Determines if an image is SVG and processes it accordingly
+ * @param buffer The image buffer
+ * @returns Object with processed buffer, whether it's SVG, and appropriate content type
+ */
+async function processImageBuffer(buffer: Buffer): Promise<{
+  processedBuffer: Buffer;
+  isSvg: boolean;
+  contentType: string
+}> {
+  try {
+    const metadata = await sharp(buffer).metadata();
+    const isSvg = metadata.format === 'svg';
+    const contentType = isSvg ? 'image/svg+xml' : 'image/png';
+    const processedBuffer = isSvg ? buffer : await sharp(buffer).png().toBuffer();
+    return { processedBuffer, isSvg, contentType };
+  } catch (error: unknown) {
+    // Fallback for unsupported or dummy image data
+    console.warn(`[DataAccess] processImageBuffer fallback for buffer: ${String(error)}`);
+    return { processedBuffer: buffer, isSvg: false, contentType: 'image/png' };
+  }
+}
+
+/**
+ * Serves a logo from S3 only, without external fetch. Used for API routes to avoid direct external calls.
+ * @param domain Domain name for the logo.
+ * @returns Buffer, source, and contentType if found, otherwise null.
+ */
+export async function serveLogoFromS3(domain: string): Promise<{ buffer: Buffer; source: LogoSource; contentType: string } | null> {
+  const s3Logo = await findLogoInS3(domain);
+  if (!s3Logo) return null;
+  const { buffer, source } = s3Logo;
+  const { processedBuffer, contentType } = await processImageBuffer(buffer);
+  return { buffer: processedBuffer, source, contentType };
+}
+

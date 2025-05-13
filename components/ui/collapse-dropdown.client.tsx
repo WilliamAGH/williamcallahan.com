@@ -164,6 +164,8 @@ interface CollapseDropdownProps {
   contentClassName?: string;
   defaultOpen?: boolean;
   id?: string;
+  // Allow nested flag to adjust styling specifically for nested dropdowns
+  isNested?: boolean;
 }
 
 export function CollapseDropdown({
@@ -173,7 +175,8 @@ export function CollapseDropdown({
   summaryClassName = '',
   contentClassName = '',
   defaultOpen = false,
-  id: providedId
+  id: providedId,
+  isNested = false
 }: CollapseDropdownProps): JSX.Element {
   const detailsRef = useRef<HTMLDetailsElement>(null);
 
@@ -232,16 +235,21 @@ export function CollapseDropdown({
         <span className="flex-grow">{summary}</span>
       </summary>
       <div className={cn(
-        "ml-6 mt-4 mb-4",
+        "ml-6 mt-4 mb-4 px-4 pb-2", // Added px-4 padding horizontally and pb-2 at bottom
         "prose prose-sm dark:prose-invert max-w-none",
         "overflow-visible",
-        "[&_code]:text-sm [&_code]:break-words [&_code]:whitespace-normal",
+        "[&_code]:text-base [&_code]:break-words [&_code]:whitespace-normal", // Updated text-sm to text-base
+        "[&_a]:text-blue-600 [&_a]:dark:text-blue-400 [&_a]:underline [&_a]:font-medium", // Fixed link styling
+        "[&_a:hover]:text-blue-500 [&_a:hover]:dark:text-blue-300 [&_a:hover]:no-underline", // Fixed hover state
         "[&_a>code]:text-blue-600 dark:[&_a>code]:text-blue-400",
         "[&_a>code]:bg-transparent dark:[&_a>code]:bg-transparent",
         "[&_a>code]:px-0 [&_a>code]:py-0",
         "[&_a:hover>code]:text-blue-500 dark:[&_a:hover>code]:text-blue-300",
         "[&_pre]:overflow-x-auto [&_pre]:my-2",
         "[&_ul]:pl-5 [&_li]:ml-0 [&_li]:my-1",
+        "[&_p]:text-base [&_div]:text-base", // Added consistent 16px text size
+        // Apply extra styling for nested dropdowns
+        isNested && "!ml-2 !mt-2", 
         contentClassName
       )}>
         {children}
