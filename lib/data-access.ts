@@ -229,8 +229,8 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
     if (externalBookmarks && externalBookmarks.length > 0) {
       console.log(`[DataAccess] Fetched ${externalBookmarks.length} bookmarks externally. Writing to S3 and caching.`);
       const bookmarksWriter = bookmarksFile.writer();
-      void bookmarksWriter.write(JSON.stringify(externalBookmarks));
-      void bookmarksWriter.end();
+      bookmarksWriter.write(JSON.stringify(externalBookmarks)); // No await, it's synchronous
+      await bookmarksWriter.end(); // Await this, it's asynchronous
       ServerCacheInstance.setBookmarks(externalBookmarks);
       return externalBookmarks;
     } else if (s3Bookmarks && s3Bookmarks.length > 0) {
@@ -605,8 +605,8 @@ async function fetchExternalGithubActivity(): Promise<{trailingYearData: RawGitH
   try {
     const activityFile = s3Client.file(GITHUB_ACTIVITY_S3_KEY_FILE);
     const activityWriter = activityFile.writer();
-    void activityWriter.write(JSON.stringify(trailingYearData)); // Save only trailing year raw data with calendar
-    void activityWriter.end();
+    activityWriter.write(JSON.stringify(trailingYearData)); // No await, it's synchronous
+    await activityWriter.end(); // Await this, it's asynchronous
     if (VERBOSE) console.log(`[DataAccess-S3] Trailing year raw activity data (with calendar) saved to ${GITHUB_ACTIVITY_S3_KEY_FILE}`);
   } catch (writeError) { console.error(`[DataAccess-S3] Error writing trailing year activity data to ${GITHUB_ACTIVITY_S3_KEY_FILE}:`, writeError); }
 
