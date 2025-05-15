@@ -177,6 +177,7 @@ const nextConfig = {
   output: 'standalone',
   poweredByHeader: false,
   reactStrictMode: true,
+  productionBrowserSourceMaps: true, // Explicitly enable production source maps
   // Next.js 15 uses SWC by default; swcMinify option is no longer needed
   // Add transpilePackages to handle ESM packages and instrumentation packages
   transpilePackages: [
@@ -188,6 +189,11 @@ const nextConfig = {
     '@opentelemetry/api',
     'require-in-the-middle'
   ],
+  experimental: {
+    taint: true,
+    serverMinification: true,
+    webpackBuildWorker: true,
+  },
   /**
    * Image optimization configuration
    * @see https://nextjs.org/docs/app/api-reference/components/image
@@ -318,34 +324,25 @@ const nextConfig = {
   }
 };
 
-export default withSentryConfig(nextConfig, {
-// For all available options, see:
-// https://www.npmjs.com/package/@sentry/webpack-plugin#options
+const sentryWebpackPluginOptions = {
+  // Additional config options for Sentry Webpack plugin.
+  // Essential: org, project, and SENTRY_AUTH_TOKEN (via env var) must be available.
+  silent: process.env.SENTRY_SILENT_OUTPUT === 'true', // Example: use env var to control verbosity
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  release: { name: process.env.NEXT_PUBLIC_APP_VERSION }, // Set release name correctly
+  // For all available options, see:
+  // https://github.com/getsentry/sentry-webpack-plugin#options.
+  widenClientFileUpload: true, // Uploads more sourcemaps for client-side code
+};
 
-org: "williamcallahan-com", // Updated org name
-project: "javascript-nextjs",
-
-// Only print logs for uploading source maps in CI
-silent: !process.env.CI,
-
-// For all available options, see:
+// Configure Content Security Policy
+// ... existing code ...
+// Ensure this is the last line related to Sentry configuration
+// Make sure to an Sentry Webpack plugin to Node SDK options to allow for source map uploads to Sentry.
+// For more information, see the Sentry documentation:
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
-
-// Upload a larger set of source maps for prettier stack traces (increases build time)
-widenClientFileUpload: true,
-
-// Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
-// This can increase your server load as well as your hosting bill.
-// Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
-// side errors will fail.
-// tunnelRoute: "/monitoring", // Disabled: Requires a matching API route handler (e.g., app/api/monitoring/route.ts)
-
-// Automatically tree-shake Sentry logger statements to reduce bundle size
-disableLogger: true,
-
-// Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-// See the following for more information:
-// https://docs.sentry.io/product/crons/
-// https://vercel.com/docs/cron-jobs
-automaticVercelMonitors: true,
-});
+export default withSentryConfig(
+  nextConfig, // Assuming nextConfig is your final config object before Sentry
+  sentryWebpackPluginOptions
+);
