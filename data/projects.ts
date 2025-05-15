@@ -40,7 +40,7 @@ export const projects: Project[] = [
     name: 'Book Finder (findmybook.net)',
     description: 'A Java Spring Boot application that allows users to search for almost any book ever written and receive personalized book recommendations. It integrates with the Google Books API for extensive book data and OpenAI for generating recommendations. The application features a web interface built with Thymeleaf and HTMX, and supports PostgreSQL for data persistence and Spring Session for session management. It includes robust logging and can be deployed via Docker or directly to cloud environments.',
     shortSummary: 'Java-based book search and recommendation engine with OpenAI integration',
-    url: 'https://book-recommendation-engine.williamcallahan.com/',
+    url: 'https://findmybook.net/',
     image: '/images/book-finder-findmybook-net.png',
     tags: ['Java', 'Spring Boot', 'Spring AI', 'OpenAI', 'Google Books API', 'Thymeleaf', 'HTMX', 'PostgreSQL', 'Docker', 'Web App', 'Book Recommendation'],
   },
