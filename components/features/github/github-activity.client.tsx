@@ -18,12 +18,12 @@ const GITHUB_PROFILE_URL = "https://github.com/williamagh/";
 // Function to map contribution level to Tailwind CSS background color
 const getLevelColor = (level: number): string => {
   switch (level) {
-    case 0: return 'bg-gray-100 dark:bg-gray-800'; // No contributions
+    case 0: return 'bg-gray-200 dark:bg-gray-800'; // No contributions
     case 1: return 'bg-green-200 dark:bg-green-900'; // Low contributions
     case 2: return 'bg-green-400 dark:bg-green-700'; // Medium contributions
     case 3: return 'bg-green-600 dark:bg-green-500'; // High contributions
     case 4: return 'bg-green-800 dark:bg-green-300'; // Very high contributions
-    default: return 'bg-gray-100 dark:bg-gray-800';
+    default: return 'bg-gray-200 dark:bg-gray-800';
   }
 };
 
@@ -336,7 +336,7 @@ const GitHubActivity = () => {
         {activityData.map((day) => (
           <div
             key={day.date}
-            className={`w-3 h-3 rounded-sm ${getLevelColor(day.level)}`}
+            className={`w-3 h-3 rounded hover:opacity-80 transition-opacity ${getLevelColor(day.level)}`}
             title={`${day.count} contributions on ${day.date}`}
           />
         ))}
@@ -467,21 +467,37 @@ const GitHubActivity = () => {
           />
         </div>
       </div>
-      <p className="text-xs text-muted-foreground mt-2 text-right">
-        <a
-          href="https://github.com/williamagh/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-blue-500 transition-colors"
-          aria-label="View William Callahan's GitHub contribution history"
-          title="View William Callahan's GitHub profile"
-        >
-          Last 365 days through {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-          {totalContributions && !isLoading && !error && activityData.length > 0 && (
-            <span className="ml-1">• {totalContributions.toLocaleString()} total contributions</span>
-          )}
-        </a>
-      </p>
+      <div className="flex justify-between items-center mt-2">
+        {/* Legend */}
+        <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+          <span>Less</span>
+          <div className="flex space-x-1">
+            <div className={`w-3 h-3 rounded ${getLevelColor(0)}`}></div>
+            <div className={`w-3 h-3 rounded ${getLevelColor(1)}`}></div>
+            <div className={`w-3 h-3 rounded ${getLevelColor(2)}`}></div>
+            <div className={`w-3 h-3 rounded ${getLevelColor(3)}`}></div>
+            <div className={`w-3 h-3 rounded ${getLevelColor(4)}`}></div>
+          </div>
+          <span>More</span>
+        </div>
+
+        {/* Date range info */}
+        <p className="text-xs text-muted-foreground text-right">
+          <a
+            href="https://github.com/williamagh/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-blue-500 transition-colors"
+            aria-label="View William Callahan's GitHub contribution history"
+            title="View William Callahan's GitHub profile"
+          >
+            Last 365 days through {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            {totalContributions && !isLoading && !error && activityData.length > 0 && (
+              <span className="ml-1">• {totalContributions.toLocaleString()} total contributions</span>
+            )}
+          </a>
+        </p>
+      </div>
     </div>
   );
 };
