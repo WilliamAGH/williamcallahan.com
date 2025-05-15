@@ -28,7 +28,15 @@ export const projects: Project[] = [
     image: '/images/posts/filey-flag-deprecated-files.png',
     tags: ['VS Code', 'Visual Studio Code', 'Cursor', 'Windsurf', 'TypeScript', 'Files', 'Extension', 'Flag Deprecation','IDE'],
   },
-    {
+  {
+    name: 'SearchAI',
+    description: 'A web application that combines traditional web search with an AI-powered chat assistant. Users can perform searches, review selected context from the results, and then engage in a conversation with AI (e.g., OpenAI\'s GPT models, Groq, Gemini, etc.) that utilizes this context to provide more relevant and informed responses.',
+    shortSummary: 'AI-powered web search with a contextual chat assistant',
+    url: 'https://search-ai.io',
+    image: '/images/searchAI.png',
+    tags: ['AI', 'Web Search', 'Chat Assistant', 'OpenAI', 'GPT', 'RAG', 'Contextual Search', 'Web App', 'Groq'],
+  },
+  {
     name: 'Book Finder (findmybook.net)',
     description: 'A Java Spring Boot application that allows users to search for almost any book ever written and receive personalized book recommendations. It integrates with the Google Books API for extensive book data and OpenAI for generating recommendations. The application features a web interface built with Thymeleaf and HTMX, and supports PostgreSQL for data persistence and Spring Session for session management. It includes robust logging and can be deployed via Docker or directly to cloud environments.',
     shortSummary: 'Java-based book search and recommendation engine with OpenAI integration',
