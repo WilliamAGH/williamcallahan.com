@@ -15,7 +15,7 @@ import {
 import { Readable } from 'stream';
 
 // Environment variables for S3 configuration
-const S3_BUCKET_NAME = process.env.S3_BUCKET;
+const S3_BUCKET = process.env.S3_BUCKET;
 const S3_ENDPOINT_URL = process.env.S3_SERVER_URL; // For S3-compatible services like DigitalOcean Spaces
 const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
 const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
@@ -23,14 +23,14 @@ const S3_REGION = process.env.AWS_REGION || 'us-east-1'; // Default region, can 
 const VERBOSE = process.env.VERBOSE === 'true' || false; // Added for logging consistency
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
-if (!S3_BUCKET_NAME || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
+if (!S3_BUCKET || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
   console.warn(
     '[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3 operations may fail.'
   );
 }
 
 export const s3Client: S3Client | null =
-  S3_BUCKET_NAME && S3_ENDPOINT_URL && S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY
+  S3_BUCKET && S3_ENDPOINT_URL && S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY
     ? new S3Client({
         endpoint: S3_ENDPOINT_URL,
         region: S3_REGION,
@@ -55,8 +55,8 @@ export async function readFromS3(
     if (VERBOSE) console.log(`[S3Utils][DRY RUN] Would read from S3 key ${key}${options?.range ? ' with range ' + options.range : ''}`);
     return null;
   }
-  if (!S3_BUCKET_NAME) {
-    console.error('[S3Utils] S3_BUCKET_NAME is not configured. Cannot read from S3.');
+  if (!S3_BUCKET) {
+    console.error('[S3Utils] S3_BUCKET is not configured. Cannot read from S3.');
     return null;
   }
   if (!s3Client) {
@@ -64,7 +64,7 @@ export async function readFromS3(
     return null;
   }
   const command = new GetObjectCommand({
-    Bucket: S3_BUCKET_NAME,
+    Bucket: S3_BUCKET,
     Key: key,
     Range: options?.range, // Pass range option if provided
   });
@@ -100,8 +100,8 @@ export async function readFromS3(
  * @param contentType The MIME type of the content.
  */
 export async function writeToS3(key: string, data: Buffer | string, contentType?: string): Promise<void> {
-  if (!S3_BUCKET_NAME) {
-    console.error('[S3Utils] S3_BUCKET_NAME is not configured. Cannot write to S3.');
+  if (!S3_BUCKET) {
+    console.error('[S3Utils] S3_BUCKET is not configured. Cannot write to S3.');
     return;
   }
   if (!s3Client) {
@@ -109,7 +109,7 @@ export async function writeToS3(key: string, data: Buffer | string, contentType?
     return;
   }
   const command = new PutObjectCommand({
-    Bucket: S3_BUCKET_NAME,
+    Bucket: S3_BUCKET,
     Key: key,
     Body: data,
     ContentType: contentType,
@@ -132,8 +132,8 @@ export async function writeToS3(key: string, data: Buffer | string, contentType?
  * @returns True if the object exists, false otherwise.
  */
 export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
-  if (!S3_BUCKET_NAME) {
-    console.error('[S3Utils] S3_BUCKET_NAME is not configured. Cannot check S3 object existence.');
+  if (!S3_BUCKET) {
+    console.error('[S3Utils] S3_BUCKET is not configured. Cannot check S3 object existence.');
     return false;
   }
   if (!s3Client) {
@@ -141,7 +141,7 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
     return false;
   }
   const command = new HeadObjectCommand({
-    Bucket: S3_BUCKET_NAME,
+    Bucket: S3_BUCKET,
     Key: key,
   });
 
@@ -167,8 +167,8 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
  * @returns Object metadata (ETag, LastModified) or null if not found or error.
  */
 export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string; LastModified?: Date } | null> {
-  if (!S3_BUCKET_NAME) {
-    console.error('[S3Utils] S3_BUCKET_NAME is not configured. Cannot get S3 object metadata.');
+  if (!S3_BUCKET) {
+    console.error('[S3Utils] S3_BUCKET is not configured. Cannot get S3 object metadata.');
     return null;
   }
   if (!s3Client) {
@@ -176,7 +176,7 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
     return null;
   }
   const command = new HeadObjectCommand({
-    Bucket: S3_BUCKET_NAME,
+    Bucket: S3_BUCKET,
     Key: key,
   });
 
@@ -205,8 +205,8 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
  * @returns An array of object keys, or an empty array if error or no objects.
  */
 export async function listS3Objects(prefix: string): Promise<string[]> {
-  if (!S3_BUCKET_NAME) {
-    console.error('[S3Utils] S3_BUCKET_NAME is not configured. Cannot list S3 objects.');
+  if (!S3_BUCKET) {
+    console.error('[S3Utils] S3_BUCKET is not configured. Cannot list S3 objects.');
     return [];
   }
   if (!s3Client) {
@@ -219,7 +219,7 @@ export async function listS3Objects(prefix: string): Promise<string[]> {
   try {
     do {
       const command = new ListObjectsV2Command({
-        Bucket: S3_BUCKET_NAME,
+        Bucket: S3_BUCKET,
         Prefix: prefix,
         ContinuationToken: continuationToken,
       });
@@ -246,8 +246,8 @@ export async function listS3Objects(prefix: string): Promise<string[]> {
  * @param key The S3 object key to delete.
  */
 export async function deleteFromS3(key: string): Promise<void> {
-  if (!S3_BUCKET_NAME) {
-    console.error('[S3Utils] S3_BUCKET_NAME is not configured. Cannot delete from S3.');
+  if (!S3_BUCKET) {
+    console.error('[S3Utils] S3_BUCKET is not configured. Cannot delete from S3.');
     return;
   }
   if (!s3Client) {
@@ -255,7 +255,7 @@ export async function deleteFromS3(key: string): Promise<void> {
     return;
   }
   const command = new DeleteObjectCommand({
-    Bucket: S3_BUCKET_NAME,
+    Bucket: S3_BUCKET,
     Key: key,
   });
 
@@ -314,7 +314,7 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
 export async function writeJsonS3<T>(s3Key: string, data: T): Promise<void> {
   // Check for DRY_RUN environment variable
   if (process.env.DRY_RUN === 'true') {
-    console.log(`[S3Utils][DRY RUN] Would write JSON to S3 bucket '${S3_BUCKET_NAME}', path: ${s3Key}`);
+    console.log(`[S3Utils][DRY RUN] Would write JSON to S3 bucket '${S3_BUCKET}', path: ${s3Key}`);
     // Optionally log a snippet of the data for verification, being mindful of size/sensitivity
     // console.log(`[S3Utils][DRY RUN] Data snippet: ${JSON.stringify(data).substring(0, 100)}...`);
     return; // Skip actual S3 write
@@ -363,7 +363,7 @@ export async function readBinaryS3(s3Key: string): Promise<Buffer | null> {
 export async function writeBinaryS3(s3Key: string, data: Buffer, contentType: string): Promise<void> {
   // Check for DRY_RUN environment variable
   if (process.env.DRY_RUN === 'true') {
-    console.log(`[S3Utils][DRY RUN] Would write binary file (${contentType}, size: ${data.length} bytes) to S3 bucket '${S3_BUCKET_NAME}', path: ${s3Key}`);
+    console.log(`[S3Utils][DRY RUN] Would write binary file (${contentType}, size: ${data.length} bytes) to S3 bucket '${S3_BUCKET}', path: ${s3Key}`);
     return; // Skip actual S3 write
   }
 

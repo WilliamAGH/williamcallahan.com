@@ -6,7 +6,7 @@ import path from 'node:path';
 // Path to the script relative to the project root
 const SCRIPT_PATH = path.join(import.meta.dir, '../../scripts/update-s3-data.ts');
 // S3 Bucket name from environment for log verification
-const S3_BUCKET_NAME = process.env.S3_BUCKET || 'default-bucket-not-set'; // Use actual bucket name if possible
+const S3_BUCKET = process.env.S3_BUCKET || 'default-bucket-not-set'; // Use actual bucket name if possible
 
 describe('scripts/update-s3-data.ts - Dry Run Smoke Test', () => {
 
@@ -45,8 +45,8 @@ describe('scripts/update-s3-data.ts - Dry Run Smoke Test', () => {
     // These confirm that the write functions correctly identified the dry run mode.
     // We expect at least one of these if the script logic determines a write should happen.
     // Note: If no data needed updating, these logs might not appear, which is also valid.
-    const dryRunJsonLogPattern = new RegExp(`\\[S3Utils\\]\\[DRY RUN\\] Would write JSON to S3 bucket '${S3_BUCKET_NAME}', path: data/`);
-    const dryRunBinaryLogPattern = new RegExp(`\\[S3Utils\\]\\[DRY RUN\\] Would write binary file .* to S3 bucket '${S3_BUCKET_NAME}', path: data/`);
+    const dryRunJsonLogPattern = new RegExp(`\\[S3Utils\\]\\[DRY RUN\\] Would write JSON to S3 bucket '${S3_BUCKET}', path: data/`);
+    const dryRunBinaryLogPattern = new RegExp(`\\[S3Utils\\]\\[DRY RUN\\] Would write binary file .* to S3 bucket '${S3_BUCKET}', path: data/`);
 
     // Check if *any* dry run log appeared (more robust than checking for specific files)
     const foundDryRunLog = dryRunJsonLogPattern.test(stdout) || dryRunBinaryLogPattern.test(stdout);
