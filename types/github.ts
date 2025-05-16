@@ -15,8 +15,9 @@ export interface ContributionDay {
 
 /**
  * Raw GitHub activity shape returned by getGithubActivity (flat structure)
+ * This represents the structure of the primary GitHub activity file stored in S3.
  */
-export interface RawGitHubActivityApiResponse {
+export interface StoredGithubActivityS3 {
   source: 'scraping' | 'api' | 'api_multi_file_cache';
   data: ContributionDay[];
   totalContributions: number;
@@ -25,12 +26,13 @@ export interface RawGitHubActivityApiResponse {
   dataComplete?: boolean;
   error?: string;
   details?: string;
+  allTimeTotalContributions?: number;
 }
 
 /**
  * Represents a segment of GitHub activity data with optional summary
  */
-export interface GitHubActivitySegment extends RawGitHubActivityApiResponse {
+export interface GitHubActivitySegment extends StoredGithubActivityS3 {
   /** Summary activity for this period */
   summaryActivity?: GitHubActivitySummary;
 }
@@ -134,4 +136,24 @@ export interface GithubContributorStatsEntry {
   weeks: RepoRawWeeklyStat[];
   total?: number; // Total commits for this contributor in this repo
   // Add other fields if available/needed
+}
+
+/**
+ * Represents the structured view of user GitHub activity, returned by functions like getGithubActivity.
+ * This is what components and scripts like populate-volumes.ts will consume.
+ */
+export interface UserActivityView {
+  source: 's3-cache' | 'api-fallback' | 'error' | 'empty';
+  error?: string;
+  trailingYearData: {
+    data: ContributionDay[];
+    totalContributions: number;
+    dataComplete: boolean;
+  };
+  allTimeStats: {
+    totalContributions: number;
+    linesAdded: number;
+    linesRemoved: number;
+  };
+  lastRefreshed?: string;
 }

@@ -8,9 +8,10 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import type { ContributionDay, GitHubActivityApiResponse } from '@/types/github'; // Import types
-import { RefreshCw, Plus, Minus, Code } from 'lucide-react'; // Import icons
+import React, { useState, useEffect, useRef } from 'react';
+import type { ContributionDay, UserActivityView } from '@/types/github';
+import { RefreshCw, Code } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 // GitHub profile URL
 const GITHUB_PROFILE_URL = "https://github.com/williamagh/";
@@ -18,102 +19,13 @@ const GITHUB_PROFILE_URL = "https://github.com/williamagh/";
 // Function to map contribution level to Tailwind CSS background color
 const getLevelColor = (level: number): string => {
   switch (level) {
-    case 0: return 'bg-gray-200 dark:bg-gray-800'; // No contributions
-    case 1: return 'bg-green-200 dark:bg-green-900'; // Low contributions
-    case 2: return 'bg-green-400 dark:bg-green-700'; // Medium contributions
-    case 3: return 'bg-green-600 dark:bg-green-500'; // High contributions
-    case 4: return 'bg-green-800 dark:bg-green-300'; // Very high contributions
+    case 0: return 'bg-gray-200 dark:bg-gray-800';
+    case 1: return 'bg-green-200 dark:bg-green-900';
+    case 2: return 'bg-green-400 dark:bg-green-700';
+    case 3: return 'bg-green-600 dark:bg-green-500';
+    case 4: return 'bg-green-800 dark:bg-green-300';
     default: return 'bg-gray-200 dark:bg-gray-800';
   }
-};
-
-// Component to display lines of code metrics
-const CodeMetrics: React.FC<{
-  linesAdded: number | null;
-  linesRemoved: number | null;
-  isLoading: boolean;
-  dataComplete: boolean;
-}> = ({ linesAdded, linesRemoved, isLoading, dataComplete }) => {
-  if (isLoading || linesAdded === null || linesRemoved === null) {
-    return null;
-  }
-
-  // Calculate percentages for visualization
-  const total = Math.max(linesAdded + linesRemoved, 1); // Avoid division by zero
-  const addedPercent = (linesAdded / total) * 100;
-  const removedPercent = (linesRemoved / total) * 100;
-
-  return (
-    <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-      <div className="flex items-center mb-2">
-        <Code size={18} className="text-blue-500 mr-2" />
-        <h3 className="text-base font-semibold">Code Impact</h3>
-        {!dataComplete && (
-          <div className="ml-auto flex items-center text-yellow-600 dark:text-yellow-500 text-xs font-medium">
-            <RefreshCw size={12} className="mr-1" />
-            Partial data
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-col space-y-3">
-        {/* Visual bar representation */}
-        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex">
-          <div
-            className="bg-gradient-to-r from-green-400 to-green-600 dark:from-green-600 dark:to-green-400 h-full transition-all duration-1000 ease-out"
-            style={{ width: `${addedPercent}%` }}
-          />
-          <div
-            className="bg-gradient-to-r from-red-400 to-red-600 dark:from-red-600 dark:to-red-400 h-full transition-all duration-1000 ease-out"
-            style={{ width: `${removedPercent}%` }}
-          />
-        </div>
-
-        {/* Metrics with animations */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 group hover:border-green-300 dark:hover:border-green-700 transition-colors">
-            <div className="flex items-center text-green-600 dark:text-green-400 mb-1">
-              <Plus size={16} className="mr-1 group-hover:animate-bounce" />
-              <span className="text-xs uppercase font-medium">Added</span>
-            </div>
-            <div className="flex items-baseline">
-              <span className="text-xl font-bold group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                {linesAdded.toLocaleString()}
-              </span>
-              <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">lines</span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 group hover:border-red-300 dark:hover:border-red-700 transition-colors">
-            <div className="flex items-center text-red-600 dark:text-red-400 mb-1">
-              <Minus size={16} className="mr-1 group-hover:animate-bounce" />
-              <span className="text-xs uppercase font-medium">Removed</span>
-            </div>
-            <div className="flex items-baseline">
-              <span className="text-xl font-bold group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
-                {linesRemoved.toLocaleString()}
-              </span>
-              <span className="ml-1 text-xs text-gray-500 dark:text-gray-400">lines</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Net change */}
-        <div className="flex justify-center items-center py-2">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Net change: </span>
-          <span className={`ml-1 text-sm font-medium ${linesAdded > linesRemoved ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            {linesAdded > linesRemoved ? '+' : ''}{(linesAdded - linesRemoved).toLocaleString()} lines
-          </span>
-        </div>
-
-        {!dataComplete && (
-          <div className="text-xs text-center text-yellow-600 dark:text-yellow-500 mt-2 italic">
-            Some repositories are still being processed. Refresh later for complete data.
-          </div>
-        )}
-      </div>
-    </div>
-  );
 };
 
 const GitHubActivity = () => {
@@ -125,108 +37,101 @@ const GitHubActivity = () => {
   const [linesAdded, setLinesAdded] = useState<number | null>(null);
   const [linesRemoved, setLinesRemoved] = useState<number | null>(null);
   const [dataComplete, setDataComplete] = useState<boolean>(true);
+  const [lastRefreshed, setLastRefreshed] = useState<string | null>(null);
 
-  // Ref to track if the initial fetch has been made (to handle Strict Mode double invocation)
-  const fetchInitiatedRef = React.useRef(false);
+  const fetchInitiatedRef = useRef(false);
 
-  // Function to navigate to GitHub profile
   const navigateToGitHub = () => {
     window.open(GITHUB_PROFILE_URL, '_blank', 'noopener,noreferrer');
   };
 
-  // Function to fetch data with optional refresh parameter
-  const fetchData = async (refresh = false, forceCache = false) => {
+  const fetchData = async (refresh = false) => {
     setIsLoading(true);
     setError(null);
-    if (refresh) {
-      setIsRefreshing(true);
-      console.log('[Client] Requesting GitHub data refresh from API. This may take a moment as it fetches fresh data from GitHub API.');
-    } else {
-      console.log('[Client] Fetching GitHub data from cache/S3. For fresh data, use the refresh button.');
-    }
 
     try {
-      let url = '/api/github-activity';
-      if (refresh) url += '?refresh=true';
-      if (forceCache) url += (refresh ? '&' : '?') + 'force-cache=true';
-
-      const response = await fetch(url);
-
-      // Always try to parse, but wrap to tolerate non-JSON error bodies
-      let result: GitHubActivityApiResponse;
-      try {
-        result = await response.json() as GitHubActivityApiResponse;
-      } catch (error) {
-        // Handle JSON parse error
-        const errorMessage = `Failed to parse API response: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        console.error('GitHub Activity API returned invalid JSON:', errorMessage);
-        setError(errorMessage);
-        setActivityData([]);
-        setTotalContributions(null);
-        setLinesAdded(null);
-        setLinesRemoved(null);
-        setDataComplete(false);
-        return; // Exit early
-      }
-
-      if (!response.ok || result.error) {
-        const errorMessage = result.error || `GitHub Activity API request failed with status ${response.status}`;
-        console.error('GitHub Activity API returned an error:', errorMessage, result.details);
-        setError(errorMessage);
-        setActivityData([]);
-        setTotalContributions(null);
-        setLinesAdded(null);
-        setLinesRemoved(null);
-        setDataComplete(false);
-        // Reset any specific summary states if you have them, e.g.:
-        // setTrailingYearSummaryDetails(null);
-        // setAllTimeSummaryDetails(null);
-        return; // Exit early
-      }
-
-      // Explicitly log the parts of the condition
-      console.log('[Client Debug] typeof result.trailingYearData:', typeof result.trailingYearData);
-      if (result.trailingYearData) {
-        console.log('[Client Debug] Array.isArray(result.trailingYearData.data):', Array.isArray(result.trailingYearData.data));
-        console.log('[Client Debug] result.trailingYearData.data itself:', result.trailingYearData.data);
-      }
-
-      if (result.trailingYearData && Array.isArray(result.trailingYearData.data)) {
-        setActivityData(result.trailingYearData.data);
-        // Use totalContributions from the raw segment for the main display
-        setTotalContributions(result.trailingYearData.totalContributions);
-        // Use linesAdded/Removed from the raw segment for the main display
-        setLinesAdded(result.trailingYearData.linesAdded ?? null);
-        setLinesRemoved(result.trailingYearData.linesRemoved ?? null);
-        setDataComplete(result.trailingYearData.dataComplete !== false);
-
-        // Log summary if present (client can decide how to display it)
-        if (result.trailingYearData.summaryActivity) {
-          console.log('[Client] Trailing year summary received:', result.trailingYearData.summaryActivity);
-          // Example: if you have a state for summary details:
-          // setTrailingYearSummaryDetails(result.trailingYearData.summaryActivity);
+      if (refresh) {
+        setIsRefreshing(true);
+        console.log('[Client] Requesting GitHub data refresh via POST /api/github-activity/refresh.');
+        const refreshResponse = await fetch('/api/github-activity/refresh', {
+          method: 'POST',
+        });
+        if (!refreshResponse.ok) {
+          let refreshErrorResult;
+          try {
+            refreshErrorResult = await refreshResponse.json();
+          } catch (e) { /* ignore */ }
+          const errorMessage = refreshErrorResult?.message || refreshErrorResult?.error || `Refresh request failed with status: ${refreshResponse.status}`;
+          console.error('[Client] GitHub data refresh POST request failed:', errorMessage);
+          setError(errorMessage);
+          // Continue to fetch existing data even if refresh POST fails
         } else {
-          console.warn('[Client] Trailing year summaryActivity is missing in API response.');
+          console.log('[Client] GitHub data refresh POST request successful.');
+        }
+      }
+
+      console.log(`[Client] Fetching GitHub data from GET /api/github-activity (${refresh ? 'after potential refresh' : 'initial load'}).`);
+      const response = await fetch('/api/github-activity');
+      let result: UserActivityView;
+
+      try {
+        result = await response.json() as UserActivityView;
+      } catch (parseError) {
+        const errorMessage = `Failed to parse API response from GET /api/github-activity: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`;
+        console.error(errorMessage);
+        setError(errorMessage);
+        setActivityData([]);
+        setTotalContributions(null);
+        setLinesAdded(null);
+        setLinesRemoved(null);
+        setDataComplete(false);
+        setLastRefreshed(null);
+        return;
+      }
+
+      if (!response.ok) {
+        const errorMsg = result?.error || `API request failed with status: ${response.status}`;
+        console.error('GitHub Activity GET API returned an error:', errorMsg);
+        setError(errorMsg);
+        setActivityData([]);
+        setTotalContributions(null);
+        setLinesAdded(null);
+        setLinesRemoved(null);
+        setDataComplete(result?.trailingYearData?.dataComplete ?? false);
+        setLastRefreshed(result?.lastRefreshed || null);
+        return;
+      }
+
+      if (result && result.trailingYearData) {
+        setActivityData(result.trailingYearData.data || []);
+        setTotalContributions(result.trailingYearData.totalContributions || 0);
+        setDataComplete(result.trailingYearData.dataComplete !== undefined ? result.trailingYearData.dataComplete : true);
+        setLastRefreshed(result.lastRefreshed || null);
+
+        if (result.allTimeStats) {
+          setLinesAdded(result.allTimeStats.linesAdded || 0);
+          setLinesRemoved(result.allTimeStats.linesRemoved || 0);
+          console.log('[Client] All-time stats received:', result.allTimeStats);
+        } else {
+          console.warn('[Client] All-time stats (result.allTimeStats) is missing in API response.');
+          setLinesAdded(null);
+          setLinesRemoved(null);
+        }
+
+        console.log('[Client] Trailing year activity data received:', result.trailingYearData);
+        if (result.lastRefreshed) {
+          console.log('[Client] Data last refreshed:', result.lastRefreshed);
         }
       } else {
-        console.error('[Client Error] Condition failed: result.trailingYearData && Array.isArray(result.trailingYearData.data). Full result object:', JSON.parse(JSON.stringify(result))); // Deep clone for logging
-        setError('Received empty or invalid data structure for calendar display.');
+        console.warn('[Client] GitHub activity data is missing or invalid in API response.');
+        setError('Received invalid or incomplete data from the server.');
         setActivityData([]);
-        setTotalContributions(result.trailingYearData?.totalContributions ?? null);
-        setLinesAdded(result.trailingYearData?.linesAdded ?? null);
-        setLinesRemoved(result.trailingYearData?.linesRemoved ?? null);
-        setDataComplete(result.trailingYearData?.dataComplete !== false);
+        setTotalContributions(null);
+        setLinesAdded(null);
+        setLinesRemoved(null);
+        setDataComplete(false);
+        setLastRefreshed(null);
       }
-
-      // Log all-time summary if present
-      if (result.cumulativeAllTimeData && result.cumulativeAllTimeData.summaryActivity) {
-        console.log('[Client] Cumulative all-time summary received:', result.cumulativeAllTimeData.summaryActivity);
-        // Example: if you have a state for all-time summary details:
-        // setAllTimeSummaryDetails(result.cumulativeAllTimeData.summaryActivity);
-      } else {
-        console.warn('[Client] Cumulative all-time summaryActivity is missing in API response.');
-      }
-
     } catch (err) {
       console.error('Failed to fetch or parse GitHub activity:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred while fetching data.');
@@ -234,144 +139,47 @@ const GitHubActivity = () => {
       setTotalContributions(null);
       setLinesAdded(null);
       setLinesRemoved(null);
-      // Preserve the last known completeness flag or default to false so UI can
-      // continue surfacing the "partial data" banner.
       setDataComplete(false);
+      setLastRefreshed(null);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
   };
 
-  // Handle refresh button click
   const handleRefresh = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent navigation to GitHub
+    e.stopPropagation();
     void fetchData(true);
   };
 
-  // Handle force cache button click
   const handleForceCache = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent navigation to GitHub
-    void fetchData(true, true);
+    e.stopPropagation();
+    console.log('[Client] Force cache button clicked, triggering a refresh.');
+    void fetchData(true);
   };
 
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      if (!fetchInitiatedRef.current) {
-        fetchInitiatedRef.current = true;
-        console.log('[Client useEffect] Development: Initial fetch triggered.');
-        void fetchData();
-      } else {
-        console.log('[Client useEffect] Development: StrictMode double-run, fetch already initiated, skipping.');
-      }
-    } else {
-      // Production: run fetch normally
-      console.log('[Client useEffect] Production: Initial fetch triggered.');
-      void fetchData();
-    }
-    // Cleanup function to reset ref if component unmounts (optional, but good practice for strict mode)
-    return () => {
-      if (process.env.NODE_ENV === 'development') {
-        // fetchInitiatedRef.current = false; // Reset if you want re-fetch on next mount in dev after HMR
-        // For a true one-time fetch per component lifecycle, don't reset here.
-        console.log('[Client useEffect] Development: Cleanup (Strict Mode unmount).');
-      }
-    };
-  }, []); // Empty dependency array means run on mount (and unmount due to StrictMode)
-
-  const renderGraph = () => {
-    if (isLoading && !isRefreshing) {
-      return (
-        <div
-          onClick={navigateToGitHub}
-          className="block text-center text-muted-foreground hover:text-blue-500 transition-colors cursor-pointer"
-          aria-label="View William Callahan's GitHub profile"
-          title="View William Callahan's GitHub profile"
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => e.key === 'Enter' && navigateToGitHub()}
-        >
-          Loading activity...
-        </div>
-      );
-    }
-    if (error) {
-      return (
-        <div
-          onClick={navigateToGitHub}
-          className="block text-center text-red-500 hover:text-red-400 transition-colors cursor-pointer"
-          aria-label="View William Callahan's GitHub profile"
-          title="View William Callahan's GitHub profile"
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => e.key === 'Enter' && navigateToGitHub()}
-        >
-          Error loading activity: {error}
-        </div>
-      );
-    }
-    if (activityData.length === 0) {
-      // Display total contributions if available, even if graph data is missing
-      const totalText = totalContributions ? ` (${totalContributions.toLocaleString()} total contributions found)` : '';
-      return (
-        <div
-          onClick={navigateToGitHub}
-          className="block text-center text-muted-foreground hover:text-blue-500 transition-colors cursor-pointer"
-          aria-label="View William Callahan's GitHub profile"
-          title="View William Callahan's GitHub profile"
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => e.key === 'Enter' && navigateToGitHub()}
-        >
-          Could not load contribution graph data.{totalText}
-        </div>
-      );
-    }
-
-    // Basic grid rendering - assumes data is roughly chronological
-    // A more sophisticated approach would parse dates and arrange into a proper calendar grid
-
-    return (
-      <div className="grid grid-flow-col grid-rows-7 gap-1 p-2 overflow-x-auto custom-scrollbar">
-        {activityData.map((day) => (
-          <div
-            key={day.date}
-            className={`w-3 h-3 rounded hover:opacity-80 transition-opacity ${getLevelColor(day.level)}`}
-            title={`${day.count} contributions on ${day.date}`}
-          />
-        ))}
-      </div>
-    );
-  };
+    if (fetchInitiatedRef.current) return;
+    fetchInitiatedRef.current = true;
+    void fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <div className="mt-8">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">
-          <a
-            href="https://github.com/williamagh/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-blue-500 transition-colors"
-            aria-label="View William Callahan's GitHub profile"
-          >
-            GitHub Activity
-          </a>
-        </h2>
+    <div className="bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-card cursor-pointer hover:shadow-card-hover transition-shadow" onClick={navigateToGitHub}>
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+          <Code size={20} className="mr-2 text-blue-500" /> GitHub Activity
+        </h3>
         <div className="flex space-x-2">
           {!dataComplete && !isRefreshing && (
             <button
               onClick={handleForceCache}
               className="p-1.5 rounded-full bg-yellow-100 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:hover:bg-yellow-900/50 transition-colors text-yellow-600 dark:text-yellow-500"
-              title="Force cache incomplete data"
-              aria-label="Force cache incomplete data"
+              title="Data incomplete. Click to attempt refresh."
+              aria-label="Refresh incomplete data"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 9V7.8c0-1.68 0-2.52-.327-3.162a3 3 0 0 0-1.311-1.311C16.72 3 15.88 3 14.2 3H9.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C5 5.28 5 6.12 5 7.8V16.2c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C7.28 21 8.12 21 9.8 21H16"></path>
-                <path d="M9 13h6"></path>
-                <path d="M12 10v6"></path>
-                <path d="M16 19h6"></path>
-              </svg>
+              <RefreshCw size={16} />
             </button>
           )}
           <button
@@ -388,116 +196,69 @@ const GitHubActivity = () => {
           </button>
         </div>
       </div>
-      <p className="text-muted-foreground mb-4">
-        Visualizing my recent coding activity, projects, and experiments from{' '}
-        <a
-          href="https://github.com/williamagh/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
-          aria-label="View William Callahan's GitHub profile"
-          title="View William Callahan's GitHub profile"
-        >
-          GitHub
-        </a>.
-      </p>
-      <div
-        onClick={navigateToGitHub}
-        className={`border rounded-lg bg-background overflow-hidden hover:border-blue-300 dark:hover:border-blue-700 transition-colors cursor-pointer ${isRefreshing ? 'opacity-70' : ''}`}
-        aria-label="View William Callahan's GitHub contribution activity"
-        title="View William Callahan's GitHub profile"
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && navigateToGitHub()}
-      >
-        <div className="p-2 sm:p-4">
-          {!dataComplete && !isRefreshing && (
-            <div className="mb-3 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/50 rounded-md text-sm text-yellow-700 dark:text-yellow-400">
-              <div className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path>
-                  <path d="M12 9v4"></path>
-                  <path d="M12 17h.01"></path>
-                </svg>
-                <span>
-                  Some repository statistics are still computing. Data shown may be incomplete.
+
+      {isLoading && (
+        <div className="flex justify-center items-center h-48">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <p className="ml-3 text-gray-600 dark:text-gray-400">Loading activity data...</p>
+        </div>
+      )}
+
+      {error && !isLoading && (
+        <div className="text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
+          <p>Error: {error}</p>
+          <p>Please try refreshing. If the problem persists, the data source might be temporarily unavailable.</p>
+        </div>
+      )}
+
+      {!isLoading && !error && (
+        <>
+          <ActivityCalendar data={activityData} dataComplete={dataComplete} />
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            {totalContributions !== null && (
+              <span>Total contributions (trailing year): {totalContributions}. </span>
+            )}
+            {linesAdded !== null && linesRemoved !== null && (
+              <span>LOC Change (all-time): <span className="text-green-600 dark:text-green-400">+{linesAdded}</span> / <span className="text-red-600 dark:text-red-400">-{linesRemoved}</span>. </span>
+            )}
+            {lastRefreshed && (
+                <span title={`Data last updated: ${new Date(lastRefreshed).toLocaleString()}`}>
+                    Last updated: {formatDistanceToNow(new Date(lastRefreshed), { addSuffix: true })}.
                 </span>
-              </div>
-              <div className="mt-1.5 flex gap-3 text-xs">
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleRefresh(e); }}
-                  className="flex items-center hover:text-yellow-800 dark:hover:text-yellow-300 transition-colors"
-                >
-                  <RefreshCw size={12} className="mr-1" />
-                  Try again
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleForceCache(e); }}
-                  className="flex items-center hover:text-yellow-800 dark:hover:text-yellow-300 transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-                    <path d="M19 9V7.8c0-1.68 0-2.52-.327-3.162a3 3 0 0 0-1.311-1.311C16.72 3 15.88 3 14.2 3H9.8c-1.68 0-2.52 0-3.162.327a3 3 0 0 0-1.311 1.311C5 5.28 5 6.12 5 7.8V16.2c0 1.68 0 2.52.327 3.162a3 3 0 0 0 1.311 1.311C7.28 21 8.12 21 9.8 21H16"></path>
-                    <path d="M9 13h6"></path>
-                    <path d="M12 10v6"></path>
-                    <path d="M16 19h6"></path>
-                  </svg>
-                  Force cache this data
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="overflow-x-auto custom-scrollbar pb-2">
-            {isRefreshing ? (
-              <div className="flex justify-center items-center py-10">
-                <RefreshCw size={24} className="animate-spin text-blue-500" />
-                <span className="ml-2 text-muted-foreground">Refreshing data...</span>
-              </div>
-            ) : (
-              renderGraph()
             )}
           </div>
+        </>
+      )}
+    </div>
+  );
+};
 
-          {/* Add the code metrics component */}
-          <CodeMetrics
-            linesAdded={linesAdded}
-            linesRemoved={linesRemoved}
-            isLoading={isLoading || isRefreshing}
-            dataComplete={dataComplete}
-          />
-        </div>
-      </div>
-      <div className="flex justify-between items-center mt-2">
-        {/* Legend */}
-        <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-          <span>Less</span>
-          <div className="flex space-x-1">
-            <div className={`w-3 h-3 rounded ${getLevelColor(0)}`}></div>
-            <div className={`w-3 h-3 rounded ${getLevelColor(1)}`}></div>
-            <div className={`w-3 h-3 rounded ${getLevelColor(2)}`}></div>
-            <div className={`w-3 h-3 rounded ${getLevelColor(3)}`}></div>
-            <div className={`w-3 h-3 rounded ${getLevelColor(4)}`}></div>
-          </div>
-          <span>More</span>
-        </div>
+interface ActivityCalendarProps {
+  data: ContributionDay[];
+  dataComplete: boolean;
+}
 
-        {/* Date range info */}
-        <p className="text-xs text-muted-foreground text-right">
-          <a
-            href="https://github.com/williamagh/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-blue-500 transition-colors"
-            aria-label="View William Callahan's GitHub contribution history"
-            title="View William Callahan's GitHub profile"
-          >
-            Last 365 days through {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-            {totalContributions && !isLoading && !error && activityData.length > 0 && (
-              <span className="ml-1">• {totalContributions.toLocaleString()} total contributions</span>
-            )}
-          </a>
-        </p>
-      </div>
+const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ data, dataComplete }) => {
+  if (!data || data.length === 0) {
+    return <div className="text-center text-gray-500 dark:text-gray-400 py-8">No activity data available.</div>;
+  }
+
+  return (
+    <div className="grid grid-cols-contribution-calendar gap-1 overflow-x-auto pb-2 relative">
+      {data.map((day, index) => (
+        <div
+          key={index}
+          className={`w-3 h-3 rounded-sm ${getLevelColor(day.level)}`}
+          title={`Date: ${day.date}\nCount: ${day.count}`}
+        />
+      ))}
+      {!dataComplete && (
+        <div className="absolute inset-0 bg-white/70 dark:bg-black/70 flex items-center justify-center backdrop-blur-sm">
+          <p className="text-xs text-yellow-700 dark:text-yellow-400 font-semibold p-2 bg-yellow-100 dark:bg-yellow-900/50 rounded">
+            Data may be incomplete. Refresh for latest.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

@@ -13,15 +13,23 @@ import type { UnifiedBookmark, BookmarkContent, BookmarkTag } from '../../types'
 const mockRefreshBookmarksDataFnGlobal = jest.fn();
 
 // Mock the entire '../../lib/bookmarks' module
-// This is to ensure data-access.ts uses our mocked refreshBookmarksData
-void mock.module('../../lib/bookmarks', () => { // No async here
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const actualBookmarksModule = require('../../lib/bookmarks.client'); // Use require for synchronous import in mock factory
+void mock.module('../../lib/bookmarks', () => {
+  const actualBookmarksModule = require('../../lib/bookmarks.client');
   return {
     ...actualBookmarksModule,
     refreshBookmarksData: mockRefreshBookmarksDataFnGlobal,
   };
 });
+
+// Mock for s3-utils.ts
+const mockReadJsonS3 = jest.fn();
+const mockWriteJsonS3 = jest.fn();
+// Add other s3-utils exports if they are used and need mocking by data-access.ts for these tests
+void mock.module('../../lib/s3-utils', () => ({
+  readJsonS3: mockReadJsonS3,
+  writeJsonS3: mockWriteJsonS3,
+  // Mock other exports from s3-utils if necessary, e.g., readBinaryS3, writeBinaryS3
+}));
 
 // Mock S3 client and its methods *before* data-access is imported
 const mockS3Writer = {
@@ -232,6 +240,9 @@ describe('Bookmarks Module', () => {
     mockS3File.json.mockClear();
     mockS3Writer.write.mockClear();
     mockS3Writer.end.mockClear();
+    // Clear the new s3-utils mocks
+    mockReadJsonS3.mockClear();
+    mockWriteJsonS3.mockClear();
 
     consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
     consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
@@ -462,47 +473,63 @@ describe('Bookmarks Module', () => {
   });
 
   it('should fetch from external, update S3, and cache when S3 is stale or different', async () => {
-    const oldS3Bookmarks: UnifiedBookmark[] = Array.from({ length: 20 }, (_, i) => ({
-      id: `s3-bookmark-${i + 1}`,
-      title: `Old S3 Bookmark ${i + 1}`,
-      url: `https://s3.example.com/old${i + 1}`,
-      description: 'Old S3 description',
-      tags: [],
-      createdAt: new Date().toISOString(),
-      dateBookmarked: new Date().toISOString(),
-      content: { type: 'link', url: `https://s3.example.com/old${i + 1}`, title: `Old S3 Bookmark ${i + 1}`, description: 'Old S3 description' },
-    }));
+    const initialS3Bookmarks: UnifiedBookmark[] = [{
+      id: 's3-bookmark', title: 'S3 Version', url: 'https://s3.example.com',
+      description: 'S3 main description',
+      createdAt: '2023-01-01T00:00:00Z', modifiedAt: '2023-01-01T00:00:00Z', dateBookmarked: '2023-01-01T00:00:00Z',
+      archived: false, favourited: false, taggingStatus: 'pending',
+      content: {type: 'link', title: 'S3 Version', url: 'https://s3.example.com', description: 'S3 content description'},
+      tags: [], assets: []
+    }];
+    const newApiBookmarks: UnifiedBookmark[] = [{
+      id: 'api-bookmark', title: 'API Version', url: 'https://api.example.com',
+      description: 'API main description',
+      createdAt: '2023-01-02T00:00:00Z', modifiedAt: '2023-01-02T00:00:00Z', dateBookmarked: '2023-01-02T00:00:00Z',
+      archived: false, favourited: false, taggingStatus: 'pending',
+      content: {type: 'link', title: 'API Version', url: 'https://api.example.com', description: 'API content description'},
+      tags: [], assets: []
+    }];
 
-    const newApiBookmarks: UnifiedBookmark[] = Array.from({ length: 28 }, (_, i) => ({
-      id: `api-bookmark-${i + 1}`,
-      title: `New API Bookmark ${i + 1}`,
-      url: `https://api.example.com/new${i + 1}`,
-      description: 'New API description',
-      tags: [{id: 'tag-new', name: 'new', attachedBy: 'user'}],
-      createdAt: new Date().toISOString(),
-      dateBookmarked: new Date().toISOString(),
-      content: { type: 'link', url: `https://api.example.com/new${i + 1}`, title: `New API Bookmark ${i + 1}`, description: 'New API description' },
-    }));
+    // Setup: S3 has initial data, cache is empty or needs refresh
+    mockHelpers._mockClearBookmarks(); // Ensure cache is empty
+    mockHelpers._mockSetRefreshState(true); // Ensure cache thinks it needs a refresh
+    mockReadJsonS3.mockResolvedValue(initialS3Bookmarks); // readJsonS3 returns initial data
+    mockRefreshBookmarksDataFnGlobal.mockResolvedValue(newApiBookmarks); // External fetch returns new data
+    mockWriteJsonS3.mockResolvedValue(undefined); // Mock S3 write success
 
-    // Mock setup
-    mockHelpers._mockClearBookmarks();
-    mockS3File.json.mockResolvedValueOnce(oldS3Bookmarks);
-    mockRefreshBookmarksDataFnGlobal.mockResolvedValue(newApiBookmarks); // Use the module-level mock
-
-    const resultBookmarks = await getBookmarks(false);
+    const resultBookmarks = await getBookmarks(false); // skipExternalFetch = false
 
     // Assertions
-    expect(mockS3File.json).toHaveBeenCalledTimes(1);
-    expect(mockRefreshBookmarksDataFnGlobal).toHaveBeenCalledTimes(1); // Check the module-level mock
+    expect(mockReadJsonS3).toHaveBeenCalledTimes(1); // Check if S3 was read
+    expect(mockRefreshBookmarksDataFnGlobal).toHaveBeenCalledTimes(1); // External fetch was called
+    expect(mockWriteJsonS3).toHaveBeenCalledTimes(1); // S3 was updated with new data
+    expect(mockWriteJsonS3).toHaveBeenCalledWith(expect.stringContaining('bookmarks.json'), newApiBookmarks);
+    expect(resultBookmarks).toEqual(newApiBookmarks); // Returns new data
 
-    expect(mockS3Writer.write).toHaveBeenCalledTimes(1);
-    expect(mockS3Writer.write).toHaveBeenCalledWith(JSON.stringify(newApiBookmarks));
-    expect(mockS3Writer.end).toHaveBeenCalledTimes(1);
+    // Verify cache was updated
+    const serverCacheModule = await import('../../lib/server-cache'); // Re-import to get the mocked instance
+    const cached = serverCacheModule.ServerCacheInstance.getBookmarks();
+    expect(cached?.bookmarks).toEqual(newApiBookmarks);
+  });
 
-    const serverCacheModule = await import('../../lib/server-cache');
-    expect(serverCacheModule.ServerCacheInstance.setBookmarks).toHaveBeenCalledWith(newApiBookmarks);
+  it('should use S3 data and skip external fetch if skipExternalFetch is true and S3 data exists', async () => {
+    const s3Bookmarks: UnifiedBookmark[] = [{
+      id: 's3-only', title: 'S3 Only', url: 'https://s3only.example.com',
+      description: 'S3 only main description',
+      createdAt: '2023-01-03T00:00:00Z', modifiedAt: '2023-01-03T00:00:00Z', dateBookmarked: '2023-01-03T00:00:00Z',
+      archived: false, favourited: false, taggingStatus: 'pending',
+      content: {type: 'link', title: 'S3 Only', url: 'https://s3only.example.com', description: 'S3 only content description'},
+      tags: [], assets: []
+    }];
+    mockHelpers._mockClearBookmarks();
+    mockReadJsonS3.mockResolvedValue(s3Bookmarks);
 
-    expect(resultBookmarks).toEqual(newApiBookmarks);
+    const resultBookmarks = await getBookmarks(true); // skipExternalFetch = true
+
+    expect(mockReadJsonS3).toHaveBeenCalledTimes(1);
+    expect(mockRefreshBookmarksDataFnGlobal).not.toHaveBeenCalled();
+    expect(mockWriteJsonS3).not.toHaveBeenCalled();
+    expect(resultBookmarks).toEqual(s3Bookmarks);
   });
 
   it.skip('should use cached data while refreshing in background when cache exists but needs refresh', async () => {
