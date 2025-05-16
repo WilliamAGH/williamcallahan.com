@@ -16,6 +16,11 @@ import { formatDistanceToNow } from 'date-fns';
 // GitHub profile URL
 const GITHUB_PROFILE_URL = "https://github.com/williamagh/";
 
+interface ApiError {
+  message?: string;
+  error?: string;
+}
+
 // Function to map contribution level to Tailwind CSS background color
 const getLevelColor = (level: number): string => {
   switch (level) {
@@ -57,10 +62,11 @@ const GitHubActivity = () => {
           method: 'POST',
         });
         if (!refreshResponse.ok) {
-          let refreshErrorResult;
+          let refreshErrorResult: ApiError | null = null;
           try {
-            refreshErrorResult = await refreshResponse.json();
-          } catch (e) { /* ignore */ }
+            refreshErrorResult = await refreshResponse.json() as ApiError;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          } catch (_e) { /* ignore */ }
           const errorMessage = refreshErrorResult?.message || refreshErrorResult?.error || `Refresh request failed with status: ${refreshResponse.status}`;
           console.error('[Client] GitHub data refresh POST request failed:', errorMessage);
           setError(errorMessage);
@@ -132,7 +138,7 @@ const GitHubActivity = () => {
         setDataComplete(false);
         setLastRefreshed(null);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch or parse GitHub activity:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred while fetching data.');
       setActivityData([]);
@@ -162,7 +168,6 @@ const GitHubActivity = () => {
     if (fetchInitiatedRef.current) return;
     fetchInitiatedRef.current = true;
     void fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
