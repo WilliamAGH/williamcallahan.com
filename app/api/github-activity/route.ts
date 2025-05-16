@@ -1,110 +1,56 @@
 /**
  * GitHub Activity API Endpoint
  *
- * Provides client-side access to GitHub activity data using the centralized data-access layer.
+ * Provides client-side access to GitHub activity data by reading pre-processed data from S3 (via data-access layer).
+ * It does NOT trigger a new fetch from GitHub.
+ *
+ * Query Parameters:
+ *   - refresh=true: This parameter is now ignored by this GET endpoint. Refreshing data should be done
+ *                   via the POST /api/github-activity/refresh endpoint.
+ *   - force-cache=true: This parameter is also effectively ignored as the data-access layer handles its own caching.
  */
 
 import { NextResponse } from 'next/server';
-import { getGithubActivity } from '@/lib/data-access'; // Use the data-access layer
-import { deleteFromS3, readJsonS3 } from '@/lib/s3-utils';
+import { getGithubActivity } from '@/lib/data-access';
 import type { NextRequest } from 'next/server';
-import type { GitHubActivityApiResponse, GitHubActivitySummary } from '@/types/github';
 
-// This route can leverage the caching within getGithubActivity
 export const dynamic = 'force-dynamic';
 
-// Add VERBOSE const if not already present (assuming it might be used for logging)
-const VERBOSE = process.env.VERBOSE === 'true' || false;
+export async function GET(request: NextRequest) {
+  console.log('[API GET /github-activity] Received request.');
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  if (VERBOSE) console.log('[API GitHub Activity] Received GET request.');
+  // The 'refresh' and 'force-cache' query params are no longer used by this GET endpoint
+  // as getGithubActivity is now S3-read-only and refresh is handled by POST /api/github-activity/refresh
   const url = new URL(request.url);
-  const isRefresh = url.searchParams.get('refresh') === 'true';
-
-  if (isRefresh) {
-    if (VERBOSE) console.log('[API GitHub Activity] Refresh requested. Clearing relevant S3 caches...');
-    try {
-      // Clearing the main activity file (which holds trailing year raw data + calendar)
-      // and the two summary files.
-      await Promise.all([
-        deleteFromS3('github-activity/activity_data.json'),
-        deleteFromS3('github-activity/github_stats_summary.json'),
-        deleteFromS3('github-activity/github_stats_summary_all_time.json')
-      ]);
-      if (VERBOSE) console.log('[API GitHub Activity] S3 cache files cleared for refresh.');
-    } catch (err) {
-      if (VERBOSE) console.warn('[API GitHub Activity] Failed to delete one or more S3 cache files for refresh:', err);
-    }
-
-    // Force a refetch from GitHub API by calling the update-s3 script
-    try {
-      if (VERBOSE) console.log('[API GitHub Activity] Refresh requested. Triggering GitHub API fetch...');
-      const { spawnSync } = await import('child_process');
-      const result = spawnSync('bun', ['run', 'update-s3', '--', '--github-activity'], {
-        env: process.env,
-        stdio: 'pipe'
-      });
-
-      if (result.status !== 0) {
-        console.error(`[API GitHub Activity] GitHub API update failed (code ${result.status})`);
-        const stderr = result.stderr ? result.stderr.toString() : 'No error output';
-        if (VERBOSE) console.error(`[API GitHub Activity] Error details: ${stderr}`);
-      } else {
-        if (VERBOSE) console.log('[API GitHub Activity] GitHub API update completed successfully');
-      }
-    } catch (err) {
-      console.error('[API GitHub Activity] Failed to trigger GitHub API update:', err);
-    }
+  const refreshParam = url.searchParams.get('refresh');
+  if (refreshParam === 'true') {
+    console.log('[API GET /github-activity] \'refresh=true\' param is deprecated for GET. Use POST /api/github-activity/refresh to update data.');
   }
 
   try {
-    const activityApiResponse = await getGithubActivity(); // This now returns the structure with undefined summaries
+    const activityData = await getGithubActivity();
 
-    if (!activityApiResponse) {
-      console.warn('[API GitHub Activity] No GitHub activity data returned from data-access layer.');
-      return NextResponse.json({ error: 'No GitHub activity data available' }, { status: 404, headers: { 'X-Data-Complete': 'false' } });
+    if (activityData) {
+      return NextResponse.json(activityData);
+    } else {
+      console.warn('[API GET /github-activity] GitHub activity data not found in cache or S3. A refresh may be needed.');
+      return NextResponse.json(
+        {
+          error: 'GitHub activity data not available.',
+          details: 'The data may not have been generated yet or a refresh is in progress. Please try again later or trigger a refresh via the POST /api/github-activity/refresh endpoint.',
+          // Optionally, provide some minimal structure if clients expect it
+          trailingYearData: null,
+          cumulativeAllTimeData: null,
+        },
+        { status: 404 } // Or 503 Service Unavailable might also be appropriate
+      );
     }
-
-    // Create a mutable payload from the response
-    const payload: GitHubActivityApiResponse = { ...activityApiResponse };
-
-    // Load and inject Trailing Year Summary
-    try {
-      const trailingYearSummary = await readJsonS3<GitHubActivitySummary>('github-activity/github_stats_summary.json');
-      if (trailingYearSummary && payload.trailingYearData) {
-        payload.trailingYearData.summaryActivity = trailingYearSummary;
-        if (VERBOSE) console.log('[API GitHub Activity] Trailing year summary loaded and injected.');
-      } else {
-        console.warn('[API GitHub Activity] Could not load trailing year summary or trailingYearData missing in payload.');
-      }
-    } catch (err) {
-      console.warn('[API GitHub Activity] Failed to load trailing year summary JSON from S3:', err);
-    }
-
-    // Load and inject All-Time Summary
-    try {
-      const allTimeSummary = await readJsonS3<GitHubActivitySummary>('github-activity/github_stats_summary_all_time.json');
-      if (allTimeSummary && payload.cumulativeAllTimeData) {
-        payload.cumulativeAllTimeData.summaryActivity = allTimeSummary;
-        if (VERBOSE) console.log('[API GitHub Activity] All-time summary loaded and injected.');
-      } else {
-        console.warn('[API GitHub Activity] Could not load all-time summary or cumulativeAllTimeData missing in payload.');
-      }
-    } catch (err) {
-      console.warn('[API GitHub Activity] Failed to load all-time summary JSON from S3:', err);
-    }
-
-    console.log('[API GitHub Activity] Successfully prepared GitHub activity payload.');
-    return NextResponse.json(payload, {
-      status: 200,
-      headers: {
-        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
-        // Overall completeness might be a bit nuanced now. The client should check segment-specific dataComplete flags.
-        'X-Data-Complete': (payload.trailingYearData?.dataComplete && payload.cumulativeAllTimeData?.dataComplete) ? 'true' : 'false'
-      }
-    });
-  } catch (error) {
-    console.error('[API GitHub Activity] Critical error in GET handler:', error);
-    return NextResponse.json({ error: 'Failed to process GitHub activity', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500, headers: { 'X-Data-Complete': 'false' } });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    console.error('[API GET /github-activity] Error fetching GitHub activity data:', errorMessage);
+    return NextResponse.json(
+      { error: 'Failed to retrieve GitHub activity data.', details: errorMessage },
+      { status: 500 }
+    );
   }
 }
