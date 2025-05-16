@@ -10,13 +10,14 @@ export const dynamic = 'force-dynamic'; // Ensure this route is always dynamic
  *
  * HTTP Method: POST
  */
-export async function POST(request: NextRequest) { // eslint-disable-line @typescript-eslint/no-unused-vars
+export async function POST(request: NextRequest) {
   // Optional: Add security checks here (e.g., a secret key, admin authentication)
   // For example, check for a specific header or a secret in the body:
-  // const secret = request.headers.get('x-refresh-secret');
-  // if (secret !== process.env.GITHUB_REFRESH_SECRET) {
-  //   return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  // }
+  const secret = request.headers.get('x-refresh-secret');
+  if (secret !== process.env.GITHUB_REFRESH_SECRET) {
+    console.warn('[API Refresh] Unauthorized attempt to refresh GitHub activity data');
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
 
   console.log('[API Refresh] Received request to refresh GitHub activity data.');
 

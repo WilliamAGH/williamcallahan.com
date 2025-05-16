@@ -24,7 +24,14 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const refreshParam = url.searchParams.get('refresh');
   if (refreshParam === 'true') {
-    console.log('[API GET /github-activity] \'refresh=true\' param is deprecated for GET. Use POST /api/github-activity/refresh to update data.');
+    console.warn('[API GET /github-activity] \'refresh=true\' param is deprecated for GET. Use POST /api/github-activity/refresh to update data.');
+    return NextResponse.json(
+      {
+        error: "The 'refresh=true' query parameter is deprecated for GET requests.",
+        message: "To refresh GitHub activity data, please use the POST endpoint: /api/github-activity/refresh.",
+      },
+      { status: 400 }
+    );
   }
 
   try {

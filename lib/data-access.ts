@@ -23,6 +23,7 @@ import {
   readBinaryS3,
   writeBinaryS3,
   listS3Objects as s3UtilsListS3Objects,
+  getS3ObjectMetadata, // Added import
   // checkIfS3ObjectExists, // Not currently used, can be added if needed
 } from './s3-utils';
 import type { GitHubActivitySummary, UserActivityView, StoredGithubActivityS3 as GithubStoredS3 } from '@/types/github';
@@ -568,7 +569,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{trailingYearD
     linesAdded: allTimeLinesAdded,
     linesRemoved: allTimeLinesRemoved,
     dataComplete: allTimeOverallDataComplete,
-    allTimeTotalContributions: 0, // Placeholder for all-time total contributions
+    allTimeTotalContributions: allTimeTotalCommits, // Placeholder for all-time total contributions
   };
 
   try {
@@ -643,25 +644,25 @@ export async function getGithubActivity(): Promise<UserActivityView> { // Return
   }
 
   if (VERBOSE) console.log(`[DataAccess:getGithubActivity] Attempting to read GitHub activity from S3: ${GITHUB_ACTIVITY_S3_KEY_FILE}`);
-  const s3ActivityData = await readJsonS3<GithubStoredS3>(GITHUB_ACTIVITY_S3_KEY_FILE);
+  const s3ActivityData = await readJsonS3<GitHubActivityApiResponse>(GITHUB_ACTIVITY_S3_KEY_FILE);
+  const s3Metadata = await getS3ObjectMetadata(GITHUB_ACTIVITY_S3_KEY_FILE); // Get metadata
 
-  if (s3ActivityData) {
+  if (s3ActivityData?.trailingYearData && s3ActivityData.cumulativeAllTimeData) {
     if (VERBOSE) console.log('[DataAccess:getGithubActivity] Successfully read and parsed GitHub activity from S3.');
 
     const userView: UserActivityView = {
       source: 's3-cache',
       trailingYearData: {
-        data: s3ActivityData.data || [],
-        totalContributions: s3ActivityData.totalContributions || 0, // This is trailing year total from S3 file
-        dataComplete: s3ActivityData.dataComplete !== undefined ? s3ActivityData.dataComplete : false,
+        data: s3ActivityData.trailingYearData.data || [],
+        totalContributions: s3ActivityData.trailingYearData.totalContributions || 0,
+        dataComplete: s3ActivityData.trailingYearData.dataComplete !== undefined ? s3ActivityData.trailingYearData.dataComplete : false,
       },
       allTimeStats: {
-        // Use allTimeTotalContributions if available, otherwise fallback to totalContributions from S3 (which is trailing year)
-        totalContributions: s3ActivityData.allTimeTotalContributions ?? s3ActivityData.totalContributions ?? 0,
-        linesAdded: s3ActivityData.linesAdded || 0,
-        linesRemoved: s3ActivityData.linesRemoved || 0,
+        totalContributions: s3ActivityData.cumulativeAllTimeData.totalContributions ?? 0,
+        linesAdded: s3ActivityData.cumulativeAllTimeData.linesAdded || 0,
+        linesRemoved: s3ActivityData.cumulativeAllTimeData.linesRemoved || 0,
       },
-      // lastRefreshed: s3Metadata?.LastModified?.toISOString(), // TODO: Get S3 object metadata for lastRefreshed
+      lastRefreshed: s3Metadata?.LastModified?.toISOString(),
     };
     ServerCacheInstance.set(cacheKey, userView);
     return userView;
@@ -1055,4 +1056,3 @@ export async function serveLogoFromS3(domain: string): Promise<{ buffer: Buffer;
   const { processedBuffer, contentType } = await processImageBuffer(buffer);
   return { buffer: processedBuffer, source, contentType };
 }
-
