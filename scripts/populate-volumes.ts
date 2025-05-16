@@ -10,6 +10,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getBookmarks, getGithubActivity, getLogo, getInvestmentDomainsAndIds, calculateAndStoreAggregatedWeeklyActivity } from '../lib/data-access';
 import type { UnifiedBookmark } from '../types/bookmark';
+import type { UserActivityView } from '../types/github'; // Import UserActivityView
 
 // CONFIG
 // Default to `false` when the env-var is absent
@@ -60,16 +61,30 @@ async function populateBookmarksData() {
 
 async function populateGithubActivityData() {
   console.log('🐙 Populating GitHub activity volume using data-access layer...');
-  const activity = await getGithubActivity(); // This now handles fetch, volume write, cache
-  if (activity) {
-    // Log completeness of the trailing year data, as that's the primary focus for the calendar display
-    console.log(`✅ GitHub activity volume populated/updated. Trailing year data complete: ${activity?.trailingYearData?.dataComplete}`);
-    await calculateAndStoreAggregatedWeeklyActivity();
+  const activity: UserActivityView = await getGithubActivity(); // Type annotation to UserActivityView
+
+  // getGithubActivity now returns a UserActivityView object, never null.
+  // It includes an `error` field if something went wrong.
+  if (activity.error) {
+    console.error(`❌ Failed to populate GitHub activity volume: ${activity.error}`);
+    // Depending on severity, you might want to return activity or null
+    // For now, we'll return the activity object as it contains error info and default data structures.
     return activity;
-  } else {
-    console.error('❌ Failed to populate GitHub activity volume via data-access layer.');
-    return null;
   }
+
+  // trailingYearData is now guaranteed to be an object.
+  console.log(`✅ GitHub activity volume populated/updated. Source: ${activity.source}, Trailing year data complete: ${activity.trailingYearData.dataComplete}`);
+
+  // Only call calculateAndStoreAggregatedWeeklyActivity if the primary data fetch was successful
+  if (activity.source === 's3-cache' || activity.source === 'api-fallback') { // Or other success states
+    try {
+      await calculateAndStoreAggregatedWeeklyActivity();
+      console.log('✅ Aggregated weekly GitHub activity calculated and stored.');
+    } catch (aggError: unknown) {
+      console.error('❌ Failed to calculate and store aggregated weekly GitHub activity:', aggError);
+    }
+  }
+  return activity;
 }
 
 async function populateLogosData(bookmarks: UnifiedBookmark[]) {
