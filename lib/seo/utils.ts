@@ -69,19 +69,14 @@ export function getImageTypeFromUrl(url: string): string {
 }
 
 /**
- * Formats a date for SEO metadata in Pacific Time
- * Ensures dates are in ISO 8601 format with proper timezone offset
+ * Formats a date as an ISO 8601 string with Pacific Time offset for SEO metadata.
  *
- * @example
- * formatSeoDate('2025-02-10')
- * // Returns: '2025-02-10T00:00:00-08:00'
+ * Converts a date or date string to the required format for OpenGraph and Schema.org, applying the correct Pacific Time offset (either -07:00 or -08:00) based on the date.
  *
- * formatSeoDate('2025-07-10T15:30:00')
- * // Returns: '2025-07-10T15:30:00-07:00'
+ * @param date - The date to format. If omitted, the current date and time are used.
+ * @returns An ISO 8601 date string with Pacific Time offset suitable for SEO metadata.
  *
- * @param date - The date to format (string or Date object)
- * @returns ISO 8601 formatted date string with Pacific Time offset
- * @see {@link "../../types/seo.ts"} - PacificDateString type definition
+ * @throws {Error} If the resulting date string does not conform to the PacificDateString format.
  */
 export function formatSeoDate(date: string | Date | undefined): PacificDateString {
   if (!date) {
