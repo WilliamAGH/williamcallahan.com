@@ -5,10 +5,15 @@ import type { NextRequest } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 /**
- * API route to trigger a refresh of the GitHub activity data
- * Fetches fresh data from the GitHub API, processes it, and updates S3
+ * Handles POST requests to refresh GitHub activity data via a protected API route.
  *
- * @method POST
+ * Validates the `x-refresh-secret` header against the server's configured secret. If authorized, fetches the latest GitHub activity data, processes it, and updates the data store. Responds with the outcome of the refresh operation.
+ *
+ * @returns A JSON response indicating success or failure, including commit statistics if successful.
+ *
+ * @throws {Error} If an unexpected error occurs during the refresh process.
+ *
+ * @remark Returns a 401 Unauthorized response if the `x-refresh-secret` header is missing or invalid.
  */
 export async function POST(request: NextRequest) {
   const secret = request.headers.get('x-refresh-secret');

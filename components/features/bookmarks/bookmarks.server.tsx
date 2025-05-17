@@ -18,6 +18,17 @@ interface BookmarksServerProps {
   titleSlug?: string;
 }
 
+/**
+ * Server-side React component that prepares and provides bookmark data to the client component.
+ *
+ * Fetches and sorts bookmarks by date if not provided via props, and passes all relevant data to {@link BookmarksClientWithWindow}.
+ *
+ * @remark Throws an error with message 'BookmarksUnavailable' in production if no bookmarks are available from either props or API, triggering an error boundary.
+ *
+ * @returns The rendered {@link BookmarksClientWithWindow} component with bookmark data and related props.
+ *
+ * @throws {Error} If no bookmarks are available in production mode.
+ */
 export async function BookmarksServer({
   title,
   description,

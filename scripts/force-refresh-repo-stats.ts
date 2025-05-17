@@ -21,6 +21,17 @@ const REPOS_TO_PROCESS: RepoToUpdate[] = [
   // Add more repos here if needed for future use
 ];
 
+/**
+ * Fetches weekly contributor statistics for a specific user from a GitHub repository.
+ *
+ * Attempts to retrieve contributor stats from the GitHub API for the given repository, retrying with exponential backoff if the data is being prepared. Returns an array of weekly stats for the configured repository owner, or an empty array if no data is found or on persistent errors.
+ *
+ * @param owner - The GitHub username or organization that owns the repository.
+ * @param name - The name of the repository.
+ * @returns An array of weekly contribution statistics for the configured repository owner, sorted by week timestamp. Returns an empty array if no data is available.
+ *
+ * @remark Retries up to 5 times if the GitHub API responds with a 202 status, indicating that statistics are being generated.
+ */
 async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWeeklyStat[]> {
   console.log(`[Script] Fetching contributor stats for ${owner}/${name} from GitHub API...`);
   const url = `https://api.github.com/repos/${owner}/${name}/stats/contributors`;
@@ -63,6 +74,13 @@ async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWe
   return [];
 }
 
+/**
+ * Processes a repository by fetching its weekly contributor stats and writing them as a CSV file to S3.
+ *
+ * If no stats are available, skips writing or updating the CSV file for the repository.
+ *
+ * @param repo - The repository to process, including its owner and name.
+ */
 async function processRepo(repo: RepoToUpdate) {
   console.log(`\n[Script] Processing repository: ${repo.owner}/${repo.name}`);
   const s3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repo.owner}_${repo.name}.csv`;
@@ -80,6 +98,11 @@ async function processRepo(repo: RepoToUpdate) {
   }
 }
 
+/**
+ * Orchestrates the refresh of GitHub contributor statistics for configured repositories and writes the results as CSV files to S3.
+ *
+ * Validates required environment variables before processing. After completion, advises triggering a full data refresh to update downstream activity and summary files.
+ */
 async function main() {
   if (!GITHUB_API_TOKEN) {
     console.error('GITHUB_ACCESS_TOKEN_COMMIT_GRAPH is not set in .env. Aborting.');
