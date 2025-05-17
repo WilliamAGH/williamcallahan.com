@@ -16,6 +16,12 @@ interface InvestmentsProps {
   investments: Investment[];
 }
 
+/**
+ * Server-side React component that pre-renders investment cards and provides them to the client component within a global context.
+ *
+ * @param investments - Optional array of investment objects to display.
+ * @returns A JSX element containing the client-side investments component wrapped in a global window registry provider.
+ */
 export async function Investments({ investments = [] }: InvestmentsProps): Promise<JSX.Element> {
   const investmentsWithCards = await Promise.all(
     investments.map(async (investment) => ({

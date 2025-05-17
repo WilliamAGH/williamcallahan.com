@@ -16,6 +16,13 @@ import type { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Handles GET requests for the GitHub Activity API endpoint, returning pre-processed GitHub activity data.
+ *
+ * If the deprecated `refresh=true` query parameter is present, responds with a 400 error and guidance to use the POST refresh endpoint instead. On success, returns a `UserActivityView` object containing GitHub activity data. On error, returns a 500 response with a consistent JSON structure indicating failure and empty data.
+ *
+ * @returns A JSON response containing GitHub activity data or an error structure.
+ */
 export async function GET(request: NextRequest) {
   console.log('[API GET /github-activity] Received request.');
 

@@ -19,10 +19,11 @@ export const BOOKMARKS_S3_KEY_FILE = `${BOOKMARKS_S3_KEY_DIR}/bookmarks.json`;
 let inFlightBookmarkPromise: Promise<UnifiedBookmark[] | null> | null = null;
 
 /**
- * Fetches bookmarks from an external source (defined by `refreshBookmarksData`)
- * Implements a singleton pattern for in-flight requests to prevent multiple simultaneous fetches
- * Logs the process and outcome of the fetch operation
- * @returns A promise that resolves to an array of UnifiedBookmark objects or null if fetching fails or no bookmarks are found
+ * Retrieves bookmarks from an external source, ensuring only one fetch occurs at a time.
+ *
+ * Returns a promise that resolves to an array of unified bookmark objects, or `null` if the fetch fails or no bookmarks are found.
+ *
+ * @remark If a fetch is already in progress, returns the existing in-flight promise instead of initiating a new request.
  */
 async function fetchExternalBookmarks(): Promise<UnifiedBookmark[] | null> {
   if (inFlightBookmarkPromise) {
@@ -51,14 +52,12 @@ async function fetchExternalBookmarks(): Promise<UnifiedBookmark[] | null> {
 }
 
 /**
- * Retrieves bookmarks, following a cache-S3-external source hierarchy.
- * - Checks in-memory cache.
- * - If not found or `skipExternalFetch` is false, checks S3.
- * - If `skipExternalFetch` is false and not found in S3 or cache, fetches from external source.
- * - Writes to S3 and cache after a successful external fetch.
- * - Handles `skipExternalFetch` flag to bypass external calls and rely on cache/S3.
- * @param skipExternalFetch - If true, bypasses the external API call and relies on cache or S3. Defaults to false.
- * @returns A promise that resolves to an array of UnifiedBookmark objects. Returns an empty array if no bookmarks are found from any source.
+ * Retrieves bookmark data using a hierarchical strategy: in-memory cache, S3 storage, and external API as fallback.
+ *
+ * If {@link skipExternalFetch} is true, only cache and S3 are used; otherwise, the function attempts to fetch from the external source and updates both S3 and cache on success. Returns an empty array if no bookmarks are found.
+ *
+ * @param skipExternalFetch - If true, bypasses the external API and relies solely on cache or S3. Defaults to false.
+ * @returns A promise resolving to an array of UnifiedBookmark objects, or an empty array if none are available.
  */
 export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBookmark[]> {
   const cached = ServerCacheInstance.getBookmarks();

@@ -57,10 +57,10 @@ const CONCURRENT_REPO_LIMIT = 5; // Limit for concurrent repository processing
 // --- Helper Functions ---
 
 /**
- * Wraps raw GitHub activity data (trailing year and all-time) into a structured API response format
- * Excludes summaryActivity fields from the segments
- * @param fetchedParts - An object containing `trailingYearData` and `allTimeData` as StoredGithubActivityS3
- * @returns A GitHubActivityApiResponse object, or null if input is invalid
+ * Formats trailing year and all-time GitHub activity data into a structured API response.
+ *
+ * @param fetchedParts - Contains the trailing year and all-time activity data to be wrapped.
+ * @returns A structured API response with separated trailing year and all-time segments, or `null` if input is missing or incomplete.
  */
 function wrapGithubActivity(fetchedParts: {trailingYearData: StoredGithubActivityS3, allTimeData: StoredGithubActivityS3} | null): GitHubActivityApiResponse | null {
   if (!fetchedParts || !fetchedParts.trailingYearData || !fetchedParts.allTimeData) {
@@ -78,9 +78,12 @@ function wrapGithubActivity(fetchedParts: {trailingYearData: StoredGithubActivit
 }
 
 /**
- * Maps GitHub GraphQL ContributionLevel enum to a numeric level (0-4).
- * @param graphQLLevel - The contribution level string from GraphQL API.
- * @returns The corresponding numeric contribution level.
+ * Converts a GitHub GraphQL contribution level string to its numeric equivalent.
+ *
+ * @param graphQLLevel - The contribution level string from the GitHub GraphQL API.
+ * @returns A numeric value from 0 (none) to 4 (fourth quartile) representing the contribution level.
+ *
+ * @remark Returns 0 if {@link graphQLLevel} is unrecognized.
  */
 function mapGraphQLContributionLevelToNumeric(graphQLLevel: string): 0 | 1 | 2 | 3 | 4 {
   switch (graphQLLevel) {
@@ -100,13 +103,16 @@ function mapGraphQLContributionLevelToNumeric(graphQLLevel: string): 0 | 1 | 2 |
 }
 
 /**
- * Fetches a URL with a retry mechanism for 202 (Accepted) responses from the GitHub API
- * Implements exponential backoff for retries
- * @param url - The URL to fetch
- * @param options - RequestInit options for the fetch call
- * @param maxRetries - Maximum number of retries. Defaults to 5
- * @returns A promise that resolves to the Response object
- * @throws Error if all retries result in a 202 status or if a non-202 error occurs.
+ * Fetches a URL with retries for GitHub API 202 (Accepted) responses using exponential backoff.
+ *
+ * Continues retrying until a non-202 response is received or the maximum number of retries is reached.
+ *
+ * @param url - The URL to fetch.
+ * @param options - Fetch request options.
+ * @param maxRetries - Maximum number of retries before giving up. Defaults to 5.
+ * @returns The final {@link Response} object, which may still have a 202 status if all retries are exhausted.
+ *
+ * @throws {Error} If all retries fail without receiving any response.
  */
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 5): Promise<Response> {
   let lastResponse: Response | null = null;
@@ -132,9 +138,10 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 5)
 }
 
 /**
- * Type guard to check if an object conforms to the StoredGithubActivityS3 interface (old flat format)
- * @param obj - The object to check
- * @returns True if the object is in the old flat StoredGithubActivityS3 format, false otherwise
+ * Determines if the given object matches the old flat StoredGithubActivityS3 format.
+ *
+ * @param obj - The object to evaluate.
+ * @returns True if {@link obj} has a `data` array and a numeric `totalContributions` property, indicating the old flat format; otherwise, false.
  */
 
 function isOldFlatStoredGithubActivityS3Format(obj: unknown): obj is StoredGithubActivityS3 {
@@ -150,11 +157,19 @@ function isOldFlatStoredGithubActivityS3Format(obj: unknown): obj is StoredGithu
 // --- GitHub Activity Data Refresh ---
 
 /**
- * Refreshes GitHub activity data from the GitHub API
- * Fetches contributed repositories, their weekly commit statistics, and daily commit counts for the trailing year
- * Calculates all-time statistics based on stored CSVs and ensures consistency with trailing year data
- * Writes updated data (individual repo CSVs, summary files, and combined activity) to S3
- * @returns A promise that resolves to an object containing `trailingYearData` and `allTimeData`, or null if the refresh fails
+ * Refreshes and recalculates GitHub activity data by fetching repository statistics, commit history, and contribution calendars from the GitHub API, then updates S3 storage with the latest summaries and per-repository data.
+ *
+ * This function:
+ * - Optionally repairs CSV files for data completeness.
+ * - Fetches all non-forked repositories contributed to by the configured user.
+ * - For each repository, retrieves weekly contributor statistics and falls back to S3 data if necessary.
+ * - Aggregates lines of code added/removed and commit counts for both the trailing year and all-time.
+ * - Fetches the user's contribution calendar for the trailing year.
+ * - Writes updated CSVs, summary JSON files, and combined activity data to S3.
+ * - Performs consistency checks between trailing year and all-time statistics.
+ * - Triggers aggregation of weekly activity across all repositories.
+ *
+ * @returns A promise that resolves to an object containing `trailingYearData` and `allTimeData`, or `null` if the refresh fails.
  */
 export async function refreshGitHubActivityDataFromApi(): Promise<{trailingYearData: StoredGithubActivityS3, allTimeData: StoredGithubActivityS3} | null> {
   console.log('[DataAccess/GitHub:refreshGitHubActivity] Attempting to refresh GitHub activity data from API...');
@@ -605,9 +620,11 @@ const defaultUserActivityView: UserActivityView = {
 };
 
 /**
- * Retrieves GitHub activity data, prioritizing cache, then S3, then falling back to default/error state
- * This function reads the combined activity data file from S3
- * @returns A promise that resolves to a UserActivityView object
+ * Retrieves the user's GitHub activity data, using in-memory cache if available, otherwise reading from S3 storage, and falls back to default or partial data if necessary.
+ *
+ * If valid nested activity data is found in S3, returns a complete {@link UserActivityView}. If legacy or malformed data is detected, attempts partial recovery and returns an error view. If no data is available, returns a default error view.
+ *
+ * @returns A promise resolving to a {@link UserActivityView} containing trailing year and all-time GitHub activity statistics.
  */
 export async function getGithubActivity(): Promise<UserActivityView> {
   const cacheKey = 'githubActivity';
@@ -724,10 +741,11 @@ export async function getGithubActivity(): Promise<UserActivityView> {
 
 
 /**
- * Detects and attempts to repair gaps or corruption in individual repository CSV statistic files stored in S3
- * It lists repositories, checks their corresponding CSVs, and if issues are found (missing, empty, malformed),
- * it attempts to fetch fresh data from the GitHub API and rewrite the CSV
- * @returns A promise that resolves to an object summarizing the repair operation: `scannedRepos`, `repairedRepos`, `failedRepairs`
+ * Scans repository CSV statistic files in S3 for missing, empty, or malformed data and attempts to repair them by refetching contributor stats from the GitHub API.
+ *
+ * @returns A promise resolving to an object summarizing the operation, including the number of repositories scanned, successfully repaired, and failed repairs.
+ *
+ * @remark Requires a valid GitHub API token to perform repairs. If the token is missing or the API does not provide user-specific stats, repairs may fail for some repositories.
  */
 async function detectAndRepairCsvFiles(): Promise<{
   scannedRepos: number,
@@ -842,9 +860,11 @@ async function detectAndRepairCsvFiles(): Promise<{
 }
 
 /**
- * Calculates aggregated weekly activity (lines added/removed) across all repository CSVs in S3.
- * Stores the aggregated data into a single JSON file in S3.
- * @returns A promise that resolves to an object containing the `aggregatedActivity` array and an `overallDataComplete` flag, or null if in DRY_RUN mode.
+ * Aggregates weekly lines added and removed across all repository CSV files in S3 and stores the result as a single JSON file.
+ *
+ * @returns A promise that resolves to an object containing the aggregated weekly activity array and a flag indicating whether all data was processed successfully, or null if in DRY_RUN mode.
+ *
+ * @remark If any repository CSV is missing or unreadable, the `overallDataComplete` flag will be set to `false`.
  */
 export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{ aggregatedActivity: AggregatedWeeklyActivity[], overallDataComplete: boolean } | null> {
   if (process.env.DRY_RUN === 'true') {

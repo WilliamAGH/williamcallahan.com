@@ -9,11 +9,13 @@ import { investments } from '@/data/investments';
 import { readFile } from 'node:fs/promises'; // Using direct import for readFile
 
 /**
- * Retrieves a map of investment domains to their corresponding IDs
- * It first attempts to use statically imported investment data
- * If static import fails or data is unavailable, it falls back to parsing the 'data/investments.ts' file using regex
- * This function is designed to be resilient to issues with static imports during certain build/runtime conditions
- * @returns A promise that resolves to a Map where keys are domain names (e.g., "example.com") and values are investment IDs
+ * Asynchronously retrieves a map linking investment domain names to their corresponding investment IDs.
+ *
+ * Attempts to use statically imported investment data; if unavailable, falls back to parsing the raw `data/investments.ts` file using regex extraction.
+ *
+ * @returns A promise that resolves to a map where each key is a domain name (e.g., "example.com") and each value is the associated investment ID.
+ *
+ * @remark The function is resilient to static import failures and will attempt file-based parsing as a fallback.
  */
 export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>> {
   const domainToIdMap = new Map<string, string>();
