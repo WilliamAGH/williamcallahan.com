@@ -51,6 +51,18 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const router = useRouter();
 
+  // Determine if refresh button should be shown
+  const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
+  const targetUrl = 'https://williamcallahan.com';
+  let showRefreshButton = true; // Default to true
+  if (coolifyUrl) {
+    const normalizedCoolifyUrl = coolifyUrl.endsWith('/') ? coolifyUrl.slice(0, -1) : coolifyUrl;
+    const normalizedTargetUrl = targetUrl.endsWith('/') ? targetUrl.slice(0, -1) : targetUrl;
+    if (normalizedCoolifyUrl === normalizedTargetUrl) {
+      showRefreshButton = false;
+    }
+  }
+
   // Set mounted state once after hydration
   useEffect(() => {
     setMounted(true);
@@ -260,8 +272,8 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
             )}
           </form>
 
-          {/* Refresh button */}
-          {mounted && (
+          {/* Refresh button - conditionally rendered */}
+          {mounted && showRefreshButton && (
             <button
               onClick={() => void refreshBookmarks()}
               disabled={isRefreshing}

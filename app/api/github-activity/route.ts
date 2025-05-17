@@ -11,7 +11,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getGithubActivity } from '@/lib/data-access';
+import { getGithubActivity } from '@/lib/data-access/github';
 import type { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -37,26 +37,33 @@ export async function GET(request: NextRequest) {
   try {
     const activityData = await getGithubActivity();
 
-    if (activityData) {
-      return NextResponse.json(activityData);
-    } else {
-      console.warn('[API GET /github-activity] GitHub activity data not found in cache or S3. A refresh may be needed.');
-      return NextResponse.json(
-        {
-          error: 'GitHub activity data not available.',
-          details: 'The data may not have been generated yet or a refresh is in progress. Please try again later or trigger a refresh via the POST /api/github-activity/refresh endpoint.',
-          // Optionally, provide some minimal structure if clients expect it
-          trailingYearData: null,
-          cumulativeAllTimeData: null,
-        },
-        { status: 404 } // Or 503 Service Unavailable might also be appropriate
-      );
-    }
+    // The getGithubActivity function is designed to always return a UserActivityView object,
+    // even in error or empty states (indicated by activityData.source and activityData.error fields).
+    // Therefore, a separate 'else' case for a falsy activityData is not necessary.
+    return NextResponse.json(activityData);
+
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     console.error('[API GET /github-activity] Error fetching GitHub activity data:', errorMessage);
+
+    // Provide a consistent structure even in error cases
     return NextResponse.json(
-      { error: 'Failed to retrieve GitHub activity data.', details: errorMessage },
+      {
+        error: 'Failed to retrieve GitHub activity data.',
+        details: errorMessage,
+        source: 'error',
+        trailingYearData: {
+          data: [],
+          totalContributions: 0,
+          dataComplete: false
+        },
+        allTimeStats: {
+          totalContributions: 0,
+          linesAdded: 0,
+          linesRemoved: 0
+        },
+        lastRefreshed: null
+      },
       { status: 500 }
     );
   }
