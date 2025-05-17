@@ -8,7 +8,7 @@ import "server-only"; // Ensure this component remains server-only
 
 import { BookmarksClientWithWindow } from './bookmarks-client-with-window';
 import type { UnifiedBookmark } from '@/types';
-import { getBookmarks } from '@/lib/data-access';
+import { getBookmarks } from '@/lib/data-access/bookmarks';
 
 interface BookmarksServerProps {
   title: string;
@@ -72,7 +72,7 @@ export async function BookmarksServer({
       bookmarks={bookmarks}
       title={title}
       description={description}
-      forceClientFetch={!propsBookmarks} // Only force client fetch if we didn't get bookmarks from props
+      forceClientFetch={!propsBookmarks}
       showFilterBar={showFilterBar}
       titleSlug={titleSlug}
     />

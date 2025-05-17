@@ -23,6 +23,10 @@ const S3_REGION = process.env.AWS_REGION || 'us-east-1'; // Default region, can 
 const VERBOSE = process.env.VERBOSE === 'true' || false; // Added for logging consistency
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
+// Constants for S3 read retries
+const MAX_S3_READ_RETRIES = 3;
+const S3_READ_RETRY_DELAY_MS = 500;
+
 if (!S3_BUCKET || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
   console.warn(
     '[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3 operations may fail.'
@@ -63,34 +67,51 @@ export async function readFromS3(
     console.error('[S3Utils] S3 client is not initialized. Cannot read from S3.');
     return null;
   }
-  const command = new GetObjectCommand({
-    Bucket: S3_BUCKET,
-    Key: key,
-    Range: options?.range, // Pass range option if provided
-  });
 
-  try {
-    const { Body, ContentType } = await s3Client.send(command);
-    if (Body instanceof Readable) {
-      const buffer = await streamToBuffer(Body);
-      // If it's likely text, return as string, otherwise as buffer
-      if (ContentType?.startsWith('text/') || ContentType === 'application/json') {
-        return buffer.toString('utf-8');
+  for (let attempt = 1; attempt <= MAX_S3_READ_RETRIES; attempt++) {
+    const command = new GetObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+      Range: options?.range, // Pass range option if provided
+    });
+
+    try {
+      const { Body, ContentType } = await s3Client.send(command);
+      if (Body instanceof Readable) {
+        const buffer = await streamToBuffer(Body);
+        // If it's likely text, return as string, otherwise as buffer
+        if (ContentType?.startsWith('text/') || ContentType === 'application/json') {
+          return buffer.toString('utf-8');
+        }
+        return buffer;
       }
-      return buffer;
+      return null; // Should not happen if Body is present and Readable
+    } catch (error: unknown) {
+      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+      const err = error as any;
+      if (err.name === 'NotFound' || err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+        if (VERBOSE) {
+          console.log(`[S3Utils] readFromS3: Key ${key} not found (attempt ${attempt}/${MAX_S3_READ_RETRIES}).`);
+        }
+        if (attempt < MAX_S3_READ_RETRIES) {
+          if (VERBOSE) console.log(`[S3Utils] Retrying read for ${key} in ${S3_READ_RETRY_DELAY_MS}ms...`);
+          await new Promise(resolve => setTimeout(resolve, S3_READ_RETRY_DELAY_MS));
+          continue; // Next attempt
+        } else {
+          if (VERBOSE) console.log(`[S3Utils] readFromS3: All ${MAX_S3_READ_RETRIES} attempts failed for key ${key}. Returning null.`);
+          return null; // All retries failed
+        }
+      }
+      /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[S3Utils] Error reading from S3 key ${key} (attempt ${attempt}/${MAX_S3_READ_RETRIES}):`, message);
+      // For non-NotFound errors, typically don't retry unless specifically designed for transient network issues.
+      // For simplicity here, we'll let it fall through and return null after the loop if it was the last attempt,
+      // or if another error type broke the loop (which it won't with current structure, this catch only handles last attempt or non-retryable errors)
+      return null; // Return null on other errors or if loop finishes
     }
-    return null;
-  } catch (error: unknown) {
-    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
-    const err = error as any;
-    if (err.name === 'NotFound' || err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
-      return null;
-    }
-    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`[S3Utils] Error reading from S3 key ${key}:`, message);
-    return null;
   }
+  return null; // Fallback, though loop should handle all paths.
 }
 
 /**

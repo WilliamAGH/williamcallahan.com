@@ -1,125 +1,103 @@
-/**
- * Utility Functions
- * @module lib/utils
- * @description
- * Common utility functions used throughout the application.
- */
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
 
-import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-/**
- * Merge class names with Tailwind CSS classes
- * @param {...ClassValue[]} inputs - Class names to merge
- * @returns {string} Merged class names
- */
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+  return twMerge(clsx(inputs))
 }
 
 /**
- * Format a number as an investment multiple (e.g., 2.5x)
- * @param {number} value - The multiple value to format
- * @returns {string} Formatted multiple string
+ * Formats a number as a percentage string
+ * @param {number | undefined | null} value - The number to format
+ * @param {number} [decimalPlaces=2] - The number of decimal places to round to
+ * @returns {string} The formatted percentage string (e.g., "12.34%") or "N/A" if the input is NaN or null/undefined
  */
-export function formatMultiple(value: number | null | undefined): string {
-  if (value === 0) return '0x';
-  if (value === null || typeof value === 'undefined' || Number.isNaN(value)) {
+export function formatPercentage(value: number | undefined | null, decimalPlaces: number = 2): string {
+  if (value === undefined || value === null || isNaN(value)) {
+    return 'N/A';
+  }
+  return `${value.toFixed(decimalPlaces)}%`;
+}
+
+/**
+ * Formats a date string or Date object into a more readable format.
+ * e.g., "March 14, 2024"
+ * Handles timezone conversions to display the date as it would be in the user's local timezone.
+ * If an invalid date string is provided, it logs a warning and returns "Invalid Date".
+ *
+ * @param dateString - The date string or Date object to format.
+ * @returns The formatted date string or "Invalid Date" if the input is invalid.
+ */
+export function formatDate(dateString: string | Date | undefined): string {
+  if (!dateString) {
+    // console.warn('formatDate received an undefined dateString');
+    return 'Invalid Date'; // Or handle as per desired behavior for undefined input
+  }
+
+  const date = new Date(dateString);
+
+  if (isNaN(date.getTime())) {
+    console.warn(`Invalid date string passed to formatDate: ${String(dateString)}`);
+    return 'Invalid Date';
+  }
+
+  // If the input is a date-only string (YYYY-MM-DD), it's interpreted as UTC midnight.
+  // To avoid off-by-one day errors due to timezone conversion from UTC midnight
+  // to local time, we can adjust it if needed or simply format it as is.
+  // The tests imply that '2024-03-14' (UTC midnight) should show as 'March 13, 2024' in PT.
+  // This is the standard behavior of new Date() when given a date-only string.
+  // For more robust handling, ensuring input strings include timezone information is best.
+
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'America/Los_Angeles', // To match test case behavior (PST/PDT)
+                                  // Or make timezone configurable or use user's local
+  });
+}
+
+export function formatMultiple(value: number | undefined | null): string {
+  if (value === undefined || value === null || isNaN(value)) {
     return 'N/A';
   }
   return `${value.toFixed(1)}x`;
 }
 
-/**
- * Format a number as a percentage (e.g., 25.5%)
- * @param {number} value - The percentage value to format
- * @returns {string} Formatted percentage string
- */
-export function formatPercentage(value: number | null | undefined): string {
-  if (value === 0) return '0%';
-  if (value === null || typeof value === 'undefined' || Number.isNaN(value)) {
-    return 'N/A';
-  }
-  return `${value.toFixed(1)}%`;
-}
-
-/**
- * Format a date string (e.g., "March 14, 2024")
- * Uses Pacific Time (America/Los_Angeles).
- * @param {string} dateString - The date string to format (expects ISO format like YYYY-MM-DDTHH:mm:ssZ or YYYY-MM-DDTHH:mm:ss-08:00)
- * @returns {string} Formatted date string
- */
-export function formatDate(dateString: string): string {
-  // Parse the date string directly. new Date() handles ISO strings correctly.
-  const date = new Date(dateString);
-
-  // Check if the date is valid
-  if (isNaN(date.getTime())) {
-    console.warn(`Invalid date string passed to formatDate: ${dateString}`);
-    return 'Invalid Date';
-  }
-
-  // Format the date using Pacific Time
-  return date.toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'America/Los_Angeles' // Use Pacific Time
-  });
-}
-
-/**
- * Check if a string is a valid URL
- * @param {string} str - String to check
- * @returns {boolean} Whether the string is a valid URL
- */
-export function isValidUrl(str: string): boolean {
+export function isValidUrl(url: string): boolean {
+  if (!url) return false;
   try {
-    new URL(str);
+    new URL(url);
     return true;
-  } catch {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_) {
     return false;
   }
 }
 
-/**
- * Extract domain from URL or company name
- * @param {string} input - URL or company name
- * @returns {string} Extracted domain or processed company name
- */
-export function extractDomain(input: string): string {
+export function extractDomain(urlOrCompany: string): string {
+  if (!urlOrCompany) return '';
   try {
-    if (input.includes('://') || input.includes('www.')) {
-      const url = new URL(input.includes('://') ? input : `https://${input}`);
-      return url.hostname.replace('www.', '');
-    }
-    return input.toLowerCase().replace(/\s+/g, '');
-  } catch {
-    return input.toLowerCase().replace(/\s+/g, '');
+    const parsedUrl = new URL(urlOrCompany.startsWith('http') ? urlOrCompany : `http://${urlOrCompany}`);
+    return parsedUrl.hostname.replace(/^www\./, '');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_) {
+    return urlOrCompany.toLowerCase().replace(/\s+/g, '').replace(/llc$|inc$|ltd$/, '');
   }
 }
 
-/**
- * Truncate text with ellipsis
- * @param {string} text - Text to truncate
- * @param {number} maxLength - Maximum length before truncation
- * @returns {string} Truncated text
- */
 export function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return `${text.slice(0, maxLength)}...`;
+  if (!text) return '';
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return `${text.substring(0, maxLength)}...`;
 }
 
-/**
- * Generate a random string of specified length
- * @param {number} length - Length of string to generate
- * @returns {string} Random string
- */
 export function randomString(length: number): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
   for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
   }
   return result;
 }

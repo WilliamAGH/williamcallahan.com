@@ -5,7 +5,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getBookmarks } from '@/lib/data-access'; // Use the new data-access layer
+import { getBookmarks } from '@/lib/data-access/bookmarks';
 import type { NextRequest } from 'next/server';
 
 // This route can leverage the caching within getBookmarks

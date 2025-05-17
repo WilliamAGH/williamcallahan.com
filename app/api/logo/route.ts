@@ -2,16 +2,16 @@
  * Logo Fetching API Route
  * @module app/api/logo
  * @description
- * Server-side API endpoint for fetching and validating company logos.
+ * Server-side API endpoint for fetching and validating company logos
  * This route handles logo fetching, validation, and caching to ensure
- * we only serve valid company logos and not generic globe icons.
+ * we only serve valid company logos and not generic globe icons
  */
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getLogo, serveLogoFromS3 } from '@/lib/data-access'; // Update to support both methods
-import { ServerCacheInstance } from '@/lib/server-cache'; // Add cache import
-import type { LogoSource } from '@/types/logo'; // Import LogoSource type
+import { getLogo, serveLogoFromS3 } from '@/lib/data-access/logos';
+import { ServerCacheInstance } from '@/lib/server-cache';
+import type { LogoSource } from '@/types/logo';
 
 // Configure dynamic API route with caching
 export const dynamic = 'force-dynamic';
