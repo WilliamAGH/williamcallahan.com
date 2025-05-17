@@ -32,7 +32,7 @@ export interface StoredGithubActivityS3 {
 /**
  * Represents a segment of GitHub activity data with optional summary
  */
-export type GitHubActivitySegment = Omit<StoredGithubActivityS3, 'summaryActivity' | 'allTimeTotalContributions'>;
+export type GitHubActivitySegment = Omit<StoredGithubActivityS3, 'allTimeTotalContributions'>;
 
 /**
  * Response from `/api/github-activity` with nested segments

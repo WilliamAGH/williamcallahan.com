@@ -17,7 +17,17 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   const secret = request.headers.get('x-refresh-secret');
-  if (secret !== process.env.GITHUB_REFRESH_SECRET) {
+  const serverSecret = process.env.GITHUB_REFRESH_SECRET;
+  
+  if (!serverSecret) {
+    console.error('[API Refresh] GITHUB_REFRESH_SECRET is not set – refusing to run refresh.');
+    return NextResponse.json(
+      { message: 'Server mis-configuration: secret missing.' },
+      { status: 500 }
+    );
+  }
+  
+  if (secret !== serverSecret) {
     const generateKeyCommand = "node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"";
     console.warn(`[API Refresh] Unauthorized: 'x-refresh-secret' header invalid or missing.\n    Ensure GITHUB_REFRESH_SECRET (server) and NEXT_PUBLIC_GITHUB_REFRESH_SECRET (client) match.\n    To generate a new secret, run in terminal: ${generateKeyCommand}`);
 
