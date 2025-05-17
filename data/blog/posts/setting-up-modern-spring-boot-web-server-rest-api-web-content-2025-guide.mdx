@@ -21,62 +21,22 @@ coverImage: "/images/posts/spring-for-java.png"
 
 import { BackgroundInfo, CollapseDropdown, ShellParentTabs, ShellTab, InstructionToggleTabs, InstructionTab, ArticleImage, ExternalLink } from '@/components/utils/index';
 
-<BackgroundInfo title="Overview">
-This guide covers setting up a modern Spring Boot application with:
-
-- Apache Maven for builds
-- IntelliJ IDEA Spring Initializr integration
-- A simple REST API endpoint
-- Serving static web content
-- Essential Maven commands and troubleshooting tips
-- Basic application configuration
-- Environment variables setup
+<BackgroundInfo title="Related Java Setup Guides">
+- <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">Core Guide: Java, Maven & Gradle Setup & Usage</ExternalLink>
+- <ExternalLink href="/blog/how-to-setup-the-java-sdk-and-use-javafx-on-macos-windows">Specifics: Setting up JavaFX</ExternalLink>
+- **This Article: Specifics for Setting up a Spring Boot Server**
 </BackgroundInfo>
 
-## Part 1: Prerequisites & Initial Setup
+<BackgroundInfo title="Overview">
+This guide covers creating a Spring Boot application. Key aspects:
+- **JDK & Maven Setup**: Assumed to be done. For initial JDK/Maven installation and `JAVA_HOME`/`M2_HOME` setup, refer to the <ExternalLink href="/blog/project-level-java-maven-gradle-versioning#part-1-os-level-tool-installation-the-foundation">Core Java & Build Tools Setup Guide</ExternalLink>. This article focuses on Spring Boot project creation and specific Maven usage (like the Spring Boot Maven Plugin).
+- **IntelliJ IDEA Spring Initializr**: For easy project generation.
+- **REST API Endpoint**: A simple "Hello World" example.
+- **Static Web Content**: Serving HTML/CSS/JS.
+- **Application Configuration**: Using `application.properties` and environment variables.
+</BackgroundInfo>
 
-### Install JDK (e.g., JDK 21 LTS)
-<ShellParentTabs>
-  <ShellTab label="macOS (zsh)" isDefault={true}>
-    ```bash
-    brew install openjdk@21
-    echo 'export JAVA_HOME=$(/usr/libexec/java_home -v21)' >> ~/.zshrc
-    echo 'export PATH="$JAVA_HOME/bin:$PATH"'     >> ~/.zshrc
-    source ~/.zshrc
-    java -version
-    ```
-  </ShellTab>
-  <ShellTab label="Windows">
-    1. Install JDK 21 from Oracle or Adoptium.
-    2. Set environment variable `JAVA_HOME=C:\Program Files\Java\jdk-21`.
-    3. Add `%JAVA_HOME%\bin` to `Path`.
-    4. Run `java -version` to verify.
-  </ShellTab>
-</ShellParentTabs>
-
-### Install Apache Maven
-<ShellParentTabs>
-  <ShellTab label="macOS (zsh)" isDefault={true}>
-    ```bash
-    # Extract Maven and then:
-    echo 'export M2_HOME=/opt/apache-maven-3.9.x' >> ~/.zshrc
-    echo 'export PATH="$M2_HOME/bin:$PATH"'   >> ~/.zshrc
-    source ~/.zshrc
-    mvn -v
-    ```
-  </ShellTab>
-  <ShellTab label="Windows">
-    1. Extract Maven to `C:\Program Files\Maven\apache-maven-3.9.x`.
-    2. Set `M2_HOME` to that path and add `%M2_HOME%\bin` to `Path`.
-    3. Run `mvn -v` to verify.
-  </ShellTab>
-</ShellParentTabs>
-
-### Install IntelliJ IDEA
-Download and install from https://www.jetbrains.com/idea/download/.
-Use Community Edition (free) or Ultimate (full Spring support).
-
-## Part 2: Create a Spring Boot Project
+## Part 1: Create a Spring Boot Project
 
 <ShellParentTabs>
   <ShellTab label="Maven + start.spring.io" isDefault={true}>
@@ -115,7 +75,7 @@ Use Community Edition (free) or Ultimate (full Spring support).
 - `pom.xml` - Maven config and dependency management
 </CollapseDropdown>
 
-## Part 3: Application Configuration
+## Part 2: Application Configuration
 
 <CollapseDropdown summary="application.properties setup">
 Edit `src/main/resources/application.properties` to configure your application:
@@ -169,7 +129,7 @@ api.key=${CUSTOM_API_KEY}
 ```
 </CollapseDropdown>
 
-## Part 4: Build a Basic REST API
+## Part 3: Build a Basic REST API
 
 <CollapseDropdown summary="HelloController.java">
 Create `src/main/java/com/example/myspringbootapp/HelloController.java`:
@@ -205,7 +165,7 @@ curl http://localhost:8080/hello?name=Developer
 ```
 </CollapseDropdown>
 
-## Part 5: Serve Static Web Content
+## Part 4: Serve Static Web Content
 
 <CollapseDropdown summary="Static index.html">
 1. Create `src/main/resources/static/index.html`:
@@ -222,19 +182,31 @@ curl http://localhost:8080/hello?name=Developer
 Spring Boot serves files in `static/` automatically.
 </CollapseDropdown>
 
-## Part 6: Essential Maven Commands
+## Part 5: Essential Maven Commands for Spring Boot
 
-<CollapseDropdown summary="Maven commands">
-- Build: `mvn clean install`
-- Run:   `mvn spring-boot:run`
-- Test:  `mvn test`
-- Dependencies: `mvn dependency:tree`
+Refer to the <ExternalLink href="/blog/project-level-java-maven-gradle-versioning#part-3-maven-project-versioning-common-commands">Core Maven Guide</ExternalLink> for general Maven commands. Specific to Spring Boot (using the Spring Boot Maven Plugin, typically included):
+
+<CollapseDropdown summary="Spring Boot Maven Plugin Commands">
+  ```bash
+  # Run the Spring Boot application (dev mode with hot reload if DevTools is present)
+  ./mvnw spring-boot:run
+
+  # Package the application into an executable JAR
+  ./mvnw clean package
+  # (The spring-boot-maven-plugin's repackage goal runs by default during the package phase)
+
+  # Build an OCI image (e.g., Docker image) if configured
+  ./mvnw spring-boot:build-image
+  ```
+  <div>
+  The `spring-boot:run` goal is particularly useful for development. For other standard Maven lifecycle commands like `clean`, `compile`, `test`, `install`, use them as described in the Core Maven Guide.
+  </div>
 </CollapseDropdown>
 
-## Part 7: Development & Hot Reload
+## Part 6: Development & Hot Reload
 
-<CollapseDropdown summary="Hot reload setup">
-Spring Boot DevTools enables hot reload by default. Optimize it with:
+<CollapseDropdown summary="Hot reload setup with Spring Boot DevTools">
+Spring Boot DevTools (`spring-boot-devtools` dependency) enables automatic restart/hot reload by default when files change. To optimize:
 
 1. For IntelliJ IDEA:
    - In Preferences > Build, Execution, Deployment > Compiler, enable "Build project automatically"
@@ -247,34 +219,49 @@ mvn spring-boot:run -Dspring-boot.run.jvmArguments="-Dspring.devtools.restart.en
 
 3. To run with specific profile:
 ```bash
-mvn spring-boot:run -Dspring.profiles.active=dev
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev # For Maven
+# For Gradle: ./gradlew bootRun --args='--spring.profiles.active=dev'
 ```
 </CollapseDropdown>
 
-## Part 8: Key Concepts & Troubleshooting
+## Part 7: Key Spring Boot Concepts & Troubleshooting
 
-<CollapseDropdown summary="Maven Central repository">
-Maven Central (<ExternalLink href="https://central.sonatype.com/">central.sonatype.com</ExternalLink>) is the primary public repository for Java libraries and dependencies, serving a similar role to npm (JavaScript) or PyPI (Python) for the Java ecosystem.
+<CollapseDropdown summary="Spring Boot Auto-configuration">
+Spring Boot automatically configures your application based on the JAR dependencies you have added. For example, if `spring-boot-starter-web` is on the classpath, it auto-configures Tomcat and Spring MVC.
 </CollapseDropdown>
 
-<CollapseDropdown summary="Auto-configuration">
-Spring Boot auto-configures based on classpath; e.g., `spring-boot-starter-web` → embedded Tomcat.
+<CollapseDropdown summary="Starters">
+Spring Boot "Starters" are convenient dependency descriptors that you can include in your application. For example, `spring-boot-starter-data-jpa` for JPA/Hibernate, `spring-boot-starter-security` for security.
 </CollapseDropdown>
 
-<CollapseDropdown summary="Port conflict">
-Add `server.port=8081` to `application.properties` or free port 8080.
-</CollapseDropdown>
-
-## Part 9: Deployment Options
-
-<CollapseDropdown summary="Package for production">
+<CollapseDropdown summary="Port Conflict">
+If port 8080 is in use, change it in `application.properties` (e.g., `server.port=8081`) or via command line:
 ```bash
-mvn clean package
-java -jar target/*.jar
+./mvnw spring-boot:run -Dspring-boot.run.arguments="--server.port=8081"
 ```
 </CollapseDropdown>
 
-<CollapseDropdown summary="Running with different profiles">
+<CollapseDropdown summary="Maven Central Repository">
+  Maven Central (<ExternalLink href="https://central.sonatype.com/">central.sonatype.com</ExternalLink>) is the primary public repository for Java libraries (dependencies). Spring Boot dependencies are typically fetched from here or other configured repositories (like Spring Milestones/Snapshots).
+</CollapseDropdown>
+
+
+## Part 8: Deployment Options
+
+<CollapseDropdown summary="Package for Production (Executable JAR)">
+  ```bash
+  # Using Maven
+  ./mvnw clean package
+  # This creates an executable JAR in target/your-app-name.jar
+
+  # Using Gradle
+  ./gradlew clean bootJar
+  # This creates an executable JAR in build/libs/your-app-name.jar
+  ```
+  <div>Run the JAR: `java -jar target/myspringbootapp-0.0.1-SNAPSHOT.jar` (adjust filename).</div>
+</CollapseDropdown>
+
+<CollapseDropdown summary="Running with Different Profiles in Production">
 ```bash
 java -jar target/*.jar --spring.profiles.active=prod
 ```
