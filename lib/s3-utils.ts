@@ -47,9 +47,15 @@ export const s3Client: S3Client | null =
     : null;
 
 /**
- * Reads an object from S3.
- * @param key The S3 object key.
- * @returns The object content as a string or Buffer, or null if not found or error.
+ * Retrieves an object from S3 by key, optionally using a byte range.
+ *
+ * Returns the object content as a UTF-8 string for text or JSON types, or as a Buffer for other content types. If the object is not found or an error occurs, returns null.
+ *
+ * @param key - The S3 object key to read.
+ * @param options - Optional settings, including a byte range for partial reads.
+ * @returns The object content as a string or Buffer, or null if not found or on error.
+ *
+ * @remark Retries up to three times on transient "not found" errors before returning null.
  */
 export async function readFromS3(
   key: string,

@@ -19,10 +19,11 @@ const VERBOSE = process.env.VERBOSE === 'true' || false;
 // --- Helper Functions ---
 
 /**
- * Generates the S3 key for a logo based on its domain and source
- * @param domain - The domain for which the logo is requested
- * @param source - The source from which the logo was/will be fetched
- * @returns The S3 key string
+ * Constructs the S3 object key for a company logo using the domain and logo source.
+ *
+ * @param domain - The domain name associated with the logo.
+ * @param source - The logo source identifier.
+ * @returns The S3 key string for storing or retrieving the logo.
  */
 function getLogoS3Key(domain: string, source: LogoSource): string {
   const id = domain.split('.')[0];
@@ -31,9 +32,12 @@ function getLogoS3Key(domain: string, source: LogoSource): string {
 }
 
 /**
- * Attempts to find a logo for a given domain in S3 by checking known sources or listing objects
- * @param domain - The domain for which to find the logo
- * @returns A promise that resolves to an object containing the logo buffer and its source, or null if not found
+ * Searches for a logo associated with the given domain in S3 storage.
+ *
+ * Checks known sources (Google, Clearbit, DuckDuckGo) using generated S3 keys. If not found, lists S3 objects with a prefix based on the domain and attempts to match a logo file, inferring the source from the filename if possible.
+ *
+ * @param domain - The domain to search for a logo.
+ * @returns A promise resolving to an object containing the logo buffer and its source, or null if no logo is found.
  */
 export async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> {
   for (const source of ['google', 'clearbit', 'duckduckgo'] as LogoSource[]) {
@@ -68,10 +72,12 @@ export async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; so
 }
 
 /**
- * Checks if an image buffer is large enough based on predefined dimensions
- * SVG images are always considered large enough
- * @param buffer - The image buffer to check
- * @returns A promise that resolves to true if the image is large enough, false otherwise
+ * Determines whether an image buffer meets the minimum size requirements for logos.
+ *
+ * SVG images are always considered large enough. For other formats, the image must have both width and height greater than or equal to the medium logo size.
+ *
+ * @param buffer - The image buffer to evaluate.
+ * @returns A promise that resolves to true if the image is sufficiently large, or false otherwise.
  */
 async function isImageLargeEnough(buffer: Buffer): Promise<boolean> {
   try {
@@ -82,10 +88,11 @@ async function isImageLargeEnough(buffer: Buffer): Promise<boolean> {
 }
 
 /**
- * Validates a logo buffer against generic patterns and size requirements
- * @param buffer - The image buffer to validate
- * @param url - The URL from which the logo was fetched (used for generic pattern matching)
- * @returns A promise that resolves to true if the buffer is valid, false otherwise
+ * Determines whether a logo image buffer is valid by checking for generic globe patterns in the source URL and verifying minimum image size requirements.
+ *
+ * @param buffer - The image buffer to validate.
+ * @param url - The source URL of the logo, used to detect generic globe images.
+ * @returns A promise that resolves to true if the buffer is valid and not a generic globe image, false otherwise.
  */
 async function validateLogoBuffer(buffer: Buffer, url: string): Promise<boolean> {
   if (GENERIC_GLOBE_PATTERNS.some(pattern => pattern.test(url))) return false;
@@ -94,10 +101,12 @@ async function validateLogoBuffer(buffer: Buffer, url: string): Promise<boolean>
 }
 
 /**
- * Fetches a logo for a given domain from external sources (Google, Clearbit, DuckDuckGo)
- * Tries multiple sources and resolutions
- * @param domain - The domain for which to fetch the logo
- * @returns A promise that resolves to an object containing the logo buffer and its source, or null if not found
+ * Attempts to fetch a company logo for the specified domain from external providers (Google, Clearbit, DuckDuckGo), trying multiple sources and resolutions in order of preference.
+ *
+ * @param domain - The domain for which to retrieve the logo.
+ * @returns A promise resolving to an object containing the processed logo buffer and its source, or `null` if no valid logo is found.
+ *
+ * @remark Only returns a logo if it passes validation checks for size and content. Fetches are subject to a 5-second timeout per source.
  */
 async function fetchExternalLogo(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> {
   const sources: { name: LogoSource; urlFn: (domain: string) => string }[] = [
@@ -138,10 +147,12 @@ async function fetchExternalLogo(domain: string): Promise<{ buffer: Buffer; sour
 }
 
 /**
- * Processes an image buffer to determine its format (SVG or PNG) and content type
- * Converts non-SVG images to PNG
- * @param buffer - The raw image buffer
- * @returns A promise that resolves to an object containing the processed buffer, a flag indicating if it's SVG, and the content type
+ * Processes an image buffer to determine if it is SVG or PNG, converting non-SVG images to PNG format.
+ *
+ * @param buffer - The image data to process.
+ * @returns An object containing the processed image buffer, a flag indicating SVG format, and the appropriate content type.
+ *
+ * @remark If image processing fails, returns the original buffer as PNG for safety.
  */
 export async function processImageBuffer(buffer: Buffer): Promise<{
   processedBuffer: Buffer;
@@ -161,11 +172,15 @@ export async function processImageBuffer(buffer: Buffer): Promise<{
 }
 
 /**
- * Retrieves a logo for a given domain
- * Follows a cache → S3 → external fetch hierarchy
- * Handles caching, S3 storage, and external fetching logic
- * @param domain - The domain for which to get the logo
- * @returns A promise that resolves to an object containing the logo buffer, its source, and content type, or null if not found
+ * Retrieves a company logo for the specified domain, using cache, S3 storage, or external sources as needed.
+ *
+ * Attempts to return a logo by first checking a global override, then an in-memory cache, followed by S3 storage, and finally by fetching from external APIs if allowed. Caches and uploads new or updated logos to S3 as appropriate.
+ *
+ * @param domain - The domain for which to retrieve the logo.
+ * @returns A promise resolving to an object containing the logo buffer, its source, and content type, or `null` if no logo is found.
+ *
+ * @remark
+ * External logo fetching can be skipped via environment variables (`NODE_ENV='test'` or `SKIP_EXTERNAL_LOGO_FETCH='true'`). The function uploads new or changed logos to S3 and caches results in memory.
  */
 export async function getLogo(domain: string): Promise<{ buffer: Buffer; source: LogoSource; contentType: string } | null> {
   const override = (globalThis as {getLogo?: typeof getLogo}).getLogo;
@@ -232,10 +247,9 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
 }
 
 /**
- * Serves a logo directly from S3 without external fetching or extensive caching logic
- * Primarily used by API routes that need to serve an already stored logo
- * @param domain - The domain for which to serve the logo
- * @returns A promise that resolves to an object containing the logo buffer, its source, and content type, or null if not found in S3
+ * Retrieves and processes a logo for the specified domain directly from S3 storage.
+ *
+ * Returns the logo buffer, its source, and content type if found in S3; otherwise, returns null.
  */
 export async function serveLogoFromS3(domain: string): Promise<{ buffer: Buffer; source: LogoSource; contentType: string } | null> {
   const s3Logo = await findLogoInS3(domain);
