@@ -38,7 +38,7 @@ const config = tseslint.config(
       parserOptions: {
         // Explicitly reference the tsconfig.json file instead of using project: true
         project: ['./tsconfig.json'],
-        // tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir: import.meta.dirname,
       },
     },
   },
