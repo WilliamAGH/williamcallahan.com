@@ -13,7 +13,7 @@
  */
 
 import { NEXT_PUBLIC_SITE_URL } from '../constants';
-import { isPacificDateString, type PacificDateString } from '../../types/seo';
+import { isPacificDateString, type PacificDateString } from '../../types/seo/shared';
 
 /**
  * Ensures a URL is absolute by prepending the site URL if necessary
@@ -125,15 +125,4 @@ export function formatSeoDate(date: string | Date | undefined): PacificDateStrin
   }
 
   return formatted;
-}
-
-/**
- * Validates that a date string is in the correct format for SEO metadata
- * Used to ensure dates meet OpenGraph and schema.org requirements
- *
- * @param date - The date string to validate
- * @returns True if the date is valid and in the correct format
- */
-export function validateSeoDate(date: string): boolean {
-  return isPacificDateString(date);
 }

@@ -3,7 +3,7 @@
  * @jest-environment node
  */
 
-import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate, validateSeoDate } from '../../../lib/seo/utils';
+import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate } from '../../../lib/seo/utils';
 import { NEXT_PUBLIC_SITE_URL } from '../../../lib/constants';
 import { isPacificDateString } from '../../../types/seo';
 
@@ -95,24 +95,24 @@ describe('SEO Utilities', () => {
     });
   });
 
-  describe('validateSeoDate', () => {
+  describe('isPacificDateString', () => {
     it('should validate correct Pacific Time format during standard time', () => {
-      expect(validateSeoDate('2025-01-01T12:00:00-08:00')).toBe(true);
+      expect(isPacificDateString('2025-01-01T12:00:00-08:00')).toBe(true);
     });
 
     it('should validate correct Pacific Time format during daylight savings', () => {
-      expect(validateSeoDate('2025-07-01T12:00:00-07:00')).toBe(true);
+      expect(isPacificDateString('2025-07-01T12:00:00-07:00')).toBe(true);
     });
 
     it('should reject invalid formats', () => {
-      expect(validateSeoDate('2025-01-01')).toBe(false);
-      expect(validateSeoDate('2025-01-01T12:00:00Z')).toBe(false);
-      expect(validateSeoDate('2025-01-01T12:00:00+00:00')).toBe(false);
+      expect(isPacificDateString('2025-01-01')).toBe(false);
+      expect(isPacificDateString('2025-01-01T12:00:00Z')).toBe(false);
+      expect(isPacificDateString('2025-01-01T12:00:00+00:00')).toBe(false);
     });
 
     it('should reject invalid timezone offsets', () => {
-      expect(validateSeoDate('2025-01-01T12:00:00-05:00')).toBe(false);
-      expect(validateSeoDate('2025-01-01T12:00:00-09:00')).toBe(false);
+      expect(isPacificDateString('2025-01-01T12:00:00-05:00')).toBe(false);
+      expect(isPacificDateString('2025-01-01T12:00:00-09:00')).toBe(false);
     });
   });
 });
