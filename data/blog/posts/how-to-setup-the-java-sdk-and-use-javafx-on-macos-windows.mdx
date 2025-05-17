@@ -9,100 +9,61 @@ tags: ["macos", "java", "zsh", "intellij", "environment variables", "javafx", "s
 coverImage: "/images/posts/JavaFX-logo.png"
 ---
 
-<BackgroundInfo title="Overview: Key Components & Their Roles">
-This guide covers setting up a JavaFX development environment. Here's a quick look at the essential parts and why they matter:
-
-- **Environment Variables (`JAVA_HOME`, `PATH`)**: Tells your system where to find the Java Development Kit (JDK) for command-line tools.
-- **Build Tool (Maven/Gradle)**: Manages project dependencies (like JavaFX libraries) and automates the build process.
-- **FXML**: XML-based files for defining the structure and layout of your user interface, separating design from logic.
-- **SceneBuilder**: A visual tool for designing and editing FXML files without writing XML code directly.
-
+<BackgroundInfo title="Related Java Setup Guides">
+- <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">Core Guide: Java, Maven & Gradle Setup & Usage</ExternalLink>
+- **This Article: Specifics for Setting up JavaFX**
+- <ExternalLink href="/blog/setting-up-modern-spring-boot-web-server-rest-api-web-content-2025-guide">Specifics: Setting up a Spring Boot Server</ExternalLink>
 </BackgroundInfo>
 
-## 1: Set $JAVA_HOME (_environment variable_)
-
-Set up `JAVA_HOME` globally on macOS and Windows to prepare your system for Java applications.
-
-<CollapseDropdown summary="1.1: Download Java SDK">
-  - **[Download Java SDK](https://www.oracle.com/java/technologies/downloads/#java21)**:
-    - **For macOS ARM64 (M1/M2/M3)**: Download the macOS ARM64 DMG Installer
-    - **For macOS Intel**: Download the macOS x64 DMG Installer
-    - **For Windows**: Download the Windows x64 Installer
-
-  - **OpenJDK Alternative**: [OpenJDK](https://openjdk.org/projects/jdk/21/) offers a free, open-source implementation of Java with identical functionality.
-    - For macOS, you can also install via Homebrew: `brew install openjdk@21`
-
-  <BackgroundInfo title="Note on JDK version">
-  I recommend always using the current long-term stable branch (LTS), which is 21 as of this writing. Additionally, a lot of conflicts can be most easily resolved with just one Java version installed on your system. If you already have multiple versions installed, see <a href="#managing-multiple-java-versions">Section 6.2</a> on managing multiple Java versions.
-  </BackgroundInfo>
-</CollapseDropdown>
-
-<CollapseDropdown summary="1.2: Install Java">
-  - **macOS**: Open the downloaded .dmg file and follow the installer instructions. The default installation location will be:
-    `/Library/Java/JavaVirtualMachines/jdk-21.jdk/Contents/Home`
-  - **Windows**: Run the installer and follow the on-screen instructions. The default location is typically:
-    `C:\Program Files\Java\jdk-21`
-</CollapseDropdown>
-
-<CollapseDropdown summary="1.3: Set JAVA_HOME environment variable">
-  - **macOS**: Add JAVA_HOME to your `.zshrc` file and apply it immediately:
-    ```bash
-    `echo 'export JAVA_HOME=$(/usr/libexec/java_home)' >> ~/.zshrc && source ~/.zshrc`
-    ```
-  - **Windows**: Open **System Properties** (Win + Pause/Break), go to **Advanced system settings**, and under `Environment Variables`, add:
-    - **Variable name**: `JAVA_HOME`
-    - **Variable value**: `C:\Program Files\Java\jdk-21` _(update version if different)_
-    - Then edit the `Path` variable and add `%JAVA_HOME%\bin`
-</CollapseDropdown>
-<BackgroundInfo title="Do you still need JAVA_HOME?">
-While modern IDEs often manage their own JDK settings, setting `JAVA_HOME` globally is still crucial for command-line tools like Maven and Gradle.
+<BackgroundInfo title="Overview: JavaFX Key Components">
+This guide focuses on setting up a JavaFX development environment. Key parts:
+- **JDK Setup**: Assumed to be done. For initial JDK installation and `JAVA_HOME` setup, refer to the <ExternalLink href="/blog/project-level-java-maven-gradle-versioning#part-1-os-level-tool-installation-the-foundation">Core Java Setup Guide</ExternalLink>.
+- **Build Tool (Maven/Gradle)**: Manages JavaFX libraries as project dependencies. This is covered in detail in the <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">Core Java Guide</ExternalLink>. This article will show JavaFX-specific dependency examples.
+- **FXML**: XML for UI layout, separating design from Java logic.
+- **SceneBuilder**: Visual tool for FXML design.
 </BackgroundInfo>
 
----
+## Part 1: JavaFX Project Setup in IDEs
 
-## Part 2: Setting up Java & JavaFX in IntelliJ IDEA and VS Code
+This section assumes your JDK is installed and `JAVA_HOME` is configured as per the <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">Core Java Guide</ExternalLink>. We'll focus on IDE integration for JavaFX.
 
 <BackgroundInfo title="What is JavaFX?">
-JavaFX is a toolkit/library for developing graphical (GUI) applications in Java. It is no longer included with the JDK since Java 11. While you can still download it from [Gluon JavaFX](https://gluonhq.com/products/javafx/), it's best practice to let your build tool (Maven/Gradle) manage it as a project dependency. **Avoid installing JavaFX system-wide.**
+JavaFX is a toolkit for developing graphical (GUI) applications in Java. Since Java 11, it's no longer bundled with the JDK. It's best managed as a project dependency via Maven or Gradle. **Avoid installing JavaFX system-wide.**
 </BackgroundInfo>
 
-**Integrated Setup in IntelliJ IDEA and VS Code**: Both IDEs offer seamless onboarding for JavaFX projects. Select JavaFX from the project templates, and the IDE will configure the necessary settings.
-
-<CollapseDropdown summary="2.1: Setup for Microsoft VS Code">
-  <BackgroundInfo title="What is the Java extension pack?">
-  The Extension Pack for Java is a great way to get Java setup in one click in VS Code with things like IntelliSense, debugging, and more.
-  </BackgroundInfo>
-  **[Download Microsoft VS Code](https://code.visualstudio.com/download)**: Then install the [Extension Pack for Java](https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack)
+<CollapseDropdown summary="1.1: VS Code with Java Extension Pack">
+  <div>
+  Ensure you have the <ExternalLink href="https://marketplace.visualstudio.com/items?itemName=vscjava.vscode-java-pack">Extension Pack for Java</ExternalLink> installed in VS Code.
+  </div>
 </CollapseDropdown>
 
-<CollapseDropdown summary="2.2: Setup for IntelliJ IDEA">
-  **[Download IntelliJ IDEA](https://www.jetbrains.com/idea/download/)**
-  <BackgroundInfo title="IntelliJ IDEA - batteries included">
-  After you download and install an IntelliJ IDE from JetBrains), you're all set! IDEA comes with what you need to get started with Java & JavaFX.
-  </BackgroundInfo>
+<CollapseDropdown summary="1.2: IntelliJ IDEA (Community or Ultimate)">
+  <div>
+  IntelliJ IDEA has excellent built-in support for Java and JavaFX projects.
+  </div>
 </CollapseDropdown>
 
-<BackgroundInfo title="Version Compatibility is Key">
-Based on my experience, using the latest Long-Term Support (LTS) versions consistently across tools minimizes compatibility issues. I recommend sticking to **JDK 21**, **JavaFX 21**, and **Scene Builder 23** (or the latest corresponding LTS versions) for a smoother setup. Using other versions on my ARM64-based Mac resulted in errors, so watch out for that.
-
-_**Tip:** Ensure your build configuration (`pom.xml` or `build.gradle`) also uses the same Java LTS version. See <a href="#build-system-configurations">Section 6.4</a> for an example._
+<BackgroundInfo title="Version Compatibility for JavaFX">
+Use the latest Long-Term Support (LTS) versions consistently. For example:
+- **JDK 21**
+- **JavaFX 21** (or a version compatible with your JDK, e.g., JavaFX 22+ for JDK 21+)
+- **Scene Builder 23** (or latest corresponding LTS)
+Ensure your `pom.xml` or `build.gradle` reflects these versions. See <a href="#javafx-jdk-compatibility">Part 5.1</a> for a `pom.xml` example.
 </BackgroundInfo>
 
 ---
 
-## Part 3: Integrating Scene Builder
+## Part 2: Integrating Scene Builder
 
-Scene Builder is a visual layout tool for designing JavaFX UIs (.fxml files). First, download it, then tell your IDE where to find it.
+Scene Builder is a visual layout tool for designing JavaFX UIs (.fxml files).
 
-<CollapseDropdown summary="3.1: Download and Install Scene Builder">
-  Visit the [Gluon Scene Builder website](https://gluonhq.com/products/scene-builder/) to download the latest version (LTS recommended, currently 23). Install it using the downloaded installer.
+<CollapseDropdown summary="2.1: Download and Install Scene Builder">
+  Visit the <ExternalLink href="https://gluonhq.com/products/scene-builder/">Gluon Scene Builder website</ExternalLink> to download the latest version (LTS recommended, e.g., 23). Install it.
 </CollapseDropdown>
 
-<CollapseDropdown summary="3.2: Configure Path in IntelliJ IDEA">
+<CollapseDropdown summary="2.2: Configure Path in IntelliJ IDEA">
   - Go to **Settings/Preferences > Languages & Frameworks > JavaFX**.
-  - Click the folder icon next to "Path to SceneBuilder" and navigate to the installed Scene Builder application.
-      - _macOS typical path_: `/Applications/SceneBuilder.app` > Contents > MacOS > SceneBuilder
-      - _Windows typical path_: `C:\Program Files\SceneBuilder\SceneBuilder.exe` (or similar)
+  - Set "Path to SceneBuilder" to your installation (e.g., `/Applications/SceneBuilder.app` on macOS, or `C:\Program Files\SceneBuilder\SceneBuilder.exe` on Windows).
   {/* Corrected indentation for ArticleImage */}
   <ArticleImage
     src="/images/posts/setup-javafx-path-in-idea-part1.png"
@@ -117,8 +78,8 @@ Scene Builder is a visual layout tool for designing JavaFX UIs (.fxml files). Fi
   />
 </CollapseDropdown>
 
-<CollapseDropdown summary="3.3: Configure Path in VS Code">
-  *   Install the [SceneBuilder extension for Visual Studio Code](https://marketplace.visualstudio.com/items/?itemName=bilalekrem.scenebuilderextension).
+<CollapseDropdown summary="2.3: Configure Path in VS Code">
+  *   Install the [SceneBuilder extension for Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=bilalekrem.scenebuilderextension).
   *   Open the Command Palette (**Cmd+Shift+P** on macOS, **Ctrl+Shift+P** on Windows)
   *   Type `Configure Scene Builder path` and press enter
   *   Browse to and select your installed Scene Builder executable
@@ -136,18 +97,17 @@ Scene Builder is a visual layout tool for designing JavaFX UIs (.fxml files). Fi
 
 ---
 
-## Part 4: Creating a JavaFX Project
+## Part 3: Creating a JavaFX Project
 
-Now that the JDK and Scene Builder are set up, here's how to create a new JavaFX project.
+With your JDK and Scene Builder configured, create a new JavaFX project.
 
-<CollapseDropdown summary="4.1: Create New Project in IntelliJ IDEA">
-  - Go to **File > New > Project**.
-  - Select **JavaFX** from the list on the left.
-  - Choose your project SDK (should be the Java 21 JDK you installed).
+<CollapseDropdown summary="3.1: Create New Project in IntelliJ IDEA">
+  - **File > New > Project...**
+  - Select **JavaFX**.
+  - Choose your project SDK (e.g., Java 21).
   - Select **Maven** or **Gradle** as the build system.
-  - Fill in your project details (Name, Location, GroupId, ArtifactId).
-  - Click **Create**.
-  {/* Corrected indentation for ArticleImage */}
+  - Fill in project details (Name, GroupId, ArtifactId). Click **Create**.
+
   <ArticleImage
     src="/images/posts/jetbrains-ide-new-javafx-project.png"
     alt="Creating a new JavaFX project in IntelliJ IDEA"
@@ -155,30 +115,32 @@ Now that the JDK and Scene Builder are set up, here's how to create a new JavaFX
   />
 </CollapseDropdown>
 
-<CollapseDropdown summary="4.2: Create New Project in VS Code">
+<CollapseDropdown summary="3.2: Create New Project in VS Code">
   - Open the Command Palette (**Cmd+Shift+P** on macOS, **Ctrl+Shift+P** on Windows).
   - Type `Java: Create Java Project` and press Enter
   - Select **JavaFX** from the list
   - It'll ask for your desired repository version number for this new project, you can just hit enter to proceed with the default (_'version' 1.0-SNAPSHOT_)
   - When prompted to confirm (Y/N), make sure you hit N to be able to change the JavaFX version to 21 (_no other details should need changed, just hit enter to proceed with the default each time_)
   - Choose a folder location for your new project
-  {/* Corrected indentation for ArticleImage */}
+  
   <ArticleImage
     src="/images/posts/vscode-new-javafx-project-settings-steps.png"
     alt="VS Code command palette and prompts for creating a new JavaFX project"
     caption="Use the Command Palette (Cmd/Ctrl+Shift+P) -> 'Java: Create Java Project' -> 'JavaFX' and follow the prompts"
   />
+
   - Once created, VS Code will open the new project. You can test run it:
     - Open the `App.java` file (usually under `src/main/java/com/example/`).
     - Click the "Run" button that appears above the `main` method or press **F5**.
-  {/* Corrected indentation for ArticleImage */}
+
   <ArticleImage
     src="/images/posts/vscode-test-new-javafx-gui-project.png"
     alt="VS Code showing the run button for App.java and the resulting JavaFX window"
     caption="Run the default App.java to ensure the JavaFX project builds and displays the initial window"
   />
+
   - After the project is successfully created, VS Code will show a notification. Click **Open** to load the project in a new window.
-  {/* Corrected indentation for ArticleImage */}
+  
   <ArticleImage
     src="/images/posts/vscode-after-creating-javafx-project-proceed-to-open.png"
     alt="VS Code notification showing successful project creation with an Open button"
@@ -186,175 +148,174 @@ Now that the JDK and Scene Builder are set up, here's how to create a new JavaFX
   />
 </CollapseDropdown>
 
-<BackgroundInfo title="What are the components of a JavaFX application?">
-  JavaFX separates layout (FXML) from logic (Java Controllers). Scene Builder edits the FXML files visually. The `pom.xml` (Maven) or `build.gradle` file manages dependencies like the JavaFX libraries. Key components include:
-  - **FXML Files (e.g., `primary.fxml`, `secondary.fxml`)**: XML files describing the GUI layout.
-  - **Java Controllers**: Classes linked to FXML for handling logic and interaction.
-  - **Scene Builder**: A visual tool for editing FXML files.
-  - **Java Code vs FXML**: You can build UIs programmatically (Java) or declaratively (FXML). FXML promotes separation of concerns.
+<BackgroundInfo title="JavaFX Application Components">
+  - **FXML Files (`primary.fxml`, etc.)**: XML for GUI layout.
+  - **Java Controllers**: Logic for FXML views.
+  - **Scene Builder**: Visual FXML editor.
+  - **Build File (`pom.xml` / `build.gradle`)**: Manages JavaFX library dependencies.
+  FXML promotes separation of UI design from application logic.
 </BackgroundInfo>
 
 ---
 
-## 5: Opening FXML Files in Scene Builder
+## Part 4: Opening FXML Files in Scene Builder
 
-Once your project is open and you have configured the Scene Builder path (as shown in Part 3), you can easily edit your UI layout files directly from your IDE.
+Once your project is open and Scene Builder path is configured (Part 2), edit FXML files from your IDE.
 
-<CollapseDropdown summary="5.1: IntelliJ IDEA">
-  {/* Corrected indentation for ArticleImage */}
+<CollapseDropdown summary="4.1: IntelliJ IDEA">
   <ArticleImage
     src="/images/posts/intellij-javafx-file-structure-with-fxml.png"
     alt="IntelliJ IDEA project structure for JavaFX showing HelloApplication.java and hello-view.fxml"
-    caption="Default IntelliJ JavaFX project structure. Note the location of the main application class (1) and the FXML view file (2)."
+    caption="Default IntelliJ JavaFX project structure."
     size="small"
   />
-  With your project open in IntelliJ IDEA and the Scene Builder path configured (as shown in Part 3.2), you can easily edit your UI layout files:
-  - Navigate to your FXML file (e.g., `src/main/resources/com/example/hello-view.fxml`) in the IntelliJ Project tool window.
-  - Right-click on the `.fxml` file.
-  - Select **Open In SceneBuilder** from the context menu.
-  {/* Corrected indentation for ArticleImage */}
+
+  - In Project tool window, navigate to your FXML file (e.g., `src/main/resources/com/example/hello-view.fxml`).
+  - Right-click > **Open In SceneBuilder**.
+
   <ArticleImage
     src="/images/posts/intellij-idea-how-to-open-javafx-in-scene-builder.png"
     alt="Right-clicking an FXML file in IntelliJ Project view showing the 'Open In SceneBuilder' option"
-    caption="Right-click the FXML file and choose 'Open In SceneBuilder' to visually edit the UI in IntelliJ IDEA"
+    caption="IntelliJ: Right-click FXML > Open In SceneBuilder"
     size="full"
   />
 </CollapseDropdown>
 
-<CollapseDropdown summary="5.2: VS Code">
-  Once your project is open in VS Code and you have configured the Scene Builder path (as shown in Part 3.3), you can easily edit your UI layout files:
-  - Navigate to your FXML file (e.g., `src/main/resources/com/example/primary.fxml`) in the VS Code Explorer.
-  - Right-click on the `.fxml` file.
-  - Select **Open in Scene Builder** from the context menu.
-  {/* Corrected indentation for ArticleImage */}
+<CollapseDropdown summary="4.2: VS Code">
+  - In Explorer, navigate to FXML file (e.g., `src/main/resources/com/example/primary.fxml`).
+  - Right-click > **Open in Scene Builder**.
+
   <ArticleImage
     src="/images/posts/vscode-how-to-open-javafx-fxml-files-in-scene-builder.png"
     alt="Right-clicking an FXML file in VS Code Explorer showing the 'Open in Scene Builder' option"
-    caption="Right-click the FXML file and choose 'Open in Scene Builder' to visually edit the UI"
+    caption="VS Code: Right-click FXML > Open in Scene Builder"
     size="medium"
   />
 </CollapseDropdown>
 
-<CollapseDropdown summary="5.3: Editing with Scene Builder">
-  Whether you open the `.fxml` file from IntelliJ IDEA or VS Code, Scene Builder will launch as a separate application.
-  It loads your FXML file, allowing you to visually inspect the component hierarchy, drag and drop new UI elements from the library, and modify properties in the inspector pane.
-  Any changes saved in Scene Builder are directly written back to the `.fxml` file in your project.
-
-  {/* Corrected indentation for ArticleImage */}
+<CollapseDropdown summary="4.3: Editing with Scene Builder">
+  <div>
+    Scene Builder launches as a separate application, loading your FXML file for visual editing (component hierarchy, drag-and-drop, property inspection).
+    Changes saved in Scene Builder are written back to the `.fxml` file in your project.
+  </div>
+  
   <ArticleImage
     src="/images/posts/scenebuilder-successful-editing-view.png"
     alt="Scene Builder application showing a JavaFX view with Library, Hierarchy, and Inspector panes"
-    caption="Scene Builder interface after opening an FXML file for visual editing"
+    caption="Scene Builder interface for visual FXML editing"
     size="full"
   />
 </CollapseDropdown>
 
 ---
 <a id="diagnosing-errors"></a>
-## 6: Diagnosing Errors
+## Part 5: Diagnosing Errors
 
-<a id="java_home-and-path-issues"></a>
-<CollapseDropdown summary="6.1: JAVA_HOME and Path Issues">
-  - **Issue**: `java: command not found` or wrong Java version used for command-line tools.
-  - **Fix**: Ensure `JAVA_HOME` points to your preferred JDK and your `PATH` includes JDK bin directory.
-    ```bash
-    # macOS/Linux: Add to ~/.zshrc or ~/.bash_profile
-    export JAVA_HOME=$(/usr/libexec/java_home -v 21)
-    export PATH=$JAVA_HOME/bin:$PATH
-
-    # Windows: Set in System Properties > Environment Variables
-    # JAVA_HOME=C:\Program Files\Java\jdk-21
-    # Add %JAVA_HOME%\bin to PATH
-    ```
-  - **After Changes**: Restart your terminal and IDE and run `java -version` to verify.
-  - **Note**: While `JAVA_HOME` influences many tools, IDEs and build systems may use their own configurations to determine which JDK to use (see sections below).
-</CollapseDropdown>
-
-<a id="managing-multiple-java-versions"></a>
-<CollapseDropdown summary="6.2: Managing Multiple Java Versions">
-  - **Check Installed Versions**:
-    - **macOS**: `/usr/libexec/java_home -V`
-    - **Windows**: Check `C:\Program Files\Java`
-
-  - **Watch Out for User vs. System JDKs (macOS):**
-
-  Official installers often put them in `/Library/Java/JavaVirtualMachines/` (system-wide).
-
-  Tools like JetBrains IDEs (e.g., IDEA), Homebrew (`/opt/homebrew/opt/openjdk@21` on M-series Macs), or SDKMAN install them in the same path, but in your user directory ~/ with the same path otherwise.
-
-  The `/usr/libexec/java_home` tool (which helps set `JAVA_HOME`) might pick a different JDK even if you *think* you've set your user one in your shell config. You can diagnose this with `java -version` and `/usr/libexec/java_home -V` to see which is active. If you find duplicates, removing the one(s) you don't need is usually the simplest fix.
-
-  - **Remove Unwanted Versions**:
-    - **macOS**: `sudo rm -rf /Library/Java/JavaVirtualMachines/jdk-17.jdk`
-    - **Homebrew**: `brew uninstall openjdk@17`
-    - **Windows**: Use Control Panel > Programs > Uninstall
-
-  - **After Removal**: Update your <a href="#java_home-and-path-issues">JAVA_HOME</a> to point to your preferred version.
-</CollapseDropdown>
-
-<a id="ide-specific-jdk-settings"></a>
-<CollapseDropdown summary="6.3: IDE-Specific JDK Settings">
-  - **Important**: IDEs often maintain their own JDK settings independent of `JAVA_HOME`.
-
-  - **VS Code**:
-    1. Command Palette: "Java: Configure Java Runtime"
-    2. Select project and installed JDK version
-    3. Clean cache: "Java: Clean Java Language Server Workspace" if needed
-
-  - **IntelliJ IDEA**:
-    1. **File > Project Structure** (**Cmd+;** / **Ctrl+Alt+Shift+S**)
-    2. Set JDK under **Project Settings > Project**
-    3. Remove obsolete JDKs: **Platform Settings > SDKs**
-
-  <ArticleImage
-    src="/images/posts/idea-edit-default-sdk-project-structure.png"
-    alt="IntelliJ IDEA Project Structure dialog showing JDK configuration"
-    caption="IntelliJ IDEA's Project Structure dialog for managing JDK references"
-    size="medium"
-  />
-</CollapseDropdown>
-
-<a id="build-system-configurations"></a>
-<CollapseDropdown summary="6.4: Build System Configurations">
-  - **Maven/Gradle Errors**: "package does not exist" or version mismatches
-
-  - **Consistency Checks**:
-    - Maven: `mvn dependency:resolve`
-    - Gradle: `./gradlew dependencies`
-
-  - **Simple Fix**: Match your build config version with your JDK version
+<a id="javafx-jdk-compatibility"></a>
+<CollapseDropdown summary="5.1: JavaFX & JDK Version Compatibility">
+  - **Issue**: Errors like "package does not exist", "cannot find symbol", or runtime linkage errors with JavaFX components.
+  - **Fix**: Ensure your JavaFX version (in `pom.xml` or `build.gradle`) is compatible with your project's JDK. For JDK 21, use JavaFX 21+.
     ```xml
-    <!-- Maven: Ensure these match your JDK -->
-    <maven.compiler.release>21</maven.compiler.release>
-    <javafx.version>21</javafx.version>
-    ```
+    <!-- Maven pom.xml example for JavaFX 21 with JDK 21 -->
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>21</maven.compiler.release> <!-- Corresponds to JDK version -->
+        <javafx.version>21.0.2</javafx.version> <!-- Or latest compatible JavaFX 21+ version -->
+    </properties>
 
-  - **Specifying Exact JDK**:
-    - Simple approach: `JAVA_HOME=/path/to/jdk mvn compile`
-    - Gradle properties: `org.gradle.java.home=/path/to/jdk`
-    - For team consistency, use toolchains (Maven) or the Java toolchain API (Gradle)
+    <dependencies>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <!-- Add other JavaFX modules as needed: javafx-graphics, javafx-media, etc. -->
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version> <!-- Or newer -->
+                <configuration>
+                    <release>${maven.compiler.release}</release>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version> <!-- Or newer -->
+                <configuration>
+                    <!-- Ensure this matches your main application class -->
+                    <mainClass>com.example.yourproject.YourMainAppClass</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <!-- Default configuration for running via IDE -->
+                        <id>default-cli</id>
+                        <configuration>
+                            <mainClass>com.example.yourproject/com.example.yourproject.YourMainAppClass</mainClass>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+    ```
+  - **Verify JDK in IDE**: Confirm IDE's project SDK matches your JavaFX dependencies and build config.
+  - For general JDK, `JAVA_HOME`, multiple Java versions, and build system (Maven/Gradle) setup, refer to the <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">Core Java, Maven & Gradle Setup Guide</ExternalLink>.
 </CollapseDropdown>
 
-<BackgroundInfo title="Quick verification checks">
-After setup (and restarting your terminal/IDE), run these commands to confirm:
-```bash
-# Verify JAVA_HOME (use correct command for your OS)
-echo $JAVA_HOME   # macOS/Linux
-echo %JAVA_HOME%  # Windows
+<a id="scene-builder-integration-issues"></a>
+<CollapseDropdown summary="5.2: Scene Builder Integration Issues">
+  - **Issue**: "Open in SceneBuilder" option missing or not working.
+  - **Fix**:
+    1.  Confirm Scene Builder is installed.
+    2.  Verify IDE path to Scene Builder is correct (Part 2.2 & 2.3).
+    3.  Ensure FXML file is valid XML.
+    4.  Restart IDE.
+</CollapseDropdown>
 
-# Verify java executable path (use correct command for your OS)
-which java       # macOS/Linux
-where java       # Windows
+<a id="fxml-loading-errors"></a>
+<CollapseDropdown summary="5.3: FXML Loading Errors at Runtime">
+  - **Issue**: `javafx.fxml.LoadException`, `InvocationTargetException`, `ClassNotFoundException`.
+  - **Fixes**:
+    1.  **Controller Class Path**: `fx:controller` in FXML must be fully qualified (e.g., `com.example.yourproject.MyController`).
+        ```xml
+        <VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.example.yourproject.PrimaryController">...</VBox>
+        ```
+    2.  **Controller Constructor**: Must have a no-argument constructor.
+    3.  **`@FXML` Annotations**: UI elements in FXML with `fx:id` need corresponding `@FXML` annotated fields in the controller.
+        ```java
+        // PrimaryController.java
+        public class PrimaryController {
+            @FXML private Label myLabel; // fx:id="myLabel"
+            @FXML private void initialize() { /* ... */ }
+        }
+        ```
+    4.  **Resource Path**: FXML files in correct resource path (e.g., `src/main/resources/com/example/yourproject/`) and loaded correctly:
+        ```java
+        Parent root = FXMLLoader.load(getClass().getResource("primary.fxml")); // Relative to class
+        // Or: FXMLLoader.load(getClass().getResource("/com/example/yourproject/primary.fxml")); // Absolute from classpath root
+        ```
+    5.  **Build System**: Ensure Maven/Gradle includes resources.
+</CollapseDropdown>
 
-# Verify java version
-java -version    # Should show JDK 21
-  ```
-  If commands fail or show the wrong version, re-check environment variable settings.
+<BackgroundInfo title="General Troubleshooting">
+- **Clean and Rebuild**: `./mvnw clean install` or `./gradlew clean build`.
+- **Check Logs**: Full error stack trace in IDE console.
+- **Simplify**: Create minimal reproducible example to isolate issues.
 </BackgroundInfo>
 
 <a id="intellij-maven-menu"></a>
-<CollapseDropdown summary="6.5: IntelliJ IDEA's Maven Project Options">
-  When you right-click on your project's `pom.xml` file or the project root in IntelliJ IDEA, you get a Maven-specific context menu. Here's what the common options do:
+<CollapseDropdown summary="5.4: IntelliJ IDEA's Maven Project Options (If using Maven)">
+  <div>When you right-click on your project's `pom.xml` file or the project root in IntelliJ IDEA, you get a Maven-specific context menu. Here's what the common options do:</div>
 
   <ArticleImage
     src="/images/posts/jetbrains-idea-maven-context-menu.png"
