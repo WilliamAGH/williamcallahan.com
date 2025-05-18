@@ -328,9 +328,10 @@ const sentryWebpackPluginOptions = {
   // Additional config options for Sentry Webpack plugin.
   // Essential: org, project, and SENTRY_AUTH_TOKEN (via env var) must be available.
   silent: process.env.SENTRY_SILENT_OUTPUT === 'true', // Example: use env var to control verbosity
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  release: { name: process.env.NEXT_PUBLIC_APP_VERSION }, // Set release name correctly
+  org: 'williamcallahan-com',
+  project: 'williamcallahan-com',
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  release: { name: process.env.NEXT_PUBLIC_APP_VERSION },
   // For all available options, see:
   // https://github.com/getsentry/sentry-webpack-plugin#options.
   widenClientFileUpload: true, // Uploads more sourcemaps for client-side code
