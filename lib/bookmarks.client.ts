@@ -1,7 +1,8 @@
 /**
  * Bookmarks Client API
  *
- * Client-side API wrapper for fetching bookmarks.
+ * Client-side API wrapper for fetching bookmark data
+ * Handles caching, static site generation support, and external API interactions
  *
  * @module lib/bookmarks.client
  */
@@ -18,7 +19,8 @@ const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
 
 /**
  * Read bookmarks directly from the file system during build time
- * This is used for static site generation and avoids API calls during build
+ * 
+ * Used for static site generation to avoid API calls during build
  */
 export async function getBookmarksForStaticBuild(): Promise<UnifiedBookmark[]> {
   if (isServer && isBuildPhase) {
@@ -39,13 +41,29 @@ export async function getBookmarksForStaticBuild(): Promise<UnifiedBookmark[]> {
 }
 
 /**
- * Fetches all bookmarks from our backend API endpoint.
- * The API endpoint handles differential updates and local persistence.
- * For client-side use.
+ * Fetches all bookmarks from our backend API endpoint
+ * 
+ * Endpoint handles differential updates and local persistence
+ * Designed for client-side use
  */
 export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
+  // Check cache first, similar to server-side logic for background refresh
+  const cachedData = ServerCacheInstance.getBookmarks();
+  if (cachedData && cachedData.bookmarks && cachedData.bookmarks.length > 0 && ServerCacheInstance.shouldRefreshBookmarks()) {
+    console.log('Client library: Using cached bookmarks while refreshing in background via API');
+    // Trigger API call but don't await it if we're returning cached data
+    fetch(`${getBaseUrl()}/api/bookmarks?refresh=true`, { // Assuming refresh=true triggers the full refresh cycle on the server
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      cache: 'no-store',
+    }).catch(error => {
+      console.error('Client library: Background refresh via /api/bookmarks failed:', error);
+    });
+    return [...cachedData.bookmarks]; // Return a copy
+  }
+
   try {
-    // Always use API endpoint
+    // Always use API endpoint if not handling background refresh above
     console.log('Client library: Fetching bookmarks from API endpoint (/api/bookmarks)');
     const baseUrl = getBaseUrl();
     const response = await fetch(`${baseUrl}/api/bookmarks`, {
@@ -61,9 +79,18 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
       throw new Error(`API request to /api/bookmarks failed with status ${response.status}: ${errorText}`);
     }
 
-    const data = await response.json() as UnifiedBookmark[];
-    console.log('Client library: Received response from /api/bookmarks with', Array.isArray(data) ? `${data.length} bookmarks` : 'non-array data');
-    return data;
+    const data = await response.json() as UnifiedBookmark[] | { bookmarks?: UnifiedBookmark[] };
+    console.log('Client library: Received response from /api/bookmarks with', data);
+
+    // Handle cases where API might return { bookmarks: [] } or just []
+    if (Array.isArray(data)) {
+      return data;
+    }
+    if (data && Array.isArray(data.bookmarks)) {
+      return data.bookmarks;
+    }
+    console.warn('Client library: Received non-array/non-standard data from /api/bookmarks, returning empty array.');
+    return [];
   } catch (error) {
     console.error('Client library: Failed to fetch bookmarks from /api/bookmarks:', error);
     return [];
@@ -71,8 +98,9 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
 }
 
 /**
- * Fetches bookmarks, utilizing in-memory cache first.
- * If not in memory cache, fetches from the backend API.
+ * Fetches bookmarks, utilizing in-memory cache first
+ * 
+ * Falls back to backend API if cache is empty
  */
 export async function fetchExternalBookmarksCached(): Promise<UnifiedBookmark[]> {
   try {
@@ -102,8 +130,9 @@ export async function fetchExternalBookmarksCached(): Promise<UnifiedBookmark[]>
 
 /**
  * Triggers a refresh of bookmarks data by calling the API endpoint
- * (which handles the actual refresh from the true external source and updates its persistent store).
- * Updates the client-side in-memory cache with the refreshed data.
+ * 
+ * API handles refresh from external source and updates persistent store
+ * Updates client-side in-memory cache with refreshed data
  */
 export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
   try {
