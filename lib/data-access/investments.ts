@@ -1,21 +1,22 @@
 /**
- * Investments Data Access
+ * Investments Data Access Module
  *
  * Handles fetching and processing of investment domain data
- * This module primarily parses local investment data
+ * Maps investment domains to their corresponding IDs with fallback parsing mechanisms
+ * 
+ * @module data-access/investments
  */
 
 import { investments } from '@/data/investments';
 import { readFile } from 'node:fs/promises'; // Using direct import for readFile
 
 /**
- * Asynchronously retrieves a map linking investment domain names to their corresponding investment IDs.
+ * Asynchronously retrieves a map linking investment domain names to their corresponding investment IDs
  *
- * Attempts to use statically imported investment data; if unavailable, falls back to parsing the raw `data/investments.ts` file using regex extraction.
+ * Uses statically imported investment data or falls back to parsing the raw data/investments.ts file
  *
- * @returns A promise that resolves to a map where each key is a domain name (e.g., "example.com") and each value is the associated investment ID.
- *
- * @remark The function is resilient to static import failures and will attempt file-based parsing as a fallback.
+ * @returns Promise resolving to a map where each key is a domain name and each value is the investment ID
+ * @remark Resilient to static import failures and will attempt file-based parsing as fallback
  */
 export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>> {
   const domainToIdMap = new Map<string, string>();
@@ -50,7 +51,7 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
 
             // Extract the ID value itself
             const idMatch = block.match(/^(?:"|')([^"']+)(?:"|')/);
-            if (idMatch && idMatch[1]) {
+            if (idMatch?.length && idMatch[1]) {
                 currentId = idMatch[1];
 
                 // Regex to find 'website:' or 'url:' and capture the domain
