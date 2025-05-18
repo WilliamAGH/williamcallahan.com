@@ -1,6 +1,9 @@
 import { jest, describe, test, mock, expect } from 'bun:test';
 /**
- * Tests for domain utilities
+ * Domain Utilities Tests
+ * 
+ * Tests for URL normalization, slug generation, and domain display formatting
+ * Verifies domain extraction and manipulation functions
  */
 import type { UnifiedBookmark } from '../../../types/bookmark'; // Import UnifiedBookmark
 import * as DomainUtils from '../../../lib/utils/domain-utils';

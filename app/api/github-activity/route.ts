@@ -1,13 +1,14 @@
 /**
  * GitHub Activity API Endpoint
  *
- * Provides client-side access to GitHub activity data by reading pre-processed data from S3 (via data-access layer).
- * It does NOT trigger a new fetch from GitHub.
+ * Provides client-side access to GitHub activity data from S3 storage
+ * Handles error cases with consistent response structure
  *
+ * @module app/api/github-activity
+ * 
  * Query Parameters:
- *   - refresh=true: This parameter is now ignored by this GET endpoint. Refreshing data should be done
- *                   via the POST /api/github-activity/refresh endpoint.
- *   - force-cache=true: This parameter is also effectively ignored as the data-access layer handles its own caching.
+ *   - refresh=true: Deprecated, returns guidance to use POST /api/github-activity/refresh
+ *   - force-cache=true: Effectively ignored as data-access layer handles caching
  */
 
 import { NextResponse } from 'next/server';
@@ -21,7 +22,7 @@ export const dynamic = 'force-dynamic';
  *
  * If the deprecated `refresh=true` query parameter is present, responds with a 400 error and guidance to use the POST refresh endpoint instead. On success, returns a `UserActivityView` object containing GitHub activity data. On error, returns a 500 response with a consistent JSON structure indicating failure and empty data.
  *
- * @returns A JSON response containing GitHub activity data or an error structure.
+ * @returns A JSON response containing GitHub activity data or an error structure
  */
 export async function GET(request: NextRequest) {
   console.log('[API GET /github-activity] Received request.');

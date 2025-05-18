@@ -1,9 +1,11 @@
 /**
- * GitHub Data Access
+ * GitHub Data Access Module
  *
- * Handles fetching, processing, and caching of GitHub activity data,
- * including contributions, repository statistics, and commit history
- * Access pattern: In-memory Cache → S3 Storage → GitHub API
+ * Handles fetching, processing, and caching of GitHub activity data
+ * Includes contributions, repository statistics, commit history, and lines of code metrics
+ * Access pattern: In-memory Cache → S3 Storage → GitHub API (GraphQL and REST)
+ *
+ * @module data-access/github
  */
 
 import { ServerCacheInstance } from '@/lib/server-cache';
@@ -57,10 +59,10 @@ const CONCURRENT_REPO_LIMIT = 5; // Limit for concurrent repository processing
 // --- Helper Functions ---
 
 /**
- * Formats trailing year and all-time GitHub activity data into a structured API response.
+ * Formats trailing year and all-time GitHub activity data into a structured API response
  *
- * @param fetchedParts - Contains the trailing year and all-time activity data to be wrapped.
- * @returns A structured API response with separated trailing year and all-time segments, or `null` if input is missing or incomplete.
+ * @param fetchedParts - Contains the trailing year and all-time activity data to be wrapped
+ * @returns A structured API response with separated trailing year and all-time segments, or `null` if input is missing or incomplete
  */
 function wrapGithubActivity(fetchedParts: {trailingYearData: StoredGithubActivityS3, allTimeData: StoredGithubActivityS3} | null): GitHubActivityApiResponse | null {
   if (!fetchedParts || !fetchedParts.trailingYearData || !fetchedParts.allTimeData) {
@@ -81,9 +83,9 @@ function wrapGithubActivity(fetchedParts: {trailingYearData: StoredGithubActivit
  * Converts a GitHub GraphQL contribution level string to its numeric equivalent.
  *
  * @param graphQLLevel - The contribution level string from the GitHub GraphQL API.
- * @returns A numeric value from 0 (none) to 4 (fourth quartile) representing the contribution level.
+ * @returns A numeric value from 0 (none) to 4 (fourth quartile) representing the contribution level
  *
- * @remark Returns 0 if {@link graphQLLevel} is unrecognized.
+ * @remark Returns 0 if {@link graphQLLevel} is unrecognized
  */
 function mapGraphQLContributionLevelToNumeric(graphQLLevel: string): 0 | 1 | 2 | 3 | 4 {
   switch (graphQLLevel) {
@@ -103,45 +105,80 @@ function mapGraphQLContributionLevelToNumeric(graphQLLevel: string): 0 | 1 | 2 |
 }
 
 /**
- * Fetches a URL with retries for GitHub API 202 (Accepted) responses using exponential backoff.
+ * Fetches a URL with retries for network errors and GitHub API 202 (Accepted) responses using exponential backoff with jitter
  *
- * Continues retrying until a non-202 response is received or the maximum number of retries is reached.
+ * Handles both network-level errors and application-level retries for 202 status
+ * Implements exponential backoff with jitter to prevent thundering herd problems
  *
- * @param url - The URL to fetch.
- * @param options - Fetch request options.
- * @param maxRetries - Maximum number of retries before giving up. Defaults to 5.
- * @returns The final {@link Response} object, which may still have a 202 status if all retries are exhausted.
- *
- * @throws {Error} If all retries fail without receiving any response.
+ * @param url - The URL to fetch
+ * @param options - Fetch request options
+ * @param maxRetries - Maximum number of retries before giving up. Defaults to 5
+ * @returns The final Response object, which may still have a 202 status if all retries are exhausted
+ * @throws {Error} If all retries fail without receiving any response, or if max retries are exhausted
  */
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 5): Promise<Response> {
   let lastResponse: Response | null = null;
   let retryCount = 0;
-  let delay = 1000; // Initial delay in ms
+  let baseDelay = 1000; // Initial delay in ms
+
+  const getJitteredDelay = () => {
+    const jitter = Math.random() * 0.3; // Add ±15% jitter
+    const delay = baseDelay * (1 + jitter - 0.15);
+    return Math.min(delay, 30000); // Cap at 30 seconds
+  };
+
   while (retryCount < maxRetries) {
-    const response = await fetch(url, options);
-    if (response.status !== 202) return response; // Success or non-202 error
-    console.log(`[DataAccess/GitHub] GitHub API returned 202 for ${url}, waiting ${delay}ms before retry ${retryCount + 1}/${maxRetries}`);
-    lastResponse = response;
-    await new Promise(resolveRequest => setTimeout(resolveRequest, delay));
-    delay *= 2; // Exponential backoff
-    retryCount++;
+    try {
+      const response = await fetch(url, options);
+
+      // Success case - return immediately for non-202 responses
+      if (response.status !== 202) {
+        return response;
+      }
+
+      // Handle 202 Accepted with retry
+      const retryAfter = response.headers.get('Retry-After');
+      const delay = retryAfter ? parseInt(retryAfter, 10) * 1000 : getJitteredDelay();
+
+      console.log(`[DataAccess/GitHub] GitHub API returned 202 for ${url}, waiting ${delay}ms before retry ${retryCount + 1}/${maxRetries}`);
+      lastResponse = response;
+
+      await new Promise(resolve => setTimeout(resolve, delay));
+      baseDelay *= 2; // Exponential backoff for next retry
+      retryCount++;
+
+    } catch (error) {
+      // Handle network errors (DNS, connection refused, etc.)
+      if (retryCount === maxRetries - 1) {
+        console.error(`[DataAccess/GitHub] Network error on final retry (${retryCount + 1}/${maxRetries}) for ${url}:`, error);
+        throw error; // Re-throw on final retry
+      }
+
+      const delay = getJitteredDelay();
+      console.warn(`[DataAccess/GitHub] Network error on attempt ${retryCount + 1}/${maxRetries} for ${url}, retrying in ${delay}ms:`, error);
+
+      await new Promise(resolve => setTimeout(resolve, delay));
+      baseDelay *= 2; // Exponential backoff for next retry
+      retryCount++;
+    }
   }
+
+  // This should only be reached if we exhausted all retries on 202s
   if (!lastResponse) {
-    // This case should ideally not be reached if fetch itself doesn't throw before returning a response.
-    // However, to be safe and satisfy type checking if loop completes without a response.
-    throw new Error(`All ${maxRetries} retries failed for ${url} without a definitive final response.`);
+    // This case should be unreachable due to the error handling above
+    throw new Error(`All ${maxRetries} retries failed for ${url} without a valid response.`);
   }
-  // If all retries were 202, return the last 202 response.
-  // The caller is expected to handle this (e.g. by treating it as data still pending)
+
+  // If we got here, we have a lastResponse (from 202s) to return
+  // The caller is expected to handle this (e.g., by treating it as data still pending)
   return lastResponse;
 }
 
 /**
- * Determines if the given object matches the old flat StoredGithubActivityS3 format.
+ * Determines if the given object matches the old flat StoredGithubActivityS3 format
  *
- * @param obj - The object to evaluate.
- * @returns True if {@link obj} has a `data` array and a numeric `totalContributions` property, indicating the old flat format; otherwise, false.
+ * @param obj - The object to evaluate
+ * @returns True if obj has a data array and numeric totalContributions property, indicating the old flat format; otherwise, false
  */
 
 function isOldFlatStoredGithubActivityS3Format(obj: unknown): obj is StoredGithubActivityS3 {
@@ -169,7 +206,7 @@ function isOldFlatStoredGithubActivityS3Format(obj: unknown): obj is StoredGithu
  * - Performs consistency checks between trailing year and all-time statistics.
  * - Triggers aggregation of weekly activity across all repositories.
  *
- * @returns A promise that resolves to an object containing `trailingYearData` and `allTimeData`, or `null` if the refresh fails.
+ * @returns A promise that resolves to an object containing `trailingYearData` and `allTimeData`, or `null` if the refresh fails
  */
 export async function refreshGitHubActivityDataFromApi(): Promise<{trailingYearData: StoredGithubActivityS3, allTimeData: StoredGithubActivityS3} | null> {
   console.log('[DataAccess/GitHub:refreshGitHubActivity] Attempting to refresh GitHub activity data from API...');
@@ -475,13 +512,27 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{trailingYearD
     // Keep yearTotalCommits as 0 and trailingYearContributionsCalendar as empty in case of error
   }
 
+  // Track if all repositories were processed successfully for the trailing year
+  // By default, assume data is complete unless we find a repository that failed
+  let yearOverallDataComplete = true;
+
+  // If we have no repositories, the data is considered complete (edge case)
+  if (uniqueRepoArray.length === 0) {
+    yearOverallDataComplete = true;
+  } else {
+    // Check if we had any repository processing errors
+    // The repoDataCompleteForYear flag is set to false in error cases within the repository processing loop
+    // We'll use the allTimeOverallDataComplete flag which is already tracking this
+    yearOverallDataComplete = allTimeOverallDataComplete;
+  }
+
   const trailingYearData: StoredGithubActivityS3 = {
     source: 'api',
     data: trailingYearContributionsCalendar,
     totalContributions: yearTotalCommits,
     linesAdded: yearLinesAdded,
     linesRemoved: yearLinesRemoved,
-    dataComplete: true, // Trailing year data from API is considered complete
+    dataComplete: yearOverallDataComplete,
   };
 
   try {
@@ -624,7 +675,7 @@ const defaultUserActivityView: UserActivityView = {
  *
  * If valid nested activity data is found in S3, returns a complete {@link UserActivityView}. If legacy or malformed data is detected, attempts partial recovery and returns an error view. If no data is available, returns a default error view.
  *
- * @returns A promise resolving to a {@link UserActivityView} containing trailing year and all-time GitHub activity statistics.
+ * @returns A promise resolving to a {@link UserActivityView} containing trailing year and all-time GitHub activity statistics
  */
 export async function getGithubActivity(): Promise<UserActivityView> {
   const cacheKey = 'githubActivity';
@@ -743,7 +794,7 @@ export async function getGithubActivity(): Promise<UserActivityView> {
 /**
  * Scans repository CSV statistic files in S3 for missing, empty, or malformed data and attempts to repair them by refetching contributor stats from the GitHub API.
  *
- * @returns A promise resolving to an object summarizing the operation, including the number of repositories scanned, successfully repaired, and failed repairs.
+ * @returns A promise resolving to an object summarizing the operation, including the number of repositories scanned, successfully repaired, and failed repairs
  *
  * @remark Requires a valid GitHub API token to perform repairs. If the token is missing or the API does not provide user-specific stats, repairs may fail for some repositories.
  */

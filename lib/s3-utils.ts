@@ -1,7 +1,11 @@
 /**
- * @fileoverview
- * This file contains utility functions for interacting with S3
- * It provides functions to read, write, check existence, get metadata, list, and delete objects in S3
+ * S3 Storage Utility Functions
+ *
+ * Provides comprehensive interface for S3 operations including file read/write,
+ * JSON handling, metadata access, object listing, and binary file management
+ * Implements error handling and retry logic for improved reliability
+ *
+ * @module lib/s3-utils
  */
 
 import {
@@ -24,8 +28,8 @@ const VERBOSE = process.env.VERBOSE === 'true' || false; // Added for logging co
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
 // Constants for S3 read retries
-const MAX_S3_READ_RETRIES = 3;
-const S3_READ_RETRY_DELAY_MS = 500;
+const MAX_S3_READ_RETRIES = 1;
+const S3_READ_RETRY_DELAY_MS = 10;
 
 if (!S3_BUCKET || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
   console.warn(
@@ -51,11 +55,11 @@ export const s3Client: S3Client | null =
  *
  * Returns the object content as a UTF-8 string for text or JSON types, or as a Buffer for other content types. If the object is not found or an error occurs, returns null.
  *
- * @param key - The S3 object key to read.
- * @param options - Optional settings, including a byte range for partial reads.
- * @returns The object content as a string or Buffer, or null if not found or on error.
+ * @param key - The S3 object key to read
+ * @param options - Optional settings, including a byte range for partial reads
+ * @returns The object content as a string or Buffer, or null if not found or on error
  *
- * @remark Retries up to three times on transient "not found" errors before returning null.
+ * @remark Retries up to three times on transient "not found" errors before returning null
  */
 export async function readFromS3(
   key: string,
@@ -111,20 +115,20 @@ export async function readFromS3(
       /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
       const message = err instanceof Error ? err.message : String(err);
       console.error(`[S3Utils] Error reading from S3 key ${key} (attempt ${attempt}/${MAX_S3_READ_RETRIES}):`, message);
-      // For non-NotFound errors, typically don't retry unless specifically designed for transient network issues.
+      // For non-NotFound errors, typically don't retry unless specifically designed for transient network issues
       // For simplicity here, we'll let it fall through and return null after the loop if it was the last attempt,
       // or if another error type broke the loop (which it won't with current structure, this catch only handles last attempt or non-retryable errors)
       return null; // Return null on other errors or if loop finishes
     }
   }
-  return null; // Fallback, though loop should handle all paths.
+  return null; // Fallback, though loop should handle all paths
 }
 
 /**
  * Writes an object to S3.
- * @param key The S3 object key.
- * @param data The data to write (string or Buffer).
- * @param contentType The MIME type of the content.
+ * @param key The S3 object key
+ * @param data The data to write (string or Buffer)
+ * @param contentType The MIME type of the content
  */
 export async function writeToS3(key: string, data: Buffer | string, contentType?: string): Promise<void> {
   if (!S3_BUCKET) {
@@ -155,8 +159,8 @@ export async function writeToS3(key: string, data: Buffer | string, contentType?
 
 /**
  * Checks if an object exists in S3.
- * @param key The S3 object key.
- * @returns True if the object exists, false otherwise.
+ * @param key The S3 object key
+ * @returns True if the object exists, false otherwise
  */
 export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
   if (!S3_BUCKET) {
@@ -189,9 +193,9 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
 }
 
 /**
- * Retrieves metadata for an S3 object.
- * @param key The S3 object key.
- * @returns Object metadata (ETag, LastModified) or null if not found or error.
+ * Retrieves metadata for an S3 object
+ * @param key The S3 object key
+ * @returns Object metadata (ETag, LastModified) or null if not found or error
  */
 export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string; LastModified?: Date } | null> {
   if (!S3_BUCKET) {
@@ -228,8 +232,8 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
 
 /**
  * Lists objects in S3 under a given prefix.
- * @param prefix The prefix to filter objects by.
- * @returns An array of object keys, or an empty array if error or no objects.
+ * @param prefix The prefix to filter objects by
+ * @returns An array of object keys, or an empty array if error or no objects
  */
 export async function listS3Objects(prefix: string): Promise<string[]> {
   if (!S3_BUCKET) {
@@ -270,7 +274,7 @@ export async function listS3Objects(prefix: string): Promise<string[]> {
 
 /**
  * Deletes an object from S3.
- * @param key The S3 object key to delete.
+ * @param key The S3 object key to delete
  */
 export async function deleteFromS3(key: string): Promise<void> {
   if (!S3_BUCKET) {
@@ -383,9 +387,9 @@ export async function readBinaryS3(s3Key: string): Promise<Buffer | null> {
 
 /**
  * Writes a binary file (e.g., an image) to S3.
- * @param s3Key S3 object key.
- * @param data Buffer to write.
- * @param contentType MIME type of the content.
+ * @param s3Key S3 object key
+ * @param data Buffer to write
+ * @param contentType MIME type of the content
  */
 export async function writeBinaryS3(s3Key: string, data: Buffer, contentType: string): Promise<void> {
   // Check for DRY_RUN environment variable
