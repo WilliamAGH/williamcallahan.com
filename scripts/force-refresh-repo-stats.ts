@@ -1,4 +1,13 @@
 #!/usr/bin/env ts-node
+/**
+ * GitHub Repository Statistics Refresh Script
+ * 
+ * Forces refresh of GitHub contributor statistics for specific repositories
+ * Updates S3 storage with latest contributor data from GitHub API
+ *
+ * @module scripts/force-refresh-repo-stats
+ */
+
 import dotenv from 'dotenv';
 dotenv.config(); // Load .env variables
 
@@ -22,15 +31,14 @@ const REPOS_TO_PROCESS: RepoToUpdate[] = [
 ];
 
 /**
- * Fetches weekly contributor statistics for a specific user from a GitHub repository.
+ * Fetches weekly contributor statistics for a specific user from a GitHub repository
  *
- * Attempts to retrieve contributor stats from the GitHub API for the given repository, retrying with exponential backoff if the data is being prepared. Returns an array of weekly stats for the configured repository owner, or an empty array if no data is found or on persistent errors.
+ * Retrieves contributor stats from GitHub API with exponential backoff
  *
- * @param owner - The GitHub username or organization that owns the repository.
- * @param name - The name of the repository.
- * @returns An array of weekly contribution statistics for the configured repository owner, sorted by week timestamp. Returns an empty array if no data is available.
- *
- * @remark Retries up to 5 times if the GitHub API responds with a 202 status, indicating that statistics are being generated.
+ * @param owner - The GitHub username or organization that owns the repository
+ * @param name - The name of the repository
+ * @returns Weekly contribution statistics for the repository owner, sorted by timestamp
+ * @remark Retries up to 5 times if GitHub API responds with 202 status
  */
 async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWeeklyStat[]> {
   console.log(`[Script] Fetching contributor stats for ${owner}/${name} from GitHub API...`);
@@ -54,7 +62,7 @@ async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWe
       const ownerLoginLower = GITHUB_REPO_OWNER.toLowerCase();
       const userStatsEntry = Array.isArray(contributors) ? contributors.find(c => c.author && c.author.login.toLowerCase() === ownerLoginLower) : null;
 
-      if (userStatsEntry && userStatsEntry.weeks && Array.isArray(userStatsEntry.weeks)) {
+      if (userStatsEntry?.weeks && Array.isArray(userStatsEntry.weeks)) {
         console.log(`[Script] Successfully fetched stats for ${owner}/${name}. Found ${userStatsEntry.weeks.length} weeks of activity.`);
         return userStatsEntry.weeks.map((w: RepoRawWeeklyStat) => ({ w: w.w, a: w.a, d: w.d, c: w.c })).sort((a,b) => a.w - b.w);
       } else {
@@ -75,11 +83,11 @@ async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWe
 }
 
 /**
- * Processes a repository by fetching its weekly contributor stats and writing them as a CSV file to S3.
+ * Processes a repository by fetching stats and writing to S3 as CSV
  *
- * If no stats are available, skips writing or updating the CSV file for the repository.
+ * Skips writing if no stats are available
  *
- * @param repo - The repository to process, including its owner and name.
+ * @param repo - The repository to process, including owner and name
  */
 async function processRepo(repo: RepoToUpdate) {
   console.log(`\n[Script] Processing repository: ${repo.owner}/${repo.name}`);
@@ -89,8 +97,12 @@ async function processRepo(repo: RepoToUpdate) {
 
   if (weeklyStats.length > 0) {
     const csvContent = weeklyStats.map(s => `${s.w},${s.a},${s.d},${s.c}`).join('\n');
-    await writeBinaryS3(s3Key, Buffer.from(csvContent), 'text/csv');
-    console.log(`[Script] Successfully wrote updated CSV to S3 for ${repo.owner}/${repo.name} at ${s3Key} with ${weeklyStats.length} weeks of data.`);
+    try {
+      await writeBinaryS3(s3Key, Buffer.from(csvContent), 'text/csv');
+      console.log(`[Script] Successfully wrote updated CSV to S3 for ${repo.owner}/${repo.name} at ${s3Key} with ${weeklyStats.length} weeks of data.`);
+    } catch (error) {
+      console.error(`[Script] Failed to write CSV to S3 for ${repo.owner}/${repo.name}:`, error);
+    }
   } else {
     console.log(`[Script] No stats data fetched for ${repo.owner}/${repo.name}. CSV file at ${s3Key} will not be updated or created if it doesn't exist with empty data.`);
     // Optionally, you could write an empty CSV or delete the existing one if no stats are found.
@@ -99,9 +111,10 @@ async function processRepo(repo: RepoToUpdate) {
 }
 
 /**
- * Orchestrates the refresh of GitHub contributor statistics for configured repositories and writes the results as CSV files to S3.
+ * Orchestrates refresh of GitHub stats for configured repositories
  *
- * Validates required environment variables before processing. After completion, advises triggering a full data refresh to update downstream activity and summary files.
+ * Validates environment variables before processing
+ * Advises triggering full data refresh after completion
  */
 async function main() {
   if (!GITHUB_API_TOKEN) {

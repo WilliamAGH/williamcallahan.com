@@ -1,8 +1,11 @@
 /**
- * Logos Data Access
+ * Logos Data Access Module
  *
  * Handles fetching, caching, processing, and serving of company logos
  * Access pattern: In-memory Cache → S3 Storage → External APIs (Google, Clearbit, DuckDuckGo)
+ * Includes image validation, format conversion, and size verification
+ * 
+ * @module data-access/logos
  */
 
 import { ServerCacheInstance } from '@/lib/server-cache';
@@ -19,11 +22,11 @@ const VERBOSE = process.env.VERBOSE === 'true' || false;
 // --- Helper Functions ---
 
 /**
- * Constructs the S3 object key for a company logo using the domain and logo source.
+ * Constructs the S3 object key for a company logo using the domain and logo source
  *
- * @param domain - The domain name associated with the logo.
- * @param source - The logo source identifier.
- * @returns The S3 key string for storing or retrieving the logo.
+ * @param domain - The domain name associated with the logo
+ * @param source - The logo source identifier
+ * @returns The S3 key string for storing or retrieving the logo
  */
 function getLogoS3Key(domain: string, source: LogoSource): string {
   const id = domain.split('.')[0];
@@ -32,52 +35,74 @@ function getLogoS3Key(domain: string, source: LogoSource): string {
 }
 
 /**
- * Searches for a logo associated with the given domain in S3 storage.
+ * Searches for a logo associated with the given domain in S3 storage
  *
- * Checks known sources (Google, Clearbit, DuckDuckGo) using generated S3 keys. If not found, lists S3 objects with a prefix based on the domain and attempts to match a logo file, inferring the source from the filename if possible.
+ * Checks known sources (Google, Clearbit, DuckDuckGo) and falls back to prefix matching
  *
- * @param domain - The domain to search for a logo.
- * @returns A promise resolving to an object containing the logo buffer and its source, or null if no logo is found.
+ * @param domain - The domain to search for a logo
+ * @returns Promise with logo buffer and source, or null if not found
  */
 export async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> {
   for (const source of ['google', 'clearbit', 'duckduckgo'] as LogoSource[]) {
     const logoS3Key = getLogoS3Key(domain, source);
-    const buffer = await readBinaryS3(logoS3Key);
-    if (buffer) {
-      console.log(`[DataAccess/Logos-S3] Found logo for ${domain} from source ${source} in S3.`);
-      return { buffer, source };
+    try {
+      const buffer = await readBinaryS3(logoS3Key);
+      if (buffer) {
+        console.log(`[DataAccess/Logos-S3] Found logo for ${domain} from source ${source} in S3 (key: ${logoS3Key}).`);
+        return { buffer, source };
+      }
+    } catch (error) {
+      if (VERBOSE) {
+        console.warn(`[DataAccess/Logos-S3] Error reading ${logoS3Key} for domain ${domain} (source: ${source}):`, error instanceof Error ? error.message : String(error));
+      }
+      // Treat error as logo not found for this key, continue to next source
     }
   }
   try {
     const id = domain.split('.')[0];
     const keys = await s3UtilsListS3Objects(`${LOGOS_S3_KEY_DIR}/${id}_`);
-    if (keys.length > 0) {
-      const pngMatch = keys.find(key => key.endsWith('.png'));
-      const bestMatch = pngMatch || keys[0];
+    if (keys.length === 0) {
+      return null;
+    }
+
+    const pngMatch = keys.find(key => key.endsWith('.png'));
+    const bestMatch = pngMatch || keys[0];
+
+    try {
       const buffer = await readBinaryS3(bestMatch);
-      if (buffer) {
-        let inferredSource: LogoSource = 'unknown';
-        if (bestMatch.includes('_google')) inferredSource = 'google';
-        else if (bestMatch.includes('_clearbit')) inferredSource = 'clearbit';
-        else if (bestMatch.includes('_ddg')) inferredSource = 'duckduckgo';
-        console.log(`[DataAccess/Logos-S3] Found logo for ${domain} by S3 list pattern match: ${bestMatch}`);
-        return { buffer, source: inferredSource };
+      if (!buffer) {
+        return null;
       }
+
+      let inferredSource: LogoSource = 'unknown';
+      if (bestMatch.includes('_google')) inferredSource = 'google';
+      else if (bestMatch.includes('_clearbit')) inferredSource = 'clearbit';
+      else if (bestMatch.includes('_ddg')) inferredSource = 'duckduckgo';
+
+      console.log(`[DataAccess/Logos-S3] Found logo for ${domain} by S3 list pattern match: ${bestMatch}`);
+      return { buffer, source: inferredSource };
+    } catch (error) {
+      if (VERBOSE) {
+        console.warn(`[DataAccess/Logos-S3] Error reading ${bestMatch} (found by list) for domain ${domain}:`, error instanceof Error ? error.message : String(error));
+      }
+      // Treat error as logo not found for this key
+      return null;
     }
   } catch (listError: unknown) {
     const message = listError instanceof Error ? listError.message : String(listError);
     console.warn(`[DataAccess/Logos-S3] Error listing logos in S3 for domain ${domain} (prefix: ${LOGOS_S3_KEY_DIR}/${domain.split('.')[0]}_):`, message);
+    return null;
   }
   return null;
 }
 
 /**
- * Determines whether an image buffer meets the minimum size requirements for logos.
+ * Determines whether an image buffer meets the minimum size requirements for logos
  *
- * SVG images are always considered large enough. For other formats, the image must have both width and height greater than or equal to the medium logo size.
+ * SVG images are always considered large enough. Other formats must have width and height >= medium logo size
  *
- * @param buffer - The image buffer to evaluate.
- * @returns A promise that resolves to true if the image is sufficiently large, or false otherwise.
+ * @param buffer - The image buffer to evaluate
+ * @returns Promise resolving to true if the image is sufficiently large, false otherwise
  */
 async function isImageLargeEnough(buffer: Buffer): Promise<boolean> {
   try {
@@ -88,11 +113,11 @@ async function isImageLargeEnough(buffer: Buffer): Promise<boolean> {
 }
 
 /**
- * Determines whether a logo image buffer is valid by checking for generic globe patterns in the source URL and verifying minimum image size requirements.
+ * Validates a logo image by checking for generic globe patterns and minimum size requirements
  *
- * @param buffer - The image buffer to validate.
- * @param url - The source URL of the logo, used to detect generic globe images.
- * @returns A promise that resolves to true if the buffer is valid and not a generic globe image, false otherwise.
+ * @param buffer - The image buffer to validate
+ * @param url - The source URL of the logo, used to detect generic globe images
+ * @returns Promise resolving to true if valid and not a generic globe image, false otherwise
  */
 async function validateLogoBuffer(buffer: Buffer, url: string): Promise<boolean> {
   if (GENERIC_GLOBE_PATTERNS.some(pattern => pattern.test(url))) return false;
@@ -101,12 +126,11 @@ async function validateLogoBuffer(buffer: Buffer, url: string): Promise<boolean>
 }
 
 /**
- * Attempts to fetch a company logo for the specified domain from external providers (Google, Clearbit, DuckDuckGo), trying multiple sources and resolutions in order of preference.
+ * Fetches a company logo from external providers (Google, Clearbit, DuckDuckGo)
  *
- * @param domain - The domain for which to retrieve the logo.
- * @returns A promise resolving to an object containing the processed logo buffer and its source, or `null` if no valid logo is found.
- *
- * @remark Only returns a logo if it passes validation checks for size and content. Fetches are subject to a 5-second timeout per source.
+ * @param domain - The domain for which to retrieve the logo
+ * @returns Promise with processed logo buffer and source, or null if no valid logo found
+ * @remark Only returns logos passing validation checks with 5-second timeout per source
  */
 async function fetchExternalLogo(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> {
   const sources: { name: LogoSource; urlFn: (domain: string) => string }[] = [
@@ -147,40 +171,61 @@ async function fetchExternalLogo(domain: string): Promise<{ buffer: Buffer; sour
 }
 
 /**
- * Processes an image buffer to determine if it is SVG or PNG, converting non-SVG images to PNG format.
+ * Processes an image buffer to determine if it is SVG or PNG, converting non-SVG images to PNG
  *
- * @param buffer - The image data to process.
- * @returns An object containing the processed image buffer, a flag indicating SVG format, and the appropriate content type.
- *
- * @remark If image processing fails, returns the original buffer as PNG for safety.
+ * @param buffer - The image data to process
+ * @returns Object with processed buffer, SVG flag, and appropriate content type
+ * @remark If processing fails, returns original buffer as PNG for safety
  */
 export async function processImageBuffer(buffer: Buffer): Promise<{
   processedBuffer: Buffer;
   isSvg: boolean;
   contentType: string
 }> {
+  // Prioritize a direct SVG string check
+  const bufferString = buffer.toString('utf-8').trim();
+  if (bufferString.startsWith('<svg') && bufferString.includes('</svg>')) {
+    if (VERBOSE) console.log('[DataAccess/Logos] Detected SVG by string content (startsWith <svg).');
+    return { processedBuffer: buffer, isSvg: true, contentType: 'image/svg+xml' };
+  }
+
   try {
     const metadata = await sharp(buffer).metadata();
-    const isSvg = metadata.format === 'svg';
-    const contentType = isSvg ? 'image/svg+xml' : 'image/png';
-    const processedBuffer = isSvg ? buffer : await sharp(buffer).png().toBuffer();
-    return { processedBuffer, isSvg, contentType };
+    const isSvgBySharp = metadata.format === 'svg';
+
+    if (isSvgBySharp) {
+      if (VERBOSE) console.log('[DataAccess/Logos] Detected SVG by sharp.metadata.');
+      return { processedBuffer: buffer, isSvg: true, contentType: 'image/svg+xml' };
+    }
+
+    // If not SVG by sharp, process as non-SVG (convert to PNG)
+    if (VERBOSE) console.log('[DataAccess/Logos] Not SVG by sharp, converting to PNG.');
+    const processedBuffer = await sharp(buffer).png().toBuffer();
+    return { processedBuffer, isSvg: false, contentType: 'image/png' };
+
   } catch (error: unknown) {
-    console.warn(`[DataAccess/Logos] processImageBuffer fallback for buffer: ${String(error)}`);
-    return { processedBuffer: buffer, isSvg: false, contentType: 'image/png' }; // Fallback for safety
+    console.warn(`[DataAccess/Logos] processImageBuffer error with sharp: ${String(error)}. Falling back.`);
+    // Fallback: Re-check for SVG string content if sharp failed, as sharp might not support all SVGs
+    if (bufferString.includes('<svg')) {
+      if (VERBOSE) console.log('[DataAccess/Logos] Fallback: Detected SVG-like content after sharp error.');
+      return { processedBuffer: buffer, isSvg: true, contentType: 'image/svg+xml' };
+    }
+    if (VERBOSE) console.log('[DataAccess/Logos] Fallback: Defaulting to PNG content type after sharp error and no SVG string match.');
+    // If sharp fails and it's not detected as SVG by string, assume it's a raster and return original buffer as PNG (or attempt conversion if safe)
+    // For safety, returning original buffer with PNG type if conversion also risky or failed.
+    return { processedBuffer: buffer, isSvg: false, contentType: 'image/png' };
   }
 }
 
 /**
- * Retrieves a company logo for the specified domain, using cache, S3 storage, or external sources as needed.
+ * Retrieves a company logo using cache, S3 storage, or external sources
  *
- * Attempts to return a logo by first checking a global override, then an in-memory cache, followed by S3 storage, and finally by fetching from external APIs if allowed. Caches and uploads new or updated logos to S3 as appropriate.
+ * Checks global override, in-memory cache, S3 storage, and finally external APIs if allowed
+ * Caches and uploads new or updated logos to S3 as needed
  *
- * @param domain - The domain for which to retrieve the logo.
- * @returns A promise resolving to an object containing the logo buffer, its source, and content type, or `null` if no logo is found.
- *
- * @remark
- * External logo fetching can be skipped via environment variables (`NODE_ENV='test'` or `SKIP_EXTERNAL_LOGO_FETCH='true'`). The function uploads new or changed logos to S3 and caches results in memory.
+ * @param domain - The domain for which to retrieve the logo
+ * @returns Promise with logo buffer, source, and content type, or null if not found
+ * @remark External fetching can be skipped via environment variables and results are cached
  */
 export async function getLogo(domain: string): Promise<{ buffer: Buffer; source: LogoSource; contentType: string } | null> {
   const override = (globalThis as {getLogo?: typeof getLogo}).getLogo;
@@ -188,7 +233,7 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
     return override(domain);
   }
   const cached = ServerCacheInstance.getLogoFetch(domain);
-  if (cached && cached.buffer) {
+  if (cached?.buffer) {
     console.log(`[DataAccess/Logos] Returning logo for ${domain} from cache (source: ${cached.source || 'unknown'}).`);
     const { contentType } = await processImageBuffer(cached.buffer);
     return { buffer: cached.buffer, source: cached.source || 'unknown', contentType };
@@ -201,10 +246,10 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
   }
   if (s3Logo) {
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: s3Logo.source, buffer: s3Logo.buffer });
-    const { contentType } = await processImageBuffer(s3Logo.buffer);
-    return { ...s3Logo, contentType };
+    const { contentType: s3ContentType } = await processImageBuffer(s3Logo.buffer);
+    return { ...s3Logo, contentType: s3ContentType };
   }
-  const skipExternalLogoFetch = process.env.NODE_ENV === 'test' || process.env.SKIP_EXTERNAL_LOGO_FETCH === 'true';
+  const skipExternalLogoFetch = (process.env.NODE_ENV === 'test' && process.env.ALLOW_EXTERNAL_FETCH_IN_TEST !== 'true') || process.env.SKIP_EXTERNAL_LOGO_FETCH === 'true';
   if (skipExternalLogoFetch) {
     if (VERBOSE) console.log(`[DataAccess/Logos] Skipping external logo fetch for ${domain} (test or skip flag).`);
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: null, error: 'External fetch skipped' });
@@ -213,23 +258,31 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
   console.log(`[DataAccess/Logos] Logo for ${domain} not in cache or S3, fetching from external source.`);
   const externalLogo = await fetchExternalLogo(domain);
   if (externalLogo) {
-    const logoS3Key = getLogoS3Key(domain, externalLogo.source);
+    // Process the image buffer to determine if it's SVG and get the correct content type
+    const { processedBuffer, isSvg, contentType: externalContentType } = await processImageBuffer(externalLogo.buffer);
+
+    // Get the appropriate file extension based on the image type
+    const fileExt = isSvg ? '.svg' : '.png';
+    const logoS3Key = getLogoS3Key(domain, externalLogo.source).replace(/\.png$/, fileExt);
+
     try {
       const existingBuffer = await readBinaryS3(logoS3Key);
       let didUpload = false;
+
       if (existingBuffer) {
         const existingHash = createHash('md5').update(existingBuffer).digest('hex');
-        const newHash = createHash('md5').update(externalLogo.buffer).digest('hex');
+        const newHash = createHash('md5').update(processedBuffer).digest('hex');
+
         if (existingHash === newHash) {
           console.log(`[DataAccess/Logos-S3] Logo for ${domain} unchanged (hash=${newHash}); skipping upload.`);
         } else {
-          await writeBinaryS3(logoS3Key, externalLogo.buffer, 'image/png'); // Assuming PNG after processing
+          await writeBinaryS3(logoS3Key, processedBuffer, externalContentType);
           console.log(`[DataAccess/Logos-S3] Logo for ${domain} changed (old=${existingHash}, new=${newHash}); uploaded to ${logoS3Key}.`);
           didUpload = true;
         }
       } else {
-        await writeBinaryS3(logoS3Key, externalLogo.buffer, 'image/png'); // Assuming PNG after processing
-        const newHash = createHash('md5').update(externalLogo.buffer).digest('hex');
+        await writeBinaryS3(logoS3Key, processedBuffer, externalContentType);
+        const newHash = createHash('md5').update(processedBuffer).digest('hex');
         console.log(`[DataAccess/Logos-S3] New logo for ${domain}; uploaded to ${logoS3Key} (hash=${newHash}).`);
         didUpload = true;
       }
@@ -237,9 +290,10 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
     } catch (uploadError) {
       console.error(`[DataAccess/Logos-S3] Error writing logo for ${domain} to S3:`, uploadError);
     }
-    ServerCacheInstance.setLogoFetch(domain, { url: null, source: externalLogo.source, buffer: externalLogo.buffer });
-    const { contentType } = await processImageBuffer(externalLogo.buffer);
-    return { ...externalLogo, contentType };
+    // Cache the processed buffer
+    ServerCacheInstance.setLogoFetch(domain, { url: null, source: externalLogo.source, buffer: processedBuffer });
+    // Return the processed buffer and its content type
+    return { buffer: processedBuffer, source: externalLogo.source, contentType: externalContentType };
   }
   console.warn(`[DataAccess/Logos] Failed to fetch logo for ${domain} from all sources.`);
   ServerCacheInstance.setLogoFetch(domain, { url: null, source: null, error: 'Failed to fetch logo' });
@@ -247,9 +301,10 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
 }
 
 /**
- * Retrieves and processes a logo for the specified domain directly from S3 storage.
+ * Retrieves and processes a logo for the specified domain directly from S3 storage
  *
- * Returns the logo buffer, its source, and content type if found in S3; otherwise, returns null.
+ * @param domain - The domain for which to retrieve the logo
+ * @returns Logo buffer, source, and content type if found in S3, null otherwise
  */
 export async function serveLogoFromS3(domain: string): Promise<{ buffer: Buffer; source: LogoSource; contentType: string } | null> {
   const s3Logo = await findLogoInS3(domain);
