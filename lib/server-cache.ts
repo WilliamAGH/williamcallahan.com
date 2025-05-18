@@ -1,9 +1,11 @@
 /**
  * Server-side Cache Management
+ *
+ * Provides server-side in-memory caching for application data
+ * Handles logos, validation results, image analysis, bookmarks, and GitHub activity
+ * Implements a singleton pattern with configurable TTL per data type
+ *
  * @module lib/server-cache
- * @description
- * Provides server-side caching for logos, validation results,
- * image analysis data, and bookmarks.
  */
 
 import NodeCache from 'node-cache';
@@ -17,7 +19,6 @@ assertServerOnly();
 
 /**
  * Logo validation result from the server
- * @interface
  */
 interface LogoValidationResult {
   /** Whether the image is a generic globe icon */
@@ -28,7 +29,6 @@ interface LogoValidationResult {
 
 /**
  * Logo fetch result from the server
- * @interface
  */
 interface LogoFetchResult {
   /** URL of the logo, or null if no valid logo found */
@@ -45,7 +45,6 @@ interface LogoFetchResult {
 
 /**
  * Inverted logo cache entry
- * @interface
  */
 interface InvertedLogoEntry {
   /** Inverted image buffer */
@@ -66,7 +65,6 @@ const GITHUB_ACTIVITY_CACHE_KEY = 'github-activity-data'; // Added GitHub activi
 
 /**
  * GitHub Activity cache entry
- * @interface
  */
 interface GitHubActivityCacheEntry extends GitHubActivityApiResponse {
   /** Timestamp when the cache entry was created */
@@ -79,7 +77,6 @@ interface GitHubActivityCacheEntry extends GitHubActivityApiResponse {
 
 /**
  * Bookmarks cache entry
- * @interface
  */
 interface BookmarksCacheEntry {
   /** Bookmarks data */
@@ -108,8 +105,9 @@ export class ServerCache extends NodeCache {
 
   /**
    * Get cached logo validation result
-   * @param {string} imageHash - Hash of the image to look up
-   * @returns {LogoValidationResult | undefined} Cached validation result
+   * 
+   * @param imageHash - Hash of the image to look up
+   * @returns Cached validation result
    */
   getLogoValidation(imageHash: string): LogoValidationResult | undefined {
     const key = LOGO_VALIDATION_PREFIX + imageHash;
@@ -118,8 +116,9 @@ export class ServerCache extends NodeCache {
 
   /**
    * Cache logo validation result
-   * @param {string} imageHash - Hash of the image to cache
-   * @param {boolean} isGlobeIcon - Whether the image is a generic globe icon
+   * 
+   * @param imageHash - Hash of the image to cache
+   * @param isGlobeIcon - Whether the image is a generic globe icon
    */
   setLogoValidation(imageHash: string, isGlobeIcon: boolean): void {
     const key = LOGO_VALIDATION_PREFIX + imageHash;
@@ -131,8 +130,9 @@ export class ServerCache extends NodeCache {
 
   /**
    * Get cached logo fetch result
-   * @param {string} domain - Domain to look up
-   * @returns {LogoFetchResult | undefined} Cached fetch result
+   * 
+   * @param domain - Domain to look up
+   * @returns Cached fetch result
    */
   getLogoFetch(domain: string): LogoFetchResult | undefined {
     const key = LOGO_FETCH_PREFIX + domain;
@@ -141,8 +141,9 @@ export class ServerCache extends NodeCache {
 
   /**
    * Cache logo fetch result
-   * @param {string} domain - Domain to cache
-   * @param {Partial<LogoFetchResult>} result - Fetch result to cache
+   * 
+   * @param domain - Domain to cache
+   * @param result - Fetch result to cache
    */
   setLogoFetch(domain: string, result: Partial<LogoFetchResult>): void {
     const key = LOGO_FETCH_PREFIX + domain;
@@ -171,8 +172,9 @@ export class ServerCache extends NodeCache {
 
   /**
    * Get cached inverted logo
-   * @param {string} cacheKey - Cache key for the inverted logo
-   * @returns {InvertedLogoEntry | undefined} Cached inverted logo
+   * 
+   * @param cacheKey - Cache key for the inverted logo
+   * @returns Cached inverted logo
    */
   getInvertedLogo(cacheKey: string): InvertedLogoEntry | undefined {
     const key = INVERTED_LOGO_PREFIX + cacheKey;
@@ -181,9 +183,10 @@ export class ServerCache extends NodeCache {
 
   /**
    * Cache inverted logo
-   * @param {string} cacheKey - Cache key for the inverted logo
-   * @param {Buffer} buffer - Inverted image buffer
-   * @param {LogoInversion} analysis - Analysis results
+   * 
+   * @param cacheKey - Cache key for the inverted logo
+   * @param buffer - Inverted image buffer
+   * @param analysis - Analysis results
    */
   setInvertedLogo(cacheKey: string, buffer: Buffer, analysis: LogoInversion): void {
     const key = INVERTED_LOGO_PREFIX + cacheKey;
@@ -196,8 +199,9 @@ export class ServerCache extends NodeCache {
 
   /**
    * Get cached logo analysis
-   * @param {string} cacheKey - Cache key for the logo analysis
-   * @returns {LogoInversion | undefined} Cached analysis results
+   * 
+   * @param cacheKey - Cache key for the logo analysis
+   * @returns Cached analysis results
    */
   getLogoAnalysis(cacheKey: string): LogoInversion | undefined {
     const key = LOGO_ANALYSIS_PREFIX + cacheKey;
@@ -206,8 +210,9 @@ export class ServerCache extends NodeCache {
 
   /**
    * Cache logo analysis
-   * @param {string} cacheKey - Cache key for the logo analysis
-   * @param {LogoInversion} analysis - Analysis results to cache
+   * 
+   * @param cacheKey - Cache key for the logo analysis
+   * @param analysis - Analysis results to cache
    */
   setLogoAnalysis(cacheKey: string, analysis: LogoInversion): void {
     const key = LOGO_ANALYSIS_PREFIX + cacheKey;
@@ -216,7 +221,8 @@ export class ServerCache extends NodeCache {
 
   /**
    * Get cache statistics
-   * @returns {NodeCache.Stats} Cache statistics
+   * 
+   * @returns Cache statistics
    */
   getStats(): NodeCache.Stats {
     const stats = super.getStats();
@@ -245,7 +251,8 @@ export class ServerCache extends NodeCache {
 
   /**
    * Get cached bookmarks
-   * @returns {BookmarksCacheEntry | undefined} Cached bookmarks
+   * 
+   * @returns Cached bookmarks
    */
   getBookmarks(): BookmarksCacheEntry | undefined {
     return this.get<BookmarksCacheEntry>(BOOKMARKS_CACHE_KEY);
@@ -253,8 +260,9 @@ export class ServerCache extends NodeCache {
 
   /**
    * Cache bookmarks
-   * @param {UnifiedBookmark[]} bookmarks - Bookmarks to cache
-   * @param {boolean} isFailure - Whether this was a failed fetch attempt
+   * 
+   * @param bookmarks - Bookmarks to cache
+   * @param isFailure - Whether this was a failed fetch attempt
    */
   setBookmarks(bookmarks: UnifiedBookmark[], isFailure: boolean = false): void {
     const now = Date.now();
@@ -276,7 +284,8 @@ export class ServerCache extends NodeCache {
 
   /**
    * Check if bookmarks cache needs refreshing
-   * @returns {boolean} True if cache should be refreshed
+   * 
+   * @returns True if cache should be refreshed
    */
   shouldRefreshBookmarks(): boolean {
     const cached = this.getBookmarks();
@@ -313,7 +322,8 @@ export class ServerCache extends NodeCache {
 
   /**
    * Get cached GitHub activity
-   * @returns {GitHubActivityCacheEntry | undefined} Cached GitHub activity
+   * 
+   * @returns Cached GitHub activity
    */
   getGithubActivity(): GitHubActivityCacheEntry | undefined {
     const key = GITHUB_ACTIVITY_CACHE_KEY;
@@ -322,11 +332,17 @@ export class ServerCache extends NodeCache {
 
   /**
    * Cache GitHub activity
-   * @param {GitHubActivityApiResponse} activityData - GitHub activity data to cache
-   * @param {boolean} isFailure - Whether this was a failed fetch attempt
+   * 
+   * @param activityData - GitHub activity data to cache
+   * @param isFailure - Whether this was a failed fetch attempt
    */
   setGithubActivity(activityData: GitHubActivityApiResponse, isFailure: boolean = false): void {
     const key = GITHUB_ACTIVITY_CACHE_KEY;
+
+    // Ensure trailingYearData and dataComplete exist before accessing
+    // and default to false if not present (treating incomplete/missing data as a "failure" for caching duration)
+    const isDataComplete = activityData?.trailingYearData?.dataComplete === true;
+
     const payload: GitHubActivityCacheEntry = {
       ...activityData,
       timestamp: Date.now(),
@@ -334,13 +350,21 @@ export class ServerCache extends NodeCache {
       lastAttemptedAt: Date.now(),
     };
 
-    this.set(
+    const ttl = (isFailure || !isDataComplete)
+      ? GITHUB_ACTIVITY_CACHE_DURATION.FAILURE
+      : GITHUB_ACTIVITY_CACHE_DURATION.SUCCESS;
+
+    const success = this.set(
       key,
       payload,
-      isFailure || !activityData.trailingYearData.dataComplete
-        ? GITHUB_ACTIVITY_CACHE_DURATION.FAILURE
-        : GITHUB_ACTIVITY_CACHE_DURATION.SUCCESS
+      ttl
     );
+
+    if (!success) {
+      // It's good practice to log if the cache set operation fails,
+      // as NodeCache.set can return false.
+      console.warn(`[ServerCache] Failed to set cache for key: ${key}. TTL was: ${ttl} seconds. Data was: ${JSON.stringify(payload).substring(0, 200)}...`);
+    }
   }
 
   /**
