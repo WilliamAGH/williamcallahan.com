@@ -4,7 +4,7 @@
  * Handles fetching, caching, processing, and serving of company logos
  * Access pattern: In-memory Cache → S3 Storage → External APIs (Google, Clearbit, DuckDuckGo)
  * Includes image validation, format conversion, and size verification
- * 
+ *
  * @module data-access/logos
  */
 
@@ -26,12 +26,13 @@ const VERBOSE = process.env.VERBOSE === 'true' || false;
  *
  * @param domain - The domain name associated with the logo
  * @param source - The logo source identifier
+ * @param ext - The file extension for the logo (default: 'png')
  * @returns The S3 key string for storing or retrieving the logo
  */
-function getLogoS3Key(domain: string, source: LogoSource): string {
+function getLogoS3Key(domain: string, source: LogoSource, ext: 'png' | 'svg' = 'png'): string {
   const id = domain.split('.')[0];
   const sourceAbbr = source === 'duckduckgo' ? 'ddg' : source;
-  return `${LOGOS_S3_KEY_DIR}/${id}_${sourceAbbr}.png`;
+  return `${LOGOS_S3_KEY_DIR}/${id}_${sourceAbbr}.${ext}`;
 }
 
 /**
@@ -44,18 +45,21 @@ function getLogoS3Key(domain: string, source: LogoSource): string {
  */
 export async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> {
   for (const source of ['google', 'clearbit', 'duckduckgo'] as LogoSource[]) {
-    const logoS3Key = getLogoS3Key(domain, source);
-    try {
-      const buffer = await readBinaryS3(logoS3Key);
-      if (buffer) {
-        console.log(`[DataAccess/Logos-S3] Found logo for ${domain} from source ${source} in S3 (key: ${logoS3Key}).`);
-        return { buffer, source };
+    // First try both PNG and SVG formats directly
+    for (const ext of ['png', 'svg'] as const) {
+      const logoS3Key = getLogoS3Key(domain, source, ext);
+      try {
+        const buffer = await readBinaryS3(logoS3Key);
+        if (buffer) {
+          console.log(`[DataAccess/Logos-S3] Found logo for ${domain} from source ${source} in S3 (key: ${logoS3Key}).`);
+          return { buffer, source };
+        }
+      } catch (error) {
+        if (VERBOSE) {
+          console.warn(`[DataAccess/Logos-S3] Error reading ${logoS3Key} for domain ${domain} (source: ${source}):`, error instanceof Error ? error.message : String(error));
+        }
+        // Treat error as logo not found for this key, continue to next source
       }
-    } catch (error) {
-      if (VERBOSE) {
-        console.warn(`[DataAccess/Logos-S3] Error reading ${logoS3Key} for domain ${domain} (source: ${source}):`, error instanceof Error ? error.message : String(error));
-      }
-      // Treat error as logo not found for this key, continue to next source
     }
   }
   try {
@@ -263,7 +267,7 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
 
     // Get the appropriate file extension based on the image type
     const fileExt = isSvg ? '.svg' : '.png';
-    const logoS3Key = getLogoS3Key(domain, externalLogo.source).replace(/\.png$/, fileExt);
+    const logoS3Key = getLogoS3Key(domain, externalLogo.source, fileExt.split('.')[1] as 'png' | 'svg');
 
     try {
       const existingBuffer = await readBinaryS3(logoS3Key);
