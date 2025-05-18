@@ -12,7 +12,22 @@ import type { UnifiedBookmark, BookmarkContent, BookmarkTag } from '../../types'
 // Mock for refreshBookmarksData that will be used by data-access
 const mockRefreshBookmarksDataFnGlobal = jest.fn();
 
+// Mock for '../../lib/bookmarks.client.ts'
+// This is crucial because lib/data-access/bookmarks.ts imports refreshBookmarksData from here.
+void mock.module('../../lib/bookmarks.client', () => {
+  const actualClientModule = require('../../lib/bookmarks.client'); // Assuming this gets the original exports
+  return {
+    ...actualClientModule,
+    refreshBookmarksData: mockRefreshBookmarksDataFnGlobal, // Key override
+    // fetchExternalBookmarks and fetchExternalBookmarksCached are preserved from the actual module
+    // as they are imported and used by other tests in this file.
+  };
+});
+
 // Mock the entire '../../lib/bookmarks' module
+// This existing mock might still be relevant for other code/tests.
+// It also makes 'lib/bookmarks' behave like 'lib/bookmarks.client' and applies the same mock,
+// which is consistent.
 void mock.module('../../lib/bookmarks', () => {
   const actualBookmarksModule = require('../../lib/bookmarks.client');
   return {
