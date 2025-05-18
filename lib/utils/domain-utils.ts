@@ -1,11 +1,15 @@
 /**
  * Domain Utilities
+ * 
+ * Utility functions for transforming and normalizing domain names and URLs
+ * Provides domain extraction, slug generation, and display formatting
+ * 
  * @module lib/utils/domain-utils
- * @description Utility functions for handling domains and URLs.
  */
 
 /**
  * Extract domain from URL or company name
+ * 
  * @param {string} input - URL or company name
  * @returns {string} Normalized domain or company name
  */
@@ -30,6 +34,7 @@ export function normalizeDomain(input: string): string {
 
 /**
  * Extracts a clean domain from a URL and formats it for use in URLs
+ * 
  * @param url The full URL to extract domain from
  * @returns A cleaned domain slug suitable for use in URLs
  */
@@ -67,6 +72,7 @@ export function getDomainSlug(url: string): string {
 
 /**
  * Generates a unique, user-friendly slug from a URL
+ * 
  * @param url The URL to generate a slug for
  * @param allBookmarks All bookmarks to check for uniqueness
  * @param currentBookmarkId The ID of the current bookmark (to exclude from uniqueness check)
@@ -168,6 +174,7 @@ export function generateUniqueSlug(url: string, allBookmarks: Array<{ id: string
 
 /**
  * Converts a domain slug back to its original form
+ * 
  * @param slug The domain slug to convert back
  * @returns The original domain format (without www prefix)
  */
@@ -177,6 +184,7 @@ export function slugToDomain(slug: string): string {
 
 /**
  * Gets a display name from a URL or domain
+ * 
  * @param url The URL or domain to format
  * @returns A nicely formatted domain for display
  */
