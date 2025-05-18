@@ -3,7 +3,7 @@
  *
  * Handles fetching and caching of bookmark data across storage layers
  * Access pattern: In-memory Cache → S3 Storage → External API
- * 
+ *
  * @module data-access/bookmarks
  */
 
@@ -37,7 +37,7 @@ async function fetchExternalBookmarks(): Promise<UnifiedBookmark[] | null> {
   inFlightBookmarkPromise = refreshBookmarksData()
     .then(bookmarks => {
       console.log('[DataAccess/Bookmarks] `refreshBookmarksData` returned:', bookmarks ? `${bookmarks.length} items` : bookmarks);
-      if (bookmarks && bookmarks.length > 0) {
+      if (Array.isArray(bookmarks) && bookmarks.length > 0) {
         console.log(`[DataAccess/Bookmarks] Fetched ${bookmarks.length} bookmarks from external source. Returning them.`);
         return bookmarks;
       }

@@ -122,14 +122,22 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 5)
   let baseDelay = 1000; // Initial delay in ms
 
   const getJitteredDelay = () => {
-    const jitter = Math.random() * 0.3; // Add ±15% jitter
-    const delay = baseDelay * (1 + jitter - 0.15);
+    const jitter = (Math.random() * 1) - 0.5; // ±50% jitter
+    const delay = baseDelay * (1 + jitter);
     return Math.min(delay, 30000); // Cap at 30 seconds
   };
 
   while (retryCount < maxRetries) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30s hard timeout
+
     try {
-      const response = await fetch(url, options);
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+
+      clearTimeout(timeout);
 
       // Success case - return immediately for non-202 responses
       if (response.status !== 202) {
@@ -148,6 +156,8 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 5)
       retryCount++;
 
     } catch (error) {
+      clearTimeout(timeout);
+
       // Handle network errors (DNS, connection refused, etc.)
       if (retryCount === maxRetries - 1) {
         console.error(`[DataAccess/GitHub] Network error on final retry (${retryCount + 1}/${maxRetries}) for ${url}:`, error);
@@ -331,7 +341,13 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{trailingYearD
               return { w: Number(w), a: Number(a), d: Number(d), c: Number(c) };
             });
           } else {
-             if (apiStatus === 'pending_202_from_api' || apiStatus === 'fetch_error') repoDataCompleteForYear = false;
+             if (apiStatus === 'pending_202_from_api' || apiStatus === 'fetch_error') {
+             repoDataCompleteForYear = false;
+
+             if (!repoDataCompleteForYear) {
+               allTimeOverallDataComplete = false;
+             }
+          }
           }
         }
         if (finalStatsToSaveForRepo.length > 0 && (apiStatus === 'complete' || apiStatus === 'empty_no_user_contribs' || (apiStatus !== 'fetch_error' && apiStatus !== 'pending_202_from_api' && finalStatsToSaveForRepo.length >0) )) {
@@ -418,40 +434,75 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{trailingYearD
     let page = 1;
     let repoCommitCount = 0;
     if (VERBOSE) console.log(`[DataAccess/GitHub] All-Time: Fetching all commits for ${owner}/${name}...`);
-    while (true) {
-      const commitsUrl = `https://api.github.com/repos/${owner}/${name}/commits?author=${GITHUB_REPO_OWNER}&per_page=100&page=${page}`;
+    // Get commit count using GraphQL instead of paginated REST API
+    // GraphQL allows us to get the total count in a single query instead of paginating through all commits
+    try {
+      const commitCountQuery = `
+        query($owner: String!, $name: String!, $author: String!) {
+          repository(owner: $owner, name: $name) {
+            object(expression: "HEAD") {
+              ... on Commit {
+                history(author: {emails: [$author]}) {
+                  totalCount
+                }
+              }
+            }
+          }
+        }
+      `;
 
-      const res = await fetch(commitsUrl, { headers: { 'Authorization': `Bearer ${GITHUB_API_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' } });
+            const response = await graphql<{repository?: {object?: {history?: {totalCount?: number}}}}>(commitCountQuery, {
+        owner,
+        name,
+        author: GITHUB_REPO_OWNER,
+        headers: { authorization: `bearer ${GITHUB_API_TOKEN}` }
+      });
 
-      if (!res.ok) {
-        console.warn(`[DataAccess/GitHub] All-Time: Error fetching commits for ${owner}/${name} (page ${page}): ${res.status}. Stopping count for this repo.`);
-        // Consider if this should impact allTimeOverallDataComplete for lines/additions,
-        // or if a separate flag for commit count completeness is needed.
-        // For now, this primarily affects the accuracy of allTimeTotalCommits.
-        break;
+      const totalCount = response?.repository?.object?.history?.totalCount || 0;
+      repoCommitCount = totalCount;
+
+      if (VERBOSE) console.log(`[DataAccess/GitHub] All-Time: Found ${repoCommitCount} commits for ${owner}/${name} via GraphQL API.`);
+    } catch (error) {
+      console.warn(`[DataAccess/GitHub] All-Time: Error fetching commit count for ${owner}/${name} via GraphQL:`,
+        error instanceof Error ? error.message : String(error));
+
+      // Fall back to traditional REST API if GraphQL fails
+      console.log(`[DataAccess/GitHub] All-Time: Falling back to REST API for ${owner}/${name}...`);
+      while (true) {
+        const commitsUrl = `https://api.github.com/repos/${owner}/${name}/commits?author=${GITHUB_REPO_OWNER}&per_page=100&page=${page}`;
+
+        const res = await fetch(commitsUrl, { headers: { 'Authorization': `Bearer ${GITHUB_API_TOKEN}`, 'Accept': 'application/vnd.github.v3+json' } });
+
+        if (!res.ok) {
+          console.warn(`[DataAccess/GitHub] All-Time: Error fetching commits for ${owner}/${name} (page ${page}): ${res.status}. Stopping count for this repo.`);
+          // Consider if this should impact allTimeOverallDataComplete for lines/additions,
+          // or if a separate flag for commit count completeness is needed.
+          // For now, this primarily affects the accuracy of allTimeTotalCommits.
+          break;
+        }
+        const commits = await res.json() as Array<{ sha: string }>;
+        if (!Array.isArray(commits)) {
+             console.warn(`[DataAccess/GitHub] All-Time: Invalid commit data for ${owner}/${name} (page ${page}). Stopping count for this repo.`);
+             break;
+        }
+        if (commits.length === 0) break;
+
+        repoCommitCount += commits.length;
+
+        if (commits.length < 100) break;
+        page++;
+        // Safety break for very deep pagination, e.g. if a repo has > 2000 commits by the user.
+        // Adjust limit if necessary, or remove if confident in all repo sizes.
+        if (page > 20 && VERBOSE) {
+            console.warn(`[DataAccess/GitHub] All-Time: Reached ${page} pages for ${owner}/${name}, check for unexpected depth or error in pagination break.`);
+        }
+        await new Promise(r => setTimeout(r, 100)); // Small delay between pages to be kind to the API
       }
-      const commits = await res.json() as Array<{ sha: string }>;
-      if (!Array.isArray(commits)) {
-           console.warn(`[DataAccess/GitHub] All-Time: Invalid commit data for ${owner}/${name} (page ${page}). Stopping count for this repo.`);
-           break;
-      }
-      if (commits.length === 0) break;
-
-      repoCommitCount += commits.length;
-
-      if (commits.length < 100) break;
-      page++;
-      // Safety break for very deep pagination, e.g. if a repo has > 2000 commits by the user.
-      // Adjust limit if necessary, or remove if confident in all repo sizes.
-      if (page > 20 && VERBOSE) {
-          console.warn(`[DataAccess/GitHub] All-Time: Reached ${page} pages for ${owner}/${name}, check for unexpected depth or error in pagination break.`);
-      }
-      await new Promise(r => setTimeout(r, 100)); // Small delay between pages to be kind to the API
     }
-    if (VERBOSE) console.log(`[DataAccess/GitHub] All-Time: Found ${repoCommitCount} commits for ${owner}/${name} via /commits endpoint.`);
+
     allTimeTotalCommits += repoCommitCount;
   }
-  console.log(`[DataAccess/GitHub] All-Time: Total commits calculated from /commits API: ${allTimeTotalCommits}`);
+  console.log(`[DataAccess/GitHub] All-Time: Total commits calculated: ${allTimeTotalCommits}`);
 
   // NEW: Fetch contribution calendar data using GraphQL
   let yearTotalCommits = 0;
