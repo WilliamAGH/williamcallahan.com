@@ -319,7 +319,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{trailingYearD
         } else if (statsResponse.ok) {
           const contributors = await statsResponse.json() as GithubContributorStatsEntry[];
           const ownerLoginLower = GITHUB_REPO_OWNER.toLowerCase();
-          const userStatsEntry = Array.isArray(contributors) ? contributors.find(c => c.author && c.author.login.toLowerCase() === ownerLoginLower) : null;
+          const userStatsEntry = Array.isArray(contributors) ? contributors.find(c => c?.author?.login.toLowerCase() === ownerLoginLower) : null;
           if (userStatsEntry && userStatsEntry.weeks && Array.isArray(userStatsEntry.weeks)) {
             userWeeklyStatsFromApi = userStatsEntry.weeks.map((w: RepoRawWeeklyStat) => ({ w: w.w, a: w.a, d: w.d, c: w.c }));
             apiStatus = userWeeklyStatsFromApi.length > 0 ? 'complete' : 'empty_no_user_contribs';
@@ -537,7 +537,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{trailingYearD
       }
     );
 
-    if (gqlResponse && gqlResponse.user && gqlResponse.user.contributionsCollection && gqlResponse.user.contributionsCollection.contributionCalendar) {
+    if (gqlResponse?.user?.contributionsCollection?.contributionCalendar) {
       const calendar = gqlResponse.user.contributionsCollection.contributionCalendar;
       yearTotalCommits = calendar.totalContributions;
 
@@ -926,7 +926,7 @@ async function detectAndRepairCsvFiles(): Promise<{
         if (statsResponse.ok) {
           const contributors = await statsResponse.json() as GithubContributorStatsEntry[];
           const ownerLoginLower = GITHUB_REPO_OWNER.toLowerCase();
-          const userStatsEntry = contributors.find(c => c.author && c.author.login.toLowerCase() === ownerLoginLower);
+          const userStatsEntry = contributors.find(c => c?.author?.login.toLowerCase() === ownerLoginLower);
           if (userStatsEntry && userStatsEntry.weeks && Array.isArray(userStatsEntry.weeks)) {
             const weeklyStats = userStatsEntry.weeks.map(w => ({
               w: w.w, a: w.a, d: w.d, c: w.c
