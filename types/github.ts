@@ -73,6 +73,7 @@ export interface GitHubActivitySummary {
  */
 export interface GitHubGraphQLContributionResponse {
   user: {
+    id?: string; // User's Node ID
     /** Repositories the user has committed to */
     repositoriesContributedTo: {
       nodes: Array<{
