@@ -239,11 +239,13 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{trailingYearD
   const now = new Date();
   type GithubRepoNode = NonNullable<NonNullable<GitHubGraphQLContributionResponse['user']>['repositoriesContributedTo']>['nodes'][number];
   let uniqueRepoArray: GithubRepoNode[];
+  let githubUserId: string | undefined; // Declare githubUserId
   try {
-    console.log(`[DataAccess/GitHub] Fetching list of contributed repositories for ${GITHUB_REPO_OWNER} via GraphQL API...`);
+    console.log(`[DataAccess/GitHub] Fetching list of contributed repositories and user ID for ${GITHUB_REPO_OWNER} via GraphQL API...`);
     const { user } = await graphql<GitHubGraphQLContributionResponse>(`
       query($username: String!) {
         user(login: $username) {
+          id # <-- ADDED USER ID FETCH
           repositoriesContributedTo(
             first: 100,
             contributionTypes: [COMMIT],
@@ -255,6 +257,16 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{trailingYearD
         }
       }
     `, { username: GITHUB_REPO_OWNER, headers: { authorization: `bearer ${GITHUB_API_TOKEN}` } });
+
+    githubUserId = user?.id;
+    if (!githubUserId) {
+      // Early return if user ID is missing - this is critical for using GraphQL to count commits
+      // Without a user ID, we can't use the more efficient GraphQL commit counting method
+      // and would need to fall back to REST API pagination which can hit rate limits
+      console.error("[DataAccess/GitHub] CRITICAL: Failed to fetch user ID for GITHUB_REPO_OWNER. Cannot proceed with accurate commit counting.");
+      return null;
+    }
+
     const contributedRepoNodes = user?.repositoriesContributedTo?.nodes || [];
     uniqueRepoArray = contributedRepoNodes.filter((repo): repo is GithubRepoNode => !!(repo && !repo.isFork));
   } catch (gqlError: unknown) {
@@ -437,12 +449,16 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{trailingYearD
     // Get commit count using GraphQL instead of paginated REST API
     // GraphQL allows us to get the total count in a single query instead of paginating through all commits
     try {
+      if (!githubUserId) {
+        console.warn(`[DataAccess/GitHub] All-Time: GitHub User ID not available for ${GITHUB_REPO_OWNER}. Falling back to REST API for commit count for ${owner}/${name}.`);
+        throw new Error("GitHub User ID not available for GraphQL commit count.");
+      }
       const commitCountQuery = `
-        query($owner: String!, $name: String!, $author: String!) {
+        query($owner: String!, $name: String!, $authorId: ID!) {
           repository(owner: $owner, name: $name) {
             object(expression: "HEAD") {
               ... on Commit {
-                history(author: {emails: [$author]}) {
+                history(author: {id: $authorId}) {
                   totalCount
                 }
               }
@@ -454,14 +470,14 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{trailingYearD
             const response = await graphql<{repository?: {object?: {history?: {totalCount?: number}}}}>(commitCountQuery, {
         owner,
         name,
-        author: GITHUB_REPO_OWNER,
+        authorId: githubUserId,
         headers: { authorization: `bearer ${GITHUB_API_TOKEN}` }
       });
 
       const totalCount = response?.repository?.object?.history?.totalCount || 0;
       repoCommitCount = totalCount;
 
-      if (VERBOSE) console.log(`[DataAccess/GitHub] All-Time: Found ${repoCommitCount} commits for ${owner}/${name} via GraphQL API.`);
+      if (VERBOSE) console.log(`[DataAccess/GitHub] All-Time: Found ${repoCommitCount} commits for ${owner}/${name} via GraphQL API (using ID).`);
     } catch (error) {
       console.warn(`[DataAccess/GitHub] All-Time: Error fetching commit count for ${owner}/${name} via GraphQL:`,
         error instanceof Error ? error.message : String(error));

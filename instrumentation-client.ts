@@ -4,6 +4,15 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+// Define browser extension error patterns to filter out
+const BROWSER_EXTENSION_ERROR_PATTERNS = [
+  'runtime.sendMessage',
+  'Tab not found',
+  'chrome.runtime',
+  'browser.runtime',
+  'Extension context invalidated'
+];
+
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
@@ -31,14 +40,32 @@ Sentry.init({
 
   // Filter out events from localhost in development to prevent console warnings
   beforeSend(event) {
-    // Check if it's an error event and if we are in development
+    // Check if it's a development environment
     if (process.env.NODE_ENV === 'development') {
       // Optionally, you could inspect the event further, e.g., hint.originalException
       // For now, simply drop all events in development to suppress the warning
       console.log('Sentry event dropped in development:', event); // Optional: Log dropped events for debugging
       return null; // Drop the event
     }
-    // In production or other environments, send the event
+
+    // Filter browser extension errors in all environments
+    const errorMessage = event.exception?.values?.[0]?.value || '';
+
+    // Check for known browser extension error patterns
+    for (const pattern of BROWSER_EXTENSION_ERROR_PATTERNS) {
+      if (errorMessage.includes(pattern)) {
+        console.log('Filtering browser extension error:', errorMessage);
+        return null; // Drop the event
+      }
+    }
+
+    // Special case for generic extension errors
+    if (errorMessage.includes('extension') && errorMessage.includes('not found')) {
+      console.log('Filtering generic extension error:', errorMessage);
+      return null; // Drop the event
+    }
+
+    // In production or other environments, send all other events
     return event;
   },
 });
