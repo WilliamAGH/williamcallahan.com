@@ -31,14 +31,31 @@ Sentry.init({
 
   // Filter out events from localhost in development to prevent console warnings
   beforeSend(event) {
-    // Check if it's an error event and if we are in development
+    // Check if it's a development environment
     if (process.env.NODE_ENV === 'development') {
       // Optionally, you could inspect the event further, e.g., hint.originalException
       // For now, simply drop all events in development to suppress the warning
       console.log('Sentry event dropped in development:', event); // Optional: Log dropped events for debugging
       return null; // Drop the event
     }
-    // In production or other environments, send the event
+
+    // Filter browser extension errors in all environments
+    const errorMessage = event.exception?.values?.[0]?.value || '';
+    if (
+      // Browser extension message patterns
+      errorMessage.includes('runtime.sendMessage') ||
+      errorMessage.includes('Tab not found') ||
+      errorMessage.includes('chrome.runtime') ||
+      errorMessage.includes('browser.runtime') ||
+      // More generic extension-related patterns
+      (errorMessage.includes('extension') && errorMessage.includes('not found')) ||
+      errorMessage.includes('Extension context invalidated')
+    ) {
+      console.log('Filtering browser extension error:', errorMessage);
+      return null; // Drop the event
+    }
+
+    // In production or other environments, send all other events
     return event;
   },
 });
