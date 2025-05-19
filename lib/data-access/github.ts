@@ -260,6 +260,9 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{trailingYearD
 
     githubUserId = user?.id;
     if (!githubUserId) {
+      // Early return if user ID is missing - this is critical for using GraphQL to count commits
+      // Without a user ID, we can't use the more efficient GraphQL commit counting method
+      // and would need to fall back to REST API pagination which can hit rate limits
       console.error("[DataAccess/GitHub] CRITICAL: Failed to fetch user ID for GITHUB_REPO_OWNER. Cannot proceed with accurate commit counting.");
       return null;
     }
