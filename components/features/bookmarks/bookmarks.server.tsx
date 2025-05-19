@@ -8,7 +8,7 @@ import "server-only"; // Ensure this component remains server-only
 
 import { BookmarksClientWithWindow } from './bookmarks-client-with-window';
 import type { UnifiedBookmark } from '@/types';
-import { getBookmarks } from '@/lib/data-access';
+import { getBookmarks } from '@/lib/data-access/bookmarks';
 
 interface BookmarksServerProps {
   title: string;
@@ -18,6 +18,17 @@ interface BookmarksServerProps {
   titleSlug?: string;
 }
 
+/**
+ * Server-side React component that prepares and provides bookmark data to the client component.
+ *
+ * Fetches and sorts bookmarks by date if not provided via props, and passes all relevant data to {@link BookmarksClientWithWindow}.
+ *
+ * @remark Throws an error with message 'BookmarksUnavailable' in production if no bookmarks are available from either props or API, triggering an error boundary.
+ *
+ * @returns The rendered {@link BookmarksClientWithWindow} component with bookmark data and related props.
+ *
+ * @throws {Error} If no bookmarks are available in production mode.
+ */
 export async function BookmarksServer({
   title,
   description,
@@ -72,7 +83,7 @@ export async function BookmarksServer({
       bookmarks={bookmarks}
       title={title}
       description={description}
-      forceClientFetch={!propsBookmarks} // Only force client fetch if we didn't get bookmarks from props
+      forceClientFetch={!propsBookmarks}
       showFilterBar={showFilterBar}
       titleSlug={titleSlug}
     />

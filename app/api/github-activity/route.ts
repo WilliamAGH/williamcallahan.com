@@ -1,21 +1,29 @@
 /**
  * GitHub Activity API Endpoint
  *
- * Provides client-side access to GitHub activity data by reading pre-processed data from S3 (via data-access layer).
- * It does NOT trigger a new fetch from GitHub.
+ * Provides client-side access to GitHub activity data from S3 storage
+ * Handles error cases with consistent response structure
  *
+ * @module app/api/github-activity
+ * 
  * Query Parameters:
- *   - refresh=true: This parameter is now ignored by this GET endpoint. Refreshing data should be done
- *                   via the POST /api/github-activity/refresh endpoint.
- *   - force-cache=true: This parameter is also effectively ignored as the data-access layer handles its own caching.
+ *   - refresh=true: Deprecated, returns guidance to use POST /api/github-activity/refresh
+ *   - force-cache=true: Effectively ignored as data-access layer handles caching
  */
 
 import { NextResponse } from 'next/server';
-import { getGithubActivity } from '@/lib/data-access';
+import { getGithubActivity } from '@/lib/data-access/github';
 import type { NextRequest } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Handles GET requests for the GitHub Activity API endpoint, returning pre-processed GitHub activity data.
+ *
+ * If the deprecated `refresh=true` query parameter is present, responds with a 400 error and guidance to use the POST refresh endpoint instead. On success, returns a `UserActivityView` object containing GitHub activity data. On error, returns a 500 response with a consistent JSON structure indicating failure and empty data.
+ *
+ * @returns A JSON response containing GitHub activity data or an error structure
+ */
 export async function GET(request: NextRequest) {
   console.log('[API GET /github-activity] Received request.');
 
@@ -37,26 +45,33 @@ export async function GET(request: NextRequest) {
   try {
     const activityData = await getGithubActivity();
 
-    if (activityData) {
-      return NextResponse.json(activityData);
-    } else {
-      console.warn('[API GET /github-activity] GitHub activity data not found in cache or S3. A refresh may be needed.');
-      return NextResponse.json(
-        {
-          error: 'GitHub activity data not available.',
-          details: 'The data may not have been generated yet or a refresh is in progress. Please try again later or trigger a refresh via the POST /api/github-activity/refresh endpoint.',
-          // Optionally, provide some minimal structure if clients expect it
-          trailingYearData: null,
-          cumulativeAllTimeData: null,
-        },
-        { status: 404 } // Or 503 Service Unavailable might also be appropriate
-      );
-    }
+    // The getGithubActivity function is designed to always return a UserActivityView object,
+    // even in error or empty states (indicated by activityData.source and activityData.error fields).
+    // Therefore, a separate 'else' case for a falsy activityData is not necessary.
+    return NextResponse.json(activityData);
+
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     console.error('[API GET /github-activity] Error fetching GitHub activity data:', errorMessage);
+
+    // Provide a consistent structure even in error cases
     return NextResponse.json(
-      { error: 'Failed to retrieve GitHub activity data.', details: errorMessage },
+      {
+        error: 'Failed to retrieve GitHub activity data.',
+        details: errorMessage,
+        source: 'error',
+        trailingYearData: {
+          data: [],
+          totalContributions: 0,
+          dataComplete: false
+        },
+        allTimeStats: {
+          totalContributions: 0,
+          linesAdded: 0,
+          linesRemoved: 0
+        },
+        lastRefreshed: null
+      },
       { status: 500 }
     );
   }

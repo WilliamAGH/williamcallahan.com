@@ -3,7 +3,7 @@
 /**
  * DIRECT VOLUME POPULATION SCRIPT
  *
- * This script uses the centralized data-access layer to populate data volumes.
+ * This script uses the centralized data-access layer to populate data volumes
  */
 
 import fs from 'node:fs/promises';
@@ -122,7 +122,7 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
   console.log(`✅ Added ${investmentDomainsMap.size} unique domains from investments.`);
 
   // 3. Extract domains from experience data (simplified, as data-access doesn't have this yet)
-  // TODO: Move experience/education domain extraction to data-access or a shared util if needed frequently
+  // Extract experience domains using local file parsing
   try {
     const experienceContent = await fs.readFile(path.join(ROOT_DIR, 'data', 'experience.ts'), 'utf-8');
     let currentId: string | null = null;
@@ -356,8 +356,8 @@ async function populateAllVolumes() {
         console.warn('⚠️ Could not update last run timestamp file:', message);
       }
     } else {
-      // In production, CI, or other non-development environments, we don't update the timestamp.
-      // The script should run fully each time during builds in these environments.
+      // In production, CI, or other non-development environments, we don't update the timestamp
+      // The script should run fully each time during builds in these environments
       console.log(`ℹ️ Skipping update of last run timestamp for populate-volumes (Production/CI/Non-Dev run).`);
     }
 

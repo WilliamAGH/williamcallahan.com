@@ -34,7 +34,7 @@ export function ProjectsListClient() {
     <div className="p-6 sm:p-4">
       <div className="prose dark:prose-invert max-w-none mb-8 text-sm sm:text-base">
         <p>
-          Welcome to my sandbox of various experiments / projects / works-in-progress.
+          Welcome to my coding lab! Here, I experiment with building things, share works-in-progress, and share my current and past projects.
         </p>
       </div>
 

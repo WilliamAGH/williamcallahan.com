@@ -1,9 +1,13 @@
 /**
  * SEO Utilities Tests
+ * 
+ * Tests SEO utility functions for URL formatting, image type detection,
+ * and date formatting with Pacific Time zone handling
+ * 
  * @jest-environment node
  */
 
-import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate, validateSeoDate } from '../../../lib/seo/utils';
+import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate } from '../../../lib/seo/utils';
 import { NEXT_PUBLIC_SITE_URL } from '../../../lib/constants';
 import { isPacificDateString } from '../../../types/seo';
 
@@ -95,24 +99,93 @@ describe('SEO Utilities', () => {
     });
   });
 
-  describe('validateSeoDate', () => {
+  describe('isPacificDateString', () => {
     it('should validate correct Pacific Time format during standard time', () => {
-      expect(validateSeoDate('2025-01-01T12:00:00-08:00')).toBe(true);
+      expect(isPacificDateString('2025-01-01T12:00:00-08:00')).toBe(true);
     });
 
     it('should validate correct Pacific Time format during daylight savings', () => {
-      expect(validateSeoDate('2025-07-01T12:00:00-07:00')).toBe(true);
+      expect(isPacificDateString('2025-07-01T12:00:00-07:00')).toBe(true);
     });
 
     it('should reject invalid formats', () => {
-      expect(validateSeoDate('2025-01-01')).toBe(false);
-      expect(validateSeoDate('2025-01-01T12:00:00Z')).toBe(false);
-      expect(validateSeoDate('2025-01-01T12:00:00+00:00')).toBe(false);
+      expect(isPacificDateString('2025-01-01')).toBe(false);
+      expect(isPacificDateString('2025-01-01T12:00:00Z')).toBe(false);
+      expect(isPacificDateString('2025-01-01T12:00:00+00:00')).toBe(false);
     });
 
     it('should reject invalid timezone offsets', () => {
-      expect(validateSeoDate('2025-01-01T12:00:00-05:00')).toBe(false);
-      expect(validateSeoDate('2025-01-01T12:00:00-09:00')).toBe(false);
+      expect(isPacificDateString('2025-01-01T12:00:00-05:00')).toBe(false);
+      expect(isPacificDateString('2025-01-01T12:00:00-09:00')).toBe(false);
+    });
+  });
+
+  // Additional edge-case and failure-mode tests for SEO utilities using Jest
+  describe('ensureAbsoluteUrl – edge and failure cases', () => {
+    it('returns non-http protocols unchanged', () => {
+      const ftpUrl = 'ftp://example.com/resource';
+      expect(ensureAbsoluteUrl(ftpUrl)).toBe(ftpUrl);
+    });
+
+    it('treats empty string as root relative path', () => {
+      const empty = '';
+      expect(ensureAbsoluteUrl(empty)).toBe(`${NEXT_PUBLIC_SITE_URL}/`);
+    });
+
+    it('preserves data URIs intact', () => {
+      const dataUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
+      expect(ensureAbsoluteUrl(dataUri)).toBe(dataUri);
+    });
+  });
+
+  describe('getImageTypeFromUrl – uppercase and unsupported cases', () => {
+    it('handles uppercase file extensions', () => {
+      expect(getImageTypeFromUrl('ICON.SVG')).toBe('image/svg+xml');
+      expect(getImageTypeFromUrl('PHOTO.JPG')).toBe('image/jpeg');
+    });
+
+    it('returns undefined for unsupported extensions', () => {
+      expect(getImageTypeFromUrl('file.txt')).toBeUndefined();
+      expect(getImageTypeFromUrl('archive.tar.gz')).toBeUndefined();
+    });
+  });
+
+  describe('formatSeoDate – failure modes and DST boundary transitions', () => {
+    it('throws when passed an invalid date string', () => {
+      expect(() => formatSeoDate('not-a-date')).toThrow();
+    });
+
+    it('correctly shifts offset at DST start boundary', () => {
+      // Just before DST start (PST)
+      const before = new Date('2025-03-09T01:59:59');
+      const formattedBefore = formatSeoDate(before);
+      expect(formattedBefore).toMatch(/-08:00$/);
+
+      // Just after DST start (PDT)
+      const after = new Date('2025-03-09T03:00:00');
+      const formattedAfter = formatSeoDate(after);
+      expect(formattedAfter).toMatch(/-07:00$/);
+    });
+
+    it('handles numeric timestamp inputs by throwing or coercing', () => {
+      expect(() => formatSeoDate((1620000000000 as any))).toThrow();
+    });
+  });
+
+  describe('isPacificDateString – non-string and malformed inputs', () => {
+    it('rejects non-string inputs', () => {
+      expect(isPacificDateString((12345 as any))).toBe(false);
+      expect(isPacificDateString((null as any))).toBe(false);
+      expect(isPacificDateString((undefined as any))).toBe(false);
+    });
+
+    it('rejects missing leading zero in offset', () => {
+      expect(isPacificDateString('2025-01-01T12:00:00-8:00')).toBe(false);
+    });
+
+    it('rejects totally malformed strings', () => {
+      expect(isPacificDateString('foo-bar')).toBe(false);
+      expect(isPacificDateString('2025/01/01 12:00:00')).toBe(false);
     });
   });
 });

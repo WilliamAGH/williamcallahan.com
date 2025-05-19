@@ -17,7 +17,7 @@ const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const RATE_LIMIT_MAX = 5; // 5 requests per window
 
 // Simple in-memory rate limiting
-// TODO: Replace this with a distributed rate limiter (e.g., Redis, Upstash) for production scalability.
+// Rate limiting implementation - consider replacing with distributed solution for multi-instance deployments
 // In-memory store resets on deploys and doesn't scale horizontally.
 const rateLimitStore: { [ip: string]: { count: number; resetAt: number } } = {};
 

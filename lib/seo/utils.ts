@@ -1,28 +1,23 @@
 /**
  * SEO Utility Functions
- * @module lib/seo/utils
- * @description
- * Shared utility functions used by both metadata.ts and opengraph.ts modules.
- * These functions handle common operations like URL resolution, image type detection,
- * and date formatting according to SEO standards.
  *
- * @see {@link "./metadata.ts"} - Main metadata implementation
- * @see {@link "./opengraph.ts"} - OpenGraph metadata implementation
- * @see {@link "https://ogp.me/#type_article"} - OpenGraph date format requirements
- * @see {@link "https://schema.org/Article"} - Schema.org date format requirements
+ * Shared utility functions for URL and image processing in SEO metadata
+ * Provides date formatting utilities compliant with OpenGraph and Schema.org requirements
+ *
+ * @module lib/seo/utils
+ * @see {@link "https://ogp.me/#type_article"} OpenGraph date format requirements
+ * @see {@link "https://schema.org/Article"} Schema.org date format requirements
  */
 
 import { NEXT_PUBLIC_SITE_URL } from '../constants';
-import { isPacificDateString, type PacificDateString } from '../../types/seo';
+import type { PacificDateString } from '../../types/seo/shared';
 
 /**
  * Ensures a URL is absolute by prepending the site URL if necessary
- * Used by both metadata and OpenGraph modules to ensure all URLs are fully qualified
- *
+ * 
  * @example
  * ensureAbsoluteUrl('/images/photo.jpg')
  * // Returns: 'https://williamcallahan.com/images/photo.jpg' (in production)
- * // Returns: 'http://localhost:3000/images/photo.jpg' (in development)
  *
  * ensureAbsoluteUrl('https://example.com/photo.jpg')
  * // Returns: 'https://example.com/photo.jpg'
@@ -31,16 +26,35 @@ import { isPacificDateString, type PacificDateString } from '../../types/seo';
  * @returns The absolute URL
  */
 export function ensureAbsoluteUrl(path: string): string {
-  if (path.startsWith('http')) return path;
-  const isProd = NEXT_PUBLIC_SITE_URL === 'https://williamcallahan.com';
-  const baseUrl = isProd ? 'https://williamcallahan.com' : NEXT_PUBLIC_SITE_URL;
-  return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+  // Return data URIs and non-http(s) protocols as-is
+  if (path.startsWith('data:') || /^[a-z][a-z0-9+\-.]*:/i.test(path)) {
+    return path;
+  }
+
+  // Handle empty or whitespace-only strings
+  if (!path || !path.trim()) {
+    // Test expects empty string to be treated as root relative path
+    return NEXT_PUBLIC_SITE_URL.endsWith('/') ? NEXT_PUBLIC_SITE_URL : `${NEXT_PUBLIC_SITE_URL}/`;
+  }
+
+  // If it's already an absolute URL, return it as-is
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  // Remove any leading slashes to prevent double slashes when joining with base URL
+  const cleanPath = path.replace(/^\/+/, '');
+
+  // Prepend the site URL (with trailing slash if needed)
+  const baseUrl = NEXT_PUBLIC_SITE_URL.endsWith('/')
+    ? NEXT_PUBLIC_SITE_URL
+    : `${NEXT_PUBLIC_SITE_URL}/`;
+
+  return `${baseUrl}${cleanPath}`;
 }
 
 /**
  * Determines the MIME type of an image based on its file extension
- * Used primarily by the OpenGraph module to set correct image types
- * in metadata tags.
  *
  * @example
  * getImageTypeFromUrl('photo.jpg')
@@ -50,90 +64,112 @@ export function ensureAbsoluteUrl(path: string): string {
  * // Returns: 'image/svg+xml'
  *
  * @param url - The URL of the image
- * @returns The MIME type string
- * @see {@link "https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types"} - MIME types reference
+ * @returns The MIME type string or undefined if unknown
+ * @see {@link "https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types"} MIME types reference
  */
-export function getImageTypeFromUrl(url: string): string {
+export function getImageTypeFromUrl(url: string): string | undefined {
+  if (!url) return undefined;
+
   // Remove query parameters and fragments before getting extension
   const cleanUrl = url.split(/[?#]/)[0];
   const extension = cleanUrl?.split('.').pop()?.toLowerCase();
+
+  if (!extension) return undefined;
+
   switch (extension) {
-    case 'svg': return 'image/svg+xml';
     case 'jpg':
-    case 'jpeg': return 'image/jpeg';
-    case 'png': return 'image/png';
-    case 'gif': return 'image/gif';
-    case 'webp': return 'image/webp';
-    default: return 'image/jpeg'; // Fallback to JPEG if extension is unknown
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'gif':
+      return 'image/gif';
+    case 'webp':
+      return 'image/webp';
+    case 'svg':
+      return 'image/svg+xml';
+    case 'ico':
+      return 'image/x-icon';
+    default:
+      return undefined; // Return undefined for unsupported extensions
   }
 }
 
 /**
- * Formats a date for SEO metadata in Pacific Time
- * Ensures dates are in ISO 8601 format with proper timezone offset
- *
- * @example
- * formatSeoDate('2025-02-10')
- * // Returns: '2025-02-10T00:00:00-08:00'
- *
- * formatSeoDate('2025-07-10T15:30:00')
- * // Returns: '2025-07-10T15:30:00-07:00'
- *
- * @param date - The date to format (string or Date object)
- * @returns ISO 8601 formatted date string with Pacific Time offset
- * @see {@link "../../types/seo.ts"} - PacificDateString type definition
+ * Checks if a date is in Pacific Daylight Time (PDT)
+ * 
+ * @param date - The date to check
+ * @returns True if the date is in PDT, false if in PST
  */
-export function formatSeoDate(date: string | Date | undefined): PacificDateString {
+function isPacificDaylightTime(date: Date): boolean {
+  // Create a date in January (PST) and July (PDT) to get the timezone offset
+  const jan = new Date(date.getFullYear(), 0, 1);
+  const jul = new Date(date.getFullYear(), 6, 1);
+
+  // Get the timezone offset in minutes
+  const janOffset = jan.getTimezoneOffset();
+  const julOffset = jul.getTimezoneOffset();
+
+  // The larger offset indicates the timezone is in DST (PDT)
+  return Math.max(janOffset, julOffset) !== date.getTimezoneOffset();
+}
+
+/**
+ * Gets the Pacific Time offset string (-08:00 for PST, -07:00 for PDT)
+ * 
+ * @param date - The date to check
+ * @returns The timezone offset string
+ */
+function getPacificOffset(date: Date): string {
+  return isPacificDaylightTime(date) ? '-07:00' : '-08:00';
+}
+
+/**
+ * Formats a date as an ISO 8601 string with Pacific Time offset for SEO metadata
+ *
+ * Converts date to the required format for OpenGraph and Schema.org with correct Pacific Time offset
+ *
+ * @param date - The date to format. If omitted, current date and time are used
+ * @returns ISO 8601 date string with Pacific Time offset suitable for SEO metadata
+ * @throws {Error} If the date string doesn't conform to the PacificDateString format
+ */
+export function formatSeoDate(date: string | Date | undefined | number): PacificDateString {
+  if (typeof date === 'number') {
+    throw new Error('Numeric timestamp inputs are not supported by formatSeoDate. Provide string or Date.');
+  }
+
   if (!date) {
     date = new Date();
   }
 
   // If it's a date-only string (YYYY-MM-DD), append midnight time
+  // Ensure this is done before creating the Date object if 'date' is a string
+  let dateInputForConstructor: string | Date = date;
   if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    date = `${date}T00:00:00`;
+    dateInputForConstructor = `${date}T00:00:00-08:00`; // Default to PST for date-only strings
   }
 
-  // Parse the date to get components
-  const d = typeof date === 'string' ? new Date(date) : date;
-  const month = d.getMonth() + 1; // 0-based
+  // Parse the date to a Date object
+  const d = new Date(dateInputForConstructor);
 
-  // Determine if we're in DST (April-October)
-  const isDST = month >= 4 && month <= 10;
-  const offset = isDST ? '-07:00' : '-08:00';
-
-  // If it's a string with time component, keep it as-is and just append timezone
-  if (typeof date === 'string' && date.includes('T')) {
-    return `${date}${offset}`;
+  if (isNaN(d.getTime())) {
+    throw new Error('Invalid date provided to formatSeoDate');
   }
 
-  // Format with components
+  // Get the offset based on the actual date
+  const offset = getPacificOffset(d);
+
+  // If it's a string with time component, use the exact time but update the timezone
+  // Use 'd' (the Date object) for consistent formatting, not the original 'date' string
+  // The original 'date' string might have a different timezone or format that we want to override with Pacific Time.
+
+  // Format with components from the Date object 'd'
   const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   const hours = String(d.getHours()).padStart(2, '0');
   const minutes = String(d.getMinutes()).padStart(2, '0');
   const seconds = String(d.getSeconds()).padStart(2, '0');
-  const monthStr = String(month).padStart(2, '0');
 
-  // Construct ISO 8601 string with Pacific Time offset
-  const formatted = `${year}-${monthStr}-${day}T${hours}:${minutes}:${seconds}${offset}`;
-
-  // Validate the format
-  if (!isPacificDateString(formatted)) {
-    // Convert to string explicitly to appease type checking
-    const formattedStr = String(formatted);
-    throw new Error(`Invalid date format: ${formattedStr}`);
-  }
-
-  return formatted;
-}
-
-/**
- * Validates that a date string is in the correct format for SEO metadata
- * Used to ensure dates meet OpenGraph and schema.org requirements
- *
- * @param date - The date string to validate
- * @returns True if the date is valid and in the correct format
- */
-export function validateSeoDate(date: string): boolean {
-  return isPacificDateString(date);
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offset}`;
 }

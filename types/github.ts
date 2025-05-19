@@ -32,10 +32,7 @@ export interface StoredGithubActivityS3 {
 /**
  * Represents a segment of GitHub activity data with optional summary
  */
-export interface GitHubActivitySegment extends StoredGithubActivityS3 {
-  /** Summary activity for this period */
-  summaryActivity?: GitHubActivitySummary;
-}
+export type GitHubActivitySegment = Omit<StoredGithubActivityS3, 'allTimeTotalContributions'>;
 
 /**
  * Response from `/api/github-activity` with nested segments
@@ -148,6 +145,8 @@ export interface UserActivityView {
   trailingYearData: {
     data: ContributionDay[];
     totalContributions: number;
+    linesAdded?: number;
+    linesRemoved?: number;
     dataComplete: boolean;
   };
   allTimeStats: {
@@ -157,3 +156,31 @@ export interface UserActivityView {
   };
   lastRefreshed?: string;
 }
+
+// --- START: GitHub GraphQL Contribution Calendar Types ---
+export interface GraphQLContributionDay {
+  contributionCount: number;
+  contributionLevel: 'NONE' | 'FIRST_QUARTILE' | 'SECOND_QUARTILE' | 'THIRD_QUARTILE' | 'FOURTH_QUARTILE';
+  date: string; // YYYY-MM-DD
+  // weekday: number; // 0-6, Sunday-Saturday - available if needed
+}
+
+export interface GraphQLContributionWeek {
+  contributionDays: GraphQLContributionDay[];
+}
+
+export interface GraphQLContributionCalendar {
+  totalContributions: number;
+  weeks: GraphQLContributionWeek[];
+}
+
+export interface GraphQLContributionsCollection {
+  contributionCalendar: GraphQLContributionCalendar;
+}
+
+export interface GraphQLUserContributionsResponse {
+  user: {
+    contributionsCollection: GraphQLContributionsCollection;
+  };
+}
+// --- END: GitHub GraphQL Contribution Calendar Types ---

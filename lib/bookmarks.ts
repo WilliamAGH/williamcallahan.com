@@ -1,7 +1,7 @@
 /**
  * Bookmarks API
  *
- * Fetches bookmarks from the external Hoarder/Karakeep API.
+ * Fetches bookmarks from the external Hoarder/Karakeep API
  *
  * @module lib/bookmarks
  */
@@ -10,7 +10,7 @@ import request, { type Response } from 'node-fetch';
 import type { AbortSignal as NodeFetchAbortSignal } from 'node-fetch/externals';
 import type { UnifiedBookmark, BookmarkContent, BookmarkAsset } from '@/types';
 import { writeJsonS3, readJsonS3 } from '@/lib/s3-utils';
-import { BOOKMARKS_S3_KEY_FILE } from '@/lib/data-access';
+import { BOOKMARKS_S3_KEY_FILE } from '@/lib/data-access/bookmarks';
 
 // Define the raw structure expected from the API based on the user's example
 interface RawApiBookmarkTag {
