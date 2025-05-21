@@ -164,13 +164,17 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
         isProperCodeBlock = true;
       }
 
-      // Check 2: Class on a direct <code> child, if Check 1 failed
-      if (!isProperCodeBlock && isValidElement(props.children) && props.children.type === 'code') {
-        const codeElement = props.children as React.ReactElement<{ className?: string }>;
-        const childClassName = codeElement.props?.className;
-        if (typeof childClassName === 'string' && childClassName.includes('language-')) {
-          isProperCodeBlock = true;
-        }
+      // Check 2: Class on any direct <code> child, if Check 1 failed
+      if (
+        !isProperCodeBlock &&
+        React.Children.toArray(props.children).some((child) =>
+          isValidElement<{ className?: string }>(child) &&
+          child.type === 'code' &&
+          typeof child.props.className === 'string' &&
+          child.props.className.includes('language-')
+        )
+      ) {
+        isProperCodeBlock = true;
       }
 
       if (!isProperCodeBlock) {
