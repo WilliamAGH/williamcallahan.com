@@ -1,0 +1,65 @@
+---
+title: "Introducing Google Jules AI Agent: Environment Setup Guide"
+slug: "introducing-google-jules-ai-agent-environment-setup"
+excerpt: "Learn how to onboard and configure your environment for Google Jules AI agent, including GitHub integration, Node version management, and alternative package managers."
+publishedAt: "2025-05-21"
+updatedAt: "2025-05-21"
+author: "william-callahan"
+tags: ["ai", "google", "jules", "package-managers", "pnpm", "bun", "yarn"]
+coverImage: "/images/posts/jules-ai.png"
+---
+
+<BackgroundInfo title="About Jules AI Agent">
+Jules is an AI coding agent from Google. It integrates with GitHub, runs tasks asynchronously in a virtual machine, applies code changes, runs tests, and opens pull requests with inline diffs and activity logs.
+</BackgroundInfo>
+
+# Introducing Google Jules AI Agent and Environment Setup
+
+Jules can fix bugs, bump dependencies, migrate code, and add new features based on natural language prompts. Before assigning tasks, ensure your environment is configured correctly for GitHub access, Node.js, and your package manager.
+
+For detailed usage and features, see the <ExternalLink href="https://jules.google/docs">Jules documentation</ExternalLink>.
+
+<BackgroundInfo title="My Early Experience">
+I kicked off my first projects with Jules today. As an early user of **Devin** and **Manus**, I noticed similar onboarding prompts and environment checks in Jules.
+</BackgroundInfo>
+
+## Onboarding: Add Your GitHub Codebase and Configure Environment
+
+<CollapseDropdown summary="Connect repo and configure environment">
+  <div>
+    1. In the Jules dashboard, click **Add Codebase** and authorize GitHub to select your repository.<br/>
+    2. Open the project dropdown in the top bar and choose **Configuration**.<br/>
+    3. Review the **Initial setup** commands. If not using npm, select pnpm, Bun, or Yarn to apply the correct environment commands.<br/>
+    4. Save your configuration before assigning your first task.
+  </div>
+</CollapseDropdown>
+
+## Using Alternative Package Managers with Jules
+
+Google Jules operates within a flexible Linux virtual machine, allowing it to adapt to various development environments. This guide focuses on a common use case for JavaScript/TypeScript projects: configuring Jules to work with popular package managers such as `npm`, `pnpm`, `Bun`, or `Yarn`.
+
+If your JavaScript/TypeScript project uses `pnpm`, `Bun`, or `Yarn`, Jules can often detect and utilize your chosen package manager automatically, typically by identifying lock files like `pnpm-lock.yaml`, `bun.lockb`, or `yarn.lock`.
+
+For these specific package managers, you can also explicitly configure them in the Jules dashboard:
+1. Open your project in the Jules dashboard.
+2. Navigate to the **Configuration** section (usually found in the project dropdown).
+3. Review the **Initial setup** commands.
+4. If Jules hasn't automatically selected your package manager, or if you wish to change it, you can select `pnpm`, `Bun`, or `Yarn` from the available options. Jules will then use the appropriate commands for that package manager when running tasks.
+5. Save your configuration.
+
+For instructions on installing `pnpm`, `Bun`, or `Yarn` themselves, please refer to their official documentation:
+- <ExternalLink href="https://pnpm.io/installation">pnpm Installation</ExternalLink>
+- <ExternalLink href="https://bun.sh/docs/installation">Bun Installation</ExternalLink>
+- <ExternalLink href="https://yarnpkg.com/getting-started/install">Yarn Installation</ExternalLink>
+
+Ensure your chosen package manager is installed in the environment where Jules will execute tasks.
+
+## Conclusion
+
+You can run Jules tasks with pnpm, Bun, or Yarn without altering scripts—just install dependencies and let Jules execute your setup commands.
+
+<BackgroundInfo title="Jules Documentation">
+Visit <ExternalLink href="https://jules.google/docs">jules.google/docs</ExternalLink> for guides on running tasks, reviewing code diffs, and managing environments.
+</BackgroundInfo>
+
+Have you tried using an alternative package manager with Jules? Share your experience in the comments below.

@@ -35,7 +35,7 @@ export function BackgroundInfo({
   title = "Background Info",
   className = "",
   icon = <InfoIcon className="w-4 h-4" />
-}: BackgroundInfoProps): JSX.Element {
+}: BackgroundInfoProps): JSX.Element | null {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showToggleButton, setShowToggleButton] = useState(false); // State for button visibility
   const [isMounted, setIsMounted] = useState(false); // Track mount status
@@ -104,14 +104,15 @@ export function BackgroundInfo({
   // --- Final Content Classes ---
   const contentClasses = cn(
     "prose-sm dark:prose-invert text-blue-800 dark:text-blue-200", // Base prose styles
-    dynamicContentClasses // Add dynamic styles only post-mount
+    dynamicContentClasses, // Add dynamic styles only post-mount
+    "pb-4" // Add padding-bottom for better spacing
   );
 
   return (
     <div className={containerClasses}>
       <div className={titleContainerClasses}>
-        <div className="text-blue-600 dark:text-blue-400 flex-shrink-0">
-          {icon}
+        <div className="text-blue-600 dark:text-blue-400 flex-shrink-0 w-4 h-4"> {/* Ensure space for icon */}
+          {isMounted && icon}
         </div>
         <h4 className="font-medium text-lg text-blue-700 dark:text-blue-300">
           {title}

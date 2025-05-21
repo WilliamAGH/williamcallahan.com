@@ -1,7 +1,7 @@
 {
   "name": "william-callahan-dot-com",
   "private": true,
-  "version": "0.0.3",
+  "version": "0.0.4",
   "scripts": {
     "update-s3": "bun scripts/update-s3-data.ts",
     "scheduler": "bun scripts/scheduler.ts",
@@ -115,7 +115,6 @@
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.32.0"
   },
-  "packageManager": "bun@1.2.5",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mdx}": ["eslint --config eslint.config.ts --fix"]
   }
