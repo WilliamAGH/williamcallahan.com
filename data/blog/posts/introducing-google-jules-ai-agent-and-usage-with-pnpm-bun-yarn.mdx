@@ -1,0 +1,378 @@
+---
+title: "Introducing Google Jules AI Agent: Environment Setup Guide"
+slug: "introducing-google-jules-ai-agent-environment-setup"
+excerpt: "Learn how to onboard and configure your environment for Google Jules AI agent, including GitHub integration, Node version management, and alternative package managers."
+publishedAt: "2025-05-21"
+updatedAt: "2025-05-21"
+author: "william-callahan"
+tags: ["ai", "google", "jules", "package-managers", "pnpm", "bun", "yarn"]
+coverImage: "/images/posts/jules-ai.png"
+---
+
+<BackgroundInfo title="About Jules AI Agent">
+Jules is an AI coding agent from Google. It integrates with GitHub, runs tasks asynchronously in a virtual machine, applies code changes, runs tests, and opens pull requests with inline diffs and activity logs.
+</BackgroundInfo>
+
+# Introducing Google Jules AI Agent and Environment Setup
+
+Jules can fix bugs, bump dependencies, migrate code, and add new features based on natural language prompts. Before assigning tasks, ensure your environment is configured correctly for GitHub access, Node.js, and your package manager.
+
+For detailed usage and features, see the <ExternalLink href="https://jules.google/docs">Jules documentation</ExternalLink>.
+
+<BackgroundInfo title="My Early Experience">
+I kicked off my first projects with Jules today. As an early user of **Devin** and **Manus**, I noticed similar onboarding prompts and environment checks in Jules.
+</BackgroundInfo>
+
+In this guide, you'll learn how to use pnpm, Bun, or Yarn instead of npm when running tasks with Jules.
+
+## Onboarding: Add Your GitHub Codebase and Configure Environment
+
+<CollapseDropdown summary="Connect repo and configure environment">
+  <div>
+    1. In the Jules dashboard, click **Add Codebase** and authorize GitHub to select your repository.<br/>
+    2. Open the project dropdown in the top bar and choose **Configuration**.<br/>
+    3. Review the **Initial setup** commands. If not using npm, select pnpm, Bun, or Yarn to apply the correct environment commands.<br/>
+    4. Save your configuration before assigning your first task.
+  </div>
+</CollapseDropdown>
+
+## Setting Up Package Managers with Jules
+
+When using Google Jules, you might need to configure your environment with your preferred package manager. Here's how to set up and use different package managers within Jules:
+
+<ShellParentTabs>
+  <ShellTab label="pnpm" isDefault={true}>
+    <CollapseDropdown summary="Setting up pnpm in Jules">
+      <div>
+        <ExternalLink href="https://pnpm.io/">pnpm</ExternalLink> is known for its disk space efficiency and performance improvements over npm. Here's how to set up pnpm in Jules:
+      </div>
+
+      ```bash
+      # First, check your current environment
+      echo "Node version: $(node -v)"
+      echo "npm version: $(npm -v)"
+
+      # Install NVM for Node.js version management
+      curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+      # Source NVM
+      export NVM_DIR="$HOME/.nvm"
+      [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+      # Install a specific Node.js version (recommended for consistency)
+      nvm install 18.20.8 && nvm use 18.20.8 && nvm alias default 18.20.8
+
+      # Verify Node.js and npm versions
+      echo "Node version: $(node -v)"
+      echo "npm version: $(npm -v)"
+
+      # Install pnpm globally
+      npm install -g pnpm@10.11.0
+
+      # Verify pnpm installation
+      echo "pnpm version: $(pnpm -v)"
+
+      # Now you can use pnpm with Jules
+      pnpm install --frozen-lockfile
+      ```
+    </CollapseDropdown>
+
+    <CollapseDropdown summary="Common pnpm Commands in Jules">
+      <div>Once pnpm is set up, you can use these commands:</div>
+
+      | Command | Description |
+      |---------|-------------|
+      | `pnpm install` | Install all dependencies |
+      | `pnpm add <package>` | Add a dependency |
+      | `pnpm add -D <package>` | Add a dev dependency |
+      | `pnpm run <script>` | Run a script from package.json |
+      | `pnpm exec <command>` | Execute a command from node_modules |
+      | `pnpm dlx <package>` | Run a package without installing (like npx) |
+    </CollapseDropdown>
+
+    <CollapseDropdown summary="Optimizing pnpm for Performance">
+      <div>To get the most out of pnpm in Jules, add these configurations:</div>
+
+      ```bash
+      # Enable strict peer dependencies to avoid compatibility issues
+      pnpm config set strict-peer-dependencies true
+
+      # Use the hoisted node_modules layout for better compatibility
+      pnpm config set node-linker hoisted
+
+      # Set up a .npmrc file for project-specific settings
+      echo "shared-workspace-lockfile=false" > .npmrc
+      echo "save-workspace-protocol=rolling" >> .npmrc
+      ```
+    </CollapseDropdown>
+  </ShellTab>
+
+  <ShellTab label="Bun">
+    <CollapseDropdown summary="Setting up Bun in Jules">
+      <div>
+        <ExternalLink href="https://bun.sh/">Bun</ExternalLink> is a modern JavaScript runtime and package manager known for its speed. Here's how to set up and use Bun with Jules:
+      </div>
+
+      ```bash
+      # First, check your current environment
+      echo "Node version: $(node -v)"
+
+      # Install Bun
+      curl -fsSL https://bun.sh/install | bash
+
+      # Update your PATH to include Bun
+      export BUN_INSTALL="$HOME/.bun"
+      export PATH="$BUN_INSTALL/bin:$PATH"
+
+      # Verify Bun installation
+      echo "Bun version: $(bun --version)"
+
+      # Use Bun to install dependencies
+      bun install
+
+      # Initialize a new project with Bun (if needed)
+      # bun init
+      ```
+    </CollapseDropdown>
+
+    <CollapseDropdown summary="Common Bun Commands in Jules">
+      <div>Once Bun is set up, you can use these commands:</div>
+
+      | Command | Description |
+      |---------|-------------|
+      | `bun install` | Install all dependencies |
+      | `bun add <package>` | Add a dependency |
+      | `bun add -d <package>` | Add a dev dependency |
+      | `bun run <script>` | Run a script from package.json |
+      | `bun <file>` | Run a JavaScript or TypeScript file |
+      | `bunx <package>` | Run a package without installing (like npx) |
+    </CollapseDropdown>
+
+    <CollapseDropdown summary="Optimizing Bun for Performance">
+      <div>To get the most out of Bun in Jules, add these configurations:</div>
+
+      ```bash
+      # Enable Bun's lockfile for deterministic installs
+      bun install --frozen-lockfile
+
+      # If your project uses CommonJS modules, add compatibility mode
+      echo '{"module": "commonjs"}' > bunfig.toml
+
+      # For TypeScript projects, specify your tsconfig
+      bun --use-tsconfig=./tsconfig.json
+      ```
+    </CollapseDropdown>
+  </ShellTab>
+
+  <ShellTab label="Yarn">
+    <CollapseDropdown summary="Setting up Yarn in Jules">
+      <div>
+        <ExternalLink href="https://yarnpkg.com/">Yarn</ExternalLink> is a widely-used alternative to npm that offers benefits like offline caching and deterministic installs. Here's how to set up Yarn with Jules:
+      </div>
+
+      <InstructionToggleTabs>
+        <InstructionTab label="Yarn 3+ (Modern)" isDefault={true}>
+          ```bash
+          # First, check your current environment
+          echo "Node version: $(node -v)"
+          echo "npm version: $(npm -v)"
+
+          # Install NVM for Node.js version management
+          curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+          # Source NVM
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+          # Install a specific Node.js version
+          nvm install 18.20.8 && nvm use 18.20.8
+
+          # Install Yarn through Corepack (recommended for Yarn 3+)
+          corepack enable
+          corepack prepare yarn@stable --activate
+
+          # Verify Yarn installation
+          echo "Yarn version: $(yarn --version)"
+
+          # Use Yarn to install dependencies
+          yarn install
+          ```
+        </InstructionTab>
+
+        <InstructionTab label="Yarn 1.x (Legacy)">
+          ```bash
+          # First, check your current environment
+          echo "Node version: $(node -v)"
+          echo "npm version: $(npm -v)"
+
+          # Install NVM for Node.js version management
+          curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+          # Source NVM
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+          # Install a specific Node.js version
+          nvm install 18.20.8 && nvm use 18.20.8
+
+          # Install Yarn globally using npm (for Yarn 1.x)
+          npm install -g yarn
+
+          # Verify Yarn installation
+          echo "Yarn version: $(yarn --version)"
+
+          # Use Yarn to install dependencies
+          yarn install
+          ```
+        </InstructionTab>
+      </InstructionToggleTabs>
+    </CollapseDropdown>
+
+    <CollapseDropdown summary="Common Yarn Commands in Jules">
+      <div>Once Yarn is set up, you can use these commands:</div>
+
+      | Command | Description |
+      |---------|-------------|
+      | `yarn` or `yarn install` | Install all dependencies |
+      | `yarn add <package>` | Add a dependency |
+      | `yarn add -D <package>` | Add a dev dependency |
+      | `yarn run <script>` | Run a script from package.json |
+      | `yarn <script>` | Run a script from package.json (shorthand) |
+      | `yarn dlx <package>` | Run a package without installing (Yarn 3+) |
+      | `yarn create <starter-kit>` | Create a new project (like create-react-app) |
+    </CollapseDropdown>
+
+    <CollapseDropdown summary="Optimizing Yarn for Performance">
+      <InstructionToggleTabs>
+        <InstructionTab label="Yarn 3+" isDefault={true}>
+          ```bash
+          # For Yarn 3+, set up a .yarnrc.yml file with optimizations
+          echo "nodeLinker: node-modules" > .yarnrc.yml
+          echo "enableGlobalCache: true" >> .yarnrc.yml
+          echo "compressionLevel: 0" >> .yarnrc.yml
+          ```
+        </InstructionTab>
+
+        <InstructionTab label="Yarn 1.x">
+          ```bash
+          # For Yarn 1.x, use the following flags for faster installs
+          yarn install --prefer-offline --frozen-lockfile
+          ```
+        </InstructionTab>
+      </InstructionToggleTabs>
+    </CollapseDropdown>
+
+    <CollapseDropdown summary="Using Yarn Workspaces with Monorepos">
+      <div>If you're working with a monorepo in Jules, Yarn Workspaces are a great option:</div>
+
+      ```bash
+      # Set up a workspace configuration in package.json
+      echo '{
+        "private": true,
+        "workspaces": ["packages/*"]
+      }' > package.json
+
+      # Install dependencies across all workspaces
+      yarn install
+
+      # Run a command in a specific workspace
+      yarn workspace <workspace-name> <command>
+      ```
+    </CollapseDropdown>
+  </ShellTab>
+</ShellParentTabs>
+
+## Getting Started with Jules and Your Preferred Package Manager
+
+Now that you've set up your preferred package manager, you can start using Jules for your development needs. Here are some quick tips to maximize your experience:
+
+<CollapseDropdown summary="Tips for Using Package Managers with Jules">
+  <div>
+    1. **Initialize your environment**: Always start by setting up your Node.js version and package manager.
+    2. **Create a setup script**: Save the setup commands in a script file for quick initialization.
+    3. **Be explicit about versions**: Specify exact versions for both Node.js and your package manager.
+    4. **Use lockfiles**: Always leverage lockfiles (`pnpm-lock.yaml`, `bun.lockb`, or `yarn.lock`) for deterministic builds.
+    5. **Try script generators**: Let Jules generate setup scripts for you with a prompt like "Create a setup script for a React project with pnpm."
+  </div>
+</CollapseDropdown>
+
+<CollapseDropdown summary="Creating a Reusable Setup Script">
+  <div>
+    Here's an example of a reusable setup script you can create for Jules projects:
+  </div>
+
+  ```bash
+  #!/bin/bash
+  # jules-setup.sh - Configure development environment for Jules
+
+  # Check if package manager name was provided
+  if [ $# -eq 0 ]; then
+    echo "Usage: ./jules-setup.sh [pnpm|bun|yarn]"
+    exit 1
+  fi
+
+  PKG_MANAGER=$1
+  NODE_VERSION="18.20.8"
+
+  # Install and configure NVM
+  echo "Setting up NVM..."
+  export NVM_DIR="$HOME/.nvm"
+  if [ ! -d "$NVM_DIR" ]; then
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  else
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  fi
+
+  # Install Node.js
+  echo "Installing Node.js $NODE_VERSION..."
+  nvm install $NODE_VERSION
+  nvm use $NODE_VERSION
+
+  # Setup requested package manager
+  case $PKG_MANAGER in
+    pnpm)
+      echo "Setting up pnpm..."
+      npm install -g pnpm@10.11.0
+      pnpm install --frozen-lockfile
+      ;;
+    bun)
+      echo "Setting up Bun..."
+      curl -fsSL https://bun.sh/install | bash
+      export BUN_INSTALL="$HOME/.bun"
+      export PATH="$BUN_INSTALL/bin:$PATH"
+      bun install
+      ;;
+    yarn)
+      echo "Setting up Yarn..."
+      corepack enable
+      corepack prepare yarn@stable --activate
+      yarn install
+      ;;
+    *)
+      echo "Unsupported package manager: $PKG_MANAGER"
+      echo "Supported options: pnpm, bun, yarn"
+      exit 1
+      ;;
+  esac
+
+  echo "Environment setup complete!"
+  echo "Node: $(node -v)"
+  echo "Package manager: $PKG_MANAGER $(eval $PKG_MANAGER --version)"
+  ```
+
+  <div>
+    Make the script executable with `chmod +x jules-setup.sh` and run it with your preferred package manager:
+    `./jules-setup.sh pnpm`
+  </div>
+</CollapseDropdown>
+
+## Conclusion
+
+You can run Jules tasks with pnpm, Bun, or Yarn without altering scripts—just install dependencies and let Jules execute your setup commands.
+
+<BackgroundInfo title="Jules Documentation">
+Visit <ExternalLink href="https://jules.google/docs">jules.google/docs</ExternalLink> for guides on running tasks, reviewing code diffs, and managing environments.
+</BackgroundInfo>
+
+Have you tried using an alternative package manager with Jules? Share your experience in the comments below.
