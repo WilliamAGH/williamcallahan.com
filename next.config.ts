@@ -200,7 +200,7 @@ const nextConfig = {
    */
   images: {
     dangerouslyAllowSVG: true,
-    contentDispositionType: 'attachment',
+    contentDispositionType: 'inline',
     formats: ['image/webp', 'image/avif'], // Prioritize webp over avif for speed
     minimumCacheTTL: 60 * 60 * 24 * 7, // 7 days cache
     path: '/_next/image',
