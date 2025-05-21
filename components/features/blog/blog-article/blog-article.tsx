@@ -53,7 +53,7 @@ interface BlogArticleProps {
  */
 export function BlogArticle({ post }: BlogArticleProps): JSX.Element {
   return (
-    <article className="max-w-4xl mx-auto px-4 pb-8">
+    <article suppressHydrationWarning className="max-w-4xl mx-auto px-4 pb-8">
       {/* Back to Blog */}
       <Link
         href="/blog"
@@ -82,7 +82,7 @@ export function BlogArticle({ post }: BlogArticleProps): JSX.Element {
 
       {/* Cover Image */}
       {post.coverImage && (
-        <div className="relative aspect-[2/1] mb-6 sm:mb-8 rounded-lg overflow-hidden bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 shadow-md">
+        <div suppressHydrationWarning className="relative aspect-[2/1] mb-6 sm:mb-8 rounded-lg overflow-hidden bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 shadow-md">
           <Image
             src={post.coverImage}
             alt={post.title}
