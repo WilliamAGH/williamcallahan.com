@@ -108,15 +108,11 @@ export function BackgroundInfo({
     "pb-4" // Add padding-bottom for better spacing
   );
 
-  if (!isMounted) {
-    return null; // Render nothing until mounted on the client
-  }
-
   return (
     <div className={containerClasses}>
       <div className={titleContainerClasses}>
-        <div className="text-blue-600 dark:text-blue-400 flex-shrink-0">
-          {isMounted ? icon : null}
+        <div className="text-blue-600 dark:text-blue-400 flex-shrink-0 w-4 h-4"> {/* Ensure space for icon */}
+          {isMounted && icon}
         </div>
         <h4 className="font-medium text-lg text-blue-700 dark:text-blue-300">
           {title}
