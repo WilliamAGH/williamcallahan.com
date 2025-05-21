@@ -55,9 +55,6 @@ export const CopyButton: React.FC<CopyButtonProps> = ({ content, className }) =>
         'text-gray-300 hover:text-gray-100',
         'transition-all duration-200',
         'focus:outline-none focus:ring-2 focus:ring-blue-500/40',
-        // 'opacity-0 group-hover:opacity-100',
-        // Temporarily make always visible for debugging
-        // 'opacity-100',
         'opacity-0 group-hover:opacity-100',
         className
       )}
