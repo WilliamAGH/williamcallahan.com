@@ -1,7 +1,7 @@
 /**
  * MDXContent Component
  *
- * Server-side renderer for MDX content.
+ * Server-side renderer for MDX content
  *
  * @param {MDXContentProps} props - Component props
  * @returns {JSX.Element} Rendered MDX content
@@ -11,20 +11,19 @@
 import type { ComponentProps, ReactNode, ReactElement } from 'react';
 import { MDXRemote } from 'next-mdx-remote';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
-// import Image from 'next/image';
-import Link from 'next/link'; // Import Next.js Link
+import Link from 'next/link';
 import { MDXCodeBlock } from '../../../ui/code-block/mdx-code-block.server';
 import FinancialMetrics from '../../../ui/financial-metrics.server';
 import { BackgroundInfo } from '../../../ui/background-info.client';
 import { CollapseDropdown } from '../../../ui/collapse-dropdown.client';
 import { ExternalLink } from '../../../ui/external-link.client';
-import { ImageWindow } from '../../../ui/window/image-window.client'; // Import the new component
-import { SoftwareSchema } from './software-schema'; // Import SoftwareSchema
-import { cn } from '@/lib/utils'; // Import cn utility
+import { ImageWindow } from '../../../ui/window/image-window.client';
+import { SoftwareSchema } from './software-schema';
+import { cn } from '@/lib/utils';
 import { useEffect, useRef } from 'react';
 import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
 import { Base64Image } from '@/components/utils/base64-image.client';
-import { ResponsiveTable } from '../../../ui/responsive-table.client'; // Import the new component
+import { ResponsiveTable } from '../../../ui/responsive-table.client';
 import React, { isValidElement } from 'react';
 import { InstructionMacOSFrameTabs, InstructionMACOSTab } from '../../../ui/instruction-macos-frame-tabs.client';
 import { ShellParentTabs, ShellTab } from '../../../ui/shell-parent-tabs.client';
@@ -137,7 +136,7 @@ interface MDXContentProps {
 /**
  * MDXContent Component
  *
- * Server-side renderer for MDX content.
+ * Server-side renderer for MDX content
  *
  * @param {MDXContentProps} props - Component props
  * @returns {JSX.Element} Rendered MDX content
@@ -160,44 +159,50 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     // Use MDXCodeBlock with a custom class that will override prose styling
     pre: (props: ComponentProps<'pre'>) => {
       let isProperCodeBlock = false;
-      // Try to safely access the className of the child of <pre>
-      // MDX often wraps code blocks like: <pre><code className="language-xxx">...</code></pre>
-      if (isValidElement(props.children) && props.children.type === 'code') {
+      // Check 1: Class on the <pre> tag itself
+      if (props.className && typeof props.className === 'string' && props.className.includes('language-')) {
+        isProperCodeBlock = true;
+      }
+
+      // Check 2: Class on a direct <code> child, if Check 1 failed
+      if (!isProperCodeBlock && isValidElement(props.children) && props.children.type === 'code') {
         const codeElement = props.children as React.ReactElement<{ className?: string }>;
-        const className = codeElement.props?.className;
-        if (typeof className === 'string' && className.includes('language-')) {
+        const childClassName = codeElement.props?.className;
+        if (typeof childClassName === 'string' && childClassName.includes('language-')) {
           isProperCodeBlock = true;
         }
       }
 
       if (!isProperCodeBlock) {
         // For inline code or plain text that somehow got wrapped in a pre tag,
-        // or if the structure isn't as expected.
+        // or if the structure isn't as expected
         return (
           <div className="group relative">
-            <pre className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-3 rounded font-mono text-sm break-words whitespace-pre-wrap my-4">
+            <pre className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-3 rounded font-mono text-sm break-words whitespace-pre-wrap mb-4">
               {props.children}
             </pre>
           </div>
         );
       }
 
-      const parentIsTabs = isValidElement(props.children) && (
+      // For standalone code blocks, MDXCodeBlock handles its own framing and margins.
+      // We ensure it has a bottom margin if it's not part of tabs.
+      const isParentTabs = isValidElement(props.children) && (
         (props.children.props as Record<string, unknown>)?.__IS_MACOS_FRAME_TAB ||
         (props.children.props as Record<string, unknown>)?.__IS_SHELL_TAB
       );
 
-      if (parentIsTabs) {
+      if (isParentTabs) {
         const childElement = props.children as ReactElement;
         const childProps = childElement.props as { className?: string };
         return <MDXCodeBlock {...props} embeddedInTabFrame={true} className={childProps.className} />;
       }
 
-      // For standalone code blocks, wrap with MacOSCodeWindow
+      // For standalone code blocks, MDXCodeBlock handles its own framing. Apply mb-4 to it.
+      const childElement = props.children as ReactElement; // Cast to ReactElement
+      const childClassName = (childElement.props as { className?: string })?.className; // Safe access
       return (
-        <MacOSCodeWindow>
-          <MDXCodeBlock {...props} />
-        </MacOSCodeWindow>
+          <MDXCodeBlock {...props} embeddedInTabFrame={false} className={cn(childClassName, "mb-4")} />
       );
     },
     // Restore custom 'code' component override for inline code (to fix regression)
@@ -213,21 +218,47 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
         </code>
       );
     },
-    MetricsGroup: FinancialMetrics,
-    img: MdxImage,
-    ArticleGallery,
-    ArticleImage: MdxImage,
-    BackgroundInfo,
-    CollapseDropdown,
+    MetricsGroup: (props: ComponentProps<typeof FinancialMetrics>) => (
+      <div className="mb-4">
+        <FinancialMetrics {...props} />
+      </div>
+    ),
+    img: MdxImage, // MdxImage handles its own my-6 or mb-6 for figcaption
+    ArticleGallery: (props: ComponentProps<typeof ArticleGallery>) => (
+      // ArticleGallery uses my-6 internally, so adding mb-4 here might be redundant or conflict.
+      // Let's assume ArticleGallery manages its own spacing correctly as a larger block.
+      <ArticleGallery {...props} />
+    ),
+    ArticleImage: MdxImage, // MdxImage handles its own my-6 or mb-6 for figcaption
+    BackgroundInfo: (props: ComponentProps<typeof BackgroundInfo>) => (
+      <BackgroundInfo {...props} className={cn(props.className)} />
+    ),
+    CollapseDropdown: (props: ComponentProps<typeof CollapseDropdown>) => (
+      <CollapseDropdown {...props} className={cn(props.className)} />
+    ),
     ExternalLink,
-    InstructionToggleTabs: InstructionMacOSFrameTabs,
+    InstructionToggleTabs: (props: ComponentProps<typeof InstructionMacOSFrameTabs>) => (
+      <InstructionMacOSFrameTabs {...props} className={cn(props.className)} />
+    ),
     InstructionTab: InstructionMACOSTab,
-    ShellParentTabs,
-    ShellTab,
-    MacOSWindow,
-    MacOSCodeWindow,
-    MDXCodeBlock,
-    SoftwareSchema,
+    ShellParentTabs: (props: ComponentProps<typeof ShellParentTabs>) => (
+      <ShellParentTabs {...props} className={cn(props.className)} />
+    ),
+    ShellTab: ShellTab,
+    MacOSWindow: (props: ComponentProps<typeof MacOSWindow>) => (
+      <MacOSWindow {...props} className={cn(props.className)} />
+    ),
+    MacOSCodeWindow: (props: ComponentProps<typeof MacOSCodeWindow>) => (
+      <MacOSCodeWindow {...props} className={cn(props.className)} />
+    ),
+    MDXCodeBlock: (props: ComponentProps<typeof MDXCodeBlock>) => ( // This is for direct usage of MDXCodeBlock
+      <MDXCodeBlock {...props} className={cn(props.className)} />
+    ),
+    SoftwareSchema: (props: ComponentProps<typeof SoftwareSchema>) => (
+      <div>
+        <SoftwareSchema {...props} />
+      </div>
+    ),
     // Custom anchor tag renderer
     a: (props: ComponentProps<'a'>) => {
       const { href, children, ...rest } = props;
@@ -257,28 +288,29 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     },
     // Enhance headings with better styling
     h1: (props: ComponentProps<'h1'>) => (
-      <h1 className="text-3xl font-bold mt-8 md:mt-12 mb-4 md:mb-6 pt-4 md:pt-6 text-gray-900 dark:text-white leading-tight" {...props} />
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-tight" {...props} />
     ),
     h2: (props: ComponentProps<'h2'>) => (
-      <h2 className="text-2xl font-bold mt-12 md:mt-16 mb-5 md:mb-6 pt-3 md:pt-6 text-gray-900 dark:text-white leading-tight" {...props} />
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight" {...props} />
     ),
     h3: (props: ComponentProps<'h3'>) => (
-      <h3 className="text-xl font-bold mt-8 md:mt-10 mb-3 md:mb-4 pt-2 md:pt-3 text-gray-900 dark:text-white leading-tight" {...props} />
+      <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight" {...props} />
     ),
     p: (props: ComponentProps<'p'>) => (
-      <p className="my-3 text-gray-700 dark:text-gray-300 leading-relaxed text-base" {...props} />
+      <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base" {...props} />
     ),
     ul: (props: ComponentProps<'ul'>) => (
-      <ul className="my-3 pl-6 list-disc text-gray-700 dark:text-gray-300 text-base" {...props} />
+      <ul className="pl-6 list-disc text-gray-700 dark:text-gray-300 text-base" {...props} />
     ),
     ol: (props: ComponentProps<'ol'>) => (
-      <ol className="my-3 pl-6 list-decimal text-gray-700 dark:text-gray-300 text-base" {...props} />
+      <ol className="pl-6 list-decimal text-gray-700 dark:text-gray-300 text-base" {...props} />
     ),
     li: (props: ComponentProps<'li'>) => (
-      <li className="my-1 pl-1 text-gray-700 dark:text-gray-300 text-base" {...props} />
+      // list items typically have smaller bottom margins for tighter packing within the list
+      <li className="mb-1 pl-1 text-gray-700 dark:text-gray-300 text-base" {...props} />
     ),
     blockquote: (props: ComponentProps<'blockquote'>) => (
-      <blockquote className="my-3 pl-4 border-l-4 border-blue-500 dark:border-blue-400 italic text-gray-700 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 py-3 px-4 rounded-r-md shadow-sm text-base" {...props} />
+      <blockquote className="pl-4 border-l-4 border-blue-500 dark:border-blue-400 italic text-gray-700 dark:text-gray-300 bg-blue-50 dark:bg-blue-900/20 py-3 px-4 rounded-r-md shadow-sm text-base" {...props} />
     ),
     hr: (props: ComponentProps<'hr'>) => (
       <hr className="hidden" {...props} />
@@ -302,18 +334,28 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     // Use base prose for mobile, maintain consistent text size
     <article
       ref={contentRef}
+      suppressHydrationWarning={true}
       className={cn(
         "prose dark:prose-invert mx-auto",
         "prose-headings:text-gray-900 dark:prose-headings:text-white",
+        "prose-h1:font-bold prose-h1:leading-tight",
+        "prose-h2:font-bold prose-h2:leading-tight",
+        "prose-h3:font-bold prose-h3:leading-tight",
         "prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:text-blue-500 dark:hover:prose-a:text-blue-300",
-        "prose-p:my-3 prose-p:break-words prose-p:text-base",
+        "prose-p:break-words prose-p:text-base",
         "prose-img:rounded-lg prose-img:shadow-md",
         "prose-hr:hidden",
         "prose-li:text-base",
-        "blog-content" // Keep existing class if needed
+        "prose-ul:pl-6",
+        "prose-ol:pl-6",
+        "prose-blockquote:pl-4 prose-blockquote:border-l-4 prose-blockquote:border-blue-500 dark:prose-blockquote:border-blue-400",
+        "blog-content"
       )}
     >
-      <MDXRemote {...content} components={components} />
+      {/* Enforce consistent vertical gaps */}
+      <div className="flex flex-col space-y-6">
+        <MDXRemote {...content} components={components} />
+      </div>
     </article>
   );
 }
