@@ -49,12 +49,20 @@ Before diving into project-specific setups, you'll generally need a Java Develop
         </InstructionTab>
         <InstructionTab label="Manual Download (Oracle/Adoptium)">
           <div>
-            1.  Download the macOS `.dmg` or `.tar.gz` installer from <ExternalLink href="https://www.oracle.com/java/technologies/downloads/">Oracle Java Downloads</ExternalLink> or <ExternalLink href="https://adoptium.net/">Adoptium (Eclipse Temurin)</ExternalLink>.
+            <ol className="list-decimal list-inside space-y-2">
+              <li>
+                Download the macOS <code>.dmg</code> or <code>.tar.gz</code> installer from <ExternalLink href="https://www.oracle.com/java/technologies/downloads/">Oracle Java Downloads</ExternalLink> or <ExternalLink href="https://adoptium.net/">Adoptium (Eclipse Temurin)</ExternalLink>.
                 <BackgroundInfo title="About Adoptium">
                   Adoptium provides prebuilt, TCK-certified OpenJDK binaries under the Eclipse Temurin project. These are free to use, community-supported, and a popular choice for OpenJDK distributions.
                 </BackgroundInfo>
-            2.  Install using the `.dmg` or extract the `.tar.gz` (e.g., to `/Library/Java/JavaVirtualMachines/`).
-            3.  Set `JAVA_HOME` and `PATH` as shown in the Homebrew tab, adjusting the path to your installation.
+              </li>
+              <li>
+                Install using the <code>.dmg</code> or extract the <code>.tar.gz</code> (e.g., to <code>/Library/Java/JavaVirtualMachines/</code>).
+              </li>
+              <li>
+                Set <code>JAVA_HOME</code> and <code>PATH</code> as shown in the Homebrew tab, adjusting the path to your installation.
+              </li>
+            </ol>
           </div>
         </InstructionTab>
       </InstructionToggleTabs>
