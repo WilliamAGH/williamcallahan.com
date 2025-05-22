@@ -8,6 +8,7 @@
  */
 
 "use client";
+
 import type { ComponentProps, ReactNode, ReactElement } from 'react';
 import { MDXRemote } from 'next-mdx-remote';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
@@ -28,6 +29,7 @@ import React, { isValidElement } from 'react';
 import { InstructionMacOSFrameTabs, InstructionMACOSTab } from '../../../ui/instruction-macos-frame-tabs.client';
 import { ShellParentTabs, ShellTab } from '../../../ui/shell-parent-tabs.client';
 import { MacOSWindow, MacOSCodeWindow } from '../../../ui/macos-window.client';
+import { TweetEmbed } from '../tweet-embed';
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {
   caption?: string;
@@ -35,6 +37,12 @@ interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'widt
   priority?: boolean;
 }
 
+/**
+ * Renders an image within MDX content, with caption and sizing options
+ * Handles both external URLs and Base64 data URLs
+ * @param {ArticleImageProps} props - Component props for the image
+ * @returns {JSX.Element | null} The rendered image component or null if no src
+ */
 const MdxImage = ({
   src = '',
   alt = '',
@@ -64,42 +72,36 @@ const MdxImage = ({
     size === 'small' ? 'max-w-lg' : ''
   );
 
-  if (isDataUrl) {
-    return (
-      <>
-        <div className={`${widthClass} mx-auto my-6`}>
-          <Base64Image
-            src={src}
-            alt={alt}
-            width={1600}
-            height={800}
-            className="rounded-lg shadow-md"
-            priority={priority}
-          />
-        </div>
-        {caption && (
-          <figcaption className={`text-base text-gray-600 dark:text-gray-400 italic text-center mt-2 mb-6 px-4 ${widthClass} mx-auto`}>
-            {caption}
-          </figcaption>
-        )}
-      </>
-    );
-  }
+  // Choose the appropriate image component based on data URL or external
+  const content = isDataUrl ? (
+    <Base64Image
+      src={src}
+      alt={alt}
+      width={1600}
+      height={800}
+      className="rounded-lg shadow-md"
+      priority={priority}
+    />
+  ) : (
+    <ImageWindow
+      src={src}
+      alt={alt}
+      width={1600}
+      height={800}
+      sizes={imageSizes}
+      priority={priority || src.endsWith('.svg')}
+      unoptimized={src.endsWith('.svg')}
+      wrapperClassName={windowWrapperClass}
+      noMargin={Boolean(caption)}
+      style={{ width: '100%', height: 'auto' }}
+    />
+  );
 
   return (
     <>
-      <ImageWindow
-        src={src}
-        alt={alt}
-        width={1600}
-        height={800}
-        sizes={imageSizes}
-        priority={priority || src.endsWith('.svg')}
-        unoptimized={src.endsWith('.svg')}
-        wrapperClassName={windowWrapperClass}
-        noMargin={Boolean(caption)}
-        style={{ width: '100%', height: 'auto' }}
-      />
+      <div className={`${widthClass} mx-auto my-6`}>
+        {content}
+      </div>
       {caption && (
         <figcaption className={`text-base text-gray-600 dark:text-gray-400 italic text-center mt-2 mb-6 px-4 ${widthClass} mx-auto`}>
           {caption}
@@ -114,6 +116,11 @@ interface ArticleGalleryProps {
   className?: string;
 }
 
+/**
+ * A gallery container for grouping images or other media within an article
+ * @param {ArticleGalleryProps} props - Component props for the gallery
+ * @returns {JSX.Element} The rendered gallery container
+ */
 const ArticleGallery = ({
   children,
   className = ''
@@ -136,10 +143,12 @@ interface MDXContentProps {
 /**
  * MDXContent Component
  *
- * Server-side renderer for MDX content
+ * Client-side renderer for MDX content using MDXRemote
+ * Applies custom components and styling for various HTML elements and custom directives
+ * Also handles SVG transform processing after content rendering
  *
- * @param {MDXContentProps} props - Component props
- * @returns {JSX.Element} Rendered MDX content
+ * @param {MDXContentProps} props - Component props containing the serialized MDX
+ * @returns {JSX.Element} Rendered MDX content as a React element
  */
 export function MDXContent({ content }: MDXContentProps): JSX.Element {
   const contentRef = useRef<HTMLDivElement>(null);
@@ -332,6 +341,12 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     // td: (props: ComponentProps<'td'>) => (
     //   <td className="..." {...props} />
     // ),
+    TweetEmbed: (props: ComponentProps<typeof TweetEmbed>) => (
+      <div className="not-prose">
+        {/* TweetEmbed handles its own my-6 margin and centering */}
+        <TweetEmbed {...props} />
+      </div>
+    ),
   };
 
   return (
@@ -364,8 +379,5 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
   );
 }
 
-// Create a named variable for the default export
-const MDXContentExport = { MDXContent };
-
-// Default export for next/dynamic
-export default MDXContentExport;
+// Default export for usage, e.g. with next/dynamic or direct import
+export default MDXContent;
