@@ -130,6 +130,36 @@ Claude Code now supports:
 
 GitHub reports that Claude Sonnet 4 "soars in agentic scenarios" and will serve as the base model for the new coding agent in GitHub Copilot.
 
+### Parallel Workflows with Git Worktrees
+
+Another new powerful feature of Claude Code is its support for git worktrees, allowing you to run multiple Claude Code sessions in parallel across different branches of the same repository.
+
+<CollapseDropdown summary="Using Git Worktrees with Claude Code">
+  <div>
+    Git worktrees let you check out multiple branches of a repository simultaneously in different directories. With Claude Code, this enables:
+
+    - Working on multiple features or bug fixes concurrently
+    - Running separate Claude Code sessions for each worktree
+    - Maintaining context isolation between different tasks
+    - Comparing approaches across branches without context switching
+
+    To set up a git worktree workflow with Claude Code:
+
+    ```bash
+    # Create a new worktree for a feature branch
+    git worktree add ../repo-feature-a feature/a
+
+    # In one terminal, run Claude Code in the main worktree
+    cd /path/to/main/repo
+    claude-code
+
+    # In another terminal, run Claude Code in the feature worktree
+    cd ../repo-feature-a
+    claude-code
+    ```
+  </div>
+</CollapseDropdown>
+
 ## New API Capabilities for Agent Development
 
 Anthropic has released four new capabilities on their API specifically designed for building more powerful AI agents:
