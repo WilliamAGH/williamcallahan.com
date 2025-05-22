@@ -1,10 +1,16 @@
-// This file configures the initialization of Sentry on the client.
-// The added config here will be used whenever a users loads a page in their browser.
-// https://docs.sentry.io/platforms/javascript/guides/nextjs/
+/**
+ * Client-side Sentry configuration
+ * 
+ * Initializes error tracking and performance monitoring for browser sessions
+ * @see https://docs.sentry.io/platforms/javascript/guides/nextjs/
+ */
 
 import * as Sentry from "@sentry/nextjs";
 
-// Define browser extension error patterns to filter out
+/** 
+ * Common browser extension error patterns to filter from error reporting
+ * Prevents unnecessary noise from extension conflicts
+ */
 const BROWSER_EXTENSION_ERROR_PATTERNS = [
   'runtime.sendMessage',
   'Tab not found',
@@ -15,6 +21,7 @@ const BROWSER_EXTENSION_ERROR_PATTERNS = [
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  tunnel: '/api/tunnel',
 
   // Associate errors with the correct source map
   release: process.env.NEXT_PUBLIC_APP_VERSION,
@@ -70,4 +77,8 @@ Sentry.init({
   },
 });
 
+/** 
+ * Captures router transition start events for performance monitoring
+ * Re-exported from Sentry for use in application code
+ */
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
