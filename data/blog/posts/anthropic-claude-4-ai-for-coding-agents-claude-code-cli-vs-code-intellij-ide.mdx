@@ -1,0 +1,198 @@
+---
+title: "Anthropic's Claude 4 Announced: New AI Capabilities for Coding, Agents, and Claude Code in VS Code / IntelliJ"
+slug: "anthropic-claude-4-ai-for-coding-agents-claude-code-cli-vs-code-intellij-ide"
+excerpt: "Anthropic launches Claude Opus 4 and Sonnet 4, setting new benchmarks for coding, reasoning, and AI agents with extended thinking capabilities and improved tool use."
+publishedAt: "2025-05-22"
+updatedAt: "2025-05-22"
+author: "william-callahan"
+tags: ["ai", "claude", "anthropic", "llm", "coding", "ai-agents"]
+coverImage: "/images/posts/claude-code-tools.png"
+---
+
+Anthropic just released their next generation of AI models: Claude Opus 4 and Claude Sonnet 4. This isn't just another incremental update—it represents a significant leap in AI capabilities, particularly for coding, complex reasoning, and autonomous agent workflows.
+
+## The Claude 4 Family: Opus and Sonnet
+
+The Claude 4 family introduces two distinct models with complementary strengths:
+
+**Claude Opus 4** is Anthropic's most intelligent model to date and, according to their benchmarks, the world's best coding model. My experience anecdotally more or less confirms this, although Google and OpenAI models have recently come neck-and-neck with Anthropics.
+
+It excels at sustained performance on complex, long-running tasks that require thousands of steps and hours of focused effort—dramatically expanding what AI agents can accomplish.
+
+**Claude Sonnet 4** significantly improves on Sonnet 3.7, delivering superior coding and reasoning while responding more precisely to instructions. While not matching Opus 4 in most domains, it delivers an optimal mix of capability and practicality for everyday use.
+
+## Benchmark-Leading Performance
+
+The performance improvements are substantial, with Claude models now leading on key benchmarks:
+
+<div className="my-8 overflow-hidden rounded-xl bg-white/50 dark:bg-gray-800/50 shadow-xl ring-1 ring-black/5 dark:ring-white/5">
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <thead>
+        <tr className="bg-gray-50/80 dark:bg-gray-800/80">
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Benchmark</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Claude Opus 4</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Claude Sonnet 4</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Previous Best</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">SWE-bench Verified</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">72.5%</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">72.7%</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">67.0% (GPT-4.1)</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Terminal-bench</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">43.2%</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">39.6%</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">38.0% (GPT-4.1)</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">MMLU</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">90.2%</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">88.0%</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">88.7% (GPT-4.1)</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">TAU-bench</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">83.0%</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">78.0%</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">76.0% (o3)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+What's particularly impressive is Claude Opus 4's ability to maintain performance over extended periods, at least according to the benchmark results. They cited today a Rakuten validation of this by having Opus 4 run a demanding open-source refactor continuously for 7 hours with sustained performance—something previous models couldn't achieve. If true, this would constitute a significant improvement over the status quo -- I'll be testing this shortly.
+
+## Hybrid Reasoning with Extended Thinking
+
+Both Claude 4 models are hybrid reasoning models offering two modes:
+
+1. **Standard mode**: Near-instant responses for everyday queries
+2. **Extended thinking**: Deeper reasoning for complex problems
+
+The extended thinking capability now works with tools like web search, allowing Claude to alternate between reasoning and tool use to improve responses. This is particularly valuable for research tasks, complex coding problems, and multi-step workflows.
+
+What makes this approach unique is that Claude can dynamically decide when to use extended thinking based on the complexity of the task, rather than requiring explicit configuration.
+
+## Claude Code: Now Generally Available
+
+After a successful research preview, [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) is now generally available with expanded capabilities. This agentic coding tool lives in your terminal, understands your codebase, and helps you code faster through natural language commands.
+
+<div className="my-8">
+  <img
+    src="/images/posts/claude-code-on-stage.jpg"
+    alt="Claude Code being presented on stage at a conference"
+    className="rounded-lg shadow-md w-full"
+  />
+</div>
+
+### Key Capabilities
+
+Claude Code's key capabilities include:
+
+- Editing files and fixing bugs across your codebase
+- Answering questions about your code's architecture and logic
+- Executing and fixing tests, linting, and other commands
+- Searching through git history, resolving merge conflicts, and creating commits and PRs
+- Browsing documentation and resources from the internet using web search
+
+### New IDE Integrations
+
+One of the most exciting additions is the new [IDE integrations](https://docs.anthropic.com/en/docs/claude-code/ide-integrations) for VS Code and JetBrains:
+
+<div className="my-8">
+  <img
+    src="/images/posts/claude-code-cli-terminal.png"
+    alt="Claude Code CLI terminal interface showing code execution"
+    className="rounded-lg shadow-md w-full"
+  />
+</div>
+
+These integrations provide:
+
+- **Quick launch**: Use `Cmd+Esc` (Mac) or `Ctrl+Esc` (Windows/Linux) to open Claude Code directly from your editor
+- **Diff viewing**: Code changes displayed directly in the IDE diff viewer
+- **Selection context**: The current selection/tab in the IDE is automatically shared with Claude Code
+- **Diagnostic sharing**: Diagnostic errors from the IDE are automatically shared with Claude as you work
+
+### Background Tasks and GitHub Integration
+
+Claude Code now supports:
+
+- Background tasks via [GitHub Actions](https://docs.anthropic.com/en/docs/claude-code/github-actions)
+- An extensible [Claude Code SDK](https://docs.anthropic.com/en/docs/claude-code/sdk) for building custom agents
+- Inline code edits displayed directly in your files
+
+GitHub reports that Claude Sonnet 4 "soars in agentic scenarios" and will serve as the base model for the new coding agent in GitHub Copilot.
+
+## New API Capabilities for Agent Development
+
+Anthropic has released four new capabilities on their API specifically designed for building more powerful AI agents:
+
+1. **Code execution tool**: Allows Claude to run code in a sandboxed environment
+2. **MCP connector**: Enables connection to external Model Context Protocol servers
+3. **Files API**: Provides improved file handling capabilities
+4. **Prompt caching**: Allows caching prompts for up to one hour, reducing costs by up to 90%
+
+## Pricing and Availability
+
+Both models maintain consistent pricing with previous Opus and Sonnet models:
+
+<div className="my-8 overflow-hidden rounded-xl bg-white/50 dark:bg-gray-800/50 shadow-xl ring-1 ring-black/5 dark:ring-white/5">
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <thead>
+        <tr className="bg-gray-50/80 dark:bg-gray-800/80">
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Model</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Input Tokens</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Output Tokens</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Context Window</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Availability</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Claude Opus 4</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$15 per million</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$75 per million</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">200K tokens</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Pro, Max, Team, Enterprise</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Claude Sonnet 4</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$3 per million</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$15 per million</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">200K tokens</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">All users (including free)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+Both models are available on:
+- Claude.ai
+- Anthropic API
+- Amazon Bedrock
+- Google Cloud's Vertex AI
+
+## What This Means for Developers
+
+The Claude 4 release represents a significant advancement for developers building AI-powered applications:
+
+1. **Sustained performance for complex tasks**: The ability to work continuously for hours enables entirely new categories of AI applications.
+
+2. **Improved memory capabilities**: When given access to local files, Claude Opus 4 can create and maintain "memory files" to store key information, enabling better long-term task awareness.
+
+3. **Reduced shortcut behavior**: Both models are 65% less likely to take shortcuts or exploit loopholes compared to Sonnet 3.7, making them more reliable for autonomous workflows.
+
+4. **Thinking summaries**: A new feature that condenses lengthy thought processes, making it easier to understand Claude's reasoning without sacrificing depth.
+
+For developers working on coding assistants, research tools, or autonomous agents, these improvements open up new possibilities for building more capable and reliable AI applications.
+
+The Claude 4 family represents a significant step toward AI systems that can maintain context, sustain focus on longer projects, and deliver transformational results across a wide range of domains.
