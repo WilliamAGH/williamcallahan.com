@@ -1,6 +1,6 @@
 ---
-title: "Introducing Google Jules AI Agent: Environment Setup Guide"
-slug: "introducing-google-jules-ai-agent-environment-setup"
+title: "Working with Google's Jules AI Agent and Setting Up Your Environment"
+slug: "google-jules-ai-agent-launched-and-pnpm-bun-yarn-environment-setup"
 excerpt: "Learn how to onboard and configure your environment for Google Jules AI agent, including GitHub integration, Node version management, and alternative package managers."
 publishedAt: "2025-05-21"
 updatedAt: "2025-05-21"
@@ -10,12 +10,12 @@ coverImage: "/images/posts/jules-ai.png"
 ---
 
 <BackgroundInfo title="About Jules AI Agent">
-Jules is an AI coding agent from Google. It integrates with GitHub, runs tasks asynchronously in a virtual machine, applies code changes, runs tests, and opens pull requests with inline diffs and activity logs.
+Jules is an AI coding agent from Google, announced yesterday at [Google I/O](https://blog.google/technology/ai/io-2025-keynote/). It integrates with GitHub, runs tasks asynchronously in a virtual machine, applies code changes, runs tests, and opens pull requests with inline diffs and activity logs.
 </BackgroundInfo>
 
-# Introducing Google Jules AI Agent and Environment Setup
+# Google Just Launched Google Jules - An Autonomous Coding AI Agent for Tasks
 
-Jules can fix bugs, bump dependencies, migrate code, and add new features based on natural language prompts. Before assigning tasks, ensure your environment is configured correctly for GitHub access, Node.js, and your package manager.
+Jules can fix bugs, bump dependencies, migrate code, and add new features based on natural language prompts. Before assigning tasks, ensure your environment is configured correctly for GitHub access, Node.js, and your package manager. From discusions on
 
 For detailed usage and features, see the <ExternalLink href="https://jules.google/docs">Jules documentation</ExternalLink>.
 
@@ -47,16 +47,33 @@ For these specific package managers, you can also explicitly configure them in t
 4. If Jules hasn't automatically selected your package manager, or if you wish to change it, you can select `pnpm`, `Bun`, or `Yarn` from the available options. Jules will then use the appropriate commands for that package manager when running tasks.
 5. Save your configuration.
 
-For instructions on installing `pnpm`, `Bun`, or `Yarn` themselves, please refer to their official documentation:
-- <ExternalLink href="https://pnpm.io/installation">pnpm Installation</ExternalLink>
-- <ExternalLink href="https://bun.sh/docs/installation">Bun Installation</ExternalLink>
-- <ExternalLink href="https://yarnpkg.com/getting-started/install">Yarn Installation</ExternalLink>
+<CollapseDropdown summary="Installation Instructions for pnpm, Bun, and Yarn">
+  <div>
+    For instructions on installing `pnpm`, `Bun`, or `Yarn` themselves, please refer to their official documentation:
+    - <ExternalLink href="https://pnpm.io/installation">pnpm Installation</ExternalLink>
+    - <ExternalLink href="https://bun.sh/docs/installation">Bun Installation</ExternalLink>
+    - <ExternalLink href="https://yarnpkg.com/getting-started/install">Yarn Installation</ExternalLink>
 
-Ensure your chosen package manager is installed in the environment where Jules will execute tasks.
+    Ensure your chosen package manager is installed in the environment where Jules will execute tasks.
+  </div>
+</CollapseDropdown>
 
 ## Conclusion
 
 You can run Jules tasks with pnpm, Bun, or Yarn without altering scripts—just install dependencies and let Jules execute your setup commands.
+
+## Current Jules Competitors / Alternatives: Comparing AI Coding Assistants
+
+Things are moving fast in this space. Just a few months ago I got access to Dev
+
+<TweetEmbed url="https://x.com/leerob/status/1925228425301893481" />
+
+- **OpenAI Codex** ([Introducing Codex](https://openai.com/index/introducing-codex/)): Offers a polished UI with inline diff views and a mobile app for on-the-go task review. However, it currently lacks direct network access within requests and two-way GitHub sync.
+- **Devin** ([devin.ai](https://devin.ai)): Boasts two-way GitHub integration, real-time preview deployments on Vercel, and deep IDE-like controls, enabling engineers to iterate naturally via Slack or its native UI.
+- **DeepWiki** ([deepwiki.com](https://deepwiki.com)): Provides quick contextual documentation and knowledge retrieval, streamlining onboarding for new codebases by fetching relevant code snippets and explanations.
+- **Manus** ([manus.im](https://manus.im)): Excels at rapid context switching and fetching relevant code references within active pull requests, enabling concise code reviews and automated fixes.
+
+Consider your team's workflow needs—such as network access, sync capabilities, UI preferences, and CI/CD integration—when selecting the right assistant for your projects.
 
 <BackgroundInfo title="Jules Documentation">
 Visit <ExternalLink href="https://jules.google/docs">jules.google/docs</ExternalLink> for guides on running tasks, reviewing code diffs, and managing environments.
