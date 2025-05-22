@@ -59,8 +59,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
     if (!isClient) return;
 
     if (process.env.NODE_ENV !== 'production') {
-
-      console.log(`WindowRegistry: Registering window '${id}' with initial state '${initialState}'`);
+      // console.log(`WindowRegistry: Registering window '${id}' with initial state '${initialState}'`);
     }
     setWindows(prev => {
       // Avoid re-registering if already present with the same info
@@ -75,10 +74,9 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
   }, [isClient]);
 
   const unregisterWindow = useCallback((id: string) => {
-     if (process.env.NODE_ENV !== 'production') {
-
-       console.log(`WindowRegistry: Unregistering window '${id}'`);
-     }
+    if (process.env.NODE_ENV !== 'production') {
+      // console.log(`WindowRegistry: Unregistering window '${id}'`);
+    }
     setWindows(prev => {
     // Destructure to get all windows except the one we're removing
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -92,8 +90,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
     setWindows(prev => {
       if (!prev[id] || prev[id].state === state) return prev; // No change needed
       if (process.env.NODE_ENV !== 'production') {
-
-        console.log(`WindowRegistry: Setting state for '${id}' to '${state}'`);
+        // console.log(`WindowRegistry: Setting state for '${id}' to '${state}'`);
       }
       // TODO: Persist to sessionStorage here?
       return { ...prev, [id]: { ...prev[id], state } };
@@ -109,8 +106,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
       if (!prev[id]) return prev;
       const newState = prev[id].state === 'maximized' ? 'normal' : 'maximized';
       if (process.env.NODE_ENV !== 'production') {
-
-        console.log(`WindowRegistry: Toggling state for '${id}' to '${newState}'`);
+        // console.log(`WindowRegistry: Toggling state for '${id}' to '${newState}'`);
       }
        // TODO: Persist to sessionStorage here?
       return { ...prev, [id]: { ...prev[id], state: newState } };

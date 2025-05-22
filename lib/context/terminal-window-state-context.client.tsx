@@ -52,10 +52,9 @@ export const TerminalWindowStateProvider = ({
 
   // Define a specific restore function
   const restoreWindow = React.useCallback(() => {
-     console.log(`TerminalWindowStateContext (${terminalId}): Restoring window to normal`);
     // Restore specifically to 'normal' state
     setWindowState('normal');
-  }, [terminalId, setWindowState]);
+  }, [setWindowState]);
 
   // Memoize the context value to prevent unnecessary re-renders
   const value = React.useMemo(() => ({
