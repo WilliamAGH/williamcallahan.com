@@ -1,0 +1,374 @@
+---
+title: "Vercel Blob vs Hetzner vs DigitalOcean vs AWS S3: Object Storage Showdown"
+slug: "vercel-blob-vs-hetzner-digitalocean-aws-s3-object-storage-comparison"
+excerpt: "Comparing Vercel Blob's new general availability pricing and features against Hetzner Object Storage, DigitalOcean Spaces, and traditional AWS S3 to help you choose the right object storage solution."
+publishedAt: "2025-05-23"
+updatedAt: "2025-05-23"
+author: "william-callahan"
+tags: ["vercel", "aws", "cloud", "storage", "hetzner", "digitalocean"]
+coverImage: "/images/posts/vercel-blob-storage.png"
+---
+
+Vercel just announced that [Vercel Blob](https://vercel.com/docs/vercel-blob) is now generally available on all plans. This durable storage solution is already powering production apps like v0.dev and storing over 400 million files. With this announcement, it's a good time to compare Vercel Blob with other popular object storage options like Hetzner Object Storage, DigitalOcean Spaces, and the industry standard AWS S3.
+
+## The Elephant in the Room: S3 Compatibility
+
+Before diving into the comparison, let's address something that's often overlooked: most modern object storage solutions are S3-compatible, meaning you can use the AWS SDK to interact with them directly from any programming language. This compatibility layer means you're not locked into AWS's ecosystem to use S3-like storage.
+
+Whether you're using JavaScript, Python, Go, or any other modern language, you can typically point your S3 client to a different endpoint and use alternative object storage services with minimal code changes.
+
+<TweetEmbed url="https://x.com/vercel/status/1925632672488968683" />
+
+## Feature Comparison
+
+Let's compare the key features of these four object storage solutions:
+
+<div className="my-8 overflow-hidden rounded-xl bg-white/50 dark:bg-gray-800/50 shadow-xl ring-1 ring-black/5 dark:ring-white/5">
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <thead>
+        <tr className="bg-gray-50/80 dark:bg-gray-800/80">
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Feature</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Vercel Blob</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Hetzner Object Storage</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">DigitalOcean Spaces</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">AWS S3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Underlying Technology</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">AWS S3 backend</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Ceph clusters</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Proprietary (S3-compatible)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Native AWS infrastructure</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">S3 API Compatibility</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Partial (proxied to S3)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Yes (S3-compatible)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Yes (S3-compatible)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Native</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Durability</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">11 nines (via S3)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Not explicitly stated</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Not explicitly stated</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">11 nines</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Global CDN</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Yes (Vercel Edge Network)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">No built-in CDN</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Yes (built-in, 25+ PoPs)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Optional (CloudFront)</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Data Center Locations</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">AWS regions, global cache</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Germany, Finland</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">5 regions (US, EU, Asia)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Dozens globally</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Storage Classes</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Single (standard)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Single (standard)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Single (standard)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Multiple (Standard, IA, Glacier, etc.)</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Advanced Features</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Deep Vercel integration, global caching, simple API</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">S3 API, Ceph, WORM, public URLs</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Built-in CDN, simple UI</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Lifecycle, Object Lock, Replication, Batch Ops, rich IAM</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+## Pricing Comparison
+
+Now let's look at how these services compare in terms of pricing:
+
+<div className="my-8 overflow-hidden rounded-xl bg-white/50 dark:bg-gray-800/50 shadow-xl ring-1 ring-black/5 dark:ring-white/5">
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <thead>
+        <tr className="bg-gray-50/80 dark:bg-gray-800/80">
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Provider</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Storage Price (per GB/month)</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Data Transfer Out (per GB)</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Minimum Monthly Price</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Free Tier</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Vercel Blob</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$0.023</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$0.05 (regional)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$0 (with Hobby plan)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">1GB storage & 10GB transfer (Hobby)<br/>5GB storage & 100GB transfer (Pro)</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Hetzner Object Storage</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">~$0.0064 (1TB for $5.99)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$0.0013 ($1.20/TB)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$5.99</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">1TB storage & 1TB transfer included in base price</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">DigitalOcean Spaces</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$0.02</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$0.01</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$5</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">250GB storage & 1,024GB transfer included in base price</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">AWS S3 (Standard)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$0.023 (first 50TB)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$0.09</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$0 (pay as you go)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">5GB storage & 100GB transfer (AWS Free Tier, 12 months)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+## Cost Comparison for Different Storage Needs
+
+Let's see how these services compare for different storage volumes:
+
+<div className="my-8 overflow-hidden rounded-xl bg-white/50 dark:bg-gray-800/50 shadow-xl ring-1 ring-black/5 dark:ring-white/5">
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+      <thead>
+        <tr className="bg-gray-50/80 dark:bg-gray-800/80">
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Provider</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Price for 250GB</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Price for 1TB</th>
+          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Price for 5TB</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Vercel Blob</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">~$5.75 (Hobby + extra)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">~$23.00 (Hobby + extra)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">~$115.00 (Hobby + extra)</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Hetzner Object Storage</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$5.99 (for 1TB)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$5.99</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">~$29.95 (5TB)</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">DigitalOcean Spaces</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$5.00</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">~$20.00</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">~$100.00</td>
+        </tr>
+        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">AWS S3 (Standard)</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">~$5.75</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">~$23.00</td>
+          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">~$115.00</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+*Note: These calculations focus on storage costs only and don't include data transfer or API operation costs, which can significantly impact your total bill depending on usage patterns.*
+
+## Integration with Modern Programming Languages
+
+One of the great things about all these services is how easily they integrate with modern programming languages. Here are some examples:
+
+<CollapseDropdown summary="JavaScript/TypeScript Integration">
+  <div>
+    Using AWS SDK v3 with any S3-compatible service:
+
+    ```typescript
+    import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+
+    // Configure for AWS S3
+    const s3Client = new S3Client({
+      region: "us-east-1",
+      credentials: {
+        accessKeyId: "YOUR_ACCESS_KEY",
+        secretAccessKey: "YOUR_SECRET_KEY"
+      }
+    });
+
+    // For Hetzner or DigitalOcean, just change the endpoint
+    const hetznerClient = new S3Client({
+      region: "eu-central-1",
+      endpoint: "https://s3.eu-central-1.hetzner.com",
+      credentials: {
+        accessKeyId: "YOUR_ACCESS_KEY",
+        secretAccessKey: "YOUR_SECRET_KEY"
+      }
+    });
+
+    // Upload example
+    async function uploadFile(client, bucket, key, body) {
+      const command = new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: body
+      });
+
+      return client.send(command);
+    }
+    ```
+
+    For Vercel Blob, you can use their dedicated SDK:
+
+    ```typescript
+    import { put } from '@vercel/blob';
+
+    export async function uploadToVercelBlob(file) {
+      const blob = await put(file.name, file, {
+        access: 'public',
+      });
+
+      return blob.url;
+    }
+    ```
+  </div>
+</CollapseDropdown>
+
+<CollapseDropdown summary="Python Integration">
+  <div>
+    Using boto3 with any S3-compatible service:
+
+    ```python
+    import boto3
+
+    # Configure for AWS S3
+    s3_client = boto3.client(
+        's3',
+        region_name='us-east-1',
+        aws_access_key_id='YOUR_ACCESS_KEY',
+        aws_secret_access_key='YOUR_SECRET_KEY'
+    )
+
+    # For Hetzner or DigitalOcean, just change the endpoint
+    do_client = boto3.client(
+        's3',
+        region_name='nyc3',
+        endpoint_url='https://nyc3.digitaloceanspaces.com',
+        aws_access_key_id='YOUR_ACCESS_KEY',
+        aws_secret_access_key='YOUR_SECRET_KEY'
+    )
+
+    # Upload example
+    def upload_file(client, bucket, key, file_path):
+        return client.upload_file(file_path, bucket, key)
+    ```
+  </div>
+</CollapseDropdown>
+
+<CollapseDropdown summary="Go Integration">
+  <div>
+    Using the AWS SDK for Go with any S3-compatible service:
+
+    ```go
+    package main
+
+    import (
+        "context"
+        "github.com/aws/aws-sdk-go-v2/aws"
+        "github.com/aws/aws-sdk-go-v2/config"
+        "github.com/aws/aws-sdk-go-v2/credentials"
+        "github.com/aws/aws-sdk-go-v2/service/s3"
+    )
+
+    func main() {
+        // Configure for AWS S3
+        cfg, _ := config.LoadDefaultConfig(context.TODO(),
+            config.WithRegion("us-east-1"),
+            config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+                "YOUR_ACCESS_KEY", "YOUR_SECRET_KEY", "",
+            )),
+        )
+        s3Client := s3.NewFromConfig(cfg)
+
+        // For Hetzner or DigitalOcean, add custom endpoint resolver
+        customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+            return aws.Endpoint{
+                URL: "https://s3.eu-central-1.hetzner.com",
+            }, nil
+        })
+
+        hetznerCfg, _ := config.LoadDefaultConfig(context.TODO(),
+            config.WithRegion("eu-central-1"),
+            config.WithEndpointResolverWithOptions(customResolver),
+            config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+                "YOUR_ACCESS_KEY", "YOUR_SECRET_KEY", "",
+            )),
+        )
+        hetznerClient := s3.NewFromConfig(hetznerCfg)
+
+        // Upload example
+        // s3Client.PutObject(...)
+    }
+    ```
+  </div>
+</CollapseDropdown>
+
+## When to Choose Each Service
+
+Each of these object storage solutions has its strengths and ideal use cases:
+
+### Vercel Blob
+
+**Best for:**
+- Vercel-hosted applications
+- Projects needing tight integration with Vercel's platform
+- Applications benefiting from global CDN caching
+- Developers who value simplicity and ease of use
+
+### Hetzner Object Storage
+
+**Best for:**
+- Budget-conscious projects with large storage needs
+- European-based workloads (GDPR compliance)
+- Bulk storage with low egress requirements
+- Developers looking for the lowest cost option
+
+### DigitalOcean Spaces
+
+**Best for:**
+- DigitalOcean customers
+- Projects needing built-in CDN capabilities
+- Developers who prefer a simple UI and predictable pricing
+- Applications with moderate storage and bandwidth needs
+
+### AWS S3
+
+**Best for:**
+- Enterprise applications requiring advanced features
+- Workloads needing global distribution
+- Projects requiring multiple storage tiers
+- Applications with complex access control requirements
+- Existing AWS customers
+
+## Conclusion
+
+Vercel Blob's general availability brings another strong contender to the object storage market. While its pricing for raw storage matches AWS S3, its data transfer costs are significantly lower thanks to Vercel's global caching network.
+
+For pure cost efficiency, Hetzner Object Storage is hard to beat, especially for large storage volumes. DigitalOcean Spaces offers a good middle ground with its built-in CDN and simple pricing structure.
+
+AWS S3 remains the most feature-rich option, but at a premium price, especially for data transfer. Its extensive feature set and global presence make it ideal for enterprise applications with complex requirements.
+
+The good news is that with S3-compatible APIs across all these services, you're not locked into any single provider. You can start with one service and migrate to another as your needs change, often with minimal code changes.
+
+Which object storage solution are you using for your projects? Have you tried Vercel Blob yet? Let me know in the comments!

@@ -25,46 +25,42 @@ It excels at sustained performance on complex, long-running tasks that require t
 
 The performance improvements are substantial, with Claude models now leading on key benchmarks:
 
-<div className="my-8 overflow-hidden rounded-xl bg-white/50 dark:bg-gray-800/50 shadow-xl ring-1 ring-black/5 dark:ring-white/5">
-  <div className="overflow-x-auto">
-    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-      <thead>
-        <tr className="bg-gray-50/80 dark:bg-gray-800/80">
-          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Benchmark</th>
-          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Claude Opus 4</th>
-          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Claude Sonnet 4</th>
-          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Previous Best</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">SWE-bench Verified</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">72.5%</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">72.7%</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">67.0% (GPT-4.1)</td>
-        </tr>
-        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Terminal-bench</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">43.2%</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">39.6%</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">38.0% (GPT-4.1)</td>
-        </tr>
-        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">MMLU</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">90.2%</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">88.0%</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">88.7% (GPT-4.1)</td>
-        </tr>
-        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">TAU-bench</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">83.0%</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">78.0%</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">76.0% (o3)</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+<BreakoutTable>
+  <thead>
+    <tr>
+      <th>Benchmark</th>
+      <th>Claude Opus 4</th>
+      <th>Claude Sonnet 4</th>
+      <th>Previous Best</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>SWE-bench Verified</td>
+      <td>72.5%</td>
+      <td>72.7%</td>
+      <td>67.0% (GPT-4.1)</td>
+    </tr>
+    <tr>
+      <td>Terminal-bench</td>
+      <td>43.2%</td>
+      <td>39.6%</td>
+      <td>38.0% (GPT-4.1)</td>
+    </tr>
+    <tr>
+      <td>MMLU</td>
+      <td>90.2%</td>
+      <td>88.0%</td>
+      <td>88.7% (GPT-4.1)</td>
+    </tr>
+    <tr>
+      <td>TAU-bench</td>
+      <td>83.0%</td>
+      <td>78.0%</td>
+      <td>76.0% (o3)</td>
+    </tr>
+  </tbody>
+</BreakoutTable>
 
 What's particularly impressive is Claude Opus 4's ability to maintain performance over extended periods, at least according to the benchmark results. They cited today a Rakuten validation of this by having Opus 4 run a demanding open-source refactor continuously for 7 hours with sustained performance—something previous models couldn't achieve. If true, this would constitute a significant improvement over the status quo -- I'll be testing this shortly.
 
@@ -83,13 +79,11 @@ What makes this approach unique is that Claude can dynamically decide when to us
 
 After a successful research preview, [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview) is now generally available with expanded capabilities. This agentic coding tool lives in your terminal, understands your codebase, and helps you code faster through natural language commands.
 
-<div className="my-8">
-  <img
-    src="/images/posts/claude-code-on-stage.jpg"
-    alt="Claude Code being presented on stage at a conference"
-    className="rounded-lg shadow-md w-full"
-  />
-</div>
+<img
+  src="/images/posts/claude-code-on-stage.jpg"
+  alt="Claude Code being presented on stage at a conference"
+  className="rounded-lg shadow-md w-full"
+/>
 
 ### Key Capabilities
 
@@ -105,13 +99,11 @@ Claude Code's key capabilities include:
 
 One of the most exciting additions is the new [IDE integrations](https://docs.anthropic.com/en/docs/claude-code/ide-integrations) for VS Code and JetBrains:
 
-<div className="my-8">
-  <img
-    src="/images/posts/claude-code-cli-terminal.png"
-    alt="Claude Code CLI terminal interface showing code execution"
-    className="rounded-lg shadow-md w-full"
-  />
-</div>
+<img
+  src="/images/posts/claude-code-cli-terminal.png"
+  alt="Claude Code CLI terminal interface showing code execution"
+  className="rounded-lg shadow-md w-full"
+/>
 
 These integrations provide:
 
@@ -173,37 +165,33 @@ Anthropic has released four new capabilities on their API specifically designed 
 
 Both models maintain consistent pricing with previous Opus and Sonnet models:
 
-<div className="my-8 overflow-hidden rounded-xl bg-white/50 dark:bg-gray-800/50 shadow-xl ring-1 ring-black/5 dark:ring-white/5">
-  <div className="overflow-x-auto">
-    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-      <thead>
-        <tr className="bg-gray-50/80 dark:bg-gray-800/80">
-          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Model</th>
-          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Input Tokens</th>
-          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Output Tokens</th>
-          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Context Window</th>
-          <th scope="col" className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">Availability</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Claude Opus 4</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$15 per million</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$75 per million</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">200K tokens</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Pro, Max, Team, Enterprise</td>
-        </tr>
-        <tr className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">Claude Sonnet 4</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$3 per million</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">$15 per million</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">200K tokens</td>
-          <td className="px-6 py-4 text-sm font-medium text-left text-gray-600 dark:text-gray-300">All users (including free)</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+<BreakoutTable>
+  <thead>
+    <tr>
+      <th>Model</th>
+      <th>Input Tokens</th>
+      <th>Output Tokens</th>
+      <th>Context Window</th>
+      <th>Availability</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Claude Opus 4</td>
+      <td>$15 per million</td>
+      <td>$75 per million</td>
+      <td>200K tokens</td>
+      <td>Pro, Max, Team, Enterprise</td>
+    </tr>
+    <tr>
+      <td>Claude Sonnet 4</td>
+      <td>$3 per million</td>
+      <td>$15 per million</td>
+      <td>200K tokens</td>
+      <td>All users (including free)</td>
+    </tr>
+  </tbody>
+</BreakoutTable>
 
 Both models are available on:
 - Claude.ai
