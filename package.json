@@ -22,6 +22,7 @@
     "docker:populate-volumes": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production -e CONTAINER=true williamcallahan-web:latest bun scripts/populate-volumes.ts",
     "lint": "eslint . --config eslint.config.ts",
     "lint:errors": "eslint . --config eslint.config.ts --quiet",
+    "lint:css": "stylelint 'app/**/*.css' 'styles/**/*.css'",
     "type-check": "tsc --noEmit",
     "validate": "bun run lint && bun run type-check",
     "clean": "rm -rf .next out node_modules",
