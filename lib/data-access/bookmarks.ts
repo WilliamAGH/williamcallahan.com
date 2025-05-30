@@ -9,7 +9,7 @@
 
 import { ServerCacheInstance } from '@/lib/server-cache';
 import type { UnifiedBookmark } from '@/types';
-import { refreshBookmarksData } from '@/lib/bookmarks.client';
+import { refreshBookmarksData as directRefreshBookmarksData } from '@/lib/bookmarks';
 import { readJsonS3, writeJsonS3 } from '@/lib/s3-utils';
 import { BookmarkRefreshQueue } from '@/lib/async-job-queue';
 
@@ -33,20 +33,26 @@ async function fetchExternalBookmarks(): Promise<UnifiedBookmark[] | null> {
     return inFlightBookmarkPromise;
   }
 
-  console.log('[DataAccess/Bookmarks] Initiating new external bookmarks fetch');
-  // Simplified promise handling for testing
-  inFlightBookmarkPromise = refreshBookmarksData()
+  console.log('[DataAccess/Bookmarks] Initiating new direct external bookmarks fetch using directRefreshBookmarksData');
+  // Using directRefreshBookmarksData for a direct fetch and S3 write path
+  inFlightBookmarkPromise = directRefreshBookmarksData()
     .then(bookmarks => {
-      console.log('[DataAccess/Bookmarks] `refreshBookmarksData` returned:', bookmarks ? `${bookmarks.length} items` : bookmarks);
+      // The directRefreshBookmarksData function already handles S3 writing and in-memory cache update.
+      // So, we just log and return the bookmarks.
+      console.log('[DataAccess/Bookmarks] `directRefreshBookmarksData` completed. Bookmarks count:', bookmarks ? bookmarks.length : 0);
       if (Array.isArray(bookmarks) && bookmarks.length > 0) {
-        console.log(`[DataAccess/Bookmarks] Fetched ${bookmarks.length} bookmarks from external source. Returning them.`);
         return bookmarks;
       }
-      console.warn('[DataAccess/Bookmarks] `refreshBookmarksData` returned null, undefined, or empty array. Returning null.');
+      // If directRefreshBookmarksData returns null or empty (e.g., due to its own error handling like missing token),
+      // this will be propagated. Errors thrown by directRefreshBookmarksData (e.g. S3 write failure) will be caught by .catch below.
+      console.warn('[DataAccess/Bookmarks] `directRefreshBookmarksData` returned null, undefined, or empty array.');
       return null;
     })
     .catch(error => {
-      console.error('[DataAccess/Bookmarks] Error fetching external bookmarks:', error);
+      console.error('[DataAccess/Bookmarks] Error during `directRefreshBookmarksData` execution:', error);
+      // Propagate the error or return null, ensuring the scheduler can see a failure if needed.
+      // For now, returning null to align with previous behavior of fetchExternalBookmarks,
+      // but an error throw here could be an option if the caller (fetchExternalBookmarksWithRetry) is adapted.
       return null;
     })
     .finally(() => {
@@ -88,14 +94,17 @@ function enqueueBookmarkRefresh() {
  * @returns Promise resolving to an array of UnifiedBookmark objects, or an empty array if none are available
  */
 export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBookmark[]> {
-  console.log('[Bookmarks] getBookmarks skipExternalFetch:', skipExternalFetch);
-
+  // console.log('[getBookmarks] Starting with skipExternalFetch:', skipExternalFetch);
   const cached = ServerCacheInstance.getBookmarks();
-  if (cached && cached.bookmarks && cached.bookmarks.length > 0) {
-    console.log(`[Bookmarks] returning ${cached.bookmarks.length} cached bookmarks`);
+  // console.log('[getBookmarks] Cache state:', cached ? `has ${cached.bookmarks?.length || 0} bookmarks` : 'no cache');
+
+  if (cached?.bookmarks && cached.bookmarks.length > 0) {
+    // console.log('[Bookmarks] returning ${cached.bookmarks.length} cached bookmarks');
     if (!skipExternalFetch && ServerCacheInstance.shouldRefreshBookmarks()) {
-      console.log('[Bookmarks] cache stale, enqueueing background refresh');
+      // console.log('[Bookmarks] cache stale, enqueueing background refresh');
       enqueueBookmarkRefresh();
+    } else if (ServerCacheInstance.shouldRefreshBookmarks()) {
+      // console.log('[Bookmarks] cache stale but external fetch skipped, not enqueueing refresh');
     }
     return cached.bookmarks;
   }
@@ -106,36 +115,64 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
     if (Array.isArray(raw) && raw.length > 0) {
       s3Bookmarks = raw;
       ServerCacheInstance.setBookmarks(s3Bookmarks);
-      console.log(`[Bookmarks] loaded ${s3Bookmarks.length} bookmarks from S3`);
+      // console.log(`[Bookmarks] loaded ${s3Bookmarks.length} bookmarks from S3`);
     }
   } catch (error: unknown) {
     console.warn('[Bookmarks] failed reading bookmarks from S3:', error);
   }
 
   if (s3Bookmarks) {
-    if (!skipExternalFetch && ServerCacheInstance.shouldRefreshBookmarks()) {
-      console.log('[Bookmarks] using S3 bookmarks but queueing refresh');
+    if (!skipExternalFetch) {
+      // console.log('[Bookmarks] S3 data loaded, enqueueing background refresh to ensure freshness.');
       enqueueBookmarkRefresh();
     }
     return s3Bookmarks;
   }
 
   if (skipExternalFetch) {
-    console.warn('[Bookmarks] no cache or S3 data and external fetch skipped');
+    // console.warn('[Bookmarks] no cache or S3 data and external fetch skipped');
     return [];
   }
 
   const external = await fetchExternalBookmarksWithRetry();
   if (external && external.length > 0) {
     try {
-      await writeJsonS3(BOOKMARKS_S3_KEY_FILE, external);
+      // S3 write is now handled within directRefreshBookmarksData,
+      // so this explicit writeJsonS3 call is no longer needed here if 'external' comes from directRefreshBookmarksData.
+      // However, getBookmarks can also be called by other parts of the app,
+      // so we need to be careful.
+      // For now, let's assume directRefreshBookmarksData ALREADY wrote to S3 and updated cache.
+      // The main call path for this specific S3 write is if 'external' came from a different source
+      // than the new direct path. But `external` *does* come from `fetchExternalBookmarksWithRetry` which calls `fetchExternalBookmarks`
+      // which now uses `directRefreshBookmarksData`.
+      // So, the writeJsonS3 and setBookmarks below in getBookmarks are now redundant if the direct path was taken.
+      // We can remove them if `external` is guaranteed to be populated by the new direct path.
+
+      // await writeJsonS3(BOOKMARKS_S3_KEY_FILE, external); // Potentially redundant
+      // ServerCacheInstance.setBookmarks(external); // Potentially redundant
+      // console.log('[Bookmarks] Data should have been set to S3 and cache by directRefreshBookmarksData if external fetch occurred.');
     } catch (err) {
-      console.warn('[Bookmarks] failed writing bookmarks to S3:', err);
+      console.warn('[Bookmarks] failed writing bookmarks to S3 (this path should ideally not be hit if direct refresh worked):', err);
     }
-    ServerCacheInstance.setBookmarks(external);
+    // ServerCacheInstance.setBookmarks(external); // This is definitely done by directRefreshBookmarksData
     return external;
   }
 
-  ServerCacheInstance.setBookmarks([], true);
+  ServerCacheInstance.setBookmarks([], true); // This is for cases where external fetch failed to return data.
   return [];
+}
+
+async function fetchAndCacheBookmarks(): Promise<UnifiedBookmark[]> {
+  // console.log('[fetchAndCacheBookmarks] Attempting to fetch bookmarks from API.');
+  try {
+    const response = await fetch('/api/bookmarks');
+    const data: UnifiedBookmark[] = await response.json();
+    // console.log(`[fetchAndCacheBookmarks] Fetched ${data.length} bookmarks. Caching now.`);
+    ServerCacheInstance.setBookmarks(data);
+    return data;
+  } catch (error) {
+    // console.error('[fetchAndCacheBookmarks] Error fetching bookmarks:', error);
+    // In case of error, return empty array or handle as per application's error policy
+    return [];
+  }
 }

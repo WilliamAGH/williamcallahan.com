@@ -10,6 +10,7 @@ import { BookmarksClientWithWindow } from './bookmarks-client-with-window';
 import type { UnifiedBookmark } from '@/types';
 import { getBookmarks } from '@/lib/data-access/bookmarks';
 import { ServerCacheInstance } from '@/lib/server-cache';
+import { AppError } from '@/lib/errors';
 
 interface BookmarksServerProps {
   title: string;
@@ -75,14 +76,19 @@ export async function BookmarksServer({
     // If no bookmarks were fetched in production, trigger error to show boundary
     if (!propsBookmarks && bookmarks.length === 0 && process.env.NODE_ENV === 'production') {
       const lastFetched = ServerCacheInstance.getBookmarks()?.lastFetchedAt ?? 0;
-      throw new Error(`BookmarksUnavailable|${lastFetched}`);
+      const error = new AppError('BookmarksUnavailable', 'BOOKMARKS_UNAVAILABLE');
+      // Attach additional metadata to the error object
+      (error as any).lastFetchedTimestamp = lastFetched;
+      throw error;
     }
   }
+
+  const initialBookmarks = propsBookmarks || bookmarks;
 
   // Pass the processed data to the client component
   return (
     <BookmarksClientWithWindow
-      bookmarks={bookmarks}
+      bookmarks={initialBookmarks}
       title={title}
       description={description}
       forceClientFetch={!propsBookmarks}
