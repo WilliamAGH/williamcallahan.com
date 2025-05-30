@@ -140,43 +140,10 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
 
   const external = await fetchExternalBookmarksWithRetry();
   if (external && external.length > 0) {
-    try {
-      // S3 write is now handled within directRefreshBookmarksData,
-      // so this explicit writeJsonS3 call is no longer needed here if 'external' comes from directRefreshBookmarksData.
-      // However, getBookmarks can also be called by other parts of the app,
-      // so we need to be careful.
-      // For now, let's assume directRefreshBookmarksData ALREADY wrote to S3 and updated cache.
-      // The main call path for this specific S3 write is if 'external' came from a different source
-      // than the new direct path. But `external` *does* come from `fetchExternalBookmarksWithRetry` which calls `fetchExternalBookmarks`
-      // which now uses `directRefreshBookmarksData`.
-      // So, the writeJsonS3 and setBookmarks below in getBookmarks are now redundant if the direct path was taken.
-      // We can remove them if `external` is guaranteed to be populated by the new direct path.
-
-      // await writeJsonS3(BOOKMARKS_S3_KEY_FILE, external); // Potentially redundant
-      // ServerCacheInstance.setBookmarks(external); // Potentially redundant
-      // console.log('[Bookmarks] Data should have been set to S3 and cache by directRefreshBookmarksData if external fetch occurred.');
-    } catch (err) {
-      console.warn('[Bookmarks] failed writing bookmarks to S3 (this path should ideally not be hit if direct refresh worked):', err);
-    }
-    // ServerCacheInstance.setBookmarks(external); // This is definitely done by directRefreshBookmarksData
+    // S3 write and cache update already handled by directRefreshBookmarksData
     return external;
   }
 
   ServerCacheInstance.setBookmarks([], true); // This is for cases where external fetch failed to return data.
   return [];
-}
-
-async function fetchAndCacheBookmarks(): Promise<UnifiedBookmark[]> {
-  // console.log('[fetchAndCacheBookmarks] Attempting to fetch bookmarks from API.');
-  try {
-    const response = await fetch('/api/bookmarks');
-    const data: UnifiedBookmark[] = await response.json();
-    // console.log(`[fetchAndCacheBookmarks] Fetched ${data.length} bookmarks. Caching now.`);
-    ServerCacheInstance.setBookmarks(data);
-    return data;
-  } catch (error) {
-    // console.error('[fetchAndCacheBookmarks] Error fetching bookmarks:', error);
-    // In case of error, return empty array or handle as per application's error policy
-    return [];
-  }
 }
