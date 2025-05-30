@@ -44,6 +44,15 @@ export class AsyncJobQueue extends EventEmitter {
       setImmediate(() => { void this.process(); });
     }
   }
+
+  public get isProcessing(): boolean {
+    return this.processing;
+  }
+
+  public get queueLength(): number {
+    return this.queue.length;
+  }
 }
 
+export const createJobQueue = () => new AsyncJobQueue();
 export const BookmarkRefreshQueue = new AsyncJobQueue();

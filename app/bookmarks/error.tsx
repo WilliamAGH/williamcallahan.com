@@ -2,12 +2,7 @@
 'use client';
 
 import { useEffect } from 'react';
-
-function formatDate(ts: number) {
-  if (!ts) return 'unknown';
-  const d = new Date(ts);
-  return d.toLocaleString();
-}
+import { formatDate as utilFormatDate } from '@/lib/utils';
 
 interface ErrorPageProps {
   error: Error;
@@ -18,8 +13,20 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   // Log the error for debugging
   useEffect(() => console.error('Error in /bookmarks page:', error), [error]);
 
-  const match = /^BookmarksUnavailable\|(\d+)/.exec(error.message);
-  const lastFetched = match ? Number(match[1]) : 0;
+  let lastFetched = 0;
+  try {
+    const match = /^BookmarksUnavailable\|(\d+)/.exec(error.message);
+    if (match && match[1]) {
+      const parsed = Number(match[1]);
+      lastFetched = Number.isFinite(parsed) ? parsed : 0;
+    }
+  } catch (parseError) {
+    console.warn('Failed to parse lastFetched from error message:', parseError);
+  }
+
+  // Attempt to get the last fetched timestamp if it was attached to the error
+  // (the property name was changed to 'lastFetched' in bookmarks.server.tsx)
+  const lastFetchedTimestamp = (error as any)?.lastFetched as number | undefined;
 
   return (
     <main className="max-w-5xl mx-auto py-16 px-4 sm:px-6 lg:px-8 text-center">
@@ -32,11 +39,19 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
         </p>
         {lastFetched > 0 && (
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-            Last successful fetch: {formatDate(lastFetched)}
+            Last successful fetch: {utilFormatDate(lastFetched)}
           </p>
         )}
         <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
           Feel free to browse the rest of the site while this gets fixed!
+        </p>
+        <p className="text-sm text-slate-600 dark:text-slate-400">
+          We couldn&apos;t load the bookmarks at this time.
+          {lastFetchedTimestamp ? (
+            ` Last attempt to fetch was at: ${utilFormatDate(lastFetchedTimestamp)}.`
+          ) : (
+            " It might be a temporary issue, or the data source could be unavailable."
+          )}
         </p>
         <button
           onClick={() => reset()}

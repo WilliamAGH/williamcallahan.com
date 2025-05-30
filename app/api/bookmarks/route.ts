@@ -19,9 +19,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const isRefresh = request.nextUrl.searchParams.has('refresh');
 
   if (isRefresh) {
+  try {
     BookmarkRefreshQueue.add(async () => {
       await getBookmarks(false);
     });
+  } catch (queueError) {
+    console.error('[API Bookmarks] Failed to queue refresh job:', queueError);
+    return NextResponse.json(
+      { error: 'Failed to queue refresh' },
+      { status: 500 }
+    );
+  }
     return NextResponse.json({ queued: true }, { status: 202 });
   }
 
@@ -30,9 +38,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const bookmarks = await getBookmarks(skipExternalFetch);
     if (ServerCacheInstance.shouldRefreshBookmarks()) {
-      BookmarkRefreshQueue.add(async () => {
-        await getBookmarks(false);
-      });
+  // Only queue if not already processing to avoid duplicates
+  if (!BookmarkRefreshQueue.isProcessing || BookmarkRefreshQueue.queueLength === 0) {
+    BookmarkRefreshQueue.add(async () => {
+      await getBookmarks(false);
+    });
+  }
     }
 
     if (bookmarks && bookmarks.length > 0) {
