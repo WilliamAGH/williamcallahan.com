@@ -45,8 +45,8 @@ export const BOOKMARKS_CACHE_DURATION = {
   SUCCESS: 7 * 24 * 60 * 60,
   /** Failed attempt cache duration (1 hour in seconds) */
   FAILURE: 60 * 60,
-  /** Revalidation interval (12 hours in seconds) - how often to check for new data */
-  REVALIDATION: 12 * 60 * 60
+  /** Revalidation interval (1 hour in seconds) - how often to check for new data */
+  REVALIDATION: 1 * 60 * 60
 } as const;
 
 /**

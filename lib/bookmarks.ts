@@ -140,8 +140,9 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
   console.log('refreshBookmarksData: Starting fresh fetch from API');
 
   // Read environment variables at call time
-  const bookmarksListId = process.env.BOOKMARKS_LIST_ID; // Changed let to const
+  const bookmarksListId = process.env.BOOKMARKS_LIST_ID;
   if (!bookmarksListId) {
+    // This already throws, which is good.
     throw new Error('BOOKMARKS_LIST_ID environment variable must be set to your list ID');
   }
   const bookmarksApiUrl = process.env.BOOKMARKS_API_URL ?? 'https://bookmark.iocloudhost.net/api/v1';
@@ -150,8 +151,8 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
   const bearerToken = process.env.BOOKMARK_BEARER_TOKEN;
 
   if (!bearerToken) {
-    console.error('BOOKMARK_BEARER_TOKEN environment variable is not set.');
-    return [];
+    // Changed to throw an error for missing token
+    throw new Error('BOOKMARK_BEARER_TOKEN environment variable is not set. Cannot fetch bookmarks.');
   }
 
   // Construct headers as a plain object, like the user's working example
@@ -263,9 +264,9 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
       ServerCacheInstance.setBookmarks(normalizedBookmarks, false); // false indicates not a failure
       console.log('refreshBookmarksData: Successfully updated ServerCacheInstance with new bookmarks.');
     } catch (s3OrCacheError) { // Renamed variable for clarity
-      console.error('refreshBookmarksData: Failed to write updated bookmarks to S3 or update cache:', s3OrCacheError);
-      // Depending on desired behavior, you might want to rethrow or handle differently
-      // For now, the function will still return normalizedBookmarks if this block fails
+      console.error('refreshBookmarksData: CRITICAL - Failed to write updated bookmarks to S3 or update cache:', s3OrCacheError);
+      // Re-throw the error to ensure the calling batch job recognizes the failure.
+      throw s3OrCacheError;
     }
     return normalizedBookmarks;
   } catch (error) {
