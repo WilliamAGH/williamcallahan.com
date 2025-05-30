@@ -9,6 +9,7 @@ import "server-only"; // Ensure this component remains server-only
 import { BookmarksClientWithWindow } from './bookmarks-client-with-window';
 import type { UnifiedBookmark } from '@/types';
 import { getBookmarks } from '@/lib/data-access/bookmarks';
+import { ServerCacheInstance } from '@/lib/server-cache';
 
 interface BookmarksServerProps {
   title: string;
@@ -73,7 +74,8 @@ export async function BookmarksServer({
 
     // If no bookmarks were fetched in production, trigger error to show boundary
     if (!propsBookmarks && bookmarks.length === 0 && process.env.NODE_ENV === 'production') {
-      throw new Error('BookmarksUnavailable');
+      const lastFetched = ServerCacheInstance.getBookmarks()?.lastFetchedAt ?? 0;
+      throw new Error(`BookmarksUnavailable|${lastFetched}`);
     }
   }
 

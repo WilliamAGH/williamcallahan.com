@@ -3,6 +3,12 @@
 
 import { useEffect } from 'react';
 
+function formatDate(ts: number) {
+  if (!ts) return 'unknown';
+  const d = new Date(ts);
+  return d.toLocaleString();
+}
+
 interface ErrorPageProps {
   error: Error;
   reset: () => void;
@@ -11,6 +17,9 @@ interface ErrorPageProps {
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
   // Log the error for debugging
   useEffect(() => console.error('Error in /bookmarks page:', error), [error]);
+
+  const match = /^BookmarksUnavailable\|(\d+)/.exec(error.message);
+  const lastFetched = match ? Number(match[1]) : 0;
 
   return (
     <main className="max-w-5xl mx-auto py-16 px-4 sm:px-6 lg:px-8 text-center">
@@ -21,6 +30,11 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
         <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
           Hmm, my bookmarks service is taking a break.
         </p>
+        {lastFetched > 0 && (
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            Last successful fetch: {formatDate(lastFetched)}
+          </p>
+        )}
         <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
           Feel free to browse the rest of the site while this gets fixed!
         </p>
