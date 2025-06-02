@@ -211,7 +211,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
 
   // Only render when mounted to prevent hydration mismatch
   if (!mounted) {
-    return <div className="relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl h-[400px]"></div>;
+    return <div className="relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl h-full"></div>;
   }
 
   // Determine brand-specific card styling
@@ -223,7 +223,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
     (label.includes('Discord') || domain.includes('discord')) ? 'discord-card' : '';
 
   return (
-    <div className={`relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl border border-transparent group ${cardBrandClass}`}>
+    <div className={`relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl border border-transparent group ${cardBrandClass} h-full`}>
       {/* Image Section with beautiful profile/domain overlay */}
       <div className="relative w-full aspect-video overflow-hidden rounded-t-3xl bg-gray-100 dark:bg-gray-800">
         {/* Loading state */}

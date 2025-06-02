@@ -107,190 +107,7 @@ html {
   }
 }
 
-/* === Custom Prism Theme (Dracula-like) === */
-/* Start Custom Prism Theme */
-code[class*="language-"],
-pre[class*="language-"] {
-  color: #f8f8f2;
-  background: none;
-  /* Updated font stack to prioritize IBM Plex Mono */
-  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  text-align: left;
-  white-space: pre;
-  word-spacing: normal;
-  word-break: normal;
-  word-wrap: normal;
-  line-height: 1.5;
-  tab-size: 2;
-  -webkit-hyphens: none;
-  -moz-hyphens: none;
-  -ms-hyphens: none;
-  hyphens: none;
-}
 
-pre[class*="language-"] {
-  padding: 0 1em; /* 0 vertical, 1em horizontal */
-  margin: 0; /* Remove margin */
-  overflow: auto;
-  border-radius: 0.3em;
-  /* Change background to a dark cyan/blue */
-  background: #1c3a4a;
-}
-
-:not(pre) > code[class*="language-"] {
-  padding: 0.1em;
-  border-radius: 0.3em;
-  white-space: normal;
-}
-
-/* Custom spacing classes */
-.terminal-reduced-margin {
-  /* On mobile, use reduced margin */
-  margin-top: 1rem !important; /* Override mt-8 (2rem) with 1rem for mobile */
-  margin-bottom: 1rem !important; /* Symmetrical spacing */
-
-  /* On screens larger than mobile, use original spacing */
-  @media (min-width: 640px) {
-    margin-top: 2rem !important; /* Restore mt-8 (2rem) for desktop */
-  }
-}
-
-/* Apply token rules */
-
-.token.comment,
-.token.prolog,
-.token.doctype,
-.token.cdata {
-  color: #6272a4;
-  font-style: italic;
-}
-
-.token.punctuation {
-  color: #f8f8f2;
-}
-
-.token.namespace {
-  opacity: .7;
-}
-
-.token.property,
-.token.tag,
-.token.constant,
-.token.symbol,
-.token.deleted {
-  color: #ff79c6;
-}
-
-.token.boolean,
-.token.number {
-  color: #bd93f9;
-}
-
-.token.selector,
-.token.attr-name,
-.token.string,
-.token.char,
-.token.builtin,
-.token.inserted {
-  color: #50fa7b;
-}
-
-.token.operator,
-.token.entity,
-.token.url,
-.language-css .token.string,
-.style .token.string,
-.token.variable {
-  color: #f8f8f2;
-}
-
-.token.atrule,
-.token.attr-value,
-.token.function,
-.token.class-name {
-  color: #f1fa8c;
-}
-
-.token.keyword {
-  color: #8be9fd;
-}
-
-.token.regex,
-.token.important {
-  color: #ffb86c;
-}
-
-.token.important,
-.token.bold {
-  font-weight: bold;
-}
-
-.token.italic {
-  font-style: italic;
-}
-
-.token.entity {
-  cursor: help;
-}
-
-/* End Custom Prism Theme */
-/* === End of Custom Prism Theme === */
-
-/* Global code block overrides - completely remove any potential highlighting */
-pre[class*="language-"],
-pre[class*="language-"] *,
-code[class*="language-"],
-code[class*="language-"] * {
-  text-shadow: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  border: none !important; /* Remove any potential borders around tokens */
-  outline: none !important;
-  text-decoration: none !important;
-}
-
-/* Remove backgrounds from all token types */
-.token.comment,
-.token.prolog,
-.token.doctype,
-.token.cdata,
-.token.punctuation,
-.token.namespace,
-.token.property,
-.token.tag,
-.token.constant,
-.token.symbol,
-.token.deleted,
-.token.boolean,
-.token.number,
-.token.selector,
-.token.attr-name,
-.token.string,
-.token.char,
-.token.builtin,
-.token.inserted,
-.token.operator,
-.token.entity,
-.token.url,
-.token.variable,
-.token.atrule,
-.token.attr-value,
-.token.keyword,
-.token.function,
-.token.regex,
-.token.important {
-  background: transparent !important;
-  text-shadow: none !important;
-  box-shadow: none !important;
-}
-
-/* Make sure code blocks don't inherit glitch animations */
-pre, pre *, code[class*="language-"], code[class*="language-"] * {
-  animation: none !important;
-  opacity: 1 !important;
-  transform: none !important;
-  clip-path: none !important;
-}
 
 /* Ensure inline code still has proper styling */
 :not(pre) > code {
@@ -394,13 +211,17 @@ pre, pre *, code[class*="language-"], code[class*="language-"] * {
     /* Add animation-delay with stagger in component if needed */
   }
 
+  .code-block-language-badge {
+    font-size: 8px;
+  }
+
   /* Blog content wrapping for mobile screens */
   .blog-content {
     overflow-wrap: break-word;
     word-wrap: break-word;
-    word-break: break-word; /* For Firefox */
-    -webkit-hyphens: auto;
-    hyphens: auto;
+    /* word-break: break-word; For Firefox - Consider if still needed */
+    -webkit-hyphens: none;
+    hyphens: none;
     font-size: 16px; /* Ensure consistent paragraph font size */
   }
 
@@ -430,8 +251,8 @@ pre, pre *, code[class*="language-"], code[class*="language-"] * {
   /* REMOVED rules for hiding nav [data-testid="mobile-menu"] */
 
   /* Hide Secondary Header Icons */
-  body.window-maximized header .max-w-6xl > .flex.items-center.space-x-4,
-  body.window-minimized header .max-w-6xl > .flex.items-center.space-x-4 {
+  .window-maximized .header-icons,
+  .window-minimized .header-icons {
     display: none;
   }
 
@@ -439,6 +260,15 @@ pre, pre *, code[class*="language-"], code[class*="language-"] * {
   .react-tweet-theme [class*="avatarOverflow"] {
     top: 0 !important;
     left: 0 !important;
+  }
+
+  .prose p, .prose ul, .prose ol, .prose li, .prose blockquote, .prose a, .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+    overflow-wrap: break-word !important; /* Ensure wrapping for all prose elements */
+  }
+
+  /* Ensure long words or strings don't overflow their container */
+  .break-words-anywhere {
+    word-break: break-all; /* More aggressive breaking if needed */
   }
 }
 
@@ -458,72 +288,7 @@ pre, pre *, code[class*="language-"], code[class*="language-"] * {
   border-radius: 0.5rem !important;
 } */
 
-/* Dark mode link styles */
-.dark .prose a > code {
-  @apply bg-transparent text-blue-400;
-}
 
-.dark .prose a:hover > code {
-  @apply text-blue-300;
-}
-
-.dark .prose-headings h1,
-.dark .prose-headings h2,
-.dark .prose-headings h3,
-.dark .prose-headings h4,
-.dark .prose-headings h5,
-.dark .prose-headings h6 {
-  @apply text-white;
-}
-
-/* Group hover styles */
-.group:hover .dark .group-hover\:text-green-400 {
-  @apply text-green-400;
-}
-
-.group:hover .dark .group-hover\:text-red-400 {
-  @apply text-red-400;
-}
-
-/* Add smooth page transitions */
-@keyframes fadeIn {
-  from { opacity: 0.92; }
-  to { opacity: 1; }
-}
-
-/* Add smooth animations for all page transitions */
-main {
-  animation: fadeIn 0.2s ease-out;
-}
-
-/* Navigation link transitions - keep separate from inline JSX to avoid hydration issues */
-.nav-link {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-/* Make all transitions smoother but exclude specific elements to avoid hydration issues */
-*:not(a):not(button):not(.nav-link):not([data-no-transition]) {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-/* Prevent transition on window controls and terminal to avoid hydration issues */
-[data-no-transition] {
-  transition: none !important;
-  animation: none !important;
-  will-change: auto !important;
-}
-
-/* Disable all animations and transitions during server transitions */
-.server-transition * {
-  transition: none !important;
-  animation: none !important;
-  will-change: auto !important;
-  opacity: 1 !important;
-}
 
 /* Handle browser extension modifications (Dark Reader) by working with it, not against it */
 [data-darkreader-scheme],
@@ -663,4 +428,36 @@ html[data-darkreader-mode] {
 .react-tweet-theme [class*="avatarOverflow"] {
   top: 0 !important;
   left: 0 !important;
+}
+
+/* Blog content spacing override to eliminate hydration mismatches */
+/* Remove prose margins and let space-y-8 handle all vertical spacing consistently */
+.prose-spacing-override h1,
+.prose-spacing-override h2,
+.prose-spacing-override h3,
+.prose-spacing-override h4,
+.prose-spacing-override h5,
+.prose-spacing-override h6 {
+  margin-top: 0;
+  margin-bottom: 0.25rem; /* Small bottom margin for headings */
+}
+
+.prose-spacing-override p,
+.prose-spacing-override ul,
+.prose-spacing-override ol,
+.prose-spacing-override blockquote {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* Ensure list items still have proper spacing within lists */
+.prose-spacing-override li {
+  margin-top: 0;
+  margin-bottom: 0.25rem; /* Keep small spacing between list items */
+}
+
+/* Remove default top/bottom margin on tables within articles */
+.prose-spacing-override table {
+  margin-top: 0;
+  margin-bottom: 0;
 }
