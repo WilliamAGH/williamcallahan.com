@@ -180,7 +180,7 @@ export function Terminal() {
   const commonTerminalClasses = "bg-[#1a1b26] border border-gray-700 font-mono text-sm cursor-text overflow-hidden flex flex-col shadow-xl";
   // Margin handled with responsive utilities
   // Add z-10 to ensure it stays below the mobile menu dropdown
-  const normalTerminalClasses = "relative z-10 mx-auto mt-4 sm:mt-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl p-4 sm:p-6 rounded-lg";
+  const normalTerminalClasses = "relative z-10 mx-auto my-4 sm:my-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl p-4 sm:p-6 rounded-lg";
   const maximizedTerminalClasses = "fixed left-0 right-0 top-14 bottom-0 z-[60] w-full h-[calc(100vh-56px)] p-6 border-0 rounded-none"; // Full window below nav
 
   // Define classes for the inner scrollable area
