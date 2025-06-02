@@ -68,7 +68,7 @@ async function fetchExternalBookmarksWithRetry(retries = 3, delay = 1000): Promi
     }
     const result = await fetchExternalBookmarks();
     if (result && result.length > 0) return result;
-    await new Promise(res => setTimeout(res, delay * (attempt + 1)));
+    await new Promise(res => setTimeout(res, delay * Math.pow(2, attempt)));
   }
   console.warn('[DataAccess/Bookmarks] All retry attempts exhausted for fetching bookmarks');
   return null;
