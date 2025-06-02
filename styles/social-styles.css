@@ -119,7 +119,7 @@
  * LinkedIn top bar - expands to 4px height with brand color
  */
 .linkedin-card:hover::after {
-  height: 4px;
+  height: 0;
   background-color: #0A66C2;
 }
 
@@ -127,7 +127,7 @@
  * GitHub top bar - matches purple brand color
  */
 .github-card:hover::after {
-  height: 4px;
+  height: 0;
   background-color: #6e5494;
 }
 
@@ -135,7 +135,7 @@
  * Twitter top bar - classic blue brand identity
  */
 .twitter-card:hover::after {
-  height: 4px;
+  height: 0;
   background-color: #1DA1F2;
 }
 
@@ -143,7 +143,7 @@
  * BlueSky top bar - bright blue brand color
  */
 .bluesky-card:hover::after {
-  height: 4px;
+  height: 0;
   background-color: #0099ff;
 }
 
@@ -151,6 +151,11 @@
  * Discord top bar - blurple brand color
  */
 .discord-card:hover::after {
-  height: 4px;
+  height: 0;
   background-color: #7289da;
+}
+
+/* Ensure tweet embeds use parent spacing only */
+.blog-content blockquote.twitter-tweet {
+  margin: 0 !important;
 }
