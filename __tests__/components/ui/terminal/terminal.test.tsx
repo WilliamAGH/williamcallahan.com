@@ -356,7 +356,7 @@ describe('Terminal Component', () => {
        const maximizedTerminalElement = screen.getByTestId(terminalTestId);
        // Update expectation to match actual layout/positioning classes when maximized
        expect(maximizedTerminalElement).toHaveClass('fixed', 'left-0', 'right-0', 'top-14', 'bottom-0', 'z-[60]', 'w-full', 'h-[calc(100vh-56px)]', 'p-6');
-      expect(maximizedTerminalElement).not.toHaveClass('relative', 'mx-auto', 'mt-4', 'sm:mt-8', 'w-full', 'max-w-[calc(100vw-2rem)]', 'sm:max-w-3xl');
+      expect(maximizedTerminalElement).not.toHaveClass('relative', 'mx-auto', 'mt-4', 'sm:mt-8', 'max-w-[calc(100vw-2rem)]', 'sm:max-w-3xl');
       const maximizedInnerElement = screen.getByText(/Welcome! Type "help"/i).closest(innerContentSelector);
       expect(maximizedInnerElement).toHaveClass('flex-grow');
       expect(maximizedInnerElement).not.toHaveClass('max-h-[300px]', 'sm:max-h-[400px]');
