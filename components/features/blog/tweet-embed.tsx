@@ -44,8 +44,8 @@ export function TweetEmbed({ url, className = '' }: { url: string; className?: s
   if (!id) return null
 
   return (
-    <div className={`my-6 flex justify-center ${className}`}>
-      <Tweet
+    <div className={`mx-auto max-w-xl flex justify-center ${className}`}>
+        <Tweet
         id={id}
         components={{
           AvatarImg: ImgProxy, // author avatar

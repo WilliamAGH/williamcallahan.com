@@ -24,7 +24,6 @@ import { cn } from '@/lib/utils';
 import { useEffect, useRef } from 'react';
 import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
 import { Base64Image } from '@/components/utils/base64-image.client';
-import { ResponsiveTable } from '../../../ui/responsive-table.client';
 import React, { isValidElement } from 'react';
 import { InstructionMacOSFrameTabs, InstructionMACOSTab } from '../../../ui/instruction-macos-frame-tabs.client';
 import { ShellParentTabs, ShellTab } from '../../../ui/shell-parent-tabs.client';
@@ -211,11 +210,11 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
         return <MDXCodeBlock {...props} embeddedInTabFrame={true} className={childProps.className} />;
       }
 
-      // For standalone code blocks, MDXCodeBlock handles its own framing. Apply mb-4 to it.
+      // For standalone code blocks, MDXCodeBlock handles its own framing. Apply mb-6 to it.
       const childElement = props.children as ReactElement; // Cast to ReactElement
       const childClassName = (childElement.props as { className?: string })?.className; // Safe access
       return (
-          <MDXCodeBlock {...props} embeddedInTabFrame={false} className={cn(childClassName, "mb-4")} />
+          <MDXCodeBlock {...props} embeddedInTabFrame={false} className={cn(childClassName, "mb-6")} />
       );
     },
     // Restore custom 'code' component override for inline code (to fix regression)
@@ -330,20 +329,42 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     ),
     // Use the new ResponsiveTable component for markdown tables
     table: (props: ComponentProps<'table'>) => {
-      // Destructure children and pass the rest of the props
-      const { children, ...restProps } = props;
-      return <ResponsiveTable {...restProps}>{children}</ResponsiveTable>;
+      const { children, className, ...restProps } = props;
+      return (
+        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+          <table
+            {...restProps}
+            className={cn(
+              "min-w-full divide-y divide-gray-200 dark:divide-gray-700",
+              "bg-white dark:bg-gray-900", // Table background
+              className
+            )}
+          >
+            {children}
+          </table>
+        </div>
+      );
     },
     // Comment out old table styling overrides if they weren't already
-    // th: (props: ComponentProps<'th'>) => (
-    //   <th className="..." {...props} />
-    // ),
-    // td: (props: ComponentProps<'td'>) => (
-    //   <td className="..." {...props} />
-    // ),
+    thead: (props: ComponentProps<'thead'>) => (
+      <thead className="bg-gray-50 dark:bg-gray-800" {...props} />
+    ),
+    th: (props: ComponentProps<'th'>) => (
+      <th
+        scope="col"
+        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 whitespace-nowrap"
+        {...props}
+      />
+    ),
+    td: (props: ComponentProps<'td'>) => (
+      <td
+        className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap"
+        {...props}
+      />
+    ),
     TweetEmbed: (props: ComponentProps<typeof TweetEmbed>) => (
       <div className="not-prose">
-        {/* TweetEmbed handles its own my-6 margin and centering */}
+        {/* TweetEmbed handles its own margin and centering */}
         <TweetEmbed {...props} />
       </div>
     ),
@@ -368,11 +389,13 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
         "prose-ul:pl-6",
         "prose-ol:pl-6",
         "prose-blockquote:pl-4 prose-blockquote:border-l-4 prose-blockquote:border-blue-500 dark:prose-blockquote:border-blue-400",
-        "blog-content"
+        "blog-content",
+        // Custom class to remove prose margins and let space-y-6 handle spacing
+        "prose-spacing-override"
       )}
     >
       {/* Enforce consistent vertical gaps */}
-      <div className="flex flex-col space-y-6">
+      <div className="flex flex-col space-y-5">
         <MDXRemote {...content} components={components} />
       </div>
     </article>
