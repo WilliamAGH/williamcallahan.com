@@ -192,11 +192,11 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
               />
             )}
             <div className={cn(
-                "text-[8px] sm:text-[10px] md:text-xs text-gray-400",
+                "text-gray-400",
                 embeddedInTabFrame ? "w-full text-center" : "ml-1.5 sm:ml-2.5 md:ml-3.5"
             )}>
               <span>Code block hidden (click to show)</span>
-              {language && !embeddedInTabFrame && <span className="ml-1 sm:ml-2 opacity-75">- {language}</span>}
+              {language && !embeddedInTabFrame && <span style={{ fontSize: '12px' }} className="not-prose ml-1 sm:ml-2 opacity-75">- {language}</span>}
             </div>
           </div>
         </div>
@@ -227,7 +227,7 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
               isMaximized={isMaximized}
             />
             {language && (
-              <div className="ml-auto flex-shrink min-w-0 px-1.5 py-0.5 text-[8px] sm:text-xs font-mono rounded-md bg-gray-600/70 text-gray-300 uppercase truncate">
+              <div style={{ fontSize: '8px' }} className="not-prose ml-auto flex-shrink min-w-0 px-1.5 py-0.5 font-mono rounded-md bg-gray-600/70 text-gray-300 uppercase truncate">
                 {language}
               </div>
             )}
