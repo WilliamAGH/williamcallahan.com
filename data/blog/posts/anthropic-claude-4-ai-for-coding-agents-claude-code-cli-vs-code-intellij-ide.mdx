@@ -25,42 +25,12 @@ It excels at sustained performance on complex, long-running tasks that require t
 
 The performance improvements are substantial, with Claude models now leading on key benchmarks:
 
-<BreakoutTable>
-  <thead>
-    <tr>
-      <th>Benchmark</th>
-      <th>Claude Opus 4</th>
-      <th>Claude Sonnet 4</th>
-      <th>Previous Best</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>SWE-bench Verified</td>
-      <td>72.5%</td>
-      <td>72.7%</td>
-      <td>67.0% (GPT-4.1)</td>
-    </tr>
-    <tr>
-      <td>Terminal-bench</td>
-      <td>43.2%</td>
-      <td>39.6%</td>
-      <td>38.0% (GPT-4.1)</td>
-    </tr>
-    <tr>
-      <td>MMLU</td>
-      <td>90.2%</td>
-      <td>88.0%</td>
-      <td>88.7% (GPT-4.1)</td>
-    </tr>
-    <tr>
-      <td>TAU-bench</td>
-      <td>83.0%</td>
-      <td>78.0%</td>
-      <td>76.0% (o3)</td>
-    </tr>
-  </tbody>
-</BreakoutTable>
+| Benchmark | Claude Opus 4 | Claude Sonnet 4 | Previous Best |
+|-----------|---------------|-----------------|---------------|
+| SWE-bench Verified | 72.5% | 72.7% | 67.0% (GPT-4.1) |
+| Terminal-bench | 43.2% | 39.6% | 38.0% (GPT-4.1) |
+| MMLU | 90.2% | 88.0% | 88.7% (GPT-4.1) |
+| TAU-bench | 83.0% | 78.0% | 76.0% (o3) |
 
 What's particularly impressive is Claude Opus 4's ability to maintain performance over extended periods, at least according to the benchmark results. They cited today a Rakuten validation of this by having Opus 4 run a demanding open-source refactor continuously for 7 hours with sustained performance—something previous models couldn't achieve. If true, this would constitute a significant improvement over the status quo -- I'll be testing this shortly.
 
@@ -165,33 +135,10 @@ Anthropic has released four new capabilities on their API specifically designed 
 
 Both models maintain consistent pricing with previous Opus and Sonnet models:
 
-<BreakoutTable>
-  <thead>
-    <tr>
-      <th>Model</th>
-      <th>Input Tokens</th>
-      <th>Output Tokens</th>
-      <th>Context Window</th>
-      <th>Availability</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>Claude Opus 4</td>
-      <td>$15 per million</td>
-      <td>$75 per million</td>
-      <td>200K tokens</td>
-      <td>Pro, Max, Team, Enterprise</td>
-    </tr>
-    <tr>
-      <td>Claude Sonnet 4</td>
-      <td>$3 per million</td>
-      <td>$15 per million</td>
-      <td>200K tokens</td>
-      <td>All users (including free)</td>
-    </tr>
-  </tbody>
-</BreakoutTable>
+| Model | Input Tokens | Output Tokens | Context Window | Availability |
+|-------|--------------|---------------|----------------|--------------|
+| Claude Opus 4 | $15 per million | $75 per million | 200K tokens | Pro, Max, Team, Enterprise |
+| Claude Sonnet 4 | $3 per million | $15 per million | 200K tokens | All users (including free) |
 
 Both models are available on:
 - Claude.ai
