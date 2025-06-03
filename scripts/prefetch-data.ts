@@ -19,6 +19,10 @@ const VERBOSE = process.env.VERBOSE === 'true';
 const ROOT_DIR = process.cwd();
 const BUILD_TIME = process.env.NODE_ENV === 'production' || process.env.NEXT_PHASE === 'phase-production-build';
 
+// Logo prefetch configuration - make batch size and delay configurable
+const LOGO_BATCH_SIZE = Number.parseInt(process.env.LOGO_BATCH_SIZE || '5', 10);
+const LOGO_BATCH_DELAY_MS = Number.parseInt(process.env.LOGO_BATCH_DELAY_MS || '200', 10);
+
 // Wait function for rate limiting
 const wait = (ms: number): Promise<void> => new Promise<void>(resolvePromise => setTimeout(resolvePromise, ms));
 
@@ -31,8 +35,9 @@ async function prefetchBookmarksData(): Promise<UnifiedBookmark[]> {
     console.log('[Prefetch] Prefetching bookmarks data via data-access layer...');
 
     // Use getBookmarks directly from data-access layer
-    // During build time, we skip external fetch to avoid API calls
-    const bookmarks = await getBookmarks(BUILD_TIME);
+    // In CI/production builds, we skip external fetches to avoid API calls
+    // since environment variables for remote APIs are not available during builds
+    const bookmarks = await getBookmarks(/* skipExternalFetch = */ BUILD_TIME);
 
     if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
       console.log(`[Prefetch] Successfully fetched ${bookmarks.length} bookmarks from data-access layer.`);
@@ -158,11 +163,10 @@ async function prefetchLogosData(bookmarksData: UnifiedBookmark[]): Promise<void
   const domainArray = Array.from(domains);
   let successCount = 0;
   let failureCount = 0;
-  const BATCH_SIZE = 5; // Process logos in smaller batches
 
-  for (let i = 0; i < domainArray.length; i += BATCH_SIZE) {
-    const batch = domainArray.slice(i, i + BATCH_SIZE);
-    console.log(`[Prefetch] Processing logo batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(domainArray.length / BATCH_SIZE)} for ${batch.length} domains`);
+  for (let i = 0; i < domainArray.length; i += LOGO_BATCH_SIZE) {
+    const batch = domainArray.slice(i, i + LOGO_BATCH_SIZE);
+    console.log(`[Prefetch] Processing logo batch ${Math.floor(i / LOGO_BATCH_SIZE) + 1}/${Math.ceil(domainArray.length / LOGO_BATCH_SIZE)} for ${batch.length} domains`);
     const promises = batch.map(async (domain) => {
       try {
         // Call getLogo directly. It handles fetching and storing to volume/cache.
@@ -181,8 +185,8 @@ async function prefetchLogosData(bookmarksData: UnifiedBookmark[]): Promise<void
       }
     });
     await Promise.allSettled(promises);
-    if (i + BATCH_SIZE < domainArray.length) {
-      await wait(200); // Shorter delay as getLogo has its own internal fetching logic
+    if (i + LOGO_BATCH_SIZE < domainArray.length) {
+      await wait(LOGO_BATCH_DELAY_MS);
     }
   }
   console.log(`[Prefetch] Logo prefetching complete: ${successCount} ensured, ${failureCount} failed/skipped.`);
