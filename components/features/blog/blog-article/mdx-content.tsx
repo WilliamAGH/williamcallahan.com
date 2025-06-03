@@ -9,7 +9,15 @@
 
 "use client";
 
-import type { ComponentProps, ReactNode, ReactElement } from 'react';
+import React, {
+  type ComponentProps,
+  type ReactNode,
+  type ReactElement,
+  isValidElement,
+  useEffect,
+  useRef,
+  useMemo
+} from 'react';
 import { MDXRemote } from 'next-mdx-remote';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 import Link from 'next/link';
@@ -21,10 +29,8 @@ import { ExternalLink } from '../../../ui/external-link.client';
 import { ImageWindow } from '../../../ui/window/image-window.client';
 import { SoftwareSchema } from './software-schema';
 import { cn } from '@/lib/utils';
-import { useEffect, useRef } from 'react';
 import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
 import { Base64Image } from '@/components/utils/base64-image.client';
-import React, { isValidElement } from 'react';
 import { InstructionMacOSFrameTabs, InstructionMACOSTab } from '../../../ui/instruction-macos-frame-tabs.client';
 import { ShellParentTabs, ShellTab } from '../../../ui/shell-parent-tabs.client';
 import { MacOSWindow, MacOSCodeWindow } from '../../../ui/macos-window.client';
@@ -97,16 +103,14 @@ const MdxImage = ({
   );
 
   return (
-    <>
-      <div className={`${widthClass} mx-auto my-6`}>
-        {content}
-      </div>
+    <figure className={`${widthClass} mx-auto my-6`}>
+      {content}
       {caption && (
-        <figcaption className={`text-base text-gray-600 dark:text-gray-400 italic text-center mt-2 mb-6 px-4 ${widthClass} mx-auto`}>
+        <figcaption className="mt-2 text-center text-sm text-muted-foreground">
           {caption}
         </figcaption>
       )}
-    </>
+    </figure>
   );
 };
 
@@ -156,14 +160,14 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     // Fix all SVG transforms in the rendered MDX content
     if (contentRef.current) {
       const svgs = contentRef.current.querySelectorAll('svg');
-      svgs.forEach(svg => {
+      for (const svg of svgs) {
         processSvgTransforms(svg);
-      });
+      }
     }
-  }, [content]);
+  }, []);
 
-  // Define components map for MDX rendering
-  const components = {
+  // Define components map for MDX rendering - memoized to prevent unnecessary re-renders
+  const components = useMemo(() => ({
     // Use MDXCodeBlock with a custom class that will override prose styling
     pre: (props: ComponentProps<'pre'>) => {
       let isProperCodeBlock = false;
@@ -368,7 +372,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
         <TweetEmbed {...props} />
       </div>
     ),
-  };
+  }), []);
 
   return (
     // Use base prose for mobile, maintain consistent text size
