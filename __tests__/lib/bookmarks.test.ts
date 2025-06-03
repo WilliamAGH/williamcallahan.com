@@ -369,23 +369,36 @@ describe('Bookmarks Module', () => {
   it('should handle missing BOOKMARK_BEARER_TOKEN', async () => {
     // Spy on global fetch to ensure it's NOT called
     const fetchSpy = spyOn(globalThis, 'fetch');
-    // Remove token
-    delete process.env.BOOKMARK_BEARER_TOKEN;
 
-    const bookmarks = await fetchExternalBookmarks();
+    // Store the original token
+    const originalToken = process.env.BOOKMARK_BEARER_TOKEN;
+    // Remove token by setting to undefined
+    process.env.BOOKMARK_BEARER_TOKEN = undefined;
 
-    // The client implementation still makes a fetch call to the API endpoint
-    // even when the token is missing, so we don't check if fetch was called
+    try {
+      const bookmarks = await fetchExternalBookmarks();
 
-    // Verify it returned empty array
-    expect(bookmarks).toEqual([]);
+      // The client implementation still makes a fetch call to the API endpoint
+      // even when the token is missing, so we don't check if fetch was called
 
-    // The client implementation logs a different error message
-    expect(consoleErrorSpy).toHaveBeenCalled();
+      // Verify it returned empty array
+      expect(bookmarks).toEqual([]);
 
-    // The client implementation doesn't call setBookmarks with isFailure=true
-    // so we don't check for that
-    fetchSpy.mockRestore(); // Restore fetch spy
+      // The client implementation logs a different error message
+      expect(consoleErrorSpy).toHaveBeenCalled();
+
+      // The client implementation doesn't call setBookmarks with isFailure=true
+      // so we don't check for that
+    } finally {
+      // Restore the original token
+      if (originalToken !== undefined) {
+        process.env.BOOKMARK_BEARER_TOKEN = originalToken;
+      } else {
+        // If it was originally undefined, setting it to undefined is the correct restoration.
+        process.env.BOOKMARK_BEARER_TOKEN = undefined;
+      }
+      fetchSpy.mockRestore(); // Restore fetch spy
+    }
   });
 
   it('should handle API fetch errors', async () => {
