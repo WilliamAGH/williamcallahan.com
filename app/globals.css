@@ -228,9 +228,9 @@ html {
   /* Force code blocks to wrap properly */
   .blog-content pre,
   .blog-content code {
-    white-space: pre-wrap !important;
-    overflow-wrap: break-word !important;
-    word-wrap: break-word !important;
+    white-space: pre-wrap ;
+    overflow-wrap: break-word ;
+    word-wrap: break-word ;
   }
 
   /* Force long URLs and paths to break */
@@ -258,12 +258,12 @@ html {
 
   /* Fix react-tweet avatar positioning */
   .react-tweet-theme [class*="avatarOverflow"] {
-    top: 0 !important;
-    left: 0 !important;
+    top: 0 ;
+    left: 0 ;
   }
 
   .prose p, .prose ul, .prose ol, .prose li, .prose blockquote, .prose a, .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
-    overflow-wrap: break-word !important; /* Ensure wrapping for all prose elements */
+    overflow-wrap: break-word ; /* Ensure wrapping for all prose elements */
   }
 
   /* Ensure long words or strings don't overflow their container */
@@ -275,17 +275,17 @@ html {
 /* The following fix is no longer needed with our simplified approach */
 /* Fix for code block corner rendering */
 /* .rounded-b-lg {
-  border-bottom-left-radius: 0.5rem !important;
-  border-bottom-right-radius: 0.5rem !important;
+  border-bottom-left-radius: 0.5rem ;
+  border-bottom-right-radius: 0.5rem ;
 }
 
 .rounded-t-lg {
-  border-top-left-radius: 0.5rem !important;
-  border-top-right-radius: 0.5rem !important;
+  border-top-left-radius: 0.5rem ;
+  border-top-right-radius: 0.5rem ;
 }
 
 .rounded-lg {
-  border-radius: 0.5rem !important;
+  border-radius: 0.5rem ;
 } */
 
 
@@ -294,17 +294,17 @@ html {
 [data-darkreader-scheme],
 html[data-darkreader-mode] {
   /* Respect Dark Reader by not interfering with it */
-  color-scheme: dark !important;
+  color-scheme: dark ;
 }
 
 /* When Dark Reader is active, make our dark mode styles work with it */
 .dark-reader-active {
   /* Override conflicts between Dark Reader & our dark mode */
-  --background: 222.2 84% 4.9% !important;
-  --foreground: 0 0% 100% !important;
+  --background: 222.2 84% 4.9% ;
+  --foreground: 0 0% 100% ;
 
   /* Let Dark Reader handle the color transformations */
-  transition: none !important;
+  transition: none ;
 }
 
 /* Reset our previous Dark Reader overrides which were fighting against it */
@@ -313,13 +313,13 @@ html[data-darkreader-mode] {
 [data-darkreader-inline-color],
 [data-darkreader-inline-bgcolor] {
   /* Allow Dark Reader to control these elements */
-  filter: none !important;
+  filter: none ;
 }
 
 /* Don't override Dark Reader specific inline CSS variables */
 *[style*="--darkreader-inline"] {
   /* Let Dark Reader handle its styling */
-  transition: inherit !important;
+  transition: inherit ;
 }
 
 /* Twitter/X Icon Fix for all devices */
@@ -339,9 +339,9 @@ html[data-darkreader-mode] {
     /* Add mobile-specific styling for X icon */
     margin-right: 0px; /* Adjust spacing */
     margin-left: 4px; /* Increase left margin to center the icon */
-    width: 18px !important; /* Slightly smaller icon on mobile */
-    height: 18px !important;
-    transform: translateX(2px) !important; /* Shift right to center the icon */
+    width: 18px ; /* Slightly smaller icon on mobile */
+    height: 18px ;
+    transform: translateX(2px) ; /* Shift right to center the icon */
   }
 
   /* Ensure all social icons are properly sized on mobile */
@@ -349,37 +349,31 @@ html[data-darkreader-mode] {
     padding-right: 4px;
     min-width: 32px; /* Ensure minimum width for the container */
     min-height: 32px; /* Ensure minimum height */
-    display: flex !important; /* Force display */
-    visibility: visible !important; /* Ensure visibility */
-    z-index: 1100 !important; /* Highest z-index for mobile */
+    display: flex ; /* Force display */
+    visibility: visible ; /* Ensure visibility */
+    z-index: 1100 ; /* Highest z-index for mobile */
   }
 
   /* Add a bit more spacing around social icons in header */
   header .flex.items-center.space-x-1 a {
-    padding: 6px !important;
-    display: flex !important; /* Force display */
-    visibility: visible !important; /* Ensure visibility */
+    padding: 6px ;
+    display: flex ; /* Force display */
+    visibility: visible ; /* Ensure visibility */
   }
 
   /* Force display social icons container on mobile */
   header .sm\:hidden .flex.items-center.p-1,
   #mobile-social-container {
-    display: flex !important;
-    visibility: visible !important;
-    z-index: 1100 !important;
-    opacity: 1 !important;
-  }
-
-  /* Simplified X icon styling - matching theme toggle dimensions */
-  .x-icon {
-    display: inline-block;
-    vertical-align: middle;
+    display: flex ;
+    visibility: visible ;
+    z-index: 1100 ;
+    opacity: 1 ;
   }
 }
 
 /* Prevent transition on social icons to avoid hydration issues */
 [data-transform-fix="true"] {
-  transition: none !important;
+  transition: none ;
 }
 
 /* Add basic shadcn/ui component styles without overriding fonts

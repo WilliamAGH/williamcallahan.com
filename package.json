@@ -1,5 +1,6 @@
 {
   "name": "william-callahan-dot-com",
+  "type": "module",
   "private": true,
   "version": "0.0.4",
   "scripts": {
@@ -23,7 +24,7 @@
     "docker:populate-volumes": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production -e CONTAINER=true williamcallahan-web:latest bun scripts/populate-volumes.ts",
     "lint": "eslint . --config eslint.config.ts",
     "lint:errors": "eslint . --config eslint.config.ts --quiet",
-    "lint:css": "stylelint 'app/**/*.css' 'styles/**/*.css'",
+    "lint:css": "stylelint --fix 'app/**/*.css' 'styles/**/*.css'",
     "biome:check": "biome check .",
     "biome:format": "biome format --write .",
     "biome:lint": "biome lint .",
@@ -117,6 +118,7 @@
     "rehype-slug": "^6.0.0",
     "stylelint": "^16.20.0",
     "stylelint-config-prettier": "^9.0.5",
+    "stylelint-config-recommended": "^16.0.0",
     "stylelint-config-standard": "^38.0.0",
     "stylelint-config-tailwindcss": "^1.0.0",
     "tailwindcss": "^3.4.17",
@@ -130,7 +132,6 @@
       "eslint --config eslint.config.ts --fix"
     ]
   },
-  "packageManager": "pnpm@9.15.0+sha512.76e2379760a4328ec4415815bcd6628dee727af3779aaa4c914e3944156c4299921a89f976381ee107d41f12cfa4b66681ca9c718f0668fa0831ed4c6d8ba56c",
   "trustedDependencies": [
     "@sentry/cli",
     "@swc/core",

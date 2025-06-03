@@ -8,6 +8,8 @@
   "editor.wordWrap": "on",
   "files.trimTrailingWhitespace": true,
   "css.validate": true,
+  "stylelint.configFile": "stylelint.config.js",
+  "stylelint.validate": ["css", "scss"],
   "css.customData": [".vscode/css-data.json"],
   "scss.validate": false,
   "editor.quickSuggestions": {
