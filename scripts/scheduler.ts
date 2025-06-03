@@ -52,6 +52,15 @@ cron.schedule(bookmarksCron, () => {
     console.error(`[Scheduler] [Bookmarks] update-s3 script failed (code ${result.status}). Error: ${result.error}`);
   } else {
     console.log('[Scheduler] [Bookmarks] update-s3 script completed successfully');
+
+    // Submit updated sitemap to search engines
+    console.log('[Scheduler] [Bookmarks] Submitting updated sitemap to search engines...');
+    const sitemapResult = spawnSync('bun', ['run', 'submit-sitemap'], { env: process.env, stdio: 'inherit' });
+    if (sitemapResult.status !== 0) {
+      console.error(`[Scheduler] [Bookmarks] Sitemap submission failed (code ${sitemapResult.status}). Error: ${sitemapResult.error}`);
+    } else {
+      console.log('[Scheduler] [Bookmarks] Sitemap submitted successfully to search engines');
+    }
   }
 });
 
