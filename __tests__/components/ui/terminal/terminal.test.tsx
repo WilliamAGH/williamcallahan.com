@@ -40,9 +40,9 @@ void mock.module('../../../../components/ui/terminal/terminal-header', () => ({
     isMaximized?: boolean;
   }) => (
     <div data-testid="mock-terminal-header">
-      <button title="Close" onClick={onClose} disabled={!onClose}>Close</button>
-      <button title="Minimize" onClick={onMinimize} disabled={!onMinimize}>Minimize</button>
-      <button title={isMaximized ? "Restore" : "Maximize"} onClick={onMaximize} disabled={!onMaximize}>
+      <button type="button" title="Close" onClick={onClose} disabled={!onClose}>Close</button>
+      <button type="button" title="Minimize" onClick={onMinimize} disabled={!onMinimize}>Minimize</button>
+      <button type="button" title={isMaximized ? "Restore" : "Maximize"} onClick={onMaximize} disabled={!onMaximize}>
         {isMaximized ? "Restore" : "Maximize"}
       </button>
     </div>
@@ -382,7 +382,7 @@ describe('Terminal Component', () => {
         expect(restoredElement).not.toBeNull(); // Ensure the element is found by getByTestId
 
         // Assert classes on the found element
-        expect(restoredElement).toHaveClass('relative', 'mx-auto', 'mt-4', 'sm:mt-8', 'w-full', 'max-w-[calc(100vw-2rem)]', 'sm:max-w-3xl');
+        expect(restoredElement).toHaveClass('relative', 'mx-auto', 'my-4', 'sm:my-8', 'w-full', 'max-w-[calc(100vw-2rem)]', 'sm:max-w-3xl');
         expect(restoredElement).not.toHaveClass('w-full', 'max-w-6xl', 'h-full', 'p-6');
 
         // Assert inner element classes
