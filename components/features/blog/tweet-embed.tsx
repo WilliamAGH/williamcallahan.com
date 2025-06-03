@@ -1,4 +1,5 @@
 import { Tweet } from 'react-tweet'
+import Image from 'next/image'
 
 /** Swap every pbs.twimg.com image for a same-origin proxy */
 const proxy = (src: string) => {
@@ -22,21 +23,42 @@ const proxy = (src: string) => {
     }
   }
 
-  const proxiedPath = modifiedSrc.slice('https://pbs.twimg.com/'.length);
+  const proxiedPath = encodeURIComponent(
+    modifiedSrc.slice('https://pbs.twimg.com/'.length)
+  );
   return `/api/twitter-image/${proxiedPath}`;
 }
 
 const ImgProxy = ({
   src = '',
   alt,
+  width,
+  height,
   ...rest
-}: React.ImgHTMLAttributes<HTMLImageElement>) => {
+}: React.ImgHTMLAttributes<HTMLImageElement> & {
+  width?: number;
+  height?: number;
+}) => {
   console.log('[ImgProxy] Original src received:', src);
   const proxiedSrc = proxy(src);
   console.log('[ImgProxy] Proxied src to be used:', proxiedSrc);
-  // plain <img> works fine; use next/image if you prefer
+
+    // Use Next.js Image component for better performance when dimensions are available
+  if (width && height) {
+    return (
+      <Image
+        src={proxiedSrc}
+        alt={alt || 'Tweet image'}
+        width={width}
+        height={height}
+        {...rest}
+      />
+    );
+  }
+
+  // Fallback to regular img with explicit alt text for accessibility
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={proxiedSrc} alt={alt} {...rest} />;
+      return <img src={proxiedSrc} alt={alt || 'Tweet image'} {...rest} />;
 }
 
 export function TweetEmbed({ url, className = '' }: { url: string; className?: string }) {
