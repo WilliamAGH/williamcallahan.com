@@ -1,7 +1,8 @@
 import * as Sentry from '@sentry/nextjs';
 
-// Global flag to prevent multiple concurrent preloading attempts
+// Global flags to prevent multiple concurrent preloading attempts and repeated preloads
 let isPreloading = false;
+let hasPreloaded = false;
 let preloadPromise: Promise<void> | null = null;
 
 export function register() {
@@ -51,8 +52,8 @@ async function preloadBookmarksIfNeeded(): Promise<void> {
   }
 
   // If already preloaded, skip
-  if (isPreloading) {
-    return;
+  if (hasPreloaded) {
+    return Promise.resolve();
   }
 
   isPreloading = true;
@@ -81,6 +82,7 @@ async function preloadBookmarksIfNeeded(): Promise<void> {
       console.error('Failed to preload bookmarks:', error);
       // Don't throw - just log the error to prevent server startup issues
     } finally {
+      hasPreloaded = true;
       isPreloading = false;
       preloadPromise = null;
     }
