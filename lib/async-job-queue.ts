@@ -1,4 +1,4 @@
-import EventEmitter from 'events';
+import EventEmitter from 'node:events';
 
 export type Job = () => Promise<void>;
 
@@ -7,7 +7,7 @@ export class AsyncJobQueue extends EventEmitter {
   private processing = false;
   private readonly maxQueueSize: number;
 
-  constructor(maxQueueSize: number = 100) {
+  constructor(maxQueueSize = 100) {
     super();
     this.maxQueueSize = maxQueueSize;
   }

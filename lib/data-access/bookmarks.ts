@@ -68,7 +68,8 @@ async function fetchExternalBookmarksWithRetry(retries = 3, delay = 1000): Promi
     }
     const result = await fetchExternalBookmarks();
     if (result && result.length > 0) return result;
-    await new Promise(res => setTimeout(res, delay * Math.pow(2, attempt)));
+    const backoffMs = Math.min(delay * 2 ** attempt, 30_000); // cap at 30 s
+    await new Promise(res => setTimeout(res, backoffMs));
   }
   console.warn('[DataAccess/Bookmarks] All retry attempts exhausted for fetching bookmarks');
   return null;
@@ -110,7 +111,7 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
     } else if (ServerCacheInstance.shouldRefreshBookmarks()) {
       // console.log('[Bookmarks] cache stale but external fetch skipped, not enqueueing refresh');
     }
-    return cached!.bookmarks;
+    return cached?.bookmarks ?? [];
   }
 
   let s3Bookmarks: UnifiedBookmark[] | null = null;
