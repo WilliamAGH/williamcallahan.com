@@ -33,11 +33,14 @@
   },
   "files.associations": {
     "*.tsx": "typescriptreact",
-    "*.ts": "typescript"
+    "*.ts": "typescript",
+    ".env": "dotenv",
+    ".env.*": "dotenv",
+    "*.env": "dotenv",
+    "*.env.*": "dotenv",
+    ".env-example": "dotenv"
   },
-  "typescript.enabled": true,
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "typescript.preferences.useAliasesForRenames": false,
-  "typescript.surveys.enabled": false,
   "typescript.workspaceSymbols.scope": "allOpenProjects"
 }
