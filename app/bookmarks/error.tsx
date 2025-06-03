@@ -3,7 +3,7 @@
 
 import { useEffect } from 'react';
 import { formatDate as utilFormatDate } from '@/lib/utils';
-import { getErrorTimestamp, type BookmarkError } from '@/types';
+import { getErrorTimestamp } from '@/types';
 
 interface ErrorPageProps {
   error: Error;
