@@ -40,9 +40,9 @@ void mock.module('../../../../components/ui/terminal/terminal-header', () => ({
     isMaximized?: boolean;
   }) => (
     <div data-testid="mock-terminal-header">
-      <button title="Close" onClick={onClose} disabled={!onClose}>Close</button>
-      <button title="Minimize" onClick={onMinimize} disabled={!onMinimize}>Minimize</button>
-      <button title={isMaximized ? "Restore" : "Maximize"} onClick={onMaximize} disabled={!onMaximize}>
+      <button type="button" title="Close" onClick={onClose} disabled={!onClose}>Close</button>
+      <button type="button" title="Minimize" onClick={onMinimize} disabled={!onMinimize}>Minimize</button>
+      <button type="button" title={isMaximized ? "Restore" : "Maximize"} onClick={onMaximize} disabled={!onMaximize}>
         {isMaximized ? "Restore" : "Maximize"}
       </button>
     </div>
@@ -329,7 +329,7 @@ describe('Terminal Component', () => {
 
       // --- Initial State Check ---
       const initialTerminalElement = screen.getByTestId(terminalTestId);
-      expect(initialTerminalElement).toHaveClass('relative', 'mx-auto', 'terminal-reduced-margin', 'w-full', 'max-w-[calc(100vw-2rem)]', 'sm:max-w-3xl');
+      expect(initialTerminalElement).toHaveClass('relative', 'mx-auto', 'mt-4', 'sm:mt-8', 'w-full', 'max-w-[calc(100vw-2rem)]', 'sm:max-w-3xl');
       const initialInnerElement = screen.getByText(/Welcome! Type "help"/i).closest(innerContentSelector);
       expect(initialInnerElement).toHaveClass('max-h-[300px]', 'sm:max-h-[400px]');
       expect(initialInnerElement).not.toHaveClass('flex-grow');
@@ -356,7 +356,7 @@ describe('Terminal Component', () => {
        const maximizedTerminalElement = screen.getByTestId(terminalTestId);
        // Update expectation to match actual layout/positioning classes when maximized
        expect(maximizedTerminalElement).toHaveClass('fixed', 'left-0', 'right-0', 'top-14', 'bottom-0', 'z-[60]', 'w-full', 'h-[calc(100vh-56px)]', 'p-6');
-      expect(maximizedTerminalElement).not.toHaveClass('relative', 'mx-auto', 'terminal-reduced-margin', 'w-full', 'max-w-[calc(100vw-2rem)]', 'sm:max-w-3xl');
+      expect(maximizedTerminalElement).not.toHaveClass('relative', 'mx-auto', 'mt-4', 'sm:mt-8', 'max-w-[calc(100vw-2rem)]', 'sm:max-w-3xl');
       const maximizedInnerElement = screen.getByText(/Welcome! Type "help"/i).closest(innerContentSelector);
       expect(maximizedInnerElement).toHaveClass('flex-grow');
       expect(maximizedInnerElement).not.toHaveClass('max-h-[300px]', 'sm:max-h-[400px]');
@@ -382,7 +382,7 @@ describe('Terminal Component', () => {
         expect(restoredElement).not.toBeNull(); // Ensure the element is found by getByTestId
 
         // Assert classes on the found element
-        expect(restoredElement).toHaveClass('relative', 'mx-auto', 'terminal-reduced-margin', 'w-full', 'max-w-[calc(100vw-2rem)]', 'sm:max-w-3xl');
+        expect(restoredElement).toHaveClass('relative', 'mx-auto', 'my-4', 'sm:my-8', 'w-full', 'max-w-[calc(100vw-2rem)]', 'sm:max-w-3xl');
         expect(restoredElement).not.toHaveClass('w-full', 'max-w-6xl', 'h-full', 'p-6');
 
         // Assert inner element classes

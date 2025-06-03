@@ -8,7 +8,16 @@
  */
 
 "use client";
-import type { ComponentProps, ReactNode, ReactElement } from 'react';
+
+import React, {
+  type ComponentProps,
+  type ReactNode,
+  type ReactElement,
+  isValidElement,
+  useEffect,
+  useRef,
+  useMemo
+} from 'react';
 import { MDXRemote } from 'next-mdx-remote';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 import Link from 'next/link';
@@ -20,14 +29,12 @@ import { ExternalLink } from '../../../ui/external-link.client';
 import { ImageWindow } from '../../../ui/window/image-window.client';
 import { SoftwareSchema } from './software-schema';
 import { cn } from '@/lib/utils';
-import { useEffect, useRef } from 'react';
 import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
 import { Base64Image } from '@/components/utils/base64-image.client';
-import { ResponsiveTable } from '../../../ui/responsive-table.client';
-import React, { isValidElement } from 'react';
 import { InstructionMacOSFrameTabs, InstructionMACOSTab } from '../../../ui/instruction-macos-frame-tabs.client';
 import { ShellParentTabs, ShellTab } from '../../../ui/shell-parent-tabs.client';
 import { MacOSWindow, MacOSCodeWindow } from '../../../ui/macos-window.client';
+import { TweetEmbed } from '../tweet-embed';
 
 interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'width' | 'loading' | 'style'> {
   caption?: string;
@@ -35,6 +42,12 @@ interface ArticleImageProps extends Omit<ComponentProps<'img'>, 'height' | 'widt
   priority?: boolean;
 }
 
+/**
+ * Renders an image within MDX content, with caption and sizing options
+ * Handles both external URLs and Base64 data URLs
+ * @param {ArticleImageProps} props - Component props for the image
+ * @returns {JSX.Element | null} The rendered image component or null if no src
+ */
 const MdxImage = ({
   src = '',
   alt = '',
@@ -64,48 +77,40 @@ const MdxImage = ({
     size === 'small' ? 'max-w-lg' : ''
   );
 
-  if (isDataUrl) {
-    return (
-      <>
-        <div className={`${widthClass} mx-auto my-6`}>
-          <Base64Image
-            src={src}
-            alt={alt}
-            width={1600}
-            height={800}
-            className="rounded-lg shadow-md"
-            priority={priority}
-          />
-        </div>
-        {caption && (
-          <figcaption className={`text-base text-gray-600 dark:text-gray-400 italic text-center mt-2 mb-6 px-4 ${widthClass} mx-auto`}>
-            {caption}
-          </figcaption>
-        )}
-      </>
-    );
-  }
+  // Choose the appropriate image component based on data URL or external
+  const content = isDataUrl ? (
+    <Base64Image
+      src={src}
+      alt={alt}
+      width={1600}
+      height={800}
+      className="rounded-lg shadow-md"
+      priority={priority}
+    />
+  ) : (
+    <ImageWindow
+      src={src}
+      alt={alt}
+      width={1600}
+      height={800}
+      sizes={imageSizes}
+      priority={priority || src.endsWith('.svg')}
+      unoptimized={src.endsWith('.svg')}
+      wrapperClassName={windowWrapperClass}
+      noMargin={Boolean(caption)}
+      style={{ width: '100%', height: 'auto' }}
+    />
+  );
 
   return (
-    <>
-      <ImageWindow
-        src={src}
-        alt={alt}
-        width={1600}
-        height={800}
-        sizes={imageSizes}
-        priority={priority || src.endsWith('.svg')}
-        unoptimized={src.endsWith('.svg')}
-        wrapperClassName={windowWrapperClass}
-        noMargin={Boolean(caption)}
-        style={{ width: '100%', height: 'auto' }}
-      />
+    <figure className={`${widthClass} mx-auto my-6`}>
+      {content}
       {caption && (
-        <figcaption className={`text-base text-gray-600 dark:text-gray-400 italic text-center mt-2 mb-6 px-4 ${widthClass} mx-auto`}>
+        <figcaption className="mt-2 text-center text-sm text-muted-foreground">
           {caption}
         </figcaption>
       )}
-    </>
+    </figure>
   );
 };
 
@@ -114,6 +119,11 @@ interface ArticleGalleryProps {
   className?: string;
 }
 
+/**
+ * A gallery container for grouping images or other media within an article
+ * @param {ArticleGalleryProps} props - Component props for the gallery
+ * @returns {JSX.Element} The rendered gallery container
+ */
 const ArticleGallery = ({
   children,
   className = ''
@@ -136,10 +146,12 @@ interface MDXContentProps {
 /**
  * MDXContent Component
  *
- * Server-side renderer for MDX content
+ * Client-side renderer for MDX content using MDXRemote
+ * Applies custom components and styling for various HTML elements and custom directives
+ * Also handles SVG transform processing after content rendering
  *
- * @param {MDXContentProps} props - Component props
- * @returns {JSX.Element} Rendered MDX content
+ * @param {MDXContentProps} props - Component props containing the serialized MDX
+ * @returns {JSX.Element} Rendered MDX content as a React element
  */
 export function MDXContent({ content }: MDXContentProps): JSX.Element {
   const contentRef = useRef<HTMLDivElement>(null);
@@ -148,14 +160,14 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     // Fix all SVG transforms in the rendered MDX content
     if (contentRef.current) {
       const svgs = contentRef.current.querySelectorAll('svg');
-      svgs.forEach(svg => {
+      for (const svg of svgs) {
         processSvgTransforms(svg);
-      });
+      }
     }
-  }, [content]);
+  }, []);
 
-  // Define components map for MDX rendering
-  const components = {
+  // Define components map for MDX rendering - memoized to prevent unnecessary re-renders
+  const components = useMemo(() => ({
     // Use MDXCodeBlock with a custom class that will override prose styling
     pre: (props: ComponentProps<'pre'>) => {
       let isProperCodeBlock = false;
@@ -202,11 +214,11 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
         return <MDXCodeBlock {...props} embeddedInTabFrame={true} className={childProps.className} />;
       }
 
-      // For standalone code blocks, MDXCodeBlock handles its own framing. Apply mb-4 to it.
+      // For standalone code blocks, MDXCodeBlock handles its own framing. Apply mb-6 to it.
       const childElement = props.children as ReactElement; // Cast to ReactElement
       const childClassName = (childElement.props as { className?: string })?.className; // Safe access
       return (
-          <MDXCodeBlock {...props} embeddedInTabFrame={false} className={cn(childClassName, "mb-4")} />
+          <MDXCodeBlock {...props} embeddedInTabFrame={false} className={cn(childClassName, "mb-6")} />
       );
     },
     // Restore custom 'code' component override for inline code (to fix regression)
@@ -321,18 +333,46 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     ),
     // Use the new ResponsiveTable component for markdown tables
     table: (props: ComponentProps<'table'>) => {
-      // Destructure children and pass the rest of the props
-      const { children, ...restProps } = props;
-      return <ResponsiveTable {...restProps}>{children}</ResponsiveTable>;
+      const { children, className, ...restProps } = props;
+      return (
+        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+          <table
+            {...restProps}
+            className={cn(
+              "min-w-full divide-y divide-gray-200 dark:divide-gray-700",
+              "bg-white dark:bg-gray-900", // Table background
+              className
+            )}
+          >
+            {children}
+          </table>
+        </div>
+      );
     },
     // Comment out old table styling overrides if they weren't already
-    // th: (props: ComponentProps<'th'>) => (
-    //   <th className="..." {...props} />
-    // ),
-    // td: (props: ComponentProps<'td'>) => (
-    //   <td className="..." {...props} />
-    // ),
-  };
+    thead: (props: ComponentProps<'thead'>) => (
+      <thead className="bg-gray-50 dark:bg-gray-800" {...props} />
+    ),
+    th: (props: ComponentProps<'th'>) => (
+      <th
+        scope="col"
+        className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-300 whitespace-nowrap"
+        {...props}
+      />
+    ),
+    td: (props: ComponentProps<'td'>) => (
+      <td
+        className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap"
+        {...props}
+      />
+    ),
+    TweetEmbed: (props: ComponentProps<typeof TweetEmbed>) => (
+      <div className="not-prose">
+        {/* TweetEmbed handles its own margin and centering */}
+        <TweetEmbed {...props} />
+      </div>
+    ),
+  }), []);
 
   return (
     // Use base prose for mobile, maintain consistent text size
@@ -353,19 +393,18 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
         "prose-ul:pl-6",
         "prose-ol:pl-6",
         "prose-blockquote:pl-4 prose-blockquote:border-l-4 prose-blockquote:border-blue-500 dark:prose-blockquote:border-blue-400",
-        "blog-content"
+        "blog-content",
+        // Custom class to remove prose margins and let space-y-6 handle spacing
+        "prose-spacing-override"
       )}
     >
       {/* Enforce consistent vertical gaps */}
-      <div className="flex flex-col space-y-6">
+      <div className="flex flex-col space-y-5">
         <MDXRemote {...content} components={components} />
       </div>
     </article>
   );
 }
 
-// Create a named variable for the default export
-const MDXContentExport = { MDXContent };
-
-// Default export for next/dynamic
-export default MDXContentExport;
+// Default export for usage, e.g. with next/dynamic or direct import
+export default MDXContent;

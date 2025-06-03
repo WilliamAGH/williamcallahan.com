@@ -7,8 +7,10 @@
 import "server-only"; // Ensure this component remains server-only
 
 import { BookmarksClientWithWindow } from './bookmarks-client-with-window';
-import type { UnifiedBookmark } from '@/types';
+import type { UnifiedBookmark, BookmarkError } from '@/types';
 import { getBookmarks } from '@/lib/data-access/bookmarks';
+import { ServerCacheInstance } from '@/lib/server-cache';
+import { AppError } from '@/lib/errors';
 
 interface BookmarksServerProps {
   title: string;
@@ -43,7 +45,7 @@ export async function BookmarksServer({
   const sortByDateDesc = (list: UnifiedBookmark[]) =>
     [...list].sort((a, b) => {
       const safeTs = (d?: string) => {
-        const ts = d ? Date.parse(d) : NaN;
+        const ts = d ? Date.parse(d) : Number.NaN;
         return Number.isFinite(ts) ? ts : 0;
       };
       return safeTs(b.dateBookmarked) - safeTs(a.dateBookmarked);
@@ -54,33 +56,35 @@ export async function BookmarksServer({
     bookmarks = sortByDateDesc(propsBookmarks);
     console.log('[BookmarksServer] Using provided bookmarks, count:', bookmarks.length);
   } else {
-    // Fetch bookmarks with error handling
-    try {
-      bookmarks = await getBookmarks(false);
-      console.log('[BookmarksServer] Fetched via getBookmarks, count:', bookmarks.length);
-      if (bookmarks.length > 0) {
-        console.log('[BookmarksServer] First bookmark title:', bookmarks[0]?.title);
-      } else {
-        console.warn('[BookmarksServer] No bookmarks found via getBookmarks');
-      }
-    } catch (error) {
-      console.error('[BookmarksServer] Error fetching bookmarks via getBookmarks:', error);
-      // Continue with empty bookmarks array
+    // Fetch bookmarks. If getBookmarks() throws, it will propagate up.
+    bookmarks = await getBookmarks(false);
+    console.log('[BookmarksServer] Fetched via getBookmarks, count:', bookmarks.length);
+    if (bookmarks.length > 0) {
+      console.log('[BookmarksServer] First bookmark title:', bookmarks[0]?.title);
+    } else {
+      console.warn('[BookmarksServer] No bookmarks found via getBookmarks (API may have returned empty or fetch was skipped).');
     }
 
     // Sort bookmarks by date (newest first) if we have any
     bookmarks = bookmarks.length ? sortByDateDesc(bookmarks) : [];
 
-    // If no bookmarks were fetched in production, trigger error to show boundary
+    // If no bookmarks were fetched (e.g., API returned empty) and not provided via props, in production, throw an error to show boundary
+    // This condition will now primarily be met if getBookmarks() resolves successfully but with an empty array.
     if (!propsBookmarks && bookmarks.length === 0 && process.env.NODE_ENV === 'production') {
-      throw new Error('BookmarksUnavailable');
+      const lastFetched = ServerCacheInstance.getBookmarks()?.lastFetchedAt ?? 0;
+      // Create a new error specifically for this scenario (empty data, not necessarily API failure)
+      const error: BookmarkError = new AppError('Bookmarks unavailable: No data returned.', 'BOOKMARKS_NO_DATA');
+      error.lastFetchedTimestamp = lastFetched;
+      throw error;
     }
   }
+
+  const initialBookmarks = propsBookmarks || bookmarks;
 
   // Pass the processed data to the client component
   return (
     <BookmarksClientWithWindow
-      bookmarks={bookmarks}
+      bookmarks={initialBookmarks}
       title={title}
       description={description}
       forceClientFetch={!propsBookmarks}

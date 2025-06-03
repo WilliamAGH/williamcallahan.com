@@ -12,6 +12,7 @@ export * from './terminal';
 export * from './bookmark';
 export * from './github';
 export * from './logo';
+export * from './error';
 
 // Add new interface for client error payloads
 export interface ClientErrorPayload {

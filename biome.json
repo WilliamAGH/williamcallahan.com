@@ -1,0 +1,54 @@
+{
+  "$schema": "https://biomejs.dev/schemas/1.x/schema.json",
+  "organizeImports": {
+    "enabled": true
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": {
+        "useAltText": "off"
+      }
+    }
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "overrides": [
+    {
+      "include": [
+        "eslint.config.ts",
+        "eslint.config.js",
+        "*.config.{js,ts,mjs,cjs}",
+        "jest.config.{js,ts}",
+        "next.config.*",
+        "postcss.config.*",
+        "tailwind.config.*"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          },
+          "complexity": {
+            "noForEach": "off"
+          }
+        }
+      }
+    },
+    {
+      "include": ["**/__tests__/**/*", "**/*.{test,spec}.{js,ts,jsx,tsx}"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    }
+  ]
+}

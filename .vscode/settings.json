@@ -21,5 +21,26 @@
   },
   "terminal.integrated.env.osx": {
     "BROWSER": "open -a 'Microsoft Edge'"
-  }
+  },
+  "editor.fontLigatures": false,
+  "typescript.preferences.includePackageJsonAutoImports": "auto",
+  "typescript.validate.enable": true,
+  "typescript.format.enable": true,
+  "typescript.suggest.autoImports": true,
+  "emmet.includeLanguages": {
+    "typescript": "html",
+    "typescriptreact": "html"
+  },
+  "files.associations": {
+    "*.tsx": "typescriptreact",
+    "*.ts": "typescript",
+    ".env": "dotenv",
+    ".env.*": "dotenv",
+    "*.env": "dotenv",
+    "*.env.*": "dotenv",
+    ".env-example": "dotenv"
+  },
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.useAliasesForRenames": false,
+  "typescript.workspaceSymbols.scope": "allOpenProjects"
 }

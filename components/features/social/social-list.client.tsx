@@ -43,14 +43,14 @@ export function SocialListClient() {
         {mounted ? (
           // Only render actual cards when mounted to prevent hydration mismatch
           socialLinks.map((social) => (
-            <div key={social.href}>
+            <div key={social.href} className="h-full">
               <SocialCardClient social={social} />
             </div>
           ))
         ) : (
           // Render skeleton placeholders during server-side rendering
           Array.from({ length: 5 }).map((_, i) => (
-            <div key={`skeleton-${i}`} className="relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl h-[400px]" />
+            <div key={`skeleton-${i}`} className="relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl h-full" />
           ))
         )}
       </div>

@@ -50,22 +50,34 @@ function checkRateLimit(ip: string): boolean {
  * POST handler - Refreshes the bookmarks cache
  */
 export async function POST(request: Request): Promise<NextResponse> {
-  // Get client IP for rate limiting
-  const forwardedFor: string = request.headers.get('x-forwarded-for') || 'unknown';
-  // Take first IP if there are multiple
-  const clientIp = forwardedFor?.split(',')[0]?.trim() || '';
+  const authorizationHeader = request.headers.get('Authorization');
+  const cronRefreshSecret = process.env.BOOKMARK_CRON_REFRESH_SECRET;
+  let isCronJob = false;
 
-  // Check rate limit
-  if (!checkRateLimit(clientIp)) {
-    return NextResponse.json({
-      error: 'Rate limit exceeded. Try again later.'
-    }, { status: 429 });
+  if (cronRefreshSecret && authorizationHeader && authorizationHeader.startsWith('Bearer ')) {
+    const token = authorizationHeader.substring(7); // Remove "Bearer " prefix
+    if (token === cronRefreshSecret) {
+      isCronJob = true;
+      console.log('[API Bookmarks Refresh] Authenticated as cron job via BOOKMARK_CRON_REFRESH_SECRET.');
+    }
+  }
+
+  // Get client IP for rate limiting (only if not an authenticated cron job)
+  if (!isCronJob) {
+    const forwardedFor: string = request.headers.get('x-forwarded-for') || 'unknown';
+    const clientIp = forwardedFor?.split(',')[0]?.trim() || '';
+    if (!checkRateLimit(clientIp)) {
+      return NextResponse.json({
+        error: 'Rate limit exceeded. Try again later.'
+      }, { status: 429 });
+    }
   }
 
   try {
-    // Check if refresh is actually needed
-    if (!ServerCacheInstance.shouldRefreshBookmarks()) {
+    // For cron jobs, always refresh. For others, check if refresh is needed.
+    if (!isCronJob && !ServerCacheInstance.shouldRefreshBookmarks()) {
       const cached = ServerCacheInstance.getBookmarks();
+      console.log('[API Bookmarks Refresh] Regular request: Cache is already up to date.');
       return NextResponse.json({
         status: 'success',
         message: 'Bookmarks cache is already up to date',
@@ -77,12 +89,17 @@ export async function POST(request: Request): Promise<NextResponse> {
       });
     }
 
-    // Refresh the cache
+    if (isCronJob) {
+      console.log('[API Bookmarks Refresh] Cron job: Forcing bookmark data refresh.');
+    } else {
+      console.log('[API Bookmarks Refresh] Regular request: Refreshing bookmarks data as cache is stale or needs update.');
+    }
+
     const bookmarks = await refreshBookmarksData();
 
     return NextResponse.json({
       status: 'success',
-      message: 'Bookmarks cache refreshed successfully',
+      message: `Bookmarks cache refreshed successfully${isCronJob ? ' (triggered by cron)' : ''}`,
       data: {
         refreshed: true,
         bookmarksCount: bookmarks.length

@@ -47,7 +47,7 @@
       "@/utils/*": [
         "./lib/utils/*"
       ],
-      "bun:test": ["node_modules/bun-types/test.d.ts"],
+      "bun:test": ["node_modules/bun-types/test.d.ts"]
     },
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": false,

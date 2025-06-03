@@ -4,7 +4,7 @@
 // at specified intervals:
 // - Bookmarks: Every 2 hours (refreshes external bookmarks data)
 // - GitHub Activity: Daily at midnight PT (refreshes GitHub contribution data)
-// - Logos: Daily at midnight PT (refreshes company logos)
+// - Logos: Weekly on Sunday at 1 AM PT (refreshes company logos)
 //
 // How it works:
 // 1. The scheduler starts via 'bun run scheduler' (typically from entrypoint.sh)
@@ -17,13 +17,18 @@
 // - Override schedules via environment variables:
 //   - S3_BOOKMARKS_CRON (default: every 2 hours at minute 0)
 //   - S3_GITHUB_CRON (default: daily at midnight)
-//   - S3_LOGOS_CRON (default: daily at midnight)
+//   - S3_LOGOS_CRON (default: weekly on Sunday at 1 AM)
 // - All times are in Pacific Time (America/Los_Angeles)
+//
+// Production Refresh Frequencies:
+// - Bookmarks: 12 times/day (every 2 hours) - optimal for content freshness
+// - GitHub Activity: 1 time/day (midnight) - sufficient for contribution data
+// - Logos: 1 time/week (Sunday 1 AM) - logos rarely change, reduces API load
 //
 // Note: This process must stay running for scheduled updates to occur.
 
 import rawCron from 'node-cron';
-import { spawnSync } from 'child_process';
+import { spawnSync } from 'node:child_process';
 
 console.log('[Scheduler] Process started. Setting up cron jobs...');
 
@@ -34,11 +39,12 @@ console.log('[Scheduler] Starting update-s3-data scheduler (PT)...');
 const cron = rawCron as { schedule: (expression: string, task: () => void) => void };
 
 // Cron expressions (minute hour day month weekday)
-const bookmarksCron = process.env.S3_BOOKMARKS_CRON || '0 */2 * * *';    // every 2h at minute 0
-const githubCron    = process.env.S3_GITHUB_CRON    || '0 0 * * *';     // daily at midnight
-const logosCron     = process.env.S3_LOGOS_CRON     || '0 0 * * *';     // daily at midnight
+// Staggered timing to prevent resource contention
+const bookmarksCron = process.env.S3_BOOKMARKS_CRON || '0 */2 * * *';    // every 2h at minute 0 (12x/day)
+const githubCron    = process.env.S3_GITHUB_CRON    || '0 0 * * *';     // daily at midnight (1x/day)
+const logosCron     = process.env.S3_LOGOS_CRON     || '0 1 * * 0';     // weekly Sunday at 1 AM (1x/week)
 
-console.log(`[Scheduler] Bookmarks schedule: ${bookmarksCron}`);
+console.log(`[Scheduler] Bookmarks schedule: ${bookmarksCron} (every 2 hours)`);
 cron.schedule(bookmarksCron, () => {
   console.log(`[Scheduler] [Bookmarks] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Spawning update-s3...`);
   const result = spawnSync('bun', ['run', 'update-s3', '--', '--bookmarks'], { env: process.env, stdio: 'inherit' });
@@ -49,7 +55,7 @@ cron.schedule(bookmarksCron, () => {
   }
 });
 
-console.log(`[Scheduler] GitHub Activity schedule: ${githubCron}`);
+console.log(`[Scheduler] GitHub Activity schedule: ${githubCron} (daily at midnight)`);
 cron.schedule(githubCron, () => {
   console.log(`[Scheduler] [GitHub] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Spawning update-s3...`);
   const result = spawnSync('bun', ['run', 'update-s3', '--', '--github-activity'], { env: process.env, stdio: 'inherit' });
@@ -60,7 +66,7 @@ cron.schedule(githubCron, () => {
   }
 });
 
-console.log(`[Scheduler] Logos schedule: ${logosCron}`);
+console.log(`[Scheduler] Logos schedule: ${logosCron} (weekly Sunday 1 AM)`);
 cron.schedule(logosCron, () => {
   console.log(`[Scheduler] [Logos] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Spawning update-s3...`);
   const result = spawnSync('bun', ['run', 'update-s3', '--', '--logos'], { env: process.env, stdio: 'inherit' });
@@ -74,3 +80,4 @@ cron.schedule(logosCron, () => {
 // The scheduler process remains alive indefinitely, waiting for cron events.
 // DO NOT EXIT this process - it must stay running for scheduled updates to occur.
 console.log('[Scheduler] Setup complete. Scheduler is running and waiting for scheduled trigger times...');
+console.log('[Scheduler] Production frequencies: Bookmarks (12x/day), GitHub (1x/day), Logos (1x/week)');

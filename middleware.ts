@@ -1,4 +1,11 @@
-// middleware.ts
+/**
+ * Middleware for handling request logging and security headers
+ * @module middleware
+ * @description
+ * Handles request logging and security headers for all non-static routes
+ * Applies security headers and caching headers for static assets and analytics scripts
+ *
+ */
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -32,7 +39,7 @@ interface RequestLog {
 /**
  * Gets the real client IP from various headers
  * Prioritizes Cloudflare headers, then standard proxy headers
- * @param request - The Next.js request object
+ * @param request - The Nextjs request object
  * @returns The real client IP or 'unknown'
  */
 function getRealIp(request: NextRequest): string {
@@ -46,7 +53,7 @@ function getRealIp(request: NextRequest): string {
 /**
  * Middleware to handle request logging and security headers
  * Runs on all non-static routes as defined in the matcher
- * @param request - The incoming Next.js request
+ * @param request - The incoming Nextjs request
  * @returns The modified response with added headers
  */
 export function middleware(request: NextRequest): NextResponse {
@@ -73,12 +80,13 @@ export function middleware(request: NextRequest): NextResponse {
     // Content Security Policy: allow all HTTPS image sources dynamically
     'Content-Security-Policy': `
       default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://static.cloudflareinsights.com https://*.sentry.io https://scripts.simpleanalyticscdn.com https://static.getclicky.com https://in.getclicky.com;
-      connect-src 'self' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://static.cloudflareinsights.com https://*.sentry.io https://queue.simpleanalyticscdn.com https://in.getclicky.com;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://static.cloudflareinsights.com https://*.sentry.io https://scripts.simpleanalyticscdn.com https://static.getclicky.com https://in.getclicky.com https://platform.twitter.com https://*.x.com blob:;
+      connect-src 'self' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://static.cloudflareinsights.com https://*.sentry.io https://*.ingest.sentry.io https://queue.simpleanalyticscdn.com https://in.getclicky.com https://react-tweet.vercel.app https://*.twitter.com https://twitter.com https://platform.twitter.com https://*.x.com;
       worker-src 'self' blob:;
-      img-src 'self' data: https:;
-      style-src 'self' 'unsafe-inline';
-      font-src 'self' data:;
+      img-src 'self' data: https://pbs.twimg.com https://*.twimg.com https://react-tweet.vercel.app https:;
+      style-src 'self' 'unsafe-inline' https://platform.twitter.com https://*.twimg.com https://*.x.com;
+      font-src 'self' data: https://platform.twitter.com https://*.twimg.com https://*.x.com;
+      frame-src https://platform.twitter.com https://*.x.com;
       frame-ancestors 'none';
       base-uri 'self';
       form-action 'self';

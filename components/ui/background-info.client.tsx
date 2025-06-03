@@ -77,14 +77,14 @@ export function BackgroundInfo({
 
   // --- Base Styles --- (Applied always)
   const containerClasses = cn(
-    "mt-[-2px] mb-1 py-1 rounded-lg border",
+    "py-4 px-4 md:px-6 rounded-lg border",
     "bg-blue-100 dark:bg-blue-900/20",
     "border-blue-200 dark:border-blue-800",
-    "max-md:-mx-4 px-4 md:px-6",
+    "max-md:-mx-4",
     className
   );
   const titleContainerClasses = cn(
-    "flex items-baseline gap-1 mb-0 mt-[-12px]"
+    "flex items-baseline gap-1 mb-2"
   );
   const toggleButtonClasses = cn(
     "flex items-center justify-center w-full px-4 py-2 text-sm font-medium",
@@ -104,8 +104,7 @@ export function BackgroundInfo({
   // --- Final Content Classes ---
   const contentClasses = cn(
     "prose-sm dark:prose-invert text-blue-800 dark:text-blue-200", // Base prose styles
-    dynamicContentClasses, // Add dynamic styles only post-mount
-    "pb-4" // Add padding-bottom for better spacing
+    dynamicContentClasses // Dynamic height classes post-mount
   );
 
   return (
