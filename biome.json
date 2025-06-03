@@ -27,7 +27,8 @@
         "jest.config.{js,ts}",
         "next.config.*",
         "postcss.config.*",
-        "tailwind.config.*"
+        "tailwind.config.*",
+        "stylelint.config.*"
       ],
       "linter": {
         "rules": {

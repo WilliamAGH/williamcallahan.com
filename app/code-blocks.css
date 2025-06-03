@@ -22,8 +22,8 @@
 /* Remove ALL backgrounds from code blocks and their tokens */
 .dark pre[class*="language-"] *,
 .dark code[class*="language-"] * {
-  background: transparent !important;
-  text-shadow: none !important;
+  background: transparent ;
+  text-shadow: none ;
 }
 
 /* Selection in dark mode */
