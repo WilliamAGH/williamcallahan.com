@@ -16,8 +16,8 @@
 import {withSentryConfig} from '@sentry/nextjs'
 import type { RuleSetRule } from 'webpack' // Import RuleSetRule type
 
-import { readFileSync } from 'fs'
-import { resolve } from 'path'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 /**
  * @typedef {{ version: string }} PackageJson
