@@ -7,7 +7,7 @@
 import "server-only"; // Ensure this component remains server-only
 
 import { BookmarksClientWithWindow } from './bookmarks-client-with-window';
-import type { UnifiedBookmark } from '@/types';
+import type { UnifiedBookmark, BookmarkError } from '@/types';
 import { getBookmarks } from '@/lib/data-access/bookmarks';
 import { ServerCacheInstance } from '@/lib/server-cache';
 import { AppError } from '@/lib/errors';
@@ -45,7 +45,7 @@ export async function BookmarksServer({
   const sortByDateDesc = (list: UnifiedBookmark[]) =>
     [...list].sort((a, b) => {
       const safeTs = (d?: string) => {
-        const ts = d ? Date.parse(d) : NaN;
+        const ts = d ? Date.parse(d) : Number.NaN;
         return Number.isFinite(ts) ? ts : 0;
       };
       return safeTs(b.dateBookmarked) - safeTs(a.dateBookmarked);
@@ -73,8 +73,8 @@ export async function BookmarksServer({
     if (!propsBookmarks && bookmarks.length === 0 && process.env.NODE_ENV === 'production') {
       const lastFetched = ServerCacheInstance.getBookmarks()?.lastFetchedAt ?? 0;
       // Create a new error specifically for this scenario (empty data, not necessarily API failure)
-      const error = new AppError('Bookmarks unavailable: No data returned.', 'BOOKMARKS_NO_DATA');
-      (error as any).lastFetchedTimestamp = lastFetched;
+      const error: BookmarkError = new AppError('Bookmarks unavailable: No data returned.', 'BOOKMARKS_NO_DATA');
+      error.lastFetchedTimestamp = lastFetched;
       throw error;
     }
   }

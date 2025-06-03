@@ -3,6 +3,7 @@
 
 import { useEffect } from 'react';
 import { formatDate as utilFormatDate } from '@/lib/utils';
+import { getErrorTimestamp, type BookmarkError } from '@/types';
 
 interface ErrorPageProps {
   error: Error;
@@ -16,7 +17,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   let lastFetched = 0;
   try {
     const match = /^BookmarksUnavailable\|(\d+)/.exec(error.message);
-    if (match && match[1]) {
+    if (match?.[1]) {
       const parsed = Number(match[1]);
       lastFetched = Number.isFinite(parsed) ? parsed : 0;
     }
@@ -26,7 +27,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 
   // Attempt to get the last fetched timestamp if it was attached to the error
   // (the property name was changed to 'lastFetched' in bookmarks.server.tsx)
-  const lastFetchedTimestamp = (error as any)?.lastFetched as number | undefined;
+  const lastFetchedTimestamp = getErrorTimestamp(error, 'lastFetchedTimestamp');
 
   return (
     <main className="max-w-5xl mx-auto py-16 px-4 sm:px-6 lg:px-8 text-center">
@@ -54,6 +55,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
           )}
         </p>
         <button
+          type="button"
           onClick={() => reset()}
           className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-md shadow hover:bg-blue-700 transition"
         >
