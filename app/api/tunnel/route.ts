@@ -17,31 +17,49 @@ export async function POST(request: NextRequest) {
   }
 
   // Parse DSN to build the envelope endpoint
-  const url = new URL(dsn)
-  // DSN path is like "/<projectId>", so we extract the projectId
-  const projectId = url.pathname.replace(/^\//, '')
-  const ingestHost = url.host
-  const envelopeUrl = `${url.protocol}//${ingestHost}/api/${projectId}/envelope/`
+  let url: URL;
+  let projectId: string;
+  let ingestHost: string;
+  let envelopeUrl: string;
+
+  try {
+    url = new URL(dsn)
+    // DSN path is like "/<projectId>", so we extract the projectId
+    projectId = url.pathname.replace(/^\//, '')
+    ingestHost = url.host
+    envelopeUrl = `${url.protocol}//${ingestHost}/api/${projectId}/envelope/`
+  } catch (error) {
+    console.error('Failed to parse SENTRY_DSN:', error)
+    return NextResponse.json(
+      { error: 'Invalid SENTRY_DSN format' },
+      { status: 500 }
+    )
+  }
 
   // Forward the raw request body to Sentry
   const body = await request.arrayBuffer()
-  const upstreamResponse = await fetch(envelopeUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': request.headers.get('Content-Type') || 'application/x-sentry-envelope'
-    },
-    body
-  })
+  try {
+    const upstreamResponse = await fetch(envelopeUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': request.headers.get('Content-Type') || 'application/x-sentry-envelope'
+      },
+      body
+    })
 
-  // Mirror status and headers (omit length-restricted headers)
-  const responseHeaders = new Headers()
-  upstreamResponse.headers.forEach((value, key) => {
-    if (key.toLowerCase() === 'content-encoding' || key.toLowerCase() === 'content-length') return
-    responseHeaders.set(key, value)
-  })
+    // Mirror status and headers (omit length-restricted headers)
+    const responseHeaders = new Headers()
+    upstreamResponse.headers.forEach((value, key) => {
+      if (key.toLowerCase() === 'content-encoding' || key.toLowerCase() === 'content-length') return
+      responseHeaders.set(key, value)
+    })
 
-  return new NextResponse(upstreamResponse.body, {
-    status: upstreamResponse.status,
-    headers: responseHeaders
-  })
+    return new NextResponse(upstreamResponse.body, {
+      status: upstreamResponse.status,
+      headers: responseHeaders
+    })
+  } catch (error) {
+    console.error('Failed to forward Sentry event:', error)
+    return NextResponse.json({ error: 'Failed to forward event' }, { status: 502 })
+  }
 }
