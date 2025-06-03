@@ -425,10 +425,7 @@ html[data-darkreader-mode] {
 }
 
 /* Pin react-tweet avatarOverflow wrappers to top-left */
-.react-tweet-theme [class*="avatarOverflow"] {
-  top: 0 !important;
-  left: 0 !important;
-}
+/* Removed duplicate rule */
 
 /* Blog content spacing override to eliminate hydration mismatches */
 /* Remove prose margins and let space-y-8 handle all vertical spacing consistently */

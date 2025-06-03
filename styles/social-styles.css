@@ -157,5 +157,5 @@
 
 /* Ensure tweet embeds use parent spacing only */
 .blog-content blockquote.twitter-tweet {
-  margin: 0 !important;
+  margin: 0;
 }
