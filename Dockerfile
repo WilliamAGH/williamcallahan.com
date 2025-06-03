@@ -124,4 +124,4 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=3 \
 
 # Use entrypoint to seed logos, then start server
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["node", ".next/standalone/server.js"]
+CMD ["node", "server.js"]
