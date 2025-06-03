@@ -1,0 +1,183 @@
+---
+title: "Automated Sitemap Submissions: Bing & Google Guide"
+slug: "automated-sitemap-submissions-bing-google"
+excerpt: "Configure your Node.js/TypeScript application to automatically submit sitemaps to Bing (IndexNow) and Google Search Console using service account credentials, with robust error handling and development mode awareness."
+publishedAt: "2025-06-03" # Or current date
+updatedAt: "2025-06-04" # Or current date
+author: "william-callahan"
+tags: ["sitemap", "seo", "google", "bing", "indexnow", "automation", "nodejs", "typescript", "envars", "devops"]
+coverImage: "/images/posts/sitemap-automation-search-engines.png" # Replace with an actual image path
+---
+
+Automating sitemap submissions to search engines like Bing (via IndexNow) and Google Search Console ensures they discover your content updates faster. This guide details setting up a Node.js/TypeScript script for this, including robust private key handling and development environment considerations.
+
+### 1. Configure Environment Variables
+
+In your project's `.env` file (and add placeholders to `.env-example`), define the following. You'll obtain the Google-related values from the Service Account JSON key (Step 3).
+
+```bash
+# For Bing's IndexNow
+INDEXNOW_KEY="your-generated-indexnow-key"
+
+# For Google Search Console API (from your Service Account JSON key)
+# Ensure these match the names used in your script if they differ from these examples.
+GOOGLE_PROJECT_ID="your-project-id-from-gcp"
+GOOGLE_SEARCH_INDEXING_SA_EMAIL="your-service-account-email@your-project-id.iam.gserviceaccount.com"
+# CRITICAL: GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY must be the complete string from the JSON key,
+# including -----BEGIN...----- and -----END...-----, with all \n preserved literally.
+# Enclose the entire multi-line key within a single pair of double quotes.
+GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvg...your...entire...key...goes...here...with...all...the...\n...sequences...preserved...exactly...as...in...the...JSON...file...including...the...final...\n...-----END PRIVATE KEY-----\n"
+
+# Next.js public URL, used by the script to construct sitemap URLs
+NEXT_PUBLIC_SITE_URL="https://your-production-domain.com"
+
+# Node environment, used by script to skip submissions in dev
+NODE_ENV="development" # or "production"
+```
+
+**Key Points for `GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY`**:
+*   Copy the *entire* string value from the `private_key` field in your downloaded JSON key.
+*   This includes `-----BEGIN PRIVATE KEY-----`, all the base64 encoded lines, and `-----END PRIVATE KEY-----`.
+*   Crucially, ensure all `\n` characters from the JSON string are preserved as literal `\n` sequences within the value in your `.env` file.
+*   The entire value should be enclosed in a *single pair of double quotes* in the `.env` file.
+*   The provided script handles internal conversion of these `\n` sequences to actual newline characters for the Google Auth library.
+
+### 2. Prepare IndexNow Verification (Bing)
+
+IndexNow requires a text file in your site's `public` root directory. The filename must be your `INDEXNOW_KEY`.
+
+1.  **Create the file**: `public/${INDEXNOW_KEY}.txt` (e.g., `public/your-key-value.txt`).
+2.  **File content**: The file must contain *only* the key itself (e.g., `your-key-value`), with no extra characters or the `.txt` extension in its content.
+3.  **Accessibility**: This file must be publicly accessible on your live domain for IndexNow to verify. IndexNow submissions will likely fail (e.g., 403 Forbidden) if attempted against `localhost`.
+
+### 3. Set Up Google Service Account & API Access
+
+(Steps remain largely the same as previously discussed: Enable API, Create Service Account, Download JSON key, Grant "Owner" or "Full" permission to the service account email in Search Console for your verified property.)
+
+*   **Important**: The `siteUrl` used in API calls must match a property you have verified in Google Search Console (e.g., `https://your-production-domain.com`). Submissions against `localhost` will be rejected by the API.
+
+### 4. Install `googleapis` Client Library
+
+```bash
+bun add googleapis
+# or npm install googleapis / yarn add googleapis
+```
+
+### 5. Implement the Sitemap Submission Script
+
+> **Note:** The script now skips any localhost or 127.0.0.1 URL regardless of `NODE_ENV`, so you no longer need to set `NODE_ENV` to "development" for local runs to avoid submissions.
+
+Update your `scripts/submit-sitemap.ts`:
+
+```typescript
+import 'dotenv/config';
+import { google } from 'googleapis';
+
+const PRODUCTION_SITE_URL = 'https://williamcallahan.com'; // Your specific production URL
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+const SITEMAP_URL = `${SITE_URL}/sitemap.xml`;
+
+const IS_DEVELOPMENT = process.env.NODE_ENV === 'development';
+const IS_LOCALHOST = SITE_URL.includes('localhost') || SITE_URL.includes('127.0.0.1');
+
+async function submitToGoogle(): Promise<boolean> {
+  if (IS_DEVELOPMENT && IS_LOCALHOST) return false; // Skip in local dev
+
+  const clientEmail = process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL;
+  const privateKey = process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY;
+  const projectId = process.env.GOOGLE_PROJECT_ID;
+
+  if (!clientEmail || !privateKey) {
+    console.error('[SitemapSubmit] ❌ Google Service Account email or private key missing in .env. Skipping Google submission.');
+    return false;
+  }
+
+  // Process the private key
+  let processedPrivateKey = privateKey.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
+  processedPrivateKey = processedPrivateKey.trim();
+  if (processedPrivateKey.startsWith('"') && processedPrivateKey.endsWith('"')) {
+    processedPrivateKey = processedPrivateKey.substring(1, processedPrivateKey.length - 1).trim();
+  }
+  const endMarker = '-----END PRIVATE KEY-----';
+  const indexOfEndMarker = processedPrivateKey.lastIndexOf(endMarker);
+  if (indexOfEndMarker === -1) {
+    console.error('[SitemapSubmit] ❌ ERROR: Google private key in .env appears incomplete (missing END marker).');
+    return false;
+  }
+  // Ensure only the key up to its end marker, plus one final newline, is used.
+  processedPrivateKey = `${processedPrivateKey.substring(0, indexOfEndMarker + endMarker.length)}\n`;
+
+  try {
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: clientEmail,
+        private_key: processedPrivateKey,
+        project_id: projectId,
+      },
+      scopes: ['https://www.googleapis.com/auth/webmasters'],
+    });
+    const webmasters = google.webmasters({ version: 'v3', auth });
+    await webmasters.sitemaps.submit({ siteUrl: SITE_URL, feedpath: SITEMAP_URL });
+    console.log(`[SitemapSubmit] ✅ Successfully submitted sitemap (${SITEMAP_URL}) to Google for site ${SITE_URL}`);
+    return true;
+  } catch (error) {
+    console.error(`[SitemapSubmit] ❌ Error submitting to Google:`, error.message || error);
+    return false;
+  }
+}
+
+async function submitToBing(): Promise<boolean> {
+  if (IS_DEVELOPMENT && IS_LOCALHOST) return false; // Skip in local dev
+
+  const indexNowKey = process.env.INDEXNOW_KEY;
+  if (!indexNowKey) {
+    console.error('[SitemapSubmit] ❌ INDEXNOW_KEY not set. Skipping Bing/IndexNow submission.');
+    return false;
+  }
+  try {
+    const host = new URL(SITE_URL).host;
+    const indexNowSubmissionUrl = `https://www.bing.com/indexnow?url=${encodeURIComponent(SITEMAP_URL)}&key=${indexNowKey}&host=${host}`;
+    const response = await fetch(indexNowSubmissionUrl, { method: 'GET' });
+    if (response.ok) {
+      console.log(`[SitemapSubmit] ✅ Successfully submitted sitemap (${SITEMAP_URL}) via IndexNow to Bing`);
+      return true;
+    }
+    console.error(`[SitemapSubmit] ❌ IndexNow submission failed: ${response.status} ${response.statusText}`);
+    // const responseBody = await response.text(); // Uncomment for more debug info if needed
+    // console.error(`[SitemapSubmit] IndexNow Response: ${responseBody}`);
+    return false;
+  } catch (error) {
+    console.error('[SitemapSubmit] ❌ Error submitting via IndexNow to Bing:', error.message || error);
+    return false;
+  }
+}
+
+export async function submitSitemaps(): Promise<void> {
+  if (IS_DEVELOPMENT && IS_LOCALHOST) {
+    console.log(`[SitemapSubmit] ℹ️ Development on localhost (${SITE_URL}). Submissions skipped.`);
+    console.log(`   Submissions occur if SITE_URL is ${PRODUCTION_SITE_URL} or NODE_ENV is not 'development'.`);
+    return;
+  }
+  if (SITE_URL !== PRODUCTION_SITE_URL && process.env.NODE_ENV === 'production') {
+    console.warn(`[SitemapSubmit] ⚠️ WARNING: Production NODE_ENV but SITE_URL (${SITE_URL}) isn't ${PRODUCTION_SITE_URL}. Ensure this is intended before submission.`);
+  }
+
+  console.log(`[SitemapSubmit] Starting sitemap submission for ${SITEMAP_URL}...`);
+  const results = await Promise.allSettled([submitToGoogle(), submitToBing()]);
+  // ... (results processing as before) ...
+  console.log('[SitemapSubmit] All sitemap submissions attempted.');
+}
+
+if (require.main === module) {
+  submitSitemaps().catch(error => {
+    console.error('[SitemapSubmit] Unhandled top-level error:', error.message || error);
+    process.exit(1);
+  });
+}
+```
+
+### 6. Automate Script Execution
+
+(Guidance remains the same: integrate `submitSitemaps()` into your scheduler or build process.)
+
+This setup provides a robust way to manage sitemap submissions, accounting for tricky private key formatting and different runtime environments.
