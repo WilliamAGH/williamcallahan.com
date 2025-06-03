@@ -17,14 +17,6 @@ alwaysApply: true
 
 | Rule File | Description | Use When |
 |-----------|-------------|----------|
-| `project-workflow-management.mdc` | Task management workflows, PBI procedures, version control standards, testing strategies | Project management, task tracking, workflow compliance |
-| `zod-type-safety.mdc` | Comprehensive Zod v4 type safety standards and validation patterns | Working with TypeScript types, external APIs, data validation |
-| `project-development-standards.mdc` | Core development standards, naming conventions, and workflow compliance | Any development work, file creation, task management |
-| `branding-logo-guidelines.mdc` | CSS, logo usage, branding guidance, Tailwind, static image paths | UI/branding work, logo implementation |
-| `design-system.mdc` | FindMyBook design system, styling guidelines, theme architecture | UI development, component styling, theme work |
-| `component-architecture.mdc` | React component patterns, architectural standards | Building or modifying React components |
-| `package-manager.mdc` | Package management with pnpm/bun guidelines | Adding dependencies, updating packages |
-| `theme-styling-patterns.mdc` | Theme system patterns and styling conventions | Theme-related development |
 
 ### Rule Configuration Standards
 
