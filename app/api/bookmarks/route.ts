@@ -38,12 +38,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const bookmarks = await getBookmarks(skipExternalFetch);
     if (ServerCacheInstance.shouldRefreshBookmarks()) {
-  // Only queue if not already processing to avoid duplicates
-  if (!BookmarkRefreshQueue.isProcessing || BookmarkRefreshQueue.queueLength === 0) {
-    BookmarkRefreshQueue.add(async () => {
-      await getBookmarks(false);
-    });
-  }
+      // Only queue if not already processing AND queue is empty
+      if (!BookmarkRefreshQueue.isProcessing && BookmarkRefreshQueue.queueLength === 0) {
+        BookmarkRefreshQueue.add(async () => {
+          await getBookmarks(false);
+        });
+      }
     }
 
     if (bookmarks && bookmarks.length > 0) {
@@ -55,16 +55,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           'X-Data-Complete': 'true' // Assuming getBookmarks returns complete data or throws
         }
       });
-    } else {
-      console.log('[API Bookmarks] No bookmarks found via data-access layer.');
-      return NextResponse.json([], {
-        status: 200, // Return 200 with empty array if no bookmarks, or 404 if preferred
-        headers: {
-          'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600',
-          'X-Data-Complete': 'true' // No data is also "complete" in a sense
-        }
-      });
     }
+
+    console.log('[API Bookmarks] No bookmarks found via data-access layer.');
+    return NextResponse.json([], {
+      status: 200, // Return 200 with empty array if no bookmarks, or 404 if preferred
+      headers: {
+        'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600',
+        'X-Data-Complete': 'true' // No data is also "complete" in a sense
+      }
+    });
   } catch (error) {
     console.error('[API Bookmarks] Critical error in GET handler for bookmarks:', error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
