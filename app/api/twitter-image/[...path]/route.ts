@@ -112,7 +112,7 @@ export async function GET(
     console.error('[Twitter Image Proxy] Error fetching image:', error);
 
     // Handle timeout errors specifically
-    if (error instanceof Error && error.name === 'TimeoutError') {
+    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
       return new NextResponse(null, { status: 504 }); // Gateway Timeout
     }
 
