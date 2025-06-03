@@ -28,7 +28,7 @@
 // Note: This process must stay running for scheduled updates to occur.
 
 import rawCron from 'node-cron';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 
 console.log('[Scheduler] Process started. Setting up cron jobs...');
 
@@ -54,13 +54,20 @@ cron.schedule(bookmarksCron, () => {
     console.log('[Scheduler] [Bookmarks] update-s3 script completed successfully');
 
     // Submit updated sitemap to search engines
-    console.log('[Scheduler] [Bookmarks] Submitting updated sitemap to search engines...');
-    const sitemapResult = spawnSync('bun', ['run', 'submit-sitemap'], { env: process.env, stdio: 'inherit' });
-    if (sitemapResult.status !== 0) {
-      console.error(`[Scheduler] [Bookmarks] Sitemap submission failed (code ${sitemapResult.status}). Error: ${sitemapResult.error}`);
-    } else {
-      console.log('[Scheduler] [Bookmarks] Sitemap submitted successfully to search engines');
-    }
+    console.log('[Scheduler] [Bookmarks] Submitting updated sitemap to search engines asynchronously...');
+    const sitemapProcess = spawn('bun', ['run', 'submit-sitemap'], { env: process.env, stdio: 'inherit' });
+
+    sitemapProcess.on('error', (err) => {
+      console.error('[Scheduler] [Bookmarks] Failed to start sitemap submission process:', err);
+    });
+
+    sitemapProcess.on('close', (code) => {
+      if (code !== 0) {
+        console.error(`[Scheduler] [Bookmarks] Sitemap submission failed (code ${code}).`);
+      } else {
+        console.log('[Scheduler] [Bookmarks] Sitemap submitted successfully to search engines');
+      }
+    });
   }
 });
 
