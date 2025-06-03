@@ -68,11 +68,13 @@ export function Terminal() {
   } = useTerminal();
 
   // Effect to scroll to bottom when history changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: terminalHistory.length is a valid proxy for history changes
   useEffect(() => {
+    // Scroll to bottom when terminalHistory.length changes, affecting scrollHeight
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
-  }, [terminalHistory]); // Dependency on history from context
+  }, [terminalHistory.length]); // Dependency on history from context
 
   // Determine maximized state - moved up before hooks that depend on it
   const isMaximized = windowState === 'maximized';
@@ -157,7 +159,7 @@ export function Terminal() {
    // If not yet ready (mounted and registered in context), render nothing.
   if (!isRegistered) {
     if (enableDebugLogs) {
-      console.debug(`Terminal Component: Not ready (pre-mount/hydration from context), rendering null.`);
+      console.debug("Terminal Component: Not ready (pre-mount/hydration from context), rendering null.");
     }
     return null;
   }
@@ -180,7 +182,7 @@ export function Terminal() {
   const commonTerminalClasses = "bg-[#1a1b26] border border-gray-700 font-mono text-sm cursor-text overflow-hidden flex flex-col shadow-xl";
   // Margin handled with responsive utilities
   // Add z-10 to ensure it stays below the mobile menu dropdown
-  const normalTerminalClasses = "relative z-10 mx-auto my-4 sm:my-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl p-4 sm:p-6 rounded-lg";
+  const normalTerminalClasses = "relative z-10 mx-auto mt-4 mb-4 sm:mt-8 sm:mb-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl p-4 sm:p-6 rounded-lg";
   const maximizedTerminalClasses = "fixed left-0 right-0 top-14 bottom-0 z-[60] w-full h-[calc(100vh-56px)] p-6 border-0 rounded-none"; // Full window below nav
 
   // Define classes for the inner scrollable area
@@ -198,8 +200,13 @@ export function Terminal() {
           onClick={() => {
             maximizeWindow();
           }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              maximizeWindow();
+            }
+          }}
           tabIndex={0}
-          aria-hidden="true"
+          role="button"
         />
       )}
 
@@ -222,10 +229,17 @@ export function Terminal() {
         </div>
 
         {/* Scrollable Content Area */}
-        <div
+        <section
           className={cn(commonScrollClasses, isMaximized ? maximizedScrollClasses : normalScrollClasses)}
           ref={scrollContainerRef}
-          onClick={focusInput}
+          onClick={() => focusInput()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault(); // Prevent default space scroll
+              focusInput();
+            }
+          }}
+          aria-label="Terminal content area"
         >
           <div className="whitespace-pre-wrap break-words select-text">
             <History history={terminalHistory} />
@@ -235,7 +249,7 @@ export function Terminal() {
               <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={(e) => { void handleSubmit(e); }} />
             )}
           </div>
-        </div>
+        </section>
       </div>
     </>
   );
