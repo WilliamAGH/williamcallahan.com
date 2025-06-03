@@ -1,20 +1,44 @@
-// __tests__/bookmarks.backend.connection.test.ts
+/**
+ * @file Integration tests for the bookmarks API backend connection.
+ * These tests verify that the application can successfully connect to the external
+ * bookmarks API, fetch data, and handle pagination using cursors.
+ * It requires `BOOKMARK_BEARER_TOKEN` and `BOOKMARKS_LIST_ID` environment variables to be set.
+ */
 import request from 'node-fetch';
+import type { ApiResponse, RawApiBookmark } from '../lib/bookmarks';
 
+/**
+ * Test suite for verifying the connection and data retrieval from the external bookmarks API.
+ */
 describe('Bookmarks API Backend Connection', () => {
   const BOOKMARK_BEARER_TOKEN = process.env.BOOKMARK_BEARER_TOKEN;
   const BOOKMARKS_LIST_ID = process.env.BOOKMARKS_LIST_ID;
+  /**
+   * The base API endpoint for fetching bookmarks for the configured list ID.
+   * @internal
+   */
   const API_ENDPOINT = `https://bookmark.iocloudhost.net/api/v1/lists/${BOOKMARKS_LIST_ID}/bookmarks`;
 
+  /**
+   * Test case to verify that the API returns a 200 OK status,
+   * and that all bookmarks can be fetched and parsed correctly using cursor-based pagination.
+   * It also checks if a minimum number of bookmarks are retrieved and logs details of the first bookmark.
+   */
   it('should return a 200 OK status code and parse all bookmarks using cursor', async () => {
-    let allBookmarks: any[] = [];
-    let cursor: string | null = null;
+    let allBookmarks: RawApiBookmark[] = [];
+    const cursor: string | null = null; // Initial cursor is null
     let page = 1;
-    const limit = 20; // Set a limit to fetch more bookmarks per page
-    const expectedMinBookmarks = 25;
+    const limit = 20; // Number of bookmarks to fetch per page
+    const expectedMinBookmarks = 25; // Minimum number of bookmarks expected to be fetched
 
+    /**
+     * Fetches all bookmarks from the API, handling pagination using cursors.
+     * Accumulates bookmarks into the `allBookmarks` array.
+     * @async
+     * @internal
+     */
     const fetchAllBookmarks = async () => {
-      let nextCursor = cursor;
+      let nextCursor: string | null = cursor; // Start with the initial cursor (null), explicitly typed
       let hasMore = true;
 
       while (hasMore) {
@@ -36,7 +60,10 @@ describe('Bookmarks API Backend Connection', () => {
         const contentType = response.headers.get("content-type");
         expect(contentType).toEqual(expect.stringContaining("application/json"));
 
-        const data = await response.json();
+        const jsonResponse: unknown = await response.json();
+        // Explicitly assert the type on a new line
+        const data = jsonResponse as ApiResponse;
+        
         expect(Array.isArray(data.bookmarks)).toBe(true);
 
         allBookmarks = allBookmarks.concat(data.bookmarks);
@@ -73,7 +100,7 @@ describe('Bookmarks API Backend Connection', () => {
         if (firstBookmark.content.htmlContent) {
           console.log(`First bookmark content htmlContent (truncated): ${firstBookmark.content.htmlContent.substring(0, 30)}`);
         } else {
-          console.log(`First bookmark content htmlContent: null`);
+          console.log('First bookmark content htmlContent: null');
         }
       }
     }

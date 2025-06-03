@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { renderToString } from 'react-dom/server';
-import React from 'react';
+import React, { type JSX } from 'react';
 import { GlobalWindowRegistryProvider } from '../../lib/context/global-window-registry-context.client';
 // The import is correct - we're importing the component, not using it as a type
 

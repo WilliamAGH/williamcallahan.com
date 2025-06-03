@@ -145,8 +145,8 @@ describe('randomString', () => {
     });
 
     it('returns N/A for NaN and Infinity', () => {
-      expect(formatMultiple(NaN)).toBe('N/A');
-      expect(formatMultiple(Infinity)).toBe('N/A');
+      expect(formatMultiple(Number.NaN)).toBe('N/A');
+      expect(formatMultiple(Number.POSITIVE_INFINITY)).toBe('N/A');
     });
   });
 
@@ -160,8 +160,8 @@ describe('randomString', () => {
     });
 
     it('returns N/A for NaN and -Infinity', () => {
-      expect(formatPercentage(NaN)).toBe('N/A');
-      expect(formatPercentage(-Infinity)).toBe('N/A');
+      expect(formatPercentage(Number.NaN)).toBe('N/A');
+      expect(formatPercentage(Number.NEGATIVE_INFINITY)).toBe('N/A');
     });
   });
 
