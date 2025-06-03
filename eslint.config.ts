@@ -125,9 +125,9 @@ const config = tseslint.config(
       "@typescript-eslint/restrict-template-expressions": "warn",
       "@typescript-eslint/no-empty-object-type": "warn",
       // Code cleanliness
-      "@typescript-eslint/no-unused-vars": "warn", // Unused variables don't break functionality
-      "@typescript-eslint/no-unused-expressions": "warn", // Unused expressions are often false positives
-      "no-useless-escape": "warn" // Unnecessary escapes don't affect runtime behavior
+      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-unused-expressions": "warn",
+      "no-useless-escape": "warn"
     },
   },
 
