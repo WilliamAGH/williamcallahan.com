@@ -202,3 +202,25 @@ export const MAX_SIZE_DIFF = 10;
  * @type {string}
  */
 export const THEME_TIMESTAMP_KEY = "theme-timestamp";
+
+/**
+ * Hardcoded domains for logo fetching that should always be included
+ * @constant
+ * @type {readonly string[]}
+ * @remarks
+ * These represent key institutional and service domains used across the application.
+ * Centralized here to avoid duplication across scripts (update-s3-data.ts, prefetch-data.ts, populate-volumes.ts).
+ * Many of these domains are also extracted programmatically from education.ts and experience.ts data files.
+ */
+export const KNOWN_DOMAINS = [
+  'creighton.edu',
+  'unomaha.edu', 
+  'stanford.edu',
+  'columbia.edu',
+  'gsb.columbia.edu',
+  'cfp.net',
+  'seekinvest.com',
+  'tsbank.com',
+  'mutualfirst.com',
+  'morningstar.com'
+] as const;

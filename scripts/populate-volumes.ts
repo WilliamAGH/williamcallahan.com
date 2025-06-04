@@ -9,6 +9,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getBookmarks, getGithubActivity, getLogo, getInvestmentDomainsAndIds, calculateAndStoreAggregatedWeeklyActivity } from '../lib/data-access';
+import { KNOWN_DOMAINS } from '../lib/constants';
 import type { UnifiedBookmark } from '../types/bookmark';
 import type { UserActivityView } from '../types/github'; // Import UserActivityView
 
@@ -44,7 +45,7 @@ async function createDirectories() {
   await fs.mkdir(LOGOS_DIR, { recursive: true });
   await fs.mkdir(LOGOS_BY_ID_DIR, { recursive: true });
   await fs.mkdir(BOOKMARK_IMAGES_DIR, { recursive: true });
-  console.log(`✅ All necessary data directories ensured by populate-volumes.ts.`);
+  console.log("✅ All necessary data directories ensured by populate-volumes.ts.");
 }
 
 async function populateBookmarksData() {
@@ -53,10 +54,9 @@ async function populateBookmarksData() {
   if (bookmarks) {
     console.log(`✅ Bookmarks volume populated/updated. Total: ${bookmarks.length}`);
     return bookmarks;
-  } else {
-    console.error('❌ Failed to populate bookmarks volume via data-access layer.');
-    return [];
   }
+  console.error('❌ Failed to populate bookmarks volume via data-access layer.');
+  return [];
 }
 
 async function populateGithubActivityData() {
@@ -131,12 +131,13 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
         const block = experienceBlocks[i];
         if (block) {
             const idMatch = block.match(/^(?:"|')([^"']+)(?:"|')/);
-            if (idMatch && idMatch[1]) {
+            if (idMatch?.[1]) {
                 currentId = idMatch[1];
                 const urlPatterns = [/companyUrl:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g];
                 for (const pattern of urlPatterns) {
                     let urlMatch: RegExpExecArray | null;
-                    while ((urlMatch = pattern.exec(block)) !== null) {
+                    urlMatch = pattern.exec(block);
+                    while (urlMatch !== null) {
                         if (urlMatch && typeof urlMatch[1] === 'string') {
                             const domain = urlMatch[1];
                             domains.add(domain);
@@ -144,6 +145,7 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
                                 domainToIdMap.set(domain, currentId);
                             }
                         }
+                        urlMatch = pattern.exec(block);
                     }
                 }
             }
@@ -164,12 +166,13 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
         const block = educationBlocks[i];
         if (block) {
             const idMatch = block.match(/^(?:"|')([^"']+)(?:"|')/);
-            if (idMatch && idMatch[1]) {
+            if (idMatch?.[1]) {
                 currentId = idMatch[1];
                 const urlPatterns = [/institutionUrl:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /url:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g, /website:\s*['"](?:https?:\/\/)?(?:www\.)?([^/'"]+)['"]/g];
                 for (const pattern of urlPatterns) {
                     let urlMatch: RegExpExecArray | null;
-                    while ((urlMatch = pattern.exec(block)) !== null) {
+                    urlMatch = pattern.exec(block);
+                    while (urlMatch !== null) {
                         if (urlMatch && typeof urlMatch[1] === 'string') {
                             const domain = urlMatch[1];
                             domains.add(domain);
@@ -177,6 +180,7 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
                                 domainToIdMap.set(domain, currentId);
                             }
                         }
+                        urlMatch = pattern.exec(block);
                     }
                 }
             }
@@ -189,9 +193,10 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
   }
 
 
-  // 5. Add hardcoded domains
-  const KNOWN_DOMAINS = ['creighton.edu', 'unomaha.edu', 'stanford.edu', 'columbia.edu', 'gsb.columbia.edu', 'cfp.net', 'seekinvest.com', 'tsbank.com', 'mutualfirst.com', 'morningstar.com'];
-  KNOWN_DOMAINS.forEach(domain => domains.add(domain));
+  // 5. Add hardcoded domains from centralized constant
+  for (const domain of KNOWN_DOMAINS) {
+    domains.add(domain);
+  }
   console.log(`[Prefetch] Added ${KNOWN_DOMAINS.length} hardcoded domains. Total unique domains for logos: ${domains.size}`);
 
   const domainArray = Array.from(domains);
@@ -206,7 +211,7 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
       try {
         // getLogo handles fetching, validation (if possible), and writing to volume.
         const logoResult = await getLogo(domain); // Removed placeholder baseUrl
-        if (logoResult && logoResult.buffer) {
+        if (logoResult?.buffer) {
           console.log(`✅ Logo processed for ${domain} via data-access (source: ${logoResult.source})`);
           successCount++;
         } else {
@@ -350,7 +355,7 @@ async function populateAllVolumes() {
     if (process.env.NODE_ENV === 'development' && process.env.CI !== 'true') {
       try {
         await fs.writeFile(LAST_RUN_SUCCESS_TIMESTAMP_FILE, new Date().toISOString());
-        console.log(`✅ Successfully updated last run timestamp for populate-volumes (Development run).`);
+        console.log("✅ Successfully updated last run timestamp for populate-volumes (Development run).");
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         console.warn('⚠️ Could not update last run timestamp file:', message);
@@ -358,7 +363,7 @@ async function populateAllVolumes() {
     } else {
       // In production, CI, or other non-development environments, we don't update the timestamp
       // The script should run fully each time during builds in these environments
-      console.log(`ℹ️ Skipping update of last run timestamp for populate-volumes (Production/CI/Non-Dev run).`);
+      console.log("ℹ️ Skipping update of last run timestamp for populate-volumes (Production/CI/Non-Dev run).");
     }
 
     process.exit(0);
