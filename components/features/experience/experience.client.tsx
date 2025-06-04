@@ -10,25 +10,42 @@
 
 "use client";
 
-import { useEffect } from 'react'; // Import hooks (useState might not be needed)
+import { useEffect, type JSX } from 'react'; // Import hooks (useState might not be needed)
 import { WindowControls } from "../../ui/navigation/window-controls";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { Briefcase } from 'lucide-react'; // Import specific icon
 import { cn } from '@/lib/utils'; // Import cn utility
-import type { ReactElement } from 'react'; // Import ReactElement type for JSX props
+// ReactElement type is no longer explicitly imported if JSX.Element is used directly
 
-// Define a unique ID for this window instance
+/**
+ * Unique identifier for the experience window instance in the global window registry.
+ * @internal
+ */
 const EXPERIENCE_WINDOW_ID = 'experience-window';
 
 // Force static generation for the content component if possible (may need adjustment)
 // export const dynamic = 'force-static'; // This directive likely belongs with data fetching/rendering logic
 
-// Define the props for the Experience component
+/**
+ * Props for the Experience client component.
+ */
 interface ExperienceProps {
-  experienceCards: Array<{ id: string; card: ReactElement }>; // Expecting pre-rendered cards
+  /**
+   * An array of experience card objects. Each object should contain an `id`
+   * and a pre-rendered `card` (JSX.Element) representing an experience item.
+   */
+  experienceCards: Array<{ id: string; card: JSX.Element }>;
 }
 
-// Exported component is now the wrapper
+/**
+ * Client component wrapper for the Experience section.
+ * This component manages the window state (visibility, minimize, maximize) for the experience display
+ * using the `useRegisteredWindowState` hook. It renders the provided `experienceCards`
+ * within a macOS-style window frame.
+ *
+ * @param {ExperienceProps} props - The props for the component.
+ * @returns {JSX.Element} The rendered experience section within a window, or an empty fragment if closed or minimized.
+ */
 export function Experience({ experienceCards }: ExperienceProps): JSX.Element {
   // Register this window instance and get its state/actions
   const {
@@ -88,7 +105,6 @@ export function Experience({ experienceCards }: ExperienceProps): JSX.Element {
           <h1 className="text-xl font-mono ml-4">~/experience</h1>
         </div>
       </div>
-
       {/* Scrollable Content Area */}
       <div className={cn(
         "p-6",
@@ -99,9 +115,9 @@ export function Experience({ experienceCards }: ExperienceProps): JSX.Element {
           <div className="space-y-6">
             {experienceCards.map((item) => (
               // Use item.id which was passed along from the server component
-              <div key={item.id}>
+              (<div key={item.id}>
                 {item.card}
-              </div>
+              </div>)
             ))}
           </div>
         </div>
