@@ -9,7 +9,7 @@
  * @see {@link "https://schema.org/"} - Schema.org Documentation
  */
 
-import React from 'react';
+import React, { type JSX } from 'react';
 
 interface JsonLdScriptProps {
   data: object;
