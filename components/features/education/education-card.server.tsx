@@ -12,6 +12,8 @@ import { fetchLogo, normalizeDomain } from '../../../lib/logo-fetcher';
 import fs from 'fs/promises';
 import path from 'path';
 
+import type { JSX } from "react";
+
 // Cache for placeholder SVG
 let placeholderSvg: Buffer | null = null;
 

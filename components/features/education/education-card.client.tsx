@@ -1,5 +1,4 @@
-"use client";
-
+"use client";;
 /**
  * Education Card Client Component
  * @module components/features/education/education-card.client
@@ -22,6 +21,8 @@ import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
 import { LogoImage } from '../../../components/ui';
 import { ExternalLink } from '../../ui/external-link.client';
 import type { Education } from '../../../types/education';
+
+import type { JSX } from "react";
 
 /**
  * Logo data structure
