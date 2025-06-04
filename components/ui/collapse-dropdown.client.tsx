@@ -7,7 +7,7 @@
  */
 'use client';
 
-import type { ReactNode } from 'react';
+import type { ReactNode, JSX } from 'react';
 import { useRef, useEffect } from 'react';
 import { cn } from '../../lib/utils';
 
@@ -230,7 +230,10 @@ export function CollapseDropdown({
         )}
       >
         <span className="transition-transform duration-200 group-open:rotate-90 flex-shrink-0">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-chevron-right">
+            <title>Toggle dropdown</title>
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
         </span>
         <span className="flex-grow">{summary}</span>
       </summary>
