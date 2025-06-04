@@ -10,7 +10,7 @@
 export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
-import { fetchExternalBookmarks } from '@/lib/bookmarks.client';
+import { getBookmarksForStaticBuild } from '@/lib/bookmarks.server';
 import { getDomainSlug, generateUniqueSlug } from '@/lib/utils/domain-utils';
 
 /**
@@ -23,7 +23,7 @@ interface DomainPageRedirectorProps {
 }
 
 export default async function DomainPageRedirector({ params, searchParams }: DomainPageRedirectorProps) {
-  const allBookmarks = await fetchExternalBookmarks();
+  const allBookmarks = await getBookmarksForStaticBuild();
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
   const { domainSlug } = paramsResolved;

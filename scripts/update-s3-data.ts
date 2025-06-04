@@ -3,18 +3,46 @@
 /**
  * S3 Data Update Script
  *
- * This script is responsible for periodically fetching data from external sources
- * (GitHub, bookmark APIs, logo providers) and performing differential updates
- * to an S3-compatible storage. It's designed to be run by an external scheduler
+ * Periodically fetches data from external sources (GitHub, bookmark APIs, logo providers) 
+ * and performs differential updates to S3-compatible storage. Designed for external scheduler execution.
+ * 
+ * Features:
+ * - Selective updates via command-line flags
+ * - Differential S3 synchronization to minimize redundant writes
+ * - Batch processing for logo updates with rate limiting
+ * - Comprehensive error handling and logging
+ * 
+ * MODULE RESOLUTION FIX:
+ * Uses explicit .ts extension and @/ path mapping to ensure consistent module 
+ * resolution across development and Docker production environments. 
+ * Fallback index.ts in lib/data-access/ directory provides additional resolution safety.
  */
 
+// Load environment variables first
+import { config } from 'dotenv';
+config(); // Load .env file
+
+// Import using @/ path mapping with explicit .ts extension for maximum compatibility
 import {
   getBookmarks,
   getGithubActivity,
   getLogo,
   getInvestmentDomainsAndIds,
   calculateAndStoreAggregatedWeeklyActivity,
-} from '../lib/data-access'; // These will be modified to be S3-aware
+} from '@/lib/data-access.ts'; // These will be modified to be S3-aware
+
+// Import direct refresh functions for forced updates
+import { refreshBookmarksData } from '@/lib/bookmarks.ts';
+
+import { KNOWN_DOMAINS } from '@/lib/constants';
+
+// --- Configuration & Constants ---
+
+/** Environment configuration for verbose logging */
+const VERBOSE = process.env.VERBOSE === 'true';
+
+/** Root prefix in S3 for this application's data */
+const S3_DATA_ROOT = 'data';
 
 // Command-line argument parsing for selective updates
 const usage = `Usage: update-s3-data.ts [options]
@@ -34,32 +62,36 @@ const runBookmarksFlag = rawArgs.length === 0 || rawArgs.includes('--bookmarks')
 const runGithubFlag = rawArgs.length === 0 || rawArgs.includes('--github-activity');
 const runLogosFlag = rawArgs.length === 0 || rawArgs.includes('--logos');
 
-// --- Configuration & Constants ---
-const VERBOSE = process.env.VERBOSE === 'true';
-const S3_DATA_ROOT = 'data'; // Root prefix in S3 for this application's data
-
 console.log(`[UpdateS3] Script execution started. Raw args: ${process.argv.slice(2).join(' ')}`);
 
 // --- Data Update Functions ---
 
-async function updateBookmarksInS3() {
+/**
+ * Updates bookmark data in S3 storage
+ * Fetches fresh bookmark data and ensures S3 synchronization
+ */
+async function updateBookmarksInS3(): Promise<void> {
   console.log('[UpdateS3] AB Starting Bookmarks update to S3...');
   try {
-    // Pass skipExternalFetch: false to ensure it tries to get new data
-    console.log('[UpdateS3] [Bookmarks] Calling getBookmarks with skipExternalFetch=false.');
-    const bookmarks = await getBookmarks(false);
+    // Use direct refresh function to force fresh data instead of cached data
+    console.log('[UpdateS3] [Bookmarks] Calling refreshBookmarksData to force fresh fetch.');
+    const bookmarks = await refreshBookmarksData();
 
     if (bookmarks && bookmarks.length > 0) {
-      console.log(`[UpdateS3] [Bookmarks] getBookmarks returned ${bookmarks.length} bookmarks. S3 write should have occurred within getBookmarks.`);
+      console.log(`[UpdateS3] [Bookmarks] refreshBookmarksData returned ${bookmarks.length} fresh bookmarks and wrote to S3.`);
     } else {
-      console.warn('[UpdateS3] [Bookmarks] getBookmarks returned no bookmarks or failed. Check data-access logs.');
+      console.warn('[UpdateS3] [Bookmarks] refreshBookmarksData returned no bookmarks or failed. Check logs.');
     }
   } catch (error) {
     console.error('[UpdateS3] [Bookmarks] CRITICAL Error during Bookmarks S3 update process:', error);
   }
 }
 
-async function updateGithubActivityInS3() {
+/**
+ * Updates GitHub activity data in S3 storage
+ * Fetches new GitHub data, merges with existing S3 data, and recalculates aggregated statistics
+ */
+async function updateGithubActivityInS3(): Promise<void> {
   console.log('[UpdateS3] 🐙 Starting GitHub Activity update to S3...');
 
   try {
@@ -83,7 +115,11 @@ async function updateGithubActivityInS3() {
   }
 }
 
-async function updateLogosInS3() {
+/**
+ * Updates logo assets in S3 storage
+ * Collects domains from bookmarks, investments, and known sources, then fetches/caches logos in batches
+ */
+async function updateLogosInS3(): Promise<void> {
   console.log('[UpdateS3] 🖼️ Starting Logos update to S3...');
 
   try {
@@ -91,25 +127,28 @@ async function updateLogosInS3() {
 
     // 1. Extract domains from bookmarks via data-access
     const bookmarks = await getBookmarks(true); // reuse freshly-cached data
-    (bookmarks ?? []).forEach(b => {
+    for (const b of bookmarks ?? []) {
       try {
         if (b.url) domains.add(new URL(b.url).hostname.replace(/^www\./, ''));
       } catch { /* ignore invalid URLs */ }
-    });
+    }
     if (VERBOSE) console.log(`[UpdateS3] Extracted ${domains.size} domains from bookmarks.`);
 
-    // 2. Extract domains from investments data
+    // 2. Extract domains from investments data - simplified iteration using .values()
     const investmentDomainsMap = await getInvestmentDomainsAndIds();
-    investmentDomainsMap.forEach((_id, domain) => domains.add(domain));
+    for (const domain of investmentDomainsMap.values()) {
+      domains.add(domain);
+    }
     if (VERBOSE) console.log(`[UpdateS3] Added ${investmentDomainsMap.size} unique domains from investments. Total unique: ${domains.size}`);
 
     // 3. Domains from experience.ts / education.ts (assuming these are static or also in S3)
     // For simplicity, this part is omitted but would follow a similar pattern: read from S3 or use static data.
     // If these files are static in the repo, their parsing logic can remain.
 
-    // 4. Hardcoded domains
-    const KNOWN_DOMAINS = ['creighton.edu', 'unomaha.edu', 'stanford.edu', 'columbia.edu', 'gsb.columbia.edu', 'cfp.net', 'seekinvest.com', 'tsbank.com', 'mutualfirst.com', 'morningstar.com'];
-    KNOWN_DOMAINS.forEach(domain => domains.add(domain));
+    // 4. Add hardcoded domains from centralized constant
+    for (const domain of KNOWN_DOMAINS) {
+      domains.add(domain);
+    }
     if (VERBOSE) console.log(`[UpdateS3] Added ${KNOWN_DOMAINS.length} hardcoded domains. Total unique domains for logos: ${domains.size}`);
 
     const domainArray = Array.from(domains);
@@ -129,7 +168,8 @@ async function updateLogosInS3() {
           // 3. If fetched, write to S3.
           const logoResult = await getLogo(domain); // This should now be S3-aware
 
-          if (logoResult && logoResult.buffer) {
+          // Enhanced null-safe logo buffer validation
+          if (logoResult?.buffer && Buffer.isBuffer(logoResult.buffer) && logoResult.buffer.length > 0) {
             // S3 write should happen within getLogo if it fetched externally
             if (VERBOSE) console.log(`[UpdateS3] Logo processed for ${domain} (source: ${logoResult.source}). Check data-access for S3 write details.`);
             successCount++;
@@ -157,9 +197,13 @@ async function updateLogosInS3() {
   }
 }
 
-
 // --- Main Execution ---
-async function runScheduledUpdates() {
+
+/**
+ * Main execution function that orchestrates all scheduled S3 data updates
+ * Handles environment validation, flag processing, and sequential update execution
+ */
+async function runScheduledUpdates(): Promise<void> {
   console.log(`[UpdateS3] runScheduledUpdates called. Current PT: ${new Date().toISOString()}`);
   console.log(`[UpdateS3] Configured S3 Root: ${S3_DATA_ROOT}`);
   console.log(`[UpdateS3] Verbose logging: ${VERBOSE}`);
@@ -192,7 +236,7 @@ async function runScheduledUpdates() {
   process.exit(0);
 }
 
-// Run the main function
+// Run the main function with comprehensive error handling
 void runScheduledUpdates().catch(error => {
   console.error('[UpdateS3] Unhandled error in runScheduledUpdates:', error);
   process.exit(1);

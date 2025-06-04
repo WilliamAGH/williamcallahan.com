@@ -12,6 +12,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 // Import data-access functions directly
 import { getLogo, getInvestmentDomainsAndIds, getBookmarks, getGithubActivity } from '../lib/data-access';
+import { KNOWN_DOMAINS } from '../lib/constants';
 import type { UnifiedBookmark } from '../types'; // Import UnifiedBookmark
 
 // Configure longer timeouts for prefetching
@@ -153,8 +154,7 @@ async function prefetchLogosData(bookmarksData: UnifiedBookmark[]): Promise<void
     console.warn('[Prefetch] Could not read/parse education.ts for domains:', errorMessage);
   }
 
-  // 5. Add hardcoded domains
-  const KNOWN_DOMAINS = ['creighton.edu', 'unomaha.edu', 'stanford.edu', 'columbia.edu', 'gsb.columbia.edu', 'cfp.net', 'seekinvest.com', 'tsbank.com', 'mutualfirst.com', 'morningstar.com'];
+  // 5. Add hardcoded domains from centralized constant
   for (const domain of KNOWN_DOMAINS) {
     domains.add(domain);
   }
