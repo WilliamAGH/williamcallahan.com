@@ -44,6 +44,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.823.0",
     "@fontsource/ibm-plex-mono": "^5.2.5",
+    "@mapbox/rehype-prism": "^0.9.0",
     "@mdx-js/mdx": "^3.1.0",
     "@octokit/graphql": "^8.2.2",
     "@sentry/browser": "^9.25.1",
@@ -58,7 +59,7 @@
     "googleapis": "^149.0.0",
     "gray-matter": "^4.0.3",
     "import-in-the-middle": "^1.14.0",
-    "lucide-react": "0.512.0",
+    "lucide-react": "^0.512.0",
     "mdast-util-mdx-jsx": "^3.2.0",
     "next": "^15.3.3",
     "next-mdx-remote": "4.4.1",
@@ -83,7 +84,6 @@
     "tailwindcss-animate": "^1.0.7",
     "zod": "3.25.50"
   },
-
   "devDependencies": {
     "@eslint/js": "^9.28.0",
     "@happy-dom/global-registrator": "^17.6.3",
