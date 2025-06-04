@@ -1,22 +1,40 @@
-'use client';
+/**
+ * @file Client components for rendering macOS-style tabbed windows.
+ * Provides InstructionMacOSFrameTabs as the main tab container and InstructionMACOSTab for individual tabs.
+ * Includes context for managing tab state and interactions like close, minimize, and maximize.
+ */
+ 'use client';
 
-import React from 'react';
-import { useState, createContext, Children, useId, useCallback, useEffect, useRef } from 'react';
-import type { ReactNode, ReactElement } from 'react';
+import React, { type JSX } from 'react'; // Removed unused type FC
+import { useState, createContext, Children, useId, useCallback, useEffect, useRef, type ReactNode, type ReactElement } from 'react';
+// import type { ReactNode, ReactElement } from 'react'; // Combined into the line above
 import { cn } from '@/lib/utils';
 import { MacOSWindow, type WindowTab } from './macos-window.client';
 import { WindowControls } from './navigation/window-controls';
 import { CollapseDropdown } from './collapse-dropdown.client';
 
-// Renamed interface
+/**
+ * Props for the InstructionMACOSTab component.
+ * Defines the expected properties for each tab.
+ */
 interface InstructionMACOSTabProps {
+  /** The label displayed on the tab button. Required. */
   label: string;
+  /** The content to be rendered when this tab is active. Required. */
   children: ReactNode;
+  /** If true, this tab will be selected by default when the component mounts. Optional. */
   isDefault?: boolean;
 }
 
-// Renamed component
-export function InstructionMACOSTab({ children }: InstructionMACOSTabProps): ReactElement {
+/**
+ * Represents an individual tab within an InstructionMacOSFrameTabs container.
+ * This component primarily serves as a data container for its props and applies styling context.
+ * The actual tab button rendering is handled by the parent InstructionMacOSFrameTabs component.
+ *
+ * @param {InstructionMACOSTabProps} props - The props for the tab.
+ * @returns {JSX.Element} A React fragment containing the children with added context properties.
+ */
+export function InstructionMACOSTab({ children }: InstructionMACOSTabProps): JSX.Element {
   const childrenWithProps = Children.map(children, childNode => {
     if (!React.isValidElement(childNode)) {
       return childNode;
@@ -36,39 +54,72 @@ export function InstructionMACOSTab({ children }: InstructionMACOSTabProps): Rea
   return <>{childrenWithProps}</>;
 }
 
-// Renamed interface for context props
+/**
+ * Defines the shape of the context provided by InstructionMacOSFrameTabs.
+ */
 interface InstructionMacOSFrameTabsContextProps {
+  /** The label of the currently active tab, or null if none is active. */
   activeTab: string | null;
+  /** Function to set the active tab by its label. */
   setActiveTab: (label: string) => void;
+  /** An array of objects, each representing a tab with its label and unique ID. */
   tabs: Array<{ label: string; id: string }>;
+  /** A base ID string used for generating unique, accessible IDs for tab elements. */
   baseId: string;
 }
 
-// Renamed context object
+/**
+ * React context for managing the state of InstructionMacOSFrameTabs.
+ * This context provides descendant components with information about the active tab
+ * and a function to change the active tab.
+ * @internal This context is not intended for direct external use.
+ */
 const InstructionMacOSFrameTabsContext = createContext<InstructionMacOSFrameTabsContextProps | null>(null);
 
-// Renamed main component
-export function InstructionMacOSFrameTabs({ children, className = '' }: { children: ReactNode, className?: string }) {
-  const baseId = useId();
-  const [activeTabLabel, setActiveTabLabel] = useState<string | null>(null);
+/**
+ * Props for the InstructionMacOSFrameTabs component.
+ */
+interface InstructionMacOSFrameTabsProps {
+  /** One or more {@link InstructionMACOSTab} components. */
+  children: ReactNode;
+  /** Optional CSS class names to apply to the main window container. */
+  className?: string;
+}
+
+/**
+ * A component that renders a macOS-style window with tabbed navigation.
+ * It manages the active tab, window visibility (close), and window states (minimize, maximize).
+ * Children should be {@link InstructionMACOSTab} components.
+ *
+ * @param {InstructionMacOSFrameTabsProps} props - The props for the component.
+ * @returns {JSX.Element | null} The rendered tabbed window, a message if no tabs are configured, or null if closed.
+ */
+export function InstructionMacOSFrameTabs({ children, className = '' }: InstructionMacOSFrameTabsProps): JSX.Element | null {
+  const baseId = useId(); // Unique ID for ARIA attributes
+  const [activeTabLabel, setActiveTabLabel] = useState<string | null>(null); // Label of the currently active tab
 
   // Window state for InstructionMacOSFrameTabs itself
-  const [isVisible, setIsVisible] = useState(true);
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [isMaximized, setIsMaximized] = useState(false);
-  const windowRef = useRef<HTMLDivElement>(null); // For maximized click outside
+  const [isVisible, setIsVisible] = useState(true); // Whether the window is currently visible
+  const [isMinimized, setIsMinimized] = useState(false); // Whether the window is minimized
+  const [isMaximized, setIsMaximized] = useState(false); // Whether the window is maximized
+  const windowRef = useRef<HTMLDivElement>(null); // Ref to the window for click-outside detection when maximized
 
+  /** Toggles the visibility of the window. */
   const handleClose = useCallback(() => setIsVisible(prev => !prev), []);
+
+  /** Toggles the minimized state of the window. Un-maximizes if currently maximized. */
   const handleMinimize = useCallback(() => {
     setIsMinimized(prev => !prev);
-    if (isMaximized) setIsMaximized(false);
+    if (isMaximized) setIsMaximized(false); // Cannot be minimized and maximized simultaneously
   }, [isMaximized]);
+
+  /** Toggles the maximized state of the window. Un-minimizes if currently minimized. */
   const handleMaximize = useCallback(() => {
     setIsMaximized(prev => !prev);
-    if (isMinimized) setIsMinimized(false);
+    if (isMinimized) setIsMinimized(false); // Cannot be maximized and minimized simultaneously
   }, [isMinimized]);
 
-  // Effect for handling Escape key and click outside when maximized
+  // Effect for handling Escape key to un-maximize and click outside to un-maximize.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && isMaximized) {
@@ -121,8 +172,7 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: { childr
       const defaultTab = instructionTabs.find(t => t.isDefault) ?? instructionTabs[0];
       if (defaultTab) setActiveTabLabel(defaultTab.label);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instructionTabs.length]);
+  }, [activeTabLabel, instructionTabs]);
 
   if (instructionTabs.length === 0) {
     return <div className="my-4 p-4 border border-red-500 rounded-md bg-red-50 text-red-700">No tabs configured. Please add one or more InstructionMACOSTab components.</div>;
@@ -165,12 +215,10 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: { childr
   if (!isVisible) {
     return (
       <div className={cn("my-5 flex justify-center", className)}>
-        <div
-          className="flex items-center bg-[#2E2E2E] dark:bg-[#1a1b26] px-3 py-1.5 rounded-lg cursor-pointer border border-gray-200 dark:border-gray-700 shadow-sm"
-          onClick={handleClose} // Click to reopen the main content
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleClose()}
+        <button
+          type="button"
+          className="flex items-center bg-[#2E2E2E] dark:bg-[#1a1b26] px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm cursor-pointer"
+          onClick={handleClose}
           aria-label="Show content"
         >
           <WindowControls
@@ -183,7 +231,7 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: { childr
           <span className="ml-2 text-xs text-gray-300 dark:text-gray-400">
             Content hidden (click to show)
           </span>
-        </div>
+        </button>
       </div>
     );
   }

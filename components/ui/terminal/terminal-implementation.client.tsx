@@ -244,7 +244,7 @@ export function Terminal() {
           <div className="whitespace-pre-wrap break-words select-text">
             <History history={terminalHistory} />
             {selection ? (
-              <SelectionView items={selection} onSelect={handleSelection} onExit={cancelSelection} />
+              <SelectionView items={selection} onSelectAction={handleSelection} onExitAction={cancelSelection} />
             ) : (
               <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={(e) => { void handleSubmit(e); }} />
             )}

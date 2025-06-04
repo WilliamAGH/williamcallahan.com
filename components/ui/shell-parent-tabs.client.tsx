@@ -8,19 +8,33 @@
 
 'use client';
 
-import { useState, createContext, Children, isValidElement, cloneElement, useId } from 'react';
-import type { ReactNode, ReactElement } from 'react';
+import { useState, createContext, Children, isValidElement, cloneElement, useId, type JSX } from 'react';
+import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
+/**
+ * Props for the ShellTab component.
+ */
 interface ShellTabProps {
+  /** The label to display for the tab. */
   label: string;
+  /** The content to render within the tab. */
   children: ReactNode;
+  /** Whether this tab should be selected by default. */
   isDefault?: boolean;
 }
 
-// This component is a simple wrapper and doesn't render anything itself.
-// Its props are used by the parent ShellParentTabs.
-export function ShellTab({ children }: ShellTabProps): ReactElement {
+/**
+ * Represents a single tab within a ShellParentTabs container.
+ * This component primarily serves as a data container for its props (label, children, isDefault)
+ * and modifies its children to add styling and context markers.
+ * It does not render a visual tab button itself; that's handled by ShellParentTabs.
+ *
+ * @param {ShellTabProps} props - The props for the component.
+ * @param {ReactNode} props.children - The content of the tab.
+ * @returns {JSX.Element} A React fragment containing the (potentially modified) children.
+ */
+export function ShellTab({ children }: ShellTabProps): JSX.Element {
   // Add a marker prop to children that are elements to help identify when they're in ShellTab
   const childrenWithProps = Children.map(children, child => {
     if (isValidElement(child)) {
@@ -50,18 +64,38 @@ export function ShellTab({ children }: ShellTabProps): ReactElement {
   return <>{childrenWithProps}</>;
 }
 
+/**
+ * Context properties for ShellParentTabs.
+ */
 interface ShellParentTabsContextProps {
+  /** The label of the currently active tab. */
   activeTab: string;
+  /** Function to set the active tab. */
   setActiveTab: (label: string) => void;
+  /** Array of tab labels and their generated IDs. */
   tabs: Array<{ label: string; id: string }>;
+  /** Base ID used for generating unique IDs for tab elements. */
   baseId: string;
 }
 
+/**
+ * React context for managing the state of ShellParentTabs.
+ * @internal
+ */
 const ShellTabsContext = createContext<ShellParentTabsContextProps | null>(null);
 
 // We don't need this unused interface
 // Removing to fix eslint error
 
+/**
+ * A container component that renders a set of tabs and their content.
+ * It manages the active tab state and renders the corresponding ShellTab's children.
+ *
+ * @param {object} props - The props for the component.
+ * @param {ReactNode} props.children - Should be one or more ShellTab components.
+ * @param {string} [props.className] - Optional CSS class name for the container.
+ * @returns {JSX.Element | null} The rendered tabs container or a message if no tabs are configured.
+ */
 export function ShellParentTabs({ children, className = '' }: { children: ReactNode, className?: string }) {
   const baseId = useId();
   const [activeTab, setActiveTab] = useState<string>('');
@@ -98,6 +132,7 @@ export function ShellParentTabs({ children, className = '' }: { children: ReactN
         <div className="flex border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30 rounded-t-lg" role="tablist">
           {tabs.map(tab => (
             <button
+              type="button"
               key={tab.label} // Use label as key
               role="tab"
               aria-selected={activeTab === tab.label} // Compare with label

@@ -8,7 +8,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useCallback, isValidElement } from 'react'; // Import useEffect, useRef, useCallback, isValidElement
+import { useState, useEffect, useRef, useCallback, isValidElement, type JSX } from 'react'; // Import useEffect, useRef, useCallback, isValidElement
 import type { ComponentProps, ReactNode } from 'react';
 // import Prism from 'prismjs'; // Remove Prism import
 // import 'prismjs/themes/prism-tomorrow.css'; // Remove Prism theme import if it was added here
@@ -179,17 +179,27 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
           overflow: 'hidden',
           borderRadius: embeddedInTabFrame ? '0px' : '8px'
         }}>
-          <div className={cn(
-            "flex items-center bg-[#1a2a35] border border-gray-700/50 rounded-lg cursor-pointer",
-            "px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 md:py-1.5"
-          )} onClick={handleClose}>
+          <button 
+            type="button"
+            className={cn(
+              "flex items-center bg-[#1a2a35] border border-gray-700/50 rounded-lg cursor-pointer",
+              "px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 md:py-1.5",
+              "w-full text-left" // Make button full width and left-aligned like original div
+            )} 
+            onClick={handleClose}
+            onKeyUp={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                handleClose();
+              }
+            }}
+          >
             {!embeddedInTabFrame && ( // Only show controls if not embedded and relying on parent
-              <WindowControls
+              (<WindowControls
                 onClose={handleClose}
                 onMinimize={handleMinimize}
                 onMaximize={handleMaximize}
                 size={controlSize}
-              />
+              />)
             )}
             <div className={cn(
                 "text-gray-400",
@@ -198,7 +208,7 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
               <span>Code block hidden (click to show)</span>
               {language && !embeddedInTabFrame && <span style={{ fontSize: '12px' }} className="not-prose ml-1 sm:ml-2 opacity-75">- {language}</span>}
             </div>
-          </div>
+          </button>
         </div>
       </div>
     );
@@ -218,7 +228,7 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
         {/* Header: Rendered differently based on embeddedInTabFrame */}
         {!embeddedInTabFrame ? (
           // Full header for standalone CodeBlock
-          <div className="flex items-center bg-[#1a2a35] dark:bg-[#1a1b26] px-3 py-1.5 rounded-t-lg">
+          (<div className="flex items-center bg-[#1a2a35] dark:bg-[#1a1b26] px-3 py-1.5 rounded-t-lg">
             <WindowControls
               onClose={handleClose}
               onMinimize={handleMinimize}
@@ -231,13 +241,13 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
                 {language}
               </div>
             )}
-          </div>
+          </div>)
         ) : (
           // Minimal or no header for embedded CodeBlock, primarily for CopyButton positioning context
           // The parent div for <pre> and <CopyButton> is already "relative group"
           // So CopyButton will position itself correctly relative to that.
           // We don't need a visible header bar here if embedded.
-          null // Or an empty div if CopyButton needed a specific height container: <div className="h-8"></div>
+          (null) // Or an empty div if CopyButton needed a specific height container: <div className="h-8"></div>
         )}
 
         {/* Content (pre + CopyButton) */}
