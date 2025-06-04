@@ -52,8 +52,10 @@ function checkRateLimit(ip: string): boolean {
 export async function POST(request: Request): Promise<NextResponse> {
   const authorizationHeader = request.headers.get('Authorization');
   const cronRefreshSecret = process.env.BOOKMARK_CRON_REFRESH_SECRET;
+  
   let isCronJob = false;
 
+  // Check for custom secret authentication
   if (cronRefreshSecret && authorizationHeader && authorizationHeader.startsWith('Bearer ')) {
     const token = authorizationHeader.substring(7); // Remove "Bearer " prefix
     if (token === cronRefreshSecret) {
@@ -99,7 +101,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json({
       status: 'success',
-      message: `Bookmarks cache refreshed successfully${isCronJob ? ' (triggered by cron)' : ''}`,
+      message: `Bookmarks cache refreshed successfully${isCronJob ? ' (triggered by cron job)' : ''}`,
       data: {
         refreshed: true,
         bookmarksCount: bookmarks.length

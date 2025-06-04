@@ -9,7 +9,7 @@
 // Configure dynamic rendering
 export const dynamic = 'force-dynamic';
 
-import { getBookmarksForStaticBuild } from '@/lib/bookmarks.client';
+import { getBookmarksForStaticBuild } from '@/lib/bookmarks.server';
 import { BookmarksServer } from '@/components/features/bookmarks/bookmarks.server';
 import { JsonLdScript } from '@/components/seo/json-ld';
 import { getStaticPageMetadata } from '@/lib/seo/metadata';
@@ -55,7 +55,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   if (!foundBookmark) {
     return {
       ...baseMetadata,
-      title: `Bookmark | William Callahan`
+      title: "Bookmark | William Callahan"
     };
   }
 

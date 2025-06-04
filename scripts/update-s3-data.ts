@@ -18,6 +18,10 @@
  * Fallback index.ts in lib/data-access/ directory provides additional resolution safety.
  */
 
+// Load environment variables first
+import { config } from 'dotenv';
+config(); // Load .env file
+
 // Import using @/ path mapping with explicit .ts extension for maximum compatibility
 import {
   getBookmarks,
@@ -26,6 +30,9 @@ import {
   getInvestmentDomainsAndIds,
   calculateAndStoreAggregatedWeeklyActivity,
 } from '@/lib/data-access.ts'; // These will be modified to be S3-aware
+
+// Import direct refresh functions for forced updates
+import { refreshBookmarksData } from '@/lib/bookmarks.ts';
 
 import { KNOWN_DOMAINS } from '@/lib/constants';
 
@@ -66,14 +73,14 @@ console.log(`[UpdateS3] Script execution started. Raw args: ${process.argv.slice
 async function updateBookmarksInS3(): Promise<void> {
   console.log('[UpdateS3] AB Starting Bookmarks update to S3...');
   try {
-    // Pass skipExternalFetch: false to ensure it tries to get new data
-    console.log('[UpdateS3] [Bookmarks] Calling getBookmarks with skipExternalFetch=false.');
-    const bookmarks = await getBookmarks(false);
+    // Use direct refresh function to force fresh data instead of cached data
+    console.log('[UpdateS3] [Bookmarks] Calling refreshBookmarksData to force fresh fetch.');
+    const bookmarks = await refreshBookmarksData();
 
     if (bookmarks && bookmarks.length > 0) {
-      console.log(`[UpdateS3] [Bookmarks] getBookmarks returned ${bookmarks.length} bookmarks. S3 write should have occurred within getBookmarks.`);
+      console.log(`[UpdateS3] [Bookmarks] refreshBookmarksData returned ${bookmarks.length} fresh bookmarks and wrote to S3.`);
     } else {
-      console.warn('[UpdateS3] [Bookmarks] getBookmarks returned no bookmarks or failed. Check data-access logs.');
+      console.warn('[UpdateS3] [Bookmarks] refreshBookmarksData returned no bookmarks or failed. Check logs.');
     }
   } catch (error) {
     console.error('[UpdateS3] [Bookmarks] CRITICAL Error during Bookmarks S3 update process:', error);

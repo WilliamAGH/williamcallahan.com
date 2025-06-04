@@ -9,8 +9,8 @@
 import type { Education } from '../../../types/education';
 import { EducationCardClient } from './education-card.client';
 import { fetchLogo, normalizeDomain } from '../../../lib/logo-fetcher';
-import fs from 'fs/promises';
-import path from 'path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 import type { JSX } from "react";
 

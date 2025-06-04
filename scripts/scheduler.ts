@@ -1,3 +1,7 @@
+// Load environment variables first
+import { config } from 'dotenv';
+config(); // Load .env file
+
 // Continuous Background Scheduler
 //
 // This is a long-running process that schedules and triggers data update tasks
@@ -47,7 +51,10 @@ const logosCron     = process.env.S3_LOGOS_CRON     || '0 1 * * 0';     // weekl
 console.log(`[Scheduler] Bookmarks schedule: ${bookmarksCron} (every 2 hours)`);
 cron.schedule(bookmarksCron, () => {
   console.log(`[Scheduler] [Bookmarks] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Spawning update-s3...`);
+  
+  // Call update-s3 script directly (no HTTP request needed)
   const result = spawnSync('bun', ['run', 'update-s3', '--', '--bookmarks'], { env: process.env, stdio: 'inherit' });
+  
   if (result.status !== 0) {
     console.error(`[Scheduler] [Bookmarks] update-s3 script failed (code ${result.status}). Error: ${result.error}`);
   } else {

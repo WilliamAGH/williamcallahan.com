@@ -9,7 +9,7 @@
 // Configure dynamic rendering
 export const dynamic = 'force-dynamic';
 
-import { getBookmarksForStaticBuild } from '@/lib/bookmarks.client';
+import { getBookmarksForStaticBuild } from '@/lib/bookmarks.server';
 import { BookmarksServer } from '@/components/features/bookmarks/bookmarks.server';
 import { JsonLdScript } from '@/components/seo/json-ld';
 import { getStaticPageMetadata } from '@/lib/seo/metadata';
@@ -27,7 +27,7 @@ export async function generateStaticParams() {
     )
   );
   const uniqueSlugs = Array.from(new Set(tags)).map(tag => {
-    // tag should now be string
+    // tag should now be string after the flatMap transformation
     return sanitizeTagSlug(tag);
   });
   return uniqueSlugs.map(tagSlug => ({ tagSlug }));
