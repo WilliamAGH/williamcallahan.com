@@ -104,8 +104,10 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
       return `cell-${cellIndex}`;
     });
     
-    const contentKey = keyParts.join('-').replace(/[^a-zA-Z0-9-_]/g, '_');
-    return contentKey || `row-${index}`;
+    const safeKey = keyParts.join('-').replace(/[^a-zA-Z0-9_-]/g, '_'); // escape hyphen
+    
+    // Guarantee uniqueness by suffixing the row index. Keeps stability while avoiding collisions.
+    return safeKey ? `${safeKey}-${index}` : `row-${index}`;
   };
 
   // If parsing failed or no data, render a placeholder or nothing
@@ -208,7 +210,7 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
                 const isInvestment = headerIndex === investmentIndex;
                 
                 // Create a stable key for the cell using header content and position
-                const headerKey = headerToString(header).replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 20) || `header-${headerIndex}`;
+                const headerKey = headerToString(header).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 20) || `header-${headerIndex}`;
                 const cellKey = `${createRowKey(row, rowIndex)}-${headerKey}`;
                 
                 return (
