@@ -23,6 +23,8 @@ import { LogoImage } from '../../../components/ui';
 import { ExternalLink } from '../../ui/external-link.client';
 import type { Certification } from '../../../types/education';
 
+import type { JSX } from "react";
+
 /**
  * Logo data structure
  * @interface
