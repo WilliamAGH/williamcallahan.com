@@ -11,7 +11,7 @@
 
 'use client';
 
-import React from "react";
+import React, { type JSX } from "react";
 import Image from 'next/image'; // Import next/image
 
 interface LogoImageProps {
@@ -52,20 +52,20 @@ export function LogoImage({
         loading="lazy" // Standard lazy loading
       />
     );
-  } else {
-    // Render next/image for standard URLs
-    return (
-      // Wrapper div needed for layout="fill"
-      <div data-testid="logo-image-wrapper" className={`relative ${className}`} style={{ width, height }}>
-        <Image
-          src={src}
-          alt={alt}
-          fill
-          sizes="100vw" // Add sizes prop
-          style={{ objectFit: 'contain' }} // Add style for object-fit
-          priority={priority}
-        />
-      </div>
-    );
   }
+
+  // Render next/image for standard URLs
+  return (
+    // Wrapper div needed for layout="fill"
+    <div data-testid="logo-image-wrapper" className={`relative ${className}`} style={{ width, height }}>
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes="100vw" // Add sizes prop
+        style={{ objectFit: 'contain' }} // Add style for object-fit
+        priority={priority}
+      />
+    </div>
+  );
 }

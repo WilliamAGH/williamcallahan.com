@@ -7,7 +7,8 @@
 
 import Script from 'next/script'
 import { usePathname } from 'next/navigation'
-import React, { useEffect, useCallback, useState, Component, type ErrorInfo } from 'react'
+import type React from 'react'
+import { useEffect, useCallback, useState, Component, type ErrorInfo, type JSX } from 'react';
 
 /**
  * Analytics event data structure based on official specs
