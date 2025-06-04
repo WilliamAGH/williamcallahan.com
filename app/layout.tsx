@@ -276,7 +276,7 @@ export default function RootLayout({
             </div>
           </GlobalWindowRegistryProvider>
         </Providers>
-        <Suspense fallback={<></>}>
+        <Suspense fallback={null}>
           <Analytics />
         </Suspense>
       </body>
