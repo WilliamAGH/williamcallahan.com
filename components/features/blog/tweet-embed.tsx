@@ -47,7 +47,6 @@ const proxy = (srcInput: string | Blob): string => {
 /**
  * Props for the ImgProxy component.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface ImgProxyProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src'> {
   /** The original source URL of the image or a Blob. */
   src?: string | Blob;
@@ -73,10 +72,7 @@ const ImgProxy = ({
   width,
   height,
   ...rest
-}: React.ImgHTMLAttributes<HTMLImageElement> & {
-  width?: number;
-  height?: number;
-}) => {
+}: ImgProxyProps) => {
   console.log('[ImgProxy] Original src received:', src);
   const proxiedSrc = proxy(src || ''); // Ensure string for proxy, or handle Blob case if necessary
   console.log('[ImgProxy] Proxied src to be used:', proxiedSrc);
