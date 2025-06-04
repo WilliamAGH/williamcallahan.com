@@ -1,7 +1,9 @@
 /**
  * CodeBlock Component
  *
- * A component that renders a code block with syntax highlighting and a copy button.
+ * A component that renders a code block with syntax highlighting, copy functionality,
+ * and macOS-style window controls. Supports embedded mode for integration within
+ * tabbed interfaces and standalone mode with full window chrome.
  *
  * @module components/ui/code-block/code-block.client
  */
@@ -33,6 +35,8 @@ export interface CodeBlockProps extends ComponentProps<'pre'> {
 
 /**
  * Extract language from className (e.g., "language-typescript" -> "typescript")
+ * @param className - The CSS class string to parse
+ * @returns The extracted language identifier or empty string
  */
 const extractLanguage = (className?: string): string => {
   const match = className?.match(/language-(\w+)/);
@@ -41,8 +45,8 @@ const extractLanguage = (className?: string): string => {
 
 /**
  * Filters out comment lines from text content
- * @param {string} text - The text to filter
- * @returns {string} Text with comments removed
+ * @param text - The text to filter
+ * @returns Text with comments removed
  */
 const filterComments = (text: string): string => {
   if (typeof text !== 'string') return '';
@@ -55,8 +59,8 @@ const filterComments = (text: string): string => {
 
 /**
  * Recursively extracts text content from React nodes
- * @param {React.ReactNode} node - The node to extract text from
- * @returns {string} Extracted text content
+ * @param node - The React node to extract text from
+ * @returns The extracted text content as a string
  */
 const getTextContent = (node: ReactNode): string => {
   if (typeof node === 'string') return node;
@@ -79,10 +83,11 @@ const getTextContent = (node: ReactNode): string => {
 };
 
 /**
- * A component that renders a code block with syntax highlighting and a copy button
+ * A component that renders a code block with syntax highlighting and a copy button.
+ * Features window controls for minimize/maximize functionality and responsive design.
  * @component
- * @param {CodeBlockProps} props - The component props
- * @returns {JSX.Element} A code block with copy functionality
+ * @param props - The component props
+ * @returns JSX element representing the code block with interactive features
  */
 export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...props }: CodeBlockProps): JSX.Element => {
   const language = extractLanguage(className);
@@ -103,17 +108,25 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
   const controlSize = windowSize.width && windowSize.width < 640 ? 'sm' :
                      (windowSize.width && windowSize.width > 1280 ? 'lg' : 'md');
 
-  // Handler functions for window controls
+  /**
+   * Handler function for close button - toggles visibility
+   */
   const handleClose = () => {
     setIsVisible(prev => !prev); // Toggle visibility
   };
 
+  /**
+   * Handler function for minimize button - toggles minimized state
+   */
   const handleMinimize = () => {
     setIsMinimized(prev => !prev);
     if (isMaximized) setIsMaximized(false); // Exit maximized mode if active
   };
 
-  // Wrap in useCallback to prevent recreation on each render
+  /**
+   * Handler function for maximize button - toggles maximized state
+   * Wrapped in useCallback to prevent recreation on each render
+   */
   const handleMaximize = useCallback(() => {
     setIsMaximized(prev => !prev);
     if (isMinimized) setIsMinimized(false); // Exit minimized mode if active
@@ -163,13 +176,17 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
 
   // Return early if code block is closed
   if (!isVisible) {
-    // This section defines the appearance when the block is "closed" by its own controls
-    // It should still respect embeddedInTabFrame for its overall container style if applicable,
-    // though typically it won't be closed if it's embedded and frameless.
-    // For simplicity, we'll assume if embeddedInTabFrame, it won't use its own close/minimize.
-    // Or, if it does, the "closed" bar needs to be styled consistently.
-    // Let's assume for now that embeddedInTabFrame means it relies on parent controls.
-    // If an embedded block needs its own independent close, this part would need thought.
+    // Common content for both button and div versions
+    const contentSection = (
+      <div className={cn(
+        "text-gray-400",
+        embeddedInTabFrame ? "w-full text-center" : "ml-1.5 sm:ml-2.5 md:ml-3.5"
+      )}>
+        <span>Code block hidden (click to show)</span>
+        {language && !embeddedInTabFrame && <span style={{ fontSize: '12px' }} className="not-prose ml-1 sm:ml-2 opacity-75">- {language}</span>}
+      </div>
+    );
+
     return (
       <div className="relative group overflow-hidden my-6 w-full flex justify-center">
         <div className={cn(
@@ -179,36 +196,36 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
           overflow: 'hidden',
           borderRadius: embeddedInTabFrame ? '0px' : '8px'
         }}>
-          <button 
-            type="button"
-            className={cn(
-              "flex items-center bg-[#1a2a35] border border-gray-700/50 rounded-lg cursor-pointer",
+          {/* Conditionally render button or div based on whether WindowControls will be present */}
+          {embeddedInTabFrame ? (
+            // When embedded, no WindowControls are rendered, so we can use a proper button
+            <button
+              type="button"
+              className={cn(
+                "flex items-center bg-[#1a2a35] border border-gray-700/50 rounded-lg",
+                "px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 md:py-1.5",
+                "w-full text-left"
+              )}
+              onClick={handleClose}
+            >
+              {contentSection}
+            </button>
+          ) : (
+            // When not embedded, WindowControls are present and handle interaction
+            <div className={cn(
+              "flex items-center bg-[#1a2a35] border border-gray-700/50 rounded-lg",
               "px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 md:py-1.5",
-              "w-full text-left" // Make button full width and left-aligned like original div
-            )} 
-            onClick={handleClose}
-            onKeyUp={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                handleClose();
-              }
-            }}
-          >
-            {!embeddedInTabFrame && ( // Only show controls if not embedded and relying on parent
-              (<WindowControls
+              "w-full text-left"
+            )}>
+              <WindowControls
                 onClose={handleClose}
                 onMinimize={handleMinimize}
                 onMaximize={handleMaximize}
                 size={controlSize}
-              />)
-            )}
-            <div className={cn(
-                "text-gray-400",
-                embeddedInTabFrame ? "w-full text-center" : "ml-1.5 sm:ml-2.5 md:ml-3.5"
-            )}>
-              <span>Code block hidden (click to show)</span>
-              {language && !embeddedInTabFrame && <span style={{ fontSize: '12px' }} className="not-prose ml-1 sm:ml-2 opacity-75">- {language}</span>}
+              />
+              {contentSection}
             </div>
-          </button>
+          )}
         </div>
       </div>
     );
