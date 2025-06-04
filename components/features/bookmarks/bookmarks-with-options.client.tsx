@@ -7,7 +7,8 @@
  */
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import type React from 'react';
+import { useState, useEffect } from 'react';
 import { BookmarkCardClient } from './bookmark-card.client';
 import { Search, ArrowRight, RefreshCw, Loader2 } from 'lucide-react';
 import type { UnifiedBookmark } from '@/types';
@@ -275,6 +276,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
           {/* Refresh button - conditionally rendered */}
           {mounted && showRefreshButton && (
             <button
+              type="button"
               onClick={() => void refreshBookmarks()}
               disabled={isRefreshing}
               className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -300,7 +302,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
           <TagsList
             tags={allTags}
             selectedTag={selectedTag}
-            onTagSelect={handleTagClick}
+            onTagSelectAction={handleTagClick}
           />
         )}
       </div>

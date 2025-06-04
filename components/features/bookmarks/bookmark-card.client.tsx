@@ -22,7 +22,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type JSX } from 'react';
 import { ExternalLink as LucideExternalLinkIcon, Bookmark, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { ExternalLink } from '../../ui/external-link.client';
@@ -96,6 +96,7 @@ export function BookmarkCardClient({
   }, []);
 
   // Reset image error state when URLs change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: These dependencies are needed as triggers to reset error state when any image URL changes
   useEffect(() => {
     setImageError(false);
   }, [ogImage, content?.imageUrl, content?.screenshotAssetId, content?.imageAssetId]);
@@ -148,7 +149,7 @@ export function BookmarkCardClient({
   const maxTitleWords = 10;
   const titleWords = title.split(' ');
   const displayTitle = titleWords.length > maxTitleWords
-    ? titleWords.slice(0, maxTitleWords).join(' ') + '...'
+    ? `${titleWords.slice(0, maxTitleWords).join(' ')}...`
     : title;
 
   // Don't use a placeholder for SSR - render full card without interactive elements
@@ -171,16 +172,16 @@ export function BookmarkCardClient({
           />
         ) : assetImageUrl ? (
           /* Then try asset image (screenshot or banner) */
-          <img
+          (<img
             src={assetImageUrl}
             alt={title}
             loading="lazy"
             className="w-full h-full object-cover"
             onError={() => setImageError(true)}
-          />
+          />)
         ) : (
           /* Finally fallback to logo */
-          <div className="flex items-center justify-center w-full h-full">
+          (<div className="flex items-center justify-center w-full h-full">
             <LogoImage
               src={`/api/logo?website=${encodeURIComponent(domain)}`}
               width={130}
@@ -188,7 +189,7 @@ export function BookmarkCardClient({
               alt={title}
               className="object-contain max-w-[60%] max-h-[60%]"
             />
-          </div>
+          </div>)
         )}
         {/* Clickable domain overlay */}
         <ExternalLink href={url} showIcon={false} className="absolute bottom-3 left-3 bg-white/80 dark:bg-gray-800/80 px-3 py-1 flex items-center space-x-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
@@ -196,7 +197,6 @@ export function BookmarkCardClient({
           <span className="text-sm text-gray-700 dark:text-gray-200">{domainWithoutWWW}</span>
         </ExternalLink>
       </div>
-
       {/* Content Section */}
       <div className="flex-1 p-6 flex flex-col gap-3.5">
         {/* Title */}
@@ -252,7 +252,6 @@ export function BookmarkCardClient({
           </div>
         )}
       </div>
-
       {/* Favorite Icon - simplified for SSR */}
       {favourited && (
         <div
@@ -261,7 +260,6 @@ export function BookmarkCardClient({
           <Bookmark className="w-5 h-5 text-white" />
         </div>
       )}
-
       {/* Share button moved inline with the date */}
     </div>
   );
