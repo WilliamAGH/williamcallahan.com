@@ -10,35 +10,6 @@
 import type { UnifiedBookmark } from '@/types';
 import { ServerCacheInstance } from './server-cache';
 import { getBaseUrl } from './getBaseUrl';
-import fs from 'fs';
-import path from 'path';
-
-// For build-time static generation
-const isServer = typeof window === 'undefined';
-const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
-
-/**
- * Read bookmarks directly from the file system during build time
- * 
- * Used for static site generation to avoid API calls during build
- */
-export async function getBookmarksForStaticBuild(): Promise<UnifiedBookmark[]> {
-  if (isServer && isBuildPhase) {
-    try {
-      const bookmarksPath = path.join(process.cwd(), 'data', 'bookmarks', 'bookmarks.json');
-      const fileContents = fs.readFileSync(bookmarksPath, 'utf-8');
-      const bookmarks = JSON.parse(fileContents) as UnifiedBookmark[];
-      console.log(`[Static Build] Read ${bookmarks.length} bookmarks from file system`);
-      return bookmarks;
-    } catch (error) {
-      console.error('[Static Build] Error reading bookmarks from file system:', error);
-      return [];
-    }
-  }
-
-  // Fall back to API for non-build environments
-  return fetchExternalBookmarksCached();
-}
 
 /**
  * Fetches all bookmarks from our backend API endpoint
@@ -49,7 +20,7 @@ export async function getBookmarksForStaticBuild(): Promise<UnifiedBookmark[]> {
 export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
   // Check cache first, similar to server-side logic for background refresh
   const cachedData = ServerCacheInstance.getBookmarks();
-  if (cachedData && cachedData.bookmarks && cachedData.bookmarks.length > 0 && ServerCacheInstance.shouldRefreshBookmarks()) {
+  if (cachedData?.bookmarks && cachedData.bookmarks.length > 0 && ServerCacheInstance.shouldRefreshBookmarks()) {
     console.log('Client library: Using cached bookmarks while refreshing in background via API');
     // Trigger API call but don't await it if we're returning cached data
     fetch(`${getBaseUrl()}/api/bookmarks?refresh=true`, { // Assuming refresh=true triggers the full refresh cycle on the server
@@ -160,9 +131,9 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
       ServerCacheInstance.setBookmarks(typedBookmarks); // Update memory cache
       console.log(`Client library: Updated memory cache with ${typedBookmarks.length} refreshed bookmarks.`);
       return typedBookmarks;
-    } else {
-      throw new Error('No valid bookmarks array received from refresh operation via API');
     }
+    
+    throw new Error('No valid bookmarks array received from refresh operation via API');
   } catch (error) {
     console.error('Client library: Failed to refresh bookmarks data:', error);
     throw error; // Re-throw to let the caller handle it

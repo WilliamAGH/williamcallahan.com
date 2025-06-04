@@ -14,8 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
 import { kebabCase } from '@/lib/utils/formatters';
-import { refreshBookmarksData } from '@/lib/bookmarks.client';
-import type { UnifiedBookmark } from '@/types';
+import { getBookmarksForStaticBuild } from '@/lib/bookmarks.server';
 import { generateUniqueSlug } from '@/lib/utils/domain-utils';
 import { tagToSlug } from '@/lib/utils/tag-utils';
 
@@ -137,26 +136,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const bookmarkTagLastModifiedMap: { [tagSlug: string]: Date } = {};
 
   try {
-    // Read bookmarks directly from the persisted JSON file during build
-    console.log('[Sitemap] Reading bookmarks directly from persisted JSON file...');
-    let bookmarks: UnifiedBookmark[] = [];
-    const persistedBookmarksPath = path.join(process.cwd(), 'data', 'bookmarks', 'bookmarks.json');
-    try {
-      const fileContents = fs.readFileSync(persistedBookmarksPath, 'utf-8');
-      bookmarks = JSON.parse(fileContents) as unknown as UnifiedBookmark[];
-      console.log(`[Sitemap] Successfully read ${bookmarks.length} bookmarks from persisted file.`);
-    } catch (readError) {
-      console.error("[Sitemap] Failed to read or parse persisted bookmarks:", readError);
-      // Attempt to refresh the local cache as a fallback
-      try {
-        await refreshBookmarksData();
-        const fallbackContents = fs.readFileSync(persistedBookmarksPath, 'utf-8');
-        bookmarks = JSON.parse(fallbackContents) as unknown as UnifiedBookmark[];
-        console.log(`[Sitemap] Successfully recovered ${bookmarks.length} bookmarks after refresh.`);
-      } catch (fallbackErr) {
-        console.error("[Sitemap] Fallback refresh failed; continuing without bookmark entries.", fallbackErr);
-      }
-    }
+    // Use static build function to get bookmarks 
+    console.log('[Sitemap] Getting bookmarks for static build...');
+    const bookmarks = await getBookmarksForStaticBuild();
+    console.log(`[Sitemap] Successfully got ${bookmarks.length} bookmarks for sitemap generation.`);
 
     // Pre-compute slugs to avoid O(n²) complexity
     const slugCache = new Map<string, string>();
