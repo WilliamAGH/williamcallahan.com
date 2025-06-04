@@ -68,17 +68,85 @@ console.log(`[UpdateS3] Script execution started. Raw args: ${process.argv.slice
 
 /**
  * Updates bookmark data in S3 storage
- * Fetches fresh bookmark data and ensures S3 synchronization
+ * Fetches fresh bookmark data, ensures S3 synchronization, and immediately processes logos for new bookmarks
  */
 async function updateBookmarksInS3(): Promise<void> {
   console.log('[UpdateS3] AB Starting Bookmarks update to S3...');
   try {
+    // Get current cached bookmarks to compare for new additions
+    const previousBookmarks = await getBookmarks(false); // Get cached data
+    const previousBookmarkIds = new Set(previousBookmarks?.map(b => b.id) || []);
+
     // Use direct refresh function to force fresh data instead of cached data
     console.log('[UpdateS3] [Bookmarks] Calling refreshBookmarksData to force fresh fetch.');
     const bookmarks = await refreshBookmarksData();
 
     if (bookmarks && bookmarks.length > 0) {
       console.log(`[UpdateS3] [Bookmarks] refreshBookmarksData returned ${bookmarks.length} fresh bookmarks and wrote to S3.`);
+      
+      // Identify new bookmarks that weren't in the previous cache
+      const newBookmarks = bookmarks.filter(b => !previousBookmarkIds.has(b.id));
+      
+      if (newBookmarks.length > 0) {
+        console.log(`[UpdateS3] [Bookmarks] Found ${newBookmarks.length} new bookmarks. Processing logos immediately to prevent broken images.`);
+        
+        // Extract domains from new bookmarks only
+        const newDomains = new Set<string>();
+        for (const bookmark of newBookmarks) {
+          try {
+            if (bookmark.url) {
+              const domain = new URL(bookmark.url).hostname.replace(/^www\./, '');
+              newDomains.add(domain);
+            }
+          } catch {
+            // ignore invalid URLs
+          }
+        }
+        
+        if (newDomains.size > 0) {
+          console.log(`[UpdateS3] [Bookmarks] Processing logos for ${newDomains.size} new domains immediately.`);
+          
+          // Process new domains in smaller batches with shorter delays for immediate UX
+          const newDomainsArray = Array.from(newDomains);
+          const IMMEDIATE_BATCH_SIZE = 5; // Smaller batches for faster processing
+          let logoSuccessCount = 0;
+          let logoFailureCount = 0;
+          
+          for (let i = 0; i < newDomainsArray.length; i += IMMEDIATE_BATCH_SIZE) {
+            const batch = newDomainsArray.slice(i, i + IMMEDIATE_BATCH_SIZE);
+            console.log(`[UpdateS3] [Bookmarks] Processing immediate logo batch ${Math.floor(i / IMMEDIATE_BATCH_SIZE) + 1}/${Math.ceil(newDomainsArray.length / IMMEDIATE_BATCH_SIZE)} for ${batch.length} new domains`);
+            
+            const promises = batch.map(async (domain) => {
+              try {
+                const logoResult = await getLogo(domain);
+                if (logoResult?.buffer && Buffer.isBuffer(logoResult.buffer) && logoResult.buffer.length > 0) {
+                  console.log(`✅ Logo processed for new bookmark domain ${domain} via data-access (source: ${logoResult.source})`);
+                  logoSuccessCount++;
+                } else {
+                  console.warn(`⚠️ Could not fetch/process logo for new bookmark domain ${domain} via data-access.`);
+                  logoFailureCount++;
+                }
+              } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : String(error);
+                console.error(`❌ Error processing logo for new bookmark domain ${domain}:`, message);
+                logoFailureCount++;
+              }
+            });
+            
+            await Promise.allSettled(promises);
+            
+            // Shorter delay for immediate processing
+            if (i + IMMEDIATE_BATCH_SIZE < newDomainsArray.length) {
+              console.log('[UpdateS3] [Bookmarks] ⏱️ Waiting 200ms before next immediate logo batch...');
+              await new Promise(r => setTimeout(r, 200));
+            }
+          }
+          
+          console.log(`[UpdateS3] [Bookmarks] ✅ Immediate logo processing complete: ${logoSuccessCount} succeeded, ${logoFailureCount} failed for new bookmarks.`);
+        }
+      } else {
+        console.log('[UpdateS3] [Bookmarks] No new bookmarks detected. Skipping immediate logo processing.');
+      }
     } else {
       console.warn('[UpdateS3] [Bookmarks] refreshBookmarksData returned no bookmarks or failed. Check logs.');
     }
