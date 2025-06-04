@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { type JSX } from 'react';
 import Image from 'next/image';
 import type { Project } from '@/types/project';
 import { ExternalLink } from '@/components/ui/external-link.client';
@@ -31,7 +31,6 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
   return (
     // Redesigned card for horizontal layout on medium screens and up
     <div className="group rounded-lg border border-gray-300 dark:border-gray-900 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-300 ease-in-out hover:shadow-lg hover:border-blue-500 dark:hover:border-blue-400 opacity-0 animate-fade-in-up md:flex h-auto flex-col md:flex-row"> {/* Use h-auto for responsive height */}
-
       {/* Image Section (Left side on md+) */}
       <div className="md:w-2/5 relative aspect-[16/10] md:aspect-auto overflow-hidden flex-shrink-0 hover:scale-105 transition-transform duration-300 ease-in-out w-full"> {/* Adjust width for responsiveness */}
           <ExternalLink
@@ -60,7 +59,6 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
           </ExternalLink>
         </div>
       {/* Removed the div wrapper for the image */}
-
       {/* Content Section (Right side on md+) */}
       <div className="p-5 md:p-6 flex-1 w-full"> {/* Use flex-1 to take remaining space */}
         <div className="flex flex-col h-full justify-between"> {/* Allow content to space out vertically */}

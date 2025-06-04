@@ -14,6 +14,8 @@ import { projects } from '@/data/projects';
 import { ProjectCardServer } from './project-card.server';
 import GitHubActivity from '@/components/features/github/github-activity.client';
 
+import type { JSX } from "react";
+
 /**
  * Props for the ProjectsListServer component
  */
