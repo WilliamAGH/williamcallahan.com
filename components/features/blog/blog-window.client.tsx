@@ -45,7 +45,7 @@ const BlogWindowContent = dynamic(
     onClose: () => void;
     onMinimize: () => void;
     onMaximize: () => void;
-    contentRef: React.RefObject<HTMLDivElement>;
+    contentRef: React.RefObject<HTMLDivElement | null>;
   }) => {
     const isMaximized = windowState === 'maximized';
 

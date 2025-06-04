@@ -13,6 +13,8 @@
 import type { BlogPost } from '@/types/blog';
 import { BlogCard } from './blog-card';
 
+import type { JSX } from "react";
+
 /**
  * Props for the BlogListServer component
  */

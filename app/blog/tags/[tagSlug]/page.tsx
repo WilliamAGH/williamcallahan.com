@@ -1,11 +1,13 @@
-import { type Metadata } from 'next';
-import fs from 'fs';
-import path from 'path';
+import type { Metadata } from 'next';
+import fs from 'node:fs';
+import path from 'node:path';
 import matter from 'gray-matter';
 import { BlogList } from '@/components/features/blog/blog-list';
-import { type BlogPost, type Author } from '@/types/blog';
+import type { BlogPost, Author } from '@/types/blog';
 import { metadata } from '@/data/metadata';
 import { kebabCase, deslugify } from '@/lib/utils/formatters';
+
+import type { JSX } from "react";
 
 // Directory where blog posts are stored
 const postsDirectory = path.join(process.cwd(), 'data/blog/posts');
@@ -95,9 +97,11 @@ export async function generateStaticParams(): Promise<{ tagSlug: string }[]> {
   // Use Promise.resolve to satisfy require-await and await-thenable rules
   const posts = await Promise.resolve(getAllPosts());
   const tags = new Set<string>();
-  posts.forEach(post => {
-    post.tags.forEach((tag: string) => tags.add(kebabCase(tag)));
-  });
+  for (const post of posts) {
+    for (const tag of post.tags) {
+      tags.add(kebabCase(tag));
+    }
+  }
   return Array.from(tags).map(tag => ({ tagSlug: tag }));
 }
 
