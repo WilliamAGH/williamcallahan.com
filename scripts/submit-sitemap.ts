@@ -7,6 +7,13 @@ import type { MetadataRoute } from 'next';
 import sitemap from '../app/sitemap';
 
 /**
+ * Delay in milliseconds between individual URL submissions to the Google Indexing API.
+ * Used to respect API rate limits.
+ * @const {number}
+ */
+const INDEXING_API_DELAY_MS = 1000; // 1 second delay
+
+/**
  * @file Sitemap and URL Submission Script
  * @description Submits sitemap.xml to Bing (via IndexNow) and Google Search Console.
  * Also submits individual recently updated blog URLs to Google Indexing API.
@@ -135,9 +142,13 @@ async function submitSitemapToBing(siteUrl: string, sitemapUrl: string): Promise
 
 /**
  * Orchestrates sitemap submissions to Google and Bing.
- * Conditions: NODE_ENV must be 'production' and NEXT_PUBLIC_SITE_URL must be 'https://williamcallahan.com'.
- * This function should be called after sitemap regeneration in the build process.
+ * Submits the main sitemap.xml file to both search engines.
+ * Logs detailed success/failure status for each submission, including reasons for failures.
+ * Conditions: NODE_ENV must be 'production' and NEXT_PUBLIC_SITE_URL must be the expected production URL.
+ * This function is typically called after sitemap regeneration in the build process.
  * @export
+ * @async
+ * @returns {Promise<void>} A promise that resolves when submissions are attempted.
  */
 export async function submitSitemapFilesToSearchEngines(): Promise<void> {
   const currentSiteUrlFromEnv = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') || '';
@@ -166,8 +177,19 @@ export async function submitSitemapFilesToSearchEngines(): Promise<void> {
     submitSitemapToBing(currentSiteUrlFromEnv, sitemapUrl),
   ]);
 
-  const googleSuccess = results[0].status === 'fulfilled' && results[0].value;
-  const bingSuccess = results[1].status === 'fulfilled' && results[1].value;
+  const googleResult = results[0];
+  const bingResult = results[1];
+  
+  const googleSuccess = googleResult.status === 'fulfilled' && googleResult.value;
+  const bingSuccess = bingResult.status === 'fulfilled' && bingResult.value;
+  
+  // Log rejected promises for debugging
+  if (googleResult.status === 'rejected') {
+    console.error('[SitemapSubmit] Google submission promise rejected:', googleResult.reason);
+  }
+  if (bingResult.status === 'rejected') {
+    console.error('[SitemapSubmit] Bing submission promise rejected:', bingResult.reason);
+  }
 
   let successCount = 0;
   if (googleSuccess) successCount++;
@@ -246,8 +268,12 @@ async function submitUrlToGoogleIndexingAPI(urlToSubmit: string, type: 'URL_UPDA
 
 /**
  * Processes individual sitemap entries and submits recently updated URLs to the Google Indexing API.
- * Conditions: NODE_ENV must be 'production' and NEXT_PUBLIC_SITE_URL must match expected production URL.
+ * Filters entries to submit only those modified within the last 14 days and not recently notified to Google.
+ * Implements a delay between submissions to respect Google Indexing API rate limits.
+ * Conditions: NODE_ENV must be 'production' and NEXT_PUBLIC_SITE_URL must match the expected production URL.
  * @export
+ * @async
+ * @returns {Promise<void>} A promise that resolves when all eligible URLs have been processed and submitted.
  */
 export async function submitIndividualUrlsToGoogle(): Promise<void> {
   const nodeEnv = process.env.NODE_ENV;
@@ -293,6 +319,11 @@ export async function submitIndividualUrlsToGoogle(): Promise<void> {
       console.log(`[IndividualSubmit] 🚀 Submitting ${postUrl} to Indexing API.`);
       const success = await submitUrlToGoogleIndexingAPI(postUrl, 'URL_UPDATED', authClient);
       if (success) submittedCount++;
+    
+      // Add delay between requests to respect rate limits
+      if (processedCount < entries.length) {
+        await new Promise(resolve => setTimeout(resolve, INDEXING_API_DELAY_MS));
+      }
     }
     console.log(`[IndividualSubmit] Processed ${processedCount}, submitted ${submittedCount} URLs.`);
   } catch (error) {
