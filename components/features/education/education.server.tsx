@@ -14,6 +14,8 @@ import {
   processCertificationItem,
 } from '../../../lib/education-data-processor';
 
+import type { JSX } from "react";
+
 // Force static generation
 export const dynamic = 'force-static';
 
