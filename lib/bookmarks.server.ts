@@ -22,14 +22,17 @@ export async function getBookmarksForStaticBuild(): Promise<UnifiedBookmark[]> {
   const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
   
   if (isBuildPhase) {
+    const bookmarksPath = path.join(process.cwd(), 'data', 'bookmarks', 'bookmarks.json');
     try {
-      const bookmarksPath = path.join(process.cwd(), 'data', 'bookmarks', 'bookmarks.json');
       const fileContents = fs.readFileSync(bookmarksPath, 'utf-8');
       const bookmarks = JSON.parse(fileContents) as UnifiedBookmark[];
       console.log(`[Static Build] Read ${bookmarks.length} bookmarks from file system`);
       return bookmarks;
     } catch (error) {
-      console.error('[Static Build] Error reading bookmarks from file system:', error);
+      console.error('[Static Build] Error reading bookmarks from file system:', {
+        path: bookmarksPath,
+        error: error instanceof Error ? error.message : String(error)
+      });
       return [];
     }
   }
