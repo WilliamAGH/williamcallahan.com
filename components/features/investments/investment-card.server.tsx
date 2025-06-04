@@ -9,9 +9,11 @@
 import type { Investment } from '../../../types/investment';
 import { ThemeWrapper } from './theme-wrapper.client';
 import { fetchLogo, normalizeDomain } from '../../../lib/logo-fetcher';
-import fs from 'fs/promises';
-import path from 'path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import FinancialMetrics from '../../ui/financial-metrics.server';
+
+import type { JSX } from "react";
 
 // Cache for placeholder SVG
 let placeholderSvg: Buffer | null = null;

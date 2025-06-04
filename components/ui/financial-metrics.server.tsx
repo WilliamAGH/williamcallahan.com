@@ -8,6 +8,8 @@
 import { formatPercentage } from '../../lib/utils';
 import { cn } from '../../lib/utils';
 
+import type { JSX } from "react";
+
 interface FinancialMetricsProps {
   /** Holding return percentage */
   holding_return?: number;
