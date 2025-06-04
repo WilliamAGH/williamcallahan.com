@@ -12,10 +12,10 @@ import { formatTagDisplay } from '@/lib/utils/tag-utils';
 interface TagsListProps {
   tags: string[];
   selectedTag: string | null;
-  onTagSelect: (tag: string) => void;
+  onTagSelectAction: (tag: string) => void;
 }
 
-export function TagsList({ tags, selectedTag, onTagSelect }: TagsListProps) {
+export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListProps) {
   const [mounted, setMounted] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
 
@@ -35,9 +35,9 @@ export function TagsList({ tags, selectedTag, onTagSelect }: TagsListProps) {
       {/* Render all tags but cap visibility with CSS */}
       <div className="flex flex-wrap gap-2">
         {tags.map((tag, index) => (
-          <button
+          <button type="button"
             key={tag}
-            onClick={() => mounted && onTagSelect(tag)}
+            onClick={() => mounted && onTagSelectAction(tag)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               selectedTag === tag
                 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
@@ -51,7 +51,7 @@ export function TagsList({ tags, selectedTag, onTagSelect }: TagsListProps) {
 
       {/* Show More/Less button: render a placeholder during SSR for layout stability */}
       {hasMoreTags && (
-        <button
+        <button type="button"
           onClick={() => mounted && setShowAllTags(!showAllTags)}
           className={`px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-800/40 transition-colors border border-indigo-200 dark:border-indigo-800 ${!mounted ? 'pointer-events-none' : ''}`}
         >
@@ -61,8 +61,8 @@ export function TagsList({ tags, selectedTag, onTagSelect }: TagsListProps) {
 
       {/* Only show the Clear button client-side where it's functional */}
       {mounted && selectedTag && (
-        <button
-          onClick={() => onTagSelect(selectedTag)}
+        <button type="button"
+          onClick={() => onTagSelectAction(selectedTag)}
           className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
         >
           Clear filter
