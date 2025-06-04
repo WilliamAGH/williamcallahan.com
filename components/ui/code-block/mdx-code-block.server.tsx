@@ -23,11 +23,8 @@ export function ServerMDXCodeBlock(props: PreProps) {
     'overflow-x-auto',
     'text-gray-100',
     'text-[13px]',
-    'break-words',
-    'whitespace-pre-wrap',
     'custom-scrollbar',
     'p-4',
-    'language-*', // Add this so PrismJS styles apply properly
     // No rounded borders or margin here to ensure proper alignment
     'border-t-0'
   );
@@ -66,9 +63,9 @@ export function MDXCodeBlock(props: PreProps & { embeddedInTabFrame?: boolean })
 
       // Fix SVG transform attributes in any SVGs within code blocks
       const svgs = codeRef.current.querySelectorAll('svg');
-      svgs.forEach(svg => {
+      for (const svg of svgs) {
         processSvgTransforms(svg);
-      });
+      }
     }
   }, []);
 

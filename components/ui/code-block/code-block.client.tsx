@@ -12,12 +12,13 @@
 
 import { useState, useEffect, useRef, useCallback, isValidElement, type JSX } from 'react'; // Import useEffect, useRef, useCallback, isValidElement
 import type { ComponentProps, ReactNode } from 'react';
-// import Prism from 'prismjs'; // Remove Prism import
-// import 'prismjs/themes/prism-tomorrow.css'; // Remove Prism theme import if it was added here
 import { CopyButton } from './copy-button.client';
 import { cn } from '../../../lib/utils';
 import { WindowControls } from '../navigation/window-controls';
 import { useWindowSize } from '../../../lib/hooks/use-window-size.client';
+
+// Note: Prism CSS is loaded globally in layout.tsx
+// We rely on rehype-prism for build-time syntax highlighting
 
 /**
  * Props for the CodeBlock component
@@ -91,7 +92,7 @@ const getTextContent = (node: ReactNode): string => {
  */
 export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...props }: CodeBlockProps): JSX.Element => {
   const language = extractLanguage(className);
-  // const codeElementRef = useRef<HTMLElement>(null); // Remove ref
+  const codeElementRef = useRef<HTMLElement>(null);
 
   // Add state for interactive behavior
   const [isVisible, setIsVisible] = useState(true);
@@ -159,12 +160,22 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
     };
   }, [isMaximized, handleMaximize]); // Dependencies
 
-  // Effect for Prism highlighting when children is a string
-  /*useEffect(() => {
-    if (typeof children === 'string' && codeElementRef.current) {
-      Prism.highlightElement(codeElementRef.current);
+  // Effect for SVG transform fixes
+  useEffect(() => {
+    if (codeElementRef.current) {
+      // Ensure any SVG elements in code blocks have proper transforms
+      const svgs = codeElementRef.current.querySelectorAll('svg');
+      for (const svg of svgs) {
+        const transform = svg.getAttribute('transform');
+        if (transform && !transform.includes('(') && !transform.includes(')')) {
+          const match = transform.match(/^(\w+)(.+)$/);
+          if (match) {
+            svg.setAttribute('transform', `${match[1]}(${match[2]})`);
+          }
+        }
+      }
     }
-  }, [children, language]);*/ // Remove useEffect
+  });
 
   // Extract the text content
   const content = Array.isArray(children)
@@ -286,10 +297,10 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
               )}
               {...props}
             >
-              {isValidElement(children) ? children : <code className={className}>{children as string}</code>}
+              {isValidElement(children) ? children : <code ref={codeElementRef} className={className}>{children as string}</code>}
             </pre>
             {/* CopyButton is always rendered. It uses group-hover on the parent div. */}
-            <CopyButton content={filteredContent} />
+            <CopyButton content={filteredContent} parentIsPadded={!embeddedInTabFrame} />
           </div>
         )}
       </div>

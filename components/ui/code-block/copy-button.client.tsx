@@ -20,6 +20,8 @@ interface CopyButtonProps {
   /** The text content to be copied to clipboard */
   content: string;
   className?: string;
+  /** Indicates if the parent CodeBlock has padding, to adjust button position */
+  parentIsPadded?: boolean;
 }
 
 /**
@@ -28,7 +30,7 @@ interface CopyButtonProps {
  * @param {CopyButtonProps} props - The component props
  * @returns {JSX.Element} A button that copies text to clipboard
  */
-export const CopyButton: React.FC<CopyButtonProps> = ({ content, className }) => {
+export const CopyButton: React.FC<CopyButtonProps> = ({ content, className, parentIsPadded = false }) => {
   /** State to track if content was copied */
   const [copied, setCopied] = useState(false);
 
@@ -51,7 +53,8 @@ export const CopyButton: React.FC<CopyButtonProps> = ({ content, className }) =>
       type="button"
       onClick={() => void handleCopy()}
       className={cn(
-        'absolute right-2 top-2 p-2 rounded-md',
+        'absolute p-2 rounded-md',
+        parentIsPadded ? 'right-6 top-6' : 'right-2 top-2',
         'bg-gray-700/60 hover:bg-gray-600/60',
         'text-gray-300 hover:text-gray-100',
         'transition-all duration-200',
