@@ -11,11 +11,11 @@ import type { SelectionItem } from '@/types/terminal';
 
 interface SelectionViewProps {
   items: SelectionItem[];
-  onSelect: (item: SelectionItem) => void;
-  onExit: () => void;
+  onSelectAction: (item: SelectionItem) => void;
+  onExitAction: () => void;
 }
 
-export function SelectionView({ items, onSelect, onExit }: SelectionViewProps) {
+export function SelectionView({ items, onSelectAction, onExitAction }: SelectionViewProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
@@ -32,19 +32,19 @@ export function SelectionView({ items, onSelect, onExit }: SelectionViewProps) {
         case 'Enter':
           e.preventDefault();
           if (items[selectedIndex]) {
-            onSelect(items[selectedIndex]);
+            onSelectAction(items[selectedIndex]);
           }
           break;
         case 'Escape':
           e.preventDefault();
-          onExit();
+          onExitAction();
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [items, selectedIndex, onSelect, onExit]);
+  }, [items, selectedIndex, onSelectAction, onExitAction]);
 
   // Ensure items is an array before mapping
   const validItems = Array.isArray(items) ? items : [];
@@ -55,18 +55,19 @@ export function SelectionView({ items, onSelect, onExit }: SelectionViewProps) {
         Use ↑↓ to navigate, Enter to select, Esc to cancel
       </div>
       {validItems.map((item, index) => (
-        <div
-          key={index}
+        <button
+          key={item.path} // Use item.path for a more stable key
+          type="button"
           className={`px-2 py-1 rounded cursor-pointer ${
             index === selectedIndex
               ? 'bg-blue-500/20 text-blue-300'
               : 'hover:bg-gray-800'
           }`}
-          onClick={() => onSelect(item)}
+          onClick={() => onSelectAction(item)}
           onMouseEnter={() => setSelectedIndex(index)}
         >
           {item.label}
-        </div>
+        </button>
       ))}
     </div>
   );

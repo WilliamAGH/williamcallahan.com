@@ -8,7 +8,7 @@
 
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react'; // Import useEffect and useCallback
+import { useState, useRef, useEffect, useCallback, type JSX } from 'react'; // Import useEffect and useCallback
 import Image, { type ImageProps } from 'next/image';
 import { cn } from '../../../lib/utils';
 import { WindowControls } from '../navigation/window-controls';
@@ -104,13 +104,24 @@ export const ImageWindow = ({
   if (!isVisible) {
     return (
       <div className={cn("relative group mx-auto max-w-full", !noMargin && "my-6", wrapperClassName)}>
-        <div className={cn(
-          "flex items-center bg-[#1a2a35] border border-gray-700/50 rounded-lg cursor-pointer",
-          "px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 md:py-1.5" // Reduced height
-        )} style={{
-          overflow: 'hidden',
-          borderRadius: '8px'
-        }} onClick={handleClose}>
+        <button 
+          type="button"
+          className={cn(
+            "flex items-center bg-[#1a2a35] border border-gray-700/50 rounded-lg cursor-pointer",
+            "px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 md:py-1.5", // Reduced height
+            "w-full text-left" // Make button full width and left-aligned like original div
+          )} 
+          style={{
+            overflow: 'hidden',
+            borderRadius: '8px'
+          }} 
+          onClick={handleClose} 
+          onKeyUp={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              handleClose();
+            }
+          }}
+        >
           <WindowControls
             onClose={handleClose}
             onMinimize={handleMinimize}
@@ -121,7 +132,7 @@ export const ImageWindow = ({
           <div className="ml-2 sm:ml-4 flex-shrink min-w-0 text-xs text-gray-400 truncate" title={alt}> {/* Allow shrinking */}
             {alt || 'Image'}
           </div>
-        </div>
+        </button>
       </div>
     );
   }
