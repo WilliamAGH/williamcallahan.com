@@ -13,10 +13,10 @@ pre[class*="language-"] {
   font-family: 'IBM Plex Mono', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
   font-size: inherit;
   text-align: left;
-  white-space: pre;
+  white-space: pre-wrap; /* Changed from pre to pre-wrap to enable line wrapping */
   word-spacing: normal;
-  word-break: normal;
-  word-wrap: normal;
+  word-break: normal; /* Let wrapping occur at normal word break points */
+  word-wrap: normal; /* Use with pre-wrap */
   line-height: 1.5;
   -moz-tab-size: 4;
   -o-tab-size: 4;
