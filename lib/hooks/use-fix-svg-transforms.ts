@@ -27,10 +27,10 @@ import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
  */
 export function useFixSvgTransforms<T extends HTMLElement = HTMLDivElement>(
   options: {
-    rootRef?: RefObject<T>;
+    rootRef?: RefObject<T | null>;
     selector?: string;
   } = {}
-): RefObject<T> {
+): RefObject<T | null> {
   const { rootRef, selector = 'svg' } = options;
   const internalRef = useRef<T>(null);
   const ref = rootRef || internalRef;
