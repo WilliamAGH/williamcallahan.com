@@ -65,10 +65,23 @@ export function middleware(request: NextRequest): NextResponse {
     return NextResponse.next(); // Pass through without modifications
   }
 
+  // Handle CORS preflight requests
+  if (request.method === 'OPTIONS') {
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-refresh-secret',
+        'Access-Control-Max-Age': '86400',
+      },
+    });
+  }
+
   const response = NextResponse.next()
   const ip = getRealIp(request)
 
-  // Set security headers
+  // Set security and CORS headers
   const securityHeaders = {
     'X-DNS-Prefetch-Control': 'on',
     'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
@@ -77,6 +90,11 @@ export function middleware(request: NextRequest): NextResponse {
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'X-Real-IP': ip,
     'Permissions-Policy': 'geolocation=(), interest-cohort=()',
+    // CORS headers
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-refresh-secret',
+    'Access-Control-Max-Age': '86400',
     // Content Security Policy: allow all HTTPS image sources dynamically
     'Content-Security-Policy': `
       default-src 'self';
@@ -93,9 +111,9 @@ export function middleware(request: NextRequest): NextResponse {
     `.replace(/\s+/g, ' ').trim()
   }
 
-  Object.entries(securityHeaders).forEach(([header, value]) => {
+  for (const [header, value] of Object.entries(securityHeaders)) {
     response.headers.set(header, value)
-  })
+  }
 
   // Add caching headers for static assets and analytics scripts
   const url = request.nextUrl.pathname
