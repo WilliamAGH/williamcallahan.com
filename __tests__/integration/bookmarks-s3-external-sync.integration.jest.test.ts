@@ -5,6 +5,24 @@ import type { UnifiedBookmark } from '../../types';
 import { BOOKMARKS_S3_KEY_FILE } from '../../lib/data-access'; // To get the S3 file key
 import { readJsonS3 } from '../../lib/s3-utils';
 
+/**
+ * @file Integration test for S3 and external API bookmark synchronization
+ * @description Tests that bookmark data stored in S3 matches data from the external API
+ * 
+ * This test verifies that:
+ * - S3 storage can be accessed
+ * - External API can be reached
+ * - Bookmark counts match between sources
+ * - Data synchronization is working correctly
+ * 
+ * Required environment variables:
+ * - S3_BUCKET: AWS S3 bucket name
+ * - BOOKMARK_BEARER_TOKEN: API authentication token
+ * - S3_ACCESS_KEY_ID: AWS access key
+ * - S3_SECRET_ACCESS_KEY: AWS secret key
+ * - AWS_REGION: AWS region
+ */
+
 describe('Integration: Bookmarks S3 vs External API Sync', () => {
   let s3Bookmarks: UnifiedBookmark[] | null = null;
   let externalApiBookmarks: UnifiedBookmark[] | null = null;
@@ -12,6 +30,10 @@ describe('Integration: Bookmarks S3 vs External API Sync', () => {
   let apiError: Error | null = null;
   let originalCdnUrl: string | undefined;
 
+  /**
+   * Setup test environment and fetch data from both sources
+   * Forces direct S3 access by temporarily disabling CDN to ensure accurate testing
+   */
   beforeAll(async () => {
     // Check for necessary environment variables
     if (!process.env.S3_BUCKET || !process.env.BOOKMARK_BEARER_TOKEN || !process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY || !process.env.AWS_REGION) {
@@ -23,7 +45,7 @@ describe('Integration: Bookmarks S3 vs External API Sync', () => {
     // Force S3 utils to use AWS SDK instead of CDN for reliable test results
     // This bypasses any CDN caching issues and tests actual S3 storage
     originalCdnUrl = process.env.S3_PUBLIC_CDN_URL;
-    process.env.S3_PUBLIC_CDN_URL = undefined;
+    process.env.S3_PUBLIC_CDN_URL = '';
     
     // Store original CDN URL to restore after tests if needed
     if (originalCdnUrl) {
@@ -70,6 +92,9 @@ describe('Integration: Bookmarks S3 vs External API Sync', () => {
     }
   });
 
+  /**
+   * Cleanup test environment by restoring original CDN URL if it was set
+   */
   afterAll(() => {
     // Restore original CDN URL if it was set
     if (originalCdnUrl) {
@@ -78,6 +103,9 @@ describe('Integration: Bookmarks S3 vs External API Sync', () => {
     }
   });
 
+  /**
+   * Verifies that all required environment variables are present for testing
+   */
   it('should have required environment variables set to run', () => {
     if (!process.env.S3_BUCKET || !process.env.BOOKMARK_BEARER_TOKEN || !process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY || !process.env.AWS_REGION) {
       console.log('Skipping integration tests: missing required environment variables');
@@ -90,6 +118,10 @@ describe('Integration: Bookmarks S3 vs External API Sync', () => {
     expect(process.env.AWS_REGION).toBeDefined();
   });
 
+  /**
+   * Tests S3 bookmark retrieval functionality
+   * Verifies that S3 can be accessed and returns expected data structure
+   */
   it('should successfully fetch bookmarks from S3 (or handle its absence)', () => {
     if (!process.env.S3_BUCKET) return; // Skip if S3_BUCKET not set
     expect(s3Error).toBeNull(); // Expect no direct error from S3 read attempt
@@ -97,6 +129,10 @@ describe('Integration: Bookmarks S3 vs External API Sync', () => {
     console.log(`[IntegrationTest] Bookmarks count from S3: ${s3Bookmarks?.length ?? 'Error/Not Fetched'}`);
   });
 
+  /**
+   * Tests external API bookmark retrieval functionality
+   * Verifies that the external API can be accessed and returns expected data structure
+   */
   it('should successfully fetch bookmarks from the external API', () => {
     if (!process.env.BOOKMARK_BEARER_TOKEN) return; // Skip if token not set
     expect(apiError).toBeNull();
@@ -104,6 +140,11 @@ describe('Integration: Bookmarks S3 vs External API Sync', () => {
     console.log(`[IntegrationTest] Bookmarks count from External API: ${externalApiBookmarks?.length ?? 'Error/Not Fetched'}`);
   });
 
+  /**
+   * Tests data synchronization between S3 and external API
+   * Verifies that bookmark counts match, indicating proper data sync
+   * Provides detailed logging for debugging sync issues
+   */
   it('should have the same number of bookmarks in S3 as fetched from the external API', () => {
     if (!s3Bookmarks || !externalApiBookmarks) {
       console.warn('[IntegrationTest] Skipping quantity comparison due to fetch errors or missing env vars.');
