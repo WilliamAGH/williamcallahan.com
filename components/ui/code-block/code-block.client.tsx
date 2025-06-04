@@ -249,7 +249,7 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
       isMaximized && !embeddedInTabFrame && "fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 sm:p-8" // Maximize whole screen only if not embedded
     )}>
       <div ref={windowRef} className={cn(
-        "max-w-full w-full overflow-hidden",
+        "max-w-full w-full overflow-auto",
         !embeddedInTabFrame ? "bg-[#f5f2f0] dark:bg-[#282a36] rounded-lg shadow-md" : "!bg-transparent !shadow-none !border-0 !rounded-none",
         isMaximized && !embeddedInTabFrame && "w-full max-w-[95vw] sm:max-w-5xl max-h-[90vh] sm:max-h-[80vh] flex flex-col"
       )}>
@@ -284,13 +284,14 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
           <div className={cn("relative group", isMaximized && !embeddedInTabFrame && "flex-1 overflow-hidden")}>
             <pre
               className={cn(
-                'not-prose max-w-full overflow-x-auto',
+                'not-prose max-w-full',
+                'whitespace-pre-wrap',
+                'break-words',
+                'overflow-x-auto',
                 embeddedInTabFrame ? '!p-0 !m-0 !bg-transparent !border-0 !rounded-none' : 'p-4 text-gray-900 dark:text-gray-100',
                 'text-[13px]',
                 'custom-scrollbar',
                 '![text-shadow:none] [&_*]:![text-shadow:none]',
-                // Children of pre (like <code>) should be transparent to show pre's bg or parent's bg
-                // This is especially important if pre itself is transparent when embedded
                 '[&_*]:!bg-transparent',
                 isMaximized && !embeddedInTabFrame && 'overflow-auto max-h-full',
                 className // From MDX (e.g., language-bash)
