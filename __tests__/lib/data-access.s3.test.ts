@@ -1,8 +1,12 @@
 /**
- * S3 Integration Tests for Data Access Module
+ * @file S3 Integration Tests for Data Access Module
+ * @module __tests__/lib/data-access.s3.test
  *
- * Tests the integration with S3 storage for logo retrieval functionality
- * Validates S3 operations in both integration and unit test environments
+ * @description
+ * Tests the integration with S3 storage for logo retrieval functionality, specifically
+ * the `getLogo` function. Validates S3 operations (read, write, delete) and
+ * caching behavior in both integration and unit test environments.
+ * Mocks `ServerCacheInstance` and `s3-utils` for controlled unit testing.
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest, mock } from 'bun:test';
@@ -48,6 +52,16 @@ const S3_LOGOS_KEY_PREFIX = 'images/logos';
 // Logo fetch cache key prefix
 const LOGO_FETCH_PREFIX = 'logo-fetch:';
 
+/**
+ * Generates a test S3 key for a logo based on domain, source, and extension.
+ * Mirrors the key generation logic used in the main `data-access` module but
+ * is simplified for testing purposes (e.g., no hashing).
+ *
+ * @param {string} domain - The domain for which the logo is being fetched.
+ * @param {LogoSource} source - The source from which the logo originates (e.g., 'google', 'clearbit').
+ * @param {string} extension - The file extension of the logo (e.g., 'png', 'svg').
+ * @returns {string} The constructed S3 key for the test logo.
+ */
 function getTestLogoS3Key(domain: string, source: LogoSource, extension: string): string {
   // const getDomainHash = (d: string): string => createHash('md5').update(d).digest('hex');
   // const hash = getDomainHash(domain).substring(0, 8); // REMOVED HASH
@@ -56,10 +70,13 @@ function getTestLogoS3Key(domain: string, source: LogoSource, extension: string)
   return `${S3_LOGOS_KEY_PREFIX}/${domainPart}_${sourceAbbr}.${extension}`; // UPDATED - without hash
 }
 
-// Helper function to clear the logo fetch cache
+/**
+ * Helper function to clear the logo fetch cache and reset related mocks.
+ * This ensures a clean state for cache-related assertions in each test.
+ * It calls the mocked `clearAllLogoFetches` and resets other relevant mocks.
+ */
 const clearLogoFetchCache = (): void => {
   // This will now call the mocked version
-
   mockClearAllLogoFetches();
   // Reset other mocks that might be stateful between tests if necessary
   mockGetLogoFetch.mockReset();
@@ -174,6 +191,13 @@ describeOrSkip('getLogo S3 Integration', () => {
     // let writeBinaryS3Mock: any;
     // let listS3ObjectsMock: jest.SpyInstance;
 
+    /**
+     * Sets up mocks and spies before each unit test.
+     * - Resets `ServerCacheInstance` mocks (`mockGetLogoFetch`, `mockSetLogoFetch`).
+     * - Spies on `s3Utils.readBinaryS3` and provides a fresh mock implementation.
+     * - Mocks `global.fetch` for controlling external API calls.
+     * - Sets default environment variables for external fetching behavior.
+     */
     beforeEach(() => {
       mockGetLogoFetch.mockReset();
       mockSetLogoFetch.mockReset();
@@ -212,10 +236,16 @@ describeOrSkip('getLogo S3 Integration', () => {
 
     it('fetches PNG from S3 on cache miss and caches it', async () => {
       mockGetLogoFetch.mockReturnValue(undefined);
+      
+      // Mock the s3UtilsListS3Objects to return a PNG file
+      const listS3ObjectsMock = (jest as any).spyOn(require('../../lib/s3-utils'), 'listS3Objects')
+        .mockResolvedValueOnce(['images/logos/unit-test_google.png']);
+      
       readBinaryS3Mock.mockResolvedValueOnce(pngResult); // Use the spy
 
       const result = await getLogoUnit(domain); // Use getLogoUnit
       expect(mockGetLogoFetch).toHaveBeenCalledWith(domain);
+      expect(listS3ObjectsMock).toHaveBeenCalledWith('images/logos/unit-test_');
       expect(readBinaryS3Mock).toHaveBeenCalledWith('images/logos/unit-test_google.png'); // Check the spy
       expect(mockSetLogoFetch).toHaveBeenCalledWith(domain, {
         url: null, // As per current implementation of getLogoUnit
@@ -227,46 +257,44 @@ describeOrSkip('getLogo S3 Integration', () => {
         contentType: 'image/png', // processImageBuffer determines this for the return
         source: 'google',
       });
+      
+      listS3ObjectsMock.mockRestore();
     });
 
     it('fetches SVG from S3 when PNG is missing and caches it', async () => {
       mockGetLogoFetch.mockReturnValue(undefined);
-      readBinaryS3Mock // Use the spy
-        .mockResolvedValueOnce(undefined) // For PNG
-        .mockResolvedValueOnce(svgResult);   // For SVG
+      
+      // Mock the s3UtilsListS3Objects to return an SVG file when PNG is not found
+      const listS3ObjectsMock = (jest as any).spyOn(require('../../lib/s3-utils'), 'listS3Objects')
+        .mockResolvedValueOnce(['images/logos/unit-test_clearbit.svg']);
+      
+      readBinaryS3Mock.mockResolvedValueOnce(svgResult); // Use the spy
 
       const result = await getLogoUnit(domain); // Use getLogoUnit
-      expect(readBinaryS3Mock).toHaveBeenCalledTimes(2);
-      expect(readBinaryS3Mock).toHaveBeenNthCalledWith(1, 'images/logos/unit-test_google.png');
-      // The actual second call depends on the LOGO_SOURCES order in logos.ts, assuming 'clearbit' is next for SVGs if google.png fails
-      // Let's check the actual implementation: findLogoInS3 tries 'google', 'clearbit', 'duckduckgo' for .png
-      // getLogoS3Key in logos.ts always returns .png. So findLogoInS3 will try:
-      // 1. unit-test_google.png
-      // 2. unit-test_clearbit.png
-      // 3. unit-test_duckduckgo.png
-      // The test implies it looks for SVG after PNG. This part of the test logic might need review against findLogoInS3,
-      // as findLogoInS3 primarily looks for .png files based on getLogoS3Key.
-      // The fallback s3UtilsListS3Objects might find an SVG.
-      // For this change, we'll keep the assertion structure but note it relies on findLogoInS3's exact behavior.
-      // If findLogoInS3 is changed to look for specific SVG keys, this test assertion would need to match.
-      // Current getLogoS3Key in logos.ts is hardcoded to .png.
-      // The test's original (readBinaryS3 as jest.Mock) implies it expected a call for clearbit.png.
-      expect(readBinaryS3Mock).toHaveBeenNthCalledWith(2, 'images/logos/unit-test_clearbit.png');
+      expect(listS3ObjectsMock).toHaveBeenCalledWith('images/logos/unit-test_');
+      expect(readBinaryS3Mock).toHaveBeenCalledTimes(1);
+      expect(readBinaryS3Mock).toHaveBeenCalledWith('images/logos/unit-test_clearbit.svg');
       expect(mockSetLogoFetch).toHaveBeenCalledWith(domain, {
         url: null, // As per current implementation of getLogoUnit
         buffer: svgResult,
-        source: 'clearbit', // This source implies clearbit.png was found
+        source: 'clearbit', // This source implies clearbit.svg was found
       });
       expect(result).toEqual({
         buffer: svgResult,
         contentType: 'image/svg+xml', // processImageBuffer determines this
         source: 'clearbit',
       });
+      
+      listS3ObjectsMock.mockRestore();
     });
 
     it('falls back to external fetch on S3 miss and caches external result', async () => {
       mockGetLogoFetch.mockReturnValue(undefined);
-      readBinaryS3Mock.mockResolvedValue(undefined); // All S3 reads will fail via the spy
+      
+      // Mock the s3UtilsListS3Objects to return empty array (no S3 logos found)
+      const listS3ObjectsMock = (jest as any).spyOn(require('../../lib/s3-utils'), 'listS3Objects')
+        .mockResolvedValueOnce([]);
+      
       process.env.SKIP_EXTERNAL_LOGO_FETCH = 'false'; // Explicitly allow external fetch
       process.env.ALLOW_EXTERNAL_FETCH_IN_TEST = 'true'; // Allow external fetch for this test
 
@@ -290,14 +318,13 @@ describeOrSkip('getLogo S3 Integration', () => {
       });
 
       const result = await getLogoUnit(domain); // Use getLogoUnit
-      // Expect 3 calls from findLogoInS3 (google.png, clearbit.png, duckduckgo.png)
-      // + 1 call to list objects with prefix
-      // + 1 call to read the best match from the list
-      expect(readBinaryS3Mock).toHaveBeenCalledTimes(5); // Check the spy
+      // Expect 1 call to list objects with prefix only
+      expect(listS3ObjectsMock).toHaveBeenCalledTimes(1);
+      expect(listS3ObjectsMock).toHaveBeenCalledWith('images/logos/unit-test_');
       expect(global.fetch).toHaveBeenCalled(); // Check that an external fetch was attempted
 
       // Simulate the processing getLogo does to the external buffer before caching
-      const { processImageBuffer } = require('../../lib/data-access/logos');
+      const { processImageBuffer } = await import('../../lib/data-access/logos');
       const { processedBuffer: expectedCachedBuffer, contentType: expectedContentType } = await processImageBuffer(externalResult.buffer);
 
       expect(mockSetLogoFetch).toHaveBeenCalledWith(domain, {
@@ -310,19 +337,27 @@ describeOrSkip('getLogo S3 Integration', () => {
         contentType: expectedContentType, // This comes from processImageBuffer on externalLogo
         source: externalResult.source,
       });
+      
+      listS3ObjectsMock.mockRestore();
     });
 
     it('returns null when S3 and external fetch both fail or are skipped', async () => {
       mockGetLogoFetch.mockReturnValue(undefined);
-      readBinaryS3Mock.mockRejectedValue(new Error('S3 error')); // Mock S3 failure via spy
+      
+      // Mock the s3UtilsListS3Objects to throw an error (S3 failure)
+      const listS3ObjectsMock = (jest as any).spyOn(require('../../lib/s3-utils'), 'listS3Objects')
+        .mockRejectedValueOnce(new Error('S3 error'));
+      
       process.env.SKIP_EXTERNAL_LOGO_FETCH = 'true'; // Ensure external fetch is skipped for this test
       // Ensure ALLOW_EXTERNAL_FETCH_IN_TEST is not 'true' for this specific test case if it was set by a previous one.
       process.env.ALLOW_EXTERNAL_FETCH_IN_TEST = 'false';
 
-
       const result = await getLogoUnit(domain); // Use getLogoUnit
-      expect(readBinaryS3Mock).toHaveBeenCalledTimes(4); // Expect 4 calls due to loop in findLogoInS3 (google, clearbit, ddg .png) + list operation
+      expect(listS3ObjectsMock).toHaveBeenCalledTimes(1);
+      expect(listS3ObjectsMock).toHaveBeenCalledWith('images/logos/unit-test_');
       expect(result).toBeNull();
+      
+      listS3ObjectsMock.mockRestore();
     });
 
     afterEach(() => {
@@ -333,7 +368,8 @@ describeOrSkip('getLogo S3 Integration', () => {
       // if (writeBinaryS3Mock) writeBinaryS3Mock.mockRestore();
       // if (listS3ObjectsMock) listS3ObjectsMock.mockRestore();
       // Reset any environment variables changed for specific tests
-      delete process.env.ALLOW_EXTERNAL_FETCH_IN_TEST;
+      // Use undefined to clear the environment variable instead of delete for performance reasons (lint/performance/noDelete)
+      process.env.ALLOW_EXTERNAL_FETCH_IN_TEST = undefined;
     });
   });
 });
