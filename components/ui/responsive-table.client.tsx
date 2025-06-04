@@ -7,7 +7,7 @@
 
 'use client';
 
-import React, { Children, isValidElement, useMemo } from 'react';
+import React, { Children, isValidElement, useMemo, type JSX } from 'react';
 import type { ReactNode, HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -82,6 +82,32 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
   const { headers, rows } = useMemo(() => parseTableChildren(children), [children]);
   const hasValidData = headers.length > 0 && rows.length > 0;
 
+  // Helper function to create a stable key from row content
+  const createRowKey = (row: TableRow, index: number): string => {
+    // Try to create a key from the first few cells' content
+    const keyParts = row.slice(0, 3).map((cell, cellIndex) => {
+      if (cell === null || cell === undefined) return `cell-${cellIndex}-empty`;
+      
+      if (typeof cell === 'string' || typeof cell === 'number') {
+        return String(cell).slice(0, 20); // Limit length to avoid extremely long keys
+      }
+      
+      // For React elements, try to extract text content or use element type
+      if (React.isValidElement(cell)) {
+        const props = cell.props as { children?: ReactNode };
+        if (props.children && (typeof props.children === 'string' || typeof props.children === 'number')) {
+          return String(props.children).slice(0, 20);
+        }
+        return `${String(cell.type) || 'element'}-${cellIndex}`;
+      }
+      
+      return `cell-${cellIndex}`;
+    });
+    
+    const contentKey = keyParts.join('-').replace(/[^a-zA-Z0-9-_]/g, '_');
+    return contentKey || `row-${index}`;
+  };
+
   // If parsing failed or no data, render a placeholder or nothing
   if (!hasValidData) {
     console.warn("ResponsiveTable: Parsing failed or no data, rendering empty.");
@@ -102,7 +128,7 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
       suppressHydrationWarning={true} // Add suppression here as structure differs from original table
     >
       {rows.map((row, rowIndex) => {
-        // Safely convert header to string for regex testing
+        // Safely convert header to string for regex testing and key generation
         const headerToString = (node: ReactNode): string => {
           if (node === null || node === undefined) {
             return '';
@@ -150,7 +176,7 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
 
         return (
           <div
-            key={`card-${rowIndex}`}
+            key={createRowKey(row, rowIndex)}
             className={cn(
               "flex flex-col",
               isEven ? "bg-gray-50 dark:bg-gray-800/70" : "bg-white dark:bg-gray-800/40",
@@ -180,8 +206,13 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
               {headers.map((header, headerIndex) => {
                 if (headerIndex === programPeriodIndex) return null;
                 const isInvestment = headerIndex === investmentIndex;
+                
+                // Create a stable key for the cell using header content and position
+                const headerKey = headerToString(header).replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 20) || `header-${headerIndex}`;
+                const cellKey = `${createRowKey(row, rowIndex)}-${headerKey}`;
+                
                 return (
-                  <div key={`card-${rowIndex}-cell-${headerIndex}`} className="mb-4 last:mb-0">
+                  <div key={cellKey} className="mb-4 last:mb-0">
                     <div className={cn(
                       "text-xs font-semibold uppercase tracking-wider mb-1.5",
                       isInvestment ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
