@@ -8,6 +8,8 @@ import { InvestmentsClient } from './investments.client';
 import type { Investment } from '../../../types/investment';
 import { GlobalWindowRegistryProvider } from '@/lib/context/global-window-registry-context.client';
 
+import type { JSX } from "react";
+
 /**
  * Props for the Investments component
  */

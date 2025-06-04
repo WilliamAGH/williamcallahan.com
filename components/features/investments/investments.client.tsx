@@ -13,7 +13,7 @@
  * ```
  */
 
-import { useEffect } from 'react';
+import { useEffect, type JSX } from 'react';
 import { WindowControls } from '../../../components/ui/navigation/window-controls';
 import { ExternalLink } from '../../ui/external-link.client';
 import type { Investment } from '../../../types/investment';

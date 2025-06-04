@@ -5,6 +5,8 @@
 import type { Accelerator } from './accelerator';
 import type { LogoData } from './logo';
 
+import type { JSX } from "react";
+
 /**
  * Financial metrics for an investment
  */

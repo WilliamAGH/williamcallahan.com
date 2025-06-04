@@ -1,5 +1,4 @@
-"use client";
-
+"use client";;
 /**
  * Investment Card Client Component
  * @module components/features/investments/investment-card.client
@@ -22,6 +21,8 @@ import { LogoImage } from '../../../components/ui';
 import { ExternalLink } from '../../ui/external-link.client';
 import type { Investment } from '../../../types/investment';
 import type { LogoData } from '../../../types/logo';
+
+import type { JSX } from "react";
 
 /**
  * Props for the InvestmentCardClient component
