@@ -220,7 +220,7 @@ export default function RootLayout({
             {/* Revert to direct rendering */}
             <div className="min-h-screen bg-white dark:bg-[#1a1b26] text-gray-900 dark:text-gray-100 transition-colors duration-200">
               <ErrorBoundary silent>
-                <header className="relative w-full bg-white/80 dark:bg-[#1a1b26]/80 backdrop-blur-sm z-[1000]">
+                <header className="relative w-full bg-white/80 dark:bg-[#232530]/90 backdrop-blur-sm z-[1000]">
                   {/* Add overflow-hidden for safety, ensure items can shrink */}
                   <div className="w-full max-w-[95%] xl:max-w-[1400px] 2xl:max-w-[1800px] mx-auto px-4 py-4 flex items-center justify-between overflow-hidden gap-4">
                     {/* Navigation should shrink if needed, but prioritize it */}
