@@ -6,15 +6,21 @@
  * This script is responsible for periodically fetching data from external sources
  * (GitHub, bookmark APIs, logo providers) and performing differential updates
  * to an S3-compatible storage. It's designed to be run by an external scheduler
+ * 
+ * MODULE RESOLUTION FIX:
+ * Uses explicit .ts extension and @/ path mapping to ensure consistent module 
+ * resolution across development and Docker production environments. 
+ * Fallback index.ts in lib/data-access/ directory provides additional resolution safety.
  */
 
+// Import using @/ path mapping with explicit .ts extension for maximum compatibility
 import {
   getBookmarks,
   getGithubActivity,
   getLogo,
   getInvestmentDomainsAndIds,
   calculateAndStoreAggregatedWeeklyActivity,
-} from '../lib/data-access'; // These will be modified to be S3-aware
+} from '@/lib/data-access.ts'; // These will be modified to be S3-aware
 
 // Command-line argument parsing for selective updates
 const usage = `Usage: update-s3-data.ts [options]
