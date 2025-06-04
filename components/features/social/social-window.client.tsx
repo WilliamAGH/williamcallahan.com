@@ -80,8 +80,8 @@ const SocialWindowContent = dynamic(
         <div className={cn("h-full", isMaximized ? "overflow-y-auto" : "")}>
           <Suspense fallback={
             <div className="animate-pulse space-y-4 p-6">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={`skeleton-${i}`} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
+              {Array.from({ length: 3 }, () => (
+                <div key={crypto.randomUUID()} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
               ))}
             </div>
           }>

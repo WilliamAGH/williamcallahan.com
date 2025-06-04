@@ -15,6 +15,7 @@
  * />
  * ```
  */
+
 "use client";
 
 import { useEffect, useState, useMemo } from 'react'; // Added useMemo
@@ -94,7 +95,8 @@ export function EducationClient({
       })
       .sort((a, b) => {
         // Handle sorting
-        let valueA: string, valueB: string;
+        let valueA: string;
+        let valueB: string;
 
         if (sortField === 'name') {
           valueA = a.name;
@@ -122,6 +124,8 @@ export function EducationClient({
       setSortDirection('asc');
     }
   };
+
+
 
   // Log state changes (optional)
   useEffect(() => {
@@ -234,35 +238,38 @@ export function EducationClient({
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
-                    onClick={() => toggleSort('name')}
-                  >
-                    <div className="flex items-center">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <button
+                      type="button"
+                      className="flex items-center hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:text-gray-700 dark:focus:text-gray-200"
+                      onClick={() => toggleSort('name')}
+                      aria-label="Sort by name"
+                    >
                       Name
                       <SortIndicator field="name" />
-                    </div>
+                    </button>
                   </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
-                    onClick={() => toggleSort('institution')}
-                  >
-                    <div className="flex items-center">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <button
+                      type="button"
+                      className="flex items-center hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:text-gray-700 dark:focus:text-gray-200"
+                      onClick={() => toggleSort('institution')}
+                      aria-label="Sort by institution"
+                    >
                       Institution
                       <SortIndicator field="institution" />
-                    </div>
+                    </button>
                   </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer"
-                    onClick={() => toggleSort('year')}
-                  >
-                    <div className="flex items-center">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <button
+                      type="button"
+                      className="flex items-center hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:text-gray-700 dark:focus:text-gray-200"
+                      onClick={() => toggleSort('year')}
+                      aria-label="Sort by year"
+                    >
                       Year
                       <SortIndicator field="year" />
-                    </div>
+                    </button>
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Type
