@@ -10,6 +10,8 @@ import type { Experience } from '../../../types/experience';
 import { ExperienceCardClient } from './experience-card.client';
 import { fetchLogo, normalizeDomain } from '../../../lib/logo-fetcher';
 
+import type { JSX } from "react";
+
 // Define the path to the static placeholder image
 const PLACEHOLDER_IMAGE_URL = '/images/company-placeholder.svg';
 
