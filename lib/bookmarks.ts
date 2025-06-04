@@ -1,26 +1,35 @@
 /**
- * Bookmarks API
- *
- * Fetches bookmarks from the external Hoarder/Karakeep API
- *
+ * @file Bookmarks API and data management.
+ * This module is responsible for fetching bookmarks from an external API (Hoarder/Karakeep),
+ * normalizing the data, caching it (in-memory and S3), and providing functions
+ * to access this data. It handles pagination, error fallbacks, and background refreshing.
  * @module lib/bookmarks
  */
-
 import request, { type Response } from 'node-fetch';
-import type { AbortSignal as NodeFetchAbortSignal } from 'node-fetch/externals';
 import type { UnifiedBookmark, BookmarkContent, BookmarkAsset } from '@/types';
 import { writeJsonS3, readJsonS3 } from '@/lib/s3-utils';
 import { BOOKMARKS_S3_KEY_FILE } from '@/lib/data-access/bookmarks';
 
-// Define the raw structure expected from the API based on the user's example
-interface RawApiBookmarkTag {
+/**
+ * Represents the raw structure of a tag object as received from the external bookmarks API.
+ */
+export interface RawApiBookmarkTag {
+  /** Unique identifier for the tag. */
   id: string;
+  /** Name of the tag. */
   name: string;
+  /** Indicates who attached the tag (e.g., 'user', 'ai'). */
   attachedBy: string;
 }
 
+/**
+ * Represents the raw structure of the content object within a bookmark, as received from the external API.
+ * @internal
+ */
 interface RawApiBookmarkContent {
-  type: 'link' | 'image' | (string & {});
+  /** Type of content, e.g., 'link', 'image'. */
+  type: 'link' | 'image' | (string & {}); // Allows for other string types
+  /** URL of the content. */
   url: string;
   title: string | null;
   description: string | null;
@@ -36,32 +45,58 @@ interface RawApiBookmarkContent {
   dateModified?: string | null;
 }
 
-interface RawApiBookmark {
+/**
+ * Represents the raw structure of a bookmark object as received from the external API.
+ */
+export interface RawApiBookmark {
+  /** Unique identifier for the bookmark. */
   id: string;
+  /** ISO date string of when the bookmark was created. */
   createdAt: string;
+  /** ISO date string of when the bookmark was last modified. */
   modifiedAt: string;
-  title: string | null; // Note: API seems to have title/desc here AND in content
+  /** Title of the bookmark (can also be in `content`). */
+  title: string | null;
+  /** Whether the bookmark is archived. */
   archived: boolean;
+  /** Whether the bookmark is marked as a favorite. */
   favourited: boolean;
+  /** Status of tagging (e.g., 'complete', 'in-progress'). */
   taggingStatus: 'complete' | 'in-progress' | (string & {});
+  /** User's note for the bookmark. */
   note: string | null;
+  /** Summary of the bookmark (can also be in `content`). */
   summary: string | null;
+  /** Array of tags associated with the bookmark. */
   tags: RawApiBookmarkTag[];
+  /** Detailed content of the bookmark. */
   content: RawApiBookmarkContent;
+  /** Array of assets associated with the bookmark. */
   assets: BookmarkAsset[];
 }
 
-interface ApiResponse {
+/**
+ * Represents the structure of the paginated API response when fetching bookmarks.
+ */
+export interface ApiResponse {
+  /** An array of raw bookmark objects for the current page. */
   bookmarks: RawApiBookmark[];
+  /** A cursor string for fetching the next page of results, or null if no more pages. */
   nextCursor: string | null;
 }
 
 import { ServerCacheInstance } from './server-cache';
 
 /**
- * Utility function to remove htmlContent from a content object
+ * Utility function to remove the potentially large `htmlContent` field from a bookmark's content object.
+ * This is used to reduce the size of data stored in some caches or passed around.
+ *
+ * @template T - A type extending RawApiBookmarkContent.
+ * @param {T} content - The bookmark content object.
+ * @returns {Omit<T, 'htmlContent'>} The content object without the `htmlContent` property.
+ * @internal
  */
-function omitHtmlContent<T extends RawApiBookmarkContent>(content: T) {
+function omitHtmlContent<T extends RawApiBookmarkContent>(content: T): Omit<T, 'htmlContent'> {
   // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
   const { htmlContent: _omit, ...rest } = content;
   return rest;
@@ -73,21 +108,44 @@ function omitHtmlContent<T extends RawApiBookmarkContent>(content: T) {
  * @returns {Promise<UnifiedBookmark[]>} A promise that resolves to an array of unified bookmarks.
  * @throws {Error} If the API request fails and no cached data is available.
  */
-// Module-level cache to avoid multiple API calls during build
+/**
+ * Module-level promise cache for bookmark data.
+ * This helps avoid redundant API calls, especially during build processes or server-side rendering
+ * where multiple components might request the same data concurrently.
+ * @internal
+ */
 let cachedBookmarksPromise: Promise<UnifiedBookmark[]> | null = null;
 
 /**
- * Cached version of fetchExternalBookmarks that reuses the same promise
- * for multiple calls during build time
+ * Fetches external bookmarks, utilizing a module-level cache (`cachedBookmarksPromise`)
+ * to ensure that the fetching process (`fetchExternalBookmarks`) is only initiated once per
+ * application lifecycle (or until the cache is manually cleared). Subsequent calls
+ * during the same lifecycle will return the promise from the initial call.
+ * This is primarily useful for preventing multiple concurrent fetches during build or SSR.
+ *
+ * @returns {Promise<UnifiedBookmark[]>} A promise that resolves to an array of unified bookmarks.
  */
 export function fetchExternalBookmarksCached(): Promise<UnifiedBookmark[]> {
-  return cachedBookmarksPromise ??= fetchExternalBookmarks();
+  if (cachedBookmarksPromise === null) {
+    cachedBookmarksPromise = fetchExternalBookmarks();
+  }
+  return cachedBookmarksPromise;
 }
 
 // Configuration: allow overriding API base URL and list ID via environment
 // const BOOKMARKS_LIST_ID = process.env.BOOKMARKS_LIST_ID ?? 'xrfqu4awxsqkr1ch404qwd9i'; // Removed
 // const BOOKMARKS_API_URL = process.env.BOOKMARKS_API_URL ?? 'https://bookmark.iocloudhost.net/api/v1'; // Removed
 
+/**
+ * Fetches bookmarks, prioritizing server cache (ServerCacheInstance).
+ * If cached data is available and not stale, it's returned immediately.
+ * If cached data is stale, it's returned while a background refresh is initiated.
+ * If no cache is available, it fetches fresh data directly and waits for the result.
+ *
+ * @returns {Promise<UnifiedBookmark[]>} A promise that resolves to an array of unified bookmarks.
+ * @throws {Error} Only if fetching fresh data is required (no cache) and that fetch fails.
+ *                 Background refresh errors are logged but do not cause this function to throw.
+ */
 export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
   // Check cache first
   const cachedData = ServerCacheInstance.getBookmarks();
@@ -131,10 +189,13 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
 }
 
 /**
- * Refreshes bookmarks data from the external API
+ * Refreshes bookmarks data directly from the external API, normalizes it,
+ * updates the S3 storage, and then updates the in-memory server cache (ServerCacheInstance).
+ * This function handles API pagination and includes a timeout for each page request.
  *
- * @returns {Promise<UnifiedBookmark[]>} A promise that resolves to an array of unified bookmarks.
- * @throws {Error} If the API request fails.
+ * @returns {Promise<UnifiedBookmark[]>} A promise that resolves to an array of newly fetched and normalized unified bookmarks.
+ * @throws {Error} If any critical step fails (e.g., API request, S3 write, critical config missing).
+ *                 It attempts to provide S3 fallback data in console logs but still throws for primary failures.
  */
 export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
   console.log('[refreshBookmarksData] Starting refresh cycle from external API...');
@@ -184,7 +245,7 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
         pageResponse = await request(pageUrl, {
           method: 'GET',
           headers: requestHeaders,
-          signal: pageController.signal as NodeFetchAbortSignal,
+          signal: pageController.signal,
           redirect: 'follow'
         });
       } finally {
@@ -198,7 +259,7 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
         throw apiError;
       }
 
-      const data: ApiResponse = await pageResponse.json() as unknown as ApiResponse;
+      const data: ApiResponse = await pageResponse.json() as ApiResponse;
       console.log(`[refreshBookmarksData] Retrieved ${data.bookmarks.length} bookmarks from page ${pageCount}. Next cursor: '${data.nextCursor}'`);
       allRawBookmarks.push(...data.bookmarks);
       cursor = data.nextCursor;
