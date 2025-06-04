@@ -21,7 +21,7 @@ import type { S3ClientWrapper } from '@/types/s3';
 // Environment variables for S3 configuration
 const bucket = process.env.S3_BUCKET || '';
 const endpoint = process.env.S3_SERVER_URL || '';
-const region = process.env.AWS_REGION || '';
+const region = process.env.S3_REGION || process.env.AWS_REGION || 'us-east-1';
 const accessKeyId = process.env.S3_ACCESS_KEY_ID || '';
 const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || '';
 const sessionToken = process.env.S3_SESSION_TOKEN || process.env.AWS_SESSION_TOKEN || undefined;
@@ -44,7 +44,7 @@ export const s3Client: S3ClientWrapper = (() => {
   const client = awsClient as AwsS3Client & S3ClientWrapper;
 
   // Polyfill file() method
-  client.file = function(key: string) {
+  client.file = (key: string) => {
     let parts: (string | Buffer)[] = [];
     return {
       key,
@@ -117,7 +117,7 @@ export const s3Client: S3ClientWrapper = (() => {
   };
 
   // Polyfill list() method
-  client.list = async function(prefix?: string) {
+  client.list = async (prefix?: string) => {
     const keys = await awsListS3Objects(prefix || '');
     return { contents: keys.map(key => ({ key })), isTruncated: false };
   };
