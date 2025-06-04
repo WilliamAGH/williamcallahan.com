@@ -91,16 +91,19 @@ async function updateLogosInS3() {
 
     // 1. Extract domains from bookmarks via data-access
     const bookmarks = await getBookmarks(true); // reuse freshly-cached data
-    (bookmarks ?? []).forEach(b => {
+    for (const b of bookmarks ?? []) {
       try {
         if (b.url) domains.add(new URL(b.url).hostname.replace(/^www\./, ''));
       } catch { /* ignore invalid URLs */ }
-    });
+    }
     if (VERBOSE) console.log(`[UpdateS3] Extracted ${domains.size} domains from bookmarks.`);
 
     // 2. Extract domains from investments data
     const investmentDomainsMap = await getInvestmentDomainsAndIds();
-    investmentDomainsMap.forEach((_id, domain) => domains.add(domain));
+    // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
+    for (const [_id, domain] of investmentDomainsMap) {
+      domains.add(domain);
+    }
     if (VERBOSE) console.log(`[UpdateS3] Added ${investmentDomainsMap.size} unique domains from investments. Total unique: ${domains.size}`);
 
     // 3. Domains from experience.ts / education.ts (assuming these are static or also in S3)
@@ -109,7 +112,9 @@ async function updateLogosInS3() {
 
     // 4. Hardcoded domains
     const KNOWN_DOMAINS = ['creighton.edu', 'unomaha.edu', 'stanford.edu', 'columbia.edu', 'gsb.columbia.edu', 'cfp.net', 'seekinvest.com', 'tsbank.com', 'mutualfirst.com', 'morningstar.com'];
-    KNOWN_DOMAINS.forEach(domain => domains.add(domain));
+    for (const domain of KNOWN_DOMAINS) {
+      domains.add(domain);
+    }
     if (VERBOSE) console.log(`[UpdateS3] Added ${KNOWN_DOMAINS.length} hardcoded domains. Total unique domains for logos: ${domains.size}`);
 
     const domainArray = Array.from(domains);
@@ -129,7 +134,7 @@ async function updateLogosInS3() {
           // 3. If fetched, write to S3.
           const logoResult = await getLogo(domain); // This should now be S3-aware
 
-          if (logoResult && logoResult.buffer) {
+          if (logoResult?.buffer) {
             // S3 write should happen within getLogo if it fetched externally
             if (VERBOSE) console.log(`[UpdateS3] Logo processed for ${domain} (source: ${logoResult.source}). Check data-access for S3 write details.`);
             successCount++;
