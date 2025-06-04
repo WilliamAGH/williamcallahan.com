@@ -44,58 +44,24 @@ function getLogoS3Key(domain: string, source: LogoSource, ext: 'png' | 'svg' = '
  * @returns Promise with logo buffer and source, or null if not found
  */
 export async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> {
-  for (const source of ['google', 'clearbit', 'duckduckgo'] as LogoSource[]) {
-    // First try both PNG and SVG formats directly
-    for (const ext of ['png', 'svg'] as const) {
-      const logoS3Key = getLogoS3Key(domain, source, ext);
-      try {
-        const buffer = await readBinaryS3(logoS3Key);
-        if (buffer) {
-          console.log(`[DataAccess/Logos-S3] Found logo for ${domain} from source ${source} in S3 (key: ${logoS3Key}).`);
-          return { buffer, source };
-        }
-      } catch (error) {
-        if (VERBOSE) {
-          console.warn(`[DataAccess/Logos-S3] Error reading ${logoS3Key} for domain ${domain} (source: ${source}):`, error instanceof Error ? error.message : String(error));
-        }
-        // Treat error as logo not found for this key, continue to next source
-      }
-    }
-  }
+  const id = domain.split('.')[0];
   try {
-    const id = domain.split('.')[0];
     const keys = await s3UtilsListS3Objects(`${LOGOS_S3_KEY_DIR}/${id}_`);
-    if (keys.length === 0) {
-      return null;
-    }
-
-    const pngMatch = keys.find(key => key.endsWith('.png'));
-    const bestMatch = pngMatch || keys[0];
-
-    try {
-      const buffer = await readBinaryS3(bestMatch);
-      if (!buffer) {
-        return null;
+    if (keys.length > 0) {
+      const pngKey = keys.find(key => key.endsWith('.png'));
+      const bestKey = pngKey ?? keys[0];
+      const buffer = await readBinaryS3(bestKey);
+      if (buffer) {
+        let source: LogoSource = 'unknown';
+        if (bestKey.includes('_google')) source = 'google';
+        else if (bestKey.includes('_clearbit')) source = 'clearbit';
+        else if (bestKey.includes('_ddg')) source = 'duckduckgo';
+        console.log(`[DataAccess/Logos-S3] Found logo for ${domain} by S3 list pattern match: ${bestKey}`);
+        return { buffer, source };
       }
-
-      let inferredSource: LogoSource = 'unknown';
-      if (bestMatch.includes('_google')) inferredSource = 'google';
-      else if (bestMatch.includes('_clearbit')) inferredSource = 'clearbit';
-      else if (bestMatch.includes('_ddg')) inferredSource = 'duckduckgo';
-
-      console.log(`[DataAccess/Logos-S3] Found logo for ${domain} by S3 list pattern match: ${bestMatch}`);
-      return { buffer, source: inferredSource };
-    } catch (error) {
-      if (VERBOSE) {
-        console.warn(`[DataAccess/Logos-S3] Error reading ${bestMatch} (found by list) for domain ${domain}:`, error instanceof Error ? error.message : String(error));
-      }
-      // Treat error as logo not found for this key
-      return null;
     }
-  } catch (listError: unknown) {
-    const message = listError instanceof Error ? listError.message : String(listError);
-    console.warn(`[DataAccess/Logos-S3] Error listing logos in S3 for domain ${domain} (prefix: ${LOGOS_S3_KEY_DIR}/${domain.split('.')[0]}_):`, message);
-    return null;
+  } catch (error) {
+    console.warn(`[DataAccess/Logos-S3] Error listing or reading logos for domain ${domain}:`, error);
   }
   return null;
 }

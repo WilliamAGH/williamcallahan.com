@@ -1,5 +1,4 @@
-"use client";
-
+"use client";;
 /**
  * Theme Wrapper Client Component
  * @module components/features/investments/theme-wrapper.client
@@ -15,6 +14,8 @@ import { InvestmentCardClient } from "./investment-card.client";
 import type { ThemeWrapperProps } from "../../../types/investment";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { LogoData } from "../../../types/logo";
+
+import type { JSX } from "react";
 
 /**
  * Theme Wrapper Component

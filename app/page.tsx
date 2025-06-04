@@ -27,7 +27,7 @@ export const metadata: Metadata = getStaticPageMetadata('/', 'home');
  * Remove force-dynamic to allow static generation where possible
  */
 export const revalidate = 3600; // Revalidate every hour
-export const prefetch = true; // Enable prefetching
+// export const prefetch = true; // Removed: Not a valid Next.js route segment config option
 
 /**
  * Home page component

@@ -1,11 +1,26 @@
+/**
+ * @file TweetEmbed component and related image proxy utilities.
+ * This file provides a component to embed tweets using `react-tweet`
+ * and includes an image proxy to serve Twitter images from the same origin,
+ * with optimizations for image versions.
+ */
 import { Tweet } from 'react-tweet'
 import Image from 'next/image'
+import type { JSX } from 'react';
 
-/** Swap every pbs.twimg.com image for a same-origin proxy */
-const proxy = (src: string) => {
-  if (!src?.startsWith('https://pbs.twimg.com/')) {
-    return src;
+/**
+ * Proxies pbs.twimg.com image URLs to a same-origin endpoint (`/api/twitter-image/`).
+ * It also attempts to request larger versions of profile and media images.
+ *
+ * @param {string | Blob} srcInput - The original image source URL or Blob.
+ * @returns {string} The proxied image URL, or the original src if not a pbs.twimg.com URL or if input is a Blob.
+ *                   Returns an empty string if srcInput is a Blob that cannot be processed as a pbs.twimg.com URL.
+ */
+const proxy = (srcInput: string | Blob): string => {
+  if (typeof srcInput !== 'string' || !srcInput.startsWith('https://pbs.twimg.com/')) {
+    return typeof srcInput === 'string' ? srcInput : ''; // Return empty string or original if not a pbs.twimg string
   }
+  const src = srcInput; // Now we know src is a string
 
   let modifiedSrc = src;
 
@@ -29,18 +44,37 @@ const proxy = (src: string) => {
   return `/api/twitter-image/${proxiedPath}`;
 }
 
+/**
+ * Props for the ImgProxy component.
+ */
+interface ImgProxyProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src'> {
+  /** The original source URL of the image or a Blob. */
+  src?: string | Blob;
+  /** Alt text for the image. */
+  alt?: string;
+  /** Optional width for Next.js Image optimization. */
+  width?: number;
+  /** Optional height for Next.js Image optimization. */
+  height?: number;
+}
+
+/**
+ * An image component that uses the `proxy` function to serve Twitter images.
+ * It utilizes Next.js `<Image>` for optimization if width and height are provided,
+ * otherwise falls back to a standard `<img>` tag.
+ *
+ * @param {ImgProxyProps} props - The props for the ImgProxy component.
+ * @returns {JSX.Element} The rendered image element.
+ */
 const ImgProxy = ({
   src = '',
   alt,
   width,
   height,
   ...rest
-}: React.ImgHTMLAttributes<HTMLImageElement> & {
-  width?: number;
-  height?: number;
-}) => {
+}: ImgProxyProps) => {
   console.log('[ImgProxy] Original src received:', src);
-  const proxiedSrc = proxy(src);
+  const proxiedSrc = proxy(src || ''); // Ensure string for proxy, or handle Blob case if necessary
   console.log('[ImgProxy] Proxied src to be used:', proxiedSrc);
 
     // Use Next.js Image component for better performance when dimensions are available
@@ -61,8 +95,30 @@ const ImgProxy = ({
       return <img src={proxiedSrc} alt={alt || 'Tweet image'} {...rest} />;
 }
 
-export function TweetEmbed({ url, className = '' }: { url: string; className?: string }) {
-  const id = url.match(/status\/(\d+)/)?.[1]
+/**
+ * Props for the TweetEmbed component.
+ */
+interface TweetEmbedProps {
+  /** The URL of the tweet to embed. */
+  url: string;
+  /** Optional CSS class names to apply to the container div. */
+  className?: string;
+}
+
+/**
+ * Embeds a tweet using its URL.
+ * It extracts the tweet ID from the URL and uses the `react-tweet` Tweet component,
+ * providing the custom `ImgProxy` for avatar and media images.
+ *
+ * @param {TweetEmbedProps} props - The props for the component.
+ * @returns {JSX.Element | null} The rendered tweet embed, or null if the tweet ID cannot be extracted.
+ */
+export function TweetEmbed({ url: tweetUrl, className = '' }: TweetEmbedProps): JSX.Element | null {
+  if (typeof tweetUrl !== 'string') {
+    console.error('TweetEmbed received non-string URL:', tweetUrl);
+    return null;
+  }
+  const id = tweetUrl.match(/status\/(\d+)/)?.[1]
   if (!id) return null
 
   return (

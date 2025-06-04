@@ -20,7 +20,7 @@ import { BlogTags } from '../shared/blog-tags';
 import { formatDate } from '../../../../lib/utils';
 import type { Article, WithContext } from 'schema-dts';
 import dynamic from 'next/dynamic';
-import { Suspense } from 'react';
+import { Suspense, type JSX } from 'react';
 import type { BlogPost } from '../../../../types/blog';
 
 // Dynamically import MDXContent to avoid chunk loading issues

@@ -5,6 +5,10 @@
   },
   "linter": {
     "enabled": true,
+    "ignore": [
+      "node_modules/**",
+      "components/ui/code-block/prism-syntax-highlighting/prism.js"
+    ],
     "rules": {
       "recommended": true,
       "a11y": {
@@ -27,7 +31,8 @@
         "jest.config.{js,ts}",
         "next.config.*",
         "postcss.config.*",
-        "tailwind.config.*"
+        "tailwind.config.*",
+        "stylelint.config.*"
       ],
       "linter": {
         "rules": {

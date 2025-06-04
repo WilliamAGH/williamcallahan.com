@@ -10,8 +10,8 @@
  */
 
 import type { MetadataRoute } from 'next';
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import matter from 'gray-matter';
 import { kebabCase } from '@/lib/utils/formatters';
 import { refreshBookmarksData } from '@/lib/bookmarks.client';
@@ -37,7 +37,7 @@ const getSafeDate = (dateInput: string | Date | number | undefined | null): Date
       dateStr = `${dateStr}T23:59:59.999Z`;
     }
     const date = new Date(dateStr);
-    if (!isNaN(date.getTime())) {
+    if (!Number.isNaN(date.getTime())) {
       return date;
     }
   } catch (error) {
@@ -68,9 +68,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const filenames = fs.readdirSync(postsDirectory);
-    filenames
-      .filter((filename) => filename.endsWith('.mdx'))
-      .forEach((filename) => {
+    const mdxFiles = filenames.filter((filename) => filename.endsWith('.mdx'));
+    for (const filename of mdxFiles) {
         const filePath = path.join(postsDirectory, filename);
         let fileMtime: Date | undefined;
         try {
@@ -105,12 +104,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
         // Update lastModified time for each tag
         if (postLastModified && Array.isArray(data.tags)) {
-          data.tags.forEach((tag: string) => {
+          for (const tag of data.tags as string[]) {
             const tagSlug = kebabCase(tag);
             tagLastModifiedMap[tagSlug] = getLatestDate(tagLastModifiedMap[tagSlug], postLastModified) || postLastModified;
-          });
+          }
         }
-      });
+    }
   } catch (error) {
     console.error("Sitemap: Error reading blog posts directory:", error);
   }
@@ -163,7 +162,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const slugCache = new Map<string, string>();
 
     // Process each bookmark for individual pages
-    bookmarks.forEach(bookmark => {
+    for (const bookmark of bookmarks) {
       // Use the bookmark's creation or modification date
       const bookmarkLastModified = getSafeDate(bookmark.modifiedAt || bookmark.createdAt || bookmark.dateBookmarked);
       if (bookmarkLastModified) {
@@ -193,15 +192,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
       // Update lastModified time for each tag
       if (bookmarkLastModified && tags.length > 0) {
-        tags.forEach(tag => {
+        for (const tag of tags) {
           const tagSlug = tagToSlug(tag);
           bookmarkTagLastModifiedMap[tagSlug] = getLatestDate(
             bookmarkTagLastModifiedMap[tagSlug],
             bookmarkLastModified
           ) || bookmarkLastModified;
-        });
+        }
       }
-    });
+    }
 
     // Create bookmark tag sitemap entries
     bookmarkTagEntries = Object.entries(bookmarkTagLastModifiedMap).map(([tagSlug, lastModified]) => ({

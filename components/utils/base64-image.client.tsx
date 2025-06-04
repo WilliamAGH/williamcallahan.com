@@ -8,7 +8,7 @@
 "use client";
 
 import Image, { type ImageProps } from 'next/image';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type JSX } from 'react';
 
 export function Base64Image({
   className = '',

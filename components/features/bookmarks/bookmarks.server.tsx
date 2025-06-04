@@ -12,6 +12,8 @@ import { getBookmarks } from '@/lib/data-access/bookmarks';
 import { ServerCacheInstance } from '@/lib/server-cache';
 import { AppError } from '@/lib/errors';
 
+import type { JSX } from "react";
+
 interface BookmarksServerProps {
   title: string;
   description: string;

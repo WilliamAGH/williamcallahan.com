@@ -12,7 +12,7 @@
  * @clientComponent - This component uses client-side APIs and must be rendered on the client.
  */
 
-import { useEffect, Suspense } from 'react';
+import { useEffect, Suspense, useMemo } from 'react';
 import { WindowControls } from '@/components/ui/navigation/window-controls';
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { Bookmark } from 'lucide-react';
@@ -25,7 +25,25 @@ import type { ClientBoundaryProps } from '@/types/component-types';
 const DEFAULT_BOOKMARKS_WINDOW_ID = 'bookmarks-window';
 
 /**
+ * Skeleton loader component with stable keys for loading states
+ * @returns {JSX.Element} Skeleton loading animation
+ */
+const SkeletonLoader = () => {
+  const skeletonKeys = useMemo(() => Array.from({ length: 6 }, () => crypto.randomUUID()), []);
+  
+  return (
+    <div className="animate-pulse space-y-4 p-6">
+      {skeletonKeys.map((key) => (
+        <div key={key} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
+      ))}
+    </div>
+  );
+};
+
+/**
  * Props for the BookmarksWindow component
+ * @interface BookmarksWindowProps
+ * @extends ClientBoundaryProps
  */
 interface BookmarksWindowProps extends ClientBoundaryProps {
   /**
@@ -99,11 +117,7 @@ const BookmarksWindowContent = dynamic(
 
         <div className={cn("h-full", isMaximized ? "overflow-y-auto" : "")}>
           <Suspense fallback={
-            <div className="animate-pulse space-y-4 p-6">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={`skeleton-${i}`} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
-              ))}
-            </div>
+            <SkeletonLoader />
           }>
             {children}
           </Suspense>
@@ -117,8 +131,8 @@ const BookmarksWindowContent = dynamic(
 /**
  * BookmarksWindow Client Component
  *
- * Renders content within a window-like UI that
- * supports minimizing, maximizing, and closing.
+ * Renders content within a window-like UI that supports minimizing, maximizing, and closing.
+ * Uses the global window registry to manage state across the application.
  *
  * @param {BookmarksWindowProps} props - Component props
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
@@ -141,7 +155,7 @@ export function BookmarksWindow({ children, titleSlug, windowTitle, windowId }: 
     isRegistered
   } = useRegisteredWindowState(uniqueId, Bookmark, restoreTitle, 'normal');
 
-  // Log state changes (optional)
+  // Log state changes for debugging purposes
   useEffect(() => {
     if (isRegistered) {
       console.log(`BookmarksWindow Render (${uniqueId}) - Window State:`, windowState);

@@ -6,6 +6,7 @@
       "dom.iterable",
       "esnext"
     ],
+    // "types": ["react/jsx-runtime", "bun-types", "jest"], // Reverted: Remove to allow default @types resolution
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -53,7 +54,8 @@
     "verbatimModuleSyntax": false,
     "noUncheckedIndexedAccess": false,
     "esModuleInterop": true,
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "allowUmdGlobalAccess": true
   },
   "include": [
     "next-env.d.ts",
@@ -75,6 +77,7 @@
     "node_modules",
     ".next",
     "out",
-    "dist"
+    "dist",
+    "components/ui/code-block/prism-syntax-highlighting/prism.js"
   ]
 }

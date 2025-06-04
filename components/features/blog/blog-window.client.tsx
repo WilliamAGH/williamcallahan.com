@@ -45,7 +45,7 @@ const BlogWindowContent = dynamic(
     onClose: () => void;
     onMinimize: () => void;
     onMaximize: () => void;
-    contentRef: React.RefObject<HTMLDivElement>;
+    contentRef: React.RefObject<HTMLDivElement | null>;
   }) => {
     const isMaximized = windowState === 'maximized';
 
@@ -91,8 +91,8 @@ const BlogWindowContent = dynamic(
   }),
   { ssr: false, loading: () => (
     <div className="animate-pulse space-y-4 p-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg max-w-5xl mx-auto mt-8">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
+      {Array.from({ length: 3 }, () => (
+        <div key={crypto.randomUUID()} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
       ))}
     </div>
   )}

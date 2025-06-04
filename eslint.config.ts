@@ -22,6 +22,7 @@ const config = tseslint.config(
       ".husky/", // Assuming husky setup files shouldn't be linted
       "out/", // If using static export
       "__tests__/", // Ignore test files; use bun test and jest for tests
+      "components/ui/code-block/prism-syntax-highlighting/prism.js", // Third-party minified library
       // Add other global ignores if needed
     ],
   },
@@ -125,9 +126,9 @@ const config = tseslint.config(
       "@typescript-eslint/restrict-template-expressions": "warn",
       "@typescript-eslint/no-empty-object-type": "warn",
       // Code cleanliness
-      "@typescript-eslint/no-unused-vars": "warn", // Unused variables don't break functionality
-      "@typescript-eslint/no-unused-expressions": "warn", // Unused expressions are often false positives
-      "no-useless-escape": "warn" // Unnecessary escapes don't affect runtime behavior
+      "@typescript-eslint/no-unused-vars": "warn",
+      "@typescript-eslint/no-unused-expressions": "warn",
+      "no-useless-escape": "warn"
     },
   },
 
@@ -161,18 +162,7 @@ const config = tseslint.config(
       "@typescript-eslint/naming-convention": "off",
     },
   },
-  {
-    files: ["**/prism-syntax-highlighting/prism.js"],
-    rules: {
-      "no-restricted-globals": "off",
-      "@typescript-eslint/naming-convention": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
-      "@typescript-eslint/no-unsafe-call": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
-      "@typescript-eslint/no-unsafe-argument": "off",
-    },
-  },
+
   {
     files: [
       "**/lib/hooks/use-isomorphic-layout-effect.ts",
@@ -192,23 +182,22 @@ const config = tseslint.config(
       "no-restricted-globals": "off",
     },
   },
-  { // Exemptions for config files
+{ // Exemptions for TypeScript config files - ensure they use project-based linting
     files: [
-      "eslint.config.js", // Keep .js for CJS compatibility if needed elsewhere
-      "eslint.config.ts", // Add the TS config file itself
-      "*.config.{js,ts,mjs,cjs}",
-      "jest.setup.{js,ts}",
-      "next.config.*",
-      "postcss.config.*",
-      "tailwind.config.*",
+      "eslint.config.ts",
+      "*.config.ts",
+      "jest.setup.ts",
+      "next.config.ts", // if you use next.config.ts
+      "tailwind.config.ts", // if you use tailwind.config.ts
       "middleware.ts",
       "instrumentation.ts",
-      "sentry.*.config.*",
+      "sentry.*.config.ts", // if you use Sentry TS configs
     ],
     languageOptions: {
       globals: {
         ...globals.node,
       },
+      // IMPORTANT: No parserOptions.project = null here, so it uses the global TS config
     },
     rules: {
       "no-restricted-globals": "off",
@@ -218,7 +207,41 @@ const config = tseslint.config(
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-unnecessary-type-assertion": "off"
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
+      // Add any other rules that were problematic for TS config files
+    }
+  },
+  { // Exemptions for config files
+    files: [
+      "eslint.config.js",         // JavaScript eslint config (if any)
+      "*.config.js",              // General JS configs
+      "*.config.mjs",             // General MJS configs
+      "*.config.cjs",             // General CJS configs
+      "postcss.config.cjs",       // Explicitly include postcss.config.cjs
+      "jest.setup.js",            // JavaScript Jest setup
+      "next.config.js",           // JavaScript Next.js config
+      "tailwind.config.js",       // JavaScript Tailwind config
+      "sentry.*.config.js"        // JavaScript Sentry configs
+    ],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+      parserOptions: {
+        project: null, // Disable project-based linting for these config files
+      }
+    },
+    rules: {
+      // Spread rules from disableTypeChecked to turn off all type-aware linting for these JS files
+      ...(tseslint.configs.disableTypeChecked as any).rules,
+      // Keep existing specific overrides for JS config files
+      "no-restricted-globals": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off", // May be redundant with disableTypeChecked but safe to keep
+      "@typescript-eslint/no-unsafe-call": "off",      // May be redundant
+      "@typescript-eslint/no-unsafe-member-access": "off", // May be redundant
+      "@typescript-eslint/no-unsafe-return": "off",    // May be redundant
+      "@typescript-eslint/no-explicit-any": "off",       // May be redundant
+      "@typescript-eslint/no-unnecessary-type-assertion": "off" // May be redundant
     }
   },
   {

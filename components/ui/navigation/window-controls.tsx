@@ -2,23 +2,40 @@
  * Window Controls Component
  *
  * Renders macOS-style window control buttons with optional click handlers.
+ * Provides close, minimize, and maximize/restore functionality with responsive sizing.
  *
  * @module components/ui/navigation/window-controls
- * It is a shared component (server and client)
+ * @description Shared component that works in both server and client contexts
  */
 
 // No longer needs "use client" as it's purely presentational again
 
+/**
+ * Props for the WindowControls component
+ * @interface WindowControlsProps
+ */
 interface WindowControlsProps {
+  /** Additional CSS classes to apply to the container */
   className?: string;
-  onClose?: () => void; // Revert to original prop types
+  /** Callback function when close button is clicked */
+  onClose?: () => void;
+  /** Callback function when minimize button is clicked */
   onMinimize?: () => void;
+  /** Callback function when maximize/restore button is clicked */
   onMaximize?: () => void;
-  size?: 'sm' | 'md' | 'lg'; // Add size prop for responsive controls
-  isMaximized?: boolean; // Add flag to indicate if window is maximized
+  /** Size variant for responsive controls */
+  size?: 'sm' | 'md' | 'lg';
+  /** Flag to indicate if window is currently maximized (affects button icon) */
+  isMaximized?: boolean;
 }
 
-// Helper component for the hover icons
+/**
+ * Helper component for rendering hover icons on window control buttons
+ * @param props - The component props
+ * @param props.icon - The icon character to display on hover
+ * @param props.size - The size variant affecting text size
+ * @returns JSX element with the hover icon
+ */
 const HoverIcon = ({ icon, size = 'md' }: { icon: string; size?: 'sm' | 'md' | 'lg' }) => {
   // Unified text sizes - medium now matches large to standardize appearance
   const textSizeClass = size === 'sm' ? 'text-[5px]' : 'text-[8px]'; // 'md' and 'lg' both use text-[8px]
@@ -30,14 +47,18 @@ const HoverIcon = ({ icon, size = 'md' }: { icon: string; size?: 'sm' | 'md' | '
   );
 };
 
+/**
+ * WindowControls component that renders macOS-style traffic light buttons
+ * @param props - The component props
+ * @returns JSX element with the window control buttons
+ */
 export function WindowControls({
   className = '',
-  // Revert to original prop names
   onClose,
   onMinimize,
   onMaximize,
-  size = 'md', // Default to medium size
-  isMaximized = false, // Default to not maximized
+  size = 'md',
+  isMaximized = false,
 }: WindowControlsProps) {
   // Unify the 'md' size with 'lg' to make traffic lights consistent across components
   const buttonSize = size === 'sm' ? 'w-1.5 h-1.5' : 'w-3.5 h-3.5'; // Both 'md' and 'lg' use w-3.5 h-3.5
@@ -48,6 +69,7 @@ export function WindowControls({
     <div className={`flex items-center flex-shrink-0 ${spacingClass} ${marginClass} ${className}`}> {/* Added flex-shrink-0 */}
       {/* Close Button */}
       <button
+        type="button"
         aria-label="Close"
         title="Close"
         className={`relative group ${buttonSize} rounded-full bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center`}
@@ -58,6 +80,7 @@ export function WindowControls({
       </button>
       {/* Minimize Button */}
       <button
+        type="button"
         aria-label="Minimize"
         title="Minimize"
         className={`relative group ${buttonSize} rounded-full bg-yellow-500 hover:bg-yellow-600 transition-colors flex items-center justify-center`}
@@ -68,6 +91,7 @@ export function WindowControls({
       </button>
       {/* Maximize/Restore Button */}
       <button
+        type="button"
         aria-label={isMaximized ? "Restore" : "Maximize"}
         title={isMaximized ? "Restore" : "Maximize"}
         className={`relative group ${buttonSize} rounded-full bg-green-500 hover:bg-green-600 transition-colors flex items-center justify-center`}
