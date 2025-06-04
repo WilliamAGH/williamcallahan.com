@@ -22,6 +22,7 @@ const config = tseslint.config(
       ".husky/", // Assuming husky setup files shouldn't be linted
       "out/", // If using static export
       "__tests__/", // Ignore test files; use bun test and jest for tests
+      "components/ui/code-block/prism-syntax-highlighting/prism.js", // Third-party minified library
       // Add other global ignores if needed
     ],
   },
@@ -161,18 +162,7 @@ const config = tseslint.config(
       "@typescript-eslint/naming-convention": "off",
     },
   },
-  {
-    files: ["**/prism-syntax-highlighting/prism.js"],
-    rules: {
-      "no-restricted-globals": "off",
-      "@typescript-eslint/naming-convention": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
-      "@typescript-eslint/no-unsafe-call": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
-      "@typescript-eslint/no-unsafe-argument": "off",
-    },
-  },
+
   {
     files: [
       "**/lib/hooks/use-isomorphic-layout-effect.ts",
