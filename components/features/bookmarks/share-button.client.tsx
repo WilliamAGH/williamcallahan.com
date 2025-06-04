@@ -7,7 +7,7 @@
  */
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type JSX } from 'react';
 import { Check } from 'lucide-react';
 import { generateUniqueSlug } from '@/lib/utils/domain-utils';
 import type { UnifiedBookmark } from '@/types';

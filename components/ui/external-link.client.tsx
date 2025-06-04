@@ -5,9 +5,10 @@
  * @module components/ui/external-link
  */
 
-"use client";
-
+"use client";;
 import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
+
+import type { JSX } from "react";
 
 /**
  * Props for the ExternalLink component
