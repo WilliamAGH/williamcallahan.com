@@ -42,6 +42,7 @@ import Script from 'next/script';
 // Import the new wrapper
 import { PageTransitionWrapper } from '../components/utils/page-transition-wrapper.client';
 import { cn } from "../lib/utils";
+import { updateAllData } from '@/scripts/update-s3-data';
 
 /** Load Inter font with Latin subset */
 const inter = Inter({ subsets: ["latin"] });
@@ -89,6 +90,8 @@ export const metadata: Metadata = {
   },
 };
 
+let didInitUpdate = false;
+
 /**
  * Root Layout Component
  * @param {Object} props - Component props
@@ -100,6 +103,13 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Trigger on-demand data updates once per server instance
+  if (!didInitUpdate && process.env.S3_BUCKET) {
+    didInitUpdate = true;
+    // Fire-and-forget updates
+    updateAllData().catch(console.error);
+  }
+
   return (
     <html
       lang="en"
