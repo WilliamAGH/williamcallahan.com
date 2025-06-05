@@ -35,6 +35,11 @@ import rawCron from 'node-cron';
 import { spawn, spawnSync } from 'node:child_process';
 
 console.log('[Scheduler] Process started. Setting up cron jobs...');
+// Debug: log key environment variables
+console.log(
+  `[Scheduler] Env vars: S3_BUCKET=${process.env.S3_BUCKET}, ` +
+  `S3_SERVER_URL=${process.env.S3_SERVER_URL}, PATH=${process.env.PATH}`
+);
 
 // Ensure Node Cron interprets times in PT
 process.env.TZ = 'America/Los_Angeles';
@@ -50,7 +55,14 @@ const logosCron     = process.env.S3_LOGOS_CRON     || '0 1 * * 0';     // weekl
 
 console.log(`[Scheduler] Bookmarks schedule: ${bookmarksCron} (every 2 hours)`);
 cron.schedule(bookmarksCron, () => {
-  console.log(`[Scheduler] [Bookmarks] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Spawning update-s3...`);
+  console.log(
+    `[Scheduler] [Bookmarks] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Preparing to spawn update-s3...`
+  );
+  // Debug: log the command to be executed
+  console.log('[Scheduler] [Bookmarks] Command: bun run update-s3 -- --bookmarks');
+  console.log(
+    `[Scheduler] [Bookmarks] Using S3_BUCKET=${process.env.S3_BUCKET}`
+  );
   
   // Call update-s3 script directly (no HTTP request needed)
   const result = spawnSync('bun', ['run', 'update-s3', '--', '--bookmarks'], { env: process.env, stdio: 'inherit' });
@@ -80,7 +92,11 @@ cron.schedule(bookmarksCron, () => {
 
 console.log(`[Scheduler] GitHub Activity schedule: ${githubCron} (daily at midnight)`);
 cron.schedule(githubCron, () => {
-  console.log(`[Scheduler] [GitHub] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Spawning update-s3...`);
+  console.log(
+    `[Scheduler] [GitHub] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Preparing to spawn update-s3...`
+  );
+  console.log('[Scheduler] [GitHub] Command: bun run update-s3 -- --github-activity');
+  console.log(`[Scheduler] [GitHub] Using S3_BUCKET=${process.env.S3_BUCKET}`);
   const result = spawnSync('bun', ['run', 'update-s3', '--', '--github-activity'], { env: process.env, stdio: 'inherit' });
   if (result.status !== 0) {
     console.error(`[Scheduler] [GitHub] update-s3 script failed (code ${result.status}). Error: ${result.error}`);
@@ -91,7 +107,11 @@ cron.schedule(githubCron, () => {
 
 console.log(`[Scheduler] Logos schedule: ${logosCron} (weekly Sunday 1 AM)`);
 cron.schedule(logosCron, () => {
-  console.log(`[Scheduler] [Logos] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Spawning update-s3...`);
+  console.log(
+    `[Scheduler] [Logos] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Preparing to spawn update-s3...`
+  );
+  console.log('[Scheduler] [Logos] Command: bun run update-s3 -- --logos');
+  console.log(`[Scheduler] [Logos] Using S3_BUCKET=${process.env.S3_BUCKET}`);
   const result = spawnSync('bun', ['run', 'update-s3', '--', '--logos'], { env: process.env, stdio: 'inherit' });
   if (result.status !== 0) {
     console.error(`[Scheduler] [Logos] update-s3 script failed (code ${result.status}). Error: ${result.error}`);
