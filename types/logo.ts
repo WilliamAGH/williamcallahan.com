@@ -15,7 +15,7 @@
  * const source: LogoSource = 'google';
  * ```
  */
-export type LogoSource = 'google' | 'duckduckgo' | 'clearbit' | 'unknown' | null;
+export type LogoSource = 'google' | 'duckduckgo' | 'clearbit' | 'brandfetch' | 'unknown' | null;
 
 /**
  * Analysis results for logo color inversion needs
