@@ -3,7 +3,7 @@
  * Fetches OpenGraph image URLs from social media profiles
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import type { OgFetchResult } from '@/types';
 
 export async function GET(request: NextRequest) {
@@ -98,8 +98,8 @@ export async function GET(request: NextRequest) {
 
     // If no banner image, try domain result
     if (!domainBrandingImage) {
-      // Ensure domainResult is not null before accessing its properties
-      domainBrandingImage = domainResult?.imageUrl || domainResult?.bannerImageUrl;
+      // Use optional chaining for cleaner null checking
+      domainBrandingImage = domainResult?.imageUrl ?? domainResult?.bannerImageUrl;
     }
 
     // If we still don't have a good domain image, use our pre-selected branding image
@@ -193,7 +193,7 @@ async function fetchOgDataForUrl(url: string): Promise<OgFetchResult> {
     // Special handling for GitHub profile
     // Use the default profile if no specific user logic is needed
     if (domain === 'GitHub') {
-      console.log(`ℹ️ Using GitHub-specific images`);
+      console.log("ℹ️ Using GitHub-specific images");
       return {
         imageUrl: DEFAULT_PROFILES.GitHub,
         bannerImageUrl: '/images/social-banners/github.svg',
@@ -204,7 +204,7 @@ async function fetchOgDataForUrl(url: string): Promise<OgFetchResult> {
     // Special handling for X/Twitter
     // Use the default profile if no specific user logic is needed
     if (domain === 'X' || domain === 'Twitter') {
-      console.log(`ℹ️ Using X/Twitter-specific images`);
+      console.log("ℹ️ Using X/Twitter-specific images");
       return {
         imageUrl: DEFAULT_PROFILES[domain], // Use domain (X or Twitter)
         bannerImageUrl: '/images/social-banners/twitter-x.svg',
@@ -215,7 +215,7 @@ async function fetchOgDataForUrl(url: string): Promise<OgFetchResult> {
     // Special handling for LinkedIn
     // Use the default profile if no specific user logic is needed
     if (domain === 'LinkedIn') {
-      console.log(`ℹ️ Using LinkedIn-specific images`);
+      console.log("ℹ️ Using LinkedIn-specific images");
       return {
         imageUrl: DEFAULT_PROFILES.LinkedIn,
         bannerImageUrl: '/images/social-banners/linkedin.svg',
@@ -225,7 +225,7 @@ async function fetchOgDataForUrl(url: string): Promise<OgFetchResult> {
 
     // Special handling for Discord - always uses local file paths
     if (domain === 'Discord') {
-      console.log(`ℹ️ Using Discord-specific local images`);
+      console.log("ℹ️ Using Discord-specific local images");
       return {
         imageUrl: DEFAULT_PROFILES.Discord,
         bannerImageUrl: '/images/social-banners/discord.svg',
@@ -236,7 +236,7 @@ async function fetchOgDataForUrl(url: string): Promise<OgFetchResult> {
     // Special handling for Bluesky
     // Use the default profile if no specific user logic is needed
     if (domain === 'Bluesky') {
-      console.log(`ℹ️ Using Bluesky-specific images`);
+      console.log("ℹ️ Using Bluesky-specific images");
       return {
         imageUrl: DEFAULT_PROFILES.Bluesky,
         bannerImageUrl: '/images/social-banners/bluesky.png',
@@ -356,7 +356,7 @@ function getDomainType(url: string): string {
  * Extract Open Graph tags from HTML content
  * Also extracts platform-specific content like profile images
  */
-function extractOpenGraphTags(html: string, url: string = '') {
+function extractOpenGraphTags(html: string, url = '') {
   const domain = getDomainType(url);
 
   // Standard OG tags extraction
@@ -499,7 +499,7 @@ function extractMetaContent(html: string, attributePattern: string): string | nu
   const alternatePattern = new RegExp(`<meta[^>]*content=["']([^"']+)["'][^>]*${attributePattern}[^>]*>`, 'i');
 
   const match = html.match(pattern) || html.match(alternatePattern);
-  return match && match[1] ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 /**
