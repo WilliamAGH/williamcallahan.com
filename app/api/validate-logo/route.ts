@@ -6,11 +6,11 @@
  * This route handles image validation and comparison to detect generic globe icons.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
-import { createHash } from 'crypto';
-import fs from 'fs/promises';
-import path from 'path';
+import { createHash } from 'node:crypto';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { ServerCacheInstance } from '../../../lib/server-cache';
 import { VALID_IMAGE_FORMATS, MIN_LOGO_SIZE } from '../../../lib/constants';
 
@@ -46,7 +46,8 @@ async function getImageHash(buffer: Buffer): Promise<string> {
 async function compareImages(image1: Buffer, image2: Buffer): Promise<boolean> {
   try {
     // Validate image formats first
-    let meta1: sharp.Metadata, meta2: sharp.Metadata;
+    let meta1: sharp.Metadata;
+    let meta2: sharp.Metadata;
     try {
       const results = await Promise.all([
         sharp(image1).metadata(),
@@ -91,7 +92,8 @@ async function compareImages(image1: Buffer, image2: Buffer): Promise<boolean> {
     }
 
     // Convert both images to PNG for consistent comparison
-    let norm1: Buffer, norm2: Buffer;
+    let norm1: Buffer;
+    let norm2: Buffer;
     try {
       [norm1, norm2] = await Promise.all([
         sharp(image1).png().toBuffer(),

@@ -53,7 +53,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Use company name to form a potential domain
       // Since we've checked company is not null here, we can safely use it as a string
       const companyStr: string = company;
-      domain = companyStr.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
+      domain = `${companyStr.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
       console.log(`[API Logo] Attempting domain from company name: ${companyStr} -> ${domain}`);
     }
 
@@ -97,19 +97,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           'x-cache': cacheHit ? 'HIT' : 'MISS' // Add cache hit/miss header for debugging
         }
       });
-    } else {
-      // If getLogo returns null, it means it failed to fetch from all sources (cache, volume, external)
-      // Logo not available in S3
-      return NextResponse.json(
-        { error: 'Logo not found' },
-        {
-          status: 404,
-          headers: {
-            'x-cache': cacheHit ? 'HIT' : 'MISS'
-          }
-        }
-      );
     }
+    // If getLogo returns null, it means it failed to fetch from all sources (cache, volume, external)
+    // Logo not available in S3
+    // The 'else' is removed as per Biome's suggestion because the previous 'if' block returns.
+    return NextResponse.json(
+      { error: 'Logo not found' },
+      {
+        status: 404,
+        headers: {
+          'x-cache': cacheHit ? 'HIT' : 'MISS'
+        }
+      }
+    );
   } catch (error) {
     console.error('[API Logo] Unexpected error in GET handler:', error);
     return new NextResponse(null, {
