@@ -76,21 +76,21 @@ export async function fetchLogo(domain: string): Promise<{
         normalizedDomain
       );
 
-      if (logoResult && logoResult.buffer) {
+      if (logoResult?.buffer) {
         console.debug(`[logo-fetcher] Successfully retrieved logo for ${normalizedDomain} via direct data access (source: ${logoResult.source || 'unknown'})`);
         // Cache in memory
         ServerCacheInstance.setLogoFetch(normalizedDomain, { url: null, source: logoResult.source, buffer: logoResult.buffer });
         return { buffer: logoResult.buffer, source: logoResult.source };
-      } else {
-        const error = `Failed to retrieve logo for ${normalizedDomain} via direct data access`;
-        console.warn(`[logo-fetcher] ${error}`);
-        return { buffer: null, source: null, error };
       }
-  } catch (error) {
-    const errorObj = error as Error;
-    const errorMessage = `[logo-fetcher] Error accessing logo for ${normalizedDomain} via direct data access: ${errorObj.message}`;
-    console.error(errorMessage, error);
-    return { buffer: null, source: null, error: errorObj.message };
+      
+      const error = `Failed to retrieve logo for ${normalizedDomain} via direct data access`;
+      console.warn(`[logo-fetcher] ${error}`);
+      return { buffer: null, source: null, error };
+    } catch (error) {
+      const errorObj = error as Error;
+      const errorMessage = `[logo-fetcher] Error accessing logo for ${normalizedDomain} via direct data access: ${errorObj.message}`;
+      console.error(errorMessage, error);
+      return { buffer: null, source: null, error: errorObj.message };
     }
   }
 
@@ -124,21 +124,21 @@ export async function fetchLogo(domain: string): Promise<{
         // Cache in memory
         ServerCacheInstance.setLogoFetch(normalizedDomain, { url: null, source: logoSource, buffer });
         return { buffer, source: logoSource };
-      } else {
-        const error = `Empty response buffer from /api/logo for ${normalizedDomain}`;
-        console.warn(`[logo-fetcher] ${error}`);
-        // Don't cache this specific error type in memory fetcher, let API re-evaluate.
-        return { buffer: null, source: null, error };
       }
-    } else {
-      const errorText = await response.text().catch(() => `Status ${response.status}`);
-      const logoErrorHeader = response.headers.get('x-logo-error');
-      const error = logoErrorHeader || `API request to /api/logo failed for ${normalizedDomain}: ${errorText.substring(0, 100)}`;
-      console.warn(`[logo-fetcher] ${error}`);
-      // Cache the error from the API to prevent retrying too frequently for known issues.
-      ServerCacheInstance.setLogoFetch(normalizedDomain, { url: null, source: null, error });
-      return { buffer: null, source: null, error };
+      
+      const emptyBufferError = `Empty response buffer from /api/logo for ${normalizedDomain}`;
+      console.warn(`[logo-fetcher] ${emptyBufferError}`);
+      // Don't cache this specific error type in memory fetcher, let API re-evaluate.
+      return { buffer: null, source: null, error: emptyBufferError };
     }
+    
+    const errorText = await response.text().catch(() => `Status ${response.status}`);
+    const logoErrorHeader = response.headers.get('x-logo-error');
+    const apiError = logoErrorHeader || `API request to /api/logo failed for ${normalizedDomain}: ${errorText.substring(0, 100)}`;
+    console.warn(`[logo-fetcher] ${apiError}`);
+    // Cache the error from the API to prevent retrying too frequently for known issues.
+    ServerCacheInstance.setLogoFetch(normalizedDomain, { url: null, source: null, error: apiError });
+    return { buffer: null, source: null, error: apiError };
   } catch (error) {
     const errorObj = error as Error;
     const errorMessage = `[logo-fetcher] Network error calling /api/logo for ${normalizedDomain}: ${errorObj.message}`;

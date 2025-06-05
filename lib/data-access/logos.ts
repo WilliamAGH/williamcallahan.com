@@ -225,6 +225,11 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: null, error: 'External fetch skipped' });
     return null;
   }
+  // Skip repeated external fetches for domains that previously failed
+  if (cached?.error) {
+    if (VERBOSE) console.log(`[DataAccess/Logos] Previous error cached for ${domain}: ${cached.error}, skipping external fetch.`);
+    return null;
+  }
   console.log(`[DataAccess/Logos] Logo for ${domain} not in cache or S3, fetching from external source.`);
   const externalLogo = await fetchExternalLogo(domain);
   if (externalLogo) {
@@ -265,7 +270,7 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
     // Return the processed buffer and its content type
     return { buffer: processedBuffer, source: externalLogo.source, contentType: externalContentType };
   }
-  console.warn(`[DataAccess/Logos] Failed to fetch logo for ${domain} from all sources.`);
+  if (VERBOSE) console.log(`[DataAccess/Logos] No logo found for ${domain} from all sources.`);
   ServerCacheInstance.setLogoFetch(domain, { url: null, source: null, error: 'Failed to fetch logo' });
   return null;
 }
