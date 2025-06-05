@@ -109,7 +109,7 @@ function extractDomainsFromBookmarks(bookmarks: UnifiedBookmark[]): Set<string> 
  */
 async function processLogoBatch(
   domains: string[], 
-  batchConfig: typeof LOGO_BATCH_CONFIGS.IMMEDIATE | typeof LOGO_BATCH_CONFIGS.REGULAR,
+  batchConfig: { size: number; delay: number },
   context: string
 ): Promise<{ successCount: number; failureCount: number }> {
   let successCount = 0;
