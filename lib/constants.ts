@@ -64,6 +64,38 @@ export const GITHUB_ACTIVITY_CACHE_DURATION = {
 } as const;
 
 /**
+ * Cache duration for OpenGraph data fetching
+ * @constant
+ * @type {Object}
+ */
+export const OPENGRAPH_CACHE_DURATION = {
+  /** Success cache duration (7 days in seconds) */
+  SUCCESS: 7 * 24 * 60 * 60,
+  /** Failed attempt cache duration (2 hours in seconds) */
+  FAILURE: 2 * 60 * 60,
+  /** Revalidation interval (30 days in seconds) - how often to consider data stale */
+  REVALIDATION: 30 * 24 * 60 * 60
+} as const;
+
+/**
+ * Configuration for OpenGraph fetching operations
+ * @constant
+ * @type {Object}
+ */
+export const OPENGRAPH_FETCH_CONFIG = {
+  /** Request timeout in milliseconds */
+  TIMEOUT: 30000,
+  /** Maximum number of retry attempts */
+  MAX_RETRIES: 3,
+  /** Base delay for exponential backoff in milliseconds */
+  BACKOFF_BASE: 1000,
+  /** Maximum delay between retries in milliseconds */
+  MAX_BACKOFF: 30000,
+  /** Maximum concurrent OpenGraph requests */
+  MAX_CONCURRENT: 5
+} as const;
+
+/**
  * Base URL for the website
  * @constant
  * @type {string}

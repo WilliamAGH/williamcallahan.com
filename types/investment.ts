@@ -50,7 +50,7 @@ export interface Investment {
   /** Company logo URL */
   logo?: string | null;
   /** Company website */
-  website?: string;
+  website?: string | null;
   /** aVenture URL for Company */
   aventure_url?: string | null;
   /** Location (city, state) */

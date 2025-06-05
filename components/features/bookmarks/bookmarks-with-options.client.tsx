@@ -171,7 +171,11 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
     setIsRefreshing(true);
     setRefreshError(null);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => {
+      if (!controller.signal.aborted) {
+        controller.abort();
+      }
+    }, 15000);
 
     try {
       // Call the refresh API endpoint
@@ -228,13 +232,20 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
         }
       }
     } catch (error) {
-      console.error('Error refreshing bookmarks:', error);
-      const message = error instanceof Error ? error.message : 'Failed to refresh bookmarks';
-      setRefreshError(message);
-
-      setTimeout(() => setRefreshError(null), 5000);
+      // Only log non-abort errors to avoid noise
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error('Error refreshing bookmarks:', error);
+        const message = error.message || 'Failed to refresh bookmarks';
+        setRefreshError(message);
+        setTimeout(() => setRefreshError(null), 5000);
+      } else if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Bookmark refresh was aborted (likely due to timeout)');
+        setRefreshError('Request timed out. Please try again.');
+        setTimeout(() => setRefreshError(null), 5000);
+      }
     } finally {
       setIsRefreshing(false);
+      // Ensure timeout is always cleared
       clearTimeout(timeoutId);
     }
   };

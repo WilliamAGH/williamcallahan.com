@@ -34,6 +34,9 @@ import {
 // Import direct refresh functions for forced updates
 import { refreshBookmarksData } from '@/lib/bookmarks.ts';
 
+// Import logo session tracking functions
+import { resetLogoSessionTracking } from '@/lib/data-access/logos.ts';
+
 import { KNOWN_DOMAINS } from '@/lib/constants';
 
 // Import types
@@ -273,6 +276,10 @@ async function updateLogosInS3(): Promise<void> {
   console.log('[UpdateS3] 🖼️ Starting Logos update to S3...');
 
   try {
+    // Reset logo session tracking to prevent conflicts with concurrent processes
+    resetLogoSessionTracking();
+    console.log('[UpdateS3] Logo session tracking reset for bulk processing.');
+
     const domains = new Set<string>();
 
     // 1. Extract domains from bookmarks via data-access

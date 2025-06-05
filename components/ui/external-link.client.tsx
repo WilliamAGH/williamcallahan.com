@@ -15,7 +15,7 @@ import type { JSX } from "react";
  */
 interface ExternalLinkProps {
   /** The URL the link points to */
-  href?: string;
+  href?: string | null;
   /** The text or elements to display inside the link */
   children: React.ReactNode;
   /** Whether to show the external link icon */

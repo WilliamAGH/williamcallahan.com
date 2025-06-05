@@ -5,10 +5,13 @@
  * to access this data. It handles pagination, error fallbacks, and background refreshing.
  * @module lib/bookmarks
  */
-import request, { type Response } from 'node-fetch';
+ // Use native fetch in Next.js environment
+const request = fetch;
 import type { UnifiedBookmark, BookmarkContent, BookmarkAsset } from '@/types';
 import { writeJsonS3, readJsonS3 } from '@/lib/s3-utils';
 import { BOOKMARKS_S3_KEY_FILE } from '@/lib/data-access/bookmarks';
+import { getOpenGraphData } from '@/lib/data-access/opengraph';
+import { OPENGRAPH_FETCH_CONFIG } from '@/lib/constants';
 
 /**
  * Represents the raw structure of a tag object as received from the external bookmarks API.
@@ -189,6 +192,112 @@ export async function fetchExternalBookmarks(): Promise<UnifiedBookmark[]> {
 }
 
 /**
+ * Processes bookmarks in batches to avoid overwhelming the network with concurrent OpenGraph requests
+ * @param bookmarks - Array of bookmarks to process
+ * @param isDev - Whether we're in development mode for enhanced logging
+ * @returns Promise resolving to array of enriched bookmarks
+ */
+async function processBookmarksInBatches(bookmarks: UnifiedBookmark[], isDev: boolean): Promise<UnifiedBookmark[]> {
+  const batchSize = OPENGRAPH_FETCH_CONFIG.MAX_CONCURRENT;
+  const enrichedBookmarks: UnifiedBookmark[] = [];
+  const startTime = Date.now();
+  
+  console.log(`[processBookmarksInBatches] Processing ${bookmarks.length} bookmarks in batches of ${batchSize}`);
+  if (isDev) {
+    console.log("[processBookmarksInBatches] [DEV] Enhanced debugging enabled");
+  }
+
+  for (let i = 0; i < bookmarks.length; i += batchSize) {
+    const batch = bookmarks.slice(i, i + batchSize);
+    const batchNumber = Math.floor(i / batchSize) + 1;
+    const totalBatches = Math.ceil(bookmarks.length / batchSize);
+    
+    console.log(`[processBookmarksInBatches] Processing batch ${batchNumber}/${totalBatches} (${batch.length} bookmarks)`);
+    const batchStartTime = Date.now();
+
+    const batchResults = await Promise.all(
+      batch.map(async (bookmark, batchIndex) => {
+        const globalIndex = i + batchIndex;
+        try {
+          if (!bookmark.url) {
+            if (isDev) console.warn(`[processBookmarksInBatches] [DEV] Skipping bookmark ${bookmark.id} - no URL`);
+            return bookmark;
+          }
+
+          const ogStartTime = Date.now();
+          if (isDev) {
+            console.log(`[processBookmarksInBatches] [DEV] Fetching OpenGraph for ${bookmark.url} (${globalIndex + 1}/${bookmarks.length})`);
+          }
+          
+          const ogData = await getOpenGraphData(bookmark.url, false);
+          const ogDuration = Date.now() - ogStartTime;
+          
+          if (isDev) {
+            console.log(`[processBookmarksInBatches] [DEV] OpenGraph fetch completed in ${ogDuration}ms for ${bookmark.url}`);
+          }
+
+          if (ogData?.ogMetadata) {
+            const enhancedBookmark: UnifiedBookmark = {
+              ...bookmark,
+              ogImage: bookmark.ogImage || ogData.imageUrl || ogData.ogMetadata.image || undefined,
+              title: bookmark.title === 'Untitled Bookmark' ? (ogData.ogMetadata.title || bookmark.title) : bookmark.title,
+              description: bookmark.description === 'No description available.' ? (ogData.ogMetadata.description || bookmark.description) : bookmark.description,
+              content: bookmark.content ? {
+                ...bookmark.content,
+                title: bookmark.content.title === 'Untitled Bookmark' ? (ogData.ogMetadata.title || bookmark.content.title) : bookmark.content.title,
+                description: bookmark.content.description === 'No description available.' ? (ogData.ogMetadata.description || bookmark.content.description) : bookmark.content.description,
+                imageUrl: bookmark.content.imageUrl || ogData.imageUrl || ogData.ogMetadata.image || undefined
+              } : {
+                type: 'link',
+                url: bookmark.url,
+                title: ogData.ogMetadata.title || bookmark.title,
+                description: ogData.ogMetadata.description || bookmark.description,
+                imageUrl: ogData.imageUrl || ogData.ogMetadata.image || undefined
+              }
+            };
+
+            if (isDev) {
+              console.log(`[processBookmarksInBatches] [DEV] Enhanced bookmark ${bookmark.id} with OpenGraph data`);
+            }
+            return enhancedBookmark;
+          }
+          
+          if (isDev) {
+            console.warn(`[processBookmarksInBatches] [DEV] No OpenGraph data found for ${bookmark.url}`);
+          }
+          return bookmark;
+        } catch (ogError) {
+          const errorMessage = ogError instanceof Error ? ogError.message : String(ogError);
+          console.error(`[processBookmarksInBatches] OpenGraph fetch failed for bookmark ${bookmark.id} (${bookmark.url}):`, errorMessage);
+          if (isDev) {
+            console.error("[processBookmarksInBatches] [DEV] Full error details:", ogError);
+          }
+          return bookmark;
+        }
+      })
+    );
+
+    enrichedBookmarks.push(...batchResults);
+    const batchDuration = Date.now() - batchStartTime;
+    console.log(`[processBookmarksInBatches] Batch ${batchNumber}/${totalBatches} completed in ${batchDuration}ms`);
+    
+    // Add a small delay between batches to be respectful to external services
+    if (i + batchSize < bookmarks.length) {
+      const delayMs = 500;
+      if (isDev) {
+        console.log(`[processBookmarksInBatches] [DEV] Waiting ${delayMs}ms before next batch`);
+      }
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+
+  const totalDuration = Date.now() - startTime;
+  console.log(`[processBookmarksInBatches] Completed processing ${enrichedBookmarks.length} bookmarks in ${totalDuration}ms`);
+  
+  return enrichedBookmarks;
+}
+
+/**
  * Refreshes bookmarks data directly from the external API, normalizes it,
  * updates the S3 storage, and then updates the in-memory server cache (ServerCacheInstance).
  * This function handles API pagination and includes a timeout for each page request.
@@ -267,6 +376,7 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
 
     console.log(`[refreshBookmarksData] Total raw bookmarks fetched across ${pageCount} pages: ${allRawBookmarks.length}`);
 
+    // First pass: normalize bookmarks without OpenGraph data
     const normalizedBookmarks = allRawBookmarks.map((raw, index): UnifiedBookmark | null => {
       if (!raw || typeof raw !== 'object') {
         console.warn(`[refreshBookmarksData] Invalid raw bookmark data at index ${index}:`, raw);
@@ -284,12 +394,18 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
               })(tag.attachedBy)
             }))
           : [];
+        // Include asset IDs from raw.assets if raw.content fields are missing
+        const screenshotAsset = raw.assets.find(asset => asset.assetType === 'screenshot');
+        const bannerAsset = raw.assets.find(asset => asset.assetType === 'bannerImage');
         const unifiedContent: BookmarkContent = {
           ...(raw.content ? omitHtmlContent(raw.content) : {}),
           type: raw.content?.type ?? 'link',
           url: raw.content?.url || '',
           title: bestTitle || 'Untitled Bookmark',
-          description: bestDescription || 'No description available.'
+          description: bestDescription || 'No description available.',
+          // Populate missing asset IDs for fallback rendering
+          screenshotAssetId: raw.content?.screenshotAssetId ?? screenshotAsset?.id,
+          imageAssetId: raw.content?.imageAssetId ?? bannerAsset?.id
         };
         return {
           id: raw.id,
@@ -297,7 +413,7 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
           title: bestTitle,
           description: bestDescription,
           tags: normalizedTags,
-          ogImage: raw.content?.imageUrl,
+          ogImage: raw.content?.imageUrl, // Will be enhanced with OpenGraph data below
           dateBookmarked: raw.createdAt,
           datePublished: raw.content?.datePublished,
           createdAt: raw.createdAt,
@@ -317,20 +433,27 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
     }).filter((bookmark): bookmark is UnifiedBookmark => bookmark !== null);
 
     console.log(`[refreshBookmarksData] Successfully normalized ${normalizedBookmarks.length} bookmarks.`);
+    console.log(`[refreshBookmarksData] Starting OpenGraph enrichment for ${normalizedBookmarks.length} bookmarks...`);
+
+    // Second pass: enrich with OpenGraph data using batched processing
+    const isDev = process.env.NODE_ENV === 'development';
+    const enrichedBookmarks = await processBookmarksInBatches(normalizedBookmarks, isDev);
+
+    console.log(`[refreshBookmarksData] OpenGraph enrichment completed for ${enrichedBookmarks.length} bookmarks.`);
 
     try {
-      console.log(`[refreshBookmarksData] Writing ${normalizedBookmarks.length} bookmarks to S3 key: ${BOOKMARKS_S3_KEY_FILE}`);
-      await writeJsonS3(BOOKMARKS_S3_KEY_FILE, normalizedBookmarks);
+      console.log(`[refreshBookmarksData] Writing ${enrichedBookmarks.length} enriched bookmarks to S3 key: ${BOOKMARKS_S3_KEY_FILE}`);
+      await writeJsonS3(BOOKMARKS_S3_KEY_FILE, enrichedBookmarks);
       console.log('[refreshBookmarksData] Successfully wrote updated bookmarks to S3.');
 
-      ServerCacheInstance.setBookmarks(normalizedBookmarks, false);
+      ServerCacheInstance.setBookmarks(enrichedBookmarks, false);
       console.log('[refreshBookmarksData] Successfully updated ServerCacheInstance with new bookmarks.');
     } catch (s3OrCacheError) {
       console.error('[refreshBookmarksData] CRITICAL_PERSISTENCE_FAILURE: Failed to write to S3 or update cache after successful API fetch:', s3OrCacheError);
       throw s3OrCacheError; // Re-throw to ensure cron job recognizes the failure.
     }
     console.log('[refreshBookmarksData] Refresh cycle completed successfully.');
-    return normalizedBookmarks;
+    return enrichedBookmarks;
 
   } catch (error) {
     primaryFetchError = error instanceof Error ? error : new Error(String(error));

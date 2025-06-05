@@ -33,3 +33,41 @@ export interface OgFetchResult {
   ogMetadata?: Record<string, string | undefined | null>; // OG tags can have various string values or be absent
   error?: string;
 }
+
+// Enhanced OpenGraph result with caching metadata
+export interface OgResult extends OgFetchResult {
+  /** Timestamp when the data was fetched */
+  timestamp: number;
+  /** Source of the data */
+  source: 'cache' | 'external' | 'fallback';
+  /** Number of retry attempts made */
+  retryCount?: number;
+  /** URL that was actually fetched (may differ from requested URL due to redirects) */
+  actualUrl?: string;
+}
+
+// OpenGraph cache entry for server-side caching
+export interface OgCacheEntry extends OgResult {
+  /** Last successful fetch timestamp */
+  lastFetchedAt: number;
+  /** Last fetch attempt timestamp */
+  lastAttemptedAt: number;
+  /** Whether this entry represents a failed fetch */
+  isFailure?: boolean;
+}
+
+// OpenGraph metadata structure
+export interface OgMetadata {
+  title?: string | null;
+  description?: string | null;
+  image?: string | null;
+  twitterImage?: string | null;
+  site?: string | null;
+  type?: string | null;
+  profileImage?: string | null;
+  bannerImage?: string | null;
+  url?: string | null;
+  siteName?: string | null;
+  // Allow additional string properties
+  [key: string]: string | null | undefined;
+}
