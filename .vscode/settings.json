@@ -36,7 +36,8 @@
 		"**/node_modules": false,
 		"**/.git": true,
 		"**/.DS_Store": true,
-		"**/Thumbs.db": true
+		"**/Thumbs.db": true,
+		"**/.next": true
 	},
 	"eslint.runtime": null,
 	"eslint.validate": [
