@@ -355,3 +355,23 @@ void runScheduledUpdates().catch(error => {
   console.error('[UpdateS3] Unhandled error in runScheduledUpdates:', error);
   process.exit(1);
 });
+
+// --- Exported Utility for On-Demand Runtime Updates ---
+/**
+ * Runs all data update functions (bookmarks, GitHub activity, logos) sequentially.
+ * Can be invoked at runtime when environment variables (e.g., S3_BUCKET) are present.
+ */
+export async function updateAllData(): Promise<void> {
+  if (!process.env.S3_BUCKET) {
+    console.warn('[UpdateAllData] S3_BUCKET not set; skipping updates.');
+    return;
+  }
+  try {
+    await updateBookmarksInS3();
+    await updateGithubActivityInS3();
+    await updateLogosInS3();
+    console.log('[UpdateAllData] All data updates completed successfully.');
+  } catch (error) {
+    console.error('[UpdateAllData] Error during on-demand data update:', error);
+  }
+}
