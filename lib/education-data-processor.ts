@@ -7,8 +7,8 @@ import "server-only"; // Ensure this module is never bundled for the client
 import type { Education, Certification, Class } from '../types/education';
 import { fetchLogo, normalizeDomain } from './logo-fetcher';
 import { assertServerOnly } from './utils/ensure-server-only'; // Import the assertion utility
-import fs from 'fs/promises';
-import path from 'path';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 // Define the structure for logo data
 export interface LogoData {

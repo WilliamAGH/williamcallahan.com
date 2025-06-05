@@ -46,12 +46,13 @@ export function getDomainSlug(url: string): string {
     }
 
     // Handle case where URL doesn't have protocol
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
+    let processedUrl = url;
+    if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://')) {
+      processedUrl = `https://${processedUrl}`;
     }
 
     // Parse the URL
-    const urlObj = new URL(url);
+    const urlObj = new URL(processedUrl);
 
     // Get the hostname (e.g., "www.example.com")
     let domain = urlObj.hostname;
@@ -80,11 +81,12 @@ export function getDomainSlug(url: string): string {
  */
 export function generateUniqueSlug(url: string, allBookmarks: Array<{ id: string, url: string }>, currentBookmarkId?: string): string {
   try {
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
+    let processedUrl = url;
+    if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://')) {
+      processedUrl = `https://${processedUrl}`;
     }
 
-    const urlObj = new URL(url);
+    const urlObj = new URL(processedUrl);
     const domain = urlObj.hostname.replace(/^www\./, '');
 
     // Start with the basic domain slug
@@ -196,11 +198,12 @@ export function getDisplayDomain(url: string): string {
     }
 
     // Handle case where URL doesn't have protocol
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
+    let processedUrl = url;
+    if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://')) {
+      processedUrl = `https://${processedUrl}`;
     }
 
-    const urlObj = new URL(url);
+    const urlObj = new URL(processedUrl);
     let domain = urlObj.hostname;
 
     // Remove www. prefix if present

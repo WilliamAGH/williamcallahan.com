@@ -39,7 +39,7 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
     // Fallback logic remains as it was, as it's a specific recovery mechanism
     const investmentsPath = 'data/investments.ts';
       try {
-        const localInvestmentsPath = process.cwd() + '/' + investmentsPath;
+        const localInvestmentsPath = `${process.cwd()}/${investmentsPath}`;
         const investmentsContent = await readFile(localInvestmentsPath, 'utf-8');
         let currentId: string | null = null;
         // Regex to find blocks starting with 'id:'
@@ -61,9 +61,8 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
                 ];
 
                 for (const pattern of urlPatterns) {
-                    let urlMatch: RegExpExecArray | null;
-
-                    while ((urlMatch = pattern.exec(block)) !== null) {
+                    let urlMatch: RegExpExecArray | null = pattern.exec(block);
+                    while (urlMatch !== null) {
                         const capturedDomain = urlMatch[1];
                         if (typeof capturedDomain === 'string') {
                             const domain = capturedDomain; // Already cleaned by regex
@@ -71,6 +70,7 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
                                 domainToIdMap.set(domain, currentId);
                             }
                         }
+                        urlMatch = pattern.exec(block);
                     }
                 }
             }
