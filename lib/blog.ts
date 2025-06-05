@@ -70,9 +70,10 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     // For unexpected errors, we still throw to allow API error handling
     if (!(error instanceof BlogPostDataError)) {
       throw new BlogPostDataError(`Error retrieving blog post: ${slug}`, slug, error);
-    } else {
-      throw error;
     }
+    // If it was already a BlogPostDataError, or if the above didn't match for some reason,
+    // rethrow the original error.
+    throw error;
   }
 }
 

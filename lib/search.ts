@@ -158,7 +158,12 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     if (!slugMap.has(b.id)) {
       slugMap.set(b.id, generateUniqueSlug(b.url, bookmarks, b.id));
     }
-    return slugMap.get(b.id)!;
+    const slug = slugMap.get(b.id);
+    if (slug === undefined) {
+      // This should be impossible given the logic in lines 158-160
+      throw new Error(`Failed to generate or retrieve slug for bookmark ID: ${b.id}`);
+    }
+    return slug;
   };
 
   if (!query) {
