@@ -55,6 +55,9 @@ const LOGO_BATCH_CONFIGS = {
   REGULAR: { size: 10, delay: 500 }
 } as const;
 
+/** Maximum number of new bookmarks to process immediately on first run or after cache loss */
+const SAFETY_THRESHOLD_NEW_BOOKMARKS = 10;
+
 // Command-line argument parsing for selective updates
 const usage = `Usage: update-s3-data.ts [options]
 Options:
@@ -180,21 +183,21 @@ async function updateBookmarksInS3(): Promise<void> {
       
       // Add safety check: if we have no previous bookmarks but many new ones, 
       // limit immediate processing to avoid overwhelming the system
-      const shouldLimitProcessing = previousCount === 0 && newBookmarks.length > 10;
+      const shouldLimitProcessing = previousCount === 0 && newBookmarks.length > SAFETY_THRESHOLD_NEW_BOOKMARKS;
       
       if (shouldLimitProcessing) {
         console.log(`[UpdateS3] [Bookmarks] Safety check: No previous cache (${previousCount}) but ${newBookmarks.length} "new" bookmarks detected. This suggests first run or cache loss.`);
-        console.log('[UpdateS3] [Bookmarks] Limiting immediate logo processing to 10 most recent bookmarks to avoid system overload.');
+        console.log(`[UpdateS3] [Bookmarks] Limiting immediate logo processing to ${SAFETY_THRESHOLD_NEW_BOOKMARKS} most recent bookmarks to avoid system overload.`);
         
         // Process only the 10 most recently added bookmarks for immediate logo processing
         const recentBookmarks = newBookmarks
           .sort((a, b) => new Date(b.dateBookmarked).getTime() - new Date(a.dateBookmarked).getTime())
-          .slice(0, 10);
+          .slice(0, SAFETY_THRESHOLD_NEW_BOOKMARKS);
           
         const recentDomains = extractDomainsFromBookmarks(recentBookmarks);
         
         if (recentDomains.size > 0) {
-          console.log(`[UpdateS3] [Bookmarks] Processing logos for ${recentDomains.size} domains from 10 most recent bookmarks.`);
+          console.log(`[UpdateS3] [Bookmarks] Processing logos for ${recentDomains.size} domains from ${SAFETY_THRESHOLD_NEW_BOOKMARKS} most recent bookmarks.`);
           
           const { successCount, failureCount } = await processLogoBatch(
             Array.from(recentDomains),
