@@ -167,7 +167,9 @@ export class ServerCache extends NodeCache {
    */
   clearAllLogoFetches(): void {
     const keys = this.keys().filter(key => key.startsWith(LOGO_FETCH_PREFIX));
-    keys.forEach(key => this.del(key));
+    for (const key of keys) {
+      this.del(key);
+    }
   }
 
   /**
@@ -264,7 +266,7 @@ export class ServerCache extends NodeCache {
    * @param bookmarks - Bookmarks to cache
    * @param isFailure - Whether this was a failed fetch attempt
    */
-  setBookmarks(bookmarks: UnifiedBookmark[], isFailure: boolean = false): void {
+  setBookmarks(bookmarks: UnifiedBookmark[], isFailure = false): void {
     const now = Date.now();
     const existing = this.getBookmarks();
 
@@ -336,7 +338,7 @@ export class ServerCache extends NodeCache {
    * @param activityData - GitHub activity data to cache
    * @param isFailure - Whether this was a failed fetch attempt
    */
-  setGithubActivity(activityData: GitHubActivityApiResponse, isFailure: boolean = false): void {
+  setGithubActivity(activityData: GitHubActivityApiResponse, isFailure = false): void {
     const key = GITHUB_ACTIVITY_CACHE_KEY;
 
     // Ensure trailingYearData and dataComplete exist before accessing
