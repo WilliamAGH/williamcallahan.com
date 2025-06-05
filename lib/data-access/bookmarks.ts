@@ -7,11 +7,11 @@
  * @module data-access/bookmarks
  */
 
+
 import { ServerCacheInstance } from '@/lib/server-cache';
 import type { UnifiedBookmark } from '@/types';
 import { refreshBookmarksData as directRefreshBookmarksData } from '@/lib/bookmarks';
 import { readJsonS3, writeJsonS3 } from '@/lib/s3-utils';
-import { BookmarkRefreshQueue } from '@/lib/async-job-queue';
 import { AppError } from '@/lib/errors';
 
 // --- Configuration & Constants ---
@@ -21,6 +21,7 @@ export const BOOKMARKS_S3_KEY_FILE = `${BOOKMARKS_S3_KEY_DIR}/bookmarks.json`;
 // --- Bookmarks Data Access ---
 
 let inFlightBookmarkPromise: Promise<UnifiedBookmark[] | null> | null = null;
+let isRefreshLocked = false;
 
 /**
  * Retrieves bookmarks from an external source, ensuring only one fetch occurs at a time
@@ -75,20 +76,32 @@ async function fetchExternalBookmarksWithRetry(retries = 3, delay = 1000): Promi
   return null;
 }
 
-function enqueueBookmarkRefresh() {
-  BookmarkRefreshQueue.add(async () => {
+async function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> {
+  if (isRefreshLocked) {
+    console.log('[Bookmarks] Refresh is already locked. Aborting new refresh call.');
+    return null;
+  }
+  isRefreshLocked = true;
+  console.log('[Bookmarks] Acquiring refresh lock.');
+
+  try {
     const bookmarks = await fetchExternalBookmarksWithRetry();
     if (bookmarks && bookmarks.length > 0) {
-      try {
-        await writeJsonS3(BOOKMARKS_S3_KEY_FILE, bookmarks);
-      } catch (err) {
-        console.warn('[Bookmarks] background write to S3 failed:', err);
-      }
+      await writeJsonS3(BOOKMARKS_S3_KEY_FILE, bookmarks);
       ServerCacheInstance.setBookmarks(bookmarks);
-    } else {
-      ServerCacheInstance.setBookmarks([], true);
+      console.log(`[Bookmarks] Successfully refreshed and persisted ${bookmarks.length} bookmarks.`);
+      return bookmarks;
     }
-  });
+    console.warn('[Bookmarks] External fetch returned no bookmarks. Cache and S3 not updated.');
+    ServerCacheInstance.setBookmarks([], true);
+    return [];
+  } catch (error) {
+    console.error('[Bookmarks] CRITICAL: Failed to refresh and persist bookmarks.', error);
+    return null;
+  } finally {
+    isRefreshLocked = false;
+    console.log('[Bookmarks] Releasing refresh lock.');
+  }
 }
 
 /**
@@ -98,53 +111,91 @@ function enqueueBookmarkRefresh() {
  * @returns Promise resolving to an array of UnifiedBookmark objects, or an empty array if none are available
  */
 export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBookmark[]> {
-  // console.log('[getBookmarks] Starting with skipExternalFetch:', skipExternalFetch);
   const cached = ServerCacheInstance.getBookmarks();
-  // console.log('[getBookmarks] Cache state:', cached ? `has ${cached.bookmarks?.length || 0} bookmarks` : 'no cache');
+  const shouldRefresh = ServerCacheInstance.shouldRefreshBookmarks();
 
-  const bookmarksLength = cached?.bookmarks?.length;
-  if (typeof bookmarksLength === 'number' && bookmarksLength > 0) {
-    // console.log('[Bookmarks] returning ${cached.bookmarks.length} cached bookmarks');
-    if (!skipExternalFetch && ServerCacheInstance.shouldRefreshBookmarks()) {
-      // console.log('[Bookmarks] cache stale, enqueueing background refresh');
-      enqueueBookmarkRefresh();
-    } else if (ServerCacheInstance.shouldRefreshBookmarks()) {
-      // console.log('[Bookmarks] cache stale but external fetch skipped, not enqueueing refresh');
+  // ALWAYS return cached data first if available (even if stale)
+  if (cached?.bookmarks?.length) {
+    console.log(`[Bookmarks] Returning ${cached.bookmarks.length} bookmarks from in-memory cache.`);
+    
+    // Trigger background refresh if needed (NON-BLOCKING)
+    if (!skipExternalFetch && shouldRefresh && !isRefreshLocked) {
+      console.log('[Bookmarks] Triggering background refresh (non-blocking).');
+      // Start background refresh without awaiting
+      void refreshInBackground();
     }
-    return cached?.bookmarks ?? [];
+    
+    return cached.bookmarks;
   }
 
-  let s3Bookmarks: UnifiedBookmark[] | null = null;
+  // No cached data - try S3 first
   try {
-    const raw = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_KEY_FILE);
-    if (Array.isArray(raw) && raw.length > 0) {
-      s3Bookmarks = raw;
+    const s3Bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_KEY_FILE);
+    if (Array.isArray(s3Bookmarks) && s3Bookmarks.length > 0) {
+      console.log(`[Bookmarks] Loaded ${s3Bookmarks.length} bookmarks from S3.`);
       ServerCacheInstance.setBookmarks(s3Bookmarks);
-      // console.log(`[Bookmarks] loaded ${s3Bookmarks.length} bookmarks from S3`);
+      
+      // Trigger background refresh if needed (NON-BLOCKING)
+      if (!skipExternalFetch && shouldRefresh && !isRefreshLocked) {
+        console.log('[Bookmarks] Triggering background refresh after S3 load (non-blocking).');
+        void refreshInBackground();
+      }
+      
+      return s3Bookmarks;
     }
-  } catch (error: unknown) {
-    console.warn('[Bookmarks] failed reading bookmarks from S3:', error);
+  } catch (error) {
+    console.warn('[Bookmarks] Failed to read from S3:', error);
   }
 
-  if (s3Bookmarks) {
-    if (!skipExternalFetch) {
-      // console.log('[Bookmarks] S3 data loaded, enqueueing background refresh to ensure freshness.');
-      enqueueBookmarkRefresh();
+  // No cached data and no S3 data - do synchronous refresh as last resort
+  if (!skipExternalFetch) {
+    console.log('[Bookmarks] No cached or S3 data available. Performing synchronous refresh as last resort.');
+    const freshBookmarks = await refreshAndPersistBookmarks();
+    if (freshBookmarks) {
+      return freshBookmarks;
     }
-    return s3Bookmarks;
   }
 
-  if (skipExternalFetch) {
-    // console.warn('[Bookmarks] no cache or S3 data and external fetch skipped');
-    return [];
-  }
-
-  const external = await fetchExternalBookmarksWithRetry();
-  if (external && external.length > 0) {
-    // S3 write and cache update already handled by directRefreshBookmarksData
-    return external;
-  }
-
-  ServerCacheInstance.setBookmarks([], true); // This is for cases where external fetch failed to return data.
+  console.warn('[Bookmarks] No bookmarks available from any source.');
   return [];
+}
+
+/**
+ * Performs background refresh without blocking the current request
+ */
+async function refreshInBackground(): Promise<void> {
+  if (isRefreshLocked) {
+    console.log('[Bookmarks] Background refresh skipped - already in progress.');
+    return;
+  }
+
+  console.log('[Bookmarks] Starting background refresh.');
+  isRefreshLocked = true;
+
+  try {
+    const freshBookmarks = await fetchExternalBookmarksWithRetry();
+    
+    if (freshBookmarks && freshBookmarks.length > 0) {
+      await writeJsonS3(BOOKMARKS_S3_KEY_FILE, freshBookmarks);
+      ServerCacheInstance.setBookmarks(freshBookmarks);
+      console.log(`[Bookmarks] Background refresh completed - updated cache with ${freshBookmarks.length} bookmarks.`);
+    } else {
+      console.warn('[Bookmarks] Background refresh failed - keeping existing cache.');
+      // Mark as failed attempt but don't update the bookmarks
+      const existing = ServerCacheInstance.getBookmarks();
+      if (existing?.bookmarks) {
+        ServerCacheInstance.setBookmarks(existing.bookmarks, true);
+      }
+    }
+  } catch (error) {
+    console.error('[Bookmarks] Background refresh error:', error);
+    // Mark as failed attempt but don't update the bookmarks
+    const existing = ServerCacheInstance.getBookmarks();
+    if (existing?.bookmarks) {
+      ServerCacheInstance.setBookmarks(existing.bookmarks, true);
+    }
+  } finally {
+    isRefreshLocked = false;
+    console.log('[Bookmarks] Background refresh completed.');
+  }
 }

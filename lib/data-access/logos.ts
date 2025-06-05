@@ -18,29 +18,6 @@ import { createHash } from 'node:crypto';
 // --- Configuration & Constants ---
 export const LOGOS_S3_KEY_DIR = 'images/logos';
 
-// --- Type Definitions for External APIs ---
-interface BrandfetchLogoFormat {
-  src: string;
-  // other potential properties like type, size, etc.
-}
-
-interface BrandfetchLogo {
-  formats?: BrandfetchLogoFormat[];
-  type?: string; // e.g., "logo", "icon"
-  // other potential properties
-}
-
-interface BrandfetchIcon {
-  image?: string; // URL of the icon
-  type?: string; // e.g., "favicon"
-  // other potential properties
-}
-
-interface BrandfetchResponse {
-  logos?: BrandfetchLogo[];
-  icon?: BrandfetchIcon;
-  // other potential top-level properties
-}
 const VERBOSE = process.env.VERBOSE === 'true' || false;
 
 // Session-based tracking to prevent infinite loops
@@ -62,10 +39,11 @@ const DOMAIN_RETRY_COUNT = new Map<string, number>();
  * @returns The S3 key string for storing or retrieving the logo
  */
 function getLogoS3Key(domain: string, source: LogoSource, ext: 'png' | 'svg' = 'png'): string {
+  // Use a hash of the full domain to prevent collisions while keeping keys readable
+  const domainHash = createHash('md5').update(domain).digest('hex').substring(0, 8);
   const id: string = domain.split('.')[0];
-  const sourceAbbr: string = source === 'duckduckgo' ? 'ddg' :
-                     source === 'brandfetch' ? 'bf' : (source ?? 'unknown');
-  return `${LOGOS_S3_KEY_DIR}/${id}_${sourceAbbr}.${ext}`;
+  const sourceAbbr: string = source === 'duckduckgo' ? 'ddg' : (source ?? 'unknown');
+  return `${LOGOS_S3_KEY_DIR}/${id}_${domainHash}_${sourceAbbr}.${ext}`;
 }
 
 /**
@@ -77,9 +55,11 @@ function getLogoS3Key(domain: string, source: LogoSource, ext: 'png' | 'svg' = '
  * @returns Promise with logo buffer and source, or null if not found
  */
 export async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> {
+  const domainHash = createHash('md5').update(domain).digest('hex').substring(0, 8);
   const id: string = domain.split('.')[0];
   try {
-    const keys: string[] = await s3UtilsListS3Objects(`${LOGOS_S3_KEY_DIR}/${id}_`);
+    // Try new format first (with hash)
+    const keys: string[] = await s3UtilsListS3Objects(`${LOGOS_S3_KEY_DIR}/${id}_${domainHash}_`);
     if (keys.length > 0) {
       const pngKey: string | undefined = keys.find(key => key.endsWith('.png'));
       const bestKey: string = pngKey ?? keys[0];
@@ -88,10 +68,29 @@ export async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; so
         let source: LogoSource = 'unknown';
         if (bestKey.includes('_google')) source = 'google';
         else if (bestKey.includes('_clearbit')) source = 'clearbit';
-        else if (bestKey.includes('_bf')) source = 'brandfetch';
         else if (bestKey.includes('_ddg')) source = 'duckduckgo';
         console.log(`[DataAccess/Logos-S3] Found logo for ${domain} by S3 list pattern match: ${bestKey}`);
         return { buffer, source };
+      }
+    }
+    
+    // Fallback to old format (without hash) for backward compatibility
+    const oldKeys: string[] = await s3UtilsListS3Objects(`${LOGOS_S3_KEY_DIR}/${id}_`);
+    if (oldKeys.length > 0) {
+      // Filter out new format keys to avoid duplicates
+      const legacyKeys = oldKeys.filter(key => !key.includes(`_${domainHash}_`));
+      if (legacyKeys.length > 0) {
+        const pngKey: string | undefined = legacyKeys.find(key => key.endsWith('.png'));
+        const bestKey: string = pngKey ?? legacyKeys[0];
+        const buffer: Buffer | null = await readBinaryS3(bestKey);
+        if (buffer) {
+          let source: LogoSource = 'unknown';
+          if (bestKey.includes('_google')) source = 'google';
+          else if (bestKey.includes('_clearbit')) source = 'clearbit';
+          else if (bestKey.includes('_ddg')) source = 'duckduckgo';
+          console.log(`[DataAccess/Logos-S3] Found logo for ${domain} by S3 list pattern match (legacy): ${bestKey}`);
+          return { buffer, source };
+        }
       }
     }
   } catch (error) {
@@ -284,16 +283,16 @@ async function fetchExternalLogo(domain: string): Promise<{ buffer: Buffer; sour
   for (const testDomain of domainVariants) {
     const sources: { name: LogoSource; urlFn: (d: string) => string }[] = [
       { name: 'google', urlFn: LOGO_SOURCES.google.hd },
-      { name: 'clearbit', urlFn: LOGO_SOURCES.clearbit.hd },
-      { name: 'brandfetch', urlFn: LOGO_SOURCES.brandfetch.hd },
       { name: 'google', urlFn: LOGO_SOURCES.google.md },
-      { name: 'clearbit', urlFn: LOGO_SOURCES.clearbit.md },
       { name: 'duckduckgo', urlFn: LOGO_SOURCES.duckduckgo.hd },
+      // Note: Clearbit removed due to authentication requirements
     ];
 
     for (const { name, urlFn } of sources) {
       const url: string = urlFn(testDomain);
       try {
+        console.log(`[DEBUG] Attempting ${name} fetch: ${url}`);
+        
         const controller: AbortController = new AbortController();
         const timeoutId: NodeJS.Timeout = setTimeout(() => controller.abort(), 5000);
         let response: Response;
@@ -305,42 +304,9 @@ async function fetchExternalLogo(domain: string): Promise<{ buffer: Buffer; sour
         } finally {
           clearTimeout(timeoutId);
         }
+        
+        console.log(`[DEBUG] ${name} response status: ${response.status} for ${url}`);
         if (!response.ok) continue;
-
-        // Special handling for Brandfetch API
-        if (name === 'brandfetch') {
-          try {
-            const data = await response.json() as BrandfetchResponse;
-            const logoUrl: string | undefined = data?.logos?.[0]?.formats?.[0]?.src || data?.icon?.image;
-            if (logoUrl) {
-              // Fetch the actual logo image
-              const logoController: AbortController = new AbortController();
-              const logoTimeoutId: NodeJS.Timeout = setTimeout(() => logoController.abort(), 5000);
-              let logoResponse: Response;
-              try {
-                logoResponse = await fetch(logoUrl, { // Use logoUrl here
-                  signal: logoController.signal,
-                  headers: getBrowserHeaders()
-                });
-              } finally {
-                clearTimeout(logoTimeoutId);
-              }
-
-              if (logoResponse.ok) {
-                const logoBuffer: Buffer = Buffer.from(await logoResponse.arrayBuffer());
-                if (logoBuffer.byteLength > 100 && await validateLogoBuffer(logoBuffer, logoUrl)) { // Use logoUrl here
-                  const { processedBuffer } = await processImageBuffer(logoBuffer);
-                  console.log(`[DataAccess/Logos] Fetched logo for ${domain} from ${name} (using ${testDomain}).`);
-                  return { buffer: processedBuffer, source: name };
-                }
-              }
-            }
-          } catch (e){
-            if (VERBOSE) console.warn(`[DataAccess/Logos] Error processing Brandfetch response for ${testDomain}:`, e);
-            // Continue to next source if Brandfetch parsing fails
-          }
-          continue;
-        }
 
         // Standard handling for other sources
         const rawBuffer: Buffer = Buffer.from(await response.arrayBuffer());
@@ -428,7 +394,7 @@ export async function processImageBuffer(buffer: Buffer): Promise<{
  */
 export async function getLogo(domain: string): Promise<{ buffer: Buffer; source: LogoSource; contentType: string } | null> {
   // Check session limits to prevent infinite loops
-  const currentTime = Date.now();
+  const currentTime: number = Date.now();
   if (currentTime - SESSION_START_TIME > SESSION_MAX_DURATION) {
     if (VERBOSE) console.log(`[DataAccess/Logos] Session expired for ${domain}, resetting tracking.`);
     SESSION_PROCESSED_DOMAINS.clear();
@@ -439,9 +405,9 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
   // Skip if already processed successfully in this session
   if (SESSION_PROCESSED_DOMAINS.has(domain)) {
     if (VERBOSE) console.log(`[DataAccess/Logos] Domain ${domain} already processed in this session, skipping.`);
-    const cached = ServerCacheInstance.getLogoFetch(domain);
+    const cached: { url: string | null; source: LogoSource | null; buffer?: Buffer; error?: string } | undefined = ServerCacheInstance.getLogoFetch(domain);
     if (cached?.buffer) {
-      const { contentType } = await processImageBuffer(cached.buffer);
+      const { contentType }: { processedBuffer: Buffer; isSvg: boolean; contentType: string } = await processImageBuffer(cached.buffer);
       return { buffer: cached.buffer, source: cached.source || 'unknown', contentType };
     }
     return null;
@@ -449,25 +415,28 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
 
   // Skip if failed too many times in this session
   if (SESSION_FAILED_DOMAINS.has(domain)) {
-    const retryCount = DOMAIN_RETRY_COUNT.get(domain) || 0;
+    const retryCount: number = DOMAIN_RETRY_COUNT.get(domain) || 0;
     if (retryCount >= MAX_RETRIES_PER_SESSION) {
       if (VERBOSE) console.log(`[DataAccess/Logos] Domain ${domain} failed ${retryCount} times in this session, skipping.`);
       return null;
     }
   }
 
-  const override = (globalThis as {getLogo?: typeof getLogo}).getLogo;
-  if (typeof override === 'function' && override !== getLogo) {
-    return override(domain);
+  // Skip global override check in production to avoid SSR issues
+  if (process.env.NODE_ENV !== 'production') {
+    const override: typeof getLogo | undefined = (globalThis as {getLogo?: typeof getLogo}).getLogo;
+    if (typeof override === 'function' && override !== getLogo) {
+      return override(domain);
+    }
   }
-  const cached = ServerCacheInstance.getLogoFetch(domain);
+  const cached: { url: string | null; source: LogoSource | null; buffer?: Buffer; error?: string } | undefined = ServerCacheInstance.getLogoFetch(domain);
   if (cached?.buffer) {
     console.log(`[DataAccess/Logos] Returning logo for ${domain} from cache (source: ${cached.source || 'unknown'}).`);
     SESSION_PROCESSED_DOMAINS.add(domain);
-    const { contentType } = await processImageBuffer(cached.buffer);
+    const { contentType }: { processedBuffer: Buffer; isSvg: boolean; contentType: string } = await processImageBuffer(cached.buffer);
     return { buffer: cached.buffer, source: cached.source || 'unknown', contentType };
   }
-  const force = process.env.FORCE_LOGOS === 'true';
+  const force: boolean = process.env.FORCE_LOGOS === 'true';
   if (force) console.log(`[DataAccess/Logos] FORCE_LOGOS enabled, skipping S3 for ${domain}, forcing external fetch.`);
   let s3Logo: { buffer: Buffer; source: LogoSource } | null = null;
   if (!force) {
@@ -476,10 +445,10 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
   if (s3Logo) {
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: s3Logo.source, buffer: s3Logo.buffer });
     SESSION_PROCESSED_DOMAINS.add(domain);
-    const { contentType: s3ContentType } = await processImageBuffer(s3Logo.buffer);
+    const { contentType: s3ContentType }: { processedBuffer: Buffer; isSvg: boolean; contentType: string } = await processImageBuffer(s3Logo.buffer);
     return { ...s3Logo, contentType: s3ContentType };
   }
-  const skipExternalLogoFetch = (process.env.NODE_ENV === 'test' && process.env.ALLOW_EXTERNAL_FETCH_IN_TEST !== 'true') || process.env.SKIP_EXTERNAL_LOGO_FETCH === 'true';
+  const skipExternalLogoFetch: boolean = (process.env.NODE_ENV === 'test' && process.env.ALLOW_EXTERNAL_FETCH_IN_TEST !== 'true') || process.env.SKIP_EXTERNAL_LOGO_FETCH === 'true';
   if (skipExternalLogoFetch) {
     if (VERBOSE) console.log(`[DataAccess/Logos] Skipping external logo fetch for ${domain} (test or skip flag).`);
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: null, error: 'External fetch skipped' });
@@ -492,28 +461,29 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
     SESSION_FAILED_DOMAINS.add(domain);
     return null;
   }
+
   console.log(`[DataAccess/Logos] Logo for ${domain} not in cache or S3, fetching from external source.`);
   
   // Track retry attempts
-  const currentRetries = DOMAIN_RETRY_COUNT.get(domain) || 0;
+  const currentRetries: number = DOMAIN_RETRY_COUNT.get(domain) || 0;
   DOMAIN_RETRY_COUNT.set(domain, currentRetries + 1);
   
-  const externalLogo = await fetchExternalLogo(domain);
+  const externalLogo: { buffer: Buffer; source: LogoSource } | null = await fetchExternalLogo(domain);
   if (externalLogo) {
     // Process the image buffer to determine if it's SVG and get the correct content type
-    const { processedBuffer, isSvg, contentType: externalContentType } = await processImageBuffer(externalLogo.buffer);
+    const { processedBuffer, isSvg, contentType: externalContentType }: { processedBuffer: Buffer; isSvg: boolean; contentType: string } = await processImageBuffer(externalLogo.buffer);
 
     // Get the appropriate file extension based on the image type
-    const fileExt = isSvg ? '.svg' : '.png';
-    const logoS3Key = getLogoS3Key(domain, externalLogo.source, fileExt.split('.')[1] as 'png' | 'svg');
+    const fileExt: string = isSvg ? '.svg' : '.png';
+    const logoS3Key: string = getLogoS3Key(domain, externalLogo.source, fileExt.split('.')[1] as 'png' | 'svg');
 
     try {
-      const existingBuffer = await readBinaryS3(logoS3Key);
+      const existingBuffer: Buffer | null = await readBinaryS3(logoS3Key);
       let didUpload = false;
 
       if (existingBuffer) {
-        const existingHash = createHash('md5').update(existingBuffer).digest('hex');
-        const newHash = createHash('md5').update(processedBuffer).digest('hex');
+        const existingHash: string = createHash('md5').update(existingBuffer).digest('hex');
+        const newHash: string = createHash('md5').update(processedBuffer).digest('hex');
 
         if (existingHash === newHash) {
           console.log(`[DataAccess/Logos-S3] Logo for ${domain} unchanged (hash=${newHash}); skipping upload.`);
@@ -524,12 +494,12 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
         }
       } else {
         await writeBinaryS3(logoS3Key, processedBuffer, externalContentType);
-        const newHash = createHash('md5').update(processedBuffer).digest('hex');
+        const newHash: string = createHash('md5').update(processedBuffer).digest('hex');
         console.log(`[DataAccess/Logos-S3] New logo for ${domain}; uploaded to ${logoS3Key} (hash=${newHash}).`);
         didUpload = true;
       }
       if (VERBOSE && !didUpload) console.log(`[DataAccess/Logos-S3] VERBOSE: No upload needed for ${domain}.`);
-    } catch (uploadError) {
+    } catch (uploadError: unknown) {
       console.error(`[DataAccess/Logos-S3] Error writing logo for ${domain} to S3:`, uploadError);
     }
     // Cache the processed buffer and mark as successfully processed

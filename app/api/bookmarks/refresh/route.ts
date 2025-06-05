@@ -4,11 +4,23 @@
  * Provides a public API endpoint for refreshing the bookmarks cache.
  * This endpoint is rate-limited to prevent abuse.
  */
+import 'server-only';
 
 import { NextResponse } from 'next/server';
 import { refreshBookmarksData } from '@/lib/bookmarks';
 import { ServerCacheInstance } from '@/lib/server-cache';
-import { getLogo } from '@/lib/data-access/logos';
+// Import logo functions dynamically to avoid SSR issues
+let getLogo: typeof import('@/lib/data-access/logos').getLogo;
+let resetLogoSessionTracking: typeof import('@/lib/data-access/logos').resetLogoSessionTracking;
+
+// Initialize logo functions only when needed
+async function initLogoFunctions() {
+  if (!getLogo || !resetLogoSessionTracking) {
+    const logoModule = await import('@/lib/data-access/logos');
+    getLogo = logoModule.getLogo;
+    resetLogoSessionTracking = logoModule.resetLogoSessionTracking;
+  }
+}
 import type { UnifiedBookmark } from '@/types/bookmark';
 
 // Ensure this route is not statically cached
@@ -174,6 +186,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     } else {
       console.log('[API Bookmarks Refresh] Regular request: Refreshing bookmarks data as cache is stale or needs update.');
     }
+
+    // Initialize logo functions before using them
+    await initLogoFunctions();
+    
+    // Reset logo session tracking to prevent conflicts with bulk processing
+    resetLogoSessionTracking();
+    console.log('[API Bookmarks Refresh] Logo session tracking reset for API processing.');
 
     // Get current cached bookmarks to compare for new additions
     const previousBookmarks = await Promise.resolve(ServerCacheInstance.getBookmarks()?.bookmarks || []);

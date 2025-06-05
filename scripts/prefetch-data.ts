@@ -97,7 +97,7 @@ async function prefetchLogosData(bookmarksData: UnifiedBookmark[]): Promise<void
   // 2. Extract domains from investments data (using data-access)
   try {
     const investmentDomainsMap = await getInvestmentDomainsAndIds();
-    for (const [, domain] of investmentDomainsMap) {
+    for (const [domain] of investmentDomainsMap) {
       domains.add(domain);
     }
     console.log(`[Prefetch] Added ${investmentDomainsMap.size} domains from investments. Total unique: ${domains.size}`);
