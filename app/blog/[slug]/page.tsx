@@ -130,10 +130,10 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       // Include the JSON-LD script with type assertion
       ...(articleMetadata.script && { script: articleMetadata.script }),
     } as Metadata;
-  } else {
-    // Use standard NewsArticle schema for regular blog posts
-    const articleMetadata = createArticleMetadata({
-      title: post.title,
+  }
+  // Use standard NewsArticle schema for regular blog posts
+  const articleMetadata = createArticleMetadata({
+    title: post.title,
       description: post.excerpt,
       url: postUrl,
       image: post.coverImage,
@@ -158,7 +158,6 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       // Include the JSON-LD script with type assertion
       ...(articleMetadata.script && { script: articleMetadata.script }),
     } as Metadata;
-  }
 }
 
 /**
