@@ -25,7 +25,6 @@ export function ServerMDXCodeBlock(props: PreProps) {
     'whitespace-pre-wrap',
     'break-words',
     'custom-scrollbar',
-    'p-4',
     'border-t-0'
   );
 
