@@ -86,6 +86,9 @@ export default {
               marginBottom: '0.75em',
               fontSize: '16px',
             },
+            pre: {
+              whiteSpace: 'pre-wrap',
+            },
           },
         },
       },
