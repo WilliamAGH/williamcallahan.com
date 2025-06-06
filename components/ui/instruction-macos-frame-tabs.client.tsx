@@ -14,6 +14,16 @@ import { WindowControls } from './navigation/window-controls';
 import { CollapseDropdown } from './collapse-dropdown.client';
 
 /**
+ * Context to track when we're inside a macOS frame to prevent double nesting
+ */
+const MacOSFrameContext = createContext<boolean>(false);
+
+/**
+ * Export the context for use in other components
+ */
+export { MacOSFrameContext };
+
+/**
  * Props for the InstructionMACOSTab component.
  * Defines the expected properties for each tab.
  */
@@ -272,7 +282,9 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: Instruct
           onMaximize={handleMaximize}
           isMaximized={isMaximized}
         >
-          {!isMinimized && activeChildContentProcessed} {/* Render processed content only if not minimized */}
+          <MacOSFrameContext.Provider value={true}>
+            {!isMinimized && activeChildContentProcessed} {/* Render processed content only if not minimized */}
+          </MacOSFrameContext.Provider>
         </MacOSWindow>
       </InstructionMacOSFrameTabsContext.Provider>
     </div>

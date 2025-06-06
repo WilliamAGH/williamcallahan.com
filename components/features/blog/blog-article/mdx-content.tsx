@@ -17,6 +17,7 @@ import React, {
   useEffect,
   useRef,
   useMemo,
+  useContext,
   type JSX,
 } from 'react';
 import { MDXRemote, type MDXRemoteProps } from 'next-mdx-remote';
@@ -32,10 +33,66 @@ import { SoftwareSchema } from './software-schema';
 import { cn } from '@/lib/utils';
 import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
 import { Base64Image } from '@/components/utils/base64-image.client';
-import { InstructionMacOSFrameTabs, InstructionMACOSTab } from '../../../ui/instruction-macos-frame-tabs.client';
+import { InstructionMacOSFrameTabs, InstructionMACOSTab, MacOSFrameContext } from '../../../ui/instruction-macos-frame-tabs.client';
 import { ShellParentTabs, ShellTab } from '../../../ui/shell-parent-tabs.client';
 import { MacOSWindow, MacOSCodeWindow } from '../../../ui/macos-window.client';
 import { TweetEmbed } from '../tweet-embed';
+
+/**
+ * Hook to check if we're currently inside a macOS frame
+ */
+const useIsInMacOSFrame = () => useContext(MacOSFrameContext);
+
+/**
+ * Component wrapper for pre elements that can use hooks
+ */
+const PreRenderer = (props: ComponentProps<'pre'>) => {
+  const isInMacOSFrame = useIsInMacOSFrame();
+  
+  let isProperCodeBlock = false;
+  // Check 1: Class on the <pre> tag itself (e.g., from Rehype Pretty Code)
+  if (props.className && typeof props.className === 'string' && props.className.includes('language-')) {
+    isProperCodeBlock = true;
+  }
+
+  // Check 2: Class on any direct <code> child, if Check 1 failed (common MDX structure)
+  if (
+    !isProperCodeBlock &&
+    React.Children.toArray(props.children).some((child) =>
+      isValidElement<{ className?: string }>(child) &&
+      child.type === 'code' &&
+      typeof child.props.className === 'string' &&
+      child.props.className.includes('language-')
+    )
+  ) {
+    isProperCodeBlock = true;
+  }
+
+  if (!isProperCodeBlock) {
+    // Fallback for non-standard <pre> tags or those without recognized code.
+    // Renders with basic styling to ensure content is displayed.
+    return (
+      <div className="group relative">
+        <pre className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-3 rounded font-mono text-xs break-words whitespace-pre-wrap mb-4">
+          {props.children}
+        </pre>
+      </div>
+    );
+  }
+
+  // Extract className from child element for proper syntax highlighting
+  const childElement = props.children as ReactElement<{ className?: string }>;
+  const childClassName = typeof childElement.props?.className === 'string' ? childElement.props.className : undefined;
+  
+  // Use context to determine if we're in a macOS frame
+  return (
+    <MDXCodeBlock 
+      {...props} 
+      embeddedInTabFrame={isInMacOSFrame} 
+      className={cn(childClassName, !isInMacOSFrame && "mb-6")} 
+    />
+  );
+};
 
 /**
  * Props for the {@link MdxImage} component, used to render images within MDX content.
@@ -229,69 +286,8 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
    * to render that element when encountered in the MDX source.
    */
   const components: MDXRemoteProps['components'] = useMemo(() => ({
-    /**
-     * Custom renderer for `<pre>` elements, primarily used for code blocks.
-     * This function inspects the `<pre>` tag and its children to determine if it represents
-     * a formal code block (typically indicated by a `language-*` class).
-     * If so, it renders the content using the `MDXCodeBlock` component for syntax highlighting
-     * and styling. It also handles variations for code blocks embedded within tab components.
-     * If not a formal code block, it provides a basic styled `<pre>` tag for displaying preformatted text.
-     * @param {ComponentProps<'pre'>} props - Props passed to the `<pre>` element.
-     * @returns {JSX.Element} The rendered code block or preformatted text.
-     */
-    pre: (props: ComponentProps<'pre'>) => {
-      let isProperCodeBlock = false;
-      // Check 1: Class on the <pre> tag itself (e.g., from Rehype Pretty Code)
-      if (props.className && typeof props.className === 'string' && props.className.includes('language-')) {
-        isProperCodeBlock = true;
-      }
-
-      // Check 2: Class on any direct <code> child, if Check 1 failed (common MDX structure)
-      if (
-        !isProperCodeBlock &&
-        React.Children.toArray(props.children).some((child) =>
-          isValidElement<{ className?: string }>(child) &&
-          child.type === 'code' &&
-          typeof child.props.className === 'string' &&
-          child.props.className.includes('language-')
-        )
-      ) {
-        isProperCodeBlock = true;
-      }
-
-      if (!isProperCodeBlock) {
-        // Fallback for non-standard <pre> tags or those without recognized code.
-        // Renders with basic styling to ensure content is displayed.
-        return (
-          <div className="group relative">
-            <pre className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-3 rounded font-mono text-sm break-words whitespace-pre-wrap mb-4">
-              {props.children}
-            </pre>
-          </div>
-        );
-      }
-
-      // Check if the code block is a direct child of a tab component to adjust styling.
-      const isParentTabs = isValidElement(props.children) && (
-        (props.children.props as { __IS_MACOS_FRAME_TAB?: boolean; __IS_SHELL_TAB?: boolean })?.__IS_MACOS_FRAME_TAB ||
-        (props.children.props as { __IS_MACOS_FRAME_TAB?: boolean; __IS_SHELL_TAB?: boolean })?.__IS_SHELL_TAB
-      );
-
-      if (isParentTabs) {
-        const childElement = props.children as ReactElement<{ className?: string; __IS_MACOS_FRAME_TAB?: boolean; __IS_SHELL_TAB?: boolean }>;
-        const childProps = childElement.props;
-        const safeClassName = typeof childProps.className === 'string' ? childProps.className : undefined;
-        return <MDXCodeBlock {...props} embeddedInTabFrame={true} className={safeClassName} />;
-      }
-
-      // For standalone code blocks, MDXCodeBlock handles its own framing.
-      // Add a bottom margin for spacing.
-      const childElement = props.children as ReactElement<{ className?: string }>;
-      const childClassName = typeof childElement.props?.className === 'string' ? childElement.props.className : undefined;
-      return (
-          <MDXCodeBlock {...props} embeddedInTabFrame={false} className={cn(childClassName, "mb-6")} />
-      );
-    },
+    /** Custom renderer for `<pre>` elements using the PreRenderer component that can access context */
+    pre: PreRenderer,
     /**
      * Custom renderer for inline `<code>` elements.
      * Applies specific background, padding, and font styling for inline code snippets,
@@ -339,14 +335,22 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
     InstructionToggleTabs: (props: ComponentProps<typeof InstructionMacOSFrameTabs>) => (
       <InstructionMacOSFrameTabs {...props} className={cn(props.className)} />
     ),
-    /** Direct mapping for the `InstructionMACOSTab` component. */
-    InstructionTab: InstructionMACOSTab,
+    /** Renderer for the `InstructionMACOSTab` component with MacOSFrameContext provider. */
+    InstructionTab: (props: ComponentProps<typeof InstructionMACOSTab>) => (
+      <MacOSFrameContext.Provider value={true}>
+        <InstructionMACOSTab {...props} />
+      </MacOSFrameContext.Provider>
+    ),
     /** Renderer for the custom `ShellParentTabs` component. */
     ShellParentTabs: (props: ComponentProps<typeof ShellParentTabs>) => (
       <ShellParentTabs {...props} className={cn(props.className)} />
     ),
-    /** Renderer for the custom `ShellTab` component. */
-    ShellTab: ShellTab,
+    /** Renderer for the `ShellTab` component with MacOSFrameContext provider. */
+    ShellTab: (props: ComponentProps<typeof ShellTab>) => (
+      <MacOSFrameContext.Provider value={true}>
+        <ShellTab {...props} />
+      </MacOSFrameContext.Provider>
+    ),
     /** Renderer for the custom `MacOSWindow` component. */
     MacOSWindow: (props: ComponentProps<typeof MacOSWindow>) => (
       <MacOSWindow {...props} className={cn(props.className)} />
