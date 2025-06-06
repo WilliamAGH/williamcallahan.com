@@ -6,7 +6,7 @@
  * Provides a consistent caching layer on top of Next.js image optimization.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { ServerCacheInstance } from '../../../../lib/server-cache';
 import sharp from 'sharp';
 
@@ -71,8 +71,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // Validate and sanitize width
-  const parsedWidth = width ? parseInt(width, 10) : 0;
-  const imageWidth = !isNaN(parsedWidth) && parsedWidth > 0 ? parsedWidth : 1920;
+  const parsedWidth = width ? Number.parseInt(width, 10) : 0;
+  const imageWidth = !Number.isNaN(parsedWidth) && parsedWidth > 0 ? parsedWidth : 1920;
 
   // Validate format
   const imageFormat = VALID_IMAGE_FORMATS.includes(format) ? format : 'webp';
