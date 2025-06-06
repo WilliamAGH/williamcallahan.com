@@ -2,9 +2,10 @@ interface UmamiAnalytics {
   track: (event: string, data?: Record<string, unknown>) => void
 }
 
-interface PlausibleAnalytics {
-  (event: string, options?: { props?: Record<string, unknown> }): void
-}
+type PlausibleAnalytics = (
+  event: string,
+  options?: { props?: Record<string, unknown> },
+) => void
 
 declare global {
   interface Window {
