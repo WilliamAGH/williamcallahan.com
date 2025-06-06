@@ -27,7 +27,7 @@ import type { BlogPost } from '../../../../types/blog';
 const MDXContent = dynamic(() => import('./mdx-content').then(mod => ({ default: mod.MDXContent })), {
   ssr: true,
   loading: () => (
-    <div className="animate-pulse bg-gray-200 dark:bg-gray-800 h-96 rounded-lg"></div>
+    <div className="animate-pulse bg-gray-200 dark:bg-gray-800 h-96 rounded-lg" />
   )
 });
 
@@ -98,7 +98,7 @@ export function BlogArticle({ post }: BlogArticleProps): JSX.Element {
 
       {/* Article Content */}
       <div className="relative bg-white dark:bg-transparent rounded-lg shadow-md dark:shadow-none p-5 sm:p-6 border border-gray-100 dark:border-gray-800">
-        <Suspense fallback={<div className="animate-pulse bg-gray-200 dark:bg-gray-800 h-96 rounded-lg"></div>}>
+        <Suspense fallback={<div className="animate-pulse bg-gray-200 dark:bg-gray-800 h-96 rounded-lg" />}>
           <MDXContent content={post.content} />
         </Suspense>
       </div>
