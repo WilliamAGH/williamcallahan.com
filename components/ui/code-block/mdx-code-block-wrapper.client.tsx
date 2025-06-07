@@ -1,20 +1,40 @@
+/**
+ * MDX Code Block Wrapper Components
+ * 
+ * This file contains two components that work together to render code blocks in MDX:
+ * 
+ * 1. BasicMDXCodeBlock: A lightweight server-side fallback that renders during SSR
+ *    - Provides basic styling without interactive features
+ *    - Gets replaced by MDXCodeBlock on client hydration
+ * 
+ * 2. MDXCodeBlock: The main client-side wrapper used by MDX content
+ *    - Integrates with the full-featured CodeBlock component
+ *    - Handles context-aware rendering (e.g., inside tabs)
+ *    - Processes SVG transforms and manages code content
+ */
+
 'use client';
 
 import { useEffect, useRef } from 'react';
 import { CodeBlock } from './code-block.client';
 import type { DetailedHTMLProps, HTMLAttributes } from 'react';
 import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
+import { cn } from '@/lib/utils';
 
 type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>;
 
 /**
- * Server component for initial render
- * This is what gets used during MDX serialization
+ * BasicMDXCodeBlock - Fallback renderer for code blocks
+ * 
+ * Renders a basic styled <pre> element when full CodeBlock features
+ * aren't needed or during initial render. This component is actually
+ * client-side despite the historical naming.
+ * 
+ * @deprecated Use MDXCodeBlock instead - this is kept for compatibility
+ * @param props - Standard HTML pre element props
+ * @returns A minimally styled pre element wrapped in a div
  */
-import { cn } from '@/lib/utils'; // Import cn utility
-
 export function BasicMDXCodeBlock(props: PreProps) {
-  // Destructure className and children from props
   const { children, className, ...rest } = props;
 
   // Define default classes for the PRE tag - make sure they match the CodeBlock component
@@ -47,8 +67,17 @@ export function BasicMDXCodeBlock(props: PreProps) {
 }
 
 /**
- * Client component that gets hydrated with the CodeBlock component
- * This prevents the useState error during MDX serialization
+ * Client-side MDX code block wrapper component
+ * 
+ * This is the primary component used by MDX content to render code blocks.
+ * It wraps the CodeBlock component and handles:
+ * - Context detection (e.g., if inside a tab frame)
+ * - SVG transform processing
+ * - Code content extraction for copy functionality
+ * 
+ * @param props - Pre element props plus optional embeddedInTabFrame flag
+ * @param props.embeddedInTabFrame - If true, renders without window chrome (for use inside tabs)
+ * @returns The full-featured CodeBlock component with proper context
  */
 export function MDXCodeBlock(props: PreProps & { embeddedInTabFrame?: boolean }) {
   const { children, className, embeddedInTabFrame, ...rest } = props;
