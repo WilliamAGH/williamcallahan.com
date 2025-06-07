@@ -33,7 +33,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ queued: true }, { status: 202 });
   }
 
-  const skipExternalFetch = true;
+  // Allow background refresh to occur; do not skip external fetch
+  const skipExternalFetch = false;
 
   try {
     const bookmarks = await getBookmarks(skipExternalFetch);
