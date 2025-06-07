@@ -306,7 +306,9 @@ export class ServerCache extends NodeCache {
 
     const now = Date.now();
     const timeSinceLastFetch = now - cached.lastFetchedAt;
-    const shouldRefresh = timeSinceLastFetch > BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
+    const revalidationThreshold = BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
+    console.log(`[ServerCache] shouldRefreshBookmarks: cache age = ${timeSinceLastFetch}ms; threshold = ${revalidationThreshold}ms`);
+    const shouldRefresh = timeSinceLastFetch > revalidationThreshold;
 
     if (shouldRefresh) {
       console.log(`shouldRefreshBookmarks: Cache expired (${timeSinceLastFetch}ms old), refresh required`);
