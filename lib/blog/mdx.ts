@@ -48,7 +48,7 @@ import type { Pluggable } from 'unified';
 import { authors } from '../../data/blog/authors';
 import type { BlogPost } from '../../types/blog';
 // Removing unused import
-// import { ServerMDXCodeBlock } from '../../components/ui/code-block/mdx-code-block.server';
+// import { BasicMDXCodeBlock } from '../../components/ui/code-block/mdx-code-block.server';
 
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), 'data/blog/posts');
