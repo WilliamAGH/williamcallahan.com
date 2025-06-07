@@ -3,7 +3,7 @@ title: 'Kickstarting a Modern Django Project (using UV) in 2025'
 slug: 'kickstarting-a-modern-django-project-using-uv-in-2025'
 excerpt: 'A comprehensive guide to rapidly launching a Django project with modern templates, SaaS core features, SQL database integration, and popular IDE tooling.'
 publishedAt: '2025-05-07'
-updatedAt: '2025-05-07'
+updatedAt: '2025-06-06'
 author: 'william-callahan'
 tags:
   [
@@ -39,282 +39,344 @@ This part covers setting up a standard, default Django project using your prefer
 
 ### 1.1: Getting Started: Prerequisites & Setup
 
-<ShellParentTabs>
-  <ShellTab label="Python Installation" isDefault={true}>
-    <CollapseDropdown summary="Ensure Python 3 is installed">
-      <div>You'll need Python 3 (ideally a recent version like 3.8 or newer). Check if Python is installed:</div>
-      ```bash
-      python3 --version
-      ```
-      <div>If not installed, or you need a different version:</div>
-      <ul>
-        <li><strong>Official Website</strong>: Download from <ExternalLink href="https://www.python.org/downloads/">python.org</ExternalLink>.</li>
-        <li>
-          Alternative for macOS (and Linux) - <ExternalLink href="https://brew.sh/">Homebrew</ExternalLink>:
+<div className="macos-frame-tabs">
+  <div className="tab-buttons">
+    <button data-tab="python-install" className="active">Python Installation</button>
+    <button data-tab="uv-install">uv (recommended)</button>
+    <button data-tab="pip-venv">pip & venv</button>
+  </div>
+  <div className="tab-panels">
+    <div data-panel="python-install" className="active">
+      <CollapseDropdown summary="Ensure Python 3 is installed">
+        <div>You'll need Python 3 (ideally a recent version like 3.8 or newer). Check if Python is installed:</div>
 
-          Use the following command:
+```bash
+python3 --version
+```
 
-          ```bash
-          brew install python3
-          ```
-        </li>
-        <li><strong>Linux</strong>: Use your distribution's package manager (e.g., <code>sudo apt update && sudo apt install python3</code> for Debian/Ubuntu).</li>
-        <li><strong>Windows</strong>: Install from the Microsoft Store or python.org. Consider using Windows Subsystem for Linux (WSL).</li>
-      </ul>
-    </CollapseDropdown>
-  </ShellTab>
+        <div>If not installed, or you need a different version:</div>
+        <ul>
+          <li><strong>Official Website</strong>: Download from <ExternalLink href="https://www.python.org/downloads/">python.org</ExternalLink>.</li>
+          <li>
+            Alternative for macOS (and Linux) - <ExternalLink href="https://brew.sh/">Homebrew</ExternalLink>:
 
-  <ShellTab label='uv (recommended)'>
-    <CollapseDropdown summary='Install and configure uv'>
-      <div>
-        <code>uv</code> is an extremely fast Python package installer and resolver, written in Rust. It's designed as a modern, high-performance alternative to tools like{' '}
-        <code>pip</code> (the standard installer from <ExternalLink href="https://pypi.org/">PyPI</ExternalLink>, the Python Package Index) and <ExternalLink href="https://docs.conda.io/en/latest/">Conda</ExternalLink> (a broader package and environment manager). <code>uv</code> aims to replace <code>pip</code>, <code>pip-tools</code>, and <code>venv</code>.
-      </div>
-      <div>
-        <strong>Installation Methods:</strong>
-      </div>
-      <BackgroundInfo title='Important: Choose Only One Method'>
-        Select <strong>only one</strong> of the installation methods below. The official Astral install script (the first option) is generally preferred for most users.
-      </BackgroundInfo>
-      <ul>
-        <li>
-          <strong>Official Install Scripts (Cross-Platform - Preferred):</strong>
-          <div>On macOS, Linux, and Windows (WSL/Git Bash/PowerShell):</div>
-          ```bash
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          ```
-          <div>
-            Alternatively, for Windows PowerShell (if the above doesn't work
-            directly):
-          </div>
-          ```bash
-          irm https://astral.sh/uv/install.ps1 | iex
-          ```
-        </li>
-        <li>
-          <strong>Homebrew (macOS/Linux):</strong>{' '}
-          ```bash
-          brew install uv
-          ```
-        </li>
-        <li>
-          <strong>Cargo (if you have Rust installed):</strong>{' '}
-          ```bash
-          cargo install uv
-          ```
-        </li>
-        <li>
-          <strong>pip (globally or in a pre-existing venv):</strong>{' '}
-          ```bash
-          pip install uv
-          ```
-        </li>
-      </ul>
-      <div>
-        After installation, verify with: <code>uv --version</code>
-      </div>
-      <div>
-        For more details, see the{' '}
-        <ExternalLink href='https://docs.astral.sh/uv/getting-started/installation/'>
-          official <code>uv</code> installation guide.
-        </ExternalLink>
-      </div>
-    </CollapseDropdown>
-  </ShellTab>
+            Use the following command:
 
-  <ShellTab label="pip & venv">
-    <CollapseDropdown summary="Setup pip & venv">
-      <div><code>pip</code> is the standard package installer for Python. <code>venv</code> is the standard module for creating lightweight virtual environments.</div>
-      <div><strong>pip Installation/Upgrade:</strong></div>
-      <div><code>pip</code> is usually included with Python installations (version 3.4+). To ensure it's up-to-date:</div>
-      ```bash
-      python3 -m ensurepip --upgrade
-      ```
-      <div>Or, to upgrade an existing pip version:</div>
-      ```bash
-      python3 -m pip install --upgrade pip
-      ```
-      <div>Verify <code>pip</code>:</div>
-      ```bash
-      pip3 --version # or pip --version
-      ```
+```bash
+brew install python3
+```
 
-      <div><strong>venv Usage:</strong></div>
-      <div><code>venv</code> is part of the Python standard library (Python 3.3+). To create a virtual environment:</div>
+          </li>
+          <li><strong>Linux</strong>: Use your distribution's package manager (e.g., <code>sudo apt update && sudo apt install python3</code> for Debian/Ubuntu).</li>
+          <li><strong>Windows</strong>: Install from the Microsoft Store or python.org. Consider using Windows Subsystem for Linux (WSL).</li>
+        </ul>
+      </CollapseDropdown>
+    </div>
 
-      ```bash
-      python3 -m venv .venv
-      ```
+    <div data-panel="uv-install">
+      <CollapseDropdown summary='Install and configure uv'>
+        <div>
+          <code>uv</code> is an extremely fast Python package installer and resolver, written in Rust. It's designed as a modern, high-performance alternative to tools like{' '}
+          <code>pip</code> (the standard installer from <ExternalLink href="https://pypi.org/">PyPI</ExternalLink>, the Python Package Index) and <ExternalLink href="https://docs.conda.io/en/latest/">Conda</ExternalLink> (a broader package and environment manager). <code>uv</code> aims to replace <code>pip</code>, <code>pip-tools</code>, and <code>venv</code>.
+        </div>
+        <div>
+          <strong>Installation Methods:</strong>
+        </div>
+        <BackgroundInfo title='Important: Choose Only One Method'>
+          Select <strong>only one</strong> of the installation methods below. The official Astral install script (the first option) is generally preferred for most users.
+        </BackgroundInfo>
+        <ul>
+          <li>
+            <strong>Official Install Scripts (Cross-Platform - Preferred):</strong>
+            <div>On macOS, Linux, and Windows (WSL/Git Bash/PowerShell):</div>
 
-      <div>Activate the virtual environment:</div>
-      <ul>
-        <li><strong>macOS/Linux (bash/zsh):</strong> <code>source .venv/bin/activate</code></li>
-        <li><strong>Windows (Command Prompt):</strong> <code>.venv\\Scripts\\activate.bat</code></li>
-        <li><strong>Windows (PowerShell):</strong> <code>.venv\\Scripts\\Activate.ps1</code></li>
-      </ul>
-    </CollapseDropdown>
-  </ShellTab>
-</ShellParentTabs>
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+            <div>
+              Alternatively, for Windows PowerShell (if the above doesn't work
+              directly):
+            </div>
+
+```bash
+irm https://astral.sh/uv/install.ps1 | iex
+```
+
+          </li>
+          <li>
+            <strong>Homebrew (macOS/Linux):</strong>{' '}
+
+```bash
+brew install uv
+```
+
+          </li>
+          <li>
+            <strong>Cargo (if you have Rust installed):</strong>{' '}
+
+```bash
+cargo install uv
+```
+
+          </li>
+          <li>
+            <strong>pip (globally or in a pre-existing venv):</strong>{' '}
+
+```bash
+pip install uv
+```
+
+          </li>
+        </ul>
+        <div>
+          After installation, verify with: <code>uv --version</code>
+        </div>
+        <div>
+          For more details, see the{' '}
+          <ExternalLink href='https://docs.astral.sh/uv/getting-started/installation/'>
+            official <code>uv</code> installation guide.
+          </ExternalLink>
+        </div>
+      </CollapseDropdown>
+    </div>
+
+    <div data-panel="pip-venv">
+      <CollapseDropdown summary="Setup pip & venv">
+        <div><code>pip</code> is the standard package installer for Python. <code>venv</code> is the standard module for creating lightweight virtual environments.</div>
+        <div><strong>pip Installation/Upgrade:</strong></div>
+        <div><code>pip</code> is usually included with Python installations (version 3.4+). To ensure it's up-to-date:</div>
+
+```bash
+python3 -m ensurepip --upgrade
+```
+
+        <div>Or, to upgrade an existing pip version:</div>
+
+```bash
+python3 -m pip install --upgrade pip
+```
+
+        <div>Verify <code>pip</code>:</div>
+
+```bash
+pip3 --version # or pip --version
+```
+
+        <div><strong>venv Usage:</strong></div>
+        <div><code>venv</code> is part of the Python standard library (Python 3.3+). To create a virtual environment:</div>
+
+```bash
+python3 -m venv .venv
+```
+
+        <div>Activate the virtual environment:</div>
+        <ul>
+          <li><strong>macOS/Linux (bash/zsh):</strong> <code>source .venv/bin/activate</code></li>
+          <li><strong>Windows (Command Prompt):</strong> <code>.venv\\Scripts\\activate.bat</code></li>
+          <li><strong>Windows (PowerShell):</strong> <code>.venv\\Scripts\\Activate.ps1</code></li>
+        </ul>
+      </CollapseDropdown>
+    </div>
+  </div>
+</div>
 
 ### 1.2: Setting Up Your Django Project
 
-<ShellParentTabs>
-  <ShellTab label="Terminal Setup" isDefault={true}>
-    <CollapseDropdown summary="Create project & install Django">
-      <InstructionToggleTabs>
-        <InstructionTab label="uv" isDefault={true}>
-          ```bash
-          # 1. Create project directory and setup environment
-          mkdir my_django_project && cd my_django_project
-          uv venv
-          # `uv venv` creates a lightweight virtual environment in the .venv directory,
-          # isolating project dependencies from the system Python installation.
-          # For more details on how uv manages Python environments, see the official documentation: https://docs.astral.sh/uv/pip/environments/
-          uv init --bare --python-pin
-          # `uv init` sets up the project for uv's dependency management, creating
-          # a minimal pyproject.toml and a .python-version file. This is where
-          # uv will track dependencies and can generate a uv.lock file for
-          # reproducible builds.
+<div className="macos-frame-tabs">
+  <div className="tab-buttons">
+    <button data-tab="terminal-setup" className="active">Terminal Setup</button>
+    <button data-tab="vscode">VS Code</button>
+    <button data-tab="pycharm">PyCharm</button>
+  </div>
+  <div className="tab-panels">
+    <div data-panel="terminal-setup" className="active">
+      <CollapseDropdown summary="Create project & install Django">
+        <div className="instruction-tabs">
+          <div className="tab-buttons">
+            <button data-tab="uv" className="active">uv</button>
+            <button data-tab="pip">pip</button>
+          </div>
+          <div className="tab-panels">
+            <div data-panel="uv" className="active">
 
-          # 2. Install Django
-          uv add django
-          # `uv add` installs the specified package (Django) and automatically
-          # updates pyproject.toml and uv.lock to reflect the new dependency
-          # and its exact version and dependencies.
+```bash
+# 1. Create project directory and setup environment
+mkdir my_django_project && cd my_django_project
+uv venv
+# `uv venv` creates a lightweight virtual environment in the .venv directory,
+# isolating project dependencies from the system Python installation.
+# For more details on how uv manages Python environments, see the official documentation: https://docs.astral.sh/uv/pip/environments/
+uv init --bare --python-pin
+# `uv init` sets up the project for uv's dependency management, creating
+# a minimal pyproject.toml and a .python-version file. This is where
+# uv will track dependencies and can generate a uv.lock file for
+# reproducible builds.
 
-          # 3. Verify installation
-          uv run django-admin --version
-          # `uv run` executes a command within the project's virtual environment.
-          # This means you don't need to explicitly activate the environment
-          # with `source .venv/bin/activate` (or similar) every time you open a new terminal,
-          # unlike common workflows with `pip` and `venv`.
-          ```
-        </InstructionTab>
-        <InstructionTab label="pip">
-          ```bash
-          # 1. Create project directory and setup environment
-          mkdir my_django_project && cd my_django_project
-          python3 -m venv .venv
-          source .venv/bin/activate  # On Windows: .\.venv\Scripts\activate
+# 2. Install Django
+uv add django
+# `uv add` installs the specified package (Django) and automatically
+# updates pyproject.toml and uv.lock to reflect the new dependency
+# and its exact version and dependencies.
 
-          # 2. Install Django
-          pip install django
+# 3. Verify installation
+uv run django-admin --version
+# `uv run` executes a command within the project's virtual environment.
+# This means you don't need to explicitly activate the environment
+# with `source .venv/bin/activate` (or similar) every time you open a new terminal,
+# unlike common workflows with `pip` and `venv`.
+```
 
-          # 3. Verify installation
-          django-admin --version
-          ```
-        </InstructionTab>
-      </InstructionToggleTabs>
-    </CollapseDropdown>
+            </div>
+            <div data-panel="pip">
 
-    <CollapseDropdown summary='Create Django project files & run server'>
-      <div className="py-[6px]"><strong>Create the project structure:</strong></div>
-      <InstructionToggleTabs>
-        <InstructionTab label='uv' isDefault={true}>
-          ```bash
-          # Create project files (replace "config" with preferred name)
-          uv run django-admin startproject config .
+```bash
+# 1. Create project directory and setup environment
+mkdir my_django_project && cd my_django_project
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .\.venv\Scripts\activate
 
-          # Apply initial migrations
-          uv run manage.py migrate
-          # This command applies database migrations, setting up the necessary tables.
-          # By default, Django uses an SQLite database stored in a file named db.sqlite3
-          # in your project's root directory if no other database is configured.
+# 2. Install Django
+pip install django
 
-          # Run development server
-          uv run manage.py runserver
-          # This starts Django's built-in development web server.
-          ```
-        </InstructionTab>
-        <InstructionTab label='pip'>
-          ```bash
-          # Create project files (replace "config" with preferred name)
-          django-admin startproject config .
+# 3. Verify installation
+django-admin --version
+```
 
-          # Apply initial migrations
-          python manage.py migrate
-          # This command applies database migrations, setting up the necessary tables.
-          # By default, Django uses an SQLite database stored in a file named db.sqlite3
-          # in your project's root directory if no other database is configured.
+            </div>
+          </div>
+        </div>
+      </CollapseDropdown>
 
-          # Run development server
-          python manage.py runserver
-          # This starts Django's built-in development web server.
-          ```
-        </InstructionTab>
-      </InstructionToggleTabs>
-      <div className="py-[6px]">Access at <code>http://127.0.0.1:8000/</code>. Stop server with <code>Ctrl+C</code>.</div>
+      <CollapseDropdown summary='Create Django project files & run server'>
+        <div className="py-[6px]"><strong>Create the project structure:</strong></div>
+        <div className="instruction-tabs">
+          <div className="tab-buttons">
+            <button data-tab='uv-project' className="active">uv</button>
+            <button data-tab='pip-project'>pip</button>
+          </div>
+          <div className="tab-panels">
+            <div data-panel='uv-project' className="active">
 
-      <div><strong>Create Superuser (Optional but recommended):</strong></div>
-      <InstructionToggleTabs>
-        <InstructionTab label='uv' isDefault={true}>
-          ```bash
-          uv run manage.py createsuperuser
-          ```
-        </InstructionTab>
-        <InstructionTab label='pip'>
-          ```bash
-          python manage.py createsuperuser
-          ```
-        </InstructionTab>
-      </InstructionToggleTabs>
-      <div className="py-[6px]">Follow prompts for username/password.</div>
-    </CollapseDropdown>
-  </ShellTab>
+```bash
+# Create project files (replace "config" with preferred name)
+uv run django-admin startproject config .
 
-  <ShellTab label="VS Code">
-    <CollapseDropdown summary="Setup VS Code for Django development">
-      <div><strong>1. Install Extensions:</strong></div>
-      <ul>
-        <li><strong>Python (Microsoft)</strong></li>
-        <li><strong>Pylance (Microsoft)</strong></li>
-        <li><strong>Django (Baptiste Darthenay)</strong> - Adds Django-specific features</li>
-      </ul>
+# Apply initial migrations
+uv run manage.py migrate
+# This command applies database migrations, setting up the necessary tables.
+# By default, Django uses an SQLite database stored in a file named db.sqlite3
+# in your project's root directory if no other database is configured.
 
-      <div><strong>2. Open Project & Configure:</strong></div>
-      <ul>
-        <li>Open your project folder in VS Code</li>
-        <li>Select Python interpreter from your virtual environment via Command Palette (<strong>Cmd+Shift+P</strong> / <strong>Ctrl+Shift+P</strong>) > "Python: Select Interpreter"</li>
-        <li>Use VS Code's integrated terminal to run Django commands</li>
-      </ul>
+# Run development server
+uv run manage.py runserver
+# This starts Django's built-in development web server.
+```
 
-      <div><strong>3. Run & Debug:</strong></div>
-      <ul>
-        <li>Use integrated terminal to run server with commands from Terminal tab</li>
-        <li>Configure <code>.vscode/launch.json</code> for debugging</li>
-      </ul>
-    </CollapseDropdown>
-  </ShellTab>
+            </div>
+            <div data-panel='pip-project'>
 
-  <ShellTab label="PyCharm">
-    <CollapseDropdown summary="Setup PyCharm for Django development">
-      <div><strong>1. Create New Project:</strong></div>
-      <ul>
-        <li>Go to <strong>File > New Project</strong></li>
-        <li>Select <strong>Django</strong> from the left panel</li>
-        <li>Configure location and environment (uv or Virtualenv)</li>
-        <li>PyCharm will create the project structure and virtual environment</li>
-      </ul>
+```bash
+# Create project files (replace "config" with preferred name)
+django-admin startproject config .
 
-      <div>
-        If the project wizard (like in PyCharm) automatically sets up <code>uv</code> and a <code>pyproject.toml</code> file, you typically just need to run <code>uv sync</code> in the project directory to install the defined packages. After that, you can use <code>uv run</code> for all your commands (e.g., <code>uv run manage.py migrate</code>), as uv automatically handles the virtual environment activation.
-      </div>
+# Apply initial migrations
+python manage.py migrate
+# This command applies database migrations, setting up the necessary tables.
+# By default, Django uses an SQLite database stored in a file named db.sqlite3
+# in your project's root directory if no other database is configured.
 
-      <ArticleImage
-        src="/images/posts/new-django-project-pycharm.png"
-        alt="PyCharm New Project dialog showing Django selected with 'uv' as the environment type"
-        caption="PyCharm's New Project wizard creating a default Django project."
-      />
+# Run development server
+python manage.py runserver
+# This starts Django's built-in development web server.
+```
 
-      <div><strong>2. Run & Manage:</strong></div>
-      <ul>
-        <li>Use the built-in "Django server" run configuration</li>
-        <li>Execute manage.py tasks via Terminal or <strong>Tools > Run manage.py Task...</strong></li>
-        <li>Debug with the Debug button using the "Django server" configuration</li>
-      </ul>
-    </CollapseDropdown>
-  </ShellTab>
-</ShellParentTabs>
+            </div>
+          </div>
+        </div>
+        <div className="py-[6px]">Access at <code>http://127.0.0.1:8000/</code>. Stop server with <code>Ctrl+C</code>.</div>
+
+        <div><strong>Create Superuser (Optional but recommended):</strong></div>
+        <div className="instruction-tabs">
+          <div className="tab-buttons">
+            <button data-tab='uv-superuser' className="active">uv</button>
+            <button data-tab='pip-superuser'>pip</button>
+          </div>
+          <div className="tab-panels">
+            <div data-panel='uv-superuser' className="active">
+
+```bash
+uv run manage.py createsuperuser
+```
+
+            </div>
+            <div data-panel='pip-superuser'>
+
+```bash
+python manage.py createsuperuser
+```
+
+            </div>
+          </div>
+        </div>
+        <div className="py-[6px]">Follow prompts for username/password.</div>
+      </CollapseDropdown>
+    </div>
+
+    <div data-panel="vscode">
+      <CollapseDropdown summary="Setup VS Code for Django development">
+        <div><strong>1. Install Extensions:</strong></div>
+        <ul>
+          <li><strong>Python (Microsoft)</strong></li>
+          <li><strong>Pylance (Microsoft)</strong></li>
+          <li><strong>Django (Baptiste Darthenay)</strong> - Adds Django-specific features</li>
+        </ul>
+
+        <div><strong>2. Open Project & Configure:</strong></div>
+        <ul>
+          <li>Open your project folder in VS Code</li>
+          <li>Select Python interpreter from your virtual environment via Command Palette (<strong>Cmd+Shift+P</strong> / <strong>Ctrl+Shift+P</strong>) > "Python: Select Interpreter"</li>
+          <li>Use VS Code's integrated terminal to run Django commands</li>
+        </ul>
+
+        <div><strong>3. Run & Debug:</strong></div>
+        <ul>
+          <li>Use integrated terminal to run server with commands from Terminal tab</li>
+          <li>Configure <code>.vscode/launch.json</code> for debugging</li>
+        </ul>
+      </CollapseDropdown>
+    </div>
+
+    <div data-panel="pycharm">
+      <CollapseDropdown summary="Setup PyCharm for Django development">
+        <div><strong>1. Create New Project:</strong></div>
+        <ul>
+          <li>Go to <strong>File > New Project</strong></li>
+          <li>Select <strong>Django</strong> from the left panel</li>
+          <li>Configure location and environment (uv or Virtualenv)</li>
+          <li>PyCharm will create the project structure and virtual environment</li>
+        </ul>
+
+        <div>
+          If the project wizard (like in PyCharm) automatically sets up <code>uv</code> and a <code>pyproject.toml</code> file, you typically just need to run <code>uv sync</code> in the project directory to install the defined packages. After that, you can use <code>uv run</code> for all your commands (e.g., <code>uv run manage.py migrate</code>), as uv automatically handles the virtual environment activation.
+        </div>
+
+        <ArticleImage
+          src="/images/posts/new-django-project-pycharm.png"
+          alt="PyCharm New Project dialog showing Django selected with 'uv' as the environment type"
+          caption="PyCharm's New Project wizard creating a default Django project."
+        />
+
+        <div><strong>2. Run & Manage:</strong></div>
+        <ul>
+          <li>Use the built-in "Django server" run configuration</li>
+          <li>Execute manage.py tasks via Terminal or <strong>Tools > Run manage.py Task...</strong></li>
+          <li>Debug with the Debug button using the "Django server" configuration</li>
+        </ul>
+      </CollapseDropdown>
+    </div>
+  </div>
+</div>
 
 <BackgroundInfo title='Next Steps'>
 Now that you have a basic Django project running using your preferred setup
@@ -331,18 +393,28 @@ With the default project running, let's create your first Django app and underst
   <div className="py-[6px]">Django projects are composed of one or more "apps." An app is a self-contained module that handles a specific piece of functionality.</div>
 
   <div className="py-[6px]"><strong>1. Create the App:</strong></div>
-  <InstructionToggleTabs>
-    <InstructionTab label='uv' isDefault={true}>
-      ```bash
-      uv run manage.py startapp my_first_app
-      ```
-    </InstructionTab>
-    <InstructionTab label='pip'>
-      ```bash
-      python manage.py startapp my_first_app
-      ```
-    </InstructionTab>
-  </InstructionToggleTabs>
+  <div className="instruction-tabs">
+    <div className="tab-buttons">
+      <button data-tab='uv-app' className="active">uv</button>
+      <button data-tab='pip-app'>pip</button>
+    </div>
+    <div className="tab-panels">
+      <div data-panel='uv-app' className="active">
+
+```bash
+uv run manage.py startapp my_first_app
+```
+
+      </div>
+      <div data-panel='pip-app'>
+
+```bash
+python manage.py startapp my_first_app
+```
+
+      </div>
+    </div>
+  </div>
 
   <BackgroundInfo title='App Naming Tip'>
     When naming your Django app, it may be required to use lowercase alphabet-only characters and avoid special characters like underscores (e.g., avoid "my_first_app").
@@ -372,26 +444,36 @@ With the default project running, let's create your first Django app and underst
   ```
 
   <div className="py-[6px]"><strong>4. Create & Apply Migrations:</strong></div>
-  <InstructionToggleTabs>
-    <InstructionTab label='uv' isDefault={true}>
-      ```bash
-      # Generate migration files
-      uv run manage.py makemigrations my_first_app
+  <div className="instruction-tabs">
+    <div className="tab-buttons">
+      <button data-tab='uv-migrate' className="active">uv</button>
+      <button data-tab='pip-migrate'>pip</button>
+    </div>
+    <div className="tab-panels">
+      <div data-panel='uv-migrate' className="active">
 
-      # Apply migrations to database
-      uv run manage.py migrate
-      ```
-    </InstructionTab>
-    <InstructionTab label='pip'>
-      ```bash
-      # Generate migration files
-      python manage.py makemigrations my_first_app
+```bash
+# Generate migration files
+uv run manage.py makemigrations my_first_app
 
-      # Apply migrations to database
-      python manage.py migrate
-      ```
-    </InstructionTab>
-  </InstructionToggleTabs>
+# Apply migrations to database
+uv run manage.py migrate
+```
+
+      </div>
+      <div data-panel='pip-migrate'>
+
+```bash
+# Generate migration files
+python manage.py makemigrations my_first_app
+
+# Apply migrations to database
+python manage.py migrate
+```
+
+      </div>
+    </div>
+  </div>
 </CollapseDropdown>
 
 <CollapseDropdown summary="Create views and URL configuration">
@@ -496,117 +578,180 @@ These templates reduce boilerplate for common functionalities (auth, UI componen
   <div>Most templates provide detailed setup instructions, but here's a general workflow:</div>
 
   <div><strong>1. Generate or Clone the Template:</strong></div>
-  <ShellParentTabs>
-    <ShellTab label="Using Cookiecutter" isDefault={true}>
-      <InstructionToggleTabs>
-        <InstructionTab label="uv" isDefault={true}>
-          ```bash
-          # Install cookiecutter if needed
-          uv add cookiecutter
+  <div className="macos-frame-tabs">
+    <div className="tab-buttons">
+      <button data-tab="cookiecutter" className="active">Using Cookiecutter</button>
+      <button data-tab="git-clone">Using git clone</button>
+    </div>
+    <div className="tab-panels">
+      <div data-panel="cookiecutter" className="active">
+        <div className="instruction-tabs">
+          <div className="tab-buttons">
+            <button data-tab="uv-cookie" className="active">uv</button>
+            <button data-tab="pip-cookie">pip</button>
+          </div>
+          <div className="tab-panels">
+            <div data-panel="uv-cookie" className="active">
 
-          # Generate project from template
-          uv run cookiecutter gh:cookiecutter/cookiecutter-django
-          ```
-        </InstructionTab>
-        <InstructionTab label="pip">
-          ```bash
-          # Install cookiecutter if needed
-          pip install cookiecutter
+```bash
+# Install cookiecutter if needed
+uv add cookiecutter
 
-          # Generate project from template
-          cookiecutter gh:cookiecutter/cookiecutter-django
-          ```
-        </InstructionTab>
-      </InstructionToggleTabs>
-    </ShellTab>
-    <ShellTab label="Using git clone">
-      ```bash
-      # Clone directly from repository
-      git clone <repository_url> my_modern_project
-      cd my_modern_project
-      ```
-    </ShellTab>
-  </ShellParentTabs>
+# Generate project from template
+uv run cookiecutter gh:cookiecutter/cookiecutter-django
+```
+
+            </div>
+            <div data-panel="pip-cookie">
+
+```bash
+# Install cookiecutter if needed
+pip install cookiecutter
+
+# Generate project from template
+cookiecutter gh:cookiecutter/cookiecutter-django
+```
+
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-panel="git-clone">
+
+```bash
+# Clone directly from repository
+git clone <repository_url> my_modern_project
+cd my_modern_project
+```
+
+      </div>
+    </div>
+  </div>
 
   <div><strong>2. Install Dependencies:</strong></div>
-  <ShellParentTabs>
-    <ShellTab label="pyproject.toml" isDefault={true}>
-      <InstructionToggleTabs>
-        <InstructionTab label="uv" isDefault={true}>
-          ```bash
-          # Sync dependencies using uv
-          uv sync
-          # `uv sync` installs the exact dependencies specified in the uv.lock file,
-          # ensuring that everyone working on the project has the same environment.
-          ```
-        </InstructionTab>
-        <InstructionTab label="Poetry">
-          ```bash
-          # Install dependencies using Poetry
-          poetry install
-          ```
-        </InstructionTab>
-        <InstructionTab label="PDM">
-          ```bash
-          # Install dependencies using PDM
-          pdm install
-          ```
-        </InstructionTab>
-      </InstructionToggleTabs>
-    </ShellTab>
-    <ShellTab label="requirements.txt">
-      <InstructionToggleTabs>
-        <InstructionTab label="uv" isDefault={true}>
-          ```bash
-          # Using uv with a new virtual environment
-          uv venv
-          uv pip install -r requirements.txt
+  <div className="macos-frame-tabs">
+    <div className="tab-buttons">
+      <button data-tab="pyproject" className="active">pyproject.toml</button>
+      <button data-tab="requirements">requirements.txt</button>
+      <button data-tab="docker">Docker</button>
+    </div>
+    <div className="tab-panels">
+      <div data-panel="pyproject" className="active">
+        <div className="instruction-tabs">
+          <div className="tab-buttons">
+            <button data-tab="uv-sync" className="active">uv</button>
+            <button data-tab="poetry">Poetry</button>
+            <button data-tab="pdm">PDM</button>
+          </div>
+          <div className="tab-panels">
+            <div data-panel="uv-sync" className="active">
 
-          # Or import into existing uv project
-          uv add -r requirements.txt
-          ```
-        </InstructionTab>
-        <InstructionTab label="pip">
-          ```bash
-          # Create and activate virtual environment
-          python3 -m venv .venv
-          source .venv/bin/activate  # On Windows: .\.venv\Scripts\activate
+```bash
+# Sync dependencies using uv
+uv sync
+# `uv sync` installs the exact dependencies specified in the uv.lock file,
+# ensuring that everyone working on the project has the same environment.
+```
 
-          # Install dependencies
-          pip install -r requirements.txt
-          ```
-        </InstructionTab>
-      </InstructionToggleTabs>
-    </ShellTab>
-    <ShellTab label="Docker">
-      ```bash
-      # Build and start containers
-      docker-compose up --build
-      ```
-    </ShellTab>
-  </ShellParentTabs>
+            </div>
+            <div data-panel="poetry">
+
+```bash
+# Install dependencies using Poetry
+poetry install
+```
+
+            </div>
+            <div data-panel="pdm">
+
+```bash
+# Install dependencies using PDM
+pdm install
+```
+
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-panel="requirements">
+        <div className="instruction-tabs">
+          <div className="tab-buttons">
+            <button data-tab="uv-req" className="active">uv</button>
+            <button data-tab="pip-req">pip</button>
+          </div>
+          <div className="tab-panels">
+            <div data-panel="uv-req" className="active">
+
+```bash
+# Using uv with a new virtual environment
+uv venv
+uv pip install -r requirements.txt
+
+# Or import into existing uv project
+uv add -r requirements.txt
+```
+
+            </div>
+            <div data-panel="pip-req">
+
+```bash
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .\.venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-panel="docker">
+
+```bash
+# Build and start containers
+docker-compose up --build
+```
+
+      </div>
+    </div>
+  </div>
 
   <div><strong>3. Configure Settings:</strong></div>
   <div>Adjust environment variables or settings according to template documentation.</div>
 
   <div><strong>4. Run Initial Setup/Migrations:</strong></div>
-  <InstructionToggleTabs>
-    <InstructionTab label="uv" isDefault={true}>
-      ```bash
-      uv run manage.py migrate
-      ```
-    </InstructionTab>
-    <InstructionTab label="pip">
-      ```bash
-      python manage.py migrate
-      ```
-    </InstructionTab>
-    <InstructionTab label="Docker">
-      ```bash
-      docker-compose exec web python manage.py migrate
-      ```
-    </InstructionTab>
-  </InstructionToggleTabs>
+  <div className="instruction-tabs">
+    <div className="tab-buttons">
+      <button data-tab="uv-setup" className="active">uv</button>
+      <button data-tab="pip-setup">pip</button>
+      <button data-tab="docker-setup">Docker</button>
+    </div>
+    <div className="tab-panels">
+      <div data-panel="uv-setup" className="active">
+
+```bash
+uv run manage.py migrate
+```
+
+      </div>
+      <div data-panel="pip-setup">
+
+```bash
+python manage.py migrate
+```
+
+      </div>
+      <div data-panel="docker-setup">
+
+```bash
+docker-compose exec web python manage.py migrate
+```
+
+      </div>
+    </div>
+  </div>
 </CollapseDropdown>
 
 ---
@@ -625,70 +770,106 @@ Django offers robust features for web applications:
   <div>PostgreSQL or MySQL are recommended for production. SQLite (default) works for development.</div>
 
   <div><strong>2. Install Database Drivers:</strong></div>
-  <ShellParentTabs>
-    <ShellTab label="PostgreSQL" isDefault={true}>
-      <InstructionToggleTabs>
-        <InstructionTab label="uv" isDefault={true}>
-          ```bash
-          uv add psycopg2-binary
-          ```
-        </InstructionTab>
-        <InstructionTab label="pip">
-          ```bash
-          pip install psycopg2-binary
-          ```
-        </InstructionTab>
-      </InstructionToggleTabs>
-    </ShellTab>
-    <ShellTab label="MySQL">
-      <InstructionToggleTabs>
-        <InstructionTab label="uv" isDefault={true}>
-          ```bash
-          uv add mysqlclient
-          ```
-        </InstructionTab>
-        <InstructionTab label="pip">
-          ```bash
-          pip install mysqlclient
-          ```
-        </InstructionTab>
-      </InstructionToggleTabs>
-    </ShellTab>
-  </ShellParentTabs>
+  <div className="macos-frame-tabs">
+    <div className="tab-buttons">
+      <button data-tab="postgresql" className="active">PostgreSQL</button>
+      <button data-tab="mysql">MySQL</button>
+    </div>
+    <div className="tab-panels">
+      <div data-panel="postgresql" className="active">
+        <div className="instruction-tabs">
+          <div className="tab-buttons">
+            <button data-tab="uv-postgres" className="active">uv</button>
+            <button data-tab="pip-postgres">pip</button>
+          </div>
+          <div className="tab-panels">
+            <div data-panel="uv-postgres" className="active">
+
+```bash
+uv add psycopg2-binary
+```
+
+            </div>
+            <div data-panel="pip-postgres">
+
+```bash
+pip install psycopg2-binary
+```
+
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-panel="mysql">
+        <div className="instruction-tabs">
+          <div className="tab-buttons">
+            <button data-tab="uv-mysql" className="active">uv</button>
+            <button data-tab="pip-mysql">pip</button>
+          </div>
+          <div className="tab-panels">
+            <div data-panel="uv-mysql" className="active">
+
+```bash
+uv add mysqlclient
+```
+
+            </div>
+            <div data-panel="pip-mysql">
+
+```bash
+pip install mysqlclient
+```
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div><strong>3. Configure Database in settings.py:</strong></div>
   <div>Update the <code>DATABASES</code> dictionary in <code>settings.py</code>:</div>
 
-  <ShellParentTabs>
-    <ShellTab label="PostgreSQL" isDefault={true}>
-      ```python
-      DATABASES = {
-          'default': {
-              'ENGINE': 'django.db.backends.postgresql',
-              'NAME': 'mydatabase',
-              'USER': 'mydatabaseuser',
-              'PASSWORD': 'mypassword',
-              'HOST': '127.0.0.1',
-              'PORT': '5432',
-          }
-      }
-      ```
-    </ShellTab>
-    <ShellTab label="MySQL">
-      ```python
-      DATABASES = {
-          'default': {
-              'ENGINE': 'django.db.backends.mysql',
-              'NAME': 'mydatabase',
-              'USER': 'mydatabaseuser',
-              'PASSWORD': 'mypassword',
-              'HOST': '127.0.0.1',
-              'PORT': '3306',
-          }
-      }
-      ```
-    </ShellTab>
-  </ShellParentTabs>
+  <div className="macos-frame-tabs">
+    <div className="tab-buttons">
+      <button data-tab="postgres-config" className="active">PostgreSQL</button>
+      <button data-tab="mysql-config">MySQL</button>
+    </div>
+    <div className="tab-panels">
+      <div data-panel="postgres-config" className="active">
+
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'mydatabase',
+        'USER': 'mydatabaseuser',
+        'PASSWORD': 'mypassword',
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
+    }
+}
+```
+
+      </div>
+      <div data-panel="mysql-config">
+
+```python
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'mydatabase',
+        'USER': 'mydatabaseuser',
+        'PASSWORD': 'mypassword',
+        'HOST': '127.0.0.1',
+        'PORT': '3306',
+    }
+}
+```
+
+      </div>
+    </div>
+  </div>
 
   <BackgroundInfo title='Database Credentials Tip'>
     For production, use environment variables for database credentials, not hardcoded values:
@@ -741,134 +922,193 @@ Django offers robust features for web applications:
 
 Execute from project root with virtual environment active.
 
-<ShellParentTabs>
-  <ShellTab label="Development Server" isDefault={true}>
-    <InstructionToggleTabs>
-      <InstructionTab label="uv" isDefault={true}>
-        ```bash
-        # Start development server
-        uv run manage.py runserver
+<div className="macos-frame-tabs">
+  <div className="tab-buttons">
+    <button data-tab="dev-server" className="active">Development Server</button>
+    <button data-tab="db-mgmt">Database Management</button>
+    <button data-tab="user-mgmt">User Management</button>
+    <button data-tab="shell-test">Shell & Testing</button>
+    <button data-tab="static-files">Static Files</button>
+  </div>
+  <div className="tab-panels">
+    <div data-panel="dev-server" className="active">
+      <div className="instruction-tabs">
+        <div className="tab-buttons">
+          <button data-tab="uv-server" className="active">uv</button>
+          <button data-tab="pip-server">pip</button>
+        </div>
+        <div className="tab-panels">
+          <div data-panel="uv-server" className="active">
 
-        # Optional: specify port
-        uv run manage.py runserver 8080
-        ```
-      </InstructionTab>
-      <InstructionTab label="pip">
-        ```bash
-        # Start development server
-        python manage.py runserver
+```bash
+# Start development server
+uv run manage.py runserver
 
-        # Optional: specify port
-        python manage.py runserver 8080
-        ```
-      </InstructionTab>
-    </InstructionToggleTabs>
-  </ShellTab>
+# Optional: specify port
+uv run manage.py runserver 8080
+```
 
-  <ShellTab label="Database Management">
-    <InstructionToggleTabs>
-      <InstructionTab label="uv" isDefault={true}>
-        ```bash
-        # Create migrations based on model changes
-        uv run manage.py makemigrations
+          </div>
+          <div data-panel="pip-server">
 
-        # Apply migrations to the database
-        uv run manage.py migrate
+```bash
+# Start development server
+python manage.py runserver
 
-        # Show migration status
-        uv run manage.py showmigrations
-        ```
-      </InstructionTab>
-      <InstructionTab label="pip">
-        ```bash
-        # Create migrations based on model changes
-        python manage.py makemigrations
+# Optional: specify port
+python manage.py runserver 8080
+```
 
-        # Apply migrations to the database
-        python manage.py migrate
+          </div>
+        </div>
+      </div>
+    </div>
 
-        # Show migration status
-        python manage.py showmigrations
-        ```
-      </InstructionTab>
-    </InstructionToggleTabs>
-  </ShellTab>
+    <div data-panel="db-mgmt">
+      <div className="instruction-tabs">
+        <div className="tab-buttons">
+          <button data-tab="uv-db" className="active">uv</button>
+          <button data-tab="pip-db">pip</button>
+        </div>
+        <div className="tab-panels">
+          <div data-panel="uv-db" className="active">
 
-  <ShellTab label="User Management">
-    <InstructionToggleTabs>
-      <InstructionTab label="uv" isDefault={true}>
-        ```bash
-        # Create superuser (admin)
-        uv run manage.py createsuperuser
+```bash
+# Create migrations based on model changes
+uv run manage.py makemigrations
 
-        # Change user password
-        uv run manage.py changepassword username
-        ```
-      </InstructionTab>
-      <InstructionTab label="pip">
-        ```bash
-        # Create superuser (admin)
-        python manage.py createsuperuser
+# Apply migrations to the database
+uv run manage.py migrate
 
-        # Change user password
-        python manage.py changepassword username
-        ```
-      </InstructionTab>
-    </InstructionToggleTabs>
-  </ShellTab>
+# Show migration status
+uv run manage.py showmigrations
+```
 
-  <ShellTab label="Shell & Testing">
-    <InstructionToggleTabs>
-      <InstructionTab label="uv" isDefault={true}>
-        ```bash
-        # Start interactive Python shell with Django context
-        uv run manage.py shell
+          </div>
+          <div data-panel="pip-db">
 
-        # Run tests
-        uv run manage.py test
+```bash
+# Create migrations based on model changes
+python manage.py makemigrations
 
-        # Run specific tests
-        uv run manage.py test app_name.tests.test_module
-        ```
-      </InstructionTab>
-      <InstructionTab label="pip">
-        ```bash
-        # Start interactive Python shell with Django context
-        python manage.py shell
+# Apply migrations to the database
+python manage.py migrate
 
-        # Run tests
-        python manage.py test
+# Show migration status
+python manage.py showmigrations
+```
 
-        # Run specific tests
-        python manage.py test app_name.tests.test_module
-        ```
-      </InstructionTab>
-    </InstructionToggleTabs>
-  </ShellTab>
+          </div>
+        </div>
+      </div>
+    </div>
 
-  <ShellTab label="Static Files">
-    <InstructionToggleTabs>
-      <InstructionTab label="uv" isDefault={true}>
-        ```bash
-        # Collect static files to STATIC_ROOT
-        uv run manage.py collectstatic
+    <div data-panel="user-mgmt">
+      <div className="instruction-tabs">
+        <div className="tab-buttons">
+          <button data-tab="uv-user" className="active">uv</button>
+          <button data-tab="pip-user">pip</button>
+        </div>
+        <div className="tab-panels">
+          <div data-panel="uv-user" className="active">
 
-        # Find unused static files
-        uv run manage.py findstatic --first filename.ext
-        ```
-      </InstructionTab>
-      <InstructionTab label="pip">
-        ```bash
-        # Collect static files to STATIC_ROOT
-        python manage.py collectstatic
+```bash
+# Create superuser (admin)
+uv run manage.py createsuperuser
 
-        # Find unused static files
-        python manage.py findstatic --first filename.ext
-        ```
-      </InstructionTab>
-    </InstructionToggleTabs>
-  </ShellTab>
-</ShellParentTabs>
+# Change user password
+uv run manage.py changepassword username
+```
+
+          </div>
+          <div data-panel="pip-user">
+
+```bash
+# Create superuser (admin)
+python manage.py createsuperuser
+
+# Change user password
+python manage.py changepassword username
+```
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div data-panel="shell-test">
+      <div className="instruction-tabs">
+        <div className="tab-buttons">
+          <button data-tab="uv-shell" className="active">uv</button>
+          <button data-tab="pip-shell">pip</button>
+        </div>
+        <div className="tab-panels">
+          <div data-panel="uv-shell" className="active">
+
+```bash
+# Start interactive Python shell with Django context
+uv run manage.py shell
+
+# Run tests
+uv run manage.py test
+
+# Run specific tests
+uv run manage.py test app_name.tests.test_module
+```
+
+          </div>
+          <div data-panel="pip-shell">
+
+```bash
+# Start interactive Python shell with Django context
+python manage.py shell
+
+# Run tests
+python manage.py test
+
+# Run specific tests
+python manage.py test app_name.tests.test_module
+```
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div data-panel="static-files">
+      <div className="instruction-tabs">
+        <div className="tab-buttons">
+          <button data-tab="uv-static" className="active">uv</button>
+          <button data-tab="pip-static">pip</button>
+        </div>
+        <div className="tab-panels">
+          <div data-panel="uv-static" className="active">
+
+```bash
+# Collect static files to STATIC_ROOT
+uv run manage.py collectstatic
+
+# Find unused static files
+uv run manage.py findstatic --first filename.ext
+```
+
+          </div>
+          <div data-panel="pip-static">
+
+```bash
+# Collect static files to STATIC_ROOT
+python manage.py collectstatic
+
+# Find unused static files
+python manage.py findstatic --first filename.ext
+```
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 ---
 
@@ -938,26 +1178,36 @@ For a deeper dive into some deployment strategies and easy deployment options, I
     <li>Check if package is installed:</li>
   </ul>
 
-  <InstructionToggleTabs>
-    <InstructionTab label="uv" isDefault={true}>
-      ```bash
-      # Install package
-      uv add <package_name>
+  <div className="instruction-tabs">
+    <div className="tab-buttons">
+      <button data-tab="uv-pkg" className="active">uv</button>
+      <button data-tab="pip-pkg">pip</button>
+    </div>
+    <div className="tab-panels">
+      <div data-panel="uv-pkg" className="active">
 
-      # Verify installed packages
-      uv pip list
-      ```
-    </InstructionTab>
-    <InstructionTab label="pip">
-      ```bash
-      # Install package
-      pip install <package_name>
+```bash
+# Install package
+uv add <package_name>
 
-      # Verify installed packages
-      pip list
-      ```
-    </InstructionTab>
-  </InstructionToggleTabs>
+# Verify installed packages
+uv pip list
+```
+
+      </div>
+      <div data-panel="pip-pkg">
+
+```bash
+# Install package
+pip install <package_name>
+
+# Verify installed packages
+pip list
+```
+
+      </div>
+    </div>
+  </div>
 
   <div><strong>Other Import Issues:</strong></div>
   <ul>
@@ -977,18 +1227,28 @@ For a deeper dive into some deployment strategies and easy deployment options, I
   </ul>
 
   <div><strong>Using Django Shell for Debugging:</strong></div>
-  <InstructionToggleTabs>
-    <InstructionTab label="uv" isDefault={true}>
-      ```bash
-      uv run manage.py shell
-      ```
-    </InstructionTab>
-    <InstructionTab label="pip">
-      ```bash
-      python manage.py shell
-      ```
-    </InstructionTab>
-  </InstructionToggleTabs>
+  <div className="instruction-tabs">
+    <div className="tab-buttons">
+      <button data-tab="uv-debug" className="active">uv</button>
+      <button data-tab="pip-debug">pip</button>
+    </div>
+    <div className="tab-panels">
+      <div data-panel="uv-debug" className="active">
+
+```bash
+uv run manage.py shell
+```
+
+      </div>
+      <div data-panel="pip-debug">
+
+```bash
+python manage.py shell
+```
+
+      </div>
+    </div>
+  </div>
 
   <div>Example shell session for debugging models:</div>
   ```python

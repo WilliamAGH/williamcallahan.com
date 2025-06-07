@@ -3,7 +3,7 @@ title: "Setting Up a Modern Spring Boot Web Server with REST API & Web Content (
 slug: "setting-up-modern-spring-boot-web-server-rest-api-web-content-2025-guide"
 excerpt: "A comprehensive guide to creating a Spring Boot application with RESTful APIs and static web content using Maven and IntelliJ IDEA's latest features in modern Java."
 publishedAt: "2025-05-12"
-updatedAt: "2025-05-12"
+updatedAt: "2025-06-06"
 author: "william-callahan"
 tags:
   [
@@ -19,7 +19,7 @@ tags:
 coverImage: "/images/posts/spring-for-java.png"
 ---
 
-import { BackgroundInfo, CollapseDropdown, ShellParentTabs, ShellTab, InstructionToggleTabs, InstructionTab, ArticleImage, ExternalLink } from '@/components/utils/index';
+import { BackgroundInfo, CollapseDropdown, ArticleImage, ExternalLink } from '@/components/utils/index';
 
 <BackgroundInfo title="Related Java Setup Guides">
 - <ExternalLink href="/blog/project-level-java-maven-gradle-versioning">Core Guide: Java, Maven & Gradle Setup & Usage</ExternalLink>
@@ -38,35 +38,43 @@ This guide covers creating a Spring Boot application. Key aspects:
 
 ## Part 1: Create a Spring Boot Project
 
-<ShellParentTabs>
-  <ShellTab label="Maven + start.spring.io" isDefault={true}>
-    <CollapseDropdown summary="Generate project via CLI (start.spring.io)">
-      <div>Use <code>curl</code> to fetch and unpack a new Spring Boot starter:</div>
-      ```bash
-      curl https://start.spring.io/starter.zip \
-        -d dependencies=web,devtools,thymeleaf \
-        -d type=maven-project \
-        -d language=java \
-        -d javaVersion=21 \
-        -d groupId=com.example \
-        -d artifactId=myspringbootapp \
-        -d name=MySpringBootApp \
-        -d packageName=com.example.myspringbootapp \
-        | tar -xzvf -
-      ```
-    </CollapseDropdown>
-  </ShellTab>
-  <ShellTab label="IntelliJ IDEA">
-    <CollapseDropdown summary="Using Spring Initializr in IntelliJ IDEA">
-      <ol>
-        <li>In IntelliJ IDEA: File > New > Project… &rarr; Spring Initializr</li>
-        <li>Configure Group <code>com.example</code>, Artifact <code>myspringbootapp</code>, Packaging Jar, Java 21</li>
-        <li>Add Dependencies: Spring Web, Spring Boot DevTools</li>
-        <li>Click Create to generate the project</li>
-      </ol>
-    </CollapseDropdown>
-  </ShellTab>
-</ShellParentTabs>
+<div className="macos-frame-tabs">
+  <div className="tab-buttons">
+    <button data-tab="maven-cli" className="active">Maven + start.spring.io</button>
+    <button data-tab="intellij">IntelliJ IDEA</button>
+  </div>
+  <div className="tab-panels">
+    <div data-panel="maven-cli" className="active">
+      <CollapseDropdown summary="Generate project via CLI (start.spring.io)">
+        <div>Use <code>curl</code> to fetch and unpack a new Spring Boot starter:</div>
+
+```bash
+curl https://start.spring.io/starter.zip \
+  -d dependencies=web,devtools,thymeleaf \
+  -d type=maven-project \
+  -d language=java \
+  -d javaVersion=21 \
+  -d groupId=com.example \
+  -d artifactId=myspringbootapp \
+  -d name=MySpringBootApp \
+  -d packageName=com.example.myspringbootapp \
+  | tar -xzvf -
+```
+
+      </CollapseDropdown>
+    </div>
+    <div data-panel="intellij">
+      <CollapseDropdown summary="Using Spring Initializr in IntelliJ IDEA">
+        <ol>
+          <li>In IntelliJ IDEA: File > New > Project… &rarr; Spring Initializr</li>
+          <li>Configure Group <code>com.example</code>, Artifact <code>myspringbootapp</code>, Packaging Jar, Java 21</li>
+          <li>Add Dependencies: Spring Web, Spring Boot DevTools</li>
+          <li>Click Create to generate the project</li>
+        </ol>
+      </CollapseDropdown>
+    </div>
+  </div>
+</div>
 
 <CollapseDropdown summary="Project structure">
 - `src/main/java` - Application code (`MySpringBootAppApplication.java`)
