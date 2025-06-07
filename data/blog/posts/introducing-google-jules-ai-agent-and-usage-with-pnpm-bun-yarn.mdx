@@ -3,7 +3,7 @@ title: "Google's Jules AI Agent: Autonomous Coding and Environment Setup Guide"
 slug: "google-jules-ai-agent-launched-and-pnpm-bun-yarn-environment-setup"
 excerpt: "A hands-on look at Google's new Jules AI coding agent, its key capabilities, and how to configure your development environment for full autonomous abilities in Jules."
 publishedAt: "2025-05-21"
-updatedAt: "2025-05-22"
+updatedAt: "2025-06-06"
 author: "william-callahan"
 tags: ["ai", "google", "jules", "package-managers", "pnpm", "bun", "yarn", "coding-agents"]
 coverImage: "/images/posts/jules-ai.png"
@@ -64,56 +64,66 @@ Once connected, you can start assigning tasks to Jules using natural language pr
 
 Jules doesn't properly detect alternative package managers like pnpm and Bun automatically. You need to configure these manually using custom setup scripts in the **Configuration** tab of your Jules project:
 
-<InstructionToggleTabs>
-  <InstructionTab label="pnpm Configuration" isDefault={true}>
-    ```bash
-    set -ux 
-    export CI=true
-    cd /app
+<div className="mdx-tab-group" data-active-tab="pnpm">
+  <div className="mdx-tab-list">
+    <button className="mdx-tab-button" data-tab="pnpm" data-active="true">pnpm Configuration</button>
+    <button className="mdx-tab-button" data-tab="bun" data-active="false">Bun Configuration</button>
+  </div>
 
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-    export NVM_DIR="$HOME/.nvm"
-    if [ -s "$NVM_DIR/nvm.sh" ]; then
-      set +e; \. "$NVM_DIR/nvm.sh"; NVM_SOURCE_STATUS=$?; set -e
-      if [ $NVM_SOURCE_STATUS -ne 0 ] && [ $NVM_SOURCE_STATUS -ne 3 ]; then
-        echo "ERROR: NVM sourcing failed: $NVM_SOURCE_STATUS"; exit 1
-      fi
-    else
-      echo "ERROR: NVM script not found"; exit 1
-    fi
-    set -e 
+  <div className="mdx-tab-panel" data-tab="pnpm">
 
-    nvm install 22 && nvm use 22 && nvm alias default 22
-    npm install -g pnpm@10
-    pnpm install --frozen-lockfile
-    ```
-  </InstructionTab>
-  <InstructionTab label="Bun Configuration">
-    ```bash
-    set -ux
-    export CI=true
-    cd /app
+```bash
+set -ux 
+export CI=true
+cd /app
 
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-    export NVM_DIR="$HOME/.nvm"
-    if [ -s "$NVM_DIR/nvm.sh" ]; then
-      set +e; \. "$NVM_DIR/nvm.sh"; NVM_SOURCE_STATUS=$?; set -e
-      if [ $NVM_SOURCE_STATUS -ne 0 ] && [ $NVM_SOURCE_STATUS -ne 3 ]; then
-        echo "ERROR: NVM sourcing failed: $NVM_SOURCE_STATUS"; exit 1
-      fi
-    else
-      echo "ERROR: NVM script not found"; exit 1
-    fi
-    set -e 
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+  set +e; \\. "$NVM_DIR/nvm.sh"; NVM_SOURCE_STATUS=$?; set -e
+  if [ $NVM_SOURCE_STATUS -ne 0 ] && [ $NVM_SOURCE_STATUS -ne 3 ]; then
+    echo "ERROR: NVM sourcing failed: $NVM_SOURCE_STATUS"; exit 1
+  fi
+else
+  echo "ERROR: NVM script not found"; exit 1
+fi
+set -e 
 
-    nvm install 22 && nvm use 22 && nvm alias default 22
-    curl -fsSL https://bun.sh/install | bash
-    export BUN_INSTALL="$HOME/.bun"
-    export PATH="$BUN_INSTALL/bin:$PATH"
-    bun install
-    ```
-  </InstructionTab>
-</InstructionToggleTabs>
+nvm install 22 && nvm use 22 && nvm alias default 22
+npm install -g pnpm@10
+pnpm install --frozen-lockfile
+```
+
+  </div>
+
+  <div className="mdx-tab-panel" data-tab="bun">
+
+```bash
+set -ux
+export CI=true
+cd /app
+
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+  set +e; \\. "$NVM_DIR/nvm.sh"; NVM_SOURCE_STATUS=$?; set -e
+  if [ $NVM_SOURCE_STATUS -ne 0 ] && [ $NVM_SOURCE_STATUS -ne 3 ]; then
+    echo "ERROR: NVM sourcing failed: $NVM_SOURCE_STATUS"; exit 1
+  fi
+else
+  echo "ERROR: NVM script not found"; exit 1
+fi
+set -e 
+
+nvm install 22 && nvm use 22 && nvm alias default 22
+curl -fsSL https://bun.sh/install | bash
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+bun install
+```
+
+  </div>
+</div>
 
 These scripts:
 - Install NVM (Node Version Manager)
