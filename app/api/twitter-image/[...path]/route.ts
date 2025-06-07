@@ -67,14 +67,25 @@ export async function GET(
     const validPathPattern = /^(profile_images|ext_tw_video_thumb|media)\/[\w\-/.]+$/;
     const fullPath = pathSegments.join('/');
 
-    if (!validPathPattern.test(fullPath)) {
+    // Extract embedded query parameters from the fullPath
+    let pathOnly = fullPath;
+    let embeddedSearch = '';
+    if (fullPath.includes('?')) {
+      const [rawPath, ...rest] = fullPath.split('?');
+      pathOnly = rawPath;
+      embeddedSearch = `?${rest.join('?')}`;
+    }
+
+    // Validate Twitter image path patterns to prevent SSRF attacks (use pathOnly)
+    if (!validPathPattern.test(pathOnly)) {
       console.log(`[Twitter Image Proxy] Invalid path rejected: ${fullPath}`);
       return new NextResponse(null, { status: 400 });
     }
 
     // Preserve any query parameters (e.g., format, name)
     const { search } = request.nextUrl;
-    const upstreamUrl = `https://pbs.twimg.com/${fullPath}${search}`;
+    // Use embeddedSearch as fallback for query parameters embedded in the path
+    const upstreamUrl = `https://pbs.twimg.com/${pathOnly}${search || embeddedSearch}`;
     console.log(`[Twitter Image Proxy] Attempting to fetch: ${upstreamUrl}`);
 
     // Fetch from Twitter with timeout, retry mechanism, and proper headers
