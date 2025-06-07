@@ -23,7 +23,7 @@ import React, {
 import { MDXRemote, type MDXRemoteProps } from 'next-mdx-remote';
 import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
 import Link from 'next/link';
-import { MDXCodeBlock } from '../../../ui/code-block/mdx-code-block.server';
+import { MDXCodeBlock } from '../../../ui/code-block/mdx-code-block-wrapper.client';
 import FinancialMetrics from '../../../ui/financial-metrics.server';
 import { BackgroundInfo } from '../../../ui/background-info.client';
 import { CollapseDropdown } from '../../../ui/collapse-dropdown.client';
@@ -44,7 +44,17 @@ import { TweetEmbed } from '../tweet-embed';
 const useIsInMacOSFrame = () => useContext(MacOSFrameContext);
 
 /**
- * Component wrapper for pre elements that can use hooks
+ * PreRenderer - MDX code block detection and routing component
+ * 
+ * This component examines <pre> elements from MDX and determines if they
+ * are proper code blocks (with language-* classes) or plain text.
+ * 
+ * Known issue: Code blocks inside JSX components (like InstructionTab) may
+ * lose their language-* classes during MDX parsing, causing them to render
+ * as plain gray boxes instead of syntax-highlighted code blocks.
+ * 
+ * @param props - Pre element props from MDX
+ * @returns Either MDXCodeBlock (for proper code) or fallback pre styling
  */
 const PreRenderer = (props: ComponentProps<'pre'>) => {
   const isInMacOSFrame = useIsInMacOSFrame();
@@ -70,9 +80,9 @@ const PreRenderer = (props: ComponentProps<'pre'>) => {
 
   if (!isProperCodeBlock) {
     // Fallback for non-standard <pre> tags or those without recognized code.
-    // Renders with basic styling to ensure content is displayed.
+    // Renders with reduced text size for consistency.
     return (
-      <div className="group relative">
+      <div className="not-prose group relative">
         <pre className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 p-3 rounded font-mono text-xs break-words whitespace-pre-wrap mb-4">
           {props.children}
         </pre>
@@ -295,14 +305,21 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
      * @param {ComponentProps<'code'>} codeProps - Props passed to the `<code>` element.
      * @returns {JSX.Element} The styled inline code snippet.
      */
-    code: (codeProps: ComponentProps<'code'>) => {
-      const { children, className, ...rest } = codeProps;
+    code: ({ className, children, ...rest }: ComponentProps<'code'>) => {
+      const isBlockCode = className?.includes('language-'); // Heuristic for code within <pre>
+
       return (
-        <code className={cn(
-          "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100",
-          "px-1 sm:px-1.5 py-0.5 rounded font-medium text-sm break-words whitespace-normal align-middle",
-          className // Allows additional classes from MDX to be merged
-        )} {...rest}>
+        <code
+          className={cn(
+            "font-medium align-middle", // Base styles
+            isBlockCode
+              ? "whitespace-pre" // For <code> inside <pre>: respect all whitespace. Display will be handled by CSS.
+              : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-1 sm:px-1.5 py-0.5 rounded whitespace-normal break-words", // Styles for INLINE <code>
+            "text-xs", // Consistent font size
+            className // Merge className from MDX (e.g., language-bash)
+          )}
+          {...rest}
+        >
           {children}
         </code>
       );
