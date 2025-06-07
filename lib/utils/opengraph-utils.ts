@@ -47,7 +47,7 @@ export function validateOgUrl(url: string): boolean {
     const hostname = parsedUrl.hostname.toLowerCase();
     
     // SSRF protection - reject local/private IPs and localhost
-    if (/^(localhost|127\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/.test(hostname)) {
+    if (/^(localhost|127\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|::1|fc|fd)/.test(hostname)) {
       console.log(`[DEBUG] URL rejected - private/local IP: ${hostname}`);
       return false;
     }

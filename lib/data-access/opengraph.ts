@@ -34,6 +34,17 @@ export const OPENGRAPH_IMAGES_S3_DIR = `${OPENGRAPH_S3_KEY_DIR}/images`;
 const SESSION_FAILED_DOMAINS = new Set<string>();
 const inFlightOgPromises: Map<string, Promise<OgResult | null>> = new Map();
 
+// Insert env-based fallback mapping above getFallbackImageForDomain
+const FALLBACK_IMAGES: Record<string, string> = {
+  GitHub: process.env.FALLBACK_IMAGE_GITHUB || 'https://avatars.githubusercontent.com/u/99231285?v=4',
+  X: process.env.FALLBACK_IMAGE_X || 'https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg',
+  Twitter: process.env.FALLBACK_IMAGE_TWITTER || 'https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg',
+  LinkedIn: process.env.FALLBACK_IMAGE_LINKEDIN || 'https://media.licdn.com/dms/image/C5603AQGjv8C3WhrUfQ/profile-displayphoto-shrink_800_800/0/1651775977276',
+  Discord: process.env.FALLBACK_IMAGE_DISCORD || '/images/william.jpeg',
+  Bluesky: process.env.FALLBACK_IMAGE_BLUESKY || 'https://cdn.bsky.app/img/avatar/plain/did:plc:o3rar2atqxlmczkaf6npbcqz/bafkreidpq75jyggvzlm5ddgpzhfkm4vprgitpxukqpgkrwr6sqx54b2oka@jpeg',
+  default: process.env.FALLBACK_IMAGE_DEFAULT || '/images/william.jpeg'
+};
+
 /**
  * Retrieves OpenGraph data using a hierarchical strategy: memory cache, S3 storage, and external fetch as fallback
  *
@@ -91,19 +102,18 @@ export async function getOpenGraphData(url: string, skipExternalFetch = false): 
   if (!cached) {
     try {
       const s3Data = await readJsonS3<OgResult>(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`);
-      if (s3Data?.timestamp) {
-        console.log(`[DataAccess/OpenGraph] Loaded from S3: ${normalizedUrl}`);
-        
-        // Update memory cache
-        ServerCacheInstance.setOpenGraphData(normalizedUrl, s3Data);
-        
-        // Check if S3 data is stale
-        const isStale = Date.now() - s3Data.timestamp > OPENGRAPH_CACHE_DURATION.REVALIDATION * 1000;
-        if (!isStale || skipExternalFetch) {
-          return {
-            ...s3Data,
-            source: 'cache'
-          };
+      if (s3Data) {
+        if (typeof s3Data.timestamp === 'number') {
+          console.log(`[DataAccess/OpenGraph] Loaded from S3: ${normalizedUrl}`);
+          // Update memory cache
+          ServerCacheInstance.setOpenGraphData(normalizedUrl, s3Data);
+          // Check if S3 data is stale
+          const isStale = Date.now() - s3Data.timestamp > OPENGRAPH_CACHE_DURATION.REVALIDATION * 1000;
+          if (!isStale || skipExternalFetch) {
+            return { ...s3Data, source: 'cache' };
+          }
+        } else {
+          console.warn(`[DataAccess/OpenGraph] Malformed S3 data for ${normalizedUrl}, ignoring cached data`);
         }
       }
     } catch (error) {
@@ -542,16 +552,7 @@ function createFallbackResult(url: string, error: string): OgResult {
  * Gets fallback profile image for a domain
  */
 function getFallbackImageForDomain(domain: string): string | null {
-  const fallbacks: Record<string, string> = {
-    'GitHub': 'https://avatars.githubusercontent.com/u/99231285?v=4',
-    'X': 'https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg',
-    'Twitter': 'https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg',
-    'LinkedIn': 'https://media.licdn.com/dms/image/C5603AQGjv8C3WhrUfQ/profile-displayphoto-shrink_800_800/0/1651775977276',
-    'Discord': '/images/william.jpeg',
-    'Bluesky': 'https://cdn.bsky.app/img/avatar/plain/did:plc:o3rar2atqxlmczkaf6npbcqz/bafkreidpq75jyggvzlm5ddgpzhfkm4vprgitpxukqpgkrwr6sqx54b2oka@jpeg'
-  };
-  
-  return fallbacks[domain] || '/images/william.jpeg';
+  return FALLBACK_IMAGES[domain] || FALLBACK_IMAGES.default;
 }
 
 /**

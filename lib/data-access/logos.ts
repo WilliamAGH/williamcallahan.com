@@ -20,10 +20,19 @@ export const LOGOS_S3_KEY_DIR = 'images/logos';
 
 const VERBOSE = process.env.VERBOSE === 'true' || false;
 
+// Cache S3 logo keys to avoid repeated listing calls
+let ALL_S3_LOGO_KEYS: string[] | null = null;
+async function listAllS3LogoKeys(): Promise<string[]> {
+  if (ALL_S3_LOGO_KEYS === null) {
+    ALL_S3_LOGO_KEYS = await s3UtilsListS3Objects(`${LOGOS_S3_KEY_DIR}/`);
+  }
+  return ALL_S3_LOGO_KEYS;
+}
+
 // Session-based tracking to prevent infinite loops
 const SESSION_PROCESSED_DOMAINS = new Set<string>();
 const SESSION_FAILED_DOMAINS = new Set<string>();
-const SESSION_START_TIME = Date.now();
+let SESSION_START_TIME = Date.now();
 const SESSION_MAX_DURATION = 30 * 60 * 1000; // 30 minutes
 const MAX_RETRIES_PER_SESSION = 2;
 const DOMAIN_RETRY_COUNT = new Map<string, number>();
@@ -57,9 +66,9 @@ function getLogoS3Key(domain: string, source: LogoSource, ext: 'png' | 'svg' = '
 export async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; source: LogoSource } | null> {
   const domainHash = createHash('md5').update(domain).digest('hex').substring(0, 8);
   const id: string = domain.split('.')[0];
+  const allKeys = await listAllS3LogoKeys();
   try {
-    // Try new format first (with hash)
-    const keys: string[] = await s3UtilsListS3Objects(`${LOGOS_S3_KEY_DIR}/${id}_${domainHash}_`);
+    const keys: string[] = allKeys.filter(key => key.startsWith(`${LOGOS_S3_KEY_DIR}/${id}_${domainHash}_`));
     if (keys.length > 0) {
       const pngKey: string | undefined = keys.find(key => key.endsWith('.png'));
       const bestKey: string = pngKey ?? keys[0];
@@ -75,7 +84,7 @@ export async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; so
     }
     
     // Fallback to old format (without hash) for backward compatibility
-    const oldKeys: string[] = await s3UtilsListS3Objects(`${LOGOS_S3_KEY_DIR}/${id}_`);
+    const oldKeys: string[] = allKeys.filter(key => key.startsWith(`${LOGOS_S3_KEY_DIR}/${id}_`));
     if (oldKeys.length > 0) {
       // Filter out new format keys to avoid duplicates
       const legacyKeys = oldKeys.filter(key => !key.includes(`_${domainHash}_`));
@@ -400,15 +409,16 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
     SESSION_PROCESSED_DOMAINS.clear();
     SESSION_FAILED_DOMAINS.clear();
     DOMAIN_RETRY_COUNT.clear();
+    SESSION_START_TIME = Date.now();
   }
 
   // Skip if already processed successfully in this session
   if (SESSION_PROCESSED_DOMAINS.has(domain)) {
     if (VERBOSE) console.log(`[DataAccess/Logos] Domain ${domain} already processed in this session, skipping.`);
-    const cached: { url: string | null; source: LogoSource | null; buffer?: Buffer; error?: string } | undefined = ServerCacheInstance.getLogoFetch(domain);
+    const cached = ServerCacheInstance.getLogoFetch(domain);
     if (cached?.buffer) {
-      const { contentType }: { processedBuffer: Buffer; isSvg: boolean; contentType: string } = await processImageBuffer(cached.buffer);
-      return { buffer: cached.buffer, source: cached.source || 'unknown', contentType };
+      const { processedBuffer, contentType } = await processImageBuffer(cached.buffer);
+      return { buffer: processedBuffer, source: cached.source || 'unknown', contentType };
     }
     return null;
   }
@@ -443,10 +453,11 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
     s3Logo = await findLogoInS3(domain);
   }
   if (s3Logo) {
-    ServerCacheInstance.setLogoFetch(domain, { url: null, source: s3Logo.source, buffer: s3Logo.buffer });
+    // Process and cache normalized buffer
+    const { processedBuffer, contentType: s3ContentType } = await processImageBuffer(s3Logo.buffer);
+    ServerCacheInstance.setLogoFetch(domain, { url: null, source: s3Logo.source, buffer: processedBuffer });
     SESSION_PROCESSED_DOMAINS.add(domain);
-    const { contentType: s3ContentType }: { processedBuffer: Buffer; isSvg: boolean; contentType: string } = await processImageBuffer(s3Logo.buffer);
-    return { ...s3Logo, contentType: s3ContentType };
+    return { buffer: processedBuffer, source: s3Logo.source, contentType: s3ContentType };
   }
   const skipExternalLogoFetch: boolean = (process.env.NODE_ENV === 'test' && process.env.ALLOW_EXTERNAL_FETCH_IN_TEST !== 'true') || process.env.SKIP_EXTERNAL_LOGO_FETCH === 'true';
   if (skipExternalLogoFetch) {
@@ -536,6 +547,7 @@ export function resetLogoSessionTracking(): void {
   SESSION_PROCESSED_DOMAINS.clear();
   SESSION_FAILED_DOMAINS.clear();
   DOMAIN_RETRY_COUNT.clear();
+  SESSION_START_TIME = Date.now();
   console.log('[DataAccess/Logos] Session tracking reset.');
 }
 
