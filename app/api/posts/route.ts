@@ -28,12 +28,12 @@ function formatErrorResponse(error: unknown) {
       errorResponse.cause = error.cause;
 
       // Include any custom properties the error might have
-      Object.getOwnPropertyNames(error).forEach(prop => {
+      for (const prop of Object.getOwnPropertyNames(error)) {
         if (!['name', 'message', 'stack'].includes(prop)) {
           // Safely access additional properties using a two-step cast
           errorResponse[prop] = (error as unknown as Record<string, unknown>)[prop];
         }
-      });
+      }
     } else {
       // For non-Error objects, include as much info as possible
       errorResponse.rawError = String(error);

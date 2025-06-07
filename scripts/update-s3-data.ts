@@ -34,6 +34,9 @@ import {
 // Import direct refresh functions for forced updates
 import { refreshBookmarksData } from '@/lib/bookmarks.ts';
 
+// Import logo session tracking functions
+import { resetLogoSessionTracking } from '@/lib/data-access/logos.ts';
+
 import { KNOWN_DOMAINS } from '@/lib/constants';
 
 // Import types
@@ -54,6 +57,9 @@ const LOGO_BATCH_CONFIGS = {
   /** Regular bulk processing (larger batches, longer delays for rate limiting) */
   REGULAR: { size: 10, delay: 500 }
 } as const;
+
+/** Maximum number of new bookmarks to process immediately on first run or after cache loss */
+const SAFETY_THRESHOLD_NEW_BOOKMARKS = 10;
 
 // Command-line argument parsing for selective updates
 const usage = `Usage: update-s3-data.ts [options]
@@ -163,6 +169,9 @@ async function updateBookmarksInS3(): Promise<void> {
   try {
     // Get current cached bookmarks to compare for new additions
     const previousBookmarks = await getBookmarks(false); // Get cached data
+    const previousCount = previousBookmarks?.length || 0;
+    console.log(`[UpdateS3] [Bookmarks] Previous cached bookmarks count: ${previousCount}`);
+    
     const previousBookmarkIds = new Set(previousBookmarks?.map(b => b.id) || []);
 
     // Use direct refresh function to force fresh data instead of cached data
@@ -175,7 +184,34 @@ async function updateBookmarksInS3(): Promise<void> {
       // Identify new bookmarks that weren't in the previous cache
       const newBookmarks = bookmarks.filter(b => !previousBookmarkIds.has(b.id));
       
-      if (newBookmarks.length > 0) {
+      // Add safety check: if we have no previous bookmarks but many new ones, 
+      // limit immediate processing to avoid overwhelming the system
+      const shouldLimitProcessing = previousCount === 0 && newBookmarks.length > SAFETY_THRESHOLD_NEW_BOOKMARKS;
+      
+      if (shouldLimitProcessing) {
+        console.log(`[UpdateS3] [Bookmarks] Safety check: No previous cache (${previousCount}) but ${newBookmarks.length} "new" bookmarks detected. This suggests first run or cache loss.`);
+        console.log(`[UpdateS3] [Bookmarks] Limiting immediate logo processing to ${SAFETY_THRESHOLD_NEW_BOOKMARKS} most recent bookmarks to avoid system overload.`);
+        
+        // Process only the 10 most recently added bookmarks for immediate logo processing
+        const recentBookmarks = newBookmarks
+          .sort((a, b) => new Date(b.dateBookmarked).getTime() - new Date(a.dateBookmarked).getTime())
+          .slice(0, SAFETY_THRESHOLD_NEW_BOOKMARKS);
+          
+        const recentDomains = extractDomainsFromBookmarks(recentBookmarks);
+        
+        if (recentDomains.size > 0) {
+          console.log(`[UpdateS3] [Bookmarks] Processing logos for ${recentDomains.size} domains from ${SAFETY_THRESHOLD_NEW_BOOKMARKS} most recent bookmarks.`);
+          
+          const { successCount, failureCount } = await processLogoBatch(
+            Array.from(recentDomains),
+            LOGO_BATCH_CONFIGS.IMMEDIATE,
+            'recent bookmarks (limited processing)'
+          );
+          
+          console.log(`[UpdateS3] [Bookmarks] ✅ Limited immediate logo processing complete: ${successCount} succeeded, ${failureCount} failed.`);
+          console.log('[UpdateS3] [Bookmarks] 📝 Note: Remaining logos will be processed during regular logo update phase.');
+        }
+      } else if (newBookmarks.length > 0) {
         console.log(`[UpdateS3] [Bookmarks] Found ${newBookmarks.length} new bookmarks. Processing logos immediately to prevent broken images.`);
         
         // Extract domains from new bookmarks only
@@ -240,6 +276,10 @@ async function updateLogosInS3(): Promise<void> {
   console.log('[UpdateS3] 🖼️ Starting Logos update to S3...');
 
   try {
+    // Reset logo session tracking to prevent conflicts with concurrent processes
+    resetLogoSessionTracking();
+    console.log('[UpdateS3] Logo session tracking reset for bulk processing.');
+
     const domains = new Set<string>();
 
     // 1. Extract domains from bookmarks via data-access
@@ -325,3 +365,23 @@ void runScheduledUpdates().catch(error => {
   console.error('[UpdateS3] Unhandled error in runScheduledUpdates:', error);
   process.exit(1);
 });
+
+// --- Exported Utility for On-Demand Runtime Updates ---
+/**
+ * Runs all data update functions (bookmarks, GitHub activity, logos) sequentially.
+ * Can be invoked at runtime when environment variables (e.g., S3_BUCKET) are present.
+ */
+export async function updateAllData(): Promise<void> {
+  if (!process.env.S3_BUCKET) {
+    console.warn('[UpdateAllData] S3_BUCKET not set; skipping updates.');
+    return;
+  }
+  try {
+    await updateBookmarksInS3();
+    await updateGithubActivityInS3();
+    await updateLogosInS3();
+    console.log('[UpdateAllData] All data updates completed successfully.');
+  } catch (error) {
+    console.error('[UpdateAllData] Error during on-demand data update:', error);
+  }
+}

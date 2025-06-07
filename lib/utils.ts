@@ -32,8 +32,8 @@ export function cn(...inputs: ClassValue[]) {
  * formatPercentage(12.34) // returns "12.34%"
  * formatPercentage(100 * 0.1234) // returns "12.34%" (multiply ratio by 100 first)
  */
-export function formatPercentage(value: number | undefined | null, decimalPlaces: number = 2): string {
-  if (value === undefined || value === null || isNaN(value) || value === Infinity || value === -Infinity) {
+export function formatPercentage(value: number | undefined | null, decimalPlaces = 2): string {
+  if (value === undefined || value === null || Number.isNaN(value) || value === Number.POSITIVE_INFINITY || value === Number.NEGATIVE_INFINITY) {
     return 'N/A';
   }
   return `${value.toFixed(decimalPlaces)}%`;
@@ -54,7 +54,7 @@ export function formatDate(dateString: string | Date | undefined | number): stri
 
   const date = new Date(dateString);
 
-  if (isNaN(date.getTime())) {
+  if (Number.isNaN(date.getTime())) {
     console.warn(`Invalid date string passed to formatDate: ${String(dateString)}`);
     return 'Invalid Date';
   }
@@ -82,7 +82,7 @@ export function formatDate(dateString: string | Date | undefined | number): stri
  * @returns The formatted multiple string (e.g., "2.5x"), or "N/A" if invalid
  */
 export function formatMultiple(value: number | undefined | null): string {
-  if (value === undefined || value === null || isNaN(value) || value === Infinity || value === -Infinity) {
+  if (value === undefined || value === null || Number.isNaN(value) || value === Number.POSITIVE_INFINITY || value === Number.NEGATIVE_INFINITY) {
     return 'N/A';
   }
   if (value === 0) {

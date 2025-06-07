@@ -32,9 +32,17 @@ config(); // Load .env file
 // Note: This process must stay running for scheduled updates to occur.
 
 import rawCron from 'node-cron';
+import { randomInt } from 'node:crypto';
+// Maximum random jitter for scheduled tasks: 5 minutes
+const DEFAULT_JITTER_MS = 5 * 60 * 1000;
 import { spawn, spawnSync } from 'node:child_process';
 
 console.log('[Scheduler] Process started. Setting up cron jobs...');
+// Debug: log key environment variables
+console.log(
+  `[Scheduler] Env vars: S3_BUCKET=${process.env.S3_BUCKET}, ` +
+  `S3_SERVER_URL=${process.env.S3_SERVER_URL}, PATH=${process.env.PATH}`
+);
 
 // Ensure Node Cron interprets times in PT
 process.env.TZ = 'America/Los_Angeles';
@@ -50,54 +58,76 @@ const logosCron     = process.env.S3_LOGOS_CRON     || '0 1 * * 0';     // weekl
 
 console.log(`[Scheduler] Bookmarks schedule: ${bookmarksCron} (every 2 hours)`);
 cron.schedule(bookmarksCron, () => {
-  console.log(`[Scheduler] [Bookmarks] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Spawning update-s3...`);
-  
-  // Call update-s3 script directly (no HTTP request needed)
-  const result = spawnSync('bun', ['run', 'update-s3', '--', '--bookmarks'], { env: process.env, stdio: 'inherit' });
-  
-  if (result.status !== 0) {
-    console.error(`[Scheduler] [Bookmarks] update-s3 script failed (code ${result.status}). Error: ${result.error}`);
-  } else {
-    console.log('[Scheduler] [Bookmarks] update-s3 script completed successfully');
+  console.log(
+    `[Scheduler] [Bookmarks] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Preparing to spawn update-s3...`
+  );
+  const jitter = randomInt(DEFAULT_JITTER_MS);
+  console.log(`[Scheduler] [Bookmarks] Applying jitter of ${jitter}ms before update-s3`);
+  setTimeout(() => {
+    console.log('[Scheduler] [Bookmarks] Command: bun run update-s3 -- --bookmarks');
+    console.log(`[Scheduler] [Bookmarks] Using S3_BUCKET=${process.env.S3_BUCKET}`);
+    const result = spawnSync('bun', ['run', 'update-s3', '--', '--bookmarks'], { env: process.env, stdio: 'inherit' });
+    
+    if (result.status !== 0) {
+      console.error(`[Scheduler] [Bookmarks] update-s3 script failed (code ${result.status}). Error: ${result.error}`);
+    } else {
+      console.log('[Scheduler] [Bookmarks] update-s3 script completed successfully');
 
-    // Submit updated sitemap to search engines
-    console.log('[Scheduler] [Bookmarks] Submitting updated sitemap to search engines asynchronously...');
-    const sitemapProcess = spawn('bun', ['run', 'submit-sitemap'], { env: process.env, stdio: 'inherit' });
+      // Submit updated sitemap to search engines
+      console.log('[Scheduler] [Bookmarks] Submitting updated sitemap to search engines asynchronously...');
+      const sitemapProcess = spawn('bun', ['run', 'submit-sitemap'], { env: process.env, stdio: 'inherit' });
 
-    sitemapProcess.on('error', (err) => {
-      console.error('[Scheduler] [Bookmarks] Failed to start sitemap submission process:', err);
-    });
+      sitemapProcess.on('error', (err) => {
+        console.error('[Scheduler] [Bookmarks] Failed to start sitemap submission process:', err);
+      });
 
-    sitemapProcess.on('close', (code) => {
-      if (code !== 0) {
-        console.error(`[Scheduler] [Bookmarks] Sitemap submission failed (code ${code}).`);
-      } else {
-        console.log('[Scheduler] [Bookmarks] Sitemap submitted successfully to search engines');
-      }
-    });
-  }
+      sitemapProcess.on('close', (code) => {
+        if (code !== 0) {
+          console.error(`[Scheduler] [Bookmarks] Sitemap submission failed (code ${code}).`);
+        } else {
+          console.log('[Scheduler] [Bookmarks] Sitemap submitted successfully to search engines');
+        }
+      });
+    }
+  }, jitter);
 });
 
 console.log(`[Scheduler] GitHub Activity schedule: ${githubCron} (daily at midnight)`);
 cron.schedule(githubCron, () => {
-  console.log(`[Scheduler] [GitHub] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Spawning update-s3...`);
-  const result = spawnSync('bun', ['run', 'update-s3', '--', '--github-activity'], { env: process.env, stdio: 'inherit' });
-  if (result.status !== 0) {
-    console.error(`[Scheduler] [GitHub] update-s3 script failed (code ${result.status}). Error: ${result.error}`);
-  } else {
-    console.log('[Scheduler] [GitHub] update-s3 script completed successfully');
-  }
+  console.log(
+    `[Scheduler] [GitHub] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Preparing to spawn update-s3...`
+  );
+  const jitterGH = randomInt(DEFAULT_JITTER_MS);
+  console.log(`[Scheduler] [GitHub] Applying jitter of ${jitterGH}ms before update-s3`);
+  setTimeout(() => {
+    console.log('[Scheduler] [GitHub] Command: bun run update-s3 -- --github-activity');
+    console.log(`[Scheduler] [GitHub] Using S3_BUCKET=${process.env.S3_BUCKET}`);
+    const result = spawnSync('bun', ['run', 'update-s3', '--', '--github-activity'], { env: process.env, stdio: 'inherit' });
+    if (result.status !== 0) {
+      console.error(`[Scheduler] [GitHub] update-s3 script failed (code ${result.status}). Error: ${result.error}`);
+    } else {
+      console.log('[Scheduler] [GitHub] update-s3 script completed successfully');
+    }
+  }, jitterGH);
 });
 
 console.log(`[Scheduler] Logos schedule: ${logosCron} (weekly Sunday 1 AM)`);
 cron.schedule(logosCron, () => {
-  console.log(`[Scheduler] [Logos] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Spawning update-s3...`);
-  const result = spawnSync('bun', ['run', 'update-s3', '--', '--logos'], { env: process.env, stdio: 'inherit' });
-  if (result.status !== 0) {
-    console.error(`[Scheduler] [Logos] update-s3 script failed (code ${result.status}). Error: ${result.error}`);
-  } else {
-    console.log('[Scheduler] [Logos] update-s3 script completed successfully');
-  }
+  console.log(
+    `[Scheduler] [Logos] Cron triggered at ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}. Preparing to spawn update-s3...`
+  );
+  const jitterLogo = randomInt(DEFAULT_JITTER_MS);
+  console.log(`[Scheduler] [Logos] Applying jitter of ${jitterLogo}ms before update-s3`);
+  setTimeout(() => {
+    console.log('[Scheduler] [Logos] Command: bun run update-s3 -- --logos');
+    console.log(`[Scheduler] [Logos] Using S3_BUCKET=${process.env.S3_BUCKET}`);
+    const result = spawnSync('bun', ['run', 'update-s3', '--', '--logos'], { env: process.env, stdio: 'inherit' });
+    if (result.status !== 0) {
+      console.error(`[Scheduler] [Logos] update-s3 script failed (code ${result.status}). Error: ${result.error}`);
+    } else {
+      console.log('[Scheduler] [Logos] update-s3 script completed successfully');
+    }
+  }, jitterLogo);
 });
 
 // The scheduler process remains alive indefinitely, waiting for cron events.

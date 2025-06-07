@@ -14,6 +14,16 @@ import { WindowControls } from './navigation/window-controls';
 import { CollapseDropdown } from './collapse-dropdown.client';
 
 /**
+ * Context to track when we're inside a macOS frame to prevent double nesting
+ */
+const MacOSFrameContext = createContext<boolean>(false);
+
+/**
+ * Export the context for use in other components
+ */
+export { MacOSFrameContext };
+
+/**
  * Props for the InstructionMACOSTab component.
  * Defines the expected properties for each tab.
  */
@@ -254,16 +264,17 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: Instruct
       >
         <MacOSWindow
           className={cn(
-            "!my-0 !border-0 !shadow-none !rounded-none", // Added !rounded-none
+            "!my-0 !border-0 !shadow-none !rounded-none",
             isMaximized && "w-full max-w-[95vw] sm:max-w-5xl max-h-[90vh] sm:max-h-[80vh] flex flex-col",
-            !isMaximized && className // Apply user-passed className only if not maximized
+            !isMaximized && className
           )}
           tabs={windowTabs}
-          activeTabId={activeTabLabel || ''} // Provide empty string fallback
+          activeTabId={activeTabLabel || ''}
           onTabClick={(tabId) => setActiveTabLabel(tabId)}
           contentClassName={cn(
             "bg-gray-100 dark:bg-gray-800",
             "p-2",
+            "text-xs",
             isMaximized && "flex-1 overflow-auto",
             isMinimized && "hidden"
           )}
@@ -272,7 +283,9 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: Instruct
           onMaximize={handleMaximize}
           isMaximized={isMaximized}
         >
-          {!isMinimized && activeChildContentProcessed} {/* Render processed content only if not minimized */}
+          <MacOSFrameContext.Provider value={true}>
+            {!isMinimized && activeChildContentProcessed} {/* Render processed content only if not minimized */}
+          </MacOSFrameContext.Provider>
         </MacOSWindow>
       </InstructionMacOSFrameTabsContext.Provider>
     </div>

@@ -66,8 +66,9 @@ export async function readFromS3(
   key: string,
   options?: { range?: string } // Add optional options object
 ): Promise<Buffer | string | null> {
-  // If a public CDN URL is set, try fetching from it first
-  if (S3_PUBLIC_CDN_URL) {
+  // Bypass public CDN for JSON files to avoid stale cache; only use CDN for non-JSON
+  const isJson = key.endsWith('.json');
+  if (!isJson && S3_PUBLIC_CDN_URL) {
     const cdnUrl = `${S3_PUBLIC_CDN_URL.replace(/\/+$/, '')}/${key}`;
     try {
       const res = await fetch(cdnUrl);

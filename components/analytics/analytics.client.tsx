@@ -222,18 +222,17 @@ function AnalyticsScripts() {
     }
   }, [pathname, trackPageview, scriptsLoaded]);
 
-  // Prevent loading analytics scripts on localhost
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    if (process.env.NODE_ENV !== 'production') {
-
+  // Prevent loading analytics scripts on localhost or if env vars are missing
+  if (
+    (typeof window !== 'undefined' && window.location.hostname === 'localhost') ||
+    typeof window === 'undefined' ||
+    !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ||
+    !process.env.NEXT_PUBLIC_SITE_URL
+  ) {
+    if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined' && window.location.hostname === 'localhost') {
       console.info('[Analytics] Skipping analytics script loading on localhost.');
     }
     return null;
-  }
-
-  // Early return if missing config or not in browser
-  if (typeof window === 'undefined' || !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || !process.env.NEXT_PUBLIC_SITE_URL) {
-    return null
   }
 
   let domain: string;

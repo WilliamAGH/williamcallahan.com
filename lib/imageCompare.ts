@@ -22,7 +22,7 @@
  */
 
 import sharp from "sharp";
-import { createHash } from "crypto";
+import { createHash } from "node:crypto";
 import { VALID_IMAGE_FORMATS, MIN_LOGO_SIZE, MAX_SIZE_DIFF } from "./constants";
 import { logger } from "./logger";
 
@@ -234,7 +234,8 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
       return false;
     }
 
-    let meta1: ValidatedMetadata, meta2: ValidatedMetadata; // Explicitly type meta1 and meta2
+    let meta1: ValidatedMetadata; // Explicitly type meta1
+    let meta2: ValidatedMetadata; // Explicitly type meta2
     try {
       // Get and validate metadata for both images
       [meta1, meta2] = await Promise.all([
@@ -263,7 +264,8 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
       return false;
     }
 
-    let norm1: Buffer, norm2: Buffer; // Explicitly type norm1 and norm2
+    let norm1: Buffer; // Explicitly type norm1
+    let norm2: Buffer; // Explicitly type norm2
     try {
       // Convert both images to PNG for consistent comparison
       [norm1, norm2] = await Promise.all([
