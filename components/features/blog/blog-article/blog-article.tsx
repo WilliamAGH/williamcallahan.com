@@ -22,6 +22,7 @@ import type { Article, WithContext } from 'schema-dts';
 import dynamic from 'next/dynamic';
 import { Suspense, type JSX } from 'react';
 import type { BlogPost } from '../../../../types/blog';
+import { SimpleTabsEnhancer } from '../../../ui/simple-tabs.client';
 
 // Dynamically import MDXContent to avoid chunk loading issues
 const MDXContent = dynamic(() => import('./mdx-content').then(mod => ({ default: mod.MDXContent })), {
@@ -98,6 +99,7 @@ export function BlogArticle({ post }: BlogArticleProps): JSX.Element {
 
       {/* Article Content */}
       <div className="relative bg-white dark:bg-transparent rounded-lg shadow-md dark:shadow-none p-5 sm:p-6 border border-gray-100 dark:border-gray-800">
+        <SimpleTabsEnhancer />
         <Suspense fallback={<div className="animate-pulse bg-gray-200 dark:bg-gray-800 h-96 rounded-lg" />}>
           <MDXContent content={post.content} />
         </Suspense>
