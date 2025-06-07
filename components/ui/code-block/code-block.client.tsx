@@ -1,9 +1,15 @@
 /**
- * CodeBlock Component
+ * CodeBlock Component - The main client-side code block renderer
  *
- * A component that renders a code block with syntax highlighting, copy functionality,
- * and macOS-style window controls. Supports embedded mode for integration within
- * tabbed interfaces and standalone mode with full window chrome.
+ * This is the core component that renders interactive code blocks with:
+ * - Syntax highlighting (via rehype-prism classes)
+ * - Copy-to-clipboard functionality
+ * - macOS-style window controls (minimize/maximize/close)
+ * - Two rendering modes:
+ *   1. Standalone: Full window chrome with controls
+ *   2. Embedded: Minimal styling for use inside tabs
+ *
+ * Used by MDXCodeBlock wrapper which handles MDX integration.
  *
  * @module components/ui/code-block/code-block.client
  */
@@ -245,8 +251,8 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
   return (
     <div className={cn(
       "relative w-full",
-      !embeddedInTabFrame && "my-6", // Outer margin only if not embedded
-      isMaximized && !embeddedInTabFrame && "fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 sm:p-8" // Maximize whole screen only if not embedded
+      !embeddedInTabFrame && "my-6",
+      isMaximized && !embeddedInTabFrame && "fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 sm:p-8"
     )}>
       <div ref={windowRef} className={cn(
         "max-w-full w-full overflow-auto",
@@ -289,7 +295,7 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
                 'break-words',
                 'overflow-x-auto',
                 embeddedInTabFrame ? '!p-0 !m-0 !bg-transparent !border-0 !rounded-none' : 'p-4 text-gray-900 dark:text-gray-100',
-                'text-[13px]',
+                'text-xs',
                 'custom-scrollbar',
                 '![text-shadow:none] [&_*]:![text-shadow:none]',
                 '[&_*]:!bg-transparent',
