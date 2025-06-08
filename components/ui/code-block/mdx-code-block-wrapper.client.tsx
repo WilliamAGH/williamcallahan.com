@@ -24,17 +24,16 @@ import { cn } from '@/lib/utils';
 type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>;
 
 /**
- * BasicMDXCodeBlock - Fallback renderer for code blocks
+ * MDXCodeBlockFallback - SSR fallback renderer for code blocks
  * 
- * Renders a basic styled <pre> element when full CodeBlock features
- * aren't needed or during initial render. This component is actually
- * client-side despite the historical naming.
+ * Renders a basic styled <pre> element during server-side rendering
+ * before the full-featured MDXCodeBlock hydrates on the client.
+ * This ensures proper styling and layout during initial page load.
  * 
- * @deprecated Use MDXCodeBlock instead - this is kept for compatibility
  * @param props - Standard HTML pre element props
  * @returns A minimally styled pre element wrapped in a div
  */
-export function BasicMDXCodeBlock(props: PreProps) {
+export function MDXCodeBlockFallback(props: PreProps) {
   const { children, className, ...rest } = props;
 
   // Define default classes for the PRE tag - make sure they match the CodeBlock component
