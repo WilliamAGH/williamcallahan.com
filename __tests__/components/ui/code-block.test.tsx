@@ -6,7 +6,7 @@ import { mock, jest, describe, beforeEach, it, expect } from 'bun:test';
 // Mock CopyButton component using mock.module
 void mock.module('../../../components/ui/code-block/copy-button.client', () => ({ // Use mock.module
   CopyButton: jest.fn(({ content }: { content: string }) => ( // Keep jest.fn, add type
-    <button data-testid="mock-copy-button" data-content={content}>
+    <button type="button" data-testid="mock-copy-button" data-content={content}>
       Copy
     </button>
   ))
@@ -16,9 +16,9 @@ void mock.module('../../../components/ui/code-block/copy-button.client', () => (
 void mock.module('../../../components/ui/navigation/window-controls', () => ({ // Use mock.module
   WindowControls: jest.fn(({ onClose, onMinimize, onMaximize }: { onClose: () => void; onMinimize: () => void; onMaximize: () => void }) => ( // Keep jest.fn, add types
     <div data-testid="mock-window-controls">
-      <button data-testid="mock-close" onClick={onClose}>Close</button>
-      <button data-testid="mock-minimize" onClick={onMinimize}>Minimize</button>
-      <button data-testid="mock-maximize" onClick={onMaximize}>Maximize</button>
+      <button type="button" data-testid="mock-close" onClick={onClose}>Close</button>
+      <button type="button" data-testid="mock-minimize" onClick={onMinimize}>Minimize</button>
+      <button type="button" data-testid="mock-maximize" onClick={onMaximize}>Maximize</button>
     </div>
   ))
 }));
@@ -211,14 +211,12 @@ const y = 2;`}
 
       // Wait for the state update and re-render
       await waitFor(() => {
-        // After clicking close, the code block should be hidden
-        // Check that the pre element is no longer in the document
-        const preElement = container.querySelector('pre');
-        expect(preElement).not.toBeInTheDocument();
+        // After clicking close, the hidden message should appear
+        expect(screen.getByText('Code block hidden (click to show)')).toBeInTheDocument();
       });
 
-      // Check that the hidden message appears
-      expect(screen.getByText('Code block hidden (click to show)')).toBeInTheDocument();
+      // And the original code should be gone
+      expect(screen.queryByText('test code')).not.toBeInTheDocument();
 
       // Click again to show
       fireEvent.click(screen.getByText('Code block hidden (click to show)'));

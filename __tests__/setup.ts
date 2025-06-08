@@ -11,6 +11,7 @@
  * The `bun run test` command executes both `bun test` (for standard tests)
  * and the Jest runner (for `*.jest.*` files) sequentially.
  */
+import '@testing-library/jest-dom';
 import { jest } from 'bun:test'; // Ensure jest namespace is available if running via bun
 import { config } from 'dotenv';
 import path from 'node:path';
