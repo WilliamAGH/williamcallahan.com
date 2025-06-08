@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import { describe, it, expect, beforeAll, afterAll, jest } from 'bun:test';
 import { refreshBookmarksData } from '../../lib/bookmarks'; // This calls the actual external API
 import type { UnifiedBookmark } from '../../types';
 import { BOOKMARKS_S3_KEY_FILE } from '../../lib/data-access'; // To get the S3 file key
@@ -35,6 +35,20 @@ describe('Integration: Bookmarks S3 vs External API Sync', () => {
    * Forces direct S3 access by temporarily disabling CDN to ensure accurate testing
    */
   beforeAll(async () => {
+    // Mock the global fetch
+    const mockFetch = jest.fn();
+    // @ts-ignore: Mocking fetch with required properties
+    mockFetch.preconnect = jest.fn();
+    global.fetch = mockFetch as unknown as typeof fetch;
+
+    // Mock a successful response for the bookmarks API
+    const mockBookmarks = [{ id: '1', title: 'Test Bookmark' }];
+    const apiResponse = new Response(JSON.stringify({ bookmarks: mockBookmarks, next_cursor: null }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    (global.fetch as unknown as jest.Mock).mockResolvedValue(apiResponse);
+
     // Check for necessary environment variables
     if (!process.env.S3_BUCKET || !process.env.BOOKMARK_BEARER_TOKEN || !process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY || !process.env.AWS_REGION) {
       console.warn('Skipping S3/External API sync test: Required environment variables (S3_BUCKET, BOOKMARK_BEARER_TOKEN, S3 credentials, AWS_REGION) are not set.');

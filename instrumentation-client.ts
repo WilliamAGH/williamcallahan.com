@@ -19,66 +19,56 @@ const BROWSER_EXTENSION_ERROR_PATTERNS = [
   'Extension context invalidated'
 ];
 
-Sentry.init({
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  tunnel: '/api/tunnel',
+// Only initialize Sentry in production to prevent development console noise
+if (process.env.NODE_ENV === 'production') {
+  Sentry.init({
+    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    tunnel: '/api/tunnel',
 
-  // Associate errors with the correct source map
-  release: process.env.NEXT_PUBLIC_APP_VERSION,
+    // Associate errors with the correct source map
+    release: process.env.NEXT_PUBLIC_APP_VERSION,
 
-  // Add optional integrations for additional features
-  integrations: [
-    Sentry.replayIntegration(),
-  ],
+    // Add optional integrations for additional features
+    integrations: [
+      Sentry.replayIntegration(),
+    ],
 
-  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: 1,
+    // Production sample rates
+    tracesSampleRate: 1,
+    replaysSessionSampleRate: 0.1,
+    replaysOnErrorSampleRate: 1.0,
 
-  // Define how likely Replay events are sampled.
-  // This sets the sample rate to be 10%. You may want this to be 100% while
-  // in development and sample at a lower rate in production
-  replaysSessionSampleRate: 0.1,
+    // Setting this option to true will print useful information to the console while you're setting up Sentry.
+    debug: false,
 
-  // Define how likely Replay events are sampled when an error occurs.
-  replaysOnErrorSampleRate: 1.0,
+    // Filter out browser extension errors
+    beforeSend(event) {
+      // Filter browser extension errors
+      const errorMessage = event.exception?.values?.[0]?.value || '';
 
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: false,
+      // Check for known browser extension error patterns
+      for (const pattern of BROWSER_EXTENSION_ERROR_PATTERNS) {
+        if (errorMessage.includes(pattern)) {
+          return null; // Drop the event
+        }
+      }
 
-  // Filter out events from localhost in development to prevent console warnings
-  beforeSend(event) {
-    // Check if it's a development environment
-    if (process.env.NODE_ENV === 'development') {
-      // Optionally, you could inspect the event further, e.g., hint.originalException
-      // For now, simply drop all events in development to suppress the warning
-      console.log('Sentry event dropped in development:', event); // Optional: Log dropped events for debugging
-      return null; // Drop the event
-    }
-
-    // Filter browser extension errors in all environments
-    const errorMessage = event.exception?.values?.[0]?.value || '';
-
-    // Check for known browser extension error patterns
-    for (const pattern of BROWSER_EXTENSION_ERROR_PATTERNS) {
-      if (errorMessage.includes(pattern)) {
-        console.log('Filtering browser extension error:', errorMessage);
+      // Special case for generic extension errors
+      if (errorMessage.includes('extension') && errorMessage.includes('not found')) {
         return null; // Drop the event
       }
-    }
 
-    // Special case for generic extension errors
-    if (errorMessage.includes('extension') && errorMessage.includes('not found')) {
-      console.log('Filtering generic extension error:', errorMessage);
-      return null; // Drop the event
-    }
-
-    // In production or other environments, send all other events
-    return event;
-  },
-});
+      // Send all other events in production
+      return event;
+    },
+  });
+}
 
 /** 
  * Captures router transition start events for performance monitoring
  * Re-exported from Sentry for use in application code
+ * Returns no-op function in development
  */
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+export const onRouterTransitionStart = process.env.NODE_ENV === 'production' 
+  ? Sentry.captureRouterTransitionStart 
+  : () => {};

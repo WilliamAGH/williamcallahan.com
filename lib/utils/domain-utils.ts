@@ -46,12 +46,13 @@ export function getDomainSlug(url: string): string {
     }
 
     // Handle case where URL doesn't have protocol
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
+    let processedUrl = url;
+    if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://')) {
+      processedUrl = `https://${processedUrl}`;
     }
 
     // Parse the URL
-    const urlObj = new URL(url);
+    const urlObj = new URL(processedUrl);
 
     // Get the hostname (e.g., "www.example.com")
     let domain = urlObj.hostname;
@@ -80,11 +81,12 @@ export function getDomainSlug(url: string): string {
  */
 export function generateUniqueSlug(url: string, allBookmarks: Array<{ id: string, url: string }>, currentBookmarkId?: string): string {
   try {
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
+    let processedUrl = url;
+    if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://')) {
+      processedUrl = `https://${processedUrl}`;
     }
 
-    const urlObj = new URL(url);
+    const urlObj = new URL(processedUrl);
     const domain = urlObj.hostname.replace(/^www\./, '');
 
     // Start with the basic domain slug
@@ -196,11 +198,12 @@ export function getDisplayDomain(url: string): string {
     }
 
     // Handle case where URL doesn't have protocol
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
+    let processedUrl = url;
+    if (!processedUrl.startsWith('http://') && !processedUrl.startsWith('https://')) {
+      processedUrl = `https://${processedUrl}`;
     }
 
-    const urlObj = new URL(url);
+    const urlObj = new URL(processedUrl);
     let domain = urlObj.hostname;
 
     // Remove www. prefix if present
@@ -212,4 +215,24 @@ export function getDisplayDomain(url: string): string {
     // If URL parsing fails, just return the original
     return url;
   }
+}
+
+/**
+ * Gets domain variants to try (e.g., subdomain and root domain).
+ * @param domain The domain to get variants for.
+ * @returns An array of domain variants.
+ */
+export function getDomainVariants(domain: string): string[] {
+  const variants: string[] = [domain];
+
+  // If it's a subdomain, also try the root domain
+  const parts: string[] = domain.split('.');
+  if (parts.length > 2) {
+    const rootDomain: string = parts.slice(-2).join('.');
+    if (rootDomain !== domain) {
+      variants.push(rootDomain);
+    }
+  }
+
+  return variants;
 }

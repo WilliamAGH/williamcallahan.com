@@ -9,6 +9,7 @@
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { CSP_DIRECTIVES } from '@/lib/constants'
 
 /**
  * Type definition for server-side request logging
@@ -95,25 +96,20 @@ export function middleware(request: NextRequest): NextResponse {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-refresh-secret',
     'Access-Control-Max-Age': '86400',
-    // Content Security Policy: allow all HTTPS image sources dynamically
-    'Content-Security-Policy': `
-      default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://static.cloudflareinsights.com https://*.sentry.io https://scripts.simpleanalyticscdn.com https://static.getclicky.com https://in.getclicky.com https://platform.twitter.com https://*.x.com blob:;
-      connect-src 'self' https://umami.iocloudhost.net https://plausible.iocloudhost.net https://static.cloudflareinsights.com https://*.sentry.io https://*.ingest.sentry.io https://queue.simpleanalyticscdn.com https://in.getclicky.com https://react-tweet.vercel.app https://*.twitter.com https://twitter.com https://platform.twitter.com https://*.x.com;
-      worker-src 'self' blob:;
-      img-src 'self' data: https://pbs.twimg.com https://*.twimg.com https://react-tweet.vercel.app https:;
-      style-src 'self' 'unsafe-inline' https://platform.twitter.com https://*.twimg.com https://*.x.com;
-      font-src 'self' data: https://platform.twitter.com https://*.twimg.com https://*.x.com;
-      frame-src https://platform.twitter.com https://*.x.com;
-      frame-ancestors 'none';
-      base-uri 'self';
-      form-action 'self';
-    `.replace(/\s+/g, ' ').trim()
   }
 
   for (const [header, value] of Object.entries(securityHeaders)) {
     response.headers.set(header, value)
   }
+
+  // Build and set Content-Security-Policy from constants
+  const csp = Object.entries(CSP_DIRECTIVES)
+    .map(([key, sources]) => {
+      const directive = key.replace(/[A-Z]/g, match => `-${match.toLowerCase()}`);
+      return `${directive} ${sources.join(' ')}`;
+    })
+    .join('; ');
+  response.headers.set('Content-Security-Policy', csp);
 
   // Add caching headers for static assets and analytics scripts
   const url = request.nextUrl.pathname

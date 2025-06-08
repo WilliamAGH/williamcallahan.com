@@ -222,24 +222,27 @@ function AnalyticsScripts() {
     }
   }, [pathname, trackPageview, scriptsLoaded]);
 
-  // Prevent loading analytics scripts on localhost
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    if (process.env.NODE_ENV !== 'production') {
-
-      console.info('[Analytics] Skipping analytics script loading on localhost.');
+  // Prevent loading analytics scripts on localhost or if env vars are missing
+  if (
+    (typeof window !== 'undefined' && window.location.hostname === 'localhost') ||
+    typeof window === 'undefined' ||
+    !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ||
+    !process.env.NEXT_PUBLIC_SITE_URL
+      ) {
+      if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        if (process.env.NODE_ENV === 'development') {
+          console.info('[Analytics] Skipping analytics script loading on localhost.');
+        }
+      }
+      return null;
     }
-    return null;
-  }
-
-  // Early return if missing config or not in browser
-  if (typeof window === 'undefined' || !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || !process.env.NEXT_PUBLIC_SITE_URL) {
-    return null
-  }
 
   let domain: string;
   try {
     if (!process.env.NEXT_PUBLIC_SITE_URL) {
-      console.warn('[Analytics] NEXT_PUBLIC_SITE_URL is not defined. Falling back to default domain.');
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Analytics] NEXT_PUBLIC_SITE_URL is not defined. Falling back to default domain.');
+      }
       throw new Error("NEXT_PUBLIC_SITE_URL is not defined");
     }
     domain = new URL(process.env.NEXT_PUBLIC_SITE_URL).hostname;
@@ -252,9 +255,7 @@ function AnalyticsScripts() {
   // Safe error handlers that won't propagate errors
   const safeScriptErrorHandler = (source: string) => () => {
     // Only log in development, silently ignore in production
-    if (process.env.NODE_ENV !== 'production') {
-      // Use info level in development to make it less prominent
-
+    if (process.env.NODE_ENV === 'development') {
       console.info(`[Analytics] Not loading ${source} tracking script (likely due to browser content blocker) - continuing without analytics`);
     }
   };
@@ -306,8 +307,7 @@ function AnalyticsScripts() {
         data-collect-dnt="true"
         onLoad={() => {
           // Optional: Add logic if needed after Simple Analytics loads
-          if (process.env.NODE_ENV !== 'production') {
-
+          if (process.env.NODE_ENV === 'development') {
             console.log('[Analytics] Simple Analytics script loaded.');
           }
         }}
@@ -330,8 +330,7 @@ function AnalyticsScripts() {
         strategy="afterInteractive" // Use afterInteractive to mimic 'async' behavior
         src="https://static.getclicky.com/101484018.js" // Use https protocol
         onLoad={() => {
-          if (process.env.NODE_ENV !== 'production') {
-
+          if (process.env.NODE_ENV === 'development') {
             console.log('[Analytics] Clicky script loaded.');
           }
           setScriptsLoaded(prev => ({ ...prev, clicky: true }))

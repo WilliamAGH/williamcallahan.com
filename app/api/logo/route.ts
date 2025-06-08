@@ -29,39 +29,38 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  try {
-    // Declare domain with an empty string default value
-    let domain = '';
+  // A more robust way to determine the domain
+  let domain = '';
+  if (website) {
+    // Start with a simple regex for domain-like patterns
+    const domainMatch = website.match(/^(?:https?:\/\/)?(?:www\.)?([^/]+)/);
+    domain = domainMatch ? domainMatch[1] : '';
 
-    // Process website parameter if available
-    if (website) {
+    // If initial regex fails, fall back to URL parsing
+    if (!domain) {
       try {
-        // Normalize domain: remove protocol, www, and path
-        // TypeScript needs reassurance that website is a string here
-        const websiteStr = website;
-        domain = new URL(websiteStr).hostname.replace(/^www\./, '');
+        domain = new URL(website.startsWith('http') ? website : `http://${website}`).hostname.replace(/^www\./, '');
       } catch {
-        // If URL parsing fails, try to extract domain from the string
-        // Since we're in this block, we know website cannot be null
-        const websiteStr = website;
-        const domainParts = websiteStr.replace(/^https?:\/\/(www\.)?/, '').split('/');
-        domain = domainParts[0] || '';
+        // As a last resort, treat the whole string as a potential domain if it's simple
+        if (!website.includes('/') && website.includes('.')) {
+          domain = website;
+        } else {
+          console.warn(`[API Logo] Could not determine domain from website: ${website}`);
+        }
       }
     }
-    // Otherwise process company parameter
-    else if (company) {
-      // Use company name to form a potential domain
-      // Since we've checked company is not null here, we can safely use it as a string
-      const companyStr: string = company;
-      domain = companyStr.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
-      console.log(`[API Logo] Attempting domain from company name: ${companyStr} -> ${domain}`);
-    }
+  } else if (company) {
+    // Keep the company-based domain generation as a fallback
+    domain = `${company.toLowerCase().replace(/[^a-z0-9-]/g, '')}.com`;
+    console.log(`[API Logo] Attempting domain from company name: ${company} -> ${domain}`);
+  }
 
-    // Extra safeguard in case domain wasn't set (though our initial check should prevent this)
-    if (!domain) {
-      return NextResponse.json({ error: 'Internal error: domain could not be determined' }, { status: 500 });
-    }
+  // If domain is still empty after all attempts, it's a bad request
+  if (!domain) {
+    return NextResponse.json({ error: 'Could not determine a valid domain from the provided `website` or `company` parameter.' }, { status: 400 });
+  }
 
+  try {
     // Check if we already have this in cache before fetching
     const cacheHit = !refresh && ServerCacheInstance.getLogoFetch(domain) !== undefined;
 
@@ -97,19 +96,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           'x-cache': cacheHit ? 'HIT' : 'MISS' // Add cache hit/miss header for debugging
         }
       });
-    } else {
-      // If getLogo returns null, it means it failed to fetch from all sources (cache, volume, external)
-      // Logo not available in S3
-      return NextResponse.json(
-        { error: 'Logo not found' },
-        {
-          status: 404,
-          headers: {
-            'x-cache': cacheHit ? 'HIT' : 'MISS'
-          }
-        }
-      );
     }
+    // If getLogo returns null, it means it failed to fetch from all sources (cache, volume, external)
+    // Logo not available in S3
+    // The 'else' is removed as per Biome's suggestion because the previous 'if' block returns.
+    return NextResponse.json(
+      { error: 'Logo not found' },
+      {
+        status: 404,
+        headers: {
+          'x-cache': cacheHit ? 'HIT' : 'MISS'
+        }
+      }
+    );
   } catch (error) {
     console.error('[API Logo] Unexpected error in GET handler:', error);
     return new NextResponse(null, {
