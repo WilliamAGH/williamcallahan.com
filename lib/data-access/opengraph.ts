@@ -24,6 +24,8 @@ import {
   hashImageContent
 } from '@/lib/utils/opengraph-utils';
 import type { OgResult } from '@/types';
+import * as cheerio from 'cheerio';
+import { waitForPermit, OPENGRAPH_FETCH_STORE_NAME, OPENGRAPH_FETCH_CONTEXT_ID, DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG } from '@/lib/rate-limiter';
 
 // --- Configuration & Constants ---
 export const OPENGRAPH_S3_KEY_DIR = 'opengraph';
@@ -31,7 +33,40 @@ export const OPENGRAPH_METADATA_S3_DIR = `${OPENGRAPH_S3_KEY_DIR}/metadata`;
 export const OPENGRAPH_IMAGES_S3_DIR = `${OPENGRAPH_S3_KEY_DIR}/images`;
 
 // --- Circuit Breaker & Session Management ---
-const SESSION_FAILED_DOMAINS = new Set<string>();
+const SESSION_FAILURE_TTL = 30 * 60 * 1000; // 30 minutes
+const SESSION_FAILED_DOMAINS = new Map<string, number>(); // Store domain -> timestamp
+
+/**
+ * Adds a domain to the failed list and cleans up old entries.
+ * @param domain The domain that failed.
+ */
+function addFailedDomain(domain: string): void {
+  const now = Date.now();
+  SESSION_FAILED_DOMAINS.set(domain, now);
+  // Clean up old entries
+  for (const [d, timestamp] of SESSION_FAILED_DOMAINS.entries()) {
+    if (now - timestamp > SESSION_FAILURE_TTL) {
+      SESSION_FAILED_DOMAINS.delete(d);
+    }
+  }
+}
+
+/**
+ * Checks if a domain is currently in the failed list (and not expired).
+ * @param domain The domain to check.
+ * @returns True if the domain is considered failed, false otherwise.
+ */
+function isFailedDomain(domain: string): boolean {
+  const timestamp = SESSION_FAILED_DOMAINS.get(domain);
+  if (!timestamp) return false;
+
+  if (Date.now() - timestamp > SESSION_FAILURE_TTL) {
+    SESSION_FAILED_DOMAINS.delete(domain); // Expired, remove it
+    return false;
+  }
+  return true; // Still within TTL
+}
+
 const inFlightOgPromises: Map<string, Promise<OgResult | null>> = new Map();
 
 // Insert env-based fallback mapping above getFallbackImageForDomain
@@ -78,8 +113,8 @@ export async function getOpenGraphData(url: string, skipExternalFetch = false): 
 
   // Check circuit breaker
   const domain = getDomainType(normalizedUrl);
-  if (SESSION_FAILED_DOMAINS.has(domain)) {
-    console.log(`[DataAccess/OpenGraph] Domain ${domain} is in circuit breaker, using fallback`);
+  if (isFailedDomain(domain)) {
+    console.log(`[DataAccess/OpenGraph] Domain ${domain} is in circuit breaker (failed within TTL), using fallback`);
     return createFallbackResult(normalizedUrl, 'Domain temporarily unavailable');
   }
 
@@ -103,7 +138,10 @@ export async function getOpenGraphData(url: string, skipExternalFetch = false): 
     try {
       const s3Data = await readJsonS3<OgResult>(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`);
       if (s3Data) {
-        if (typeof s3Data.timestamp === 'number') {
+        if (s3Data && 
+            typeof s3Data.timestamp === 'number' &&
+            typeof s3Data.source === 'string' &&
+            (s3Data.ogMetadata && typeof s3Data.ogMetadata === 'object')) {
           console.log(`[DataAccess/OpenGraph] Loaded from S3: ${normalizedUrl}`);
           // Update memory cache
           ServerCacheInstance.setOpenGraphData(normalizedUrl, s3Data);
@@ -203,7 +241,7 @@ async function refreshOpenGraphData(url: string): Promise<OgResult | null> {
         
         // Add to circuit breaker
         const domain = getDomainType(normalizedUrl);
-        SESSION_FAILED_DOMAINS.add(domain);
+        addFailedDomain(domain); // Use the new function with TTL management
         
         return null;
       }
@@ -271,6 +309,9 @@ async function fetchExternalOpenGraph(url: string): Promise<OgResult | null> {
   }, OPENGRAPH_FETCH_CONFIG.TIMEOUT);
 
   try {
+    // Wait for permit from rate limiter before making the external call
+    await waitForPermit(OPENGRAPH_FETCH_STORE_NAME, OPENGRAPH_FETCH_CONTEXT_ID, DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG);
+
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -340,30 +381,37 @@ async function fetchExternalOpenGraph(url: string): Promise<OgResult | null> {
  * @returns Extracted metadata object
  */
 function extractOpenGraphTags(html: string, url: string): Record<string, string | null> {
+  // Limit HTML size to prevent ReDoS and excessive processing time
+  const MAX_HTML_SIZE_BYTES = 1 * 1024 * 1024; // 1MB
+  if (html.length > MAX_HTML_SIZE_BYTES) {
+    console.warn(`[DataAccess/OpenGraph] HTML content for ${url} exceeds ${MAX_HTML_SIZE_BYTES / (1024 * 1024)}MB limit. Skipping parsing.`);
+    return {
+      title: `Content too large to parse from ${getDomainType(url)}`,
+      description: 'HTML content was too large to process for OpenGraph metadata.',
+      url: url,
+    };
+  }
+
+  const $ = cheerio.load(html);
   const domain = getDomainType(url);
+
+  const getMetaContent = (selectors: string[]): string | null => {
+    for (const selector of selectors) {
+      const content = $(selector).attr('content');
+      if (content) return content.trim();
+    }
+    return null;
+  };
   
   const result: Record<string, string | null> = {
-    title: extractMetaContent(html, 'property="og:title"') ||
-           extractMetaContent(html, 'name="twitter:title"') ||
-           extractTitleTag(html),
-
-    description: extractMetaContent(html, 'property="og:description"') ||
-                 extractMetaContent(html, 'name="twitter:description"') ||
-                 extractMetaContent(html, 'name="description"'),
-
-    image: extractMetaContent(html, 'property="og:image"'),
-
-    twitterImage: extractMetaContent(html, 'name="twitter:image"') ||
-                 extractMetaContent(html, 'name="twitter:image:src"'),
-
-    site: extractMetaContent(html, 'property="og:site_name"') ||
-          extractMetaContent(html, 'name="twitter:site"'),
-
-    type: extractMetaContent(html, 'property="og:type"'),
-
-    url: extractMetaContent(html, 'property="og:url"') || url,
-
-    siteName: extractMetaContent(html, 'property="og:site_name"'),
+    title: getMetaContent(['meta[property="og:title"]', 'meta[name="twitter:title"]']) || $('title').first().text().trim() || null,
+    description: getMetaContent(['meta[property="og:description"]', 'meta[name="twitter:description"]', 'meta[name="description"]']),
+    image: getMetaContent(['meta[property="og:image"]']),
+    twitterImage: getMetaContent(['meta[name="twitter:image"]', 'meta[name="twitter:image:src"]']),
+    site: getMetaContent(['meta[property="og:site_name"]', 'meta[name="twitter:site"]']),
+    type: getMetaContent(['meta[property="og:type"]']),
+    url: getMetaContent(['meta[property="og:url"]']) || url,
+    siteName: getMetaContent(['meta[property="og:site_name"]']),
 
     // Platform-specific extraction
     profileImage: null,
@@ -373,17 +421,17 @@ function extractOpenGraphTags(html: string, url: string): Record<string, string 
   // Platform-specific image extraction
   try {
     if (domain === 'GitHub') {
-      result.profileImage = extractGitHubProfileImage(html);
+      result.profileImage = extractGitHubProfileImage($);
     } else if (domain === 'X' || domain === 'Twitter') {
-      const twitterImages = extractTwitterImages(html);
+      const twitterImages = extractTwitterImages($);
       result.profileImage = twitterImages.profile;
       result.bannerImage = twitterImages.banner;
     } else if (domain === 'LinkedIn') {
-      const linkedinImages = extractLinkedInImages(html);
+      const linkedinImages = extractLinkedInImages($);
       result.profileImage = linkedinImages.profile;
       result.bannerImage = linkedinImages.banner;
     } else if (domain === 'Bluesky') {
-      result.profileImage = extractBlueskyProfileImage(html);
+      result.profileImage = extractBlueskyProfileImage($);
     }
   } catch (error) {
     console.warn(`[DataAccess/OpenGraph] Error during platform-specific extraction for ${domain}:`, error);
@@ -392,99 +440,136 @@ function extractOpenGraphTags(html: string, url: string): Record<string, string 
   return result;
 }
 
-/**
- * Helper function to extract content from meta tags
- */
-function extractMetaContent(html: string, attributePattern: string): string | null {
-  const pattern = new RegExp(`<meta[^>]*${attributePattern}[^>]*content=["']([^"']+)["'][^>]*>`, 'i');
-  const alternatePattern = new RegExp(`<meta[^>]*content=["']([^"']+)["'][^>]*${attributePattern}[^>]*>`, 'i');
-  
-  const match = html.match(pattern) || html.match(alternatePattern);
-  return match?.[1] ?? null;
-}
+// Regex-based helpers extractMetaContent and extractTitleTag are no longer needed
+// as Cheerio is used above.
 
 /**
- * Extracts title from title tag as fallback
+ * Platform-specific image extraction functions using Cheerio
  */
-function extractTitleTag(html: string): string | null {
-  const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  return match?.[1]?.trim() ?? null;
-}
-
-/**
- * Platform-specific image extraction functions
- */
-function extractGitHubProfileImage(html: string): string | null {
-  const patterns = [
-    /<img[^>]*class="[^"]*avatar[^"]*"[^>]*src="([^"]+)"/i,
-    /<img[^>]*src="([^"]+)"[^>]*class="[^"]*avatar[^"]*"/i
+function extractGitHubProfileImage($: cheerio.CheerioAPI): string | null {
+  // Common selectors for GitHub profile pictures
+  const selectors = [
+    'img.avatar', // Standard avatar class
+    'img[alt*="avatar"]', // Alt text containing "avatar"
+    'a[itemprop="image"] img', // Schema.org itemprop
+    'meta[property="og:image"]', // Fallback to OG image if specific avatar not found
+    'meta[name="twitter:image"]'
   ];
-  
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match?.[1]) return match[1];
+
+  for (const selector of selectors) {
+    const el = $(selector).first();
+    const src = el.attr('src') || el.attr('content');
+    if (src) return src.trim();
   }
-  
   return null;
 }
 
-function extractTwitterImages(html: string): { profile: string | null; banner: string | null } {
-  const profilePatterns = [
-    /<img[^>]*class="[^"]*css-9pa8cd[^"]*"[^>]*src="([^"]+)"/i,
-    /<img[^>]*src="([^"]+)"[^>]*alt="[^"]*profile image/i
-  ];
-  
+function extractTwitterImages($: cheerio.CheerioAPI): { profile: string | null; banner: string | null } {
   let profile: string | null = null;
-  for (const pattern of profilePatterns) {
-    const match = html.match(pattern);
-    if (match?.[1]) {
-      profile = match[1];
-      break;
+  let banner: string | null = null;
+
+  // Profile image selectors (these can be very volatile due to Twitter's obfuscated classes)
+  // Prioritize more stable attributes if possible
+  const profileSelectors = [
+    'a[href$="/photo"] img[src*="profile_images"]', // Link to profile photo page containing an image from profile_images
+    'img[alt*="Profile image"][src*="profile_images"]',
+    'img[data-testid="UserAvatar-Container"] img[src*="profile_images"]', // Test IDs can change
+  ];
+  for (const selector of profileSelectors) {
+    const el = $(selector).first();
+    if (el.length) {
+      profile = el.attr('src')?.trim() || null;
+      if (profile) break;
     }
   }
-  
-  const bannerPattern = /<div[^>]*style="[^"]*background-image:\s*url\(([^)]+)\)"/i;
-  const bannerMatch = html.match(bannerPattern);
-  const banner = bannerMatch?.[1]?.replace(/['"]/g, '') ?? null;
-  
+  // Fallback to general OG/Twitter image if specific profile image not found
+  if (!profile) {
+    profile = $('meta[property="og:image"]').attr('content')?.trim() || $('meta[name="twitter:image"]').attr('content')?.trim() || null;
+  }
+
+  // Banner image selectors
+  const bannerSelectors = [
+    'a[href$="/header_photo"] img', // Link to header photo page
+    'div[data-testid="UserProfileHeader_Banner"] img',
+  ];
+   for (const selector of bannerSelectors) {
+    const el = $(selector).first();
+    if (el.length) {
+      banner = el.attr('src')?.trim() || null;
+      if (banner) break;
+    }
+  }
+  // Fallback for banner (less common in meta tags, but worth a check)
+   if (!banner) {
+    // Twitter card images sometimes serve as banners if type is summary_large_image
+    if ($('meta[name="twitter:card"]').attr('content') === 'summary_large_image') {
+        banner = $('meta[name="twitter:image"]').attr('content')?.trim() || null;
+        // If this banner is the same as profile, nullify banner to avoid duplication
+        if (banner && banner === profile) {
+            banner = null;
+        }
+    }
+  }
   return { profile, banner };
 }
 
-function extractLinkedInImages(html: string): { profile: string | null; banner: string | null } {
-  const profilePatterns = [
-    /<img[^>]*class="[^"]*profile-picture[^"]*"[^>]*src="([^"]+)"/i,
-    /<img[^>]*class="[^"]*pv-top-card-profile-picture__image[^"]*"[^>]*src="([^"]+)"/i
-  ];
-  
+function extractLinkedInImages($: cheerio.CheerioAPI): { profile: string | null; banner: string | null } {
   let profile: string | null = null;
-  for (const pattern of profilePatterns) {
-    const match = html.match(pattern);
-    if (match?.[1]) {
-      profile = match[1];
-      break;
+  let banner: string | null = null;
+
+  // Profile image selectors
+  const profileSelectors = [
+    'img.profile-photo-edit__preview', // Edit profile view
+    'img.pv-top-card-profile-picture__image', // Public profile view
+    'section.profile-photo-edit img', // Another potential selector
+    'meta[property="og:image"]', // OG image often is the profile pic
+  ];
+  for (const selector of profileSelectors) {
+    const el = $(selector).first();
+    if (el.length) {
+      profile = el.attr('src')?.trim() || el.attr('content')?.trim() || null;
+      if (profile) break;
     }
   }
   
-  const bannerPattern = /<img[^>]*class="[^"]*profile-background-image[^"]*"[^>]*src="([^"]+)"/i;
-  const bannerMatch = html.match(bannerPattern);
-  const banner = bannerMatch?.[1] ?? null;
-  
+  // Banner image selectors
+  // LinkedIn banners are often background images on divs
+  const bannerElement = $('div.profile-top-card__banner').first();
+  if (bannerElement.length) {
+    const style = bannerElement.attr('style');
+    if (style) {
+      // Use optional chaining for match as style could be undefined, though `if (style)` checks this.
+      // More importantly, style.match itself could return null.
+      const match = style.match(/background-image:\s*url\((['"]?)(.*?)\1\)/);
+      if (match?.[2]) { // Check if match and match[2] are not null/undefined
+        banner = match[2];
+      }
+    }
+  }
+  // Fallback if not found as background image
+  if (!banner) {
+     const bannerImg = $('img.profile-banner-image__image').first();
+     if (bannerImg.length) {
+        banner = bannerImg.attr('src')?.trim() || null;
+     }
+  }
+
   return { profile, banner };
 }
 
-function extractBlueskyProfileImage(html: string): string | null {
-  const patterns = [
-    /<img[^>]*class="[^"]*avatar[^"]*"[^>]*src="([^"]+)"/i,
-    /https:\/\/cdn\.bsky\.app\/img\/avatar\/plain\/[^"'\s]+/i
+function extractBlueskyProfileImage($: cheerio.CheerioAPI): string | null {
+  // Bluesky profile images are often in meta tags or specific img tags
+  const selectors = [
+    'meta[property="og:image"]',
+    'meta[name="twitter:image"]',
+    'img[alt*="avatar"][src*="cdn.bsky.app/img/avatar"]',
+    'img[src*="cdn.bsky.app/img/avatar/plain/"]', // More specific avatar URL pattern
   ];
-  
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match?.[0] || match?.[1]) {
-      return match[1] || match[0];
-    }
+  for (const selector of selectors) {
+    const el = $(selector).first();
+    const src = el.attr('src') || el.attr('content');
+    if (src) return src.trim();
   }
-  
   return null;
 }
 
@@ -512,9 +597,9 @@ async function cacheOpenGraphImage(imageUrl: string): Promise<string | null> {
     const extension = getImageExtension(imageUrl);
     const s3Key = `${OPENGRAPH_IMAGES_S3_DIR}/${imageHash}.${extension}`;
 
-    // Store image in S3 (implementation would depend on your S3 utilities)
-    // For now, we'll just log the intent
-    console.log(`[DataAccess/OpenGraph] Would cache image ${imageUrl} to S3 key: ${s3Key}`);
+    // TODO: Implement actual S3 storage using a utility like writeBufferS3
+    // Example: await writeBufferS3(s3Key, buffer, `image/${extension}`);
+    console.log(`[DataAccess/OpenGraph] TODO: Image caching not implemented. Would cache ${imageUrl} to S3 key: ${s3Key}`);
     
     return s3Key;
   } catch (error) {
