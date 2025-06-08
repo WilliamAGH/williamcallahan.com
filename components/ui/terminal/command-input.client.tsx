@@ -17,6 +17,14 @@ interface CommandInputProps {
 
 export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
   function CommandInput({ value, onChange, onSubmit }, ref) {
+    
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        onSubmit(e as unknown as React.FormEvent);
+      }
+    };
+    
     return (
       <form onSubmit={onSubmit} className="w-full table">
         <div className="flex items-center w-full">
@@ -29,13 +37,13 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
               type="text"
               value={value}
               onChange={(e) => onChange(e.target.value)}
+              onKeyDown={handleKeyDown}
               className="bg-transparent w-full focus:outline-none text-gray-300 caret-gray-300
                 text-[16px] transform-gpu scale-[0.875] origin-left"
               style={{
                 /* Offset the larger font size to maintain layout */
                 margin: '-0.125rem 0',
               }}
-              autoFocus
               aria-label="Terminal command input"
               placeholder="Enter a command"
               title="Terminal command input"
