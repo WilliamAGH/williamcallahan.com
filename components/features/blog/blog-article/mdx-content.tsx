@@ -60,8 +60,13 @@ const PreRenderer = (props: ComponentProps<'pre'>) => {
   const isInMacOSFrame = useIsInMacOSFrame();
   
   let isProperCodeBlock = false;
-  // Check 1: Class on the <pre> tag itself (e.g., from Rehype Pretty Code)
-  if (props.className && typeof props.className === 'string' && props.className.includes('language-')) {
+  
+  // Check for data attributes that might indicate code blocks (e.g., from Rehype Pretty Code)
+  // Check for existence of the attribute, its value doesn't matter as much as its presence.
+  const hasCodeBlockAttrs = props['data-language'] !== undefined || props['data-rehype-pretty-code-fragment'] !== undefined;
+  
+  // Check 1: Class on the <pre> tag itself (e.g., from Rehype Pretty Code) or data attributes
+  if (hasCodeBlockAttrs || (props.className && typeof props.className === 'string' && props.className.includes('language-'))) {
     isProperCodeBlock = true;
   }
 
