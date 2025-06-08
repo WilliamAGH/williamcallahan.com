@@ -216,3 +216,23 @@ export function getDisplayDomain(url: string): string {
     return url;
   }
 }
+
+/**
+ * Gets domain variants to try (e.g., subdomain and root domain).
+ * @param domain The domain to get variants for.
+ * @returns An array of domain variants.
+ */
+export function getDomainVariants(domain: string): string[] {
+  const variants: string[] = [domain];
+
+  // If it's a subdomain, also try the root domain
+  const parts: string[] = domain.split('.');
+  if (parts.length > 2) {
+    const rootDomain: string = parts.slice(-2).join('.');
+    if (rootDomain !== domain) {
+      variants.push(rootDomain);
+    }
+  }
+
+  return variants;
+}
