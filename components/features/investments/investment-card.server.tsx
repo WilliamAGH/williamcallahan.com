@@ -9,6 +9,7 @@
 import type { Investment } from '../../../types/investment';
 import { ThemeWrapper } from './theme-wrapper.client';
 import { fetchLogo, normalizeDomain } from '../../../lib/logo-fetcher';
+import { isDebug } from '../../../lib/utils/debug';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import FinancialMetrics from '../../ui/financial-metrics.server';
@@ -66,7 +67,7 @@ export async function InvestmentCard(props: Investment): Promise<JSX.Element> {
 
     // Skip logo fetching if no website is provided - obvious optimization
     if (!website) {
-      console.log(`[InvestmentCard] No website provided for ${name}, using placeholder`);
+      if (isDebug) console.log(`[InvestmentCard] No website provided for ${name}, using placeholder`);
       const placeholder = await getPlaceholder();
       const placeholderDataUrl = `data:image/svg+xml;base64,${placeholder.toString('base64')}`;
       return <ThemeWrapper investment={props} logoData={{ url: placeholderDataUrl, source: null }} renderedMetrics={metricsElement} />;
@@ -74,7 +75,7 @@ export async function InvestmentCard(props: Investment): Promise<JSX.Element> {
 
     // Skip logo fetching for defunct/closed investments to avoid unnecessary API calls
     if (isInvestmentDefunct(props)) {
-      console.log(`[InvestmentCard] Skipping logo fetch for defunct investment: ${name}`);
+      if (isDebug) console.log(`[InvestmentCard] Skipping logo fetch for defunct investment: ${name}`);
       const placeholder = await getPlaceholder();
       const placeholderDataUrl = `data:image/svg+xml;base64,${placeholder.toString('base64')}`;
       return <ThemeWrapper investment={props} logoData={{ url: placeholderDataUrl, source: null }} renderedMetrics={metricsElement} />;
