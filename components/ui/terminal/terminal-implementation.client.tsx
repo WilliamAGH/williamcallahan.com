@@ -28,11 +28,11 @@ const enableDebugLogs = isDevelopment && false; // Set to true only when debuggi
 export function Terminal() {
   // Log component mount/unmount
   useEffect(() => {
-    if (enableDebugLogs) {
+    if (enableDebugLogs && process.env.NODE_ENV === 'development') {
       console.debug("--- Terminal Component Mounted ---");
     }
     return () => {
-      if (enableDebugLogs) {
+      if (enableDebugLogs && process.env.NODE_ENV === 'development') {
         console.debug("--- Terminal Component Unmounted ---");
       }
     };
@@ -155,10 +155,21 @@ export function Terminal() {
   }, [isMaximized, maximizeWindow]); // Dependencies: run when isMaximized or maximizeWindow changes
 
    // --- Conditional Rendering ---
+   
+   // Add debug logging for terminal state
+   if (enableDebugLogs && process.env.NODE_ENV === 'development') {
+     console.debug("Terminal Component State Check:", {
+       isRegistered,
+       windowState,
+       input,
+       selection,
+       historyLength: terminalHistory.length
+     });
+   }
 
    // If not yet ready (mounted and registered in context), render nothing.
   if (!isRegistered) {
-    if (enableDebugLogs) {
+    if (enableDebugLogs && process.env.NODE_ENV === 'development') {
       console.debug("Terminal Component: Not ready (pre-mount/hydration from context), rendering null.");
     }
     return null;
@@ -167,14 +178,14 @@ export function Terminal() {
   // Now that we are ready (mounted), render based on the current windowState
   // If closed or minimized, render null - the FloatingTerminalButton handles this
   if (windowState === "closed" || windowState === "minimized") {
-    if (enableDebugLogs) {
+    if (enableDebugLogs && process.env.NODE_ENV === 'development') {
       console.debug(`Terminal Component: Rendering null (windowState is ${windowState})`);
     }
     return null;
   }
 
   // Render normal or maximized view (implicit else, because we checked !isReady earlier)
-  if (enableDebugLogs) {
+  if (enableDebugLogs && process.env.NODE_ENV === 'development') {
     console.debug(`Terminal Component: Rendering ${windowState} view`);
   }
 
