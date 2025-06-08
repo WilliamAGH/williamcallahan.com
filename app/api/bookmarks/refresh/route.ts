@@ -22,6 +22,7 @@ async function initLogoFunctions() {
   }
 }
 import type { UnifiedBookmark } from '@/types/bookmark';
+import { isOperationAllowed, API_ENDPOINT_STORE_NAME, DEFAULT_API_ENDPOINT_LIMIT_CONFIG } from '@/lib/rate-limiter';
 
 // Ensure this route is not statically cached
 export const dynamic = 'force-dynamic';
@@ -102,39 +103,7 @@ async function processLogosBatch(
   return { successCount, failureCount };
 }
 
-// In-memory rate limiting
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX = 5; // 5 requests per window
-
-// Simple in-memory rate limiting
-// Rate limiting implementation - consider replacing with distributed solution for multi-instance deployments
-// In-memory store resets on deploys and doesn't scale horizontally.
-const rateLimitStore: { [ip: string]: { count: number; resetAt: number } } = {};
-
-/**
- * Rate limiting middleware
- */
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = rateLimitStore[ip];
-
-  // If no record exists or window has expired, create a new one
-  if (!record || now > record.resetAt) {
-    rateLimitStore[ip] = {
-      count: 1,
-      resetAt: now + RATE_LIMIT_WINDOW
-    };
-    return true;
-  }
-
-  // Increment count and check if over limit
-  record.count++;
-  if (record.count > RATE_LIMIT_MAX) {
-    return false;
-  }
-
-  return true;
-}
+// Rate limiting is now handled by the centralized lib/rate-limiter.ts
 
 /**
  * POST handler - Refreshes the bookmarks cache
@@ -157,8 +126,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Get client IP for rate limiting (only if not an authenticated cron job)
   if (!isCronJob) {
     const forwardedFor: string = request.headers.get('x-forwarded-for') || 'unknown';
-    const clientIp = forwardedFor?.split(',')[0]?.trim() || '';
-    if (!checkRateLimit(clientIp)) {
+    const clientIp = forwardedFor?.split(',')[0]?.trim() || 'unknown_ip'; // Ensure clientIp is never empty
+    if (!isOperationAllowed(API_ENDPOINT_STORE_NAME, clientIp, DEFAULT_API_ENDPOINT_LIMIT_CONFIG)) {
       return NextResponse.json({
         error: 'Rate limit exceeded. Try again later.'
       }, { status: 429 });
