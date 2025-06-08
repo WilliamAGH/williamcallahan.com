@@ -16,36 +16,37 @@ export function SimpleTabsEnhancer() {
     // Find all tab groups on the page
     const tabGroups = document.querySelectorAll('.mdx-tab-group');
     
-    tabGroups.forEach((group) => {
+    for (const group of tabGroups) {
       const buttons = group.querySelectorAll('.mdx-tab-button');
       
-      buttons.forEach((button) => {
-        button.addEventListener('click', (e) => {
-          const target = e.currentTarget as HTMLElement;
-          const tabId = target.getAttribute('data-tab');
+      for (const button of buttons) {
+        button.addEventListener('click', (e: Event) => {
+          if (!(e.currentTarget instanceof HTMLElement)) return;
+          
+          const tabId = e.currentTarget.getAttribute('data-tab');
           if (!tabId) return;
           
           // Update active tab on the group
           group.setAttribute('data-active-tab', tabId);
           
           // Update active state on buttons
-          buttons.forEach((btn) => {
+          for (const btn of buttons) {
             const isActive = btn.getAttribute('data-tab') === tabId;
             btn.setAttribute('data-active', isActive.toString());
-          });
+          }
         });
-      });
-    });
+      }
+    }
     
     // Cleanup
     return () => {
-      tabGroups.forEach((group) => {
+      for (const group of tabGroups) {
         const buttons = group.querySelectorAll('.mdx-tab-button');
-        buttons.forEach((button) => {
+        for (const button of buttons) {
           const clone = button.cloneNode(true);
           button.parentNode?.replaceChild(clone, button);
-        });
-      });
+        }
+      }
     };
   }, []);
   
