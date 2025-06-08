@@ -26,6 +26,7 @@ import {
 import type { OgResult } from '@/types';
 import * as cheerio from 'cheerio';
 import { waitForPermit, OPENGRAPH_FETCH_STORE_NAME, OPENGRAPH_FETCH_CONTEXT_ID, DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG } from '@/lib/rate-limiter';
+import { debug, debugWarn } from '@/lib/utils/debug';
 
 // --- Configuration & Constants ---
 export const OPENGRAPH_S3_KEY_DIR = 'opengraph';
@@ -91,7 +92,7 @@ export async function getOpenGraphData(url: string, skipExternalFetch = false): 
   const normalizedUrl = normalizeUrl(url);
   const urlHash = hashUrl(normalizedUrl);
   
-  console.log(`[DataAccess/OpenGraph] Fetching OG data for: ${normalizedUrl}`);
+  debug(`[DataAccess/OpenGraph] Fetching OG data for: ${normalizedUrl}`);
 
   // Validate URL first
   if (!validateOgUrl(normalizedUrl)) {
@@ -104,7 +105,7 @@ export async function getOpenGraphData(url: string, skipExternalFetch = false): 
   const shouldRefresh = ServerCacheInstance.shouldRefreshOpenGraph(normalizedUrl);
 
   if (cached && !shouldRefresh) {
-    console.log(`[DataAccess/OpenGraph] Returning fresh cached data for: ${normalizedUrl}`);
+    debug(`[DataAccess/OpenGraph] Returning fresh cached data from memory: ${normalizedUrl}`);
     return {
       ...cached,
       source: 'cache'
@@ -114,13 +115,13 @@ export async function getOpenGraphData(url: string, skipExternalFetch = false): 
   // Check circuit breaker
   const domain = getDomainType(normalizedUrl);
   if (isFailedDomain(domain)) {
-    console.log(`[DataAccess/OpenGraph] Domain ${domain} is in circuit breaker (failed within TTL), using fallback`);
+    debug(`[DataAccess/OpenGraph] Domain ${domain} is in circuit breaker (failed within TTL), using fallback`);
     return createFallbackResult(normalizedUrl, 'Domain temporarily unavailable');
   }
 
   // If we have stale cache and should refresh, start background refresh
   if (cached && shouldRefresh && !skipExternalFetch) {
-    console.log(`[DataAccess/OpenGraph] Using stale cache while refreshing in background: ${normalizedUrl}`);
+    debug(`[DataAccess/OpenGraph] Using stale cache while refreshing in background: ${normalizedUrl}`);
     
     // Start background refresh but don't await it
     refreshOpenGraphData(normalizedUrl).catch(error => {
@@ -142,7 +143,7 @@ export async function getOpenGraphData(url: string, skipExternalFetch = false): 
             typeof s3Data.timestamp === 'number' &&
             typeof s3Data.source === 'string' &&
             (s3Data.ogMetadata && typeof s3Data.ogMetadata === 'object')) {
-          console.log(`[DataAccess/OpenGraph] Loaded from S3: ${normalizedUrl}`);
+          debug(`[DataAccess/OpenGraph] ✅ Successfully loaded from S3 cache: ${normalizedUrl}`);
           // Update memory cache
           ServerCacheInstance.setOpenGraphData(normalizedUrl, s3Data);
           // Check if S3 data is stale
@@ -171,7 +172,7 @@ export async function getOpenGraphData(url: string, skipExternalFetch = false): 
   }
 
   // Fetch fresh data from external source
-  console.log(`[DataAccess/OpenGraph] Fetching fresh data for: ${normalizedUrl}`);
+  debug(`[DataAccess/OpenGraph] 🌐 Fetching fresh data from external source: ${normalizedUrl}`);
   const freshData = await refreshOpenGraphData(normalizedUrl);
   
   if (freshData) {
@@ -180,7 +181,7 @@ export async function getOpenGraphData(url: string, skipExternalFetch = false): 
 
   // Final fallback - return cached data if available, otherwise create fallback
   if (cached) {
-    console.log(`[DataAccess/OpenGraph] Using stale cache as final fallback: ${normalizedUrl}`);
+    debug(`[DataAccess/OpenGraph] Using stale cache as final fallback: ${normalizedUrl}`);
     return {
       ...cached,
       source: 'cache'
@@ -202,7 +203,7 @@ async function refreshOpenGraphData(url: string): Promise<OgResult | null> {
 
   // Check if fetch is already in progress
   if (inFlightOgPromises.has(normalizedUrl)) {
-    console.log(`[DataAccess/OpenGraph] Fetch already in progress for: ${normalizedUrl}`);
+    debug(`[DataAccess/OpenGraph] Fetch already in progress for: ${normalizedUrl}`);
     const existingPromise = inFlightOgPromises.get(normalizedUrl);
     if (existingPromise) {
       return existingPromise;
@@ -227,7 +228,7 @@ async function refreshOpenGraphData(url: string): Promise<OgResult | null> {
           // Update memory cache
           ServerCacheInstance.setOpenGraphData(normalizedUrl, result, false);
           
-          console.log(`[DataAccess/OpenGraph] Successfully refreshed and cached: ${normalizedUrl}`);
+          debug(`[DataAccess/OpenGraph] Successfully refreshed and cached: ${normalizedUrl}`);
           return result;
         } catch (storageError) {
           console.error(`[DataAccess/OpenGraph] Failed to store data for ${normalizedUrl}:`, storageError);
@@ -271,22 +272,22 @@ async function fetchExternalOpenGraphWithRetry(url: string): Promise<OgResult | 
           OPENGRAPH_FETCH_CONFIG.BACKOFF_BASE,
           OPENGRAPH_FETCH_CONFIG.MAX_BACKOFF
         );
-        console.log(`[DataAccess/OpenGraph] Retry attempt ${attempt} for ${url} after ${delay}ms delay`);
+        debug(`[DataAccess/OpenGraph] Retry attempt ${attempt} for ${url} after ${delay}ms delay`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
 
       const result = await fetchExternalOpenGraph(url);
       if (result) {
-        console.log(`[DataAccess/OpenGraph] Successfully fetched on attempt ${attempt + 1}: ${url}`);
+        debug(`[DataAccess/OpenGraph] Successfully fetched on attempt ${attempt + 1}: ${url}`);
         return result;
       }
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      console.warn(`[DataAccess/OpenGraph] Attempt ${attempt + 1} failed for ${url}:`, lastError.message);
+      debugWarn(`[DataAccess/OpenGraph] Attempt ${attempt + 1} failed for ${url}:`, lastError.message);
       
       // Check if we should retry this error
       if (!shouldRetryUrl(lastError)) {
-        console.log(`[DataAccess/OpenGraph] Non-retryable error, stopping attempts: ${lastError.message}`);
+        debug(`[DataAccess/OpenGraph] Non-retryable error, stopping attempts: ${lastError.message}`);
         break;
       }
     }
@@ -322,7 +323,7 @@ async function fetchExternalOpenGraph(url: string): Promise<OgResult | null> {
       'Upgrade-Insecure-Requests': '1'
     };
 
-    console.log(`[DataAccess/OpenGraph] Fetching HTML from: ${url}`);
+    debug(`[DataAccess/OpenGraph] Fetching HTML from: ${url}`);
     const response = await fetch(url, {
       method: 'GET',
       headers,
@@ -335,7 +336,7 @@ async function fetchExternalOpenGraph(url: string): Promise<OgResult | null> {
     }
 
     const html = await response.text();
-    console.log(`[DataAccess/OpenGraph] Successfully fetched HTML (${html.length} bytes) from: ${url}`);
+    debug(`[DataAccess/OpenGraph] Successfully fetched HTML (${html.length} bytes) from: ${url}`);
 
     // Extract OpenGraph metadata
     const ogMetadata = extractOpenGraphTags(html, url);
@@ -351,7 +352,7 @@ async function fetchExternalOpenGraph(url: string): Promise<OgResult | null> {
       actualUrl: response.url !== url ? response.url : undefined
     };
 
-    console.log(`[DataAccess/OpenGraph] Extracted metadata for ${url}:`, {
+    debug(`[DataAccess/OpenGraph] Extracted metadata for ${url}:`, {
       title: sanitizedMetadata.title,
       imageUrl: result.imageUrl,
       bannerImageUrl: result.bannerImageUrl
@@ -360,11 +361,8 @@ async function fetchExternalOpenGraph(url: string): Promise<OgResult | null> {
     return result;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      const isDev = process.env.NODE_ENV === 'development';
       const timeoutMessage = `Request timeout after ${OPENGRAPH_FETCH_CONFIG.TIMEOUT}ms`;
-      if (isDev) {
-        console.warn(`[DataAccess/OpenGraph] [DEV] ${timeoutMessage} for ${url}`);
-      }
+      debugWarn(`[DataAccess/OpenGraph] ${timeoutMessage} for ${url}`);
       throw new Error(timeoutMessage);
     }
     throw error;
@@ -384,7 +382,7 @@ function extractOpenGraphTags(html: string, url: string): Record<string, string 
   // Limit HTML size to prevent ReDoS and excessive processing time
   const MAX_HTML_SIZE_BYTES = 1 * 1024 * 1024; // 1MB
   if (html.length > MAX_HTML_SIZE_BYTES) {
-    console.warn(`[DataAccess/OpenGraph] HTML content for ${url} exceeds ${MAX_HTML_SIZE_BYTES / (1024 * 1024)}MB limit. Skipping parsing.`);
+    debugWarn(`[DataAccess/OpenGraph] HTML content for ${url} exceeds ${MAX_HTML_SIZE_BYTES / (1024 * 1024)}MB limit. Skipping parsing.`);
     return {
       title: `Content too large to parse from ${getDomainType(url)}`,
       description: 'HTML content was too large to process for OpenGraph metadata.',
@@ -434,7 +432,7 @@ function extractOpenGraphTags(html: string, url: string): Record<string, string 
       result.profileImage = extractBlueskyProfileImage($);
     }
   } catch (error) {
-    console.warn(`[DataAccess/OpenGraph] Error during platform-specific extraction for ${domain}:`, error);
+    debugWarn(`[DataAccess/OpenGraph] Error during platform-specific extraction for ${domain}:`, error);
   }
 
   return result;

@@ -8,7 +8,8 @@ import type { LogoSource } from '@/types';
 import { readBinaryS3 } from '@/lib/s3-utils';
 import { createHash } from 'node:crypto';
 import { listAllS3LogoKeys } from './s3-cache';
-import { LOGOS_S3_KEY_DIR, VERBOSE } from './config';
+import { LOGOS_S3_KEY_DIR } from './config';
+import { isDebug } from '@/lib/utils/debug';
 
 /**
  * Constructs the S3 object key for a company logo using the domain and logo source.
@@ -50,7 +51,7 @@ export async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; so
         if (bestKey.includes('_google')) source = 'google';
         else if (bestKey.includes('_clearbit')) source = 'clearbit';
         else if (bestKey.includes('_ddg')) source = 'duckduckgo';
-        if (VERBOSE) console.log(`[DataAccess/Logos-S3] Found logo for ${domain} by S3 list pattern match: ${bestKey}`);
+        if (isDebug) console.log(`[DataAccess/Logos-S3] Found logo for ${domain} by S3 list pattern match: ${bestKey}`);
         return { buffer, source };
       }
     }
@@ -70,14 +71,14 @@ export async function findLogoInS3(domain: string): Promise<{ buffer: Buffer; so
           if (bestKey.includes('_google')) source = 'google';
           else if (bestKey.includes('_clearbit')) source = 'clearbit';
           else if (bestKey.includes('_ddg')) source = 'duckduckgo';
-          if (VERBOSE) console.log(`[DataAccess/Logos-S3] Found logo for ${domain} by S3 list pattern match (legacy): ${bestKey}`);
+          if (isDebug) console.log(`[DataAccess/Logos-S3] Found logo for ${domain} by S3 list pattern match (legacy): ${bestKey}`);
           return { buffer, source };
         }
       }
     }
     
   } catch (error) {
-    if (VERBOSE) console.warn(`[DataAccess/Logos-S3] Error listing or reading logos for domain ${domain}:`, error);
+    console.warn(`[DataAccess/Logos-S3] Error listing or reading logos for domain ${domain}:`, error);
   }
   return null;
 }

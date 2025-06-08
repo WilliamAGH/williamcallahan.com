@@ -8,7 +8,7 @@ import type { LogoSource } from '@/types';
 import { LOGO_SOURCES } from '@/lib/constants';
 import { getDomainVariants } from '@/lib/utils/domain-utils';
 import { processImageBuffer, validateLogoBuffer } from './image-processing';
-import { VERBOSE } from './config';
+import { isDebug } from '@/lib/utils/debug';
 
 /**
  * Gets browser-like headers to avoid bot detection.
@@ -130,16 +130,39 @@ async function extractFaviconFromHtml(domain: string): Promise<{ buffer: Buffer;
   } catch (error) {
     // Handle domain resolution and network errors more gracefully
     if (error instanceof Error) {
-      if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
-        if (VERBOSE) console.log(`[DataAccess/Logos] Domain ${domain} not found (DNS resolution failed).`);
+      // Check direct error message for various connection issues
+      if (error.message.includes('ENOTFOUND') || 
+          error.message.includes('getaddrinfo') ||
+          error.message.includes('Unable to connect') ||
+          error.message.includes('ConnectionRefused') ||
+          error.message.includes('ECONNREFUSED')) {
+        if (isDebug) console.log(`[DataAccess/Logos] Connection failed for ${domain} (${error.message.split('\n')[0]}).`);
         return null;
       }
+      
+      // Check for fetch failed with DNS/connection errors in cause (Node.js 18+ fetch API)
+      if (error.message.includes('fetch failed') && error.cause && 
+          typeof error.cause === 'object' && 'code' in error.cause) {
+        const causeCode = error.cause.code;
+        if (causeCode === 'ENOTFOUND') {
+          if (isDebug) console.log(`[DataAccess/Logos] Domain ${domain} not found (DNS resolution failed).`);
+          return null;
+        }
+        if (causeCode === 'ConnectionRefused' || causeCode === 'ECONNREFUSED') {
+          if (isDebug) console.log(`[DataAccess/Logos] Connection refused for ${domain}.`);
+          return null;
+        }
+      }
+      
       if (error.name === 'AbortError') {
-        if (VERBOSE) console.log(`[DataAccess/Logos] Timeout extracting favicon from HTML for ${domain}.`);
+        if (isDebug) console.log(`[DataAccess/Logos] Timeout extracting favicon from HTML for ${domain}.`);
         return null;
       }
     }
-    if (VERBOSE) console.log(`[DataAccess/Logos] Error extracting favicon from HTML for ${domain}:`, error);
+    
+    // For any non-object errors or unhandled cases, still be graceful
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (isDebug) console.warn(`[DataAccess/Logos] Error extracting favicon from HTML for ${domain}:`, errorMessage);
   }
 
   return null;
@@ -166,7 +189,7 @@ export async function fetchExternalLogo(domain: string): Promise<{ buffer: Buffe
     for (const { name, urlFn } of sources) {
       const url: string = urlFn(testDomain);
       try {
-        if (VERBOSE) console.log(`[DEBUG] Attempting ${name} fetch: ${url}`);
+        if (isDebug) console.log(`[DEBUG] Attempting ${name} fetch: ${url}`);
         
         const controller: AbortController = new AbortController();
         const timeoutId: NodeJS.Timeout = setTimeout(() => controller.abort(), 5000);
@@ -180,13 +203,13 @@ export async function fetchExternalLogo(domain: string): Promise<{ buffer: Buffe
           clearTimeout(timeoutId);
         }
         
-        if (VERBOSE) console.log(`[DEBUG] ${name} response status: ${response.status} for ${url}`);
+        if (isDebug) console.log(`[DEBUG] ${name} response status: ${response.status} for ${url}`);
         if (!response.ok) continue;
 
         // Standard handling for other sources
         const rawBuffer: Buffer = Buffer.from(await response.arrayBuffer());
         if (!rawBuffer || rawBuffer.byteLength < 100) {
-          if (VERBOSE) console.log(`[DEBUG] ${name} buffer too small: ${rawBuffer?.byteLength || 0} bytes for ${testDomain}`);
+          if (isDebug) console.log(`[DEBUG] ${name} buffer too small: ${rawBuffer?.byteLength || 0} bytes for ${testDomain}`);
           continue;
         }
         
@@ -198,7 +221,7 @@ export async function fetchExternalLogo(domain: string): Promise<{ buffer: Buffe
         }
         
         // Debug: show why validation failed
-        if (VERBOSE) {
+        if (isDebug) {
           try {
             const sharp = await import('sharp');
             const metadata = await sharp.default(rawBuffer).metadata();
@@ -225,3 +248,4 @@ export async function fetchExternalLogo(domain: string): Promise<{ buffer: Buffe
 
   return null;
 }
+

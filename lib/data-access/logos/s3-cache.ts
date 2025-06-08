@@ -5,7 +5,8 @@
  */
 
 import { listS3Objects as s3UtilsListS3Objects } from '@/lib/s3-utils';
-import { LOGOS_S3_KEY_DIR, VERBOSE } from './config';
+import { LOGOS_S3_KEY_DIR } from './config';
+import { isDebug } from '@/lib/utils/debug';
 
 // Cache S3 logo keys to avoid repeated listing calls
 let ALL_S3_LOGO_KEYS: string[] | null = null;
@@ -29,7 +30,7 @@ export async function listAllS3LogoKeys(): Promise<string[]> {
 export function addKeyToS3LogoCache(key: string): void {
   if (ALL_S3_LOGO_KEYS !== null && !ALL_S3_LOGO_KEYS.includes(key)) {
     ALL_S3_LOGO_KEYS.push(key);
-    if (VERBOSE) console.log(`[DataAccess/Logos-S3] Added new key to S3 logo cache: ${key}`);
+    if (isDebug) console.log(`[DataAccess/Logos-S3] Added new key to S3 logo cache: ${key}`);
   }
 }
 
@@ -39,5 +40,5 @@ export function addKeyToS3LogoCache(key: string): void {
  */
 export function invalidateS3LogoKeysCache(): void {
   ALL_S3_LOGO_KEYS = null;
-  if (VERBOSE) console.log('[DataAccess/Logos] S3 logo keys cache invalidated.');
+  if (isDebug) console.log('[DataAccess/Logos] S3 logo keys cache invalidated.');
 }
