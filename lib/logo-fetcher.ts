@@ -13,6 +13,7 @@ import type { LogoSource } from '../types/logo'; // Still used for typing the re
 import { assertServerOnly } from './utils/ensure-server-only';
 import { getBaseUrl } from './getBaseUrl'; // Added import
 import { getLogo as getLogoFromDataAccess } from './data-access'; // Import direct data access function
+import { VERBOSE } from './data-access/logos/config'; // Import VERBOSE flag
 
 // Detect if we're in a build environment
 const IS_BUILD_PHASE = process.env.NEXT_PHASE === 'phase-production-build' ||
@@ -54,7 +55,7 @@ export async function fetchLogo(domain: string): Promise<{
   const memoryCached = ServerCacheInstance.getLogoFetch(normalizedDomain);
   if (memoryCached) {
     if (memoryCached.buffer) {
-      console.debug(`[logo-fetcher] Cache hit (Memory): ${normalizedDomain} from ${memoryCached.source || 'unknown'}`);
+      if (VERBOSE) console.debug(`[logo-fetcher] Cache hit (Memory): ${normalizedDomain} from ${memoryCached.source || 'unknown'}`);
       return { buffer: memoryCached.buffer, source: memoryCached.source };
     }
     // If there's a cached error, respect it for a short duration or specific conditions,
@@ -62,13 +63,13 @@ export async function fetchLogo(domain: string): Promise<{
     // For simplicity here, if there's no buffer, we'll try the API.
     // More sophisticated error caching could be added if needed.
     if (memoryCached.error) {
-        console.debug(`[logo-fetcher] Memory cache contains error for ${normalizedDomain}: ${memoryCached.error}. Will try API route.`);
+        if (VERBOSE) console.debug(`[logo-fetcher] Memory cache contains error for ${normalizedDomain}: ${memoryCached.error}. Will try API route.`);
     }
   }
 
   // During build phase, use direct data access instead of API calls
   if (IS_BUILD_PHASE) {
-    console.debug(`[logo-fetcher] Build phase detected, using direct data access for logo: ${normalizedDomain}`);
+    if (VERBOSE) console.debug(`[logo-fetcher] Build phase detected, using direct data access for logo: ${normalizedDomain}`);
     try {
       // Use empty string as baseUrl to signal "no network validation"
       // or use API_BASE_URL which is guaranteed to exist in the build context
@@ -77,7 +78,7 @@ export async function fetchLogo(domain: string): Promise<{
       );
 
       if (logoResult?.buffer) {
-        console.debug(`[logo-fetcher] Successfully retrieved logo for ${normalizedDomain} via direct data access (source: ${logoResult.source || 'unknown'})`);
+        if (VERBOSE) console.debug(`[logo-fetcher] Retrieved logo for ${normalizedDomain} (source: ${logoResult.source || 'unknown'}) from data access layer`);
         // Cache in memory
         ServerCacheInstance.setLogoFetch(normalizedDomain, { url: null, source: logoResult.source, buffer: logoResult.buffer });
         return { buffer: logoResult.buffer, source: logoResult.source };
@@ -95,7 +96,7 @@ export async function fetchLogo(domain: string): Promise<{
   }
 
   // 2. Fetch from /api/logo endpoint (normal runtime behavior)
-  console.debug(`[logo-fetcher] Cache miss (Memory): ${normalizedDomain}. Calling /api/logo endpoint...`);
+  if (VERBOSE) console.debug(`[logo-fetcher] Cache miss (Memory): ${normalizedDomain}. Calling /api/logo endpoint...`);
   try {
     // Construct the URL for the API endpoint.
     const baseUrl = getBaseUrl(); // Added
@@ -120,7 +121,7 @@ export async function fetchLogo(domain: string): Promise<{
       const logoSource = response.headers.get('x-logo-source') as LogoSource | null;
 
       if (buffer && buffer.byteLength > 0) {
-        console.debug(`[logo-fetcher] Successfully fetched logo for ${normalizedDomain} from /api/logo (source: ${logoSource || 'unknown'})`);
+        if (VERBOSE) console.debug(`[logo-fetcher] Successfully fetched logo for ${normalizedDomain} from /api/logo (source: ${logoSource || 'unknown'})`);
         // Cache in memory
         ServerCacheInstance.setLogoFetch(normalizedDomain, { url: null, source: logoSource, buffer });
         return { buffer, source: logoSource };
