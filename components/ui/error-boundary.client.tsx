@@ -68,6 +68,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           return (
             <div className="py-1">
               <button
+                type="button"
                 onClick={() => this.setState({ hasError: false })}
                 className="text-xs text-gray-400 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-500"
                 aria-label="Reload component"
@@ -82,6 +83,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return (
           <div className="py-2">
             <button
+              type="button"
               onClick={() => this.setState({ hasError: false })}
               className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded text-gray-500 dark:text-gray-400"
             >
@@ -99,6 +101,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             We&apos;ve been notified and will fix this as soon as possible.
           </p>
           <button
+            type="button"
             onClick={() => this.setState({ hasError: false })}
             className="mt-2 px-3 py-1 text-xs bg-red-100 dark:bg-red-800/50 text-red-800 dark:text-red-300 rounded-md hover:bg-red-200 dark:hover:bg-red-800 transition-colors"
           >

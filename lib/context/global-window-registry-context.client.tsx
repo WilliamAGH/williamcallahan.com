@@ -46,21 +46,9 @@ interface GlobalWindowRegistryProviderProps {
 // Define the provider component
 export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryProviderProps) => {
   const [windows, setWindows] = useState<Record<string, WindowInstanceInfo>>({});
-  // Add client-side initialization flag
-  const [isClient, setIsClient] = useState(false);
-
-  // Initialize on client-side only
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   const registerWindow = useCallback((id: string, icon: LucideIcon, title: string, initialState: WindowState = 'normal') => {
-    // Skip registration during server rendering
-    if (!isClient) return;
-
-    if (process.env.NODE_ENV !== 'production') {
-      // console.log(`WindowRegistry: Registering window '${id}' with initial state '${initialState}'`);
-    }
+    // Registration logging removed to keep development console clean
     setWindows(prev => {
       // Avoid re-registering if already present with the same info
       if (prev[id] && prev[id].state === initialState && prev[id].icon === icon) {
@@ -71,12 +59,9 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
         [id]: { id, state: initialState, icon, title },
       };
     });
-  }, [isClient]);
+  }, []);
 
   const unregisterWindow = useCallback((id: string) => {
-    if (process.env.NODE_ENV !== 'production') {
-      // console.log(`WindowRegistry: Unregistering window '${id}'`);
-    }
     setWindows(prev => {
     // Destructure to get all windows except the one we're removing
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -89,9 +74,6 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
   const setWindowState = useCallback((id: string, state: WindowState) => {
     setWindows(prev => {
       if (!prev[id] || prev[id].state === state) return prev; // No change needed
-      if (process.env.NODE_ENV !== 'production') {
-        // console.log(`WindowRegistry: Setting state for '${id}' to '${state}'`);
-      }
       // TODO: Persist to sessionStorage here?
       return { ...prev, [id]: { ...prev[id], state } };
     });
@@ -105,9 +87,6 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
     setWindows(prev => {
       if (!prev[id]) return prev;
       const newState = prev[id].state === 'maximized' ? 'normal' : 'maximized';
-      if (process.env.NODE_ENV !== 'production') {
-        // console.log(`WindowRegistry: Toggling state for '${id}' to '${newState}'`);
-      }
        // TODO: Persist to sessionStorage here?
       return { ...prev, [id]: { ...prev[id], state: newState } };
     });
