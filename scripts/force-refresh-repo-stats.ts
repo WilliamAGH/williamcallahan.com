@@ -17,7 +17,6 @@ import type { GithubContributorStatsEntry, RepoRawWeeklyStat } from '@/types'; /
 
 const GITHUB_API_TOKEN = process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH;
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || 'WilliamAGH';
-const VERBOSE = process.env.VERBOSE === 'true' || false;
 
 interface RepoToUpdate {
   owner: string;
@@ -49,7 +48,7 @@ async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWe
 
   while (attempt < maxAttempts) {
     attempt++;
-    if (VERBOSE) console.log(`[Script] Attempt ${attempt} for ${url}`);
+    console.log(`[Script] Attempt ${attempt} for ${url}`);
     const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${GITHUB_API_TOKEN}`,
@@ -65,18 +64,20 @@ async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWe
       if (userStatsEntry?.weeks && Array.isArray(userStatsEntry.weeks)) {
         console.log(`[Script] Successfully fetched stats for ${owner}/${name}. Found ${userStatsEntry.weeks.length} weeks of activity.`);
         return userStatsEntry.weeks.map((w: RepoRawWeeklyStat) => ({ w: w.w, a: w.a, d: w.d, c: w.c })).sort((a,b) => a.w - b.w);
-      } else {
-        console.log(`[Script] No specific stats found for user ${GITHUB_REPO_OWNER} in ${owner}/${name}.`);
-        return [];
       }
-    } else if (response.status === 202) {
+      console.log(`[Script] No specific stats found for user ${GITHUB_REPO_OWNER} in ${owner}/${name}.`);
+      return [];
+    }
+    
+    if (response.status === 202) {
       console.log(`[Script] GitHub API returned 202 (Accepted) for ${owner}/${name}. Data is being prepared. Waiting ${delay / 1000}s before retry (${attempt}/${maxAttempts}).`);
       await new Promise(resolve => setTimeout(resolve, delay));
       delay *= 2; // Exponential backoff
-    } else {
-      console.error(`[Script] Error fetching stats for ${owner}/${name}: ${response.status} ${await response.text()}`);
-      return []; // Return empty on persistent error
+      continue;
     }
+    
+    console.error(`[Script] Error fetching stats for ${owner}/${name}: ${response.status} ${await response.text()}`);
+    return []; // Return empty on persistent error
   }
   console.warn(`[Script] Max retries reached for ${owner}/${name}. Could not fetch stats.`);
   return [];

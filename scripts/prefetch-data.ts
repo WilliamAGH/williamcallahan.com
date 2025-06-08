@@ -16,7 +16,6 @@ import { KNOWN_DOMAINS } from '../lib/constants';
 import type { UnifiedBookmark } from '../types'; // Import UnifiedBookmark
 
 // Configure longer timeouts for prefetching
-const VERBOSE = process.env.VERBOSE === 'true';
 const ROOT_DIR = process.cwd();
 const BUILD_TIME = process.env.NODE_ENV === 'production' || process.env.NEXT_PHASE === 'phase-production-build';
 
@@ -172,10 +171,10 @@ async function prefetchLogosData(bookmarksData: UnifiedBookmark[]): Promise<void
         // Call getLogo directly. It handles fetching and storing to volume/cache.
         const logoResult = await getLogo(domain);
         if (logoResult?.buffer) {
-          if (VERBOSE) console.log(`[Prefetch] Logo for ${domain} ensured by data-access layer.`);
+          console.log(`[Prefetch] Logo for ${domain} ensured by data-access layer.`);
           successCount++;
         } else {
-          if (VERBOSE) console.warn(`[Prefetch] Failed to ensure logo for ${domain} via data-access layer.`);
+          console.log(`[Prefetch] Failed to ensure logo for ${domain} via data-access layer.`);
           failureCount++;
         }
       } catch (error: unknown) {

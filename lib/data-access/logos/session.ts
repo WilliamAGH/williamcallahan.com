@@ -4,7 +4,8 @@
  * @module data-access/logos/session
  */
 
-import { VERBOSE, SESSION_MAX_DURATION, MAX_RETRIES_PER_SESSION } from './config';
+import { SESSION_MAX_DURATION, MAX_RETRIES_PER_SESSION } from './config';
+import { isDebug } from '@/lib/utils/debug';
 import { invalidateS3LogoKeysCache } from './s3-cache';
 
 // Session-based tracking to prevent infinite loops
@@ -19,7 +20,7 @@ const DOMAIN_RETRY_COUNT = new Map<string, number>();
 export function checkAndResetSession(): void {
   const currentTime: number = Date.now();
   if (currentTime - SESSION_START_TIME > SESSION_MAX_DURATION) {
-    if (VERBOSE) console.log('[DataAccess/Logos] Session expired, resetting tracking.');
+    if (isDebug) console.log('[DataAccess/Logos] Session expired, resetting tracking.');
     resetLogoSessionTracking();
   }
 }

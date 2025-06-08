@@ -11,7 +11,7 @@ import { ServerCacheInstance } from '@/lib/server-cache';
 import type { LogoSource } from '@/types';
 import { readBinaryS3, writeBinaryS3 } from '@/lib/s3-utils';
 import { createHash } from 'node:crypto';
-import { VERBOSE } from './logos/config';
+import { isDebug } from '@/lib/utils/debug';
 import { addKeyToS3LogoCache, invalidateS3LogoKeysCache } from './logos/s3-cache';
 import { findLogoInS3, getLogoS3Key } from './logos/s3-operations';
 import { processImageBuffer } from './logos/image-processing';
@@ -51,7 +51,7 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
   checkAndResetSession();
 
   if (isDomainProcessed(domain)) {
-    if (VERBOSE) console.log(`[DataAccess/Logos] Domain ${domain} already processed in this session, skipping.`);
+    if (isDebug) console.log(`[DataAccess/Logos] Domain ${domain} already processed in this session, skipping.`);
     const cached = ServerCacheInstance.getLogoFetch(domain);
     if (cached?.buffer) {
       const { processedBuffer, contentType } = await processImageBuffer(cached.buffer);
@@ -61,7 +61,7 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
   }
 
   if (hasDomainFailedTooManyTimes(domain)) {
-    if (VERBOSE) console.log(`[DataAccess/Logos] Domain ${domain} failed too many times in this session, skipping.`);
+    if (isDebug) console.log(`[DataAccess/Logos] Domain ${domain} failed too many times in this session, skipping.`);
     return null;
   }
 
@@ -98,7 +98,7 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
 
   const skipExternalLogoFetch: boolean = (process.env.NODE_ENV === 'test' && process.env.ALLOW_EXTERNAL_FETCH_IN_TEST !== 'true') || process.env.SKIP_EXTERNAL_LOGO_FETCH === 'true';
   if (skipExternalLogoFetch) {
-    if (VERBOSE) console.log(`[DataAccess/Logos] Skipping external logo fetch for ${domain} (test or skip flag).`);
+    if (isDebug) console.log(`[DataAccess/Logos] Skipping external logo fetch for ${domain} (test or skip flag).`);
     ServerCacheInstance.setLogoFetch(domain, { url: null, source: null, error: 'External fetch skipped' });
     markDomainAsFailed(domain);
     return null;
@@ -131,17 +131,17 @@ export async function getLogo(domain: string): Promise<{ buffer: Buffer; source:
 
         if (existingHash !== newHash) {
           await writeBinaryS3(logoS3Key, processedBuffer, externalContentType);
-          if (VERBOSE) console.log(`[DataAccess/Logos-S3] Logo for ${domain} changed; uploaded to ${logoS3Key}.`);
+          if (isDebug) console.log(`[DataAccess/Logos-S3] Logo for ${domain} changed; uploaded to ${logoS3Key}.`);
           didUpload = true;
           addKeyToS3LogoCache(logoS3Key);
         }
       } else {
         await writeBinaryS3(logoS3Key, processedBuffer, externalContentType);
-        if (VERBOSE) console.log(`[DataAccess/Logos-S3] New logo for ${domain}; uploaded to ${logoS3Key}.`);
+        if (isDebug) console.log(`[DataAccess/Logos-S3] New logo for ${domain}; uploaded to ${logoS3Key}.`);
         didUpload = true;
         addKeyToS3LogoCache(logoS3Key);
       }
-      if (VERBOSE && !didUpload) console.log(`[DataAccess/Logos-S3] No upload needed for ${domain}.`);
+      if (isDebug && !didUpload) console.log(`[DataAccess/Logos-S3] No upload needed for ${domain}.`);
     } catch (uploadError: unknown) {
       console.error(`[DataAccess/Logos-S3] Error writing logo for ${domain} to S3:`, uploadError);
     }

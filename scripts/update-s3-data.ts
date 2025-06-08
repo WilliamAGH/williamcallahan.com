@@ -150,7 +150,7 @@ async function processLogoBatch(
 
     // Apply rate limiting delay between batches (except for the last batch)
     if (i + batchSize < domains.length) {
-      if (VERBOSE) console.log(`[UpdateS3] ⏱️ Waiting ${delay}ms before next ${context} logo batch...`);
+      debug(`[UpdateS3] ⏱️ Waiting ${delay}ms before next ${context} logo batch...`);
       await new Promise(r => setTimeout(r, delay));
     }
   }
@@ -288,14 +288,14 @@ async function updateLogosInS3(): Promise<void> {
     for (const domain of bookmarkDomains) {
       domains.add(domain);
     }
-    if (VERBOSE) console.log(`[UpdateS3] Extracted ${bookmarkDomains.size} domains from bookmarks.`);
+    debug(`[UpdateS3] Extracted ${bookmarkDomains.size} domains from bookmarks.`);
 
     // 2. Extract domains from investments data - simplified iteration using .values()
     const investmentDomainsMap = await getInvestmentDomainsAndIds();
     for (const domain of investmentDomainsMap.values()) {
       domains.add(domain);
     }
-    if (VERBOSE) console.log(`[UpdateS3] Added ${investmentDomainsMap.size} unique domains from investments. Total unique: ${domains.size}`);
+    debug(`[UpdateS3] Added ${investmentDomainsMap.size} unique domains from investments. Total unique: ${domains.size}`);
 
     // 3. Domains from experience.ts / education.ts (assuming these are static or also in S3)
     // For simplicity, this part is omitted but would follow a similar pattern: read from S3 or use static data.
@@ -305,7 +305,7 @@ async function updateLogosInS3(): Promise<void> {
     for (const domain of KNOWN_DOMAINS) {
       domains.add(domain);
     }
-    if (VERBOSE) console.log(`[UpdateS3] Added ${KNOWN_DOMAINS.length} hardcoded domains. Total unique domains for logos: ${domains.size}`);
+    debug(`[UpdateS3] Added ${KNOWN_DOMAINS.length} hardcoded domains. Total unique domains for logos: ${domains.size}`);
 
     // Process all domains using regular batch configuration with appropriate rate limiting
     const { successCount, failureCount } = await processLogoBatch(
@@ -348,13 +348,13 @@ async function runScheduledUpdates(): Promise<void> {
   if (runBookmarksFlag) {
     console.log('[UpdateS3] --bookmarks flag is true or no flags provided. Running Bookmarks update.');
     await updateBookmarksInS3();
-  } else if (VERBOSE) console.log('[UpdateS3] Skipping Bookmarks update as flag was not set.');
+  } else debug('[UpdateS3] Skipping Bookmarks update as flag was not set.');
   if (runGithubFlag) {
     await updateGithubActivityInS3(); // This includes sub-calculation for aggregated data
-  } else if (VERBOSE) console.log('[UpdateS3] Skipping GitHub Activity update');
+  } else debug('[UpdateS3] Skipping GitHub Activity update');
   if (runLogosFlag) {
     await updateLogosInS3();
-  } else if (VERBOSE) console.log('[UpdateS3] Skipping Logos update');
+  } else debug('[UpdateS3] Skipping Logos update');
 
   console.log('[UpdateS3] All scheduled update checks complete.');
   process.exit(0);

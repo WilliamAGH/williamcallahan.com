@@ -6,7 +6,7 @@
 
 import sharp from 'sharp';
 import { GENERIC_GLOBE_PATTERNS } from '@/lib/constants';
-import { VERBOSE } from './config';
+import { isDebug } from '@/lib/utils/debug';
 
 /**
  * Determines whether an image buffer meets the minimum size requirements for logos.
@@ -71,7 +71,7 @@ export async function processImageBuffer(buffer: Buffer): Promise<{
   // Prioritize a direct SVG string check
   const bufferString: string = buffer.toString('utf-8').trim();
   if (bufferString.startsWith('<svg') && bufferString.includes('</svg>')) {
-    if (VERBOSE) console.log('[DataAccess/Logos] Detected SVG by string content (startsWith <svg).');
+    if (isDebug) console.log('[DataAccess/Logos] Detected SVG by string content (startsWith <svg).');
     return { processedBuffer: buffer, isSvg: true, contentType: 'image/svg+xml' };
   }
 
@@ -80,12 +80,12 @@ export async function processImageBuffer(buffer: Buffer): Promise<{
     const isSvgBySharp: boolean = metadata.format === 'svg';
 
     if (isSvgBySharp) {
-      if (VERBOSE) console.log('[DataAccess/Logos] Detected SVG by sharp.metadata.');
+      if (isDebug) console.log('[DataAccess/Logos] Detected SVG by sharp.metadata.');
       return { processedBuffer: buffer, isSvg: true, contentType: 'image/svg+xml' };
     }
 
     // If not SVG by sharp, process as non-SVG (convert to PNG)
-    if (VERBOSE) console.log('[DataAccess/Logos] Not SVG by sharp, converting to PNG.');
+    if (isDebug) console.log('[DataAccess/Logos] Not SVG by sharp, converting to PNG.');
     const processedBuffer: Buffer = await sharp(buffer).png().toBuffer();
     return { processedBuffer, isSvg: false, contentType: 'image/png' };
 
@@ -93,10 +93,10 @@ export async function processImageBuffer(buffer: Buffer): Promise<{
     console.warn(`[DataAccess/Logos] processImageBuffer error with sharp: ${String(error)}. Falling back.`);
     // Fallback: Re-check for SVG string content if sharp failed, as sharp might not support all SVGs
     if (bufferString.includes('<svg')) {
-      if (VERBOSE) console.log('[DataAccess/Logos] Fallback: Detected SVG-like content after sharp error.');
+      if (isDebug) console.log('[DataAccess/Logos] Fallback: Detected SVG-like content after sharp error.');
       return { processedBuffer: buffer, isSvg: true, contentType: 'image/svg+xml' };
     }
-    if (VERBOSE) console.log('[DataAccess/Logos] Fallback: Defaulting to PNG content type after sharp error and no SVG string match.');
+    if (isDebug) console.log('[DataAccess/Logos] Fallback: Defaulting to PNG content type after sharp error and no SVG string match.');
     // If sharp fails and it's not detected as SVG by string, assume it's a raster and return original buffer as PNG (or attempt conversion if safe)
     // For safety, returning original buffer with PNG type if conversion also risky or failed.
     return { processedBuffer: buffer, isSvg: false, contentType: 'image/png' };

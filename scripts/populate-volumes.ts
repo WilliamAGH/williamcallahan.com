@@ -303,7 +303,7 @@ async function populateAllVolumes() {
           if (code !== 'ENOENT') {
             console.warn(`⚠️ Could not delete ${file}: ${message}`);
           } else {
-            if (VERBOSE) console.log(`ℹ️ File not found, skipping deletion: ${file}`);
+            debug(`ℹ️ File not found, skipping deletion: ${file}`);
           }
         }
       }
@@ -317,7 +317,7 @@ async function populateAllVolumes() {
         if (filesInRepoStatsDir.length > 0) {
             console.log(`🗑️ Cleared ${filesInRepoStatsDir.length} files from ${REPO_RAW_WEEKLY_STATS_DIR}`);
         } else {
-            if (VERBOSE) console.log(`ℹ️ No files found in ${REPO_RAW_WEEKLY_STATS_DIR}, skipping clearing.`);
+            debug(`ℹ️ No files found in ${REPO_RAW_WEEKLY_STATS_DIR}, skipping clearing.`);
         }
       } catch (err: unknown) {
         const code = (err as { code?: string })?.code;
@@ -325,7 +325,7 @@ async function populateAllVolumes() {
         if (code !== 'ENOENT') {
           console.warn(`⚠️ Could not clear contents of ${REPO_RAW_WEEKLY_STATS_DIR}: ${message}`);
         } else {
-          if (VERBOSE) console.log(`ℹ️ Directory not found, skipping clearing: ${REPO_RAW_WEEKLY_STATS_DIR}`);
+          debug(`ℹ️ Directory not found, skipping clearing: ${REPO_RAW_WEEKLY_STATS_DIR}`);
         }
       }
       console.log('✅ Existing GitHub activity data deletion attempt complete.');
