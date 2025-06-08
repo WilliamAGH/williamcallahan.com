@@ -14,8 +14,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from 'react'
 import "./globals.css";
-// Import IBM Plex Mono font (regular weight)
-import "@fontsource/ibm-plex-mono/400.css";
 // Import our custom code block styling
 import './code-blocks.css';
 // Import PrismJS theme
@@ -41,8 +39,13 @@ import Script from 'next/script';
 import { PageTransitionWrapper } from '../components/utils/page-transition-wrapper.client';
 import { cn } from "../lib/utils";
 
-/** Load Inter font with Latin subset */
-const inter = Inter({ subsets: ["latin"] });
+/** Load Inter font with Latin subset and display swap */
+const inter = Inter({ 
+  subsets: ["latin"],
+  display: 'swap', // Prevent invisible text during font load
+  preload: true,
+  variable: '--font-inter'
+});
 
 /**
  * Global metadata configuration for the application
