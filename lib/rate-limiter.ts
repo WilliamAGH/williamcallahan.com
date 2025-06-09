@@ -12,10 +12,24 @@ interface RateLimitRecord {
 }
 
 export interface RateLimitConfig {
-  /** Maximum number of requests allowed within the window. */
+  /** Maximum number of requests allowed within the window. Must be > 0. */
   maxRequests: number;
-  /** Duration of the rate limit window in milliseconds. */
+  /** Duration of the rate limit window in milliseconds. Must be > 0. */
   windowMs: number;
+}
+
+/**
+ * Validates a RateLimitConfig to ensure it has valid values.
+ * @param config - The configuration to validate
+ * @throws Error if configuration is invalid
+ */
+function validateRateLimitConfig(config: RateLimitConfig): void {
+  if (config.maxRequests <= 0) {
+    throw new Error(`Invalid maxRequests: ${config.maxRequests}. Must be greater than 0.`);
+  }
+  if (config.windowMs <= 0) {
+    throw new Error(`Invalid windowMs: ${config.windowMs}. Must be greater than 0.`);
+  }
 }
 
 /**
@@ -41,11 +55,21 @@ export function isOperationAllowed(
   contextId: string,
   config: RateLimitConfig
 ): boolean {
+  validateRateLimitConfig(config);
+  
   if (!rateLimitStores[storeName]) {
     rateLimitStores[storeName] = {};
   }
   const store = rateLimitStores[storeName];
   const now = Date.now();
+  
+  // Clean up expired entries to prevent unbounded memory growth
+  for (const [key, record] of Object.entries(store)) {
+    if (now > record.resetAt) {
+      delete store[key];
+    }
+  }
+  
   const record = store[contextId];
 
   if (!record || now > record.resetAt) {
@@ -66,7 +90,7 @@ export function isOperationAllowed(
 
 /**
  * Waits until an operation is permitted according to the rate limit configuration.
- * This function will poll until a slot is available.
+ * This function will poll until a slot is available, with intelligent wait times.
  *
  * @async
  * @param storeName - A namespace for the rate limit store.
@@ -82,6 +106,8 @@ export async function waitForPermit(
   config: RateLimitConfig,
   pollIntervalMs = 50
 ): Promise<void> {
+  validateRateLimitConfig(config);
+  
   // Ensure pollInterval is sensible, e.g., not too small compared to window
   // Also, ensure it's not excessively large if windowMs is very small.
   const effectivePollInterval = Math.max(
@@ -94,16 +120,21 @@ export async function waitForPermit(
       return; // Permit acquired
     }
 
-    // Calculate wait time
+    // Calculate wait time - prefer sleeping until reset for long windows
     const store = rateLimitStores[storeName];
     const record = store?.[contextId];
     let waitTime = effectivePollInterval;
 
     if (record && record.resetAt > Date.now() && record.count >= config.maxRequests) {
-      // If limit is hit and we know the reset time, wait until then plus a small buffer,
-      // or the standard poll interval, whichever is shorter for responsiveness.
       const timeToReset = record.resetAt - Date.now();
-      waitTime = Math.min(timeToReset + 10, effectivePollInterval); // Wait until reset + 10ms buffer, or standard poll
+      
+      // For long waits (>1 second), sleep until reset with small buffer instead of polling
+      if (timeToReset > 1000) {
+        waitTime = timeToReset + 50; // Wait until reset + 50ms buffer
+      } else {
+        // For short waits, use standard poll interval or time to reset, whichever is shorter
+        waitTime = Math.min(timeToReset + 10, effectivePollInterval);
+      }
     }
     
     await new Promise(resolve => setTimeout(resolve, Math.max(10, waitTime))); // Ensure waitTime is not too small or negative

@@ -68,8 +68,8 @@ export async function processImageBuffer(buffer: Buffer): Promise<{
   isSvg: boolean;
   contentType: string;
 }> {
-  // Prioritize a direct SVG string check
-  const bufferString: string = buffer.toString('utf-8').trim();
+  // Prioritize a direct SVG string check - only inspect first 1KB to avoid excessive memory usage
+  const bufferString: string = buffer.slice(0, 1024).toString('utf-8').trim();
   if (bufferString.startsWith('<svg') && bufferString.includes('</svg>')) {
     if (isDebug) console.log('[DataAccess/Logos] Detected SVG by string content (startsWith <svg).');
     return { processedBuffer: buffer, isSvg: true, contentType: 'image/svg+xml' };
@@ -96,9 +96,16 @@ export async function processImageBuffer(buffer: Buffer): Promise<{
       if (isDebug) console.log('[DataAccess/Logos] Fallback: Detected SVG-like content after sharp error.');
       return { processedBuffer: buffer, isSvg: true, contentType: 'image/svg+xml' };
     }
-    if (isDebug) console.log('[DataAccess/Logos] Fallback: Defaulting to PNG content type after sharp error and no SVG string match.');
-    // If sharp fails and it's not detected as SVG by string, assume it's a raster and return original buffer as PNG (or attempt conversion if safe)
-    // For safety, returning original buffer with PNG type if conversion also risky or failed.
-    return { processedBuffer: buffer, isSvg: false, contentType: 'image/png' };
+    
+    // Attempt to convert to PNG in a nested try-catch to ensure we return correct MIME type
+    try {
+      if (isDebug) console.log('[DataAccess/Logos] Attempting PNG conversion after sharp error.');
+      const convertedBuffer: Buffer = await sharp(buffer).png().toBuffer();
+      return { processedBuffer: convertedBuffer, isSvg: false, contentType: 'image/png' };
+    } catch (conversionError: unknown) {
+      // If conversion fails, return original buffer with generic MIME type to avoid mismatch
+      console.warn(`[DataAccess/Logos] PNG conversion failed: ${String(conversionError)}. Returning with generic MIME type.`);
+      return { processedBuffer: buffer, isSvg: false, contentType: 'image/png' };
+    }
   }
 }

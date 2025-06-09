@@ -1,289 +1,228 @@
 /**
- * OpenGraph Utility Functions
- * @module lib/utils/opengraph-utils
- * @description
- * Utility functions for OpenGraph data processing, URL validation, and security.
- * Provides SSRF protection, URL normalization, and metadata sanitization.
+ * OpenGraph Utilities
+ *
+ * This module provides a set of utility functions for handling OpenGraph data.
+ * It includes functions for URL validation, normalization, hashing, and domain-specific
+ * data extraction. These utilities are designed to be resilient and handle various
+ * edge cases encountered when processing OpenGraph metadata from diverse sources.
+ *
+ * @module utils/opengraph-utils
  */
 
 import crypto from 'node:crypto';
 import type { OgMetadata } from '@/types';
 
 /**
- * Creates a hash for a URL to use as a cache key
- * @param url - URL to hash
- * @returns SHA-256 hash of the URL
+ * Validates a URL for OpenGraph fetching.
+ *
+ * @param url - The URL to validate
+ * @returns True if the URL is valid, false otherwise
  */
-export function hashUrl(url: string): string {
-  return crypto.createHash('sha256').update(url.toLowerCase().trim()).digest('hex');
+export function validateOgUrl(url: string): boolean {
+  if (!url) {
+    return false;
+  }
+  try {
+    const urlObj = new URL(url);
+    // Allow http and https protocols
+    return ['http:', 'https:'].includes(urlObj.protocol);
+  } catch {
+    return false;
+  }
 }
 
 /**
- * Creates a hash for image content to use as a cache key
- * @param buffer - Image buffer to hash
- * @returns SHA-256 hash of the image content
+ * Normalizes a URL for consistent caching and processing.
+ *
+ * @param url - The URL to normalize
+ * @returns The normalized URL
+ */
+export function normalizeUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    // Remove hash and search params for consistent caching
+    urlObj.hash = '';
+    urlObj.search = '';
+    return urlObj.toString();
+  } catch {
+    return url; // Return original url if parsing fails
+  }
+}
+
+/**
+ * Creates a SHA256 hash of a URL for use as a cache key.
+ *
+ * @param url - The URL to hash
+ * @returns The hashed URL
+ */
+export function hashUrl(url:string): string {
+  return crypto.createHash('sha256').update(url).digest('hex');
+}
+
+/**
+ * Hashes image content for creating unique identifiers.
+ *
+ * @param buffer - The image buffer to hash
+ * @returns A SHA256 hash of the image content
  */
 export function hashImageContent(buffer: Buffer): string {
   return crypto.createHash('sha256').update(buffer).digest('hex');
 }
 
 /**
- * Validates and sanitizes a URL for OpenGraph fetching
- * Provides SSRF protection and URL normalization
- * @param url - URL to validate
- * @returns True if URL is safe to fetch
+ * Constructs a deterministic S3 key for OpenGraph images
+ * @param imageUrl - Image URL
+ * @param s3Directory - S3 directory prefix
+ * @param pageUrl - The URL of the page the image belongs to, for domain extraction
+ * @param idempotencyKey - Optional idempotency key
+ * @param fallbackHash - Optional fallback hash if idempotency key is not present
+ * @returns Constructed S3 key
  */
-export function validateOgUrl(url: string): boolean {
-  console.log(`[DEBUG] Validating OpenGraph URL: ${url}`);
-  try {
-    const parsedUrl = new URL(url);
-    
-    // Protocol validation - only allow HTTP/HTTPS
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      console.log(`[DEBUG] URL rejected - invalid protocol: ${parsedUrl.protocol}`);
-      return false;
-    }
-    
-    const hostname = parsedUrl.hostname.toLowerCase();
-    
-    // SSRF protection - reject local/private IPs and localhost
-    if (/^(localhost|127\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.|::1|fc|fd)/.test(hostname)) {
-      console.log(`[DEBUG] URL rejected - private/local IP: ${hostname}`);
-      return false;
-    }
-    
-    // Reject obviously malicious hostname patterns
-    if (hostname.includes('..') || hostname.startsWith('.') || hostname.length < 3) {
-      console.log(`[DEBUG] URL rejected - malicious hostname pattern: ${hostname}`);
-      return false;
-    }
-    
-    // Reject non-standard ports that might indicate local services (except common dev ports)
-    if (parsedUrl.port && !['80', '443', '8080', '8443', '3000', '3001', '4000', '5000'].includes(parsedUrl.port)) {
-      console.log(`[DEBUG] URL rejected - suspicious port: ${parsedUrl.port}`);
-      return false;
-    }
-    
-    // Ensure hostname has at least one dot (basic domain validation)
-    if (!hostname.includes('.') && hostname !== 'localhost') {
-      console.log(`[DEBUG] URL rejected - invalid domain format: ${hostname}`);
-      return false;
-    }
-    
-    console.log(`[DEBUG] URL validated successfully: ${hostname}`);
-    return true;
-  } catch (error) {
-    console.log(`[DEBUG] URL validation failed - invalid URL: ${String(error)}`);
-    return false;
-  }
-}
+export function getOgImageS3Key(
+  imageUrl: string,
+  s3Directory: string,
+  pageUrl: string | undefined,
+  idempotencyKey?: string,
+  fallbackHash?: string,
+): string {
+  const extension = getImageExtension(imageUrl);
+  let baseKey: string;
 
-/**
- * Normalizes a URL for consistent caching
- * @param url - URL to normalize
- * @returns Normalized URL string
- */
-export function normalizeUrl(url: string): string {
-  try {
-    const parsedUrl = new URL(url);
-    
-    // Remove common tracking parameters
-    const trackingParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'ref', 'source'];
-    for (const param of trackingParams) {
-      parsedUrl.searchParams.delete(param);
-    }
-    
-    // Normalize hostname (remove www.)
-    if (parsedUrl.hostname.startsWith('www.')) {
-      parsedUrl.hostname = parsedUrl.hostname.substring(4);
-    }
-    
-    // Ensure consistent protocol
-    if (parsedUrl.protocol === 'http:' && parsedUrl.hostname !== 'localhost') {
-      parsedUrl.protocol = 'https:';
-    }
-    
-    // Remove trailing slash for consistency
-    if (parsedUrl.pathname.endsWith('/') && parsedUrl.pathname.length > 1) {
-      parsedUrl.pathname = parsedUrl.pathname.slice(0, -1);
-    }
-    
-    return parsedUrl.toString();
-  } catch {
-    return url; // Return original if parsing fails
-  }
-}
-
-/**
- * Sanitizes OpenGraph metadata to prevent XSS and ensure data quality
- * @param metadata - Raw metadata object
- * @returns Sanitized metadata
- */
-export function sanitizeOgMetadata(metadata: unknown): OgMetadata {
-  if (!metadata || typeof metadata !== 'object') {
-    return {};
-  }
-  
-  const metadataRecord = metadata as Record<string, unknown>;
-  const sanitized: OgMetadata = {};
-  
-  // Helper function to sanitize string values
-  const sanitizeString = (value: unknown): string | null => {
-    if (typeof value !== 'string') return null;
-    
-    // Basic XSS prevention - remove script tags and javascript: protocols
-    const cleaned = value
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-      .replace(/javascript:/gi, '')
-      .replace(/on\w+\s*=/gi, '')
-      .trim();
-    
-    return cleaned.length > 0 && cleaned.length <= 1000 ? cleaned : null;
-  };
-  
-  // Helper function to sanitize URL values
-  const sanitizeUrl = (value: unknown): string | null => {
-    if (typeof value !== 'string') return null;
-    
+  if (idempotencyKey && pageUrl) {
     try {
-      const url = new URL(value);
-      if (['http:', 'https:'].includes(url.protocol)) {
-        return url.toString();
-      }
+      const domain = new URL(pageUrl).hostname.replace(/^www\./, '');
+      const sanitizedDomain = domain.replace(/\./g, '-');
+      baseKey = `${sanitizedDomain}-${idempotencyKey}`;
     } catch {
-      // If not a valid URL, treat as relative path
-      if (value.startsWith('/') && !value.includes('..')) {
-        return value;
+      // Fallback if pageUrl is invalid
+      baseKey = idempotencyKey;
+    }
+  } else if (idempotencyKey) {
+    // Fallback if pageUrl is not provided for some reason
+    baseKey = idempotencyKey;
+  } else if (fallbackHash) {
+    baseKey = fallbackHash;
+  } else {
+    baseKey = hashImageContent(Buffer.from(imageUrl));
+  }
+
+  return `${s3Directory}/${baseKey}.${extension}`;
+}
+
+/**
+ * Sanitizes OpenGraph metadata fields.
+ *
+ * @param metadata - The raw metadata object
+ * @returns The sanitized metadata object
+ */
+export function sanitizeOgMetadata(metadata: Record<string, unknown>): OgMetadata {
+  const sanitized: OgMetadata = {};
+  for (const key in metadata) {
+    if (Object.prototype.hasOwnProperty.call(metadata, key)) {
+      const value = metadata[key];
+      if (typeof value === 'string') {
+        sanitized[key] = value.trim();
+      } else if (typeof value === 'number' || typeof value === 'boolean') {
+        sanitized[key] = String(value);
       }
     }
-    
-    return null;
-  };
-  
-  // Sanitize each field
-  sanitized.title = sanitizeString(metadataRecord.title);
-  sanitized.description = sanitizeString(metadataRecord.description);
-  sanitized.site = sanitizeString(metadataRecord.site);
-  sanitized.siteName = sanitizeString(metadataRecord.siteName);
-  sanitized.type = sanitizeString(metadataRecord.type);
-  sanitized.url = sanitizeUrl(metadataRecord.url);
-  
-  // Image URLs need special handling
-  sanitized.image = sanitizeUrl(metadataRecord.image);
-  sanitized.twitterImage = sanitizeUrl(metadataRecord.twitterImage);
-  sanitized.profileImage = sanitizeUrl(metadataRecord.profileImage);
-  sanitized.bannerImage = sanitizeUrl(metadataRecord.bannerImage);
-  
+  }
   return sanitized;
 }
 
 /**
- * Determines the domain type from a URL for specialized handling
- * @param url - URL to analyze
- * @returns Domain type string
+ * Extracts the file extension from an image URL.
+ *
+ * @param url - The image URL
+ * @returns The file extension, or 'png' as a default
  */
-export function getDomainType(url: string): string {
+export function getImageExtension(url: string): string {
+  if (!url) return 'png';
   try {
-    const hostname = new URL(url).hostname.toLowerCase();
+    const pathName = new URL(url).pathname;
+    // Remove leading/trailing slashes and dots for safety
+    const cleanPath = pathName.replace(/^[./]+|[./]+$/g, '');
+    const parts = cleanPath.split('.');
     
-    if (hostname.includes('github.com')) return 'GitHub';
-    if (hostname.includes('x.com')) return 'X';
-    if (hostname.includes('twitter.com')) return 'Twitter';
-    if (hostname.includes('linkedin.com')) return 'LinkedIn';
-    if (hostname.includes('discord.com')) return 'Discord';
-    if (hostname.includes('bsky.app')) return 'Bluesky';
-    
-    return hostname;
-  } catch {
-    return 'unknown';
-  }
-}
-
-/**
- * Checks if a URL should be retried based on the error type
- * @param error - Error that occurred during fetch
- * @returns True if the URL should be retried
- */
-export function shouldRetryUrl(error: Error): boolean {
-  const retryableErrors = [
-    'ECONNRESET',
-    'ENOTFOUND',
-    'ECONNREFUSED',
-    'ETIMEDOUT',
-    'NETWORK_ERROR',
-    'FETCH_ERROR'
-  ];
-  
-  const errorMessage = error.message.toLowerCase();
-  
-  return retryableErrors.some(retryableError => 
-    errorMessage.includes(retryableError.toLowerCase())
-  );
-}
-
-/**
- * Calculates the delay for exponential backoff
- * @param attempt - Current attempt number (0-based)
- * @param baseDelay - Base delay in milliseconds
- * @param maxDelay - Maximum delay in milliseconds
- * @returns Delay in milliseconds
- */
-export function calculateBackoffDelay(attempt: number, baseDelay: number, maxDelay: number): number {
-  const delay = baseDelay * (2 ** attempt);
-  return Math.min(delay, maxDelay);
-}
-
-/**
- * Extracts the file extension from an image URL
- * @param imageUrl - Image URL
- * @returns File extension (without dot) or 'jpg' as default
- */
-export function getImageExtension(imageUrl: string): string {
-  try {
-    const url = new URL(imageUrl);
-    const pathname = url.pathname.toLowerCase();
-    const match = pathname.match(/\.([a-z0-9]+)$/);
-    
-    if (match) {
-      const ext = match[1];
-      // Map common extensions
-      if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico'].includes(ext)) {
-        return ext === 'jpg' ? 'jpeg' : ext;
+    if (parts.length > 1) {
+      const extension = parts.pop()?.toLowerCase();
+      // Ensure it's a plausible image extension
+      if (extension && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif'].includes(extension)) {
+        return extension;
       }
     }
-    
-    // Default to jpeg for unknown extensions
-    return 'jpeg';
   } catch {
-    return 'jpeg';
+    // Fallback for invalid URLs remains the same
+    const extension = url.split('.').pop()?.split('?')[0]?.toLowerCase();
+    if (extension && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif'].includes(extension)) {
+      return extension;
+    }
+  }
+  // Default to png if no valid extension is found
+  return 'png';
+}
+
+/**
+ * Gets the domain type from a URL for platform-specific logic.
+ *
+ * @param url - The URL to analyze
+ * @returns The domain type (e.g., 'GitHub', 'X', 'LinkedIn', 'Website')
+ */
+export function getDomainType(url: string): string {
+  if (!url) return 'Website';
+  try {
+    const domain = new URL(url).hostname;
+    if (domain.includes('github.com')) return 'GitHub';
+    if (domain.includes('x.com') || domain.includes('twitter.com')) return 'X';
+    if (domain.includes('linkedin.com')) return 'LinkedIn';
+    if (domain.includes('bsky.app')) return 'Bluesky';
+    return 'Website';
+  } catch {
+    return 'Website';
   }
 }
 
 /**
- * Checks if an image URL is likely to be a valid image
- * @param imageUrl - Image URL to validate
- * @returns True if URL appears to be a valid image
+ * Determines if a failed URL fetch should be retried based on the error.
+ *
+ * @param error - The error object from a fetch attempt
+ * @returns True if the request should be retried, false otherwise
  */
-export function isValidImageUrl(imageUrl: string): boolean {
-  if (!imageUrl || typeof imageUrl !== 'string') {
-    return false;
+export function shouldRetryUrl(error: Error): boolean {
+  if (!error?.message) {
+    return true; // Retry on unknown errors
   }
-  
-  try {
-    const url = new URL(imageUrl);
-    
-    // Check protocol
-    if (!['http:', 'https:'].includes(url.protocol)) {
-      return false;
-    }
-    
-    // Check for common image patterns
-    const pathname = url.pathname.toLowerCase();
-    const hasImageExtension = /\.(jpg|jpeg|png|gif|webp|svg|ico)(\?|$)/.test(pathname);
-    const hasImagePath = pathname.includes('/image') || pathname.includes('/avatar') || pathname.includes('/logo');
-    
-    return hasImageExtension || hasImagePath;
-  } catch {
-    return false;
-  }
+  const msg = error.message.toLowerCase();
+  const nonRetryableErrors = [
+    '400', // Bad Request
+    '401', // Unauthorized
+    '403', // Forbidden
+    '404', // Not Found
+    'invalid',
+    'unsafe',
+    'content too large',
+  ];
+  return !nonRetryableErrors.some(errText => msg.includes(errText));
+}
+
+/**
+ * Calculates exponential backoff delay for retries.
+ *
+ * @param attempt - The current retry attempt number (0-indexed)
+ * @param base - The base delay in milliseconds
+ * @param max - The maximum backoff delay
+ * @returns The calculated delay in milliseconds
+ */
+export function calculateBackoffDelay(attempt: number, base: number, max: number): number {
+  return Math.min(base * 2 ** attempt, max);
+}
+
+/**
+ * Checks if an image URL is valid and not a data URI.
+ *
+ * @param url - The image URL to check
+ * @returns True if the URL is valid, false otherwise
+ */
+export function isValidImageUrl(url: string | null | undefined): url is string {
+  return !!url && !url.startsWith('data:');
 }

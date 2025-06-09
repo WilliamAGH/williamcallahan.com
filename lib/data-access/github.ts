@@ -767,7 +767,7 @@ export async function getGithubActivity(): Promise<UserActivityView> {
     const s3TrailingYearDataDays: ContributionDay[] = s3ActivityData.trailingYearData.data || ([] as ContributionDay[]);
 
     const userView: UserActivityView = {
-      source: 's3-cache',
+      source: 's3-store',
       trailingYearData: {
         data: s3TrailingYearDataDays,
         totalContributions: trailingYearContributions,

@@ -5,8 +5,7 @@
  * to access this data. It handles pagination, error fallbacks, and background refreshing.
  * @module lib/bookmarks
  */
- // Use native fetch in Next.js environment
-const request = fetch;
+// Removed static fetch alias to allow dynamic mocking in tests
 import type { UnifiedBookmark, BookmarkContent, BookmarkAsset } from '@/types';
 import { writeJsonS3, readJsonS3 } from '@/lib/s3-utils';
 import { BOOKMARKS_S3_KEY_FILE } from '@/lib/data-access/bookmarks';
@@ -229,7 +228,7 @@ async function processBookmarksInBatches(bookmarks: UnifiedBookmark[], isDev: bo
             console.log(`[processBookmarksInBatches] [DEV] Fetching OpenGraph for ${bookmark.url} (${globalIndex + 1}/${bookmarks.length})`);
           }
           
-          const ogData = await getOpenGraphData(bookmark.url, false);
+          const ogData = await getOpenGraphData(bookmark.url, false, bookmark.id);
           const ogDuration = Date.now() - ogStartTime;
           
           if (isDev) {
@@ -281,9 +280,9 @@ async function processBookmarksInBatches(bookmarks: UnifiedBookmark[], isDev: bo
     const batchDuration = Date.now() - batchStartTime;
     console.log(`[processBookmarksInBatches] Batch ${batchNumber}/${totalBatches} completed in ${batchDuration}ms`);
     
-    // Add a small delay between batches to be respectful to external services
+    // Add a delay between batches to be respectful to external services
     if (i + batchSize < bookmarks.length) {
-      const delayMs = 500;
+      const delayMs = 1000; // Increased from 500ms to 1000ms to be more respectful
       if (isDev) {
         console.log(`[processBookmarksInBatches] [DEV] Waiting ${delayMs}ms before next batch`);
       }
@@ -351,7 +350,7 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
 
       let pageResponse: Response;
       try {
-        pageResponse = await request(pageUrl, {
+        pageResponse = await fetch(pageUrl, {
           method: 'GET',
           headers: requestHeaders,
           signal: pageController.signal,
@@ -395,8 +394,8 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
             }))
           : [];
         // Include asset IDs from raw.assets if raw.content fields are missing
-        const screenshotAsset = raw.assets.find(asset => asset.assetType === 'screenshot');
-        const bannerAsset = raw.assets.find(asset => asset.assetType === 'bannerImage');
+        const screenshotAsset = raw.assets?.find(asset => asset.assetType === 'screenshot');
+        const bannerAsset = raw.assets?.find(asset => asset.assetType === 'bannerImage');
         const unifiedContent: BookmarkContent = {
           ...(raw.content ? omitHtmlContent(raw.content) : {}),
           type: raw.content?.type ?? 'link',
