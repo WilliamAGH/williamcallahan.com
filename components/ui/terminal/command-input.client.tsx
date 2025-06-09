@@ -12,21 +12,14 @@ import { forwardRef } from 'react';
 interface CommandInputProps {
   value: string;
   onChange: (value: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: () => void;
 }
 
 export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
   function CommandInput({ value, onChange, onSubmit }, ref) {
     
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        onSubmit(e as unknown as React.FormEvent);
-      }
-    };
-    
     return (
-      <form onSubmit={onSubmit} className="w-full table">
+      <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="w-full table">
         <div className="flex items-center w-full">
           <span className="text-[#7aa2f7] select-none mr-2">$</span>
           <div className="relative flex-1 transform-gpu">
@@ -37,7 +30,6 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
               type="text"
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              onKeyDown={handleKeyDown}
               className="bg-transparent w-full focus:outline-none text-gray-300 caret-gray-300
                 text-[16px] transform-gpu scale-[0.875] origin-left"
               style={{

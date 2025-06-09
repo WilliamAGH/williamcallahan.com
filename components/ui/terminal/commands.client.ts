@@ -29,7 +29,7 @@ const searchModulePromise: Promise<TerminalSearchModule> = (async () => {
       searchBookmarks: (terms: string) => importedModule.searchBookmarks(terms), // Already returns a Promise
     };
   } catch (e) {
-    console.error("[TerminalCommands] Failed to load search module:", e);
+    console.error("[TerminalCommands] Failed to load search module:", e instanceof Error ? e.message : 'Unknown error');
     // Fallback for tests or if module fails to load
     return {
       searchExperience: () => Promise.resolve([] as SearchResult[]),
@@ -120,7 +120,7 @@ function getSchemaOrgData(): string {
     // Return formatted JSON
     return `Schema.org Diagnostics for ${path}:\n\n${JSON.stringify(output, null, 2)}`;
   } catch (error) {
-    console.error('Error retrieving schema data:', error);
+    console.error('Error retrieving schema data:', error instanceof Error ? error.message : 'Unknown error');
     return 'Error retrieving Schema.org data. Check the console for details.';
   }
 }
@@ -208,7 +208,7 @@ export async function handleCommand(input: string): Promise<CommandResult> {
           }
           results = await response.json() as SearchResult[];
         } catch (error) {
-          console.error("Blog search API call failed:", error);
+          console.error("Blog search API call failed:", error instanceof Error ? error.message : 'Unknown error');
           return {
             results: [{
               input: '',
@@ -255,11 +255,10 @@ export async function handleCommand(input: string): Promise<CommandResult> {
   const searchTerms = [command, ...args].join(' ');
 
   try {
-    // Log search info for debugging
-    console.log('%c[Terminal Search]%c Performing site-wide search',
-      'color: #4CAF50; font-weight: bold', 'color: inherit');
-    console.log('Search terms:', searchTerms);
-    console.log('Search URL:', `/api/search/all?q=${encodeURIComponent(searchTerms)}`);
+    // Log search info for debugging (safe logging - no object dumps)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Terminal Search] Performing site-wide search for: "${searchTerms}"`);
+    }
 
     const response = await fetch(`/api/search/all?q=${encodeURIComponent(searchTerms)}`);
     if (!response.ok) {
@@ -267,12 +266,12 @@ export async function handleCommand(input: string): Promise<CommandResult> {
     }
     const allResults = await response.json() as SearchResult[];
 
-    // Log results for debugging
-    console.log('%c[Terminal Search]%c Results received',
-      'color: #4CAF50; font-weight: bold', 'color: inherit');
-    console.log(`Found ${allResults.length} results for "${searchTerms}"`);
-    if (allResults.length > 0) {
-      console.log('Sample results:', allResults.slice(0, 3));
+    // Log results for debugging (safe logging - only counts and basic info)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Terminal Search] Found ${allResults.length} results for "${searchTerms}"`);
+      if (allResults.length > 0) {
+        console.log(`[Terminal Search] Sample result titles: ${allResults.slice(0, 3).map(r => r.label || 'Untitled').join(', ')}`);
+      }
     }
 
     // Check if we got any results
@@ -296,7 +295,7 @@ export async function handleCommand(input: string): Promise<CommandResult> {
     };
 
   } catch (error) {
-    console.error("Site-wide search API call failed:", error);
+    console.error("Site-wide search API call failed:", error instanceof Error ? error.message : 'Unknown error');
     // Type check for error before accessing message
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during the search.';
     return {
