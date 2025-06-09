@@ -88,5 +88,19 @@
 			"path": "/bin/zsh",
 			"args": ["-l"]
 		}
+	},
+	"jest.jestCommandLine": "npx jest --config jest.vscode.config.cjs",
+	"jest.runMode": {
+		"type": "on-demand",
+		"runAllTestsOnStartup": false
+	},
+	"jest.rootPath": ".",
+	"markdownlint.config": {
+		"MD040": false,
+		"MD024": false,
+		"MD036": false,
+		"MD013": false,
+		"MD033": false,
+		"MD041": false
 	}
 }
