@@ -36,8 +36,7 @@ export function useTerminal() {
   }, []);
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!input.trim()) return;
 
     const commandInput = input.trim();
@@ -56,9 +55,9 @@ export function useTerminal() {
           if (result.results.length > 0) {
             addToHistory({ input: commandInput, output: result.results[0]?.output ?? '' });
             // Add subsequent output lines without input
-            result.results.slice(1).forEach(item => {
+            for (const item of result.results.slice(1)) {
               addToHistory({ input: '', output: item?.output ?? '' });
-            });
+            }
           } else {
             // If handleCommand returns no results (e.g., unexpected case), still add the input
             addToHistory({ input: commandInput, output: '' });
@@ -70,7 +69,7 @@ export function useTerminal() {
         }
       }
     } catch (error) {
-      console.error("Command execution error:", error); // Log error
+      console.error("Command execution error:", error instanceof Error ? error.message : 'Unknown error'); // Log error safely
       // Add error output associated with the input command
       addToHistory({
         input: commandInput, // Associate error with the command that caused it

@@ -22,22 +22,8 @@ import { cn } from "@/lib/utils";
 
 // Define a unique ID for this instance of a window-like component
 const TERMINAL_WINDOW_ID = 'main-terminal';
-const isDevelopment = process.env.NODE_ENV === 'development';
-const enableDebugLogs = isDevelopment && false; // Set to true only when debugging terminal
 
 export function Terminal() {
-  // Log component mount/unmount
-  useEffect(() => {
-    if (enableDebugLogs && process.env.NODE_ENV === 'development') {
-      console.debug("--- Terminal Component Mounted ---");
-    }
-    return () => {
-      if (enableDebugLogs && process.env.NODE_ENV === 'development') {
-        console.debug("--- Terminal Component Unmounted ---");
-      }
-    };
-  }, []); // Empty dependency array ensures this runs only on mount/unmount
-
   // Ref for the scrollable content area
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -156,39 +142,18 @@ export function Terminal() {
 
    // --- Conditional Rendering ---
    
-   // Add debug logging for terminal state
-   if (enableDebugLogs && process.env.NODE_ENV === 'development') {
-     console.debug("Terminal Component State Check:", {
-       isRegistered,
-       windowState,
-       input,
-       selection,
-       historyLength: terminalHistory.length
-     });
-   }
-
    // If not yet ready (mounted and registered in context), render nothing.
   if (!isRegistered) {
-    if (enableDebugLogs && process.env.NODE_ENV === 'development') {
-      console.debug("Terminal Component: Not ready (pre-mount/hydration from context), rendering null.");
-    }
     return null;
   }
 
   // Now that we are ready (mounted), render based on the current windowState
   // If closed or minimized, render null - the FloatingTerminalButton handles this
   if (windowState === "closed" || windowState === "minimized") {
-    if (enableDebugLogs && process.env.NODE_ENV === 'development') {
-      console.debug(`Terminal Component: Rendering null (windowState is ${windowState})`);
-    }
     return null;
   }
 
   // Render normal or maximized view (implicit else, because we checked !isReady earlier)
-  if (enableDebugLogs && process.env.NODE_ENV === 'development') {
-    console.debug(`Terminal Component: Rendering ${windowState} view`);
-  }
-
   // Define class sets for clarity
   const commonTerminalClasses = "bg-[#1a1b26] border border-gray-700 font-mono text-sm cursor-text overflow-hidden flex flex-col shadow-xl";
   // Margin handled with responsive utilities
@@ -245,10 +210,13 @@ export function Terminal() {
           ref={scrollContainerRef}
           onClick={() => focusInput()}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
+            // Only prevent space key default behavior if the input is not focused
+            // This allows typing spaces in the input while preventing scroll when clicking elsewhere
+            if (e.key === ' ' && document.activeElement !== inputRef.current) {
               e.preventDefault(); // Prevent default space scroll
               focusInput();
             }
+            // Don't handle Enter key here - let it propagate to the form
           }}
           aria-label="Terminal content area"
         >
@@ -257,7 +225,7 @@ export function Terminal() {
             {selection ? (
               <SelectionView items={selection} onSelectAction={handleSelection} onExitAction={cancelSelection} />
             ) : (
-              <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={(e) => { void handleSubmit(e); }} />
+              <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={handleSubmit} />
             )}
           </div>
         </section>

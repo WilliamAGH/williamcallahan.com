@@ -8,7 +8,7 @@
 
 'use client';
 
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { CodeBlock } from '@/components/ui/code-block/code-block.client';
 import { WindowControls } from '@/components/ui/navigation/window-controls';
@@ -83,6 +83,7 @@ export function MacOSWindow({
             {tabs.map((tab) => (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => onTabClick?.(tab.id)}
                 className={cn(
                   "px-3 py-2 text-xs font-medium leading-none",

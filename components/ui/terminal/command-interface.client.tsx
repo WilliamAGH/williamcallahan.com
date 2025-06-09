@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { handleCommand } from './commands.client';
 import { TerminalHeader } from './terminal-header';
@@ -20,6 +20,12 @@ export function CommandInterface() {
     output: 'Welcome! Type "help" for available commands.'
   }]);
   const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Focus the input when component mounts
+    inputRef.current?.focus();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,11 +60,11 @@ export function CommandInterface() {
           <div className="flex items-center">
             <span className="text-[#7aa2f7] mr-2">$</span>
             <input
+              ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               className="bg-transparent flex-1 focus:outline-none text-gray-300"
-              autoFocus
               aria-label="Terminal command input"
               placeholder="Type a command..."
             />

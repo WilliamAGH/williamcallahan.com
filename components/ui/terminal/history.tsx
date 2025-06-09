@@ -17,7 +17,7 @@ export function History({ history }: HistoryProps) {
   return (
     <div className="space-y-1 mb-4">
       {history.map((line, i) => (
-        <div key={i}>
+        <div key={`${line.input}-${line.output}-${i}`}>
           {line.input && (
             <div className="flex items-start">
               <span className="text-[#7aa2f7] select-none mr-2 shrink-0">$</span>
