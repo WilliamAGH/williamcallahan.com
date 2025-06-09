@@ -5,6 +5,7 @@
 
 import { type NextRequest, NextResponse } from 'next/server';
 import type { OgFetchResult } from '@/types';
+import { getDomainType } from '@/lib/utils/opengraph-utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -168,20 +169,7 @@ async function fetchOgDataForUrl(url: string): Promise<OgFetchResult> {
 }
 
 
-/**
- * Determine domain type from URL for special handling
- */
-function getDomainType(url: string): string {
-  if (url.includes('github.com')) return 'GitHub';
-  if (url.includes('x.com')) return 'X';
-  if (url.includes('twitter.com')) return 'Twitter';
-  if (url.includes('linkedin.com')) return 'LinkedIn';
-  if (url.includes('discord.com')) return 'Discord';
-  if (url.includes('bsky.app')) return 'Bluesky';
-
-  const urlObj = new URL(url);
-  return urlObj.hostname;
-}
+// getDomainType now imported from @/lib/utils/opengraph-utils for DRY compliance
 
 
 /**

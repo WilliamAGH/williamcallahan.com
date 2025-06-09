@@ -7,41 +7,52 @@
 
 import { type NextRequest, NextResponse } from 'next/server';
 
+/**
+ * Extracts the base URL from a bookmarks API URL more robustly
+ * Handles various URL patterns and preserves path components other than /api/v1
+ */
+function getAssetBaseUrl(apiUrl: string): string {
+  try {
+    const url = new URL(apiUrl);
+    const pathname = url.pathname;
+    
+    // Remove /api/v1 from the end if it exists, handling optional trailing slash
+    const cleanedPathname = pathname.replace(/\/api\/v1\/?$/, '');
+    
+    return `${url.protocol}//${url.host}${cleanedPathname}`;
+  } catch (error) {
+    console.warn('[Assets API] URL parsing failed, using fallback:', error);
+    // Fallback to regex replacement if URL parsing fails
+    return apiUrl.replace(/\/api\/v1\/?$/, '');
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ assetId: string }> }
 ) {
   const { assetId } = await params;
   
-  console.log(`[DEBUG] Assets API - Received request for assetId: ${assetId}`);
-  console.log(`[DEBUG] Assets API - Request URL: ${request.url}`);
-  console.log(`[DEBUG] Assets API - Request method: ${request.method}`);
-  console.log(`[DEBUG] Assets API - User-Agent: ${request.headers.get('user-agent')}`);
-  console.log(`[DEBUG] Assets API - Referer: ${request.headers.get('referer')}`);
+  console.log(`[Assets API] Request for assetId: ${assetId}`);
   
   if (!assetId) {
-    console.log('[DEBUG] Assets API - Asset ID is missing');
     return NextResponse.json({ error: 'Asset ID is required' }, { status: 400 });
   }
 
   try {
     // Get the external bookmarks API URL
     const bookmarksApiUrl = process.env.BOOKMARKS_API_URL ?? 'https://bookmark.iocloudhost.net/api/v1';
-    // Derive the base URL without version prefix for asset endpoints
-    const baseUrl = bookmarksApiUrl.replace(/\/api\/v1$/, '');
+    // More robust base URL extraction
+    const baseUrl = getAssetBaseUrl(bookmarksApiUrl);
     const bearerToken = process.env.BOOKMARK_BEARER_TOKEN;
     
-    console.log(`[DEBUG] Assets API - Bookmarks API URL: ${bookmarksApiUrl}`);
-    console.log(`[DEBUG] Assets API - Base URL: ${baseUrl}`);
-    console.log(`[DEBUG] Assets API - Bearer token present: ${!!bearerToken}`);
-    console.log(`[DEBUG] Assets API - Bearer token length: ${bearerToken?.length || 0}`);
-    if (bearerToken) {
-      console.log(`[DEBUG] Assets API - Bearer token starts with: ${bearerToken.substring(0, 10)}...`);
+    if (!bearerToken) {
+      console.error('[Assets API] Bearer token not configured');
+      return NextResponse.json({ error: 'Service configuration error' }, { status: 500 });
     }
     
     // Construct the asset URL for the external service (non-versioned asset endpoint)
     const assetUrl = `${baseUrl}/api/assets/${assetId}`;
-    console.log(`[DEBUG] Assets API - Fetching asset from: ${assetUrl}`);
     
     // Prepare headers for external request
     const fetchHeaders = {
@@ -50,38 +61,20 @@ export async function GET(
       'Accept': '*/*',
     };
     
-    console.log('[DEBUG] Assets API - Request headers:', fetchHeaders);
-    
     // Fetch the asset from the external service
-    const startTime = Date.now();
     const response = await fetch(assetUrl, {
       headers: fetchHeaders,
       method: 'GET',
+      signal: AbortSignal.timeout(60000), // 60 second timeout
     });
-    const fetchDuration = Date.now() - startTime;
-
-    console.log(`[DEBUG] Assets API - Fetch completed in ${fetchDuration}ms`);
-    console.log(`[DEBUG] Assets API - Response status: ${response.status} ${response.statusText}`);
-    console.log('[DEBUG] Assets API - Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
-      console.error(`[DEBUG] Assets API - Failed to fetch asset ${assetId}: ${response.status} ${response.statusText}`);
-      
-      // Try to get error details from response body
-      try {
-        const errorText = await response.text();
-        console.error(`[DEBUG] Assets API - Error response body: ${errorText}`);
-      } catch (bodyError) {
-        console.error('[DEBUG] Assets API - Could not read error response body:', bodyError);
-      }
+      console.error(`[Assets API] Failed to fetch asset ${assetId}: ${response.status}`);
       
       return NextResponse.json(
         {
           error: 'Failed to fetch asset',
-          assetId,
-          externalUrl: assetUrl,
-          status: response.status,
-          statusText: response.statusText
+          assetId
         },
         { status: response.status }
       );
@@ -89,15 +82,9 @@ export async function GET(
 
     // Get the content type from the response
     const contentType = response.headers.get('content-type') || 'application/octet-stream';
-    console.log(`[DEBUG] Assets API - Content type: ${contentType}`);
     
-    // Stream the response back to the client
-    const buffer = await response.arrayBuffer();
-    console.log(`[DEBUG] Assets API - Response buffer size: ${buffer.byteLength} bytes`);
-    
-    console.log(`[DEBUG] Assets API - Successfully returning asset ${assetId}`);
-    
-    return new NextResponse(buffer, {
+    // Stream the response instead of loading into memory
+    return new NextResponse(response.body, {
       status: 200,
       headers: {
         'Content-Type': contentType,
@@ -105,13 +92,11 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error(`[DEBUG] Assets API - Unexpected error for asset ${assetId}:`, error);
-    console.error('[DEBUG] Assets API - Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error(`[Assets API] Error for asset ${assetId}:`, error instanceof Error ? error.message : String(error));
     return NextResponse.json(
       {
         error: 'Internal server error',
-        assetId,
-        details: error instanceof Error ? error.message : String(error)
+        assetId
       },
       { status: 500 }
     );

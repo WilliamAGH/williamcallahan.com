@@ -11,6 +11,7 @@ import path from 'node:path';
 import { posts as staticPosts } from '@/data/blog/posts';
 import { getAllMDXPosts } from '@/lib/blog/mdx';
 import { authors } from '@/data/blog/authors';
+import type { NextRequest } from 'next/server';
 
 // Only allow this endpoint in development
 // Commented out as unused but kept for reference
@@ -40,8 +41,19 @@ interface ErrorInfo {
   cause?: unknown;
 }
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    // SECURITY: Require authentication for debug endpoints
+    const authHeader = request.headers.get('authorization');
+    const debugSecret = process.env.DEBUG_API_SECRET;
+    
+    if (!debugSecret || authHeader !== `Bearer ${debugSecret}`) {
+      return NextResponse.json(
+        { message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     // In production, return a simple "not available" message instead of throwing an error
     if (process.env.NODE_ENV !== 'development') {
       return NextResponse.json(
@@ -50,7 +62,7 @@ export async function GET(): Promise<NextResponse> {
       );
     }
 
-    // Get information about the posts directory
+    // Get information about the posts directory - BUT DON'T EXPOSE PATHS
     const postsDir = path.join(process.cwd(), 'data/blog/posts');
 
     // Safely check if directory exists first
@@ -82,8 +94,9 @@ export async function GET(): Promise<NextResponse> {
       mdxPosts = [];
       mdxErrors.push({
         message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        cause: error instanceof Error ? error.cause : undefined
+        // SECURITY: Don't expose stack traces to prevent information leakage
+        stack: undefined,
+        cause: undefined
       });
     }
 
@@ -93,7 +106,7 @@ export async function GET(): Promise<NextResponse> {
       try {
         const fileContent = await fs.readFile(path.join(postsDir, filename), 'utf8');
         const authorMatch = fileContent.match(/author:\s*["']([^"']+)["']/);
-        if (authorMatch && authorMatch[1]) {
+        if (authorMatch?.[1]) {
           const authorId = authorMatch[1];
           if (!authors[authorId]) {
             authorIssues[filename] = `References non-existent author: ${authorId}`;
@@ -145,12 +158,13 @@ export async function GET(): Promise<NextResponse> {
     return NextResponse.json({
       environment: {
         nodeEnv: process.env.NODE_ENV,
-        postsDirectory: postsDir,
-        exists: await fs.access(postsDir).then(() => true).catch(() => false)
+        // SECURITY: Don't expose file system paths
+        postsDirectoryExists: dirExists
       },
       files: {
         mdxCount: mdxFiles.length,
-        mdxFiles
+        // SECURITY: Don't expose actual filenames - just counts
+        hasMdxFiles: mdxFiles.length > 0
       },
       posts: {
         staticCount: staticPosts ? staticPosts.length : 0,
@@ -176,7 +190,8 @@ export async function GET(): Promise<NextResponse> {
 
     return NextResponse.json({
       error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
+      // SECURITY: Don't expose stack traces in API responses
+      stack: undefined
     }, {
       status: error instanceof Error && error.message.includes('only available in development')
         ? 403
@@ -196,9 +211,9 @@ function findDuplicateSlugs(posts: { slug: string }[]): string[] {
 
   // Find duplicates
   const counts: Record<string, number> = {};
-  slugs.forEach(slug => {
+  for (const slug of slugs) {
     counts[slug] = (counts[slug] || 0) + 1;
-  });
+  }
 
   return Object.entries(counts)
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
