@@ -19,9 +19,10 @@ import {
   getDomainType,
   shouldRetryUrl,
   calculateBackoffDelay,
-  isValidImageUrl
+  isValidImageUrl,
+  constructKarakeepAssetUrl
 } from '@/lib/utils/opengraph-utils';
-import type { OgResult } from '@/types';
+import type { OgResult, KarakeepImageFallback } from '@/types';
 import * as cheerio from 'cheerio';
 import { waitForPermit, OPENGRAPH_FETCH_STORE_NAME, OPENGRAPH_FETCH_CONTEXT_ID, DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG } from '@/lib/rate-limiter';
 import { debug, debugWarn } from '@/lib/utils/debug';
@@ -82,12 +83,14 @@ function scheduleImagePersistence(
  * @param url - URL to get OpenGraph data for
  * @param skipExternalFetch - If true, only check in-memory cache and S3 persistent storage
  * @param idempotencyKey - A unique key to ensure idempotent image storage, such as a bookmark ID
+ * @param fallbackImageData - Optional Karakeep image data to use as fallback when external fetch fails
  * @returns Promise resolving to OpenGraph data with images served from S3 when available
  */
 export async function getOpenGraphData(
   url: string,
   skipExternalFetch = false,
   idempotencyKey?: string,
+  fallbackImageData?: KarakeepImageFallback,
 ): Promise<OgResult> {
   const normalizedUrl = normalizeUrl(url);
   const urlHash = hashUrl(normalizedUrl);
@@ -97,7 +100,7 @@ export async function getOpenGraphData(
   // Validate URL first
   if (!validateOgUrl(normalizedUrl)) {
     console.warn(`[DataAccess/OpenGraph] Invalid or unsafe URL: ${normalizedUrl}`);
-    return createFallbackResult(normalizedUrl, 'Invalid or unsafe URL');
+    return createFallbackResult(normalizedUrl, 'Invalid or unsafe URL', fallbackImageData);
   }
 
   // Check memory cache first
@@ -159,7 +162,7 @@ export async function getOpenGraphData(
   const domain = getDomainType(normalizedUrl);
   if (hasDomainFailedTooManyTimes(domain)) {
     debug(`[DataAccess/OpenGraph] Domain ${domain} has failed too many times, using fallback`);
-    return createFallbackResult(normalizedUrl, 'Domain temporarily unavailable');
+    return createFallbackResult(normalizedUrl, 'Domain temporarily unavailable', fallbackImageData);
   }
 
   // If we have stale in-memory cache and should refresh, start background refresh
@@ -167,7 +170,7 @@ export async function getOpenGraphData(
     debug(`[DataAccess/OpenGraph] Using stale memory cache while refreshing in background: ${normalizedUrl}`);
     
     // Start background refresh but don't await it
-    refreshOpenGraphData(normalizedUrl, idempotencyKey).catch(error => {
+    refreshOpenGraphData(normalizedUrl, idempotencyKey, fallbackImageData).catch(error => {
       console.error(`[DataAccess/OpenGraph] Background refresh failed for ${normalizedUrl}:`, error);
     });
     
@@ -242,12 +245,12 @@ export async function getOpenGraphData(
         source: 'cache'
       };
     }
-    return createFallbackResult(normalizedUrl, 'External fetch disabled');
+    return createFallbackResult(normalizedUrl, 'External fetch disabled', fallbackImageData);
   }
 
   // Fetch fresh data from external source
   debug(`[DataAccess/OpenGraph] 🌐 Fetching fresh data from external source: ${normalizedUrl}`);
-  const freshData = await refreshOpenGraphData(normalizedUrl, idempotencyKey);
+  const freshData = await refreshOpenGraphData(normalizedUrl, idempotencyKey, fallbackImageData);
   
   if (freshData) {
     return freshData;
@@ -262,7 +265,7 @@ export async function getOpenGraphData(
     };
   }
 
-  return createFallbackResult(normalizedUrl, 'All fetch attempts failed');
+  return createFallbackResult(normalizedUrl, 'All fetch attempts failed', fallbackImageData);
 }
 
 /**
@@ -270,9 +273,10 @@ export async function getOpenGraphData(
  *
  * @param url - URL to refresh data for
  * @param idempotencyKey - A unique key to ensure idempotent image storage
+ * @param fallbackImageData - Optional Karakeep image data to use as fallback when external fetch fails
  * @returns Promise resolving to fresh OpenGraph data or null if failed
  */
-async function refreshOpenGraphData(url: string, idempotencyKey?: string): Promise<OgResult | null> {
+async function refreshOpenGraphData(url: string, idempotencyKey?: string, fallbackImageData?: KarakeepImageFallback): Promise<OgResult | null> {
   const normalizedUrl = normalizeUrl(url);
   const urlHash = hashUrl(normalizedUrl);
 
@@ -357,7 +361,7 @@ async function refreshOpenGraphData(url: string, idempotencyKey?: string): Promi
         }
       } else {
         // Mark as failed in memory cache
-        const failureResult = createFallbackResult(normalizedUrl, 'External fetch failed');
+        const failureResult = createFallbackResult(normalizedUrl, 'External fetch failed', fallbackImageData);
         ServerCacheInstance.setOpenGraphData(normalizedUrl, failureResult, true);
         
         // Add to circuit breaker using existing session management
@@ -729,16 +733,65 @@ function extractBlueskyProfileImage($: cheerio.CheerioAPI): string | null {
 
 /**
  * Creates a fallback result when OpenGraph data cannot be fetched
+ * Prioritizes Karakeep image data when available before falling back to domain defaults
  *
  * @param url - Original URL
  * @param error - Error message
+ * @param fallbackImageData - Optional Karakeep image data to use as fallback
  * @returns Fallback OpenGraph result
  */
-function createFallbackResult(url: string, error: string): OgResult {
+function createFallbackResult(url: string, error: string, fallbackImageData?: KarakeepImageFallback): OgResult {
   const domain = getDomainType(url);
   
+  // Priority chain for image selection:
+  // 1. Karakeep imageUrl (direct OG image)
+  // 2. Karakeep imageAssetId (construct asset URL)
+  // 3. Karakeep screenshotAssetId (construct screenshot URL)
+  // 4. Domain fallback images
+  let imageUrl: string | null = null;
+
+  if (fallbackImageData) {
+    // Try Karakeep imageUrl first (highest priority)
+    if (fallbackImageData.imageUrl && isValidImageUrl(fallbackImageData.imageUrl)) {
+      imageUrl = fallbackImageData.imageUrl;
+      console.log(`[DataAccess/OpenGraph] Using Karakeep imageUrl fallback: ${imageUrl}`);
+      
+      // Schedule S3 persistence for Karakeep image
+      scheduleImagePersistence(imageUrl, OPENGRAPH_IMAGES_S3_DIR, 'Karakeep-Fallback', undefined, url);
+    }
+    // Try Karakeep imageAssetId (second priority)
+    else if (fallbackImageData.imageAssetId) {
+      try {
+        imageUrl = constructKarakeepAssetUrl(fallbackImageData.imageAssetId);
+        console.log(`[DataAccess/OpenGraph] Using Karakeep imageAssetId fallback: ${imageUrl}`);
+        
+        // Schedule S3 persistence for Karakeep asset
+        scheduleImagePersistence(imageUrl, OPENGRAPH_IMAGES_S3_DIR, 'Karakeep-Asset-Fallback', fallbackImageData.imageAssetId, url);
+      } catch (error) {
+        console.warn(`[DataAccess/OpenGraph] Failed to construct Karakeep asset URL for ${fallbackImageData.imageAssetId}:`, error);
+      }
+    }
+    // Try Karakeep screenshotAssetId (third priority)
+    else if (fallbackImageData.screenshotAssetId) {
+      try {
+        imageUrl = constructKarakeepAssetUrl(fallbackImageData.screenshotAssetId);
+        console.log(`[DataAccess/OpenGraph] Using Karakeep screenshotAssetId fallback: ${imageUrl}`);
+        
+        // Schedule S3 persistence for Karakeep screenshot
+        scheduleImagePersistence(imageUrl, OPENGRAPH_IMAGES_S3_DIR, 'Karakeep-Screenshot-Fallback', fallbackImageData.screenshotAssetId, url);
+      } catch (error) {
+        console.warn(`[DataAccess/OpenGraph] Failed to construct Karakeep screenshot URL for ${fallbackImageData.screenshotAssetId}:`, error);
+      }
+    }
+  }
+
+  // Fall back to domain-specific defaults if no Karakeep data available
+  if (!imageUrl) {
+    imageUrl = getFallbackImageForDomain(domain);
+  }
+  
   return {
-    imageUrl: getFallbackImageForDomain(domain),
+    imageUrl,
     bannerImageUrl: getFallbackBannerForDomain(domain),
     ogMetadata: {
       title: `Profile on ${domain}`,

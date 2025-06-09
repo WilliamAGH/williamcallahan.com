@@ -7,6 +7,7 @@
  */
 // Removed static fetch alias to allow dynamic mocking in tests
 import type { UnifiedBookmark, BookmarkContent, BookmarkAsset } from '@/types';
+import type { KarakeepImageFallback } from '@/types';
 import { writeJsonS3, readJsonS3 } from '@/lib/s3-utils';
 import { BOOKMARKS_S3_KEY_FILE } from '@/lib/data-access/bookmarks';
 import { getOpenGraphData } from '@/lib/data-access/opengraph';
@@ -228,7 +229,15 @@ async function processBookmarksInBatches(bookmarks: UnifiedBookmark[], isDev: bo
             console.log(`[processBookmarksInBatches] [DEV] Fetching OpenGraph for ${bookmark.url} (${globalIndex + 1}/${bookmarks.length})`);
           }
           
-          const ogData = await getOpenGraphData(bookmark.url, false, bookmark.id);
+          // Extract Karakeep image data for fallback
+          const karakeepFallback: KarakeepImageFallback = {
+            imageUrl: bookmark.content?.imageUrl,
+            imageAssetId: bookmark.content?.imageAssetId,
+            screenshotAssetId: bookmark.content?.screenshotAssetId,
+            karakeepBaseUrl: process.env.BOOKMARKS_API_URL
+          };
+          
+          const ogData = await getOpenGraphData(bookmark.url, false, bookmark.id, karakeepFallback);
           const ogDuration = Date.now() - ogStartTime;
           
           if (isDev) {
@@ -282,9 +291,11 @@ async function processBookmarksInBatches(bookmarks: UnifiedBookmark[], isDev: bo
     
     // Add a delay between batches to be respectful to external services
     if (i + batchSize < bookmarks.length) {
-      const delayMs = 1000; // Increased from 500ms to 1000ms to be more respectful
+      // Use randomized jitter to prevent thundering herd when multiple instances process simultaneously
+      const { randomInt } = await import('node:crypto');
+      const delayMs = randomInt(500, 2000); // Random 500-2000ms delay for multi-instance coordination
       if (isDev) {
-        console.log(`[processBookmarksInBatches] [DEV] Waiting ${delayMs}ms before next batch`);
+        console.log(`[processBookmarksInBatches] [DEV] Waiting ${delayMs}ms (jittered) before next batch`);
       }
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }

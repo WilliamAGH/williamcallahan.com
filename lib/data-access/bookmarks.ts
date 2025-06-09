@@ -13,39 +13,114 @@ import type { UnifiedBookmark } from '@/types';
 import { refreshBookmarksData as directRefreshBookmarksData } from '@/lib/bookmarks';
 import { readJsonS3, writeJsonS3 } from '@/lib/s3-utils';
 import { AppError } from '@/lib/errors';
+import { randomInt } from 'node:crypto';
 
 // --- Configuration & Constants ---
 export const BOOKMARKS_S3_KEY_DIR = 'bookmarks';
 export const BOOKMARKS_S3_KEY_FILE = `${BOOKMARKS_S3_KEY_DIR}/bookmarks.json`;
+const DISTRIBUTED_LOCK_S3_KEY = `${BOOKMARKS_S3_KEY_DIR}/refresh-lock.json`;
+const LOCK_TTL_MS = 10 * 60 * 1000; // 10 minutes lock TTL
+const INSTANCE_ID = `instance-${randomInt(1000000, 9999999)}-${Date.now()}`;
 
 // --- Bookmarks Data Access ---
 
 let inFlightBookmarkPromise: Promise<UnifiedBookmark[] | null> | null = null;
 
-// TODO: For true serverless safety, replace this in-memory lock with a distributed lock (e.g., using Redis or DynamoDB).
-// The current `globalThis` approach makes the lock global for a single Node.js instance,
-// but won't prevent concurrent refreshes across multiple serverless function instances.
-// For non-serverless or single-instance deployments, this provides basic protection.
-declare global {
-  // eslint-disable-next-line no-var
-  var isBookmarkRefreshLocked: boolean;
+/**
+ * S3-based distributed lock for coordinating bookmark refreshes across multiple instances
+ */
+interface DistributedLockEntry {
+  instanceId: string;
+  acquiredAt: number;
+  ttlMs: number;
 }
 
-function acquireRefreshLock(): boolean {
-  if (globalThis.isBookmarkRefreshLocked) {
-    console.log('[Bookmarks] Refresh lock acquisition failed: already locked.');
+/**
+ * Attempts to acquire a distributed lock using S3
+ * @param lockKey - S3 key for the lock file
+ * @param ttlMs - Time-to-live for the lock in milliseconds
+ * @returns Promise resolving to true if lock acquired, false otherwise
+ */
+async function acquireDistributedLock(lockKey: string, ttlMs: number): Promise<boolean> {
+  try {
+    // Check if lock file exists and if it's still valid
+    const existingLock = await readJsonS3<DistributedLockEntry>(lockKey);
+    
+    if (existingLock && typeof existingLock === 'object') {
+      const now = Date.now();
+      const lockAge = now - existingLock.acquiredAt;
+      
+      // If lock is still valid (not expired), acquisition fails
+      if (lockAge < existingLock.ttlMs) {
+        const remainingMs = existingLock.ttlMs - lockAge;
+                 console.log(`[Bookmarks] Distributed lock held by ${existingLock.instanceId}, ${Math.round(remainingMs / 1000)}s remaining`);
+         return false;
+       }
+       
+       console.log(`[Bookmarks] Found expired lock from ${existingLock.instanceId}, attempting to acquire`);
+    }
+    
+    // Attempt to acquire lock by writing our instance data
+    const lockEntry: DistributedLockEntry = {
+      instanceId: INSTANCE_ID,
+      acquiredAt: Date.now(),
+      ttlMs
+    };
+    
+    await writeJsonS3(lockKey, lockEntry);
+    
+    // Verify we successfully acquired the lock (handles race conditions)
+    const verifyLock = await readJsonS3<DistributedLockEntry>(lockKey);
+    if (verifyLock?.instanceId === INSTANCE_ID) {
+             console.log(`[Bookmarks] Distributed lock acquired by ${INSTANCE_ID}`);
+       return true;
+     }
+     
+     console.log(`[Bookmarks] Lock acquisition race lost to ${verifyLock?.instanceId || 'unknown'}`);
+     return false;
+    
+  } catch (error) {
+    console.error("[Bookmarks] Error during distributed lock acquisition:", error);
     return false;
   }
-  globalThis.isBookmarkRefreshLocked = true;
-  console.log('[Bookmarks] Refresh lock acquired.');
-  return true;
 }
 
-function releaseRefreshLock(): void {
-  globalThis.isBookmarkRefreshLocked = false;
-  console.log('[Bookmarks] Refresh lock released.');
+/**
+ * Releases a distributed lock by deleting the S3 lock file
+ * @param lockKey - S3 key for the lock file
+ */
+async function releaseDistributedLock(lockKey: string): Promise<void> {
+  try {
+    // Verify we own the lock before releasing
+    const existingLock = await readJsonS3<DistributedLockEntry>(lockKey);
+    
+    if (existingLock?.instanceId === INSTANCE_ID) {
+      // Note: S3 doesn't have a native delete operation in our utils
+      // We can simulate deletion by writing null or a tombstone
+      await writeJsonS3(lockKey, null);
+      console.log(`[Bookmarks] Distributed lock released by ${INSTANCE_ID}`);
+    } else {
+      console.warn(`[Bookmarks] Cannot release lock owned by ${existingLock?.instanceId || 'unknown'}`);
+    }
+  } catch (error) {
+    console.error("[Bookmarks] Error during distributed lock release:", error);
+  }
 }
 
+/**
+ * Acquires the bookmark refresh lock using distributed locking
+ * @returns Promise resolving to true if lock acquired, false otherwise
+ */
+async function acquireRefreshLock(): Promise<boolean> {
+  return acquireDistributedLock(DISTRIBUTED_LOCK_S3_KEY, LOCK_TTL_MS);
+}
+
+/**
+ * Releases the bookmark refresh lock
+ */
+async function releaseRefreshLock(): Promise<void> {
+  await releaseDistributedLock(DISTRIBUTED_LOCK_S3_KEY);
+}
 
 /**
  * Retrieves bookmarks from an external source, ensuring only one fetch occurs at a time
@@ -101,7 +176,7 @@ async function fetchExternalBookmarksWithRetry(retries = 3, delay = 1000): Promi
 }
 
 async function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> {
-  if (!acquireRefreshLock()) {
+  if (!(await acquireRefreshLock())) {
     return null; // Lock not acquired
   }
 
@@ -122,7 +197,7 @@ async function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> {
     console.error('[Bookmarks] CRITICAL: Failed to refresh and persist bookmarks.', error);
     return null;
   } finally {
-    releaseRefreshLock();
+    await releaseRefreshLock();
   }
 }
 
@@ -200,7 +275,7 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
  * Performs background refresh without blocking the current request
  */
 async function refreshInBackground(): Promise<void> {
-  if (!acquireRefreshLock()) {
+  if (!(await acquireRefreshLock())) {
     console.log('[Bookmarks] Background refresh skipped - lock not acquired.');
     return;
   }
@@ -227,7 +302,7 @@ async function refreshInBackground(): Promise<void> {
     // Keep existing cache valid - this was just a background refresh attempt
     console.log('[Bookmarks] Background refresh failed but keeping existing valid cache');
   } finally {
-    releaseRefreshLock();
+    await releaseRefreshLock();
     console.log('[Bookmarks] Background refresh completed (lock released).');
   }
 }

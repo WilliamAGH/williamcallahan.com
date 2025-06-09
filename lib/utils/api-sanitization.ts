@@ -47,31 +47,63 @@ export function sanitizeError(error: unknown, includeStack = false): Record<stri
 
 /**
  * Removes system paths and sensitive environment info from objects
+ * Handles circular references to prevent infinite recursion
  */
 export function sanitizeSystemInfo(obj: Record<string, unknown>): Record<string, unknown> {
-  const sanitized = { ...obj };
+  // Use WeakSet to track visited objects and prevent circular references
+  const visited = new WeakSet<object>();
   
-  // Remove common sensitive keys
-  const sensitiveKeys = [
-    'path', 'filePath', 'directory', 'cwd', 'home', 'tmpdir',
-    'password', 'secret', 'token', 'key', 'auth',
-    'stack', 'stackTrace'
-  ];
-  
-  for (const key of sensitiveKeys) {
-    if (key in sanitized) {
-      delete sanitized[key];
+  function sanitizeRecursive(target: Record<string, unknown>): Record<string, unknown> {
+    // Check for circular reference
+    if (visited.has(target)) {
+      return { '[Circular Reference]': true };
     }
+    
+    // Mark this object as visited
+    visited.add(target);
+    
+    const sanitized = { ...target };
+    
+    // Remove common sensitive keys
+    const sensitiveKeys = [
+      'path', 'filePath', 'directory', 'cwd', 'home', 'tmpdir',
+      'password', 'secret', 'token', 'key', 'auth',
+      'stack', 'stackTrace'
+    ];
+    
+    for (const key of sensitiveKeys) {
+      if (key in sanitized) {
+        delete sanitized[key];
+      }
+    }
+    
+    // Recursively sanitize nested objects
+    for (const [key, value] of Object.entries(sanitized)) {
+      if (value === null || value === undefined) {
+        // Keep null/undefined as-is
+        continue;
+      }
+      
+      if (Array.isArray(value)) {
+        // Handle arrays by recursively sanitizing each element
+        const sanitizedArray: unknown[] = value.map((item: unknown) => {
+          if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+            return sanitizeRecursive(item as Record<string, unknown>);
+          }
+          return item;
+        });
+        sanitized[key] = sanitizedArray;
+      } else if (typeof value === 'object' && !Array.isArray(value)) {
+        // Handle nested objects
+        sanitized[key] = sanitizeRecursive(value as Record<string, unknown>);
+      }
+      // Primitive values (string, number, boolean) are kept as-is
+    }
+    
+    return sanitized;
   }
   
-  // Recursively sanitize nested objects
-  for (const [key, value] of Object.entries(sanitized)) {
-    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      sanitized[key] = sanitizeSystemInfo(value as Record<string, unknown>);
-    }
-  }
-  
-  return sanitized;
+  return sanitizeRecursive(obj);
 }
 
 /**

@@ -80,7 +80,12 @@ export async function fetchLogo(domain: string): Promise<{
       if (logoResult?.buffer) {
         if (isDebug) console.debug(`[logo-fetcher] Retrieved logo for ${normalizedDomain} (source: ${logoResult.source || 'unknown'}) from data access layer`);
         // Cache in memory
-        ServerCacheInstance.setLogoFetch(normalizedDomain, { url: null, source: logoResult.source, buffer: logoResult.buffer });
+        ServerCacheInstance.setLogoFetch(normalizedDomain, { 
+          url: null, 
+          source: logoResult.source, 
+          buffer: logoResult.buffer,
+          contentType: logoResult.contentType
+        });
         return { buffer: logoResult.buffer, source: logoResult.source };
       }
       
