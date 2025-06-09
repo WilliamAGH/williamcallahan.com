@@ -9,9 +9,12 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 import { refreshBookmarksData } from '@/lib/bookmarks';
 import { ServerCacheInstance } from '@/lib/server-cache';
+import type { UnifiedBookmark } from '@/types/bookmark';
+import { isOperationAllowed, API_ENDPOINT_STORE_NAME, DEFAULT_API_ENDPOINT_LIMIT_CONFIG } from '@/lib/rate-limiter';
+
 // Import logo functions dynamically to avoid SSR issues
-let getLogo: typeof import('@/lib/data-access/logos').getLogo;
-let resetLogoSessionTracking: typeof import('@/lib/data-access/logos').resetLogoSessionTracking;
+let getLogo: typeof import('@/lib/data-access/logos').getLogo | undefined;
+let resetLogoSessionTracking: typeof import('@/lib/data-access/logos').resetLogoSessionTracking | undefined;
 
 // Initialize logo functions only when needed
 async function initLogoFunctions() {
@@ -21,8 +24,6 @@ async function initLogoFunctions() {
     resetLogoSessionTracking = logoModule.resetLogoSessionTracking;
   }
 }
-import type { UnifiedBookmark } from '@/types/bookmark';
-import { isOperationAllowed, API_ENDPOINT_STORE_NAME, DEFAULT_API_ENDPOINT_LIMIT_CONFIG } from '@/lib/rate-limiter';
 
 // Ensure this route is not statically cached
 export const dynamic = 'force-dynamic';
@@ -56,11 +57,13 @@ function extractDomainsFromBookmarks(bookmarks: UnifiedBookmark[]): Set<string> 
  * Processes logo fetching for domains in small batches (for API context)
  * @param domains - Array of domain names to process
  * @param context - Description of the processing context for logging
+ * @param fetchLogo - The getLogo function to use for fetching logos
  * @returns Promise resolving to success and failure counts
  */
 async function processLogosBatch(
   domains: string[], 
-  context: string
+  context: string,
+  fetchLogo: NonNullable<typeof getLogo>
 ): Promise<{ successCount: number; failureCount: number }> {
   let successCount = 0;
   let failureCount = 0;
@@ -76,7 +79,7 @@ async function processLogosBatch(
 
     const promises = batch.map(async (domain) => {
       try {
-        const logoResult = await getLogo(domain);
+        const logoResult = await fetchLogo(domain);
         if (logoResult?.buffer && Buffer.isBuffer(logoResult.buffer) && logoResult.buffer.length > 0) {
           console.log(`[API Bookmarks Refresh] ✅ Logo processed for ${domain} (source: ${logoResult.source})`);
           successCount++;
@@ -160,8 +163,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     await initLogoFunctions();
     
     // Reset logo session tracking to prevent conflicts with bulk processing
-    resetLogoSessionTracking();
-    console.log('[API Bookmarks Refresh] Logo session tracking reset for API processing.');
+    if (resetLogoSessionTracking) {
+      resetLogoSessionTracking();
+      console.log('[API Bookmarks Refresh] Logo session tracking reset for API processing.');
+    }
 
     // Get current cached bookmarks to compare for new additions
     const previousBookmarks = await Promise.resolve(ServerCacheInstance.getBookmarks()?.bookmarks || []);
@@ -187,9 +192,13 @@ export async function POST(request: Request): Promise<NextResponse> {
           
           try {
             // Process new domains with small batches appropriate for API context
+            if (!getLogo) {
+              throw new Error('getLogo function not initialized');
+            }
             const { successCount, failureCount } = await processLogosBatch(
               Array.from(newDomains),
-              'new bookmarks (API refresh)'
+              'new bookmarks (API refresh)',
+              getLogo
             );
             
             console.log(`[API Bookmarks Refresh] ✅ Logo processing complete: ${successCount} succeeded, ${failureCount} failed for new bookmarks.`);
