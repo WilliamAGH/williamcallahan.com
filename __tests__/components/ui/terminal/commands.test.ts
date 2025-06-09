@@ -3,6 +3,9 @@
  */
 import { handleCommand } from '@/components/ui/terminal/commands.client';
 
+// Store original fetch
+const originalFetch = global.fetch;
+
 // Mock the fetch API
 global.fetch = jest.fn() as unknown as typeof fetch; // Assert type for assignment
 // Setup console.error mock
@@ -39,6 +42,8 @@ describe('Terminal Commands', () => {
   afterAll(() => {
     // Restore window
     global.window = originalWindow;
+    // Restore fetch
+    global.fetch = originalFetch;
   });
 
   describe('Basic Commands', () => {

@@ -15,6 +15,9 @@
 import fs from 'fs';
 import path from 'path';
 
+// Store original fetch
+const originalFetch = global.fetch;
+
 // Mock fetch globally
 const mockFetch = jest.fn();
 global.fetch = mockFetch as unknown as typeof fetch; // Assert type for assignment
@@ -35,6 +38,11 @@ describe('Routes Module', () => {
   // Reset mocks before each test
   beforeEach(() => {
     mockFetch.mockReset();
+  });
+
+  // Restore original fetch after all tests
+  afterAll(() => {
+    global.fetch = originalFetch;
   });
 
   describe('Non-existent Routes', () => {

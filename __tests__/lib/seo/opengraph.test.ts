@@ -115,10 +115,10 @@ describe('OpenGraph Metadata', () => {
       expect(metadata.article?.section).toBe(siteMetadata.article.section);
       expect(metadata.article?.tags).toEqual(mockArticleParams.tags);
       expect(Array.isArray(metadata.article?.tags)).toBe(true);
-      metadata.article?.tags?.forEach(tag => {
+      for (const tag of metadata.article?.tags ?? []) {
         expect(typeof tag).toBe('string');
         expect(tag).toBeTruthy();
-      });
+      }
     });
 
     it('should handle missing tags', () => {

@@ -1,9 +1,9 @@
 // __tests__/lib/setup/testing-library.ts
 /**
- * Testing Library Setup for Bun:test
+ * Testing Library Setup for Jest
  *
  * This file configures @testing-library/react and @testing-library/jest-dom
- * for use with the Bun test runner (`bun:test`).
+ * for use with the Jest test runner.
  *
  * Key points for the dual Bun/Jest testing strategy:
  * 1. Test Runner Priority: `bun test` is the primary runner for speed.
@@ -22,13 +22,13 @@
  * and the Jest runner (for `*.jest.*` files) sequentially.
  *
  * This setup ensures that Testing Library matchers are available for tests
- * run with `bun:test`.
+ * run with Jest.
  */
-import { afterEach, expect } from 'bun:test'; // Use only Bun's expect
+import { afterEach, expect } from '@jest/globals'; // Use Jest's expect
 import { cleanup } from '@testing-library/react';
 import * as matchers from '@testing-library/jest-dom/matchers';
 
-// Extend Bun's expect with Testing Library matchers
+// Extend Jest's expect with Testing Library matchers
 expect.extend(matchers);
 
 // Optional: Run Testing Library's cleanup after each test
