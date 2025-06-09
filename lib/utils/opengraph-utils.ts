@@ -226,3 +226,28 @@ export function calculateBackoffDelay(attempt: number, base: number, max: number
 export function isValidImageUrl(url: string | null | undefined): url is string {
   return !!url && !url.startsWith('data:');
 }
+
+/**
+ * Constructs a Karakeep asset URL for consistent proxy usage
+ *
+ * @param assetId - The Karakeep asset ID
+ * @param _baseUrl - The base URL for the Karakeep API (unused, kept for API compatibility)
+ * @returns Constructed asset URL for proxy access
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function constructKarakeepAssetUrl(assetId: string, _baseUrl?: string): string {
+  // Validate asset ID format (should be non-empty string, potentially UUID)
+  if (!assetId || typeof assetId !== 'string' || assetId.trim().length === 0) {
+    throw new Error('Invalid asset ID provided');
+  }
+
+  // Sanitize asset ID to prevent path traversal
+  const sanitizedAssetId = assetId.replace(/[^a-zA-Z0-9\-_]/g, '');
+  if (sanitizedAssetId !== assetId) {
+    throw new Error('Asset ID contains invalid characters');
+  }
+
+  // Use local asset proxy endpoint for consistent authentication and error handling
+  // This ensures we go through our own asset proxy which handles Karakeep authentication
+  return `/api/assets/${sanitizedAssetId}`;
+}

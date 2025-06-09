@@ -38,6 +38,8 @@ interface LogoFetchResult {
   source: LogoSource;
   /** Raw image buffer */
   buffer?: Buffer;
+  /** Content type of the image (e.g., 'image/png', 'image/svg+xml') */
+  contentType?: string;
   /** Error message if logo fetch failed */
   error?: string;
   /** Timestamp when the logo was fetched */

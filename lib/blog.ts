@@ -71,8 +71,7 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     if (!(error instanceof BlogPostDataError)) {
       throw new BlogPostDataError(`Error retrieving blog post: ${slug}`, slug, error);
     }
-    // If it was already a BlogPostDataError, or if the above didn't match for some reason,
-    // rethrow the original error.
+    // If we reach here, error is already a BlogPostDataError, so rethrow it
     throw error;
   }
 }

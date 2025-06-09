@@ -89,19 +89,25 @@ export async function getLogo(
   }
 
   // Attempt to retrieve from in-memory cache first
-  const cached: { url: string | null; source: LogoSource | null; buffer?: Buffer; error?: string } | undefined =
+  const cached: { url: string | null; source: LogoSource | null; buffer?: Buffer; contentType?: string; error?: string } | undefined =
     ServerCacheInstance.getLogoFetch(domain);
   if (cached?.buffer) {
     logger.debug(`[DataAccess/Logos] Returning logo for ${domain} from memory cache (source: ${cached.source || 'unknown'}).`);
 
-    // If cached entry includes contentType (e.g., in unit tests), return it directly
-    const ct = (cached as unknown as { contentType?: string }).contentType;
-    if (ct) {
-      return { buffer: cached.buffer, source: cached.source || 'unknown', contentType: ct, retrieval: 'mem-cache' };
+    // If cached entry includes contentType, return it directly
+    if (cached.contentType) {
+      markDomainAsProcessed(domain);
+      return { buffer: cached.buffer, source: cached.source || 'unknown', contentType: cached.contentType, retrieval: 'mem-cache' };
     }
     const { processedBuffer, contentType } = await processImageBuffer(cached.buffer);
-    // Update memory cache with processed buffer to avoid reprocessing on subsequent hits
-    ServerCacheInstance.setLogoFetch(domain, { url: null, source: cached.source, buffer: processedBuffer });
+    // Update memory cache with processed buffer and contentType to avoid reprocessing on subsequent hits
+    ServerCacheInstance.setLogoFetch(domain, {
+      url: null,
+      source: cached.source,
+      buffer: processedBuffer,
+      contentType,
+    });
+    markDomainAsProcessed(domain);
     return { buffer: processedBuffer, source: cached.source || 'unknown', contentType, retrieval: 'mem-cache' };
   }
 
@@ -116,7 +122,12 @@ export async function getLogo(
   if (s3Logo) {
     const { processedBuffer: s3Buffer, contentType: s3ContentType } = await processImageBuffer(s3Logo.buffer);
     logger.debug(`[DataAccess/Logos] Returning logo for ${domain} from S3 storage (source: ${s3Logo.source}).`);
-    ServerCacheInstance.setLogoFetch(domain, { url: null, source: s3Logo.source, buffer: s3Buffer });
+    ServerCacheInstance.setLogoFetch(domain, { 
+      url: null, 
+      source: s3Logo.source, 
+      buffer: s3Buffer,
+      contentType: s3ContentType 
+    });
     markDomainAsProcessed(domain);
     return { buffer: s3Buffer, source: s3Logo.source, contentType: s3ContentType, retrieval: 's3-store' };
   }
@@ -166,7 +177,13 @@ export async function getLogo(
       }
     }
 
-    ServerCacheInstance.setLogoFetch(domain, { url: null, source: externalLogo.source, buffer: processedBuffer });
+    ServerCacheInstance.setLogoFetch(domain, { 
+      url: null, 
+      source: externalLogo.source, 
+      buffer: processedBuffer,
+      contentType: processedContentType 
+    });
+    markDomainAsProcessed(domain);
     logger.debug(`[DataAccess/Logos] Successfully fetched and stored new logo for ${domain} from ${externalLogo.source}.`);
     return { buffer: processedBuffer, source: externalLogo.source, contentType: processedContentType, retrieval: 'external' };
   }
