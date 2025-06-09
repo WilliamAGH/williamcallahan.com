@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs';
+import { EventEmitter } from 'node:events';
 
 // Global flags to prevent multiple concurrent preloading attempts and repeated preloads
 let isPreloading = false;
@@ -9,6 +10,14 @@ export function register() {
   const releaseVersion = process.env.NEXT_PUBLIC_APP_VERSION || process.env.SENTRY_RELEASE;
 
   if (process.env.NEXT_RUNTIME === 'nodejs') {
+    // Increase the default max listeners to handle concurrent fetch operations
+    // This prevents the "MaxListenersExceededWarning" when processing bookmarks in batches
+    EventEmitter.defaultMaxListeners = 25;
+    
+    // Also set it on the global process object to be safe
+    if (process.setMaxListeners) {
+      process.setMaxListeners(25);
+    }
     // Initialize Sentry for the Node.js runtime
     Sentry.init({
       dsn: process.env.SENTRY_DSN || "https://f1769f8b48304aabc42fee1425b225d4@o4509274058391557.ingest.us.sentry.io/4509274059309056",
