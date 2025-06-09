@@ -29,15 +29,16 @@ import {
   getLogo,
   getInvestmentDomainsAndIds,
   calculateAndStoreAggregatedWeeklyActivity,
-} from '@/lib/data-access.ts'; // These will be modified to be S3-aware
+} from '@/lib/data-access';
 
 // Import direct refresh functions for forced updates
-import { refreshBookmarksData } from '@/lib/bookmarks.ts';
+import { refreshBookmarksData } from '@/lib/bookmarks';
 
 // Import logo session tracking functions
-import { resetLogoSessionTracking } from '@/lib/data-access/logos.ts';
+import { invalidateLogoS3Cache, resetLogoSessionTracking } from '@/lib/data-access/logos.ts';
 
 import { KNOWN_DOMAINS } from '@/lib/constants';
+import logger from '@/lib/utils/logger';
 
 // Import types
 import type { UnifiedBookmark } from '@/types/bookmark';
@@ -59,10 +60,10 @@ const LOGO_BATCH_CONFIGS = {
 } as const;
 
 /** Maximum number of new bookmarks to process immediately on first run or after cache loss */
-const SAFETY_THRESHOLD_NEW_BOOKMARKS = 10;
+const SAFETY_THRESHOLD_NEW_BOOKMARKS: number = 10;
 
 // Command-line argument parsing for selective updates
-const usage = `Usage: update-s3-data.ts [options]
+const usage: string = `Usage: update-s3-data.ts [options]
 Options:
   --bookmarks           Run only the Bookmarks update
   --github-activity     Run only the GitHub Activity update
@@ -79,7 +80,7 @@ const runBookmarksFlag = rawArgs.length === 0 || rawArgs.includes('--bookmarks')
 const runGithubFlag = rawArgs.length === 0 || rawArgs.includes('--github-activity');
 const runLogosFlag = rawArgs.length === 0 || rawArgs.includes('--logos');
 
-console.log(`[UpdateS3] Script execution started. Raw args: ${process.argv.slice(2).join(' ')}`);
+logger.info(`[UpdateS3] Script execution started. Raw args: ${process.argv.slice(2).join(' ')}`);
 
 // --- Utility Functions ---
 
@@ -88,7 +89,7 @@ console.log(`[UpdateS3] Script execution started. Raw args: ${process.argv.slice
  * @param bookmarks - Array of bookmark objects with url properties
  * @returns Set of unique domain names with www prefix removed
  */
-function extractDomainsFromBookmarks(bookmarks: UnifiedBookmark[]): Set<string> {
+function extractDomainsFromBookmarks(bookmarks: Readonly<UnifiedBookmark[]>): Set<string> {
   const domains = new Set<string>();
   for (const bookmark of bookmarks) {
     try {
@@ -100,7 +101,7 @@ function extractDomainsFromBookmarks(bookmarks: UnifiedBookmark[]): Set<string> 
     } catch (error) {
       // Log invalid URLs for debugging while continuing processing
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn(`[UpdateS3] Invalid URL in bookmark ${bookmark.id || 'unknown'}: ${bookmark.url} (${errorMessage})`);
+      logger.warn(`[UpdateS3] Invalid URL in bookmark ${bookmark.id || 'unknown'}: ${bookmark.url} (${errorMessage})`);
     }
   }
   return domains;
@@ -114,8 +115,8 @@ function extractDomainsFromBookmarks(bookmarks: UnifiedBookmark[]): Set<string> 
  * @returns Promise resolving to success and failure counts
  */
 async function processLogoBatch(
-  domains: string[], 
-  batchConfig: { size: number; delay: number },
+  domains: Readonly<string[]>, 
+  batchConfig: { readonly size: number; readonly delay: number },
   context: string
 ): Promise<{ successCount: number; failureCount: number }> {
   let successCount = 0;
@@ -127,21 +128,25 @@ async function processLogoBatch(
     const batchNumber = Math.floor(i / batchSize) + 1;
     const totalBatches = Math.ceil(domains.length / batchSize);
     
-    console.log(`[UpdateS3] Processing ${context} logo batch ${batchNumber}/${totalBatches} for ${batch.length} domains`);
+    logger.verbose(`[UpdateS3] Processing ${context} logo batch ${batchNumber}/${totalBatches} for ${batch.length} domains`);
 
     const promises = batch.map(async (domain) => {
       try {
         const logoResult = await getLogo(domain);
-        if (logoResult?.buffer && Buffer.isBuffer(logoResult.buffer) && logoResult.buffer.length > 0) {
-          console.log(`✅ Logo processed for ${domain} via data-access (source: ${logoResult.source})`);
+        if (logoResult && Buffer.isBuffer(logoResult.buffer) && logoResult.buffer.length > 0) {
+          // @typescript-eslint/no-unsafe-assignment
+          const retrieval = logoResult.retrieval;
+          logger.info(
+            `✅ Logo for ${domain} processed (retrieved from: ${retrieval}, original source: ${logoResult.source})`,
+          );
           successCount++;
         } else {
-          console.warn(`⚠️ Could not fetch/process logo for ${domain} via data-access.`);
+          logger.warn(`⚠️ Could not fetch/process logo for ${domain} via data-access.`);
           failureCount++;
         }
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
-        console.error(`❌ Error processing logo for ${domain}:`, message);
+        logger.error(`❌ Error processing logo for ${domain}:`, message);
         failureCount++;
       }
     });
@@ -150,7 +155,7 @@ async function processLogoBatch(
 
     // Apply rate limiting delay between batches (except for the last batch)
     if (i + batchSize < domains.length) {
-      debug(`[UpdateS3] ⏱️ Waiting ${delay}ms before next ${context} logo batch...`);
+      logger.debug(`[UpdateS3] ⏱️ Waiting ${delay}ms before next ${context} logo batch...`);
       await new Promise(r => setTimeout(r, delay));
     }
   }
@@ -165,21 +170,21 @@ async function processLogoBatch(
  * Fetches fresh bookmark data, ensures S3 synchronization, and immediately processes logos for new bookmarks
  */
 async function updateBookmarksInS3(): Promise<void> {
-  console.log('[UpdateS3] AB Starting Bookmarks update to S3...');
+  logger.info('[UpdateS3] AB Starting Bookmarks update to S3...');
   try {
     // Get current cached bookmarks to compare for new additions
     const previousBookmarks = await getBookmarks(false); // Get cached data
     const previousCount = previousBookmarks?.length || 0;
-    console.log(`[UpdateS3] [Bookmarks] Previous cached bookmarks count: ${previousCount}`);
+    logger.debug(`[UpdateS3] [Bookmarks] Previous cached bookmarks count: ${previousCount}`);
     
     const previousBookmarkIds = new Set(previousBookmarks?.map(b => b.id) || []);
 
     // Use direct refresh function to force fresh data instead of cached data
-    console.log('[UpdateS3] [Bookmarks] Calling refreshBookmarksData to force fresh fetch.');
+    logger.debug('[UpdateS3] [Bookmarks] Calling refreshBookmarksData to force fresh fetch.');
     const bookmarks = await refreshBookmarksData();
 
     if (bookmarks && bookmarks.length > 0) {
-      console.log(`[UpdateS3] [Bookmarks] refreshBookmarksData returned ${bookmarks.length} fresh bookmarks and wrote to S3.`);
+      logger.debug(`[UpdateS3] [Bookmarks] refreshBookmarksData returned ${bookmarks.length} fresh bookmarks and wrote to S3.`);
       
       // Identify new bookmarks that weren't in the previous cache
       const newBookmarks = bookmarks.filter(b => !previousBookmarkIds.has(b.id));
@@ -189,8 +194,8 @@ async function updateBookmarksInS3(): Promise<void> {
       const shouldLimitProcessing = previousCount === 0 && newBookmarks.length > SAFETY_THRESHOLD_NEW_BOOKMARKS;
       
       if (shouldLimitProcessing) {
-        console.log(`[UpdateS3] [Bookmarks] Safety check: No previous cache (${previousCount}) but ${newBookmarks.length} "new" bookmarks detected. This suggests first run or cache loss.`);
-        console.log(`[UpdateS3] [Bookmarks] Limiting immediate logo processing to ${SAFETY_THRESHOLD_NEW_BOOKMARKS} most recent bookmarks to avoid system overload.`);
+        logger.warn(`[UpdateS3] [Bookmarks] Safety check: No previous cache (${previousCount}) but ${newBookmarks.length} "new" bookmarks detected. This suggests first run or cache loss.`);
+        logger.warn(`[UpdateS3] [Bookmarks] Limiting immediate logo processing to ${SAFETY_THRESHOLD_NEW_BOOKMARKS} most recent bookmarks to avoid system overload.`);
         
         // Process only the 10 most recently added bookmarks for immediate logo processing
         const recentBookmarks = newBookmarks
@@ -200,7 +205,7 @@ async function updateBookmarksInS3(): Promise<void> {
         const recentDomains = extractDomainsFromBookmarks(recentBookmarks);
         
         if (recentDomains.size > 0) {
-          console.log(`[UpdateS3] [Bookmarks] Processing logos for ${recentDomains.size} domains from ${SAFETY_THRESHOLD_NEW_BOOKMARKS} most recent bookmarks.`);
+          logger.info(`[UpdateS3] [Bookmarks] Processing logos for ${recentDomains.size} domains from ${SAFETY_THRESHOLD_NEW_BOOKMARKS} most recent bookmarks.`);
           
           const { successCount, failureCount } = await processLogoBatch(
             Array.from(recentDomains),
@@ -208,17 +213,17 @@ async function updateBookmarksInS3(): Promise<void> {
             'recent bookmarks (limited processing)'
           );
           
-          console.log(`[UpdateS3] [Bookmarks] ✅ Limited immediate logo processing complete: ${successCount} succeeded, ${failureCount} failed.`);
-          console.log('[UpdateS3] [Bookmarks] 📝 Note: Remaining logos will be processed during regular logo update phase.');
+          logger.info(`[UpdateS3] [Bookmarks] ✅ Limited immediate logo processing complete: ${successCount} succeeded, ${failureCount} failed.`);
+          logger.info('[UpdateS3] [Bookmarks] 📝 Note: Remaining logos will be processed during regular logo update phase.');
         }
       } else if (newBookmarks.length > 0) {
-        console.log(`[UpdateS3] [Bookmarks] Found ${newBookmarks.length} new bookmarks. Processing logos immediately to prevent broken images.`);
+        logger.info(`[UpdateS3] [Bookmarks] Found ${newBookmarks.length} new bookmarks. Processing logos immediately to prevent broken images.`);
         
         // Extract domains from new bookmarks only
         const newDomains = extractDomainsFromBookmarks(newBookmarks);
         
         if (newDomains.size > 0) {
-          console.log(`[UpdateS3] [Bookmarks] Processing logos for ${newDomains.size} new domains immediately.`);
+          logger.info(`[UpdateS3] [Bookmarks] Processing logos for ${newDomains.size} new domains immediately.`);
           
           // Process new domains with immediate batch configuration for faster UX
           const { successCount, failureCount } = await processLogoBatch(
@@ -227,16 +232,16 @@ async function updateBookmarksInS3(): Promise<void> {
             'immediate new bookmarks'
           );
           
-          console.log(`[UpdateS3] [Bookmarks] ✅ Immediate logo processing complete: ${successCount} succeeded, ${failureCount} failed for new bookmarks.`);
+          logger.info(`[UpdateS3] [Bookmarks] ✅ Immediate logo processing complete: ${successCount} succeeded, ${failureCount} failed for new bookmarks.`);
         }
       } else {
-        console.log('[UpdateS3] [Bookmarks] No new bookmarks detected. Skipping immediate logo processing.');
+        logger.debug('[UpdateS3] [Bookmarks] No new bookmarks detected. Skipping immediate logo processing.');
       }
     } else {
-      console.warn('[UpdateS3] [Bookmarks] refreshBookmarksData returned no bookmarks or failed. Check logs.');
+      logger.warn('[UpdateS3] [Bookmarks] refreshBookmarksData returned no bookmarks or failed. Check logs.');
     }
   } catch (error) {
-    console.error('[UpdateS3] [Bookmarks] CRITICAL Error during Bookmarks S3 update process:', error);
+    logger.error('[UpdateS3] [Bookmarks] CRITICAL Error during Bookmarks S3 update process:', error);
   }
 }
 
@@ -245,7 +250,7 @@ async function updateBookmarksInS3(): Promise<void> {
  * Fetches new GitHub data, merges with existing S3 data, and recalculates aggregated statistics
  */
 async function updateGithubActivityInS3(): Promise<void> {
-  console.log('[UpdateS3] 🐙 Starting GitHub Activity update to S3...');
+  logger.info('[UpdateS3] 🐙 Starting GitHub Activity update to S3...');
 
   try {
     // getGithubActivity will be modified to:
@@ -257,14 +262,14 @@ async function updateGithubActivityInS3(): Promise<void> {
 
     if (activity) {
       // Writes to S3 (raw files, aggregated, summary) should happen within getGithubActivity / calculateAndStoreAggregatedWeeklyActivity
-      console.log(`[UpdateS3] ✅ GitHub Activity update process triggered. Trailing year data complete: ${activity?.trailingYearData?.dataComplete} (check data-access logs for S3 write details).`);
+      logger.info(`[UpdateS3] ✅ GitHub Activity update process triggered. Trailing year data complete: ${activity?.trailingYearData?.dataComplete} (check data-access logs for S3 write details).`);
       // calculateAndStoreAggregatedWeeklyActivity will also need to be S3-aware
       await calculateAndStoreAggregatedWeeklyActivity(); // This also needs to read/write from/to S3
     } else {
-      console.error('[UpdateS3] ❌ Failed to process GitHub activity for S3 update.');
+      logger.error('[UpdateS3] ❌ Failed to process GitHub activity for S3 update.');
     }
   } catch (error) {
-    console.error('[UpdateS3] ❌ Error during GitHub Activity S3 update:', error);
+    logger.error('[UpdateS3] ❌ Error during GitHub Activity S3 update:', error);
   }
 }
 
@@ -273,12 +278,13 @@ async function updateGithubActivityInS3(): Promise<void> {
  * Collects domains from bookmarks, investments, and known sources, then fetches/caches logos in batches
  */
 async function updateLogosInS3(): Promise<void> {
-  console.log('[UpdateS3] 🖼️ Starting Logos update to S3...');
+  logger.info('[UpdateS3] 🖼️ Starting Logos update to S3...');
 
   try {
     // Reset logo session tracking to prevent conflicts with concurrent processes
     resetLogoSessionTracking();
-    console.log('[UpdateS3] Logo session tracking reset for bulk processing.');
+    invalidateLogoS3Cache();
+    logger.debug('[UpdateS3] Logo session tracking reset and S3 store invalidated for bulk processing.');
 
     const domains = new Set<string>();
 
@@ -288,14 +294,14 @@ async function updateLogosInS3(): Promise<void> {
     for (const domain of bookmarkDomains) {
       domains.add(domain);
     }
-    debug(`[UpdateS3] Extracted ${bookmarkDomains.size} domains from bookmarks.`);
+    logger.debug(`[UpdateS3] Extracted ${bookmarkDomains.size} domains from bookmarks.`);
 
     // 2. Extract domains from investments data - simplified iteration using .values()
     const investmentDomainsMap = await getInvestmentDomainsAndIds();
     for (const domain of investmentDomainsMap.values()) {
       domains.add(domain);
     }
-    debug(`[UpdateS3] Added ${investmentDomainsMap.size} unique domains from investments. Total unique: ${domains.size}`);
+    logger.debug(`[UpdateS3] Added ${investmentDomainsMap.size} unique domains from investments. Total unique: ${domains.size}`);
 
     // 3. Domains from experience.ts / education.ts (assuming these are static or also in S3)
     // For simplicity, this part is omitted but would follow a similar pattern: read from S3 or use static data.
@@ -305,7 +311,7 @@ async function updateLogosInS3(): Promise<void> {
     for (const domain of KNOWN_DOMAINS) {
       domains.add(domain);
     }
-    debug(`[UpdateS3] Added ${KNOWN_DOMAINS.length} hardcoded domains. Total unique domains for logos: ${domains.size}`);
+    logger.debug(`[UpdateS3] Added ${KNOWN_DOMAINS.length} hardcoded domains. Total unique domains for logos: ${domains.size}`);
 
     // Process all domains using regular batch configuration with appropriate rate limiting
     const { successCount, failureCount } = await processLogoBatch(
@@ -314,10 +320,10 @@ async function updateLogosInS3(): Promise<void> {
       'bulk logo update'
     );
     
-    console.log(`[UpdateS3] ✅ Logo update process triggered. ${successCount} succeeded, ${failureCount} failed (check data-access logs for S3 write details).`);
+    logger.info(`[UpdateS3] ✅ Logo update process triggered. ${successCount} succeeded, ${failureCount} failed (check data-access logs for S3 write details).`);
 
   } catch (error) {
-    console.error('[UpdateS3] ❌ Error during logos S3 update:', error);
+    logger.error('[UpdateS3] ❌ Error during logos S3 update:', error);
   }
 }
 
@@ -328,41 +334,41 @@ async function updateLogosInS3(): Promise<void> {
  * Handles environment validation, flag processing, and sequential update execution
  */
 async function runScheduledUpdates(): Promise<void> {
-  console.log(`[UpdateS3] runScheduledUpdates called. Current PT: ${new Date().toISOString()}`);
-  console.log(`[UpdateS3] Configured S3 Root: ${S3_DATA_ROOT}`);
-  console.log(`[UpdateS3] Verbose logging: ${VERBOSE}`);
+  logger.info(`[UpdateS3] runScheduledUpdates called. Current PT: ${new Date().toISOString()}`);
+  logger.info(`[UpdateS3] Configured S3 Root: ${S3_DATA_ROOT}`);
+  logger.info(`[UpdateS3] Verbose logging: ${VERBOSE}`);
   const DRY_RUN = process.env.DRY_RUN === 'true';
   if (DRY_RUN) {
-    console.log('[UpdateS3] DRY RUN mode: skipping all update processes.');
-    console.log('[UpdateS3] All scheduled update checks complete.');
+    logger.info('[UpdateS3] DRY RUN mode: skipping all update processes.');
+    logger.info('[UpdateS3] All scheduled update checks complete.');
     process.exit(0);
   }
 
   // Ensure S3_BUCKET is configured before proceeding
   if (!process.env.S3_BUCKET) {
-    console.error("[UpdateS3] CRITICAL: S3_BUCKET environment variable is not set. Cannot run updates.");
+    logger.error("[UpdateS3] CRITICAL: S3_BUCKET environment variable is not set. Cannot run updates.");
     return; // Exit the main function to allow natural termination
   }
 
   // Run selected updates sequentially
   if (runBookmarksFlag) {
-    console.log('[UpdateS3] --bookmarks flag is true or no flags provided. Running Bookmarks update.');
+    logger.info('[UpdateS3] --bookmarks flag is true or no flags provided. Running Bookmarks update.');
     await updateBookmarksInS3();
-  } else debug('[UpdateS3] Skipping Bookmarks update as flag was not set.');
+  } else logger.debug('[UpdateS3] Skipping Bookmarks update as flag was not set.');
   if (runGithubFlag) {
     await updateGithubActivityInS3(); // This includes sub-calculation for aggregated data
-  } else debug('[UpdateS3] Skipping GitHub Activity update');
+  } else logger.debug('[UpdateS3] Skipping GitHub Activity update');
   if (runLogosFlag) {
     await updateLogosInS3();
-  } else debug('[UpdateS3] Skipping Logos update');
+  } else logger.debug('[UpdateS3] Skipping Logos update');
 
-  console.log('[UpdateS3] All scheduled update checks complete.');
+  logger.info('[UpdateS3] All scheduled update checks complete.');
   process.exit(0);
 }
 
 // Run the main function with comprehensive error handling
 void runScheduledUpdates().catch(error => {
-  console.error('[UpdateS3] Unhandled error in runScheduledUpdates:', error);
+  logger.error('[UpdateS3] Unhandled error in runScheduledUpdates:', error);
   process.exit(1);
 });
 
@@ -373,15 +379,15 @@ void runScheduledUpdates().catch(error => {
  */
 export async function updateAllData(): Promise<void> {
   if (!process.env.S3_BUCKET) {
-    console.warn('[UpdateAllData] S3_BUCKET not set; skipping updates.');
+    logger.warn('[UpdateAllData] S3_BUCKET not set; skipping updates.');
     return;
   }
   try {
     await updateBookmarksInS3();
     await updateGithubActivityInS3();
     await updateLogosInS3();
-    console.log('[UpdateAllData] All data updates completed successfully.');
+    logger.info('[UpdateAllData] All data updates completed successfully.');
   } catch (error) {
-    console.error('[UpdateAllData] Error during on-demand data update:', error);
+    logger.error('[UpdateAllData] Error during on-demand data update:', error);
   }
 }
