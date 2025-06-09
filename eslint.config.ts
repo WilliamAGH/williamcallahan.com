@@ -72,6 +72,7 @@ const config = tseslint.config(
       "react/prop-types": "off", // Often off in TS projects
       "react/react-in-jsx-scope": "off", // Handled by new JSX transform
       "react/no-unknown-property": ["error", { ignore: ["jsx", "global"] }],
+      "react/jsx-no-target-blank": "off",
     },
   } as any, // Cast the entire React config object to any
 
