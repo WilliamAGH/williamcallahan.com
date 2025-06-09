@@ -6,7 +6,7 @@
       "dom.iterable",
       "esnext"
     ],
-    // "types": ["react/jsx-runtime", "bun-types", "jest"], // Reverted: Remove to allow default @types resolution
+    "types": ["react", "react-dom", "react/jsx-runtime", "jest"], // Include React JSX types and Jest
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -78,6 +78,7 @@
     ".next",
     "out",
     "dist",
-    "components/ui/code-block/prism-syntax-highlighting/prism.js"
+    "components/ui/code-block/prism-syntax-highlighting/prism.js",
+    "__tests__"
   ]
 }

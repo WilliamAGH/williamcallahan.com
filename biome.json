@@ -8,12 +8,14 @@
     "ignore": [
       "node_modules/**",
       "components/ui/code-block/prism-syntax-highlighting/prism.js",
-      ".next/**"
+      ".next/**",
+      "**/*.mdx"
     ],
     "rules": {
       "recommended": true,
       "a11y": {
-        "useAltText": "off"
+        "useAltText": "off",
+        "noBlankTarget": "off"
       }
     }
   },

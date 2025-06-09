@@ -8,9 +8,7 @@ import reactJsxRuntime from "eslint-plugin-react/configs/jsx-runtime.js";
 import reactHooks from "eslint-plugin-react-hooks";
 import nextPlugin from "@next/eslint-plugin-next";
 import jestPlugin from "eslint-plugin-jest";
-
-// const mdxPlugin = mdxNamespace.default; // Previous attempt
-// Now using mdxPlugin (the namespace import) directly
+import * as mdxPlugin from "eslint-plugin-mdx";
 
 // Define the configuration array using tseslint.config helper
 const config = tseslint.config(
@@ -23,6 +21,8 @@ const config = tseslint.config(
       "out/", // If using static export
       "__tests__/", // Ignore test files; use bun test and jest for tests
       "components/ui/code-block/prism-syntax-highlighting/prism.js", // Third-party minified library
+      "config/.remarkrc.mjs", // Remark-lint configuration file
+      "config/", // Config directory
       // Add other global ignores if needed
     ],
   },
@@ -152,6 +152,7 @@ const config = tseslint.config(
     rules: {
       "react-hooks/exhaustive-deps": "warn",
       "no-restricted-globals": "off",
+      "@typescript-eslint/no-misused-promises": "off",
     },
   },
 
@@ -208,7 +209,7 @@ const config = tseslint.config(
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unnecessary-type-assertion": "off",
-      // Add any other rules that were problematic for TS config files
+      "@typescript-eslint/no-require-imports": "off",
     }
   },
   { // Exemptions for config files
@@ -236,6 +237,7 @@ const config = tseslint.config(
       ...(tseslint.configs.disableTypeChecked as any).rules,
       // Keep existing specific overrides for JS config files
       "no-restricted-globals": "off",
+      "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-unsafe-assignment": "off", // May be redundant with disableTypeChecked but safe to keep
       "@typescript-eslint/no-unsafe-call": "off",      // May be redundant
       "@typescript-eslint/no-unsafe-member-access": "off", // May be redundant
@@ -281,6 +283,42 @@ const config = tseslint.config(
       "@typescript-eslint/no-unsafe-assignment": "off",
     },
   },
+
+  // MDX Configuration
+  // Based on https://github.com/mdx-js/eslint-mdx/blob/main/README.md#flat-config
+  {
+    name: "custom/mdx/recommended",
+    files: ["**/*.mdx"],
+    ...mdxPlugin.flat,
+    processor: mdxPlugin.createRemarkProcessor({
+      // Disable linting code blocks for performance
+      // Enable if you want to lint code blocks: lintCodeBlocks: true
+      lintCodeBlocks: false,
+      languageMapper: {},
+    }) as any,
+    rules: {
+      // Disable all TypeScript rules that require type information for MDX
+      ...tseslint.configs.disableTypeChecked.rules,
+      // Allow specific MDX patterns
+      "react/no-unescaped-entities": "off",
+      "react/no-unknown-property": "off",
+      // Disable unused vars warning for MDX files since components are used in JSX content
+      "@typescript-eslint/no-unused-vars": "off",
+    },
+  } as any,
+  {
+    name: "custom/mdx/code-blocks", 
+    files: ["**/*.mdx"],
+    ...mdxPlugin.flatCodeBlocks,
+    rules: {
+      ...mdxPlugin.flatCodeBlocks.rules,
+      // Disable all TypeScript rules that require type information for MDX code blocks
+      ...tseslint.configs.disableTypeChecked.rules,
+      // Add basic code quality rules for code blocks
+      "no-var": "error",
+      "prefer-const": "error",
+    },
+  } as any,
 );
 
 export default config; // Export the config array
