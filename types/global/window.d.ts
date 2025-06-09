@@ -16,6 +16,20 @@ declare global {
     /** Plausible analytics function */
     plausible?: (eventName: string, options?: { props?: Record<string, unknown> }) => void;
   }
+
+  // Fix for JSX namespace issues with @types/mdx and React 19
+  // This provides the missing JSX namespace that some packages still reference
+  namespace JSX {
+    // Re-export React's JSX types to maintain compatibility
+    type Element = React.JSX.Element;
+    type IntrinsicElements = React.JSX.IntrinsicElements;
+    type ElementClass = React.JSX.ElementClass;
+    type ElementAttributesProperty = React.JSX.ElementAttributesProperty;
+    type ElementChildrenAttribute = React.JSX.ElementChildrenAttribute;
+    type LibraryManagedAttributes<C, P> = React.JSX.LibraryManagedAttributes<C, P>;
+    type IntrinsicAttributes = React.JSX.IntrinsicAttributes;
+    type IntrinsicClassAttributes<T> = React.JSX.IntrinsicClassAttributes<T>;
+  }
 }
 
 // Export an empty object to make this a module file if required by tsconfig, though for .d.ts it's often not needed.

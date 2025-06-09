@@ -70,6 +70,8 @@ export interface LogoResult {
   url: string | null;
   /** Source of the logo */
   source: LogoSource;
+  /** How the logo was retrieved in the current request */
+  retrieval?: 'mem-cache' | 's3-store' | 'external';
   /** Error message if logo fetch failed */
   error?: string;
   /** Inversion analysis results */

@@ -76,7 +76,7 @@ async function testUrlReachability(url: string): Promise<{
     const responseTime = Date.now() - startTime;
     
     return {
-      isReachable: response.ok,
+      isReachable: response.ok || (response.status >= 300 && response.status < 400),
       status: response.status,
       responseTime,
       redirectUrl: response.url !== url ? response.url : undefined,
@@ -167,28 +167,59 @@ function isActiveInvestment(investment: Investment): boolean {
   );
 }
 
+/**
+ * Process investments in batches with concurrency control
+ */
+async function processBatch(
+  investments: Investment[],
+  concurrencyLimit: number
+): Promise<UrlValidationResult[]> {
+  const results: UrlValidationResult[] = [];
+  const queue = [...investments];
+  const activePromises = new Set<Promise<void>>();
+
+  while (queue.length > 0 || activePromises.size > 0) {
+    // Start new tasks up to concurrency limit
+    while (queue.length > 0 && activePromises.size < concurrencyLimit) {
+      const investment = queue.shift();
+      if (!investment) break;
+      
+      const promise = validateInvestmentUrl(investment)
+        .then((result) => {
+          results.push(result);
+          console.log(`Tested ${results.length}/${investments.length}: ${investment.name}`);
+        })
+        .finally(() => {
+          activePromises.delete(promise);
+        });
+      
+      activePromises.add(promise);
+    }
+
+    // Wait for at least one promise to complete
+    if (activePromises.size > 0) {
+      await Promise.race(activePromises);
+    }
+  }
+
+  return results;
+}
+
 async function validateAllUrls() {
   console.log('🔍 Validating Investment URLs\n');
   
   const activeInvestments = investments.filter(isActiveInvestment);
   console.log(`Testing ${activeInvestments.length} active investments...\n`);
   
-  const results: UrlValidationResult[] = [];
+  // Use limited concurrency to be polite to servers
+  const CONCURRENCY_LIMIT = 5;
+  console.log(`Using concurrency limit of ${CONCURRENCY_LIMIT}\n`);
   
-  // Test URLs with rate limiting (avoid overwhelming servers)
-  for (let i = 0; i < activeInvestments.length; i++) {
-    const investment = activeInvestments[i];
-    const result = await validateInvestmentUrl(investment);
-    results.push(result);
-    
-    // Progress indicator
-    if ((i + 1) % 10 === 0) {
-      console.log(`Completed ${i + 1}/${activeInvestments.length} tests\n`);
-    }
-    
-    // Rate limiting - wait 500ms between requests
-    await new Promise(resolve => setTimeout(resolve, 500));
-  }
+  const startTime = Date.now();
+  const results = await processBatch(activeInvestments, CONCURRENCY_LIMIT);
+  const duration = Date.now() - startTime;
+  
+  console.log(`\n✅ Completed all tests in ${(duration / 1000).toFixed(1)} seconds`)
   
   console.log('\n📊 URL Validation Results\n');
   

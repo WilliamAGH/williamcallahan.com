@@ -9,6 +9,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getBookmarks, getGithubActivity, getLogo, getInvestmentDomainsAndIds, calculateAndStoreAggregatedWeeklyActivity } from '../lib/data-access';
+import { getOpenGraphData } from '../lib/data-access/opengraph';
+import { isValidImageUrl } from '../lib/utils/opengraph-utils';
+import { debug } from '../lib/utils/debug';
 import { KNOWN_DOMAINS } from '../lib/constants';
 import type { UnifiedBookmark } from '../types/bookmark';
 import type { UserActivityView } from '../types/github'; // Import UserActivityView
@@ -30,7 +33,6 @@ const BOOKMARKS_DIR = path.join(DATA_DIR, 'bookmarks');
 const GITHUB_DATA_DIR = path.join(DATA_DIR, 'github-activity');
 const IMAGES_DIR = path.join(DATA_DIR, 'images');
 const LOGOS_DIR = path.join(IMAGES_DIR, 'logos');
-const LOGOS_BY_ID_DIR = path.join(LOGOS_DIR, 'byId');
 const REPO_RAW_WEEKLY_STATS_DIR = path.join(GITHUB_DATA_DIR, 'repo_raw_weekly_stats');
 const BOOKMARK_IMAGES_DIR = path.join(IMAGES_DIR, 'bookmarks');
 
@@ -43,7 +45,6 @@ async function createDirectories() {
   await fs.mkdir(REPO_RAW_WEEKLY_STATS_DIR, { recursive: true });
   await fs.mkdir(IMAGES_DIR, { recursive: true });
   await fs.mkdir(LOGOS_DIR, { recursive: true });
-  await fs.mkdir(LOGOS_BY_ID_DIR, { recursive: true });
   await fs.mkdir(BOOKMARK_IMAGES_DIR, { recursive: true });
   console.log("✅ All necessary data directories ensured by populate-volumes.ts.");
 }
@@ -76,7 +77,7 @@ async function populateGithubActivityData() {
   console.log(`✅ GitHub activity volume populated/updated. Source: ${activity.source}, Trailing year data complete: ${activity.trailingYearData.dataComplete}`);
 
   // Only call calculateAndStoreAggregatedWeeklyActivity if the primary data fetch was successful
-  if (activity.source === 's3-cache' || activity.source === 'api-fallback') { // Or other success states
+  if (activity.source === 's3-store' || activity.source === 'api-fallback') { // Or other success states
     try {
       await calculateAndStoreAggregatedWeeklyActivity();
       console.log('✅ Aggregated weekly GitHub activity calculated and stored.');
@@ -233,6 +234,59 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
   console.log(`📊 Logo population summary: ${successCount} succeeded, ${failureCount} failed.`);
 }
 
+async function populateOpenGraphImages(bookmarks: UnifiedBookmark[]) {
+  console.log('🖼️ Populating OpenGraph images using data-access layer...');
+  
+  if (!bookmarks || bookmarks.length === 0) {
+    console.log('⚠️ No bookmarks available for OpenGraph image processing.');
+    return;
+  }
+
+  let processedCount = 0;
+  let successCount = 0;
+  let failureCount = 0;
+  const BATCH_SIZE = 5; // Smaller batch size for OpenGraph to be respectful to external services
+
+  const bookmarksWithUrls = bookmarks.filter(bookmark => bookmark.url);
+  console.log(`📊 Processing OpenGraph images for ${bookmarksWithUrls.length} bookmarks with URLs...`);
+
+  for (let i = 0; i < bookmarksWithUrls.length; i += BATCH_SIZE) {
+    const batch = bookmarksWithUrls.slice(i, i + BATCH_SIZE);
+    console.log(`⏳ Processing OpenGraph batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(bookmarksWithUrls.length / BATCH_SIZE)} for ${batch.length} bookmarks`);
+    
+    const promises = batch.map(async (bookmark) => {
+      processedCount++;
+      try {
+        console.log(`[${processedCount}/${bookmarksWithUrls.length}] Processing OpenGraph for: ${bookmark.url}`);
+        
+        // Call getOpenGraphData with bookmark ID as idempotency key
+        const ogData = await getOpenGraphData(bookmark.url, false, bookmark.id);
+        
+        if (ogData && isValidImageUrl(ogData.imageUrl) && !ogData.error) {
+          console.log(`✅ OpenGraph image processed for ${bookmark.url} (source: ${ogData.source})`);
+          successCount++;
+        } else {
+          console.log(`⚠️ Could not process OpenGraph image for ${bookmark.url}. Error: ${ogData?.error || 'No valid image URL found'}`);
+          failureCount++;
+        }
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`❌ Error processing OpenGraph for ${bookmark.url}:`, message);
+        failureCount++;
+      }
+    });
+    
+    await Promise.allSettled(promises);
+    
+    if (i + BATCH_SIZE < bookmarksWithUrls.length) {
+      console.log('⏱️ Waiting 1000ms before next OpenGraph batch...');
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+  
+  console.log(`📊 OpenGraph images summary: ${successCount} succeeded, ${failureCount} failed.`);
+}
+
 // MAIN EXECUTION FUNCTION
 async function populateAllVolumes() {
   console.log(`[Debug] Script execution started. Current working directory: ${process.cwd()}`);
@@ -344,6 +398,7 @@ async function populateAllVolumes() {
     // No need to call calculateAndStoreAggregatedWeeklyActivity again as it's already called in populateGithubActivityData()
 
     await populateLogosData(bookmarks); // Pass bookmarks for domain extraction
+    await populateOpenGraphImages(bookmarks); // Process OpenGraph images for bookmarks
 
     console.log('-'.repeat(50));
     console.log('✅ ALL DATA VOLUMES POPULATED/UPDATED via data-access layer');
