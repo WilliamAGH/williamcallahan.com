@@ -60,6 +60,11 @@ function getRealIp(request: NextRequest): string {
 export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
 
+  // SECURITY: Block debug endpoints in production
+  if (pathname.startsWith('/api/debug') && process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
   // If the request is for a .map file, let Next.js handle it directly
   // without applying our custom headers or logic.
   if (pathname.endsWith('.map')) {

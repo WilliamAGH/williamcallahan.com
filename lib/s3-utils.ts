@@ -17,7 +17,7 @@ import {
   DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
 import { Readable } from 'node:stream';
-import { debug } from '@/lib/utils/debug';
+import { debug, isDebug } from '@/lib/utils/debug'; // Imported isDebug
 
 // Environment variables for S3 configuration
 const S3_BUCKET = process.env.S3_BUCKET;
@@ -60,7 +60,7 @@ export const s3Client: S3Client | null =
  * @param options - Optional settings, including a byte range for partial reads
  * @returns The object content as a string or Buffer, or null if not found or on error
  *
- * @remark Retries up to three times on transient "not found" errors before returning null
+ * @remark Retries up to MAX_S3_READ_RETRIES times on transient "not found" errors before returning null
  */
 export async function readFromS3(
   key: string,
@@ -70,25 +70,28 @@ export async function readFromS3(
   const isJson = key.endsWith('.json');
   if (!isJson && S3_PUBLIC_CDN_URL) {
     const cdnUrl = `${S3_PUBLIC_CDN_URL.replace(/\/+$/, '')}/${key}`;
+    if (isDebug) debug(`[S3Utils] Attempting to read key ${key} via CDN: ${cdnUrl}`);
     try {
       const res = await fetch(cdnUrl);
       if (res.ok) {
         const arrayBuffer = await res.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const contentType = res.headers.get('content-type') || '';
+        if (isDebug) debug(`[S3Utils] Successfully read key ${key} from CDN. ContentType: ${contentType}, Size: ${buffer.length}`);
         if (contentType.startsWith('text/') || contentType.includes('application/json')) {
           return buffer.toString('utf-8');
         }
         return buffer;
       }
-      debug(`[S3Utils] CDN fetch failed for ${cdnUrl}: ${res.status} ${res.statusText}`);
+      if (isDebug) debug(`[S3Utils] CDN fetch failed for ${cdnUrl}: ${res.status} ${res.statusText}. Falling back to direct S3 read.`);
     } catch (err) {
-      debug(`[S3Utils] CDN fetch error for ${cdnUrl}:`, JSON.stringify(err));
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (isDebug) debug(`[S3Utils] CDN fetch error for ${cdnUrl}: ${errorMessage}. Falling back to direct S3 read.`);
     }
     // Fallback to AWS SDK if CDN fetch fails
   }
   if (DRY_RUN) {
-    debug(`[S3Utils][DRY RUN] Would read from S3 key ${key}${options?.range ? ` with range ${options.range}` : ''}`);
+    if (isDebug) debug(`[S3Utils][DRY RUN] Would read from S3 key ${key}${options?.range ? ` with range ${options.range}` : ''}`);
     return null;
   }
   if (!S3_BUCKET) {
@@ -99,7 +102,8 @@ export async function readFromS3(
     console.error('[S3Utils] S3 client is not initialized. Cannot read from S3.');
     return null;
   }
-
+  
+  if (isDebug) debug(`[S3Utils] Attempting direct S3 read for key: ${key} ${options?.range ? ` with range ${options.range}` : ''}`);
   for (let attempt = 1; attempt <= MAX_S3_READ_RETRIES; attempt++) {
     const command = new GetObjectCommand({
       Bucket: S3_BUCKET,
@@ -111,34 +115,33 @@ export async function readFromS3(
       const { Body, ContentType } = await s3Client.send(command);
       if (Body instanceof Readable) {
         const buffer = await streamToBuffer(Body);
+        if (isDebug) debug(`[S3Utils] Successfully read key ${key} directly from S3 (attempt ${attempt}/${MAX_S3_READ_RETRIES}). ContentType: ${ContentType ?? 'unknown'}, Size: ${buffer.length}`);
         // If it's likely text, return as string, otherwise as buffer
         if (ContentType?.startsWith('text/') || ContentType === 'application/json') {
           return buffer.toString('utf-8');
         }
         return buffer;
       }
+      if (isDebug) debug(`[S3Utils] Direct S3 read for key ${key} (attempt ${attempt}/${MAX_S3_READ_RETRIES}): Body was not a Readable stream.`);
       return null; // Should not happen if Body is present and Readable
     } catch (error: unknown) {
       const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
       if (err.name === 'NotFound' || err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
-        debug(`[S3Utils] readFromS3: Key ${key} not found (attempt ${attempt}/${MAX_S3_READ_RETRIES}).`);
+        if (isDebug) debug(`[S3Utils] readFromS3: Key ${key} not found (attempt ${attempt}/${MAX_S3_READ_RETRIES}).`);
         if (attempt < MAX_S3_READ_RETRIES) {
-          debug(`[S3Utils] Retrying read for ${key} in ${S3_READ_RETRY_DELAY_MS}ms...`);
+          if (isDebug) debug(`[S3Utils] Retrying read for ${key} in ${S3_READ_RETRY_DELAY_MS}ms...`);
           await new Promise(resolve => setTimeout(resolve, S3_READ_RETRY_DELAY_MS));
           continue; // Next attempt
         }
-        debug(`[S3Utils] readFromS3: All ${MAX_S3_READ_RETRIES} attempts failed for key ${key}. Returning null.`);
+        if (isDebug) debug(`[S3Utils] readFromS3: All ${MAX_S3_READ_RETRIES} attempts failed for key ${key}. Returning null.`);
         return null; // All retries failed
       }
       const message = err instanceof Error ? err.message : JSON.stringify(err);
       console.error(`[S3Utils] Error reading from S3 key ${key} (attempt ${attempt}/${MAX_S3_READ_RETRIES}):`, message);
-      // For non-NotFound errors, typically don't retry unless specifically designed for transient network issues
-      // For simplicity here, we'll let it fall through and return null after the loop if it was the last attempt,
-      // or if another error type broke the loop (which it won't with current structure, this catch only handles last attempt or non-retryable errors)
-      return null; // Return null on other errors or if loop finishes
+      return null; 
     }
   }
-  return null; // Fallback, though loop should handle all paths
+  return null; 
 }
 
 /**
@@ -148,6 +151,10 @@ export async function readFromS3(
  * @param contentType The MIME type of the content
  */
 export async function writeToS3(key: string, data: Buffer | string, contentType?: string): Promise<void> {
+  if (DRY_RUN) {
+    if (isDebug) debug(`[S3Utils][DRY RUN] Would write to S3 key ${key}. ContentType: ${contentType ?? 'unknown'}, Data size: ${data.length}`);
+    return;
+  }
   if (!S3_BUCKET) {
     console.error('[S3Utils] S3_BUCKET is not configured. Cannot write to S3.');
     return;
@@ -161,16 +168,18 @@ export async function writeToS3(key: string, data: Buffer | string, contentType?
     Key: key,
     Body: data,
     ContentType: contentType,
-    // Ensure uploaded objects are publicly readable
     ACL: 'public-read',
   });
 
   try {
+    if (isDebug) debug(`[S3Utils] Attempting to write to S3 key ${key}. ContentType: ${contentType ?? 'unknown'}, Data size: ${data.length}`);
     await s3Client.send(command);
-    // console.log(`[S3Utils] Successfully wrote to S3 key ${key}`);
+    if (isDebug) debug(`[S3Utils] Successfully wrote to S3 key ${key}`);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : JSON.stringify(error);
     console.error(`[S3Utils] Error writing to S3 key ${key}:`, message);
+    // Re-throw the error so callers like writeBinaryS3 can catch it if needed
+    throw error; 
   }
 }
 
@@ -180,6 +189,10 @@ export async function writeToS3(key: string, data: Buffer | string, contentType?
  * @returns True if the object exists, false otherwise
  */
 export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
+  if (DRY_RUN) {
+    if (isDebug) debug(`[S3Utils][DRY RUN] Would check existence of S3 key ${key}`);
+    return false; 
+  }
   if (!S3_BUCKET) {
     console.error('[S3Utils] S3_BUCKET is not configured. Cannot check S3 object existence.');
     return false;
@@ -194,11 +207,14 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
   });
 
   try {
+    if (isDebug) debug(`[S3Utils] Checking existence of S3 key: ${key}`);
     await s3Client.send(command);
+    if (isDebug) debug(`[S3Utils] S3 key ${key} exists.`);
     return true;
   } catch (error: unknown) {
     const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
     if (err.name === 'NotFound' || err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+      if (isDebug) debug(`[S3Utils] S3 key ${key} does not exist (NotFound).`);
       return false;
     }
     const message = err instanceof Error ? err.message : JSON.stringify(err);
@@ -213,6 +229,10 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
  * @returns Object metadata (ETag, LastModified) or null if not found or error
  */
 export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string; LastModified?: Date } | null> {
+  if (DRY_RUN) {
+    if (isDebug) debug(`[S3Utils][DRY RUN] Would get metadata for S3 key ${key}`);
+    return null;
+  }
   if (!S3_BUCKET) {
     console.error('[S3Utils] S3_BUCKET is not configured. Cannot get S3 object metadata.');
     return null;
@@ -227,7 +247,9 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
   });
 
   try {
+    if (isDebug) debug(`[S3Utils] Getting metadata for S3 key: ${key}`);
     const response = await s3Client.send(command);
+    if (isDebug) debug(`[S3Utils] Successfully got metadata for S3 key ${key}. ETag: ${response.ETag ?? 'undefined'}, LastModified: ${response.LastModified ? response.LastModified.toISOString() : 'undefined'}`);
     return {
       ETag: response.ETag,
       LastModified: response.LastModified,
@@ -235,6 +257,7 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
   } catch (error: unknown) {
     const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
     if (err.name === 'NotFound' || err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+      if (isDebug) debug(`[S3Utils] Metadata not found for S3 key ${key} (NotFound).`);
       return null;
     }
     const message = err instanceof Error ? err.message : JSON.stringify(err);
@@ -249,6 +272,10 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
  * @returns An array of object keys, or an empty array if error or no objects
  */
 export async function listS3Objects(prefix: string): Promise<string[]> {
+  if (DRY_RUN) {
+    if (isDebug) debug(`[S3Utils][DRY RUN] Would list S3 objects with prefix ${prefix}`);
+    return [];
+  }
   if (!S3_BUCKET) {
     console.error('[S3Utils] S3_BUCKET is not configured. Cannot list S3 objects.');
     return [];
@@ -261,6 +288,7 @@ export async function listS3Objects(prefix: string): Promise<string[]> {
   let continuationToken: string | undefined;
 
   try {
+    if (isDebug) debug(`[S3Utils] Listing S3 objects with prefix: ${prefix}`);
     do {
       const command = new ListObjectsV2Command({
         Bucket: S3_BUCKET,
@@ -277,6 +305,7 @@ export async function listS3Objects(prefix: string): Promise<string[]> {
       }
       continuationToken = response.NextContinuationToken;
     } while (continuationToken);
+    if (isDebug) debug(`[S3Utils] Found ${keys.length} S3 objects with prefix ${prefix}.`);
     return keys;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : JSON.stringify(error);
@@ -290,6 +319,10 @@ export async function listS3Objects(prefix: string): Promise<string[]> {
  * @param key The S3 object key to delete
  */
 export async function deleteFromS3(key: string): Promise<void> {
+  if (DRY_RUN) {
+    if (isDebug) debug(`[S3Utils][DRY RUN] Would delete S3 object: ${key}`);
+    return;
+  }
   if (!S3_BUCKET) {
     console.error('[S3Utils] S3_BUCKET is not configured. Cannot delete from S3.');
     return;
@@ -304,8 +337,9 @@ export async function deleteFromS3(key: string): Promise<void> {
   });
 
   try {
+    if (isDebug) debug(`[S3Utils] Attempting to delete S3 object: ${key}`);
     await s3Client.send(command);
-    // console.log(`[S3Utils] Successfully deleted S3 object: ${key}`);
+    if (isDebug) debug(`[S3Utils] Successfully deleted S3 object: ${key}`);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : JSON.stringify(error);
     console.error(`[S3Utils] Error deleting S3 object ${key}:`, message);
@@ -331,18 +365,22 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
  */
 export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
   if (DRY_RUN) {
-    debug(`[S3Utils][DRY RUN] Would read JSON from S3 key ${s3Key}`);
+    if (isDebug) debug(`[S3Utils][DRY RUN] Would read JSON from S3 key ${s3Key}`);
     return null;
   }
   try {
-    const content = await readFromS3(s3Key);
+    const content = await readFromS3(s3Key); // readFromS3 already has debug logging
     if (typeof content === 'string') {
-      return JSON.parse(content) as T;
+      const parsed = JSON.parse(content) as T;
+      if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON from S3 key ${s3Key}.`);
+      return parsed;
     }
     if (Buffer.isBuffer(content)) {
-      return JSON.parse(content.toString('utf-8')) as T;
+      const parsed = JSON.parse(content.toString('utf-8')) as T;
+      if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON (from buffer) from S3 key ${s3Key}.`);
+      return parsed;
     }
-    debug(`[S3Utils] readJsonS3: Key ${s3Key} not found or empty.`);
+    if (isDebug) debug(`[S3Utils] readJsonS3: Key ${s3Key} not found or content was not string/buffer.`);
     return null;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : JSON.stringify(error);
@@ -357,21 +395,20 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
  * @param data Data to write
  */
 export async function writeJsonS3<T>(s3Key: string, data: T): Promise<void> {
-  // Check for DRY_RUN environment variable
-  if (process.env.DRY_RUN === 'true') {
-    console.log(`[S3Utils][DRY RUN] Would write JSON to S3 bucket '${S3_BUCKET}', path: ${s3Key}`);
-    // Optionally log a snippet of the data for verification, being mindful of size/sensitivity
-    // console.log(`[S3Utils][DRY RUN] Data snippet: ${JSON.stringify(data).substring(0, 100)}...`);
-    return; // Skip actual S3 write
+  if (DRY_RUN) {
+    if (isDebug) debug(`[S3Utils][DRY RUN] Would write JSON to S3 key: ${s3Key}`);
+    return; 
   }
 
   try {
     const jsonData = JSON.stringify(data, null, 2);
+    // writeToS3 already has debug logging for the attempt and success/failure
     await writeToS3(s3Key, jsonData, 'application/json');
-    debug(`[S3Utils] Successfully wrote JSON to S3 key ${s3Key}`);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : JSON.stringify(error);
+    // No need for redundant success log here, writeToS3 handles it.
+  } catch (_error: unknown) {
+    const message = _error instanceof Error ? _error.message : JSON.stringify(_error);
     console.error(`[S3Utils] Failed to write JSON to S3 key ${s3Key}:`, message);
+    throw _error; // Re-throw to let callers handle the error appropriately
   }
 }
 
@@ -382,15 +419,21 @@ export async function writeJsonS3<T>(s3Key: string, data: T): Promise<void> {
  */
 export async function readBinaryS3(s3Key: string): Promise<Buffer | null> {
   if (DRY_RUN) {
-    debug(`[S3Utils][DRY RUN] Would read binary from S3 key ${s3Key}`);
+    if (isDebug) debug(`[S3Utils][DRY RUN] Would read binary from S3 key ${s3Key}`);
     return null;
   }
   try {
-    const content = await readFromS3(s3Key);
+    const content = await readFromS3(s3Key); // readFromS3 has debug logging
     if (Buffer.isBuffer(content)) {
+      // Success already logged by readFromS3 if direct S3 read occurred.
+      // If from CDN, readFromS3 also logs success.
       return content;
     }
-    debug(`[S3Utils] readBinaryS3: Key ${s3Key} not found or not a buffer.`);
+    if (typeof content === 'string') {
+      // Handle text content (like CSV files) that should be treated as binary
+      return Buffer.from(content, 'utf-8');
+    }
+    if (isDebug) debug(`[S3Utils] readBinaryS3: Key ${s3Key} not found or content was not a buffer.`);
     return null;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : JSON.stringify(error);
@@ -406,17 +449,18 @@ export async function readBinaryS3(s3Key: string): Promise<Buffer | null> {
  * @param contentType MIME type of the content
  */
 export async function writeBinaryS3(s3Key: string, data: Buffer, contentType: string): Promise<void> {
-  // Check for DRY_RUN environment variable
-  if (process.env.DRY_RUN === 'true') {
-    console.log(`[S3Utils][DRY RUN] Would write binary file (${contentType}, size: ${data.length} bytes) to S3 bucket '${S3_BUCKET}', path: ${s3Key}`);
-    return; // Skip actual S3 write
+  if (DRY_RUN) {
+    if (isDebug) debug(`[S3Utils][DRY RUN] Would write binary file to S3 key: ${s3Key}. ContentType: ${contentType}, Size: ${data.length}`);
+    return;
   }
 
   try {
+    // writeToS3 handles the actual S3 put and its specific debug logging
     await writeToS3(s3Key, data, contentType);
-    debug(`[S3Utils] Successfully wrote binary file to S3 key ${s3Key}`);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : JSON.stringify(error);
+    // Success is logged by writeToS3.
+  } catch (_error: unknown) {
+    const message = _error instanceof Error ? _error.message : JSON.stringify(_error);
     console.error(`[S3Utils] Failed to write binary file to S3 key ${s3Key}:`, message);
+    throw _error; // Re-throw to let callers handle the error appropriately
   }
 }

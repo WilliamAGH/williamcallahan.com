@@ -91,8 +91,8 @@ export const OPENGRAPH_FETCH_CONFIG = {
   BACKOFF_BASE: 1000,
   /** Maximum delay between retries in milliseconds */
   MAX_BACKOFF: 30000,
-  /** Maximum concurrent OpenGraph requests */
-  MAX_CONCURRENT: 5
+  /** Maximum concurrent OpenGraph requests - reduced to prevent memory leaks */
+  MAX_CONCURRENT: 3
 } as const;
 
 /**

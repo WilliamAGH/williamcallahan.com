@@ -19,80 +19,80 @@ import {
   getDomainType,
   shouldRetryUrl,
   calculateBackoffDelay,
-  isValidImageUrl,
-  getImageExtension,
-  hashImageContent
+  isValidImageUrl
 } from '@/lib/utils/opengraph-utils';
 import type { OgResult } from '@/types';
 import * as cheerio from 'cheerio';
 import { waitForPermit, OPENGRAPH_FETCH_STORE_NAME, OPENGRAPH_FETCH_CONTEXT_ID, DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG } from '@/lib/rate-limiter';
 import { debug, debugWarn } from '@/lib/utils/debug';
+import { persistImageToS3, findImageInS3, serveImageFromS3 } from '@/lib/utils/image-s3-utils';
+import { getBrowserHeaders } from '@/lib/data-access/logos/external-fetch';
+import { markDomainAsFailed, hasDomainFailedTooManyTimes } from '@/lib/data-access/logos/session';
 
 // --- Configuration & Constants ---
 export const OPENGRAPH_S3_KEY_DIR = 'opengraph';
 export const OPENGRAPH_METADATA_S3_DIR = `${OPENGRAPH_S3_KEY_DIR}/metadata`;
-export const OPENGRAPH_IMAGES_S3_DIR = `${OPENGRAPH_S3_KEY_DIR}/images`;
-
-// --- Circuit Breaker & Session Management ---
-const SESSION_FAILURE_TTL = 30 * 60 * 1000; // 30 minutes
-const SESSION_FAILED_DOMAINS = new Map<string, number>(); // Store domain -> timestamp
-
-/**
- * Adds a domain to the failed list and cleans up old entries.
- * @param domain The domain that failed.
- */
-function addFailedDomain(domain: string): void {
-  const now = Date.now();
-  SESSION_FAILED_DOMAINS.set(domain, now);
-  // Clean up old entries
-  for (const [d, timestamp] of SESSION_FAILED_DOMAINS.entries()) {
-    if (now - timestamp > SESSION_FAILURE_TTL) {
-      SESSION_FAILED_DOMAINS.delete(d);
-    }
-  }
-}
-
-/**
- * Checks if a domain is currently in the failed list (and not expired).
- * @param domain The domain to check.
- * @returns True if the domain is considered failed, false otherwise.
- */
-function isFailedDomain(domain: string): boolean {
-  const timestamp = SESSION_FAILED_DOMAINS.get(domain);
-  if (!timestamp) return false;
-
-  if (Date.now() - timestamp > SESSION_FAILURE_TTL) {
-    SESSION_FAILED_DOMAINS.delete(domain); // Expired, remove it
-    return false;
-  }
-  return true; // Still within TTL
-}
+export const OPENGRAPH_IMAGES_S3_DIR = 'images/opengraph';
 
 const inFlightOgPromises: Map<string, Promise<OgResult | null>> = new Map();
 
-// Insert env-based fallback mapping above getFallbackImageForDomain
-const FALLBACK_IMAGES: Record<string, string> = {
-  GitHub: process.env.FALLBACK_IMAGE_GITHUB || 'https://avatars.githubusercontent.com/u/99231285?v=4',
-  X: process.env.FALLBACK_IMAGE_X || 'https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg',
-  Twitter: process.env.FALLBACK_IMAGE_TWITTER || 'https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg',
-  LinkedIn: process.env.FALLBACK_IMAGE_LINKEDIN || 'https://media.licdn.com/dms/image/C5603AQGjv8C3WhrUfQ/profile-displayphoto-shrink_800_800/0/1651775977276',
-  Discord: process.env.FALLBACK_IMAGE_DISCORD || '/images/william.jpeg',
-  Bluesky: process.env.FALLBACK_IMAGE_BLUESKY || 'https://cdn.bsky.app/img/avatar/plain/did:plc:o3rar2atqxlmczkaf6npbcqz/bafkreidpq75jyggvzlm5ddgpzhfkm4vprgitpxukqpgkrwr6sqx54b2oka@jpeg',
-  default: process.env.FALLBACK_IMAGE_DEFAULT || '/images/william.jpeg'
-};
+/**
+ * Schedules image persistence to happen in the background without blocking the response
+ * 
+ * @param imageUrl - URL of image to persist
+ * @param s3Directory - S3 directory to store in
+ * @param logContext - Context for logging
+ * @param idempotencyKey - Unique key for idempotent storage
+ * @param pageUrl - URL of the page the image belongs to
+ */
+function scheduleImagePersistence(
+  imageUrl: string,
+  s3Directory: string,
+  logContext: string,
+  idempotencyKey?: string,
+  pageUrl?: string,
+): void {
+  // Run in background - don't await or block
+  persistImageToS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl)
+    .then((s3Key) => {
+      if (s3Key) {
+        debug(`[DataAccess/OpenGraph] Background persistence completed: ${s3Key}`);
+      }
+    })
+    .catch((error) => {
+      // Log error but don't throw - this is background processing
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      debug(`[DataAccess/OpenGraph] Background persistence failed for ${imageUrl}: ${errorMessage}`);
+    });
+}
+
+// Use existing fallback functions from og-image route
 
 /**
- * Retrieves OpenGraph data using a hierarchical strategy: memory cache, S3 storage, and external fetch as fallback
- *
- * @param url - URL to fetch OpenGraph data for
- * @param skipExternalFetch - If true, bypasses external fetch and relies on cache/S3
- * @returns Promise resolving to OpenGraph result
+ * Retrieves OpenGraph data using a multi-layered approach for optimal performance
+ * 
+ * **Retrieval order:**
+ * 1. **Memory cache** (fastest) - In-memory storage for immediate reuse
+ * 2. **S3 persistent storage** (fast) - Durable storage surviving server restarts  
+ * 3. **External API** (slowest) - Fresh fetch from source URL
+ * 
+ * **Persistence strategy:**
+ * When fetching externally, data is stored in both memory cache and S3 persistent storage
+ * 
+ * @param url - URL to get OpenGraph data for
+ * @param skipExternalFetch - If true, only check in-memory cache and S3 persistent storage
+ * @param idempotencyKey - A unique key to ensure idempotent image storage, such as a bookmark ID
+ * @returns Promise resolving to OpenGraph data with images served from S3 when available
  */
-export async function getOpenGraphData(url: string, skipExternalFetch = false): Promise<OgResult> {
+export async function getOpenGraphData(
+  url: string,
+  skipExternalFetch = false,
+  idempotencyKey?: string,
+): Promise<OgResult> {
   const normalizedUrl = normalizeUrl(url);
   const urlHash = hashUrl(normalizedUrl);
   
-  debug(`[DataAccess/OpenGraph] Fetching OG data for: ${normalizedUrl}`);
+  debug(`[DataAccess/OpenGraph] 🔍 Getting OpenGraph data for: ${normalizedUrl}`);
 
   // Validate URL first
   if (!validateOgUrl(normalizedUrl)) {
@@ -102,29 +102,72 @@ export async function getOpenGraphData(url: string, skipExternalFetch = false): 
 
   // Check memory cache first
   const cached = ServerCacheInstance.getOpenGraphData(normalizedUrl);
-  const shouldRefresh = ServerCacheInstance.shouldRefreshOpenGraph(normalizedUrl);
-
-  if (cached && !shouldRefresh) {
-    debug(`[DataAccess/OpenGraph] Returning fresh cached data from memory: ${normalizedUrl}`);
-    return {
-      ...cached,
-      source: 'cache'
-    };
+  if (cached && Date.now() - cached.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000) {
+    debug(`[DataAccess/OpenGraph] 📋 Returning from memory cache: ${normalizedUrl}`);
+    
+    // Update memory cache result with S3 URLs if available
+    const updatedResult = { ...cached };
+    
+    // Check if we can upgrade external URLs to S3 persisted URLs (non-blocking)
+    if (cached.imageUrl?.startsWith('http') && isValidImageUrl(cached.imageUrl)) {
+      const persistedImageKey = await findImageInS3(
+        cached.imageUrl,
+        OPENGRAPH_IMAGES_S3_DIR,
+        'OpenGraph',
+        idempotencyKey,
+        normalizedUrl,
+      );
+      
+      if (persistedImageKey) {
+        updatedResult.imageUrl = persistedImageKey;
+        debug(`[DataAccess/OpenGraph] Upgraded image URL to S3: ${persistedImageKey}`);
+      } else {
+        // Don't block response - schedule background persistence
+        debug(`[DataAccess/OpenGraph] Image not in S3, scheduling background persistence: ${cached.imageUrl}`);
+        scheduleImagePersistence(cached.imageUrl, OPENGRAPH_IMAGES_S3_DIR, 'OpenGraph', idempotencyKey, normalizedUrl);
+      }
+    }
+    
+    if (cached.bannerImageUrl?.startsWith('http') && isValidImageUrl(cached.bannerImageUrl)) {
+      const persistedBannerKey = await findImageInS3(
+        cached.bannerImageUrl,
+        OPENGRAPH_IMAGES_S3_DIR,
+        'OpenGraph',
+        idempotencyKey,
+        normalizedUrl,
+      );
+      
+      if (persistedBannerKey) {
+        updatedResult.bannerImageUrl = persistedBannerKey;
+        debug(`[DataAccess/OpenGraph] Upgraded banner URL to S3: ${persistedBannerKey}`);
+      } else {
+        // Don't block response - schedule background persistence
+        debug(`[DataAccess/OpenGraph] Banner not in S3, scheduling background persistence: ${cached.bannerImageUrl}`);
+        scheduleImagePersistence(cached.bannerImageUrl, OPENGRAPH_IMAGES_S3_DIR, 'OpenGraph', idempotencyKey, normalizedUrl);
+      }
+    }
+    
+    // Update memory cache if we made any upgrades
+    if (updatedResult.imageUrl !== cached.imageUrl || updatedResult.bannerImageUrl !== cached.bannerImageUrl) {
+      ServerCacheInstance.setOpenGraphData(normalizedUrl, updatedResult, false);
+    }
+    
+    return updatedResult;
   }
 
-  // Check circuit breaker
+  // Check circuit breaker using existing session management
   const domain = getDomainType(normalizedUrl);
-  if (isFailedDomain(domain)) {
-    debug(`[DataAccess/OpenGraph] Domain ${domain} is in circuit breaker (failed within TTL), using fallback`);
+  if (hasDomainFailedTooManyTimes(domain)) {
+    debug(`[DataAccess/OpenGraph] Domain ${domain} has failed too many times, using fallback`);
     return createFallbackResult(normalizedUrl, 'Domain temporarily unavailable');
   }
 
-  // If we have stale cache and should refresh, start background refresh
-  if (cached && shouldRefresh && !skipExternalFetch) {
-    debug(`[DataAccess/OpenGraph] Using stale cache while refreshing in background: ${normalizedUrl}`);
+  // If we have stale in-memory cache and should refresh, start background refresh
+  if (cached && !skipExternalFetch) {
+    debug(`[DataAccess/OpenGraph] Using stale memory cache while refreshing in background: ${normalizedUrl}`);
     
     // Start background refresh but don't await it
-    refreshOpenGraphData(normalizedUrl).catch(error => {
+    refreshOpenGraphData(normalizedUrl, idempotencyKey).catch(error => {
       console.error(`[DataAccess/OpenGraph] Background refresh failed for ${normalizedUrl}:`, error);
     });
     
@@ -134,30 +177,61 @@ export async function getOpenGraphData(url: string, skipExternalFetch = false): 
     };
   }
 
-  // Try to load from S3 if no memory cache
-  if (!cached) {
-    try {
-      const s3Data = await readJsonS3<OgResult>(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`);
-      if (s3Data) {
-        if (s3Data && 
-            typeof s3Data.timestamp === 'number' &&
-            typeof s3Data.source === 'string' &&
-            (s3Data.ogMetadata && typeof s3Data.ogMetadata === 'object')) {
-          debug(`[DataAccess/OpenGraph] ✅ Successfully loaded from S3 cache: ${normalizedUrl}`);
-          // Update memory cache
-          ServerCacheInstance.setOpenGraphData(normalizedUrl, s3Data);
-          // Check if S3 data is stale
-          const isStale = Date.now() - s3Data.timestamp > OPENGRAPH_CACHE_DURATION.REVALIDATION * 1000;
-          if (!isStale || skipExternalFetch) {
-            return { ...s3Data, source: 'cache' };
-          }
-        } else {
-          console.warn(`[DataAccess/OpenGraph] Malformed S3 data for ${normalizedUrl}, ignoring cached data`);
-        }
-      }
-    } catch (error) {
-      console.warn(`[DataAccess/OpenGraph] Failed to read from S3 for ${normalizedUrl}:`, error);
+  // Try to read from S3 persistent storage if not in memory cache
+  try {
+    const stored = await readJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`);
+    if (stored && typeof stored === 'object') {
+      const storedResult = stored as OgResult;
+      debug(`[DataAccess/OpenGraph] 📁 Found in S3 storage: ${normalizedUrl}`);
+      
+      // Update stored result with S3 URLs if available
+      const updatedStoredResult = { ...storedResult };
+      
+                  // Check if we can upgrade external URLs to S3 persisted URLs (non-blocking)
+     if (storedResult.imageUrl?.startsWith('http') && isValidImageUrl(storedResult.imageUrl)) {
+       const persistedImageKey = await findImageInS3(
+         storedResult.imageUrl,
+         OPENGRAPH_IMAGES_S3_DIR,
+         'OpenGraph',
+         idempotencyKey,
+         normalizedUrl,
+       );
+       
+       if (persistedImageKey) {
+         updatedStoredResult.imageUrl = persistedImageKey;
+         debug(`[DataAccess/OpenGraph] Upgraded stored image URL to S3: ${persistedImageKey}`);
+       } else {
+         // Don't block response - schedule background persistence
+         debug(`[DataAccess/OpenGraph] Image not in S3, scheduling background persistence: ${storedResult.imageUrl}`);
+         scheduleImagePersistence(storedResult.imageUrl, OPENGRAPH_IMAGES_S3_DIR, 'OpenGraph', idempotencyKey, normalizedUrl);
+       }
+     }
+     
+     if (storedResult.bannerImageUrl?.startsWith('http') && isValidImageUrl(storedResult.bannerImageUrl)) {
+       const persistedBannerKey = await findImageInS3(
+         storedResult.bannerImageUrl,
+         OPENGRAPH_IMAGES_S3_DIR,
+         'OpenGraph',
+         idempotencyKey,
+         normalizedUrl,
+       );
+       
+       if (persistedBannerKey) {
+         updatedStoredResult.bannerImageUrl = persistedBannerKey;
+         debug(`[DataAccess/OpenGraph] Upgraded stored banner URL to S3: ${persistedBannerKey}`);
+       } else {
+         // Don't block response - schedule background persistence
+         debug(`[DataAccess/OpenGraph] Banner not in S3, scheduling background persistence: ${storedResult.bannerImageUrl}`);
+         scheduleImagePersistence(storedResult.bannerImageUrl, OPENGRAPH_IMAGES_S3_DIR, 'OpenGraph', idempotencyKey, normalizedUrl);
+       }
+     }
+      
+      // Store in memory cache and return
+      ServerCacheInstance.setOpenGraphData(normalizedUrl, updatedStoredResult, false);
+      return updatedStoredResult;
     }
+  } catch (error) {
+    console.warn(`[DataAccess/OpenGraph] Failed to read from S3 for ${normalizedUrl}:`, error);
   }
 
   // If skipping external fetch, return what we have or fallback
@@ -173,15 +247,15 @@ export async function getOpenGraphData(url: string, skipExternalFetch = false): 
 
   // Fetch fresh data from external source
   debug(`[DataAccess/OpenGraph] 🌐 Fetching fresh data from external source: ${normalizedUrl}`);
-  const freshData = await refreshOpenGraphData(normalizedUrl);
+  const freshData = await refreshOpenGraphData(normalizedUrl, idempotencyKey);
   
   if (freshData) {
     return freshData;
   }
 
-  // Final fallback - return cached data if available, otherwise create fallback
+  // Final fallback - return memory cached data if available, otherwise create fallback
   if (cached) {
-    debug(`[DataAccess/OpenGraph] Using stale cache as final fallback: ${normalizedUrl}`);
+    debug(`[DataAccess/OpenGraph] Using stale memory cache as final fallback: ${normalizedUrl}`);
     return {
       ...cached,
       source: 'cache'
@@ -192,12 +266,13 @@ export async function getOpenGraphData(url: string, skipExternalFetch = false): 
 }
 
 /**
- * Refreshes OpenGraph data from external source and updates cache/storage
+ * Refreshes OpenGraph data from external source and updates S3 persistent storage and in-memory cache
  *
  * @param url - URL to refresh data for
+ * @param idempotencyKey - A unique key to ensure idempotent image storage
  * @returns Promise resolving to fresh OpenGraph data or null if failed
  */
-async function refreshOpenGraphData(url: string): Promise<OgResult | null> {
+async function refreshOpenGraphData(url: string, idempotencyKey?: string): Promise<OgResult | null> {
   const normalizedUrl = normalizeUrl(url);
   const urlHash = hashUrl(normalizedUrl);
 
@@ -210,39 +285,84 @@ async function refreshOpenGraphData(url: string): Promise<OgResult | null> {
     }
   }
 
+  // Helper to persist an image and return its S3 key, or the original URL on failure
+  const persistImage = async (imageUrl: string | null | undefined): Promise<string | null> => {
+    if (!imageUrl || !isValidImageUrl(imageUrl)) {
+      return null;
+    }
+
+    try {
+      // Check if already persisted to S3 first
+      let persistedKey = await findImageInS3(
+        imageUrl,
+        OPENGRAPH_IMAGES_S3_DIR,
+        'OpenGraph',
+        idempotencyKey,
+        url,
+      );
+
+      if (persistedKey) {
+        debug(`[DataAccess/OpenGraph] Using existing persisted image: ${persistedKey}`);
+        return persistedKey;
+      }
+
+      // If not, persist it now
+      persistedKey = await persistImageToS3(
+        imageUrl,
+        OPENGRAPH_IMAGES_S3_DIR,
+        'OpenGraph',
+        idempotencyKey,
+        url,
+      );
+
+      if (persistedKey) {
+        debug(`[DataAccess/OpenGraph] Persisted new image, using S3 reference: ${persistedKey}`);
+        return persistedKey;
+      }
+    } catch (error) {
+      console.error(`[DataAccess/OpenGraph] Failed to persist image ${imageUrl}:`, error);
+    }
+
+    // Fallback to original URL if persistence fails
+    return imageUrl;
+  };
+
   const fetchPromise = fetchExternalOpenGraphWithRetry(normalizedUrl)
     .then(async (result) => {
       if (result) {
         try {
-          // Store metadata in S3
-          await writeJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`, result);
-          
-          // Cache images if they exist
-          if (result.imageUrl && isValidImageUrl(result.imageUrl)) {
-            await cacheOpenGraphImage(result.imageUrl);
-          }
-          if (result.bannerImageUrl && isValidImageUrl(result.bannerImageUrl)) {
-            await cacheOpenGraphImage(result.bannerImageUrl);
-          }
-          
-          // Update memory cache
-          ServerCacheInstance.setOpenGraphData(normalizedUrl, result, false);
-          
-          debug(`[DataAccess/OpenGraph] Successfully refreshed and cached: ${normalizedUrl}`);
-          return result;
+          // Store metadata in S3 persistent storage before image processing
+          await writeJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`, { ...result, imageUrl: result.imageUrl, bannerImageUrl: result.bannerImageUrl });
+
+          // Persist images to S3 and update URLs to use S3 versions
+          const finalImageUrl = await persistImage(result.imageUrl) ?? result.imageUrl;
+          const finalBannerImageUrl = await persistImage(result.bannerImageUrl) ?? result.bannerImageUrl;
+
+          // Create the final result with S3 URLs where available
+          const finalResult: OgResult = {
+            ...result,
+            imageUrl: finalImageUrl,
+            bannerImageUrl: finalBannerImageUrl,
+          };
+
+          // Update memory cache with final result
+          ServerCacheInstance.setOpenGraphData(normalizedUrl, finalResult, false);
+
+          debug(`[DataAccess/OpenGraph] Successfully refreshed and stored data for: ${normalizedUrl}`);
+          return finalResult;
         } catch (storageError) {
           console.error(`[DataAccess/OpenGraph] Failed to store data for ${normalizedUrl}:`, storageError);
           // Still return the result even if storage failed
           return result;
         }
       } else {
-        // Mark as failed in cache
+        // Mark as failed in memory cache
         const failureResult = createFallbackResult(normalizedUrl, 'External fetch failed');
         ServerCacheInstance.setOpenGraphData(normalizedUrl, failureResult, true);
         
-        // Add to circuit breaker
+        // Add to circuit breaker using existing session management
         const domain = getDomainType(normalizedUrl);
-        addFailedDomain(domain); // Use the new function with TTL management
+        markDomainAsFailed(domain);
         
         return null;
       }
@@ -304,7 +424,21 @@ async function fetchExternalOpenGraphWithRetry(url: string): Promise<OgResult | 
  * @returns Promise resolving to OpenGraph result or null if failed
  */
 async function fetchExternalOpenGraph(url: string): Promise<OgResult | null> {
+  // Check circuit breaker before attempting fetch
+  const domain = getDomainType(url);
+  if (hasDomainFailedTooManyTimes(domain)) {
+    debugWarn(`[DataAccess/OpenGraph] Skipping ${url} - domain ${domain} has failed too many times`);
+    return null;
+  }
+
   const controller = new AbortController();
+  
+  // Increase max listeners to handle concurrent requests safely
+  // AbortSignal extends EventTarget which has setMaxListeners in Node.js
+  if ('setMaxListeners' in controller.signal && typeof (controller.signal as { setMaxListeners?: (n: number) => void }).setMaxListeners === 'function') {
+    (controller.signal as { setMaxListeners: (n: number) => void }).setMaxListeners(20);
+  }
+  
   const timeoutId = setTimeout(() => {
     controller.abort();
   }, OPENGRAPH_FETCH_CONFIG.TIMEOUT);
@@ -313,15 +447,8 @@ async function fetchExternalOpenGraph(url: string): Promise<OgResult | null> {
     // Wait for permit from rate limiter before making the external call
     await waitForPermit(OPENGRAPH_FETCH_STORE_NAME, OPENGRAPH_FETCH_CONTEXT_ID, DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG);
 
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'DNT': '1',
-      'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1'
-    };
+    // Use existing getBrowserHeaders function from logo system
+    const headers = getBrowserHeaders();
 
     debug(`[DataAccess/OpenGraph] Fetching HTML from: ${url}`);
     const response = await fetch(url, {
@@ -365,9 +492,33 @@ async function fetchExternalOpenGraph(url: string): Promise<OgResult | null> {
       debugWarn(`[DataAccess/OpenGraph] ${timeoutMessage} for ${url}`);
       throw new Error(timeoutMessage);
     }
+    
+    // Add domain to failed list for circuit breaker
+    const domain = getDomainType(url);
+    markDomainAsFailed(domain);
+    
+    // Log different error types with appropriate detail level
+    if (error instanceof Error) {
+      if (error.message.includes('fetch failed') || error.message.includes('ENOTFOUND')) {
+        debugWarn(`[DataAccess/OpenGraph] Network error for ${url}: Connection failed`);
+      } else if (error.message.includes('403') || error.message.includes('Forbidden')) {
+        debugWarn(`[DataAccess/OpenGraph] Access denied for ${url}: ${error.message}`);
+      } else {
+        debugWarn(`[DataAccess/OpenGraph] Error fetching ${url}: ${error.message}`);
+      }
+    }
+    
     throw error;
   } finally {
     clearTimeout(timeoutId);
+    // Ensure the controller is properly cleaned up
+    if (!controller.signal.aborted) {
+      try {
+        controller.abort();
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
   }
 }
 
@@ -381,7 +532,7 @@ async function fetchExternalOpenGraph(url: string): Promise<OgResult | null> {
 function extractOpenGraphTags(html: string, url: string): Record<string, string | null> {
   // Limit HTML size to prevent ReDoS and excessive processing time
   const MAX_HTML_SIZE_BYTES = 1 * 1024 * 1024; // 1MB
-  if (html.length > MAX_HTML_SIZE_BYTES) {
+  if (Buffer.byteLength(html, 'utf8') > MAX_HTML_SIZE_BYTES) {
     debugWarn(`[DataAccess/OpenGraph] HTML content for ${url} exceeds ${MAX_HTML_SIZE_BYTES / (1024 * 1024)}MB limit. Skipping parsing.`);
     return {
       title: `Content too large to parse from ${getDomainType(url)}`,
@@ -396,7 +547,11 @@ function extractOpenGraphTags(html: string, url: string): Record<string, string 
   const getMetaContent = (selectors: string[]): string | null => {
     for (const selector of selectors) {
       const content = $(selector).attr('content');
-      if (content) return content.trim();
+      if (content) {
+        // Decode HTML entities to prevent malformed URLs
+        const decoded = $('<div>').html(content.trim()).text();
+        return decoded;
+      }
     }
     return null;
   };
@@ -445,12 +600,13 @@ function extractOpenGraphTags(html: string, url: string): Record<string, string 
  * Platform-specific image extraction functions using Cheerio
  */
 function extractGitHubProfileImage($: cheerio.CheerioAPI): string | null {
-  // Common selectors for GitHub profile pictures
+  // Common selectors for GitHub profile pictures, ordered by specificity
   const selectors = [
-    'img.avatar', // Standard avatar class
-    'img[alt*="avatar"]', // Alt text containing "avatar"
-    'a[itemprop="image"] img', // Schema.org itemprop
-    'meta[property="og:image"]', // Fallback to OG image if specific avatar not found
+    'img.avatar-user',                  // Most specific selector for user profile pages
+    'img.avatar',                       // Standard avatar class
+    'img[alt*="avatar"]',               // Alt text containing "avatar"
+    'a[itemprop="image"] img',          // Schema.org itemprop
+    'meta[property="og:image"]',        // Fallback to OG image if specific avatar not found
     'meta[name="twitter:image"]'
   ];
 
@@ -572,41 +728,6 @@ function extractBlueskyProfileImage($: cheerio.CheerioAPI): string | null {
 }
 
 /**
- * Caches an OpenGraph image to S3 storage
- *
- * @param imageUrl - URL of image to cache
- * @returns Promise resolving to S3 key or null if failed
- */
-async function cacheOpenGraphImage(imageUrl: string): Promise<string | null> {
-  try {
-    const response = await fetch(imageUrl, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; OpenGraph-Cache/1.0)'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status}`);
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const imageHash = hashImageContent(buffer);
-    const extension = getImageExtension(imageUrl);
-    const s3Key = `${OPENGRAPH_IMAGES_S3_DIR}/${imageHash}.${extension}`;
-
-    // TODO: Implement actual S3 storage using a utility like writeBufferS3
-    // Example: await writeBufferS3(s3Key, buffer, `image/${extension}`);
-    console.log(`[DataAccess/OpenGraph] TODO: Image caching not implemented. Would cache ${imageUrl} to S3 key: ${s3Key}`);
-    
-    return s3Key;
-  } catch (error) {
-    console.warn(`[DataAccess/OpenGraph] Failed to cache image ${imageUrl}:`, error);
-    return null;
-  }
-}
-
-/**
  * Creates a fallback result when OpenGraph data cannot be fetched
  *
  * @param url - Original URL
@@ -633,23 +754,56 @@ function createFallbackResult(url: string, error: string): OgResult {
 
 /**
  * Gets fallback profile image for a domain
+ * Reuses existing fallback logic pattern from og-image route
  */
 function getFallbackImageForDomain(domain: string): string | null {
-  return FALLBACK_IMAGES[domain] || FALLBACK_IMAGES.default;
+  // Use same fallback logic as og-image/route.ts getLocalImageForSocialNetwork
+  switch (domain) {
+    case 'GitHub':
+      return process.env.FALLBACK_IMAGE_GITHUB || 'https://avatars.githubusercontent.com/u/99231285?v=4';
+    case 'X':
+    case 'Twitter':
+      return process.env.FALLBACK_IMAGE_X || 'https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg';
+    case 'LinkedIn':
+      return process.env.FALLBACK_IMAGE_LINKEDIN || 'https://media.licdn.com/dms/image/C5603AQGjv8C3WhrUfQ/profile-displayphoto-shrink_800_800/0/1651775977276';
+    case 'Discord':
+      return process.env.FALLBACK_IMAGE_DISCORD || '/images/william.jpeg';
+    case 'Bluesky':
+      return process.env.FALLBACK_IMAGE_BLUESKY || 'https://cdn.bsky.app/img/avatar/plain/did:plc:o3rar2atqxlmczkaf6npbcqz/bafkreidpq75jyggvzlm5ddgpzhfkm4vprgitpxukqpgkrwr6sqx54b2oka@jpeg';
+    default:
+      return process.env.FALLBACK_IMAGE_DEFAULT || '/images/william.jpeg';
+  }
 }
 
 /**
  * Gets fallback banner image for a domain
+ * Reuses existing fallback logic pattern from og-image route
  */
 function getFallbackBannerForDomain(domain: string): string | null {
-  const fallbacks: Record<string, string> = {
-    'GitHub': '/images/social-banners/github.svg',
-    'X': '/images/social-banners/twitter-x.svg',
-    'Twitter': '/images/social-banners/twitter-x.svg',
-    'LinkedIn': '/images/social-banners/linkedin.svg',
-    'Discord': '/images/social-banners/discord.svg',
-    'Bluesky': '/images/social-banners/bluesky.png'
-  };
-  
-  return fallbacks[domain] || null;
+  // Use same fallback logic as og-image/route.ts getDomainBrandingImage
+  switch (domain) {
+    case 'GitHub':
+      return '/images/social-banners/github.svg';
+    case 'X':
+    case 'Twitter':
+      return '/images/social-banners/twitter-x.svg';
+    case 'LinkedIn':
+      return '/images/social-banners/linkedin.svg';
+    case 'Discord':
+      return '/images/social-banners/discord.svg';
+    case 'Bluesky':
+      return '/images/social-banners/bluesky.png';
+    default:
+      return null;
+  }
+}
+
+/**
+ * Serves a persisted OpenGraph image from S3 persistent storage
+ *
+ * @param s3Key - S3 key for the persisted image
+ * @returns Promise resolving to image buffer and content type, or null if not found
+ */
+export async function serveOpenGraphImage(s3Key: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+  return serveImageFromS3(s3Key, 'OpenGraph');
 }
