@@ -19,6 +19,27 @@ const BROWSER_EXTENSION_ERROR_PATTERNS = [
   'Extension context invalidated'
 ];
 
+/**
+ * Determines if an error should be filtered out based on browser extension patterns
+ * @param errorMessage - The error message to check
+ * @returns true if the error should be filtered out, false otherwise
+ */
+export function shouldFilterError(errorMessage: string): boolean {
+  // Check for known browser extension error patterns
+  for (const pattern of BROWSER_EXTENSION_ERROR_PATTERNS) {
+    if (errorMessage.includes(pattern)) {
+      return true;
+    }
+  }
+
+  // Special case for generic extension errors
+  if (errorMessage.includes('extension') && errorMessage.includes('not found')) {
+    return true;
+  }
+
+  return false;
+}
+
 // Only initialize Sentry in production to prevent development console noise
 if (process.env.NODE_ENV === 'production') {
   Sentry.init({
@@ -43,23 +64,8 @@ if (process.env.NODE_ENV === 'production') {
 
     // Filter out browser extension errors
     beforeSend(event) {
-      // Filter browser extension errors
       const errorMessage = event.exception?.values?.[0]?.value || '';
-
-      // Check for known browser extension error patterns
-      for (const pattern of BROWSER_EXTENSION_ERROR_PATTERNS) {
-        if (errorMessage.includes(pattern)) {
-          return null; // Drop the event
-        }
-      }
-
-      // Special case for generic extension errors
-      if (errorMessage.includes('extension') && errorMessage.includes('not found')) {
-        return null; // Drop the event
-      }
-
-      // Send all other events in production
-      return event;
+      return shouldFilterError(errorMessage) ? null : event;
     },
   });
 }
