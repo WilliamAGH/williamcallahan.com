@@ -24,9 +24,9 @@
  * This setup ensures that Testing Library matchers are available for tests
  * run with Jest.
  */
-import { afterEach, expect } from '@jest/globals'; // Use Jest's expect
-import { cleanup } from '@testing-library/react';
-import * as matchers from '@testing-library/jest-dom/matchers';
+import { afterEach, expect } from "@jest/globals"; // Use Jest's expect
+import { cleanup } from "@testing-library/react";
+import matchers from "@testing-library/jest-dom/matchers";
 
 // Extend Jest's expect with Testing Library matchers
 expect.extend(matchers);
