@@ -3,27 +3,26 @@
  * @jest-environment node
  */
 
-import { createArticleOgMetadata, BASE_OG_METADATA } from '../../../lib/seo/opengraph';
-import { metadata as siteMetadata } from '../../../data/metadata';
-import { isPacificDateString, type OpenGraphImage } from '../../../types/seo';
-import { ensureAbsoluteUrl } from '../../../lib/seo/utils';
-import type { OpenGraph } from 'next/dist/lib/metadata/types/opengraph-types';
-import { describe, it, expect } from 'bun:test';
-
+import { createArticleOgMetadata, BASE_OG_METADATA } from "@/lib/seo/opengraph";
+import { metadata as siteMetadata } from "@/data/metadata";
+import { isPacificDateString, type OpenGraphImage } from "@/types/seo";
+import { ensureAbsoluteUrl } from "@/lib/seo/utils";
+import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
+// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 // Mock process.env for tests
-process.env.NEXT_PUBLIC_SITE_URL = 'https://williamcallahan.com';
+process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
 
-describe('OpenGraph Metadata', () => {
-  describe('BASE_OG_METADATA', () => {
-    it('should have required base fields', () => {
+describe("OpenGraph Metadata", () => {
+  describe("BASE_OG_METADATA", () => {
+    it("should have required base fields", () => {
       const metadata = BASE_OG_METADATA as OpenGraph & { type: string };
-      expect(metadata.type).toBe('website');
+      expect(metadata.type).toBe("website");
       expect(metadata.url).toBe(siteMetadata.openGraph.url);
       expect(metadata.locale).toBe(siteMetadata.openGraph.locale);
       expect(metadata.siteName).toBe(siteMetadata.openGraph.siteName);
     });
 
-    it('should have properly formatted default image', () => {
+    it("should have properly formatted default image", () => {
       const images = BASE_OG_METADATA.images as OpenGraphImage[];
       const defaultImage = images?.[0];
       expect(defaultImage).toBeDefined();
@@ -34,26 +33,26 @@ describe('OpenGraph Metadata', () => {
     });
   });
 
-  describe('createArticleOgMetadata', () => {
+  describe("createArticleOgMetadata", () => {
     const mockArticleParams = {
-      title: 'Test Article',
-      description: 'Test Description',
-      url: 'https://williamcallahan.com/blog/test-article',
-      datePublished: '2025-01-01T12:00:00',
-      dateModified: '2025-01-02T15:30:00',
-      tags: ['test', 'article'],
+      title: "Test Article",
+      description: "Test Description",
+      url: "https://williamcallahan.com/blog/test-article",
+      datePublished: "2025-01-01T12:00:00",
+      dateModified: "2025-01-02T15:30:00",
+      tags: ["test", "article"],
     };
 
-    it('should generate proper article metadata structure', () => {
+    it("should generate proper article metadata structure", () => {
       const metadata = createArticleOgMetadata(mockArticleParams);
 
-      expect(metadata.type).toBe('article');
+      expect(metadata.type).toBe("article");
       expect(metadata.title).toBe(mockArticleParams.title);
       expect(metadata.description).toBe(mockArticleParams.description);
       expect(metadata.url).toBe(mockArticleParams.url);
     });
 
-    it('should format dates in Pacific Time with proper offset', () => {
+    it("should format dates in Pacific Time with proper offset", () => {
       const metadata = createArticleOgMetadata(mockArticleParams);
 
       // Verify date formats
@@ -66,11 +65,11 @@ describe('OpenGraph Metadata', () => {
       expect(metadata.article?.publishedTime).toMatch(/-08:00$/);
     });
 
-    it('should handle daylight savings dates', () => {
+    it("should handle daylight savings dates", () => {
       const summerArticle = {
         ...mockArticleParams,
-        datePublished: '2025-07-01T12:00:00', // July = PDT
-        dateModified: '2025-07-02T15:30:00',
+        datePublished: "2025-07-01T12:00:00", // July = PDT
+        dateModified: "2025-07-02T15:30:00",
       };
 
       const metadata = createArticleOgMetadata(summerArticle);
@@ -80,10 +79,10 @@ describe('OpenGraph Metadata', () => {
       expect(metadata.article?.modifiedTime).toMatch(/-07:00$/);
     });
 
-    it('should handle custom article image', () => {
+    it("should handle custom article image", () => {
       const articleWithImage = {
         ...mockArticleParams,
-        image: '/images/custom-image.jpg',
+        image: "/images/custom-image.jpg",
       };
 
       const metadata = createArticleOgMetadata(articleWithImage);
@@ -91,13 +90,13 @@ describe('OpenGraph Metadata', () => {
       const image = images?.[0];
 
       expect(image).toBeDefined();
-      expect(image?.url).toBe(ensureAbsoluteUrl('/images/custom-image.jpg'));
+      expect(image?.url).toBe(ensureAbsoluteUrl("/images/custom-image.jpg"));
       expect(image?.alt).toBe(articleWithImage.title);
-      expect(typeof image?.url).toBe('string');
-      expect(typeof image?.alt).toBe('string');
+      expect(typeof image?.url).toBe("string");
+      expect(typeof image?.alt).toBe("string");
     });
 
-    it('should use default image when no custom image provided', () => {
+    it("should use default image when no custom image provided", () => {
       const metadata = createArticleOgMetadata(mockArticleParams);
       const images = metadata.images as OpenGraphImage[];
       const image = images?.[0];
@@ -109,19 +108,19 @@ describe('OpenGraph Metadata', () => {
       expect(image?.type).toBe(siteMetadata.defaultImage.type);
     });
 
-    it('should include article section and tags', () => {
+    it("should include article section and tags", () => {
       const metadata = createArticleOgMetadata(mockArticleParams);
 
       expect(metadata.article?.section).toBe(siteMetadata.article.section);
       expect(metadata.article?.tags).toEqual(mockArticleParams.tags);
       expect(Array.isArray(metadata.article?.tags)).toBe(true);
       for (const tag of metadata.article?.tags ?? []) {
-        expect(typeof tag).toBe('string');
+        expect(typeof tag).toBe("string");
         expect(tag).toBeTruthy();
       }
     });
 
-    it('should handle missing tags', () => {
+    it("should handle missing tags", () => {
       // eslint-disable-next-line @typescript-eslint/naming-convention
       const { tags: _tags, ...articleWithoutTags } = mockArticleParams;
       const metadata = createArticleOgMetadata(articleWithoutTags);
@@ -130,13 +129,13 @@ describe('OpenGraph Metadata', () => {
       expect(Array.isArray(metadata.article?.tags)).toBe(true);
     });
 
-    it('should preserve base metadata fields', () => {
+    it("should preserve base metadata fields", () => {
       const metadata = createArticleOgMetadata(mockArticleParams);
 
       expect(metadata.locale).toBe(siteMetadata.openGraph.locale);
       expect(metadata.siteName).toBe(siteMetadata.openGraph.siteName);
-      expect(typeof metadata.locale).toBe('string');
-      expect(typeof metadata.siteName).toBe('string');
+      expect(typeof metadata.locale).toBe("string");
+      expect(typeof metadata.siteName).toBe("string");
     });
   });
 });

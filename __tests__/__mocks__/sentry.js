@@ -1,3 +1,4 @@
+/* global jest */
 // Mock for @sentry/nextjs in Jest tests
 module.exports = {
   captureException: jest.fn(),
@@ -10,9 +11,11 @@ module.exports = {
       captureMessage: jest.fn(),
     })),
   })),
-  withScope: jest.fn((callback) => callback({
-    setTag: jest.fn(),
-    setLevel: jest.fn(),
-    setContext: jest.fn(),
-  })),
-}; 
+  withScope: jest.fn((callback) =>
+    callback({
+      setTag: jest.fn(),
+      setLevel: jest.fn(),
+      setContext: jest.fn(),
+    }),
+  ),
+};

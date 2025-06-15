@@ -13,7 +13,7 @@ class MockNodeCache {
       checkperiod: 600,
       useClones: true,
       deleteOnExpire: true,
-      ...options
+      ...options,
     };
   }
 
@@ -37,7 +37,7 @@ class MockNodeCache {
   }
 
   del(key: string | string[]): number {
-    if (typeof key === 'string') {
+    if (typeof key === "string") {
       const success = this.cache.delete(key);
       this.ttls.delete(key);
       return success ? 1 : 0;
@@ -65,7 +65,7 @@ class MockNodeCache {
       hits: 0,
       misses: 0,
       ksize: 0,
-      vsize: 0
+      vsize: 0,
     };
   }
 }

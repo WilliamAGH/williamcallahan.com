@@ -1,36 +1,36 @@
 /**
- * AVenture Icon Component Tests
+ * aVenture Icon Component Tests
  */
 
-import React from 'react';
-import { render } from '@testing-library/react';
-import { AVenture } from '../../../../components/ui/social-icons/aventure-icon';
-import { describe, it, expect } from 'bun:test';
+import React from "react";
+import { render } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import { AVentureIcon } from "../../../../components/ui/social-icons/aventure-icon";
 
-describe('AVenture Icon', () => {
-  it('renders correctly', () => {
-    const { container } = render(<AVenture data-testid="aventure-icon" />);
+describe("AVenture Icon", () => {
+  it("renders correctly", () => {
+    const { container } = render(<AVentureIcon />);
 
     // Check if SVG was rendered
-    const svg = container.querySelector('svg');
+    const svg = container.querySelector("svg");
     expect(svg).toBeInTheDocument();
 
     // Check if the path for the icon exists
-    const path = container.querySelector('path');
+    const path = container.querySelector("path");
     expect(path).toBeInTheDocument();
   });
 
-  it('passes className prop to the SVG', () => {
-    const testClass = 'test-class';
-    const { container } = render(<AVenture className={testClass} />);
+  it("passes className prop to the SVG", () => {
+    const testClass = "test-class";
+    const { container } = render(<AVentureIcon className={testClass} />);
 
-    const svg = container.querySelector('svg');
+    const svg = container.querySelector("svg");
     expect(svg).toHaveClass(testClass);
   });
 
-  it('passes additional props to the SVG', () => {
-    const { getByTestId } = render(<AVenture data-testid="aventure-icon" />);
+  it("passes additional props to the SVG", () => {
+    const { getByTestId } = render(<AVentureIcon data-testid="aventure-icon" />);
 
-    expect(getByTestId('aventure-icon')).toBeInTheDocument();
+    expect(getByTestId("aventure-icon")).toBeInTheDocument();
   });
 });

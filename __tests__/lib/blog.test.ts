@@ -1,4 +1,4 @@
-console.log('[TEST FILE] blog.test.ts starting');
+console.log("[TEST FILE] blog.test.ts starting");
 
 /**
  * Blog Module Tests
@@ -20,89 +20,88 @@ console.log('[TEST FILE] blog.test.ts starting');
  * - Tests edge cases like missing posts
  */
 
-import { getAllPosts, getPostBySlug } from '../../lib/blog';
-import { describe, it, expect, mock, jest } from 'bun:test';
-
+import { getAllPosts, getPostBySlug } from "@/lib/blog";
+// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 // Explicitly mock assertServerOnly for this test file
-void mock.module('../../lib/utils/ensure-server-only', () => ({
-  assertServerOnly: jest.fn(() => undefined)
+jest.mock("../../lib/utils/ensure-server-only", () => ({
+  assertServerOnly: jest.fn(() => undefined),
 }));
 
 // Mock static posts using mock.module
-void mock.module('../../data/blog/posts', () => ({
+jest.mock("../../data/blog/posts", () => ({
   posts: [
     {
-      id: 'test-post-1',
-      title: 'Test Post 1',
-      slug: 'test-post-1',
-      excerpt: 'Test excerpt 1',
-      content: 'Test content 1',
-      publishedAt: '2024-03-14T12:00:00Z',
+      id: "test-post-1",
+      title: "Test Post 1",
+      slug: "test-post-1",
+      excerpt: "Test excerpt 1",
+      content: "Test content 1",
+      publishedAt: "2024-03-14T12:00:00Z",
       author: {
-        id: 'william-callahan',
-        name: 'William Callahan'
+        id: "william-callahan",
+        name: "William Callahan",
       },
-      coverImage: 'https://example.com/image1.jpg',
-      tags: ['test']
+      coverImage: "https://example.com/image1.jpg",
+      tags: ["test"],
     },
     {
-      id: 'test-post-2',
-      title: 'Test Post 2',
-      slug: 'test-post-2',
-      excerpt: 'Test excerpt 2',
-      content: 'Test content 2',
-      publishedAt: '2024-03-13T12:00:00Z',
+      id: "test-post-2",
+      title: "Test Post 2",
+      slug: "test-post-2",
+      excerpt: "Test excerpt 2",
+      content: "Test content 2",
+      publishedAt: "2024-03-13T12:00:00Z",
       author: {
-        id: 'william-callahan',
-        name: 'William Callahan'
+        id: "william-callahan",
+        name: "William Callahan",
       },
-      coverImage: 'https://example.com/image2.jpg',
-      tags: ['test']
-    }
-  ]
+      coverImage: "https://example.com/image2.jpg",
+      tags: ["test"],
+    },
+  ],
 }));
 
 // Mock MDX functionality using mock.module
-void mock.module('../../lib/blog/mdx', () => ({
+jest.mock("../../lib/blog/mdx", () => ({
   getAllMDXPosts: jest.fn().mockResolvedValue([]),
   getMDXPost: jest.fn().mockImplementation((slug: string) => {
     const posts = [
       {
-        id: 'test-post-1',
-        title: 'Test Post 1',
-        slug: 'test-post-1',
-        excerpt: 'Test excerpt 1',
-        content: 'Test content 1',
-        publishedAt: '2024-03-14T12:00:00Z',
+        id: "test-post-1",
+        title: "Test Post 1",
+        slug: "test-post-1",
+        excerpt: "Test excerpt 1",
+        content: "Test content 1",
+        publishedAt: "2024-03-14T12:00:00Z",
         author: {
-          id: 'william-callahan',
-          name: 'William Callahan'
+          id: "william-callahan",
+          name: "William Callahan",
         },
-        coverImage: 'https://example.com/image1.jpg',
-        tags: ['test']
+        coverImage: "https://example.com/image1.jpg",
+        tags: ["test"],
       },
       {
-        id: 'test-post-2',
-        title: 'Test Post 2',
-        slug: 'test-post-2',
-        excerpt: 'Test excerpt 2',
-        content: 'Test content 2',
-        publishedAt: '2024-03-13T12:00:00Z',
+        id: "test-post-2",
+        title: "Test Post 2",
+        slug: "test-post-2",
+        excerpt: "Test excerpt 2",
+        content: "Test content 2",
+        publishedAt: "2024-03-13T12:00:00Z",
         author: {
-          id: 'william-callahan',
-          name: 'William Callahan'
+          id: "william-callahan",
+          name: "William Callahan",
         },
-        coverImage: 'https://example.com/image2.jpg',
-        tags: ['test']
-      }
+        coverImage: "https://example.com/image2.jpg",
+        tags: ["test"],
+      },
     ];
-    const post = posts.find(p => p.slug === slug);
+    const post = posts.find((p) => p.slug === slug);
     return Promise.resolve(post || null);
-  })
+  }),
 }));
 
-describe('Blog Module', () => {
-  describe('getAllPosts', () => {
+describe("Blog Module", () => {
+  describe("getAllPosts", () => {
     /**
      * Test: Post Retrieval and Sorting
      *
@@ -115,24 +114,24 @@ describe('Blog Module', () => {
      * - Returns array of posts with all required fields
      * - Posts are sorted with newest first (by publishedAt)
      */
-    it('returns posts sorted by date in descending order', async () => {
+    it("returns posts sorted by date in descending order", async () => {
       const posts = await getAllPosts();
 
       // Verify required fields
       for (const post of posts) {
-        expect(post).toHaveProperty('id');
-        expect(post).toHaveProperty('title');
-        expect(post).toHaveProperty('slug');
-        expect(post).toHaveProperty('content');
+        expect(post).toHaveProperty("id");
+        expect(post).toHaveProperty("title");
+        expect(post).toHaveProperty("slug");
+        expect(post).toHaveProperty("content");
       }
 
       // Verify sorting
-      const dates = posts.map(post => new Date(post.publishedAt).getTime());
+      const dates = posts.map((post) => new Date(post.publishedAt).getTime());
       expect(dates).toEqual([...dates].sort((a, b) => b - a));
     });
   });
 
-  describe('getPostBySlug', () => {
+  describe("getPostBySlug", () => {
     /**
      * Test: Single Post Retrieval
      *
@@ -145,15 +144,15 @@ describe('Blog Module', () => {
      * - Returns full post object for valid slug
      * - Returns null for invalid/non-existent slug (allowing graceful 404 handling)
      */
-    it('returns correct post for valid slug', async () => {
-      const post = await getPostBySlug('test-post-1');
+    it("returns correct post for valid slug", async () => {
+      const post = await getPostBySlug("test-post-1");
       expect(post).toBeTruthy();
-      expect(post?.slug).toBe('test-post-1');
-      expect(post?.title).toBe('Test Post 1');
+      expect(post?.slug).toBe("test-post-1");
+      expect(post?.title).toBe("Test Post 1");
     });
 
-    it('returns null for non-existent slug', async () => {
-      const post = await getPostBySlug('non-existent');
+    it("returns null for non-existent slug", async () => {
+      const post = await getPostBySlug("non-existent");
       expect(post).toBeNull();
     });
   });
