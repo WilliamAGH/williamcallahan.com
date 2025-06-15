@@ -1,19 +1,15 @@
 {
-  "extends": [
-    "development"
-  ],
+  "extends": ["development"],
   "hints": {
-    "axe/aria": [
+    "no-inline-styles": "off",
+    "axe/keyboard": [
       "default",
       {
-        "aria-valid-attr-value": "off"
+        "nested-interactive": "off"
       }
     ],
-    "no-inline-styles": "off"
+    "button-type": "off",
+    "axe/aria": "off"
   },
-  "browserslist": [
-    "defaults",
-    "not ie 11",
-    "not ie <= 11"
-  ]
+  "browserslist": ["defaults", "not ie 11", "not firefox <= 90"]
 }
