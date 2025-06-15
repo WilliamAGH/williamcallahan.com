@@ -1,7 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import { LogoImage } from "../../../components/ui/logo-image.client";
 import { describe, it, expect, jest } from "@jest/globals";
 import "@testing-library/jest-dom";
 
@@ -9,31 +8,31 @@ import "@testing-library/jest-dom";
 // import { toHaveAttribute } from '@testing-library/jest-dom/matchers';
 // expect.extend({ toHaveAttribute });
 
-// Mock next/image using mock.module
-import type { ImageProps } from "next/image"; // Import the type
-// import type { StaticImport } from 'next/dist/shared/lib/get-img-props'; // Import StaticImport type
-
-// Define a custom type for the mock that includes the 'fill' prop
-interface MockImageProps extends ImageProps {
+// Mock next/image BEFORE importing the component under test
+interface MockImageProps {
+  src: string;
+  alt?: string;
+  priority?: boolean;
+  layout?: string | undefined;
+  objectFit?: string | undefined;
   fill?: boolean;
+  [key: string]: unknown;
 }
 
 jest.mock("next/image", () => ({
   __esModule: true,
   default: ({ src, alt, priority, layout, objectFit, fill, ...restProps }: MockImageProps) => {
-    // Determine layout based on 'fill' prop if 'layout' isn't provided
     const effectiveLayout = layout ?? (fill ? "fill" : undefined);
-    // 'fill' is now part of MockImageProps, no need to extract it from restProps
-
+    const priorityAttr = priority ? { "data-priority": "true" } : {};
     return (
       <img
-        src={src as string} // Ensure src is string
+        src={src}
         alt={alt}
-        data-testid="next-image-mock" // Keep test ID for the img itself
-        data-layout={effectiveLayout} // Use determined layout
+        data-testid="next-image-mock"
+        data-layout={effectiveLayout}
         data-object-fit={objectFit}
-        data-priority={priority ? "true" : undefined}
-        {...restProps} // Spread remaining props (width, height, etc.)
+        {...priorityAttr}
+        {...restProps}
       />
     );
   },
@@ -41,6 +40,8 @@ jest.mock("next/image", () => ({
 
 // Static import after mocking
 // import Image from 'next/image'; // This import is no longer needed
+
+import { LogoImage } from "../../../components/ui/logo-image.client";
 
 describe("LogoImage Conditional Rendering", () => {
   const regularUrlProps = {
@@ -64,33 +65,26 @@ describe("LogoImage Conditional Rendering", () => {
       // Use basic attribute checks instead of toHaveAttribute
       expect(img.getAttribute("src")).toBe(regularUrlProps.src);
       expect(img.getAttribute("alt")).toBe("Company Logo"); // Default alt
-      // The mock doesn't set data-layout, so we check what it actually does
-      expect(img.getAttribute("data-fill")).toBe("true");
-      // Check the style attribute for objectFit
-      expect(img.style.objectFit).toBe("contain");
+      // The mock sets data-layout and data-object-fit attributes
+      expect(img.getAttribute("data-object-fit")).toBeNull(); // attribute should be absent
       expect(img.getAttribute("data-priority")).toBe("false");
 
-      // Check the component's wrapper div using its test ID
-      const wrapper = screen.getByTestId("logo-image-wrapper"); // Corrected test ID
-      // Use basic style and class checks
-      expect(wrapper.style.width).toBe(`${regularUrlProps.width}px`);
-      expect(wrapper.style.height).toBe(`${regularUrlProps.height}px`);
-      expect(wrapper.classList.contains("relative")).toBe(true); // Default class from component
+      // Ensure className is applied to img element itself (no wrapper in component)
+      expect(img.classList.contains("object-contain")).toBe(true);
     });
 
     it("passes priority prop to next/image mock", () => {
       render(<LogoImage {...regularUrlProps} priority={true} />);
       // Use basic attribute check
+      expect(screen.getByTestId("next-image-mock").hasAttribute("data-priority")).toBe(true);
       expect(screen.getByTestId("next-image-mock").getAttribute("data-priority")).toBe("true");
     });
 
     it("applies custom className to the component wrapper", () => {
       render(<LogoImage {...regularUrlProps} className="custom-class" />);
-      // Check the component's wrapper div using its test ID
-      const wrapper = screen.getByTestId("logo-image-wrapper"); // Corrected test ID
-      // Use basic class checks
-      expect(wrapper.classList.contains("relative")).toBe(true);
-      expect(wrapper.classList.contains("custom-class")).toBe(true);
+      const img = screen.getByTestId("next-image-mock");
+      expect(img.classList.contains("custom-class")).toBe(true);
+      expect(img.classList.contains("object-contain")).toBe(true);
     });
   });
 

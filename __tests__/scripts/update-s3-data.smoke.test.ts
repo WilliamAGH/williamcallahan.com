@@ -12,10 +12,20 @@ const IS_S3_CONFIGURED = Boolean(
 );
 
 describe("scripts/update-s3-data.ts Smoke Test", () => {
-  const mode = IS_S3_CONFIGURED ? "LIVE" : "DRY RUN";
+  // Support three test modes:
+  // - FULL: Run all operations without limits (slow, ~130+ seconds)
+  // - DRY: Mock all operations (fast, no real calls)
+  // - NORMAL: Test 1 real operation of each type (default, balanced)
+  const testMode = process.env.S3_TEST_MODE || "NORMAL";
+  const isS3Configured = IS_S3_CONFIGURED || testMode === "DRY";
+  
+  const displayMode = !IS_S3_CONFIGURED && testMode !== "DRY" 
+    ? "DRY RUN (no S3 config)" 
+    : testMode;
 
-  it(`should execute successfully in ${mode} mode`, () => {
-    console.log(`[Smoke Test] Executing script in ${mode} mode: ${SCRIPT_PATH}`);
+  it(`should execute successfully in ${displayMode} mode`, () => {
+    console.log(`[Smoke Test] Executing script in ${displayMode} mode: ${SCRIPT_PATH}`);
+    console.log(`[Smoke Test] S3_TEST_MODE: ${testMode}`);
 
     let stdout = "";
     let stderr = "";
@@ -25,12 +35,18 @@ describe("scripts/update-s3-data.ts Smoke Test", () => {
     const envVars: NodeJS.ProcessEnv = {
       ...process.env,
       VERBOSE: "true",
+      S3_TEST_MODE: testMode,
     };
 
-    if (!IS_S3_CONFIGURED) {
+    // Configure based on test mode
+    if (testMode === "DRY" || !IS_S3_CONFIGURED) {
       envVars.DRY_RUN = "true";
-      envVars.S3_BUCKET = "test-bucket";
+      envVars.S3_BUCKET = envVars.S3_BUCKET || "test-bucket";
+    } else if (testMode === "NORMAL") {
+      // Tell the script to run in limited test mode
+      envVars.S3_TEST_LIMIT = "1";
     }
+    // FULL mode runs without restrictions
 
     try {
       stdout = execSync(`bun ${SCRIPT_PATH}`, {
@@ -51,13 +67,18 @@ describe("scripts/update-s3-data.ts Smoke Test", () => {
 
     expect(exitCode).toBe(0);
 
+    // Basic expectations for all modes
     expect(stdout).toContain("[UpdateS3] Script execution started. Raw args:");
     expect(stdout).toContain("[UpdateS3] All scheduled update checks complete.");
 
-    if (!IS_S3_CONFIGURED) {
-      // Only check DRY RUN logs when running in dry mode
-      const dryRunPattern = /\[S3Utils\]\[DRY RUN\]/;
+    // Mode-specific expectations
+    if (testMode === "DRY" || !IS_S3_CONFIGURED) {
+      const dryRunPattern = /DRY RUN mode: skipping all update processes/;
       expect(dryRunPattern.test(stdout)).toBe(true);
+    } else if (testMode === "NORMAL") {
+      // Should see limited processing messages
+      expect(stdout).toMatch(/Test mode: limiting .* to 1/);
     }
-  }, 120000);
+    // FULL mode has no special expectations beyond successful completion
+  }, testMode === "FULL" ? 180000 : 30000); // Longer timeout for FULL mode
 });
