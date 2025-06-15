@@ -1,0 +1,19 @@
+graph TD
+    subgraph "High-Level (Stateful & Interactive)"
+        A[InstructionMacOSFrameTabs]
+    end
+
+    subgraph "Mid-Level (Structural)"
+        B[MacOSWindow]
+    end
+
+    subgraph "Low-Level (Presentational)"
+        C[WindowControls]
+    end
+
+    A -- "Uses for Frame & Tabs" --> B
+    B -- "Uses for Traffic Lights" --> C
+
+    style A fill:#d4edda,stroke:#155724
+    style B fill:#e2e3e5,stroke:#383d41
+    style C fill:#f8d7da,stroke:#721c24 

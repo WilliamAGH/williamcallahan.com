@@ -1,0 +1,21 @@
+graph TD
+    subgraph "FocusTrap (Active)"
+        A[Start Sentinel (Focusable)]
+        B[Component Children (e.g., Modal Content)]
+        C[End Sentinel (Focusable)]
+    end
+
+    subgraph "User Actions"
+        D{Tab}
+        E{Shift+Tab}
+        F{Escape}
+    end
+
+    A -- "Shift+Tab from first element" --> C
+    C -- "Tab from last element" --> A
+
+    F -- "User presses Escape" --> G((onEscape Callback))
+
+    style A fill:#e2e3e5,stroke:#383d41
+    style B fill:#d4edda,stroke:#155724
+    style C fill:#e2e3e5,stroke:#383d41 

@@ -1,0 +1,25 @@
+graph TD
+    subgraph "MDX Content"
+        A[Static HTML Elements]
+        B[ResponsiveTable Children]
+        C[SimpleTabs HTML Structure]
+    end
+
+    subgraph "Enhancement Components"
+        D(ResponsiveTable)
+        E(SimpleTabsEnhancer)
+    end
+    
+    subgraph "Styling"
+        F[simple-tabs.css]
+    end
+
+    B -- "Are Parsed & Re-rendered by" --> D
+    C -- "Is Activated by" --> E
+    E -- "Relies on" --> F
+
+    style A fill:#e2e3e5,stroke:#383d41
+    style B fill:#f8d7da,stroke:#721c24
+    style C fill:#f8d7da,stroke:#721c24
+    style D fill:#d4edda,stroke:#155724
+    style E fill:#d4edda,stroke:#155724 
