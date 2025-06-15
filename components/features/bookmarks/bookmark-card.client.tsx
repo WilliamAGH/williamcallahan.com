@@ -120,19 +120,19 @@ export function BookmarkCardClient({
   const formattedPublishDate = mounted && displayPublishDate ? formatDate(displayPublishDate) : null;
 
   // Handle image sources with multiple fallbacks
-  // Priority: content.imageUrl > ogImage > screenshotAssetId > imageAssetId > logo
+  // Priority: content.imageUrl > ogImage > imageAssetId > screenshotAssetId > logo
   const displayImageUrl = content?.imageUrl ?? ogImage;
 
   // Get screenshot or image asset URL from the content
   const getAssetUrl = () => {
-    // Try screenshot first - most reliable
-    if (content?.screenshotAssetId) {
-      return `https://bookmark.iocloudhost.net/_next/image?url=%2Fapi%2Fassets%2F${content.screenshotAssetId}&w=3840&q=75`;
+    // Try banner image asset first (OG image)
+    if (content?.imageAssetId) {
+      return `/api/assets/${content.imageAssetId}`;
     }
 
-    // Then try image asset
-    if (content?.imageAssetId) {
-      return `https://bookmark.iocloudhost.net/_next/image?url=%2Fapi%2Fassets%2F${content.imageAssetId}&w=3840&q=75`;
+    // Then try screenshot asset as fallback
+    if (content?.screenshotAssetId) {
+      return `/api/assets/${content.screenshotAssetId}`;
     }
 
     return null;
@@ -182,13 +182,17 @@ export function BookmarkCardClient({
         ) : (
           /* Finally fallback to logo */
           (<div className="flex items-center justify-center w-full h-full">
-            <LogoImage
-              src={`/api/logo?website=${encodeURIComponent(domain)}`}
-              width={130}
-              height={80}
-              alt={title}
-              className="object-contain max-w-[60%] max-h-[60%]"
-            />
+            {domain ? (
+              <LogoImage
+                src={`/api/logo?website=${encodeURIComponent(domain)}`}
+                width={130}
+                height={80}
+                alt={title}
+                className="object-contain max-w-[60%] max-h-[60%]"
+              />
+            ) : (
+              <div className="text-gray-500">No Logo</div>
+            )}
           </div>)
         )}
         {/* Clickable domain overlay */}

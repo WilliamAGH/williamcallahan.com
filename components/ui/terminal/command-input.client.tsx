@@ -12,13 +12,14 @@ import { forwardRef } from 'react';
 interface CommandInputProps {
   value: string;
   onChange: (value: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: () => void;
 }
 
 export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
   function CommandInput({ value, onChange, onSubmit }, ref) {
+    
     return (
-      <form onSubmit={onSubmit} className="w-full table">
+      <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="w-full table">
         <div className="flex items-center w-full">
           <span className="text-[#7aa2f7] select-none mr-2">$</span>
           <div className="relative flex-1 transform-gpu">
@@ -35,7 +36,6 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
                 /* Offset the larger font size to maintain layout */
                 margin: '-0.125rem 0',
               }}
-              autoFocus
               aria-label="Terminal command input"
               placeholder="Enter a command"
               title="Terminal command input"

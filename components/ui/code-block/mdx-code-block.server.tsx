@@ -13,7 +13,7 @@ type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement
  */
 import { cn } from '@/lib/utils'; // Import cn utility
 
-export function ServerMDXCodeBlock(props: PreProps) {
+export function MDXCodeBlockFallback(props: PreProps) {
   // Destructure className and children from props
   const { children, className, ...rest } = props;
 
@@ -21,11 +21,10 @@ export function ServerMDXCodeBlock(props: PreProps) {
   const preClasses = cn(
     'not-prose',
     'text-gray-100',
-    'text-[13px]',
+    'text-xs',
     'whitespace-pre-wrap',
     'break-words',
     'custom-scrollbar',
-    'p-4',
     'border-t-0'
   );
 

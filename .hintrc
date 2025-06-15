@@ -3,19 +3,17 @@
     "development"
   ],
   "hints": {
-    "no-inline-styles": "off",
-    "axe/keyboard": [
+    "axe/aria": [
       "default",
       {
-        "nested-interactive": "off"
+        "aria-valid-attr-value": "off"
       }
     ],
-    "button-type": "off",
-    "axe/aria": "off"
+    "no-inline-styles": "off"
   },
   "browserslist": [
     "defaults",
     "not ie 11",
-    "not firefox <= 90"
+    "not ie <= 11"
   ]
 }

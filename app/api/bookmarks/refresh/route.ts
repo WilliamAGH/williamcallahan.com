@@ -4,47 +4,109 @@
  * Provides a public API endpoint for refreshing the bookmarks cache.
  * This endpoint is rate-limited to prevent abuse.
  */
+import 'server-only';
 
 import { NextResponse } from 'next/server';
 import { refreshBookmarksData } from '@/lib/bookmarks';
 import { ServerCacheInstance } from '@/lib/server-cache';
+import type { UnifiedBookmark } from '@/types/bookmark';
+import { isOperationAllowed, API_ENDPOINT_STORE_NAME, DEFAULT_API_ENDPOINT_LIMIT_CONFIG } from '@/lib/rate-limiter';
+
+// Import logo functions dynamically to avoid SSR issues
+let getLogo: typeof import('@/lib/data-access/logos').getLogo | undefined;
+let resetLogoSessionTracking: typeof import('@/lib/data-access/logos').resetLogoSessionTracking | undefined;
+
+// Initialize logo functions only when needed
+async function initLogoFunctions() {
+  if (!getLogo || !resetLogoSessionTracking) {
+    const logoModule = await import('@/lib/data-access/logos');
+    getLogo = logoModule.getLogo;
+    resetLogoSessionTracking = logoModule.resetLogoSessionTracking;
+  }
+}
 
 // Ensure this route is not statically cached
 export const dynamic = 'force-dynamic';
 
-// In-memory rate limiting
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX = 5; // 5 requests per window
-
-// Simple in-memory rate limiting
-// Rate limiting implementation - consider replacing with distributed solution for multi-instance deployments
-// In-memory store resets on deploys and doesn't scale horizontally.
-const rateLimitStore: { [ip: string]: { count: number; resetAt: number } } = {};
+// --- Utility Functions ---
 
 /**
- * Rate limiting middleware
+ * Extracts unique domains from an array of bookmark objects
+ * @param bookmarks - Array of bookmark objects with url properties
+ * @returns Set of unique domain names with www prefix removed
  */
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const record = rateLimitStore[ip];
-
-  // If no record exists or window has expired, create a new one
-  if (!record || now > record.resetAt) {
-    rateLimitStore[ip] = {
-      count: 1,
-      resetAt: now + RATE_LIMIT_WINDOW
-    };
-    return true;
+function extractDomainsFromBookmarks(bookmarks: UnifiedBookmark[]): Set<string> {
+  const domains = new Set<string>();
+  for (const bookmark of bookmarks) {
+    try {
+      if (bookmark.url) {
+        const url = new URL(bookmark.url);
+        const domain = url.hostname.replace(/^www\./, '');
+        domains.add(domain);
+      }
+    } catch (error) {
+      // Log invalid URLs for debugging while continuing processing
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`[API Bookmarks Refresh] Invalid URL in bookmark ${bookmark.id || 'unknown'}: ${bookmark.url} (${errorMessage})`);
+    }
   }
-
-  // Increment count and check if over limit
-  record.count++;
-  if (record.count > RATE_LIMIT_MAX) {
-    return false;
-  }
-
-  return true;
+  return domains;
 }
+
+/**
+ * Processes logo fetching for domains in small batches (for API context)
+ * @param domains - Array of domain names to process
+ * @param context - Description of the processing context for logging
+ * @param fetchLogo - The getLogo function to use for fetching logos
+ * @returns Promise resolving to success and failure counts
+ */
+async function processLogosBatch(
+  domains: string[], 
+  context: string,
+  fetchLogo: NonNullable<typeof getLogo>
+): Promise<{ successCount: number; failureCount: number }> {
+  let successCount = 0;
+  let failureCount = 0;
+  const batchSize = 3; // Small batches for API context
+  const delay = 100; // Short delay for API context
+
+  for (let i = 0; i < domains.length; i += batchSize) {
+    const batch = domains.slice(i, i + batchSize);
+    const batchNumber = Math.floor(i / batchSize) + 1;
+    const totalBatches = Math.ceil(domains.length / batchSize);
+    
+    console.log(`[API Bookmarks Refresh] Processing ${context} logo batch ${batchNumber}/${totalBatches} for ${batch.length} domains`);
+
+    const promises = batch.map(async (domain) => {
+      try {
+        const logoResult = await fetchLogo(domain);
+        if (logoResult?.buffer && Buffer.isBuffer(logoResult.buffer) && logoResult.buffer.length > 0) {
+          console.log(`[API Bookmarks Refresh] ✅ Logo processed for ${domain} (source: ${logoResult.source})`);
+          successCount++;
+        } else {
+          console.warn(`[API Bookmarks Refresh] ⚠️ Could not fetch/process logo for ${domain}`);
+          failureCount++;
+        }
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`[API Bookmarks Refresh] ❌ Error processing logo for ${domain}:`, message);
+        failureCount++;
+      }
+    });
+
+    await Promise.allSettled(promises);
+
+    // Apply rate limiting delay between batches (except for the last batch)
+    if (i + batchSize < domains.length) {
+      console.log(`[API Bookmarks Refresh] ⏱️ Waiting ${delay}ms before next ${context} logo batch...`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+
+  return { successCount, failureCount };
+}
+
+// Rate limiting is now handled by the centralized lib/rate-limiter.ts
 
 /**
  * POST handler - Refreshes the bookmarks cache
@@ -67,8 +129,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   // Get client IP for rate limiting (only if not an authenticated cron job)
   if (!isCronJob) {
     const forwardedFor: string = request.headers.get('x-forwarded-for') || 'unknown';
-    const clientIp = forwardedFor?.split(',')[0]?.trim() || '';
-    if (!checkRateLimit(clientIp)) {
+    const clientIp = forwardedFor?.split(',')[0]?.trim() || 'unknown_ip'; // Ensure clientIp is never empty
+    if (!isOperationAllowed(API_ENDPOINT_STORE_NAME, clientIp, DEFAULT_API_ENDPOINT_LIMIT_CONFIG)) {
       return NextResponse.json({
         error: 'Rate limit exceeded. Try again later.'
       }, { status: 429 });
@@ -97,14 +159,66 @@ export async function POST(request: Request): Promise<NextResponse> {
       console.log('[API Bookmarks Refresh] Regular request: Refreshing bookmarks data as cache is stale or needs update.');
     }
 
+    // Initialize logo functions before using them
+    await initLogoFunctions();
+    
+    // Reset logo session tracking to prevent conflicts with bulk processing
+    if (resetLogoSessionTracking) {
+      resetLogoSessionTracking();
+      console.log('[API Bookmarks Refresh] Logo session tracking reset for API processing.');
+    }
+
+    // Get current cached bookmarks to compare for new additions
+    const previousBookmarks = await Promise.resolve(ServerCacheInstance.getBookmarks()?.bookmarks || []);
+    const previousCount = previousBookmarks.length;
+    const previousBookmarkIds = new Set(previousBookmarks.map(b => b.id));
+
+    console.log(`[API Bookmarks Refresh] Previous cached bookmarks count: ${previousCount}`);
+
     const bookmarks = await refreshBookmarksData();
+    
+    // Process logos for new bookmarks immediately
+    if (bookmarks && bookmarks.length > 0) {
+      const newBookmarks = bookmarks.filter(b => !previousBookmarkIds.has(b.id));
+      
+      if (newBookmarks.length > 0) {
+        console.log(`[API Bookmarks Refresh] Found ${newBookmarks.length} new bookmarks. Processing logos immediately.`);
+        
+        // Extract domains from new bookmarks only
+        const newDomains = extractDomainsFromBookmarks(newBookmarks);
+        
+        if (newDomains.size > 0) {
+          console.log(`[API Bookmarks Refresh] Processing logos for ${newDomains.size} new domains.`);
+          
+          try {
+            // Process new domains with small batches appropriate for API context
+            if (!getLogo) {
+              throw new Error('getLogo function not initialized');
+            }
+            const { successCount, failureCount } = await processLogosBatch(
+              Array.from(newDomains),
+              'new bookmarks (API refresh)',
+              getLogo
+            );
+            
+            console.log(`[API Bookmarks Refresh] ✅ Logo processing complete: ${successCount} succeeded, ${failureCount} failed for new bookmarks.`);
+          } catch (logoError) {
+            console.error('[API Bookmarks Refresh] Error during logo processing:', logoError);
+            // Continue with bookmark refresh even if logo processing fails
+          }
+        }
+      } else {
+        console.log('[API Bookmarks Refresh] No new bookmarks detected. Skipping logo processing.');
+      }
+    }
 
     return NextResponse.json({
       status: 'success',
       message: `Bookmarks cache refreshed successfully${isCronJob ? ' (triggered by cron job)' : ''}`,
       data: {
         refreshed: true,
-        bookmarksCount: bookmarks.length
+        bookmarksCount: bookmarks.length,
+        newBookmarksProcessed: bookmarks ? bookmarks.filter(b => !previousBookmarkIds.has(b.id)).length : 0
       }
     });
   } catch (error) {

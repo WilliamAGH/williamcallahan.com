@@ -48,13 +48,24 @@ export const CopyButton: React.FC<CopyButtonProps> = ({ content, className, pare
     }
   };
 
+  // Count the number of lines in the content
+  const lineCount = content.split('\n').length;
+  
+  // Determine positioning based on line count
+  const isShortCode = lineCount <= 3;
+  const rightPosition = parentIsPadded ? 'right-6' : 'right-2';
+  const verticalPosition = isShortCode 
+    ? 'top-1/2 -translate-y-1/2'  // Centered for 3 or fewer lines
+    : 'top-2';                     // Top-right for more than 3 lines
+
   return (
     <button
       type="button"
       onClick={() => void handleCopy()}
       className={cn(
         'absolute p-2 rounded-md',
-        parentIsPadded ? 'right-6 top-1/2 -translate-y-1/2' : 'right-2 top-1/2 -translate-y-1/2',
+        rightPosition,
+        verticalPosition,
         'bg-gray-700/60 hover:bg-gray-600/60',
         'text-gray-300 hover:text-gray-100',
         'transition-all duration-200',

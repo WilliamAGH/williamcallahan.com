@@ -9,6 +9,7 @@
 import type { Investment } from '../../../types/investment';
 import { ThemeWrapper } from './theme-wrapper.client';
 import { fetchLogo, normalizeDomain } from '../../../lib/logo-fetcher';
+import { isDebug } from '../../../lib/utils/debug';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import FinancialMetrics from '../../ui/financial-metrics.server';
@@ -17,6 +18,24 @@ import type { JSX } from "react";
 
 // Cache for placeholder SVG
 let placeholderSvg: Buffer | null = null;
+
+/**
+ * Check if an investment is defunct or closed
+ * @param {Investment} investment - Investment to check
+ * @returns {boolean} True if investment is defunct/closed
+ */
+function isInvestmentDefunct(investment: Investment): boolean {
+  const { status, operating_status: operatingStatus, shutdown_year: shutdownYear, acquired_year: acquiredYear } = investment;
+  
+  // Check various indicators of defunct/closed status
+  return (
+    status === 'Realized' ||
+    operatingStatus === 'Shut Down' ||
+    operatingStatus === 'Inactive' ||
+    shutdownYear !== null ||
+    acquiredYear !== null
+  );
+}
 
 /**
  * Get placeholder SVG content
@@ -44,6 +63,22 @@ export async function InvestmentCard(props: Investment): Promise<JSX.Element> {
     // If logo is provided directly, use it
     if (logo) {
       return <ThemeWrapper investment={props} logoData={{ url: logo, source: null }} renderedMetrics={metricsElement} />;
+    }
+
+    // Skip logo fetching if no website is provided - obvious optimization
+    if (!website) {
+      if (isDebug) console.log(`[InvestmentCard] No website provided for ${name}, using placeholder`);
+      const placeholder = await getPlaceholder();
+      const placeholderDataUrl = `data:image/svg+xml;base64,${placeholder.toString('base64')}`;
+      return <ThemeWrapper investment={props} logoData={{ url: placeholderDataUrl, source: null }} renderedMetrics={metricsElement} />;
+    }
+
+    // Skip logo fetching for defunct/closed investments to avoid unnecessary API calls
+    if (isInvestmentDefunct(props)) {
+      if (isDebug) console.log(`[InvestmentCard] Skipping logo fetch for defunct investment: ${name}`);
+      const placeholder = await getPlaceholder();
+      const placeholderDataUrl = `data:image/svg+xml;base64,${placeholder.toString('base64')}`;
+      return <ThemeWrapper investment={props} logoData={{ url: placeholderDataUrl, source: null }} renderedMetrics={metricsElement} />;
     }
 
     // Get domain from website or company name

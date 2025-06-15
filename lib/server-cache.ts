@@ -9,10 +9,11 @@
  */
 
 import NodeCache from 'node-cache';
-import { SERVER_CACHE_DURATION, LOGO_CACHE_DURATION, BOOKMARKS_CACHE_DURATION, GITHUB_ACTIVITY_CACHE_DURATION } from './constants'; // Added GITHUB_ACTIVITY_CACHE_DURATION
+import { SERVER_CACHE_DURATION, LOGO_CACHE_DURATION, BOOKMARKS_CACHE_DURATION, GITHUB_ACTIVITY_CACHE_DURATION, OPENGRAPH_CACHE_DURATION } from './constants';
 import type { LogoInversion, LogoSource } from '../types/logo';
 import type { UnifiedBookmark } from '../types/bookmark';
 import type { GitHubActivityApiResponse } from '../types/github';
+import type { OgCacheEntry, OgResult } from '../types';
 import { assertServerOnly } from './utils/ensure-server-only';
 
 assertServerOnly();
@@ -37,6 +38,8 @@ interface LogoFetchResult {
   source: LogoSource;
   /** Raw image buffer */
   buffer?: Buffer;
+  /** Content type of the image (e.g., 'image/png', 'image/svg+xml') */
+  contentType?: string;
   /** Error message if logo fetch failed */
   error?: string;
   /** Timestamp when the logo was fetched */
@@ -60,8 +63,9 @@ const LOGO_VALIDATION_PREFIX = 'logo-validation:';
 const LOGO_FETCH_PREFIX = 'logo-fetch:';
 const INVERTED_LOGO_PREFIX = 'logo-inverted:';
 const LOGO_ANALYSIS_PREFIX = 'logo-analysis:';
+const OPENGRAPH_PREFIX = 'og-data:';
 const BOOKMARKS_CACHE_KEY = 'bookmarks-data';
-const GITHUB_ACTIVITY_CACHE_KEY = 'github-activity-data'; // Added GitHub activity cache key
+const GITHUB_ACTIVITY_CACHE_KEY = 'github-activity-data';
 
 /**
  * GitHub Activity cache entry
@@ -167,7 +171,9 @@ export class ServerCache extends NodeCache {
    */
   clearAllLogoFetches(): void {
     const keys = this.keys().filter(key => key.startsWith(LOGO_FETCH_PREFIX));
-    keys.forEach(key => this.del(key));
+    for (const key of keys) {
+      this.del(key);
+    }
   }
 
   /**
@@ -264,7 +270,7 @@ export class ServerCache extends NodeCache {
    * @param bookmarks - Bookmarks to cache
    * @param isFailure - Whether this was a failed fetch attempt
    */
-  setBookmarks(bookmarks: UnifiedBookmark[], isFailure: boolean = false): void {
+  setBookmarks(bookmarks: UnifiedBookmark[], isFailure = false): void {
     const now = Date.now();
     const existing = this.getBookmarks();
 
@@ -302,7 +308,9 @@ export class ServerCache extends NodeCache {
 
     const now = Date.now();
     const timeSinceLastFetch = now - cached.lastFetchedAt;
-    const shouldRefresh = timeSinceLastFetch > BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
+    const revalidationThreshold = BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
+    console.log(`[ServerCache] shouldRefreshBookmarks: cache age = ${timeSinceLastFetch}ms; threshold = ${revalidationThreshold}ms`);
+    const shouldRefresh = timeSinceLastFetch > revalidationThreshold;
 
     if (shouldRefresh) {
       console.log(`shouldRefreshBookmarks: Cache expired (${timeSinceLastFetch}ms old), refresh required`);
@@ -336,7 +344,7 @@ export class ServerCache extends NodeCache {
    * @param activityData - GitHub activity data to cache
    * @param isFailure - Whether this was a failed fetch attempt
    */
-  setGithubActivity(activityData: GitHubActivityApiResponse, isFailure: boolean = false): void {
+  setGithubActivity(activityData: GitHubActivityApiResponse, isFailure = false): void {
     const key = GITHUB_ACTIVITY_CACHE_KEY;
 
     // Ensure trailingYearData and dataComplete exist before accessing
@@ -372,6 +380,83 @@ export class ServerCache extends NodeCache {
    */
   clearGithubActivity(): void {
     this.del(GITHUB_ACTIVITY_CACHE_KEY);
+  }
+
+  /**
+   * Get cached OpenGraph data
+   * 
+   * @param url - URL to look up
+   * @returns Cached OpenGraph data
+   */
+  getOpenGraphData(url: string): OgCacheEntry | undefined {
+    const key = OPENGRAPH_PREFIX + url;
+    return this.get<OgCacheEntry>(key);
+  }
+
+  /**
+   * Cache OpenGraph data
+   * 
+   * @param url - URL to cache
+   * @param data - OpenGraph data to cache
+   * @param isFailure - Whether this was a failed fetch attempt
+   */
+  setOpenGraphData(url: string, data: OgResult, isFailure = false): void {
+    const key = OPENGRAPH_PREFIX + url;
+    const now = Date.now();
+    const existing = this.getOpenGraphData(url);
+
+    const entry: OgCacheEntry = {
+      ...data,
+      lastFetchedAt: isFailure ? (existing?.lastFetchedAt ?? now) : now,
+      lastAttemptedAt: now,
+      isFailure
+    };
+
+    this.set(
+      key,
+      entry,
+      isFailure ? OPENGRAPH_CACHE_DURATION.FAILURE : OPENGRAPH_CACHE_DURATION.SUCCESS
+    );
+  }
+
+  /**
+   * Check if OpenGraph cache needs refreshing
+   * 
+   * @param url - URL to check
+   * @returns True if cache should be refreshed
+   */
+  shouldRefreshOpenGraph(url: string): boolean {
+    const cached = this.getOpenGraphData(url);
+    if (!cached) {
+      return true;
+    }
+
+    // Don't refresh if it's a recent failure
+    if (cached.isFailure) {
+      const timeSinceLastAttempt = Date.now() - cached.lastAttemptedAt;
+      return timeSinceLastAttempt > OPENGRAPH_CACHE_DURATION.FAILURE * 1000;
+    }
+
+    // Check if data is stale
+    const timeSinceLastFetch = Date.now() - cached.lastFetchedAt;
+    return timeSinceLastFetch > OPENGRAPH_CACHE_DURATION.REVALIDATION * 1000;
+  }
+
+  /**
+   * Clear OpenGraph data cache
+   * 
+   * @param url - URL to clear (optional, clears all if not provided)
+   */
+  clearOpenGraphData(url?: string): void {
+    if (url) {
+      const key = OPENGRAPH_PREFIX + url;
+      this.del(key);
+    } else {
+      const keys = this.keys().filter(key => key.startsWith(OPENGRAPH_PREFIX));
+      for (const key of keys) {
+        this.del(key);
+      }
+    }
   }
 }
 

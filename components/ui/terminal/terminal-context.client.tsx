@@ -6,7 +6,8 @@
 
 "use client";
 
-import React, { createContext, useContext, useCallback, useState, useMemo, useEffect } from 'react';
+import type React from 'react';
+import { createContext, useContext, useCallback, useState, useMemo, useEffect } from 'react';
 import type { TerminalCommand } from '@/types/terminal';
 
 // Define the context type including history and mode state

@@ -7,12 +7,15 @@
     "enabled": true,
     "ignore": [
       "node_modules/**",
-      "components/ui/code-block/prism-syntax-highlighting/prism.js"
+      "components/ui/code-block/prism-syntax-highlighting/prism.js",
+      ".next/**",
+      "**/*.mdx"
     ],
     "rules": {
       "recommended": true,
       "a11y": {
-        "useAltText": "off"
+        "useAltText": "off",
+        "noBlankTarget": "off"
       }
     }
   },
