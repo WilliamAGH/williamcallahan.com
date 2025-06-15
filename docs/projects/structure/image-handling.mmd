@@ -1,0 +1,58 @@
+graph TD
+    subgraph "Client/Server Request"
+        A["/api/logo (domain)"]
+        B["/api/og-image (url)"]
+        C["/api/assets/[assetId]"]
+    end
+
+    subgraph "Image Handling Pipeline"
+        direction LR
+        subgraph "Fetching"
+            D[Multi-Source Fetching]
+        end
+        subgraph "Validation"
+            E["Perceptual Hash Check<br/>(via /api/validate-logo)"]
+        end
+        subgraph "Processing"
+            F["Analysis &<br/>Theme Inversion"]
+        end
+    end
+
+    subgraph "Core Systems"
+        G["Caching<br/>(caching.md)"]
+        H["S3 Storage<br/>(s3-object-storage.md)"]
+    end
+    
+    subgraph "External Dependencies"
+        I[External APIs<br/>(Google, Clearbit)]
+        J[Web Page<br/>(og:image tag)]
+        K[Proxied Service<br/>(e.g. Karakeep)]
+    end
+
+    subgraph "Response"
+        L[UI Component]
+    end
+
+    %% Flows
+    A --> D
+    B --> D
+    D --> I
+    D --> J
+
+    D -- Fetched Image --> E
+    E -- Valid Image --> F
+    E -- Invalid Image --> L
+    
+    F -- Processed Image & Metadata --> G & H
+
+    C --> K -- Stream --> L
+
+    G -- Cached Response --> L
+    H -- S3 URL --> L
+
+    %% Style
+    classDef core fill:#d4edda,stroke:#155724;
+    class G,H core;
+    style L fill:#e1f5fe,stroke:#333
+
+</rewritten_file> 

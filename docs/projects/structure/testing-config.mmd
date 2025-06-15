@@ -1,0 +1,104 @@
+graph TD
+    subgraph "Test Strategy"
+        UNIT[Unit Tests<br/>Functions & Utilities]
+        COMP[Component Tests<br/>React Testing Library]
+        INT[Integration Tests<br/>Module Interactions]
+        E2E[E2E Smoke Tests<br/>User Flows]
+    end
+
+    subgraph "Test Runners"
+        JEST[Jest<br/>Primary Runner]
+        BUN[Bun<br/>Server-side Tests]
+    end
+
+    subgraph "Configuration Files"
+        JESTCFG[jest.config.ts<br/>Main Config]
+        JESTPOLY[jest.polyfills.js<br/>Browser API Polyfills]
+        JESTSETUP[jest.setup.ts<br/>Global Setup]
+        BUNSETUP[bun-setup.ts<br/>Bun Environment]
+        TSJEST[tsconfig.jest.json<br/>TS Config for Tests]
+    end
+
+    subgraph "Type Definitions"
+        BUNTYPE[bun-test-globals.d.ts<br/>Bun Globals]
+        MATCHERS[matchers.d.ts<br/>Custom Matchers]
+        JESTDOM[jest-dom.jest.d.ts<br/>DOM Matchers]
+        JESTEXT[jest-extended.d.ts<br/>Extended Matchers]
+    end
+
+    subgraph "Mock System"
+        FILEMOCK[file-mock.js<br/>Static Assets]
+        STYLEMOCK[style-mock.js<br/>CSS Imports]
+        FETCHMOCK[fix-fetch-mock.ts<br/>Fetch Polyfill]
+    end
+
+    subgraph "Test Scripts"
+        WRAPPER[bun-test-wrapper.sh<br/>Command Interceptor]
+        RUNTESTS[run-tests.sh<br/>Main Runner]
+        RUNBUN[run-bun-tests.sh<br/>Bun Executor]
+        ALIAS[setup-test-alias.sh<br/>Shell Aliases]
+    end
+
+    subgraph "Support Scripts"
+        NAMING[check-file-naming.ts<br/>Convention Validator]
+        FIXIMPORT[fix-test-imports.sh<br/>Import Fixer]
+        TESTLIB[testing-library.ts<br/>RTL Setup]
+    end
+
+    subgraph "Test Output"
+        COVERAGE[Coverage Reports]
+        RESULTS[Test Results]
+        CI[CI/CD Pipeline]
+    end
+
+    %% Test Flow
+    UNIT --> JEST
+    COMP --> JEST
+    INT --> JEST
+    INT --> BUN
+    E2E --> JEST
+
+    %% Jest Configuration
+    JEST --> JESTCFG
+    JESTCFG --> JESTPOLY
+    JESTCFG --> JESTSETUP
+    JESTCFG --> TSJEST
+    JESTSETUP --> TESTLIB
+
+    %% Bun Configuration
+    BUN --> BUNSETUP
+    BUNSETUP --> BUNTYPE
+
+    %% Type System
+    JEST --> JESTDOM
+    JEST --> JESTEXT
+    JEST --> MATCHERS
+    BUN --> MATCHERS
+
+    %% Mock System
+    JESTCFG --> FILEMOCK
+    JESTCFG --> STYLEMOCK
+    JESTSETUP --> FETCHMOCK
+
+    %% Script Flow
+    WRAPPER --> RUNTESTS
+    RUNTESTS --> BUN
+    ALIAS --> WRAPPER
+    RUNBUN --> BUN
+
+    %% Support Flow
+    CI --> NAMING
+    RUNTESTS --> FIXIMPORT
+
+    %% Output
+    JEST --> COVERAGE
+    JEST --> RESULTS
+    BUN --> RESULTS
+    RESULTS --> CI
+
+    %% Styling
+    style JEST fill:#d4edda,stroke:#155724
+    style BUN fill:#d4edda,stroke:#155724
+    style CI fill:#d1ecf1,stroke:#0c5460
+    style WRAPPER fill:#fff3cd,stroke:#856404
+    style NAMING fill:#fff3cd,stroke:#856404

@@ -1,0 +1,56 @@
+graph TD
+    subgraph "Context & State"
+        A[TerminalContext]
+        B[useTerminal Hook]
+        C[useRegisteredWindowState]
+    end
+
+    subgraph "UI Components"
+        D[TerminalImplementation]
+        E[TerminalHeader]
+        F[History]
+        G[CommandInput]
+        H[SelectionView]
+    end
+
+    subgraph "Logic & Data"
+        I[Commands Engine]
+        J["Search Module (Dynamic Import)"]
+        K[Next.js Router]
+        L[Session Storage]
+    end
+
+    %% Flow
+    A -- Manages --> B
+    B -- Controls --> D
+    C -- Manages Window State --> D
+
+    D -- Renders --> E
+    D -- Renders --> F
+    D -- Renders --> G
+    D -- Renders --> H
+
+    G -- User Input --> B
+    B -- Delegates to --> I
+    I -- Handles --> J
+    I -- Handles --> K
+
+    B -- Updates History --> A
+    A -- Persists to --> L
+
+    subgraph "User Interaction Flow"
+        U1[User types command] --> G
+        G --> B
+        B --> I
+        I --> R{Command Type?}
+        R -->|Navigation| K[useRouter]
+        R -->|Search| J
+        R -- "System (help, clear)" --> B
+        B --> F[Update History View]
+        B --> H[Update Selection View]
+    end
+
+    style A fill:#cceeff
+    style B fill:#cceeff
+    style D fill:#f9f2cc
+

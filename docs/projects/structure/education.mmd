@@ -1,0 +1,23 @@
+graph TD
+    subgraph "Build Time / Server-Side"
+        A[data/education.ts] --> B[Education Server Component];
+        B -- "Processes data with" --> C[lib/education-data-processor.ts];
+        C -- "Fetches logos using" --> D[lib/logo.server];
+        C -- "Handles fallbacks with" --> E[Placeholder SVG];
+        C -- "Attaches logo data URL to each item" --> F[Processed Data];
+        F -- "Passed as props to" --> G[EducationClient];
+    end
+
+    subgraph "Client-Side"
+        G -- "Renders University Degrees as" --> H[EducationCardClient];
+        G -- "Renders Courses & Certs in" --> I[Interactive Table];
+        I -- "Allows user to" --> J["Filter, Sort, Search"];
+        G -- "Manages" --> K[Window State];
+    end
+
+    B --> L["Processed data passed to Client Component"];
+    L --> G;
+    
+    style A fill:#fef,stroke:#333,stroke-width:2px
+    style B fill:#ccf,stroke:#333,stroke-width:2px
+    style G fill:#f9f,stroke:#333,stroke-width:2px 

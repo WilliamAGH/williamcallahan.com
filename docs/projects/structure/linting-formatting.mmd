@@ -1,0 +1,87 @@
+```mermaid
+graph TB
+    subgraph "Linting & Formatting Tools"
+        subgraph "Primary Tools"
+            ESL[ESLint 9.28.0]
+            BIO[Biome]
+            STY[Stylelint]
+            TS[TypeScript]
+        end
+
+        subgraph "ESLint Configuration"
+            ESLC[eslint.config.ts]
+            ESLC --> |"Flat Config"| FC[File Categories]
+            FC --> SRV[Server Components]
+            FC --> CLT[Client Components]
+            FC --> CFG[Config Files]
+            FC --> TST[Test Files]
+            FC --> MDX[MDX Files]
+            
+            ESLC --> |"Uses"| PLUGINS[Plugins]
+            PLUGINS --> REACT[React/React Hooks]
+            PLUGINS --> NEXT[Next.js]
+            PLUGINS --> JEST[Jest]
+            PLUGINS --> MDXP[MDX]
+        end
+
+        subgraph "Biome Configuration"
+            BIOC[biome.json]
+            BIOC --> FMT[Formatting Rules]
+            BIOC --> IMP[Import Organization]
+            BIOC --> LINT[Linting Rules]
+            
+            FMT --> |"Settings"| FMTS[2 spaces, 100 char line]
+            LINT --> |"Disabled"| A11Y[Some a11y rules]
+        end
+
+        subgraph "TypeScript Integration"
+            TSC[tsconfig.json]
+            TSC --> |"Main Project"| MAIN[Source Files]
+            TSC --> |"Missing"| JESTC[jest.config.ts]
+            
+            TESTC[tsconfig.jest.json]
+            TESTC --> |"Test Files"| TESTS[__tests__/**]
+        end
+    end
+
+    subgraph "VSCode Integration"
+        VSC[.vscode/settings.json]
+        VSC --> |"Default Formatter"| BIO
+        VSC --> |"Validation"| ESL
+        VSC --> |"Code Actions"| CAS[On Save Actions]
+    end
+
+    subgraph "Pre-commit Hooks"
+        HUSKY[Husky]
+        HUSKY --> STAGED[lint-staged]
+        STAGED --> |"Runs"| ESLF[ESLint --fix]
+    end
+
+    subgraph "Scripts"
+        PKG[package.json scripts]
+        PKG --> LINTS[lint commands]
+        PKG --> FORMATS[format commands]
+        PKG --> VALIDATE[validate command]
+        
+        VALIDATE --> |"Runs"| ESL
+        VALIDATE --> |"Then"| TS
+    end
+
+    subgraph "Known Issues"
+        ISS1[Jest Config Not in TSConfig]
+        ISS2[Tool Overlap]
+        ISS3[MDX Special Handling]
+        
+        ISS1 --> |"Solution"| SOL1[Add to include array]
+        ISS2 --> |"Solution"| SOL2[Clear separation of concerns]
+        ISS3 --> |"Solution"| SOL3[Custom processor]
+    end
+
+    style ESL fill:#e3f2fd
+    style BIO fill:#f3e5f5
+    style STY fill:#fff3e0
+    style TS fill:#e8f5e9
+    style ISS1 fill:#ffebee
+    style ISS2 fill:#ffebee
+    style ISS3 fill:#ffebee
+```

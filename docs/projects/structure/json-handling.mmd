@@ -1,0 +1,37 @@
+graph TD
+    subgraph "Data Sources"
+        A[Karakeep API for Bookmarks]
+        B[GitHub APIs for Activity]
+        C[Web Pages for OpenGraph Meta]
+    end
+
+    subgraph "Processing & Enrichment"
+        D{JSON Handling Core}
+        E[Image Enrichment via image-handling]
+    end
+
+    subgraph "Caching & Storage"
+        F[In-Memory Cache]
+        G[S3 JSON Storage via s3-object-storage]
+    end
+    
+    subgraph "Consumers"
+        H[API Routes]
+        I[Server Components]
+    end
+
+    A --> D
+    B --> D
+    C --> D
+    
+    D -- "Enriches with OG Images" --> E
+    
+    D -- "Caches in" --> F
+    D -- "Persists to" --> G
+
+    F -- "Serves" --> H & I
+    G -- "Serves on cache miss" --> H & I
+
+    style D fill:#d4edda,stroke:#155724
+    style F fill:#e2e3e5,stroke:#383d41
+    style G fill:#e2e3e5,stroke:#383d41 

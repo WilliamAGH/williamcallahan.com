@@ -1,0 +1,25 @@
+graph TD
+    subgraph "Build Time / Server-Side"
+        A[data/investments.ts] --> B[Investments Server Component];
+        B -- "For each investment" --> C[InvestmentCardServer];
+        C -- "Fetches logo" --> D{lib/logo-fetcher};
+        C -- "Gets placeholder" --> E[public/images/company-placeholder.svg];
+        D --> F[Logo Found?];
+        E --> F;
+        F -- "Processes logo to data URL" --> G[InvestmentCardClient Props];
+        G -- "Passed to" --> H[InvestmentCardClient];
+    end
+
+    subgraph "Client-Side"
+        I[InvestmentsClient] -- "Receives pre-rendered cards" --> J[Rendered HTML from Server];
+        J -- "Renders" --> H;
+        H -- "Styled by" --> K[ThemeWrapper];
+        I -- "Manages" --> L{Window State};
+    end
+
+    B --> M["Pre-rendered HTML passed to Client"];
+    M --> I;
+    
+    style A fill:#fef,stroke:#333,stroke-width:2px
+    style B fill:#ccf,stroke:#333,stroke-width:2px
+    style I fill:#f9f,stroke:#333,stroke-width:2px 

@@ -1,0 +1,46 @@
+graph TD
+    subgraph "Request Layer"
+        A[API Route / Server Component]
+    end
+
+    subgraph "Caching Logic (Singleton: ServerCacheInstance)"
+        B{Cache Check}
+        C["✅ HIT<br/>(~1-5ms)"]
+        D["❌ MISS"]
+        E["Set Cache<br/>(Success or Failure TTL)"]
+    end
+
+    subgraph "Downstream Services"
+        F["S3 Storage<br/>(s3-object-storage.md)"]
+        G["External APIs<br/>(via json-handling/image-handling)"]
+    end
+    
+    subgraph "Response Layer"
+        H[Cached Response]
+        I[Fresh Response]
+    end
+
+    A -- "Requests Data" --> B
+    B -->|HIT| C
+    C --> H
+    
+    B -->|MISS| D
+    D --> F
+    F -- "Data Found" --> E
+    F -- "Data NOT Found" --> G
+    
+    G -- "Data Fetched" --> E
+    E --> I
+
+    subgraph "Debug Tools"
+        J["middleware/cache-debug.ts"]
+    end
+
+    J -- "Adds headers to" --> A
+
+    %% Styling
+    style B fill:#e1f5fe,stroke:#333
+    style C fill:#d4edda,stroke:#155724
+    style D fill:#f8d7da,stroke:#721c24
+    style H fill:#d4edda,stroke:#155724
+    style I fill:#fff3cd,stroke:#856404

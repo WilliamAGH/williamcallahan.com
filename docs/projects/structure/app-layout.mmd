@@ -1,0 +1,45 @@
+graph TD
+    A[Root Layout] --> B[HTML Element]
+    B --> C[Head Section]
+    B --> D[Body]
+    
+    C --> E[Metadata & SEO]
+    C --> F[Resource Hints]
+    C --> G[Hydration Scripts]
+    
+    D --> H[Providers]
+    H --> I[ThemeProvider]
+    H --> J[TerminalProvider]
+    H --> K[GlobalWindowRegistryProvider]
+    
+    K --> L[Header]
+    K --> M[Main Content]
+    K --> N[FloatingRestoreButtons]
+    
+    L --> O[Navigation]
+    L --> P[SocialIcons]
+    L --> Q[ThemeToggle]
+    
+    M --> R[ClientTerminal]
+    M --> S[Page Content - children]
+    
+    D --> T[Analytics]
+    
+    subgraph "Provider Hierarchy"
+        I --> J
+        J --> K
+    end
+    
+    subgraph "Error Boundaries"
+        H -.-> U[Error Handling]
+    end
+    
+    subgraph "Responsive Behavior"
+        P --> V[Mobile: X Icon Only]
+        P --> W[Desktop: Full Icon Set]
+    end
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px,color:#000
+    style H fill:#bbf,stroke:#333,stroke-width:2px,color:#000
+    style L fill:#bfb,stroke:#333,color:#000
+    style M fill:#bfb,stroke:#333,color:#000

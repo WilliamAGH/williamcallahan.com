@@ -1,0 +1,99 @@
+graph TB
+    subgraph "Environment Configuration"
+        ENV[".env files"]
+        ENV_TYPES["types/env.d.ts"]
+        PROCESS_ENV["process.env"]
+        
+        ENV --> PROCESS_ENV
+        ENV_TYPES -.->|"Type Safety"| PROCESS_ENV
+    end
+    
+    subgraph "Build Configuration"
+        PACKAGE["package.json"]
+        TSCONFIG["tsconfig.json"]
+        NEXT_CONFIG["next.config.ts"]
+        TAILWIND["tailwind.config.js"]
+        BIOME["biome.json"]
+        ESLINT["eslint.config.ts"]
+        
+        PACKAGE -->|"Scripts"| BUILD_PROCESS["Build Process"]
+        TSCONFIG -->|"TypeScript"| BUILD_PROCESS
+        NEXT_CONFIG -->|"Next.js"| BUILD_PROCESS
+        TAILWIND -->|"CSS"| BUILD_PROCESS
+        BIOME -->|"Linting"| BUILD_PROCESS
+        ESLINT -->|"Code Quality"| BUILD_PROCESS
+    end
+    
+    subgraph "Deployment Configuration"
+        DOCKERFILE["Dockerfile"]
+        ENTRYPOINT["scripts/entrypoint.sh"]
+        BUILD_SCRIPTS["Build Scripts"]
+        
+        DOCKERFILE --> CONTAINER["Container"]
+        ENTRYPOINT --> CONTAINER
+        BUILD_SCRIPTS --> CONTAINER
+        
+        PRE_BUILD["pre-build-checks.sh"]
+        POPULATE["populate-volumes.ts"]
+        CONSOLIDATE["consolidate-configs.js"]
+        
+        PRE_BUILD --> BUILD_SCRIPTS
+        POPULATE --> BUILD_SCRIPTS
+        CONSOLIDATE --> BUILD_SCRIPTS
+    end
+    
+    subgraph "Runtime Configuration"
+        CONTAINER --> RUNTIME["Application Runtime"]
+        PROCESS_ENV --> RUNTIME
+        BUILD_PROCESS --> RUNTIME
+        
+        MIDDLEWARE_CONFIG["middleware.ts"]
+        CACHE_CONFIG["Cache Settings"]
+        API_CONFIG["API Configuration"]
+        
+        RUNTIME --> MIDDLEWARE_CONFIG
+        RUNTIME --> CACHE_CONFIG
+        RUNTIME --> API_CONFIG
+    end
+    
+    subgraph "Development Tools"
+        CURSOR[".cursorrules"]
+        GITIGNORE[".gitignore"]
+        HINTRC[".hintrc"]
+        TOOLS["tools.config.js"]
+        
+        CURSOR --> DEV_ENV["Dev Environment"]
+        GITIGNORE --> DEV_ENV
+        HINTRC --> DEV_ENV
+        TOOLS --> DEV_ENV
+    end
+    
+    subgraph "Testing Configuration"
+        TESTING_CONFIG["See testing-config.md"]
+        
+        TESTING_CONFIG --> TEST_ENV["Test Environment"]
+    end
+    
+    %% Key Configuration Flow
+    ENV_TYPES -.->|"Missing Many Variables"| ENV
+    BUILD_PROCESS -->|"Generates"| DIST["dist/"]
+    DIST --> CONTAINER
+    
+    %% Security Concerns
+    ENV -.->|"⚠️ Secrets Management"| RUNTIME
+    NEXT_CONFIG -.->|"⚠️ Public Exposure"| CLIENT["Client Bundle"]
+    
+    %% Integration Points
+    TEST_ENV -.->|"Uses"| PROCESS_ENV
+    DEV_ENV -.->|"Overrides"| PROCESS_ENV
+    
+    classDef config fill:#e1f5e1,stroke:#4caf50,stroke-width:2px
+    classDef build fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    classDef deploy fill:#e3f2fd,stroke:#2196f3,stroke-width:2px
+    classDef security fill:#ffebee,stroke:#f44336,stroke-width:2px
+    classDef missing fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    
+    class ENV,ENV_TYPES,PROCESS_ENV,CURSOR,GITIGNORE,HINTRC,TOOLS config
+    class PACKAGE,TSCONFIG,NEXT_CONFIG,TAILWIND,BIOME,ESLINT,BUILD_PROCESS build
+    class DOCKERFILE,ENTRYPOINT,BUILD_SCRIPTS,CONTAINER,PRE_BUILD,POPULATE,CONSOLIDATE deploy
+    class ENV_TYPES missing
