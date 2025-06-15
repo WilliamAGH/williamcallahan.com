@@ -77,6 +77,7 @@
         "husky": "^9.1.7",
         "jest": "^29.7.0",
         "jest-environment-jsdom": "^30.0.0-beta.3",
+        "jest-extended": "^6.0.0",
         "jiti": "^2.4.2",
         "jsdom": "^26.1.0",
         "lint-staged": "^16.1.0",
@@ -1987,6 +1988,8 @@
     "jest-environment-jsdom": ["jest-environment-jsdom@30.0.0-beta.3", "", { "dependencies": { "@jest/environment": "30.0.0-beta.3", "@jest/environment-jsdom-abstract": "30.0.0-beta.3", "@types/jsdom": "^21.1.7", "@types/node": "*", "jsdom": "^26.0.0" }, "peerDependencies": { "canvas": "^3.0.0" }, "optionalPeers": ["canvas"] }, "sha512-YLBmv46sn5CYQR/iX+seZJ7FsuUAM4tf7Pm5ymP8XQKzrKEPdDv1f1V/z2b9XSTniR+OlIuGpnP3G3RbpbsceA=="],
 
     "jest-environment-node": ["jest-environment-node@29.7.0", "", { "dependencies": { "@jest/environment": "^29.7.0", "@jest/fake-timers": "^29.7.0", "@jest/types": "^29.6.3", "@types/node": "*", "jest-mock": "^29.7.0", "jest-util": "^29.7.0" } }, "sha512-DOSwCRqXirTOyheM+4d5YZOrWcdu0LNZ87ewUoywbcb2XR4wKgqiG8vNeYwhjFMbEkfju7wx2GYH0P2gevGvFw=="],
+
+    "jest-extended": ["jest-extended@6.0.0", "", { "dependencies": { "jest-diff": "^29.0.0" }, "peerDependencies": { "jest": ">=27.2.5", "typescript": ">=5.0.0" }, "optionalPeers": ["jest"] }, "sha512-SM249N/q33YQ9XE8E06qZSnFuuV4GQFx7WrrmIj4wQUAP43jAo6budLT482jdBhf8ASwUiEEfJNjej0UusYs5A=="],
 
     "jest-get-type": ["jest-get-type@29.6.3", "", {}, "sha512-zrteXnqYxfQh7l5FHyL38jL39di8H8rHoecLH3JNxH3BwOrBsNeabdap5e0I23lD4HHI8W5VFBZqG4Eaq5LNcw=="],
 

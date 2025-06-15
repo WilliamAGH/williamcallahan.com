@@ -9,6 +9,7 @@
       "node_modules/**",
       "components/ui/code-block/prism-syntax-highlighting/prism.js",
       ".next/**",
+      "coverage/**",
       "**/*.mdx"
     ],
     "rules": {
@@ -23,7 +24,24 @@
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 100
+    "lineWidth": 100,
+    "ignore": ["node_modules/**", ".next/**", "coverage/**"]
+  },
+  "files": {
+    "ignore": [
+      "node_modules/**",
+      ".next/**",
+      "coverage/**",
+      ".DS_Store",
+      ".husky/**",
+      "*.env*",
+      "*.ico",
+      "bun.lock",
+      "README.md",
+      "docs/**/*.md"
+    ],
+    "maxSize": 1048576,
+    "ignoreUnknown": true
   },
   "overrides": [
     {
@@ -50,6 +68,9 @@
     },
     {
       "include": ["**/__tests__/**/*", "**/*.{test,spec}.{js,ts,jsx,tsx}"],
+      "organizeImports": {
+        "enabled": false
+      },
       "linter": {
         "rules": {
           "suspicious": {
