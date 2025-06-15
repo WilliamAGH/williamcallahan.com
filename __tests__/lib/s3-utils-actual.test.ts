@@ -45,8 +45,21 @@ describe("S3 Utils Actual Export", () => {
   });
 });
 
-// Integration test – only runs when S3 credentials are available
-if (process.env.S3_BUCKET && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY) {
+// Integration test should follow the same gating convention used by
+// __tests__/scripts/update-s3-data.smoke.test.ts so that we have ONE
+// place to configure live-AWS behaviour during CI runs.
+
+const S3_TEST_MODE = process.env.S3_TEST_MODE || "NORMAL"; // DRY | NORMAL | FULL
+
+const IS_S3_CONFIGURED = Boolean(
+  process.env.S3_BUCKET &&
+    process.env.S3_ACCESS_KEY_ID &&
+    process.env.S3_SECRET_ACCESS_KEY,
+);
+
+const SHOULD_RUN_LIVE_TESTS = S3_TEST_MODE !== "DRY" && IS_S3_CONFIGURED;
+
+if (SHOULD_RUN_LIVE_TESTS) {
   describe("S3 Utils Integration – read/write JSON", () => {
     const TEST_KEY = "test/integration-test.json";
     const payload = { hello: "world", ts: Date.now() };
@@ -62,5 +75,7 @@ if (process.env.S3_BUCKET && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECR
     });
   });
 } else {
-  console.warn("[S3 Utils Integration] S3 credentials not set – skipping live integration tests.");
+  console.warn(
+    `[S3 Utils Integration] Skipping live S3 tests – mode: ${S3_TEST_MODE}, credentials present: ${IS_S3_CONFIGURED}`,
+  );
 }
