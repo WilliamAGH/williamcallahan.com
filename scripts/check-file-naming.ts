@@ -15,28 +15,27 @@
  * Usage: node scripts/check-file-naming.js
  */
 
-import fs from 'fs';
-import path from 'path';
-import { promisify } from 'util';
+import fs from "node:fs";
+import path from "node:path";
+import { promisify } from "node:util";
 const readFileAsync = promisify(fs.readFile);
 
 // Directories to scan
-const DIRS_TO_SCAN = [
-  'components',
-  'app'
-];
+const DIRS_TO_SCAN = ["components", "app"];
 
 // File patterns to match
 const FILE_PATTERNS = {
   CLIENT: /\.client\.(tsx|ts)$/,
   SERVER: /\.server\.(tsx|ts)$/,
   COMPONENT: /\.(tsx|ts)$/,
-  KEBAB_CASE: /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\.(client|server))?\.(tsx|ts)$/
+  KEBAB_CASE: /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\.(client|server))?\.(tsx|ts)$/,
 };
 
-async function checkFile(filePath: string): Promise<{ file: string; issue: string; type: 'error' | 'warning' } | null> {
+async function checkFile(
+  filePath: string,
+): Promise<{ file: string; issue: string; type: "error" | "warning" } | null> {
   try {
-    const content = await readFileAsync(filePath, 'utf8');
+    const content = await readFileAsync(filePath, "utf8");
     const fileName = path.basename(filePath);
     const isClientFile = FILE_PATTERNS.CLIENT.test(fileName);
     const isServerFile = FILE_PATTERNS.SERVER.test(fileName);
@@ -47,8 +46,8 @@ async function checkFile(filePath: string): Promise<{ file: string; issue: strin
     if (!isKebabCase) {
       return {
         file: filePath,
-        issue: `File name should use kebab-case (dash-separated-words)`,
-        type: 'error'
+        issue: "File name should use kebab-case (dash-separated-words)",
+        type: "error",
       };
     }
 
@@ -57,7 +56,7 @@ async function checkFile(filePath: string): Promise<{ file: string; issue: strin
       return {
         file: filePath,
         issue: `Client component missing "use client" directive`,
-        type: 'error'
+        type: "error",
       };
     }
 
@@ -65,7 +64,7 @@ async function checkFile(filePath: string): Promise<{ file: string; issue: strin
       return {
         file: filePath,
         issue: `Server component has "use client" directive (should be removed)`,
-        type: 'error'
+        type: "error",
       };
     }
 
@@ -74,16 +73,16 @@ async function checkFile(filePath: string): Promise<{ file: string; issue: strin
       return {
         file: filePath,
         issue: `Component has "use client" directive but no .client suffix`,
-        type: 'warning'
+        type: "warning",
       };
     }
 
     // Check for browser API usage in server components
-    if (isServerFile && (content.includes('window.') || content.includes('document.'))) {
+    if (isServerFile && (content.includes("window.") || content.includes("document."))) {
       return {
         file: filePath,
-        issue: `Server component uses browser APIs (window/document)`,
-        type: 'error'
+        issue: "Server component uses browser APIs (window/document)",
+        type: "error",
       };
     }
 
@@ -93,7 +92,7 @@ async function checkFile(filePath: string): Promise<{ file: string; issue: strin
     return {
       file: filePath,
       issue: `Error reading file: ${errorMessage}`,
-      type: 'error'
+      type: "error",
     };
   }
 }
@@ -107,7 +106,7 @@ async function walkDir(dir: string, fileList: string[] = []): Promise<string[]> 
 
     if (stat.isDirectory()) {
       // Skip node_modules and .next
-      if (file === 'node_modules' || file === '.next') continue;
+      if (file === "node_modules" || file === ".next") continue;
       await walkDir(filePath, fileList);
     } else if (FILE_PATTERNS.COMPONENT.test(file)) {
       fileList.push(filePath);
@@ -118,7 +117,7 @@ async function walkDir(dir: string, fileList: string[] = []): Promise<string[]> 
 }
 
 async function main() {
-  console.log('\nChecking file naming conventions...\n');
+  console.log("\nChecking file naming conventions...\n");
 
   const files: string[] = [];
   for (const dir of DIRS_TO_SCAN) {
@@ -134,13 +133,13 @@ async function main() {
 
   console.log(`Found ${files.length} component files to check.\n`);
 
-  const issues: Array<{ file: string; issue: string; type: 'error' | 'warning' }> = [];
+  const issues: Array<{ file: string; issue: string; type: "error" | "warning" }> = [];
   let progress = 0;
 
   for (const file of files) {
     progress++;
     if (progress % 50 === 0) {
-      process.stdout.write('.');
+      process.stdout.write(".");
     }
 
     const issue = await checkFile(file);
@@ -149,33 +148,33 @@ async function main() {
     }
   }
 
-  console.log('\n');
+  console.log("\n");
 
   if (issues.length === 0) {
-    console.log('✓ All files follow the naming conventions!');
+    console.log("✓ All files follow the naming conventions!");
     return;
   }
 
   console.log(`Found ${issues.length} issues:\n`);
 
-  const errors = issues.filter(i => i.type === 'error');
-  const warnings = issues.filter(i => i.type === 'warning');
+  const errors = issues.filter((i) => i.type === "error");
+  const warnings = issues.filter((i) => i.type === "warning");
 
   if (errors.length > 0) {
     console.log(`ERRORS (${errors.length}):`);
-    errors.forEach(({ file, issue }) => {
+    for (const { file, issue } of errors) {
       console.log(`  ✗ ${file}`);
       console.log(`    ${issue}`);
-    });
+    }
     console.log();
   }
 
   if (warnings.length > 0) {
     console.log(`WARNINGS (${warnings.length}):`);
-    warnings.forEach(({ file, issue }) => {
+    for (const { file, issue } of warnings) {
       console.log(`  ! ${file}`);
       console.log(`    ${issue}`);
-    });
+    }
     console.log();
   }
 
@@ -185,7 +184,7 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  console.error('Unexpected error:', err);
+main().catch((err) => {
+  console.error("Unexpected error:", err);
   process.exit(1);
 });
