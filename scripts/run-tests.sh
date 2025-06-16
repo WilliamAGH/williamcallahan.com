@@ -4,6 +4,6 @@
 # which is used in the lib/server-cache.ts file and is used to cache the results of the getLogo function
 
 echo "Running tests with HappyDOM and Testing Library setup..."
-bun test --preload ./config/happydom.ts --preload ./__tests__/lib/setup/testing-library.ts "$@"
+bun run test "$@"
 
 exit $? # Exit with the status code from bun test
