@@ -1,1 +1,1 @@
-declare module 'node-cron';
+declare module "node-cron";

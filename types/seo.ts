@@ -10,20 +10,20 @@
  * @see {@link "../lib/seo/opengraph.ts"} - OpenGraph implementation
  */
 
-import type { Metadata } from 'next';
-import type { OpenGraph } from 'next/dist/lib/metadata/types/opengraph-types'; // eslint-disable-line @typescript-eslint/no-unused-vars
-import type { SEO_DATE_FIELDS } from '../lib/seo/constants';
+import type { Metadata } from "next";
+import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types"; // eslint-disable-line @typescript-eslint/no-unused-vars
+import type { SEO_DATE_FIELDS } from "../lib/seo/constants";
 
 // Import for local use and for re-export
 import {
-  type PacificDateString,
   type ArticleDates,
-  type OpenGraphImage,
   type ImageSEOMetadata,
+  type OpenGraphImage,
   PACIFIC_DATE_REGEX,
+  type PacificDateString,
+  isArticleDates,
   isPacificDateString,
-  isArticleDates
-} from './seo/shared';
+} from "./seo/shared";
 
 // Re-export
 export {
@@ -33,7 +33,7 @@ export {
   type ImageSEOMetadata,
   PACIFIC_DATE_REGEX,
   isPacificDateString,
-  isArticleDates
+  isArticleDates,
 };
 
 /**
@@ -69,7 +69,7 @@ export type ArticleOpenGraph = {
   url: string;
   siteName?: string;
   locale?: string;
-  type: 'article';
+  type: "article";
   article: {
     publishedTime: string;
     modifiedTime: string;
@@ -93,7 +93,7 @@ export type ProfileOpenGraph = {
   url: string;
   siteName?: string;
   locale?: string;
-  type: 'profile';
+  type: "profile";
   firstName?: string;
   lastName?: string;
   username?: string;
@@ -108,33 +108,33 @@ export type ProfileOpenGraph = {
  * Used in JSON-LD structured data
  */
 export interface ArticleSchema {
-  '@context': 'https://schema.org';
-  '@type': 'Article';
+  "@context": "https://schema.org";
+  "@type": "Article";
   headline: string;
   description: string;
   datePublished: PacificDateString;
   dateModified: PacificDateString;
   author: {
-    '@type': 'Person';
+    "@type": "Person";
     name: string;
     url?: string;
   };
   publisher: {
-    '@type': 'Organization';
+    "@type": "Organization";
     name: string;
     logo?: {
-      '@type': 'ImageObject';
+      "@type": "ImageObject";
       url: string;
     };
   };
   image?: {
-    '@type': 'ImageObject';
+    "@type": "ImageObject";
     url: string;
     caption?: string;
   };
   mainEntityOfPage: {
-    '@type': 'WebPage';
-    '@id': string;
+    "@type": "WebPage";
+    "@id": string;
   };
 }
 
@@ -142,7 +142,7 @@ export interface ArticleSchema {
  * Schema.org base metadata shared by all page types
  */
 interface BaseSchema {
-  '@context': 'https://schema.org';
+  "@context": "https://schema.org";
   name: string;
   description: string;
   dateCreated: PacificDateString;
@@ -156,9 +156,9 @@ interface BaseSchema {
  * @see {@link "https://schema.org/ProfilePage"} - Schema.org ProfilePage specification
  */
 export interface ProfileSchema extends BaseSchema {
-  '@type': 'ProfilePage';
+  "@type": "ProfilePage";
   mainEntity: {
-    '@type': 'Person';
+    "@type": "Person";
     name: string;
     description: string;
     sameAs?: string[];
@@ -172,11 +172,11 @@ export interface ProfileSchema extends BaseSchema {
  * @see {@link "https://schema.org/CollectionPage"} - Schema.org CollectionPage specification
  */
 export interface CollectionSchema extends BaseSchema {
-  '@type': 'CollectionPage';
+  "@type": "CollectionPage";
   mainEntity: {
-    '@type': 'ItemList';
+    "@type": "ItemList";
     itemListElement: Array<{
-      '@type': 'ListItem';
+      "@type": "ListItem";
       position: number;
       url: string;
       name: string;
@@ -223,7 +223,7 @@ export type MetadataOther = {
  * Script metadata for JSON-LD
  */
 export interface ScriptMetadata {
-  type: 'application/ld+json';
+  type: "application/ld+json";
   text: string;
 }
 
@@ -246,7 +246,7 @@ export interface ExtendedMetadata extends Metadata {
  * Complete article metadata structure
  * Combines all metadata types into a single interface
  */
-export interface ArticleMetadata extends Omit<ExtendedMetadata, 'openGraph' | 'other'> {
+export interface ArticleMetadata extends Omit<ExtendedMetadata, "openGraph" | "other"> {
   openGraph: ArticleOpenGraph;
   other: MetaDateFields;
 }
@@ -255,7 +255,7 @@ export interface ArticleMetadata extends Omit<ExtendedMetadata, 'openGraph' | 'o
  * Complete profile metadata structure
  * Combines all metadata types into a single interface
  */
-export interface ProfileMetadata extends Omit<ExtendedMetadata, 'openGraph' | 'other'> {
+export interface ProfileMetadata extends Omit<ExtendedMetadata, "openGraph" | "other"> {
   openGraph: ProfileOpenGraph;
   other: MetaDateFields;
 }

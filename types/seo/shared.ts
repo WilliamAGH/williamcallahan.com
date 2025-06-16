@@ -47,7 +47,7 @@ export interface ArticleDates {
  */
 export function isArticleDates(dates: unknown): dates is ArticleDates {
   // Check if dates is an object and not null first
-  if (typeof dates !== 'object' || dates === null) {
+  if (typeof dates !== "object" || dates === null) {
     return false;
   }
 
@@ -55,13 +55,13 @@ export function isArticleDates(dates: unknown): dates is ArticleDates {
   // Use type assertion to Record<string, unknown> for safe property access
   const dateObj = dates as Record<string, unknown>;
 
-  const hasValidPublished = typeof dateObj.datePublished === 'string' &&
-                           isPacificDateString(dateObj.datePublished);
-  const hasValidModified = typeof dateObj.dateModified === 'string' &&
-                           isPacificDateString(dateObj.dateModified);
-  const hasValidCreated = dateObj.dateCreated === undefined ||
-                          (typeof dateObj.dateCreated === 'string' &&
-                           isPacificDateString(dateObj.dateCreated));
+  const hasValidPublished =
+    typeof dateObj.datePublished === "string" && isPacificDateString(dateObj.datePublished);
+  const hasValidModified =
+    typeof dateObj.dateModified === "string" && isPacificDateString(dateObj.dateModified);
+  const hasValidCreated =
+    dateObj.dateCreated === undefined ||
+    (typeof dateObj.dateCreated === "string" && isPacificDateString(dateObj.dateCreated));
 
   return hasValidPublished && hasValidModified && hasValidCreated;
 }
@@ -90,7 +90,7 @@ export interface ImageSEOMetadata {
   title: string;
   openGraph?: OpenGraphImage;
   schema?: {
-    '@type': 'ImageObject';
+    "@type": "ImageObject";
     url: string;
     width?: number;
     height?: number;

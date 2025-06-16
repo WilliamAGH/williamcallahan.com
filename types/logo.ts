@@ -15,7 +15,7 @@
  * const source: LogoSource = 'google';
  * ```
  */
-export type LogoSource = 'google' | 'duckduckgo' | 'clearbit' | 'unknown' | null;
+export type LogoSource = "google" | "duckduckgo" | "clearbit" | "unknown" | null;
 
 /**
  * Analysis results for logo color inversion needs
@@ -71,13 +71,15 @@ export interface LogoResult {
   /** Source of the logo */
   source: LogoSource;
   /** How the logo was retrieved in the current request */
-  retrieval?: 'mem-cache' | 's3-store' | 'external';
+  retrieval?: "mem-cache" | "s3-store" | "external" | "placeholder";
   /** Error message if logo fetch failed */
   error?: string;
   /** Inversion analysis results */
   inversion?: LogoInversion;
   /** Raw image buffer */
   buffer?: Buffer;
+  /** MIME content type of the image */
+  contentType: string;
 }
 
 /**
