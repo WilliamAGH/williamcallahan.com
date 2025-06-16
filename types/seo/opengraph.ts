@@ -5,15 +5,15 @@
  * Type definitions specific to OpenGraph metadata.
  */
 
-import type { OpenGraph } from 'next/dist/lib/metadata/types/opengraph-types';
-import type { PacificDateString, OpenGraphImage } from './shared';
+import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
+import type { OpenGraphImage, PacificDateString } from "./shared";
 
 /**
  * OpenGraph article metadata structure
  * @see {@link "https://ogp.me/#type_article"} - OpenGraph article specification
  */
 export type ArticleOpenGraph = OpenGraph & {
-  type: 'article';
+  type: "article";
   article: {
     publishedTime: PacificDateString;
     modifiedTime: PacificDateString;
@@ -29,7 +29,7 @@ export type ArticleOpenGraph = OpenGraph & {
  * @see {@link "https://ogp.me/#type_profile"} - OpenGraph profile specification
  */
 export type ProfileOpenGraph = OpenGraph & {
-  type: 'profile';
+  type: "profile";
   firstName?: string;
   lastName?: string;
   username?: string;
@@ -46,7 +46,7 @@ export type ProfileOpenGraph = OpenGraph & {
  * @see {@link "https://ogp.me/#type_website"} - OpenGraph website specification
  */
 export type WebsiteOpenGraph = OpenGraph & {
-  type: 'website';
+  type: "website";
   images?: OpenGraphImage[];
   website?: {
     publishedTime?: PacificDateString;

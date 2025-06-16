@@ -1,8 +1,10 @@
 import type { JSX } from "react";
+import { z } from "zod";
+
 /**
  * Bookmarks API Types
  *
- * Types for the bookmarks API
+ * Types for the bookmarks API with Zod validation schemas
  *
  * @module types/bookmark
  */
@@ -30,11 +32,11 @@ export interface BookmarkTag {
   /** Tag name */
   name: string;
   /** Source of tagging (ai or user) */
-  attachedBy?: 'ai' | 'user';
+  attachedBy?: "ai" | "user";
 }
 
 // Define known content types with a catch-all fallback
-export type ContentType = 'link' | 'image' | 'video' | (string & {});
+export type ContentType = "link" | "image" | "video" | (string & {});
 
 export interface BookmarkContent {
   /** Content type (e.g., link | image | video) */
@@ -72,6 +74,12 @@ export interface BookmarkAsset {
   /** Type of asset (screenshot or bannerImage) */
   assetType: string;
 }
+
+// Zod Validation Schemas
+export const BookmarkAssetSchema = z.object({
+  id: z.string(),
+  assetType: z.string(),
+});
 
 export interface UnifiedBookmark {
   /** Globally unique bookmark ID */
@@ -115,6 +123,12 @@ export interface RawApiBookmarkTag {
   attachedBy: string;
 }
 
+export const RawApiBookmarkTagSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  attachedBy: z.string(),
+});
+
 export interface RawApiBookmarkContent {
   type: string;
   url: string;
@@ -132,6 +146,23 @@ export interface RawApiBookmarkContent {
   dateModified?: string | null;
 }
 
+export const RawApiBookmarkContentSchema = z.object({
+  type: z.string(),
+  url: z.string(),
+  title: z.string().nullable(),
+  description: z.string().nullable(),
+  imageUrl: z.string().optional(),
+  imageAssetId: z.string().optional(),
+  screenshotAssetId: z.string().optional(),
+  favicon: z.string().optional(),
+  htmlContent: z.string().optional(),
+  crawledAt: z.string().optional(),
+  author: z.string().nullable().optional(),
+  publisher: z.string().nullable().optional(),
+  datePublished: z.string().nullable().optional(),
+  dateModified: z.string().nullable().optional(),
+});
+
 export interface RawApiBookmark {
   id: string;
   createdAt: string;
@@ -147,7 +178,37 @@ export interface RawApiBookmark {
   assets: BookmarkAsset[];
 }
 
+export const RawApiBookmarkSchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  modifiedAt: z.string(),
+  title: z.string().nullable(),
+  archived: z.boolean(),
+  favourited: z.boolean(),
+  taggingStatus: z.string(),
+  note: z.string().nullable(),
+  summary: z.string().nullable(),
+  tags: z.array(RawApiBookmarkTagSchema),
+  content: RawApiBookmarkContentSchema,
+  assets: z.array(BookmarkAssetSchema),
+});
+
 export interface BookmarksApiResponse {
   bookmarks: RawApiBookmark[];
   nextCursor: string | null;
 }
+
+export const BookmarksApiResponseSchema = z.object({
+  bookmarks: z.array(RawApiBookmarkSchema),
+  nextCursor: z.string().nullable(),
+});
+
+// Helper function to validate API responses
+export function validateBookmarksApiResponse(data: unknown): BookmarksApiResponse {
+  return BookmarksApiResponseSchema.parse(data);
+}
+
+// Dataset validation helpers
+// Re-export the validator from the centralized location
+// This maintains backward compatibility while consolidating the logic
+export { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";

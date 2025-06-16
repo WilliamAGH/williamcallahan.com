@@ -3,7 +3,7 @@
  */
 
 export interface Accelerator {
-  program: 'techstars' | 'ycombinator';
+  program: "techstars" | "ycombinator";
   batch: string;
   location: string;
   /** Optional logo URL or file path */

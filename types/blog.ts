@@ -5,7 +5,7 @@
  * the blog section of the application.
  */
 
-import type { MDXRemoteSerializeResult } from 'next-mdx-remote';
+import type { MDXRemoteSerializeResult } from "next-mdx-remote";
 
 /**
  * Represents an image caption with metadata

@@ -5,7 +5,7 @@
  * between server and client components.
  */
 
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
 /**
  * @serverComponent

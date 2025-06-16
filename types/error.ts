@@ -42,22 +42,24 @@ export interface GitHubActivityError extends ExtendedError {
  */
 export function hasLastFetched(error: unknown): error is ExtendedError & { lastFetched: number } {
   return (
-    typeof error === 'object' &&
+    typeof error === "object" &&
     error !== null &&
-    'lastFetched' in error &&
-    typeof (error as ExtendedError).lastFetched === 'number'
+    "lastFetched" in error &&
+    typeof (error as ExtendedError).lastFetched === "number"
   );
 }
 
 /**
  * Type guard to check if an error has the lastFetchedTimestamp property
  */
-export function hasLastFetchedTimestamp(error: unknown): error is ExtendedError & { lastFetchedTimestamp: number } {
+export function hasLastFetchedTimestamp(
+  error: unknown,
+): error is ExtendedError & { lastFetchedTimestamp: number } {
   return (
-    typeof error === 'object' &&
+    typeof error === "object" &&
     error !== null &&
-    'lastFetchedTimestamp' in error &&
-    typeof (error as ExtendedError).lastFetchedTimestamp === 'number'
+    "lastFetchedTimestamp" in error &&
+    typeof (error as ExtendedError).lastFetchedTimestamp === "number"
   );
 }
 
@@ -68,21 +70,24 @@ export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
-  if (typeof error === 'string') {
+  if (typeof error === "string") {
     return error;
   }
-  return 'An unknown error occurred';
+  return "An unknown error occurred";
 }
 
 /**
  * Utility function to safely extract timestamp from error
  */
-export function getErrorTimestamp(error: unknown, property: 'lastFetched' | 'lastFetchedTimestamp'): number | undefined {
+export function getErrorTimestamp(
+  error: unknown,
+  property: "lastFetched" | "lastFetchedTimestamp",
+): number | undefined {
   if (
-    typeof error === 'object' &&
+    typeof error === "object" &&
     error !== null &&
     property in error &&
-    typeof (error as Record<string, unknown>)[property] === 'number'
+    typeof (error as Record<string, unknown>)[property] === "number"
   ) {
     return (error as Record<string, number>)[property];
   }

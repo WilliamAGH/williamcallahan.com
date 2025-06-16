@@ -6,44 +6,44 @@
  * These types follow the @graph pattern for proper entity relationships.
  */
 
-import type { PacificDateString } from './shared';
+import type { PacificDateString } from "./shared";
 
 /**
  * Base properties shared by all Schema.org entities
  */
 interface SchemaBase {
-  '@type': string;
-  '@id': string;
+  "@type": string;
+  "@id": string;
 }
 
 /**
  * Person entity representing the website owner
  */
 export interface PersonSchema extends SchemaBase {
-  '@type': 'Person';
+  "@type": "Person";
   name: string;
   description: string;
   url: string;
   sameAs: string[];
-  image?: { '@id': string };
+  image?: { "@id": string };
 }
 
 /**
  * Website entity representing the entire website
  */
 export interface WebSiteSchema extends SchemaBase {
-  '@type': 'WebSite';
+  "@type": "WebSite";
   url: string;
   name: string;
   description: string;
-  publisher: { '@id': string };
+  publisher: { "@id": string };
 }
 
 /**
  * Image entity for profile pictures and article images
  */
 export interface ImageObjectSchema extends SchemaBase {
-  '@type': 'ImageObject';
+  "@type": "ImageObject";
   url: string;
   contentUrl: string;
   caption?: string;
@@ -55,31 +55,31 @@ export interface ImageObjectSchema extends SchemaBase {
  * Base webpage properties shared by all page types
  */
 export interface WebPageBase extends SchemaBase {
-  '@type': 'WebPage';
-  isPartOf: { '@id': string };
+  "@type": "WebPage";
+  isPartOf: { "@id": string };
   url: string;
   name: string;
   description: string;
   datePublished: PacificDateString;
   dateModified: PacificDateString;
-  breadcrumb?: { '@id': string };
-  primaryImageOfPage?: { '@id': string };
-  about?: { '@id': string };
+  breadcrumb?: { "@id": string };
+  primaryImageOfPage?: { "@id": string };
+  about?: { "@id": string };
 }
 
 /**
  * Article entity for blog posts
  */
 export interface ArticleSchema extends SchemaBase {
-  '@type': 'Article';
-  isPartOf: { '@id': string };
-  author: { '@id': string };
+  "@type": "Article";
+  isPartOf: { "@id": string };
+  author: { "@id": string };
   headline: string;
   datePublished: PacificDateString;
   dateModified: PacificDateString;
-  mainEntityOfPage: { '@id': string };
-  publisher: { '@id': string };
-  image?: { '@id': string };
+  mainEntityOfPage: { "@id": string };
+  publisher: { "@id": string };
+  image?: { "@id": string };
   articleSection: string;
   inLanguage: string;
   articleBody: string;
@@ -90,16 +90,16 @@ export interface ArticleSchema extends SchemaBase {
  * Dataset entity for investment data
  */
 export interface DatasetSchema extends SchemaBase {
-  '@type': 'Dataset';
+  "@type": "Dataset";
   name: string;
   description: string;
-  creator: { '@id': string };
+  creator: { "@id": string };
   dateCreated: PacificDateString;
   dateModified: PacificDateString;
   license: string;
   isAccessibleForFree: boolean;
   includedInDataCatalog: {
-    '@type': 'DataCatalog';
+    "@type": "DataCatalog";
     name: string;
   };
 }
@@ -108,17 +108,17 @@ export interface DatasetSchema extends SchemaBase {
  * Collection page entity for blog listings and bookmarks
  */
 export interface CollectionPageSchema extends SchemaBase {
-  '@type': 'CollectionPage';
-  isPartOf: { '@id': string };
+  "@type": "CollectionPage";
+  isPartOf: { "@id": string };
   name: string;
   description: string;
-  creator: { '@id': string };
+  creator: { "@id": string };
   datePublished: PacificDateString;
   dateModified: PacificDateString;
   mainEntity: {
-    '@type': 'ItemList';
+    "@type": "ItemList";
     itemListElement: Array<{
-      '@type': 'ListItem';
+      "@type": "ListItem";
       position: number;
       url: string;
     }>;
@@ -129,12 +129,12 @@ export interface CollectionPageSchema extends SchemaBase {
  * Breadcrumb navigation entity
  */
 export interface BreadcrumbListSchema extends SchemaBase {
-  '@type': 'BreadcrumbList';
+  "@type": "BreadcrumbList";
   itemListElement: Array<{
-    '@type': 'ListItem';
+    "@type": "ListItem";
     position: number;
     item: {
-      '@id': string;
+      "@id": string;
       name: string;
     };
   }>;
@@ -144,14 +144,14 @@ export interface BreadcrumbListSchema extends SchemaBase {
  * ProfilePage entity for personal profile pages
  */
 export interface ProfilePageSchema extends SchemaBase {
-  '@type': 'ProfilePage';
+  "@type": "ProfilePage";
   name?: string;
   description?: string;
   dateCreated: PacificDateString;
   dateModified: PacificDateString;
   datePublished?: PacificDateString;
   mainEntity: {
-    '@type': 'Person';
+    "@type": "Person";
     name: string;
     alternateName?: string;
     identifier?: string;
@@ -159,12 +159,12 @@ export interface ProfilePageSchema extends SchemaBase {
     image?: string;
     sameAs?: string[];
     interactionStatistic?: Array<{
-      '@type': 'InteractionCounter';
+      "@type": "InteractionCounter";
       interactionType: string;
       userInteractionCount: number;
     }>;
     agentInteractionStatistic?: {
-      '@type': 'InteractionCounter';
+      "@type": "InteractionCounter";
       interactionType: string;
       userInteractionCount: number;
     };
@@ -175,38 +175,38 @@ export interface ProfilePageSchema extends SchemaBase {
  * NewsArticle entity for news-style blog posts
  */
 export interface NewsArticleSchema extends SchemaBase {
-  '@type': 'NewsArticle';
+  "@type": "NewsArticle";
   headline: string;
   image: string[];
   datePublished: PacificDateString;
   dateModified: PacificDateString;
   author: Array<{
-    '@type': 'Person';
+    "@type": "Person";
     name: string;
     url?: string;
   }>;
   description?: string;
-  mainEntityOfPage?: { '@id': string };
-  publisher?: { '@id': string };
+  mainEntityOfPage?: { "@id": string };
+  publisher?: { "@id": string };
 }
 
 /**
  * SoftwareApplication entity for software and extensions
  */
 export interface SoftwareApplicationSchema extends SchemaBase {
-  '@type': 'SoftwareApplication';
+  "@type": "SoftwareApplication";
   name: string;
   description?: string;
   operatingSystem?: string;
   applicationCategory?: string;
   offers?: {
-    '@type': 'Offer';
+    "@type": "Offer";
     price: number;
     priceCurrency?: string;
     availability?: string;
   };
   aggregateRating?: {
-    '@type': 'AggregateRating';
+    "@type": "AggregateRating";
     ratingValue: number;
     ratingCount: number;
     bestRating?: number;
@@ -215,24 +215,28 @@ export interface SoftwareApplicationSchema extends SchemaBase {
   downloadUrl?: string;
   softwareVersion?: string;
   screenshot?: string | string[];
-  author?: { '@id': string } | {
-    '@type': 'Person' | 'Organization';
-    name: string;
-    url?: string;
-  };
-  publisher?: { '@id': string } | {
-    '@type': 'Person' | 'Organization';
-    name: string;
-    url?: string;
-  };
+  author?:
+    | { "@id": string }
+    | {
+        "@type": "Person" | "Organization";
+        name: string;
+        url?: string;
+      };
+  publisher?:
+    | { "@id": string }
+    | {
+        "@type": "Person" | "Organization";
+        name: string;
+        url?: string;
+      };
 }
 
 /**
  * Complete schema graph structure
  */
 export interface SchemaGraph {
-  '@context': 'https://schema.org';
-  '@graph': Array<
+  "@context": "https://schema.org";
+  "@graph": Array<
     | WebPageBase
     | ArticleSchema
     | PersonSchema
@@ -273,8 +277,8 @@ export interface SchemaParams {
     name: string;
     url?: string;
   }>;
-  mainEntityOfPage?: { '@id': string };
-  type?: 'article' | 'profile' | 'collection' | 'dataset' | 'newsarticle' | 'software';
+  mainEntityOfPage?: { "@id": string };
+  type?: "article" | "profile" | "collection" | "dataset" | "newsarticle" | "software";
   profileMetadata?: {
     bio?: string;
     alternateName?: string;

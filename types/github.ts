@@ -18,7 +18,7 @@ export interface ContributionDay {
  * This represents the structure of the primary GitHub activity file stored in S3.
  */
 export interface StoredGithubActivityS3 {
-  source: 'scraping' | 'api' | 'api_multi_file_cache';
+  source: "scraping" | "api" | "api_multi_file_cache";
   data: ContributionDay[];
   totalContributions: number;
   linesAdded?: number;
@@ -32,7 +32,7 @@ export interface StoredGithubActivityS3 {
 /**
  * Represents a segment of GitHub activity data with optional summary
  */
-export type GitHubActivitySegment = Omit<StoredGithubActivityS3, 'allTimeTotalContributions'>;
+export type GitHubActivitySegment = Omit<StoredGithubActivityS3, "allTimeTotalContributions">;
 
 /**
  * Response from `/api/github-activity` with nested segments
@@ -62,7 +62,12 @@ export interface GitHubActivitySummary {
   linesOfCodeByCategory: {
     frontend: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
     backend: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
-    dataEngineer: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
+    dataEngineer: {
+      linesAdded: number;
+      linesRemoved: number;
+      netChange: number;
+      repoCount: number;
+    };
     other: { linesAdded: number; linesRemoved: number; netChange: number; repoCount: number };
   };
 }
@@ -95,7 +100,7 @@ export interface RepoWeeklyStatCache {
   repoOwnerLogin: string;
   repoName: string;
   lastFetched: string; // ISO string
-  status: 'complete' | 'pending_202_from_api' | 'fetch_error' | 'empty_no_user_contribs';
+  status: "complete" | "pending_202_from_api" | "fetch_error" | "empty_no_user_contribs";
   stats: RepoRawWeeklyStat[];
 }
 
@@ -141,7 +146,7 @@ export interface GithubContributorStatsEntry {
  * This is what components and scripts like populate-volumes.ts will consume.
  */
 export interface UserActivityView {
-  source: 's3-store' | 'api-fallback' | 'error' | 'empty';
+  source: "s3-store" | "api-fallback" | "error" | "empty";
   error?: string;
   trailingYearData: {
     data: ContributionDay[];
@@ -161,7 +166,12 @@ export interface UserActivityView {
 // --- START: GitHub GraphQL Contribution Calendar Types ---
 export interface GraphQLContributionDay {
   contributionCount: number;
-  contributionLevel: 'NONE' | 'FIRST_QUARTILE' | 'SECOND_QUARTILE' | 'THIRD_QUARTILE' | 'FOURTH_QUARTILE';
+  contributionLevel:
+    | "NONE"
+    | "FIRST_QUARTILE"
+    | "SECOND_QUARTILE"
+    | "THIRD_QUARTILE"
+    | "FOURTH_QUARTILE";
   date: string; // YYYY-MM-DD
   // weekday: number; // 0-6, Sunday-Saturday - available if needed
 }
