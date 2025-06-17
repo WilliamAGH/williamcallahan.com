@@ -14,14 +14,14 @@
  * @module components/ui/code-block/code-block.client
  */
 
-'use client';
+"use client";
 
-import { useState, useEffect, useRef, useCallback, isValidElement, type JSX } from 'react'; // Import useEffect, useRef, useCallback, isValidElement
-import type { ComponentProps, ReactNode } from 'react';
-import { CopyButton } from './copy-button.client';
-import { cn } from '../../../lib/utils';
-import { WindowControls } from '../navigation/window-controls';
-import { useWindowSize } from '../../../lib/hooks/use-window-size.client';
+import { type JSX, isValidElement, useCallback, useEffect, useRef, useState } from "react"; // Import useEffect, useRef, useCallback, isValidElement
+import type { ComponentProps, ReactNode } from "react";
+import { useWindowSize } from "../../../lib/hooks/use-window-size.client";
+import { cn } from "../../../lib/utils";
+import { WindowControls } from "../navigation/window-controls";
+import { CopyButton } from "./copy-button.client";
 
 // Note: Prism CSS is loaded globally in layout.tsx
 // We rely on rehype-prism for build-time syntax highlighting
@@ -31,7 +31,7 @@ import { useWindowSize } from '../../../lib/hooks/use-window-size.client';
  * @interface CodeBlockProps
  * @extends {ComponentProps<'pre'>} - Extends pre element props
  */
-export interface CodeBlockProps extends ComponentProps<'pre'> {
+export interface CodeBlockProps extends ComponentProps<"pre"> {
   /** The content to be displayed in the code block */
   children: React.ReactNode;
   /** Optional className override */
@@ -47,7 +47,7 @@ export interface CodeBlockProps extends ComponentProps<'pre'> {
  */
 const extractLanguage = (className?: string): string => {
   const match = className?.match(/language-(\w+)/);
-  return match?.[1] || '';
+  return match?.[1] || "";
 };
 
 /**
@@ -56,11 +56,11 @@ const extractLanguage = (className?: string): string => {
  * @returns Text with comments removed
  */
 const filterComments = (text: string): string => {
-  if (typeof text !== 'string') return '';
+  if (typeof text !== "string") return "";
   return text
-    .split('\n')
-    .filter(line => !line.trim().startsWith('#'))
-    .join('\n')
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("#"))
+    .join("\n")
     .trim();
 };
 
@@ -70,23 +70,23 @@ const filterComments = (text: string): string => {
  * @returns The extracted text content as a string
  */
 const getTextContent = (node: ReactNode): string => {
-  if (typeof node === 'string') return node;
-  if (typeof node === 'number') return String(node);
-  if (!node) return ''; // Handles null, undefined, false
+  if (typeof node === "string") return node;
+  if (typeof node === "number") return String(node);
+  if (!node) return ""; // Handles null, undefined, false
 
   // If 'node' is an array of ReactNodes
   if (Array.isArray(node)) {
-    return node.map(getTextContent).join('');
+    return node.map(getTextContent).join("");
   }
 
   // Check if it's a valid React element that might have children
   if (isValidElement(node)) {
     // node.props.children is ReactNode. We need to recurse on it.
-    const props = node.props as { children?: ReactNode; [key: string]: unknown }; // Type assertion for props
+    const props = node.props as { children?: ReactNode };
     return getTextContent(props.children); // Recurse
   }
 
-  return '';
+  return "";
 };
 
 /**
@@ -96,7 +96,12 @@ const getTextContent = (node: ReactNode): string => {
  * @param props - The component props
  * @returns JSX element representing the code block with interactive features
  */
-export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...props }: CodeBlockProps): JSX.Element => {
+export const CodeBlock = ({
+  children,
+  className,
+  embeddedInTabFrame = false,
+  ...props
+}: CodeBlockProps): JSX.Element => {
   const language = extractLanguage(className);
   const codeElementRef = useRef<HTMLElement>(null);
 
@@ -112,21 +117,25 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
   const windowSize = useWindowSize();
 
   // Determine the appropriate control size based on screen width
-  const controlSize = windowSize.width && windowSize.width < 640 ? 'sm' :
-                     (windowSize.width && windowSize.width > 1280 ? 'lg' : 'md');
+  const controlSize =
+    windowSize.width && windowSize.width < 640
+      ? "sm"
+      : windowSize.width && windowSize.width > 1280
+        ? "lg"
+        : "md";
 
   /**
    * Handler function for close button - toggles visibility
    */
   const handleClose = () => {
-    setIsVisible(prev => !prev); // Toggle visibility
+    setIsVisible((prev) => !prev); // Toggle visibility
   };
 
   /**
    * Handler function for minimize button - toggles minimized state
    */
   const handleMinimize = () => {
-    setIsMinimized(prev => !prev);
+    setIsMinimized((prev) => !prev);
     if (isMaximized) setIsMaximized(false); // Exit maximized mode if active
   };
 
@@ -135,14 +144,14 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
    * Wrapped in useCallback to prevent recreation on each render
    */
   const handleMaximize = useCallback(() => {
-    setIsMaximized(prev => !prev);
+    setIsMaximized((prev) => !prev);
     if (isMinimized) setIsMinimized(false); // Exit minimized mode if active
   }, [isMinimized]); // Add dependencies
 
   // Effect for handling Escape key and click outside when maximized
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isMaximized) {
+      if (event.key === "Escape" && isMaximized) {
         handleMaximize(); // Close maximized view on Escape
       }
     };
@@ -155,14 +164,14 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
     };
 
     if (isMaximized) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.addEventListener('mousedown', handleClickOutside); // Use mousedown like Terminal
+      document.addEventListener("keydown", handleKeyDown);
+      document.addEventListener("mousedown", handleClickOutside); // Use mousedown like Terminal
     }
 
     // Cleanup function
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isMaximized, handleMaximize]); // Dependencies
 
@@ -170,13 +179,13 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
   useEffect(() => {
     if (codeElementRef.current) {
       // Ensure any SVG elements in code blocks have proper transforms
-      const svgs = codeElementRef.current.querySelectorAll('svg');
+      const svgs = codeElementRef.current.querySelectorAll("svg");
       for (const svg of svgs) {
-        const transform = svg.getAttribute('transform');
-        if (transform && !transform.includes('(') && !transform.includes(')')) {
+        const transform = svg.getAttribute("transform");
+        if (transform && !transform.includes("(") && !transform.includes(")")) {
           const match = transform.match(/^(\w+)(.+)$/);
           if (match) {
-            svg.setAttribute('transform', `${match[1]}(${match[2]})`);
+            svg.setAttribute("transform", `${match[1]}(${match[2]})`);
           }
         }
       }
@@ -185,34 +194,43 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
 
   // Extract the text content
   const content = Array.isArray(children)
-    ? children.map(getTextContent).join('')
+    ? children.map(getTextContent).join("")
     : getTextContent(children);
 
   // Preserve original content for display but filter comments for copy functionality
   const filteredContent = filterComments(content);
 
+  // Prepare display content: remove leading/trailing blank lines that add invisible space
+  const displayContent = typeof children === "string" ? children.replace(/^\n+|\n+$/g, "") : children;
+
   // Return early if code block is closed
   if (!isVisible) {
     // Common content for both button and div versions
     const contentSection = (
-      <div className={cn(
-        "text-gray-400",
-        embeddedInTabFrame ? "w-full text-center" : "ml-1.5 sm:ml-2.5 md:ml-3.5"
-      )}>
+      <div
+        className={cn(
+          "text-gray-400",
+          embeddedInTabFrame ? "w-full text-center" : "ml-1.5 sm:ml-2.5 md:ml-3.5",
+        )}
+      >
         <span>Code block hidden (click to show)</span>
-        {language && !embeddedInTabFrame && <span style={{ fontSize: '12px' }} className="not-prose ml-1 sm:ml-2 opacity-75">- {language}</span>}
+        {language && !embeddedInTabFrame && (
+          <span style={{ fontSize: "12px" }} className="not-prose ml-1 sm:ml-2 opacity-75">
+            - {language}
+          </span>
+        )}
       </div>
     );
 
     return (
       <div className="relative group overflow-hidden my-6 w-full flex justify-center">
-        <div className={cn(
-          "relative max-w-full w-full",
-          !embeddedInTabFrame && "shadow-md"
-        )} style={{
-          overflow: 'hidden',
-          borderRadius: embeddedInTabFrame ? '0px' : '8px'
-        }}>
+        <div
+          className={cn("relative max-w-full w-full", !embeddedInTabFrame && "shadow-md")}
+          style={{
+            overflow: "hidden",
+            borderRadius: embeddedInTabFrame ? "0px" : "8px",
+          }}
+        >
           {/* Conditionally render button or div based on whether WindowControls will be present */}
           {embeddedInTabFrame ? (
             // When embedded, no WindowControls are rendered, so we can use a proper button
@@ -221,7 +239,7 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
               className={cn(
                 "flex items-center bg-[#1a2a35] border border-gray-700/50 rounded-lg",
                 "px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 md:py-1.5",
-                "w-full text-left"
+                "w-full text-left",
               )}
               onClick={handleClose}
             >
@@ -229,11 +247,13 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
             </button>
           ) : (
             // When not embedded, WindowControls are present and handle interaction
-            <div className={cn(
-              "flex items-center bg-[#1a2a35] border border-gray-700/50 rounded-lg",
-              "px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 md:py-1.5",
-              "w-full text-left"
-            )}>
+            <div
+              className={cn(
+                "flex items-center bg-[#1a2a35] border border-gray-700/50 rounded-lg",
+                "px-2 sm:px-3 md:px-4 py-0.5 sm:py-1 md:py-1.5",
+                "w-full text-left",
+              )}
+            >
               <WindowControls
                 onClose={handleClose}
                 onMinimize={handleMinimize}
@@ -249,62 +269,89 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
   }
 
   return (
-    <div className={cn(
-      "relative w-full",
-      !embeddedInTabFrame && "my-6",
-      isMaximized && !embeddedInTabFrame && "fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 sm:p-8"
-    )}>
-      <div ref={windowRef} className={cn(
-        "max-w-full w-full overflow-auto",
-        !embeddedInTabFrame ? "bg-[#f5f2f0] dark:bg-[#282a36] rounded-lg shadow-md" : "!bg-transparent !shadow-none !border-0 !rounded-none",
-        isMaximized && !embeddedInTabFrame && "w-full max-w-[95vw] sm:max-w-5xl max-h-[90vh] sm:max-h-[80vh] flex flex-col"
-      )}>
+    <div
+      className={cn(
+        "relative w-full",
+        !embeddedInTabFrame && "my-6",
+        isMaximized &&
+          !embeddedInTabFrame &&
+          "fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 sm:p-8",
+      )}
+    >
+      <div
+        ref={windowRef}
+        className={cn(
+          "max-w-full w-full overflow-auto",
+          !embeddedInTabFrame
+            ? "bg-[#f5f2f0] dark:bg-[#282a36] rounded-lg shadow-md"
+            : "!bg-transparent !shadow-none !border-0 !rounded-none",
+          isMaximized &&
+            !embeddedInTabFrame &&
+            "w-full max-w-[95vw] sm:max-w-5xl max-h-[90vh] sm:max-h-[80vh] flex flex-col",
+        )}
+      >
         {/* Header: Rendered differently based on embeddedInTabFrame */}
-        {!embeddedInTabFrame ? (
-          // Full header for standalone CodeBlock
-          (<div className="flex items-center bg-[#1a2a35] dark:bg-[#1a1b26] px-3 py-1.5 rounded-t-lg">
-            <WindowControls
-              onClose={handleClose}
-              onMinimize={handleMinimize}
-              onMaximize={handleMaximize}
-              size={controlSize}
-              isMaximized={isMaximized}
-            />
-            {language && (
-              <div style={{ fontSize: '8px' }} className="not-prose ml-auto flex-shrink min-w-0 px-1.5 py-0.5 font-mono rounded-md bg-gray-600/70 text-gray-300 uppercase truncate">
-                {language}
-              </div>
-            )}
-          </div>)
-        ) : (
-          // Minimal or no header for embedded CodeBlock, primarily for CopyButton positioning context
+        {
+          !embeddedInTabFrame ? (
+            // Full header for standalone CodeBlock
+            <div className="flex items-center bg-[#1a2a35] dark:bg-[#1a1b26] px-3 py-1.5 rounded-t-lg">
+              <WindowControls
+                onClose={handleClose}
+                onMinimize={handleMinimize}
+                onMaximize={handleMaximize}
+                size={controlSize}
+                isMaximized={isMaximized}
+              />
+              {language && (
+                <div
+                  style={{ fontSize: "8px" }}
+                  className="not-prose ml-auto flex-shrink min-w-0 px-1.5 py-0.5 font-mono rounded-md bg-gray-600/70 text-gray-300 uppercase truncate"
+                >
+                  {language}
+                </div>
+              )}
+            </div>
+          ) : // Minimal or no header for embedded CodeBlock, primarily for CopyButton positioning context
           // The parent div for <pre> and <CopyButton> is already "relative group"
           // So CopyButton will position itself correctly relative to that.
           // We don't need a visible header bar here if embedded.
-          (null) // Or an empty div if CopyButton needed a specific height container: <div className="h-8"></div>
-        )}
+          null // Or an empty div if CopyButton needed a specific height container: <div className="h-8"></div>
+        }
 
         {/* Content (pre + CopyButton) */}
         {/* Ensure this div is present and `relative group` for CopyButton positioning */}
         {!isMinimized && (
-          <div className={cn("relative group", isMaximized && !embeddedInTabFrame && "flex-1 overflow-hidden")}>
+          <div
+            className={cn(
+              "relative group",
+              isMaximized && !embeddedInTabFrame && "flex-1 overflow-hidden",
+            )}
+          >
             <pre
               className={cn(
-                'not-prose max-w-full',
-                'whitespace-pre-wrap',
-                'break-words',
-                'overflow-x-auto',
-                embeddedInTabFrame ? '!p-0 !m-0 !bg-transparent !border-0 !rounded-none' : 'p-4 text-gray-900 dark:text-gray-100',
-                'text-xs',
-                'custom-scrollbar',
-                '![text-shadow:none] [&_*]:![text-shadow:none]',
-                '[&_*]:!bg-transparent',
-                isMaximized && !embeddedInTabFrame && 'overflow-auto max-h-full',
-                className // From MDX (e.g., language-bash)
+                "not-prose max-w-full",
+                "whitespace-pre-wrap",
+                "break-words",
+                "overflow-x-auto",
+                embeddedInTabFrame
+                  ? "!p-0 !m-0 !bg-transparent !border-0 !rounded-none"
+                  : "p-4 text-gray-900 dark:text-gray-100",
+                "text-xs",
+                "custom-scrollbar",
+                "![text-shadow:none] [&_*]:![text-shadow:none]",
+                "[&_*]:!bg-transparent",
+                isMaximized && !embeddedInTabFrame && "overflow-auto max-h-full",
+                className, // From MDX (e.g., language-bash)
               )}
               {...props}
             >
-              {isValidElement(children) ? children : <code ref={codeElementRef} className={className}>{children as string}</code>}
+              {isValidElement(children) ? (
+                children
+              ) : (
+                <code ref={codeElementRef} className={className}>
+                  {displayContent}
+                </code>
+              )}
             </pre>
             {/* CopyButton is always rendered. It uses group-hover on the parent div. */}
             <CopyButton content={filteredContent} parentIsPadded={!embeddedInTabFrame} />
@@ -316,4 +363,4 @@ export const CodeBlock = ({ children, className, embeddedInTabFrame = false, ...
 };
 
 // Type assertion to ensure component type is correct
-CodeBlock.displayName = 'CodeBlock';
+CodeBlock.displayName = "CodeBlock";

@@ -6,11 +6,11 @@
  * @module components/ui/code-block/copy-button.client
  */
 
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Check, Copy } from 'lucide-react';
-import { cn } from '../../../lib/utils';
+import { Check, Copy } from "lucide-react";
+import { useState } from "react";
+import { cn } from "../../../lib/utils";
 
 /**
  * Props for the CopyButton component
@@ -30,7 +30,11 @@ interface CopyButtonProps {
  * @param {CopyButtonProps} props - The component props
  * @returns {JSX.Element} A button that copies text to clipboard
  */
-export const CopyButton: React.FC<CopyButtonProps> = ({ content, className, parentIsPadded = false }) => {
+export const CopyButton: React.FC<CopyButtonProps> = ({
+  content,
+  className,
+  parentIsPadded = false,
+}) => {
   /** State to track if content was copied */
   const [copied, setCopied] = useState(false);
 
@@ -44,46 +48,44 @@ export const CopyButton: React.FC<CopyButtonProps> = ({ content, className, pare
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy text:', err);
+      console.error("Failed to copy text:", err);
     }
   };
 
   // Count the number of lines in the content
-  const lineCount = content.split('\n').length;
-  
+  const lineCount = content.split("\n").length;
+
   // Determine positioning based on line count
   const isShortCode = lineCount <= 3;
-  const rightPosition = parentIsPadded ? 'right-6' : 'right-2';
-  const verticalPosition = isShortCode 
-    ? 'top-1/2 -translate-y-1/2'  // Centered for 3 or fewer lines
-    : 'top-2';                     // Top-right for more than 3 lines
+  const rightPosition = parentIsPadded ? "right-6" : "right-2";
+  const verticalPosition = isShortCode
+    ? "top-1/2 -translate-y-1/2" // Centered for 3 or fewer lines
+    : "top-2"; // Top-right for more than 3 lines
 
   return (
     <button
       type="button"
+      data-testid="copy-button"
+      data-content={content}
       onClick={() => void handleCopy()}
       className={cn(
-        'absolute p-2 rounded-md',
+        "absolute p-2 rounded-md",
         rightPosition,
         verticalPosition,
-        'bg-gray-700/60 hover:bg-gray-600/60',
-        'text-gray-300 hover:text-gray-100',
-        'transition-all duration-200',
-        'focus:outline-none focus:ring-2 focus:ring-blue-500/40',
-        'opacity-0 group-hover:opacity-100',
-        className
+        "bg-gray-700/60 hover:bg-gray-600/60",
+        "text-gray-300 hover:text-gray-100",
+        "transition-all duration-200",
+        "focus:outline-none focus:ring-2 focus:ring-blue-500/40",
+        "opacity-0 group-hover:opacity-100",
+        className,
       )}
       title="Copy code"
       aria-label={copied ? "Copied!" : "Copy code"}
     >
-      {copied ? (
-        <Check className="w-4 h-4 text-green-400" />
-      ) : (
-        <Copy className="w-4 h-4" />
-      )}
+      {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
     </button>
   );
 };
 
 // Type assertion to ensure component type is correct
-CopyButton.displayName = 'CopyButton';
+CopyButton.displayName = "CopyButton";
