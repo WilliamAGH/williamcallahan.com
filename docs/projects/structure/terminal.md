@@ -4,6 +4,8 @@
 
 The "terminal" functionality encompasses components and utilities that manage the display, interaction, and state of terminal-like interfaces within the application. This includes UI elements for terminal windows, input handling, and state management for a cohesive user experience.
 
+**Non-negotiable UX rule:** The terminal **MUST** register with a default window state of `normal`. It should never begin in `closed` or `minimized` states, as that hides the primary interactive surface from users. Any future change to this default requires explicit product owner approval.
+
 ## Key Files and Responsibilities
 
 ### Core Terminal Components

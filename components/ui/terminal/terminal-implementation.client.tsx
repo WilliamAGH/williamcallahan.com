@@ -32,13 +32,18 @@ export function Terminal() {
   const { history: terminalHistory } = useTerminalContext();
 
   // Register this window instance and get its state/actions
+  /**
+   * IMPORTANT: The terminal should always register in the `normal` state.
+   * Do NOT change the `initialState` argument to "closed" or "minimized" —
+   * doing so hides the terminal on initial render and breaks expected UX.
+   */
   const {
     windowState,
     close: closeWindow, // Rename actions for consistency if desired
     minimize: minimizeWindow,
     maximize: maximizeWindow,
     isRegistered, // Flag if the window is ready in the context
-  } = useRegisteredWindowState(TERMINAL_WINDOW_ID, TerminalSquare, "Restore Terminal", "closed");
+  } = useRegisteredWindowState(TERMINAL_WINDOW_ID, TerminalSquare, "Restore Terminal", "normal");
 
   // Local terminal interaction logic (input, selection, etc.)
   const {
