@@ -198,14 +198,16 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
      * - _next/static (static files)
      * - favicon.ico (favicon file)
      * - robots.txt
      * - sitemap.xml
      * But include:
+     * - api/debug (for security checks)
      * - _next/image (image optimization files)
+     * - all other paths
      */
+    "/api/debug(.*)",
     "/((?!api|_next/static|favicon.ico|robots.txt|sitemap.xml).*)",
     "/_next/image(.*)",
   ],
