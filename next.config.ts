@@ -213,6 +213,11 @@ const nextConfig = {
     serverMinification: true,
     webpackBuildWorker: true,
   },
+  // Sentry-specific build flags recommended by official docs
+  // See: https://docs.sentry.io/platforms/javascript/guides/nextjs/troubleshooting/#supporting-older-browsers
+  sentry: {
+    transpileClientSDK: true,
+  },
   /**
    * Image optimization configuration
    * @see https://nextjs.org/docs/app/api-reference/components/image
