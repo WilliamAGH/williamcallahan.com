@@ -288,6 +288,7 @@ const GitHubActivity = () => {
 
   return (
     <div
+      tabIndex={0}
       className="bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-card cursor-pointer hover:shadow-card-hover transition-all duration-300 transform hover:-translate-y-1 group text-left w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
       onClick={handleCardClick}
       onKeyDown={handleKeyDown}
