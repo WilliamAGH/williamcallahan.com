@@ -1,84 +1,66 @@
 /**
  * Bookmarks API Endpoint
  *
- * Provides client-side access to all bookmarks using the centralized data-access layer.
+ * Provides client-side access to bookmarks with pagination support.
  */
 
-import { NextResponse } from 'next/server';
-import { getBookmarks } from '@/lib/data-access/bookmarks';
-import type { NextRequest } from 'next/server';
-import { BookmarkRefreshQueue } from '@/lib/async-job-queue';
-import { ServerCacheInstance } from '@/lib/server-cache';
+import { getBookmarks } from "@/lib/data-access/bookmarks";
+import { initializeBookmarksDataAccess } from "@/lib/data-access/bookmarks";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import { type NextRequest, NextResponse } from "next/server";
 
 // This route can leverage the caching within getBookmarks
-export const dynamic = 'force-dynamic'; // Or 'auto' if getBookmarks handles revalidation well
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  console.log('[API Bookmarks] Received GET request for bookmarks');
+  console.log("[API Bookmarks] Received GET request for bookmarks");
 
-  const isRefresh = request.nextUrl.searchParams.has('refresh');
+  const searchParams = request.nextUrl.searchParams;
+  const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10));
+  const limit = Math.min(100, Math.max(1, Number.parseInt(searchParams.get('limit') || '20', 10)));
 
-  if (isRefresh) {
   try {
-    BookmarkRefreshQueue.add(async () => {
-      await getBookmarks(false);
-    });
-  } catch (queueError) {
-    console.error('[API Bookmarks] Failed to queue refresh job:', queueError);
-    return NextResponse.json(
-      { error: 'Failed to queue refresh' },
-      { status: 500 }
+    // Ensure the data access layer is initialized
+    await initializeBookmarksDataAccess();
+    
+    const allBookmarks = await getBookmarks();
+    const cacheInfo = ServerCacheInstance.getBookmarks();
+
+    // Calculate pagination
+    const offset = (page - 1) * limit;
+    const paginatedBookmarks = allBookmarks.slice(offset, offset + limit);
+    const totalPages = Math.ceil(allBookmarks.length / limit);
+
+    console.log(
+      `[API Bookmarks] Returning page ${page}/${totalPages} with ${paginatedBookmarks.length} bookmarks`,
     );
-  }
-    return NextResponse.json({ queued: true }, { status: 202 });
-  }
 
-  // Allow background refresh to occur; do not skip external fetch
-  const skipExternalFetch = false;
-
-  try {
-    const bookmarks = await getBookmarks(skipExternalFetch);
-    if (ServerCacheInstance.shouldRefreshBookmarks()) {
-      // Only queue if not already processing AND queue is empty
-      if (!BookmarkRefreshQueue.isProcessing && BookmarkRefreshQueue.queueLength === 0) {
-        BookmarkRefreshQueue.add(async () => {
-          await getBookmarks(false);
-        });
+    return NextResponse.json({
+      data: paginatedBookmarks,
+      meta: {
+        pagination: {
+          page,
+          limit,
+          total: allBookmarks.length,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        },
+        // Data version for client-side cache invalidation
+        dataVersion: cacheInfo?.lastFetchedAt || Date.now(),
+        lastRefreshed: cacheInfo?.lastFetchedAt ? new Date(cacheInfo.lastFetchedAt).toISOString() : null
       }
-    }
-
-    if (bookmarks && bookmarks.length > 0) {
-      console.log(`[API Bookmarks] Successfully retrieved ${bookmarks.length} bookmarks via data-access layer.`);
-      return NextResponse.json(bookmarks, {
-        status: 200,
-        headers: {
-          'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600', // Example caching strategy
-          'X-Data-Complete': 'true' // Assuming getBookmarks returns complete data or throws
-        }
-      });
-    }
-
-    console.log('[API Bookmarks] No bookmarks found via data-access layer.');
-    return NextResponse.json([], {
-      status: 200, // Return 200 with empty array if no bookmarks, or 404 if preferred
+    }, {
       headers: {
-        'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600',
-        'X-Data-Complete': 'true' // No data is also "complete" in a sense
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
       }
     });
   } catch (error) {
-    console.error('[API Bookmarks] Critical error in GET handler for bookmarks:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    // getBookmarks should ideally handle its own errors and return null or empty,
-    // but we catch here as a fallback.
+    console.error('[API Bookmarks] Failed to fetch bookmarks:', error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     return NextResponse.json(
-      { error: 'Failed to process bookmarks', details: errorMessage },
-      {
-        status: 500,
-        headers: {
-          'X-Data-Complete': 'false'
-        }
-      }
+      { error: 'Failed to fetch bookmarks', details: errorMessage },
+      { status: 500 }
     );
   }
 }
