@@ -213,11 +213,6 @@ const nextConfig = {
     serverMinification: true,
     webpackBuildWorker: true,
   },
-  // Sentry-specific build flags recommended by official docs
-  // See: https://docs.sentry.io/platforms/javascript/guides/nextjs/troubleshooting/#supporting-older-browsers
-  sentry: {
-    transpileClientSDK: true,
-  },
   /**
    * Image optimization configuration
    * @see https://nextjs.org/docs/app/api-reference/components/image
@@ -349,6 +344,8 @@ const sentryWebpackPluginOptions = {
   // For all available options, see:
   // https://github.com/getsentry/sentry-webpack-plugin#options
   widenClientFileUpload: true, // Uploads more sourcemaps for client-side code
+  // Transpile the Sentry client SDK for wider browser support (option previously in nextConfig.sentry)
+  transpileClientSDK: true,
 };
 
 // Configure Content Security Policy
@@ -358,6 +355,6 @@ const sentryWebpackPluginOptions = {
 // For more information, see the Sentry documentation:
 // https://docssentryio/platforms/javascript/guides/nextjs/manual-setup/
 export default withSentryConfig(
-  nextConfig, // Assuming nextConfig is your final config object before Sentry
+  nextConfig,
   sentryWebpackPluginOptions,
 );
