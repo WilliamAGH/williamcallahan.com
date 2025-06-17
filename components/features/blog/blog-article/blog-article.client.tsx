@@ -149,7 +149,6 @@ export const BlogArticle: React.FC<BlogArticleProps> = ({ post }) => {
               priority
               data-article-image="cover"
               unoptimized={false}
-              loading="eager"
               onLoad={() => {
                 addCleanup(() => {
                   if (typeof window !== "undefined" && window.document) {
