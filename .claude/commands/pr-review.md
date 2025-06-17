@@ -140,6 +140,7 @@ fi
 ```
 
 **⚠️ CRITICAL INTERPRETATION RULES:**
+
 1. **ALWAYS run the count check first** - This tells you definitively if there are unresolved comments
 2. **"Tool ran without output" does NOT mean no comments** - The shell might not echo JSON output
 3. **If UNRESOLVED_COUNT > 0, there ARE comments to process** - Do not assume otherwise
@@ -240,12 +241,14 @@ mutation {
 ```
 
 **OUTPUT INTERPRETATION RULES**:
+
 - `Tool ran without output` → IGNORE THIS MESSAGE, run count check
 - Empty visual output → DOES NOT MEAN no comments, run count check  
 - `$UNRESOLVED_COUNT = 0` → No unresolved comments (ONLY valid signal)
 - `$UNRESOLVED_COUNT > 0` → Unresolved comments EXIST, must process ALL
 
 **FORBIDDEN ASSUMPTIONS**:
+
 - ❌ "No output means no comments" → WRONG
 - ❌ "Already processed this comment" → WRONG, only process `isResolved == false`
 - ❌ "Can skip count check" → WRONG, count is mandatory first step

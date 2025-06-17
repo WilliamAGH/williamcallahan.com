@@ -42,8 +42,6 @@ To serve as the primary orchestration layer for fetching, processing, enriching,
   - Support for relative URL resolution
 - **Impact**: Successfully extracts OpenGraph data from 95%+ of websites
 
-## Remaining Issues
-
 ### ✅ FIXED: Pagination (2025-06)
 
 - **Previous Issue**: All bookmarks loaded at once, no pagination support
@@ -53,11 +51,18 @@ To serve as the primary orchestration layer for fetching, processing, enriching,
   - Implemented `PaginationControl` component with keyboard navigation
   - Added `InfiniteScrollSentinel` for progressive loading
   - Created `BookmarksWithPagination` component supporting both pagination modes
+  - **NEW**: Implemented URL-based pagination (/bookmarks/page/2, /bookmarks/page/3, etc.)
+  - **NEW**: Created `PaginationControlUrl` component for URL navigation
+  - **NEW**: Page 1 uses canonical /bookmarks URL; /bookmarks/page/1 redirects
+  - **NEW**: Sitemap automatically includes all paginated pages
+  - **NEW**: Resolved route conflict by using /bookmarks/page/[pageNumber] structure
 - **Impact**:
   - Initial page load reduced from loading all bookmarks to just 24 items
   - Support for both infinite scroll and manual pagination
   - Preserved existing cursor-based backend pagination logic
   - Client-side filtering works across all loaded pages
+  - SEO-friendly URLs for each page with proper canonical tags
+  - Improved crawlability with sitemap entries for all pages
 
 ### ✅ FIXED: Lock Deletion
 
@@ -121,6 +126,77 @@ To serve as the primary orchestration layer for fetching, processing, enriching,
 - **Solution**: OG image route now reads bookmarks directly from S3
 - **Impact**: No more infinite loops when fetching Karakeep fallbacks
 
+### ✅ FIXED: Pagination Count & Filter Reset (2025-06)
+
+- **Previous Issue**: The "Showing X–Y of Z bookmarks" indicator used the length of the
+  already-fetched pages, causing the total `Z` to change (24 → 48 → 72 …) as the user
+  navigated. Additionally, applying a search query or tag filter while on a later page
+  could render an empty view because the current page number was not reset.
+- **Solutions**:
+  - Introduced `initialTotalCount` derived from the full server payload and prefer the API's
+    `totalItems` meta when available. This guarantees a stable total across page
+    navigations.
+  - Refactored the pagination info string to use the new stable total while preserving
+    accurate counts for filtered views.
+  - Added a `useEffect` that automatically resets to page 1 whenever `searchQuery` or
+    `selectedTag` changes, preventing empty pages after filters are applied.
+- **Impact**:
+  - Idempotent pagination display – the total number of bookmarks no longer increases as
+    additional pages are fetched.
+  - Seamless UX when switching filters/search – users are always presented with results or
+    a clear "No bookmarks found" state.
+
+### ✅ FIXED: Dev Hot-Reload Refresh Storm (2025-06)
+
+- **Previous Issue**: Every time Next.js hot-reloaded in development, the in-memory cache was
+  empty, we loaded data from S3, **and immediately started a background refresh**. With frequent
+  file saves this created near-continuous OpenGraph scraping loops.
+- **Solution**: Added an extra guard in `getBookmarks()` so the background refresh after an S3
+  load only fires when `ServerCacheInstance.shouldRefreshBookmarks()` returns `true` (i.e.
+  the one-hour revalidation window has expired). Production refresh behaviour is unchanged.
+- **Impact**: Hot-reloading during local development no longer triggers a full 94-bookmark
+  enrichment cycle; the data is served directly from the freshly populated in-memory cache.
+
+### ✅ FIXED: Per-Card API Calls Performance Issue (2025-06)
+
+- **Previous Issue**: Each `BookmarkCardClient` component made its own API call to `/api/bookmarks`
+  on mount just to generate share URLs. With 24 cards per page, this resulted in 24+ redundant
+  API calls fetching the entire bookmark dataset.
+- **Solution**:
+  - Removed the per-card API call from `BookmarkCardClient`
+  - Generate share URLs once in the parent component (`BookmarksWithPagination`)
+  - Pass the pre-generated `shareUrl` as a prop to each card
+- **Impact**:
+  - Reduced API calls from 25+ per page to just 1
+  - Eliminated cascade effects and cache invalidation issues
+  - Significantly improved page load performance
+
+### ✅ FIXED: Singleton Initialization Pattern (2025-06)
+
+- **Previous Issue**: `initializeBookmarksDataAccess()` was called on every API request, setting
+  up intervals and listeners repeatedly, causing memory leaks and potential race conditions.
+- **Solution**:
+  - Implemented singleton pattern with `isInitialized` flag and `initializationPromise`
+  - Ensures initialization happens only once per process
+  - Returns existing promise if initialization is in progress
+- **Impact**:
+  - No more duplicate interval setups
+  - Prevents memory leaks from repeated initialization
+  - Cleaner process lifecycle management
+
+### ✅ FIXED: Request Deduplication for Refresh Operations (2025-06)
+
+- **Previous Issue**: Multiple simultaneous refresh operations could be triggered, causing
+  redundant API calls to Karakeep and excessive load on the system.
+- **Solution**:
+  - Added `inFlightRefreshPromise` tracking for refresh operations
+  - Returns existing promise if refresh is already in progress
+  - Properly clears promise when operation completes
+- **Impact**:
+  - Prevents duplicate refresh operations
+  - Reduces load on external APIs
+  - More predictable refresh behavior
+
 ## Architecture Diagram
 
 See `bookmarks.mmd` for a visual diagram of how this orchestration layer coordinates with other core functionalities.
@@ -154,16 +230,32 @@ By acting as an orchestrator, the bookmarks feature remains focused on its speci
   - Updated (2025-06): Uses unified `/api/og-image` endpoint for all images
   - Handles API response structure with `responseData.data` parsing
   - Provides bookmarkId parameter for better Karakeep fallbacks
+  - Fixed (2025-06): Removed per-card API calls, now receives shareUrl as prop
 - **`components/features/bookmarks/bookmarks-client-with-window.tsx`**: Window entrypoint
 - **`components/features/bookmarks/bookmarks-window.client.tsx`**: Main window UI
 - **`components/features/bookmarks/bookmarks-with-options.client.tsx`**: Options UI
+  - Updated (2025-06): Generates share URLs once for all cards
+- **`components/features/bookmarks/bookmarks-with-pagination.client.tsx`**: Paginated view
+  - Implements efficient pagination with SWR
+  - Generates share URLs once to avoid per-card API calls
+  - Supports both manual pagination and infinite scroll
+- **`components/ui/pagination-control.client.tsx`**: Reusable pagination component
+  - Full keyboard navigation support
+  - Loading states and transitions
+  - Responsive mobile-friendly design
 - **`components/features/bookmarks/bookmarks.{client,server}.tsx`**: Core components
 - **`components/features/bookmarks/share-button.client.tsx`**: Share functionality
+  - Updated (2025-06): Accepts pre-generated shareUrl prop instead of calculating
 - **`components/features/bookmarks/tags-list.client.tsx`**: Tag display
 
 ### Page Routes
 
-- **`app/bookmarks/page.tsx`**: Main bookmarks listing page
+- **`app/bookmarks/page.tsx`**: Main bookmarks listing page (page 1)
+- **`app/bookmarks/page/[pageNumber]/page.tsx`**: Paginated bookmark pages
+  - URL structure: `/bookmarks/page/2`, `/bookmarks/page/3`, etc.
+  - Page 1 redirects to canonical `/bookmarks`
+  - SEO-friendly with rel="prev" and rel="next" tags
+  - Included in sitemap.xml automatically
 - **`app/bookmarks/[slug]/page.tsx`**: Individual bookmark detail page
   - Uses `generateUniqueSlug()` for SEO-friendly URLs
   - Static path generation at build time
@@ -194,6 +286,12 @@ By acting as an orchestrator, the bookmarks feature remains focused on its speci
   - Implements distributed locking via S3
   - Fixed: Atomic lock acquisition using conditional writes
   - Manages refresh operations
+  - Fixed (2025-06): Singleton initialization pattern
+  - Fixed (2025-06): Request deduplication for refresh operations
+- **`hooks/use-bookmarks-pagination.ts`**: Pagination state management
+  - Uses SWR's `useSWRInfinite` for efficient data fetching
+  - Supports cursor-based pagination
+  - Fixed (2025-06): Aligned field names with API (hasNext/hasPrev)
 
 ### Validation & Types
 
@@ -252,3 +350,6 @@ API Request → Business Logic → Data Access → External APIs/S3
 - Background refresh with stale-while-revalidate pattern
 - Static generation of bookmark pages at build time
 - SEO-optimized individual pages with structured data
+- **NEW (2025-06)**: Per-card API calls eliminated (96% reduction)
+- **NEW (2025-06)**: Singleton initialization pattern
+- **NEW (2025-06)**: Request deduplication for refresh operations
