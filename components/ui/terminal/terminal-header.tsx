@@ -8,7 +8,7 @@
  */
 
 // No "use client" directive needed as it doesn't use client-side hooks directly
-import { WindowControls } from '@/components/ui/navigation/window-controls';
+import { WindowControls } from "@/components/ui/navigation/window-controls";
 
 // Define props for the handlers
 interface TerminalHeaderProps {

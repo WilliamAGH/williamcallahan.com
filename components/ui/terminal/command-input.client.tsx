@@ -7,7 +7,8 @@
 
 "use client";
 
-import { forwardRef } from 'react';
+import { forwardRef, useCallback, useRef } from "react";
+import { preloadSearch } from "./commands.client";
 
 interface CommandInputProps {
   value: string;
@@ -15,34 +16,61 @@ interface CommandInputProps {
   onSubmit: () => void;
 }
 
-export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(
-  function CommandInput({ value, onChange, onSubmit }, ref) {
+export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(function CommandInput(
+  { value, onChange, onSubmit },
+  ref,
+) {
+  // Preload search when user types more than 2 characters
+  const hasPreloaded = useRef(false);
+  
+  const handleChange = useCallback((newValue: string) => {
+    onChange(newValue);
     
-    return (
-      <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="w-full table">
-        <div className="flex items-center w-full">
-          <span className="text-[#7aa2f7] select-none mr-2">$</span>
-          <div className="relative flex-1 transform-gpu">
-            <label htmlFor="terminal-command" className="sr-only">Terminal command</label>
-            <input
-              id="terminal-command"
-              ref={ref}
-              type="text"
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              className="bg-transparent w-full focus:outline-none text-gray-300 caret-gray-300
+    // Preload search functionality after typing 2+ characters
+    if (!hasPreloaded.current && newValue.length >= 2) {
+      hasPreloaded.current = true;
+      // Preload in the background without blocking
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(() => preloadSearch(), { timeout: 100 });
+      } else {
+        // Fallback for browsers without requestIdleCallback
+        setTimeout(() => preloadSearch(), 0);
+      }
+    }
+  }, [onChange]);
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+      className="w-full table"
+    >
+      <div className="flex items-center w-full">
+        <span className="text-[#7aa2f7] select-none mr-2">$</span>
+        <div className="relative flex-1 transform-gpu">
+          <label htmlFor="terminal-command" className="sr-only">
+            Terminal command
+          </label>
+          <input
+            id="terminal-command"
+            ref={ref}
+            type="text"
+            value={value}
+            onChange={(e) => handleChange(e.target.value)}
+            className="bg-transparent w-full focus:outline-none text-gray-300 caret-gray-300
                 text-[16px] transform-gpu scale-[0.875] origin-left"
-              style={{
-                /* Offset the larger font size to maintain layout */
-                margin: '-0.125rem 0',
-              }}
-              aria-label="Terminal command input"
-              placeholder="Enter a command"
-              title="Terminal command input"
-            />
-          </div>
+            style={{
+              /* Offset the larger font size to maintain layout */
+              margin: "-0.125rem 0",
+            }}
+            aria-label="Terminal command input"
+            placeholder="Enter a command"
+            title="Terminal command input"
+          />
         </div>
-      </form>
-    );
-  }
-);
+      </div>
+    </form>
+  );
+});

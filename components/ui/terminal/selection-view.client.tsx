@@ -6,8 +6,8 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import type { SelectionItem } from '@/types/terminal';
+import type { SelectionItem } from "@/types/terminal";
+import { useEffect, useState } from "react";
 
 interface SelectionViewProps {
   items: SelectionItem[];
@@ -21,29 +21,29 @@ export function SelectionView({ items, onSelectAction, onExitAction }: Selection
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
-        case 'ArrowUp':
+        case "ArrowUp":
           e.preventDefault();
-          setSelectedIndex(i => (i > 0 ? i - 1 : items.length - 1));
+          setSelectedIndex((i) => (i > 0 ? i - 1 : items.length - 1));
           break;
-        case 'ArrowDown':
+        case "ArrowDown":
           e.preventDefault();
-          setSelectedIndex(i => (i < items.length - 1 ? i + 1 : 0));
+          setSelectedIndex((i) => (i < items.length - 1 ? i + 1 : 0));
           break;
-        case 'Enter':
+        case "Enter":
           e.preventDefault();
           if (items[selectedIndex]) {
             onSelectAction(items[selectedIndex]);
           }
           break;
-        case 'Escape':
+        case "Escape":
           e.preventDefault();
           onExitAction();
           break;
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [items, selectedIndex, onSelectAction, onExitAction]);
 
   // Ensure items is an array before mapping
@@ -59,9 +59,7 @@ export function SelectionView({ items, onSelectAction, onExitAction }: Selection
           key={item.path} // Use item.path for a more stable key
           type="button"
           className={`px-2 py-1 rounded cursor-pointer ${
-            index === selectedIndex
-              ? 'bg-blue-500/20 text-blue-300'
-              : 'hover:bg-gray-800'
+            index === selectedIndex ? "bg-blue-500/20 text-blue-300" : "hover:bg-gray-800"
           }`}
           onClick={() => onSelectAction(item)}
           onMouseEnter={() => setSelectedIndex(index)}
