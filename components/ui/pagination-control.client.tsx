@@ -132,8 +132,10 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
             onClick={() => handlePageChange(1)}
             onKeyDown={(e) => handleKeyDown(e, 1)}
             disabled={internalCurrentPage === 1 || disabled || isLoading}
-            className="h-8 w-8 p-0 rounded-md border border-gray-700 bg-gray-800 text-gray-300 
-                     hover:bg-gray-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed
+            className="h-8 w-8 p-0 rounded-md border border-gray-200 dark:border-gray-700 
+                     bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
+                     hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white 
+                     disabled:opacity-50 disabled:cursor-not-allowed
                      transition-all duration-200 flex items-center justify-center"
             aria-label="Go to first page"
           >
@@ -147,8 +149,10 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
           onClick={() => handlePageChange(internalCurrentPage - 1)}
           onKeyDown={(e) => handleKeyDown(e, internalCurrentPage - 1)}
           disabled={internalCurrentPage === 1 || disabled || isLoading}
-          className="h-8 w-8 p-0 rounded-md border border-gray-700 bg-gray-800 text-gray-300 
-                   hover:bg-gray-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed
+          className="h-8 w-8 p-0 rounded-md border border-gray-200 dark:border-gray-700 
+                   bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
+                   hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white 
+                   disabled:opacity-50 disabled:cursor-not-allowed
                    transition-all duration-200 flex items-center justify-center"
           aria-label="Go to previous page"
         >
@@ -165,14 +169,16 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
                 onClick={() => handlePageChange(1)}
                 onKeyDown={(e) => handleKeyDown(e, 1)}
                 disabled={disabled || isLoading}
-                className="h-8 min-w-[2rem] px-2 rounded-md border border-gray-700 bg-gray-800 text-gray-300 
-                         hover:bg-gray-700 hover:text-white transition-all duration-200"
+                className="h-8 min-w-[2rem] px-2 rounded-md border border-gray-200 dark:border-gray-700 
+                         bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
+                         hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white 
+                         transition-all duration-200"
                 aria-label="Go to page 1"
               >
                 1
               </button>
               {visiblePages[0] > 2 && (
-                <span className="px-2 text-gray-500">...</span>
+                <span className="px-2 text-gray-500 dark:text-gray-400">...</span>
               )}
             </>
           )}
@@ -188,7 +194,7 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
               className={`h-8 min-w-[2rem] px-2 rounded-md border transition-all duration-200 ${
                 page === internalCurrentPage
                   ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                  : 'border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
+                  : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
               } ${isTransitioning && page === internalCurrentPage ? 'scale-95' : ''}`}
               aria-label={`Go to page ${page}`}
               aria-current={page === internalCurrentPage ? 'page' : undefined}
@@ -205,15 +211,17 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
           {visiblePages[visiblePages.length - 1] < totalPages && (
             <>
               {visiblePages[visiblePages.length - 1] < totalPages - 1 && (
-                <span className="px-2 text-gray-500">...</span>
+                <span className="px-2 text-gray-500 dark:text-gray-400">...</span>
               )}
               <button
                 type="button"
                 onClick={() => handlePageChange(totalPages)}
                 onKeyDown={(e) => handleKeyDown(e, totalPages)}
                 disabled={disabled || isLoading}
-                className="h-8 min-w-[2rem] px-2 rounded-md border border-gray-700 bg-gray-800 text-gray-300 
-                         hover:bg-gray-700 hover:text-white transition-all duration-200"
+                className="h-8 min-w-[2rem] px-2 rounded-md border border-gray-200 dark:border-gray-700 
+                         bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
+                         hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white 
+                         transition-all duration-200"
                 aria-label={`Go to page ${totalPages}`}
               >
                 {totalPages}
@@ -228,8 +236,10 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
           onClick={() => handlePageChange(internalCurrentPage + 1)}
           onKeyDown={(e) => handleKeyDown(e, internalCurrentPage + 1)}
           disabled={internalCurrentPage === totalPages || disabled || isLoading}
-          className="h-8 w-8 p-0 rounded-md border border-gray-700 bg-gray-800 text-gray-300 
-                   hover:bg-gray-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed
+          className="h-8 w-8 p-0 rounded-md border border-gray-200 dark:border-gray-700 
+                   bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
+                   hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white 
+                   disabled:opacity-50 disabled:cursor-not-allowed
                    transition-all duration-200 flex items-center justify-center"
           aria-label="Go to next page"
         >
@@ -243,8 +253,10 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
             onClick={() => handlePageChange(totalPages)}
             onKeyDown={(e) => handleKeyDown(e, totalPages)}
             disabled={internalCurrentPage === totalPages || disabled || isLoading}
-            className="h-8 w-8 p-0 rounded-md border border-gray-700 bg-gray-800 text-gray-300 
-                     hover:bg-gray-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed
+            className="h-8 w-8 p-0 rounded-md border border-gray-200 dark:border-gray-700 
+                     bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
+                     hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white 
+                     disabled:opacity-50 disabled:cursor-not-allowed
                      transition-all duration-200 flex items-center justify-center"
             aria-label="Go to last page"
           >
