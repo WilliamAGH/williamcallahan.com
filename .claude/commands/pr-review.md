@@ -23,14 +23,16 @@ STEP 3: For unresolved comments:
  d) Document the resolution approach
 
 STEP 4: Reply to each comment with resolution details:
- a) Use @mcp__github__add_issue_comment to add reply explaining the fix
- b) Include specific commit hash or line changes made
- c) Mark as resolved using GitHub API after adding comment
+ a) Use GitHub CLI to reply to comments:
+    `gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/[PR_NUMBER]/comments/[COMMENT_ID]/replies -f body="Your reply message"`
+ b) Include specific commit hash (e.g., "Fixed in commit abc123") 
+ c) Comments are automatically marked as resolved when replied to via GitHub API
 
 STEP 5: If code was changed, commit with descriptive message:
- a) Include PR number in commit message
- b) Reference specific comment IDs that were addressed
+ a) Stage individual files: `git add path/to/file.ts`
+ b) Commit individual files: `git commit path/to/file.ts -m "fix(scope): specific change description"`
  c) Use conventional commit format: "fix(scope): address PR #X review comments"
+ d) Reference specific issues addressed in commit messages
 
 Output summary of all PRs reviewed, comments resolved, and code changes made.
 
@@ -39,3 +41,17 @@ TROUBLESHOOTING TIPS:
 - If @mcp__github__get_pull_request_comments fails due to token limit, use GitHub CLI with jq filtering
 - For very large PRs, process comments in batches by file path
 - Use `gh pr review [PR_NUMBER] --repo WilliamAGH/williamcallahan.com` to see review status
+
+SUCCESSFUL COMMAND EXAMPLES:
+
+1. Get comment IDs with first line of body:
+   `gh api repos/WilliamAGH/williamcallahan.com/pulls/109/comments --paginate | jq -r '.[] | select(.in_reply_to_id == null) | {id: .id, path: .path, line: .line, body: (.body | split("\n")[0])} | @json' | head -5`
+
+2. Reply to a comment:
+   `gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/109/comments/2129845641/replies -f body="Fixed in commit a09cf7c. The hard-coded value has been replaced with the constant."`
+
+3. Check if comments are resolved:
+   `gh api graphql -f query='{ repository(owner: "WilliamAGH", name: "williamcallahan.com") { pullRequest(number: 109) { reviewThreads(first: 10) { nodes { id isResolved comments(first: 1) { nodes { body } } } } } } }'`
+
+4. Commit individual files:
+   `git add scripts/update-s3-data.ts && git commit scripts/update-s3-data.ts -m "fix(scripts): update comment to use constant instead of hard-coded value"`
