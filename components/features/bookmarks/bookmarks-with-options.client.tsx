@@ -8,6 +8,7 @@
 "use client";
 
 import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
+import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { UnifiedBookmark } from "@/types";
 import { ArrowRight, Loader2, RefreshCw, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -444,9 +445,11 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
-              {filteredBookmarks.map((bookmark) => (
-                <BookmarkCardClient key={bookmark.id} {...bookmark} />
-              ))}
+              {filteredBookmarks.map((bookmark) => {
+                // Generate share URL once per bookmark to avoid per-card API calls
+                const shareUrl = `/bookmarks/${generateUniqueSlug(bookmark.url, bookmarks.map(b => ({ id: b.id, url: b.url })), bookmark.id)}`;
+                return <BookmarkCardClient key={bookmark.id} {...bookmark} shareUrl={shareUrl} />;
+              })}
             </div>
           )}
         </>
