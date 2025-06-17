@@ -11,13 +11,19 @@
 
 **Repository**: <https://github.com/WilliamAGH/williamcallahan.com>
 
+**Project Constants**:
+
+- Owner: `WilliamAGH`
+- Repo: `williamcallahan.com`
+
 ## ⚠️ CRITICAL REQUIREMENTS
 
 1. **GraphQL for fetching/resolving** - REST API fails with token limits (GitHub MCP lacks GraphQL support)
 2. **REST API for comment replies** - GitHub's GraphQL lacks working reply mutation (see note below)
 3. **MANDATORY validation before EVERY commit:** `bun run lint && bun run type-check && bun run biome:check`
-4. **NO generic commit messages** - Use: `fix(scope): specific change description`
-5. **Deep analysis REQUIRED** - Review comments are suggestions, not orders
+4. **Fix ALL language server warnings** - Including biome, ESLint, TypeScript diagnostics in modified files
+5. **NO generic commit messages** - Use: `fix(scope): specific change description`
+6. **Deep analysis REQUIRED** - Review comments are suggestions, not orders
 
 ## 🧠 DEEP THINKING PROTOCOL
 
@@ -53,6 +59,7 @@ gh api graphql -f query='
           comments(first: 1) {
             nodes {
               id
+              databaseId
               body
               author { login }
             }
@@ -67,29 +74,39 @@ gh api graphql -f query='
 **2. For each comment:**
 
 - Analyze deeply (see protocol above)
-- IF beneficial: implement → validate → commit
-- IF not: skip implementation, explain in reply
+- IF beneficial: implement → validate → commit → reply → resolve
+- IF not: skip implementation → reply with reasoning → resolve
+- **IMPORTANT**: Both accepted AND rejected comments must be resolved
 
 **3. Reply to comment (REST API - see note):**
 
+First get the numeric comment ID from GraphQL output:
+```bash
+# The GraphQL query returns both 'id' and 'databaseId'
+# Use the 'databaseId' value for REST API calls
+```
+
+Then reply using the numeric databaseId:
 ```bash
 # Implemented:
-gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/[PR]/comments/[COMMENT_ID]/replies \
-  -f body="Fixed in [HASH]. [What was done]"
+gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/[PR]/comments/[NUMERIC_DATABASE_ID]/replies \
+  -f body="Fixed in commit [HASH]. [What was done]"
 
 # Rejected:
-gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/[PR]/comments/[COMMENT_ID]/replies \
-  -f body="After analysis: [reasoning]. Current implementation [why better]."
+gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/[PR]/comments/[NUMERIC_DATABASE_ID]/replies \
+  -f body="After careful analysis, I've decided not to implement this suggestion because [detailed reasoning]. The current implementation [explain why it's better]."
 ```
 
 **Note**: GitHub's GraphQL API cannot reply to review comments. The mutation `addPullRequestReviewCommentReply` suggested by linters doesn't exist. GitHub deprecated `addPullRequestReviewComment` and promised `addPullRequestReviewThreadReply` as replacement, but it was never implemented. REST API is the ONLY way to reply to PR review comments.
 
 **4. Resolve thread (GraphQL):**
 
+Use the thread ID (not comment ID) from the GraphQL output:
 ```bash
+# The thread ID starts with "PRRT_" (e.g., "PRRT_kwDONglMk85SSn9V")
 gh api graphql -f query='
 mutation {
-  resolveReviewThread(input: {threadId: "[THREAD_ID]"}) {
+  resolveReviewThread(input: {threadId: "[THREAD_ID_STARTING_WITH_PRRT]"}) {
     thread { isResolved }
   }
 }'
@@ -97,6 +114,55 @@ mutation {
 
 ## 💡 REMEMBER
 
+- **EVERY comment needs a reply AND thread resolution** - Even rejected suggestions
 - Rejection is OK if suggestion doesn't improve code
 - Comments don't auto-resolve - use thread ID to resolve
 - Each file gets separate commit with descriptive message
+- **Mark threads as resolved AFTER replying** - Whether implemented or rejected
+
+## ⚠️ COMMON PITFALLS TO AVOID
+
+1. **JQ syntax errors**: The `!=` operator in jq must be written without backslash escaping
+   - ❌ Wrong: `select(.databaseId \!= null)`
+   - ✅ Correct: `select(.databaseId != null)`
+
+2. **Comment ID confusion**: Always use numeric `databaseId` for REST replies, not GraphQL IDs
+   - ❌ Wrong: Using ID like `PRRC_kwDONglMk86AFCFz`
+   - ✅ Correct: Using numeric ID like `2148802931`
+
+3. **Forgetting to validate**: ALWAYS run validation before committing, even for "simple" fixes
+
+## 📚 WORKING EXAMPLES
+
+**Get all unresolved comments with both IDs:**
+```bash
+gh api graphql -f query='
+{
+  repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+    pullRequest(number: 109) {
+      reviewThreads(first: 50) {
+        nodes {
+          id
+          isResolved
+          path
+          line
+          comments(first: 1) {
+            nodes {
+              id
+              databaseId
+              body
+              author { login }
+            }
+          }
+        }
+      }
+    }
+  }
+}' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
+```
+
+**Get IDs for specific file:**
+```bash
+# For a specific file's comments
+gh api graphql -f query='...' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.path == "lib/utils/api-sanitization.ts" and .isResolved == false)'
+```
