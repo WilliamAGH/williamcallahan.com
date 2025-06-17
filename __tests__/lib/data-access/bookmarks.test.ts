@@ -2,6 +2,7 @@
  * Simple Tests for Bookmarks Data Access Layer
  */
 import type { UnifiedBookmark } from "@/types/bookmark";
+import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 
 // Mock dependencies first
 jest.mock("@/lib/s3-utils", () => ({
@@ -80,7 +81,7 @@ describe("Bookmarks Data Access (Simple)", () => {
       const result = await getBookmarks(true); // Skip external fetch
 
       expect(result).toEqual(mockBookmarks);
-      expect(readJsonS3).toHaveBeenCalledWith("bookmarks/bookmarks.json");
+      expect(readJsonS3).toHaveBeenCalledWith(BOOKMARKS_S3_PATHS.FILE);
       expect(ServerCacheInstance.setBookmarks).toHaveBeenCalledWith(mockBookmarks);
     });
 
