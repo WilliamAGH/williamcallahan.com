@@ -9,8 +9,8 @@ console.log("=== Fetch Mock Debug & Fix Script ===\n");
 // Check current NODE_ENV
 console.log(`NODE_ENV: ${process.env.NODE_ENV || "not set"}`);
 
-// Store the current fetch
-const currentFetch = globalThis.fetch;
+// Store the current fetch in case restoration is needed later (not currently used but kept for debugging reference)
+// const originalFetch = globalThis.fetch;
 
 // Check if fetch is mocked
 console.log("\nChecking fetch status:");
@@ -59,14 +59,14 @@ void (async () => {
   if (
     globalThis.fetch?.toString().includes("mock") ||
     globalThis.fetch?.name === "fetch" ||
-    typeof (globalThis.fetch as any)?._isMockFunction === "boolean"
+    ("_isMockFunction" in (globalThis.fetch as unknown as { [key: string]: unknown }))
   ) {
     console.log("\n⚠️  Detected potential mock - attempting restoration...");
     
     // Try to import native fetch
     try {
       const { fetch: undiciFetch } = await import("undici");
-      globalThis.fetch = undiciFetch as any;
+      globalThis.fetch = undiciFetch as unknown as typeof globalThis.fetch;
       console.log("✓ Native fetch restored from undici");
     } catch (error) {
       console.log("✗ Failed to restore fetch:", error);
