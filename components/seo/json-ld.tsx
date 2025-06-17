@@ -9,19 +9,34 @@
  * @see {@link "https://schema.org/"} - Schema.org Documentation
  */
 
-import React, { type JSX } from 'react';
+// eslint-disable react/no-danger
+import React, { type JSX } from "react";
 
 interface JsonLdScriptProps {
   data: object;
 }
 
 export function JsonLdScript({ data }: JsonLdScriptProps): JSX.Element {
+  /**
+   * JSON-LD must be embedded using dangerouslySetInnerHTML to avoid issues
+   * with the HTML parser prematurely closing the <script> tag when the JSON
+   * happens to contain the `</script>` sequence. We also guard against `<!--`
+   * which would start an HTML comment and break execution in some browsers.
+   */
+  const json = JSON.stringify(
+    data,
+    null,
+    process.env.NODE_ENV === "development" ? 2 : 0,
+  )
+    // Escape closing script tags and HTML comment openers
+    .replace(/<\/(script)/giu, "<\\/$1")
+    .replace(/<!--/g, "<\\!--");
+
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{
-        __html: JSON.stringify(data, null, process.env.NODE_ENV === 'development' ? 2 : 0)
-      }}
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: <explanation>
+      dangerouslySetInnerHTML={{ __html: json }}
     />
   );
 }
