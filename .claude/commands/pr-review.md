@@ -87,35 +87,57 @@ git add lib/bookmarks.ts && git commit -m "fix(bookmarks): replace globalThis.is
 ⚠️ **CRITICAL**: The query output WILL show unresolved comments! DO NOT assume there are none if the output appears empty at first glance. The jq filter produces JSON objects, not a message saying "no comments". If you see JSON output, THOSE ARE THE UNRESOLVED COMMENTS TO PROCESS!
 
 ```bash
-gh api graphql -f query='
+# STEP 1: Count how many unresolved comments exist
+echo "Checking for unresolved comments..."
+UNRESOLVED_COUNT=$(gh api graphql -f query='
 {
   repository(owner: "WilliamAGH", name: "williamcallahan.com") {
     pullRequest(number: [PR_NUMBER]) {
-      reviewThreads(first: 50) {
+      reviewThreads(first: 100) {
         nodes {
           id
           isResolved
-          path
-          line
-          comments(first: 1) {
-            nodes {
-              id
-              databaseId
-              body
-              author { login }
+        }
+      }
+    }
+  }
+}' | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
+
+echo "Found $UNRESOLVED_COUNT unresolved comments"
+
+# STEP 2: If there are unresolved comments, fetch them
+if [ "$UNRESOLVED_COUNT" -gt 0 ]; then
+  gh api graphql -f query='
+  {
+    repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+      pullRequest(number: [PR_NUMBER]) {
+        reviewThreads(first: 100) {
+          nodes {
+            id
+            isResolved
+            path
+            line
+            comments(first: 1) {
+              nodes {
+                id
+                databaseId
+                body
+                author { login }
+              }
             }
           }
         }
       }
     }
-  }
-}' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
+  }' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
+fi
 ```
 
-**INTERPRETING THE OUTPUT:**
-- Empty output (no JSON) = No unresolved comments
-- JSON objects = THESE ARE THE UNRESOLVED COMMENTS! Process each one!
-- Each JSON object represents ONE unresolved thread to handle
+**⚠️ CRITICAL INTERPRETATION RULES:**
+1. **ALWAYS run the count check first** - This tells you definitively if there are unresolved comments
+2. **"Tool ran without output" does NOT mean no comments** - The shell might not echo JSON output
+3. **If UNRESOLVED_COUNT > 0, there ARE comments to process** - Do not assume otherwise
+4. **Each JSON object in Step 2 output = ONE unresolved thread** - Process every single one
 
 **2. For each comment:**
 
@@ -177,6 +199,24 @@ mutation {
    - ✅ Correct: Using numeric ID like `2148802931`
 
 3. **Forgetting to validate**: ALWAYS run validation before committing, even for "simple" fixes
+
+## 🚨 TROUBLESHOOTING: Why You Keep Missing Unresolved Comments
+
+**Problem**: "I keep saying there are no unresolved comments when there actually are!"
+
+**Root Causes**:
+1. **Shell output confusion**: When Bash tool shows "Tool ran without output", it doesn't mean the command failed or returned nothing - it means stdout wasn't captured properly
+2. **Misreading empty lines**: JSON output might be there but not visible in the tool response
+3. **Not running the count check**: Skipping the definitive count check leads to assumptions
+
+**Solution**: ALWAYS run the two-step process:
+1. First count unresolved comments explicitly
+2. Only if count > 0, then fetch the details
+
+**Never trust**:
+- "Tool ran without output or errors" - This is about the shell, not the query
+- Visual inspection of output - Always use the count check
+- Previous assumptions - Each PR review starts fresh
 
 ## 📚 WORKING EXAMPLES
 
