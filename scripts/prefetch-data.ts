@@ -17,6 +17,7 @@ import {
   getGithubActivity,
   getInvestmentDomainsAndIds,
   getLogo as getLogoUntyped,
+  initializeBookmarksDataAccess,
 } from "../lib/data-access";
 // Import types
 import type { UnifiedBookmark } from "../types"; // Import UnifiedBookmark
@@ -355,6 +356,9 @@ async function main(): Promise<void> {
 
   try {
     await ensureDataDirectories();
+
+    // Initialize the bookmarks data access layer to ensure callbacks are set up
+    await initializeBookmarksDataAccess();
 
     // Prefetch bookmarks and GitHub activity using data-access layer directly
     // This avoids API calls during build time and uses the same logic as the API endpoints

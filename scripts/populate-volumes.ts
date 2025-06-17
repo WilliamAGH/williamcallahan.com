@@ -312,9 +312,23 @@ async function populateOpenGraphImages(bookmarks: UnifiedBookmark[]) {
           );
           successCount++;
         } else {
-          console.log(
-            `⚠️ Could not process OpenGraph image for ${bookmark.url}. Error: ${ogData?.error || "No valid image URL found"}`,
-          );
+          // Use debug logging for sites without images (common case)
+          if (!ogData?.error && !isValidImageUrl(ogData?.imageUrl)) {
+            debug(`ℹ️ No OpenGraph image available for ${bookmark.url}`);
+          } else if (ogData?.error) {
+            // Log actual errors with more detail
+            if (ogData.error.includes("too large")) {
+              console.log(
+                `⚠️ OpenGraph extraction limited for ${bookmark.url}: Large HTML page, partial parsing used`,
+              );
+            } else {
+              console.log(
+                `⚠️ Could not process OpenGraph image for ${bookmark.url}. Error: ${ogData.error}`,
+              );
+            }
+          } else {
+            debug(`ℹ️ OpenGraph processed but no image found for ${bookmark.url}`);
+          }
           failureCount++;
         }
       } catch (error: unknown) {
