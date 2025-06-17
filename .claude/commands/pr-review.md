@@ -105,8 +105,11 @@ UNRESOLVED_COUNT=$(gh api graphql -f query='
 
 echo "Found $UNRESOLVED_COUNT unresolved comments"
 
-# STEP 2: If there are unresolved comments, fetch them
+# STEP 2: If there are unresolved comments, fetch them with concise format
 if [ "$UNRESOLVED_COUNT" -gt 0 ]; then
+  echo "Fetching details of $UNRESOLVED_COUNT unresolved comments..."
+  
+  # First, get a summary list (path + first line of comment)
   gh api graphql -f query='
   {
     repository(owner: "WilliamAGH", name: "williamcallahan.com") {
@@ -129,7 +132,10 @@ if [ "$UNRESOLVED_COUNT" -gt 0 ]; then
         }
       }
     }
-  }' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
+  }' | jq -r '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | 
+  "---\nThread ID: \(.id)\nPath: \(.path // "general comment")\nLine: \(.line // "N/A")\nComment ID: \(.comments.nodes[0].databaseId)\nAuthor: \(.comments.nodes[0].author.login)\nFirst line: \(.comments.nodes[0].body | split("\n")[0])"'
+  
+  echo -e "\n✅ Above are all unresolved comments. Process each one individually."
 fi
 ```
 
@@ -141,10 +147,33 @@ fi
 
 **2. For each comment:**
 
-- Analyze deeply (see protocol above)
-- IF beneficial: implement → validate → commit → reply → resolve
-- IF not: skip implementation → reply with reasoning → resolve
-- **IMPORTANT**: Both accepted AND rejected comments must be resolved
+**PROCESSING WORKFLOW FOR EACH UNRESOLVED COMMENT**:
+```bash
+# For EACH comment in the output:
+# 1. Extract these values:
+THREAD_ID="PRRT_..."      # From "Thread ID:" line
+FILE_PATH="path/to/file"  # From "Path:" line  
+LINE_NUM="123"            # From "Line:" line
+COMMENT_ID="2148802948"   # From "Comment ID:" line (numeric!)
+
+# 2. Read the full comment body
+gh api graphql -f query='...' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.id == "'$THREAD_ID'") | .comments.nodes[0].body'
+
+# 3. Analyze and decide (see Deep Thinking Protocol)
+
+# 4. IF implementing:
+- Read file at specified line
+- Make changes
+- Run: bun run lint && bun run type-check && bun run biome:check
+- Commit ONLY this file with specific message
+
+# 5. Reply to comment (use numeric COMMENT_ID):
+gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/[PR]/comments/$COMMENT_ID/replies \
+  -f body="[Your response]"
+
+# 6. Resolve thread (use THREAD_ID):
+gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "'$THREAD_ID'"}) { thread { isResolved } } }'
+```
 
 **3. Reply to comment (REST API - see note):**
 
@@ -200,23 +229,27 @@ mutation {
 
 3. **Forgetting to validate**: ALWAYS run validation before committing, even for "simple" fixes
 
-## 🚨 TROUBLESHOOTING: Why You Keep Missing Unresolved Comments
+## 🤖 CRITICAL LLM INSTRUCTIONS
 
-**Problem**: "I keep saying there are no unresolved comments when there actually are!"
+**MANDATORY EXECUTION PATTERN**:
+```
+1. RUN: UNRESOLVED_COUNT=$(gh api graphql -f query='...' | jq '[...] | length')
+2. READ: The numeric value of $UNRESOLVED_COUNT
+3. DECISION: If UNRESOLVED_COUNT > 0, then unresolved comments EXIST
+4. ACTION: Process EVERY comment from Step 2 output
+```
 
-**Root Causes**:
-1. **Shell output confusion**: When Bash tool shows "Tool ran without output", it doesn't mean the command failed or returned nothing - it means stdout wasn't captured properly
-2. **Misreading empty lines**: JSON output might be there but not visible in the tool response
-3. **Not running the count check**: Skipping the definitive count check leads to assumptions
+**OUTPUT INTERPRETATION RULES**:
+- `Tool ran without output` → IGNORE THIS MESSAGE, run count check
+- Empty visual output → DOES NOT MEAN no comments, run count check  
+- `$UNRESOLVED_COUNT = 0` → No unresolved comments (ONLY valid signal)
+- `$UNRESOLVED_COUNT > 0` → Unresolved comments EXIST, must process ALL
 
-**Solution**: ALWAYS run the two-step process:
-1. First count unresolved comments explicitly
-2. Only if count > 0, then fetch the details
-
-**Never trust**:
-- "Tool ran without output or errors" - This is about the shell, not the query
-- Visual inspection of output - Always use the count check
-- Previous assumptions - Each PR review starts fresh
+**FORBIDDEN ASSUMPTIONS**:
+- ❌ "No output means no comments" → WRONG
+- ❌ "Already processed this comment" → WRONG, only process `isResolved == false`
+- ❌ "Can skip count check" → WRONG, count is mandatory first step
+- ✅ "Trust only numeric count value" → CORRECT
 
 ## 📚 WORKING EXAMPLES
 
