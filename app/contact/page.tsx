@@ -5,12 +5,12 @@
  * similar to the bookmark cards
  */
 
-import type { Metadata } from 'next';
-import { getStaticPageMetadata } from '@/lib/seo/metadata';
-import { SocialContactClient } from '@/components/features/social/contact.client';
+import { SocialContactClient } from "@/components/features/social/contact.client";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
+import type { Metadata } from "next";
 
 // Create metadata for the contact page
-export const metadata: Metadata = getStaticPageMetadata('/contact', 'contact');
+export const metadata: Metadata = getStaticPageMetadata("/contact", "contact");
 
 /**
  * Enable ISR for contact page with hourly revalidation

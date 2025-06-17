@@ -9,18 +9,18 @@
  * @see {@link "https://schema.org/Dataset"} - Schema.org Dataset specification
  */
 
-import { Investments } from "../../components/features";
-import { getStaticPageMetadata } from "../../lib/seo/metadata";
-import { JsonLdScript } from "../../components/seo/json-ld";
-import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
-import { formatSeoDate } from "../../lib/seo/utils";
-import { investments } from "../../data/investments";
 import type { Metadata } from "next";
+import { Investments } from "../../components/features";
+import { JsonLdScript } from "../../components/seo/json-ld";
+import { investments } from "../../data/investments";
+import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
+import { getStaticPageMetadata } from "../../lib/seo/metadata";
+import { formatSeoDate } from "../../lib/seo/utils";
 
 /**
  * Generate metadata for the investments page
  */
-export const metadata: Metadata = getStaticPageMetadata('/investments', 'investments');
+export const metadata: Metadata = getStaticPageMetadata("/investments", "investments");
 
 /**
  * Investments page component
@@ -39,33 +39,33 @@ export default function InvestmentsPage() {
         data={{
           "@context": "https://schema.org",
           "@type": "Dataset",
-          "name": `${SITE_NAME}'s Investment Portfolio`,
-          "description": pageMetadata.description,
-          "datePublished": formattedCreated,
-          "dateModified": formattedModified,
-          "creator": {
+          name: `${SITE_NAME}'s Investment Portfolio`,
+          description: pageMetadata.description,
+          datePublished: formattedCreated,
+          dateModified: formattedModified,
+          creator: {
             "@type": "Person",
-            "name": SITE_NAME,
-            "description": siteMetadata.shortDescription,
-            "sameAs": siteMetadata.social.profiles
+            name: SITE_NAME,
+            description: siteMetadata.shortDescription,
+            sameAs: siteMetadata.social.profiles,
           },
-          "license": "https://creativecommons.org/licenses/by/4.0/",
-          "isAccessibleForFree": true,
-          "includedInDataCatalog": {
+          license: "https://creativecommons.org/licenses/by/4.0/",
+          isAccessibleForFree: true,
+          includedInDataCatalog: {
             "@type": "DataCatalog",
-            "name": `${SITE_NAME}'s Public Investment Records`
+            name: `${SITE_NAME}'s Public Investment Records`,
           },
-          "distribution": {
+          distribution: {
             "@type": "DataDownload",
-            "contentUrl": "https://williamcallahan.com/investments",
-            "encodingFormat": "text/html"
+            contentUrl: "https://williamcallahan.com/investments",
+            encodingFormat: "text/html",
           },
-          "keywords": [
+          keywords: [
             "startups",
             "venture capital",
             "angel investing",
-            ...Array.from(new Set(activeInvestments.map(inv => inv.category)))
-          ]
+            ...Array.from(new Set(activeInvestments.map((inv) => inv.category))),
+          ],
         }}
       />
       <Investments investments={investments} />
