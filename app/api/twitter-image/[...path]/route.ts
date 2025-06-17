@@ -5,8 +5,7 @@ import type { NextRequest } from "next/server";
  * Context for the dynamic route, containing the path parameter for Twitter images
  */
 interface TwitterImageContext {
-  // Dynamic API context params are asynchronous in Next.js 15
-  params: Promise<{ path: string[] }>;
+  params: { path: string[] };
 }
 
 /**
@@ -69,8 +68,8 @@ async function fetchWithRetry(
 
 export async function GET(request: NextRequest, { params }: TwitterImageContext) {
   try {
-    // Reconstruct the Twitter image URL by awaiting dynamic params
-    const { path: pathSegments } = await params;
+    // Reconstruct the Twitter image URL from dynamic params
+    const { path: pathSegments } = params;
 
     // Validate Twitter image path patterns to prevent SSRF attacks
     const validPathPattern = /^(profile_images|ext_tw_video_thumb|media)\/[\w\-/.]+$/;
