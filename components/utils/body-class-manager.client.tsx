@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useWindowRegistry } from '@/lib/context/global-window-registry-context.client';
+import { useWindowRegistry } from "@/lib/context/global-window-registry-context.client";
+import { useEffect, useState } from "react";
 
 /**
  * BodyClassManager Component
@@ -26,29 +26,29 @@ export function BodyClassManager() {
     }
 
     // Check states separately
-    const isAnyWindowMaximized = Object.values(windows).some(w => w.state === 'maximized');
-    const isAnyWindowMinimized = Object.values(windows).some(w => w.state === 'minimized');
+    const isAnyWindowMaximized = Object.values(windows).some((w) => w.state === "maximized");
+    const isAnyWindowMinimized = Object.values(windows).some((w) => w.state === "minimized");
 
     // Manage maximized class
     if (isAnyWindowMaximized) {
-      document.body.classList.add('window-maximized');
+      document.body.classList.add("window-maximized");
     } else {
-      document.body.classList.remove('window-maximized');
+      document.body.classList.remove("window-maximized");
     }
 
     // Manage minimized class
     if (isAnyWindowMinimized) {
-      document.body.classList.add('window-minimized');
+      document.body.classList.add("window-minimized");
     } else {
-      document.body.classList.remove('window-minimized');
+      document.body.classList.remove("window-minimized");
     }
 
     // Cleanup MUST remove both potential classes on unmount or state change
     return () => {
       // Check isMounted again in cleanup in case of fast unmounts
       if (isMounted) {
-        document.body.classList.remove('window-maximized');
-        document.body.classList.remove('window-minimized');
+        document.body.classList.remove("window-maximized");
+        document.body.classList.remove("window-minimized");
       }
     };
   }, [windows, isMounted]); // Depend on windows state and mount status
