@@ -6,15 +6,30 @@
  * @module components/ui/mdx-table.server
  */
 
-import React from 'react';
+import type React from "react";
 
-import type { DetailedHTMLProps, TableHTMLAttributes, HTMLAttributes, ThHTMLAttributes, TdHTMLAttributes } from 'react';
+import type {
+  DetailedHTMLProps,
+  HTMLAttributes,
+  TableHTMLAttributes,
+  TdHTMLAttributes,
+  ThHTMLAttributes,
+} from "react";
 
 type TableProps = DetailedHTMLProps<TableHTMLAttributes<HTMLTableElement>, HTMLTableElement>;
-type TheadProps = DetailedHTMLProps<HTMLAttributes<HTMLTableSectionElement>, HTMLTableSectionElement>;
+type TheadProps = DetailedHTMLProps<
+  HTMLAttributes<HTMLTableSectionElement>,
+  HTMLTableSectionElement
+>;
 type TrProps = DetailedHTMLProps<HTMLAttributes<HTMLTableRowElement>, HTMLTableRowElement>;
-type ThProps = DetailedHTMLProps<ThHTMLAttributes<HTMLTableHeaderCellElement>, HTMLTableHeaderCellElement>;
-type TdProps = DetailedHTMLProps<TdHTMLAttributes<HTMLTableDataCellElement>, HTMLTableDataCellElement>;
+type ThProps = DetailedHTMLProps<
+  ThHTMLAttributes<HTMLTableHeaderCellElement>,
+  HTMLTableHeaderCellElement
+>;
+type TdProps = DetailedHTMLProps<
+  TdHTMLAttributes<HTMLTableDataCellElement>,
+  HTMLTableDataCellElement
+>;
 
 export const MDXTable: React.FC<TableProps> = ({ children, ...props }) => {
   return (
@@ -35,16 +50,17 @@ export const MDXTable: React.FC<TableProps> = ({ children, ...props }) => {
 export const MDXTableHeader: React.FC<TheadProps> = ({ children, ...props }) => {
   return (
     <thead {...props}>
-      <tr className="bg-gray-50/80 dark:bg-gray-800/80">
-        {children}
-      </tr>
+      <tr className="bg-gray-50/80 dark:bg-gray-800/80">{children}</tr>
     </thead>
   );
 };
 
 export const MDXTableRow: React.FC<TrProps> = ({ children, ...props }) => {
   return (
-    <tr {...props} className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 last:border-0">
+    <tr
+      {...props}
+      className="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 last:border-0"
+    >
       {children}
     </tr>
   );
@@ -52,7 +68,11 @@ export const MDXTableRow: React.FC<TrProps> = ({ children, ...props }) => {
 
 export const MDXTableHeaderCell: React.FC<ThProps> = ({ children, ...props }) => {
   return (
-    <th scope="col" {...props} className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 ${props.className || ''}`.trim()}>
+    <th
+      scope="col"
+      {...props}
+      className={`px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 ${props.className || ""}`.trim()}
+    >
       {children}
     </th>
   );
@@ -60,28 +80,27 @@ export const MDXTableHeaderCell: React.FC<ThProps> = ({ children, ...props }) =>
 
 export const MDXTableCell: React.FC<TdProps> = ({ children, ...props }) => {
   // eslint-disable-next-line @typescript-eslint/no-base-to-string
-  const content = children?.toString() || '';
+  const content = children?.toString() || "";
   const isNumeric = /^[€$]?\d/.test(content);
-  const isNegative = content.includes('-');
-  const isPositive = content.includes('+');
+  const isNegative = content.includes("-");
+  const isPositive = content.includes("+");
 
   return (
-    <td {...props} className={`px-6 py-4 text-sm font-medium ${
-      isNumeric
-        ? `text-right tabular-nums tracking-tight ${
-            isNegative
-              ? 'text-red-600 dark:text-red-400'
-              : isPositive
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-gray-900 dark:text-gray-100'
-          }`
-        : 'text-left text-gray-600 dark:text-gray-300'
-    } ${props.className || ''}`.trim()}>
-      {isNumeric ? (
-        <span className="inline-block min-w-[140px]">{children}</span>
-      ) : (
-        children
-      )}
+    <td
+      {...props}
+      className={`px-6 py-4 text-sm font-medium ${
+        isNumeric
+          ? `text-right tabular-nums tracking-tight ${
+              isNegative
+                ? "text-red-600 dark:text-red-400"
+                : isPositive
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-gray-900 dark:text-gray-100"
+            }`
+          : "text-left text-gray-600 dark:text-gray-300"
+      } ${props.className || ""}`.trim()}
+    >
+      {isNumeric ? <span className="inline-block min-w-[140px]">{children}</span> : children}
     </td>
   );
 };

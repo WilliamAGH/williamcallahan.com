@@ -15,8 +15,8 @@
  * and client components for interactivity
  */
 
-import type { ReactNode } from 'react';
-import { BlogWindow } from './blog-window.client';
+import type { ReactNode } from "react";
+import { BlogWindow } from "./blog-window.client";
 
 // Define props for the Blog component
 interface BlogProps {
@@ -28,9 +28,5 @@ interface BlogProps {
  * This client component renders pre-rendered server content passed as children
  */
 export function Blog({ children }: BlogProps) {
-  return (
-    <BlogWindow>
-      {children}
-    </BlogWindow>
-  );
+  return <BlogWindow>{children}</BlogWindow>;
 }

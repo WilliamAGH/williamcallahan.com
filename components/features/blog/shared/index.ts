@@ -5,5 +5,5 @@
  * Shared components for the blog page
  */
 
-export { BlogAuthor } from './blog-author';
-export { BlogTags } from './blog-tags';
+export { BlogAuthor } from "./blog-author";
+export { BlogTags } from "./blog-tags";
