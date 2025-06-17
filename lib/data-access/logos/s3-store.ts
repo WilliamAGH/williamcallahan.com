@@ -43,11 +43,17 @@ export async function getS3LogoKeys(): Promise<Set<string>> {
 
 /**
  * Adds a new key to the in-memory S3 logo key store.
+ * Initializes the store if it hasn't been initialized yet.
  *
  * @param key - The S3 key to add.
  */
 export function addKeyToS3LogoStore(key: string): void {
-  s3LogoKeys?.add(key);
+  if (!s3LogoKeys) {
+    // Initialize the store synchronously if not already initialized
+    s3LogoKeys = new Set<string>();
+    isInitialized = false; // Mark as not fully initialized from S3
+  }
+  s3LogoKeys.add(key);
 }
 
 /**
