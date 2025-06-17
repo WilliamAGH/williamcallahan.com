@@ -1,9 +1,12 @@
 Review and resolve comments on open pull requests.
 
-Repository: <https://github.com/WilliamAGH/williamcallahan.com>
+Repository: https://github.com/WilliamAGH/williamcallahan.com
+Owner: WilliamAGH
+Repo: williamcallahan.com
+
 STEP 0: Run `git branch --show-current` to capture the current branch name.
 
-STEP 1: Use @mcp__github__list_pull_requests to get open PRs and output the list.
+STEP 1: Use @mcp__github__list_pull_requests with owner="WilliamAGH" repo="williamcallahan.com" state="open" to get open PRs and output the list.
 
 STEP 2: For each PR (max 5), get and output review comments using @mcp__github__get_pull_request_comments.
 

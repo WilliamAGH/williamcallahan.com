@@ -1,6 +1,8 @@
 Create a new GitHub issue based on current codebase state.
 
-Repository: <https://github.com/WilliamAGH/williamcallahan.com>
+Repository: https://github.com/WilliamAGH/williamcallahan.com
+Owner: WilliamAGH
+Repo: williamcallahan.com
 
 STEP 1: Run git status and git diff to see current changes and understand context.
 
@@ -10,7 +12,7 @@ b) Technical debt that should be addressed
 c) Feature improvements or enhancements
 d) Documentation gaps
 
-STEP 3: Create a well-structured GitHub issue using @mcp__github__create_issue with owner="WilliamAGH" repo="williamcallahan.com". Include:
+STEP 3: Create a well-structured GitHub issue using @mcp__github__create_issue with owner="WilliamAGH" repo="williamcallahan.com" title="<descriptive_title>" body="<detailed_description>" labels=["bug", "enhancement", "documentation", etc.]. Include:
 a) Clear, descriptive title
 b) Detailed description with context
 c) Steps to reproduce (if bug)
