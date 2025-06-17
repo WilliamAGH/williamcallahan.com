@@ -121,22 +121,25 @@ This document organizes bugs and improvements by functionality area. Each issue 
 
 **Problem**: The bookmarks system has severe architectural issues:
 
-1. lib/bookmarks.ts imports from lib/data-access/bookmarks.ts which imports back, creating circular dependencies
+1. lib/bookmarks.ts imports from lib/data-access/bookmarks.ts which imports back, creating circular dependencies ✅ **FIXED 2025-06-16**
 2. lib/bookmarks.server.ts makes HTTP requests to its own /api/bookmarks endpoint instead of calling functions directly
 3. S3-based distributed locking uses non-atomic read-then-write pattern, allowing race conditions
 4. Bookmark validation logic is duplicated across multiple files instead of centralized
-5. API responses are cast to types without runtime validation, causing runtime errors
+5. API responses are cast to types without runtime validation, causing runtime errors ✅ **FIXED 2025-06-16**
 6. The main route handler duplicates refresh logic that exists in /refresh endpoint
 7. No pagination for users with hundreds of bookmarks
+8. Double lock release warnings occur during bookmark processing ✅ **FIXED 2025-06-16**
+9. Distributed locking needs more resilient cleanup mechanism ✅ **FIXED 2025-06-16**
 **Solution**:
 
-- Move shared logic to lib/bookmarks-core.ts to break circular dependencies
+- Move shared logic to lib/bookmarks-core.ts to break circular dependencies ✅ **IMPLEMENTED 2025-06-16**
 - Have server components import directly from data-access layer
 - Replace S3 locking with DynamoDB conditional writes for true atomicity
 - Create lib/validators/bookmarks.ts for all validation logic
-- Use Zod schemas for runtime validation of external data
+- Use Zod schemas for runtime validation of external data ✅ **IMPLEMENTED 2025-06-16**
 - Remove isRefresh parameter from main endpoint
 - Add limit/offset parameters for pagination
+- Added cleanup mechanism for orphaned locks ✅ **IMPLEMENTED 2025-06-16**
 **Affected Files**:
 - `lib/bookmarks.ts`
 - `lib/data-access/bookmarks.ts`
@@ -163,6 +166,7 @@ This document organizes bugs and improvements by functionality area. Each issue 
 5. No visibility into cache performance (hit rates, memory usage, etc.)
 6. Cold starts result in poor performance until cache warms naturally
 7. Can only clear entire cache, not specific keys or patterns
+8. No mechanism to refresh stale logos already cached in S3
 **Solution**:
 
 - Add `maxKeys: 1000` parameter to ServerCache constructor
@@ -178,6 +182,7 @@ This document organizes bugs and improvements by functionality area. Each issue 
 - `app/api/cache/images/route.ts`
 - `middleware/cache-debug.ts`
 - `lib/cache.ts` (remove dead code)
+- `__tests__/lib/server-cache-simple.test.ts` (updated with comprehensive tests documenting known issues)
 
 ---
 
@@ -338,6 +343,7 @@ This document organizes bugs and improvements by functionality area. Each issue 
 5. ServerCache has no TTL, serving stale data indefinitely until restart
 6. All-time stats can be mathematically less than trailing year stats
 7. fetchWithRetry retries on 401/403 auth errors which will never succeed
+8. Request coalescing implemented for logos but not for GitHub activity fetches
 **Solution**:
 
 - Split into fetchGraphQL, fetchREST, and parseCSV modules
@@ -371,6 +377,10 @@ This document organizes bugs and improvements by functionality area. Each issue 
 6. logo-fetcher.ts and logo.server.ts have overlapping normalizeDomain functions
 7. No caching of image analysis results, reprocessing identical images
 8. fetch follows redirects, bypassing domain validation via open redirects
+9. Investment cards now actively use dynamic logo fetching (previously disabled)
+10. NextResponse.redirect errors when using relative URLs ✅ **FIXED 2025-06-16**
+11. Animated image formats (GIF, WebP) not preserved ✅ **FIXED 2025-06-16**
+12. Infinite loop when fetching Karakeep fallback images ✅ **FIXED 2025-06-16**
 **Solution**:
 
 - Validate URLs against allowlist and block private IPs (10.*, 192.168.*, etc)
@@ -381,6 +391,9 @@ This document organizes bugs and improvements by functionality area. Each issue 
 - Consolidate logo modules into single module
 - Cache image analysis results by content hash
 - Add `redirect: 'error'` to all fetch calls
+- Created unified `/api/og-image` route as single source of truth ✅ **IMPLEMENTED 2025-06-16**
+- Fixed NextResponse.redirect to use absolute URLs ✅ **IMPLEMENTED 2025-06-16**
+- Added contextual fallback images ✅ **IMPLEMENTED 2025-06-16**
 **Affected Files**:
 - `app/api/cache/images/route.ts`
 - `app/api/logo/route.ts`
@@ -416,7 +429,7 @@ This document organizes bugs and improvements by functionality area. Each issue 
 
 **GitHub Issue**: [#128](https://github.com/WilliamAGH/williamcallahan.com/issues/128)
 
-**Problem**: Mixed data and content in data file, duplicated AcceleratorBadge logic, dead financial metrics code, and regex-based parsing fallback.
+**Problem**: Mixed data and content in data file, duplicated AcceleratorBadge logic, dead financial metrics code, and regex-based parsing fallback. Investment cards are now fetching logos dynamically but the infrastructure lacks a mechanism to refresh stale S3-cached logos.
 **Solution**:
 
 - Move investmentPhilosophy to separate content file
@@ -565,6 +578,7 @@ This document organizes bugs and improvements by functionality area. Each issue 
 - `lib/data-access/logos/s3-store.ts`
 - `lib/s3.ts`
 - `lib/utils/opengraph-utils.ts`
+- `lib/data-access/logos.ts` (invalidateLogoS3Cache is a no-op)
 
 ---
 

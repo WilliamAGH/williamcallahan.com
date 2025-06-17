@@ -7,12 +7,13 @@ graph TD
         B{Cache Check}
         C["✅ HIT<br/>(~1-5ms)"]
         D["❌ MISS"]
-        E["Set Cache<br/>(Success or Failure TTL)"]
+        E["Set Cache<br/>(Success: 30d TTL<br/>Failure: 1d TTL)"]
+        RC["Request Coalescing<br/>(In-Flight Promises)"]
     end
 
     subgraph "Downstream Services"
-        F["S3 Storage<br/>(s3-object-storage.md)"]
-        G["External APIs<br/>(via json-handling/image-handling)"]
+        F["S3 Storage<br/>(s3-object-storage.md)<br/>~10-50ms"]
+        G["External APIs<br/>(via json-handling/image-handling)<br/>100ms-5s"]
     end
     
     subgraph "Response Layer"
@@ -25,7 +26,9 @@ graph TD
     C --> H
     
     B -->|MISS| D
-    D --> F
+    D --> RC
+    RC -->|"Already Fetching"| RC
+    RC -->|"New Request"| F
     F -- "Data Found" --> E
     F -- "Data NOT Found" --> G
     
@@ -36,6 +39,12 @@ graph TD
         J["middleware/cache-debug.ts"]
     end
 
+    subgraph "Known Issues"
+        K["⚠️ No Memory Limits<br/>(Issue #115)"]
+        L["⚠️ No Clone Protection<br/>(useClones: false)"]
+        M["⚠️ No S3 Refresh<br/>(Stale logos persist)"]
+    end
+
     J -- "Adds headers to" --> A
 
     %% Styling
@@ -44,3 +53,6 @@ graph TD
     style D fill:#f8d7da,stroke:#721c24
     style H fill:#d4edda,stroke:#155724
     style I fill:#fff3cd,stroke:#856404
+    style K fill:#ffebee,stroke:#c62828
+    style L fill:#ffebee,stroke:#c62828
+    style M fill:#ffebee,stroke:#c62828

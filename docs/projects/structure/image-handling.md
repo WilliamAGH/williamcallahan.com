@@ -6,6 +6,28 @@
 
 To provide a robust and centralized system for fetching, analyzing, processing, and serving images, with a primary focus on company logos and OpenGraph images. This functionality ensures visual consistency, performance, and adaptability across different application themes (light and dark).
 
+## Recently Resolved Issues (2025-06)
+
+### ✅ FIXED: Unified OG Image Handling
+- **Previous Issue**: Multiple endpoints handled OpenGraph images inconsistently
+- **Solution**: Created `/api/og-image` as single source of truth for ALL OG images
+- **Impact**: Consistent image handling across bookmarks, blog posts, and external integrations
+
+### ✅ FIXED: Animated Image Preservation
+- **Previous Issue**: GIF and animated WebP files were converted to static PNG
+- **Solution**: Updated `processImageBuffer` to detect and preserve animated formats
+- **Impact**: Animated logos and images now display correctly
+
+### ✅ FIXED: NextResponse.redirect Errors
+- **Previous Issue**: Relative URLs caused "URL is malformed" errors
+- **Solution**: All redirects now use absolute URLs via `new URL(path, request.url).toString()`
+- **Impact**: Proper fallback handling without errors
+
+### ✅ FIXED: Clean Error Logging
+- **Previous Issue**: Expected errors showed full stack traces
+- **Solution**: Differentiate between expected and unexpected errors
+- **Impact**: Cleaner logs, easier debugging
+
 ## Critical Security Vulnerabilities
 
 ### 🔴 CRITICAL Issues Requiring Immediate Fix
@@ -62,9 +84,13 @@ The image handling pipeline is a multi-step process that takes a domain or URL a
 
 This system acts as an orchestrator, relying on several other core functionalities:
 
-- Caching (`caching.md`)**: All processed image data, fetch results (both success and failure), and analysis metadata are stored in an in-memory `ServerCacheInstance`. This significantly reduces latency on subsequent requests by avoiding redundant processing and network calls.
+- **Caching (`caching.md`)**: All processed image data, fetch results (both success and failure), and analysis metadata are stored in an in-memory `ServerCacheInstance`. This significantly reduces latency on subsequent requests by avoiding redundant processing and network calls.
+  - **Multi-Tier Architecture**: Memory Cache (~1ms) → S3 Storage (~10-50ms) → External APIs (100ms-5s)
+  - **TTL Strategy**: Success results cached for 30 days, failures for 1 day
+  - **Request Coalescing**: Prevents duplicate concurrent fetches for the same resource
+  - **Known Issues**: No memory limits (#115), no S3 refresh mechanism for stale logos
 
-- Storage (`s3-object-storage.md`)**: All final image assets (both original and inverted versions) are persisted in an S3 bucket. All S3 operations are delegated to the `s3-object-storage` functionality, which handles the complexities of uploading files with public-read access and managing content types.
+- **Storage (`s3-object-storage.md`)**: All final image assets (both original and inverted versions) are persisted in an S3 bucket. All S3 operations are delegated to the `s3-object-storage` functionality, which handles the complexities of uploading files with public-read access and managing content types.
 
 ## Key API Routes
 
@@ -76,6 +102,7 @@ The functionality is exposed through several dedicated API endpoints:
   - Query params: `website`, `company`, `forceRefresh`
   - Uses unified `getLogo()` from data access layer
   - Returns image buffer with appropriate content-type
+  - **Active Usage**: Investment cards use this endpoint for dynamic logo fetching
 
 - **`/api/logo/invert`**: Theme-aware logo inversion
   - GET: Returns inverted logo image based on theme
@@ -97,12 +124,29 @@ The functionality is exposed through several dedicated API endpoints:
   - Protects bearer token from client exposure
 
 ### OpenGraph & Social Images
-- **`/api/og-image`**: OpenGraph image fetching
-  - Fetches OG images from social media profiles
-  - **🔴 SECURITY**: SSRF via open redirects vulnerability
-  - Allow-lists supported domains (GitHub, X, LinkedIn, etc.)
-  - Provides fallback images for each platform
-  - Query params: `url`, `fetchDomain`
+- **`/api/og-image`**: Universal OpenGraph image endpoint (2025-06 complete rewrite)
+  - **NEW**: Single source of truth for ALL OpenGraph images across the application
+  - Multi-input support:
+    - S3 keys (e.g., `opengraph/images/example.png`) → CDN redirect
+    - Karakeep asset IDs (e.g., `abc-123-def`) → Asset proxy
+    - External URLs (e.g., `https://github.com`) → Fetch & persist
+  - Hierarchy: Memory cache → S3 storage → External fetch → Karakeep fallback
+  - Security enhancements:
+    - Fixed SSRF vulnerabilities with proper validation
+    - Domain allowlisting (development allows localhost)
+    - 10MB size limits with Content-Length checks
+    - Content-Type validation
+    - 10s timeout protection
+  - Performance optimizations:
+    - Response streaming with background S3 persistence
+    - Response cloning for non-blocking uploads
+    - S3 existence cache (5-minute TTL)
+  - Contextual fallbacks:
+    - Person placeholder for profile URLs
+    - OpenGraph card placeholder for OG-specific failures
+    - Company placeholder as default
+  - Preserves animated formats (GIF, WebP)
+  - Query params: `url`, `assetId`, `bookmarkId`
 
 ### Internal Utilities
 - **`/api/twitter-image/[...path]`**: Twitter image proxy (referenced but not found)
@@ -191,11 +235,27 @@ The functionality is exposed through several dedicated API endpoints:
 ## Data Flow
 
 ```
-Domain/URL → External APIs → Fetch & Validate → Analyze → Process → Cache → Store S3 → Serve
-                    ↓                                         ↓          ↓
-              Fallback to                                In-Memory    Persistent
-              Other Sources                                Cache       Storage
+Domain/URL → Check Memory Cache → HIT? Return (~1ms)
+     ↓              ↓ MISS
+     ↓         Check S3 → HIT? Cache in Memory & Return (~10-50ms)
+     ↓              ↓ MISS  
+     ↓         Check In-Flight? → Yes? Wait for Promise
+     ↓              ↓ No
+     ↓         External APIs → Fetch & Validate → Analyze → Process
+     ↓                                                         ↓
+     ↓                                                    Store in S3
+     ↓                                                         ↓
+     └────────────────────────────────────────────> Cache in Memory → Serve
 ```
+
+### Investment Card Logo Loading
+
+1. **Server Component Render**: `InvestmentCard` component calls `getLogo(domain)`
+2. **Cache Check**: Memory cache checked first (ServerCacheInstance)
+3. **S3 Fallback**: If memory miss, checks S3 for previously stored logo
+4. **External Fetch**: If S3 miss, fetches from external APIs
+5. **Caching**: Successful fetches cached for 30 days, failures for 1 day
+6. **Build-Time Prefetch**: Scripts populate S3 during build to minimize runtime fetches
 
 ## Security Recommendations
 
@@ -217,5 +277,7 @@ Domain/URL → External APIs → Fetch & Validate → Analyze → Process → Ca
    - Consolidate duplicate functionality in logo files
    - Fix ambiguous error handling in imageCompare
    - Add atomic operations for S3 cache initialization
-   - Implement request coalescing for concurrent fetches
+   - Implement request coalescing for concurrent fetches (partially implemented)
    - Add performance monitoring and alerting
+   - Implement logo refresh mechanism for stale S3 entries
+   - Add memory limits to ServerCacheInstance (Issue #115)

@@ -35,7 +35,7 @@ File/Path                                       Functionality                   
 - [~] **features/**
   - [x] `index.ts`                              `components`            - Barrel file for all feature components
   - [x] **bookmarks/**
-    - [x] `bookmark-card.client.tsx`            `bookmarks`             - Bookmark card UI
+    - [x] `bookmark-card.client.tsx`            `bookmarks`             - Bookmark card UI (2025-06: unified OG images)
     - [x] `bookmarks-client-with-window.tsx`    `bookmarks`             - Bookmarks window entrypoint
     - [x] `bookmarks-window.client.tsx`         `bookmarks`             - UI for the bookmarks window
     - [x] `bookmarks-with-options.client.tsx`   `bookmarks`             - UI with additional bookmark options
@@ -100,7 +100,9 @@ File/Path                                       Functionality                   
     - [x] `social-list.client.tsx`              `social-links`          - List of social links
     - [x] `social-window.client.tsx`            `social-links`          - Wrapper window for social links
 - [x] **seo/**
+  - [x] `index.ts`                              `seo`                   - Barrel file for SEO components
   - [x] `json-ld.tsx`                           `seo`                   - JSON-LD structured data component
+  - [x] `opengraph-logo.tsx`                    `seo`                   - OpenGraph logo meta tag component
 - [~] **ui/**
   - [x] **terminal/**
     - [x] `terminal-implementation.client.tsx`  `terminal`              - Terminal core UI implementation
@@ -202,11 +204,11 @@ File/Path                                       Functionality                   
     - [x] `index.ts`                              ``                    - Barrel file for data access modules
   - [x] `investments.ts`                        `investments`           - Data access for investments
   - [x] `logos.ts`                              `image-handling`        - Data access for logos
-  - [x] `opengraph.ts`                          `image-handling`        - Data access for OpenGraph data
+  - [x] `opengraph.ts`                          `opengraph`             - Data access for OpenGraph metadata extraction and caching (2025-06: background persistence)
   - [ ] **logos/**
     - [x] `config.ts`                           `image-handling`        - Configuration for logo processing
     - [x] `external-fetch.ts`                   `image-handling`        - External logo fetching logic
-    - [x] `image-processing.ts`                 `image-handling`        - Logo image processing
+    - [x] `image-processing.ts`                 `image-handling`        - Logo image processing (2025-06: preserves animations)
     - [x] `s3-operations.ts`                    `s3-object-storage`     - S3 operations for logos
     - [x] `s3-store.ts`                         `s3-object-storage`     - S3 storage logic for logos
     - [x] `session.ts`                          `image-handling`        - Session management for logo operations
@@ -221,6 +223,13 @@ File/Path                                       Functionality                   
   - [x] `index.ts`                              `image-handling`        - Barrel file for image analysis
 - [ ] **imageCompare/**
   - [x] `index.ts`                              `image-handling`        - Barrel file for image comparison
+- [x] **opengraph/**
+  - [x] `constants.ts`                           `opengraph`             - Centralized constants for OpenGraph functionality
+  - [x] `parser.ts`                              `opengraph`             - HTML parsing and platform-specific extraction logic
+  - [x] `imageSelector.ts`                       `opengraph`             - Priority-based image selection from metadata
+  - [x] `fallback.ts`                            `opengraph`             - Unified fallback logic for images and metadata
+  - [x] `persistence.ts`                         `opengraph`             - Background image persistence to S3
+  - [x] `fetch.ts`                               `opengraph`             - External HTML fetching with retry and circuit breaking
 - [x] **s3-utils/**
   - [x] `index.ts`                              `s3-object-storage`     - Barrel file for S3 utilities
 - [x] **seo/**
@@ -242,7 +251,7 @@ File/Path                                       Functionality                   
   - [x] `formatters.ts`                         `string-manipulation`   - Data formatting functions
   - [x] `image-s3-utils.ts`                     `s3-object-storage`     - Image-specific S3 utilities
   - [x] `logger.ts`                             `log-error-debug-handling` - Shared logger utility
-  - [x] `opengraph-utils.ts`                    `image-handling`        - OpenGraph utility functions
+  - [x] `opengraph-utils.ts`                    `opengraph`             - OpenGraph utility functions (URL validation, image selection, etc.)
   - [x] `retry.ts`                              `log-error-debug-handling` - Retry logic for async operations
   - [x] `revalidate-path.ts`                    `caching`               - Next.js path revalidation helper
   - [x] `runtime-guards.ts`                     `overview`              - Runtime type guards
@@ -358,7 +367,7 @@ File/Path                                       Functionality                   
   - [ ] **logo/**
     - [x] `route.ts`                            `image-handling`        - Logo API
     - [x] **invert/`route.ts`**                 `image-handling`        - Invert logo API
-  - [x] **og-image/`route.ts`**                 `image-handling`        - OpenGraph image API
+  - [x] **og-image/`route.ts`**                 `opengraph`             - Universal OpenGraph image endpoint (2025-06 rewrite)
   - [x] **posts/`route.ts`**                    `blog-article`          - Posts API
   - [x] **search/**
     - [x] **all/`route.ts`**                    `search`                - Global search API
@@ -404,11 +413,12 @@ File/Path                                       Functionality                   
 - [x] `populate-volumes.ts`                     `build`                 - Script to populate Docker volumes with data
 - [x] `pre-build-checks.sh`                     `build`                 - Pre-build check script
 - [x] `prefetch-data.ts`                        `batch-fetch-update`    - Script to prefetch data
-- [x] `refresh-opengraph-images.ts`             `batch-fetch-update`    - Script to refresh OpenGraph images
+- [x] `refresh-opengraph-images.ts`             `opengraph`             - Script to refresh OpenGraph images and metadata
 - [x] `run-bun-tests.sh`                        `testing-config`        - Script to run Bun tests
 - [x] `run-tests.sh`                            `testing-config`        - Script to run all tests
 - [x] `scheduler.ts`                            `batch-fetch-update`    - Script to run scheduled tasks
 - [x] `setup-test-alias.sh`                     `testing-config`        - Script to set up test aliases
+- [x] `submit-sitemap.ts`                       `seo`                   - Script to submit sitemap to search engines
 - [x] `update-s3-data.ts`                       `batch-fetch-update`    - Script to update S3 data
 
 ## Styles Directory

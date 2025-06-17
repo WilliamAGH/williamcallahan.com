@@ -25,6 +25,7 @@ graph TB
         codeComp["Code Blocks<br/>• Syntax colors<br/>• Copy button"]
         social["Social Cards<br/>• Glow effects<br/>• Animations"]
         nav["Navigation<br/>• Window states<br/>• Mobile fixes"]
+        blog["Blog Articles<br/>• Typography & layout<br/>• MDX content"]
     end
     
     subgraph "Issues & Improvements"
@@ -61,6 +62,13 @@ graph TB
     tailwind --> globals
     custom --> globals
     
+    %% Build Pipeline
+    subgraph "Build Pipeline"
+        tailwindConfig["tailwind.config.js<br/>• Design tokens<br/>• Custom animations"]
+        postcss["PostCSS Pipeline<br/>• Nesting & preset-env<br/>• Autoprefixer"]
+        runtimeUtils["Runtime Utilities<br/>• tailwind-merge<br/>• framer-motion"]
+    end
+    
     classDef primary fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     classDef component fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
     classDef issue fill:#ffebee,stroke:#b71c1c,stroke-width:2px
@@ -70,3 +78,8 @@ graph TB
     class codeblocks,simpletabs,socialstyles,prism component
     class duplicates,unused,perf issue
     class darkMode,custom system
+
+    blog --> tailwind
+    tailwindConfig --> tailwind
+    postcss --> tailwind
+    runtimeUtils --> tailwind

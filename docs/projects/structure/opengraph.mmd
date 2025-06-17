@@ -1,0 +1,127 @@
+graph TD
+    %% Entry Point
+    A[URL Request] --> B{Validate URL}
+    B -->|Invalid| C[Return Error]
+    B -->|Valid| D[Normalize & Hash URL]
+    
+    %% Cache Layers
+    D --> E{Memory Cache?}
+    E -->|Hit + Fresh| F[Return Cached Data]
+    E -->|Hit + Stale| G[Return Stale + Background Refresh]
+    E -->|Miss| H{S3 Storage?}
+    
+    H -->|Hit| I[Load from S3]
+    I --> J[Update Memory Cache]
+    J --> K{Needs Refresh?}
+    K -->|Yes| L[Background Refresh]
+    K -->|No| M[Return Data]
+    
+    H -->|Miss| N{Skip External?}
+    N -->|Yes| O[Return Fallback]
+    N -->|No| P{Circuit Breaker}
+    
+    %% External Fetch Flow
+    P -->|Domain Failed| Q[Use Fallback Data]
+    P -->|Domain OK| R[Rate Limiter]
+    R --> S[Fetch HTML]
+    
+    %% HTML Processing
+    S --> T{HTML Size?}
+    T -->|>5MB| U[Extract Head/First 512KB]
+    T -->|≤5MB| V[Parse Full HTML]
+    
+    U --> W[Extract Metadata]
+    V --> W
+    
+    %% Image Selection Priority
+    W --> X[Select Best Image]
+    
+    subgraph "Image Priority Order"
+        X1[1. Platform Profile]
+        X2[2. og:image]
+        X3[3. og:image:secure_url]
+        X4[4. og:image:url]
+        X5[5. twitter:image]
+        X6[6. Schema.org]
+        X7[7. MS Tile]
+        X8[8. Apple Touch Icon]
+        X9[9. Favicon]
+    end
+    
+    X --> Y{Image Found?}
+    Y -->|Yes| Z[Resolve Relative URLs]
+    Y -->|No + Has Fallback| AA[Use Karakeep Fallback]
+    Y -->|No Fallback| AB[Platform Default]
+    
+    %% Storage Phase
+    Z --> AC[Store Metadata in S3]
+    AA --> AC
+    AB --> AC
+    
+    AC --> AD[Persist Images to S3]
+    AD --> AE[Update Memory Cache]
+    AE --> AF[Return Result]
+    
+    %% Background Operations
+    L --> AG[Fetch Fresh Data]
+    AG --> AH[Update All Caches]
+    
+    %% Platform-Specific Extraction
+    subgraph "Platform Extractors"
+        PE1[GitHub: .avatar-user]
+        PE2[Twitter: profile_images]
+        PE3[LinkedIn: profile-picture]
+        PE4[Bluesky: cdn.bsky.app]
+    end
+    
+    %% Error Handling
+    S -->|Timeout| AI[Retry with Backoff]
+    AI -->|Max Retries| AJ[Mark Domain Failed]
+    AJ --> AK[Return Fallback]
+    
+    %% Performance Indicators
+    F -.->|"⚡ 1-5ms"| Success
+    M -.->|"🏃 50-200ms"| Success
+    AF -.->|"🐌 500ms-5s"| Success
+    
+    %% Cache Configuration
+    subgraph "Cache TTLs"
+        C1[Memory Success: 24h]
+        C2[Memory Failure: 1h]
+        C3[S3: Persistent]
+        C4[Circuit Breaker: 1h]
+    end
+    
+    %% Image Processing
+    subgraph "Image Storage"
+        IS1[Download Image]
+        IS2[Validate Size/Format]
+        IS3[Generate S3 Key]
+        IS4[Store in S3]
+        IS5[Return S3 URL]
+    end
+    
+    AD --> IS1
+    IS1 --> IS2
+    IS2 --> IS3
+    IS3 --> IS4
+    IS4 --> IS5
+    
+    %% Styling
+    style A fill:#e1f5fe
+    style F fill:#c8e6c9
+    style M fill:#c8e6c9
+    style AF fill:#c8e6c9
+    style Q fill:#ffccbc
+    style AK fill:#ffccbc
+    style C fill:#ffcdd2
+    
+    classDef cache fill:#e3f2fd,stroke:#1976d2
+    classDef external fill:#f3e5f5,stroke:#7b1fa2
+    classDef process fill:#e8f5e9,stroke:#388e3c
+    classDef error fill:#ffebee,stroke:#c62828
+    
+    class E,H,I,J cache
+    class R,S,T external
+    class W,X,Z process
+    class C,Q,AK error
