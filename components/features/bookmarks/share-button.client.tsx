@@ -8,17 +8,16 @@
 "use client";
 
 import { useFixSvgTransforms } from "@/lib/hooks/use-fix-svg-transforms";
-import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { UnifiedBookmark } from "@/types";
 import { Check } from "lucide-react";
 import { type JSX, useEffect, useRef, useState } from "react";
 
 interface ShareButtonProps {
   bookmark: Pick<UnifiedBookmark, "id" | "url">;
-  allBookmarks: Array<Pick<UnifiedBookmark, "id" | "url">>;
+  shareUrl: string;
 }
 
-export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.Element {
+export function ShareButton({ shareUrl }: ShareButtonProps): JSX.Element {
   const [mounted, setMounted] = useState(false);
   const [copied, setCopied] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(false);
@@ -46,12 +45,11 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
     }
   }, [copied]);
 
-  // Generate the slug for this bookmark
+  // Get the full URL for sharing
   const getBookmarkUrl = () => {
-    const slug = generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id);
     // Get the base URL (works in both development and production)
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    return `${baseUrl}/bookmarks/${slug}`;
+    return `${baseUrl}${shareUrl}`;
   };
 
   const handleCopy = async () => {
