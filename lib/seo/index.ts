@@ -10,12 +10,52 @@
  * @see {@link "./opengraph.ts"} - OpenGraph implementation
  */
 
-import { SITE_TITLE, SITE_DESCRIPTION, SITE_NAME, metadata } from '../../data/metadata';
-import { createArticleOgMetadata } from './opengraph';
-import { ensureAbsoluteUrl } from './utils';
-import type { Metadata as NextMetadata } from 'next';
-import type { BlogPost } from '../../types/blog';
-import type { ImageSEOMetadata, OpenGraphImage } from '../../types/seo';
+// Re-export all SEO utilities and types
+export * from "./constants";
+export * from "./metadata";
+export * from "./opengraph";
+export * from "./schema";
+export * from "./utils";
+
+// Re-export metadata configuration from data
+export {
+  SITE_NAME,
+  SITE_TITLE,
+  SITE_DESCRIPTION,
+  SITE_DESCRIPTION_SHORT,
+  PAGE_METADATA,
+  metadata,
+} from "../../data/metadata";
+
+// Re-export validation utilities from types
+export {
+  // Validation functions
+  validatePageMetadata,
+  validateMetadata,
+  safeValidateMetadata,
+  // Validation schemas
+  metadataSchema,
+  basePageMetadataSchema,
+  profilePageMetadataSchema,
+  collectionPageMetadataSchema,
+  imageMetadataSchema,
+  openGraphSchema,
+  pageMetadataSchemas,
+  // Constants
+  SEO_LIMITS,
+  // Types
+  type MetadataConfig,
+  type ProfilePageMetadata as ValidatedProfilePageMetadata,
+  type CollectionPageMetadata as ValidatedCollectionPageMetadata,
+  type ValidatedMetadata,
+} from "../../types/seo/metadata";
+
+import type { Metadata as NextMetadata } from "next";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, metadata } from "../../data/metadata";
+import type { BlogPost } from "../../types/blog";
+import type { ImageSEOMetadata, OpenGraphImage } from "../../types/seo";
+import { createArticleOgMetadata } from "./opengraph";
+import { ensureAbsoluteUrl } from "./utils";
 
 /**
  * Default metadata for all pages
@@ -32,12 +72,12 @@ export const DEFAULT_METADATA: NextMetadata = {
  * Provides pre-configured metadata for known static pages
  */
 export const STATIC_PAGE_METADATA: Record<string, NextMetadata> = {
-  '/': DEFAULT_METADATA,
-  '/blog': {
+  "/": DEFAULT_METADATA,
+  "/blog": {
     ...DEFAULT_METADATA,
     title: `Blog - ${SITE_TITLE}`,
   },
-  '/experience': {
+  "/experience": {
     ...DEFAULT_METADATA,
     title: `Experience - ${SITE_TITLE}`,
   },
@@ -102,15 +142,17 @@ export function getBlogPostMetadata(post: BlogPost): NextMetadata {
     },
     openGraph: ogMetadata,
     twitter: {
-      card: 'summary_large_image',
+      card: "summary_large_image",
       site: metadata.social.twitter,
       creator: metadata.social.twitter,
       title: post.title,
       description: post.excerpt,
-      images: [{
-        url: ogImage?.url ?? metadata.defaultImage.url,
-        alt: post.title,
-      }],
+      images: [
+        {
+          url: ogImage?.url ?? metadata.defaultImage.url,
+          alt: post.title,
+        },
+      ],
     },
   };
 }
@@ -123,11 +165,7 @@ export function getBlogPostMetadata(post: BlogPost): NextMetadata {
  * @param title - Title for the image
  * @returns Combined image metadata object
  */
-export function getImageMetadata(
-  url: string,
-  alt: string,
-  title: string
-): ImageSEOMetadata {
+export function getImageMetadata(url: string, alt: string, title: string): ImageSEOMetadata {
   const absoluteUrl = ensureAbsoluteUrl(url);
 
   return {
@@ -137,10 +175,10 @@ export function getImageMetadata(
     openGraph: {
       url: absoluteUrl,
       alt,
-      type: url.endsWith('.svg') ? 'image/svg+xml' : undefined,
+      type: url.endsWith(".svg") ? "image/svg+xml" : undefined,
     },
     schema: {
-      '@type': 'ImageObject',
+      "@type": "ImageObject",
       url: absoluteUrl,
       caption: title,
     },
@@ -152,7 +190,7 @@ export function getImageMetadata(
  * @returns robots.txt file content
  */
 export function generateRobotsTxt(): string {
-  return `User-agent: *\nAllow: /\n\nSitemap: https://williamcallahan.com/sitemap.xml`;
+  return "User-agent: *\nAllow: /\n\nSitemap: https://williamcallahan.com/sitemap.xml";
 }
 
 /**
@@ -167,12 +205,12 @@ export function generateSitemap(urls: Array<{ path: string; lastmod?: string }>)
       return `
         <url>
           <loc>${loc}</loc>
-          ${lastmod ? `<lastmod>${lastmod}</lastmod>` : ''}
+          ${lastmod ? `<lastmod>${lastmod}</lastmod>` : ""}
           <changefreq>weekly</changefreq>
         </url>
       `;
     })
-    .join('');
+    .join("");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
     <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
