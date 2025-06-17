@@ -1,8 +1,8 @@
 "use client";
 
-import { motion, AnimatePresence } from 'framer-motion';
-import { usePathname } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { AnimatePresence, motion } from "framer-motion";
+import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 
 interface PageTransitionWrapperProps {
   children: ReactNode;
@@ -21,7 +21,7 @@ export function PageTransitionWrapper({ children }: PageTransitionWrapperProps) 
         exit="exitState"
         transition={{
           duration: 0.3, // Adjust duration as needed
-          ease: 'easeInOut',
+          ease: "easeInOut",
         }}
         variants={{
           initialState: {
