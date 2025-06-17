@@ -1,58 +1,91 @@
 graph TD
     subgraph "Client/Server Request"
         A["/api/logo (domain)"]
-        B["/api/og-image (url)"]
+        B["/api/og-image (unified endpoint)"]
         C["/api/assets/[assetId]"]
+        D["Investment Cards<br/>(Server Components)"]
+        E["Bookmark Cards<br/>(Client Components)"]
     end
 
     subgraph "Image Handling Pipeline"
         direction LR
         subgraph "Fetching"
-            D[Multi-Source Fetching]
+            F[Multi-Source Fetching]
         end
         subgraph "Validation"
-            E["Perceptual Hash Check<br/>(via /api/validate-logo)"]
+            G["Perceptual Hash Check<br/>(via /api/validate-logo)"]
         end
         subgraph "Processing"
-            F["Analysis &<br/>Theme Inversion"]
+            H["Analysis &<br/>Theme Inversion"]
         end
+    end
+    
+    subgraph "Unified OG Image Flow"
+        OG1["Input Detection<br/>(S3 key / Asset ID / URL)"]
+        OG2["S3 Existence Check<br/>(5min cache)"]
+        OG3["Response Streaming<br/>+ Background Persist"]
+        OG4["Contextual Fallbacks<br/>(Person/OG Card/Company)"]
     end
 
     subgraph "Core Systems"
-        G["Caching<br/>(caching.md)"]
-        H["S3 Storage<br/>(s3-object-storage.md)"]
+        subgraph "Multi-Tier Cache"
+            I["Memory Cache<br/>(ServerCacheInstance)<br/>~1ms"]
+            J["S3 Storage<br/>(s3-object-storage.md)<br/>~10-50ms"]
+        end
     end
     
     subgraph "External Dependencies"
-        I[External APIs<br/>(Google, Clearbit)]
-        J[Web Page<br/>(og:image tag)]
-        K[Proxied Service<br/>(e.g. Karakeep)]
+        K[External APIs<br/>(Google, Clearbit)<br/>100ms-5s]
+        L[Web Page<br/>(og:image tag)]
+        M[Proxied Service<br/>(e.g. Karakeep)]
     end
 
     subgraph "Response"
-        L[UI Component]
+        N[UI Component]
     end
 
-    %% Flows
-    A --> D
-    B --> D
-    D --> I
-    D --> J
+    %% Logo flows
+    A --> F
+    D --> F
+    F --> I
+    I -->|HIT| N
+    I -->|MISS| J
+    J -->|HIT| I
+    J -->|MISS| K
+    K --> H
 
-    D -- Fetched Image --> E
-    E -- Valid Image --> F
-    E -- Invalid Image --> L
+    F -- Fetched Image --> G
+    G -- Valid Image --> H
+    G -- Invalid Image --> N
     
-    F -- Processed Image & Metadata --> G & H
+    H -- Processed Image & Metadata --> I & J
 
-    C --> K -- Stream --> L
+    %% OG Image flows
+    B --> OG1
+    E --> OG1
+    OG1 --> OG2
+    OG2 -->|EXISTS| N
+    OG2 -->|MISS| L
+    L --> OG3
+    OG3 --> N
+    OG1 -->|FAIL| OG4
+    OG4 --> N
 
-    G -- Cached Response --> L
-    H -- S3 URL --> L
+    %% Asset proxy
+    C --> M -- Stream --> N
+
+    I -- "Cached Response<br/>(30d success/1d fail)" --> N
+    J -- S3 URL --> N
 
     %% Style
     classDef core fill:#d4edda,stroke:#155724;
-    class G,H core;
-    style L fill:#e1f5fe,stroke:#333
+    classDef fast fill:#e8f5e9,stroke:#2e7d32;
+    classDef medium fill:#fff3e0,stroke:#ef6c00;
+    classDef slow fill:#ffebee,stroke:#c62828;
+    class H,I core;
+    class H fast;
+    class I medium;
+    class J,K slow;
+    style M fill:#e1f5fe,stroke:#333
 
 </rewritten_file> 

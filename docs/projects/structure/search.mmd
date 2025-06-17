@@ -1,0 +1,178 @@
+---
+title: Search Architecture Diagrams
+---
+
+## Overall Architecture Flow
+
+```mermaid
+graph TB
+    %% Search Architecture Flow Diagram
+    
+    subgraph "Client Side"
+        A[User Input] --> B[Terminal Command Input]
+        B --> C{Length >= 2?}
+        C -->|Yes| D[Preload Search]
+        C -->|No| B
+        B --> E[Submit Command]
+    end
+    
+    subgraph "Lazy Loading"
+        D --> F[requestIdleCallback]
+        F --> G[Initialize Search Functions]
+        G --> H[Cache Functions]
+    end
+    
+    subgraph "API Layer"
+        E --> I[/api/search/scope or /api/search/all]
+        I --> J[Query Validation]
+        J --> K{Valid?}
+        K -->|No| L[400 Error]
+        K -->|Yes| M[Sanitize Query]
+    end
+    
+    subgraph "Cache Layer"
+        M --> N[Check Cache]
+        N --> O{Cache Hit?}
+        O -->|Yes| P[Return Cached]
+        O -->|No| Q[Continue to Search]
+    end
+    
+    subgraph "Search Engine"
+        Q --> R{Has MiniSearch Index?}
+        R -->|Yes| S[MiniSearch Query]
+        R -->|No| T[Build Index]
+        T --> S
+        S --> U{Success?}
+        U -->|Yes| V[Fuzzy Results]
+        U -->|No| W[Fallback Substring Search]
+        W --> X[Basic Results]
+        V --> Y[Combine Results]
+        X --> Y
+    end
+    
+    subgraph "Data Sources"
+        AA[Blog Posts - MDX]
+        AB[Investments - JSON]
+        AC[Experience - JSON]
+        AD[Education - JSON]
+        AE[Bookmarks - API]
+    end
+    
+    Q --> AA
+    Q --> AB
+    Q --> AC
+    Q --> AD
+    Q --> AE
+    
+    subgraph "Post Processing"
+        Y --> Z[Store in Cache]
+        Z --> ZA[Format Response]
+        ZA --> ZB[Return to Client]
+    end
+    
+    P --> ZB
+    L --> ZB
+    
+    %% Styling
+    classDef client fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef api fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef cache fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef search fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef data fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class A,B,C,D,E client
+    class I,J,K,L,M api
+    class N,O,P,Q,Z cache
+    class R,S,T,U,V,W,X,Y search
+    class AA,AB,AC,AD,AE data
+```
+
+## Component Interaction Sequence
+
+```mermaid
+sequenceDiagram
+    %% Search Component Interaction Sequence
+    
+    participant User
+    participant Terminal
+    participant CommandInput
+    participant Commands
+    participant API
+    participant Validator
+    participant Cache
+    participant Search
+    participant MiniSearch
+    participant Data
+    
+    %% User starts typing
+    User->>Terminal: Type search query
+    Terminal->>CommandInput: onChange event
+    
+    %% Lazy loading trigger
+    alt Query length >= 2
+        CommandInput->>CommandInput: Check hasPreloaded
+        CommandInput->>Commands: preloadSearch()
+        Commands-->>Commands: Initialize search functions
+        Commands-->>Commands: Cache implementations
+    end
+    
+    %% User submits search
+    User->>Terminal: Press Enter
+    Terminal->>Commands: handleCommand(input)
+    
+    %% Command routing
+    alt Section-specific search (e.g., "blog react")
+        Commands->>API: GET /api/search/blog?q=react
+    else Site-wide search
+        Commands->>API: GET /api/search/all?q=query
+    end
+    
+    %% API processing
+    API->>Validator: validateSearchQuery(query)
+    Validator-->>API: {isValid, sanitized, error?}
+    
+    alt Query invalid
+        API-->>Terminal: 400 Error
+    else Query valid
+        API->>Cache: getSearchResults(type, query)
+        
+        alt Cache hit & fresh
+            Cache-->>API: Cached results
+            API-->>Terminal: Return results
+        else Cache miss or stale
+            API->>Search: searchPosts(sanitizedQuery)
+            
+            %% Search execution
+            Search->>Search: Check MiniSearch index
+            alt Index exists
+                Search->>MiniSearch: search(query, options)
+                MiniSearch-->>Search: Fuzzy results
+            else No index
+                Search->>MiniSearch: Create index
+                Search->>Data: Load data
+                Data-->>Search: Raw data
+                Search->>MiniSearch: Add documents
+                Search->>MiniSearch: search(query, options)
+                MiniSearch-->>Search: Fuzzy results
+            end
+            
+            alt MiniSearch fails
+                Search->>Search: Fallback substring search
+                Search-->>Search: Basic results
+            end
+            
+            %% Cache and return
+            Search-->>API: Search results
+            API->>Cache: setSearchResults(type, query, results)
+            API-->>Terminal: Return formatted results
+        end
+    end
+    
+    Terminal->>User: Display results
+    
+    %% Notes
+    note over CommandInput: Preloading happens once per session
+    note over Cache: 15-minute TTL for results
+    note over MiniSearch: 10% fuzzy threshold, prefix matching
+    note over Search: Sanitization removes regex chars
+```

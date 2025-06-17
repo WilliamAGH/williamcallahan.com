@@ -62,6 +62,7 @@ The `code-block` functionality provides interactive code display components with
    - Users can copy code using `CopyButton`.
    - In standalone mode, users can minimize, maximize, or close the code block using `WindowControls`.
 5. **Responsive Design**: Control sizes adjust based on window width using `useWindowSize` hook.
+6. **Vertical Spacing**: Outer MDX article wraps code blocks in a `flex space-y-5` column which controls spacing; individual `<pre>` elements no longer set `mb-6`.
 
 ## Key Interactions
 

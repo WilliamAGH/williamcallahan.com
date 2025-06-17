@@ -189,3 +189,42 @@ The application uses CSS custom properties for theming, defined in `:root` and `
 4. Test styles in both light and dark modes
 5. Ensure mobile responsiveness
 6. Consider accessibility in all styling decisions
+7. **No `!important`** – Repository convention forbids the use of `!important`; resolve style conflicts via proper specificity, Tailwind config overrides, or layering order.
+
+## Build Pipeline & Tooling Integration
+
+The styling system relies on a small build pipeline that stitches together Tailwind, PostCSS and a few runtime helpers:
+
+### Tailwind Configuration (`config/tailwind.config.js`)
+
+- Central place for **design tokens** (fonts, colors, border-radius) and custom **keyframes** (`fadeInUp`, `pop`).
+- Enables class-based dark mode (`darkMode: "class"`).
+- Extends `@tailwindcss/typography` so prose elements inherit project typography rules.
+
+### PostCSS Pipeline *(defined in `package.json`)*
+
+- `tailwindcss/nesting` → Enables native nesting syntax so authored CSS can be closer to SCSS style without another pre-processor.
+- `tailwindcss` → Generates the utility classes.
+- `autoprefixer` → Adds vendor prefixes.
+- `postcss-preset-env` → Polyfills modern CSS features (custom media queries, logical properties, etc.).
+
+### Runtime Utilities
+
+- **`tailwind-merge`** & **`class-variance-authority`** dynamically compose/merge class strings at runtime, preventing duplicate utilities.
+- **`tailwindcss-animate`** supplies keyframe helpers for Tailwind utilities.
+- **`framer-motion`** adds JS-driven animations that complement the pure-CSS keyframes.
+
+### Generated / Auxiliary CSS
+
+Coverage-report CSS (`coverage/lcov-report/*.css`) is generated and therefore **excluded from manual documentation and linting rules**.
+
+## Blog Article Styling
+
+Blog posts (MDX files under `app/blog/**`) leverage several layers of the styling stack:
+
+1. **Global Prose Rules** – The `@tailwindcss/typography` extension in `tailwind.config.js` ensures headings, lists, blockquotes, etc. get consistent spacing and font sizes.  Global overrides in `app/globals.css` further adjust colors to match light/dark themes.
+2. **Code Blocks** – `components/ui/code-block/**` together with `app/code-blocks.css` and `prism.css` provide syntax highlighting that automatically picks up the current theme.
+3. **Responsive Images & Embeds** – Posts inherit `max-width: none` from the prose rules, allowing wide visuals without side-scroll.  Utility classes (`prose-img:rounded-md`, etc.) are added in MDX content for fine control.
+4. **MDX Components** – Custom React components used in articles (e.g., Tabs, Terminal) pull their own scoped CSS while still inheriting root CSS variables.
+
+This layered approach means **blog articles share the global design language** while retaining flexibility for rich interactive content.

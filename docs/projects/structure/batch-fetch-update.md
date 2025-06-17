@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD029 -->
+
 # Batch Fetch Update Architecture
 
 **Functionality:** `batch-fetch-update`
@@ -20,22 +22,22 @@ The application uses a cron-based scheduler (`scripts/scheduler.ts`) that runs c
 
 ### 🟠 HIGH Priority Issues
 
-2. **Missing Type Definitions**
+1. **Missing Type Definitions**
    - **Location**: `types/node-cron.d.ts`
    - **Issue**: Custom declaration instead of @types/node-cron
    - **Fix**: `npm install --save-dev @types/node-cron`
 
-3. **Brittle Data Parsing**
+2. **Brittle Data Parsing**
    - **Location**: `scripts/prefetch-data.ts`
    - **Issue**: Regex parsing of TypeScript files breaks with formatting changes
    - **Fix**: Refactor data files to export pure data structures
 
-4. **No Concurrency Protection**
+3. **No Concurrency Protection**
    - **Issue**: No protection against overlapping jobs
    - **Impact**: Can cause data corruption or API rate limit issues
    - **Fix**: Implement job locking mechanism
 
-5. **No Retry Mechanism**
+4. **No Retry Mechanism**
    - **Issue**: Failed operations are not retried
    - **Impact**: Transient failures cause permanent data gaps
    - **Fix**: Implement dead letter queue
@@ -75,6 +77,7 @@ const result = spawnSync('bun', ['run', 'update-s3', '--', '--bookmarks'], {
 ```
 
 **Key Components:**
+
 - **scheduler.ts**: Long-running process using node-cron
 - **update-s3-data.ts**: Main ETL script for data fetching
 - **prefetch-data.ts**: Build-time data population
@@ -145,6 +148,7 @@ The schedules are deliberately staggered to prevent resource contention:
 ### Error Handling Issues
 
 **Current State:**
+
 - Failed script executions are logged but not retried
 - Scheduler can be blocked by hanging jobs
 - No circuit breaker for external API failures
@@ -153,6 +157,7 @@ The schedules are deliberately staggered to prevent resource contention:
 **Recommended Improvements:**
 
 1. **Implement Job Queue with State Management**
+
 ```typescript
 interface JobState {
   id: string;
@@ -166,6 +171,7 @@ interface JobState {
 ```
 
 2. **Add Circuit Breaker Pattern**
+
 ```typescript
 class CircuitBreaker {
   private failureCount = 0;
@@ -181,6 +187,7 @@ class CircuitBreaker {
 ```
 
 3. **Implement Job Locking**
+
 ```typescript
 const createLock = (jobName: string): boolean => {
   const lockFile = `/tmp/locks/${jobName}.lock`;
@@ -264,6 +271,7 @@ The scheduler process must remain running for automated updates. Monitor via:
 ### Architectural Improvements Needed
 
 1. **Replace Blocking Architecture**
+
 ```typescript
 // WRONG: Current blocking approach
 const result = spawnSync('bun', ['run', 'update-s3']);
@@ -284,6 +292,7 @@ updateProcess.on('close', (code) => {
 ```
 
 2. **Implement Incremental Updates**
+
 ```typescript
 interface SyncState {
   lastSyncAt: Date;
@@ -299,6 +308,7 @@ async function incrementalBookmarkSync(): Promise<void> {
 ```
 
 3. **Add Monitoring & Metrics**
+
 ```typescript
 interface JobMetrics {
   jobType: string;

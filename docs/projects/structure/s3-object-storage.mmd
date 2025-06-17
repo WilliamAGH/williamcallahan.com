@@ -45,13 +45,15 @@ graph LR
     subgraph Issues ["🚨 Critical Issues"]
         AA["CDN Decision: Hardcoded by file extension"]
         BB["Error Handling: Limited S3 error coverage"]
-        CC["Concurrency: Single S3Client bottleneck"]
+        CC["Concurrency: Race conditions in logo key initialization"]
+        DD["No refresh mechanism for stale logos"]
     end
     
     style A fill:#e1f5fe
     style AA fill:#ffebee
     style BB fill:#ffebee
     style CC fill:#ffebee
+    style DD fill:#ffebee
     style J fill:#e8f5e8
     style M fill:#fff3e0
     style R fill:#fce4ec

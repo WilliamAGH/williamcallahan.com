@@ -100,12 +100,18 @@ graph TD
         OO["→ S3 Stored: persistent, fast access"]
     end
     
-    %% Critical Issues Identified
-    subgraph Issues ["🚨 Critical Issues"]
-        AA
-        PP["Lock Management: Not distributed (globalThis only)"]
-        QQ["Asset URLs: Inconsistent proxy/direct usage"]
-        RR["Batch Processing: Race condition on concurrent refresh"]
+    %% Issues Resolved
+    subgraph Resolved ["✅ Issues Fixed"]
+        AA["✅ OpenGraph fallback now uses Karakeep assets"]
+        PP["✅ Circular dependency broken via callback pattern"]
+        QQ["✅ Atomic S3 locking implemented with IfNoneMatch"]
+        RR["✅ Server no longer makes HTTP calls to itself"]
+    end
+    
+    %% Remaining Issues
+    subgraph Remaining ["⚠️ Issues Remaining"]
+        SS["Pagination not yet implemented"]
+        TT["Asset URLs: Inconsistent proxy/direct usage"]
     end
     
     %% Integration Points

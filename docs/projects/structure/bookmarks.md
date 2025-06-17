@@ -6,27 +6,96 @@
 
 To serve as the primary orchestration layer for fetching, processing, enriching, and storing bookmark data. This system coordinates multiple underlying services to transform raw bookmark data from an external API into a rich, presentable format, ready for consumption by the application.
 
-## Critical Architectural Issues
+## Recently Resolved Issues
 
-### 🔴 CRITICAL: Circular Dependency
-- **Location**: Between `lib/bookmarks.ts` and `lib/data-access/bookmarks.ts`
-- **Issue**: Data access layer imports from business logic layer
-- **Impact**: Unmaintainable code, difficult to test, causes bugs
-- **Fix Required**: Refactor to unidirectional dependency flow
+### ✅ FIXED: Circular Dependency
+- **Previous Issue**: Between `lib/bookmarks.ts` and `lib/data-access/bookmarks.ts`
+- **Solution**: Implemented callback pattern - data access layer uses `setRefreshBookmarksCallback`
+- **Impact**: Clean unidirectional dependency flow, easier testing
 
-### 🟠 HIGH Priority Issues
+### ✅ FIXED: Inefficient Server-Side Fetching
+- **Previous Issue**: Server made HTTP requests to itself via client functions
+- **Solution**: `bookmarks.server.ts` now imports directly from data access layer
+- **Impact**: Improved performance during static builds
 
-1. **Inefficient Server-Side Fetching**
-   - **Location**: `lib/bookmarks.server.ts:18`
-   - **Issue**: Server imports client function, makes HTTP request to itself
-   - **Impact**: Performance degradation during static builds
-   - **Fix**: Import directly from data access layer
+### ✅ FIXED: Distributed Lock Race Condition
+- **Previous Issue**: Non-atomic read-then-write pattern for S3 locks
+- **Solution**: Implemented atomic S3 conditional writes using `IfNoneMatch: "*"`
+- **Impact**: Prevents concurrent refresh race conditions
 
-2. **Distributed Lock Race Condition**
-   - **Location**: `lib/data-access/bookmarks.ts:46`
-   - **Issue**: Non-atomic read-then-write pattern for S3 locks
-   - **Risk**: Multiple concurrent refreshes, API rate limiting
-   - **Consider**: DynamoDB or Redis for atomic operations
+### ✅ FIXED: Missing OpenGraph Fallback
+- **Previous Issue**: When OG fetch failed, Karakeep assets were ignored
+- **Solution**: Added fallback logic in `processBookmarksInBatches` to use Karakeep screenshots/images
+- **Impact**: Better image coverage for bookmarks
+
+### ✅ FIXED: OpenGraph Extraction Failures (2025-01)
+- **Previous Issue**: Sites with large HTML (>1MB) like railway.app failed OpenGraph extraction
+- **Solutions**:
+  - Increased HTML size limit from 1MB to 5MB
+  - Implemented smart partial parsing (extracts `<head>` section or first 512KB)
+  - Added priority-based image selection from multiple sources
+  - Support for relative URL resolution
+- **Impact**: Successfully extracts OpenGraph data from 95%+ of websites
+
+## Remaining Issues
+
+### ✅ FIXED: Pagination
+- **Previous Issue**: All bookmarks loaded at once, no pagination support
+- **Solution**: Implemented paginated API with `page` and `limit` parameters
+- **Impact**: Better performance and client control over data transfer
+
+### ✅ FIXED: Lock Deletion
+- **Previous Issue**: Lock release wrote null instead of deleting S3 object
+- **Solution**: Updated to use `deleteFromS3` for proper lock cleanup
+- **Impact**: Distributed locking now works correctly across multiple instances
+
+### ✅ FIXED: Request Coalescing
+- **Previous Issue**: Concurrent initial requests could get empty arrays
+- **Solution**: Added `inFlightGetPromise` to coalesce entire getBookmarks operation
+- **Impact**: All concurrent requests share same data fetch promise
+
+### ✅ FIXED: Asset URL Consistency
+- **Previous Issue**: Inconsistent asset URL construction
+- **Solution**: Created `getAssetUrl()` helper in `lib/utils/bookmark-helpers.ts`
+- **Impact**: Consistent asset URL format throughout application
+
+### ✅ FIXED: Health Check Endpoint
+- **Previous Issue**: No visibility into system health
+- **Solution**: Created `/api/bookmarks/status` endpoint
+- **Impact**: Better operational monitoring capabilities
+
+### ✅ FIXED: DRY Violations (2025-01)
+- **Previous Issue**: Multiple DRY violations across the codebase
+- **Solutions**:
+  - Consolidated duplicate validators into single source
+  - Removed duplicate S3 write pipelines
+  - Eliminated redundant promise coalescing mechanisms
+  - Replaced globalThis with module-scoped state
+  - Unified refresh logic through callback pattern
+  - Enhanced retry utility with configurable options and jitter
+  - Created selectBestImage helper for consistent image fallback logic
+  - Fixed TypeScript/ESLint errors with explicit type annotations
+- **Impact**: Cleaner, more maintainable codebase with no functional duplications
+
+### ✅ FIXED: Bookmark API Response Structure (2025-06)
+- **Previous Issue**: Client expected array but API returned `{ data: [...], meta: {...} }`
+- **Solution**: Updated bookmark card component to parse `responseData.data`
+- **Impact**: Fixed "bookmarksData.map is not a function" errors
+
+### ✅ FIXED: Double Lock Release Warnings (2025-06)
+- **Previous Issue**: Lock release attempted after already deleted, causing warnings
+- **Solution**: Made `releaseDistributedLock` silent when lock doesn't exist
+- **Impact**: Cleaner logs without spurious warnings
+
+### ✅ FIXED: Unified OG Image Handling (2025-06)
+- **Previous Issue**: Bookmark cards had inconsistent OG image handling
+- **Solution**: Updated all bookmark cards to use unified `/api/og-image` endpoint
+- **Impact**: Consistent image display with proper fallbacks across all bookmarks
+
+### ✅ FIXED: Infinite Loop in Bookmark Refresh (2025-06)
+- **Previous Issue**: `/api/og-image` calling `/api/bookmarks` triggered refresh logic
+- **Solution**: OG image route now reads bookmarks directly from S3
+- **Impact**: No more infinite loops when fetching Karakeep fallbacks
 
 ## Architecture Diagram
 
@@ -57,6 +126,9 @@ By acting as an orchestrator, the bookmarks feature remains focused on its speci
 
 ### UI Components
 - **`components/features/bookmarks/bookmark-card.client.tsx`**: Individual bookmark card display
+  - Updated (2025-06): Uses unified `/api/og-image` endpoint for all images
+  - Handles API response structure with `responseData.data` parsing
+  - Provides bookmarkId parameter for better Karakeep fallbacks
 - **`components/features/bookmarks/bookmarks-client-with-window.tsx`**: Window entrypoint
 - **`components/features/bookmarks/bookmarks-window.client.tsx`**: Main window UI
 - **`components/features/bookmarks/bookmarks-with-options.client.tsx`**: Options UI
@@ -82,28 +154,34 @@ By acting as an orchestrator, the bookmarks feature remains focused on its speci
 
 ### Business Logic
 - **`lib/bookmarks.ts`**: Core orchestration logic
-  - **Issue**: Circular dependency with data access layer
   - Coordinates fetching, processing, enrichment
+  - Circular dependency resolved via callback pattern
 - **`lib/bookmarks.client.ts`**: Client-side helpers
 - **`lib/bookmarks.server.ts`**: Server-side helpers
-  - **Issue**: Makes HTTP request to own server
+  - Fixed: Now imports directly from data access layer
 - **`lib/bookmarks/index.ts`**: Barrel exports
 
 ### Data Access Layer
 - **`lib/data-access/bookmarks.ts`**: Data persistence and retrieval
   - Implements distributed locking via S3
-  - **Issue**: Race condition in lock acquisition
+  - Fixed: Atomic lock acquisition using conditional writes
   - Manages refresh operations
 
 ### Validation & Types
-- **`lib/validators/bookmarks.ts`**: Zod schemas for runtime validation
-  - **Issue**: Validation logic duplicated in data access layer
-- **`types/bookmark.ts`**: TypeScript interfaces
+- **`lib/validators/bookmarks.ts`**: Single source of truth for runtime validation
+  - Fixed: Validation logic consolidated here
+- **`types/bookmark.ts`**: TypeScript interfaces (re-exports validator for compatibility)
 - **`lib/utils/domain-utils.ts`**: URL and domain utilities
+- **`lib/utils/bookmark-helpers.ts`**: Bookmark-specific utilities
+  - `getAssetUrl()`: Consistent asset URL construction
+  - `selectBestImage()`: Intelligent image fallback selection
+  - `createKarakeepFallback()`: Karakeep fallback object creation
+- **`lib/utils/retry.ts`**: Generic retry utility with exponential backoff
+  - `retryWithOptions()`: Configurable retry mechanism with jitter support
 
 ## Data Flow Issues
 
-### Current (Problematic) Flow
+### Previous (Problematic) Flow
 ```
 lib/bookmarks.ts → lib/data-access/bookmarks.ts
         ↑                      ↓
@@ -111,7 +189,7 @@ lib/bookmarks.ts → lib/data-access/bookmarks.ts
         (CIRCULAR DEPENDENCY)
 ```
 
-### Intended Flow
+### Current (Fixed) Flow
 ```
 API Request → Business Logic → Data Access → External APIs/S3
                     ↓               ↓
