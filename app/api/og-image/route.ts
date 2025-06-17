@@ -82,17 +82,15 @@ export async function GET(request: NextRequest) {
   // 1. Check if it's an S3 key (contains '/' but no protocol)
   if (input.includes('/') && !input.includes('://')) {
     console.log(`[OG-Image] Detected S3 key: ${input}`);
-    
-    // Verify S3 object exists before redirecting
-    const exists = await checkS3Exists(input);
-    if (exists) {
+
+    // In development we may lack S3 credentials; optimistically redirect to CDN
+    if (isDevelopment || (await checkS3Exists(input))) {
       const cdnUrl = `${S3_CDN_URL}/${input}`;
-      console.log(`[OG-Image] S3 object exists, redirecting to: ${cdnUrl}`);
+      console.log(`[OG-Image] Redirecting to CDN: ${cdnUrl}`);
       return NextResponse.redirect(cdnUrl, { status: 301 });
     }
-    
+
     console.warn(`[OG-Image] S3 object not found: ${input}`);
-    // Return contextual fallback for missing S3 objects
     const fallbackImage = getContextualFallbackImage(input);
     return NextResponse.redirect(new URL(fallbackImage, request.url).toString(), { status: 302 });
   }
