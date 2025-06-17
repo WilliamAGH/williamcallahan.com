@@ -5,6 +5,11 @@ import type { UnifiedBookmark } from "../../types";
 import { BOOKMARKS_S3_KEY_FILE } from "../../lib/data-access"; // To get the S3 file key
 import { readJsonS3 } from "../../lib/s3-utils";
 
+// Mock S3 utils to avoid real AWS calls in unit tests
+jest.mock("../../lib/s3-utils", () => ({
+  readJsonS3: jest.fn(),
+}));
+
 /**
  * @file Unit test for bookmark synchronization logic with mocked dependencies
  * @description Tests the bookmark synchronization logic between S3 storage and external API
@@ -27,11 +32,14 @@ import { readJsonS3 } from "../../lib/s3-utils";
  * - AWS_REGION: AWS region
  */
 
-describe.skip("Unit: Bookmarks S3 vs External API Sync Logic", () => {
+describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
   let s3Bookmarks: UnifiedBookmark[] | null = null;
   let externalApiBookmarks: UnifiedBookmark[] | null = null;
   let s3Error: Error | null = null;
   let apiError: Error | null = null;
+  
+  // Get mocked version of readJsonS3
+  const mockedReadJsonS3 = readJsonS3 as jest.MockedFunction<typeof readJsonS3>;
   let originalCdnUrl: string | undefined;
   let originalFetch: typeof fetch;
 
@@ -49,6 +57,9 @@ describe.skip("Unit: Bookmarks S3 vs External API Sync Logic", () => {
       preconnect: jest.fn(),
     });
     global.fetch = mockFetch as typeof fetch;
+    
+    // Set up default S3 mock to return empty array
+    mockedReadJsonS3.mockResolvedValue([]);
 
     // Mock a successful response for the bookmarks API
     const mockBookmarks = [{ id: "1", title: "Test Bookmark" }];
