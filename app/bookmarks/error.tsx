@@ -1,9 +1,9 @@
 // This is the error boundary for the 'bookmarks' route
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { formatDate as utilFormatDate } from '@/lib/utils';
-import { getErrorTimestamp } from '@/types';
+import { formatDate as utilFormatDate } from "@/lib/utils";
+import { getErrorTimestamp } from "@/types";
+import { useEffect } from "react";
 
 interface ErrorPageProps {
   error: Error;
@@ -12,7 +12,7 @@ interface ErrorPageProps {
 
 export default function ErrorPage({ error, reset }: ErrorPageProps) {
   // Log the error for debugging
-  useEffect(() => console.error('Error in /bookmarks page:', error), [error]);
+  useEffect(() => console.error("Error in /bookmarks page:", error), [error]);
 
   let lastFetched = 0;
   try {
@@ -22,12 +22,12 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
       lastFetched = Number.isFinite(parsed) ? parsed : 0;
     }
   } catch (parseError) {
-    console.warn('Failed to parse lastFetched from error message:', parseError);
+    console.warn("Failed to parse lastFetched from error message:", parseError);
   }
 
   // Attempt to get the last fetched timestamp if it was attached to the error
   // (the property name was changed to 'lastFetched' in bookmarks.server.tsx)
-  const lastFetchedTimestamp = getErrorTimestamp(error, 'lastFetchedTimestamp');
+  const lastFetchedTimestamp = getErrorTimestamp(error, "lastFetchedTimestamp");
 
   return (
     <main className="max-w-5xl mx-auto py-16 px-4 sm:px-6 lg:px-8 text-center">
@@ -48,11 +48,9 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
         </p>
         <p className="text-sm text-slate-600 dark:text-slate-400">
           We couldn&apos;t load the bookmarks at this time.
-          {lastFetchedTimestamp ? (
-            ` Last attempt to fetch was at: ${utilFormatDate(lastFetchedTimestamp)}.`
-          ) : (
-            " It might be a temporary issue, or the data source could be unavailable."
-          )}
+          {lastFetchedTimestamp
+            ? ` Last attempt to fetch was at: ${utilFormatDate(lastFetchedTimestamp)}.`
+            : " It might be a temporary issue, or the data source could be unavailable."}
         </p>
         <button
           type="button"
