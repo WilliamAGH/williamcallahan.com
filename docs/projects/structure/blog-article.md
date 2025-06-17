@@ -9,13 +9,13 @@ The "blog-article" functionality encompasses components and utilities that manag
 ### Components
 - **components/features/blog/standard-tweet-embed.client.tsx**: A component for embedding tweets in blog articles using a standard approach.
 - **components/features/blog/tweet-embed.tsx**: Embeds tweets using react-tweet with an image proxy for enhanced display in blog content.
-- **components/features/blog-article/blog-article.client.tsx**: Client-side component for rendering article content and metadata.
-- **components/features/blog-article/blog-wrapper.tsx**: Dynamic import wrapper for hydration optimization of blog articles.
-- **components/features/blog-article/index.ts**: Barrel file for blog article components.
-- **components/features/blog-article/mdx-content.tsx**: MDX renderer with styled elements for blog article content.
+- **components/features/blog/blog-article/blog-article.client.tsx**: Client-side component for rendering article content and metadata.
+- **components/features/blog/blog-article/blog-wrapper.tsx**: Dynamic import wrapper for hydration optimization of blog articles.
+- **components/features/blog/blog-article/index.ts**: Barrel file for blog article components.
+- **components/features/blog/blog-article/mdx-content.tsx**: MDX renderer with styled elements for blog article content.
   - **🔴 CRITICAL**: XSS vulnerability in link handling - accepts `javascript:` URLs
-- **components/features/blog-article/software-schema.tsx**: Inserts SoftwareApplication schema.org metadata for SEO in blog articles.
-- **components/features/blog-article/mdx-table.server.tsx**: Server-side component for styled table rendering in MDX content.
+- **components/features/blog/blog-article/software-schema.tsx**: Inserts SoftwareApplication schema.org metadata for SEO in blog articles.
+- **components/features/blog/blog-article/mdx-table.server.tsx**: Server-side component for styled table rendering in MDX content.
 - **components/ui/simple-tabs.client.tsx**: A client-side component that enhances tab functionality for MDX content in blog articles, adding interactivity to switch between tabs dynamically.
 - **components/ui/simple-tabs.css**: Provides styling for tab functionality in MDX content, managing tab panel visibility and button styles for active and hover states in both light and dark themes.
 
