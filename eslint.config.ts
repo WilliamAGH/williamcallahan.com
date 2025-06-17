@@ -70,7 +70,7 @@ const config = tseslint.config(
       "react/prop-types": "off",
       "react/react-in-jsx-scope": "off",
       "react/no-unknown-property": ["error", { ignore: ["jsx", "global"] }],
-      "react/jsx-no-target-blank": "off",
+      "react/jsx-no-target-blank": ["error", { "allowReferrer": true }],
     },
   },
 
