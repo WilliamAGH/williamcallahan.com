@@ -163,32 +163,15 @@ export async function GET(request: NextRequest) {
         console.log(`[OG-Image] [DEV] Allowing local URL: ${url.toString()}`);
       }
     } else {
-      // Production: Use strict allowlist
-      const allowedHosts = [
-        // Your domains - trusted since images are validated before upload
-        "williamcallahan.com",
-        "s3-storage.callahan.cloud",
-        "williamcallahan-com.sfo3.digitaloceanspaces.com",
-        "sfo3.digitaloceanspaces.com",
-        "iocloudhost.net",
-        
-        // Social media platforms
-        "github.com",
-        "x.com", 
-        "twitter.com",
-        "linkedin.com",
-        "discord.com",
-        "bsky.app",
-        
-        // CDN/Image domains for social platforms
-        "cdn.bsky.app",
-        "avatars.githubusercontent.com",
-        "pbs.twimg.com", // Twitter images
-        "media.licdn.com", // LinkedIn images
+      // Blocklist strategy – deny only obviously dangerous internal networks / metadata endpoints.
+      const blockedHostPatterns = [
+        /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/, // private networks
+        /\.internal$/i,
       ];
-      
-      if (!allowedHosts.includes(hostname)) {
-        console.warn(`[OG-Image] Blocked non-allowlisted domain: ${hostname}`);
+
+      const isBlocked = blockedHostPatterns.some((re) => re.test(hostname));
+      if (isBlocked) {
+        console.warn(`[OG-Image] Blocked private/internal domain: ${hostname}`);
         return NextResponse.redirect(new URL('/images/opengraph-placeholder.png', request.url).toString(), { status: 302 });
       }
     }
