@@ -6,12 +6,12 @@
  *
  */
 
-import type { Metadata } from 'next';
+import type { Metadata } from "next";
 
-import { ProjectsClient } from '@/components/features/projects/projects.client';
-import { getStaticPageMetadata } from '@/lib/seo/metadata';
+import { ProjectsClient } from "@/components/features/projects/projects.client";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = getStaticPageMetadata('/projects', 'projects');
+export const metadata: Metadata = getStaticPageMetadata("/projects", "projects");
 
 /**
  * Enable ISR for projects page with hourly revalidation
