@@ -17,11 +17,11 @@
  * @see {@link "https://ogp.me/#type_article"} - Article object specification
  */
 
-import type { OpenGraph } from 'next/dist/lib/metadata/types/opengraph-types';
-import type { ArticleOpenGraph } from '../../types/seo';
-import { SITE_TITLE, SITE_DESCRIPTION, metadata } from '../../data/metadata';
-import type { ArticleParams } from './constants';
-import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate } from './utils';
+import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
+import { SITE_DESCRIPTION, SITE_TITLE, metadata } from "../../data/metadata";
+import type { ArticleOpenGraph } from "../../types/seo";
+import type { ArticleParams } from "./constants";
+import { ensureAbsoluteUrl, formatSeoDate, getImageTypeFromUrl } from "./utils";
 
 /**
  * Base OpenGraph metadata configuration
@@ -34,15 +34,17 @@ import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate } from './utils';
 export const BASE_OG_METADATA: OpenGraph = {
   title: SITE_TITLE,
   description: SITE_DESCRIPTION,
-  type: 'website',
+  type: "website",
   url: metadata.site.url,
-  images: [{
-    url: ensureAbsoluteUrl(metadata.defaultImage.url),
-    width: metadata.defaultImage.width,
-    height: metadata.defaultImage.height,
-    alt: metadata.defaultImage.alt,
-    type: metadata.defaultImage.type,
-  }],
+  images: [
+    {
+      url: ensureAbsoluteUrl(metadata.defaultImage.url),
+      width: metadata.defaultImage.width,
+      height: metadata.defaultImage.height,
+      alt: metadata.defaultImage.alt,
+      type: metadata.defaultImage.type,
+    },
+  ],
   locale: metadata.site.locale,
   siteName: metadata.site.name,
 };
@@ -71,25 +73,27 @@ export function createArticleOgMetadata({
   const formattedPublished = formatSeoDate(datePublished);
   const formattedModified = formatSeoDate(dateModified);
 
-  const imageDescriptor = image ? {
-    url: ensureAbsoluteUrl(image),
-    width: metadata.defaultImage.width,
-    height: metadata.defaultImage.height,
-    alt: title,
-    type: getImageTypeFromUrl(image),
-  } : {
-    url: ensureAbsoluteUrl(metadata.defaultImage.url),
-    width: metadata.defaultImage.width,
-    height: metadata.defaultImage.height,
-    alt: metadata.defaultImage.alt,
-    type: metadata.defaultImage.type,
-  };
+  const imageDescriptor = image
+    ? {
+        url: ensureAbsoluteUrl(image),
+        width: metadata.defaultImage.width,
+        height: metadata.defaultImage.height,
+        alt: title,
+        type: getImageTypeFromUrl(image),
+      }
+    : {
+        url: ensureAbsoluteUrl(metadata.defaultImage.url),
+        width: metadata.defaultImage.width,
+        height: metadata.defaultImage.height,
+        alt: metadata.defaultImage.alt,
+        type: metadata.defaultImage.type,
+      };
 
   return {
     ...BASE_OG_METADATA,
     title,
     description,
-    type: 'article',
+    type: "article",
     url,
     images: [imageDescriptor],
     article: {

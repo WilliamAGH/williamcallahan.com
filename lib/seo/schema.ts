@@ -6,23 +6,23 @@
  * Uses the @graph pattern to establish proper entity relationships.
  */
 
-import { SITE_NAME, metadata } from '../../data/metadata';
-import { ensureAbsoluteUrl } from './utils';
+import { SITE_NAME, metadata } from "../../data/metadata";
 import type {
+  ArticleSchema,
+  BreadcrumbListSchema,
+  CollectionPageSchema,
+  DatasetSchema,
+  ImageObjectSchema,
+  NewsArticleSchema,
+  PersonSchema,
+  ProfilePageSchema,
   SchemaGraph,
   SchemaParams,
-  PersonSchema,
-  WebSiteSchema,
-  ImageObjectSchema,
-  WebPageBase,
-  ArticleSchema,
-  DatasetSchema,
-  CollectionPageSchema,
-  BreadcrumbListSchema,
-  ProfilePageSchema,
-  NewsArticleSchema,
   SoftwareApplicationSchema,
-} from '../../types/seo/schema';
+  WebPageBase,
+  WebSiteSchema,
+} from "../../types/seo/schema";
+import { ensureAbsoluteUrl } from "./utils";
 
 /**
  * Creates the base URL for schema.org @id references
@@ -37,14 +37,14 @@ function createIdUrl(path: string, fragment?: string): string {
  */
 function createPersonEntity(): PersonSchema {
   return {
-    '@type': 'Person',
-    '@id': createIdUrl('/', 'person'),
+    "@type": "Person",
+    "@id": createIdUrl("/", "person"),
     name: SITE_NAME,
     description: metadata.shortDescription,
-    url: ensureAbsoluteUrl('/'),
+    url: ensureAbsoluteUrl("/"),
     sameAs: metadata.social.profiles,
     image: {
-      '@id': createIdUrl('/', 'personlogo'),
+      "@id": createIdUrl("/", "personlogo"),
     },
   };
 }
@@ -54,13 +54,13 @@ function createPersonEntity(): PersonSchema {
  */
 function createWebSiteEntity(): WebSiteSchema {
   return {
-    '@type': 'WebSite',
-    '@id': createIdUrl('/', 'website'),
-    url: ensureAbsoluteUrl('/'),
+    "@type": "WebSite",
+    "@id": createIdUrl("/", "website"),
+    url: ensureAbsoluteUrl("/"),
     name: SITE_NAME,
     description: metadata.description,
     publisher: {
-      '@id': createIdUrl('/', 'person'),
+      "@id": createIdUrl("/", "person"),
     },
   };
 }
@@ -73,12 +73,12 @@ function createImageEntity(
   imageUrl: string,
   caption: string,
   width?: number,
-  height?: number
+  height?: number,
 ): ImageObjectSchema {
   const absoluteUrl = ensureAbsoluteUrl(imageUrl);
   return {
-    '@type': 'ImageObject',
-    '@id': createIdUrl(path, 'primaryimage'),
+    "@type": "ImageObject",
+    "@id": createIdUrl(path, "primaryimage"),
     url: absoluteUrl,
     contentUrl: absoluteUrl,
     caption,
@@ -92,16 +92,16 @@ function createImageEntity(
  */
 function createBreadcrumbListEntity(
   path: string,
-  breadcrumbs: Array<{ path: string; name: string }>
+  breadcrumbs: Array<{ path: string; name: string }>,
 ): BreadcrumbListSchema {
   return {
-    '@type': 'BreadcrumbList',
-    '@id': createIdUrl(path, 'breadcrumb'),
+    "@type": "BreadcrumbList",
+    "@id": createIdUrl(path, "breadcrumb"),
     itemListElement: breadcrumbs.map((crumb, index) => ({
-      '@type': 'ListItem',
+      "@type": "ListItem",
       position: index + 1,
       item: {
-        '@id': ensureAbsoluteUrl(crumb.path),
+        "@id": ensureAbsoluteUrl(crumb.path),
         name: crumb.name,
       },
     })),
@@ -113,9 +113,9 @@ function createBreadcrumbListEntity(
  */
 function createWebPageEntity(params: SchemaParams): WebPageBase {
   const entity: WebPageBase = {
-    '@type': 'WebPage',
-    '@id': createIdUrl(params.path),
-    isPartOf: { '@id': createIdUrl('/', 'website') },
+    "@type": "WebPage",
+    "@id": createIdUrl(params.path),
+    isPartOf: { "@id": createIdUrl("/", "website") },
     url: ensureAbsoluteUrl(params.path),
     name: params.title,
     description: params.description,
@@ -124,15 +124,15 @@ function createWebPageEntity(params: SchemaParams): WebPageBase {
   };
 
   if (params.breadcrumbs) {
-    entity.breadcrumb = { '@id': createIdUrl(params.path, 'breadcrumb') };
+    entity.breadcrumb = { "@id": createIdUrl(params.path, "breadcrumb") };
   }
 
   if (params.image) {
-    entity.primaryImageOfPage = { '@id': createIdUrl(params.path, 'primaryimage') };
+    entity.primaryImageOfPage = { "@id": createIdUrl(params.path, "primaryimage") };
   }
 
-  if (params.type === 'profile') {
-    entity.about = { '@id': createIdUrl('/', 'person') };
+  if (params.type === "profile") {
+    entity.about = { "@id": createIdUrl("/", "person") };
   }
 
   return entity;
@@ -143,22 +143,22 @@ function createWebPageEntity(params: SchemaParams): WebPageBase {
  */
 function createArticleEntity(params: SchemaParams): ArticleSchema {
   if (!params.articleBody) {
-    throw new Error('Article body is required for article schema');
+    throw new Error("Article body is required for article schema");
   }
 
   return {
-    '@type': 'Article',
-    '@id': createIdUrl(params.path, 'article'),
-    isPartOf: { '@id': createIdUrl(params.path) },
-    author: { '@id': createIdUrl('/', 'person') },
+    "@type": "Article",
+    "@id": createIdUrl(params.path, "article"),
+    isPartOf: { "@id": createIdUrl(params.path) },
+    author: { "@id": createIdUrl("/", "person") },
     headline: params.title,
     datePublished: params.datePublished,
     dateModified: params.dateModified,
-    mainEntityOfPage: { '@id': createIdUrl(params.path) },
-    publisher: { '@id': createIdUrl('/', 'person') },
-    ...(params.image && { image: { '@id': createIdUrl(params.path, 'primaryimage') } }),
+    mainEntityOfPage: { "@id": createIdUrl(params.path) },
+    publisher: { "@id": createIdUrl("/", "person") },
+    ...(params.image && { image: { "@id": createIdUrl(params.path, "primaryimage") } }),
     articleSection: metadata.article.section,
-    inLanguage: 'en-US',
+    inLanguage: "en-US",
     articleBody: params.articleBody,
     keywords: params.keywords || [],
   };
@@ -169,17 +169,17 @@ function createArticleEntity(params: SchemaParams): ArticleSchema {
  */
 function createDatasetEntity(params: SchemaParams): DatasetSchema {
   return {
-    '@type': 'Dataset',
-    '@id': createIdUrl(params.path, 'dataset'),
+    "@type": "Dataset",
+    "@id": createIdUrl(params.path, "dataset"),
     name: params.title,
     description: params.description,
-    creator: { '@id': createIdUrl('/', 'person') },
+    creator: { "@id": createIdUrl("/", "person") },
     dateCreated: params.datePublished,
     dateModified: params.dateModified,
-    license: 'https://creativecommons.org/licenses/by/4.0/',
+    license: "https://creativecommons.org/licenses/by/4.0/",
     isAccessibleForFree: true,
     includedInDataCatalog: {
-      '@type': 'DataCatalog',
+      "@type": "DataCatalog",
       name: `${SITE_NAME}'s Public Investment Records`,
     },
   };
@@ -190,21 +190,21 @@ function createDatasetEntity(params: SchemaParams): DatasetSchema {
  */
 function createCollectionPageEntity(
   params: SchemaParams,
-  items: Array<{ url: string; position: number }>
+  items: Array<{ url: string; position: number }>,
 ): CollectionPageSchema {
   return {
-    '@type': 'CollectionPage',
-    '@id': createIdUrl(params.path, 'collection'),
-    isPartOf: { '@id': createIdUrl(params.path) },
+    "@type": "CollectionPage",
+    "@id": createIdUrl(params.path, "collection"),
+    isPartOf: { "@id": createIdUrl(params.path) },
     name: params.title,
     description: params.description,
-    creator: { '@id': createIdUrl('/', 'person') },
+    creator: { "@id": createIdUrl("/", "person") },
     datePublished: params.datePublished,
     dateModified: params.dateModified,
     mainEntity: {
-      '@type': 'ItemList',
-      itemListElement: items.map(item => ({
-        '@type': 'ListItem',
+      "@type": "ItemList",
+      itemListElement: items.map((item) => ({
+        "@type": "ListItem",
         position: item.position,
         url: ensureAbsoluteUrl(item.url),
       })),
@@ -221,46 +221,54 @@ function createProfilePageEntity(params: SchemaParams): ProfilePageSchema {
 
   // Process interaction statistics to ensure proper typing
   const interactionStats = profileMetadata.interactionStats;
-  const interactionStatistics = interactionStats?.follows ? [
-    {
-      '@type': 'InteractionCounter' as const,
-      interactionType: 'https://schema.org/FollowAction',
-      userInteractionCount: interactionStats.follows
-    },
-    ...(interactionStats?.likes ? [{
-      '@type': 'InteractionCounter' as const,
-      interactionType: 'https://schema.org/LikeAction',
-      userInteractionCount: interactionStats.likes
-    }] : [])
-  ] : undefined;
+  const interactionStatistics = interactionStats?.follows
+    ? [
+        {
+          "@type": "InteractionCounter" as const,
+          interactionType: "https://schema.org/FollowAction",
+          userInteractionCount: interactionStats.follows,
+        },
+        ...(interactionStats?.likes
+          ? [
+              {
+                "@type": "InteractionCounter" as const,
+                interactionType: "https://schema.org/LikeAction",
+                userInteractionCount: interactionStats.likes,
+              },
+            ]
+          : []),
+      ]
+    : undefined;
 
   // Create agent interaction statistic with proper typing
-  const agentInteractionStatistic = interactionStats?.posts ? {
-    '@type': 'InteractionCounter' as const,
-    interactionType: 'https://schema.org/WriteAction',
-    userInteractionCount: interactionStats.posts
-  } : undefined;
+  const agentInteractionStatistic = interactionStats?.posts
+    ? {
+        "@type": "InteractionCounter" as const,
+        interactionType: "https://schema.org/WriteAction",
+        userInteractionCount: interactionStats.posts,
+      }
+    : undefined;
 
   return {
-    '@type': 'ProfilePage',
-    '@id': createIdUrl(params.path, 'profile'),
+    "@type": "ProfilePage",
+    "@id": createIdUrl(params.path, "profile"),
     name: params.title,
     description: params.description,
     dateCreated: params.datePublished, // Using datePublished as dateCreated
     dateModified: params.dateModified,
     mainEntity: {
-      '@type': 'Person',
+      "@type": "Person",
       name: SITE_NAME,
       ...(profileMetadata.alternateName && { alternateName: profileMetadata.alternateName }),
       ...(profileMetadata.identifier && { identifier: profileMetadata.identifier }),
       description: profileMetadata.bio || metadata.shortDescription,
       sameAs: metadata.social.profiles,
       ...(profileMetadata.profileImage
-          ? { image: ensureAbsoluteUrl(profileMetadata.profileImage) }
-          : params.image && { image: ensureAbsoluteUrl(params.image.url) }),
+        ? { image: ensureAbsoluteUrl(profileMetadata.profileImage) }
+        : params.image && { image: ensureAbsoluteUrl(params.image.url) }),
       ...(interactionStatistics && { interactionStatistic: interactionStatistics }),
-      ...(agentInteractionStatistic && { agentInteractionStatistic })
-    }
+      ...(agentInteractionStatistic && { agentInteractionStatistic }),
+    },
   };
 }
 
@@ -269,25 +277,28 @@ function createProfilePageEntity(params: SchemaParams): ProfilePageSchema {
  */
 function createNewsArticleEntity(params: SchemaParams): NewsArticleSchema {
   // Create array of images
-  const images = params.images ||
+  const images =
+    params.images ||
     (params.image ? [params.image.url] : [ensureAbsoluteUrl(metadata.defaultImage.url)]);
 
   // Format author information
   const authorEntities = params.authors
-    ? params.authors.map(author => ({
-        '@type': 'Person' as const,
+    ? params.authors.map((author) => ({
+        "@type": "Person" as const,
         name: author.name,
-        ...(author.url && { url: author.url })
+        ...(author.url && { url: author.url }),
       }))
-    : [{
-        '@type': 'Person' as const,
-        name: SITE_NAME,
-        url: ensureAbsoluteUrl('/')
-      }];
+    : [
+        {
+          "@type": "Person" as const,
+          name: SITE_NAME,
+          url: ensureAbsoluteUrl("/"),
+        },
+      ];
 
   return {
-    '@type': 'NewsArticle',
-    '@id': createIdUrl(params.path, 'newsarticle'),
+    "@type": "NewsArticle",
+    "@id": createIdUrl(params.path, "newsarticle"),
     headline: params.title,
     image: images,
     datePublished: params.datePublished,
@@ -295,7 +306,7 @@ function createNewsArticleEntity(params: SchemaParams): NewsArticleSchema {
     author: authorEntities,
     description: params.description,
     ...(params.mainEntityOfPage && { mainEntityOfPage: params.mainEntityOfPage }),
-    publisher: { '@id': createIdUrl('/', 'person') }
+    publisher: { "@id": createIdUrl("/", "person") },
   };
 }
 
@@ -304,15 +315,15 @@ function createNewsArticleEntity(params: SchemaParams): NewsArticleSchema {
  */
 function createSoftwareApplicationEntity(params: SchemaParams): SoftwareApplicationSchema {
   if (!params.softwareMetadata) {
-    throw new Error('Software metadata is required for SoftwareApplication schema');
+    throw new Error("Software metadata is required for SoftwareApplication schema");
   }
 
   const softwareMetadata = params.softwareMetadata;
 
   // Create base schema
   const schema: SoftwareApplicationSchema = {
-    '@type': 'SoftwareApplication',
-    '@id': createIdUrl(params.path, 'software'),
+    "@type": "SoftwareApplication",
+    "@id": createIdUrl(params.path, "software"),
     name: softwareMetadata.name,
     description: params.description,
   };
@@ -330,28 +341,28 @@ function createSoftwareApplicationEntity(params: SchemaParams): SoftwareApplicat
   // Add pricing information
   if (softwareMetadata.isFree) {
     schema.offers = {
-      '@type': 'Offer',
-      price: 0.00,
-      priceCurrency: softwareMetadata.priceCurrency || 'USD',
-      availability: 'https://schema.org/InStock'
+      "@type": "Offer",
+      price: 0.0,
+      priceCurrency: softwareMetadata.priceCurrency || "USD",
+      availability: "https://schema.org/InStock",
     };
   } else if (softwareMetadata.price !== undefined) {
     schema.offers = {
-      '@type': 'Offer',
+      "@type": "Offer",
       price: softwareMetadata.price,
-      priceCurrency: softwareMetadata.priceCurrency || 'USD',
-      availability: 'https://schema.org/InStock'
+      priceCurrency: softwareMetadata.priceCurrency || "USD",
+      availability: "https://schema.org/InStock",
     };
   }
 
   // Add rating information if provided
   if (softwareMetadata.ratingValue !== undefined && softwareMetadata.ratingCount !== undefined) {
     schema.aggregateRating = {
-      '@type': 'AggregateRating',
+      "@type": "AggregateRating",
       ratingValue: softwareMetadata.ratingValue,
       ratingCount: softwareMetadata.ratingCount,
       bestRating: 5,
-      worstRating: 1
+      worstRating: 1,
     };
   }
 
@@ -368,20 +379,20 @@ function createSoftwareApplicationEntity(params: SchemaParams): SoftwareApplicat
   // Add screenshots if provided
   if (softwareMetadata.screenshot) {
     schema.screenshot = Array.isArray(softwareMetadata.screenshot)
-      ? softwareMetadata.screenshot.map(url => ensureAbsoluteUrl(url))
+      ? softwareMetadata.screenshot.map((url) => ensureAbsoluteUrl(url))
       : ensureAbsoluteUrl(softwareMetadata.screenshot);
   }
 
   // Add author/publisher (default to the site owner)
   schema.author = params.authors
     ? {
-        '@type': 'Person' as const,
-        name: params.authors?.[0]?.name || '',
-        ...(params.authors?.[0]?.url ? { url: params.authors?.[0]?.url } : {})
+        "@type": "Person" as const,
+        name: params.authors?.[0]?.name || "",
+        ...(params.authors?.[0]?.url ? { url: params.authors?.[0]?.url } : {}),
       }
-    : { '@id': createIdUrl('/', 'person') };
+    : { "@id": createIdUrl("/", "person") };
 
-  schema.publisher = { '@id': createIdUrl('/', 'person') };
+  schema.publisher = { "@id": createIdUrl("/", "person") };
 
   return schema;
 }
@@ -391,58 +402,57 @@ function createSoftwareApplicationEntity(params: SchemaParams): SoftwareApplicat
  */
 export function generateSchemaGraph(params: SchemaParams): SchemaGraph {
   const graph: SchemaGraph = {
-    '@context': 'https://schema.org',
-    '@graph': [
-      createWebPageEntity(params),
-      createPersonEntity(),
-      createWebSiteEntity(),
-    ],
+    "@context": "https://schema.org",
+    "@graph": [createWebPageEntity(params), createPersonEntity(), createWebSiteEntity()],
   };
 
   // Add breadcrumbs if provided
   if (params.breadcrumbs) {
-    graph['@graph'].push(createBreadcrumbListEntity(params.path, params.breadcrumbs));
+    graph["@graph"].push(createBreadcrumbListEntity(params.path, params.breadcrumbs));
   }
 
   // Add image if provided
   if (params.image) {
-    graph['@graph'].push(
+    graph["@graph"].push(
       createImageEntity(
         params.path,
         params.image.url,
         params.title,
         params.image.width,
-        params.image.height
-      )
+        params.image.height,
+      ),
     );
   }
 
   // Add type-specific entities
   switch (params.type) {
-    case 'profile':
-      graph['@graph'].push(createProfilePageEntity(params));
+    case "profile":
+      graph["@graph"].push(createProfilePageEntity(params));
       break;
-    case 'newsarticle':
-      graph['@graph'].push(createNewsArticleEntity(params));
+    case "newsarticle":
+      graph["@graph"].push(createNewsArticleEntity(params));
       break;
-    case 'article':
-      graph['@graph'].push(createArticleEntity(params));
+    case "article":
+      graph["@graph"].push(createArticleEntity(params));
       break;
-    case 'dataset':
-      graph['@graph'].push(createDatasetEntity(params));
+    case "dataset":
+      graph["@graph"].push(createDatasetEntity(params));
       break;
-    case 'software':
-      graph['@graph'].push(createSoftwareApplicationEntity(params));
+    case "software":
+      graph["@graph"].push(createSoftwareApplicationEntity(params));
       break;
-    case 'collection':
+    case "collection":
       if (!params.breadcrumbs) {
-        throw new Error('Breadcrumbs are required for collection pages');
+        throw new Error("Breadcrumbs are required for collection pages");
       }
-      graph['@graph'].push(
-        createCollectionPageEntity(params, params.breadcrumbs.map((crumb, i) => ({
-          url: crumb.path,
-          position: i + 1,
-        })))
+      graph["@graph"].push(
+        createCollectionPageEntity(
+          params,
+          params.breadcrumbs.map((crumb, i) => ({
+            url: crumb.path,
+            position: i + 1,
+          })),
+        ),
       );
       break;
   }

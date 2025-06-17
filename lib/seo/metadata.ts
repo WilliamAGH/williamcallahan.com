@@ -17,21 +17,21 @@
  * @see {@link "https://nextjs.org/docs/app/api-reference/functions/generate-metadata"} - Next.js Metadata API
  */
 
-import type { Metadata } from 'next';
+import type { Metadata } from "next";
 import {
-  SITE_TITLE,
+  PAGE_METADATA,
   SITE_DESCRIPTION_SHORT,
   SITE_NAME,
+  SITE_TITLE,
   metadata as siteMetadata,
-  PAGE_METADATA
-} from '../../data/metadata';
-import { SEO_DATE_FIELDS, type ArticleParams, type SoftwareAppParams } from './constants';
-import { formatSeoDate, ensureAbsoluteUrl } from './utils';
-import { createArticleOgMetadata } from './opengraph';
-import { generateSchemaGraph } from './schema';
-import type { ArticleMetadata, ExtendedMetadata } from '../../types/seo';
-import type { SchemaParams } from '../../types/seo/schema';
-import type { ExtendedOpenGraph } from '../../types/seo/opengraph';
+} from "../../data/metadata";
+import type { ArticleMetadata, ExtendedMetadata } from "../../types/seo";
+import type { ExtendedOpenGraph } from "../../types/seo/opengraph";
+import type { SchemaParams } from "../../types/seo/schema";
+import { type ArticleParams, SEO_DATE_FIELDS, type SoftwareAppParams } from "./constants";
+import { createArticleOgMetadata } from "./opengraph";
+import { generateSchemaGraph } from "./schema";
+import { ensureAbsoluteUrl, formatSeoDate } from "./utils";
 
 /**
  * Base metadata configuration for all pages
@@ -44,17 +44,19 @@ export const BASE_METADATA: Metadata = {
   description: SITE_DESCRIPTION_SHORT,
   metadataBase: new URL(siteMetadata.site.url),
   twitter: {
-    card: 'summary_large_image',
+    card: "summary_large_image",
     site: siteMetadata.social.twitter,
     creator: siteMetadata.social.twitter,
   },
   alternates: {
-    canonical: 'https://williamcallahan.com',
+    canonical: "https://williamcallahan.com",
   },
-  authors: [{
-    name: siteMetadata.author,
-    url: siteMetadata.site.url,
-  }],
+  authors: [
+    {
+      name: siteMetadata.author,
+      url: siteMetadata.site.url,
+    },
+  ],
   creator: siteMetadata.author,
   publisher: siteMetadata.article.publisher,
   formatDetection: {
@@ -82,7 +84,7 @@ export function createArticleMetadata({
   datePublished,
   dateModified,
   tags,
-  articleBody = 'Article content not available',
+  articleBody = "Article content not available",
   useNewsArticle = true, // Default to NewsArticle schema for better SEO
   authors,
 }: ArticleParams): ArticleMetadata {
@@ -99,9 +101,15 @@ export function createArticleMetadata({
     const baseImageUrl = ensureAbsoluteUrl(image);
     // Create different image aspect ratios (1:1, 4:3, 16:9) for Google's rich results
     imageVariations = [
-      image.endsWith('.jpg') ? baseImageUrl.replace('.jpg', '-1x1.jpg') : `${baseImageUrl}?format=1x1`,
-      image.endsWith('.jpg') ? baseImageUrl.replace('.jpg', '-4x3.jpg') : `${baseImageUrl}?format=4x3`,
-      image.endsWith('.jpg') ? baseImageUrl.replace('.jpg', '-16x9.jpg') : `${baseImageUrl}?format=16x9`
+      image.endsWith(".jpg")
+        ? baseImageUrl.replace(".jpg", "-1x1.jpg")
+        : `${baseImageUrl}?format=1x1`,
+      image.endsWith(".jpg")
+        ? baseImageUrl.replace(".jpg", "-4x3.jpg")
+        : `${baseImageUrl}?format=4x3`,
+      image.endsWith(".jpg")
+        ? baseImageUrl.replace(".jpg", "-16x9.jpg")
+        : `${baseImageUrl}?format=16x9`,
     ];
   }
 
@@ -112,19 +120,21 @@ export function createArticleMetadata({
     description,
     datePublished: formattedPublished,
     dateModified: formattedModified,
-    type: useNewsArticle ? 'newsarticle' : 'article',
+    type: useNewsArticle ? "newsarticle" : "article",
     articleBody,
     keywords: tags,
-    image: image ? {
-      url: image,
-      width: siteMetadata.defaultImage.width,
-      height: siteMetadata.defaultImage.height,
-    } : undefined,
+    image: image
+      ? {
+          url: image,
+          width: siteMetadata.defaultImage.width,
+          height: siteMetadata.defaultImage.height,
+        }
+      : undefined,
     images: imageVariations,
-    authors: authors || [{ name: SITE_NAME, url: ensureAbsoluteUrl('/') }],
+    authors: authors || [{ name: SITE_NAME, url: ensureAbsoluteUrl("/") }],
     breadcrumbs: [
-      { path: '/', name: 'Home' },
-      { path: '/blog', name: 'Blog' },
+      { path: "/", name: "Home" },
+      { path: "/blog", name: "Blog" },
       { path: new URL(url).pathname, name: title },
     ],
   };
@@ -137,10 +147,12 @@ export function createArticleMetadata({
     alternates: {
       canonical: url,
     },
-    script: [{
-      type: 'application/ld+json',
-      text: JSON.stringify(schema, null, process.env.NODE_ENV === 'development' ? 2 : 0),
-    }],
+    script: [
+      {
+        type: "application/ld+json",
+        text: JSON.stringify(schema, null, process.env.NODE_ENV === "development" ? 2 : 0),
+      },
+    ],
     openGraph: createArticleOgMetadata({
       title,
       description,
@@ -151,19 +163,21 @@ export function createArticleMetadata({
       tags,
     }),
     twitter: {
-      card: 'summary_large_image',
+      card: "summary_large_image",
       site: siteMetadata.social.twitter,
       creator: siteMetadata.social.twitter,
       title,
       description,
       images: image
         ? [{ url: ensureAbsoluteUrl(image) }]
-        : [{
-            url: ensureAbsoluteUrl(siteMetadata.defaultImage.url),
-            width: siteMetadata.defaultImage.width,
-            height: siteMetadata.defaultImage.height,
-            alt: siteMetadata.defaultImage.alt,
-          }],
+        : [
+            {
+              url: ensureAbsoluteUrl(siteMetadata.defaultImage.url),
+              width: siteMetadata.defaultImage.width,
+              height: siteMetadata.defaultImage.height,
+              alt: siteMetadata.defaultImage.alt,
+            },
+          ],
     },
     other: {
       // Standard HTML meta dates
@@ -194,21 +208,24 @@ export function createArticleMetadata({
  */
 export function getStaticPageMetadata(
   path: string,
-  pageKey: keyof typeof PAGE_METADATA
+  pageKey: keyof typeof PAGE_METADATA,
 ): ExtendedMetadata {
   const pageMetadata = PAGE_METADATA[pageKey];
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 
   // Determine page type and breadcrumbs
-  const isProfilePage = ['home', 'experience', 'education'].includes(pageKey);
-  const isCollectionPage = ['blog', 'investments', 'bookmarks'].includes(pageKey);
-  const isDatasetPage = pageKey === 'investments';
+  const isProfilePage = ["home", "experience", "education"].includes(pageKey);
+  const isCollectionPage = ["blog", "investments", "bookmarks"].includes(pageKey);
+  const isDatasetPage = pageKey === "investments";
 
-  const breadcrumbs = path === '/' ? undefined : [
-    { path: '/', name: 'Home' },
-    { path, name: pageMetadata.title },
-  ];
+  const breadcrumbs =
+    path === "/"
+      ? undefined
+      : [
+          { path: "/", name: "Home" },
+          { path, name: pageMetadata.title },
+        ];
 
   // Generate schema graph
   const schemaParams: SchemaParams = {
@@ -217,7 +234,13 @@ export function getStaticPageMetadata(
     description: pageMetadata.description,
     datePublished: formattedCreated,
     dateModified: formattedModified,
-    type: isProfilePage ? 'profile' : isDatasetPage ? 'dataset' : isCollectionPage ? 'collection' : undefined,
+    type: isProfilePage
+      ? "profile"
+      : isDatasetPage
+        ? "dataset"
+        : isCollectionPage
+          ? "collection"
+          : undefined,
     breadcrumbs,
     image: {
       url: siteMetadata.defaultImage.url,
@@ -225,15 +248,18 @@ export function getStaticPageMetadata(
       height: siteMetadata.defaultImage.height,
     },
     // Add profile metadata if this is a profile page
-    ...(isProfilePage && 'bio' in pageMetadata && {
-      profileMetadata: {
-        bio: pageMetadata.bio,
-        ...(('alternateName' in pageMetadata) && { alternateName: pageMetadata.alternateName }),
-        ...(('identifier' in pageMetadata) && { identifier: pageMetadata.identifier }),
-        ...(('profileImage' in pageMetadata) && { profileImage: pageMetadata.profileImage }),
-        ...(('interactionStats' in pageMetadata) && { interactionStats: pageMetadata.interactionStats }),
-      }
-    })
+    ...(isProfilePage &&
+      "bio" in pageMetadata && {
+        profileMetadata: {
+          bio: pageMetadata.bio,
+          ...("alternateName" in pageMetadata && { alternateName: pageMetadata.alternateName }),
+          ...("identifier" in pageMetadata && { identifier: pageMetadata.identifier }),
+          ...("profileImage" in pageMetadata && { profileImage: pageMetadata.profileImage }),
+          ...("interactionStats" in pageMetadata && {
+            interactionStats: pageMetadata.interactionStats,
+          }),
+        },
+      }),
   };
 
   const schema = generateSchemaGraph(schemaParams);
@@ -242,58 +268,58 @@ export function getStaticPageMetadata(
     ? {
         title: pageMetadata.title,
         description: pageMetadata.description,
-        type: 'profile',
+        type: "profile",
         url: ensureAbsoluteUrl(path),
         images: [siteMetadata.defaultImage],
         siteName: SITE_NAME,
-        locale: 'en_US',
-        firstName: SITE_NAME.split(' ')[0],
-        lastName: SITE_NAME.split(' ')[1],
-        username: siteMetadata.social.twitter.replace('@', ''),
+        locale: "en_US",
+        firstName: SITE_NAME.split(" ")[0],
+        lastName: SITE_NAME.split(" ")[1],
+        username: siteMetadata.social.twitter.replace("@", ""),
       }
-    : pageKey === 'blog'
-    ? {
-        title: pageMetadata.title,
-        description: pageMetadata.description,
-        type: 'article',
-        url: ensureAbsoluteUrl(path),
-        images: [siteMetadata.defaultImage],
-        siteName: SITE_NAME,
-        locale: 'en_US',
-        article: {
-          publishedTime: formattedCreated,
-          modifiedTime: formattedModified,
-          authors: [siteMetadata.author],
-          section: siteMetadata.article.section,
-          tags: [],
-        },
-      }
-    : isCollectionPage
-    ? {
-        title: pageMetadata.title,
-        description: pageMetadata.description,
-        type: 'website',
-        url: ensureAbsoluteUrl(path),
-        images: [siteMetadata.defaultImage],
-        siteName: SITE_NAME,
-        locale: 'en_US',
-      }
-    : {
-        title: pageMetadata.title,
-        description: pageMetadata.description,
-        type: 'article',
-        url: ensureAbsoluteUrl(path),
-        images: [siteMetadata.defaultImage],
-        siteName: SITE_NAME,
-        locale: 'en_US',
-        article: {
-          publishedTime: formattedCreated,
-          modifiedTime: formattedModified,
-          authors: [siteMetadata.author],
-          section: siteMetadata.article.section,
-          tags: [],
-        },
-      };
+    : pageKey === "blog"
+      ? {
+          title: pageMetadata.title,
+          description: pageMetadata.description,
+          type: "article",
+          url: ensureAbsoluteUrl(path),
+          images: [siteMetadata.defaultImage],
+          siteName: SITE_NAME,
+          locale: "en_US",
+          article: {
+            publishedTime: formattedCreated,
+            modifiedTime: formattedModified,
+            authors: [siteMetadata.author],
+            section: siteMetadata.article.section,
+            tags: [],
+          },
+        }
+      : isCollectionPage
+        ? {
+            title: pageMetadata.title,
+            description: pageMetadata.description,
+            type: "website",
+            url: ensureAbsoluteUrl(path),
+            images: [siteMetadata.defaultImage],
+            siteName: SITE_NAME,
+            locale: "en_US",
+          }
+        : {
+            title: pageMetadata.title,
+            description: pageMetadata.description,
+            type: "article",
+            url: ensureAbsoluteUrl(path),
+            images: [siteMetadata.defaultImage],
+            siteName: SITE_NAME,
+            locale: "en_US",
+            article: {
+              publishedTime: formattedCreated,
+              modifiedTime: formattedModified,
+              authors: [siteMetadata.author],
+              section: siteMetadata.article.section,
+              tags: [],
+            },
+          };
 
   return {
     ...BASE_METADATA,
@@ -302,13 +328,15 @@ export function getStaticPageMetadata(
     alternates: {
       canonical: ensureAbsoluteUrl(path),
     },
-    script: [{
-      type: 'application/ld+json',
-      text: JSON.stringify(schema, null, process.env.NODE_ENV === 'development' ? 2 : 0),
-    }],
+    script: [
+      {
+        type: "application/ld+json",
+        text: JSON.stringify(schema, null, process.env.NODE_ENV === "development" ? 2 : 0),
+      },
+    ],
     openGraph,
     twitter: {
-      card: 'summary',
+      card: "summary",
       title: pageMetadata.title,
       description: pageMetadata.description,
       images: [siteMetadata.defaultImage],
@@ -331,9 +359,9 @@ export function getStaticPageMetadata(
       [`name=${SEO_DATE_FIELDS.openGraph.modified}`]: formattedModified,
     },
     // Add bookmarks metadata for relevant pages
-    ...(pageKey === 'bookmarks' && {
+    ...(pageKey === "bookmarks" && {
       bookmarks: [], // Will be populated with actual bookmarks
-      category: 'Resources',
+      category: "Resources",
     }),
   };
 }
@@ -354,13 +382,13 @@ export function createSoftwareApplicationMetadata({
   datePublished,
   dateModified,
   tags,
-  articleBody = '',
+  articleBody = "",
   softwareName,
   operatingSystem,
-  applicationCategory = 'DeveloperApplication',
+  applicationCategory = "DeveloperApplication",
   isFree = true,
   price,
-  priceCurrency = 'USD',
+  priceCurrency = "USD",
   ratingValue,
   ratingCount,
   downloadUrl,
@@ -381,18 +409,20 @@ export function createSoftwareApplicationMetadata({
     description,
     datePublished: formattedPublished,
     dateModified: formattedModified,
-    type: 'software',
+    type: "software",
     articleBody,
     keywords: tags,
-    image: image ? {
-      url: image,
-      width: siteMetadata.defaultImage.width,
-      height: siteMetadata.defaultImage.height,
-    } : undefined,
+    image: image
+      ? {
+          url: image,
+          width: siteMetadata.defaultImage.width,
+          height: siteMetadata.defaultImage.height,
+        }
+      : undefined,
     authors,
     breadcrumbs: [
-      { path: '/', name: 'Home' },
-      { path: '/blog', name: 'Blog' },
+      { path: "/", name: "Home" },
+      { path: "/blog", name: "Blog" },
       { path: new URL(url).pathname, name: title },
     ],
     // Add software-specific metadata
@@ -408,7 +438,7 @@ export function createSoftwareApplicationMetadata({
       downloadUrl,
       softwareVersion,
       screenshot,
-    }
+    },
   };
 
   const schema = generateSchemaGraph(schemaParams);
@@ -419,10 +449,12 @@ export function createSoftwareApplicationMetadata({
     alternates: {
       canonical: url,
     },
-    script: [{
-      type: 'application/ld+json',
-      text: JSON.stringify(schema, null, process.env.NODE_ENV === 'development' ? 2 : 0),
-    }],
+    script: [
+      {
+        type: "application/ld+json",
+        text: JSON.stringify(schema, null, process.env.NODE_ENV === "development" ? 2 : 0),
+      },
+    ],
     openGraph: createArticleOgMetadata({
       title,
       description,
@@ -433,19 +465,21 @@ export function createSoftwareApplicationMetadata({
       tags,
     }),
     twitter: {
-      card: 'summary_large_image',
+      card: "summary_large_image",
       site: siteMetadata.social.twitter,
       creator: siteMetadata.social.twitter,
       title,
       description,
       images: image
         ? [{ url: ensureAbsoluteUrl(image) }]
-        : [{
-            url: ensureAbsoluteUrl(siteMetadata.defaultImage.url),
-            width: siteMetadata.defaultImage.width,
-            height: siteMetadata.defaultImage.height,
-            alt: siteMetadata.defaultImage.alt,
-          }],
+        : [
+            {
+              url: ensureAbsoluteUrl(siteMetadata.defaultImage.url),
+              width: siteMetadata.defaultImage.width,
+              height: siteMetadata.defaultImage.height,
+              alt: siteMetadata.defaultImage.alt,
+            },
+          ],
     },
     other: {
       // Standard HTML meta dates
