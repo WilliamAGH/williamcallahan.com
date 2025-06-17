@@ -1,4 +1,4 @@
-import EventEmitter from 'node:events';
+import EventEmitter from "node:events";
 
 export type Job = () => Promise<void>;
 
@@ -18,13 +18,15 @@ export class AsyncJobQueue extends EventEmitter {
       // throw new Error('Queue is full. Cannot add more jobs.');
 
       // Option 2: Log a warning and drop the job
-      console.warn(`[AsyncJobQueue] Queue is full (max size: ${this.maxQueueSize}). Dropping new job.`);
+      console.warn(
+        `[AsyncJobQueue] Queue is full (max size: ${this.maxQueueSize}). Dropping new job.`,
+      );
       return;
 
       // Option 3: Implement a more sophisticated backpressure mechanism if needed
     }
     this.queue.push(job);
-    this.emit('jobAdded', job);
+    this.emit("jobAdded", job);
     void this.process();
   }
 
@@ -33,15 +35,17 @@ export class AsyncJobQueue extends EventEmitter {
     const job = this.queue.shift();
     if (!job) return;
     this.processing = true;
-    this.emit('job:start');
+    this.emit("job:start");
     try {
       await job();
-      this.emit('job:complete');
+      this.emit("job:complete");
     } catch (error) {
-      this.emit('job:error', error);
+      this.emit("job:error", error);
     } finally {
       this.processing = false;
-      setImmediate(() => { void this.process(); });
+      setImmediate(() => {
+        void this.process();
+      });
     }
   }
 

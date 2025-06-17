@@ -1,28 +1,16 @@
 /**
- * Logo Management Module
+ * Client-side logo fetching & caching
+ *
+ * Features: localStorage caching, API integration, error handling
+ * Flow: Check localStorage → Call /api/logo → Cache result
+ * Cache duration: 30 days
+ *
  * @module lib/logo
- * @description
- * Provides functionality for fetching, caching, and managing company logos.
- * Includes utilities for URL processing, source detection, and error handling.
- *
- * @example
- * ```typescript
- * // Fetch a logo with automatic caching
- * const logo = await fetchLogo('example.com');
- *
- * // Clear the logo cache
- * clearLogoCache();
- * ```
  */
 
-import type {
-  LogoResult,
-  LogoCache,
-  LogoSource,
-  LogoApiResponse,
-  LogoCacheEntry // Import the missing type
-} from "../types/logo";
+import type { LogoApiResponse, LogoCache, LogoCacheEntry, LogoResult, LogoSource } from "@/types";
 import { ENDPOINTS } from "./constants";
+import { normalizeDomain } from "./utils/domain-utils";
 
 /**
  * Configuration constants for logo management
@@ -36,7 +24,7 @@ const CONFIG = {
   CACHE_DURATION: 30 * 24 * 60 * 60 * 1000,
 
   /** Check if we're running in a browser environment */
-  IS_BROWSER: typeof window !== "undefined"
+  IS_BROWSER: typeof window !== "undefined",
 } as const;
 
 /**
@@ -92,29 +80,34 @@ function loadCache(): LogoCache {
         if (
           typeof entry === "object" &&
           entry !== null &&
-          'timestamp' in entry && typeof entry.timestamp === "number" &&
-          'url' in entry && (typeof entry.url === "string" || entry.url === null) &&
+          "timestamp" in entry &&
+          typeof entry.timestamp === "number" &&
+          "url" in entry &&
+          (typeof entry.url === "string" || entry.url === null) &&
           // Optional fields check (presence and type if present)
-          (!('error' in entry) || typeof entry.error === 'string') &&
-          (!('source' in entry) || entry.source === null || typeof entry.source === 'string') &&
+          (!("error" in entry) || typeof entry.error === "string") &&
+          (!("source" in entry) || entry.source === null || typeof entry.source === "string") &&
           // Add more checks if needed for inversion structure
-          ( (() => {
-              if (!('inversion' in entry) || entry.inversion === undefined) {
-                return true; // No inversion property, or it's undefined, which is fine
-              }
-              const inv = entry.inversion;
-              if (typeof inv !== 'object' || inv === null) {
-                return false; // Invalid inversion type
-              }
-              const inversionObject = inv as Record<string, unknown>;
-              return (
-                'needsDarkInversion' in inversionObject && typeof inversionObject.needsDarkInversion === 'boolean' &&
-                'needsLightInversion' in inversionObject && typeof inversionObject.needsLightInversion === 'boolean' &&
-                'hasTransparency' in inversionObject && typeof inversionObject.hasTransparency === 'boolean' &&
-                'brightness' in inversionObject && typeof inversionObject.brightness === 'number'
-              );
-            })()
-          )
+          (() => {
+            if (!("inversion" in entry) || entry.inversion === undefined) {
+              return true; // No inversion property, or it's undefined, which is fine
+            }
+            const inv = entry.inversion;
+            if (typeof inv !== "object" || inv === null) {
+              return false; // Invalid inversion type
+            }
+            const inversionObject = inv as Record<string, unknown>;
+            return (
+              "needsDarkInversion" in inversionObject &&
+              typeof inversionObject.needsDarkInversion === "boolean" &&
+              "needsLightInversion" in inversionObject &&
+              typeof inversionObject.needsLightInversion === "boolean" &&
+              "hasTransparency" in inversionObject &&
+              typeof inversionObject.hasTransparency === "boolean" &&
+              "brightness" in inversionObject &&
+              typeof inversionObject.brightness === "number"
+            );
+          })()
         ) {
           // If validation passes, cast entry to LogoCacheEntry and add to validatedCache
           validatedCache[key] = entry as LogoCacheEntry;
@@ -165,37 +158,6 @@ function saveCache(cache: LogoCache): void {
 }
 
 /**
- * Extracts a domain from a URL or company name
- * @param {string} input - The URL or company name to process
- * @returns {string} The extracted domain or processed company name
- * @throws {LogoError} If the input is empty or invalid
- * @internal
- *
- * @example
- * ```typescript
- * extractDomain('https://www.example.com') // Returns 'example.com'
- * extractDomain('Example Corp') // Returns 'examplecorp'
- * ```
- */
-function extractDomain(input: string): string {
-  if (!input || typeof input !== "string") {
-    throw new LogoError("Invalid input: must be a non-empty string");
-  }
-
-  try {
-    if (input.includes("://") || input.includes("www.")) {
-      const url = new URL(input.includes("://") ? input : `https://${input}`);
-      return url.hostname.replace(/^www\./, "");
-    }
-    return input.toLowerCase().replace(/\s+/g, "");
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (error) {
-    // If URL parsing fails, treat as company name
-    return input.toLowerCase().replace(/\s+/g, "");
-  }
-}
-
-/**
  * Determine logo source from URL
  * @param {string} url - The logo URL
  * @returns {LogoSource} The source of the logo
@@ -210,8 +172,6 @@ function extractDomain(input: string): string {
  */
 function determineSource(url: string | null): LogoSource {
   if (!url) return null;
-  if (typeof url !== "string") return null;
-
   const urlLower = url.toLowerCase();
   if (urlLower.includes("google.com")) return "google";
   if (urlLower.includes("duckduckgo.com")) return "duckduckgo";
@@ -246,7 +206,7 @@ function determineSource(url: string | null): LogoSource {
 export async function fetchLogo(input: string): Promise<LogoResult> {
   // Check client cache first
   const cache: LogoCache = loadCache();
-  const domain = extractDomain(input);
+  const domain = normalizeDomain(input);
   const cached = cache[domain];
 
   if (cached && Date.now() - cached.timestamp < CONFIG.CACHE_DURATION) {
@@ -254,21 +214,31 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
       return {
         url: null,
         source: null,
-        error: cached.error || "No valid logo found (cached)"
+        error: cached.error || "No valid logo found (cached)",
+        contentType: cached.contentType || "image/png",
       };
     }
     return {
       url: cached.url,
       source: determineSource(cached.url),
-      inversion: cached.inversion
+      inversion: cached.inversion,
+      contentType: cached.contentType || "image/png",
     };
   }
 
-  try {
-    if (!input) {
-      throw new LogoError("Input is required");
-    }
+  if (!input) {
+    const errorResult: LogoResult = {
+      url: null,
+      source: null,
+      error: "Input is required",
+      contentType: "image/png",
+    };
+    cache[domain] = { ...errorResult, timestamp: Date.now() };
+    saveCache(cache);
+    return errorResult;
+  }
 
+  try {
     // Build query params
     const params = new URLSearchParams();
     if (input.includes("://") || input.includes("www.")) {
@@ -280,30 +250,47 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
     // Fetch from server API
     const response = await fetch(`${ENDPOINTS.logo}?${params.toString()}`);
     if (!response.ok) {
-      throw new LogoError(`Failed to fetch logo: ${response.statusText}`);
+      const message = `Failed to fetch logo: ${response.statusText}`;
+      const errorResult: LogoResult = {
+        url: null,
+        source: null,
+        error: message,
+        contentType: "image/png",
+      };
+      cache[domain] = { ...errorResult, timestamp: Date.now() };
+      saveCache(cache);
+      return errorResult;
     }
 
     let result: LogoApiResponse;
-  try {
-    // Cast the JSON result to the specific API response type
-    result = (await response.json()) as LogoApiResponse;
-  } catch { // Removed unused '_' parameter
-    // We don't need the error details here, as we're throwing a new descriptive error
-    throw new LogoError("Invalid response format");
-  }
+    try {
+      result = (await response.json()) as LogoApiResponse;
+    } catch {
+      const message = "Invalid response format";
+      const errorResult: LogoResult = {
+        url: null,
+        source: null,
+        error: message,
+        contentType: "image/png",
+      };
+      cache[domain] = { ...errorResult, timestamp: Date.now() };
+      saveCache(cache);
+      return errorResult;
+    }
 
     // If the result has an error, preserve it
     if (result.error) {
       const errorResult: LogoResult = {
         url: null,
         source: null,
-        error: result.error
+        error: result.error,
+        contentType: "image/png", // Default for errors
       };
 
       // Cache the error
       cache[domain] = {
         ...errorResult,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
       saveCache(cache);
 
@@ -311,75 +298,76 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
     }
 
     // Validate response format (URL should be string if no error)
-    if (typeof result.url !== 'string' || !result.url) {
-      throw new LogoError("Invalid response: missing or invalid URL");
+    if (!result.url) {
+      const message = "Invalid response: missing or invalid URL";
+      const errorResult: LogoResult = {
+        url: null,
+        source: null,
+        error: message,
+        contentType: "image/png",
+      };
+      cache[domain] = { ...errorResult, timestamp: Date.now() };
+      saveCache(cache);
+      return errorResult;
     }
 
     // Cache the successful result
     // Use source from API response if provided, otherwise determine from URL
     const source = result.source || determineSource(result.url);
+
+    // Determine content type from URL extension or default
+    let contentType = "image/png"; // Default
+    if (result.url.toLowerCase().endsWith(".svg")) {
+      contentType = "image/svg+xml";
+    } else if (result.url.toLowerCase().endsWith(".webp")) {
+      contentType = "image/webp";
+    } else if (
+      result.url.toLowerCase().endsWith(".jpg") ||
+      result.url.toLowerCase().endsWith(".jpeg")
+    ) {
+      contentType = "image/jpeg";
+    }
+
     const successResult: LogoResult = {
       url: result.url, // We know this is a string now
       source,
       // Only include inversion if it exists in the response and is valid
-      inversion: result.inversion && typeof result.inversion === 'object' ? result.inversion : undefined
+      inversion:
+        result.inversion && typeof result.inversion === "object" ? result.inversion : undefined,
+      contentType,
     };
 
     cache[domain] = {
       ...successResult,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
     saveCache(cache);
 
     return successResult;
   } catch (error) {
-    const errorMessage = error instanceof LogoError
-      ? error.message
-      : error instanceof Error
+    const errorMessage =
+      error instanceof LogoError
         ? error.message
-        : "Failed to fetch logo";
+        : error instanceof Error
+          ? error.message
+          : "Failed to fetch logo";
 
     console.error("Error fetching logo:", errorMessage);
 
-    const errorResult = {
+    const errorResult: LogoResult = {
       url: null,
       source: null,
-      error: errorMessage
+      error: errorMessage,
+      contentType: "image/png", // Default for errors
     };
 
     // Cache the failure
     cache[domain] = {
       ...errorResult,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
     saveCache(cache);
 
     return errorResult;
-  }
-}
-
-/**
- * Clears the logo cache from localStorage
- * @throws {LogoError} If there's an error clearing the cache
- *
- * @example
- * ```typescript
- * try {
- *   clearLogoCache();
- *   console.log('Cache cleared successfully');
- * } catch (error) {
- *   console.error('Failed to clear cache:', error);
- * }
- * ```
- */
-export function clearLogoCache(): void {
-  if (!CONFIG.IS_BROWSER) return;
-
-  try {
-    localStorage.removeItem(CONFIG.CACHE_KEY);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.warn("Failed to clear logo cache:", message);
-    throw new LogoError(`Failed to clear cache: ${message}`);
   }
 }

@@ -8,13 +8,20 @@
  * @module lib/server-cache
  */
 
-import NodeCache from 'node-cache';
-import { SERVER_CACHE_DURATION, LOGO_CACHE_DURATION, BOOKMARKS_CACHE_DURATION, GITHUB_ACTIVITY_CACHE_DURATION, OPENGRAPH_CACHE_DURATION } from './constants';
-import type { LogoInversion, LogoSource } from '../types/logo';
-import type { UnifiedBookmark } from '../types/bookmark';
-import type { GitHubActivityApiResponse } from '../types/github';
-import type { OgCacheEntry, OgResult } from '../types';
-import { assertServerOnly } from './utils/ensure-server-only';
+import NodeCache from "node-cache";
+import type { OgCacheEntry, OgResult } from "../types";
+import type { UnifiedBookmark } from "../types/bookmark";
+import type { GitHubActivityApiResponse } from "../types/github";
+import type { LogoInversion, LogoSource } from "../types/logo";
+import {
+  BOOKMARKS_CACHE_DURATION,
+  GITHUB_ACTIVITY_CACHE_DURATION,
+  LOGO_CACHE_DURATION,
+  OPENGRAPH_CACHE_DURATION,
+  SEARCH_CACHE_DURATION,
+  SERVER_CACHE_DURATION,
+} from "./constants";
+import { assertServerOnly } from "./utils/ensure-server-only";
 
 assertServerOnly();
 
@@ -59,13 +66,14 @@ interface InvertedLogoEntry {
 }
 
 // Cache key prefixes
-const LOGO_VALIDATION_PREFIX = 'logo-validation:';
-const LOGO_FETCH_PREFIX = 'logo-fetch:';
-const INVERTED_LOGO_PREFIX = 'logo-inverted:';
-const LOGO_ANALYSIS_PREFIX = 'logo-analysis:';
-const OPENGRAPH_PREFIX = 'og-data:';
-const BOOKMARKS_CACHE_KEY = 'bookmarks-data';
-const GITHUB_ACTIVITY_CACHE_KEY = 'github-activity-data';
+const LOGO_VALIDATION_PREFIX = "logo-validation:";
+const LOGO_FETCH_PREFIX = "logo-fetch:";
+const INVERTED_LOGO_PREFIX = "logo-inverted:";
+const LOGO_ANALYSIS_PREFIX = "logo-analysis:";
+const OPENGRAPH_PREFIX = "og-data:";
+const BOOKMARKS_CACHE_KEY = "bookmarks-data";
+const GITHUB_ACTIVITY_CACHE_KEY = "github-activity-data";
+const SEARCH_PREFIX = "search:";
 
 /**
  * GitHub Activity cache entry
@@ -91,13 +99,27 @@ interface BookmarksCacheEntry {
   lastAttemptedAt: number;
 }
 
+/**
+ * Search results cache entry
+ */
+interface SearchCacheEntry<T = unknown> {
+  /** Search results */
+  results: T[];
+  /** Search query that generated these results */
+  query: string;
+  /** Data type being searched (posts, bookmarks, etc.) */
+  dataType: string;
+  /** Timestamp when the cache entry was created */
+  timestamp: number;
+}
+
 export class ServerCache extends NodeCache {
   constructor() {
     super({
       stdTTL: SERVER_CACHE_DURATION,
       checkperiod: 24 * 60 * 60, // Check for expired keys every day
       useClones: false, // Don't clone objects for better performance with buffers
-      deleteOnExpire: true
+      deleteOnExpire: true,
     });
     // The complex binding loop has been removed.
     // Methods will rely on standard prototype inheritance.
@@ -109,7 +131,7 @@ export class ServerCache extends NodeCache {
 
   /**
    * Get cached logo validation result
-   * 
+   *
    * @param imageHash - Hash of the image to look up
    * @returns Cached validation result
    */
@@ -120,7 +142,7 @@ export class ServerCache extends NodeCache {
 
   /**
    * Cache logo validation result
-   * 
+   *
    * @param imageHash - Hash of the image to cache
    * @param isGlobeIcon - Whether the image is a generic globe icon
    */
@@ -128,13 +150,13 @@ export class ServerCache extends NodeCache {
     const key = LOGO_VALIDATION_PREFIX + imageHash;
     this.set(key, {
       isGlobeIcon,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
   /**
    * Get cached logo fetch result
-   * 
+   *
    * @param domain - Domain to look up
    * @returns Cached fetch result
    */
@@ -145,16 +167,20 @@ export class ServerCache extends NodeCache {
 
   /**
    * Cache logo fetch result
-   * 
+   *
    * @param domain - Domain to cache
    * @param result - Fetch result to cache
    */
   setLogoFetch(domain: string, result: Partial<LogoFetchResult>): void {
     const key = LOGO_FETCH_PREFIX + domain;
-    this.set(key, {
-      ...result,
-      timestamp: Date.now()
-    }, result.error ? LOGO_CACHE_DURATION.FAILURE : LOGO_CACHE_DURATION.SUCCESS);
+    this.set(
+      key,
+      {
+        ...result,
+        timestamp: Date.now(),
+      },
+      result.error ? LOGO_CACHE_DURATION.FAILURE : LOGO_CACHE_DURATION.SUCCESS,
+    );
   }
 
   /**
@@ -170,7 +196,7 @@ export class ServerCache extends NodeCache {
    * Clear all logo fetch results
    */
   clearAllLogoFetches(): void {
-    const keys = this.keys().filter(key => key.startsWith(LOGO_FETCH_PREFIX));
+    const keys = this.keys().filter((key) => key.startsWith(LOGO_FETCH_PREFIX));
     for (const key of keys) {
       this.del(key);
     }
@@ -178,7 +204,7 @@ export class ServerCache extends NodeCache {
 
   /**
    * Get cached inverted logo
-   * 
+   *
    * @param cacheKey - Cache key for the inverted logo
    * @returns Cached inverted logo
    */
@@ -189,7 +215,7 @@ export class ServerCache extends NodeCache {
 
   /**
    * Cache inverted logo
-   * 
+   *
    * @param cacheKey - Cache key for the inverted logo
    * @param buffer - Inverted image buffer
    * @param analysis - Analysis results
@@ -199,13 +225,13 @@ export class ServerCache extends NodeCache {
     this.set(key, {
       buffer,
       analysis,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
   /**
    * Get cached logo analysis
-   * 
+   *
    * @param cacheKey - Cache key for the logo analysis
    * @returns Cached analysis results
    */
@@ -216,7 +242,7 @@ export class ServerCache extends NodeCache {
 
   /**
    * Cache logo analysis
-   * 
+   *
    * @param cacheKey - Cache key for the logo analysis
    * @param analysis - Analysis results to cache
    */
@@ -227,7 +253,7 @@ export class ServerCache extends NodeCache {
 
   /**
    * Get cache statistics
-   * 
+   *
    * @returns Cache statistics
    */
   getStats(): NodeCache.Stats {
@@ -237,7 +263,7 @@ export class ServerCache extends NodeCache {
       misses: stats.misses,
       keys: this.keys().length,
       ksize: stats.ksize,
-      vsize: stats.vsize
+      vsize: stats.vsize,
     };
   }
 
@@ -257,7 +283,7 @@ export class ServerCache extends NodeCache {
 
   /**
    * Get cached bookmarks
-   * 
+   *
    * @returns Cached bookmarks
    */
   getBookmarks(): BookmarksCacheEntry | undefined {
@@ -266,7 +292,7 @@ export class ServerCache extends NodeCache {
 
   /**
    * Cache bookmarks
-   * 
+   *
    * @param bookmarks - Bookmarks to cache
    * @param isFailure - Whether this was a failed fetch attempt
    */
@@ -275,48 +301,39 @@ export class ServerCache extends NodeCache {
     const existing = this.getBookmarks();
 
     const entry: BookmarksCacheEntry = {
-      bookmarks: isFailure ? (existing?.bookmarks || []) : bookmarks,
+      bookmarks: isFailure ? existing?.bookmarks || [] : bookmarks,
       // Preserve the last successful fetch time on failures to prevent re-fetch loops
       lastFetchedAt: isFailure ? (existing?.lastFetchedAt ?? now) : now,
-      lastAttemptedAt: now
+      lastAttemptedAt: now,
     };
 
     this.set(
       BOOKMARKS_CACHE_KEY,
       entry,
-      isFailure ? BOOKMARKS_CACHE_DURATION.FAILURE : BOOKMARKS_CACHE_DURATION.SUCCESS
+      isFailure ? BOOKMARKS_CACHE_DURATION.FAILURE : BOOKMARKS_CACHE_DURATION.SUCCESS,
     );
   }
 
   /**
    * Check if bookmarks cache needs refreshing
-   * 
+   *
    * @returns True if cache should be refreshed
    */
   shouldRefreshBookmarks(): boolean {
     const cached = this.getBookmarks();
     if (!cached) {
-      console.log('shouldRefreshBookmarks: No cache entry, refresh required');
       return true;
     }
 
     // Verify the cached bookmarks are valid
     if (!cached.bookmarks || !Array.isArray(cached.bookmarks) || cached.bookmarks.length === 0) {
-      console.log('shouldRefreshBookmarks: Empty or invalid cache, refresh required');
       return true;
     }
 
     const now = Date.now();
     const timeSinceLastFetch = now - cached.lastFetchedAt;
     const revalidationThreshold = BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
-    console.log(`[ServerCache] shouldRefreshBookmarks: cache age = ${timeSinceLastFetch}ms; threshold = ${revalidationThreshold}ms`);
     const shouldRefresh = timeSinceLastFetch > revalidationThreshold;
-
-    if (shouldRefresh) {
-      console.log(`shouldRefreshBookmarks: Cache expired (${timeSinceLastFetch}ms old), refresh required`);
-    } else {
-      console.log(`shouldRefreshBookmarks: Cache still valid (${timeSinceLastFetch}ms old), using cached data`);
-    }
 
     return shouldRefresh;
   }
@@ -330,7 +347,7 @@ export class ServerCache extends NodeCache {
 
   /**
    * Get cached GitHub activity
-   * 
+   *
    * @returns Cached GitHub activity
    */
   getGithubActivity(): GitHubActivityCacheEntry | undefined {
@@ -340,7 +357,7 @@ export class ServerCache extends NodeCache {
 
   /**
    * Cache GitHub activity
-   * 
+   *
    * @param activityData - GitHub activity data to cache
    * @param isFailure - Whether this was a failed fetch attempt
    */
@@ -354,24 +371,25 @@ export class ServerCache extends NodeCache {
     const payload: GitHubActivityCacheEntry = {
       ...activityData,
       timestamp: Date.now(),
-      lastFetchedAt: isFailure ? (this.getGithubActivity()?.lastFetchedAt ?? Date.now()) : Date.now(),
+      lastFetchedAt: isFailure
+        ? (this.getGithubActivity()?.lastFetchedAt ?? Date.now())
+        : Date.now(),
       lastAttemptedAt: Date.now(),
     };
 
-    const ttl = (isFailure || !isDataComplete)
-      ? GITHUB_ACTIVITY_CACHE_DURATION.FAILURE
-      : GITHUB_ACTIVITY_CACHE_DURATION.SUCCESS;
+    const ttl =
+      isFailure || !isDataComplete
+        ? GITHUB_ACTIVITY_CACHE_DURATION.FAILURE
+        : GITHUB_ACTIVITY_CACHE_DURATION.SUCCESS;
 
-    const success = this.set(
-      key,
-      payload,
-      ttl
-    );
+    const success = this.set(key, payload, ttl);
 
     if (!success) {
       // It's good practice to log if the cache set operation fails,
       // as NodeCache.set can return false.
-      console.warn(`[ServerCache] Failed to set cache for key: ${key}. TTL was: ${ttl} seconds. Data was: ${JSON.stringify(payload).substring(0, 200)}...`);
+      console.warn(
+        `[ServerCache] Failed to set cache for key: ${key}. TTL was: ${ttl} seconds. Data was: ${JSON.stringify(payload).substring(0, 200)}...`,
+      );
     }
   }
 
@@ -384,7 +402,7 @@ export class ServerCache extends NodeCache {
 
   /**
    * Get cached OpenGraph data
-   * 
+   *
    * @param url - URL to look up
    * @returns Cached OpenGraph data
    */
@@ -395,7 +413,7 @@ export class ServerCache extends NodeCache {
 
   /**
    * Cache OpenGraph data
-   * 
+   *
    * @param url - URL to cache
    * @param data - OpenGraph data to cache
    * @param isFailure - Whether this was a failed fetch attempt
@@ -409,19 +427,19 @@ export class ServerCache extends NodeCache {
       ...data,
       lastFetchedAt: isFailure ? (existing?.lastFetchedAt ?? now) : now,
       lastAttemptedAt: now,
-      isFailure
+      isFailure,
     };
 
     this.set(
       key,
       entry,
-      isFailure ? OPENGRAPH_CACHE_DURATION.FAILURE : OPENGRAPH_CACHE_DURATION.SUCCESS
+      isFailure ? OPENGRAPH_CACHE_DURATION.FAILURE : OPENGRAPH_CACHE_DURATION.SUCCESS,
     );
   }
 
   /**
    * Check if OpenGraph cache needs refreshing
-   * 
+   *
    * @param url - URL to check
    * @returns True if cache should be refreshed
    */
@@ -444,7 +462,7 @@ export class ServerCache extends NodeCache {
 
   /**
    * Clear OpenGraph data cache
-   * 
+   *
    * @param url - URL to clear (optional, clears all if not provided)
    */
   clearOpenGraphData(url?: string): void {
@@ -452,7 +470,78 @@ export class ServerCache extends NodeCache {
       const key = OPENGRAPH_PREFIX + url;
       this.del(key);
     } else {
-      const keys = this.keys().filter(key => key.startsWith(OPENGRAPH_PREFIX));
+      const keys = this.keys().filter((key) => key.startsWith(OPENGRAPH_PREFIX));
+      for (const key of keys) {
+        this.del(key);
+      }
+    }
+  }
+
+  /**
+   * Get cached search results
+   *
+   * @param dataType - Type of data being searched (posts, bookmarks, etc.)
+   * @param query - Search query
+   * @returns Cached search results
+   */
+  getSearchResults<T = unknown>(dataType: string, query: string): SearchCacheEntry<T> | undefined {
+    const key = `${SEARCH_PREFIX}${dataType}:${query.toLowerCase()}`;
+    return this.get<SearchCacheEntry<T>>(key);
+  }
+
+  /**
+   * Cache search results
+   *
+   * @param dataType - Type of data being searched
+   * @param query - Search query
+   * @param results - Search results to cache
+   */
+  setSearchResults<T>(dataType: string, query: string, results: T[]): void {
+    const key = `${SEARCH_PREFIX}${dataType}:${query.toLowerCase()}`;
+    const entry: SearchCacheEntry<T> = {
+      results,
+      query,
+      dataType,
+      timestamp: Date.now(),
+    };
+
+    this.set(key, entry, SEARCH_CACHE_DURATION.SUCCESS);
+  }
+
+  /**
+   * Check if search cache needs refreshing
+   *
+   * @param dataType - Type of data being searched
+   * @param query - Search query
+   * @returns True if cache should be refreshed
+   */
+  shouldRefreshSearch(dataType: string, query: string): boolean {
+    const cached = this.getSearchResults(dataType, query);
+    if (!cached) {
+      return true;
+    }
+
+    const now = Date.now();
+    const timeSinceCache = now - cached.timestamp;
+    const revalidationThreshold = SEARCH_CACHE_DURATION.REVALIDATION * 1000;
+
+    return timeSinceCache > revalidationThreshold;
+  }
+
+  /**
+   * Clear search cache
+   *
+   * @param dataType - Optional data type to clear specific search caches
+   */
+  clearSearchCache(dataType?: string): void {
+    if (dataType) {
+      const prefix = `${SEARCH_PREFIX}${dataType}:`;
+      const keys = this.keys().filter((key) => key.startsWith(prefix));
+      for (const key of keys) {
+        this.del(key);
+      }
+    } else {
+      const keys = this.keys().filter((key) => key.startsWith(SEARCH_PREFIX));
       for (const key of keys) {
         this.del(key);
       }

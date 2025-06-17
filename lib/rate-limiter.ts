@@ -53,23 +53,23 @@ const rateLimitStores: Record<string, Record<string, RateLimitRecord>> = {};
 export function isOperationAllowed(
   storeName: string,
   contextId: string,
-  config: RateLimitConfig
+  config: RateLimitConfig,
 ): boolean {
   validateRateLimitConfig(config);
-  
+
   if (!rateLimitStores[storeName]) {
     rateLimitStores[storeName] = {};
   }
   const store = rateLimitStores[storeName];
   const now = Date.now();
-  
+
   // Clean up expired entries to prevent unbounded memory growth
   for (const [key, record] of Object.entries(store)) {
     if (now > record.resetAt) {
       delete store[key];
     }
   }
-  
+
   const record = store[contextId];
 
   if (!record || now > record.resetAt) {
@@ -104,15 +104,15 @@ export async function waitForPermit(
   storeName: string,
   contextId: string,
   config: RateLimitConfig,
-  pollIntervalMs = 50
+  pollIntervalMs = 50,
 ): Promise<void> {
   validateRateLimitConfig(config);
-  
+
   // Ensure pollInterval is sensible, e.g., not too small compared to window
   // Also, ensure it's not excessively large if windowMs is very small.
   const effectivePollInterval = Math.max(
     10, // Minimum poll interval
-    Math.min(pollIntervalMs, config.windowMs / 2, 200) // Sensible upper bound relative to window, capped at 200ms
+    Math.min(pollIntervalMs, config.windowMs / 2, 200), // Sensible upper bound relative to window, capped at 200ms
   );
 
   while (true) {
@@ -127,7 +127,7 @@ export async function waitForPermit(
 
     if (record && record.resetAt > Date.now() && record.count >= config.maxRequests) {
       const timeToReset = record.resetAt - Date.now();
-      
+
       // For long waits (>1 second), sleep until reset with small buffer instead of polling
       if (timeToReset > 1000) {
         waitTime = timeToReset + 50; // Wait until reset + 50ms buffer
@@ -136,8 +136,8 @@ export async function waitForPermit(
         waitTime = Math.min(timeToReset + 10, effectivePollInterval);
       }
     }
-    
-    await new Promise(resolve => setTimeout(resolve, Math.max(10, waitTime))); // Ensure waitTime is not too small or negative
+
+    await new Promise((resolve) => setTimeout(resolve, Math.max(10, waitTime))); // Ensure waitTime is not too small or negative
   }
 }
 
@@ -151,8 +151,7 @@ export const DEFAULT_API_ENDPOINT_LIMIT_CONFIG: RateLimitConfig = {
   maxRequests: 5,
   windowMs: 60 * 1000, // 1 minute
 };
-export const API_ENDPOINT_STORE_NAME = 'apiEndpoints';
-
+export const API_ENDPOINT_STORE_NAME = "apiEndpoints";
 
 /**
  * Default configuration for outgoing OpenGraph fetch requests.
@@ -162,9 +161,9 @@ export const DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG: RateLimitConfig = {
   maxRequests: 10,
   windowMs: 1000, // per 1 second
 };
-export const OPENGRAPH_FETCH_STORE_NAME = 'outgoingOpenGraph';
-/** 
+export const OPENGRAPH_FETCH_STORE_NAME = "outgoingOpenGraph";
+/**
  * Context ID for a global limit on all OpenGraph fetches.
  * If per-domain limiting is desired later, this could be dynamic.
  */
-export const OPENGRAPH_FETCH_CONTEXT_ID = 'global';
+export const OPENGRAPH_FETCH_CONTEXT_ID = "global";

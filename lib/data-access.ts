@@ -1,15 +1,16 @@
 /**
- * Centralized Data Access Layer - Re-exporter
+ * Data access layer re-exports - unified import point
  *
- * This file re-exports functionalities from more specific data access modules.
- * Consumers can import from here for a unified access point, or directly
- * from the specific modules (e.g., '@/lib/data-access/bookmarks') if preferred.
+ * Re-exports: bookmarks, logos, investments, github
+ * Usage: import { getLogo, getBookmarks } from '@/lib/data-access'
+ *
+ * @module lib/data-access
  */
 
-export * from './data-access/bookmarks';
-export * from './data-access/logos';
-export * from './data-access/investments';
-export * from './data-access/github';
+export * from "./data-access/bookmarks";
+export * from "./data-access/logos";
+export * from "./data-access/investments";
+export * from "./data-access/github";
 
 // Note: Original shared S3 helper functions (writeJsonFile, readBinaryFile, etc.)
 // that were present in this file have been removed.

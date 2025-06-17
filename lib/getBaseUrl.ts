@@ -5,18 +5,18 @@
  */
 
 // Determine if we're running on the server once at module load time
-const isServer = typeof globalThis.window === 'undefined';
+const isServer = typeof globalThis.window === "undefined";
 
 export function getBaseUrl(): string {
   // Client-side, so use relative path (empty string)
   if (!isServer) {
-    return '';
+    return "";
   }
 
   // Server-side
   if (process.env.NEXT_PUBLIC_SITE_URL) {
     // Ensure no trailing slash from the env variable if we add one
-    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '');
+    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
   }
 
   // Fallback for local development if NEXT_PUBLIC_SITE_URL is not set
