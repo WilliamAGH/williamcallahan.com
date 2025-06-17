@@ -22,7 +22,17 @@
 2. **REST API for comment replies** - GitHub's GraphQL lacks working reply mutation (see note below)
 3. **MANDATORY validation before EVERY commit:** `bun run lint && bun run type-check && bun run biome:check`
 4. **Fix ALL language server warnings** - Including biome, ESLint, TypeScript diagnostics in modified files
-5. **NO generic commit messages** - Use: `fix(scope): specific change description`
+5. **COMMIT MESSAGE RULES - ABSOLUTELY NO EXCEPTIONS:**
+   - **NEVER COMBINE MULTIPLE FILES IN ONE COMMIT**
+   - **EACH FILE GETS ITS OWN COMMIT WITH SPECIFIC MESSAGE**
+   - Format: `fix(scope): specific change description`
+   - Examples:
+     - ✅ `fix(eslint): re-enable jsx-no-target-blank rule with allowReferrer`
+     - ✅ `fix(bookmarks): replace globalThis lock checks with distributed lock`
+     - ❌ `fix(lint): resolve eslint issues` (TOO GENERIC)
+     - ❌ `fix: multiple fixes` (ABSOLUTELY FORBIDDEN)
+   - **SCOPE**: Must be the specific area/file being changed
+   - **DESCRIPTION**: Must describe the EXACT change, not generic "fix issues"
 6. **Deep analysis REQUIRED** - Review comments are suggestions, not orders
 
 ## 🧠 DEEP THINKING PROTOCOL
@@ -42,6 +52,33 @@ Analyze: 1) Improvement? 2) Risks? 3) Alternatives? 4) Edge cases?"
 ```
 
 ## 📋 WORKFLOW
+
+### ⚠️ COMMIT WORKFLOW - FOLLOW EXACTLY
+
+When fixing multiple issues:
+
+1. Fix ONE file
+2. Run validation: `bun run lint && bun run type-check && bun run biome:check`
+3. Commit ONLY that file with SPECIFIC message
+4. Move to next file and repeat
+
+**NEVER DO THIS:**
+```bash
+# ❌ WRONG - Multiple files in one commit
+git add file1.ts file2.ts file3.ts && git commit -m "fix: various issues"
+
+# ❌ WRONG - Generic message
+git add eslint.config.ts && git commit -m "fix: lint issues"
+```
+
+**ALWAYS DO THIS:**
+```bash
+# ✅ CORRECT - One file, specific message
+git add eslint.config.ts && git commit -m "fix(eslint): re-enable jsx-no-target-blank with allowReferrer"
+
+# ✅ CORRECT - Next file, its own commit
+git add lib/bookmarks.ts && git commit -m "fix(bookmarks): replace globalThis.isBookmarkRefreshLocked with distributed lock check"
+```
 
 **1. Get unresolved comments (GraphQL):**
 
