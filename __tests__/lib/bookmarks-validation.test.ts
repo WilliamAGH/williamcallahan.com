@@ -18,6 +18,10 @@ describe("Bookmarks Validation", () => {
     jest.clearAllMocks();
   });
 
+  afterAll(() => {
+    jest.restoreAllMocks();
+  });
+
   test("should validate a normal dataset with multiple bookmarks", () => {
     const bookmarks: UnifiedBookmark[] = [
       {
