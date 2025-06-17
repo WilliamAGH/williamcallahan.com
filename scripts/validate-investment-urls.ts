@@ -41,6 +41,10 @@ function isValidHttpUrl(urlString: string): boolean {
  * Normalize URL for testing
  */
 function normalizeUrl(url: string): string {
+  // Check if URL already contains a protocol pattern
+  if (url.match(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//)) {
+    return url; // Already has a protocol
+  }
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     return `https://${url}`;
   }
