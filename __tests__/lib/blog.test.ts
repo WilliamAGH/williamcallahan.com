@@ -23,12 +23,12 @@ console.log("[TEST FILE] blog.test.ts starting");
 import { getAllPosts, getPostBySlug } from "@/lib/blog";
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 // Explicitly mock assertServerOnly for this test file
-jest.mock("../../lib/utils/ensure-server-only", () => ({
+jest.mock("@/lib/utils/ensure-server-only", () => ({
   assertServerOnly: jest.fn(() => undefined),
 }));
 
 // Mock static posts using mock.module
-jest.mock("../../data/blog/posts", () => ({
+jest.mock("@/data/blog/posts", () => ({
   posts: [
     {
       id: "test-post-1",
@@ -62,7 +62,7 @@ jest.mock("../../data/blog/posts", () => ({
 }));
 
 // Mock MDX functionality using mock.module
-jest.mock("../../lib/blog/mdx", () => ({
+jest.mock("@/lib/blog/mdx", () => ({
   getAllMDXPosts: jest.fn().mockResolvedValue([]),
   getMDXPost: jest.fn().mockImplementation((slug: string) => {
     const posts = [
