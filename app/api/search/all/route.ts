@@ -19,6 +19,11 @@ import { NextResponse } from "next/server";
 // Ensure this route is not statically cached
 export const dynamic = "force-dynamic";
 
+// Helper to safely extract fulfilled values from Promise.allSettled
+function getFulfilled<T>(result: PromiseSettledResult<T>): T | [] {
+  return result.status === "fulfilled" ? result.value : [];
+}
+
 /**
  * Server-side API route for site-wide search.
  *
@@ -50,15 +55,25 @@ export async function GET(request: Request) {
       return NextResponse.json([]); // Nothing to search for
     }
 
-    // Perform searches in parallel
-    const [blogResults, investmentResults, experienceResults, educationResults, bookmarkResults] =
-      await Promise.all([
-        searchBlogPostsServerSide(query), // Already returns SearchResult[] with [Blog] prefix
-        searchInvestments(query),
-        searchExperience(query),
-        searchEducation(query),
-        searchBookmarks(query),
-      ]);
+    // Perform searches in parallel but tolerate failures in any individual search source
+    const settled = await Promise.allSettled([
+      // Blog search already adds its own [Blog] prefix
+      searchBlogPostsServerSide(query),
+      Promise.resolve(searchInvestments(query)),
+      Promise.resolve(searchExperience(query)),
+      Promise.resolve(searchEducation(query)),
+      searchBookmarks(query),
+    ]);
+
+    const [blogResults, investmentResults, experienceResults, educationResults, bookmarkResults] = (
+      settled.map(getFulfilled) as [
+        SearchResult[],
+        SearchResult[],
+        SearchResult[],
+        SearchResult[],
+        SearchResult[],
+      ]
+    );
 
     // Add prefixes to non-blog results for clarity in the terminal
     const prefixedInvestmentResults = investmentResults.map((r) => ({
