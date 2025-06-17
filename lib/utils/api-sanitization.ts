@@ -122,6 +122,10 @@ export function sanitizeSystemInfo(obj: Record<string, unknown>): Record<string,
 export function sanitizeUrl(url: string): string {
   try {
     const parsed = new URL(url);
+    
+    // Remove basic auth credentials
+    parsed.username = '';
+    parsed.password = '';
 
     // Remove sensitive query parameters
     const sensitiveParams = ["token", "secret", "key", "auth", "password"];
