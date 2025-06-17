@@ -6,11 +6,11 @@
  * to highlight supplementary contextual information.
  */
 
-'use client';
+"use client";
 
-import { useState, useRef, useEffect, type JSX, type ReactNode } from 'react';
-import { InfoIcon, ChevronDown, ChevronUp } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { ChevronDown, ChevronUp, InfoIcon } from "lucide-react";
+import { type JSX, type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { cn } from "../../lib/utils";
 
 interface BackgroundInfoProps {
   /** The content to display inside the box */
@@ -34,12 +34,13 @@ export function BackgroundInfo({
   children,
   title = "Background Info",
   className = "",
-  icon = <InfoIcon className="w-4 h-4" />
+  icon = <InfoIcon className="w-4 h-4" />,
 }: BackgroundInfoProps): JSX.Element | null {
   const [isExpanded, setIsExpanded] = useState(false); // Whether the content is expanded on mobile
   const [showToggleButton, setShowToggleButton] = useState(false); // Whether to show the "Read more/less" button
   const [isMounted, setIsMounted] = useState(false); // Tracks if the component has mounted on the client
   const contentRef = useRef<HTMLDivElement>(null); // Ref to the content div for height measurement
+  const contentId = useId(); // Generate a unique, stable ID for ARIA attributes
 
   // Effect 1: Set mounted status on client-side to enable dynamic calculations and rendering.
   useEffect(() => {
@@ -54,22 +55,25 @@ export function BackgroundInfo({
     }
 
     const checkHeight = () => {
-      setTimeout(() => { // Ensures layout is stable
+      setTimeout(() => {
+        // Ensures layout is stable
         if (contentRef.current) {
           const buffer = 16; // Buffer to prevent toggle for slightly taller content
           const collapsedHeightThreshold = 144; // Corresponds to max-h-36 (1rem = 16px, 9rem = 144px)
           const isContentSignificantlyTaller =
-            contentRef.current.scrollHeight > (collapsedHeightThreshold + buffer);
-          
+            contentRef.current.scrollHeight > collapsedHeightThreshold + buffer;
+
           // Only update if the value actually changes to prevent unnecessary re-renders
-          setShowToggleButton(prev => prev !== isContentSignificantlyTaller ? isContentSignificantlyTaller : prev);
+          setShowToggleButton((prev) =>
+            prev !== isContentSignificantlyTaller ? isContentSignificantlyTaller : prev,
+          );
         }
       }, 0);
     };
 
     checkHeight(); // Initial check
-    window.addEventListener('resize', checkHeight); // Re-check on resize
-    return () => window.removeEventListener('resize', checkHeight);
+    window.addEventListener("resize", checkHeight); // Re-check on resize
+    return () => window.removeEventListener("resize", checkHeight);
   }, [isMounted]); // Dependency: isMounted
 
   const containerClasses = cn(
@@ -78,60 +82,69 @@ export function BackgroundInfo({
     "border-blue-200 dark:border-blue-800",
     "max-md:-mx-4",
     "my-6",
-    className
+    className,
   );
-  const titleContainerClasses = cn(
-    "flex items-baseline gap-1 mb-2"
-  );
+  const titleContainerClasses = cn("flex items-baseline gap-1 mb-2");
   const toggleButtonClasses = cn(
     "flex items-center justify-center w-full px-4 py-2 text-sm font-medium",
     "text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/30",
     "border-t border-blue-200 dark:border-blue-800",
-    "transition-colors"
+    "transition-colors",
   );
 
   // --- Dynamic Content Styles --- (Applied only AFTER mount)
   const dynamicContentClasses = isMounted
     ? cn(
         "max-md:overflow-hidden transition-[max-height] duration-300 ease-in-out",
-        isExpanded ? "max-md:max-h-[1000px]" : "max-md:max-h-36"
+        isExpanded ? "max-md:max-h-[1000px]" : "max-md:max-h-36",
       )
     : ""; // No dynamic styles before mount
 
   // --- Final Content Classes ---
   const contentClasses = cn(
     "prose-sm dark:prose-invert text-blue-800 dark:text-blue-200", // Base prose styles
-    dynamicContentClasses // Dynamic height classes post-mount
+    dynamicContentClasses, // Dynamic height classes post-mount
   );
 
   return (
     <div className={containerClasses}>
       <div className={titleContainerClasses}>
-        <div className="text-blue-600 dark:text-blue-400 flex-shrink-0 w-4 h-4"> {/* Ensure space for icon */}
+        <div className="text-blue-600 dark:text-blue-400 flex-shrink-0 w-4 h-4">
+          {" "}
+          {/* Ensure space for icon */}
           {isMounted && icon}
         </div>
-        <h4 className="font-medium text-lg text-blue-700 dark:text-blue-300">
-          {title}
-        </h4>
+        <h4 className="font-medium text-lg text-blue-700 dark:text-blue-300">{title}</h4>
       </div>
 
       {/* Content: suppressHydrationWarning might still be helpful as a fallback */}
-      <div ref={contentRef} className={contentClasses} suppressHydrationWarning={true}>
+      <div
+        id={contentId}
+        ref={contentRef}
+        className={contentClasses}
+        suppressHydrationWarning={true}
+      >
         {children}
       </div>
 
       {/* Button: Render only AFTER mount AND if needed. Hidden on medium screens and up. */}
       {isMounted && showToggleButton && (
-        <div className="md:hidden"> {/* This div wrapper is for layout (md:hidden) */}
+        <div className="md:hidden">
+          {" "}
+          {/* This div wrapper is for layout (md:hidden) */}
           <button
             type="button" // Explicitly set button type for accessibility
             onClick={() => setIsExpanded(!isExpanded)}
             className={toggleButtonClasses}
             aria-expanded={isExpanded}
-            aria-controls={contentRef.current?.id} // Optional: for better ARIA if content has an ID
+            aria-controls={contentId}
           >
             {isExpanded ? "Read less" : "Read more"}
-            {isExpanded ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />}
+            {isExpanded ? (
+              <ChevronUp className="ml-1 h-4 w-4" />
+            ) : (
+              <ChevronDown className="ml-1 h-4 w-4" />
+            )}
           </button>
         </div>
       )}
