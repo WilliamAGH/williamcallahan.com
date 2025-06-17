@@ -31,8 +31,8 @@ if (typeof globalThis.MessagePort === "undefined") {
 if (typeof globalThis.MessageChannel === "undefined") {
   Object.defineProperty(globalThis, "MessageChannel", {
     value: class MessageChannel {
-      port1 = new MessagePort();
-      port2 = new MessagePort();
+      port1 = new (globalThis as { MessagePort: typeof MessagePort }).MessagePort();
+      port2 = new (globalThis as { MessagePort: typeof MessagePort }).MessagePort();
     },
     writable: true,
     configurable: true,
