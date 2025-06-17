@@ -1,4 +1,3 @@
-
 /**
  * Experience Section Component - Client Wrapper
  * @module components/features/experience/experience.client
@@ -10,18 +9,18 @@
 
 "use client";
 
-import { useEffect, type JSX } from 'react'; // Import hooks (useState might not be needed)
-import { WindowControls } from "../../ui/navigation/window-controls";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
-import { Briefcase } from 'lucide-react'; // Import specific icon
-import { cn } from '@/lib/utils'; // Import cn utility
+import { cn } from "@/lib/utils"; // Import cn utility
+import { Briefcase } from "lucide-react"; // Import specific icon
+import { type JSX, useEffect } from "react"; // Import hooks (useState might not be needed)
+import { WindowControls } from "../../ui/navigation/window-controls";
 // ReactElement type is no longer explicitly imported if JSX.Element is used directly
 
 /**
  * Unique identifier for the experience window instance in the global window registry.
  * @internal
  */
-const EXPERIENCE_WINDOW_ID = 'experience-window';
+const EXPERIENCE_WINDOW_ID = "experience-window";
 
 // Force static generation for the content component if possible (may need adjustment)
 // export const dynamic = 'force-static'; // This directive likely belongs with data fetching/rendering logic
@@ -53,19 +52,24 @@ export function Experience({ experienceCards }: ExperienceProps): JSX.Element {
     close: closeWindow,
     minimize: minimizeWindow,
     maximize: maximizeWindow,
-    isRegistered
-  } = useRegisteredWindowState(EXPERIENCE_WINDOW_ID, Briefcase, 'Restore Experience', 'normal');
+    isRegistered,
+  } = useRegisteredWindowState(EXPERIENCE_WINDOW_ID, Briefcase, "Restore Experience", "normal");
 
   // Log state changes (optional)
   useEffect(() => {
-    if (isRegistered) { // Check isRegistered
-      console.log(`Experience Component Render (${EXPERIENCE_WINDOW_ID}) - Window State:`, windowState);
+    if (isRegistered) {
+      // Check isRegistered
+      console.log(
+        `Experience Component Render (${EXPERIENCE_WINDOW_ID}) - Window State:`,
+        windowState,
+      );
     }
   }, [windowState, isRegistered]); // Dependency on isRegistered
 
   // Render nothing until ready
-  if (!isRegistered) { // Check isRegistered
-     return <></>; // Or a suitable skeleton/placeholder
+  if (!isRegistered) {
+    // Check isRegistered
+    return <></>; // Or a suitable skeleton/placeholder
   }
 
   // Handle closed state
@@ -76,24 +80,26 @@ export function Experience({ experienceCards }: ExperienceProps): JSX.Element {
   // Handle minimized state
   // This is now handled by the FloatingRestoreButtons component
   if (windowState === "minimized") {
-     return <></>;
+    return <></>;
   }
 
   // Render normal or maximized view
-  const isMaximized = windowState === 'maximized';
+  const isMaximized = windowState === "maximized";
 
   // Refactored structure to match other clients (single main wrapper)
   return (
-    <div className={cn(
-      // Base styles
-      "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-hidden",
-      "transition-all duration-300 ease-in-out",
-      // Normal state styles
-      "relative max-w-5xl mx-auto mt-8 rounded-lg shadow-lg",
-      // Maximized state overrides
-      isMaximized &&
-        "fixed inset-0 z-[60] max-w-none m-0 rounded-none shadow-none flex flex-col h-full top-16 bottom-16 md:bottom-4"
-    )}>
+    <div
+      className={cn(
+        // Base styles
+        "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-hidden",
+        "transition-all duration-300 ease-in-out",
+        // Normal state styles
+        "relative max-w-5xl mx-auto mt-8 rounded-lg shadow-lg",
+        // Maximized state overrides
+        isMaximized &&
+          "fixed inset-0 z-[60] max-w-none m-0 rounded-none shadow-none flex flex-col h-full top-16 bottom-16 md:bottom-4",
+      )}
+    >
       {/* Sticky Header */}
       <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 flex-shrink-0 sticky top-0 z-10">
         <div className="flex items-center">
@@ -106,18 +112,13 @@ export function Experience({ experienceCards }: ExperienceProps): JSX.Element {
         </div>
       </div>
       {/* Scrollable Content Area */}
-      <div className={cn(
-        "p-6",
-        isMaximized ? "overflow-y-auto flex-grow" : ""
-      )}>
+      <div className={cn("p-6", isMaximized ? "overflow-y-auto flex-grow" : "")}>
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-6">Experience</h2>
           <div className="space-y-6">
             {experienceCards.map((item) => (
               // Use item.id which was passed along from the server component
-              (<div key={item.id}>
-                {item.card}
-              </div>)
+              <div key={item.id}>{item.card}</div>
             ))}
           </div>
         </div>
