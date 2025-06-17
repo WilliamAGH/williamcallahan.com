@@ -49,7 +49,17 @@ describe("scripts/update-s3-data.ts Smoke Test", () => {
     // FULL mode runs without restrictions
 
     try {
-      stdout = execSync(`bun ${SCRIPT_PATH}`, {
+      // Use bun if available in PATH, otherwise fall back to tsx
+      let command: string;
+      try {
+        execSync('which bun', { stdio: 'ignore' });
+        command = `bun ${SCRIPT_PATH}`;
+      } catch {
+        // If bun is not available, use tsx which is more portable than ts-node
+        command = `npx tsx ${SCRIPT_PATH}`;
+      }
+      
+      stdout = execSync(command, {
         env: envVars,
         encoding: "utf8",
         stdio: ["inherit", "pipe", "pipe"],
