@@ -102,6 +102,9 @@ describe("Bookmarks Module (Simplified)", () => {
   const TEST_TIMEOUT = 10000; // 10 seconds
 
   beforeEach(() => {
+    // Reset module cache to ensure fresh imports
+    jest.resetModules();
+    
     // Set up environment
     process.env.BOOKMARK_BEARER_TOKEN = "test-token";
 
