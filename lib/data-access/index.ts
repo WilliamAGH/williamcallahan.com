@@ -1,11 +1,10 @@
 /**
- * Data Access Directory Index
- * 
- * This index file re-exports all the data access functions to provide
- * a fallback when module resolution doesn't find the parent data-access.ts file.
+ * Data access directory index - fallback for module resolution
+ *
+ * @module lib/data-access/index
  */
 
-export * from './bookmarks';
-export * from './logos';
-export * from './investments';
-export * from './github';
+export * from "./bookmarks";
+export * from "./logos";
+export * from "./investments";
+export * from "./github";
