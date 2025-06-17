@@ -254,8 +254,7 @@ export function cleanupBookmarksDataAccess(): void {
   }
 }
 
-
-async function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> {
+export async function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> {
   if (!(await acquireRefreshLock())) {
     return null; // Lock not acquired
   }

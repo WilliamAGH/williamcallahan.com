@@ -256,11 +256,11 @@ const GitHubActivity = () => {
   }, [fetchData]); // Add fetchData to dependency array
 
   /**
-   * Handles click events on the main card div for navigation.
+   * Handles click events on the main card button for navigation.
    * Only navigates if the click target is not a button (to avoid conflicts with refresh buttons).
-   * @param {React.MouseEvent<HTMLDivElement>} e - The mouse event.
+   * @param {React.MouseEvent<HTMLButtonElement>} e - The mouse event.
    */
-  const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleCardClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     // Check if the clicked element or its parent is a button
     const target = e.target as HTMLElement;
     const isButton = target.tagName === "BUTTON" || target.closest("button");
@@ -273,7 +273,7 @@ const GitHubActivity = () => {
   /**
    * Handles keyboard events for accessibility compliance.
    */
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
     if (e.key === "Enter" || e.key === " ") {
       // Check if the focused element or its parent is a button
       const target = e.target as HTMLElement;
@@ -287,8 +287,8 @@ const GitHubActivity = () => {
   };
 
   return (
-    <div
-      tabIndex={0}
+    <button
+      type="button"
       className="bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-card cursor-pointer hover:shadow-card-hover transition-all duration-300 transform hover:-translate-y-1 group text-left w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
       onClick={handleCardClick}
       onKeyDown={handleKeyDown}
@@ -417,7 +417,7 @@ const GitHubActivity = () => {
             )}
         </>
       )}
-    </div>
+    </button>
   );
 };
 

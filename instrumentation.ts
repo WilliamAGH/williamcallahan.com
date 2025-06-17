@@ -1,4 +1,3 @@
-import { EventEmitter } from "node:events";
 import * as Sentry from "@sentry/nextjs";
 
 // Global flags to prevent multiple concurrent preloading attempts and repeated preloads
@@ -6,13 +5,21 @@ let isPreloading = false;
 let hasPreloaded = false;
 let preloadPromise: Promise<void> | null = null;
 
+// Lazy import EventEmitter to avoid Edge/browser bundling issues
+let EventEmitter: typeof import("node:events").EventEmitter | undefined;
+
 export function register() {
   const releaseVersion = process.env.NEXT_PUBLIC_APP_VERSION || process.env.SENTRY_RELEASE;
 
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    // Lazy-load EventEmitter only in Node.js runtime
+    ({ EventEmitter } = require("node:events"));
+
     // Increase the default max listeners to handle concurrent fetch operations
     // This prevents the "MaxListenersExceededWarning" when processing bookmarks in batches
-    EventEmitter.defaultMaxListeners = 25;
+    if (EventEmitter) {
+      EventEmitter.defaultMaxListeners = 25;
+    }
 
     // Also set it on the global process object to be safe
     if (process.setMaxListeners) {
