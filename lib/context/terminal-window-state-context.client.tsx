@@ -6,9 +6,9 @@
 
 "use client";
 
-import React, { createContext, useContext } from 'react';
-import type { ReactNode } from 'react';
-import { useWindowState, type WindowState } from '@/lib/hooks/use-window-state.client';
+import { type WindowState, useWindowState } from "@/lib/hooks/use-window-state.client";
+import React, { createContext, useContext } from "react";
+import type { ReactNode } from "react";
 
 // Re-export the WindowState type so consumers can use it
 export type { WindowState };
@@ -25,7 +25,9 @@ interface TerminalWindowStateContextType {
 
 // Create the context with a default undefined value
 // This ensures consumers must be wrapped in a provider
-const TerminalWindowStateContext = createContext<TerminalWindowStateContextType | undefined>(undefined);
+const TerminalWindowStateContext = createContext<TerminalWindowStateContextType | undefined>(
+  undefined,
+);
 
 // Define the props for the provider component
 interface TerminalWindowStateProviderProps {
@@ -38,7 +40,7 @@ interface TerminalWindowStateProviderProps {
 export const TerminalWindowStateProvider = ({
   children,
   terminalId,
-  initialState = 'normal', // Default initial state
+  initialState = "normal", // Default initial state
 }: TerminalWindowStateProviderProps) => {
   // Use the existing hook to manage the actual state
   const {
@@ -53,18 +55,21 @@ export const TerminalWindowStateProvider = ({
   // Define a specific restore function
   const restoreWindow = React.useCallback(() => {
     // Restore specifically to 'normal' state
-    setWindowState('normal');
+    setWindowState("normal");
   }, [setWindowState]);
 
   // Memoize the context value to prevent unnecessary re-renders
-  const value = React.useMemo(() => ({
-    windowState,
-    closeWindow,
-    minimizeWindow,
-    maximizeWindow,
-    restoreWindow, // Provide the restore function
-    isReady,
-  }), [windowState, closeWindow, minimizeWindow, maximizeWindow, restoreWindow, isReady]);
+  const value = React.useMemo(
+    () => ({
+      windowState,
+      closeWindow,
+      minimizeWindow,
+      maximizeWindow,
+      restoreWindow, // Provide the restore function
+      isReady,
+    }),
+    [windowState, closeWindow, minimizeWindow, maximizeWindow, restoreWindow, isReady],
+  );
 
   return (
     <TerminalWindowStateContext.Provider value={value}>
@@ -77,7 +82,7 @@ export const TerminalWindowStateProvider = ({
 export const useTerminalWindow = (): TerminalWindowStateContextType => {
   const context = useContext(TerminalWindowStateContext);
   if (context === undefined) {
-    throw new Error('useTerminalWindow must be used within a TerminalWindowStateProvider');
+    throw new Error("useTerminalWindow must be used within a TerminalWindowStateProvider");
   }
   return context;
 };
