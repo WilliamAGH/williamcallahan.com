@@ -1,4 +1,4 @@
-"use client";;
+"use client";
 /**
  * Investment Card Client Component
  * @module components/features/investments/investment-card.client
@@ -16,11 +16,11 @@
  * ```
  */
 
-import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
-import { LogoImage } from '../../../components/ui';
-import { ExternalLink } from '../../ui/external-link.client';
-import type { Investment } from '../../../types/investment';
-import type { LogoData } from '../../../types/logo';
+import { LogoImage } from "@/components/ui";
+import { ExternalLink } from "@/components/ui/external-link.client";
+import { ExternalLink as ExternalLinkIcon } from "lucide-react";
+import type { Investment } from "../../../types/investment";
+import type { LogoData } from "../../../types/logo";
 
 import type { JSX } from "react";
 
@@ -51,7 +51,11 @@ interface InvestmentCardClientProps extends Investment {
  * - Displaying financial metrics
  * - Theme-aware rendering
  */
-export function InvestmentCardClient({ logoData, renderedMetrics, ...investment }: InvestmentCardClientProps): JSX.Element {
+export function InvestmentCardClient({
+  logoData,
+  renderedMetrics,
+  ...investment
+}: InvestmentCardClientProps): JSX.Element {
   const {
     name,
     website,
@@ -69,13 +73,16 @@ export function InvestmentCardClient({ logoData, renderedMetrics, ...investment 
     acquired_year,
     shutdown_year,
     stage,
-    aventure_url
+    aventure_url,
   } = investment;
 
   // Get accelerator display name
-  const acceleratorName = accelerator?.program === 'techstars' ? 'Techstars' :
-                         accelerator?.program === 'ycombinator' ? 'Y Combinator' :
-                         null;
+  const acceleratorName =
+    accelerator?.program === "techstars"
+      ? "Techstars"
+      : accelerator?.program === "ycombinator"
+        ? "Y Combinator"
+        : null;
 
   return (
     <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
@@ -139,17 +146,23 @@ export function InvestmentCardClient({ logoData, renderedMetrics, ...investment 
               </div>
             </div>
             <div className="flex flex-col items-end text-sm space-y-1 min-w-[140px] flex-shrink-0">
-              {founded_year && <span className="text-gray-400 dark:text-gray-500">Founded {founded_year}</span>}
-              {invested_year && <span className="text-gray-500 dark:text-gray-400">Invested {invested_year}</span>}
-              {acquired_year && <span className="text-gray-600 dark:text-gray-300">Acquired {acquired_year}</span>}
-              {shutdown_year && <span className="text-gray-700 dark:text-gray-200">Closed {shutdown_year}</span>}
+              {founded_year && (
+                <span className="text-gray-400 dark:text-gray-500">Founded {founded_year}</span>
+              )}
+              {invested_year && (
+                <span className="text-gray-500 dark:text-gray-400">Invested {invested_year}</span>
+              )}
+              {acquired_year && (
+                <span className="text-gray-600 dark:text-gray-300">Acquired {acquired_year}</span>
+              )}
+              {shutdown_year && (
+                <span className="text-gray-700 dark:text-gray-200">Closed {shutdown_year}</span>
+              )}
             </div>
           </div>
 
           {/* Description */}
-          <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-            {description}
-          </p>
+          <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{description}</p>
 
           {/* Status Badges */}
           <div className="flex flex-wrap gap-2 justify-between items-center">
@@ -195,17 +208,25 @@ export function InvestmentCardClient({ logoData, renderedMetrics, ...investment 
             <div className="border rounded-lg border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3 sm:p-4">
               <div className="grid grid-cols-3 gap-x-2 sm:gap-x-6">
                 <div className="flex flex-col text-center">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Round Size</div>
-                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">${new Intl.NumberFormat().format(Number.parseInt(details?.find(d => d.label === 'Round Size')?.value.replace(/[^0-9]/g, '') || '0'))}</div>
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Round Size
+                  </div>
+                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt(details?.find((d) => d.label === "Round Size")?.value?.replace(/[^0-9]/g, "") || "0"))}`}</div>
                 </div>
                 <div className="flex flex-col text-center">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Valuation</div>
-                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">${new Intl.NumberFormat().format(Number.parseInt(details?.find(d => d.label === 'Valuation')?.value.replace(/[^0-9]/g, '') || '0'))}</div>
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Valuation
+                  </div>
+                  <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt(details?.find((d) => d.label === "Valuation")?.value?.replace(/[^0-9]/g, "") || "0"))}`}</div>
                 </div>
                 <div className="flex flex-col text-center">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Return</div>
-                  <div className={`text-xs sm:text-sm font-medium whitespace-nowrap ${holding_return >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {(holding_return >= 0 ? '+' : '') + (holding_return * 100).toFixed(1)}%
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Return
+                  </div>
+                  <div
+                    className={`text-xs sm:text-sm font-medium whitespace-nowrap ${holding_return >= 0 ? "text-emerald-500" : "text-red-500"}`}
+                  >
+                    {(holding_return >= 0 ? "+" : "") + (holding_return * 100).toFixed(1)}%
                   </div>
                 </div>
               </div>
