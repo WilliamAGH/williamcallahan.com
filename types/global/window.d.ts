@@ -1,3 +1,6 @@
+// Needed for JSX namespace re-exports
+import type * as React from 'react';
+
 // Define the structure for the Clicky analytics object on the window
 interface ClickyAnalytics {
   pageview: (path: string) => void;
@@ -31,7 +34,3 @@ declare global {
     type IntrinsicClassAttributes<T> = React.JSX.IntrinsicClassAttributes<T>;
   }
 }
-
-// Export an empty object to make this a module file if required by tsconfig, though for .d.ts it's often not needed.
-// If 'isolatedModules' is true, this might be necessary.
-export {};
