@@ -85,6 +85,11 @@ export async function GET(request: NextRequest) {
 
     // In development we may lack S3 credentials; optimistically redirect to CDN
     if (isDevelopment || (await checkS3Exists(input))) {
+      if (!S3_CDN_URL) {
+        console.error('[OG-Image] S3_CDN_URL not configured; cannot redirect');
+        const fallbackImage = getContextualFallbackImage(input);
+        return NextResponse.redirect(new URL(fallbackImage, request.url).toString(), { status: 302 });
+      }
       const cdnUrl = `${S3_CDN_URL}/${input}`;
       console.log(`[OG-Image] Redirecting to CDN: ${cdnUrl}`);
       return NextResponse.redirect(cdnUrl, { status: 301 });
@@ -96,7 +101,7 @@ export async function GET(request: NextRequest) {
   }
 
   // 2. Check if it's a Karakeep asset ID (alphanumeric with dashes/underscores)
-  if (/^[a-zA-Z0-9-_]+$/.test(input) && !input.includes('/')) {
+  if (/^[a-zA-Z0-9_-]+$/.test(input) && !input.includes('/')) {
     console.log(`[OG-Image] Detected Karakeep asset ID: ${input}`);
     
     // First try the direct asset
@@ -182,6 +187,11 @@ export async function GET(request: NextRequest) {
       if (ogData.imageUrl) {
         // If it's an S3 key, redirect to CDN
         if (ogData.imageUrl.includes('/') && !ogData.imageUrl.includes('://')) {
+          if (!S3_CDN_URL) {
+            console.error('[OG-Image] S3_CDN_URL not configured; cannot redirect cached OG image');
+            const fallbackImage = getContextualFallbackImage(input);
+            return NextResponse.redirect(new URL(fallbackImage, request.url).toString(), { status: 302 });
+          }
           const cdnUrl = `${S3_CDN_URL}/${ogData.imageUrl}`;
           console.log(`[OG-Image] Found OG image in cache, redirecting to: ${cdnUrl}`);
           return NextResponse.redirect(cdnUrl, { status: 301 });
