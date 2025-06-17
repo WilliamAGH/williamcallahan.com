@@ -2,5 +2,6 @@
  * Blog Module Exports
  */
 
-export * from './mdx';
-export * from './validation';
+export * from "../blog";
+export * from "./mdx";
+export * from "./validation";
