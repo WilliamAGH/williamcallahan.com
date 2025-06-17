@@ -97,8 +97,16 @@ export default {
               marginBottom: "0.75em",
               fontSize: "16px",
             },
+            "blockquote p": {
+              fontWeight: "400",
+              fontStyle: "italic",
+            },
             pre: {
               whiteSpace: "pre-wrap",
+            },
+            "blockquote strong": {
+              fontStyle: "italic",
+              fontWeight: "400",
             },
           },
         },
