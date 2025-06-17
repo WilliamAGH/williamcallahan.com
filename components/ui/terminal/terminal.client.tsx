@@ -11,16 +11,12 @@
 import dynamic from "next/dynamic";
 import React from "react";
 
-// A simple placeholder component to be rendered on the server
+// A visually-hidden placeholder to preserve layout without displaying a dark bar.
+// Using Tailwind utility classes keeps it consistent with the rest of the project.
 const TerminalLoading = () => (
   <div
-    style={{
-      height: "28px", // Approximate height of the terminal header
-      backgroundColor: "var(--terminal-bg, #232530)", // Use CSS variable or a fallback
-      borderRadius: "0.5rem",
-      marginTop: "1rem",
-      marginBottom: "1rem",
-    }}
+    aria-hidden="true"
+    className="h-7 mt-4 mb-4 rounded-lg opacity-0"
   />
 );
 

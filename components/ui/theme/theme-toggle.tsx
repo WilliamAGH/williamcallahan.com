@@ -21,12 +21,8 @@ export function ThemeToggle() {
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    return (
-      // Render an empty div with the same dimensions to prevent layout shift during hydration
-      <div className="p-2 rounded-lg" aria-hidden="true">
-        <div className="h-5 w-5" />
-      </div>
-    );
+    // Preserve space to avoid layout shift but keep it invisible during SSR/initial hydration.
+    return <span className="inline-block h-7 w-7 opacity-0" aria-hidden="true" />;
   }
 
   // Always use resolvedTheme for determining the visual state (i.e., what icon to show)
