@@ -16,8 +16,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   console.log("[API Bookmarks] Received GET request for bookmarks");
 
   const searchParams = request.nextUrl.searchParams;
-  const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10));
-  const limit = Math.min(100, Math.max(1, Number.parseInt(searchParams.get('limit') || '20', 10)));
+  const rawPage = Number.parseInt(searchParams.get('page') || '1', 10);
+  const page = Number.isNaN(rawPage) ? 1 : Math.max(1, rawPage);
+  
+  const rawLimit = Number.parseInt(searchParams.get('limit') || '20', 10);
+  const limit = Number.isNaN(rawLimit) ? 20 : Math.min(100, Math.max(1, rawLimit));
 
   try {
     // Ensure the data access layer is initialized
