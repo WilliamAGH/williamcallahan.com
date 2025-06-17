@@ -7,7 +7,7 @@
  * Moved from inline styles to external CSS file for better maintainability.
  */
 
-import '../../../styles/social-styles.css';
+import "../../../styles/social-styles.css";
 
 export function SocialCardEffects() {
   // Component is now just an import wrapper for the CSS
