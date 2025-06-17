@@ -45,9 +45,7 @@ export function Home() {
             .
           </p>
         </div>
-        <div className="w-full aspect-square sm:w-80 md:w-64">
-          <ProfileImage />
-        </div>
+        <ProfileImage />
       </div>
     </div>
   );
