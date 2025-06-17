@@ -9,8 +9,8 @@
  * @module utils/opengraph-utils
  */
 
-import crypto from 'node:crypto';
-import type { OgMetadata } from '@/types';
+import crypto from "node:crypto";
+import type { OgMetadata } from "@/types";
 
 /**
  * Validates a URL for OpenGraph fetching.
@@ -25,7 +25,7 @@ export function validateOgUrl(url: string): boolean {
   try {
     const urlObj = new URL(url);
     // Allow http and https protocols
-    return ['http:', 'https:'].includes(urlObj.protocol);
+    return ["http:", "https:"].includes(urlObj.protocol);
   } catch {
     return false;
   }
@@ -41,8 +41,8 @@ export function normalizeUrl(url: string): string {
   try {
     const urlObj = new URL(url);
     // Remove hash and search params for consistent caching
-    urlObj.hash = '';
-    urlObj.search = '';
+    urlObj.hash = "";
+    urlObj.search = "";
     return urlObj.toString();
   } catch {
     return url; // Return original url if parsing fails
@@ -55,8 +55,8 @@ export function normalizeUrl(url: string): string {
  * @param url - The URL to hash
  * @returns The hashed URL
  */
-export function hashUrl(url:string): string {
-  return crypto.createHash('sha256').update(url).digest('hex');
+export function hashUrl(url: string): string {
+  return crypto.createHash("sha256").update(url).digest("hex");
 }
 
 /**
@@ -66,7 +66,7 @@ export function hashUrl(url:string): string {
  * @returns A SHA256 hash of the image content
  */
 export function hashImageContent(buffer: Buffer): string {
-  return crypto.createHash('sha256').update(buffer).digest('hex');
+  return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
 /**
@@ -90,8 +90,8 @@ export function getOgImageS3Key(
 
   if (idempotencyKey && pageUrl) {
     try {
-      const domain = new URL(pageUrl).hostname.replace(/^www\./, '');
-      const sanitizedDomain = domain.replace(/\./g, '-');
+      const domain = new URL(pageUrl).hostname.replace(/^www\./, "");
+      const sanitizedDomain = domain.replace(/\./g, "-");
       baseKey = `${sanitizedDomain}-${idempotencyKey}`;
     } catch {
       // Fallback if pageUrl is invalid
@@ -120,9 +120,9 @@ export function sanitizeOgMetadata(metadata: Record<string, unknown>): OgMetadat
   for (const key in metadata) {
     if (Object.prototype.hasOwnProperty.call(metadata, key)) {
       const value = metadata[key];
-      if (typeof value === 'string') {
+      if (typeof value === "string") {
         sanitized[key] = value.trim();
-      } else if (typeof value === 'number' || typeof value === 'boolean') {
+      } else if (typeof value === "number" || typeof value === "boolean") {
         sanitized[key] = String(value);
       }
     }
@@ -137,29 +137,29 @@ export function sanitizeOgMetadata(metadata: Record<string, unknown>): OgMetadat
  * @returns The file extension, or 'png' as a default
  */
 export function getImageExtension(url: string): string {
-  if (!url) return 'png';
+  if (!url) return "png";
   try {
     const pathName = new URL(url).pathname;
     // Remove leading/trailing slashes and dots for safety
-    const cleanPath = pathName.replace(/^[./]+|[./]+$/g, '');
-    const parts = cleanPath.split('.');
-    
+    const cleanPath = pathName.replace(/^[./]+|[./]+$/g, "");
+    const parts = cleanPath.split(".");
+
     if (parts.length > 1) {
       const extension = parts.pop()?.toLowerCase();
       // Ensure it's a plausible image extension
-      if (extension && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif'].includes(extension)) {
+      if (extension && ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif"].includes(extension)) {
         return extension;
       }
     }
   } catch {
     // Fallback for invalid URLs remains the same
-    const extension = url.split('.').pop()?.split('?')[0]?.toLowerCase();
-    if (extension && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif'].includes(extension)) {
+    const extension = url.split(".").pop()?.split("?")[0]?.toLowerCase();
+    if (extension && ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif"].includes(extension)) {
       return extension;
     }
   }
   // Default to png if no valid extension is found
-  return 'png';
+  return "png";
 }
 
 /**
@@ -169,16 +169,16 @@ export function getImageExtension(url: string): string {
  * @returns The domain type (e.g., 'GitHub', 'X', 'LinkedIn', 'Website')
  */
 export function getDomainType(url: string): string {
-  if (!url) return 'Website';
+  if (!url) return "Website";
   try {
     const domain = new URL(url).hostname;
-    if (domain.includes('github.com')) return 'GitHub';
-    if (domain.includes('x.com') || domain.includes('twitter.com')) return 'X';
-    if (domain.includes('linkedin.com')) return 'LinkedIn';
-    if (domain.includes('bsky.app')) return 'Bluesky';
-    return 'Website';
+    if (domain.includes("github.com")) return "GitHub";
+    if (domain.includes("x.com") || domain.includes("twitter.com")) return "X";
+    if (domain.includes("linkedin.com")) return "LinkedIn";
+    if (domain.includes("bsky.app")) return "Bluesky";
+    return "Website";
   } catch {
-    return 'Website';
+    return "Website";
   }
 }
 
@@ -194,15 +194,15 @@ export function shouldRetryUrl(error: Error): boolean {
   }
   const msg = error.message.toLowerCase();
   const nonRetryableErrors = [
-    '400', // Bad Request
-    '401', // Unauthorized
-    '403', // Forbidden
-    '404', // Not Found
-    'invalid',
-    'unsafe',
-    'content too large',
+    "400", // Bad Request
+    "401", // Unauthorized
+    "403", // Forbidden
+    "404", // Not Found
+    "invalid",
+    "unsafe",
+    "content too large",
   ];
-  return !nonRetryableErrors.some(errText => msg.includes(errText));
+  return !nonRetryableErrors.some((errText) => msg.includes(errText));
 }
 
 /**
@@ -224,7 +224,7 @@ export function calculateBackoffDelay(attempt: number, base: number, max: number
  * @returns True if the URL is valid, false otherwise
  */
 export function isValidImageUrl(url: string | null | undefined): url is string {
-  return !!url && !url.startsWith('data:');
+  return !!url && !url.startsWith("data:");
 }
 
 /**
@@ -237,14 +237,14 @@ export function isValidImageUrl(url: string | null | undefined): url is string {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function constructKarakeepAssetUrl(assetId: string, _baseUrl?: string): string {
   // Validate asset ID format (should be non-empty string, potentially UUID)
-  if (!assetId || typeof assetId !== 'string' || assetId.trim().length === 0) {
-    throw new Error('Invalid asset ID provided');
+  if (!assetId || typeof assetId !== "string" || assetId.trim().length === 0) {
+    throw new Error("Invalid asset ID provided");
   }
 
   // Sanitize asset ID to prevent path traversal
-  const sanitizedAssetId = assetId.replace(/[^a-zA-Z0-9\-_]/g, '');
+  const sanitizedAssetId = assetId.replace(/[^a-zA-Z0-9\-_]/g, "");
   if (sanitizedAssetId !== assetId) {
-    throw new Error('Asset ID contains invalid characters');
+    throw new Error("Asset ID contains invalid characters");
   }
 
   // Use local asset proxy endpoint for consistent authentication and error handling
