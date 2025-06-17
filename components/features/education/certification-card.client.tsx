@@ -18,10 +18,10 @@
 
 "use client";
 
-import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
-import { LogoImage } from '../../../components/ui';
-import { ExternalLink } from '../../ui/external-link.client';
-import type { Certification } from '../../../types/education';
+import { ExternalLink as ExternalLinkIcon } from "lucide-react";
+import { LogoImage } from "../../../components/ui";
+import type { Certification } from "../../../types/education";
+import { ExternalLink } from "../../ui/external-link.client";
 
 import type { JSX } from "react";
 
@@ -57,26 +57,21 @@ export function CertificationCardClient({
   year,
   website,
   location,
-  logoData
+  logoData,
 }: CertificationCardClientProps): JSX.Element {
   return (
     <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
       <div className="p-6">
         <div className="flex items-start gap-6">
           <div className="w-16 h-16 relative flex-shrink-0">
-            <ExternalLink
-              href={website}
-              title={institution}
-              rawTitle={true}
-              showIcon={false}
-            >
-                <LogoImage
-                  src={logoData.src}
-                  width={32}
-                  height={32}
-                  className="object-contain"
-                  alt={name}
-                />
+            <ExternalLink href={website} title={institution} rawTitle={true} showIcon={false}>
+              <LogoImage
+                src={logoData.src}
+                width={32}
+                height={32}
+                className="object-contain"
+                alt={name}
+              />
             </ExternalLink>
           </div>
           <div className="flex-1 min-w-0">
@@ -101,14 +96,10 @@ export function CertificationCardClient({
                   </ExternalLink>
                 )}
               </div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {year}
-              </span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">{year}</span>
             </div>
             <div className="space-y-1">
-              <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                {name}
-              </p>
+              <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{name}</p>
               {location && (
                 <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                   {location}

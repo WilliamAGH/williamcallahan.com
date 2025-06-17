@@ -1,4 +1,4 @@
-"use client";;
+"use client";
 /**
  * Education Card Client Component
  * @module components/features/education/education-card.client
@@ -17,10 +17,10 @@
  * ```
  */
 
-import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
-import { LogoImage } from '../../../components/ui';
-import { ExternalLink } from '../../ui/external-link.client';
-import type { Education } from '../../../types/education';
+import { ExternalLink as ExternalLinkIcon } from "lucide-react";
+import { LogoImage } from "../../../components/ui";
+import type { Education } from "../../../types/education";
+import { ExternalLink } from "../../ui/external-link.client";
 
 import type { JSX } from "react";
 
@@ -58,7 +58,7 @@ export function EducationCardClient({
   website,
   location,
   logoData,
-  logoScale
+  logoScale,
 }: EducationCardClientProps): JSX.Element {
   return (
     <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
@@ -109,14 +109,10 @@ export function EducationCardClient({
                   </ExternalLink>
                 )}
               </div>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {year}
-              </span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">{year}</span>
             </div>
             <div className="space-y-1">
-              <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-                {degree}
-              </p>
+              <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{degree}</p>
               {location && (
                 <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
                   {location}
