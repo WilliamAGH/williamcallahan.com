@@ -1,15 +1,14 @@
 /**
- * S3 Logo Key Store Management
+ * S3 logo key store - caches S3 object keys in memory
+ *
+ * Purpose: Avoid redundant S3 listObjects calls
+ * Features: Lazy initialization, key addition, cache invalidation
  *
  * @module data-access/logos/s3-store
- * @description
- * Manages an in-memory set of S3 object keys for logos.
- * This prevents redundant `listObjects` calls to S3, which can be slow and costly.
- * The key set is populated once on startup or on-demand and then used for fast lookups.
  */
 
-import { listS3Objects } from '@/lib/s3-utils';
-import { LOGOS_S3_KEY_DIR } from './config';
+import { listS3Objects } from "@/lib/s3-utils";
+import { LOGOS_S3_KEY_DIR } from "./config";
 
 // Store S3 logo keys to avoid repeated listing calls
 let s3LogoKeys: Set<string> | null = null;
@@ -25,7 +24,7 @@ async function initializeS3LogoKeys(): Promise<void> {
     s3LogoKeys = new Set(keys);
     isInitialized = true;
   } catch (error) {
-    console.error('Failed to initialize S3 logo key store:', error);
+    console.error("Failed to initialize S3 logo key store:", error);
     s3LogoKeys = new Set(); // Initialize as empty set on error
   }
 }

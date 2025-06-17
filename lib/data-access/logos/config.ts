@@ -1,11 +1,11 @@
 /**
- * Configuration for the Logos Data Access Module
+ * Logo system configuration constants
  *
  * @module data-access/logos/config
  */
 
 // --- Configuration & Constants ---
-export const LOGOS_S3_KEY_DIR = 'images/logos';
+export const LOGOS_S3_KEY_DIR = "images/logos";
 
 // Session-based tracking to prevent infinite loops
 export const SESSION_MAX_DURATION = 30 * 60 * 1000; // 30 minutes
