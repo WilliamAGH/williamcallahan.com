@@ -98,15 +98,21 @@ export function isOperationAllowed(
  * @param config - The rate limit configuration.
  * @param pollIntervalMs - How often to check for permit availability (default: 50ms).
  *                         Adjust based on desired responsiveness and window size.
+ * @param timeoutMs - Optional timeout in milliseconds. If provided, the function will reject
+ *                    after this duration if no permit is available.
  * @returns A Promise that resolves when the operation is permitted.
+ * @throws Error if timeout is exceeded.
  */
 export async function waitForPermit(
   storeName: string,
   contextId: string,
   config: RateLimitConfig,
   pollIntervalMs = 50,
+  timeoutMs?: number,
 ): Promise<void> {
   validateRateLimitConfig(config);
+
+  const startTime = Date.now();
 
   // Ensure pollInterval is sensible, e.g., not too small compared to window
   // Also, ensure it's not excessively large if windowMs is very small.
@@ -116,6 +122,11 @@ export async function waitForPermit(
   );
 
   while (true) {
+    // Check timeout
+    if (timeoutMs !== undefined && Date.now() - startTime > timeoutMs) {
+      throw new Error(`Rate limit wait timeout exceeded after ${timeoutMs}ms`);
+    }
+
     if (isOperationAllowed(storeName, contextId, config)) {
       return; // Permit acquired
     }
