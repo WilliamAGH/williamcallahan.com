@@ -16,14 +16,14 @@
   color: #f8f8f2; /* Light text for dark mode */
   background: transparent;
   text-shadow: none; /* Remove text shadow in dark mode */
-  font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-family: Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
 }
 
 /* Remove ALL backgrounds from code blocks and their tokens */
 .dark pre[class*="language-"] *,
 .dark code[class*="language-"] * {
-  background: transparent ;
-  text-shadow: none ;
+  background: transparent;
+  text-shadow: none;
 }
 
 /* Selection in dark mode */
