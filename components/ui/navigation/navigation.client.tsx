@@ -7,25 +7,15 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
-import { navigationLinks } from './navigation-links';
-import { NavigationLink } from './navigation-link.client';
+import { Menu, X } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { NavigationLink } from "./navigation-link.client";
+import { navigationLinks } from "./navigation-links";
 
 export function Navigation() {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Render a simple placeholder during SSR
-  if (!isMounted) {
-    return <nav className="flex-1"><div className="sm:hidden h-10 w-10"></div></nav>;
-  }
 
   return (
     <nav className="flex-1">
@@ -43,13 +33,11 @@ export function Navigation() {
 
       {/* Desktop Navigation - keep sm:flex for test compatibility */}
       <div className="hidden sm:flex items-center">
-        <div className="flex flex-wrap whitespace-nowrap space-x-1"> {/* Allow wrapping */}
+        <div className="flex flex-wrap whitespace-nowrap space-x-1">
+          {" "}
+          {/* Allow wrapping */}
           {navigationLinks.map((link) => (
-            <NavigationLink
-              key={link.path}
-              currentPath={pathname}
-              {...link}
-            />
+            <NavigationLink key={link.path} currentPath={pathname} {...link} />
           ))}
         </div>
       </div>
@@ -63,9 +51,8 @@ export function Navigation() {
           {/* For mobile, show all navigation links including Contact regardless of screen size */}
           {navigationLinks.map((link) => {
             // Override the responsive settings for Contact in mobile menu to ensure it always appears
-            const mobileProps = link.path === '/contact' ?
-              { ...link, responsive: undefined } :
-              link;
+            const mobileProps =
+              link.path === "/contact" ? { ...link, responsive: undefined } : link;
 
             return (
               <NavigationLink

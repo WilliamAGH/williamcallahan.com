@@ -3,17 +3,17 @@
  */
 "use client"; // Add "use client" as it uses hooks
 
-import Link from 'next/link';
 // Revert to original hook name
-import { useTerminalContext } from '@/components/ui/terminal/terminal-context.client';
-import type { NavigationLinkProps } from '@/types/navigation';
-import { useCallback, useState, useEffect, useRef } from 'react'; // Import useRef
+import { useTerminalContext } from "@/components/ui/terminal/terminal-context.client";
+import { BREAKPOINTS } from "@/lib/constants";
 // Import the window size hook
-import { useWindowSize } from '@/lib/hooks/use-window-size.client';
-import { BREAKPOINTS } from '@/lib/constants';
+import { useWindowSize } from "@/lib/hooks/use-window-size.client";
+import type { NavigationLinkProps } from "@/types/navigation";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react"; // Import useRef
 
 // Important pages that should be prefetched for faster navigation
-const PRIORITY_PATHS = ['/projects', '/blog', '/experience', '/contact'];
+const PRIORITY_PATHS = ["/projects", "/blog", "/experience", "/contact"];
 
 // Navigation cooldown settings
 const NAVIGATION_COOLDOWN = 300; // ms
@@ -23,8 +23,8 @@ export function NavigationLink({
   name,
   responsive,
   currentPath,
-  className = '',
-  onClick
+  className = "",
+  onClick,
 }: NavigationLinkProps) {
   // Use the window size hook
   const { width } = useWindowSize();
@@ -39,39 +39,36 @@ export function NavigationLink({
   const [isNavigating, setIsNavigating] = useState(false);
 
   // Determine if this link should be prefetched
-   
+
   const shouldPrefetch = PRIORITY_PATHS.includes(path);
 
   // Memoize the click handler to prevent rerenders
-  const handleClick = useCallback((e: React.MouseEvent) => {
-    const now = Date.now();
+  const handleClick = useCallback(
+    (e: React.MouseEvent) => {
+      const now = Date.now();
 
-    // Prevent rapid navigation clicks (possible server switching)
-    // Access and compare using the ref's current value
-    if (now - lastNavigationTimeRef.current < NAVIGATION_COOLDOWN) {
-      e.preventDefault();
-      return;
-    }
+      // Prevent rapid navigation clicks (possible server switching)
+      // Access and compare using the ref's current value
+      if (now - lastNavigationTimeRef.current < NAVIGATION_COOLDOWN) {
+        e.preventDefault();
+        return;
+      }
 
-    // Only clear history if navigating to a new page
-    if (path !== currentPath) {
-      // console.log(`[NavigationLink] Navigating to new path: ${path}`);
-      clearHistory(); // Clear history when navigating to a new page
-    } else {
-      // console.log(`[NavigationLink] Clicked active path: ${path}.`);
-    }
+      // Only clear history if navigating to a new page
+      if (path !== currentPath) {
+        // console.log(`[NavigationLink] Navigating to new path: ${path}`);
+        clearHistory(); // Clear history when navigating to a new page
+      } else {
+        // console.log(`[NavigationLink] Clicked active path: ${path}.`);
+      }
 
-    // Update the ref's current value
-    lastNavigationTimeRef.current = now;
-    setIsNavigating(true);
-
-    // Only clear history when actually navigating to a new page
-    if (path !== currentPath) {
-      // Clear history when navigating to a new page
-      clearHistory();
-    }
-    onClick?.();
-  }, [path, currentPath, onClick, clearHistory]); // Added clearHistory to dependency array
+      // Update the ref's current value
+      lastNavigationTimeRef.current = now;
+      setIsNavigating(true);
+      onClick?.();
+    },
+    [path, currentPath, onClick, clearHistory],
+  ); // Added clearHistory to dependency array
 
   // Reset navigation state after timeout
   useEffect(() => {
@@ -83,37 +80,63 @@ export function NavigationLink({
     }
   }, [isNavigating]);
 
-  // Determine if the link should be hidden based on window size and responsive prop
-  const shouldHide = responsive?.hideBelow && width !== undefined && width < (BREAKPOINTS[responsive.hideBelow] || 0);
-
-  // Conditionally return null if the link should be hidden
-  if (shouldHide) {
-    return null;
+  // Debug log for Contact link
+  if (process.env.NODE_ENV === "development" && name === "Contact") {
+    console.log("Contact link debug:", {
+      name,
+      width,
+      responsive,
+      hideBelow: responsive?.hideBelow,
+      breakpoint: BREAKPOINTS[responsive?.hideBelow || "xl"],
+    });
   }
+
+  // REMOVED: Conditional return null that was causing hydration errors
+  // The responsive CSS classes in getResponsiveClasses() handle visibility correctly
 
   // Handle responsive display classes based on responsive settings
   const getResponsiveClasses = () => {
-    if (!responsive) return '';
+    if (!responsive) return "";
 
-    let classes = '';
+    let classes = "";
 
     if (responsive.hideBelow) {
       switch (responsive.hideBelow) {
-        case 'sm': classes += 'hidden sm:inline-block '; break;
-        case 'md': classes += 'hidden md:inline-block '; break;
-        case 'lg': classes += 'hidden lg:inline-block '; break;
-        case 'xl': classes += 'hidden xl:inline-block '; break;
-        case '2xl': classes += 'hidden 2xl:inline-block '; break;
+        case "sm":
+          classes += "hidden sm:inline-block ";
+          break;
+        case "md":
+          classes += "hidden md:inline-block ";
+          break;
+        case "lg":
+          classes += "hidden lg:inline-block ";
+          break;
+        case "xl":
+          classes += "hidden xl:inline-block ";
+          break;
+        case "2xl":
+          classes += "hidden 2xl:inline-block ";
+          break;
       }
     }
 
     if (responsive.hideAbove) {
       switch (responsive.hideAbove) {
-        case 'sm': classes += 'sm:hidden '; break;
-        case 'md': classes += 'md:hidden '; break;
-        case 'lg': classes += 'lg:hidden '; break;
-        case 'xl': classes += 'xl:hidden '; break;
-        case '2xl': classes += '2xl:hidden '; break;
+        case "sm":
+          classes += "sm:hidden ";
+          break;
+        case "md":
+          classes += "md:hidden ";
+          break;
+        case "lg":
+          classes += "lg:hidden ";
+          break;
+        case "xl":
+          classes += "xl:hidden ";
+          break;
+        case "2xl":
+          classes += "2xl:hidden ";
+          break;
       }
     }
 
@@ -126,16 +149,17 @@ export function NavigationLink({
     className: `
       px-4 py-2 rounded-t-lg text-sm
       nav-link
-      ${isActive
-        ? 'bg-white dark:bg-gray-800 shadow-sm border-t border-x border-gray-200 dark:border-gray-700'
-        : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+      ${
+        isActive
+          ? "bg-white dark:bg-gray-800 shadow-sm border-t border-x border-gray-200 dark:border-gray-700"
+          : "hover:bg-gray-100 dark:hover:bg-gray-700"
       }
-      ${isNavigating ? 'pointer-events-none opacity-80' : ''}
+      ${isNavigating ? "pointer-events-none opacity-80" : ""}
       ${getResponsiveClasses()}
       ${className}
     `,
-    // Explicitly type aria-current to match the expected values
-    'aria-current': isActive ? ('page' as const) : undefined,
+    // Provide correct ARIA attribute for current page indication
+    ...(isActive ? { "aria-current": "page" as const } : {}),
     onClick: handleClick,
 
     // Use the shouldPrefetch variable to determine if this link should be prefetched
@@ -144,12 +168,12 @@ export function NavigationLink({
     // Use scroll={false} to prevent scroll position jumps
     // This property will cause a React warning in tests but is needed for Next.js functionality
     // We accept this warning as it doesn't affect production functionality
-    scroll: false
+    scroll: false,
   };
 
   return (
     <Link {...linkProps}>
-      {name === 'Projects Sandbox' ? (
+      {name === "Projects Sandbox" ? (
         <>
           Projects<span className="hidden md:inline"> Sandbox</span>
         </>

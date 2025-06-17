@@ -8,20 +8,20 @@
  * It is a shared component (server and client)
  */
 
-import type { NavigationLink } from '@/types/navigation';
+import type { NavigationLink } from "@/types/navigation";
 
 export const navigationLinks: NavigationLink[] = [
-  { name: 'Home', path: '/' },
-  { name: 'Investments', path: '/investments' },
-  { name: 'Experience', path: '/experience' },
-  { name: 'Education', path: '/education' },
-  { name: 'Projects Sandbox', path: '/projects' }, // Use plural to match rendered label
-  { name: 'Bookmarks', path: '/bookmarks' },
+  { name: "Home", path: "/" },
+  { name: "Investments", path: "/investments" },
+  { name: "Experience", path: "/experience" },
+  { name: "Education", path: "/education" },
+  { name: "Projects Sandbox", path: "/projects" }, // Use plural to match rendered label
+  { name: "Bookmarks", path: "/bookmarks" },
   // Contact tab is shown before Blog, but only on XL viewports and above
-  { 
-    name: 'Contact', 
-    path: '/contact',
-    responsive: { hideBelow: 'xl' } 
+  {
+    name: "Contact",
+    path: "/contact",
+    responsive: { hideBelow: "xl" },
   },
-  { name: 'Blog', path: '/blog' },
+  { name: "Blog", path: "/blog" },
 ];
