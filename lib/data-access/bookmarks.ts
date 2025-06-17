@@ -236,6 +236,25 @@ export async function initializeBookmarksDataAccess(): Promise<void> {
           const { refreshBookmarksData } = await import("@/lib/bookmarks");
           setRefreshBookmarksCallback(refreshBookmarksData);
           console.log("[Bookmarks] Data access layer initialized with refresh callback");
+
+          /**
+           * Warm-up step: load bookmark data from S3 straight into the in-memory cache _once_ at
+           * process start.  That means the very first page view (e.g. `/bookmarks` or
+           * `/bookmarks/page/2`) can be served from RAM instead of paying the extra network
+           * round-trip to S3.
+           *
+           * We set `skipExternalFetch=true` so it never triggers a Karakeep crawl during build or
+           * cold-start.  If S3 is empty the normal request path will handle refresh logic.
+           */
+          try {
+            await getBookmarks(/* skipExternalFetch */ true);
+            console.log("[Bookmarks] Pre-loaded bookmarks into memory cache at startup.");
+          } catch (warmErr) {
+            console.warn(
+              "[Bookmarks] Startup warm-up failed (will fall back to lazy load):",
+              warmErr instanceof Error ? warmErr.message : String(warmErr),
+            );
+          }
         } catch (error) {
           console.error("[Bookmarks] Failed to initialize refresh callback:", error);
         }
@@ -358,6 +377,31 @@ export async function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | 
 }
 
 /**
+ * Cool-down window for background refreshes.
+ * Multiple concurrent page requests can call `getBookmarks()` in quick succession –
+ * each call currently tries to kick off a non-blocking background refresh whenever the
+ * cache is considered fresh. While the distributed lock prevents duplicate *network*
+ * crawls, each attempted refresh still spins up promise scaffolding, pollutes logs,
+ * and can thrash Fast Refresh in development.
+ *
+ * To keep things quiet we enforce a simple, per-process cool-down.  After a refresh
+ * *starts* we won't try again for at least this many milliseconds. 15 minutes strikes
+ * a good balance between data freshness and dev server stability.
+ */
+const BACKGROUND_REFRESH_COOLDOWN_MS = 15 * 60 * 1000; // 15 mins
+let lastBackgroundRefreshStart = 0;
+
+function canStartBackgroundRefresh(): boolean {
+  if (inFlightRefreshPromise) return false; // already in progress (fast path)
+  const now = Date.now();
+  return now - lastBackgroundRefreshStart >= BACKGROUND_REFRESH_COOLDOWN_MS;
+}
+
+function markBackgroundRefreshStarted(): void {
+  lastBackgroundRefreshStart = Date.now();
+}
+
+/**
  * Retrieves bookmark data using a hierarchical strategy: in-memory cache, S3 storage, and external API as fallback
  *
  * @param skipExternalFetch - If true, bypasses the external API and relies solely on cache or S3. Defaults to false
@@ -386,16 +430,15 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
       );
 
       // Trigger background refresh if needed (NON-BLOCKING)
-      if (!skipExternalFetch && !isRefreshLocked) {
+      if (canStartBackgroundRefresh()) {
         console.log("[Bookmarks] Triggering background refresh (non-blocking).");
+        markBackgroundRefreshStarted();
         // Start background refresh without awaiting
         refreshInBackground().catch((error) => {
           console.error(
             "[Bookmarks] Background refresh failed (called from getBookmarks initial cache check):",
             error,
           );
-          // TODO: Send to error tracking service
-          // e.g., trackError('bookmark_background_refresh_failed_initial_cache', error);
         });
       }
 
@@ -432,8 +475,14 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
         // Trigger background refresh only if the **revalidation window** has elapsed. This prevents
         // a full Karakeep crawl from re-running on every source-file save during development, while
         // still keeping production data fresh once the 1-hour window expires.
-        if (!skipExternalFetch && !isRefreshLocked && ServerCacheInstance.shouldRefreshBookmarks()) {
+        if (
+          !skipExternalFetch &&
+          !isRefreshLocked &&
+          ServerCacheInstance.shouldRefreshBookmarks() &&
+          canStartBackgroundRefresh()
+        ) {
           console.log("[Bookmarks] Triggering background refresh after S3 load (non-blocking).");
+          markBackgroundRefreshStarted();
           refreshInBackground().catch((error) => {
             console.error(
               "[Bookmarks] Background refresh failed (called from getBookmarks after S3 load):",
