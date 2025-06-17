@@ -126,9 +126,14 @@ describe("Terminal Commands", () => {
       expect(result.selectionItems).toBeUndefined();
     });
 
-    // Test experience/education/investments/bookmarks searches without mocks
-    // These should use the fallback empty array responses
+    // Test experience search with mock returning empty results
     it("should execute experience search", async () => {
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue([]),
+      };
+      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+
       const result = await handleCommand("experience test query");
       expect(result.results?.[0]?.output).toContain("No results found");
     });
