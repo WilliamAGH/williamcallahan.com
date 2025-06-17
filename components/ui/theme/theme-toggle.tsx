@@ -6,12 +6,12 @@
  */
 "use client";
 
-import { useTheme } from "next-themes";
-import { Sun, Moon } from "lucide-react";
-import { useEffect, useState } from "react";
 import { THEME_TIMESTAMP_KEY } from "@/lib/constants";
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = process.env.NODE_ENV === "development";
 
 export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
@@ -22,14 +22,10 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      // Render an empty button with the same dimensions to prevent layout shift during hydration
-      <button
-        className="p-2 rounded-lg"
-        aria-hidden="true"
-        disabled
-      >
+      // Render an empty div with the same dimensions to prevent layout shift during hydration
+      <div className="p-2 rounded-lg" aria-hidden="true">
         <div className="h-5 w-5" />
-      </button>
+      </div>
     );
   }
 
@@ -39,8 +35,12 @@ export function ThemeToggle() {
   const toggleTheme = () => {
     const newTheme = isDark ? "light" : "dark";
     if (isDevelopment) {
-      console.log(`[ThemeDev] ThemeToggle: User clicked. Current resolvedTheme: '${resolvedTheme}'.`);
-      console.log(`[ThemeDev] ThemeToggle: ACTION - Setting theme to '${newTheme}'. (User override)`);
+      console.log(
+        `[ThemeDev] ThemeToggle: User clicked. Current resolvedTheme: '${resolvedTheme}'.`,
+      );
+      console.log(
+        `[ThemeDev] ThemeToggle: ACTION - Setting theme to '${newTheme}'. (User override)`,
+      );
     }
     setTheme(newTheme);
     try {
@@ -50,7 +50,10 @@ export function ThemeToggle() {
       }
     } catch (error) {
       if (isDevelopment) {
-        console.error("[ThemeDev] ThemeToggle: Error setting theme timestamp in localStorage.", error);
+        console.error(
+          "[ThemeDev] ThemeToggle: Error setting theme timestamp in localStorage.",
+          error,
+        );
       }
       // Consider setting a fallback indicator or using an alternative storage method
     }
@@ -58,6 +61,7 @@ export function ThemeToggle() {
 
   return (
     <button
+      type="button"
       onClick={toggleTheme}
       className="group flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200
       bg-gray-200 dark:bg-gray-700
