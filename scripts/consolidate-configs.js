@@ -7,7 +7,7 @@
  * in modern JavaScript projects into a more manageable structure.
  */
 
-import fs from "node:fs/promises";
+const fs = require("node:fs/promises");
 
 const ROOT_DIR = process.cwd();
 
