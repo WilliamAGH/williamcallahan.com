@@ -6,13 +6,13 @@
  * such as file paths, internal system information, and debug details.
  */
 
-import type { BlogPost } from '@/types/blog';
+import type { BlogPost } from "@/types/blog";
 
 /**
  * Sanitizes a BlogPost object for public API consumption
  * Removes sensitive fields like filePath and rawContent
  */
-export function sanitizeBlogPost(post: BlogPost): Omit<BlogPost, 'filePath' | 'rawContent'> {
+export function sanitizeBlogPost(post: BlogPost): Omit<BlogPost, "filePath" | "rawContent"> {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { filePath, rawContent, ...sanitizedPost } = post;
   return sanitizedPost;
@@ -21,7 +21,7 @@ export function sanitizeBlogPost(post: BlogPost): Omit<BlogPost, 'filePath' | 'r
 /**
  * Sanitizes an array of BlogPost objects for public API consumption
  */
-export function sanitizeBlogPosts(posts: BlogPost[]): Omit<BlogPost, 'filePath' | 'rawContent'>[] {
+export function sanitizeBlogPosts(posts: BlogPost[]): Omit<BlogPost, "filePath" | "rawContent">[] {
   return posts.map(sanitizeBlogPost);
 }
 
@@ -30,11 +30,11 @@ export function sanitizeBlogPosts(posts: BlogPost[]): Omit<BlogPost, 'filePath' 
  * Prevents stack traces and system info from leaking in production
  */
 export function sanitizeError(error: unknown, includeStack = false): Record<string, unknown> {
-  const isDev = process.env.NODE_ENV === 'development';
-  
+  const isDev = process.env.NODE_ENV === "development";
+
   const sanitized: Record<string, unknown> = {
-    message: error instanceof Error ? error.message : 'An unknown error occurred',
-    timestamp: new Date().toISOString()
+    message: error instanceof Error ? error.message : "An unknown error occurred",
+    timestamp: new Date().toISOString(),
   };
 
   // Only include stack traces in development or when explicitly requested
@@ -52,57 +52,67 @@ export function sanitizeError(error: unknown, includeStack = false): Record<stri
 export function sanitizeSystemInfo(obj: Record<string, unknown>): Record<string, unknown> {
   // Use WeakSet to track visited objects and prevent circular references
   const visited = new WeakSet<object>();
-  
+
   function sanitizeRecursive(target: Record<string, unknown>): Record<string, unknown> {
     // Check for circular reference
     if (visited.has(target)) {
-      return { '[Circular Reference]': true };
+      return { "[Circular Reference]": true };
     }
-    
+
     // Mark this object as visited
     visited.add(target);
-    
+
     const sanitized = { ...target };
-    
+
     // Remove common sensitive keys
     const sensitiveKeys = [
-      'path', 'filePath', 'directory', 'cwd', 'home', 'tmpdir',
-      'password', 'secret', 'token', 'key', 'auth',
-      'stack', 'stackTrace'
+      "path",
+      "filePath",
+      "directory",
+      "cwd",
+      "home",
+      "tmpdir",
+      "password",
+      "secret",
+      "token",
+      "key",
+      "auth",
+      "stack",
+      "stackTrace",
     ];
-    
+
     for (const key of sensitiveKeys) {
       if (key in sanitized) {
         delete sanitized[key];
       }
     }
-    
+
     // Recursively sanitize nested objects
     for (const [key, value] of Object.entries(sanitized)) {
       if (value === null || value === undefined) {
         // Keep null/undefined as-is
         continue;
       }
-      
+
       if (Array.isArray(value)) {
         // Handle arrays by recursively sanitizing each element
         const sanitizedArray: unknown[] = value.map((item: unknown) => {
-          if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+          if (typeof item === "object" && item !== null && !Array.isArray(item)) {
             return sanitizeRecursive(item as Record<string, unknown>);
           }
           return item;
         });
         sanitized[key] = sanitizedArray;
-      } else if (typeof value === 'object' && !Array.isArray(value)) {
+      } else if (typeof value === "object" && !Array.isArray(value)) {
         // Handle nested objects
         sanitized[key] = sanitizeRecursive(value as Record<string, unknown>);
       }
       // Primitive values (string, number, boolean) are kept as-is
     }
-    
+
     return sanitized;
   }
-  
+
   return sanitizeRecursive(obj);
 }
 
@@ -112,16 +122,16 @@ export function sanitizeSystemInfo(obj: Record<string, unknown>): Record<string,
 export function sanitizeUrl(url: string): string {
   try {
     const parsed = new URL(url);
-    
+
     // Remove sensitive query parameters
-    const sensitiveParams = ['token', 'secret', 'key', 'auth', 'password'];
+    const sensitiveParams = ["token", "secret", "key", "auth", "password"];
     for (const param of sensitiveParams) {
       parsed.searchParams.delete(param);
     }
-    
+
     return parsed.toString();
   } catch {
     // If URL parsing fails, return a generic message
-    return '[URL sanitized]';
+    return "[URL sanitized]";
   }
 }

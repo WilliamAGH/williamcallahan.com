@@ -7,8 +7,8 @@
  * @module utils/logger
  */
 
-const isDebug = process.env.DEBUG === 'true' || process.env.VERBOSE === 'true';
-const isVerbose = process.env.VERBOSE === 'true';
+const isDebug = process.env.DEBUG === "true" || process.env.VERBOSE === "true";
+const isVerbose = process.env.VERBOSE === "true";
 
 const logger = {
   /**
@@ -61,4 +61,4 @@ const logger = {
   },
 };
 
-export default logger; 
+export default logger;
