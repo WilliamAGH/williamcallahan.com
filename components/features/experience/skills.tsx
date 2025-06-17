@@ -1,27 +1,32 @@
 /**
  * Skills Section Component
- * 
+ *
  * Displays professional skills and expertise categories.
  */
 
 export function Skills() {
   const skillCategories = [
     {
-      title: 'Investment Management',
-      skills: ['Portfolio Management', 'Risk Analysis', 'Asset Allocation', 'Market Research']
+      title: "Investment Management",
+      skills: ["Portfolio Management", "Risk Analysis", "Asset Allocation", "Market Research"],
     },
     {
-      title: 'Financial Technology',
-      skills: ['Digital Banking', 'Payment Systems', 'Blockchain', 'API Integration']
+      title: "Financial Technology",
+      skills: ["Digital Banking", "Payment Systems", "Blockchain", "API Integration"],
     },
     {
-      title: 'Leadership',
-      skills: ['Team Management', 'Strategic Planning', 'Product Development', 'Stakeholder Relations']
+      title: "Leadership",
+      skills: [
+        "Team Management",
+        "Strategic Planning",
+        "Product Development",
+        "Stakeholder Relations",
+      ],
     },
     {
-      title: 'Technical',
-      skills: ['Financial Modeling', 'Data Analysis', 'Programming', 'System Architecture']
-    }
+      title: "Technical",
+      skills: ["Financial Modeling", "Data Analysis", "Programming", "System Architecture"],
+    },
   ];
 
   return (
@@ -31,7 +36,7 @@ export function Skills() {
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {skillCategories.map((category) => (
-          <div 
+          <div
             key={category.title}
             className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg border border-gray-200 dark:border-gray-700"
           >
