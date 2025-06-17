@@ -45,6 +45,11 @@ export async function GET(request: Request) {
 
     const query = validation.sanitized;
 
+    // Early exit if the sanitized query is empty
+    if (query.length === 0) {
+      return NextResponse.json([]); // Nothing to search for
+    }
+
     // Perform searches in parallel
     const [blogResults, investmentResults, experienceResults, educationResults, bookmarkResults] =
       await Promise.all([
