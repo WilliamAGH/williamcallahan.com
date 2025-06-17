@@ -10,7 +10,7 @@ pre[class*="language-"] {
   color: inherit; /* Use the color from our CodeBlock component */
   background: transparent; /* Let our CodeBlock handle the background */
   text-shadow: none; /* Remove text shadow for dark backgrounds */
-  font-family: 'IBM Plex Mono', Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-family: "IBM Plex Mono", Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
   font-size: inherit;
   text-align: left;
   white-space: pre-wrap; /* Changed from pre to pre-wrap to enable line wrapping */
