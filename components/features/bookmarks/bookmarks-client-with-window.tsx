@@ -12,7 +12,8 @@
 import type { UnifiedBookmark } from "@/types";
 import { Suspense } from "react";
 import { BookmarksWindow } from "./bookmarks-window.client";
-import { BookmarksClient } from "./bookmarks.client";
+// Alias BookmarksPaginatedClient as BookmarksClient for backwards compatibility with tests and type checks
+import { BookmarksPaginatedClient as BookmarksClient } from "./bookmarks-paginated.client";
 
 // Loading state when bookmarks are fetching
 function BookmarksLoading() {
@@ -90,6 +91,9 @@ export function BookmarksClientWithWindow({
             bookmarks={bookmarks}
             forceClientFetch={forceClientFetch}
             showFilterBar={showFilterBar}
+            usePagination={true}
+            enableInfiniteScroll={true}
+            itemsPerPage={24}
           />
         </Suspense>
       </div>
