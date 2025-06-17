@@ -5,9 +5,9 @@
  * Using window architecture similar to projects page
  */
 
-import { useState, useEffect } from 'react';
-import { SocialWindow } from './social-window.client';
-import { SocialCardEffects } from './social-card-effects.client';
+import { useEffect, useState } from "react";
+import { SocialCardEffects } from "./social-card-effects.client";
+import { SocialWindow } from "./social-window.client";
 
 export function SocialContactClient() {
   const [mounted, setMounted] = useState(false);
