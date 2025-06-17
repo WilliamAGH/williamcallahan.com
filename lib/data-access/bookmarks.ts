@@ -194,6 +194,17 @@ type RefreshBookmarksCallback = () => Promise<UnifiedBookmark[]>;
 let refreshBookmarksCallback: RefreshBookmarksCallback | null = null;
 
 /**
+ * Track initialization state to ensure singleton behavior
+ */
+let isInitialized = false;
+let initializationPromise: Promise<void> | null = null;
+
+/**
+ * Track in-flight refresh operations to prevent duplicates
+ */
+let inFlightRefreshPromise: Promise<UnifiedBookmark[] | null> | null = null;
+
+/**
  * Sets the callback function for refreshing bookmarks
  * @param callback - Function that fetches fresh bookmarks from external API
  */
@@ -206,33 +217,57 @@ export function setRefreshBookmarksCallback(callback: RefreshBookmarksCallback):
  * This ensures the refresh callback is properly set up and starts lock cleanup
  */
 export async function initializeBookmarksDataAccess(): Promise<void> {
-  if (!refreshBookmarksCallback) {
-    try {
-      // Dynamically import to avoid circular dependency at module load time
-      const { refreshBookmarksData } = await import("@/lib/bookmarks");
-      setRefreshBookmarksCallback(refreshBookmarksData);
-      console.log("[Bookmarks] Data access layer initialized with refresh callback");
-    } catch (error) {
-      console.error("[Bookmarks] Failed to initialize refresh callback:", error);
-    }
+  // Return existing initialization if already done
+  if (isInitialized) {
+    return;
   }
   
-  // Start the lock cleanup interval if not already running
-  if (!lockCleanupInterval) {
-    // Do an immediate cleanup check on startup
-    cleanupStaleLocks().catch((error) => {
-      console.debug("[Bookmarks] Initial lock cleanup check failed:", String(error));
-    });
-    
-    // Then schedule regular cleanup
-    lockCleanupInterval = setInterval(() => {
-      cleanupStaleLocks().catch((error) => {
-        console.debug("[Bookmarks] Scheduled lock cleanup failed:", String(error));
-      });
-    }, LOCK_CLEANUP_INTERVAL_MS);
-    
-    console.log("[Bookmarks] Started lock cleanup interval (every 2 minutes)");
+  // If initialization is in progress, return the existing promise
+  if (initializationPromise) {
+    return initializationPromise;
   }
+  
+  // Start new initialization
+  initializationPromise = (async () => {
+    try {
+      if (!refreshBookmarksCallback) {
+        try {
+          // Dynamically import to avoid circular dependency at module load time
+          const { refreshBookmarksData } = await import("@/lib/bookmarks");
+          setRefreshBookmarksCallback(refreshBookmarksData);
+          console.log("[Bookmarks] Data access layer initialized with refresh callback");
+        } catch (error) {
+          console.error("[Bookmarks] Failed to initialize refresh callback:", error);
+        }
+      }
+      
+      // Start the lock cleanup interval if not already running
+      if (!lockCleanupInterval) {
+        // Do an immediate cleanup check on startup
+        cleanupStaleLocks().catch((error) => {
+          console.debug("[Bookmarks] Initial lock cleanup check failed:", String(error));
+        });
+        
+        // Then schedule regular cleanup
+        lockCleanupInterval = setInterval(() => {
+          cleanupStaleLocks().catch((error) => {
+            console.debug("[Bookmarks] Scheduled lock cleanup failed:", String(error));
+          });
+        }, LOCK_CLEANUP_INTERVAL_MS);
+        
+        console.log("[Bookmarks] Started lock cleanup interval (every 2 minutes)");
+      }
+      
+      isInitialized = true;
+    } catch (error) {
+      console.error("[Bookmarks] Initialization failed:", error);
+      // Reset state on failure
+      initializationPromise = null;
+      throw error;
+    }
+  })();
+  
+  return initializationPromise;
 }
 
 /**
@@ -252,54 +287,74 @@ export function cleanupBookmarksDataAccess(): void {
       console.error("[Bookmarks] Failed to release lock on cleanup:", error);
     });
   }
+  
+  // Reset initialization state
+  isInitialized = false;
+  initializationPromise = null;
 }
 
 export async function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> {
-  if (!(await acquireRefreshLock())) {
-    return null; // Lock not acquired
+  // Check if a refresh is already in progress
+  if (inFlightRefreshPromise) {
+    console.log("[Bookmarks] Refresh already in progress, returning existing promise");
+    return inFlightRefreshPromise;
   }
+  
+  // Start new refresh operation
+  inFlightRefreshPromise = (async () => {
+    try {
+      if (!(await acquireRefreshLock())) {
+        return null; // Lock not acquired
+      }
 
-  try {
-    // Use the callback to get fresh data from the business layer
-    if (!refreshBookmarksCallback) {
-      // During build time or when callback isn't set, gracefully handle by returning null
-      console.warn(
-        "[Bookmarks] Refresh callback not set. This is expected during build time or initial module load."
-      );
-      await releaseRefreshLock();
-      return null;
+      try {
+        // Use the callback to get fresh data from the business layer
+        if (!refreshBookmarksCallback) {
+          // During build time or when callback isn't set, gracefully handle by returning null
+          console.warn(
+            "[Bookmarks] Refresh callback not set. This is expected during build time or initial module load."
+          );
+          await releaseRefreshLock();
+          return null;
+        }
+        
+        const bookmarks = await refreshBookmarksCallback();
+
+        // Validate before persisting
+        const validation = validateBookmarkDataset(bookmarks);
+        if (!validation.isValid) {
+          console.error(
+            "[Bookmarks][SAFEGUARD] Refusing to overwrite bookmarks.json in S3 – dataset failed validation checks.",
+          );
+          console.error(`[Bookmarks][SAFEGUARD] Reason: ${validation.reason}`);
+          return null;
+        }
+
+        // Write to S3 and update cache
+        console.log(
+          `[Bookmarks] About to write ${bookmarks.length} bookmarks to S3 at key ${BOOKMARKS_S3_PATHS.FILE}`,
+        );
+        await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarks);
+        console.log(`[Bookmarks] Completed write of ${bookmarks.length} bookmarks to S3`);
+        ServerCacheInstance.setBookmarks(bookmarks);
+        console.log(
+          `[Bookmarks] Successfully refreshed and persisted ${bookmarks.length} bookmarks.`,
+        );
+        
+        return bookmarks;
+      } catch (error: unknown) {
+        console.error("[Bookmarks] CRITICAL: Failed to refresh and persist bookmarks.", error instanceof Error ? error.message : String(error));
+        return null;
+      } finally {
+        await releaseRefreshLock();
+      }
+    } finally {
+      // Clear the in-flight promise when done
+      inFlightRefreshPromise = null;
     }
-    
-    const bookmarks = await refreshBookmarksCallback();
-
-    // Validate before persisting
-    const validation = validateBookmarkDataset(bookmarks);
-    if (!validation.isValid) {
-      console.error(
-        "[Bookmarks][SAFEGUARD] Refusing to overwrite bookmarks.json in S3 – dataset failed validation checks.",
-      );
-      console.error(`[Bookmarks][SAFEGUARD] Reason: ${validation.reason}`);
-      return null;
-    }
-
-    // Write to S3 and update cache
-    console.log(
-      `[Bookmarks] About to write ${bookmarks.length} bookmarks to S3 at key ${BOOKMARKS_S3_PATHS.FILE}`,
-    );
-    await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarks);
-    console.log(`[Bookmarks] Completed write of ${bookmarks.length} bookmarks to S3`);
-    ServerCacheInstance.setBookmarks(bookmarks);
-    console.log(
-      `[Bookmarks] Successfully refreshed and persisted ${bookmarks.length} bookmarks.`,
-    );
-    
-    return bookmarks;
-  } catch (error: unknown) {
-    console.error("[Bookmarks] CRITICAL: Failed to refresh and persist bookmarks.", error instanceof Error ? error.message : String(error));
-    return null;
-  } finally {
-    await releaseRefreshLock();
-  }
+  })();
+  
+  return inFlightRefreshPromise;
 }
 
 /**
@@ -374,8 +429,10 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
         console.log(`[Bookmarks] Loaded ${s3Bookmarks.length} bookmarks from S3.`);
         ServerCacheInstance.setBookmarks(s3Bookmarks);
 
-        // Trigger background refresh if needed (NON-BLOCKING)
-        if (!skipExternalFetch && !isRefreshLocked) {
+        // Trigger background refresh only if the **revalidation window** has elapsed. This prevents
+        // a full Karakeep crawl from re-running on every source-file save during development, while
+        // still keeping production data fresh once the 1-hour window expires.
+        if (!skipExternalFetch && !isRefreshLocked && ServerCacheInstance.shouldRefreshBookmarks()) {
           console.log("[Bookmarks] Triggering background refresh after S3 load (non-blocking).");
           refreshInBackground().catch((error) => {
             console.error(
@@ -428,6 +485,8 @@ async function refreshInBackground(): Promise<void> {
   const result = await refreshAndPersistBookmarks();
   if (result) {
     console.log(`[Bookmarks] Background refresh completed - updated cache with ${result.length} bookmarks.`);
+  } else if (inFlightRefreshPromise) {
+    console.log("[Bookmarks] Background refresh skipped - another refresh is already in progress.");
   } else {
     console.log("[Bookmarks] Background refresh completed - no updates made.");
   }
