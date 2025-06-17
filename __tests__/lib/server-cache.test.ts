@@ -15,6 +15,7 @@ describe("ServerCache", () => {
 
   afterEach(() => {
     cache.clear();
+    jest.restoreAllMocks();
   });
 
   describe("Logo Validation", () => {
@@ -172,8 +173,6 @@ describe("ServerCache", () => {
       expect(failureResult?.bookmarks).toEqual(mockBookmarks); // Preserved original bookmarks
       expect(failureResult?.lastFetchedAt).toBe(initialFetchTime); // Preserved fetch time
       expect(failureResult?.lastAttemptedAt).toBe(futureTime); // Updated attempt time
-      
-      jest.restoreAllMocks();
     });
 
     it("should correctly determine refresh needs", () => {
