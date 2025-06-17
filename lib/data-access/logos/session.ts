@@ -1,31 +1,34 @@
 /**
- * Session Management for Logo Processing
+ * Logo session management - tracks processed domains to prevent infinite loops
+ *
+ * Features: Domain retry tracking, session expiration (30min), failure tracking
+ * Note: In-memory state - not shared across instances/restarts
  *
  * @module data-access/logos/session
  */
 
-import { SESSION_MAX_DURATION, MAX_RETRIES_PER_SESSION } from './config';
-import { isDebug } from '@/lib/utils/debug';
-import { invalidateS3LogoKeysStore } from './s3-store';
+import { isDebug } from "@/lib/utils/debug";
+import { MAX_RETRIES_PER_SESSION, SESSION_MAX_DURATION } from "./config";
+import { invalidateS3LogoKeysStore } from "./s3-store";
 
 /**
  * Session Management Strategy
- * 
+ *
  * This module uses in-memory state management which has limitations in distributed environments:
  * - State is local to each server instance (not shared across multiple servers)
  * - State is lost on server restart or function cold starts (serverless)
  * - State lives for the duration of the process or until SESSION_MAX_DURATION
- * 
+ *
  * This approach is suitable for:
  * - Development environments
- * - Single-instance deployments 
+ * - Single-instance deployments
  * - Serverless functions with consistent routing (same instance handles related requests)
- * 
+ *
  * For production distributed systems, consider:
  * - External session store (Redis, DynamoDB) for cross-instance state
  * - Request-scoped session objects passed through the call chain
  * - Stateless design with idempotent operations
- * 
+ *
  * Current implementation prevents infinite loops within a single instance lifecycle
  * and is reset explicitly by batch operations (update-s3-data.ts, bookmarks refresh)
  */
@@ -43,11 +46,11 @@ export function checkAndResetSession(): void {
   try {
     const currentTime: number = Date.now();
     if (currentTime - SESSION_START_TIME > SESSION_MAX_DURATION) {
-      if (isDebug) console.log('[DataAccess/Logos] Session expired, resetting tracking.');
+      if (isDebug) console.log("[DataAccess/Logos] Session expired, resetting tracking.");
       resetLogoSessionTracking();
     }
   } catch (error) {
-    console.error('[DataAccess/Logos] Error during session check/reset:', error);
+    console.error("[DataAccess/Logos] Error during session check/reset:", error);
     // Continue operation - session management should not break logo fetching
   }
 }
@@ -106,17 +109,20 @@ export function resetLogoSessionTracking(): void {
     SESSION_FAILED_DOMAINS.clear();
     DOMAIN_RETRY_COUNT.clear();
     SESSION_START_TIME = Date.now();
-    
+
     try {
       invalidateS3LogoKeysStore();
     } catch (cacheError) {
-      console.error('[DataAccess/Logos] Error invalidating S3 cache during session reset:', cacheError);
+      console.error(
+        "[DataAccess/Logos] Error invalidating S3 cache during session reset:",
+        cacheError,
+      );
       // Continue with reset even if cache invalidation fails
     }
-    
-    console.log('[DataAccess/Logos] Session tracking reset and S3 cache invalidated.');
+
+    console.log("[DataAccess/Logos] Session tracking reset and S3 cache invalidated.");
   } catch (error) {
-    console.error('[DataAccess/Logos] Error during session reset:', error);
+    console.error("[DataAccess/Logos] Error during session reset:", error);
     // Attempt minimal reset to recover
     SESSION_START_TIME = Date.now();
   }
