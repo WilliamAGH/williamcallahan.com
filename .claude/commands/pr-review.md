@@ -2,6 +2,12 @@ Review and resolve comments on open pull requests.
 
 Note: The comments you're about to review are not dictations, they are suggestions you need to review carefully using your own deep thinking, and, after you summarize your own thoughts, after you send them to Zen MCP for scrutiny of your proposed actions before proceeding to any implementation of suggested changes.
 
+IMPORTANT: This workflow uses GraphQL to fetch ONLY unresolved comments, avoiding:
+
+- Processing already-resolved threads
+- Token limit errors from large PR comment histories
+- Duplicate work on previously addressed issues
+
 Repository: <https://github.com/WilliamAGH/williamcallahan.com>
 Owner: WilliamAGH
 Repo: williamcallahan.com
@@ -10,11 +16,37 @@ STEP 0: Run `git branch --show-current` to capture the current branch name.
 
 STEP 1: Use @mcp__github__list_pull_requests with owner="WilliamAGH" repo="williamcallahan.com" state="open" to get open PRs and output the list.
 
-STEP 2: For each PR (max 5), retrieve review comments efficiently:
- a) Use GitHub CLI for focused comment retrieval:
-    `gh api repos/WilliamAGH/williamcallahan.com/pulls/[PR_NUMBER]/comments --paginate | jq -r '.[] | select(.in_reply_to_id == null) | {id: .id, path: .path, line: .line, body: .body}' | head -20`
- b) For large PRs with many comments, use pagination and filtering to avoid token limits
- c) Focus on unresolved, top-level comments (not replies)
+STEP 2: For each PR (max 5), retrieve ONLY UNRESOLVED review comments:
+ a) Use GraphQL to get unresolved threads only:
+    ```bash
+    gh api graphql -f query='
+    {
+      repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+        pullRequest(number: [PR_NUMBER]) {
+          reviewThreads(first: 50) {
+            nodes {
+              id
+              isResolved
+              path
+              line
+              comments(first: 1) {
+                nodes {
+                  id
+                  body
+                  author { login }
+                }
+              }
+            }
+          }
+        }
+      }
+    }' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
+    ```
+ b) This approach:
+    - Only fetches unresolved threads
+    - Avoids token limits by using GraphQL
+    - Gets thread IDs needed for resolution
+ c) For very large PRs, use pagination with `after` cursor
 
 STEP 3: For unresolved comments:
  a) Use @mcp__zen__thinkdeep to analyze deeply if needed
@@ -47,8 +79,31 @@ TROUBLESHOOTING TIPS:
 
 SUCCESSFUL COMMAND EXAMPLES:
 
-1. Get comment IDs with first line of body:
-   `gh api repos/WilliamAGH/williamcallahan.com/pulls/109/comments --paginate | jq -r '.[] | select(.in_reply_to_id == null) | {id: .id, path: .path, line: .line, body: (.body | split("\n")[0])} | @json' | head -5`
+1. Get ONLY unresolved comments with details:
+   ```bash
+   gh api graphql -f query='
+   {
+     repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+       pullRequest(number: 109) {
+         reviewThreads(first: 50) {
+           nodes {
+             id
+             isResolved
+             path
+             line
+             comments(first: 1) {
+               nodes {
+                 id
+                 body
+                 author { login }
+               }
+             }
+           }
+         }
+       }
+     }
+   }' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | {threadId: .id, path: .path, line: .line, commentId: .comments.nodes[0].id, body: (.comments.nodes[0].body | split("\n")[0]), author: .comments.nodes[0].author.login}'
+   ```
 
 2. Reply to a comment:
    `gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/109/comments/2129845641/replies -f body="Fixed in commit a09cf7c. The hard-coded value has been replaced with the constant."`
