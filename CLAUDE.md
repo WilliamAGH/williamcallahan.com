@@ -1,6 +1,6 @@
 ---
 description: "Master index and configuration guide for all Cursor Rules in this project. Explains rule auto-discovery, Agent Requested configuration, and 500-line code limits."
-alwaysApply: true
+alwaysApply: true  # Exception: This master config file always applies to provide rule system guidance
 ---
 
 # Cursor Rules System - Master Index & Configuration
@@ -9,7 +9,7 @@ alwaysApply: true
 
 ### Rule Auto-Discovery and Usage
 
-- **Agent Requested Rules**: All rules in this project are configured as "Agent Requested" type
+- **Agent Requested Rules**: All rules in this project are configured as "Agent Requested" type (except this master config file)
 - **AI-Driven Selection**: The AI automatically evaluates and includes relevant rules based on context
 - **Manual Override**: Use `@ruleName` syntax to explicitly include specific rules
 - **Smart Context**: Rules are intelligently selected based on file patterns, task content, and conversation context
