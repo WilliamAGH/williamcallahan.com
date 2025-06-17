@@ -297,6 +297,8 @@ const nextConfig = {
       { protocol: "https", hostname: "*.popos-sf1.com" },
       { protocol: "https", hostname: "*.popos-sf2.com" },
       { protocol: "https", hostname: "*.popos-sf3.com" },
+      { protocol: "https", hostname: "*.digitaloceanspaces.com" }, // DigitalOcean Spaces CDN
+      { protocol: "https", hostname: "*.callahan.cloud" }, // DigitalOcean Spaces CDN
 
       /**
        * Development-only: Allow all image sources for easier local development
