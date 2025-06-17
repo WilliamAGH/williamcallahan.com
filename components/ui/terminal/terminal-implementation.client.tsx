@@ -38,7 +38,7 @@ export function Terminal() {
     minimize: minimizeWindow,
     maximize: maximizeWindow,
     isRegistered, // Flag if the window is ready in the context
-  } = useRegisteredWindowState(TERMINAL_WINDOW_ID, TerminalSquare, "Restore Terminal", "normal");
+  } = useRegisteredWindowState(TERMINAL_WINDOW_ID, TerminalSquare, "Restore Terminal", "closed");
 
   // Local terminal interaction logic (input, selection, etc.)
   const {
