@@ -6,6 +6,28 @@ Repository: <https://github.com/WilliamAGH/williamcallahan.com>
 
 The REST API (`gh api repos/.../pulls/[PR]/comments`) will FAIL with token limits. You MUST use GraphQL.
 
+## MANDATORY: Run ALL Validation Checks Before EVERY Commit
+
+**YOU MUST RUN THIS COMMAND BEFORE EVERY SINGLE `git commit`:**
+
+```bash
+bun run lint && bun run type-check && bun run biome:check
+```
+
+**If ANY of these checks fail, you MUST fix ALL errors before committing.**
+
+## FORBIDDEN: Generic Commit Messages
+
+**NEVER use generic commit messages like:**
+- `fix: resolve multiple code review issues`
+- `fix: address review comments`
+- `fix: various fixes`
+
+**ALWAYS use specific commit messages that describe the exact change:**
+- `fix(github-activity): convert div to button for proper a11y`
+- `fix(instrumentation): lazy-load EventEmitter to prevent Edge bundling`
+- `fix(middleware): include /api/debug paths in matcher for security`
+
 ## Direct Workflow - Follow Exactly
 
 ### STEP 1: Get current branch
@@ -51,9 +73,11 @@ gh api graphql -f query='
 
 1. Read the file at the specified line
 2. Implement the fix if valid
-3. Commit the specific file:
+3. **RUN VALIDATION:** `bun run lint && bun run type-check && bun run biome:check`
+4. Fix any validation errors
+5. Commit the specific file with a descriptive message:
    ```bash
-   git add path/to/file.ts && git commit path/to/file.ts -m "fix(scope): specific change"
+   git add path/to/file.ts && git commit path/to/file.ts -m "fix(scope): specific change description"
    ```
 
 ### STEP 5: Reply to comment (use comment ID from Step 3)
@@ -80,6 +104,7 @@ mutation {
 2. **Use thread ID for resolution**, not comment ID
 3. **Commit each file separately** with descriptive messages
 4. **MCP GitHub tool does NOT support** thread resolution - use GraphQL
+5. **ALWAYS run validation before committing** - no exceptions
 
 ## Complete Example (PR #109)
 
@@ -90,12 +115,16 @@ gh api graphql -f query='...' | jq '...'
 # Output shows:
 # threadId: "PRRT_kwDONglMk85SZUIt", commentId: "2151346548", path: "file.tsx", line: 56
 
-# Fix the issue, commit
-git add file.tsx && git commit file.tsx -m "fix: resolve issue at line 56"
+# Fix the issue
+# RUN VALIDATION FIRST
+bun run lint && bun run type-check && bun run biome:check
+
+# If validation passes, commit
+git add file.tsx && git commit file.tsx -m "fix(component): add tabIndex for keyboard accessibility"
 
 # Reply
 gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/109/comments/2151346548/replies \
-  -f body="Fixed in commit abc123. Resolved the issue."
+  -f body="Fixed in commit abc123. Added tabIndex={0} for keyboard accessibility."
 
 # Resolve
 gh api graphql -f query='
@@ -105,3 +134,4 @@ mutation {
   }
 }'
 ```
+EOF < /dev/null
