@@ -18,11 +18,13 @@
 
 ## ⚠️ CRITICAL REQUIREMENTS
 
-1. **GraphQL for fetching/resolving** - REST API fails with token limits (GitHub MCP lacks GraphQL support)
-2. **REST API for comment replies** - GitHub's GraphQL lacks working reply mutation (see note below)
-3. **MANDATORY validation before EVERY commit:** `bun run lint && bun run type-check && bun run biome:check`
-4. **Fix ALL language server warnings** - Including biome, ESLint, TypeScript diagnostics in modified files
-5. **COMMIT MESSAGE RULES - ABSOLUTELY NO EXCEPTIONS:**
+1. **ALWAYS CHECK THE QUERY OUTPUT CAREFULLY** - If there are JSON objects in the output, THOSE ARE UNRESOLVED COMMENTS!
+2. **DO NOT RE-PROCESS ALREADY RESOLVED COMMENTS** - Only process comments where `isResolved == false`
+3. **GraphQL for fetching/resolving** - REST API fails with token limits (GitHub MCP lacks GraphQL support)
+4. **REST API for comment replies** - GitHub's GraphQL lacks working reply mutation (see note below)
+5. **MANDATORY validation before EVERY commit:** `bun run lint && bun run type-check && bun run biome:check`
+6. **Fix ALL language server warnings** - Including biome, ESLint, TypeScript diagnostics in modified files
+7. **COMMIT MESSAGE RULES - ABSOLUTELY NO EXCEPTIONS:**
    - **NEVER COMBINE MULTIPLE FILES IN ONE COMMIT**
    - **EACH FILE GETS ITS OWN COMMIT WITH SPECIFIC MESSAGE**
    - Format: `fix(scope): specific change description`
@@ -33,7 +35,7 @@
      - ❌ `fix: multiple fixes` (ABSOLUTELY FORBIDDEN)
    - **SCOPE**: Must be the specific area/file being changed
    - **DESCRIPTION**: Must describe the EXACT change, not generic "fix issues"
-6. **Deep analysis REQUIRED** - Review comments are suggestions, not orders
+8. **Deep analysis REQUIRED** - Review comments are suggestions, not orders
 
 ## 🧠 DEEP THINKING PROTOCOL
 
@@ -82,6 +84,8 @@ git add lib/bookmarks.ts && git commit -m "fix(bookmarks): replace globalThis.is
 
 **1. Get unresolved comments (GraphQL):**
 
+⚠️ **CRITICAL**: The query output WILL show unresolved comments! DO NOT assume there are none if the output appears empty at first glance. The jq filter produces JSON objects, not a message saying "no comments". If you see JSON output, THOSE ARE THE UNRESOLVED COMMENTS TO PROCESS!
+
 ```bash
 gh api graphql -f query='
 {
@@ -107,6 +111,11 @@ gh api graphql -f query='
   }
 }' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
 ```
+
+**INTERPRETING THE OUTPUT:**
+- Empty output (no JSON) = No unresolved comments
+- JSON objects = THESE ARE THE UNRESOLVED COMMENTS! Process each one!
+- Each JSON object represents ONE unresolved thread to handle
 
 **2. For each comment:**
 
