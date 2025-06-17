@@ -8,24 +8,23 @@
  * @see {@link lib/utils/svg-transform-fix} - For transform processing
  */
 
-import { forwardRef } from 'react';
-import type { LucideProps } from 'lucide-react';
-import { baseIconProps } from './base-icon';
+import type { LucideProps } from "lucide-react";
+import { forwardRef } from "react";
+import { baseIconProps } from "./base-icon";
 
-export const Discord = forwardRef<SVGSVGElement, LucideProps>(function Discord(
-  props,
-  ref
-) {
+export const Discord = forwardRef<SVGSVGElement, LucideProps>(function Discord(props, ref) {
   // Removed internal combinedProps to avoid hydration issues
   return (
     <svg
       ref={ref}
       {...baseIconProps} // Rely on base props for styling (stroke, strokeWidth, fill, etc.)
-      {...props}         // Apply incoming props
-      className={`${props.className || ''} discord-icon`}
+      {...props} // Apply incoming props
+      className={`${props.className || ""} discord-icon`}
       viewBox="0 0 24 24" // Ensure standard viewbox
       data-transform-fix="true"
+      aria-label="Discord"
     >
+      <title>Discord</title>
       {/* Use simplified outline path data */}
       <path
         // No fill or stroke here - controlled by SVG element
@@ -35,4 +34,4 @@ export const Discord = forwardRef<SVGSVGElement, LucideProps>(function Discord(
   );
 });
 
-Discord.displayName = 'Discord';
+Discord.displayName = "Discord";

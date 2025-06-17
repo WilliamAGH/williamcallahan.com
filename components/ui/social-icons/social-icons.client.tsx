@@ -6,12 +6,12 @@
 
 "use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { ErrorBoundary } from '../error-boundary.client';
-import { IconWrapper } from '@/components/utils/icon-wrapper.client';
-import { socialLinks } from './social-links';
-import type { LucideIcon } from 'lucide-react';
+import { IconWrapper } from "@/components/utils/icon-wrapper.client";
+import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
+import React from "react";
+import { ErrorBoundary } from "../error-boundary.client";
+import { socialLinks } from "./social-links";
 // SocialLink type is imported in social-links.ts, no need to import it here
 
 interface SocialIconsProps {
@@ -36,15 +36,16 @@ function useHasMounted() {
   return hasMounted;
 }
 
-export function SocialIcons({ className = '', showXOnly = false }: SocialIconsProps) {
+export function SocialIcons({ className = "", showXOnly = false }: SocialIconsProps) {
   const hasMounted = useHasMounted();
 
   // Icon button styling
-  const iconButtonClasses = "p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-200 ease-in-out hover:scale-110 active:scale-100";
+  const iconButtonClasses =
+    "p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-200 ease-in-out hover:scale-110 active:scale-100";
 
   // Filter links based on showXOnly prop
   const linksToShow = showXOnly
-    ? socialLinks.filter(link => link.label === 'X (Twitter)')
+    ? socialLinks.filter((link) => link.label === "X (Twitter)")
     : socialLinks;
 
   // During server rendering and before hydration completes on client,
@@ -62,7 +63,9 @@ export function SocialIcons({ className = '', showXOnly = false }: SocialIconsPr
             href={link.href}
             className={iconButtonClasses}
             target="_blank"
-            rel="noopener noreferrer"
+            // rel="noopener noreferrer" is the common practice, but noreferrer is
+            // intentionally omitted to allow for referrer-based analytics on my own projects.
+            rel="noopener"
             aria-label={link.label}
             title={link.label}
           >

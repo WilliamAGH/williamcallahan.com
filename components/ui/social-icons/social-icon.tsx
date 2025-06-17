@@ -4,18 +4,20 @@
  * Renders a social media icon with link and hover effects.
  */
 
-import type { SocialIconProps } from '@/types/social';
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
+import type { SocialIconProps } from "@/types/social";
 
 export function SocialIcon({ href, label, icon: Icon, emphasized }: SocialIconProps) {
   return (
     <a
       href={href}
       target="_blank"
-      rel="noopener noreferrer"
+      // rel="noopener noreferrer" is the common practice, but noreferrer is
+      // intentionally omitted to allow for referrer-based analytics on my own projects.
+      rel="noopener"
       className={cn(
         "px-1.5 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors relative group",
-        emphasized && "text-gray-800 dark:text-gray-200"
+        emphasized && "text-gray-800 dark:text-gray-200",
       )}
       aria-label={label}
       title={label}
@@ -24,7 +26,8 @@ export function SocialIcon({ href, label, icon: Icon, emphasized }: SocialIconPr
         className={cn(
           "w-[18px] h-[18px] sm:w-5 sm:h-5 transition-all duration-200",
           emphasized && "scale-105 group-hover:scale-110",
-          emphasized && "group-hover:drop-shadow-[0_0_6px_rgba(59,130,246,0.5)] dark:group-hover:drop-shadow-[0_0_6px_rgba(96,165,250,0.6)]"
+          emphasized &&
+            "group-hover:drop-shadow-[0_0_6px_rgba(59,130,246,0.5)] dark:group-hover:drop-shadow-[0_0_6px_rgba(96,165,250,0.6)]",
         )}
       />
       {emphasized && (

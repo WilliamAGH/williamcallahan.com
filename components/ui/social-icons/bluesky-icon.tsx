@@ -8,9 +8,9 @@
  * @see {@link lib/utils/svg-transform-fix} - For transform processing
  */
 
-import { forwardRef } from 'react';
-import type { LucideProps } from 'lucide-react';
-import { baseIconProps } from './base-icon';
+import type { LucideProps } from "lucide-react";
+import { forwardRef } from "react";
+import { baseIconProps } from "./base-icon";
 
 export const Bluesky = forwardRef<SVGSVGElement, LucideProps>(function Bluesky(props, ref) {
   // Removed internal combinedProps to avoid hydration issues
@@ -18,11 +18,13 @@ export const Bluesky = forwardRef<SVGSVGElement, LucideProps>(function Bluesky(p
     <svg
       ref={ref}
       {...baseIconProps} // Rely on base props for styling (stroke, strokeWidth, fill, etc.)
-      {...props}         // Apply incoming props
-      className={`${props.className || ''} bluesky-icon`}
+      {...props} // Apply incoming props
+      className={`${props.className || ""} bluesky-icon`}
       viewBox="0 0 24 24" // Ensure standard viewbox
       data-transform-fix="true"
+      aria-label="Bluesky"
     >
+      <title>Bluesky</title>
       {/* Use simplified outline path data from Tabler Icons */}
       <path
         // No fill or stroke here - controlled by SVG element
@@ -34,4 +36,4 @@ export const Bluesky = forwardRef<SVGSVGElement, LucideProps>(function Bluesky(p
   );
 });
 
-Bluesky.displayName = 'Bluesky';
+Bluesky.displayName = "Bluesky";
