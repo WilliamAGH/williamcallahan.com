@@ -6,11 +6,11 @@
  * - --debug flag in process.argv
  */
 
-// Check if debug mode is enabled
-const isNodeEnvDevelopment = process.env.NODE_ENV === "development";
+// Debug mode is opt-in via either an environment variable or a CLI flag
+//  • `DEBUG=true bun …`
+//  • `bun dev --debug`
 const hasDebugFlag = process.argv.includes("--debug");
-
-export const isDebug = isNodeEnvDevelopment || hasDebugFlag;
+export const isDebug = process.env.DEBUG === "true" || hasDebugFlag;
 
 /**
  * Debug logging function - only logs when debug mode is enabled
