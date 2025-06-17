@@ -5,19 +5,16 @@
 
 "use client";
 
-import React from 'react';
-import { useWindowRegistry } from '@/lib/context/global-window-registry-context.client';
-import { cn } from '@/lib/utils';
+import { useWindowRegistry } from "@/lib/context/global-window-registry-context.client";
+import { cn } from "@/lib/utils";
+import React from "react";
 
 export function FloatingRestoreButtons() {
-  const {
-    windows,
-    restoreWindow,
-  } = useWindowRegistry();
+  const { windows, restoreWindow } = useWindowRegistry();
 
   // Filter for windows that are minimized or closed
   const windowsToRestore = Object.values(windows).filter(
-    (win) => win.state === 'minimized' || win.state === 'closed'
+    (win) => win.state === "minimized" || win.state === "closed",
   );
 
   // If no windows need restoring, render nothing
@@ -38,7 +35,7 @@ export function FloatingRestoreButtons() {
               "p-3 rounded-full",
               "bg-blue-600 hover:bg-blue-700 text-white", // Base style - might want variations
               "shadow-lg transition-opacity duration-300 ease-in-out",
-              "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
               // Opacity/pointer-events handled by the conditional rendering above
             )}
             aria-label={win.title || `Restore ${win.id}`}
