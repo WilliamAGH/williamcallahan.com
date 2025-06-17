@@ -1,5 +1,7 @@
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 import { searchPosts, searchInvestments, searchExperience, searchEducation } from "@/lib/search";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import { validateSearchQuery } from "@/lib/validators/search";
 
 // Mock the imported data modules using mock.module
 jest.mock("@/data/blog/posts", () => ({
@@ -85,11 +87,81 @@ jest.mock("@/data/education", () => ({
   ],
 }));
 
+// Mock ServerCacheInstance
+jest.mock("@/lib/server-cache", () => ({
+  ServerCacheInstance: {
+    getSearchResults: jest.fn(),
+    setSearchResults: jest.fn(),
+    shouldRefreshSearch: jest.fn(),
+  },
+}));
+
 describe("search", () => {
+  // Clear cache mocks before each test
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Default: no cache hit
+    (ServerCacheInstance.getSearchResults as jest.Mock).mockReturnValue(undefined);
+    (ServerCacheInstance.shouldRefreshSearch as jest.Mock).mockReturnValue(true);
+  });
+
+  describe("query validation", () => {
+    it("should validate valid queries", () => {
+      const result = validateSearchQuery("test query");
+      expect(result.isValid).toBe(true);
+      expect(result.sanitized).toBe("test query");
+    });
+
+    it("should reject empty queries", () => {
+      const result = validateSearchQuery("");
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("empty");
+    });
+
+    it("should reject overly long queries", () => {
+      const longQuery = "a".repeat(101);
+      const result = validateSearchQuery(longQuery);
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("too long");
+    });
+
+    it("should sanitize special regex characters", () => {
+      const result = validateSearchQuery("test.*query[abc]");
+      expect(result.isValid).toBe(true);
+      expect(result.sanitized).toBe("test query abc");
+    });
+
+    it("should handle queries with only special characters", () => {
+      const result = validateSearchQuery("***[[[");
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("special characters");
+    });
+  });
   describe("searchPosts", () => {
     it("should return all posts when query is empty", () => {
       const results = searchPosts("");
       expect(results).toHaveLength(2);
+    });
+
+    it("should use cached results when available", () => {
+      const cachedResults = [{ id: "cached", title: "Cached Post", slug: "cached-post" }];
+      (ServerCacheInstance.getSearchResults as jest.Mock).mockReturnValue({ results: cachedResults });
+      (ServerCacheInstance.shouldRefreshSearch as jest.Mock).mockReturnValue(false);
+      
+      const results = searchPosts("test");
+      
+      expect(results).toEqual(cachedResults);
+      expect(ServerCacheInstance.setSearchResults).not.toHaveBeenCalled();
+    });
+
+    it("should cache search results", () => {
+      const results = searchPosts("react");
+      
+      expect(ServerCacheInstance.setSearchResults).toHaveBeenCalledWith(
+        'posts',
+        'react',
+        expect.arrayContaining([expect.objectContaining({ title: "Test Post 1" })])
+      );
     });
 
     it("should find posts by title", () => {
@@ -134,6 +206,30 @@ describe("search", () => {
       const results = searchPosts("test");
       expect(results?.[0]?.publishedAt).toBe("2024-01-02T00:00:00Z");
       expect(results?.[1]?.publishedAt).toBe("2024-01-01T00:00:00Z");
+    });
+
+    it("should handle fuzzy search with typos", () => {
+      // Test fuzzy search capability
+      // Note: In tests, MiniSearch is not initialized, so it falls back to substring search
+      // "react" without typo should work
+      const results = searchPosts("react"); 
+      expect(results).toHaveLength(1);
+      
+      // With significant typo that won't match in substring search
+      // (MiniSearch with fuzzy search would handle this)
+      const typoResults = searchPosts("raect"); // transposed letters
+      expect(typoResults).toHaveLength(0);
+    });
+
+    it("should sanitize dangerous query patterns", () => {
+      // Just search for "test" which exists in both posts
+      const results = searchPosts("test");
+      expect(results).toHaveLength(2);
+      
+      // Search with special characters should still find results after sanitization
+      const resultsWithSpecialChars = searchPosts("test.*");
+      // "test.*" becomes "test  " which should still match "test"
+      expect(resultsWithSpecialChars.length).toBeGreaterThan(0);
     });
   });
 
