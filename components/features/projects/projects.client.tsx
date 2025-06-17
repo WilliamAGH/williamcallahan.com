@@ -6,8 +6,8 @@
  * and client components for interactivity
  */
 
-import { ProjectsWindow } from './projects-window.client';
-import { ProjectTagsClient } from './project-tags.client';
+import { ProjectTagsClient } from "./project-tags.client";
+import { ProjectsWindow } from "./projects-window.client";
 
 export function ProjectsClient() {
   return (

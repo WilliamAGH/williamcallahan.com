@@ -16,9 +16,9 @@
  * marked as a client component.
  */
 
-import { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { projects } from '@/data/projects';
+import { projects } from "@/data/projects";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const TAG_LIMIT = 10; // Number of tags to show initially
 
@@ -35,13 +35,13 @@ const TAG_LIMIT = 10; // Number of tags to show initially
 export function ProjectTagsClient(): React.JSX.Element {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [selectedTag, setSelectedTag] = useState('All');
+  const [selectedTag, setSelectedTag] = useState("All");
   const [mounted, setMounted] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
 
   // Get all unique tags from projects data, excluding "All" for counting purposes
-  const uniqueProjectTags = Array.from(new Set(projects.flatMap(p => p.tags || []))).sort();
-  const allTags = ['All', ...uniqueProjectTags];
+  const uniqueProjectTags = Array.from(new Set(projects.flatMap((p) => p.tags || []))).sort();
+  const allTags = ["All", ...uniqueProjectTags];
 
   // Determine if there are more tags than the limit (excluding "All")
   const hasMoreTags = uniqueProjectTags.length > TAG_LIMIT;
@@ -53,7 +53,7 @@ export function ProjectTagsClient(): React.JSX.Element {
    */
   useEffect(() => {
     setMounted(true); // Set mounted after hydration
-    const tagParam = searchParams.get('tag');
+    const tagParam = searchParams.get("tag");
     if (tagParam) {
       setSelectedTag(tagParam);
     }
@@ -69,12 +69,12 @@ export function ProjectTagsClient(): React.JSX.Element {
   const handleTagSelect = (tag: string): void => {
     setSelectedTag(tag);
     const params = new URLSearchParams(searchParams);
-    if (tag === 'All') {
-      params.delete('tag');
+    if (tag === "All") {
+      params.delete("tag");
     } else {
-      params.set('tag', tag);
+      params.set("tag", tag);
     }
-    const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+    const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
     router.push(newUrl);
   };
 
@@ -89,11 +89,11 @@ export function ProjectTagsClient(): React.JSX.Element {
               selectedTag === tag
                 ? "bg-blue-600 text-white"
                 : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
-            } ${!mounted ? 'pointer-events-none opacity-50' : ''} ${
+            } ${!mounted ? "pointer-events-none opacity-50" : ""} ${
               // Hide tags beyond the limit if not "All" tag and showAllTags is false
               // The "All" tag (index 0) is always visible.
               // For other tags, their effective index for limiting is `index - 1`.
-              tag !== 'All' && (index -1) >= TAG_LIMIT && !showAllTags ? 'hidden' : ''
+              tag !== "All" && index - 1 >= TAG_LIMIT && !showAllTags ? "hidden" : ""
             }`}
             onClick={() => mounted && handleTagSelect(tag)}
             aria-pressed={selectedTag === tag}
