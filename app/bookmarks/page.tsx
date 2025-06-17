@@ -12,7 +12,7 @@
 // Configure dynamic rendering
 export const dynamic = "force-dynamic";
 // Revalidate static HTML every minute to keep bookmark counts fresh
-export const revalidate = 60;
+export const revalidate = 60 * 30; // 30 minutes
 
 import type { Metadata } from "next";
 import { BookmarksServer } from "../../components/features/bookmarks/bookmarks.server";
