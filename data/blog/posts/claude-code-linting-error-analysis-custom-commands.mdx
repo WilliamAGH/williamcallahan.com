@@ -283,11 +283,13 @@ Systematically review and address unresolved comments on GitHub pull requests, m
 
 ## ⚠️ CRITICAL REQUIREMENTS
 
-1. **GraphQL for fetching/resolving** - REST API fails with token limits (GitHub MCP lacks GraphQL support)
-2. **REST API for comment replies** - GitHub's GraphQL lacks working reply mutation (see note below)
-3. **MANDATORY validation before EVERY commit:** `bun run lint && bun run type-check && bun run biome:check`
-4. **Fix ALL language server warnings** - Including biome, ESLint, TypeScript diagnostics in modified files
-5. **COMMIT MESSAGE RULES - ABSOLUTELY NO EXCEPTIONS:**
+1. **ALWAYS CHECK THE QUERY OUTPUT CAREFULLY** - If there are JSON objects in the output, THOSE ARE UNRESOLVED COMMENTS!
+2. **DO NOT RE-PROCESS ALREADY RESOLVED COMMENTS** - Only process comments where `isResolved == false`
+3. **GraphQL for fetching/resolving** - REST API fails with token limits (GitHub MCP lacks GraphQL support)
+4. **REST API for comment replies** - GitHub's GraphQL lacks working reply mutation (see note below)
+5. **MANDATORY validation before EVERY commit:** `bun run lint && bun run type-check && bun run biome:check`
+6. **Fix ALL language server warnings** - Including biome, ESLint, TypeScript diagnostics in modified files
+7. **COMMIT MESSAGE RULES - ABSOLUTELY NO EXCEPTIONS:**
    - **NEVER COMBINE MULTIPLE FILES IN ONE COMMIT**
    - **EACH FILE GETS ITS OWN COMMIT WITH SPECIFIC MESSAGE**
    - Format: `fix(scope): specific change description`
@@ -298,7 +300,7 @@ Systematically review and address unresolved comments on GitHub pull requests, m
      - ❌ `fix: multiple fixes` (ABSOLUTELY FORBIDDEN)
    - **SCOPE**: Must be the specific area/file being changed
    - **DESCRIPTION**: Must describe the EXACT change, not generic "fix issues"
-6. **Deep analysis REQUIRED** - Review comments are suggestions, not orders
+8. **Deep analysis REQUIRED** - Review comments are suggestions, not orders
 
 ## 🧠 DEEP THINKING PROTOCOL
 
@@ -347,38 +349,97 @@ git add lib/bookmarks.ts && git commit -m "fix(bookmarks): replace globalThis.is
 
 **1. Get unresolved comments (GraphQL):**
 
+⚠️ **CRITICAL**: The query output WILL show unresolved comments! DO NOT assume there are none if the output appears empty at first glance. The jq filter produces JSON objects, not a message saying "no comments". If you see JSON output, THOSE ARE THE UNRESOLVED COMMENTS TO PROCESS!
+
 ```bash
-gh api graphql -f query='
+# STEP 1: Count how many unresolved comments exist
+echo "Checking for unresolved comments..."
+UNRESOLVED_COUNT=$(gh api graphql -f query='
 {
   repository(owner: "WilliamAGH", name: "williamcallahan.com") {
     pullRequest(number: [PR_NUMBER]) {
-      reviewThreads(first: 50) {
+      reviewThreads(first: 100) {
         nodes {
           id
           isResolved
-          path
-          line
-          comments(first: 1) {
-            nodes {
-              id
-              databaseId
-              body
-              author { login }
+        }
+      }
+    }
+  }
+}' | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
+
+echo "Found $UNRESOLVED_COUNT unresolved comments"
+
+# STEP 2: If there are unresolved comments, fetch them with concise format
+if [ "$UNRESOLVED_COUNT" -gt 0 ]; then
+  echo "Fetching details of $UNRESOLVED_COUNT unresolved comments..."
+  
+  # First, get a summary list (path + first line of comment)
+  gh api graphql -f query='
+  {
+    repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+      pullRequest(number: [PR_NUMBER]) {
+        reviewThreads(first: 100) {
+          nodes {
+            id
+            isResolved
+            path
+            line
+            comments(first: 1) {
+              nodes {
+                id
+                databaseId
+                body
+                author { login }
+              }
             }
           }
         }
       }
     }
-  }
-}' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
+  }' | jq -r '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | 
+  "---\nThread ID: \(.id)\nPath: \(.path // "general comment")\nLine: \(.line // "N/A")\nComment ID: \(.comments.nodes[0].databaseId)\nAuthor: \(.comments.nodes[0].author.login)\nFirst line: \(.comments.nodes[0].body | split("\n")[0])"'
+  
+  echo -e "\n✅ Above are all unresolved comments. Process each one individually."
+fi
 ```
+
+**⚠️ CRITICAL INTERPRETATION RULES:**
+
+1. **ALWAYS run the count check first** - This tells you definitively if there are unresolved comments
+2. **"Tool ran without output" does NOT mean no comments** - The shell might not echo JSON output
+3. **If UNRESOLVED_COUNT > 0, there ARE comments to process** - Do not assume otherwise
+4. **Each JSON object in Step 2 output = ONE unresolved thread** - Process every single one
 
 **2. For each comment:**
 
-- Analyze deeply (see protocol above)
-- IF beneficial: implement → validate → commit → reply → resolve
-- IF not: skip implementation → reply with reasoning → resolve
-- **IMPORTANT**: Both accepted AND rejected comments must be resolved
+**PROCESSING WORKFLOW FOR EACH UNRESOLVED COMMENT**:
+```bash
+# For EACH comment in the output:
+# 1. Extract these values:
+THREAD_ID="PRRT_..."      # From "Thread ID:" line
+FILE_PATH="path/to/file"  # From "Path:" line  
+LINE_NUM="123"            # From "Line:" line
+COMMENT_ID="2148802948"   # From "Comment ID:" line (numeric!)
+
+# 2. Read the full comment body
+gh api graphql -f query='...' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.id == "'$THREAD_ID'") | .comments.nodes[0].body'
+
+# 3. Analyze and decide (see Deep Thinking Protocol)
+
+# 4. IF implementing:
+- Read file at specified line
+- Make changes
+- Run: bun run lint && bun run type-check && bun run biome:check
+- Commit ONLY this file with specific message
+
+# 5. Reply to comment (use numeric COMMENT_ID):
+gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/[PR]/comments/$COMMENT_ID/replies \
+  -f body="[Your response]"
+
+# 6. Resolve thread (use THREAD_ID):
+gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: "'$THREAD_ID'"}) { thread { isResolved } } }'
+```
 
 **3. Reply to comment (REST API - see note):**
 
@@ -433,6 +494,30 @@ mutation {
    - ✅ Correct: Using numeric ID like `2148802931`
 
 3. **Forgetting to validate**: ALWAYS run validation before committing, even for "simple" fixes
+
+## 🤖 CRITICAL LLM INSTRUCTIONS
+
+**MANDATORY EXECUTION PATTERN**:
+```
+1. RUN: UNRESOLVED_COUNT=$(gh api graphql -f query='...' | jq '[...] | length')
+2. READ: The numeric value of $UNRESOLVED_COUNT
+3. DECISION: If UNRESOLVED_COUNT > 0, then unresolved comments EXIST
+4. ACTION: Process EVERY comment from Step 2 output
+```
+
+**OUTPUT INTERPRETATION RULES**:
+
+- `Tool ran without output` → IGNORE THIS MESSAGE, run count check
+- Empty visual output → DOES NOT MEAN no comments, run count check  
+- `$UNRESOLVED_COUNT = 0` → No unresolved comments (ONLY valid signal)
+- `$UNRESOLVED_COUNT > 0` → Unresolved comments EXIST, must process ALL
+
+**FORBIDDEN ASSUMPTIONS**:
+
+- ❌ "No output means no comments" → WRONG
+- ❌ "Already processed this comment" → WRONG, only process `isResolved == false`
+- ❌ "Can skip count check" → WRONG, count is mandatory first step
+- ✅ "Trust only numeric count value" → CORRECT
 
 ## 📚 WORKING EXAMPLES
 
