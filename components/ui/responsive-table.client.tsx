@@ -5,11 +5,11 @@
  * The table is transformed into a card-based layout on mobile devices, and a grid layout on desktop.
  */
 
-'use client';
+"use client";
 
-import React, { Children, isValidElement, useMemo, type JSX } from 'react';
-import type { ReactNode, HTMLAttributes } from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
+import React, { Children, isValidElement, useMemo, type JSX } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 
 // Helper types for parsing
 type TableCell = ReactNode;
@@ -33,12 +33,12 @@ function parseTableChildren(children: ReactNode): TableData {
     const childProps = child.props as { children?: ReactNode }; // Type assertion for props
 
     // Process thead for headers
-    if (child.type === 'thead' && !headerProcessed) {
+    if (child.type === "thead" && !headerProcessed) {
       Children.forEach(childProps.children, (tr) => {
-        if (isValidElement(tr) && tr.type === 'tr') {
+        if (isValidElement(tr) && tr.type === "tr") {
           const trProps = tr.props as { children?: ReactNode }; // Type assertion
           Children.forEach(trProps.children, (th) => {
-            if (isValidElement(th) && th.type === 'th') {
+            if (isValidElement(th) && th.type === "th") {
               const thProps = th.props as { children?: ReactNode }; // Type assertion
               headers.push(thProps.children);
             }
@@ -48,13 +48,13 @@ function parseTableChildren(children: ReactNode): TableData {
       });
     }
     // Process tbody for rows
-    else if (child.type === 'tbody') {
+    else if (child.type === "tbody") {
       Children.forEach(childProps.children, (tr) => {
-        if (isValidElement(tr) && tr.type === 'tr') {
+        if (isValidElement(tr) && tr.type === "tr") {
           const trProps = tr.props as { children?: ReactNode }; // Type assertion
           const currentRow: TableCell[] = [];
           Children.forEach(trProps.children, (td) => {
-            if (isValidElement(td) && td.type === 'td') {
+            if (isValidElement(td) && td.type === "td") {
               const tdProps = td.props as { children?: ReactNode }; // Type assertion
               currentRow.push(tdProps.children);
             }
@@ -68,7 +68,9 @@ function parseTableChildren(children: ReactNode): TableData {
   });
 
   if (headers.length === 0 && rows.length > 0 && !headerProcessed) {
-       console.warn("ResponsiveTable: Could not find <thead>, table might not render correctly on mobile.");
+    console.warn(
+      "ResponsiveTable: Could not find <thead>, table might not render correctly on mobile.",
+    );
   }
 
   return { headers, rows };
@@ -78,7 +80,11 @@ interface ResponsiveTableProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode; // Expects children of a <table> element
 }
 
-export function ResponsiveTable({ children, className, ...props }: ResponsiveTableProps): JSX.Element {
+export function ResponsiveTable({
+  children,
+  className,
+  ...props
+}: ResponsiveTableProps): JSX.Element {
   const { headers, rows } = useMemo(() => parseTableChildren(children), [children]);
   const hasValidData = headers.length > 0 && rows.length > 0;
 
@@ -87,25 +93,28 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
     // Try to create a key from the first few cells' content
     const keyParts = row.slice(0, 3).map((cell, cellIndex) => {
       if (cell === null || cell === undefined) return `cell-${cellIndex}-empty`;
-      
-      if (typeof cell === 'string' || typeof cell === 'number') {
+
+      if (typeof cell === "string" || typeof cell === "number") {
         return String(cell).slice(0, 20); // Limit length to avoid extremely long keys
       }
-      
+
       // For React elements, try to extract text content or use element type
       if (React.isValidElement(cell)) {
         const props = cell.props as { children?: ReactNode };
-        if (props.children && (typeof props.children === 'string' || typeof props.children === 'number')) {
+        if (
+          props.children &&
+          (typeof props.children === "string" || typeof props.children === "number")
+        ) {
           return String(props.children).slice(0, 20);
         }
-        return `${String(cell.type) || 'element'}-${cellIndex}`;
+        return `${String(cell.type) || "element"}-${cellIndex}`;
       }
-      
+
       return `cell-${cellIndex}`;
     });
-    
-    const safeKey = keyParts.join('-').replace(/[^a-zA-Z0-9_-]/g, '_'); // escape hyphen
-    
+
+    const safeKey = keyParts.join("-").replace(/[^a-zA-Z0-9_-]/g, "_"); // escape hyphen
+
     // Guarantee uniqueness by suffixing the row index. Keeps stability while avoiding collisions.
     return safeKey ? `${safeKey}-${index}` : `row-${index}`;
   };
@@ -114,7 +123,11 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
   if (!hasValidData) {
     console.warn("ResponsiveTable: Parsing failed or no data, rendering empty.");
     // Optionally return a placeholder div or null
-    return <div className={cn("my-6", className)} {...props}>Could not render responsive table data.</div>;
+    return (
+      <div className={cn("my-6", className)} {...props}>
+        Could not render responsive table data.
+      </div>
+    );
     // return null;
   }
 
@@ -124,7 +137,7 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
       className={cn(
         "my-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2",
         "max-w-5xl mx-auto",
-        className
+        className,
       )}
       {...props}
       suppressHydrationWarning={true} // Add suppression here as structure differs from original table
@@ -133,14 +146,14 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
         // Safely convert header to string for regex testing and key generation
         const headerToString = (node: ReactNode): string => {
           if (node === null || node === undefined) {
-            return '';
+            return "";
           }
-          if (typeof node === 'string' || typeof node === 'number' || typeof node === 'boolean') {
+          if (typeof node === "string" || typeof node === "number" || typeof node === "boolean") {
             return String(node);
           }
           if (Array.isArray(node)) {
             // Ensure childNode is ReactNode before recursive call
-            return node.map((childNode: ReactNode) => headerToString(childNode)).join('');
+            return node.map((childNode: ReactNode) => headerToString(childNode)).join("");
           }
 
           if (React.isValidElement(node)) {
@@ -149,7 +162,7 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
             const propsChildren = props.children; // Now propsChildren is ReactNode | undefined
 
             if (propsChildren === null || propsChildren === undefined) {
-              return '';
+              return "";
             }
             // Recursively call headerToString with propsChildren, which is ReactNode.
             // Keep the cast here for safety, although propsChildren should be narrowed.
@@ -159,21 +172,31 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
           // Handle non-element objects that might have a custom toString
           // This check should come after React.isValidElement for elements like <>{obj.toString()}</>
           // Ensure 'node' is not an array or React element here, as those are handled above.
-          if (typeof node === 'object' && node !== null && !Array.isArray(node) && !React.isValidElement(node)) {
+          if (
+            typeof node === "object" &&
+            node !== null &&
+            !Array.isArray(node) &&
+            !React.isValidElement(node)
+          ) {
             // Check for a custom toString method that doesn't produce "[object Object]"
-            if (typeof (node as { toString?: () => string }).toString === 'function' && (node as { toString: () => string }).toString() !== '[object Object]') {
+            if (
+              typeof (node as { toString?: () => string }).toString === "function" &&
+              (node as { toString: () => string }).toString() !== "[object Object]"
+            ) {
               return (node as { toString: () => string }).toString();
             }
             // console.warn('ResponsiveTable: Cannot reliably stringify object in headerToString:', node);
-            return ''; // Or some placeholder like '[Complex Content]'
+            return ""; // Or some placeholder like '[Complex Content]'
           }
 
           // Fallback for other unhandled types (e.g. functions)
-          return '';
+          return "";
         };
 
-        const programPeriodIndex = headers.findIndex(h => /program period/i.test(headerToString(h ?? '') ?? ''));
-        const investmentIndex = headers.findIndex(h => /investment/i.test(headerToString(h)));
+        const programPeriodIndex = headers.findIndex((h) =>
+          /program period/i.test(headerToString(h ?? "") ?? ""),
+        );
+        const investmentIndex = headers.findIndex((h) => /investment/i.test(headerToString(h)));
         const isEven = rowIndex % 2 === 0;
 
         return (
@@ -185,20 +208,24 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
               "border border-gray-300 dark:border-gray-600",
               "rounded-lg shadow-md overflow-hidden",
               "transition-colors duration-200 ease-in-out",
-              "hover:bg-gray-100 dark:hover:bg-gray-700/60 hover:border-blue-500 dark:hover:border-blue-400"
+              "hover:bg-gray-100 dark:hover:bg-gray-700/60 hover:border-blue-500 dark:hover:border-blue-400",
             )}
           >
             {/* Card Header (Program Period) */}
             {programPeriodIndex !== -1 && (
-              <div className={cn(
-                "px-5 py-3 border-b border-gray-300 dark:border-gray-600",
-                isEven ? "bg-gray-100/80 dark:bg-gray-700/60" : "bg-gray-50/80 dark:bg-gray-700/40"
-              )}>
+              <div
+                className={cn(
+                  "px-5 py-3 border-b border-gray-300 dark:border-gray-600",
+                  isEven
+                    ? "bg-gray-100/80 dark:bg-gray-700/60"
+                    : "bg-gray-50/80 dark:bg-gray-700/40",
+                )}
+              >
                 <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
                   {headers[programPeriodIndex]}
                 </div>
                 <div className="text-lg font-bold font-mono text-gray-900 dark:text-gray-100">
-                  {row[programPeriodIndex] ?? 'N/A'}
+                  {row[programPeriodIndex] ?? "N/A"}
                 </div>
               </div>
             )}
@@ -208,26 +235,37 @@ export function ResponsiveTable({ children, className, ...props }: ResponsiveTab
               {headers.map((header, headerIndex) => {
                 if (headerIndex === programPeriodIndex) return null;
                 const isInvestment = headerIndex === investmentIndex;
-                
+
                 // Create a stable key for the cell using header content and position
-                const headerKey = headerToString(header).replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 20) || `header-${headerIndex}`;
+                const headerKey =
+                  headerToString(header)
+                    .replace(/[^a-zA-Z0-9_-]/g, "_")
+                    .slice(0, 20) || `header-${headerIndex}`;
                 const cellKey = `${createRowKey(row, rowIndex)}-${headerKey}`;
-                
+
                 return (
                   <div key={cellKey} className="mb-4 last:mb-0">
-                    <div className={cn(
-                      "text-xs font-semibold uppercase tracking-wider mb-1.5",
-                      isInvestment ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
-                    )}>
+                    <div
+                      className={cn(
+                        "text-xs font-semibold uppercase tracking-wider mb-1.5",
+                        isInvestment
+                          ? "text-blue-600 dark:text-blue-400"
+                          : "text-gray-500 dark:text-gray-400",
+                      )}
+                    >
                       {header}
                     </div>
-                    <div className={cn(
-                      "text-sm",
-                      isInvestment
-                        ? "text-xl font-bold font-mono text-gray-900 dark:text-gray-100"
-                        : "text-gray-700 dark:text-gray-200 prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:underline"
-                    )}>
-                      {row[headerIndex] ?? <span className="italic text-gray-400 dark:text-gray-500">N/A</span>}
+                    <div
+                      className={cn(
+                        "text-sm",
+                        isInvestment
+                          ? "text-xl font-bold font-mono text-gray-900 dark:text-gray-100"
+                          : "text-gray-700 dark:text-gray-200 prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-a:text-blue-600 dark:prose-a:text-blue-400 hover:prose-a:underline",
+                      )}
+                    >
+                      {row[headerIndex] ?? (
+                        <span className="italic text-gray-400 dark:text-gray-500">N/A</span>
+                      )}
                     </div>
                   </div>
                 );

@@ -5,8 +5,9 @@
  * @module components/ui/external-link
  */
 
-"use client";;
-import { ExternalLink as ExternalLinkIcon } from 'lucide-react';
+"use client";
+
+import { ExternalLink as ExternalLinkIcon } from "lucide-react";
 
 import type { JSX } from "react";
 
@@ -51,34 +52,25 @@ export function ExternalLink({
   showIcon = true,
   className = "",
   title,
-  rawTitle = false
+  rawTitle = false,
 }: ExternalLinkProps): JSX.Element {
   const baseClassName = `inline-flex items-center gap-1 ${className}`;
 
   // If no href is provided, render as span
   if (!href) {
-    return (
-      <span className={baseClassName}>
-        {children}
-      </span>
-    );
+    return <span className={baseClassName}>{children}</span>;
   }
 
   return (
     <a
       href={href}
       target="_blank"
-      rel="noopener noreferrer"
+      rel="noopener"
       className={`${baseClassName} hover:text-gray-600 dark:hover:text-gray-300 transition-colors`}
-      title={rawTitle ? title : (title || `Visit ${href} (opens in new tab)`)}
+      title={rawTitle ? title : title || `Visit ${href} (opens in new tab)`}
     >
       {children}
-      {showIcon && (
-        <ExternalLinkIcon
-          className="w-4 h-4"
-          aria-label="Opens in new tab"
-        />
-      )}
+      {showIcon && <ExternalLinkIcon className="w-4 h-4" aria-label="Opens in new tab" />}
     </a>
   );
 }

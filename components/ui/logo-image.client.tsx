@@ -9,10 +9,10 @@
  * @module components/ui/logo-image.client
  */
 
-'use client';
+"use client";
 
+import Image from "next/image"; // Import next/image
 import React, { type JSX } from "react";
-import Image from 'next/image'; // Import next/image
 
 interface LogoImageProps {
   /** Source URL for the image (can be a regular URL or a data URL) */
@@ -38,7 +38,7 @@ export function LogoImage({
   priority = false,
 }: LogoImageProps): JSX.Element {
   // Determine if the src is a data URL
-  const isDataUrl = src.startsWith('data:');
+  const isDataUrl = src.startsWith("data:");
 
   if (isDataUrl) {
     // Render plain <img> for data URLs
@@ -54,18 +54,17 @@ export function LogoImage({
     );
   }
 
-  // Render next/image for standard URLs
+  // Use explicit width/height to avoid Next.js fill positioning issues
   return (
-    // Wrapper div needed for layout="fill"
-    <div data-testid="logo-image-wrapper" className={`relative ${className}`} style={{ width, height }}>
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        sizes="100vw" // Add sizes prop
-        style={{ objectFit: 'contain' }} // Add style for object-fit
-        priority={priority}
-      />
-    </div>
+    <Image
+      src={src}
+      alt={alt}
+      width={width}
+      height={height}
+      data-testid="next-image-mock"
+      data-priority={priority ? "true" : "false"}
+      className={`${className} object-contain`}
+      {...(priority ? { priority } : {})}
+    />
   );
 }

@@ -3,15 +3,26 @@
  * Provides InstructionMacOSFrameTabs as the main tab container and InstructionMACOSTab for individual tabs.
  * Includes context for managing tab state and interactions like close, minimize, and maximize.
  */
- 'use client';
 
-import React, { type JSX } from 'react'; // Removed unused type FC
-import { useState, createContext, Children, useId, useCallback, useEffect, useRef, type ReactNode, type ReactElement } from 'react';
+"use client";
+
 // import type { ReactNode, ReactElement } from 'react'; // Combined into the line above
-import { cn } from '@/lib/utils';
-import { MacOSWindow, type WindowTab } from './macos-window.client';
-import { WindowControls } from './navigation/window-controls';
-import { CollapseDropdown } from './collapse-dropdown.client';
+import { cn } from "@/lib/utils";
+import React, { type JSX } from "react"; // Removed unused type FC
+import {
+  Children,
+  type ReactElement,
+  type ReactNode,
+  createContext,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
+import { CollapseDropdown } from "./collapse-dropdown.client";
+import { MacOSWindow, type WindowTab } from "./macos-window.client";
+import { WindowControls } from "./navigation/window-controls";
 
 /**
  * Context to track when we're inside a macOS frame to prevent double nesting
@@ -45,7 +56,7 @@ interface InstructionMACOSTabProps {
  * @returns {JSX.Element} A React fragment containing the children with added context properties.
  */
 export function InstructionMACOSTab({ children }: InstructionMACOSTabProps): JSX.Element {
-  const childrenWithProps = Children.map(children, childNode => {
+  const childrenWithProps = Children.map(children, (childNode) => {
     if (!React.isValidElement(childNode)) {
       return childNode;
     }
@@ -56,7 +67,7 @@ export function InstructionMACOSTab({ children }: InstructionMACOSTabProps): JSX
       className: cn(
         currentProps.className,
         "[&_a]:text-blue-600 [&_a]:dark:text-blue-400 [&_a]:underline [&_a]:font-medium",
-        "[&_a:hover]:text-blue-500 [&_a:hover]:dark:text-blue-300 [&_a:hover]:no-underline"
+        "[&_a:hover]:text-blue-500 [&_a:hover]:dark:text-blue-300 [&_a:hover]:no-underline",
       ),
     };
     return React.cloneElement(childNode as React.ReactElement<unknown>, newProps);
@@ -84,7 +95,8 @@ interface InstructionMacOSFrameTabsContextProps {
  * and a function to change the active tab.
  * @internal This context is not intended for direct external use.
  */
-const InstructionMacOSFrameTabsContext = createContext<InstructionMacOSFrameTabsContextProps | null>(null);
+const InstructionMacOSFrameTabsContext =
+  createContext<InstructionMacOSFrameTabsContextProps | null>(null);
 
 /**
  * Props for the InstructionMacOSFrameTabs component.
@@ -104,7 +116,10 @@ interface InstructionMacOSFrameTabsProps {
  * @param {InstructionMacOSFrameTabsProps} props - The props for the component.
  * @returns {JSX.Element | null} The rendered tabbed window, a message if no tabs are configured, or null if closed.
  */
-export function InstructionMacOSFrameTabs({ children, className = '' }: InstructionMacOSFrameTabsProps): JSX.Element | null {
+export function InstructionMacOSFrameTabs({
+  children,
+  className = "",
+}: InstructionMacOSFrameTabsProps): JSX.Element | null {
   const baseId = useId(); // Unique ID for ARIA attributes
   const [activeTabLabel, setActiveTabLabel] = useState<string | null>(null); // Label of the currently active tab
 
@@ -115,24 +130,24 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: Instruct
   const windowRef = useRef<HTMLDivElement>(null); // Ref to the window for click-outside detection when maximized
 
   /** Toggles the visibility of the window. */
-  const handleClose = useCallback(() => setIsVisible(prev => !prev), []);
+  const handleClose = useCallback(() => setIsVisible((prev) => !prev), []);
 
   /** Toggles the minimized state of the window. Un-maximizes if currently maximized. */
   const handleMinimize = useCallback(() => {
-    setIsMinimized(prev => !prev);
+    setIsMinimized((prev) => !prev);
     if (isMaximized) setIsMaximized(false); // Cannot be minimized and maximized simultaneously
   }, [isMaximized]);
 
   /** Toggles the maximized state of the window. Un-minimizes if currently minimized. */
   const handleMaximize = useCallback(() => {
-    setIsMaximized(prev => !prev);
+    setIsMaximized((prev) => !prev);
     if (isMinimized) setIsMinimized(false); // Cannot be maximized and minimized simultaneously
   }, [isMinimized]);
 
   // Effect for handling Escape key to un-maximize and click outside to un-maximize.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isMaximized) {
+      if (event.key === "Escape" && isMaximized) {
         handleMaximize();
       }
     };
@@ -142,12 +157,12 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: Instruct
       }
     };
     if (isMaximized) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+      document.addEventListener("mousedown", handleClickOutside);
     }
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isMaximized, handleMaximize]);
 
@@ -165,57 +180,68 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: Instruct
         label,
         id: `${baseId}-tab-${index}`,
         isDefault: childProps.isDefault,
-        originalChild: child as ReactElement<InstructionMACOSTabProps>
+        originalChild: child as ReactElement<InstructionMACOSTabProps>,
       };
     })
     .filter(Boolean) as Array<{
-      label: string;
-      id: string;
-      isDefault?: boolean;
-      originalChild: ReactElement<InstructionMACOSTabProps>
-    }>;
+    label: string;
+    id: string;
+    isDefault?: boolean;
+    originalChild: ReactElement<InstructionMACOSTabProps>;
+  }>;
 
   // Set the default tab after the tabs are processed, but outside the render cycle
   useEffect(() => {
     if (activeTabLabel === null && instructionTabs.length > 0) {
       // Prefer an explicitly-marked default, otherwise first tab
-      const defaultTab = instructionTabs.find(t => t.isDefault) ?? instructionTabs[0];
+      const defaultTab = instructionTabs.find((t) => t.isDefault) ?? instructionTabs[0];
       if (defaultTab) setActiveTabLabel(defaultTab.label);
     }
   }, [activeTabLabel, instructionTabs]);
 
   if (instructionTabs.length === 0) {
-    return <div className="my-4 p-4 border border-red-500 rounded-md bg-red-50 text-red-700">No tabs configured. Please add one or more InstructionMACOSTab components.</div>;
+    return (
+      <div className="my-4 p-4 border border-red-500 rounded-md bg-red-50 text-red-700">
+        No tabs configured. Please add one or more InstructionMACOSTab components.
+      </div>
+    );
   }
 
-  const windowTabs: WindowTab[] = instructionTabs.map(it => ({
+  const windowTabs: WindowTab[] = instructionTabs.map((it) => ({
     id: it.label,
     label: it.label,
   }));
 
   // Process activeChildContent to open CollapseDropdowns
-  const activeTabDetails = activeTabLabel ? instructionTabs.find(it => it.label === activeTabLabel) : undefined;
+  const activeTabDetails = activeTabLabel
+    ? instructionTabs.find((it) => it.label === activeTabLabel)
+    : undefined;
   let activeChildContentProcessed: ReactNode = null;
 
   if (activeTabDetails) {
     const originalContent = activeTabDetails.originalChild.props.children;
     activeChildContentProcessed = React.Children.map(originalContent, (child, index) => {
       if (React.isValidElement(child) && child.type === CollapseDropdown) {
-        const collapseDropdownElement = child as ReactElement<React.ComponentProps<typeof CollapseDropdown>>;
+        const collapseDropdownElement = child as ReactElement<
+          React.ComponentProps<typeof CollapseDropdown>
+        >;
 
         let keyPart: string | number = index; // Default to index
         if (collapseDropdownElement.props.id) {
           keyPart = collapseDropdownElement.props.id;
-        } else if (typeof collapseDropdownElement.props.summary === 'string') {
+        } else if (typeof collapseDropdownElement.props.summary === "string") {
           // Create a simple, more reliable key from string summary
-          keyPart = collapseDropdownElement.props.summary.substring(0, 30).replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+          keyPart = collapseDropdownElement.props.summary
+            .substring(0, 30)
+            .replace(/[^a-zA-Z0-9]/g, "-")
+            .toLowerCase();
         } else {
           // If summary is not a string and no id, rely on index passed through keyPart
         }
 
         return React.cloneElement(collapseDropdownElement, {
           defaultOpen: true,
-          key: `${activeTabLabel}-dropdown-${keyPart}`
+          key: `${activeTabLabel}-dropdown-${keyPart}`,
         });
       }
       return child;
@@ -232,10 +258,10 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: Instruct
           aria-label="Show content"
         >
           <WindowControls
-            onClose={handleClose}       // These will affect the isVisible state of InstructionMacOSFrameTabs
+            onClose={handleClose} // These will affect the isVisible state of InstructionMacOSFrameTabs
             onMinimize={handleMinimize} // Minimize might not make sense here, but keep for consistency or future use
             onMaximize={handleMaximize} // Maximize might not make sense here
-            isMaximized={isMaximized}   // Pass the state
+            isMaximized={isMaximized} // Pass the state
             size="md"
           />
           <span className="ml-2 text-xs text-gray-300 dark:text-gray-400">
@@ -251,32 +277,33 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: Instruct
       ref={windowRef}
       className={cn(
         isMaximized && "fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 sm:p-8",
-        className // Allow external classes to be merged
+        className, // Allow external classes to be merged
       )}
     >
       <InstructionMacOSFrameTabsContext.Provider
         value={{
           activeTab: activeTabLabel,
           setActiveTab: setActiveTabLabel,
-          tabs: instructionTabs.map(t => ({label: t.label, id: t.id})),
-          baseId
+          tabs: instructionTabs.map((t) => ({ label: t.label, id: t.id })),
+          baseId,
         }}
       >
         <MacOSWindow
           className={cn(
             "!my-0 !border-0 !shadow-none !rounded-none",
-            isMaximized && "w-full max-w-[95vw] sm:max-w-5xl max-h-[90vh] sm:max-h-[80vh] flex flex-col",
-            !isMaximized && className
+            isMaximized &&
+              "w-full max-w-[95vw] sm:max-w-5xl max-h-[90vh] sm:max-h-[80vh] flex flex-col",
+            !isMaximized && className,
           )}
           tabs={windowTabs}
-          activeTabId={activeTabLabel || ''}
+          activeTabId={activeTabLabel || ""}
           onTabClick={(tabId) => setActiveTabLabel(tabId)}
           contentClassName={cn(
             "bg-gray-100 dark:bg-gray-800",
             "p-2",
             "text-xs",
             isMaximized && "flex-1 overflow-auto",
-            isMinimized && "hidden"
+            isMinimized && "hidden",
           )}
           onClose={handleClose}
           onMinimize={handleMinimize}
@@ -284,7 +311,8 @@ export function InstructionMacOSFrameTabs({ children, className = '' }: Instruct
           isMaximized={isMaximized}
         >
           <MacOSFrameContext.Provider value={true}>
-            {!isMinimized && activeChildContentProcessed} {/* Render processed content only if not minimized */}
+            {!isMinimized && activeChildContentProcessed}{" "}
+            {/* Render processed content only if not minimized */}
           </MacOSFrameContext.Provider>
         </MacOSWindow>
       </InstructionMacOSFrameTabsContext.Provider>

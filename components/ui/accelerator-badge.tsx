@@ -2,19 +2,22 @@
  * Accelerator Badge Component
  */
 
-import Image from 'next/image';
-import type { Accelerator } from '@/types/accelerator';
+import type { Accelerator } from "@/types/accelerator";
+import Image from "next/image";
 
 export function AcceleratorBadge({ accelerator }: { accelerator: Accelerator }) {
   const { program, batch, location } = accelerator;
 
-  const programName = program === 'techstars' ? 'Techstars' : 'Y Combinator';
-  const programClass = program === 'techstars'
-    ? 'bg-[#0C9EE0]/10 border-[#0C9EE0]/20 text-[#0C9EE0]'
-    : 'bg-[#FF6600]/10 border-[#FF6600]/20 text-[#FF6600]';
+  const programName = program === "techstars" ? "Techstars" : "Y Combinator";
+  const programClass =
+    program === "techstars"
+      ? "bg-[#0C9EE0]/10 border-[#0C9EE0]/20 text-[#0C9EE0]"
+      : "bg-[#FF6600]/10 border-[#FF6600]/20 text-[#FF6600]";
 
   return (
-    <div className={`inline-flex items-center gap-3 px-5 sm:px-3 py-2.5 sm:py-1.5 rounded-full ${programClass} border w-fit max-w-full`}>
+    <div
+      className={`inline-flex items-center gap-3 px-5 sm:px-3 py-2.5 sm:py-1.5 rounded-full ${programClass} border w-fit max-w-full`}
+    >
       <div className="flex items-center gap-3 min-w-0 px-1">
         <div className="relative w-4 h-4 flex-none">
           <Image

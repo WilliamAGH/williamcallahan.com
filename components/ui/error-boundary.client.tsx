@@ -7,9 +7,9 @@
 
 "use client";
 
-import { Component } from 'react';
-import type { ReactNode, ErrorInfo } from 'react';
 import * as Sentry from "@sentry/nextjs";
+import { Component } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -41,9 +41,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
 
     // Only log in development to avoid console pollution in production
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('Component error caught by ErrorBoundary:', error);
-      console.error('Component stack:', errorInfo.componentStack);
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Component error caught by ErrorBoundary:", error);
+      console.error("Component stack:", errorInfo.componentStack);
     }
   }
 
@@ -58,10 +58,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       if (this.props.silent) {
         // Check if we're on a mobile device (approximate detection)
         const isMobileDevice =
-          typeof window !== 'undefined' &&
-          ((typeof window.innerWidth !== 'undefined' && window.innerWidth <= 768) ||
-           (typeof navigator !== 'undefined' &&
-            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)));
+          typeof window !== "undefined" &&
+          ((typeof window.innerWidth !== "undefined" && window.innerWidth <= 768) ||
+            (typeof navigator !== "undefined" &&
+              /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                navigator.userAgent,
+              )));
 
         // For mobile devices, render an even more subtle fallback
         if (isMobileDevice) {
