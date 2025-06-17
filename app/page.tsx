@@ -9,18 +9,18 @@
  * @see {@link "https://schema.org/ProfilePage"} - Schema.org ProfilePage specification
  */
 
+import type { Metadata } from "next";
 import { Home } from "../components/features";
-import { getStaticPageMetadata } from "../lib/seo/metadata";
 import { JsonLdScript } from "../components/seo/json-ld";
 import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../data/metadata";
+import { getStaticPageMetadata } from "../lib/seo/metadata";
 import { formatSeoDate } from "../lib/seo/utils";
-import type { Metadata } from "next";
 
 /**
  * Generate metadata for the home page using Next.js 14 Metadata API
  * @see {@link "https://nextjs.org/docs/app/api-reference/functions/generate-metadata"} - Next.js Metadata API
  */
-export const metadata: Metadata = getStaticPageMetadata('/', 'home');
+export const metadata: Metadata = getStaticPageMetadata("/", "home");
 
 /**
  * Make homepage more static and resilient to rapid requests
@@ -44,32 +44,32 @@ export default function HomePage() {
         data={{
           "@context": "https://schema.org",
           "@type": "ProfilePage",
-          "dateCreated": formattedCreated,
-          "dateModified": formattedModified,
-          "mainEntity": {
+          dateCreated: formattedCreated,
+          dateModified: formattedModified,
+          mainEntity: {
             "@type": "Person",
-            "name": SITE_NAME,
-            "description": pageMetadata.bio,
-            "image": "/images/profile.jpg",
-            "sameAs": siteMetadata.social.profiles,
-            "interactionStatistic": [
+            name: SITE_NAME,
+            description: pageMetadata.bio,
+            image: "/images/profile.jpg",
+            sameAs: siteMetadata.social.profiles,
+            interactionStatistic: [
               {
                 "@type": "InteractionCounter",
-                "interactionType": "https://schema.org/FollowAction",
-                "userInteractionCount": 500
+                interactionType: "https://schema.org/FollowAction",
+                userInteractionCount: 500,
               },
               {
                 "@type": "InteractionCounter",
-                "interactionType": "https://schema.org/LikeAction",
-                "userInteractionCount": 1200
-              }
+                interactionType: "https://schema.org/LikeAction",
+                userInteractionCount: 1200,
+              },
             ],
-            "agentInteractionStatistic": {
+            agentInteractionStatistic: {
               "@type": "InteractionCounter",
-              "interactionType": "https://schema.org/WriteAction",
-              "userInteractionCount": 85
-            }
-          }
+              interactionType: "https://schema.org/WriteAction",
+              userInteractionCount: 85,
+            },
+          },
         }}
       />
       <Home />
