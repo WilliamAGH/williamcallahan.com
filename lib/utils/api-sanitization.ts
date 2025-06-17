@@ -52,6 +52,23 @@ export function sanitizeError(error: unknown, includeStack = false): Record<stri
 export function sanitizeSystemInfo(obj: Record<string, unknown>): Record<string, unknown> {
   // Use WeakSet to track visited objects and prevent circular references
   const visited = new WeakSet<object>();
+  
+  // Use Set for O(1) lookups and lowercase for case-insensitive matching
+  const sensitiveKeys = new Set([
+    "path",
+    "filepath",
+    "directory",
+    "cwd",
+    "home",
+    "tmpdir",
+    "password",
+    "secret",
+    "token",
+    "key",
+    "auth",
+    "stack",
+    "stacktrace",
+  ]);
 
   function sanitizeRecursive(target: Record<string, unknown>): Record<string, unknown> {
     // Check for circular reference
@@ -64,25 +81,9 @@ export function sanitizeSystemInfo(obj: Record<string, unknown>): Record<string,
 
     const sanitized = { ...target };
 
-    // Remove common sensitive keys
-    const sensitiveKeys = [
-      "path",
-      "filePath",
-      "directory",
-      "cwd",
-      "home",
-      "tmpdir",
-      "password",
-      "secret",
-      "token",
-      "key",
-      "auth",
-      "stack",
-      "stackTrace",
-    ];
-
-    for (const key of sensitiveKeys) {
-      if (key in sanitized) {
+    // Remove common sensitive keys (case-insensitive)
+    for (const key of Object.keys(sanitized)) {
+      if (sensitiveKeys.has(key.toLowerCase())) {
         delete sanitized[key];
       }
     }
@@ -100,14 +101,21 @@ export function sanitizeSystemInfo(obj: Record<string, unknown>): Record<string,
           if (typeof item === "object" && item !== null && !Array.isArray(item)) {
             return sanitizeRecursive(item as Record<string, unknown>);
           }
+          // Check if string looks like a URL and sanitize it
+          if (typeof item === "string" && (item.startsWith("http://") || item.startsWith("https://"))) {
+            return sanitizeUrl(item);
+          }
           return item;
         });
         sanitized[key] = sanitizedArray;
       } else if (typeof value === "object" && !Array.isArray(value)) {
         // Handle nested objects
         sanitized[key] = sanitizeRecursive(value as Record<string, unknown>);
+      } else if (typeof value === "string" && (value.startsWith("http://") || value.startsWith("https://"))) {
+        // Sanitize URL strings to remove credentials
+        sanitized[key] = sanitizeUrl(value);
       }
-      // Primitive values (string, number, boolean) are kept as-is
+      // Other primitive values (number, boolean) are kept as-is
     }
 
     return sanitized;
