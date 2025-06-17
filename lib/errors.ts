@@ -24,7 +24,7 @@ export class MDXProcessingError extends AppError {
   filePath?: string;
 
   constructor(message: string, filePath?: string, cause?: unknown) {
-    super(message, 'MDX_PROCESSING_ERROR', cause);
+    super(message, "MDX_PROCESSING_ERROR", cause);
     this.filePath = filePath;
   }
 }
@@ -36,7 +36,7 @@ export class FileAccessError extends AppError {
   filePath: string;
 
   constructor(message: string, filePath: string, cause?: unknown) {
-    super(message, 'FILE_ACCESS_ERROR', cause);
+    super(message, "FILE_ACCESS_ERROR", cause);
     this.filePath = filePath;
   }
 }
@@ -48,7 +48,7 @@ export class FrontmatterError extends AppError {
   filePath: string;
 
   constructor(message: string, filePath: string, cause?: unknown) {
-    super(message, 'FRONTMATTER_ERROR', cause);
+    super(message, "FRONTMATTER_ERROR", cause);
     this.filePath = filePath;
   }
 }
@@ -60,7 +60,7 @@ export class BlogPostDataError extends AppError {
   slug?: string;
 
   constructor(message: string, slug?: string, cause?: unknown) {
-    super(message, 'BLOG_POST_DATA_ERROR', cause);
+    super(message, "BLOG_POST_DATA_ERROR", cause);
     this.slug = slug;
   }
 }
@@ -73,28 +73,28 @@ export class BlogPostDataError extends AppError {
 function safeStringifyValue(value: unknown): string {
   if (value === null) return "null";
   if (typeof value === "undefined") return "undefined";
-  if (typeof value === 'string') return value;
+  if (typeof value === "string") return value;
   if (
-    typeof value === 'number' ||
-    typeof value === 'boolean' ||
-    typeof value === 'bigint' ||
-    typeof value === 'symbol'
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint" ||
+    typeof value === "symbol"
   ) {
     return String(value);
   }
-  if (typeof value === 'function') {
+  if (typeof value === "function") {
     const funcStr = String(value);
     // Truncate long function strings
-    return `Function: ${funcStr.substring(0, Math.min(funcStr.length, 100))}${funcStr.length > 100 ? '...' : ''}`;
+    return `Function: ${funcStr.substring(0, Math.min(funcStr.length, 100))}${funcStr.length > 100 ? "..." : ""}`;
   }
 
   // For objects, try to access a 'message' property first
   // This is a common pattern for error-like objects
   if (
-    typeof value === 'object' &&
+    typeof value === "object" &&
     value !== null &&
-    'message' in value &&
-    typeof (value as { message: unknown }).message === 'string'
+    "message" in value &&
+    typeof (value as { message: unknown }).message === "string"
   ) {
     return (value as { message: string }).message;
   }
@@ -104,8 +104,13 @@ function safeStringifyValue(value: unknown): string {
     return JSON.stringify(value);
   } catch {
     // Fallback for objects that cannot be stringified (e.g., circular references)
-    let constructorName = 'unknown type';
-    if (typeof value === 'object' && value !== null && value.constructor && value.constructor.name) {
+    let constructorName = "unknown type";
+    if (
+      typeof value === "object" &&
+      value !== null &&
+      value.constructor &&
+      value.constructor.name
+    ) {
       constructorName = value.constructor.name;
     }
     return `[Unstringifiable ${constructorName} value]`;
@@ -139,12 +144,7 @@ export function wrapError<T extends Error>(
 
   // If the original error was an AppError with a code, and the newError is also an AppError,
   // preserve the original code if the newError doesn't have one set by the factory.
-  if (
-    error instanceof AppError &&
-    newError instanceof AppError &&
-    error.code &&
-    !newError.code
-  ) {
+  if (error instanceof AppError && newError instanceof AppError && error.code && !newError.code) {
     (newError as AppError).code = error.code;
   }
 
@@ -156,7 +156,7 @@ export function wrapError<T extends Error>(
  */
 export function isErrorOfType<T extends Error>(
   error: unknown,
-  errorType: new (...args: unknown[]) => T
+  errorType: new (...args: unknown[]) => T,
 ): error is T {
   return error instanceof errorType;
 }

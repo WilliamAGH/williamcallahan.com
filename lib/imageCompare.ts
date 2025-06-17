@@ -21,9 +21,9 @@
  * ```
  */
 
-import sharp from "sharp";
 import { createHash } from "node:crypto";
-import { VALID_IMAGE_FORMATS, MIN_LOGO_SIZE, MAX_SIZE_DIFF } from "./constants";
+import sharp from "sharp";
+import { MAX_SIZE_DIFF, MIN_LOGO_SIZE, VALID_IMAGE_FORMATS } from "./constants";
 import { logger } from "./logger";
 
 /**
@@ -47,7 +47,7 @@ const CONFIG = {
   HASH_ALGORITHM: "sha256" as const,
 
   /** Hash encoding format */
-  HASH_ENCODING: "hex" as const
+  HASH_ENCODING: "hex" as const,
 } as const;
 
 // Narrow a string to a valid format literal
@@ -66,9 +66,7 @@ const CONFIG = {
  * }
  * ```
  */
-function isValidFormat(
-  f: string
-): f is typeof CONFIG.FORMATS[number] {
+function isValidFormat(f: string): f is (typeof CONFIG.FORMATS)[number] {
   return (CONFIG.FORMATS as readonly string[]).includes(f);
 }
 
@@ -130,7 +128,7 @@ async function getValidatedMetadata(buffer: Buffer): Promise<ValidatedMetadata> 
         height,
         format,
         isValid: false,
-        validationError: `Image too small: ${width}x${height}. Minimum size: ${CONFIG.MIN_SIZE}x${CONFIG.MIN_SIZE}`
+        validationError: `Image too small: ${width}x${height}. Minimum size: ${CONFIG.MIN_SIZE}x${CONFIG.MIN_SIZE}`,
       };
     }
 
@@ -145,7 +143,7 @@ async function getValidatedMetadata(buffer: Buffer): Promise<ValidatedMetadata> 
         height,
         format,
         isValid: false,
-        validationError: `Invalid format: ${format}. Must be one of: ${CONFIG.FORMATS.join(", ")}`
+        validationError: `Invalid format: ${format}. Must be one of: ${CONFIG.FORMATS.join(", ")}`,
       };
     }
 
@@ -153,11 +151,11 @@ async function getValidatedMetadata(buffer: Buffer): Promise<ValidatedMetadata> 
       width,
       height,
       format,
-      isValid: true
+      isValid: true,
     };
   } catch (error) {
     throw new ImageCompareError(
-      `Failed to get image metadata: ${error instanceof Error ? error.message : "Unknown error"}`
+      `Failed to get image metadata: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 }
@@ -188,12 +186,10 @@ async function getImageHash(buffer: Buffer): Promise<string> {
       .toBuffer();
 
     // Create hash of normalized pixel data
-    return createHash(CONFIG.HASH_ALGORITHM)
-      .update(normalized)
-      .digest(CONFIG.HASH_ENCODING);
+    return createHash(CONFIG.HASH_ALGORITHM).update(normalized).digest(CONFIG.HASH_ENCODING);
   } catch (error) {
     throw new ImageCompareError(
-      `Failed to generate image hash: ${error instanceof Error ? error.message : "Unknown error"}`
+      `Failed to generate image hash: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 }
@@ -240,10 +236,15 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
       // Get and validate metadata for both images
       [meta1, meta2] = await Promise.all([
         getValidatedMetadata(image1),
-        getValidatedMetadata(image2)
+        getValidatedMetadata(image2),
       ]);
     } catch (error) {
-      logger.warn("Metadata validation failed:", error instanceof ImageCompareError ? error.message : `Failed to get image metadata: ${error instanceof Error ? error.message : "Unknown error"}`);
+      logger.warn(
+        "Metadata validation failed:",
+        error instanceof ImageCompareError
+          ? error.message
+          : `Failed to get image metadata: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
       return false;
     }
 
@@ -255,12 +256,9 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
     }
 
     // Check if sizes are too different
-    const sizeDiff = Math.abs(meta1.width - meta2.width) +
-                    Math.abs(meta1.height - meta2.height);
+    const sizeDiff = Math.abs(meta1.width - meta2.width) + Math.abs(meta1.height - meta2.height);
     if (sizeDiff > CONFIG.MAX_SIZE_DIFF) {
-      logger.warn(
-        `Size difference too large: ${sizeDiff}px (max: ${CONFIG.MAX_SIZE_DIFF}px)`
-      );
+      logger.warn(`Size difference too large: ${sizeDiff}px (max: ${CONFIG.MAX_SIZE_DIFF}px)`);
       return false;
     }
 
@@ -270,10 +268,13 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
       // Convert both images to PNG for consistent comparison
       [norm1, norm2] = await Promise.all([
         sharp(image1).png().toBuffer(),
-        sharp(image2).png().toBuffer()
+        sharp(image2).png().toBuffer(),
       ]);
     } catch (error) {
-      logger.warn("PNG conversion failed:", error instanceof Error ? error.message : "Unknown error");
+      logger.warn(
+        "PNG conversion failed:",
+        error instanceof Error ? error.message : "Unknown error",
+      );
       return false;
     }
 
@@ -281,13 +282,16 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
       // Calculate perceptual hashes
       const [hash1, hash2] = await Promise.all([
         getImageHash(norm1), // norm1 is now Buffer
-        getImageHash(norm2)  // norm2 is now Buffer
+        getImageHash(norm2), // norm2 is now Buffer
       ]);
 
       // Compare hashes
       return hash1 === hash2;
     } catch (error) {
-      logger.warn("Hash generation failed:", error instanceof ImageCompareError ? error.message : "Unknown error");
+      logger.warn(
+        "Hash generation failed:",
+        error instanceof ImageCompareError ? error.message : "Unknown error",
+      );
       return false;
     }
   } catch (error) {
@@ -295,7 +299,10 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
     if (error instanceof ImageCompareError) {
       throw error;
     }
-    logger.error("Unexpected error during image comparison:", error instanceof Error ? error.message : "Unknown error");
+    logger.error(
+      "Unexpected error during image comparison:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
     return false;
   }
 }
