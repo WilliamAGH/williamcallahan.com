@@ -255,7 +255,7 @@ async function updateBookmarksInS3(): Promise<void> {
           `[UpdateS3] [Bookmarks] Limiting immediate logo processing to ${SAFETY_THRESHOLD_NEW_BOOKMARKS} most recent bookmarks to avoid system overload.`,
         );
 
-        // Process only the 10 most recently added bookmarks for immediate logo processing
+        // Process only the most recently added bookmarks for immediate logo processing
         const recentBookmarks = newBookmarks
           .sort(
             (a, b) => new Date(b.dateBookmarked).getTime() - new Date(a.dateBookmarked).getTime(),
