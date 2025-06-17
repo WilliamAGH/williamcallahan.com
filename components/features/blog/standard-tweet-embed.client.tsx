@@ -1,6 +1,7 @@
-'use client';
+"use client";
 
-import React, { useEffect, useRef } from 'react';
+import type React from "react";
+import { useEffect, useRef } from "react";
 
 // Ensure window.twttr is typed for TypeScript
 declare global {
@@ -14,7 +15,7 @@ declare global {
 }
 
 interface StandardTweetEmbedProps {
-  theme: 'light' | 'dark';
+  theme: "light" | "dark";
 }
 
 const StandardTweetEmbed: React.FC<StandardTweetEmbedProps> = ({ theme }) => {
@@ -22,23 +23,26 @@ const StandardTweetEmbed: React.FC<StandardTweetEmbedProps> = ({ theme }) => {
 
   useEffect(() => {
     const loadTwitterWidget = () => {
-      if (window.twttr && window.twttr.widgets && embedContainerRef.current) {
+      if (window.twttr?.widgets && embedContainerRef.current) {
         // Ensure any existing content from a previous render is cleared
         // or that widgets.load can correctly re-process.
         // For simplicity, we rely on widgets.load() to handle updates.
+        // Update the wrapper attribute so Twitter can pick up the theme change when re-processing.
+        embedContainerRef.current.setAttribute("data-theme", theme);
+
         window.twttr.widgets.load(embedContainerRef.current);
       }
     };
 
-    const scriptId = 'twitter-widgets-script';
+    const scriptId = "twitter-widgets-script";
     let script = document.getElementById(scriptId) as HTMLScriptElement | null;
 
     if (!script) {
-      script = document.createElement('script');
+      script = document.createElement("script");
       script.id = scriptId;
-      script.src = 'https://platform.twitter.com/widgets.js';
+      script.src = "https://platform.twitter.com/widgets.js";
       script.async = true;
-      script.charset = 'utf-8';
+      script.charset = "utf-8";
       document.body.appendChild(script);
       script.onload = loadTwitterWidget;
     } else {
@@ -61,10 +65,10 @@ const StandardTweetEmbed: React.FC<StandardTweetEmbedProps> = ({ theme }) => {
         data-theme={theme} // Use the theme prop here
       >
         <p lang="en" dir="ltr">
-          At dawn from the gateway to Mars, the launch of Starship’s second flight test{' '}
+          At dawn from the gateway to Mars, the launch of Starship&#39;s second flight test{" "}
           <a href="https://t.co/ffKnsVKwG4">pic.twitter.com/ffKnsVKwG4</a>
         </p>
-        &mdash; SpaceX (@SpaceX){' '}
+        &mdash; SpaceX (@SpaceX){" "}
         <a href="https://twitter.com/SpaceX/status/1732824684683784516?ref_src=twsrc%5Etfw">
           December 7, 2023
         </a>

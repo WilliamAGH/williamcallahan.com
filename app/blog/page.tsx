@@ -6,26 +6,27 @@
  * Implements proper SEO with schema.org structured data.
  */
 
+import type { Metadata } from "next";
+import { BlogListServer } from "../../components/features/blog/blog-list/blog-list.server";
 import { Blog } from "../../components/features/blog/blog.client";
-import { getStaticPageMetadata } from "../../lib/seo/metadata";
 import { JsonLdScript } from "../../components/seo/json-ld";
 import { PAGE_METADATA } from "../../data/metadata";
+import { getAllPosts } from "../../lib/blog";
+import { getStaticPageMetadata } from "../../lib/seo/metadata";
 import { formatSeoDate } from "../../lib/seo/utils";
-import type { Metadata } from "next";
-import { getAllPosts } from '../../lib/blog';
-import type { BlogPost } from '../../types/blog';
-import { BlogListServer } from "../../components/features/blog/blog-list/blog-list.server";
+import type { BlogPost } from "../../types/blog";
 
 /**
  * Generate metadata for the blog index page
  */
-export const metadata: Metadata = getStaticPageMetadata('/blog', 'blog');
+export const metadata: Metadata = getStaticPageMetadata("/blog", "blog");
 
 /**
  * Enable static generation with revalidation
  * This generates static HTML at build time and revalidates periodically
  */
-export const dynamic = 'force-static';
+// Using ISR instead of force-static to allow revalidation
+// Removed conflicting 'dynamic = force-static' directive per GitHub issue #112
 export const revalidate = 3600; // Revalidate every hour
 
 /**
@@ -40,7 +41,7 @@ export default async function BlogPage() {
   try {
     posts = await getAllPosts();
   } catch (error) {
-    console.error('Failed to fetch blog posts:', error);
+    console.error("Failed to fetch blog posts:", error);
     // Could also set an error state to display to the user
   }
 
@@ -53,14 +54,12 @@ export default async function BlogPage() {
         data={{
           "@context": "https://schema.org",
           "@type": "CollectionPage",
-          "datePublished": formattedCreated,
-          "dateModified": formattedModified
+          datePublished: formattedCreated,
+          dateModified: formattedModified,
         }}
       />
       {/* Pass the pre-rendered content to the client component */}
-      <Blog>
-        {blogListContent}
-      </Blog>
+      <Blog>{blogListContent}</Blog>
     </>
   );
 }

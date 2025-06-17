@@ -10,8 +10,8 @@
  * @serverComponent - This component should only be used in a server context.
  */
 
-import type { BlogPost } from '@/types/blog';
-import { BlogCard } from './blog-card';
+import type { BlogPost } from "@/types/blog";
+import { BlogCard } from "./blog-card";
 
 import type { JSX } from "react";
 

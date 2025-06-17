@@ -8,16 +8,16 @@
  * @see {@link "https://schema.org/SoftwareApplication"} - Schema.org SoftwareApplication specification
  */
 
-'use client';
+"use client";
 
-import { JsonLdScript } from '../../../seo/json-ld';
-import { ensureAbsoluteUrl } from '../../../../lib/seo/utils';
-import type { SoftwareApplicationSchema } from '@/types/seo/schema';
-import { kebabCase } from '@/lib/utils/formatters';
+import { kebabCase } from "@/lib/utils/formatters";
+import type { SoftwareApplicationSchema } from "@/types/seo/schema";
+import { ensureAbsoluteUrl } from "../../../../lib/seo/utils";
+import { JsonLdScript } from "../../../seo/json-ld";
 
 // Define a type for the complete JSON-LD script object this component generates
 type SoftwareScriptSchema = SoftwareApplicationSchema & {
-  '@context': 'https://schema.org';
+  "@context": "https://schema.org";
 };
 
 interface SoftwareSchemaProps {
@@ -58,11 +58,11 @@ interface SoftwareSchemaProps {
 export function SoftwareSchema({
   name,
   description,
-  operatingSystem = 'Windows, macOS, Linux',
-  applicationCategory = 'DeveloperApplication',
+  operatingSystem = "Windows, macOS, Linux",
+  applicationCategory = "DeveloperApplication",
   isFree = true,
   price,
-  priceCurrency = 'USD',
+  priceCurrency = "USD",
   ratingValue,
   ratingCount,
   downloadUrl,
@@ -76,11 +76,11 @@ export function SoftwareSchema({
 
   // Create base schema using the extended script type
   const schema: SoftwareScriptSchema = {
-    '@context': 'https://schema.org',
-    '@id': `#${idFragment}`,
-    '@type': 'SoftwareApplication',
-    'name': name,
-    'description': description,
+    "@context": "https://schema.org",
+    "@id": `#${idFragment}`,
+    "@type": "SoftwareApplication",
+    name: name,
+    description: description,
   };
 
   // Add operating system if provided
@@ -96,28 +96,28 @@ export function SoftwareSchema({
   // Add pricing information
   if (isFree) {
     schema.offers = {
-      '@type': 'Offer',
-      'price': 0.00,
-      'priceCurrency': priceCurrency,
-      'availability': 'https://schema.org/InStock'
+      "@type": "Offer",
+      price: 0.0,
+      priceCurrency: priceCurrency,
+      availability: "https://schema.org/InStock",
     };
   } else if (price !== undefined) {
     schema.offers = {
-      '@type': 'Offer',
-      'price': price,
-      'priceCurrency': priceCurrency,
-      'availability': 'https://schema.org/InStock'
+      "@type": "Offer",
+      price: price,
+      priceCurrency: priceCurrency,
+      availability: "https://schema.org/InStock",
     };
   }
 
   // Add rating information if provided
   if (ratingValue !== undefined && ratingCount !== undefined) {
     schema.aggregateRating = {
-      '@type': 'AggregateRating',
-      'ratingValue': ratingValue,
-      'ratingCount': ratingCount,
-      'bestRating': 5,
-      'worstRating': 1
+      "@type": "AggregateRating",
+      ratingValue: ratingValue,
+      ratingCount: ratingCount,
+      bestRating: 5,
+      worstRating: 1,
     };
   }
 
@@ -134,16 +134,16 @@ export function SoftwareSchema({
   // Add screenshots if provided
   if (screenshot) {
     schema.screenshot = Array.isArray(screenshot)
-      ? screenshot.map(url => ensureAbsoluteUrl(url))
+      ? screenshot.map((url) => ensureAbsoluteUrl(url))
       : ensureAbsoluteUrl(screenshot);
   }
 
   // Add author if provided
   if (authorName) {
     schema.author = {
-      '@type': 'Person',
-      'name': authorName,
-      ...(authorUrl && { 'url': ensureAbsoluteUrl(authorUrl) })
+      "@type": "Person",
+      name: authorName,
+      ...(authorUrl && { url: ensureAbsoluteUrl(authorUrl) }),
     };
   }
 

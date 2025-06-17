@@ -1,12 +1,12 @@
+import Image from "next/image";
+import type { JSX } from "react";
 /**
  * @file TweetEmbed component and related image proxy utilities.
  * This file provides a component to embed tweets using `react-tweet`
  * and includes an image proxy to serve Twitter images from the same origin,
  * with optimizations for image versions.
  */
-import { Tweet } from 'react-tweet'
-import Image from 'next/image'
-import type { JSX } from 'react';
+import { Tweet } from "react-tweet";
 
 /**
  * Proxies pbs.twimg.com image URLs to a same-origin endpoint (`/api/twitter-image/`).
@@ -17,37 +17,35 @@ import type { JSX } from 'react';
  *                   Returns an empty string if srcInput is a Blob that cannot be processed as a pbs.twimg.com URL.
  */
 const proxy = (srcInput: string | Blob): string => {
-  if (typeof srcInput !== 'string' || !srcInput.startsWith('https://pbs.twimg.com/')) {
-    return typeof srcInput === 'string' ? srcInput : ''; // Return empty string or original if not a pbs.twimg string
+  if (typeof srcInput !== "string" || !srcInput.startsWith("https://pbs.twimg.com/")) {
+    return typeof srcInput === "string" ? srcInput : ""; // Return empty string or original if not a pbs.twimg string
   }
   const src = srcInput; // Now we know src is a string
 
   let modifiedSrc = src;
 
   // For profile images, try to get a larger version
-  if (modifiedSrc.includes('/profile_images/') && modifiedSrc.endsWith('_normal.jpg')) {
-    modifiedSrc = modifiedSrc.replace('_normal.jpg', '_400x400.jpg');
+  if (modifiedSrc.includes("/profile_images/") && modifiedSrc.endsWith("_normal.jpg")) {
+    modifiedSrc = modifiedSrc.replace("_normal.jpg", "_400x400.jpg");
   }
 
   // For media images, always use large version
-  if (modifiedSrc.includes('/media/')) {
-    if (modifiedSrc.includes('name=small') || modifiedSrc.includes('name=medium')) {
-      modifiedSrc = modifiedSrc.replace(/name=(small|medium)/, 'name=large');
-    } else if (modifiedSrc.includes('format=jpg') && !modifiedSrc.includes('name=')) {
-      modifiedSrc += '&name=large';
+  if (modifiedSrc.includes("/media/")) {
+    if (modifiedSrc.includes("name=small") || modifiedSrc.includes("name=medium")) {
+      modifiedSrc = modifiedSrc.replace(/name=(small|medium)/, "name=large");
+    } else if (modifiedSrc.includes("format=jpg") && !modifiedSrc.includes("name=")) {
+      modifiedSrc += "&name=large";
     }
   }
 
-  const proxiedPath = encodeURIComponent(
-    modifiedSrc.slice('https://pbs.twimg.com/'.length)
-  );
+  const proxiedPath = encodeURIComponent(modifiedSrc.slice("https://pbs.twimg.com/".length));
   return `/api/twitter-image/${proxiedPath}`;
-}
+};
 
 /**
  * Props for the ImgProxy component.
  */
-interface ImgProxyProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src'> {
+interface ImgProxyProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> {
   /** The original source URL of the image or a Blob. */
   src?: string | Blob;
   /** Alt text for the image. */
@@ -66,34 +64,22 @@ interface ImgProxyProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 
  * @param {ImgProxyProps} props - The props for the ImgProxy component.
  * @returns {JSX.Element} The rendered image element.
  */
-const ImgProxy = ({
-  src = '',
-  alt,
-  width,
-  height,
-  ...rest
-}: ImgProxyProps) => {
-  console.log('[ImgProxy] Original src received:', src);
-  const proxiedSrc = proxy(src || ''); // Ensure string for proxy, or handle Blob case if necessary
-  console.log('[ImgProxy] Proxied src to be used:', proxiedSrc);
+const ImgProxy = ({ src = "", alt, width, height, ...rest }: ImgProxyProps) => {
+  console.log("[ImgProxy] Original src received:", src);
+  const proxiedSrc = proxy(src || ""); // Ensure string for proxy, or handle Blob case if necessary
+  console.log("[ImgProxy] Proxied src to be used:", proxiedSrc);
 
-    // Use Next.js Image component for better performance when dimensions are available
+  // Use Next.js Image component for better performance when dimensions are available
   if (width && height) {
     return (
-      <Image
-        src={proxiedSrc}
-        alt={alt || 'Tweet image'}
-        width={width}
-        height={height}
-        {...rest}
-      />
+      <Image src={proxiedSrc} alt={alt || "Tweet image"} width={width} height={height} {...rest} />
     );
   }
 
   // Fallback to regular img with explicit alt text for accessibility
   // eslint-disable-next-line @next/next/no-img-element
-      return <img src={proxiedSrc} alt={alt || 'Tweet image'} {...rest} />;
-}
+  return <img src={proxiedSrc} alt={alt || "Tweet image"} {...rest} />;
+};
 
 /**
  * Props for the TweetEmbed component.
@@ -113,23 +99,23 @@ interface TweetEmbedProps {
  * @param {TweetEmbedProps} props - The props for the component.
  * @returns {JSX.Element | null} The rendered tweet embed, or null if the tweet ID cannot be extracted.
  */
-export function TweetEmbed({ url: tweetUrl, className = '' }: TweetEmbedProps): JSX.Element | null {
-  if (typeof tweetUrl !== 'string') {
-    console.error('TweetEmbed received non-string URL:', tweetUrl);
+export function TweetEmbed({ url: tweetUrl, className = "" }: TweetEmbedProps): JSX.Element | null {
+  if (typeof tweetUrl !== "string") {
+    console.error("TweetEmbed received non-string URL:", tweetUrl);
     return null;
   }
-  const id = tweetUrl.match(/status\/(\d+)/)?.[1]
-  if (!id) return null
+  const id = tweetUrl.match(/status\/(\d+)/)?.[1];
+  if (!id) return null;
 
   return (
     <div className={`mx-auto max-w-xl flex justify-center ${className}`}>
-        <Tweet
+      <Tweet
         id={id}
         components={{
           AvatarImg: ImgProxy, // author avatar
-          MediaImg: ImgProxy   // images/gifs inside the tweet
+          MediaImg: ImgProxy, // images/gifs inside the tweet
         }}
       />
     </div>
-  )
+  );
 }
