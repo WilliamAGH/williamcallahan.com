@@ -527,8 +527,9 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
     );
     
     // Apply test limit if set
+    const isNonProd = process.env.NODE_ENV !== "production";
+    const testLimit = isNonProd && process.env.S3_TEST_LIMIT ? Number.parseInt(process.env.S3_TEST_LIMIT, 10) : 0;
     let bookmarksToProcess = normalizedBookmarks;
-    const testLimit = process.env.S3_TEST_LIMIT ? Number.parseInt(process.env.S3_TEST_LIMIT, 10) : 0;
     if (testLimit > 0) {
       bookmarksToProcess = normalizedBookmarks.slice(0, testLimit);
       console.log(

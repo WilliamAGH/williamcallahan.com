@@ -41,22 +41,33 @@ export const LOGO_CACHE_DURATION = {
  */
 export type BookmarksS3Paths = {
   readonly DIR: "bookmarks";
-  readonly FILE: "bookmarks/bookmarks.json";
-  readonly LOCK: "bookmarks/refresh-lock.json";
+  readonly FILE: `bookmarks/bookmarks${string}.json`;
+  readonly LOCK: `bookmarks/refresh-lock${string}.json`;
 };
 
 /**
- * S3 storage paths for bookmarks
- * @constant
- * @type {BookmarksS3Paths}
+ * S3 storage paths for bookmarks (environment-aware).
+ *
+ * Production  → bookmarks/bookmarks.json & bookmarks/refresh-lock.json
+ * Development → bookmarks/bookmarks-dev.json & bookmarks/refresh-lock-dev.json
+ * Test        → bookmarks/bookmarks-test.json & bookmarks/refresh-lock-test.json
+ *
+ * This isolates each runtime so dev / tests can never overwrite production data.
+ *
+ * NOTE: All callers import this constant, so we compute the value once at module
+ *       load based on `process.env.NODE_ENV`.
  */
+const envSuffix = ((): string => {
+  const env = process.env.NODE_ENV;
+  if (env === "production" || !env) return ""; // default / prod keeps original name
+  if (env === "test") return "-test";
+  return "-dev"; // treat everything else as development-like
+})();
+
 export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
-  /** Directory for bookmark files */
   DIR: "bookmarks",
-  /** Main bookmarks JSON file */
-  FILE: "bookmarks/bookmarks.json",
-  /** Distributed lock file for refresh coordination */
-  LOCK: "bookmarks/refresh-lock.json",
+  FILE: `bookmarks/bookmarks${envSuffix}.json`,
+  LOCK: `bookmarks/refresh-lock${envSuffix}.json`,
 } as const;
 
 /**

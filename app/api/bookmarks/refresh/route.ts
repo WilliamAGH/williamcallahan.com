@@ -6,7 +6,7 @@
  */
 import "server-only";
 
-import { refreshBookmarksData } from "@/lib/bookmarks";
+import { refreshAndPersistBookmarks as refreshBookmarksDataAccess } from "@/lib/data-access/bookmarks";
 import {
   API_ENDPOINT_STORE_NAME,
   DEFAULT_API_ENDPOINT_LIMIT_CONFIG,
@@ -211,7 +211,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     logger.info(`[API Bookmarks Refresh] Previous cached bookmarks count: ${previousCount}`);
 
-    const bookmarks = await refreshBookmarksData();
+    const bookmarks = await refreshBookmarksDataAccess();
 
     // Process logos for new bookmarks immediately
     if (bookmarks && bookmarks.length > 0) {
@@ -254,7 +254,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       message: `Bookmarks cache refreshed successfully${isCronJob ? " (triggered by cron job)" : ""}`,
       data: {
         refreshed: true,
-        bookmarksCount: bookmarks.length,
+        bookmarksCount: bookmarks?.length ?? 0,
         newBookmarksProcessed: bookmarks
           ? bookmarks.filter((b) => !previousBookmarkIds.has(b.id)).length
           : 0,
