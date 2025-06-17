@@ -25,6 +25,8 @@ class SentryExampleFrontendError extends Error {
   constructor(message: string | undefined) {
     super(message);
     this.name = "SentryExampleFrontendError";
+    // Maintain proper prototype chain for TS-compiled code
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
 
