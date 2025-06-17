@@ -7,7 +7,7 @@
  * This is a shared component that can be used in both client and server contexts.
  */
 
-import type { TerminalCommand } from '@/types/terminal';
+import type { TerminalCommand } from "@/types/terminal";
 
 interface HistoryProps {
   history: TerminalCommand[];
@@ -25,9 +25,7 @@ export function History({ history }: HistoryProps) {
             </div>
           )}
           {line.output && (
-            <div className="text-gray-300 whitespace-pre-wrap break-words">
-              {line.output}
-            </div>
+            <div className="text-gray-300 whitespace-pre-wrap break-words">{line.output}</div>
           )}
         </div>
       ))}

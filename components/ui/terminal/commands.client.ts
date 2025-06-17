@@ -6,57 +6,126 @@
 
 "use client";
 
-import type { CommandResult, SearchResult } from '@/types/terminal';
+import type { CommandResult } from "@/types/terminal";
 
-// TODO: Move TerminalSearchModule to @/types/terminal.ts
-interface TerminalSearchModule {
-  searchExperience: (terms: string) => Promise<SearchResult[]>;
-  searchEducation: (terms: string) => Promise<SearchResult[]>;
-  searchInvestments: (terms: string) => Promise<SearchResult[]>;
-  searchBookmarks: (terms: string) => Promise<SearchResult[]>;
-}
+// Lazy load search types to avoid loading them until needed
+type SearchResult = {
+  label: string;
+  description: string;
+  path: string;
+};
 
-// searchModule becomes a promise that resolves to the actual module
-const searchModulePromise: Promise<TerminalSearchModule> = (async () => {
-  try {
-    // Use dynamic import instead of require for better tree-shaking
-    const importedModule = await import('@/lib/search');
-    // Create an adapter that wraps non-promise return values in promises
-    return {
-      searchExperience: (terms: string) => Promise.resolve(importedModule.searchExperience(terms)),
-      searchEducation: (terms: string) => Promise.resolve(importedModule.searchEducation(terms)),
-      searchInvestments: (terms: string) => Promise.resolve(importedModule.searchInvestments(terms)),
-      searchBookmarks: (terms: string) => importedModule.searchBookmarks(terms), // Already returns a Promise
-    };
-  } catch (e) {
-    console.error("[TerminalCommands] Failed to load search module:", e instanceof Error ? e.message : 'Unknown error');
-    // Fallback for tests or if module fails to load
-    return {
-      searchExperience: () => Promise.resolve([] as SearchResult[]),
-      searchEducation: () => Promise.resolve([] as SearchResult[]),
-      searchInvestments: () => Promise.resolve([] as SearchResult[]),
-      searchBookmarks: () => Promise.resolve([] as SearchResult[]),
+// Lazy-loaded search function - only loads when first search is performed
+let searchByScopeImpl: ((scope: string, query: string) => Promise<SearchResult[]>) | null = null;
+
+// Helper function to call the consolidated search API with lazy loading
+async function searchByScope(scope: string, query: string): Promise<SearchResult[]> {
+  // Lazy load the implementation on first use
+  if (!searchByScopeImpl) {
+    searchByScopeImpl = async (scope: string, query: string): Promise<SearchResult[]> => {
+      try {
+        const response = await fetch(`/api/search/${scope}?q=${encodeURIComponent(query)}`);
+        if (!response.ok) {
+          throw new Error(`API request failed with status ${response.status}`);
+        }
+        const data: unknown = await response.json();
+        if (Array.isArray(data)) {
+          return data as SearchResult[];
+        }
+        if (data && typeof data === "object" && "results" in data) {
+          const results = (data as { results?: unknown }).results;
+          return Array.isArray(results) ? (results as SearchResult[]) : [];
+        }
+        return [];
+      } catch (error) {
+        console.error(
+          `Search API call failed for scope ${scope}:`,
+          error instanceof Error ? error.message : "Unknown error",
+        );
+        throw error;
+      }
     };
   }
-})();
+  
+  return searchByScopeImpl(scope, query);
+}
 
-// Removed top-level destructuring
-// const { searchExperience, searchEducation, searchInvestments, searchBookmarks } = searchModule;
-import { sections, type SectionKey } from './sections';
+// Lazy-loaded site-wide search function
+let performSiteWideSearchImpl: ((query: string) => Promise<SearchResult[]>) | null = null;
+
+// Helper function to perform site-wide search with lazy loading
+async function performSiteWideSearch(query: string): Promise<SearchResult[]> {
+  // Lazy load the implementation on first use
+  if (!performSiteWideSearchImpl) {
+    performSiteWideSearchImpl = async (query: string): Promise<SearchResult[]> => {
+      const response = await fetch(`/api/search/all?q=${encodeURIComponent(query)}`);
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+      const data: unknown = await response.json();
+      return Array.isArray(data) ? (data as SearchResult[]) : [];
+    };
+  }
+  
+  return performSiteWideSearchImpl(query);
+}
+import { type SectionKey, sections } from "./sections";
 // Removed unused usePathname import
 
+// Preload search functionality when user starts typing
+export function preloadSearch() {
+  // This function can be called when the user starts typing to preload search
+  // It doesn't actually execute search, just ensures the functions are ready
+  if (!searchByScopeImpl) {
+    searchByScopeImpl = async (scope: string, query: string): Promise<SearchResult[]> => {
+      try {
+        const response = await fetch(`/api/search/${scope}?q=${encodeURIComponent(query)}`);
+        if (!response.ok) {
+          throw new Error(`API request failed with status ${response.status}`);
+        }
+        const data: unknown = await response.json();
+        if (Array.isArray(data)) {
+          return data as SearchResult[];
+        }
+        if (data && typeof data === "object" && "results" in data) {
+          const results = (data as { results?: unknown }).results;
+          return Array.isArray(results) ? (results as SearchResult[]) : [];
+        }
+        return [];
+      } catch (error) {
+        console.error(
+          `Search API call failed for scope ${scope}:`,
+          error instanceof Error ? error.message : "Unknown error",
+        );
+        throw error;
+      }
+    };
+  }
+  
+  if (!performSiteWideSearchImpl) {
+    performSiteWideSearchImpl = async (query: string): Promise<SearchResult[]> => {
+      const response = await fetch(`/api/search/all?q=${encodeURIComponent(query)}`);
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+      const data: unknown = await response.json();
+      return Array.isArray(data) ? (data as SearchResult[]) : [];
+    };
+  }
+}
+
 export const terminalCommands = {
-  home: '/',
-  investments: '/investments',
-  experience: '/experience',
-  skills: '/skills',
-  blog: '/blog',
-  aventure: '/experience#aventure',
-  tsbank: '/experience#tsbank',
-  seekinvest: '/experience#seekinvest',
-  'callahan-financial': '/experience#callahan-financial',
-  'mutual-first': '/experience#mutual-first',
-  morningstar: '/experience#morningstar'
+  home: "/",
+  investments: "/investments",
+  experience: "/experience",
+  skills: "/skills",
+  blog: "/blog",
+  aventure: "/experience#aventure",
+  tsbank: "/experience#tsbank",
+  seekinvest: "/experience#seekinvest",
+  "callahan-financial": "/experience#callahan-financial",
+  "mutual-first": "/experience#mutual-first",
+  morningstar: "/experience#morningstar",
 } as const;
 
 const HELP_MESSAGE = `
@@ -70,12 +139,13 @@ Navigation:
   experience         Go to experience page
   education          Go to education page
   blog               Go to blog page
-  bookmarks          Go to bookmarks page
+  bookmark(s)        Go to bookmarks page
 
 Search:
   <section> <terms>  Search within a section
                      Example: investments fintech
                      Example: bookmarks AI
+                     Example: bookmark AI
 
 Examples:
   investments fintech
@@ -94,15 +164,20 @@ function getSchemaOrgData(): string {
     const scripts = document.querySelectorAll('script[type="application/ld+json"]');
 
     if (!scripts || scripts.length === 0) {
-      return 'No Schema.org data found on this page.';
+      return "No Schema.org data found on this page.";
     }
 
     // Collect all JSON-LD data from scripts
-    const schemas: unknown[] = Array.from(scripts).map(script => { // Typed schemas as unknown[]
+    const schemas: unknown[] = Array.from(scripts).map((script) => {
+      // Typed schemas as unknown[]
       try {
-        return JSON.parse(script.textContent || '{}') as unknown; // Explicitly cast to unknown
-      } catch (_err) { // Renamed err to _err and used it
-        return { error: 'Invalid JSON in schema', details: _err instanceof Error ? _err.message : String(_err) };
+        return JSON.parse(script.textContent || "{}") as unknown; // Explicitly cast to unknown
+      } catch (_err) {
+        // Renamed err to _err and used it
+        return {
+          error: "Invalid JSON in schema",
+          details: _err instanceof Error ? _err.message : String(_err),
+        };
       }
     });
 
@@ -114,14 +189,17 @@ function getSchemaOrgData(): string {
       path,
       url: window.location.href,
       timestamp: new Date().toISOString(),
-      schemas
+      schemas,
     };
 
     // Return formatted JSON
     return `Schema.org Diagnostics for ${path}:\n\n${JSON.stringify(output, null, 2)}`;
   } catch (error) {
-    console.error('Error retrieving schema data:', error instanceof Error ? error.message : 'Unknown error');
-    return 'Error retrieving Schema.org data. Check the console for details.';
+    console.error(
+      "Error retrieving schema data:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
+    return "Error retrieving Schema.org data. Check the console for details.";
   }
 }
 
@@ -132,45 +210,50 @@ export async function handleCommand(input: string): Promise<CommandResult> {
   // Short-circuit: do nothing if the user entered only whitespace
   if (trimmedInput.length === 0) {
     return {
-      results: [{
-        input: '',
-        output: 'No command entered. Type "help" for available commands.'
-      }]
+      results: [
+        {
+          input: "",
+          output: 'No command entered. Type "help" for available commands.',
+        },
+      ],
     };
   }
 
-  const [command, ...args] = trimmedInput.split(' ');
+  const [command, ...args] = trimmedInput.split(" ");
 
-  // Await the search module to be loaded before proceeding
-  const searchModule = await searchModulePromise;
+  // Note: searchModule is no longer needed as we use the API directly
 
   // 1. First check for direct commands that take precedence
 
   // Schema.org easter egg command
-  if (command === 'schema.org') {
+  if (command === "schema.org") {
     return {
-      results: [{
-        input: '',
-        output: getSchemaOrgData()
-      }]
+      results: [
+        {
+          input: "",
+          output: getSchemaOrgData(),
+        },
+      ],
     };
   }
 
   // Clear command
-  if (command === 'clear') {
+  if (command === "clear") {
     return {
       results: [],
-      clear: true
+      clear: true,
     };
   }
 
   // Help command
-  if (command === 'help') {
+  if (command === "help") {
     return {
-      results: [{
-        input: '',
-        output: HELP_MESSAGE
-      }]
+      results: [
+        {
+          input: "",
+          output: HELP_MESSAGE,
+        },
+      ],
     };
   }
 
@@ -184,93 +267,103 @@ export async function handleCommand(input: string): Promise<CommandResult> {
   // Navigation command without args (e.g., "blog")
   if (command && isValidSection(command) && args.length === 0) {
     return {
-      results: [{
-        input: '',
-        output: `Navigating to ${command}...`
-      }],
-      navigation: sections[command]
+      results: [
+        {
+          input: "",
+          output: `Navigating to ${command}...`,
+        },
+      ],
+      navigation: sections[command],
     };
   }
 
   // 3. Check for section-specific search (e.g., "blog javafx")
   if (command && isValidSection(command) && args.length > 0) {
-    const searchTerms = args.join(' ');
+    const searchTerms = args.join(" ");
     const section = command.charAt(0).toUpperCase() + command.slice(1);
 
-    let results: SearchResult[] = [];
+    try {
+      let results: SearchResult[] = [];
 
-    switch (command) {
-      case 'blog': {
-        try {
-          const response = await fetch(`/api/search/blog?q=${encodeURIComponent(searchTerms)}`);
-          if (!response.ok) {
-            throw new Error(`API request failed with status ${response.status}`);
-          }
-          results = await response.json() as SearchResult[];
-        } catch (error) {
-          console.error("Blog search API call failed:", error instanceof Error ? error.message : 'Unknown error');
-          return {
-            results: [{
-              input: '',
-              output: `Error searching blog: ${error instanceof Error ? error.message : 'Unknown error'}`
-            }]
-          };
+      switch (command) {
+        case "blog": {
+          results = await searchByScope("blog", searchTerms);
+          break;
         }
-        break;
+        case "experience":
+          results = await searchByScope("experience", searchTerms);
+          break;
+        case "education":
+          results = await searchByScope("education", searchTerms);
+          break;
+        case "investments":
+          results = await searchByScope("investments", searchTerms);
+          break;
+        case "bookmarks":
+        case "bookmark": // Support singular form
+          results = await searchByScope("bookmarks", searchTerms);
+          break;
       }
-      case 'experience':
-        results = await searchModule.searchExperience(searchTerms);
-        break;
-      case 'education':
-        results = await searchModule.searchEducation(searchTerms);
-        break;
-      case 'investments':
-        results = await searchModule.searchInvestments(searchTerms);
-        break;
-      case 'bookmarks':
-        results = await searchModule.searchBookmarks(searchTerms);
-        break;
-    }
 
-    if (results.length === 0) {
+      if (results.length === 0) {
+        return {
+          results: [
+            {
+              input: "",
+              output: `No results found in ${section} for "${searchTerms}"`,
+            },
+          ],
+        };
+      }
+
       return {
-        results: [{
-          input: '',
-          output: `No results found in ${section} for "${searchTerms}"`
-        }]
+        results: [
+          {
+            input: "",
+            output: `Found ${results.length} results in ${section} for "${searchTerms}"`,
+          },
+        ],
+        selectionItems: results,
+      };
+    } catch (error) {
+      console.error(
+        `Error searching in section ${command}:`,
+        error instanceof Error ? error.message : "Unknown error",
+      );
+      return {
+        results: [
+          {
+            input: "",
+            output: `Error searching ${command}`,
+          },
+        ],
       };
     }
-
-    return {
-      results: [{
-        input: '',
-        output: `Found ${results.length} results in ${section} for "${searchTerms}"`
-      }],
-      selectionItems: results
-    };
   }
 
   // 4. If not a direct command or section command, perform site-wide search
   // IMPORTANT: This now takes precedence over "command not recognized" to fix the multi-word search issue
-  const searchTerms = [command, ...args].join(' ');
+  const searchTerms = [command, ...args].join(" ");
 
   try {
     // Log search info for debugging (safe logging - no object dumps)
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       console.log(`[Terminal Search] Performing site-wide search for: "${searchTerms}"`);
     }
 
-    const response = await fetch(`/api/search/all?q=${encodeURIComponent(searchTerms)}`);
-    if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`);
-    }
-    const allResults = await response.json() as SearchResult[];
+    // Lazy-loaded site-wide search
+    const allResults = await performSiteWideSearch(searchTerms);
 
     // Log results for debugging (safe logging - only counts and basic info)
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       console.log(`[Terminal Search] Found ${allResults.length} results for "${searchTerms}"`);
       if (allResults.length > 0) {
-        console.log(`[Terminal Search] Sample result titles: ${allResults.slice(0, 3).map(r => r.label || 'Untitled').join(', ')}`);
+        console.log(
+          `[Terminal Search] Sample result titles: ${allResults
+            .slice(0, 3)
+            .map((r) => r.label || "Untitled")
+            .join(", ")}`,
+        );
       }
     }
 
@@ -278,31 +371,40 @@ export async function handleCommand(input: string): Promise<CommandResult> {
     if (allResults.length === 0) {
       // Only now do we return "command not recognized" if no search results found
       return {
-        results: [{
-          input: '',
-          output: `Command not recognized. Type "help" for available commands.`
-        }]
+        results: [
+          {
+            input: "",
+            output: `Command not recognized. Type "help" for available commands.`,
+          },
+        ],
       };
     }
 
     // Otherwise, return search results
     return {
-      results: [{
-        input: '',
-        output: `Found ${allResults.length} site-wide results for "${searchTerms}"`
-      }],
-      selectionItems: allResults
+      results: [
+        {
+          input: "",
+          output: `Found ${allResults.length} site-wide results for "${searchTerms}"`,
+        },
+      ],
+      selectionItems: allResults,
     };
-
   } catch (error) {
-    console.error("Site-wide search API call failed:", error instanceof Error ? error.message : 'Unknown error');
+    console.error(
+      "Site-wide search API call failed:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
     // Type check for error before accessing message
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred during the search.';
+    const errorMessage =
+      error instanceof Error ? error.message : "An unknown error occurred during the search.";
     return {
-      results: [{
-        input: '',
-        output: `Error during site-wide search: ${errorMessage}`
-      }]
+      results: [
+        {
+          input: "",
+          output: `Error during site-wide search: ${errorMessage}`,
+        },
+      ],
     };
   }
 }

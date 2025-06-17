@@ -6,19 +6,21 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { handleCommand } from './commands.client';
-import { TerminalHeader } from './terminal-header';
-import { History } from './history';
-import type { TerminalCommand } from '@/types/terminal';
+import type { TerminalCommand } from "@/types/terminal";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { handleCommand } from "./commands.client";
+import { History } from "./history";
+import { TerminalHeader } from "./terminal-header";
 
 export function CommandInterface() {
-  const [input, setInput] = useState('');
-  const [history, setHistory] = useState<TerminalCommand[]>([{
-    input: '',
-    output: 'Welcome! Type "help" for available commands.'
-  }]);
+  const [input, setInput] = useState("");
+  const [history, setHistory] = useState<TerminalCommand[]>([
+    {
+      input: "",
+      output: 'Welcome! Type "help" for available commands.',
+    },
+  ]);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -34,19 +36,21 @@ export function CommandInterface() {
     const result = await handleCommand(input.trim());
 
     if (result.clear) {
-      setHistory([{
-        input: '',
-        output: 'Welcome! Type "help" for available commands.'
-      }]);
+      setHistory([
+        {
+          input: "",
+          output: 'Welcome! Type "help" for available commands.',
+        },
+      ]);
     } else {
-      setHistory(prev => [...prev, ...result.results]);
+      setHistory((prev) => [...prev, ...result.results]);
 
       if (result.navigation) {
         router.push(result.navigation);
       }
     }
 
-    setInput('');
+    setInput("");
   };
 
   return (
@@ -56,7 +60,11 @@ export function CommandInterface() {
         <div className="flex-1 overflow-y-auto">
           <History history={history} />
         </div>
-        <form onSubmit={(e) => { void handleSubmit(e); }}>
+        <form
+          onSubmit={(e) => {
+            void handleSubmit(e);
+          }}
+        >
           <div className="flex items-center">
             <span className="text-[#7aa2f7] mr-2">$</span>
             <input
