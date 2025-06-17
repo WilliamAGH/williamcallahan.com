@@ -188,7 +188,10 @@ class CircuitBreaker {
 
 3. **Implement Job Locking**
 
+**⚠️ WARNING: The following example is for educational purposes only and demonstrates the concept. It is NOT safe for production multi-instance deployments due to race conditions (TOCTOU) and local filesystem dependencies.**
+
 ```typescript
+// EDUCATIONAL EXAMPLE - Single Instance Only
 const createLock = (jobName: string): boolean => {
   const lockFile = `/tmp/locks/${jobName}.lock`;
   if (existsSync(lockFile)) {
@@ -199,6 +202,42 @@ const createLock = (jobName: string): boolean => {
   return true;
 };
 ```
+
+**For production deployments**, use distributed locking mechanisms:
+
+```typescript
+// PRODUCTION EXAMPLE - Multi-Instance Safe
+import Redis from 'ioredis';
+import Redlock from 'redlock';
+
+const redis = new Redis();
+const redlock = new Redlock([redis]);
+
+async function createDistributedLock(jobName: string): Promise<Lock | null> {
+  try {
+    // Lock for 5 minutes (300,000ms)
+    const lock = await redlock.acquire([`locks:${jobName}`], 300000);
+    return lock;
+  } catch (error) {
+    console.warn(`Job ${jobName} is already running on another instance`);
+    return null;
+  }
+}
+
+// Usage with automatic unlock on completion
+async function runJobWithLock(jobName: string, job: () => Promise<void>) {
+  const lock = await createDistributedLock(jobName);
+  if (!lock) return;
+  
+  try {
+    await job();
+  } finally {
+    await lock.release();
+  }
+}
+```
+
+See the [Scaling Considerations](#scaling-considerations) section for more distributed system patterns.
 
 ## API Endpoints
 
