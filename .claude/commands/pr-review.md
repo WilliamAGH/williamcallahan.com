@@ -25,8 +25,9 @@ STEP 3: For unresolved comments:
 STEP 4: Reply to each comment with resolution details:
  a) Use GitHub CLI to reply to comments:
     `gh api -X POST repos/WilliamAGH/williamcallahan.com/pulls/[PR_NUMBER]/comments/[COMMENT_ID]/replies -f body="Your reply message"`
- b) Include specific commit hash (e.g., "Fixed in commit abc123") 
- c) Comments are automatically marked as resolved when replied to via GitHub API
+ b) Include specific commit hash (e.g., "Fixed in commit abc123")
+ c) IMPORTANT: Comments are NOT automatically resolved when replied to - manual resolution required
+ d) To resolve a comment thread, use GraphQL mutation (see examples below)
 
 STEP 5: If code was changed, commit with descriptive message:
  a) Stage individual files: `git add path/to/file.ts`
@@ -41,6 +42,8 @@ TROUBLESHOOTING TIPS:
 - If @mcp__github__get_pull_request_comments fails due to token limit, use GitHub CLI with jq filtering
 - For very large PRs, process comments in batches by file path
 - Use `gh pr review [PR_NUMBER] --repo WilliamAGH/williamcallahan.com` to see review status
+- NOTE: The MCP GitHub tool does NOT support resolving review threads - use GitHub CLI with GraphQL instead
+- Comments must be manually resolved - they do NOT auto-resolve when owner replies
 
 SUCCESSFUL COMMAND EXAMPLES:
 
@@ -55,3 +58,39 @@ SUCCESSFUL COMMAND EXAMPLES:
 
 4. Commit individual files:
    `git add scripts/update-s3-data.ts && git commit scripts/update-s3-data.ts -m "fix(scripts): update comment to use constant instead of hard-coded value"`
+
+5. Resolve a comment thread (requires thread ID from GraphQL):
+   ```bash
+   gh api graphql -f query='
+   mutation {
+     resolveReviewThread(input: {threadId: "PRRT_kwDONglMk85RjfP5"}) {
+       thread {
+         isResolved
+       }
+     }
+   }'
+   ```
+
+6. Get review thread IDs:
+   ```bash
+   gh api graphql -f query='
+   {
+     repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+       pullRequest(number: 109) {
+         reviewThreads(first: 20) {
+           nodes {
+             id
+             isResolved
+             resolvedBy { login }
+             comments(first: 1) {
+               nodes {
+                 body
+                 author { login }
+               }
+             }
+           }
+         }
+       }
+     }
+   }'
+   ```
