@@ -42,15 +42,24 @@ import { graphql } from "@octokit/graphql";
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || "WilliamAGH";
 const GITHUB_API_TOKEN = process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH;
 
-// Volume paths / S3 Object Keys for GitHub data
+// Volume paths / S3 Object Keys for GitHub data (environment-aware)
 export const GITHUB_ACTIVITY_S3_KEY_DIR = "github-activity";
-export const GITHUB_ACTIVITY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/activity_data.json`;
-export const GITHUB_STATS_SUMMARY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/github_stats_summary.json`;
-export const ALL_TIME_SUMMARY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/github_stats_summary_all_time.json`; // Added for clarity
+
+// Determine suffix based on runtime env so dev/test never overwrite prod data
+const ghEnvSuffix = (() => {
+  const env = process.env.NODE_ENV;
+  if (env === "production" || !env) return ""; // prod keeps canonical names
+  if (env === "test") return "-test";
+  return "-dev"; // treat everything else as development-like
+})();
+
+export const GITHUB_ACTIVITY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/activity_data${ghEnvSuffix}.json`;
+export const GITHUB_STATS_SUMMARY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/github_stats_summary${ghEnvSuffix}.json`;
+export const ALL_TIME_SUMMARY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/github_stats_summary_all_time${ghEnvSuffix}.json`;
 
 // GitHub Activity Data Paths / S3 Object Keys
-export const REPO_RAW_WEEKLY_STATS_S3_KEY_DIR = `${GITHUB_ACTIVITY_S3_KEY_DIR}/repo_raw_weekly_stats`;
-export const AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/aggregated_weekly_activity.json`;
+export const REPO_RAW_WEEKLY_STATS_S3_KEY_DIR = `${GITHUB_ACTIVITY_S3_KEY_DIR}/repo_raw_weekly_stats${ghEnvSuffix}`;
+export const AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/aggregated_weekly_activity${ghEnvSuffix}.json`;
 
 const CONCURRENT_REPO_LIMIT = 5; // Limit for concurrent repository processing
 
