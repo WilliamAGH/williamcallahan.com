@@ -6,10 +6,10 @@
  * This route handles image inversion, caching, and serving inverted logos.
  */
 
-import { NextResponse } from 'next/server';
-import type{ NextRequest } from 'next/server';
-import { ServerCacheInstance } from '../../../../lib/server-cache';
-import { analyzeImage, invertImage, needsInversion } from '../../../../lib/imageAnalysis';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { analyzeImage, invertImage, needsInversion } from "../../../../lib/imageAnalysis";
+import { ServerCacheInstance } from "../../../../lib/server-cache";
 
 /**
  * Safely parse and validate URL
@@ -19,7 +19,7 @@ import { analyzeImage, invertImage, needsInversion } from '../../../../lib/image
 function validateUrl(urlString: string): string {
   try {
     // If it's a relative URL starting with /api, keep it relative
-    if (urlString.startsWith('/api')) {
+    if (urlString.startsWith("/api")) {
       return urlString;
     }
     // Otherwise, ensure it's a valid URL
@@ -35,23 +35,23 @@ function validateUrl(urlString: string): string {
  * @returns {Promise<NextResponse>} API response with inverted image
  */
 // Enable dynamic rendering to allow API calls during server-side rendering
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 export const revalidate = 3600; // Cache for 1 hour
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
-  const urlParam = searchParams.get('url');
-  const isDarkTheme = searchParams.get('theme') === 'dark';
+  const urlParam = searchParams.get("url");
+  const isDarkTheme = searchParams.get("theme") === "dark";
 
   if (!urlParam) {
     return NextResponse.json(
-      { error: 'URL parameter required' },
+      { error: "URL parameter required" },
       {
         status: 400,
         headers: {
-          'Cache-Control': 'no-store'
-        }
-      }
+          "Cache-Control": "no-store",
+        },
+      },
     );
   }
 
@@ -59,31 +59,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const url = validateUrl(urlParam);
 
     // Get cached inverted version if available
-    const cacheKey = `${url}-${isDarkTheme ? 'dark' : 'light'}`;
+    const cacheKey = `${url}-${isDarkTheme ? "dark" : "light"}`;
     const cached = ServerCacheInstance.getInvertedLogo(cacheKey);
     if (cached?.buffer) {
       return new NextResponse(cached.buffer, {
         headers: {
-          'Content-Type': 'image/png',
-          'Cache-Control': 'public, max-age=31536000',
-        }
+          "Content-Type": "image/png",
+          "Cache-Control": "public, max-age=31536000",
+        },
       });
     }
 
     // Fetch the original image
     const response = await fetch(url, {
-      next: { revalidate: 3600 } // Cache for 1 hour
+      next: { revalidate: 3600 }, // Cache for 1 hour
     });
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: 'Failed to fetch image' },
+        { error: "Failed to fetch image" },
         {
           status: response.status,
           headers: {
-            'Cache-Control': 'no-store'
-          }
-        }
+            "Cache-Control": "no-store",
+          },
+        },
       );
     }
 
@@ -95,9 +95,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Return original image if no inversion needed
       return new NextResponse(buffer, {
         headers: {
-          'Content-Type': response.headers.get('Content-Type') || 'image/png',
-          'Cache-Control': 'public, max-age=31536000',
-        }
+          "Content-Type": response.headers.get("Content-Type") || "image/png",
+          "Cache-Control": "public, max-age=31536000",
+        },
       });
     }
 
@@ -113,20 +113,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Return inverted image
     return new NextResponse(inverted, {
       headers: {
-        'Content-Type': 'image/png',
-        'Cache-Control': 'public, max-age=31536000',
-      }
+        "Content-Type": "image/png",
+        "Cache-Control": "public, max-age=31536000",
+      },
     });
   } catch (error) {
-    console.error('Error inverting logo:', error);
+    console.error("Error inverting logo:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to process image' },
+      { error: error instanceof Error ? error.message : "Failed to process image" },
       {
         status: 500,
         headers: {
-          'Cache-Control': 'no-store'
-        }
-      }
+          "Cache-Control": "no-store",
+        },
+      },
     );
   }
 }
@@ -138,15 +138,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  */
 export async function HEAD(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
-  const urlParam = searchParams.get('url');
-  const isDarkTheme = searchParams.get('theme') === 'dark';
+  const urlParam = searchParams.get("url");
+  const isDarkTheme = searchParams.get("theme") === "dark";
 
   if (!urlParam) {
     return new NextResponse(null, {
       status: 400,
       headers: {
-        'Cache-Control': 'no-store'
-      }
+        "Cache-Control": "no-store",
+      },
     });
   }
 
@@ -160,25 +160,25 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
       const needsInv = isDarkTheme ? cached.needsDarkInversion : cached.needsLightInversion;
       return new NextResponse(null, {
         headers: {
-          'X-Needs-Inversion': needsInv.toString(),
-          'X-Has-Transparency': cached.hasTransparency.toString(),
-          'X-Brightness': cached.brightness.toString(),
-          'Cache-Control': 'public, max-age=31536000'
-        }
+          "X-Needs-Inversion": needsInv.toString(),
+          "X-Has-Transparency": cached.hasTransparency.toString(),
+          "X-Brightness": cached.brightness.toString(),
+          "Cache-Control": "public, max-age=31536000",
+        },
       });
     }
 
     // Fetch and analyze image
     const response = await fetch(url, {
-      next: { revalidate: 3600 } // Cache for 1 hour
+      next: { revalidate: 3600 }, // Cache for 1 hour
     });
 
     if (!response.ok) {
       return new NextResponse(null, {
         status: response.status,
         headers: {
-          'Cache-Control': 'no-store'
-        }
+          "Cache-Control": "no-store",
+        },
       });
     }
 
@@ -190,19 +190,22 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
 
     return new NextResponse(null, {
       headers: {
-        'X-Needs-Inversion': (isDarkTheme ? analysis.needsDarkInversion : analysis.needsLightInversion).toString(),
-        'X-Has-Transparency': analysis.hasTransparency.toString(),
-        'X-Brightness': analysis.brightness.toString(),
-        'Cache-Control': 'public, max-age=31536000'
-      }
+        "X-Needs-Inversion": (isDarkTheme
+          ? analysis.needsDarkInversion
+          : analysis.needsLightInversion
+        ).toString(),
+        "X-Has-Transparency": analysis.hasTransparency.toString(),
+        "X-Brightness": analysis.brightness.toString(),
+        "Cache-Control": "public, max-age=31536000",
+      },
     });
   } catch (error) {
-    console.error('Error analyzing logo:', error);
+    console.error("Error analyzing logo:", error);
     return new NextResponse(null, {
       status: 500,
       headers: {
-        'Cache-Control': 'no-store'
-      }
+        "Cache-Control": "no-store",
+      },
     });
   }
 }

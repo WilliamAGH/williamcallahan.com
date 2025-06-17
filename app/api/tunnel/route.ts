@@ -6,14 +6,14 @@
  * @returns {NextResponse} The response object
  */
 
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 // This endpoint proxies Sentry events from the client `tunnel` option to the Sentry ingest URL
 export async function POST(request: NextRequest) {
-  const dsn = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN
+  const dsn = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
   if (!dsn) {
-    return NextResponse.json({ error: 'SENTRY_DSN is not configured' }, { status: 500 })
+    return NextResponse.json({ error: "SENTRY_DSN is not configured" }, { status: 500 });
   }
 
   // Parse DSN to build the envelope endpoint
@@ -23,43 +23,41 @@ export async function POST(request: NextRequest) {
   let envelopeUrl: string;
 
   try {
-    url = new URL(dsn)
+    url = new URL(dsn);
     // DSN path is like "/<projectId>", so we extract the projectId
-    projectId = url.pathname.replace(/^\//, '')
-    ingestHost = url.host
-    envelopeUrl = `${url.protocol}//${ingestHost}/api/${projectId}/envelope/`
+    projectId = url.pathname.replace(/^\//, "");
+    ingestHost = url.host;
+    envelopeUrl = `${url.protocol}//${ingestHost}/api/${projectId}/envelope/`;
   } catch (error) {
-    console.error('Failed to parse SENTRY_DSN:', error)
-    return NextResponse.json(
-      { error: 'Invalid SENTRY_DSN format' },
-      { status: 500 }
-    )
+    console.error("Failed to parse SENTRY_DSN:", error);
+    return NextResponse.json({ error: "Invalid SENTRY_DSN format" }, { status: 500 });
   }
 
   // Forward the raw request body to Sentry
-  const body = await request.arrayBuffer()
+  const body = await request.arrayBuffer();
   try {
     const upstreamResponse = await fetch(envelopeUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': request.headers.get('Content-Type') || 'application/x-sentry-envelope'
+        "Content-Type": request.headers.get("Content-Type") || "application/x-sentry-envelope",
       },
-      body
-    })
+      body,
+    });
 
     // Mirror status and headers (omit length-restricted headers)
-    const responseHeaders = new Headers()
+    const responseHeaders = new Headers();
     upstreamResponse.headers.forEach((value, key) => {
-      if (key.toLowerCase() === 'content-encoding' || key.toLowerCase() === 'content-length') return
-      responseHeaders.set(key, value)
-    })
+      if (key.toLowerCase() === "content-encoding" || key.toLowerCase() === "content-length")
+        return;
+      responseHeaders.set(key, value);
+    });
 
     return new NextResponse(upstreamResponse.body, {
       status: upstreamResponse.status,
-      headers: responseHeaders
-    })
+      headers: responseHeaders,
+    });
   } catch (error) {
-    console.error('Failed to forward Sentry event:', error)
-    return NextResponse.json({ error: 'Failed to forward event' }, { status: 502 })
+    console.error("Failed to forward Sentry event:", error);
+    return NextResponse.json({ error: "Failed to forward event" }, { status: 502 });
   }
 }

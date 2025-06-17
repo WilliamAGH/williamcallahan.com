@@ -6,8 +6,8 @@
  * This is useful for development and testing.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { ServerCacheInstance } from '../../../../lib/server-cache';
+import { type NextRequest, NextResponse } from "next/server";
+import { ServerCacheInstance } from "../../../../lib/server-cache";
 
 /**
  * POST handler for cache clearing
@@ -22,15 +22,12 @@ export function POST(_request: NextRequest): NextResponse {
     ServerCacheInstance.clearBookmarks(); // Add this line to clear bookmarks cache
 
     return NextResponse.json({
-      message: 'Cache cleared successfully',
-      stats: ServerCacheInstance.getStats()
+      message: "Cache cleared successfully",
+      stats: ServerCacheInstance.getStats(),
     });
   } catch (error) {
-    console.error('Error clearing cache:', error);
-    return NextResponse.json(
-      { error: 'Failed to clear cache' },
-      { status: 500 }
-    );
+    console.error("Error clearing cache:", error);
+    return NextResponse.json({ error: "Failed to clear cache" }, { status: 500 });
   }
 }
 
@@ -45,13 +42,10 @@ export async function GET(_request: NextRequest): Promise<NextResponse> {
     // Use Promise.resolve to satisfy require-await rule
     const stats = await Promise.resolve(ServerCacheInstance.getStats());
     return NextResponse.json({
-      stats
+      stats,
     });
   } catch (error) {
-    console.error('Error getting cache stats:', error);
-    return NextResponse.json(
-      { error: 'Failed to get cache stats' },
-      { status: 500 }
-    );
+    console.error("Error getting cache stats:", error);
+    return NextResponse.json({ error: "Failed to get cache stats" }, { status: 500 });
   }
 }
