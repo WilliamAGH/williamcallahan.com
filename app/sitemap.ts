@@ -137,6 +137,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // --- 2. Process Bookmarks and Bookmark Tags ---
   const bookmarkEntries: MetadataRoute.Sitemap = [];
+  const paginatedBookmarkEntries: MetadataRoute.Sitemap = [];
   let bookmarkTagEntries: MetadataRoute.Sitemap = [];
   let latestBookmarkUpdateTime: Date | undefined = undefined;
   const bookmarkTagLastModifiedMap: { [tagSlug: string]: Date } = {};
@@ -192,6 +193,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             bookmarkLastModified;
         }
       }
+    }
+
+    // Generate paginated bookmark list entries
+    const BOOKMARKS_PER_PAGE = 24;
+    const totalBookmarkPages = Math.ceil(bookmarks.length / BOOKMARKS_PER_PAGE);
+    
+    // Add paginated bookmark list pages (skip page 1 as it's the main /bookmarks route)
+    for (let page = 2; page <= totalBookmarkPages; page++) {
+      paginatedBookmarkEntries.push({
+        url: `${siteUrl}/bookmarks/page/${page}`,
+        lastModified: latestBookmarkUpdateTime,
+        changeFrequency: "weekly",
+        priority: 0.65, // Same priority as individual bookmarks
+      });
     }
 
     // Create bookmark tag sitemap entries
@@ -263,6 +278,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...blogPostEntries,
     ...blogTagEntries,
     ...bookmarkEntries,
+    ...paginatedBookmarkEntries,
     ...bookmarkTagEntries,
   ];
 }

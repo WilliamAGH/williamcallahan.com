@@ -6,9 +6,11 @@
  *
  * @module components/features/bookmarks/bookmarks-with-pagination.client
  */
+
 "use client";
 
 import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
+import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { UnifiedBookmark } from "@/types";
 import { ArrowRight, Loader2, RefreshCw, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -18,6 +20,7 @@ import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
 import { useBookmarksPagination } from "@/hooks/use-bookmarks-pagination";
 import { PaginationControl } from "@/components/ui/pagination-control.client";
+import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel.client";
 
 interface BookmarksWithPaginationProps {
@@ -26,6 +29,7 @@ interface BookmarksWithPaginationProps {
   searchAllBookmarks?: boolean;
   enableInfiniteScroll?: boolean;
   itemsPerPage?: number;
+  initialPage?: number;
 }
 
 // Environment detection helper
@@ -42,6 +46,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
   searchAllBookmarks = false,
   enableInfiniteScroll = true,
   itemsPerPage = 24,
+  initialPage = 1,
 }) => {
   // searchAllBookmarks is reserved for future use
   void searchAllBookmarks;
@@ -71,8 +76,16 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
     mutate
   } = useBookmarksPagination({
     limit: itemsPerPage,
-    initialData: initialBookmarks
+    initialData: initialBookmarks,
+    initialPage: initialPage
   });
+
+  // Keep the original total count based on the initial server payload. This represents the
+  // full size of the dataset **before** any client-side filtering is applied. We need this
+  // number to show a stable "total bookmarks" value while users paginate through pages that
+  // may not have been fetched yet. (Using `bookmarks.length` would under-count because SWR
+  // only stores pages that have already been fetched.)
+  const initialTotalCount = initialBookmarks.length;
 
   // Determine if refresh button should be shown
   const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
@@ -89,7 +102,14 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
   // Set mounted state once after hydration
   useEffect(() => {
     setMounted(true);
-  }, []);
+
+    // If the page was server-rendered with an initial page > 1, instruct the
+    // pagination hook to fetch / display that page immediately on the client
+    // side. We only run this once on mount.
+    if (initialPage > 1) {
+      goToPage(initialPage);
+    }
+  }, [initialPage, goToPage]);
 
   // Call search API when search query changes
   useEffect(() => {
@@ -121,8 +141,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
           // API failed, fall back to client-side search
           setSearchResults(null);
         }
-      } catch (error) {
-        console.warn('Search API failed, falling back to client-side search:', error);
+      } catch (err: unknown) {
+        const searchError = err instanceof Error ? err : new Error(String(err));
+        console.warn("Search API failed, falling back to client-side search:", searchError);
         setSearchResults(null);
       } finally {
         setIsSearchingAPI(false);
@@ -201,6 +222,15 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
     setSelectedTag(selectedTag === tag ? null : tag);
   };
 
+  // Navigate to a specific page (used by PaginationControl during SSR fallback)
+  const handlePageChange = useCallback(
+    (page: number) => {
+      goToPage(page);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [goToPage],
+  );
+
   // Function to refresh bookmarks data
   const refreshBookmarks = useCallback(async () => {
     setIsRefreshing(true);
@@ -249,14 +279,15 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
         setLastRefreshed(new Date());
         router.refresh();
       }
-    } catch (error) {
+    } catch (err: unknown) {
+      const error = err as Error;
       // Only log non-abort errors to avoid noise
-      if (error instanceof Error && error.name !== "AbortError") {
+      if (error.name !== "AbortError") {
         console.error("Error refreshing bookmarks:", error);
         const message = error.message || "Failed to refresh bookmarks";
         setRefreshError(message);
         setTimeout(() => setRefreshError(null), 5000);
-      } else if (error instanceof Error && error.name === "AbortError") {
+      } else if (error.name === "AbortError") {
         console.log("Bookmark refresh was aborted (likely due to timeout)");
         setRefreshError("Request timed out. Please try again.");
         setTimeout(() => setRefreshError(null), 5000);
@@ -268,12 +299,23 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
     }
   }, [mutate, router]);
 
-  // Handle page change
-  const handlePageChange = useCallback((page: number) => {
-    goToPage(page);
-    // Scroll to top when changing pages
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [goToPage]);
+  // ---------------------------------------------------------------------------
+  // UX: Ensure that changing the search query or selected tag always brings the
+  // user back to the first page. This prevents scenarios where a user is on
+  // page N, applies a filter that returns fewer results than `(N-1)*limit`, and
+  // ends up staring at an empty page.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    // Skip reset if we have an initial page from URL
+    if (initialPage && initialPage > 1) {
+      return;
+    }
+    // Reset to page 1 when filters/search change to avoid empty pages.
+    if ((searchQuery || selectedTag) && currentPage !== 1) {
+      goToPage(1);
+    }
+    // Note: `goToPage` is a stable callback from `useCallback`, safe to include.
+  }, [searchQuery, selectedTag, currentPage, goToPage, initialPage]);
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8">
@@ -346,15 +388,26 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
       {/* Pagination controls at the top right corner */}
       {mounted && totalPages > 1 && (
         <div className="mb-6 flex justify-end">
-          <PaginationControl
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
-            onPageChange={handlePageChange}
-            isLoading={isLoading || isLoadingMore}
-            showPageInfo={false}
-          />
+          {typeof window !== "undefined" ? (
+            <PaginationControlUrl
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              isLoading={isLoading || isLoadingMore}
+              baseUrl="/bookmarks"
+            />
+          ) : (
+            <PaginationControl
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              isLoading={isLoading || isLoadingMore}
+              showPageInfo={false}
+            />
+          )}
         </div>
       )}
 
@@ -364,13 +417,32 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between">
             <div>
               <p className="text-gray-500 dark:text-gray-400">
-                {error ? (
-                  "Error loading bookmarks"
-                ) : filteredBookmarks.length === 0 ? (
-                  "No bookmarks found"
-                ) : (
-                  `Showing ${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, filteredBookmarks.length)} of ${filteredBookmarks.length} bookmarks`
-                )}
+                {(() => {
+                  if (error) {
+                    return "Error loading bookmarks";
+                  }
+
+                  // When the user is actively searching or filtering by tag, we
+                  // fall back to the *filtered* total because the dataset size
+                  // genuinely changes from the user's perspective.
+                  const isFilteredView = !!searchQuery || !!selectedTag;
+
+                  const totalCount = isFilteredView
+                    ? filteredBookmarks.length
+                    // Prefer the value returned from the API (includes pages
+                    // that haven't been fetched yet); if it's missing, fall
+                    // back to the full server payload length.
+                    : totalItems || initialTotalCount;
+
+                  if (totalCount === 0) {
+                    return "No bookmarks found";
+                  }
+
+                  const start = (currentPage - 1) * itemsPerPage + 1;
+                  const end = Math.min(currentPage * itemsPerPage, totalCount);
+
+                  return `Showing ${start}-${end} of ${totalCount} bookmarks`;
+                })()}
                 {searchQuery && ` for "${searchQuery}"`}
                 {selectedTag && ` tagged with "${selectedTag}"`}
               </p>
@@ -421,11 +493,21 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
-                {filteredBookmarks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((bookmark) => (
-                  <BookmarkCardClient key={bookmark.id} {...bookmark} />
-                ))}
+                {filteredBookmarks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((bookmark) => {
+                  // Generate share URL once per bookmark to avoid per-card API calls
+                  const shareUrl = `/bookmarks/${generateUniqueSlug(bookmark.url, bookmarks.map(b => ({ id: b.id, url: b.url })), bookmark.id)}`;
+                  return <BookmarkCardClient key={bookmark.id} {...bookmark} shareUrl={shareUrl} />;
+                })}
               </div>
 
+              {/* Infinite scroll sentinel */}
+              {enableInfiniteScroll && (
+                <InfiniteScrollSentinel
+                  onIntersect={loadMore}
+                  loading={isLoadingMore}
+                  hasMore={hasMore}
+                />
+              )}
             </>
           )}
         </>
@@ -439,6 +521,32 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
               suppressHydrationWarning
             />
           ))}
+        </div>
+      )}
+
+      {/* Pagination controls at the bottom */}
+      {totalPages > 1 && (
+        <div className="mt-6 mb-6 flex justify-end">
+          {typeof window !== "undefined" ? (
+            <PaginationControlUrl
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              isLoading={isLoading || isLoadingMore}
+              baseUrl="/bookmarks"
+            />
+          ) : (
+            <PaginationControl
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              isLoading={isLoading || isLoadingMore}
+              showPageInfo={false}
+            />
+          )}
         </div>
       )}
     </div>

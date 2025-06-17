@@ -40,6 +40,8 @@ import { ShareButton } from "./share-button.client";
 interface BookmarkCardClientProps extends UnifiedBookmark {
   /** Whether dark theme is active */
   favourited?: boolean;
+  /** Pre-generated share URL to avoid per-card API calls */
+  shareUrl?: string;
 }
 
 /**
@@ -68,36 +70,14 @@ export function BookmarkCardClient({
   content,
   createdAt,
   favourited,
+  shareUrl,
 }: BookmarkCardClientProps): JSX.Element {
   const [imageError, setImageError] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [allBookmarks, setAllBookmarks] = useState<Array<Pick<UnifiedBookmark, "id" | "url">>>([]);
 
   // Effects for handling client-side initialization
   useEffect(() => {
     setMounted(true);
-
-    // Fetch all bookmarks for URL generation (only need id and url)
-    async function fetchBookmarks() {
-      try {
-        const response = await fetch("/api/bookmarks");
-        if (response.ok) {
-          // The API returns { data: [...], meta: {...} }
-          const responseData = await response.json() as { data: UnifiedBookmark[]; meta: unknown };
-          const bookmarksData = responseData.data;
-          
-          if (Array.isArray(bookmarksData)) {
-            setAllBookmarks(bookmarksData.map((b) => ({ id: b.id, url: b.url })));
-          } else {
-            console.error("API response for bookmarks did not contain a data array:", responseData);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch bookmarks for share URLs:", error);
-      }
-    }
-
-    void fetchBookmarks();
   }, []);
 
   // Reset image error state when URLs change
@@ -252,11 +232,13 @@ export function BookmarkCardClient({
               )}
             </div>
 
-            {/* Share button right-aligned - always render for layout stability */}
-            <ShareButton
-              bookmark={{ id, url }}
-              allBookmarks={allBookmarks.length > 0 ? allBookmarks : [{ id, url }]}
-            />
+            {/* Share button right-aligned - only show when we have a share URL */}
+            {shareUrl && (
+              <ShareButton
+                bookmark={{ id, url }}
+                shareUrl={shareUrl}
+              />
+            )}
           </div>
         </div>
 

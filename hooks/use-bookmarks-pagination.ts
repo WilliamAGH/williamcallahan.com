@@ -7,8 +7,8 @@ interface PaginationMeta {
   limit: number;
   total: number;
   totalPages: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
+  hasNext: boolean;
+  hasPrev: boolean;
 }
 
 interface BookmarksResponse {
@@ -21,6 +21,7 @@ interface BookmarksResponse {
 interface UseBookmarksPaginationOptions {
   limit?: number;
   initialData?: UnifiedBookmark[];
+  initialPage?: number;
 }
 
 interface UseBookmarksPaginationReturn {
@@ -47,13 +48,14 @@ const fetcher = async (url: string): Promise<BookmarksResponse> => {
 
 export function useBookmarksPagination({
   limit = 24,
-  initialData = []
+  initialData = [],
+  initialPage = 1
 }: UseBookmarksPaginationOptions = {}): UseBookmarksPaginationReturn {
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialPage);
 
   const getKey = useCallback((pageIndex: number, previousPageData: BookmarksResponse | null) => {
     // Don't fetch if we've reached the end
-    if (previousPageData && !previousPageData.meta.pagination.hasNextPage) return null;
+    if (previousPageData && !previousPageData.meta.pagination.hasNext) return null;
     
     // API uses 1-based pagination
     return `/api/bookmarks?page=${pageIndex + 1}&limit=${limit}`;
@@ -65,7 +67,7 @@ export function useBookmarksPagination({
     size,
     setSize,
     mutate
-  } = useSWRInfinite<BookmarksResponse>(getKey, fetcher, {
+  } = useSWRInfinite<BookmarksResponse, Error>(getKey, fetcher, {
     revalidateFirstPage: false,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
@@ -77,8 +79,8 @@ export function useBookmarksPagination({
           limit,
           total: initialData.length,
           totalPages: Math.ceil(initialData.length / limit),
-          hasNextPage: initialData.length > limit,
-          hasPreviousPage: false
+          hasNext: initialData.length > limit,
+          hasPrev: false
         }
       }
     }] : undefined
@@ -86,7 +88,7 @@ export function useBookmarksPagination({
 
   const bookmarks = useMemo(() => {
     if (!data) return [];
-    return data.flatMap((page: BookmarksResponse) => page.data);
+    return data.flatMap((page) => page.data);
   }, [data]);
 
   const paginationMeta = useMemo(() => {
@@ -101,7 +103,7 @@ export function useBookmarksPagination({
     return {
       totalPages: lastPage.meta.pagination.totalPages,
       totalItems: lastPage.meta.pagination.total,
-      hasMore: lastPage.meta.pagination.hasNextPage
+      hasMore: lastPage.meta.pagination.hasNext
     };
   }, [data]);
 

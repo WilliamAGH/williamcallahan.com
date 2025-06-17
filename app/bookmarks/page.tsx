@@ -11,6 +11,8 @@
 
 // Configure dynamic rendering
 export const dynamic = "force-dynamic";
+// Revalidate static HTML every minute to keep bookmark counts fresh
+export const revalidate = 60;
 
 import type { Metadata } from "next";
 import { BookmarksServer } from "../../components/features/bookmarks/bookmarks.server";
@@ -54,7 +56,11 @@ export default function BookmarksPage() {
     <>
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-5xl mx-auto">
-        <BookmarksServer title={pageMetadata.title} description={pageMetadata.description} />
+        <BookmarksServer 
+          title={pageMetadata.title} 
+          description={pageMetadata.description}
+          initialPage={1}
+        />
       </div>
     </>
   );
