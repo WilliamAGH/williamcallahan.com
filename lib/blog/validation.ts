@@ -5,16 +5,9 @@
  * and properly formatted before processing or display.
  */
 
-import type { BlogPost } from '../../types/blog';
+import type { BlogPost } from "../../types/blog";
 
-const REQUIRED_FIELDS = [
-  'title',
-  'slug',
-  'excerpt',
-  'publishedAt',
-  'author',
-  'tags'
-] as const;
+const REQUIRED_FIELDS = ["title", "slug", "excerpt", "publishedAt", "author", "tags"] as const;
 
 /**
  * Validates a blog post object
@@ -34,21 +27,21 @@ export function validatePost(post: BlogPost): { valid: boolean; errors: string[]
 
   // Validate slug format
   if (post.slug && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(post.slug)) {
-    errors.push('Invalid slug format. Use lowercase letters, numbers, and hyphens only.');
+    errors.push("Invalid slug format. Use lowercase letters, numbers, and hyphens only.");
   }
 
   // Validate date format
   if (post.publishedAt && Number.isNaN(Date.parse(post.publishedAt))) {
-    errors.push('Invalid publishedAt date format');
+    errors.push("Invalid publishedAt date format");
   }
 
   // Validate tags
   if (post.tags && (!Array.isArray(post.tags) || post.tags.length === 0)) {
-    errors.push('Tags must be a non-empty array');
+    errors.push("Tags must be a non-empty array");
   }
 
   return {
     valid: errors.length === 0,
-    errors
+    errors,
   };
 }
