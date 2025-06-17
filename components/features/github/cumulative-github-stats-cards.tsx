@@ -1,22 +1,65 @@
+/**
+ * @fileoverview Cumulative GitHub statistics cards component for displaying aggregated GitHub activity.
+ * Shows total contributions, lines added/removed, and net lines of code in a responsive card grid layout.
+ * @version 1.0.0
+ */
+
 "use client";
 
-import React from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { GitBranch, GitCommit, GitPullRequest, Code } from "lucide-react";
+import { Code, GitBranch, GitCommit, GitPullRequest } from "lucide-react";
+import type React from "react";
 
+/**
+ * GitHub statistics data structure containing cumulative metrics
+ * @interface GitHubStats
+ */
 interface GitHubStats {
+  /** Total number of contributions across all repositories */
   totalContributions: number;
+  /** Total lines of code added */
   linesAdded: number;
+  /** Total lines of code removed */
   linesRemoved: number;
+  /** Net lines of code (added minus removed) */
   netLinesOfCode: number;
 }
 
+/**
+ * Props for the CumulativeGitHubStatsCards component
+ * @interface CumulativeGitHubStatsCardsProps
+ */
 interface CumulativeGitHubStatsCardsProps {
+  /** GitHub statistics data to display */
   stats: GitHubStats;
+  /** Optional additional CSS class names */
   className?: string;
 }
 
+/**
+ * Displays cumulative GitHub statistics in a responsive card grid layout.
+ * Each statistic is presented in its own card with an icon, value, and description.
+ * 
+ * @component
+ * @param {CumulativeGitHubStatsCardsProps} props - The component props
+ * @param {GitHubStats} props.stats - GitHub statistics data containing contributions and code metrics
+ * @param {string} [props.className] - Optional additional CSS classes for styling
+ * @returns {React.JSX.Element} Responsive grid of GitHub statistics cards
+ * 
+ * @example
+ * ```tsx
+ * <CumulativeGitHubStatsCards
+ *   stats={{
+ *     totalContributions: 1250,
+ *     linesAdded: 50000,
+ *     linesRemoved: 15000,
+ *     netLinesOfCode: 35000
+ *   }}
+ *   className="my-6"
+ * />
+ * ```
+ */
 const CumulativeGitHubStatsCards: React.FC<CumulativeGitHubStatsCardsProps> = ({
   stats,
   className,
@@ -51,22 +94,18 @@ const CumulativeGitHubStatsCards: React.FC<CumulativeGitHubStatsCardsProps> = ({
   return (
     <div className={cn("w-full py-6", className)}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((card, index) => (
+        {statCards.map((card) => (
           <Card
-            key={index}
+            key={card.title}
             className="p-6 border border-border bg-background hover:shadow-md transition-shadow"
           >
             <div className="flex flex-col space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-muted-foreground">
-                  {card.title}
-                </h3>
+                <h3 className="text-sm font-medium text-muted-foreground">{card.title}</h3>
                 {card.icon}
               </div>
               <p className="text-3xl font-bold">{card.value}</p>
-              <p className="text-xs text-muted-foreground">
-                {card.description}
-              </p>
+              <p className="text-xs text-muted-foreground">{card.description}</p>
             </div>
           </Card>
         ))}
