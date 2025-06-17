@@ -92,7 +92,7 @@ export function BookmarksClientWithWindow({
             forceClientFetch={forceClientFetch}
             showFilterBar={showFilterBar}
             usePagination={true}
-            enableInfiniteScroll={true}
+            enableInfiniteScroll={false}
             itemsPerPage={24}
           />
         </Suspense>

@@ -343,8 +343,8 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
         )}
       </div>
 
-      {/* Pagination controls at the top */}
-      {mounted && !enableInfiniteScroll && totalPages > 1 && (
+      {/* Pagination controls at the top right corner */}
+      {mounted && totalPages > 1 && (
         <div className="mb-6 flex justify-end">
           <PaginationControl
             currentPage={currentPage}
@@ -368,8 +368,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
                   "Error loading bookmarks"
                 ) : filteredBookmarks.length === 0 ? (
                   "No bookmarks found"
-                ) : enableInfiniteScroll ? (
-                  `Showing ${filteredBookmarks.length} of ${totalItems} bookmarks`
                 ) : (
                   `Showing ${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, filteredBookmarks.length)} of ${filteredBookmarks.length} bookmarks`
                 )}
@@ -389,7 +387,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
             {isDevelopment && (
               <div className="mt-2 sm:mt-0 text-xs inline-flex items-center">
                 <span className="px-2 py-1 rounded-lg font-mono bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                  {enableInfiniteScroll ? 'Infinite Scroll' : `Page ${currentPage}/${totalPages}`}
+                  Page {currentPage}/{totalPages}
                 </span>
               </div>
             )}
@@ -423,33 +421,11 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
-                {(enableInfiniteScroll ? filteredBookmarks : filteredBookmarks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)).map((bookmark) => (
+                {filteredBookmarks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((bookmark) => (
                   <BookmarkCardClient key={bookmark.id} {...bookmark} />
                 ))}
               </div>
 
-              {/* Infinite scroll sentinel */}
-              {enableInfiniteScroll && (
-                <InfiniteScrollSentinel
-                  onIntersect={loadMore}
-                  loading={isLoadingMore}
-                  hasMore={hasMore && filteredBookmarks.length < totalItems}
-                />
-              )}
-
-              {/* Pagination controls at the bottom */}
-              {!enableInfiniteScroll && totalPages > 1 && (
-                <div className="mt-8 flex justify-center">
-                  <PaginationControl
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    totalItems={totalItems}
-                    itemsPerPage={itemsPerPage}
-                    onPageChange={handlePageChange}
-                    isLoading={isLoading || isLoadingMore}
-                  />
-                </div>
-              )}
             </>
           )}
         </>
