@@ -131,69 +131,6 @@ function processLogosFireAndForget(
   });
 }
 
-/**
- * Processes logo fetching for domains in small batches (for API context)
- * @param domains - Array of domain names to process
- * @param context - Description of the processing context for logging
- * @param fetchLogo - The getLogo function to use for fetching logos
- * @returns Promise resolving to success and failure counts
- */
-async function processLogosBatch(
-  domains: string[],
-  context: string,
-  fetchLogo: NonNullable<typeof getLogo>,
-): Promise<{ successCount: number; failureCount: number }> {
-  let successCount = 0;
-  let failureCount = 0;
-  const batchSize = 3; // Small batches for API context
-  const delay = 100; // Short delay for API context
-
-  for (let i = 0; i < domains.length; i += batchSize) {
-    const batch = domains.slice(i, i + batchSize);
-    const batchNumber = Math.floor(i / batchSize) + 1;
-    const totalBatches = Math.ceil(domains.length / batchSize);
-
-    logger.info(
-      `[API Bookmarks Refresh] Processing ${context} logo batch ${batchNumber}/${totalBatches} for ${batch.length} domains`,
-    );
-
-    const promises = batch.map(async (domain) => {
-      try {
-        const logoResult = await fetchLogo(domain);
-        if (
-          logoResult?.buffer &&
-          Buffer.isBuffer(logoResult.buffer) &&
-          logoResult.buffer.length > 0
-        ) {
-          logger.info(
-            `[API Bookmarks Refresh] ✅ Logo processed for ${domain} (source: ${logoResult.source})`,
-          );
-          successCount++;
-        } else {
-          logger.warn(`[API Bookmarks Refresh] ⚠️ Could not fetch/process logo for ${domain}`);
-          failureCount++;
-        }
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        logger.error(`[API Bookmarks Refresh] ❌ Error processing logo for ${domain}:`, message);
-        failureCount++;
-      }
-    });
-
-    await Promise.allSettled(promises);
-
-    // Apply rate limiting delay between batches (except for the last batch)
-    if (i + batchSize < domains.length) {
-      logger.info(
-        `[API Bookmarks Refresh] ⏱️ Waiting ${delay}ms before next ${context} logo batch...`,
-      );
-      await new Promise((r) => setTimeout(r, delay));
-    }
-  }
-
-  return { successCount, failureCount };
-}
-
 // Rate limiting is now handled by the centralized lib/rate-limiter.ts
 
 /**
