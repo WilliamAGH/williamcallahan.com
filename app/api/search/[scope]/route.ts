@@ -39,7 +39,7 @@ export async function GET(
 ) {
   try {
     const { searchParams } = new URL(request.url);
-    const rawQuery = searchParams.get("q");
+    const rawQuery = searchParams.get("q") ?? "";
     const scope = params.scope.toLowerCase() as SearchScope;
 
     // Validate scope
