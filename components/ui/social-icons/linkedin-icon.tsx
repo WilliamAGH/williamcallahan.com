@@ -7,9 +7,9 @@
  * @see {@link lib/utils/svg-transform-fix} - For transform processing
  */
 
-import { forwardRef } from 'react';
-import type { LucideProps } from 'lucide-react';
-import { baseIconProps } from './base-icon';
+import type { LucideProps } from "lucide-react";
+import { forwardRef } from "react";
+import { baseIconProps } from "./base-icon";
 
 export const LinkedIn = forwardRef<SVGSVGElement, LucideProps>(function LinkedIn(props, ref) {
   return (
@@ -17,7 +17,7 @@ export const LinkedIn = forwardRef<SVGSVGElement, LucideProps>(function LinkedIn
       ref={ref}
       {...baseIconProps}
       {...props}
-      className={`${props.className || ''} linkedin-icon`}
+      className={`${props.className || ""} linkedin-icon`}
       viewBox="0 0 24 24"
       data-transform-fix="true"
     >
@@ -29,4 +29,4 @@ export const LinkedIn = forwardRef<SVGSVGElement, LucideProps>(function LinkedIn
   );
 });
 
-LinkedIn.displayName = 'LinkedIn';
+LinkedIn.displayName = "LinkedIn";

@@ -7,9 +7,9 @@
  * @see {@link lib/utils/svg-transform-fix} - For transform processing
  */
 
-import { forwardRef } from 'react';
-import type { LucideProps } from 'lucide-react';
-import { baseIconProps } from './base-icon';
+import type { LucideProps } from "lucide-react";
+import { forwardRef } from "react";
+import { baseIconProps } from "./base-icon";
 
 export const X = forwardRef<SVGSVGElement, LucideProps>(function X(props, ref) {
   return (
@@ -17,15 +17,17 @@ export const X = forwardRef<SVGSVGElement, LucideProps>(function X(props, ref) {
       ref={ref}
       {...baseIconProps}
       {...props}
-      className={`${props.className || ''} x-icon`}
+      className={`${props.className || ""} x-icon`}
       viewBox="0 0 24 24"
       data-transform-fix="true"
+      aria-label="X (Twitter)"
       style={{
-        display: 'inline-block',
-        verticalAlign: 'middle',
+        display: "inline-block",
+        verticalAlign: "middle",
         ...props.style,
       }}
     >
+      <title>X (Twitter)</title>
       {/* Adjusted paths with better centering */}
       <path d="M5 4l11.733 16h3.267l-11.733 -16z" />
       <path d="M5 20l6.768 -6.768m2.46 -2.46l5.772 -6.772" />
@@ -33,4 +35,4 @@ export const X = forwardRef<SVGSVGElement, LucideProps>(function X(props, ref) {
   );
 });
 
-X.displayName = 'X';
+X.displayName = "X";
