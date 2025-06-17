@@ -1,5 +1,7 @@
 Review and resolve comments on open pull requests.
 
+Note: The comments you're about to review are not dictations, they are suggestions you need to review carefully using your own deep thinking, and, after you summarize your own thoughts, after you send them to Zen MCP for scrutiny of your proposed actions before proceeding to any implementation of suggested changes.
+
 Repository: <https://github.com/WilliamAGH/williamcallahan.com>
 Owner: WilliamAGH
 Repo: williamcallahan.com
