@@ -43,7 +43,6 @@
     "**/Thumbs.db": true,
     "**/.next": true
   },
-  "eslint.runtime": null,
   "eslint.validate": [
     "javascript",
     "javascriptreact",
@@ -58,7 +57,7 @@
   "editor.defaultFormatter": "biomejs.biome",
   "editor.codeActionsOnSave": {
     "quickfix.biome": "explicit",
-    "source.organizeImports": "never",
+    "source.organizeImports": false,
     "source.fixAll.markdownlint": "explicit"
   },
   "biome.lsp.bin": "./node_modules/@biomejs/biome/bin/biome",
