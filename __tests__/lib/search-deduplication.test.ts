@@ -41,11 +41,14 @@ describe('Search Deduplication', () => {
     it('should search posts by title', () => {
       // Find a real post title from the data
       const firstPost = posts[0];
-      if (firstPost?.title) {
-        const results = searchPosts(firstPost.title);
-        expect(results.length).toBeGreaterThan(0);
-        expect(results[0].title).toBe(firstPost.title);
-      }
+      
+      // Ensure test data exists
+      expect(firstPost).toBeDefined();
+      expect(firstPost?.title).toBeDefined();
+      
+      const results = searchPosts(firstPost.title);
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].title).toBe(firstPost.title);
     });
   });
 
@@ -144,9 +147,9 @@ describe('Search Deduplication', () => {
       );
       
       // If deduplication occurred, verify the log format
-      deduplicationLogs.forEach(log => {
+      for (const log of deduplicationLogs) {
         expect(log[0]).toMatch(/\[Search\] .+: Deduplicated \d+ documents to \d+/);
-      });
+      }
     });
   });
 });
