@@ -17,6 +17,7 @@ import { kebabCase } from "@/lib/utils/formatters";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import matter from "gray-matter";
 import type { MetadataRoute } from "next";
+import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 
 import { updatedAt as educationUpdatedAt } from "../data/education";
 // Import data file update timestamps
@@ -196,17 +197,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     // Generate paginated bookmark list entries
-    const BOOKMARKS_PER_PAGE = 24;
     const totalBookmarkPages = Math.ceil(bookmarks.length / BOOKMARKS_PER_PAGE);
     
     // Add paginated bookmark list pages (skip page 1 as it's the main /bookmarks route)
     for (let page = 2; page <= totalBookmarkPages; page++) {
-      paginatedBookmarkEntries.push({
+      const entry: MetadataRoute.Sitemap[number] = {
         url: `${siteUrl}/bookmarks/page/${page}`,
-        lastModified: latestBookmarkUpdateTime,
         changeFrequency: "weekly",
         priority: 0.65, // Same priority as individual bookmarks
-      });
+      };
+      
+      // Only add lastModified if we have a valid date
+      if (latestBookmarkUpdateTime) {
+        entry.lastModified = latestBookmarkUpdateTime;
+      }
+      
+      paginatedBookmarkEntries.push(entry);
     }
 
     // Create bookmark tag sitemap entries

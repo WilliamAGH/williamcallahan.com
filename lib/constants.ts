@@ -85,6 +85,18 @@ export const BOOKMARKS_CACHE_DURATION = {
 } as const;
 
 /**
+ * Number of bookmarks displayed per page in paginated views
+ * @constant
+ * @type {number}
+ * @default 24
+ * @remarks
+ * Used in:
+ * - /app/sitemap.ts - for generating paginated sitemap entries
+ * - /components/features/bookmarks/* - as default itemsPerPage prop
+ */
+export const BOOKMARKS_PER_PAGE = 24;
+
+/**
  * Cache duration for GitHub activity fetching
  * @constant
  * @type {Object}
