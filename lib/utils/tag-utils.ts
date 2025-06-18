@@ -87,19 +87,36 @@ export function sanitizeTagSlug(text: string): string {
  *
  * @example
  * tagToSlug('React Native') // Returns 'react-native'
- * tagToSlug('AI & ML') // Returns 'ai-ml'
+ * tagToSlug('AI & ML') // Returns 'ai-and-ml'
+ * tagToSlug('C++') // Returns 'c-plus-plus'
+ * tagToSlug('.NET') // Returns 'dotnet'
  */
 export function tagToSlug(tag: string): string {
   if (!tag) return "";
 
   // First sanitize Unicode control characters
-  const cleanTag = sanitizeUnicode(tag);
+  let cleanTag = sanitizeUnicode(tag);
+
+  // Handle common special cases before converting to lowercase
+  cleanTag = cleanTag
+    .replace(/\+\+/g, '-plus-plus')
+    .replace(/\+/g, '-plus')
+    .replace(/&/g, '-and-')
+    .replace(/#/g, '-sharp')
+    .replace(/@/g, '-at-');
+  
+  // Now handle dots more carefully - only replace dots that are part of extensions
+  if (cleanTag.startsWith('.')) {
+    cleanTag = `dot${cleanTag.substring(1)}`;
+  }
+  cleanTag = cleanTag.replace(/\.(?=[a-zA-Z])/g, 'dot'); // .NET -> dotNET, Node.js -> Nodedotjs
 
   return cleanTag
     .toLowerCase()
-    .replace(/[^\w\s-]/g, "") // Remove special chars except spaces and hyphens
+    .replace(/[^\w\s-]/g, "") // Remove remaining special chars except spaces and hyphens
     .replace(/\s+/g, "-") // Replace spaces with hyphens
-    .replace(/-+/g, "-"); // Replace multiple hyphens with single hyphen
+    .replace(/-+/g, "-") // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, ""); // Remove leading/trailing hyphens
 }
 
 /**
