@@ -44,6 +44,8 @@ export interface OgResult extends OgFetchResult {
   retryCount?: number;
   /** URL that was actually fetched (may differ from requested URL due to redirects) */
   actualUrl?: string;
+  /** Error message if the fetch failed */
+  error?: string;
 }
 
 // Karakeep image fallback data for OpenGraph enhancement
