@@ -19,6 +19,22 @@ import type { NextRequest } from "next/server";
  */
 export const dynamic = "force-dynamic";
 
+// Simple in-memory rate limiting
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
+const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per hour per IP
+
+// Clean up expired entries every 5 minutes – unref so it doesn't hold the Node event-loop open in tests
+const cleanupInterval = setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateLimitMap.entries()) {
+    if (entry.resetTime < now) {
+      rateLimitMap.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+cleanupInterval.unref();
+
 /**
  * Handles POST requests to refresh GitHub activity data.
  *
@@ -42,34 +58,102 @@ export const dynamic = "force-dynamic";
  * - Server logs provide detailed information on failures or unauthorized attempts.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const secret = request.headers.get("x-refresh-secret");
-  const serverSecret = process.env.GITHUB_REFRESH_SECRET;
-
-  if (!serverSecret) {
-    console.error("[API Refresh] GITHUB_REFRESH_SECRET is not set – refusing to run refresh.");
-    return NextResponse.json(
-      { message: "Server mis-configuration: secret missing." },
-      { status: 500 },
-    );
+  // Check for cron job authentication first
+  const authorizationHeader = request.headers.get("Authorization");
+  const cronRefreshSecret = process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+  let isCronJob = false;
+  
+  if (cronRefreshSecret && authorizationHeader && authorizationHeader.startsWith("Bearer ")) {
+    const token = authorizationHeader.substring(7); // Remove "Bearer " prefix
+    if (token === cronRefreshSecret) {
+      isCronJob = true;
+      console.log("[API Refresh] Authenticated as cron job via GITHUB_CRON_REFRESH_SECRET.");
+    }
   }
+  
+  let rateLimitEntry: { count: number; resetTime: number } | undefined;
+  
+  // Only apply rate limiting if not a cron job
+  if (!isCronJob) {
+    // Extract IP for rate limiting
+    const forwarded = request.headers.get("x-forwarded-for");
+    const realIp = request.headers.get("x-real-ip");
+    const ip = forwarded?.split(",")[0] || realIp || "unknown";
+    const rateLimitKey = `github-refresh:${ip}`;
+    
+    // Check rate limit
+    const now = Date.now();
+    rateLimitEntry = rateLimitMap.get(rateLimitKey);
+    
+    if (!rateLimitEntry || rateLimitEntry.resetTime < now) {
+      // Create new entry
+      rateLimitEntry = {
+        count: 0,
+        resetTime: now + RATE_LIMIT_WINDOW,
+      };
+      rateLimitMap.set(rateLimitKey, rateLimitEntry);
+    }
+    
+    // Increment request count
+    rateLimitEntry.count++;
+    
+    // Check if rate limit exceeded
+    if (rateLimitEntry.count > RATE_LIMIT_MAX_REQUESTS) {
+      const resetDate = new Date(rateLimitEntry.resetTime);
+      console.warn(
+        `[API Refresh] Rate limit exceeded for IP ${ip}. Count: ${rateLimitEntry.count}, Limit: ${RATE_LIMIT_MAX_REQUESTS}`
+      );
+      
+      return NextResponse.json(
+        {
+          message: "Rate limit exceeded. Please try again later.",
+          code: "RATE_LIMIT_EXCEEDED",
+          retryAfter: resetDate.toISOString(),
+        },
+        { 
+          status: 429,
+          headers: {
+            "X-RateLimit-Limit": RATE_LIMIT_MAX_REQUESTS.toString(),
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": Math.floor(rateLimitEntry.resetTime / 1000).toString(),
+            "Retry-After": Math.ceil((rateLimitEntry.resetTime - now) / 1000).toString(),
+          }
+        }
+      );
+    }
+  }
+  
+  // Skip x-refresh-secret check if authenticated as cron job
+  if (!isCronJob) {
+    const secret = request.headers.get("x-refresh-secret");
+    const serverSecret = process.env.GITHUB_REFRESH_SECRET;
 
-  if (secret !== serverSecret) {
-    const generateKeyCommand =
-      "node -e \"import('crypto').then(crypto => console.log(crypto.randomBytes(32).toString('hex')))\"";
-    console.warn(
-      `[API Refresh] Unauthorized: 'x-refresh-secret' header invalid or missing.\n    Ensure GITHUB_REFRESH_SECRET (server) and NEXT_PUBLIC_GITHUB_REFRESH_SECRET (client) match.\n    To generate a new secret, run in terminal: ${generateKeyCommand}`,
-    );
+    if (!serverSecret) {
+      console.error("[API Refresh] GITHUB_REFRESH_SECRET is not set – refusing to run refresh.");
+      return NextResponse.json(
+        { message: "Server mis-configuration: secret missing." },
+        { status: 500 },
+      );
+    }
 
-    const exampleCurl =
-      "curl -X POST -H 'Content-Type: application/json' -H 'x-refresh-secret: YOUR_ACTUAL_SECRET' http://localhost:3000/api/github-activity/refresh";
+    if (secret !== serverSecret) {
+      const generateKeyCommand =
+        "node -e \"import('crypto').then(crypto => console.log(crypto.randomBytes(32).toString('hex')))\"";
+      console.warn(
+        `[API Refresh] Unauthorized: 'x-refresh-secret' header invalid or missing.\n    Ensure GITHUB_REFRESH_SECRET is set on the server.\n    To generate a new secret, run in terminal: ${generateKeyCommand}`,
+      );
 
-    return NextResponse.json(
-      {
-        message: `Unauthorized. Refresh secret invalid or missing. Ensure 'x-refresh-secret' header is set correctly. Example: ${exampleCurl}. See server logs for more details.`,
-        code: "UNAUTHORIZED_REFRESH_SECRET",
-      },
-      { status: 401 },
-    );
+      const exampleCurl =
+        "curl -X POST -H 'Content-Type: application/json' -H 'x-refresh-secret: YOUR_ACTUAL_SECRET' http://localhost:3000/api/github-activity/refresh";
+
+      return NextResponse.json(
+        {
+          message: `Unauthorized. Refresh secret invalid or missing. Ensure 'x-refresh-secret' header is set correctly. Example: ${exampleCurl}. See server logs for more details.`,
+          code: "UNAUTHORIZED_REFRESH_SECRET",
+        },
+        { status: 401 },
+      );
+    }
   }
 
   console.log("[API Refresh] Received request to refresh GitHub activity data");
@@ -79,15 +163,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (result) {
       console.log("[API Refresh] GitHub activity data refresh completed successfully");
-      return NextResponse.json(
-        {
-          message: "GitHub activity data refresh completed successfully.",
-          dataFetched: true,
-          trailingYearCommits: result.trailingYearData.totalContributions,
-          allTimeCommits: result.allTimeData.totalContributions,
-        },
-        { status: 200 },
-      );
+      
+      const responseData = {
+        message: `GitHub activity data refresh completed successfully${isCronJob ? " (triggered by cron job)" : ""}.`,
+        dataFetched: true,
+        trailingYearCommits: result.trailingYearData.totalContributions,
+        allTimeCommits: result.allTimeData.totalContributions,
+      };
+      
+      // Only add rate limit headers for non-cron requests
+      if (!isCronJob && rateLimitEntry) {
+        const remaining = Math.max(0, RATE_LIMIT_MAX_REQUESTS - rateLimitEntry.count);
+        
+        return NextResponse.json(responseData, { 
+          status: 200,
+          headers: {
+            "X-RateLimit-Limit": RATE_LIMIT_MAX_REQUESTS.toString(),
+            "X-RateLimit-Remaining": remaining.toString(),
+            "X-RateLimit-Reset": Math.floor(rateLimitEntry.resetTime / 1000).toString(),
+          }
+        });
+      }
+      
+      return NextResponse.json(responseData, { status: 200 });
     }
     // Removed useless else: The previous if block returns early.
     console.warn("[API Refresh] GitHub activity data refresh process started but returned no data");

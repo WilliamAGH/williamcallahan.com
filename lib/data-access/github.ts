@@ -40,7 +40,12 @@ import { graphql } from "@octokit/graphql";
  * Defaults to 'WilliamAGH' if GITHUB_REPO_OWNER is not set
  */
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || "WilliamAGH";
-const GITHUB_API_TOKEN = process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH;
+// Support multiple env var names for the GitHub token to avoid accidental mis-configurations.
+// Preferred (new) name: GITHUB_ACCESS_TOKEN_COMMIT_GRAPH – falls back to common alternatives.
+const GITHUB_API_TOKEN =
+  process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH ||
+  process.env.GITHUB_API_TOKEN ||
+  process.env.GITHUB_TOKEN;
 
 // Volume paths / S3 Object Keys for GitHub data (environment-aware)
 export const GITHUB_ACTIVITY_S3_KEY_DIR = "github-activity";
@@ -249,7 +254,10 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     "[DataAccess/GitHub:refreshGitHubActivity] Attempting to refresh GitHub activity data from API...",
   );
   if (!GITHUB_API_TOKEN) {
-    console.warn("[DataAccess/GitHub] GitHub API token is missing. Cannot fetch GitHub activity.");
+    console.error(
+      "[DataAccess/GitHub] CRITICAL: GitHub API token is missing. Cannot fetch GitHub activity. " +
+      "Please ensure GITHUB_ACCESS_TOKEN_COMMIT_GRAPH is set in your environment variables."
+    );
     return null;
   }
 
@@ -978,11 +986,19 @@ export async function getGithubActivity(): Promise<UserActivityView> {
   // Fallback: In local development or testing, the environment-specific file (e.g., with "-dev" suffix)
   // may not exist in S3. Gracefully fall back to the production key so UI does not break.
   if (!s3ActivityData && ghEnvSuffix) {
-    debug(
-      `[DataAccess/GitHub:getGithubActivity] Primary key not found. Falling back to production key: ${GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK}`,
+    console.log(
+      `[DataAccess/GitHub:getGithubActivity] Primary key not found (${GITHUB_ACTIVITY_S3_KEY_FILE}). ` +
+      `Environment suffix: '${ghEnvSuffix}', NODE_ENV: '${process.env.NODE_ENV}'. ` +
+      `Falling back to production key: ${GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK}`,
     );
     metadataKey = GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK;
     s3ActivityData = await readJsonS3<GitHubActivityApiResponse>(metadataKey);
+    
+    if (!s3ActivityData) {
+      console.error(
+        `[DataAccess/GitHub:getGithubActivity] CRITICAL: No data found in S3 for either ${GITHUB_ACTIVITY_S3_KEY_FILE} or ${GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK}. This likely means the GitHub activity data has never been successfully fetched and stored.`
+      );
+    }
   }
 
   const s3Metadata = await getS3ObjectMetadata(metadataKey);
@@ -998,7 +1014,7 @@ export async function getGithubActivity(): Promise<UserActivityView> {
 
     if (allTimeContributions < trailingYearContributions) {
       console.warn(
-        `[DataAccess/GitHub:getGithubActivity] Data inconsistency: All-time contributions (${allTimeContributions}) < trailing year (${trailingYearContributions}). Displaying S3-derived all-time count; trailing year count from API is higher.`,
+        `[DataAccess/GitHub:getGithubActivity] Data inconsistency: All-time contributions (${allTimeContributions}) < trailing year (${trailingYearContributions}). Displaying S3-derived all-time count; trailing year count from API is higher.`
       );
     }
 

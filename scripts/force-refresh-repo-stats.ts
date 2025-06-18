@@ -15,7 +15,11 @@ import type { GithubContributorStatsEntry, RepoRawWeeklyStat } from "@/types"; /
 import { REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "../lib/data-access/github"; // Adjust path as needed
 import { writeBinaryS3 } from "../lib/s3-utils"; // Adjust path as needed
 
-const GITHUB_API_TOKEN = process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH;
+// Support both the new preferred env var and legacy common names to reduce mis-config issues.
+const GITHUB_API_TOKEN =
+  process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH ||
+  process.env.GITHUB_API_TOKEN ||
+  process.env.GITHUB_TOKEN;
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || "WilliamAGH";
 
 interface RepoToUpdate {

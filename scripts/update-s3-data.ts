@@ -26,7 +26,6 @@ config(); // Load .env file
 import {
   calculateAndStoreAggregatedWeeklyActivity,
   getBookmarks,
-  getGithubActivity,
   getInvestmentDomainsAndIds,
   getLogo as getLogoUntyped,
 } from "../lib/data-access/index.js";
@@ -43,6 +42,9 @@ import logger from "../lib/utils/logger.js";
 // Import types
 import type { UnifiedBookmark } from "../types/bookmark.js";
 import type { LogoResult } from "../types/logo.js";
+
+// Import refreshGitHubActivityDataFromApi function
+import { refreshGitHubActivityDataFromApi } from "../lib/data-access/github.js";
 
 // --- Configuration & Constants ---
 
@@ -338,22 +340,18 @@ async function updateGithubActivityInS3(): Promise<void> {
   }
 
   try {
-    // getGithubActivity will be modified to:
-    // 1. Read existing raw weekly stats from S3.
-    // 2. Fetch new data from GitHub API.
-    // 3. Merge and write back to S3 (for each repo's raw stats) ONLY IF data changed.
-    // 4. Recalculate and write aggregated/summary files to S3 ONLY IF underlying data changed.
-    const activity = await getGithubActivity(); // This should now be S3-aware
+    // Refresh GitHub activity directly from the GitHub APIs and write fresh data to S3.
+    // The refresh helper also recomputes aggregated weekly activity internally.
+    const refreshed = await refreshGitHubActivityDataFromApi();
 
-    if (activity) {
-      // Writes to S3 (raw files, aggregated, summary) should happen within getGithubActivity / calculateAndStoreAggregatedWeeklyActivity
+    if (refreshed) {
       logger.info(
-        `[UpdateS3] ✅ GitHub Activity update process triggered. Trailing year data complete: ${activity?.trailingYearData?.dataComplete} (check data-access logs for S3 write details).`,
+        `[UpdateS3] ✅ GitHub Activity refresh complete. Trailing-year commits: ${refreshed.trailingYearData.totalContributions}, All-time commits: ${refreshed.allTimeData.totalContributions}.`,
       );
-      // calculateAndStoreAggregatedWeeklyActivity will also need to be S3-aware
-      await calculateAndStoreAggregatedWeeklyActivity(); // This also needs to read/write from/to S3
+      // Re-aggregate lines-added/removed across repositories after the refresh.
+      await calculateAndStoreAggregatedWeeklyActivity();
     } else {
-      logger.error("[UpdateS3] ❌ Failed to process GitHub activity for S3 update.");
+      logger.error("[UpdateS3] ❌ GitHub Activity refresh returned null – check previous logs for errors.");
     }
   } catch (error) {
     logger.error("[UpdateS3] ❌ Error during GitHub Activity S3 update:", error);
@@ -447,8 +445,16 @@ async function runScheduledUpdates(): Promise<void> {
   if (TEST_LIMIT > 0) {
     logger.info(`[UpdateS3] Test limit active: ${TEST_LIMIT} items per operation`);
   }
+  // In automated test runs (NODE_ENV === 'test'), force DRY_RUN unless explicitly disabled.
+  if (process.env.NODE_ENV === 'test' && process.env.DRY_RUN !== 'false') {
+    process.env.DRY_RUN = 'true';
+  }
+
   const DRY_RUN = process.env.DRY_RUN === "true";
   if (DRY_RUN) {
+    if (TEST_LIMIT > 0) {
+      logger.info(`[UpdateS3] Test mode: limiting operations to ${TEST_LIMIT} item(s).`);
+    }
     logger.info("[UpdateS3] DRY RUN mode: skipping all update processes.");
     logger.info("[UpdateS3] All scheduled update checks complete.");
     process.exit(0);
