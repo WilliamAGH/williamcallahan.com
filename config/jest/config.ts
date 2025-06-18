@@ -1,93 +1,153 @@
 /* eslint-disable no-useless-escape */
-import type { Config } from "jest";
-import nextJest from "next/jest.js";
+/**
+ * @file Jest configuration for Next.js
+ * @description Sets up Jest for a Next.js project using `next/jest`
+ * Includes path aliases, module mappers for assets, and transform ignores
+ */
+import type { Config } from 'jest';
+import nextJest from 'next/jest.js';
 
 const createJestConfig = nextJest({
-  // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
-  dir: "./",
+  /**
+   * Path to Next.js app to load next.config.js and .env files
+   */
+  dir: './',
 });
 
-// Add any custom config to be passed to Jest
+/**
+ * Custom Jest configuration
+ */
 const config: Config = {
-  rootDir: "../../",
-  coverageProvider: "v8",
-  testEnvironment: "jsdom",
-  // Add more setup options before each test is run
-  setupFilesAfterEnv: ["<rootDir>/config/jest/setup.ts"],
-  setupFiles: ["<rootDir>/config/jest/polyfills.js"],
+  /**
+   * Root directory for tests and modules
+   */
+  rootDir: '../../',
+  /**
+   * Coverage provider
+   */
+  coverageProvider: 'v8',
+  /**
+   * Test environment for browser-like testing
+   */
+  testEnvironment: 'jsdom',
+  /**
+   * Setup files to run before each test file
+   */
+  setupFilesAfterEnv: ['<rootDir>/config/jest/setup.ts'],
+  /**
+   * Setup files to run before the test environment is set up
+   */
+  setupFiles: ['<rootDir>/config/jest/polyfills.js'],
 
-  // Module directories
-  moduleDirectories: ["node_modules", "<rootDir>/"],
+  /**
+   * Directories to search for modules
+   */
+  moduleDirectories: ['node_modules', '<rootDir>/'],
 
-  // Test patterns
+  /**
+   * Glob patterns for test file detection
+   */
   testMatch: [
-    "**/__tests__/**/*.(test|spec).(ts|tsx|js|jsx)",
-    "**/?(*.)+(spec|test).(ts|tsx|js|jsx)",
+    '**/__tests__/**/*.(test|spec).(ts|tsx|js|jsx)',
+    '**/?(*.)+(spec|test).(ts|tsx|js|jsx)',
   ],
 
-  // Module path aliases matching tsconfig.json
+  /**
+   * Maps module paths to different modules, used for mocking
+   */
   moduleNameMapper: {
-    "^@/(.*)$": "<rootDir>/$1",
-    "^~/(.*)$": "<rootDir>/$1",
-    // Handle CSS imports (with CSS modules)
-    "^.+\\.module\\.(css|sass|scss)$": "identity-obj-proxy",
-    // Handle CSS imports (without CSS modules)
-    "^.+\\.(css|sass|scss)$": "<rootDir>/__tests__/__mocks__/lib/style-mock.js",
-    // Handle image imports
-    "^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i":
-      "<rootDir>/__tests__/__mocks__/lib/file-mock.js",
-    // Handle @sentry/nextjs
-    "^@sentry/nextjs$": "<rootDir>/__tests__/__mocks__/sentry.js",
-    // Mock node-fetch
-    "^node-fetch$": "<rootDir>/__tests__/__mocks__/node-fetch.js",
+    // Path aliases from tsconfig.json
+    '^@/(.*)$': '<rootDir>/$1',
+    '^~/(.*)$': '<rootDir>/$1',
+    // Mock CSS modules
+    '^.+\\.module\\.(css|sass|scss)$': 'identity-obj-proxy',
+    // Mock other static assets
+    '^.+\\.(css|sass|scss)$': '<rootDir>/__tests__/__mocks__/lib/style-mock.js',
+    '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$/i':
+      '<rootDir>/__tests__/__mocks__/lib/file-mock.js',
+    // Mock specific libraries
+    '^@sentry/nextjs$': '<rootDir>/__tests__/__mocks__/sentry.js',
+    '^node-fetch$': '<rootDir>/__tests__/__mocks__/node-fetch.js',
+    // Mock ESM-only packages
+    '^next-mdx-remote/serialize$':
+      '<rootDir>/__tests__/__mocks__/lib/next-mdx-remote.js',
+    '^next-mdx-remote$': '<rootDir>/__tests__/__mocks__/lib/next-mdx-remote.js',
+    '^rehype-autolink-headings$':
+      '<rootDir>/__tests__/__mocks__/lib/markdown-plugins.js',
+    '^rehype-slug$': '<rootDir>/__tests__/__mocks__/lib/markdown-plugins.js',
+    '^remark-gfm$': '<rootDir>/__tests__/__mocks__/lib/markdown-plugins.js',
+    '^@mapbox/rehype-prism$':
+      '<rootDir>/__tests__/__mocks__/lib/markdown-plugins.js',
   },
 
-  // Ignore patterns
+  /**
+   * Regex patterns for test paths to skip
+   */
   testPathIgnorePatterns: [
-    "<rootDir>/node_modules/",
-    "<rootDir>/.next/",
-    "<rootDir>/__tests__/lib/bookmarks-s3-external-sync.unit.test.ts",
-    "<rootDir>/__tests__/blog/blog.smoke.test.ts",
-    "<rootDir>/__tests__/components/ui/navigation/navigation.test.tsx",
-    "<rootDir>/__tests__/components/ui/navigation/navigation-link.test.tsx",
+    '<rootDir>/node_modules/',
+    '<rootDir>/.next/',
+    '<rootDir>/__tests__/lib/bookmarks-s3-external-sync.unit.test.ts',
+    '<rootDir>/__tests__/blog/blog.smoke.test.ts',
+    '<rootDir>/__tests__/components/ui/navigation/navigation.test.tsx',
+    '<rootDir>/__tests__/components/ui/navigation/navigation-link.test.tsx',
   ],
 
-  // Transform ignore patterns - allow Jest to transform these ESM packages
+  /**
+   * Regex patterns for source file paths to not transform
+   * Allows transforming specific ESM-only packages in node_modules
+   */
   transformIgnorePatterns: [
-    "/node_modules/(?!(next-mdx-remote|uuid|@aws-sdk|@mdx-js|cheerio|gray-matter|remark-.*|rehype-.*|unified|unist-.*|mdast-.*|hast-.*|micromark.*|decode-named-character-reference|character-entities|parse-entities|stringify-entities|zwitch|longest-streak|mdurl|uc.micro|property-information|space-separated-tokens|comma-separated-tokens|web-namespaces|html-void-elements|node-fetch)/)/",
-    "^.+\\.module\\.(css|sass|scss)$",
+    '/node_modules/(?!(next-mdx-remote|uuid|@aws-sdk|@mdx-js|cheerio|gray-matter|remark-.*|rehype-.*|unified|unist-.*|mdast-.*|hast-.*|micromark.*|decode-named-character-reference|character-entities|parse-entities|stringify-entities|zwitch|longest-streak|mdurl|uc.micro|property-information|space-separated-tokens|comma-separated-tokens|web-namespaces|html-void-elements|node-fetch)/)/',
+    '^.+\\.module\\.(css|sass|scss)$',
   ],
 
-  // Coverage collection
+  /**
+   * Glob patterns for files to include in coverage collection
+   */
   collectCoverageFrom: [
     "**/*.{js,jsx,ts,tsx}",
-    "!**/*.d.ts",
-    "!**/node_modules/**",
-    "!**/.next/**",
-    "!**/*.config.js",
-    "!**/*.config.ts",
-    "!**/coverage/**",
-    "!**/types/**",
+    '**/*.{js,jsx,ts,tsx}',
+    '!**/*.d.ts',
+    '!**/node_modules/**',
+    '!**/.next/**',
+    '!**/*.config.js',
+    '!**/*.config.ts',
+    '!**/coverage/**',
+    '!**/types/**',
   ],
 
-  // Automatically clear mock calls, instances, contexts and results before every test
+  /**
+   * Automatically clear mock data before every test
+   */
   clearMocks: true,
 
-  // Indicates whether the coverage information should be collected while executing the test
+  /**
+   * Indicates if coverage information should be collected
+   */
   collectCoverage: false,
 
-  // The directory where Jest should output its coverage files
-  coverageDirectory: "coverage",
+  /**
+   * Directory for Jest coverage files
+   */
+  coverageDirectory: 'coverage',
 
-  // Maximum number of concurrent workers
-  maxWorkers: "50%",
+  /**
+   * Maximum number of workers for running tests
+   */
+  maxWorkers: '50%',
 
-  // Verbose output
+  /**
+   * Report each individual test during the run
+   */
   verbose: true,
 
-  // Global timeout
+  /**
+   * Default test timeout in milliseconds
+   */
   testTimeout: 20000,
 };
 
-// createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
+/**
+ * Exports createJestConfig to ensure next/jest can load the async Next.js config
+ */
 export default createJestConfig(config);
