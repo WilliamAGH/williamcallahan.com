@@ -43,13 +43,14 @@ export async function GET(): Promise<NextResponse> {
       // Omit sensitive operational details like bucket names and repo owners
       // These can be inferred by attackers for targeted attacks
     },
-    s3Keys: {
-      activityFile: GITHUB_ACTIVITY_S3_KEY_FILE,
-      fallbackFile: GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK,
-      summaryFile: GITHUB_STATS_SUMMARY_S3_KEY_FILE,
-      allTimeSummaryFile: ALL_TIME_SUMMARY_S3_KEY_FILE,
-      weeklyStatsDir: REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
-      aggregatedWeeklyFile: AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE,
+    // Only show that S3 keys are configured without revealing paths
+    s3KeysConfigured: {
+      activityFile: !!GITHUB_ACTIVITY_S3_KEY_FILE,
+      fallbackFile: !!GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK,
+      summaryFile: !!GITHUB_STATS_SUMMARY_S3_KEY_FILE,
+      allTimeSummaryFile: !!ALL_TIME_SUMMARY_S3_KEY_FILE,
+      weeklyStatsDir: !!REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
+      aggregatedWeeklyFile: !!AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE,
     },
     cache: {
       hasGitHubActivity: !!ServerCacheInstance.get("githubActivity"),
