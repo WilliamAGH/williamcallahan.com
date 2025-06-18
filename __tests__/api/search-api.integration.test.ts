@@ -86,9 +86,9 @@ describe('Search API: GET /api/search/all', () => {
     });
 
     /**
-     * @description Should not crash on very long queries
+     * @description Should reject queries longer than 100 characters
      */
-    it('should gracefully handle very long queries', async () => {
+    it('should return 400 for queries exceeding maximum length', async () => {
       const longQuery = 'a'.repeat(1000);
       const request = new MockNextRequest(
         `http://localhost:3000/api/search/all?q=${longQuery}`,
@@ -96,9 +96,10 @@ describe('Search API: GET /api/search/all', () => {
       const response = await GET(request);
       const data = await response.json();
 
-      // Should either handle it or return an error, but not crash
-      expect([200, 400]).toContain(response.status);
-      expect(data).toBeDefined();
+      // Validator enforces 100 character limit
+      expect(response.status).toBe(400);
+      expect(data).toHaveProperty('error');
+      expect(data.error).toContain('Query is too long');
     });
 
     /**
