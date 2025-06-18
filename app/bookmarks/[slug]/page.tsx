@@ -196,6 +196,7 @@ export default async function BookmarkPage({ params }: BookmarkPageProps) {
           description={domainName ? `This is a bookmark from ${domainName} I saved and found useful.` : "This is a bookmark I saved and found useful."}
           bookmarks={[foundBookmark]}
           showFilterBar={false}
+          usePagination={false}
         />
       </div>
     </>

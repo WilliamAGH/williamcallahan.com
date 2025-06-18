@@ -140,8 +140,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const bookmarkEntries: MetadataRoute.Sitemap = [];
   const paginatedBookmarkEntries: MetadataRoute.Sitemap = [];
   let bookmarkTagEntries: MetadataRoute.Sitemap = [];
+  const paginatedBookmarkTagEntries: MetadataRoute.Sitemap = [];
   let latestBookmarkUpdateTime: Date | undefined = undefined;
   const bookmarkTagLastModifiedMap: { [tagSlug: string]: Date } = {};
+  const bookmarkTagCounts: { [tagSlug: string]: number } = {};
 
   try {
     // Use static build function to get bookmarks
@@ -185,13 +187,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           )
         : [];
 
-      // Update lastModified time for each tag
-      if (bookmarkLastModified && tags.length > 0) {
+      // Update lastModified time and count for each tag
+      if (tags.length > 0) {
         for (const tag of tags) {
           const tagSlug = tagToSlug(tag);
-          bookmarkTagLastModifiedMap[tagSlug] =
-            getLatestDate(bookmarkTagLastModifiedMap[tagSlug], bookmarkLastModified) ||
-            bookmarkLastModified;
+          
+          // Update count
+          bookmarkTagCounts[tagSlug] = (bookmarkTagCounts[tagSlug] || 0) + 1;
+          
+          // Update lastModified
+          if (bookmarkLastModified) {
+            bookmarkTagLastModifiedMap[tagSlug] =
+              getLatestDate(bookmarkTagLastModifiedMap[tagSlug], bookmarkLastModified) ||
+              bookmarkLastModified;
+          }
         }
       }
     }
@@ -225,6 +234,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6, // Same priority as blog tags
       }),
     );
+    
+    // Generate paginated bookmark tag entries
+    for (const [tagSlug, count] of Object.entries(bookmarkTagCounts)) {
+      const totalPages = Math.ceil(count / BOOKMARKS_PER_PAGE);
+      
+      // Add paginated tag pages (skip page 1 as it's the main tag route)
+      for (let page = 2; page <= totalPages; page++) {
+        const entry: MetadataRoute.Sitemap[number] = {
+          url: `${siteUrl}/bookmarks/tags/${tagSlug.replace(/[^\u0020-\u007E]/g, "")}/page/${page}`,
+          changeFrequency: "weekly",
+          priority: 0.55, // Slightly lower than main tag page
+        };
+        
+        // Add lastModified if available
+        if (bookmarkTagLastModifiedMap[tagSlug]) {
+          entry.lastModified = bookmarkTagLastModifiedMap[tagSlug];
+        }
+        
+        paginatedBookmarkTagEntries.push(entry);
+      }
+    }
   } catch (error) {
     console.error("Sitemap: Error processing bookmarks:", error);
   }
@@ -286,6 +316,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...bookmarkEntries,
     ...paginatedBookmarkEntries,
     ...bookmarkTagEntries,
+    ...paginatedBookmarkTagEntries,
   ];
 }
 

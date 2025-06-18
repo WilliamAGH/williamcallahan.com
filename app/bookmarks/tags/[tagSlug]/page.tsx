@@ -1,13 +1,16 @@
 /**
  * Bookmarks Tag Page
  *
- * Displays all bookmarks tagged with a specific tag.
+ * Displays bookmarks tagged with a specific tag (first page).
+ * Additional pages are handled by the paginated route.
  *
  * @module app/bookmarks/tags/[tagSlug]/page
  */
 
 // Configure dynamic rendering
 export const dynamic = "force-dynamic";
+// Revalidate every 30 minutes for fresh content
+export const revalidate = 1800;
 
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -67,7 +70,7 @@ export async function generateMetadata({
   }
 
   // Base metadata with custom title
-  const path = `/bookmarks/tags/${params.tagSlug}`;
+  const path = `/bookmarks/tags/${paramsResolved.tagSlug}`;
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
   // Override title and description with tag-specific values
@@ -83,7 +86,7 @@ export async function generateMetadata({
       title: customTitle,
       description: customDescription,
       type: "website",
-      url: `https://williamcallahan.com/bookmarks/tags/${params.tagSlug}`,
+      url: `https://williamcallahan.com/bookmarks/tags/${paramsResolved.tagSlug}`,
     },
     twitter: {
       ...baseMetadata.twitter,
@@ -91,7 +94,7 @@ export async function generateMetadata({
       description: customDescription,
     },
     alternates: {
-      canonical: `https://williamcallahan.com/bookmarks/tags/${params.tagSlug}`,
+      canonical: `https://williamcallahan.com/bookmarks/tags/${paramsResolved.tagSlug}`,
     },
   };
 }
@@ -162,6 +165,9 @@ export default async function TagPage({ params }: TagPageProps) {
           bookmarks={filtered}
           showFilterBar={true}
           titleSlug={tagSlug}
+          initialPage={1}
+          baseUrl={`/bookmarks/tags/${tagSlug}`}
+          initialTag={displayTag}
         />
       </div>
     </>
