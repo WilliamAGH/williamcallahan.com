@@ -1,47 +1,39 @@
 /**
- * PostCSS Configuration
- * Defines PostCSS plugins and settings for the build process
+ * PostCSS Configuration for Next.js (2025)
+ * Modern configuration that follows Next.js best practices
+ * @see https://nextjs.org/docs/pages/guides/post-css
  */
 
 export default {
-  // Suppress warnings for third-party CSS files
-  map: process.env.NODE_ENV === 'development' ? { inline: false } : false,
   plugins: {
+    // Tailwind CSS nesting support
     "tailwindcss/nesting": {},
+    
+    // Tailwind CSS
     "tailwindcss": {
       config: "./config/tailwind.config.js",
     },
+    
+    // Autoprefixer with modern browser support
     "autoprefixer": {
+      // Support flexbox (IE10+) but not IE9 flexbox
       flexbox: "no-2009",
-      grid: "autoplace",
-      // Suppress common warnings that don't affect functionality
-      ignoreUnknownVersions: true,
-      // Reduce verbose warnings
-      cascade: false,
-      // Configure environment-specific settings
-      env: {
-        production: {
-          remove: true,
-        },
-        development: {
-          remove: false,
-        },
-      },
+      // Disable grid autoplacement warnings for third-party CSS
+      grid: false,
     },
+    
+    // PostCSS Preset Env for modern CSS features
     "postcss-preset-env": {
-      stage: 2,
+      // Stage 3 features (stable)
+      stage: 3,
       features: {
-        "nesting-rules": true,
+        // Disable custom properties (CSS variables) polyfill
         "custom-properties": false,
-        "is-pseudo-class": false,
-        "custom-media-queries": true,
-        "gap-properties": true,
-        "logical-properties-and-values": true,
+        // Enable nesting rules
+        "nesting-rules": true,
       },
-      browsers: ["> 1%", "last 2 versions", "not ie <= 8"],
-      autoprefixer: {
-        grid: true,
-      },
+      // Modern browser support (no IE11)
+      browsers: ["> 0.5%", "last 2 versions", "not dead", "not IE 11"],
     },
   },
 }; 

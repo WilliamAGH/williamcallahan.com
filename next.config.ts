@@ -99,9 +99,12 @@ const nextConfig = {
       { module: /node_modules\/@sentry/ },
       // Suppress webpack cache serialization warnings
       /Skipped not serializable cache item/,
-      // Suppress third-party CSS warnings
+      // Suppress third-party CSS autoprefixer warnings
       /autoprefixer.*grid-auto-rows.*not supported by IE/,
       /autoprefixer.*grid-gap.*only works if grid-template/,
+      /autoprefixer.*Autoplacement does not work without grid-template/,
+      // Suppress react-tweet CSS warnings
+      { module: /node_modules\/react-tweet.*\.css$/ },
     ];
 
     // We no longer need to externalize require-in-the-middle since we've added it as a dependency
