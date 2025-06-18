@@ -183,15 +183,16 @@ export const useRegisteredWindowState = (
     setWindowState,
   } = useWindowRegistry();
 
-  // Register immediately on mount; avoid setTimeout delay which can defer visibility on slow devices
-  registerWindow(id, icon, title, initialState);
-
-  // Cleanup: unregister on unmount
+  // Register window on mount and clean up on unmount.
+  // Doing this inside useEffect avoids calling setState during render,
+  // which can lead to "Maximum update depth exceeded" errors.
   useEffect(() => {
+    registerWindow(id, icon, title, initialState);
+
     return () => {
       unregisterWindow(id);
     };
-  }, [unregisterWindow, id]);
+  }, [id, icon, title, initialState, registerWindow, unregisterWindow]);
 
   const windowInfo = windows[id];
 
@@ -204,7 +205,7 @@ export const useRegisteredWindowState = (
       close: () => closeWindow(id),
       restore: () => restoreWindow(id),
       setState: (state: WindowState) => setWindowState(id, state),
-      isRegistered: true,
+      isRegistered: Boolean(windowInfo),
     }),
     [
       id,
