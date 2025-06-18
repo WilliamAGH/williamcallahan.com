@@ -29,8 +29,8 @@ const DRY_RUN = process.env.DRY_RUN === "true";
 const S3_PUBLIC_CDN_URL = process.env.S3_PUBLIC_CDN_URL ?? process.env.S3_CDN_URL; // Public CDN endpoint (supports S3_PUBLIC_CDN_URL or legacy S3_CDN_URL)
 
 // Constants for S3 read retries
-const MAX_S3_READ_RETRIES = 1;
-const S3_READ_RETRY_DELAY_MS = 10;
+const MAX_S3_READ_RETRIES = 3;  // Actually do 3 retry attempts
+const S3_READ_RETRY_DELAY_MS = 100;  // More reasonable delay of 100ms
 
 if (!S3_BUCKET || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
   console.warn(
@@ -184,16 +184,18 @@ export async function readFromS3(
  * @param key The S3 object key
  * @param data The data to write (string or Buffer)
  * @param contentType The MIME type of the content
+ * @param acl The access control list permission (defaults to private for security)
  */
 export async function writeToS3(
   key: string,
   data: Buffer | string,
   contentType?: string,
+  acl: "private" | "public-read" | "public-read-write" | "authenticated-read" = "private",
 ): Promise<void> {
   if (DRY_RUN) {
     if (isDebug)
       debug(
-        `[S3Utils][DRY RUN] Would write to S3 key ${key}. ContentType: ${contentType ?? "unknown"}, Data size: ${data.length}`,
+        `[S3Utils][DRY RUN] Would write to S3 key ${key}. ContentType: ${contentType ?? "unknown"}, ACL: ${acl}, Data size: ${data.length}`,
       );
     return;
   }
@@ -210,7 +212,7 @@ export async function writeToS3(
     Key: key,
     Body: data,
     ContentType: contentType,
-    ACL: "public-read",
+    ACL: acl,
   });
 
   try {
@@ -475,7 +477,7 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
         Key: s3Key,
         Body: jsonData,
         ContentType: "application/json",
-        ACL: "public-read",
+        ACL: "public-read", // JSON data is typically public
         // AWS SDK v3 uses IfNoneMatch header for conditional writes
         IfNoneMatch: options.IfNoneMatch,
       });
@@ -484,7 +486,7 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
       if (isDebug) debug(`[S3Utils] Conditional write successful for ${s3Key}`);
     } else {
       // Use regular writeToS3 for non-conditional writes
-      await writeToS3(s3Key, jsonData, "application/json");
+      await writeToS3(s3Key, jsonData, "application/json", "public-read");
     }
     // No need for redundant success log here, writeToS3 handles it.
   } catch (_error: unknown) {
@@ -561,7 +563,8 @@ export async function writeBinaryS3(
 
   try {
     // writeToS3 handles the actual S3 put and its specific debug logging
-    await writeToS3(s3Key, data, contentType);
+    // Binary files (images, etc.) are typically public for CDN serving
+    await writeToS3(s3Key, data, contentType, "public-read");
     // Success is logged by writeToS3.
   } catch (_error: unknown) {
     const message = _error instanceof Error ? _error.message : JSON.stringify(_error);

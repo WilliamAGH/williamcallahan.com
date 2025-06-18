@@ -34,6 +34,8 @@ import type { OgResult, KarakeepImageFallback } from "@/types";
  */
 export async function fetchExternalOpenGraphWithRetry(url: string, fallbackImageData?: KarakeepImageFallback): Promise<OgResult | null> {
   let lastError: Error | null = null;
+  let isPermanentFailure = false;
+  let headers = getBrowserHeaders();
 
   for (let attempt = 0; attempt < OPENGRAPH_FETCH_CONFIG.MAX_RETRIES; attempt++) {
     try {
@@ -47,8 +49,26 @@ export async function fetchExternalOpenGraphWithRetry(url: string, fallbackImage
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
 
-      const result = await fetchExternalOpenGraph(url, fallbackImageData);
-      if (result) {
+      const result = await fetchExternalOpenGraph(url, fallbackImageData, headers);
+      
+      // Handle special result types
+      if (result && typeof result === 'object' && 'permanentFailure' in result) {
+        debug(`[DataAccess/OpenGraph] Permanent failure (${result.status}) for ${url}, stopping retries`);
+        isPermanentFailure = true;
+        return null;
+      }
+      
+      if (result && typeof result === 'object' && 'blocked' in result && attempt === 0) {
+        // Try once more with Googlebot user agent for 403 responses
+        debug(`[DataAccess/OpenGraph] Access blocked for ${url}, retrying with Googlebot UA`);
+        headers = {
+          ...headers,
+          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+        };
+        continue;
+      }
+      
+      if (result && !('permanentFailure' in result) && !('blocked' in result)) {
         debug(`[DataAccess/OpenGraph] Successfully fetched on attempt ${attempt + 1}: ${url}`);
         return result;
       }
@@ -69,10 +89,12 @@ export async function fetchExternalOpenGraphWithRetry(url: string, fallbackImage
     }
   }
 
-  console.error(
-    `[DataAccess/OpenGraph] All retry attempts exhausted for ${url}. Last error:`,
-    lastError?.message,
-  );
+  if (!isPermanentFailure) {
+    console.error(
+      `[DataAccess/OpenGraph] All retry attempts exhausted for ${url}. Last error:`,
+      lastError?.message,
+    );
+  }
   return null;
 }
 
@@ -81,9 +103,15 @@ export async function fetchExternalOpenGraphWithRetry(url: string, fallbackImage
  *
  * @param url - URL to fetch
  * @param fallbackImageData - Optional Karakeep fallback data
- * @returns Promise resolving to OpenGraph result or null if failed
+ * @param attempt - Current attempt number for retry logic
+ * @param headers - HTTP headers to use for the request
+ * @returns Promise resolving to OpenGraph result or special status object
  */
-async function fetchExternalOpenGraph(url: string, fallbackImageData?: KarakeepImageFallback): Promise<OgResult | null> {
+async function fetchExternalOpenGraph(
+  url: string, 
+  fallbackImageData?: KarakeepImageFallback,
+  headers?: Record<string, string>
+): Promise<OgResult | { permanentFailure: true; status: number } | { blocked: true; status: number } | null> {
   // Check circuit breaker before attempting fetch
   const domain = getDomainType(url);
   if (hasDomainFailedTooManyTimes(domain)) {
@@ -117,16 +145,27 @@ async function fetchExternalOpenGraph(url: string, fallbackImageData?: KarakeepI
       DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG,
     );
 
-    // Use existing getBrowserHeaders function from logo system
-    const headers = getBrowserHeaders();
+    // Use provided headers or get default browser headers
+    const requestHeaders = headers || getBrowserHeaders();
 
     debug(`[DataAccess/OpenGraph] Fetching HTML from: ${url}`);
     const response = await fetch(url, {
       method: "GET",
-      headers,
+      headers: requestHeaders,
       signal: controller.signal,
       redirect: "follow",
     });
+
+    // Handle specific HTTP status codes
+    if (response.status === 404 || response.status === 410) {
+      debug(`[DataAccess/OpenGraph] Permanent failure (${response.status}) for ${url}`);
+      return { permanentFailure: true, status: response.status };
+    }
+
+    if (response.status === 403) {
+      debug(`[DataAccess/OpenGraph] Access forbidden (403) for ${url}`);
+      return { blocked: true, status: 403 };
+    }
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);

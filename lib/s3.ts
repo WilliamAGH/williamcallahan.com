@@ -116,7 +116,7 @@ export const s3Client: S3ClientWrapper = (() => {
             try {
               await writeJsonS3(key, JSON.parse(data));
             } catch {
-              await writeToS3(key, data, "application/json");
+              await writeToS3(key, data, "application/json", "public-read");
             }
           },
         };
