@@ -110,10 +110,16 @@ export async function GET(request: NextRequest) {
     // If we have a bookmarkId, we can provide better fallbacks
     if (bookmarkId) {
       try {
-        // Check if asset exists by making a HEAD request
+        // Check if asset exists by making a HEAD request with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
         const assetCheck = await fetch(`${request.nextUrl.origin}${assetUrl}`, {
           method: 'HEAD',
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
         
         if (assetCheck.ok) {
           return NextResponse.redirect(new URL(assetUrl, request.url).toString(), { status: 302 });

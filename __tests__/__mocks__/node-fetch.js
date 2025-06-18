@@ -1,5 +1,3 @@
-/* global jest */
-/* eslint-env jest */
 // Mock for node-fetch to avoid ES module issues in Jest
 module.exports = {
   __esModule: true,
