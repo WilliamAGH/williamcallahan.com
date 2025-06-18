@@ -21,6 +21,7 @@ interface BookmarksPaginatedClientProps {
   initialPage?: number;
   baseUrl?: string;
   initialTag?: string;
+  tag?: string;
 }
 
 export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> = ({
@@ -33,6 +34,7 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
   initialPage,
   baseUrl,
   initialTag,
+  tag,
 }) => {
   // Debug log to check if bookmarks are passed correctly to client component
   if (process.env.NODE_ENV === "development") {
@@ -58,6 +60,7 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
         initialPage={initialPage}
         baseUrl={baseUrl}
         initialTag={initialTag}
+        tag={tag}
       />
     );
   }

@@ -23,6 +23,7 @@ interface BookmarksServerProps {
   baseUrl?: string;
   usePagination?: boolean;
   initialTag?: string;
+  tag?: string;  // Tag to filter by (for server-side filtering)
 }
 
 /**
@@ -46,6 +47,7 @@ export async function BookmarksServer({
   baseUrl,
   usePagination = true,
   initialTag,
+  tag,
 }: BookmarksServerProps): Promise<JSX.Element> {
   // If bookmarks are provided via props, use those; otherwise fetch from API
   let bookmarks: UnifiedBookmark[] = [];
@@ -60,7 +62,14 @@ export async function BookmarksServer({
       return safeTs(b.dateBookmarked) - safeTs(a.dateBookmarked);
     });
 
-  if (propsBookmarks) {
+  // If a tag is provided, let the client-side pagination handle filtering
+  // This enables proper server-side pagination with tag filtering
+  if (tag) {
+    console.log(`[BookmarksServer] Tag filtering enabled for tag: "${tag}"`);
+    // Don't fetch any bookmarks server-side when using tag filtering
+    // The pagination hook will handle everything
+    bookmarks = [];
+  } else if (propsBookmarks) {
     // Apply the same consistent sorting even when bookmarks are provided externally
     bookmarks = sortByDateDesc(propsBookmarks);
     console.log("[BookmarksServer] Using provided bookmarks, count:", bookmarks.length);
@@ -107,6 +116,7 @@ export async function BookmarksServer({
       baseUrl={baseUrl}
       usePagination={usePagination}
       initialTag={initialTag}
+      tag={tag}
     />
   );
 }

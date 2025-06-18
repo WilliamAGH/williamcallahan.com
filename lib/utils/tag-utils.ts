@@ -114,6 +114,7 @@ export function tagToSlug(tag: string): string {
   return cleanTag
     .toLowerCase()
     .replace(/[^\w\s-]/g, "") // Remove remaining special chars except spaces and hyphens
+    .replace(/_/g, "-") // Replace underscores with hyphens
     .replace(/\s+/g, "-") // Replace spaces with hyphens
     .replace(/-+/g, "-") // Replace multiple hyphens with single hyphen
     .replace(/^-|-$/g, ""); // Remove leading/trailing hyphens

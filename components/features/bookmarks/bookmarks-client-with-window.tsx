@@ -68,6 +68,7 @@ interface BookmarksClientWithWindowProps {
   baseUrl?: string;
   usePagination?: boolean;
   initialTag?: string;
+  tag?: string;
 }
 
 export function BookmarksClientWithWindow({
@@ -81,6 +82,7 @@ export function BookmarksClientWithWindow({
   baseUrl,
   usePagination = true,
   initialTag,
+  tag,
 }: BookmarksClientWithWindowProps) {
   return (
     <BookmarksWindow
@@ -105,6 +107,7 @@ export function BookmarksClientWithWindow({
             initialPage={initialPage}
             baseUrl={baseUrl}
             initialTag={initialTag}
+            tag={tag}
           />
         </Suspense>
       </div>

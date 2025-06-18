@@ -32,6 +32,7 @@ interface BookmarksWithPaginationProps {
   initialPage?: number;
   baseUrl?: string;
   initialTag?: string;
+  tag?: string;
 }
 
 // Environment detection helper
@@ -51,6 +52,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
   initialPage = 1,
   baseUrl = "/bookmarks",
   initialTag,
+  tag,
 }) => {
   // searchAllBookmarks is reserved for future use
   void searchAllBookmarks;
@@ -82,7 +84,8 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
   } = useBookmarksPagination({
     limit: itemsPerPage,
     initialData: initialBookmarks,
-    initialPage: initialPage
+    initialPage: initialPage,
+    tag: tag  // Pass tag for server-side filtering
   });
 
   // Keep the original total count based on the initial server payload. This represents the
@@ -116,7 +119,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
     }
   }, [initialPage, goToPage]);
 
-  // Call search API when search query changes
+  // Search across the ENTIRE bookmark collection (server-side fetch) whenever
+  // the query changes. This guarantees we are not restricted to the currently
+  // loaded page or any active tag filter. We debounce the request for 300 ms.
   useEffect(() => {
     if (!searchQuery || searchQuery.trim().length === 0) {
       setSearchResults(null);
@@ -126,37 +131,64 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
     const searchTimeout = setTimeout(async () => {
       try {
         setIsSearchingAPI(true);
-        const response = await fetch(`/api/search/all?q=${encodeURIComponent(searchQuery)}`);
-        if (response.ok) {
-          const results = await response.json() as Array<{ label: string; description: string; path: string }>;
-          // Filter only bookmark results and map back to UnifiedBookmark format
-          const bookmarkResults = results
-            .filter(r => r.path.startsWith('/bookmarks/'))
-            .map(r => {
-              // Find the matching bookmark from our current set
-              const matchingBookmark = bookmarks.find(b => 
-                r.label === b.title || r.path.includes(b.id)
-              );
-              return matchingBookmark;
-            })
-            .filter((b): b is UnifiedBookmark => b !== undefined);
-          
-          setSearchResults(bookmarkResults);
-        } else {
-          // API failed, fall back to client-side search
-          setSearchResults(null);
+
+        // Fetch *all* bookmarks in one shot (up to 1000, well above current
+        // collection size) so we can filter entirely client-side.
+        const response = await fetch("/api/bookmarks?limit=1000&page=1", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
-      } catch (err: unknown) {
-        const searchError = err instanceof Error ? err : new Error(String(err));
-        console.warn("Search API failed, falling back to client-side search:", searchError);
+
+        const json = (await response.json()) as {
+          data: UnifiedBookmark[];
+        };
+
+        const allBookmarks: UnifiedBookmark[] = Array.isArray(json.data)
+          ? json.data
+          : [];
+
+        // Simple client-side filtering (case-insensitive contains across key
+        // fields). We reuse the same helper used in the memoized filter below
+        // so behaviour stays consistent.
+        const terms = searchQuery
+          .toLowerCase()
+          .split(" ")
+          .filter((t) => t.length > 0);
+
+        const matches = allBookmarks.filter((b) => {
+          if (terms.length === 0) return true;
+
+          const tagsAsString = getTagsAsStringArray(b.tags);
+
+          const haystack = [
+            b.title,
+            b.description,
+            tagsAsString.join(" "),
+            b.url,
+            b.content?.author,
+            b.content?.publisher,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+          return terms.every((term) => haystack.includes(term));
+        });
+
+        setSearchResults(matches);
+      } catch (err) {
+        console.warn("Full-dataset bookmark search failed, falling back to local filter", err);
         setSearchResults(null);
       } finally {
         setIsSearchingAPI(false);
       }
-    }, 300); // 300ms debounce
+    }, 300);
 
     return () => clearTimeout(searchTimeout);
-  }, [searchQuery, bookmarks]);
+  }, [searchQuery]);
 
   // Extract all unique tags from loaded bookmarks
   const allTags = useMemo(() => {
@@ -216,6 +248,12 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(event.target.value);
+    // Clear any active tag filter when the user starts a text search so that
+    // search results are drawn from the full dataset.
+    if (selectedTag) {
+      setSelectedTag(null);
+      if (goToPage) goToPage(1);
+    }
   };
 
   const handleSearchSubmit = (event: React.FormEvent) => {
@@ -235,16 +273,23 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
     }
   };
 
-  // Handle navigation based on tag selection
+  // Navigate to the correct URL when the selected tag changes. This covers
+  // three scenarios:
+  // 1. We are on /bookmarks and a tag is selected → push to /bookmarks/tags/<tag>.
+  // 2. We are already on a different tag page and select a new tag → replace the slug.
+  // 3. The tag filter is cleared while on /bookmarks/tags/<tag> → return to /bookmarks.
   useEffect(() => {
     if (!mounted) return;
-    
-    if (selectedTag && !pathname.includes("/tags/")) {
-      // Navigate to tag page when tag is selected
-      const tagSlug = tagToSlug(selectedTag);
-      router.push(`/bookmarks/tags/${tagSlug}`);
-    } else if (!selectedTag && pathname.startsWith("/bookmarks/tags/")) {
-      // Navigate back to main bookmarks when tag is cleared
+
+    // Extract the current tag slug from the pathname, if any
+    const match = pathname.match(/\/bookmarks\/tags\/([^/]+)/);
+    const currentTagSlug = match ? match[1] : null;
+
+    const nextTagSlug = selectedTag ? tagToSlug(selectedTag) : null;
+
+    if (nextTagSlug && nextTagSlug !== currentTagSlug) {
+      router.push(`/bookmarks/tags/${nextTagSlug}`);
+    } else if (!nextTagSlug && currentTagSlug) {
       router.push("/bookmarks");
     }
   }, [selectedTag, pathname, router, mounted]);
