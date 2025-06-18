@@ -111,7 +111,18 @@ export function tagToSlug(tag: string): string {
   }
   cleanTag = cleanTag.replace(/\.(?=[a-zA-Z])/g, 'dot'); // .NET -> dotNET, Node.js -> Nodedotjs
 
-  return cleanTag
+  // Remove diacritics by normalizing to NFD then removing combining marks
+  // Using character code checks to avoid character class issues
+  const normalized = cleanTag.normalize("NFD");
+  const withoutDiacritics = Array.from(normalized)
+    .filter(char => {
+      const code = char.charCodeAt(0);
+      // Filter out combining diacritical marks (U+0300 to U+036F)
+      return code < 0x0300 || code > 0x036F;
+    })
+    .join("");
+  
+  return withoutDiacritics
     .toLowerCase()
     .replace(/[^\w\s-]/g, "") // Remove remaining special chars except spaces and hyphens
     .replace(/_/g, "-") // Replace underscores with hyphens
