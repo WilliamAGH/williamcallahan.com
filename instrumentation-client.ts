@@ -17,6 +17,10 @@ const BROWSER_EXTENSION_ERROR_PATTERNS = [
   "chrome.runtime",
   "browser.runtime",
   "Extension context invalidated",
+  "moz-extension://",
+  "chrome-extension://",
+  "script error",
+  "Non-Error promise rejection captured",
 ];
 
 /**
