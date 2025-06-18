@@ -37,31 +37,31 @@ function assertUnique(label: string, ids: string[]): void {
 try {
   assertUnique(
     "investments",
-    investments.map((i) => i.id)
+    investments.map((i) => i.id),
   );
 
   assertUnique(
     "experiences",
-    experiences.map((e) => e.id)
+    experiences.map((e) => e.id),
   );
 
   assertUnique(
     "education",
-    education.map((e) => e.id)
+    education.map((e) => e.id),
   );
 
   assertUnique(
     "certifications",
-    certifications.map((c) => c.id)
+    certifications.map((c) => c.id),
   );
 
   assertUnique(
     "blog posts",
-    posts.map((p) => p.slug)
+    posts.map((p) => p.slug),
   );
 
   console.log("✅ Duplicate-ID check passed. All IDs are unique.");
 } catch (err) {
   console.error("❌ Duplicate-ID check failed:", err instanceof Error ? err.message : err);
   process.exit(1);
-} 
+}

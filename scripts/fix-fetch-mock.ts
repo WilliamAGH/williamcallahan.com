@@ -59,10 +59,10 @@ void (async () => {
   if (
     globalThis.fetch?.toString().includes("mock") ||
     globalThis.fetch?.name === "fetch" ||
-    ("_isMockFunction" in (globalThis.fetch as unknown as { [key: string]: unknown }))
+    "_isMockFunction" in (globalThis.fetch as unknown as { [key: string]: unknown })
   ) {
     console.log("\n⚠️  Detected potential mock - attempting restoration...");
-    
+
     // Try to import native fetch
     try {
       const { fetch: undiciFetch } = await import("undici");
