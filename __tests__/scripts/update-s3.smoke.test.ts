@@ -10,7 +10,7 @@
  * @fileoverview Part of script testing infrastructure for update-s3-data.ts operational validation
  */
 
-import { spawn } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import * as path from 'node:path';
 
 /**
@@ -31,18 +31,17 @@ describe('Update S3 Script Smoke Tests', () => {
    * Ensures all update flags (bookmarks, github-activity, logos, force) are documented in usage text
    */
   it('should display help message', () => {
-    /** Mocked help text output matching expected script usage format */
-    const helpText = `Usage: update-s3-data.ts [options]
-    --bookmarks       Update bookmarks data
-    --github-activity Update GitHub activity data  
-    --logos          Update logos data
-    --force          Force update all data`;
+    /** Execute script with --help flag and capture output */
+    const stdout = execSync(`bun ${scriptPath} --help`, {
+      encoding: 'utf8',
+      env: { ...process.env, S3_BUCKET: 'test-bucket' }
+    });
     
-    expect(helpText).toContain('Usage: update-s3-data.ts [options]');
-    expect(helpText).toContain('--bookmarks');
-    expect(helpText).toContain('--github-activity');
-    expect(helpText).toContain('--logos');
-    expect(helpText).toContain('--force');
+    expect(stdout).toContain('Usage: update-s3-data.ts [options]');
+    expect(stdout).toContain('--bookmarks');
+    expect(stdout).toContain('--github-activity');
+    expect(stdout).toContain('--logos');
+    expect(stdout).toContain('--force');
   });
 
   /**
@@ -50,11 +49,14 @@ describe('Update S3 Script Smoke Tests', () => {
    * Confirms script recognizes DRY_RUN environment variable and exits cleanly
    */
   it('should run with --dry-run flag', () => {
-    /** Mocked output for dry-run execution mode */
-    const mockOutput = 'DRY RUN mode\nAll scheduled update checks complete';
+    /** Execute script in dry-run mode and capture output */
+    const stdout = execSync(`bun ${scriptPath} --dry-run`, {
+      encoding: 'utf8',
+      env: { ...process.env, DRY_RUN: 'true', S3_BUCKET: 'test-bucket' }
+    });
     
-    expect(mockOutput).toContain('DRY RUN mode');
-    expect(mockOutput).toContain('All scheduled update checks complete');
+    expect(stdout).toContain('DRY RUN mode');
+    expect(stdout).toContain('All scheduled update checks complete');
   });
 
   /**
@@ -62,10 +64,18 @@ describe('Update S3 Script Smoke Tests', () => {
    * Confirms script fails gracefully when critical environment variables are missing
    */
   it('should validate environment when S3_BUCKET is missing', () => {
-    /** Mocked error output for missing S3_BUCKET environment variable */
-    const mockOutput = 'S3_BUCKET environment variable is not set';
+    /** Execute script without S3_BUCKET and capture output */
+    // Note: Setting S3_BUCKET to undefined still allows fallback to process.env, 
+    // so we need to explicitly delete it
+    const cleanEnv = { ...process.env };
+    delete cleanEnv.S3_BUCKET;
     
-    expect(mockOutput).toContain('S3_BUCKET environment variable is not set');
+    const stdout = execSync(`bun ${scriptPath} --dry-run`, {
+      encoding: 'utf8',
+      env: { ...cleanEnv, DRY_RUN: 'true' }
+    });
+    
+    expect(stdout).toContain('S3_BUCKET environment variable is not set');
   });
 
   /**
@@ -73,12 +83,16 @@ describe('Update S3 Script Smoke Tests', () => {
    * Confirms script correctly parses individual flags and skips non-specified updates
    */
   it('should accept individual update flags', () => {
-    /** Mocked output showing selective flag activation (bookmarks and logos only) */
-    const mockOutput = '--bookmarks flag is true\n--logos flag is true';
+    /** Execute script with specific flags in dry-run mode */
+    const stdout = execSync(`bun ${scriptPath} --bookmarks --logos --dry-run`, {
+      encoding: 'utf8',
+      env: { ...process.env, DRY_RUN: 'true', S3_BUCKET: 'test-bucket' }
+    });
     
-    expect(mockOutput).toContain('--bookmarks flag is true');
-    expect(mockOutput).toContain('--logos flag is true');
-    expect(mockOutput).not.toContain('--github-activity flag is true');
+    // The script logs the raw args, which should include our flags
+    expect(stdout).toContain('Raw args: --bookmarks --logos --dry-run');
+    // In dry run mode, it exits before flag-specific processing
+    expect(stdout).toContain('DRY RUN mode');
   });
 
   /**
@@ -86,30 +100,32 @@ describe('Update S3 Script Smoke Tests', () => {
    * Ensures script respects item count limits during testing to prevent resource exhaustion
    */
   it('should handle test limit environment variable', () => {
-    /** Mocked output confirming test limit activation with specific item count */
-    const mockOutput = 'Test limit active: 5 items per operation';
+    /** Execute script with test limit set */
+    const stdout = execSync(`bun ${scriptPath} --dry-run`, {
+      encoding: 'utf8',
+      env: { ...process.env, DRY_RUN: 'true', S3_BUCKET: 'test-bucket', S3_TEST_LIMIT: '5' }
+    });
     
-    expect(mockOutput).toContain('Test limit active: 5 items per operation');
+    expect(stdout).toContain('Test limit active: 5 items per operation');
   });
 
   /**
-   * Validates critical module import structure for script dependencies
-   * Meta-test ensuring script would have access to required data-access, bookmarks, logos, constants, and logger modules
+   * Validates that script can be loaded and parsed without import errors
+   * Confirms module resolution works correctly in test environment
    */
-  it('should validate script module structure', () => {
-    /** Expected import paths that script requires for proper operation */
-    const requiredImports = [
-      '@/lib/data-access',
-      '@/lib/bookmarks',
-      '@/lib/data-access/logos',
-      '@/lib/constants',
-      '@/lib/utils/logger'
-    ];
-    
-    /** Verify import paths are properly defined as strings for module resolution */
-    for (const importPath of requiredImports) {
-      expect(importPath).toBeDefined();
-      expect(typeof importPath).toBe('string');
+  it('should load script without module resolution errors', () => {
+    /** Execute script with immediate exit to test module loading */
+    let exitCode = 0;
+    try {
+      execSync(`bun ${scriptPath} --help`, {
+        encoding: 'utf8',
+        env: { ...process.env, S3_BUCKET: 'test-bucket' }
+      });
+    } catch (error: any) {
+      exitCode = error.status || 1;
     }
+    
+    /** Script should exit with code 0 after displaying help */
+    expect(exitCode).toBe(0);
   });
 });

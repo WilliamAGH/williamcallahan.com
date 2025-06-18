@@ -47,10 +47,16 @@ Content`),
 
 describe('Sitemap Generation', () => {
   const mockGetBookmarksForStaticBuild = getBookmarksForStaticBuild;
+  let originalSiteUrl: string | undefined;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
     process.env.NEXT_PUBLIC_SITE_URL = 'https://williamcallahan.com';
+  });
+
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
   });
 
   /**
