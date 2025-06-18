@@ -274,6 +274,10 @@ export async function initializeBookmarksDataAccess(): Promise<void> {
           });
         }, LOCK_CLEANUP_INTERVAL_MS);
         
+        // Allow the process to exit naturally if this is the only pending handle (e.g. in Jest)
+        // This prevents "Jest did not exit one second after the test run" warnings/hangs.
+        lockCleanupInterval.unref();
+        
         console.log("[Bookmarks] Started lock cleanup interval (every 2 minutes)");
       }
       
