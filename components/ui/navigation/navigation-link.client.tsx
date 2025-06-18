@@ -5,9 +5,6 @@
 
 // Revert to original hook name
 import { useTerminalContext } from "@/components/ui/terminal/terminal-context.client";
-import { BREAKPOINTS } from "@/lib/constants";
-// Import the window size hook
-import { useWindowSize } from "@/lib/hooks/use-window-size.client";
 import type { NavigationLinkProps } from "@/types/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react"; // Import useRef
@@ -26,9 +23,6 @@ export function NavigationLink({
   className = "",
   onClick,
 }: NavigationLinkProps) {
-  // Use the window size hook
-  const { width } = useWindowSize();
-
   // Use the original hook name
   const { clearHistory } = useTerminalContext();
   const isActive = currentPath === path;
@@ -39,7 +33,6 @@ export function NavigationLink({
   const [isNavigating, setIsNavigating] = useState(false);
 
   // Determine if this link should be prefetched
-
   const shouldPrefetch = PRIORITY_PATHS.includes(path);
 
   // Memoize the click handler to prevent rerenders
@@ -79,20 +72,6 @@ export function NavigationLink({
       return () => clearTimeout(timer);
     }
   }, [isNavigating]);
-
-  // Debug log for Contact link
-  if (process.env.NODE_ENV === "development" && name === "Contact") {
-    console.log("Contact link debug:", {
-      name,
-      width,
-      responsive,
-      hideBelow: responsive?.hideBelow,
-      breakpoint: BREAKPOINTS[responsive?.hideBelow || "xl"],
-    });
-  }
-
-  // REMOVED: Conditional return null that was causing hydration errors
-  // The responsive CSS classes in getResponsiveClasses() handle visibility correctly
 
   // Handle responsive display classes based on responsive settings
   const getResponsiveClasses = () => {
