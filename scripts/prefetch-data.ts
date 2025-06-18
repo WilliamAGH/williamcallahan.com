@@ -15,6 +15,7 @@ import { KNOWN_DOMAINS } from "../lib/constants";
 import {
   getBookmarks,
   getGithubActivity,
+  refreshGitHubActivityDataFromApi,
   getInvestmentDomainsAndIds,
   getLogo as getLogoUntyped,
   initializeBookmarksDataAccess,
@@ -146,13 +147,30 @@ async function prefetchGitHubActivityData(): Promise<void> {
     // Use getGithubActivity directly from data-access layer
     const activity = await getGithubActivity();
 
-    if (activity) {
+    const now = Date.now();
+    let lastRefreshedMs = 0;
+    if (activity?.lastRefreshed) {
+      lastRefreshedMs = Date.parse(activity.lastRefreshed);
+    }
+
+    const MS_24H = 24 * 60 * 60 * 1000;
+
+    if (!activity || !activity.trailingYearData?.data.length) {
+      console.log("[Prefetch] GitHub activity missing – triggering initial refresh...");
+      await refreshGitHubActivityDataFromApi();
+    } else if (now - lastRefreshedMs > MS_24H) {
       console.log(
-        `[Prefetch] Successfully fetched GitHub activity data. Complete: ${activity.trailingYearData?.dataComplete}`,
+        `[Prefetch] GitHub activity last updated >24h ago (${activity.lastRefreshed}); refreshing...`,
       );
+      // Only attempt refresh if token present to avoid unauth'd rate-limits
+      if (process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH || process.env.GITHUB_TOKEN) {
+        await refreshGitHubActivityDataFromApi();
+      } else {
+        console.log("[Prefetch] GitHub token not set during build; skipping auto-refresh.");
+      }
     } else {
       console.log(
-        "[Prefetch] GitHub activity data-access returned no data, will use static fallbacks.",
+        `[Prefetch] GitHub activity up-to-date (last refreshed ${activity.lastRefreshed}); no refresh needed.`,
       );
     }
   } catch (error: unknown) {
