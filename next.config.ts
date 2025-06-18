@@ -16,19 +16,43 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { RuleSetRule } from "webpack"; // Import RuleSetRule type
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
 /**
  * @typedef {{ version: string }} PackageJson
  */
 
-// Get packagejson version to use in build ID
-/** @type {PackageJson} */
-const packageJson = JSON.parse(readFileSync(resolve("./package.json"), "utf8"));
+/**
+ * Get package version in a performant way
+ * During build time, we can safely read the file synchronously
+ * At runtime, we use the environment variable that was set during build
+ */
+function getPackageVersion(): string {
+  // If already set from a previous run, use cached value
+  if (process.env.NEXT_PUBLIC_APP_VERSION) {
+    return process.env.NEXT_PUBLIC_APP_VERSION;
+  }
+  
+  // During build time only, read package.json
+  // This is acceptable because builds happen in a controlled environment
+  // and this code doesn't run during request handling
+  if (process.env.NODE_ENV === 'production' || process.env.NEXT_PHASE === 'phase-production-build') {
+    try {
+      const { readFileSync } = require("node:fs");
+      const { resolve } = require("node:path");
+      const packageJson = JSON.parse(readFileSync(resolve("./package.json"), "utf8"));
+      return packageJson.version;
+    } catch {
+      console.warn("[Next Config] Could not read package.json, using fallback version");
+      return "0.0.0";
+    }
+  }
+  
+  // Development fallback
+  return "0.0.0-dev";
+}
 
-// Make the app version available to client code
-process.env.NEXT_PUBLIC_APP_VERSION = packageJson.version;
+// Get version and cache it
+const appVersion = getPackageVersion();
+process.env.NEXT_PUBLIC_APP_VERSION = appVersion;
 
 const nextConfig = {
   /**
@@ -141,8 +165,8 @@ const nextConfig = {
    * Only change this when intentionally refreshing all cached assets
    */
   generateBuildId: () => {
-    // Base the build ID on packagejson version for consistent hashing
-    return `v${packageJson.version}-stable`;
+    // Base the build ID on app version for consistent hashing
+    return `v${appVersion}-stable`;
   },
 
   /**
