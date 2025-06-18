@@ -430,31 +430,36 @@ TOTAL_THREADS=$(gh api graphql -f query='
   }
 }' | jq '.data.repository.pullRequest.reviewThreads.totalCount')
 
-# Then fetch with appropriate limit
-THREAD_LIMIT=$((TOTAL_THREADS > 200 ? TOTAL_THREADS : 200))
-gh api graphql -f query='
-{
-  repository(owner: "WilliamAGH", name: "williamcallahan.com") {
-    pullRequest(number: 109) {
-      reviewThreads(first: '$THREAD_LIMIT') {
-        nodes {
-          id
-          isResolved
-          path
-          line
-          comments(first: 1) {
-            nodes {
-              id
-              databaseId
-              body
-              author { login }
+# Then fetch with pagination if needed
+if [ "$TOTAL_THREADS" -le 100 ]; then
+  # Simple case: fetch all in one request
+  gh api graphql -f query='
+  {
+    repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+      pullRequest(number: 109) {
+        reviewThreads(first: 100) {
+          nodes {
+            id
+            isResolved
+            path
+            line
+            comments(first: 1) {
+              nodes {
+                id
+                databaseId
+                body
+                author { login }
+              }
             }
           }
         }
       }
     }
-  }
-}' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
+  }' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
+else
+  # Complex case: use pagination (see main workflow above)
+  echo "PR has more than 100 threads - use the full pagination workflow from Step 2"
+fi
 ```
 
 **Get IDs for specific file:**
