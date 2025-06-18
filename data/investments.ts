@@ -1371,7 +1371,7 @@ export const investments: Investment[] = [
     ],
   },
   {
-    id: "gojom",
+    id: "gojom-2023",
     name: "GoJom",
     description:
       "Real estate technology platform streamlining property transactions and management in Southeast Asia.",
@@ -1584,7 +1584,7 @@ export const investments: Investment[] = [
     ],
   },
   {
-    id: "helaina",
+    id: "helaina-2023",
     name: "Helaina",
     description:
       "Biotech company developing human milk proteins through precision fermentation for infant formula.",
