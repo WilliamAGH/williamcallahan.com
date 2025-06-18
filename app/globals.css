@@ -429,44 +429,6 @@ html[data-darkreader-mode] {
   object-position: center;
 }
 
-/* iOS Safari specific fixes for profile image component */
-.profile-image-container {
-  /* Prevent iOS Safari from creating additional rendering contexts */
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-
-/* iOS Safari: Ensure border-radius clipping works correctly */
-@supports (-webkit-appearance: none) {
-  .profile-image-container > div {
-    /* Force hardware acceleration for smoother rendering */
-    -webkit-transform: translate3d(0, 0, 0);
-    transform: translate3d(0, 0, 0);
-    /* Ensure border-radius is applied to the clipping context */
-    -webkit-mask: radial-gradient(circle, white 50%, transparent 50%);
-    mask: radial-gradient(circle, white 50%, transparent 50%);
-  }
-  
-  .profile-image-container img {
-    /* Prevent sub-pixel rendering issues */
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-    image-rendering: -webkit-optimize-contrast; /* Safari/WebKit - primary target for iOS fix */
-  }
-}
-
-/* ONLY target the <a> wrapper: perfect circle and correct size */
-.react-tweet-theme [class^="tweet-header_avatar__"] {
-  display: block; /* Ensure the container behaves as a block for width/height */
-  position: relative; /* Anchor absolute children here */
-  width: 48px;
-  height: 48px;
-  border-radius: 9999px; /* Using a large value for a perfect circle */
-  overflow: hidden;
-}
-
 /* Pin react-tweet avatarOverflow wrappers to top-left */
 /* Removed duplicate rule */
 
