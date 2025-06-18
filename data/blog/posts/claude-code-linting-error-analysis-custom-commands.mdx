@@ -367,54 +367,198 @@ TOTAL_THREADS=$(gh api graphql -f query='
 
 echo "Total review threads: $TOTAL_THREADS"
 
-# STEP 2: Count how many unresolved comments exist (use higher limit if needed)
+# STEP 2: Handle pagination if needed (GitHub GraphQL limit is 100 per page)
 echo "Checking for unresolved comments..."
-THREAD_LIMIT=$((TOTAL_THREADS > 200 ? TOTAL_THREADS : 200))
-UNRESOLVED_COUNT=$(gh api graphql -f query='
-{
-  repository(owner: "WilliamAGH", name: "williamcallahan.com") {
-    pullRequest(number: [PR_NUMBER]) {
-      reviewThreads(first: '$THREAD_LIMIT') {
-        nodes {
-          id
-          isResolved
-        }
-      }
-    }
-  }
-}' | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
-
-echo "Found $UNRESOLVED_COUNT unresolved comments"
-
-# STEP 3: If there are unresolved comments, fetch them with concise format
-if [ "$UNRESOLVED_COUNT" -gt 0 ]; then
-  echo "Fetching details of $UNRESOLVED_COUNT unresolved comments..."
-  
-  # Get a summary list (path + first line of comment) with proper limit
-  gh api graphql -f query='
+if [ "$TOTAL_THREADS" -le 100 ]; then
+  # Simple case: all threads fit in one request
+  UNRESOLVED_COUNT=$(gh api graphql -f query='
   {
     repository(owner: "WilliamAGH", name: "williamcallahan.com") {
       pullRequest(number: [PR_NUMBER]) {
-        reviewThreads(first: '$THREAD_LIMIT') {
+        reviewThreads(first: 100) {
           nodes {
             id
             isResolved
-            path
-            line
-            comments(first: 1) {
+          }
+        }
+      }
+    }
+  }' | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
+else
+  # Complex case: need to paginate through all threads
+  echo "PR has $TOTAL_THREADS threads, paginating through them..."
+  UNRESOLVED_COUNT=0
+  CURSOR=""
+  
+  while true; do
+    if [ -z "$CURSOR" ]; then
+      # First page
+      RESPONSE=$(gh api graphql -f query='
+      {
+        repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+          pullRequest(number: [PR_NUMBER]) {
+            reviewThreads(first: 100) {
               nodes {
                 id
-                databaseId
-                body
-                author { login }
+                isResolved
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      }')
+    else
+      # Subsequent pages
+      RESPONSE=$(gh api graphql -f query='
+      {
+        repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+          pullRequest(number: [PR_NUMBER]) {
+            reviewThreads(first: 100, after: "'$CURSOR'") {
+              nodes {
+                id
+                isResolved
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      }')
+    fi
+    
+    # Count unresolved in this page
+    PAGE_UNRESOLVED=$(echo "$RESPONSE" | jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
+    UNRESOLVED_COUNT=$((UNRESOLVED_COUNT + PAGE_UNRESOLVED))
+    
+    # Check if more pages exist
+    HAS_NEXT=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')
+    if [ "$HAS_NEXT" = "false" ]; then
+      break
+    fi
+    
+    # Get cursor for next page
+    CURSOR=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')
+  done
+fi
+
+echo "Found $UNRESOLVED_COUNT unresolved comments"
+
+# STEP 3: If there are unresolved comments, fetch them with details
+if [ "$UNRESOLVED_COUNT" -gt 0 ]; then
+  echo "Fetching details of $UNRESOLVED_COUNT unresolved comments..."
+  
+  # Similar pagination logic for fetching full details
+  if [ "$TOTAL_THREADS" -le 100 ]; then
+    # Simple case
+    gh api graphql -f query='
+    {
+      repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+        pullRequest(number: [PR_NUMBER]) {
+          reviewThreads(first: 100) {
+            nodes {
+              id
+              isResolved
+              path
+              line
+              comments(first: 1) {
+                nodes {
+                  id
+                  databaseId
+                  body
+                  author { login }
+                }
               }
             }
           }
         }
       }
-    }
-  }' | jq -r '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | 
-  "---\nThread ID: \(.id)\nPath: \(.path // "general comment")\nLine: \(.line // "N/A")\nComment ID: \(.comments.nodes[0].databaseId)\nAuthor: \(.comments.nodes[0].author.login)\nFirst line: \(.comments.nodes[0].body | split("\n")[0])"'
+    }' | jq -r '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | 
+    "---\nThread ID: \(.id)\nPath: \(.path // "general comment")\nLine: \(.line // "N/A")\nComment ID: \(.comments.nodes[0].databaseId)\nAuthor: \(.comments.nodes[0].author.login)\nFirst line: \(.comments.nodes[0].body | split("\n")[0])"'
+  else
+    # Complex case: paginate through all unresolved threads
+    echo "Paginating through unresolved comments..."
+    CURSOR=""
+    
+    while true; do
+      if [ -z "$CURSOR" ]; then
+        # First page
+        RESPONSE=$(gh api graphql -f query='
+        {
+          repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+            pullRequest(number: [PR_NUMBER]) {
+              reviewThreads(first: 100) {
+                nodes {
+                  id
+                  isResolved
+                  path
+                  line
+                  comments(first: 1) {
+                    nodes {
+                      id
+                      databaseId
+                      body
+                      author { login }
+                    }
+                  }
+                }
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+              }
+            }
+          }
+        }')
+      else
+        # Subsequent pages
+        RESPONSE=$(gh api graphql -f query='
+        {
+          repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+            pullRequest(number: [PR_NUMBER]) {
+              reviewThreads(first: 100, after: "'$CURSOR'") {
+                nodes {
+                  id
+                  isResolved
+                  path
+                  line
+                  comments(first: 1) {
+                    nodes {
+                      id
+                      databaseId
+                      body
+                      author { login }
+                    }
+                  }
+                }
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+              }
+            }
+          }
+        }')
+      fi
+      
+      # Output unresolved comments from this page
+      echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false) | 
+      "---\nThread ID: \(.id)\nPath: \(.path // "general comment")\nLine: \(.line // "N/A")\nComment ID: \(.comments.nodes[0].databaseId)\nAuthor: \(.comments.nodes[0].author.login)\nFirst line: \(.comments.nodes[0].body | split("\n")[0])"'
+      
+      # Check if more pages exist
+      HAS_NEXT=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage')
+      if [ "$HAS_NEXT" = "false" ]; then
+        break
+      fi
+      
+      # Get cursor for next page
+      CURSOR=$(echo "$RESPONSE" | jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.endCursor')
+    done
+  fi
   
   echo -e "\n✅ Above are all unresolved comments. Process each one individually."
 fi
@@ -551,31 +695,36 @@ TOTAL_THREADS=$(gh api graphql -f query='
   }
 }' | jq '.data.repository.pullRequest.reviewThreads.totalCount')
 
-# Then fetch with appropriate limit
-THREAD_LIMIT=$((TOTAL_THREADS > 200 ? TOTAL_THREADS : 200))
-gh api graphql -f query='
-{
-  repository(owner: "WilliamAGH", name: "williamcallahan.com") {
-    pullRequest(number: 109) {
-      reviewThreads(first: '$THREAD_LIMIT') {
-        nodes {
-          id
-          isResolved
-          path
-          line
-          comments(first: 1) {
-            nodes {
-              id
-              databaseId
-              body
-              author { login }
+# Then fetch with pagination if needed
+if [ "$TOTAL_THREADS" -le 100 ]; then
+  # Simple case: fetch all in one request
+  gh api graphql -f query='
+  {
+    repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+      pullRequest(number: 109) {
+        reviewThreads(first: 100) {
+          nodes {
+            id
+            isResolved
+            path
+            line
+            comments(first: 1) {
+              nodes {
+                id
+                databaseId
+                body
+                author { login }
+              }
             }
           }
         }
       }
     }
-  }
-}' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
+  }' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)'
+else
+  # Complex case: use pagination (see main workflow above)
+  echo "PR has more than 100 threads - use the full pagination workflow from Step 2"
+fi
 ```
 
 **Get IDs for specific file:**
