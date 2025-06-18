@@ -22,27 +22,27 @@
 import { config } from "dotenv";
 config(); // Load .env file
 
-// Import using @/ path mapping with explicit .ts extension for maximum compatibility
+// Import using relative paths for better Bun compatibility in production
 import {
   calculateAndStoreAggregatedWeeklyActivity,
   getBookmarks,
   getGithubActivity,
   getInvestmentDomainsAndIds,
   getLogo as getLogoUntyped,
-} from "@/lib/data-access";
+} from "../lib/data-access/index.js";
 
 // Import direct refresh functions for forced updates
-import { refreshBookmarksData } from "@/lib/bookmarks";
+import { refreshBookmarksData } from "../lib/bookmarks/index.js";
 
 // Import logo session tracking functions
-import { invalidateLogoS3Cache, resetLogoSessionTracking } from "@/lib/data-access/logos.ts";
+import { invalidateLogoS3Cache, resetLogoSessionTracking } from "../lib/data-access/logos.js";
 
-import { KNOWN_DOMAINS } from "@/lib/constants";
-import logger from "@/lib/utils/logger";
+import { KNOWN_DOMAINS } from "../lib/constants.js";
+import logger from "../lib/utils/logger.js";
 
 // Import types
-import type { UnifiedBookmark } from "@/types/bookmark";
-import type { LogoResult } from "@/types/logo";
+import type { UnifiedBookmark } from "../types/bookmark.js";
+import type { LogoResult } from "../types/logo.js";
 
 // --- Configuration & Constants ---
 
