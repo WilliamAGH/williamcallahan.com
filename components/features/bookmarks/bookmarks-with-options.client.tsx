@@ -7,11 +7,11 @@
  */
 "use client";
 
-import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
+import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { UnifiedBookmark } from "@/types";
 import { ArrowRight, Loader2, RefreshCw, Search } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
@@ -21,6 +21,7 @@ interface BookmarksWithOptionsProps {
   bookmarks: UnifiedBookmark[];
   showFilterBar?: boolean;
   searchAllBookmarks?: boolean;
+  initialTag?: string;
 }
 
 // Environment detection helper
@@ -35,11 +36,12 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
   bookmarks,
   showFilterBar = true,
   searchAllBookmarks = false,
+  initialTag,
 }) => {
   // Add mounted state for hydration safety
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
   // Tag expansion is now handled in the TagsList component
   const [allBookmarks, setAllBookmarks] = useState<UnifiedBookmark[]>(bookmarks);
   // Using setIsSearching in handleSearchSubmit
@@ -54,6 +56,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
   const [searchResults, setSearchResults] = useState<UnifiedBookmark[] | null>(null);
   const [isSearchingAPI, setIsSearchingAPI] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
 
   // Determine if refresh button should be shown
   const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
@@ -232,8 +235,28 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
   };
 
   const handleTagClick = (tag: string) => {
-    setSelectedTag(selectedTag === tag ? null : tag);
+    if (selectedTag === tag) {
+      // Clear filter
+      setSelectedTag(null);
+    } else {
+      // New tag selected
+      setSelectedTag(tag);
+    }
   };
+
+  // Handle navigation based on tag selection
+  useEffect(() => {
+    if (!mounted) return;
+    
+    if (selectedTag && !pathname.includes("/tags/")) {
+      // Navigate to tag page when tag is selected
+      const tagSlug = tagToSlug(selectedTag);
+      router.push(`/bookmarks/tags/${tagSlug}`);
+    } else if (!selectedTag && pathname.startsWith("/bookmarks/tags/")) {
+      // Navigate back to main bookmarks when tag is cleared
+      router.push("/bookmarks");
+    }
+  }, [selectedTag, pathname, router, mounted]);
 
   // Function to refresh bookmarks data
   const refreshBookmarks = async () => {

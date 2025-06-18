@@ -19,6 +19,8 @@ interface BookmarksPaginatedClientProps {
   enableInfiniteScroll?: boolean;
   itemsPerPage?: number;
   initialPage?: number;
+  baseUrl?: string;
+  initialTag?: string;
 }
 
 export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> = ({
@@ -29,6 +31,8 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
   enableInfiniteScroll = true,
   itemsPerPage = 24,
   initialPage,
+  baseUrl,
+  initialTag,
 }) => {
   // Debug log to check if bookmarks are passed correctly to client component
   if (process.env.NODE_ENV === "development") {
@@ -52,16 +56,19 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
         enableInfiniteScroll={enableInfiniteScroll}
         itemsPerPage={itemsPerPage}
         initialPage={initialPage}
+        baseUrl={baseUrl}
+        initialTag={initialTag}
       />
     );
   }
 
-  // Otherwise use the original component
+  // Otherwise use the original component without client fetch
   return (
     <BookmarksWithOptions
       bookmarks={bookmarks}
       showFilterBar={showFilterBar}
-      searchAllBookmarks={forceClientFetch}
+      searchAllBookmarks={false} // Disable client fetch when pagination is disabled
+      initialTag={initialTag}
     />
   );
 };

@@ -20,6 +20,9 @@ interface BookmarksServerProps {
   showFilterBar?: boolean;
   titleSlug?: string;
   initialPage?: number;
+  baseUrl?: string;
+  usePagination?: boolean;
+  initialTag?: string;
 }
 
 /**
@@ -40,6 +43,9 @@ export async function BookmarksServer({
   showFilterBar,
   titleSlug,
   initialPage,
+  baseUrl,
+  usePagination = true,
+  initialTag,
 }: BookmarksServerProps): Promise<JSX.Element> {
   // If bookmarks are provided via props, use those; otherwise fetch from API
   let bookmarks: UnifiedBookmark[] = [];
@@ -98,6 +104,9 @@ export async function BookmarksServer({
       showFilterBar={showFilterBar}
       titleSlug={titleSlug}
       initialPage={initialPage}
+      baseUrl={baseUrl}
+      usePagination={usePagination}
+      initialTag={initialTag}
     />
   );
 }

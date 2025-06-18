@@ -65,6 +65,9 @@ interface BookmarksClientWithWindowProps {
   showFilterBar?: boolean;
   titleSlug?: string;
   initialPage?: number;
+  baseUrl?: string;
+  usePagination?: boolean;
+  initialTag?: string;
 }
 
 export function BookmarksClientWithWindow({
@@ -75,6 +78,9 @@ export function BookmarksClientWithWindow({
   showFilterBar = true,
   titleSlug,
   initialPage,
+  baseUrl,
+  usePagination = true,
+  initialTag,
 }: BookmarksClientWithWindowProps) {
   return (
     <BookmarksWindow
@@ -93,10 +99,12 @@ export function BookmarksClientWithWindow({
             bookmarks={bookmarks}
             forceClientFetch={forceClientFetch}
             showFilterBar={showFilterBar}
-            usePagination={true}
+            usePagination={usePagination}
             enableInfiniteScroll={false}
             itemsPerPage={24}
             initialPage={initialPage}
+            baseUrl={baseUrl}
+            initialTag={initialTag}
           />
         </Suspense>
       </div>

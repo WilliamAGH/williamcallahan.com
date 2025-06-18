@@ -9,11 +9,11 @@
 
 "use client";
 
-import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
+import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { UnifiedBookmark } from "@/types";
 import { ArrowRight, Loader2, RefreshCw, Search } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
@@ -30,6 +30,8 @@ interface BookmarksWithPaginationProps {
   enableInfiniteScroll?: boolean;
   itemsPerPage?: number;
   initialPage?: number;
+  baseUrl?: string;
+  initialTag?: string;
 }
 
 // Environment detection helper
@@ -47,19 +49,22 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
   enableInfiniteScroll = true,
   itemsPerPage = 24,
   initialPage = 1,
+  baseUrl = "/bookmarks",
+  initialTag,
 }) => {
   // searchAllBookmarks is reserved for future use
   void searchAllBookmarks;
   // Add mounted state for hydration safety
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string | null>(initialTag || null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<UnifiedBookmark[] | null>(null);
   const [isSearchingAPI, setIsSearchingAPI] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
 
   // Use the pagination hook
   const {
@@ -219,8 +224,30 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
   };
 
   const handleTagClick = (tag: string) => {
-    setSelectedTag(selectedTag === tag ? null : tag);
+    if (selectedTag === tag) {
+      // Clear filter
+      setSelectedTag(null);
+      if (goToPage) goToPage(1); // Reset to page 1
+    } else {
+      // New tag selected
+      setSelectedTag(tag);
+      if (goToPage) goToPage(1); // Reset to page 1
+    }
   };
+
+  // Handle navigation based on tag selection
+  useEffect(() => {
+    if (!mounted) return;
+    
+    if (selectedTag && !pathname.includes("/tags/")) {
+      // Navigate to tag page when tag is selected
+      const tagSlug = tagToSlug(selectedTag);
+      router.push(`/bookmarks/tags/${tagSlug}`);
+    } else if (!selectedTag && pathname.startsWith("/bookmarks/tags/")) {
+      // Navigate back to main bookmarks when tag is cleared
+      router.push("/bookmarks");
+    }
+  }, [selectedTag, pathname, router, mounted]);
 
   // Navigate to a specific page (used by PaginationControl during SSR fallback)
   const handlePageChange = useCallback(
@@ -395,7 +422,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
               totalItems={totalItems}
               itemsPerPage={itemsPerPage}
               isLoading={isLoading || isLoadingMore}
-              baseUrl="/bookmarks"
+              baseUrl={baseUrl}
             />
           ) : (
             <PaginationControl
@@ -534,7 +561,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
               totalItems={totalItems}
               itemsPerPage={itemsPerPage}
               isLoading={isLoading || isLoadingMore}
-              baseUrl="/bookmarks"
+              baseUrl={baseUrl}
             />
           ) : (
             <PaginationControl
