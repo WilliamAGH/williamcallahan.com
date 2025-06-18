@@ -201,6 +201,9 @@ const config = tseslint.config(
   {
     files: ["**/__tests__/**/*.{ts,tsx,js,jsx}", "**/?(*.)+(spec|test).{js,jsx,ts,tsx}"],
     languageOptions: {
+      globals: {
+        ...globals.jest,
+      },
       parserOptions: {
         project: ["./__tests__/tsconfig.jest.json"],
         tsconfigRootDir: import.meta.dirname,
@@ -215,6 +218,7 @@ const config = tseslint.config(
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
 
