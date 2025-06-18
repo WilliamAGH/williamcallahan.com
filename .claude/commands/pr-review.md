@@ -87,13 +87,29 @@ git add lib/bookmarks.ts && git commit -m "fix(bookmarks): replace globalThis.is
 ⚠️ **CRITICAL**: The query output WILL show unresolved comments! DO NOT assume there are none if the output appears empty at first glance. The jq filter produces JSON objects, not a message saying "no comments". If you see JSON output, THOSE ARE THE UNRESOLVED COMMENTS TO PROCESS!
 
 ```bash
-# STEP 1: Count how many unresolved comments exist
+# STEP 1: First check total thread count to detect pagination needs
+echo "Checking total review thread count..."
+TOTAL_THREADS=$(gh api graphql -f query='
+{
+  repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+    pullRequest(number: [PR_NUMBER]) {
+      reviewThreads {
+        totalCount
+      }
+    }
+  }
+}' | jq '.data.repository.pullRequest.reviewThreads.totalCount')
+
+echo "Total review threads: $TOTAL_THREADS"
+
+# STEP 2: Count how many unresolved comments exist (use higher limit if needed)
 echo "Checking for unresolved comments..."
+THREAD_LIMIT=$((TOTAL_THREADS > 200 ? TOTAL_THREADS : 200))
 UNRESOLVED_COUNT=$(gh api graphql -f query='
 {
   repository(owner: "WilliamAGH", name: "williamcallahan.com") {
     pullRequest(number: [PR_NUMBER]) {
-      reviewThreads(first: 100) {
+      reviewThreads(first: '$THREAD_LIMIT') {
         nodes {
           id
           isResolved
@@ -105,16 +121,16 @@ UNRESOLVED_COUNT=$(gh api graphql -f query='
 
 echo "Found $UNRESOLVED_COUNT unresolved comments"
 
-# STEP 2: If there are unresolved comments, fetch them with concise format
+# STEP 3: If there are unresolved comments, fetch them with concise format
 if [ "$UNRESOLVED_COUNT" -gt 0 ]; then
   echo "Fetching details of $UNRESOLVED_COUNT unresolved comments..."
   
-  # First, get a summary list (path + first line of comment)
+  # Get a summary list (path + first line of comment) with proper limit
   gh api graphql -f query='
   {
     repository(owner: "WilliamAGH", name: "williamcallahan.com") {
       pullRequest(number: [PR_NUMBER]) {
-        reviewThreads(first: 100) {
+        reviewThreads(first: '$THREAD_LIMIT') {
           nodes {
             id
             isResolved
@@ -258,11 +274,25 @@ mutation {
 
 **Get all unresolved comments with both IDs:**
 ```bash
+# First check total thread count
+TOTAL_THREADS=$(gh api graphql -f query='
+{
+  repository(owner: "WilliamAGH", name: "williamcallahan.com") {
+    pullRequest(number: 109) {
+      reviewThreads {
+        totalCount
+      }
+    }
+  }
+}' | jq '.data.repository.pullRequest.reviewThreads.totalCount')
+
+# Then fetch with appropriate limit
+THREAD_LIMIT=$((TOTAL_THREADS > 200 ? TOTAL_THREADS : 200))
 gh api graphql -f query='
 {
   repository(owner: "WilliamAGH", name: "williamcallahan.com") {
     pullRequest(number: 109) {
-      reviewThreads(first: 50) {
+      reviewThreads(first: '$THREAD_LIMIT') {
         nodes {
           id
           isResolved
