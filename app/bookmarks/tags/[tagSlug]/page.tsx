@@ -162,7 +162,7 @@ export default async function TagPage({ params }: TagPageProps) {
         <BookmarksServer
           title={pageTitle}
           description={pageDescription}
-          bookmarks={filtered}
+          tag={displayTag}  // Use server-side tag filtering instead of pre-filtered bookmarks
           showFilterBar={true}
           titleSlug={tagSlug}
           initialPage={1}

@@ -22,6 +22,7 @@ interface UseBookmarksPaginationOptions {
   limit?: number;
   initialData?: UnifiedBookmark[];
   initialPage?: number;
+  tag?: string;  // Add support for tag filtering
 }
 
 interface UseBookmarksPaginationReturn {
@@ -49,7 +50,8 @@ const fetcher = async (url: string): Promise<BookmarksResponse> => {
 export function useBookmarksPagination({
   limit = 24,
   initialData = [],
-  initialPage = 1
+  initialPage = 1,
+  tag
 }: UseBookmarksPaginationOptions = {}): UseBookmarksPaginationReturn {
   const [currentPage, setCurrentPage] = useState(initialPage);
 
@@ -57,9 +59,18 @@ export function useBookmarksPagination({
     // Don't fetch if we've reached the end
     if (previousPageData && !previousPageData.meta.pagination.hasNext) return null;
     
-    // API uses 1-based pagination
-    return `/api/bookmarks?page=${pageIndex + 1}&limit=${limit}`;
-  }, [limit]);
+    // Build URL with pagination and optional tag filter
+    const params = new URLSearchParams({
+      page: String(pageIndex + 1),
+      limit: String(limit)
+    });
+    
+    if (tag) {
+      params.append('tag', tag);
+    }
+    
+    return `/api/bookmarks?${params.toString()}`;
+  }, [limit, tag]);
 
   const {
     data,
