@@ -104,30 +104,26 @@ describe('Environment Variable Configuration', () => {
      * Validates default lock TTL when environment variable is not configured
      * Ensures bookmark operations use reasonable default locking timeout values
      */
-    it('should use default TTL when env var not set', () => {
+    it('should use default TTL when env var not set', async () => {
       Reflect.deleteProperty(process.env, 'BOOKMARKS_LOCK_TTL_MS');
 
       /** Import fresh module */
-      jest.isolateModules(() => {
-        const bookmarksModule = require('@/lib/data-access/bookmarks');
-        /** The module exports or internal constants would need to be checked */
-        /** This is a placeholder for the actual test */
-        expect(bookmarksModule).toBeDefined();
-      });
+      const bookmarksModule = await import('@/lib/data-access/bookmarks');
+      /** The module exports or internal constants would need to be checked */
+      /** This is a placeholder for the actual test */
+      expect(bookmarksModule).toBeDefined();
     });
 
     /**
      * Validates environment variable override for lock TTL configuration
      * Tests custom timeout value (30 minutes) for bookmark operation locking
      */
-    it('should use environment variable for TTL when set', () => {
+    it('should use environment variable for TTL when set', async () => {
       process.env.BOOKMARKS_LOCK_TTL_MS = '1800000'; // 30 minutes
 
-      jest.isolateModules(() => {
-        const bookmarksModule = require('@/lib/data-access/bookmarks');
-        /** The module exports or internal constants would need to be checked */
-        expect(bookmarksModule).toBeDefined();
-      });
+      const bookmarksModule = await import('@/lib/data-access/bookmarks');
+      /** The module exports or internal constants would need to be checked */
+      expect(bookmarksModule).toBeDefined();
     });
   });
 
