@@ -146,7 +146,7 @@ export interface GithubContributorStatsEntry {
  * This is what components and scripts like populate-volumes.ts will consume.
  */
 export interface UserActivityView {
-  source: "s3-store" | "api-fallback" | "error" | "empty";
+  source: "s3-store" | "s3-store-fallback" | "api-fallback" | "error" | "empty";
   error?: string;
   trailingYearData: {
     data: ContributionDay[];

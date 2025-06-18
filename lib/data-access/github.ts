@@ -54,6 +54,7 @@ const ghEnvSuffix = (() => {
 })();
 
 export const GITHUB_ACTIVITY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/activity_data${ghEnvSuffix}.json`;
+export const GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK = `${GITHUB_ACTIVITY_S3_KEY_DIR}/activity_data.json`; // Production key without suffix
 export const GITHUB_STATS_SUMMARY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/github_stats_summary${ghEnvSuffix}.json`;
 export const ALL_TIME_SUMMARY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/github_stats_summary_all_time${ghEnvSuffix}.json`;
 
@@ -803,13 +804,11 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     console.warn(
       `[DataAccess/GitHub] Inconsistency detected: All-time lines added (${allTimeLinesAdded}) less than trailing year (${yearLinesAdded}). This might be valid if historical data had net negative contributions over time but recent year was very positive. Verifying logic.`,
     );
-    // Not automatically correcting; allTimeLinesAdded is now the sum from all repo history.
   }
   if (allTimeLinesRemoved < yearLinesRemoved) {
     console.warn(
       `[DataAccess/GitHub] Inconsistency detected: All-time lines removed (${allTimeLinesRemoved}) less than trailing year (${yearLinesRemoved}). Similar to lines added, this could be valid. Verifying logic.`,
     );
-    // Not automatically correcting.
   }
 
   let reconciledAllTimeTotalCommits = allTimeTotalCommits;
@@ -973,8 +972,21 @@ export async function getGithubActivity(): Promise<UserActivityView> {
   debug(
     `[DataAccess/GitHub:getGithubActivity] Attempting to read GitHub activity from S3: ${GITHUB_ACTIVITY_S3_KEY_FILE}`,
   );
-  const s3ActivityData = await readJsonS3<GitHubActivityApiResponse>(GITHUB_ACTIVITY_S3_KEY_FILE);
-  const s3Metadata = await getS3ObjectMetadata(GITHUB_ACTIVITY_S3_KEY_FILE);
+  let s3ActivityData = await readJsonS3<GitHubActivityApiResponse>(GITHUB_ACTIVITY_S3_KEY_FILE);
+  let metadataKey = GITHUB_ACTIVITY_S3_KEY_FILE;
+
+  // Fallback: In local development or testing, the environment-specific file (e.g., with "-dev" suffix)
+  // may not exist in S3. Gracefully fall back to the production key so UI does not break.
+  if (!s3ActivityData && ghEnvSuffix) {
+    debug(
+      `[DataAccess/GitHub:getGithubActivity] Primary key not found. Falling back to production key: ${GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK}`,
+    );
+    metadataKey = GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK;
+    s3ActivityData = await readJsonS3<GitHubActivityApiResponse>(metadataKey);
+  }
+
+  const s3Metadata = await getS3ObjectMetadata(metadataKey);
+  const usedFallback = metadataKey === GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK;
 
   if (s3ActivityData?.trailingYearData && s3ActivityData.cumulativeAllTimeData) {
     debug(
@@ -994,7 +1006,7 @@ export async function getGithubActivity(): Promise<UserActivityView> {
       s3ActivityData.trailingYearData.data || ([] as ContributionDay[]);
 
     const userView: UserActivityView = {
-      source: "s3-store",
+      source: usedFallback ? "s3-store-fallback" : "s3-store",
       trailingYearData: {
         data: s3TrailingYearDataDays,
         totalContributions: trailingYearContributions,
