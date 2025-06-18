@@ -353,3 +353,12 @@ API Request → Business Logic → Data Access → External APIs/S3
 - **NEW (2025-06)**: Per-card API calls eliminated (96% reduction)
 - **NEW (2025-06)**: Singleton initialization pattern
 - **NEW (2025-06)**: Request deduplication for refresh operations
+- **NEW (2025-06)**: 15-minute per-process cool-down (`BACKGROUND_REFRESH_COOLDOWN_MS`) prevents a background refresh from starting more than once every 15 minutes even when the dev server hot-reloads repeatedly
+
+### Pagination Implementation Files (added 2025-06)
+
+| File | Responsibility |
+|------|----------------|
+| `app/bookmarks/page.tsx` | Canonical first page – lists first 24 bookmarks |
+| `app/bookmarks/page/[pageNumber]/page.tsx` | Dynamic route for subsequent pages with full SEO metadata, canonical/prev/next links, and ISR revalidation |
+| `app/bookmarks/page/[pageNumber]/generate-metadata.ts` *(removed after consolidation)* | Functionality folded into the new dynamic page file |

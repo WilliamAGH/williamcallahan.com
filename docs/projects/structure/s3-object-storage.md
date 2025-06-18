@@ -98,11 +98,12 @@ DRY_RUN=false
 
 ## Critical Issues & Security Vulnerabilities
 
-### 🔴 CRITICAL Security Issue
+### ✅ FIXED: Default Public ACLs (2025-06)
 
-- **Default Public ACLs**: `writeToS3` sets all objects as publicly readable by default
-  - **Impact**: Potential data leaks if used for sensitive data
-  - **Fix Required**: Make ACL an explicit parameter, require conscious decision
+- **Previous Issue**: `writeToS3` set all objects as publicly readable by default
+- **Solution**: Made ACL an explicit parameter with "private" as default
+- **Impact**: No more accidental public exposure of sensitive data
+- **Usage**: Developers must now explicitly set `acl: "public-read"` when needed
 
 ### Performance & Reliability Issues
 
@@ -116,9 +117,9 @@ DRY_RUN=false
   - **Impact**: Unnecessary API calls, unreliable caching
   - **Fix**: Use promise-based initialization pattern
 
-- **Broken Retry Logic**: `MAX_S3_READ_RETRIES = 1` results in zero retries due to loop condition
-  - **Impact**: No resilience against transient failures
-  - **Fix**: Correct the retry count logic
+- **✅ FIXED: Retry Logic (2025-06)**: Previously `MAX_S3_READ_RETRIES = 1` with too short delay
+  - **Solution**: Increased to 3 retries with 100ms delay between attempts
+  - **Impact**: Better resilience against transient network failures
 
 #### Medium Priority
 

@@ -12,13 +12,14 @@ The application uses a cron-based scheduler (`scripts/scheduler.ts`) that runs c
 
 ## Critical Issues & Bugs
 
-### 🔴 CRITICAL Issues
+### ✅ FIXED: Blocking Scheduler Architecture (2025-06)
 
-1. **Blocking Scheduler Architecture**
-   - **Location**: `scripts/scheduler.ts`
-   - **Issue**: Uses `spawnSync` which blocks entire scheduler if one job hangs
-   - **Impact**: All subsequent scheduled jobs are blocked
-   - **Fix**: Replace with async `spawn`
+- **Previous Issue**: Used `spawnSync` which blocked entire scheduler if one job hung
+- **Solution**:
+  - Replaced all `spawnSync` calls with async `spawn`
+  - Added concurrency protection with job tracking
+  - Jobs now run independently without blocking
+- **Impact**: Scheduler continues running even if individual jobs fail or hang
 
 ### 🟠 HIGH Priority Issues
 
