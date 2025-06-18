@@ -97,13 +97,21 @@ describe('PaginatedBookmarksPage', () => {
       expect(mockNotFound).toHaveBeenCalled();
     });
 
-    it('adds pagination link tags', async () => {
+    it('adds pagination link tags using icons.other workaround', async () => {
       const metadata = await generateMetadata({
         params: { pageNumber: '2' },
       });
 
-      expect(metadata.other?.['link:prev']).toBe('https://williamcallahan.com/bookmarks');
-      expect(metadata.other?.['link:next']).toBe('https://williamcallahan.com/bookmarks/page/3');
+      expect(metadata.icons?.other).toBeDefined();
+      expect(Array.isArray(metadata.icons?.other)).toBe(true);
+      
+      const links = metadata.icons?.other as Array<{ rel: string; url: string }>;
+      
+      const prevLink = links.find(link => link.rel === 'prev');
+      const nextLink = links.find(link => link.rel === 'next');
+      
+      expect(prevLink?.url).toBe('https://williamcallahan.com/bookmarks');
+      expect(nextLink?.url).toBe('https://williamcallahan.com/bookmarks/page/3');
     });
 
     it('handles last page correctly', async () => {
@@ -111,8 +119,13 @@ describe('PaginatedBookmarksPage', () => {
         params: { pageNumber: '3' },
       });
 
-      expect(metadata.other?.['link:prev']).toBe('https://williamcallahan.com/bookmarks/page/2');
-      expect(metadata.other?.['link:next']).toBeUndefined();
+      const links = metadata.icons?.other as Array<{ rel: string; url: string }>;
+      
+      const prevLink = links?.find(link => link.rel === 'prev');
+      const nextLink = links?.find(link => link.rel === 'next');
+      
+      expect(prevLink?.url).toBe('https://williamcallahan.com/bookmarks/page/2');
+      expect(nextLink).toBeUndefined();
     });
   });
 
