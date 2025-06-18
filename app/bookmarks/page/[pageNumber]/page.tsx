@@ -94,20 +94,31 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
   };
 
-  // Build pagination link tags for SEO using explicit record to satisfy TS
-  const extra: Record<string, string> = {};
+  // Build pagination link tags for SEO using icons.other workaround
+  const paginationLinks: Array<{ rel: string; url: string }> = [];
+  
   if (pageNum > 1) {
-    extra["link:prev"] = pageNum === 2
-      ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks`
-      : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum - 1}`;
+    paginationLinks.push({
+      rel: "prev",
+      url: pageNum === 2
+        ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks`
+        : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum - 1}`,
+    });
   }
+  
   if (pageNum < totalPages) {
-    extra["link:next"] = `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum + 1}`;
+    paginationLinks.push({
+      rel: "next",
+      url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum + 1}`,
+    });
   }
-  metadata.other = {
-    ...(metadata.other as Record<string, string> | undefined),
-    ...extra,
-  };
+  
+  // Use icons.other as a workaround to generate <link> tags
+  if (paginationLinks.length > 0) {
+    metadata.icons = {
+      other: paginationLinks,
+    };
+  }
 
   return metadata;
 }
