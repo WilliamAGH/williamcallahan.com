@@ -11,7 +11,7 @@ interface BlogFrontmatter {
   // Add other expected frontmatter properties here if needed
 }
 
-describe.skip("Blog MDX Smoke Tests", () => {
+describe("Blog MDX Smoke Tests", () => {
   let mdxFiles: string[] = [];
 
   beforeAll(async () => {

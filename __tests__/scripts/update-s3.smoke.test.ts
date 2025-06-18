@@ -67,8 +67,7 @@ describe('Update S3 Script Smoke Tests', () => {
     /** Execute script without S3_BUCKET but with test limits */
     // Note: The script actually has fallback behavior for missing S3_BUCKET
     // and will attempt to run with local data in test mode
-    const cleanEnv = { ...process.env };
-    delete cleanEnv.S3_BUCKET;
+    const { S3_BUCKET, ...cleanEnv } = process.env;
     
     let stdout = '';
     let exitCode = 0;

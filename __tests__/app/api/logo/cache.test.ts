@@ -1,3 +1,19 @@
+/**
+ * Logo API Cache Tests
+ *
+ * Tests the caching functionality for logo data according to the
+ * multi-tiered caching architecture (docs/projects/structure/caching.md).
+ * 
+ * Validates ServerCacheInstance methods for logo storage and retrieval:
+ * - In-memory caching with domain-based keys
+ * - Multi-stage caching for different processing stages
+ * - Success/failure caching with different TTLs
+ * - Cache invalidation mechanisms
+ * 
+ * These tests use mocked ServerCacheInstance to validate cache behavior without
+ * external dependencies, focusing on the Layer 1 (in-memory) cache operations.
+ */
+
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 // Mock the server-cache module
 jest.mock("@/lib/server-cache", () => {
@@ -29,8 +45,8 @@ jest.mock("@/lib/server-cache", () => {
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { CacheTester } from "@/lib/test-utils/cache-tester";
 
-// Skip these tests if we're not in the correct environment
-const shouldSkip = process.env.NODE_ENV === "production";
+// These tests should run in all environments to validate caching behavior
+const shouldSkip = false;
 
 // Mock logo data for tests
 const MOCK_LOGO_DATA = {
@@ -38,13 +54,7 @@ const MOCK_LOGO_DATA = {
   source: "google",
 };
 
-// Use describe.skip if needed
-if (shouldSkip) {
-  describe.skip("Logo API Cache Tests", () => {
-    it("skipped in production", () => {});
-  });
-} else {
-  describe("Logo API Cache Tests", () => {
+describe("Logo API Cache Tests", () => {
     beforeEach(() => {
       // Clear logo cache before each test
       CacheTester.clearCacheFor("logo");
@@ -116,4 +126,3 @@ if (shouldSkip) {
       expect(ServerCacheInstance.getLogoFetch(domain)).toBeUndefined();
     });
   });
-}
