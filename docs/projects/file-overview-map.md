@@ -164,7 +164,8 @@ File/Path                                       Functionality                   
 
 ## Lib Directory
 
-- [x] `async-job-queue.ts`                      `bookmarks`             - Asynchronous job queue implementation`                      - Asynchronous job queue implementation
+- [x] `async-job-queue.ts`                      `bookmarks`             - Asynchronous job queue implementation
+- [ ] `async-operations-monitor.ts`             `instrumentation-monitoring` - Global async operations tracker & timeout guard
 - [x] `blog.ts`                                 `blog`                  - Blog data helper functions
 - [x] `bookmarks.{client,server}.ts`            `json-handling`         - Helper functions for bookmarks
 - [x] `bookmarks.ts`                            `json-handling`         - Core bookmarks logic
