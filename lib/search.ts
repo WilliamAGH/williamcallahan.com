@@ -373,7 +373,18 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     const { getBaseUrl } = await import("@/lib/getBaseUrl");
     const apiUrl = `${getBaseUrl()}/api/bookmarks`;
 
-    const resp = await fetch(apiUrl, { cache: "no-store" });
+    // Abort the request if it hangs >5 s to keep site-wide search snappy
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    let resp: Response;
+    try {
+      resp = await fetch(apiUrl, { cache: "no-store", signal: controller.signal });
+    } catch (fetchErr) {
+      clearTimeout(timeoutId);
+      throw fetchErr;
+    }
+    clearTimeout(timeoutId);
+
     if (!resp.ok) {
       console.error(`[searchBookmarks] Failed API call: ${resp.status}`);
       return cached?.results || [];
