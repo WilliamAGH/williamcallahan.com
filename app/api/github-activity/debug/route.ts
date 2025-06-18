@@ -20,12 +20,15 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<NextResponse> {
-  // Check if debug mode is enabled
-  const debugEnabled = process.env.GITHUB_DEBUG === "true" || process.env.NODE_ENV === "development";
+  // CRITICAL: Never allow debug endpoint in production
+  // This prevents accidental exposure via misconfigured GITHUB_DEBUG env var
+  const isProduction = process.env.NODE_ENV === "production";
+  const isDevelopment = process.env.NODE_ENV === "development";
+  const debugEnabled = isDevelopment && process.env.GITHUB_DEBUG !== "false";
   
-  if (!debugEnabled) {
+  if (isProduction || !debugEnabled) {
     return NextResponse.json(
-      { message: "Debug endpoint is disabled in production" },
+      { message: "Debug endpoint is disabled" },
       { status: 403 }
     );
   }
@@ -34,10 +37,11 @@ export async function GET(): Promise<NextResponse> {
     timestamp: new Date().toISOString(),
     environment: {
       NODE_ENV: process.env.NODE_ENV || "not set",
-      GITHUB_REPO_OWNER: process.env.GITHUB_REPO_OWNER || "not set",
+      // Only show whether tokens are configured, not their values or operational details
       GITHUB_ACCESS_TOKEN_SET: !!process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH,
       GITHUB_REFRESH_SECRET_SET: !!process.env.GITHUB_REFRESH_SECRET,
-      S3_BUCKET: process.env.S3_BUCKET || "not set",
+      // Omit sensitive operational details like bucket names and repo owners
+      // These can be inferred by attackers for targeted attacks
     },
     s3Keys: {
       activityFile: GITHUB_ACTIVITY_S3_KEY_FILE,
@@ -77,13 +81,18 @@ export async function GET(): Promise<NextResponse> {
       }
     };
     
-    // List weekly stats files
+    // List weekly stats files with pagination limit to avoid S3 performance issues
     try {
+      // Limit to first 10 files to prevent excessive S3 API calls
+      const maxKeys = 10;
       const weeklyFiles = await listS3Objects(REPO_RAW_WEEKLY_STATS_S3_KEY_DIR);
+      const limitedFiles = weeklyFiles.slice(0, maxKeys);
+      
       diagnostics.s3Status = {
         ...(diagnostics.s3Status as Record<string, unknown>),
-        weeklyStatsCount: weeklyFiles.length,
-        sampleWeeklyFiles: weeklyFiles.slice(0, 5),
+        weeklyStatsCount: limitedFiles.length,
+        sampleWeeklyFiles: limitedFiles.slice(0, 5),
+        note: `Showing first ${maxKeys} files only to prevent performance impact`,
       };
     } catch (err) {
       diagnostics.s3Status = {
