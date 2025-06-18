@@ -11,7 +11,7 @@ const IS_S3_CONFIGURED = Boolean(
   S3_BUCKET && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY,
 );
 
-describe("scripts/update-s3-data.ts Smoke Test", () => {
+describe("scripts/data-updater.ts Smoke Test", () => {
   // Support three test modes:
   // - FULL: Run all operations without limits (slow, ~130+ seconds)
   // - DRY: Mock all operations (fast, no real calls)
