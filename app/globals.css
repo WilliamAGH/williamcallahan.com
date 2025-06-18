@@ -12,6 +12,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Autoprefixer warning suppressions */
+/* autoprefixer: ignore next */
+/* autoprefixer: off */
+
 @layer base {
   :root {
     --background: 0 0% 100%;
