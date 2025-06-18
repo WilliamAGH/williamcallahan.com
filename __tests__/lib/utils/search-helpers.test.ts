@@ -2,162 +2,158 @@
  * Tests for search helper utilities
  */
 
-import { dedupeDocuments, prepareDocumentsForIndexing } from '@/lib/utils/search-helpers';
+import { dedupeDocuments, prepareDocumentsForIndexing } from "@/lib/utils/search-helpers";
 
-describe('Search Helpers', () => {
+describe("Search Helpers", () => {
   let consoleWarnSpy: jest.SpyInstance;
   let consoleLogSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
   });
 
   afterEach(() => {
     consoleWarnSpy.mockRestore();
     consoleLogSpy.mockRestore();
   });
-  describe('dedupeDocuments', () => {
-    it('should remove duplicate documents by id', () => {
+  describe("dedupeDocuments", () => {
+    it("should remove duplicate documents by id", () => {
       const documents = [
-        { id: '1', title: 'First' },
-        { id: '2', title: 'Second' },
-        { id: '1', title: 'Duplicate' },
-        { id: '3', title: 'Third' },
-        { id: '2', title: 'Another Duplicate' }
+        { id: "1", title: "First" },
+        { id: "2", title: "Second" },
+        { id: "1", title: "Duplicate" },
+        { id: "3", title: "Third" },
+        { id: "2", title: "Another Duplicate" },
       ];
 
       const result = dedupeDocuments(documents);
 
       expect(result).toHaveLength(3);
-      expect(result[0]).toEqual({ id: '1', title: 'First' });
-      expect(result[1]).toEqual({ id: '2', title: 'Second' });
-      expect(result[2]).toEqual({ id: '3', title: 'Third' });
+      expect(result[0]).toEqual({ id: "1", title: "First" });
+      expect(result[1]).toEqual({ id: "2", title: "Second" });
+      expect(result[2]).toEqual({ id: "3", title: "Third" });
     });
 
-    it('should handle numeric ids', () => {
+    it("should handle numeric ids", () => {
       const documents = [
-        { id: 1, name: 'Item 1' },
-        { id: 2, name: 'Item 2' },
-        { id: 1, name: 'Duplicate Item 1' }
+        { id: 1, name: "Item 1" },
+        { id: 2, name: "Item 2" },
+        { id: 1, name: "Duplicate Item 1" },
       ];
 
       const result = dedupeDocuments(documents);
 
       expect(result).toHaveLength(2);
-      expect(result[0]).toEqual({ id: 1, name: 'Item 1' });
-      expect(result[1]).toEqual({ id: 2, name: 'Item 2' });
+      expect(result[0]).toEqual({ id: 1, name: "Item 1" });
+      expect(result[1]).toEqual({ id: 2, name: "Item 2" });
     });
 
-    it('should use custom id extractor', () => {
+    it("should use custom id extractor", () => {
       const documents = [
-        { slug: 'post-1', title: 'First Post' },
-        { slug: 'post-2', title: 'Second Post' },
-        { slug: 'post-1', title: 'Duplicate Post' },
-        { slug: 'post-3', title: 'Third Post' }
+        { slug: "post-1", title: "First Post" },
+        { slug: "post-2", title: "Second Post" },
+        { slug: "post-1", title: "Duplicate Post" },
+        { slug: "post-3", title: "Third Post" },
       ];
 
       const result = dedupeDocuments(documents, (doc) => doc.slug);
 
       expect(result).toHaveLength(3);
-      expect(result[0]).toEqual({ slug: 'post-1', title: 'First Post' });
-      expect(result[1]).toEqual({ slug: 'post-2', title: 'Second Post' });
-      expect(result[2]).toEqual({ slug: 'post-3', title: 'Third Post' });
+      expect(result[0]).toEqual({ slug: "post-1", title: "First Post" });
+      expect(result[1]).toEqual({ slug: "post-2", title: "Second Post" });
+      expect(result[2]).toEqual({ slug: "post-3", title: "Third Post" });
     });
 
-    it('should handle empty arrays', () => {
+    it("should handle empty arrays", () => {
       const result = dedupeDocuments([]);
       expect(result).toEqual([]);
     });
 
-    it('should handle documents without duplicates', () => {
+    it("should handle documents without duplicates", () => {
       const documents = [
-        { id: '1', value: 'a' },
-        { id: '2', value: 'b' },
-        { id: '3', value: 'c' }
+        { id: "1", value: "a" },
+        { id: "2", value: "b" },
+        { id: "3", value: "c" },
       ];
 
       const result = dedupeDocuments(documents);
       expect(result).toEqual(documents);
     });
 
-    it('should skip documents with missing ids', () => {
+    it("should skip documents with missing ids", () => {
       const documents = [
-        { id: '1', title: 'First' },
-        { title: 'No ID' } as any,
-        { id: '', title: 'Empty ID' },
-        { id: '2', title: 'Second' }
+        { id: "1", title: "First" },
+        { title: "No ID" } as any,
+        { id: "", title: "Empty ID" },
+        { id: "2", title: "Second" },
       ];
 
       const result = dedupeDocuments(documents);
 
       expect(result).toHaveLength(2);
-      expect(result[0]).toEqual({ id: '1', title: 'First' });
-      expect(result[1]).toEqual({ id: '2', title: 'Second' });
+      expect(result[0]).toEqual({ id: "1", title: "First" });
+      expect(result[1]).toEqual({ id: "2", title: "Second" });
     });
 
-    it('should log warning for duplicates', () => {
+    it("should log warning for duplicates", () => {
       const documents = [
-        { id: '1', name: 'First' },
-        { id: '1', name: 'Duplicate' },
-        { id: '2', name: 'Second' },
-        { id: '2', name: 'Another Duplicate' }
+        { id: "1", name: "First" },
+        { id: "1", name: "Duplicate" },
+        { id: "2", name: "Second" },
+        { id: "2", name: "Another Duplicate" },
       ];
 
       dedupeDocuments(documents);
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[Search] 2 duplicate ID(s) detected and skipped:'),
+        expect.stringContaining("[Search] 2 duplicate ID(s) detected and skipped:"),
         expect.any(String),
-        expect.any(String)
+        expect.any(String),
       );
     });
   });
 
-  describe('prepareDocumentsForIndexing', () => {
-    it('should deduplicate and log statistics', () => {
+  describe("prepareDocumentsForIndexing", () => {
+    it("should deduplicate and log statistics", () => {
       const documents = [
-        { id: '1', name: 'First' },
-        { id: '2', name: 'Second' },
-        { id: '1', name: 'Duplicate' }
+        { id: "1", name: "First" },
+        { id: "2", name: "Second" },
+        { id: "1", name: "Duplicate" },
       ];
 
-      const result = prepareDocumentsForIndexing(documents, 'Test Source');
+      const result = prepareDocumentsForIndexing(documents, "Test Source");
 
       expect(result).toHaveLength(2);
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        '[Search] Test Source: Deduplicated 3 documents to 2 (removed 1 duplicates)'
+        "[Search] Test Source: Deduplicated 3 documents to 2 (removed 1 duplicates)",
       );
     });
 
-    it('should not log when no duplicates found', () => {
+    it("should not log when no duplicates found", () => {
       const documents = [
-        { id: '1', name: 'First' },
-        { id: '2', name: 'Second' }
+        { id: "1", name: "First" },
+        { id: "2", name: "Second" },
       ];
 
-      const result = prepareDocumentsForIndexing(documents, 'Test Source');
+      const result = prepareDocumentsForIndexing(documents, "Test Source");
 
       expect(result).toHaveLength(2);
       expect(consoleLogSpy).not.toHaveBeenCalled();
     });
 
-    it('should use custom id extractor', () => {
+    it("should use custom id extractor", () => {
       const documents = [
-        { code: 'ABC', value: 100 },
-        { code: 'DEF', value: 200 },
-        { code: 'ABC', value: 300 }
+        { code: "ABC", value: 100 },
+        { code: "DEF", value: 200 },
+        { code: "ABC", value: 300 },
       ];
 
-      const result = prepareDocumentsForIndexing(
-        documents, 
-        'Custom ID Test',
-        (doc) => doc.code
-      );
+      const result = prepareDocumentsForIndexing(documents, "Custom ID Test", (doc) => doc.code);
 
       expect(result).toHaveLength(2);
-      expect(result[0]).toEqual({ code: 'ABC', value: 100 });
-      expect(result[1]).toEqual({ code: 'DEF', value: 200 });
+      expect(result[0]).toEqual({ code: "ABC", value: 100 });
+      expect(result[1]).toEqual({ code: "DEF", value: 200 });
     });
   });
 });

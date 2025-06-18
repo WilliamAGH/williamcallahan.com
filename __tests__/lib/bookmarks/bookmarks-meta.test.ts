@@ -138,10 +138,10 @@ describe("Bookmarks Data Access (Simple)", () => {
 
     it("should validate S3 data", async () => {
       const { validateBookmarksDataset } = await import("@/lib/validators/bookmarks");
-      
+
       (ServerCacheInstance.getBookmarks as jest.Mock).mockReturnValue(undefined);
       (readJsonS3 as jest.Mock).mockResolvedValue(mockBookmarks);
-      
+
       // Reset and setup validation to return true
       validateBookmarksDataset.mockReset();
       validateBookmarksDataset.mockReturnValue({ isValid: true });

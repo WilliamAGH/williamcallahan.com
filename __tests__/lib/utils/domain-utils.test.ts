@@ -9,9 +9,9 @@ import type { UnifiedBookmark } from "../../../types/bookmark";
 
 // Mock only the generateUniqueSlug function
 jest.mock("../../../lib/utils/domain-utils", () => {
-  const actual = jest.requireActual<
-    typeof import("../../../lib/utils/domain-utils")
-  >("../../../lib/utils/domain-utils");
+  const actual = jest.requireActual<typeof import("../../../lib/utils/domain-utils")>(
+    "../../../lib/utils/domain-utils",
+  );
   return {
     ...actual,
     generateUniqueSlug: jest.fn<typeof actual.generateUniqueSlug>(

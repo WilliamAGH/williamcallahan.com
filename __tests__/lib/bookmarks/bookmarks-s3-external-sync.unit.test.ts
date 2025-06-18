@@ -1,35 +1,50 @@
 import "dotenv/config";
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
-import { refreshBookmarksData } from "../../lib/bookmarks"; // This calls the actual external API
-import type { UnifiedBookmark } from "../../types";
-import { BOOKMARKS_S3_KEY_FILE } from "../../lib/data-access"; // To get the S3 file key
-import { readJsonS3 } from "../../lib/s3-utils";
+import { refreshBookmarksData } from "../../../lib/bookmarks"; // This calls the actual external API
+import type { UnifiedBookmark } from "../../../types";
+import { BOOKMARKS_S3_PATHS } from "../../../lib/constants"; // To get the S3 file key
+import { readJsonS3 } from "../../../lib/s3-utils";
 
 // Mock S3 utils to avoid real AWS calls in unit tests
-jest.mock("../../lib/s3-utils", () => ({
+jest.mock("../../../lib/s3-utils", () => ({
   readJsonS3: jest.fn(),
 }));
 
 /**
- * @file Unit test for bookmark synchronization logic with mocked dependencies
- * @description Tests the bookmark synchronization logic between S3 storage and external API
+ * @file bookmarks-s3-external-sync.unit.test.ts
+ * @summary **Bookmark Sync Logic (S3 ⇄ External API)**
  *
- * This unit test verifies that:
- * - Bookmark synchronization logic works correctly with mocked dependencies
- * - S3 storage interaction logic is properly structured
- * - External API interaction logic handles responses correctly
- * - Data synchronization logic processes counts and comparisons correctly
+ * This suite **mocks all network & S3 calls by default** so it can execute in a
+ * fast, deterministic unit-test environment.  When the required AWS/Notion
+ * credentials are _not_ present the tests automatically _skip_ the sections
+ * that would otherwise call the live services.  This is intentional because
+ * our CI never receives production credentials.
  *
- * Note: This test uses mocked fetch calls to ensure reliable, fast unit testing.
- * For true integration testing with real external services, a separate integration
- * test suite would be needed that doesn't mock external dependencies.
+ * What we cover:
+ * 1. Structure of the bookmark-sync orchestration code (happy-path & errors)
+ * 2. Correct handling of success / failure counts across sync phases
+ * 3. Robust comparison logic between the locally-cached S3 dataset and the
+ *    freshly-pulled remote dataset
  *
- * Required environment variables (for non-mocked scenarios):
- * - S3_BUCKET: AWS S3 bucket name
- * - BOOKMARK_BEARER_TOKEN: API authentication token
- * - S3_ACCESS_KEY_ID: AWS access key
- * - S3_SECRET_ACCESS_KEY: AWS secret key
- * - AWS_REGION: AWS region
+ * ⚠ **Live-environment usage**
+ * -------------------------------------------------------------
+ * To execute this test _against real AWS/Notion back-ends_ you must provide
+ * the following environment variables _before_ running `bun run test`:
+ *  • `S3_BUCKET`                – Target bucket
+ *  • `AWS_REGION`               – Bucket region
+ *  • `S3_ACCESS_KEY_ID`         – IAM access key (read/write)
+ *  • `S3_SECRET_ACCESS_KEY`     – IAM secret
+ *  • `BOOKMARK_BEARER_TOKEN`    – Notion integration token
+ *
+ * If any of these vars are missing we treat the corresponding test as _skipped_
+ * rather than failing so that local/CI runs remain green.
+ *
+ * **Why keep this file in the main unit-test tree?**
+ * Keeping the mock-driven variant here ensures the sync algorithm continues to
+ * compile & behave as expected while preventing slow end-to-end calls during
+ * everyday development.  Full integration coverage lives in the separate
+ * smoke / integration suites that developers can opt-in to locally or in
+ * dedicated pipelines.
  */
 
 describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
@@ -37,9 +52,9 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
   let externalApiBookmarks: UnifiedBookmark[] | null = null;
   let s3Error: Error | null = null;
   let apiError: Error | null = null;
-  
+
   // Get mocked version of readJsonS3
-  const mockedReadJsonS3 = readJsonS3 as jest.MockedFunction<typeof readJsonS3>;
+  const mockedReadJsonS3 = readJsonS3;
   let originalCdnUrl: string | undefined;
   let originalFetch: typeof fetch;
 
@@ -57,7 +72,7 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
       preconnect: jest.fn(),
     });
     global.fetch = mockFetch as typeof fetch;
-    
+
     // Set up default S3 mock to return empty array
     mockedReadJsonS3.mockResolvedValue([]);
 
@@ -98,12 +113,12 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
     }
 
     try {
-      console.log(`[UnitTest] Attempting to read from S3 key: ${BOOKMARKS_S3_KEY_FILE}`);
-      s3Bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_KEY_FILE);
+      console.log(`[UnitTest] Attempting to read from S3 key: ${BOOKMARKS_S3_PATHS.FILE}`);
+      s3Bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
       if (s3Bookmarks === null) {
         // readJsonS3 returns null on error like object not found
         console.warn(
-          `[UnitTest] readJsonS3 returned null, S3 file not found/empty at ${BOOKMARKS_S3_KEY_FILE}. Treating as 0 bookmarks.`,
+          `[UnitTest] readJsonS3 returned null, S3 file not found/empty at ${BOOKMARKS_S3_PATHS.FILE}. Treating as 0 bookmarks.`,
         );
         s3Bookmarks = [];
       }
@@ -131,7 +146,7 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
     // Re-read S3 after refreshing external bookmarks to pick up any updates
     try {
       console.log("[UnitTest] Re-reading S3 after external API refresh");
-      const updated = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_KEY_FILE);
+      const updated = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
       if (updated === null) {
         console.warn("[UnitTest] readJsonS3 returned null on re-read, treating as empty.");
         s3Bookmarks = [];

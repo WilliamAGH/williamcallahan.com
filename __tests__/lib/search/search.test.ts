@@ -145,22 +145,24 @@ describe("search", () => {
 
     it("should use cached results when available", () => {
       const cachedResults = [{ id: "cached", title: "Cached Post", slug: "cached-post" }];
-      (ServerCacheInstance.getSearchResults as jest.Mock).mockReturnValue({ results: cachedResults });
+      (ServerCacheInstance.getSearchResults as jest.Mock).mockReturnValue({
+        results: cachedResults,
+      });
       (ServerCacheInstance.shouldRefreshSearch as jest.Mock).mockReturnValue(false);
-      
+
       const results = searchPosts("test");
-      
+
       expect(results).toEqual(cachedResults);
       expect(ServerCacheInstance.setSearchResults).not.toHaveBeenCalled();
     });
 
     it("should cache search results", () => {
       const results = searchPosts("react");
-      
+
       expect(ServerCacheInstance.setSearchResults).toHaveBeenCalledWith(
-        'posts',
-        'react',
-        expect.arrayContaining([expect.objectContaining({ title: "Test Post 1" })])
+        "posts",
+        "react",
+        expect.arrayContaining([expect.objectContaining({ title: "Test Post 1" })]),
       );
     });
 
@@ -212,9 +214,9 @@ describe("search", () => {
       // Test fuzzy search capability
       // Note: In tests, MiniSearch is not initialized, so it falls back to substring search
       // "react" without typo should work
-      const results = searchPosts("react"); 
+      const results = searchPosts("react");
       expect(results).toHaveLength(1);
-      
+
       // With significant typo that won't match in substring search
       // (MiniSearch with fuzzy search would handle this)
       const typoResults = searchPosts("raect"); // transposed letters
@@ -225,7 +227,7 @@ describe("search", () => {
       // Just search for "test" which exists in both posts
       const results = searchPosts("test");
       expect(results).toHaveLength(2);
-      
+
       // Search with special characters should still find results after sanitization
       const resultsWithSpecialChars = searchPosts("test.*");
       // "test.*" becomes "test  " which should still match "test"

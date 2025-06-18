@@ -1,10 +1,8 @@
 /**
- * Bookmarks Module Tests (Simplified)
- *
- * Tests the functionality of the bookmarks module, including fetching
- * external bookmarks and cache integration.
- *
- * Fixed version to address hanging issues in Bun test runner.
+ * @file Unit tests for bookmarks fetching logic.
+ * This file focuses on the core bookmark fetching functionality,
+ * specifically testing external API integration and data transformation.
+ * @module __tests__/lib/bookmarks.test
  */
 
 import { describe, beforeEach, afterEach, expect, it, jest } from "@jest/globals";
@@ -104,7 +102,7 @@ describe("Bookmarks Module (Simplified)", () => {
   beforeEach(() => {
     // Reset module cache to ensure fresh imports
     jest.resetModules();
-    
+
     // Set up environment
     process.env.BOOKMARK_BEARER_TOKEN = "test-token";
 
@@ -138,7 +136,7 @@ describe("Bookmarks Module (Simplified)", () => {
 
       try {
         // Import module after setting up mocks
-        const { fetchExternalBookmarks } = await import("../../lib/bookmarks.client");
+        const { fetchExternalBookmarks } = await import("../../../lib/bookmarks.client");
 
         const bookmarks = await fetchExternalBookmarks();
 
@@ -179,7 +177,7 @@ describe("Bookmarks Module (Simplified)", () => {
 
       try {
         // Import module after setting up mocks
-        const { fetchExternalBookmarks } = await import("../../lib/bookmarks.client");
+        const { fetchExternalBookmarks } = await import("../../../lib/bookmarks.client");
 
         const bookmarks = await fetchExternalBookmarks();
 
@@ -218,7 +216,7 @@ describe("Bookmarks Module (Simplified)", () => {
 
       try {
         // Import module after setting up mocks
-        const { fetchExternalBookmarks } = await import("../../lib/bookmarks.client");
+        const { fetchExternalBookmarks } = await import("../../../lib/bookmarks.client");
 
         const bookmarks = await fetchExternalBookmarks();
 
@@ -257,7 +255,7 @@ describe("Bookmarks Module (Simplified)", () => {
 
       try {
         // Import module after setting up environment
-        const { fetchExternalBookmarks } = await import("../../lib/bookmarks.client");
+        const { fetchExternalBookmarks } = await import("../../../lib/bookmarks.client");
 
         const bookmarks = await fetchExternalBookmarks();
 
@@ -305,7 +303,7 @@ describe("Bookmarks Module (Simplified)", () => {
 
       try {
         // Import module after setting up mocks
-        const { fetchExternalBookmarks } = await import("../../lib/bookmarks.client");
+        const { fetchExternalBookmarks } = await import("../../../lib/bookmarks.client");
 
         const bookmarks = await fetchExternalBookmarks();
 
