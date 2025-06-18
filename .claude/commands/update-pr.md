@@ -34,4 +34,4 @@ Update the PR title and description based on commit analysis and file changes.
 
 ## Purpose
 
-Often PRs are opened before the total scope is known. This command reorganizes the PR metadata to accurately detail what the PR does based on the actual work completed.
+Often, PRs are opened before the total scope is known. This command reorganizes the PR metadata to accurately detail what the PR does based on the actual work completed.
