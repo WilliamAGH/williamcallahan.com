@@ -1,5 +1,3 @@
-// app/layout.tsx
-
 /**
  * Root Layout Component
  * @module app/layout
@@ -14,37 +12,40 @@
 
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { Suspense } from 'react'
+import { Suspense } from "react";
 import "./globals.css";
-// Import IBM Plex Mono font (regular weight)
-import "@fontsource/ibm-plex-mono/400.css";
 // Import our custom code block styling
-import './code-blocks.css';
+import "./code-blocks.css";
 // Import PrismJS theme
-import '../components/ui/code-block/prism-syntax-highlighting/prism.css';
-import { Providers } from "./providers.client";
+import "../components/ui/code-block/prism-syntax-highlighting/prism.css";
+import { FloatingRestoreButtons } from "@/components/ui/window/floating-restore-buttons.client";
+import { AnchorScrollManager } from "@/components/utils/anchor-scroll-manager.client"; // Re-import the anchor handler
+import { BodyClassManager } from "@/components/utils/body-class-manager.client";
+import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-registry-context.client";
 // Re-add direct imports
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
 import { ClientTerminal } from "../components/ui/terminal/terminal.client";
-import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-registry-context.client";
-import { BodyClassManager } from "@/components/utils/body-class-manager.client";
-import { AnchorScrollManager } from "@/components/utils/anchor-scroll-manager.client"; // Re-import the anchor handler
-import { FloatingRestoreButtons } from "@/components/ui/window/floating-restore-buttons.client";
-import { metadata as siteMetadata, SITE_NAME, SITE_TITLE, SITE_DESCRIPTION } from "../data/metadata";
+import {
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_TITLE,
+  metadata as siteMetadata,
+} from "../data/metadata";
+import { Providers } from "./providers.client";
 
-import { Analytics } from '@/components/analytics/analytics.client'
-import { ErrorBoundary } from '@/components/ui/error-boundary.client';
-import { SvgTransformFixer } from '../components/utils/svg-transform-fixer.client';
-
-// Add server transition handler
-import Script from 'next/script';
-
-// Import the new wrapper
-import { PageTransitionWrapper } from '../components/utils/page-transition-wrapper.client';
+import { Analytics } from "@/components/analytics/analytics.client";
+import { ErrorBoundary } from "@/components/ui/error-boundary.client";
+import { OpenGraphLogo } from "@/components/seo";
+import { SvgTransformFixer } from "../components/utils/svg-transform-fixer.client";
 import { cn } from "../lib/utils";
 
-/** Load Inter font with Latin subset */
-const inter = Inter({ subsets: ["latin"] });
+/** Load Inter font with Latin subset and display swap */
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap", // Prevent invisible text during font load
+  preload: true,
+  variable: "--font-inter",
+});
 
 /**
  * Global metadata configuration for the application
@@ -53,13 +54,13 @@ const inter = Inter({ subsets: ["latin"] });
  */
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NODE_ENV === 'production'
-      ? 'https://williamcallahan.com'
-      : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    process.env.NODE_ENV === "production"
+      ? "https://williamcallahan.com"
+      : process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   ),
   title: SITE_TITLE,
   description: SITE_DESCRIPTION,
-  authors: [{ name: SITE_NAME, url: 'https://williamcallahan.com' }],
+  authors: [{ name: SITE_NAME, url: "https://williamcallahan.com" }],
   creator: SITE_NAME,
   publisher: SITE_NAME,
   formatDetection: {
@@ -71,20 +72,20 @@ export const metadata: Metadata = {
   openGraph: {
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    url: 'https://williamcallahan.com',
+    url: "https://williamcallahan.com",
     siteName: SITE_NAME,
-    locale: 'en_US',
-    type: 'website',
+    locale: "en_US",
+    type: "website",
     images: [siteMetadata.defaultImage],
   },
   twitter: {
-    card: 'summary_large_image',
+    card: "summary_large_image",
     site: siteMetadata.social.twitter,
     creator: siteMetadata.social.twitter,
   },
   alternates: {
-    ...(process.env.NODE_ENV === 'production' && {
-      canonical: 'https://williamcallahan.com'
+    ...(process.env.NODE_ENV === "production" && {
+      canonical: "https://williamcallahan.com",
     }),
   },
 };
@@ -101,17 +102,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={cn("scroll-smooth")}
-    >
+    <html lang="en" suppressHydrationWarning className={cn("scroll-smooth")}>
       <head>
         <meta name="darkreader-lock" />
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1"
-        />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* OpenGraph Logo - not natively supported by Next.js metadata API */}
+        <OpenGraphLogo />
         {/* Resource hints for faster initial page load */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -119,99 +115,15 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://williamcallahan.com" />
         <link rel="dns-prefetch" href="https://icons.duckduckgo.com" />
         {/* Next.js automatically handles font preloading */}
-        {/* Add meta tag to signal native theme handling */}
+        {/* 
+          Add meta tag to signal native theme handling.
+          NOTE: This is not supported by Internet Explorer, which is fine as the browser is deprecated.
+          This is important for modern browsers to respect user's theme preference.
+        */}
         <meta name="color-scheme" content="light dark" />
-
-        {/* Script to suppress hydration warnings from browser extensions and fix SVG transform attributes */}
-        <Script id="suppress-hydration-warnings" strategy="beforeInteractive">
-          {`
-            (function() {
-              // Suppress error logging for certain errors
-              const originalConsoleError = console.error;
-              console.error = function() {
-                // Don't log specific errors we want to suppress
-                if (arguments[0] && typeof arguments[0] === 'string') {
-                  // Check for specific errors to suppress
-                  if (
-                    // Suppress Dark Reader related hydration errors
-                    (arguments[0].includes('Hydration failed because') &&
-                      (arguments[0].includes('data-darkreader') ||
-                       arguments[0].includes('darkreader-inline') ||
-                       arguments[0].includes('attribute style'))
-                    ) ||
-                    // Suppress SVG transform attribute errors
-                    arguments[0].includes('<svg> attribute transform') ||
-                    arguments[0].includes('Expected')
-                  ) {
-                    return; // Ignore this error
-                  }
-                }
-
-                // Pass through all other errors to the original console.error
-                return originalConsoleError.apply(console, arguments);
-              };
-
-              // Fix SVG transform attributes on page load
-              document.addEventListener('DOMContentLoaded', function() {
-                try {
-                  // Fix SVG transform attributes by adding parentheses
-                  const svgs = document.querySelectorAll('svg[transform]');
-                  svgs.forEach(function(svg) {
-                    const transform = svg.getAttribute('transform');
-                    if (transform && transform.includes('translate') && !transform.includes('(')) {
-                      // Get the transform parts
-                      const parts = transform.match(/^(\\w+)(\\S+)$/);
-                      if (parts && parts.length >= 3) {
-                        const func = parts[1]; // e.g. "translateY"
-                        const value = parts[2]; // e.g. "0.5px"
-                        // Apply corrected transform with parentheses
-                        svg.setAttribute('transform', func + '(' + value + ')');
-                      } else {
-                        // If we can't parse it properly, use CSS transform instead
-                        const style = svg.getAttribute('style') || '';
-                        svg.setAttribute('style', style + '; transform: ' + transform + ';');
-                        svg.removeAttribute('transform');
-                      }
-                    }
-                  });
-                } catch (e) {
-                  // Silent failure - don't break the page if this fails
-                  console.warn('SVG transform fix failed:', e);
-                }
-              });
-            })();
-          `}
-        </Script>
       </head>
       <body className={`${inter.className} overflow-x-hidden`} suppressHydrationWarning>
-        {/* Add script to help with state preservation during server transitions */}
-        <Script id="server-transition-handler" strategy="beforeInteractive">
-          {`
-            // Track page loads to detect potential server transitions
-            (function() {
-              try {
-                const lastLoadTime = parseInt(sessionStorage.getItem('_last_load_time') || '0');
-                const currentTime = Date.now();
-
-                // If reloading within 2 seconds, likely a server transition
-                if (currentTime - lastLoadTime < 2000) {
-                  document.documentElement.classList.add('server-transition');
-                  setTimeout(() => {
-                    document.documentElement.classList.remove('server-transition');
-                  }, 1000);
-                }
-
-                // Update last load time
-                sessionStorage.setItem('_last_load_time', currentTime.toString());
-              } catch(e) {
-                console.error('Error in transition handler:', e);
-              }
-            })();
-          `}
-        </Script>
         <Providers>
-          {/* Add PageLoader here */}
-          {/* <PageLoader /> */}
           <GlobalWindowRegistryProvider>
             <BodyClassManager />
             <AnchorScrollManager /> {/* Re-activate the anchor scroll handler */}
@@ -238,8 +150,8 @@ export default function RootLayout({
                       {/* Condensed Version (X Only) - Hidden on lg and up */}
                       <div className="lg:hidden">
                         <Suspense fallback={null}>
-                           {/* Render X icon only via prop */}
-                           <SocialIcons showXOnly={true} />
+                          {/* Render X icon only via prop */}
+                          <SocialIcons showXOnly={true} />
                         </Suspense>
                       </div>
 
@@ -259,15 +171,10 @@ export default function RootLayout({
               </ErrorBoundary>
 
               <main className="pb-16 px-4 motion-safe:transition-opacity motion-safe:duration-200">
-                <ErrorBoundary silent>
+                <ErrorBoundary>
                   <ClientTerminal />
                 </ErrorBoundary>
-                <ErrorBoundary>
-                  {/* Wrap children with the transition wrapper */}
-                  <PageTransitionWrapper>
-                    {children}
-                  </PageTransitionWrapper>
-                </ErrorBoundary>
+                <ErrorBoundary>{children}</ErrorBoundary>
               </main>
 
               <ErrorBoundary silent>

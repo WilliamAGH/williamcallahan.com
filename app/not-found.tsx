@@ -12,8 +12,8 @@
 
 "use client";
 
-import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function NotFound() {
@@ -33,10 +33,7 @@ export default function NotFound() {
   return (
     <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
       <div className="relative">
-        <h1
-          className={`text-9xl font-bold tracking-tighter ${glitchClass}`}
-          data-text="404"
-        >
+        <h1 className={`text-9xl font-bold tracking-tighter ${glitchClass}`} data-text="404">
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">
             404
           </span>
@@ -52,7 +49,8 @@ export default function NotFound() {
       </h2>
 
       <p className="mt-4 text-xl text-gray-600 dark:text-gray-400 max-w-lg">
-        I couldn&apos;t find what you were looking for. Maybe it was moved or never existed in the first place?
+        I couldn&apos;t find what you were looking for. Maybe it was moved or never existed in the
+        first place?
       </p>
 
       <div className="mt-12">

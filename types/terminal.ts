@@ -1,8 +1,9 @@
 /**
  * Terminal Types
- * 
+ *
  * Type definitions for terminal functionality.
  */
+
 
 export interface TerminalCommand {
   input: string;
@@ -20,10 +21,4 @@ export interface CommandResult {
   selectionItems?: SelectionItem[];
   navigation?: string;
   clear?: boolean;
-}
-
-export interface SearchResult {
-  label: string;
-  description: string;
-  path: string;
 }

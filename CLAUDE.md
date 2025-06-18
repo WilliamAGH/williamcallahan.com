@@ -1,0 +1,196 @@
+---
+description: "Master index and configuration guide for all Cursor Rules in this project. Explains rule auto-discovery, Agent Requested configuration, and 500-line code limits."
+alwaysApply: true  # Exception: This master config file always applies to provide rule system guidance
+---
+
+# Cursor Rules System - Master Index & Configuration
+
+## How Cursor Rules Work in This Project
+
+### Rule Auto-Discovery and Usage
+
+- **Agent Requested Rules**: All rules in this project are configured as "Agent Requested" type (except this master config file)
+- **AI-Driven Selection**: The AI automatically evaluates and includes relevant rules based on context
+- **Manual Override**: Use `@ruleName` syntax to explicitly include specific rules
+- **Smart Context**: Rules are intelligently selected based on file patterns, task content, and conversation context
+
+### Functionality Documentation & File Overview Map
+
+Before you edit, delete, create, or refactor ANY piece of code, you **MUST** locate its owning *Functionality* and review the corresponding architecture documentation.
+
+1. **Locate the Functionality**  
+   • Open `docs/projects/file-overview-map.md` and search for the file (or directory) you intend to touch.  
+   • Each entry in the *Functionality* column maps directly to a markdown file in `docs/projects/structure/` (e.g. a value of `github-activity` → `docs/projects/structure/github-activity.md`).
+2. **Read the Architecture Doc**  
+   • Open the mapped `docs/projects/structure/<functionality>.md`.  
+   • Skim at minimum the *Core Objective*, *Key Files*, *Logic Flow*, and *Critical Issues* sections to understand context, dependencies, and known pitfalls.
+3. **Identify Related Logic**  
+   • Use the architecture doc (and any linked `.mmd` diagrams) to discover all related files that could be impacted by your change.  
+   • Search the codebase for the `Functionality` tag to catch any stragglers.
+4. **Keep Docs in Sync**  
+   • Ensure your change does not violate the documented architecture or critical issues list.  
+   • Whenever you **create, delete, move, or significantly edit** any file, update **both** `docs/projects/file-overview-map.md` **and** the relevant `docs/projects/structure/<functionality>.md` files so they accurately reflect the new state.
+
+Skipping these steps is the fastest way to re-introduce lost context and architectural drift—don't do it. 🛑
+
+### Available Cursor Rules
+
+| Rule File | Description | Use When |
+|-----------|-------------|----------|
+
+### Rule Configuration Standards
+
+All rules in this project follow these configuration standards:
+
+```yaml
+---
+description: "Brief, specific description focusing on most pertinent details"
+alwaysApply: false  # All rules are Agent Requested type
+---
+```
+
+### ⚠️ IMPORTANT: Cursor Rule Type Configuration Limitation
+
+**Cursor IDE cannot set rule types automatically.** When creating new rules:
+
+1. **Through Cursor Interface**: New rules created via "New Cursor Rule" command will default to a different type
+2. **Manual Configuration Required**: You MUST manually edit the `.mdc` file to set `alwaysApply: false`
+3. **Alternative IDEs**: Other IDEs may provide better rule type configuration interfaces
+4. **File-Based Editing**: Always verify and manually set the frontmatter configuration
+
+#### Manual Configuration Process
+
+```bash
+# After creating a rule through Cursor, immediately edit the .mdc file:
+# 1. Open the new .mdc file in .cursor/rules/
+# 2. Ensure frontmatter includes:
+---
+description: "Your specific description here"
+alwaysApply: false
+---
+# 3. Save the file for proper Agent Requested configuration
+```
+
+#### Recommended New Rule Workflow
+
+1. **Create Rule**: Use Cursor's "New Cursor Rule" command or create file manually
+2. **Immediate Edit**: Open the `.mdc` file and verify/add proper frontmatter
+3. **Verify Configuration**: Ensure `alwaysApply: false` is set
+4. **Test Rule**: Use `@ruleName` to test the rule works as expected
+5. **Document Usage**: Update this index file with the new rule information
+
+### Agent Requested Benefits
+
+- **Context-Aware**: Rules are included only when relevant to current work
+- **Performance**: Reduced context overhead - only necessary rules are loaded
+- **Flexibility**: AI can make intelligent decisions about which rules to apply
+- **Discoverability**: Good descriptions make rules easy to find and understand
+
+## 🚨 CRITICAL: 500-Line Code File Limit Policy
+
+### File Size Limits
+
+- **Maximum Lines**: No file should exceed **500 lines of code**
+- **Threshold Monitoring**: When incremental additions would cause a file to exceed 500 lines
+- **Mandatory Action**: Create a new PBI for refactoring before proceeding
+
+### Refactoring Requirements
+
+When a file approaches or exceeds 500 lines:
+
+1. **Stop Development**: Do not add more code to the file
+2. **Create Refactoring PBI**: New Product Backlog Item specifically for refactoring
+3. **Data-Driven Analysis**: Analyze the file's data structure and domain organization
+4. **Repository Pattern Review**: Study existing patterns in the repository for that domain
+5. **Safe Refactoring**: Design refactoring that maintains functionality while improving structure
+
+### Refactoring PBI Requirements
+
+```markdown
+**Title**: Refactor [filename] to meet 500-line limit
+**Problem**: File has exceeded/will exceed 500 lines, violating project standards
+**Analysis Required**:
+- Current file structure and responsibilities
+- Domain-specific patterns in repository
+- Optimal split points based on data structures
+- Dependencies and import impact
+**Outcome**: File split into logical, maintainable modules under 500 lines each
+```
+
+### File Size Monitoring Commands
+
+```bash
+# Check file line counts
+find . -name "*.ts" -o -name "*.tsx" | xargs wc -l | sort -n
+
+# Find files over 400 lines (warning threshold)
+find . -name "*.ts" -o -name "*.tsx" -exec wc -l {} + | awk '$1 > 400' | sort -n
+
+# Find files over 500 lines (violation threshold)
+find . -name "*.ts" -o -name "*.tsx" -exec wc -l {} + | awk '$1 > 500' | sort -n
+```
+
+### Exception Handling
+
+- **Configuration Files**: Package.json, tsconfig.json, etc. may exceed limits if necessary
+- **Generated Files**: Auto-generated files are exempt but should be minimized
+- **Type Definition Files**: Large type files should be split by domain/feature
+- **User Approval**: Any exception requires explicit user approval with justification
+
+## Rule Development Guidelines
+
+### Creating New Rules
+
+1. **Use MDC Format**: All rules must use .mdc extension with proper frontmatter
+2. **Agent Requested Type**: Set `alwaysApply: false` for all new rules
+   - ⚠️ **Cursor Limitation**: Cursor IDE cannot automatically set this - must be edited manually
+   - Always verify and edit the frontmatter after rule creation
+3. **Descriptive Titles**: Write clear, searchable descriptions
+4. **Focused Content**: Each rule should have a specific, well-defined scope
+5. **Cross-References**: Link to related files using `mdc:filename` syntax
+
+### Rule Maintenance
+
+- **Regular Review**: Periodically review rules for accuracy and relevance
+- **Update Descriptions**: Keep descriptions current with rule content
+- **Remove Duplication**: Consolidate overlapping guidance
+- **Version Control**: All rules are version-controlled with the project
+
+### Best Practices
+
+- **Specific Over General**: Prefer specific, actionable guidance over broad principles
+- **Example-Rich**: Include code examples and patterns
+- **Context-Aware**: Design rules that provide value in specific contexts
+- **Maintenance-Friendly**: Write rules that are easy to update and maintain
+
+## Usage Examples
+
+### Explicit Rule Inclusion
+
+@zod-type-safety - Include Zod validation standards
+@project-development-standards - Include core development guidelines
+@design-system - Include UI/styling guidelines
+
+### Context-Based Auto-Inclusion
+
+- Working with TypeScript → `zod-type-safety.mdc` auto-included
+- Creating React components → `component-architecture.mdc` auto-included
+- UI/styling work → `design-system.mdc` auto-included
+- Package management → `package-manager.mdc` auto-included
+
+## Troubleshooting
+
+### Common Issues
+
+- **Rule Not Applied**: Check if description is clear and specific
+- **New Rule Wrong Type**: Cursor IDE cannot set `alwaysApply: false` automatically - edit manually
+- **Conflicting Rules**: Review multiple rules for consistency
+- **Missing Context**: Use explicit `@ruleName` inclusion when needed
+
+### Debug Commands
+
+- View all available rules: Check `.cursor/rules/` directory
+- Rule content search: `grep -r "pattern" .cursor/rules/`
+- Verify rule format: Ensure proper MDC frontmatter exists
+
+This system ensures intelligent, context-aware rule application while maintaining clean, maintainable code through the 500-line limit policy.

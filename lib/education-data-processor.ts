@@ -4,11 +4,11 @@
  */
 import "server-only"; // Ensure this module is never bundled for the client
 
-import type { Education, Certification, Class } from '../types/education';
-import { fetchLogo, normalizeDomain } from './logo-fetcher';
-import { assertServerOnly } from './utils/ensure-server-only'; // Import the assertion utility
-import fs from 'fs/promises';
-import path from 'path';
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fetchLogo, normalizeDomain } from "@/lib/logo.server";
+import type { Certification, Class, Education } from "../types/education";
+import { assertServerOnly } from "./utils/ensure-server-only"; // Import the assertion utility
 
 // Define the structure for logo data
 export interface LogoData {
@@ -30,14 +30,14 @@ async function getPlaceholderSvgDataUrl(): Promise<string> {
     try {
       // Try multiple possible paths for Docker environment compatibility
       const possiblePaths = [
-        path.join(process.cwd(), 'public/images/company-placeholder.svg'),
-        path.join(process.cwd(), '/public/images/company-placeholder.svg'),
-        path.join(process.cwd(), '../public/images/company-placeholder.svg'),
-        '/app/public/images/company-placeholder.svg' // Direct Docker container path
+        path.join(process.cwd(), "public/images/company-placeholder.svg"),
+        path.join(process.cwd(), "/public/images/company-placeholder.svg"),
+        path.join(process.cwd(), "../public/images/company-placeholder.svg"),
+        "/app/public/images/company-placeholder.svg", // Direct Docker container path
       ];
 
       let buffer: Buffer | null = null;
-      let loadedPath = '';
+      let loadedPath = "";
 
       // Try each path until we find one that works
       for (const p of possiblePaths) {
@@ -45,7 +45,7 @@ async function getPlaceholderSvgDataUrl(): Promise<string> {
           buffer = await fs.readFile(p);
           loadedPath = p;
           break;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (err) {
           // Continue to next path
         }
@@ -53,7 +53,7 @@ async function getPlaceholderSvgDataUrl(): Promise<string> {
 
       if (buffer) {
         console.info(`Successfully loaded placeholder SVG from: ${loadedPath}`);
-        const base64 = buffer.toString('base64');
+        const base64 = buffer.toString("base64");
         placeholderSvgDataUrl = `data:image/svg+xml;base64,${base64}`;
       } else {
         throw new Error("Could not read placeholder SVG from any known path");
@@ -61,7 +61,8 @@ async function getPlaceholderSvgDataUrl(): Promise<string> {
     } catch (error) {
       console.error("Failed to read placeholder SVG:", error);
       // Fallback to a minimal inline SVG to avoid complete failure
-      placeholderSvgDataUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f0f0f0'/%3E%3Cpath d='M50,30 L70,50 L50,70 L30,50 Z' fill='%23aaa'/%3E%3C/svg%3E";
+      placeholderSvgDataUrl =
+        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f0f0f0'/%3E%3Cpath d='M50,30 L70,50 L50,70 L30,50 Z' fill='%23aaa'/%3E%3C/svg%3E";
     }
   }
   return placeholderSvgDataUrl;
@@ -72,7 +73,9 @@ async function getPlaceholderSvgDataUrl(): Promise<string> {
  * @param {Education} item - The raw education item.
  * @returns {Promise<Education & { logoData: LogoData }>} The item with added logoData.
  */
-export async function processEducationItem<T extends Education>(item: T): Promise<T & { logoData: LogoData }> {
+export async function processEducationItem<T extends Education>(
+  item: T,
+): Promise<T & { logoData: LogoData }> {
   assertServerOnly(); // Assert server context
   const { website, institution, logo } = item;
   let logoData: LogoData;
@@ -85,16 +88,17 @@ export async function processEducationItem<T extends Education>(item: T): Promis
       const result = await fetchLogo(domain);
 
       if (result.buffer) {
-        const base64 = result.buffer.toString('base64');
-        const mimeType = result.buffer.subarray(0, 4).toString() === '<svg' ? 'image/svg+xml' : 'image/png';
+        const base64 = result.buffer.toString("base64");
+        const mimeType =
+          result.buffer.subarray(0, 4).toString() === "<svg" ? "image/svg+xml" : "image/png";
         logoData = { src: `data:${mimeType};base64,${base64}`, source: result.source };
       } else {
-        logoData = { src: await getPlaceholderSvgDataUrl(), source: 'placeholder' };
+        logoData = { src: await getPlaceholderSvgDataUrl(), source: "placeholder" };
       }
     }
   } catch (error) {
     console.error(`Error processing logo for education item "${institution}":`, error);
-    logoData = { src: await getPlaceholderSvgDataUrl(), source: 'placeholder-error' };
+    logoData = { src: await getPlaceholderSvgDataUrl(), source: "placeholder-error" };
   }
 
   return { ...item, logoData };
@@ -105,7 +109,9 @@ export async function processEducationItem<T extends Education>(item: T): Promis
  * @param {Certification | Class} item - The raw certification or class item.
  * @returns {Promise<(Certification | Class) & { logoData: LogoData }>} The item with added logoData.
  */
-export async function processCertificationItem<T extends Certification | Class>(item: T): Promise<T & { logoData: LogoData }> {
+export async function processCertificationItem<T extends Certification | Class>(
+  item: T,
+): Promise<T & { logoData: LogoData }> {
   assertServerOnly(); // Assert server context
   const { website, name, logo } = item;
   let logoData: LogoData;
@@ -118,17 +124,18 @@ export async function processCertificationItem<T extends Certification | Class>(
       const result = await fetchLogo(domain);
 
       if (result.buffer) {
-        const base64 = result.buffer.toString('base64');
+        const base64 = result.buffer.toString("base64");
         // Simple check for SVG based on first few characters
-        const mimeType = result.buffer.subarray(0, 4).toString() === '<svg' ? 'image/svg+xml' : 'image/png';
+        const mimeType =
+          result.buffer.subarray(0, 4).toString() === "<svg" ? "image/svg+xml" : "image/png";
         logoData = { src: `data:${mimeType};base64,${base64}`, source: result.source };
       } else {
-        logoData = { src: await getPlaceholderSvgDataUrl(), source: 'placeholder' };
+        logoData = { src: await getPlaceholderSvgDataUrl(), source: "placeholder" };
       }
     }
   } catch (error) {
     console.error(`Error processing logo for certification item "${name}":`, error);
-    logoData = { src: await getPlaceholderSvgDataUrl(), source: 'placeholder-error' };
+    logoData = { src: await getPlaceholderSvgDataUrl(), source: "placeholder-error" };
   }
 
   return { ...item, logoData };

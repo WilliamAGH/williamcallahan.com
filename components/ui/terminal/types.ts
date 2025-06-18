@@ -1,6 +1,6 @@
 /**
  * Terminal Types
- * 
+ *
  * Type definitions for the terminal component.
  */
 

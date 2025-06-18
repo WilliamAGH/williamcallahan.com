@@ -6,11 +6,11 @@
  * Uses direct logo fetching to work during build time.
  */
 
-import type { Education } from '../../../types/education';
-import { EducationCardClient } from './education-card.client';
-import { fetchLogo, normalizeDomain } from '../../../lib/logo-fetcher';
-import fs from 'node:fs/promises';
-import path from 'node:path';
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fetchLogo, normalizeDomain } from "@/lib/logo.server";
+import type { Education } from "../../../types/education";
+import { EducationCardClient } from "./education-card.client";
 
 import type { JSX } from "react";
 
@@ -23,7 +23,9 @@ let placeholderSvg: Buffer | null = null;
  */
 async function getPlaceholder(): Promise<Buffer> {
   if (!placeholderSvg) {
-    placeholderSvg = await fs.readFile(path.join(process.cwd(), 'public/images/company-placeholder.svg'));
+    placeholderSvg = await fs.readFile(
+      path.join(process.cwd(), "public/images/company-placeholder.svg"),
+    );
   }
   return placeholderSvg;
 }
@@ -50,40 +52,46 @@ export async function EducationCard(props: Education): Promise<JSX.Element> {
 
     if (result.buffer) {
       // Convert buffer to data URL for client
-      const base64 = result.buffer.toString('base64');
-      const mimeType = result.buffer[0] === 0x3c ? 'image/svg+xml' : 'image/png';
+      const base64 = result.buffer.toString("base64");
+      const mimeType = result.buffer[0] === 0x3c ? "image/svg+xml" : "image/png";
       const dataUrl = `data:${mimeType};base64,${base64}`;
 
-      return <EducationCardClient
-        {...props}
-        logoData={{
-          src: dataUrl,
-          source: result.source
-        }}
-      />;
+      return (
+        <EducationCardClient
+          {...props}
+          logoData={{
+            src: dataUrl,
+            source: result.source,
+          }}
+        />
+      );
     }
 
     // Use placeholder for failed fetches
     const placeholder = await getPlaceholder();
-    const base64 = placeholder.toString('base64');
-    return <EducationCardClient
-      {...props}
-      logoData={{
-        src: `data:image/svg+xml;base64,${base64}`,
-        source: null
-      }}
-    />;
+    const base64 = placeholder.toString("base64");
+    return (
+      <EducationCardClient
+        {...props}
+        logoData={{
+          src: `data:image/svg+xml;base64,${base64}`,
+          source: null,
+        }}
+      />
+    );
   } catch (error) {
-    console.error('Error in EducationCard:', error);
+    console.error("Error in EducationCard:", error);
     // Return placeholder on any error
     const placeholder = await getPlaceholder();
-    const base64 = placeholder.toString('base64');
-    return <EducationCardClient
-      {...props}
-      logoData={{
-        src: `data:image/svg+xml;base64,${base64}`,
-        source: null
-      }}
-    />;
+    const base64 = placeholder.toString("base64");
+    return (
+      <EducationCardClient
+        {...props}
+        logoData={{
+          src: `data:image/svg+xml;base64,${base64}`,
+          source: null,
+        }}
+      />
+    );
   }
 }

@@ -12,32 +12,38 @@
  *    - Tests each post in /data/blog/posts/
  */
 
-import fs from 'fs';
-import path from 'path';
+import fs from "node:fs";
+import path from "node:path";
+
+// Store original fetch
+const originalFetch = global.fetch;
 
 // Mock fetch globally
 const mockFetch = jest.fn();
 global.fetch = mockFetch as unknown as typeof fetch; // Assert type for assignment
 
 // Constants for test configuration
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-const BLOG_POSTS_DIR = path.join(process.cwd(), 'data', 'blog', 'posts');
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const BLOG_POSTS_DIR = path.join(process.cwd(), "data", "blog", "posts");
 
 // Helper to get all blog post slugs from MDX files
 const getBlogSlugs = (): string[] => {
   const files = fs.readdirSync(BLOG_POSTS_DIR);
-  return files
-    .filter(file => file.endsWith('.mdx'))
-    .map(file => file.replace('.mdx', ''));
+  return files.filter((file) => file.endsWith(".mdx")).map((file) => file.replace(".mdx", ""));
 };
 
-describe('Routes Module', () => {
+describe("Routes Module", () => {
   // Reset mocks before each test
   beforeEach(() => {
     mockFetch.mockReset();
   });
 
-  describe('Non-existent Routes', () => {
+  // Restore original fetch after all tests
+  afterAll(() => {
+    global.fetch = originalFetch;
+  });
+
+  describe("Non-existent Routes", () => {
     /**
      * Test: 404 Not Found Routes
      *
@@ -49,18 +55,15 @@ describe('Routes Module', () => {
      * - Invalid routes should return HTTP 404
      * - Both static and dynamic routes handle missing content correctly
      */
-    const nonExistentRoutes = [
-      '/this-page-does-not-exist',
-      '/blog/non-existent-post'
-    ];
+    const nonExistentRoutes = ["/this-page-does-not-exist", "/blog/non-existent-post"];
 
-    test.each(nonExistentRoutes)('route %s returns 404', async (route) => {
+    test.each(nonExistentRoutes)("route %s returns 404", async (route) => {
       // Mock 404 response for non-existent routes
       mockFetch.mockImplementationOnce(() =>
         Promise.resolve({
           status: 404,
-          ok: false
-        })
+          ok: false,
+        }),
       );
 
       const response = await fetch(`${SITE_URL}${route}`);
@@ -69,7 +72,7 @@ describe('Routes Module', () => {
     });
   });
 
-  describe('Static Page Routes', () => {
+  describe("Static Page Routes", () => {
     /**
      * Test: Main Page Routes Status
      *
@@ -81,22 +84,15 @@ describe('Routes Module', () => {
      * - All routes should return HTTP 200
      * - No redirects or errors
      */
-    const routes = [
-      '/',
-      '/blog',
-      '/bookmarks',
-      '/education',
-      '/experience',
-      '/investments'
-    ];
+    const routes = ["/", "/blog", "/bookmarks", "/education", "/experience", "/investments"];
 
-    test.each(routes)('route %s returns 200', async (route) => {
+    test.each(routes)("route %s returns 200", async (route) => {
       // Mock 200 response for existing routes
       mockFetch.mockImplementationOnce(() =>
         Promise.resolve({
           status: 200,
-          ok: true
-        })
+          ok: true,
+        }),
       );
 
       const response = await fetch(`${SITE_URL}${route}`);
@@ -105,7 +101,7 @@ describe('Routes Module', () => {
     });
   });
 
-  describe('Blog Post Routes', () => {
+  describe("Blog Post Routes", () => {
     /**
      * Test: Blog Post Routes Status
      *
@@ -119,13 +115,13 @@ describe('Routes Module', () => {
      */
     const slugs = getBlogSlugs();
 
-    test.each(slugs)('blog post %s returns 200', async (slug) => {
+    test.each(slugs)("blog post %s returns 200", async (slug) => {
       // Mock 200 response for existing blog posts
       mockFetch.mockImplementationOnce(() =>
         Promise.resolve({
           status: 200,
-          ok: true
-        })
+          ok: true,
+        }),
       );
 
       const response = await fetch(`${SITE_URL}/blog/${slug}`);

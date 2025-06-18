@@ -4,12 +4,12 @@
  * Public API for the social icons components.
  */
 
-export { SocialIcons } from './social-icons.client';
-export { SocialIcon } from './social-icon';
-export { socialLinks } from './social-links';
-export { Bluesky } from './bluesky-icon';
-export { X } from './x-icon';
-export { Discord } from './discord-icon';
-export { LinkedIn } from './linkedin-icon';
-export { GitHub } from './github-icon';
-export { AVenture } from './aventure-icon';
+export { SocialIcons } from "./social-icons.client";
+export { SocialIcon } from "./social-icon";
+export { socialLinks } from "./social-links";
+export { Bluesky } from "./bluesky-icon";
+export { X } from "./x-icon";
+export { Discord } from "./discord-icon";
+export { LinkedIn } from "./linkedin-icon";
+export { GitHub } from "./github-icon";
+export { AVentureIcon } from "./aventure-icon";

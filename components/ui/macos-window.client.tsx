@@ -6,12 +6,12 @@
  * The MacOSCodeWindow component is a specialized component that renders a code window.
  */
 
-'use client';
+"use client";
 
-import { ReactNode } from 'react';
-import { cn } from '@/lib/utils';
-import { CodeBlock } from '@/components/ui/code-block/code-block.client';
-import { WindowControls } from '@/components/ui/navigation/window-controls';
+import { CodeBlock } from "@/components/ui/code-block/code-block.client";
+import { WindowControls } from "@/components/ui/navigation/window-controls";
+import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
 // Define the interface for a single tab
 export interface WindowTab {
@@ -39,8 +39,8 @@ interface MacOSWindowProps {
 
 export function MacOSWindow({
   children,
-  className = '',
-  contentClassName = '',
+  className = "",
+  contentClassName = "",
   title,
   tabs,
   activeTabId,
@@ -53,19 +53,27 @@ export function MacOSWindow({
   onClose,
   onMinimize,
   onMaximize,
-  isMaximized // Already used by InstructionMacOSFrameTabs
+  isMaximized, // Already used by InstructionMacOSFrameTabs
 }: MacOSWindowProps) {
   // Determine if traffic lights should be shown
-  const displayTrafficLights = hideTrafficLights === undefined ? showTrafficLights : !hideTrafficLights;
+  const displayTrafficLights =
+    hideTrafficLights === undefined ? showTrafficLights : !hideTrafficLights;
 
   return (
-    <div className={cn("my-4 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm", className)}>
+    <div
+      className={cn(
+        "my-4 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm",
+        className,
+      )}
+    >
       {/* macOS-style window header */}
-      <div className={cn(
-        "flex items-center bg-[#2E2E2E] dark:bg-[#1a1b26] px-3",
-        tabs && tabs.length > 0 ? "pt-1.5" : "py-1.5", // Adjust padding if tabs are present
-        "rounded-t-lg"
-      )}>
+      <div
+        className={cn(
+          "flex items-center bg-[#2E2E2E] dark:bg-[#1a1b26] px-3",
+          tabs && tabs.length > 0 ? "pt-1.5" : "py-1.5", // Adjust padding if tabs are present
+          "rounded-t-lg",
+        )}
+      >
         {displayTrafficLights && (
           <WindowControls
             onClose={onClose} // Wire up the handlers
@@ -76,13 +84,18 @@ export function MacOSWindow({
           />
         )}
         {tabs && tabs.length > 0 ? (
-          <div className={cn(
-            "flex items-end space-x-0.5 flex-grow overflow-x-auto pt-1",
-            displayTrafficLights ? "" : "ml-3.5" // Add margin if traffic lights are hidden
-          )}>
+          <div
+            className={cn(
+              "flex items-end space-x-0.5 flex-grow overflow-x-auto pt-1",
+              displayTrafficLights ? "" : "ml-3.5", // Add margin if traffic lights are hidden
+            )}
+            role="tablist"
+            aria-label="Window tabs"
+          >
             {tabs.map((tab) => (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => onTabClick?.(tab.id)}
                 className={cn(
                   "px-3 py-2 text-xs font-medium leading-none",
@@ -90,29 +103,24 @@ export function MacOSWindow({
                   activeTabId === tab.id
                     ? "bg-[#3C3C3C] dark:bg-gray-700/60 text-white dark:text-gray-100 border-blue-500 dark:border-blue-400 rounded-t"
                     : "text-gray-400 dark:text-gray-500 hover:bg-[#383838] dark:hover:bg-gray-700/40 hover:text-gray-200 dark:hover:text-gray-300 border-transparent rounded-t",
-                  "focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+                  "focus:outline-none focus-visible:ring-1 focus-visible:ring-blue-500",
                 )}
                 role="tab"
                 aria-selected={activeTabId === tab.id}
+                aria-controls={`tabpanel-${tab.id}`}
+                id={`tab-${tab.id}`}
               >
                 {tab.label}
               </button>
             ))}
           </div>
         ) : title ? (
-          <div className="text-sm text-gray-300 dark:text-gray-400 ml-2">
-            {title}
-          </div>
+          <div className="text-sm text-gray-300 dark:text-gray-400 ml-2">{title}</div>
         ) : null}
       </div>
 
       {/* Window content */}
-      <div className={cn(
-        "bg-gray-900 text-gray-100 w-full",
-        contentClassName
-      )}>
-        {children}
-      </div>
+      <div className={cn("bg-gray-900 text-gray-100 w-full", contentClassName)}>{children}</div>
     </div>
   );
 }
@@ -121,14 +129,14 @@ export function MacOSWindow({
 export function MacOSCodeWindow({
   children,
   language,
-  className = '',
-  contentClassName = '',
+  className = "",
+  contentClassName = "",
   title,
   tabs,
   activeTabId,
   onTabClick,
   showTrafficLights = true,
-  hideTrafficLights
+  hideTrafficLights,
 }: {
   children: ReactNode;
   language?: string;
@@ -142,7 +150,8 @@ export function MacOSCodeWindow({
   hideTrafficLights?: boolean;
 }) {
   // Determine if traffic lights should be shown
-  const displayTrafficLights = hideTrafficLights === undefined ? showTrafficLights : !hideTrafficLights;
+  const displayTrafficLights =
+    hideTrafficLights === undefined ? showTrafficLights : !hideTrafficLights;
 
   return (
     <MacOSWindow
@@ -154,16 +163,20 @@ export function MacOSCodeWindow({
       showTrafficLights={displayTrafficLights}
       contentClassName={cn("!p-0", contentClassName)}
     >
-      {typeof children === 'string' ? (
-        <CodeBlock className={cn(language ? `language-${language}` : '', "!my-0 !shadow-none !border-0")}>
+      {typeof children === "string" ? (
+        <CodeBlock
+          className={cn(language ? `language-${language}` : "", "!my-0 !shadow-none !border-0")}
+        >
           {children}
         </CodeBlock>
       ) : (
-        <div className={cn(
-          "p-4 overflow-x-auto font-mono text-[13px] whitespace-pre",
-          "custom-scrollbar",
-          contentClassName
-        )}>
+        <div
+          className={cn(
+            "p-4 overflow-x-auto font-mono text-[13px] whitespace-pre",
+            "custom-scrollbar",
+            contentClassName,
+          )}
+        >
           {children}
         </div>
       )}

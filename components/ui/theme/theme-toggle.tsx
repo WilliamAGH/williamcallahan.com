@@ -6,12 +6,12 @@
  */
 "use client";
 
-import { useTheme } from "next-themes";
-import { Sun, Moon } from "lucide-react";
-import { useEffect, useState } from "react";
 import { THEME_TIMESTAMP_KEY } from "@/lib/constants";
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = process.env.NODE_ENV === "development";
 
 export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
@@ -21,16 +21,8 @@ export function ThemeToggle() {
   useEffect(() => setMounted(true), []);
 
   if (!mounted) {
-    return (
-      // Render an empty button with the same dimensions to prevent layout shift during hydration
-      <button
-        className="p-2 rounded-lg"
-        aria-hidden="true"
-        disabled
-      >
-        <div className="h-5 w-5" />
-      </button>
-    );
+    // Preserve space to avoid layout shift but keep it invisible during SSR/initial hydration.
+    return <span className="inline-block h-7 w-7 opacity-0" aria-hidden="true" />;
   }
 
   // Always use resolvedTheme for determining the visual state (i.e., what icon to show)
@@ -39,8 +31,12 @@ export function ThemeToggle() {
   const toggleTheme = () => {
     const newTheme = isDark ? "light" : "dark";
     if (isDevelopment) {
-      console.log(`[ThemeDev] ThemeToggle: User clicked. Current resolvedTheme: '${resolvedTheme}'.`);
-      console.log(`[ThemeDev] ThemeToggle: ACTION - Setting theme to '${newTheme}'. (User override)`);
+      console.log(
+        `[ThemeDev] ThemeToggle: User clicked. Current resolvedTheme: '${resolvedTheme}'.`,
+      );
+      console.log(
+        `[ThemeDev] ThemeToggle: ACTION - Setting theme to '${newTheme}'. (User override)`,
+      );
     }
     setTheme(newTheme);
     try {
@@ -50,7 +46,10 @@ export function ThemeToggle() {
       }
     } catch (error) {
       if (isDevelopment) {
-        console.error("[ThemeDev] ThemeToggle: Error setting theme timestamp in localStorage.", error);
+        console.error(
+          "[ThemeDev] ThemeToggle: Error setting theme timestamp in localStorage.",
+          error,
+        );
       }
       // Consider setting a fallback indicator or using an alternative storage method
     }
@@ -58,6 +57,7 @@ export function ThemeToggle() {
 
   return (
     <button
+      type="button"
       onClick={toggleTheme}
       className="group flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200
       bg-gray-200 dark:bg-gray-700

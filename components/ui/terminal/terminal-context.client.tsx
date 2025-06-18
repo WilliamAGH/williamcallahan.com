@@ -6,8 +6,9 @@
 
 "use client";
 
-import React, { createContext, useContext, useCallback, useState, useMemo, useEffect } from 'react';
-import type { TerminalCommand } from '@/types/terminal';
+import type { TerminalCommand } from "@/types/terminal";
+import type React from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 // Define the context type including history and mode state
 interface TerminalContextType {
@@ -28,8 +29,8 @@ const defaultContext: TerminalContextType = {
 export const TerminalContext = createContext<TerminalContextType>(defaultContext);
 
 const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
-  input: '',
-  output: 'Welcome! Type "help" for available commands.'
+  input: "",
+  output: 'Welcome! Type "help" for available commands.',
 };
 
 const HISTORY_STORAGE_KEY = "terminal_history";
@@ -37,7 +38,7 @@ const HISTORY_STORAGE_KEY = "terminal_history";
 export function TerminalProvider({ children }: { children: React.ReactNode }) {
   // Initialize state lazily to read from sessionStorage only on the client
   const [history, setHistory] = useState<TerminalCommand[]>(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       // Server-side rendering: start with empty history
       return [];
     }
@@ -50,9 +51,10 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
         if (Array.isArray(parsedData)) {
           const parsedHistory = parsedData as TerminalCommand[]; // Assert type here
           // Check if welcome message exists, add if not
-          const hasWelcome = parsedHistory.some((cmd: TerminalCommand) =>
-            cmd.input === INITIAL_WELCOME_MESSAGE.input &&
-            cmd.output === INITIAL_WELCOME_MESSAGE.output
+          const hasWelcome = parsedHistory.some(
+            (cmd: TerminalCommand) =>
+              cmd.input === INITIAL_WELCOME_MESSAGE.input &&
+              cmd.output === INITIAL_WELCOME_MESSAGE.output,
           );
           return hasWelcome ? parsedHistory : [INITIAL_WELCOME_MESSAGE, ...parsedHistory]; // Now uses typed parsedHistory
         }
@@ -68,11 +70,11 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
   // Effect to save history to sessionStorage whenever it changes
   useEffect(() => {
     // Only run on client
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       try {
         // Don't save the initial empty array during SSR/initial client render before state is properly set
         if (history.length > 0 || sessionStorage.getItem(HISTORY_STORAGE_KEY)) {
-           sessionStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+          sessionStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
         }
       } catch (e) {
         console.error("Error saving terminal history:", e);
@@ -89,7 +91,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
   // Reset terminal (clear storage and reset history)
   const resetTerminal = useCallback(() => {
     try {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         sessionStorage.removeItem(HISTORY_STORAGE_KEY);
       }
     } catch (e) {
@@ -100,29 +102,28 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
 
   // Add command to history
   const addToHistory = useCallback((command: TerminalCommand) => {
-    setHistory(prev => [...prev, command]);
+    setHistory((prev) => [...prev, command]);
   }, []);
 
   // Memoize context value for performance
-  const contextValue = useMemo(() => ({
-    clearHistory,
-    resetTerminal,
-    history,
-    addToHistory,
-  }), [clearHistory, resetTerminal, history, addToHistory]);
-
-  return (
-    <TerminalContext.Provider value={contextValue}>
-      {children}
-    </TerminalContext.Provider>
+  const contextValue = useMemo(
+    () => ({
+      clearHistory,
+      resetTerminal,
+      history,
+      addToHistory,
+    }),
+    [clearHistory, resetTerminal, history, addToHistory],
   );
+
+  return <TerminalContext.Provider value={contextValue}>{children}</TerminalContext.Provider>;
 }
 
 // Hook to access terminal context
 export function useTerminalContext() {
   const context = useContext(TerminalContext);
   if (!context) {
-    throw new Error('useTerminalContext must be used within a TerminalProvider');
+    throw new Error("useTerminalContext must be used within a TerminalProvider");
   }
   return context;
 }

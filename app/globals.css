@@ -12,6 +12,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Autoprefixer warning suppressions */
+/* autoprefixer: ignore next */
+/* autoprefixer: off */
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -43,7 +47,7 @@
 
   .dark {
     --background: 222.2 84% 4.9%;
-    --foreground: 0 0% 100%;  /* Restored to original value */
+    --foreground: 0 0% 100%; /* Restored to original value */
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
@@ -116,8 +120,6 @@ html {
     -webkit-overflow-scrolling: touch;
   }
 }
-
-
 
 /* Ensure inline code still has proper styling */
 :not(pre) > code {
@@ -238,9 +240,9 @@ html {
   /* Force code blocks to wrap properly */
   .blog-content pre,
   .blog-content code {
-    white-space: pre-wrap ;
-    overflow-wrap: break-word ;
-    word-wrap: break-word ;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
   }
 
   /* Force long URLs and paths to break */
@@ -268,12 +270,23 @@ html {
 
   /* Fix react-tweet avatar positioning */
   .react-tweet-theme [class*="avatarOverflow"] {
-    top: 0 ;
-    left: 0 ;
+    top: 0;
+    left: 0;
   }
 
-  .prose p, .prose ul, .prose ol, .prose li, .prose blockquote, .prose a, .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
-    overflow-wrap: break-word ; /* Ensure wrapping for all prose elements */
+  .prose p,
+  .prose ul,
+  .prose ol,
+  .prose li,
+  .prose blockquote,
+  .prose a,
+  .prose h1,
+  .prose h2,
+  .prose h3,
+  .prose h4,
+  .prose h5,
+  .prose h6 {
+    overflow-wrap: break-word; /* Ensure wrapping for all prose elements */
   }
 
   /* Ensure long words or strings don't overflow their container */
@@ -298,23 +311,21 @@ html {
   border-radius: 0.5rem ;
 } */
 
-
-
 /* Handle browser extension modifications (Dark Reader) by working with it, not against it */
 [data-darkreader-scheme],
 html[data-darkreader-mode] {
   /* Respect Dark Reader by not interfering with it */
-  color-scheme: dark ;
+  color-scheme: dark;
 }
 
 /* When Dark Reader is active, make our dark mode styles work with it */
 .dark-reader-active {
   /* Override conflicts between Dark Reader & our dark mode */
-  --background: 222.2 84% 4.9% ;
-  --foreground: 0 0% 100% ;
+  --background: 222.2 84% 4.9%;
+  --foreground: 0 0% 100%;
 
   /* Let Dark Reader handle the color transformations */
-  transition: none ;
+  transition: none;
 }
 
 /* Reset our previous Dark Reader overrides which were fighting against it */
@@ -323,13 +334,13 @@ html[data-darkreader-mode] {
 [data-darkreader-inline-color],
 [data-darkreader-inline-bgcolor] {
   /* Allow Dark Reader to control these elements */
-  filter: none ;
+  filter: none;
 }
 
 /* Don't override Dark Reader specific inline CSS variables */
 *[style*="--darkreader-inline"] {
   /* Let Dark Reader handle its styling */
-  transition: inherit ;
+  transition: inherit;
 }
 
 /* Twitter/X Icon Fix for all devices */
@@ -349,9 +360,9 @@ html[data-darkreader-mode] {
     /* Add mobile-specific styling for X icon */
     margin-right: 0px; /* Adjust spacing */
     margin-left: 4px; /* Increase left margin to center the icon */
-    width: 18px ; /* Slightly smaller icon on mobile */
-    height: 18px ;
-    transform: translateX(2px) ; /* Shift right to center the icon */
+    width: 18px; /* Slightly smaller icon on mobile */
+    height: 18px;
+    transform: translateX(2px); /* Shift right to center the icon */
   }
 
   /* Ensure all social icons are properly sized on mobile */
@@ -359,31 +370,31 @@ html[data-darkreader-mode] {
     padding-right: 4px;
     min-width: 32px; /* Ensure minimum width for the container */
     min-height: 32px; /* Ensure minimum height */
-    display: flex ; /* Force display */
-    visibility: visible ; /* Ensure visibility */
-    z-index: 1100 ; /* Highest z-index for mobile */
+    display: flex; /* Force display */
+    visibility: visible; /* Ensure visibility */
+    z-index: 1100; /* Highest z-index for mobile */
   }
 
   /* Add a bit more spacing around social icons in header */
   header .flex.items-center.space-x-1 a {
-    padding: 6px ;
-    display: flex ; /* Force display */
-    visibility: visible ; /* Ensure visibility */
+    padding: 6px;
+    display: flex; /* Force display */
+    visibility: visible; /* Ensure visibility */
   }
 
   /* Force display social icons container on mobile */
   header .sm\:hidden .flex.items-center.p-1,
   #mobile-social-container {
-    display: flex ;
-    visibility: visible ;
-    z-index: 1100 ;
-    opacity: 1 ;
+    display: flex;
+    visibility: visible;
+    z-index: 1100;
+    opacity: 1;
   }
 }
 
 /* Prevent transition on social icons to avoid hydration issues */
 [data-transform-fix="true"] {
-  transition: none ;
+  transition: none;
 }
 
 /* Add basic shadcn/ui component styles without overriding fonts
@@ -411,21 +422,11 @@ html[data-darkreader-mode] {
 /* Ensures avatar and similar square thumbnails are correctly cropped and centered */
 .avatar-img-fix,
 .react-tweet-theme [class^="tweet-header_avatar__"] img {
-  display:block;
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  object-position:center;
-}
-
-/* ONLY target the <a> wrapper: perfect circle and correct size */
-.react-tweet-theme [class^="tweet-header_avatar__"] {
-  display: block; /* Ensure the container behaves as a block for width/height */
-  position: relative; /* Anchor absolute children here */
-  width:48px;
-  height:48px;
-  border-radius:9999px; /* Using a large value for a perfect circle */
-  overflow:hidden;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 /* Pin react-tweet avatarOverflow wrappers to top-left */

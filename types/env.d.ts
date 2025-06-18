@@ -24,4 +24,4 @@ declare global {
   // Window interface is defined in analytics.d.ts
 }
 
-export {}
+export {};

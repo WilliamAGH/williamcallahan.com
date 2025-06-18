@@ -2,8 +2,8 @@
  * Investment Types
  */
 
-import type { Accelerator } from './accelerator';
-import type { LogoData } from './logo';
+import type { Accelerator } from "./accelerator";
+import type { LogoData } from "./logo";
 
 import type { JSX } from "react";
 
@@ -44,13 +44,13 @@ export interface Investment {
   /** Year company was acquired (if applicable) */
   acquired_year?: string | null;
   /** Current investment status */
-  status: 'Active' | 'Realized';
+  status: "Active" | "Realized";
   /** Company operating status */
-  operating_status: 'Operating' | 'Shut Down' | 'Acquired' | 'Inactive';
+  operating_status: "Operating" | "Shut Down" | "Acquired" | "Inactive";
   /** Company logo URL */
   logo?: string | null;
   /** Company website */
-  website?: string;
+  website?: string | null;
   /** aVenture URL for Company */
   aventure_url?: string | null;
   /** Location (city, state) */

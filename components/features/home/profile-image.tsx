@@ -1,35 +1,25 @@
-"use client";
-
-import Image from 'next/image';
-import { useState, useEffect } from 'react';
-
 /**
- * Profile image component that avoids hydration mismatches by
- * only rendering the image on the client side after mount
+ * Profile image component rendered on the server.
+ * Uses a direct approach with explicit dimensions to avoid iOS Safari rendering
+ * issues that can produce crescent artifacts. No nested absolute positioning.
  */
+
+import Image from "next/image";
+
 export function ProfileImage() {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Use a consistent aspect ratio for the container
   return (
-    <div className="relative aspect-square w-full sm:w-64 rounded-full overflow-hidden">
-      {isMounted ? (
-        <Image
-          src="/images/william-callahan-san-francisco.png"
-          alt="William Callahan in San Francisco"
-          fill
-          sizes="(max-width: 640px) 100vw, (max-width: 768px) 320px, 256px"
-          className="object-cover"
-          priority
-        />
-      ) : (
-        // Placeholder while loading
-        <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
-      )}
+    <div
+      className="mx-auto w-56 h-56 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800"
+    >
+      <Image
+        src="/images/william-callahan-san-francisco.png"
+        alt="William Callahan in San Francisco"
+        width={288}
+        height={288}
+        sizes="(max-width:640px) 224px, (max-width:768px) 256px, 288px"
+        className="object-cover w-full h-full rounded-full"
+        priority
+      />
     </div>
   );
 }

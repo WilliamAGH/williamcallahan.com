@@ -11,7 +11,7 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
   }, [error]);
 
   return (
-    <html>
+    <html lang="en">
       <body>
         {/* Render the default Next.js error page component.
             We pass a generic statusCode (e.g., 0 or 500) as the App Router

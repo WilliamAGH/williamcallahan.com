@@ -6,13 +6,13 @@
  * Implements proper SEO with schema.org structured data.
  */
 
-import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 // Import getPostBySlug and getAllPosts from the main blog library
-import { getAllPosts, getPostBySlug } from '../../../lib/blog';
-import { BlogArticle } from '../../../components/features/blog/blog-article/blog-article';
-import { ensureAbsoluteUrl } from "../../../lib/seo/utils";
-import { createArticleMetadata, createSoftwareApplicationMetadata } from "../../../lib/seo/metadata";
+import { getAllPosts, getPostBySlug } from "@/lib/blog.ts";
+import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
+import { ensureAbsoluteUrl } from "@/lib/seo/utils.ts";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { BlogArticle } from "../../../components/features/blog";
 
 interface BlogPostPageProps {
   // params might be a Promise due to instrumentation and needs to be awaited.
@@ -31,38 +31,40 @@ export const generateStaticParams = async () => {
 };
 
 // Set revalidation time for ISR (Incremental Static Regeneration)
-// Using a fixed value as conditional expressions aren't supported in config exports
-export const dynamic = 'force-static'; // Add dynamic option for static generation
+// Using ISR instead of force-static to allow revalidation
+// Removed conflicting 'dynamic = force-static' directive per GitHub issue #112
 export const revalidate = 3600; // Revalidate every hour
 
 /**
  * List of blog posts that should use software application schema
  * This helps improve SEO for software-related posts
  */
-const SOFTWARE_POSTS = [
-  'introducing-flag-deprecated-files-vscode-extension'
-];
+const SOFTWARE_POSTS = ["introducing-flag-deprecated-files-vscode-extension"];
 
 /**
  * Software application details by slug
  * Provides schema.org SoftwareApplication metadata for specific posts
  */
-const SOFTWARE_DETAILS: Record<string, {
-  name: string;
-  operatingSystem: string;
-  applicationCategory: string;
-  downloadUrl: string;
-  softwareVersion?: string;
-  screenshot?: string;
-}> = {
-  'introducing-flag-deprecated-files-vscode-extension': {
-    name: 'Flag Deprecated Files',
-    operatingSystem: 'Windows, macOS, Linux',
-    applicationCategory: 'DeveloperApplication',
-    downloadUrl: 'https://marketplace.visualstudio.com/items?itemName=WilliamCallahan.flag-deprecated-files',
-    softwareVersion: '1.0.0',
-    screenshot: '/images/posts/filey-flag-deprecated-files.png'
+const SOFTWARE_DETAILS: Record<
+  string,
+  {
+    name: string;
+    operatingSystem: string;
+    applicationCategory: string;
+    downloadUrl: string;
+    softwareVersion?: string;
+    screenshot?: string;
   }
+> = {
+  "introducing-flag-deprecated-files-vscode-extension": {
+    name: "Flag Deprecated Files",
+    operatingSystem: "Windows, macOS, Linux",
+    applicationCategory: "DeveloperApplication",
+    downloadUrl:
+      "https://marketplace.visualstudio.com/items?itemName=WilliamCallahan.flag-deprecated-files",
+    softwareVersion: "1.0.0",
+    screenshot: "/images/posts/filey-flag-deprecated-files.png",
+  },
 };
 
 /**
@@ -80,12 +82,12 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   const post = await getPostBySlug(slug);
 
   if (!post) {
-     console.warn(`[generateMetadata] Post not found for slug: ${slug}. Returning empty metadata.`);
-     // Optionally return metadata for a 404 page here if desired
-     return {
-       title: "Post Not Found",
-       description: "The blog post you are looking for could not be found.",
-     };
+    console.warn(`[generateMetadata] Post not found for slug: ${slug}. Returning empty metadata.`);
+    // Optionally return metadata for a 404 page here if desired
+    return {
+      title: "Post Not Found",
+      description: "The blog post you are looking for could not be found.",
+    };
   }
 
   // Full URL for the blog post
@@ -114,38 +116,12 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       downloadUrl: softwareDetails.downloadUrl,
       softwareVersion: softwareDetails.softwareVersion,
       screenshot: softwareDetails.screenshot,
-      authors: [{
-        name: post.author.name,
-        url: post.author.url || ensureAbsoluteUrl('/about') // Assuming /about exists or use a default
-      }]
-    });
-
-    // Extract needed properties for Metadata type
-    return {
-      title: articleMetadata.title,
-      description: articleMetadata.description,
-      alternates: articleMetadata.alternates,
-      openGraph: articleMetadata.openGraph,
-      twitter: articleMetadata.twitter,
-      // Include the JSON-LD script with type assertion
-      ...(articleMetadata.script && { script: articleMetadata.script }),
-    } as Metadata;
-  } else {
-    // Use standard NewsArticle schema for regular blog posts
-    const articleMetadata = createArticleMetadata({
-      title: post.title,
-      description: post.excerpt,
-      url: postUrl,
-      image: post.coverImage,
-      datePublished: post.publishedAt,
-      dateModified: post.updatedAt || post.publishedAt,
-      tags: post.tags,
-      articleBody: JSON.stringify(post.content), // Note: content is MDXRemoteSerializeResult, might need rawContent
-      useNewsArticle: true,
-      authors: [{
-        name: post.author.name,
-        url: post.author.url || ensureAbsoluteUrl('/about') // Assuming /about exists or use a default
-      }]
+      authors: [
+        {
+          name: post.author.name,
+          url: post.author.url || ensureAbsoluteUrl("/about"), // Assuming /about exists or use a default
+        },
+      ],
     });
 
     // Extract needed properties for Metadata type
@@ -159,6 +135,35 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       ...(articleMetadata.script && { script: articleMetadata.script }),
     } as Metadata;
   }
+  // Use standard NewsArticle schema for regular blog posts
+  const articleMetadata = createArticleMetadata({
+    title: post.title,
+    description: post.excerpt,
+    url: postUrl,
+    image: post.coverImage,
+    datePublished: post.publishedAt,
+    dateModified: post.updatedAt || post.publishedAt,
+    tags: post.tags,
+    articleBody: JSON.stringify(post.content), // Note: content is MDXRemoteSerializeResult, might need rawContent
+    useNewsArticle: true,
+    authors: [
+      {
+        name: post.author.name,
+        url: post.author.url || ensureAbsoluteUrl("/about"), // Assuming /about exists or use a default
+      },
+    ],
+  });
+
+  // Extract needed properties for Metadata type
+  return {
+    title: articleMetadata.title,
+    description: articleMetadata.description,
+    alternates: articleMetadata.alternates,
+    openGraph: articleMetadata.openGraph,
+    twitter: articleMetadata.twitter,
+    // Include the JSON-LD script with type assertion
+    ...(articleMetadata.script && { script: articleMetadata.script }),
+  } as Metadata;
 }
 
 /**

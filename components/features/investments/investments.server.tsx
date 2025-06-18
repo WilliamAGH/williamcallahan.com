@@ -3,10 +3,10 @@
  * Uses ServerCache for logo caching and processing
  */
 
-import { InvestmentCardServer } from './index';
-import { InvestmentsClient } from './investments.client';
-import type { Investment } from '../../../types/investment';
-import { GlobalWindowRegistryProvider } from '@/lib/context/global-window-registry-context.client';
+import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-registry-context.client";
+import type { Investment } from "../../../types/investment";
+import { InvestmentCardServer } from "./index";
+import { InvestmentsClient } from "./investments.client";
 
 import type { JSX } from "react";
 
@@ -28,7 +28,7 @@ export async function Investments({ investments = [] }: InvestmentsProps): Promi
   const investmentsWithCards = await Promise.all(
     investments.map(async (investment) => ({
       ...investment,
-      card: await InvestmentCardServer(investment)
+      card: await InvestmentCardServer(investment),
     }))
   );
 

@@ -6,7 +6,7 @@
  * Includes structured date fields for SEO and semantic HTML.
  */
 
-import type { Accelerator } from './accelerator';
+import type { Accelerator } from "./accelerator";
 
 /**
  * Experience entry with structured dates
@@ -41,26 +41,26 @@ export interface Experience {
  * @see {@link "https://schema.org/JobPosting"} - Schema.org JobPosting specification
  */
 export interface JobPostingSchema {
-  '@context': 'https://schema.org';
-  '@type': 'JobPosting';
+  "@context": "https://schema.org";
+  "@type": "JobPosting";
   title: string;
   description: string;
   datePosted: string;
   validThrough?: string;
-  employmentType: 'FULL_TIME';
+  employmentType: "FULL_TIME";
   hiringOrganization: {
-    '@type': 'Organization';
+    "@type": "Organization";
     name: string;
     sameAs?: string;
     logo?: string;
   };
   jobLocation: {
-    '@type': 'Place';
+    "@type": "Place";
     address: {
-      '@type': 'PostalAddress';
+      "@type": "PostalAddress";
       addressLocality: string;
       addressRegion: string;
-      addressCountry: 'US';
+      addressCountry: "US";
     };
   };
 }

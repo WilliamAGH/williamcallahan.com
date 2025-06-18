@@ -3,18 +3,20 @@
  * Fetches and visualizes contribution data with refresh capabilities
  */
 
-'use client';
+"use client";
 
-import type React from 'react';
-import { useState, useEffect, useRef, useCallback } from 'react';
-import type { ContributionDay, UserActivityView } from '@/types/github';
-import { RefreshCw, Code } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import CumulativeGitHubStatsCards from './cumulative-github-stats-cards';
-import ActivityCalendarComponent, { type ThemeInput as ReactActivityCalendarThemeInput } from 'react-activity-calendar';
-import { useTheme } from 'next-themes';
+import type { ContributionDay, UserActivityView } from "@/types/github";
+import { formatDistanceToNow } from "date-fns";
+import { Code, RefreshCw } from "lucide-react";
+import { useTheme } from "next-themes";
+import type React from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import ActivityCalendarComponent, {
+  type ThemeInput as ReactActivityCalendarThemeInput,
+} from "react-activity-calendar";
+import CumulativeGitHubStatsCards from "./cumulative-github-stats-cards";
 
-const GITHUB_PROFILE_URL = "https://github.com/williamagh/";
+const GITHUB_PROFILE_URL = "https://github.com/WilliamAGH/";
 
 interface ApiError {
   message?: string;
@@ -22,20 +24,21 @@ interface ApiError {
 }
 
 // Define the custom theme for the calendar
-const calendarCustomTheme: ReactActivityCalendarThemeInput = { // TODO: Consider moving to a constants file if used elsewhere
+const calendarCustomTheme: ReactActivityCalendarThemeInput = {
+  // TODO: Consider moving to a constants file if used elsewhere
   light: [
-    '#E5E7EB', // level 0 (Tailwind gray-200)
-    '#BBF7D0', // level 1 (Tailwind green-200)
-    '#4ADE80', // level 2 (Tailwind green-400)
-    '#16A34A', // level 3 (Tailwind green-600)
-    '#166534', // level 4 (Tailwind green-800)
+    "#E5E7EB", // level 0 (Tailwind gray-200)
+    "#BBF7D0", // level 1 (Tailwind green-200)
+    "#4ADE80", // level 2 (Tailwind green-400)
+    "#16A34A", // level 3 (Tailwind green-600)
+    "#166534", // level 4 (Tailwind green-800)
   ],
   dark: [
-    '#1F2937', // level 0 (Tailwind gray-800)
-    '#14532D', // level 1 (Tailwind green-900)
-    '#15803D', // level 2 (Tailwind green-700)
-    '#22C55E', // level 3 (Tailwind green-500)
-    '#86EFAC', // level 4 (Tailwind green-300)
+    "#1F2937", // level 0 (Tailwind gray-800)
+    "#14532D", // level 1 (Tailwind green-900)
+    "#15803D", // level 2 (Tailwind green-700)
+    "#22C55E", // level 3 (Tailwind green-500)
+    "#86EFAC", // level 4 (Tailwind green-300)
   ],
 };
 
@@ -61,11 +64,11 @@ const GitHubActivity = () => {
 
   // Determine if refresh buttons should be shown based on environment
   const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
-  const targetUrl = 'https://williamcallahan.com';
+  const targetUrl = "https://williamcallahan.com";
   let showRefreshButtons = true;
   if (coolifyUrl) {
-    const normalizedCoolifyUrl = coolifyUrl.endsWith('/') ? coolifyUrl.slice(0, -1) : coolifyUrl;
-    const normalizedTargetUrl = targetUrl.endsWith('/') ? targetUrl.slice(0, -1) : targetUrl;
+    const normalizedCoolifyUrl = coolifyUrl.endsWith("/") ? coolifyUrl.slice(0, -1) : coolifyUrl;
+    const normalizedTargetUrl = targetUrl.endsWith("/") ? targetUrl.slice(0, -1) : targetUrl;
     if (normalizedCoolifyUrl === normalizedTargetUrl) {
       showRefreshButtons = false;
     }
@@ -77,7 +80,7 @@ const GitHubActivity = () => {
    * Navigates to the user's GitHub profile in a new tab.
    */
   const navigateToGitHub = () => {
-    window.open(GITHUB_PROFILE_URL, '_blank', 'noopener,noreferrer');
+    window.open(GITHUB_PROFILE_URL, "_blank", "noopener");
   };
 
   /**
@@ -104,109 +107,121 @@ const GitHubActivity = () => {
    * Wrapped in useCallback to stabilize its reference for useEffect dependencies.
    * @param {boolean} [refresh=false] - If true, requests a data refresh on the server.
    */
-  const fetchData = useCallback(async (refresh = false) => {
-    setIsLoading(true);
-    if (!refresh) setError(null); // Clear previous non-refresh errors on new fetch, keep refresh-related errors
-
-    try {
-      if (refresh) {
-        setIsRefreshing(true);
-        console.log('[Client] Requesting GitHub data refresh via POST /api/github-activity/refresh');
-        const refreshResponse = await fetch('/api/github-activity/refresh', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-refresh-secret': process.env.NEXT_PUBLIC_GITHUB_REFRESH_SECRET || ''
-          },
-        });
-        if (!refreshResponse.ok) {
-          let refreshErrorResult: ApiError | null = null;
-          try {
-            refreshErrorResult = await refreshResponse.json() as ApiError;
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          } catch (_e) { /* Failed to parse response JSON, error message will be generic */ }
-          const errorMessage = refreshErrorResult?.message ?? refreshErrorResult?.error ?? `Refresh request failed with status: ${refreshResponse.status}`;
-          console.error('[Client] GitHub data refresh POST request failed:', errorMessage);
-          setError(errorMessage); // Set error, but still proceed to fetch current data
-        } else {
-          console.log('[Client] GitHub data refresh POST request successful.');
-          // setError(null); // Clear error if refresh was successful before fetching - No, keep error if subsequent GET fails
-        }
-      }
-
-      console.log(`[Client] Fetching GitHub data from GET /api/github-activity (${refresh ? 'after potential refresh' : 'initial load'})`);
-      const response = await fetch('/api/github-activity');
-      let result: UserActivityView;
+  const fetchData = useCallback(
+    async (refresh = false) => {
+      setIsLoading(true);
+      if (!refresh) setError(null); // Clear previous non-refresh errors on new fetch, keep refresh-related errors
 
       try {
-        result = await response.json() as UserActivityView;
-      } catch (parseError) {
-        const errorMessage = `Failed to parse API response from GET /api/github-activity: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`;
-        console.error(errorMessage);
-        setError(errorMessage);
-        resetState(); // Full reset if parsing fails
-        return;
-      }
+        if (refresh) {
+          setIsRefreshing(true);
+          console.log(
+            "[Client] Requesting GitHub data refresh via POST /api/github-activity/refresh",
+          );
+          const refreshResponse = await fetch("/api/github-activity/refresh", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+          if (!refreshResponse.ok) {
+            let refreshErrorResult: ApiError | null = null;
+            try {
+              refreshErrorResult = (await refreshResponse.json()) as ApiError;
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            } catch (_e) {
+              /* Failed to parse response JSON, error message will be generic */
+            }
+            const errorMessage =
+              refreshErrorResult?.message ??
+              refreshErrorResult?.error ??
+              `Refresh request failed with status: ${refreshResponse.status}`;
+            console.error("[Client] GitHub data refresh POST request failed:", errorMessage);
+            setError(errorMessage); // Set error, but still proceed to fetch current data
+          } else {
+            console.log("[Client] GitHub data refresh POST request successful.");
+            // setError(null); // Clear error if refresh was successful before fetching - No, keep error if subsequent GET fails
+          }
+        }
 
-      if (!response.ok) {
-        const errorMsg = result?.error ?? `API request failed with status: ${response.status}`;
-        console.error('GitHub Activity GET API returned an error:', errorMsg);
-        setError(errorMsg); // Set error from API response
+        console.log(
+          `[Client] Fetching GitHub data from GET /api/github-activity (${refresh ? "after potential refresh" : "initial load"})`,
+        );
+        const response = await fetch("/api/github-activity");
+        let result: UserActivityView;
 
-        // Try to use partial data if available, even with an error response
+        try {
+          result = (await response.json()) as UserActivityView;
+        } catch (parseError) {
+          const errorMessage = `Failed to parse API response from GET /api/github-activity: ${parseError instanceof Error ? parseError.message : "Unknown parse error"}`;
+          console.error(errorMessage);
+          setError(errorMessage);
+          resetState(); // Full reset if parsing fails
+          return;
+        }
+
+        if (!response.ok) {
+          const errorMsg = result?.error ?? `API request failed with status: ${response.status}`;
+          console.error("GitHub Activity GET API returned an error:", errorMsg);
+          setError(errorMsg); // Set error from API response
+
+          // Try to use partial data if available, even with an error response
+          setActivityData(result?.trailingYearData?.data ?? []);
+          setTotalContributions(result?.trailingYearData?.totalContributions ?? 0);
+          setTrailingYearLinesAdded(result?.trailingYearData?.linesAdded ?? null);
+          setTrailingYearLinesRemoved(result?.trailingYearData?.linesRemoved ?? null);
+          setDataComplete(result?.trailingYearData?.dataComplete ?? false);
+
+          setAllTimeLinesAdded(result?.allTimeStats?.linesAdded ?? null);
+          setAllTimeLinesRemoved(result?.allTimeStats?.linesRemoved ?? null);
+          setAllTimeTotalContributions(result?.allTimeStats?.totalContributions ?? null);
+
+          setLastRefreshed(result?.lastRefreshed ?? null);
+          return; // Return after setting partial data/error
+        }
+
+        // If response is OK and data is present
         setActivityData(result?.trailingYearData?.data ?? []);
         setTotalContributions(result?.trailingYearData?.totalContributions ?? 0);
         setTrailingYearLinesAdded(result?.trailingYearData?.linesAdded ?? null);
         setTrailingYearLinesRemoved(result?.trailingYearData?.linesRemoved ?? null);
         setDataComplete(result?.trailingYearData?.dataComplete ?? false);
+        setLastRefreshed(result?.lastRefreshed ?? null);
+
+        if (result?.trailingYearData) {
+          console.log("[Client] Trailing year activity data received:", result.trailingYearData);
+        } else {
+          console.warn("[Client] Trailing year data missing in successful API response.");
+          setDataComplete(false); // Assume incomplete if no trailing year data
+        }
 
         setAllTimeLinesAdded(result?.allTimeStats?.linesAdded ?? null);
         setAllTimeLinesRemoved(result?.allTimeStats?.linesRemoved ?? null);
         setAllTimeTotalContributions(result?.allTimeStats?.totalContributions ?? null);
-        
-        setLastRefreshed(result?.lastRefreshed ?? null);
-        return; // Return after setting partial data/error
-      }
 
-      // If response is OK and data is present
-      setActivityData(result?.trailingYearData?.data ?? []);
-      setTotalContributions(result?.trailingYearData?.totalContributions ?? 0);
-      setTrailingYearLinesAdded(result?.trailingYearData?.linesAdded ?? null);
-      setTrailingYearLinesRemoved(result?.trailingYearData?.linesRemoved ?? null);
-      setDataComplete(result?.trailingYearData?.dataComplete ?? false);
-      setLastRefreshed(result?.lastRefreshed ?? null);
+        if (result?.allTimeStats) {
+          console.log("[Client] All-time stats received:", result.allTimeStats);
+        } else {
+          console.warn("[Client] All-time stats (result.allTimeStats) is missing in API response.");
+        }
 
-      if (result?.trailingYearData) {
-        console.log('[Client] Trailing year activity data received:', result.trailingYearData);
-      } else {
-        console.warn('[Client] Trailing year data missing in successful API response.');
-        setDataComplete(false); // Assume incomplete if no trailing year data
-      }
-
-      setAllTimeLinesAdded(result?.allTimeStats?.linesAdded ?? null);
-      setAllTimeLinesRemoved(result?.allTimeStats?.linesRemoved ?? null);
-      setAllTimeTotalContributions(result?.allTimeStats?.totalContributions ?? null);
-
-      if (result?.allTimeStats) {
-        console.log('[Client] All-time stats received:', result.allTimeStats);
-      } else {
-        console.warn('[Client] All-time stats (result.allTimeStats) is missing in API response.');
-      }
-
-       if (result?.lastRefreshed) {
-          console.log('[Client] Data last refreshed:', result.lastRefreshed);
+        if (result?.lastRefreshed) {
+          console.log("[Client] Data last refreshed:", result.lastRefreshed);
           // lastRefreshed is already set above, this is redundant unless logic changes
-       }
-
-    } catch (err: unknown) {
-      console.error('Failed to fetch or parse GitHub activity:', err); // Log the full error object
-      setError(err instanceof Error ? err.message : 'An unknown error occurred while fetching data.');
-      resetState(); // Full reset on critical fetch/parse error
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [resetState]);
+        }
+      } catch (err: unknown) {
+        console.error("Failed to fetch or parse GitHub activity:", err); // Log the full error object
+        setError(
+          err instanceof Error ? err.message : "An unknown error occurred while fetching data.",
+        );
+        resetState(); // Full reset on critical fetch/parse error
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [resetState],
+  );
 
   /**
    * Handles the click event for the refresh button.
@@ -225,7 +240,7 @@ const GitHubActivity = () => {
    */
   const handleForceCache = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click
-    console.log('[Client] Force cache button clicked, triggering a refresh');
+    console.log("[Client] Force cache button clicked, triggering a refresh");
     void fetchData(true); // Same as refresh
   };
 
@@ -240,36 +255,59 @@ const GitHubActivity = () => {
   }, [fetchData]); // Add fetchData to dependency array
 
   /**
-   * Handles key down events on the main card div for accessibility.
-   * Triggers navigation if Enter or Space is pressed.
-   * @param {React.KeyboardEvent<HTMLButtonElement>} e - The keyboard event.
+   * Handles click events on the main card button for navigation.
+   * Only navigates if the click target is not a button (to avoid conflicts with refresh buttons).
+   * @param {React.MouseEvent<HTMLButtonElement>} e - The mouse event.
+   */
+  const handleCardClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Check if the clicked element or its parent is a button
+    const target = e.target as HTMLElement;
+    const isButton = target.tagName === "BUTTON" || target.closest("button");
+
+    if (!isButton) {
+      navigateToGitHub();
+    }
+  };
+
+  /**
+   * Handles keyboard events for accessibility compliance.
    */
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      navigateToGitHub();
+    if (e.key === "Enter" || e.key === " ") {
+      // Check if the focused element or its parent is a button
+      const target = e.target as HTMLElement;
+      const isButton = target.tagName === "BUTTON" || target.closest("button");
+
+      if (!isButton) {
+        e.preventDefault();
+        navigateToGitHub();
+      }
     }
   };
 
   return (
     <button
       type="button"
-      className="bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-card cursor-pointer hover:shadow-card-hover transition-all duration-300 transform hover:-translate-y-1 group text-left w-full"
-      onClick={navigateToGitHub}
+      className="bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-card cursor-pointer hover:shadow-card-hover transition-all duration-300 transform hover:-translate-y-1 group text-left w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+      onClick={handleCardClick}
       onKeyDown={handleKeyDown}
       aria-label="View GitHub Profile and Activity"
     >
       <div className="flex justify-between items-center mb-3">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-          <Code size={20} className="mr-2 text-blue-500 group-hover:scale-110 transition-transform" />
+          <Code
+            size={20}
+            className="mr-2 text-blue-500 group-hover:scale-110 transition-transform"
+          />
           GitHub Activity
         </h3>
         {showRefreshButtons && (
           <div className="flex space-x-2">
-            {!dataComplete && !isRefreshing && !isLoading && ( // Also hide if loading initially
+            {!dataComplete && !isRefreshing && !isLoading && (
               <button
                 type="button"
                 onClick={handleForceCache}
-                className="p-1.5 rounded-full bg-yellow-100 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:hover:bg-yellow-900/50 transition-colors text-yellow-600 dark:text-yellow-500 hover:scale-110"
+                className="p-1.5 rounded-full bg-yellow-100 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:hover:bg-yellow-900/50 transition-colors text-yellow-600 dark:text-yellow-500 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 title="Data incomplete. Click to attempt refresh."
                 aria-label="Refresh incomplete data"
               >
@@ -279,14 +317,14 @@ const GitHubActivity = () => {
             <button
               type="button"
               onClick={handleRefresh}
-              disabled={isRefreshing || isLoading} // Disable if initial load is also in progress
-              className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-all hover:scale-110"
+              disabled={isRefreshing || isLoading}
+              className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
               title="Refresh GitHub data"
               aria-label="Refresh GitHub data"
             >
               <RefreshCw
                 size={16}
-                className={`${isRefreshing ? 'animate-spin text-blue-500' : 'text-gray-500'}`}
+                className={`${isRefreshing ? "animate-spin text-blue-500" : "text-gray-500"}`}
               />
             </button>
           </div>
@@ -300,21 +338,26 @@ const GitHubActivity = () => {
         </div>
       )}
 
-      {error && !isLoading && ( // Show error only if not currently loading
-        <div className="text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
-          <p className="font-medium">Error fetching GitHub activity:</p>
-          <p className="text-sm">{error}</p>
-          <p className="text-sm mt-1">Try refreshing, or check data source availability.</p>
-        </div>
-      )}
+      {error &&
+        !isLoading && ( // Show error only if not currently loading
+          <div className="text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
+            <p className="font-medium">Error fetching GitHub activity:</p>
+            <p className="text-sm">{error}</p>
+            <p className="text-sm mt-1">Try refreshing, or check data source availability.</p>
+          </div>
+        )}
 
       {!isLoading && !error && (
         <>
-          {activityData.length === 0 && (totalContributions === null || totalContributions === 0) ? (
+          {activityData.length === 0 &&
+          (totalContributions === null || totalContributions === 0) ? (
             <div className="text-center py-10 text-gray-500 dark:text-gray-400">
               <p>No contribution activity found for the trailing year.</p>
               {dataComplete === false && lastRefreshed && (
-                <p className="text-sm mt-1">Data might be incomplete. Last attempt: {formatDistanceToNow(new Date(lastRefreshed), { addSuffix: true })}.</p>
+                <p className="text-sm mt-1">
+                  Data might be incomplete. Last attempt:{" "}
+                  {formatDistanceToNow(new Date(lastRefreshed), { addSuffix: true })}.
+                </p>
               )}
             </div>
           ) : (
@@ -322,7 +365,7 @@ const GitHubActivity = () => {
               <ActivityCalendarComponent
                 data={activityData}
                 theme={calendarCustomTheme}
-                colorScheme={currentNextTheme === 'dark' ? 'dark' : 'light'}
+                colorScheme={currentNextTheme === "dark" ? "dark" : "light"}
                 blockSize={14}
                 blockMargin={3}
                 fontSize={14}
@@ -333,19 +376,34 @@ const GitHubActivity = () => {
           )}
           <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
             {totalContributions !== null && (
-              <span>Total contributions (trailing year): <span className="font-medium">{totalContributions.toLocaleString()}</span>. </span>
+              <span>
+                Total contributions (trailing year):{" "}
+                <span className="font-medium">{totalContributions.toLocaleString()}</span>.{" "}
+              </span>
             )}
             {trailingYearLinesAdded !== null && trailingYearLinesRemoved !== null && (
-              <span>LOC Change (trailing year): <span className="text-green-600 dark:text-green-400 font-medium">+{trailingYearLinesAdded.toLocaleString()}</span> / <span className="text-red-600 dark:text-red-400 font-medium">-{trailingYearLinesRemoved.toLocaleString()}</span>. </span>
+              <span>
+                LOC Change (trailing year):{" "}
+                <span className="text-green-600 dark:text-green-400 font-medium">
+                  +{trailingYearLinesAdded.toLocaleString()}
+                </span>{" "}
+                /{" "}
+                <span className="text-red-600 dark:text-red-400 font-medium">
+                  -{trailingYearLinesRemoved.toLocaleString()}
+                </span>
+                .{" "}
+              </span>
             )}
             {lastRefreshed && (
-                <span title={`Data last updated: ${new Date(lastRefreshed).toLocaleString()}`}>
-                    Last updated: {formatDistanceToNow(new Date(lastRefreshed), { addSuffix: true })}.
-                </span>
+              <span title={`Data last updated: ${new Date(lastRefreshed).toLocaleString()}`}>
+                Last updated: {formatDistanceToNow(new Date(lastRefreshed), { addSuffix: true })}.
+              </span>
             )}
           </div>
-          {allTimeLinesAdded !== null && allTimeLinesRemoved !== null && allTimeTotalContributions !== null && (
-             <div className="mt-6">
+          {allTimeLinesAdded !== null &&
+            allTimeLinesRemoved !== null &&
+            allTimeTotalContributions !== null && (
+              <div className="mt-6">
                 <CumulativeGitHubStatsCards
                   stats={{
                     totalContributions: allTimeTotalContributions,
@@ -354,8 +412,8 @@ const GitHubActivity = () => {
                     netLinesOfCode: allTimeLinesAdded - allTimeLinesRemoved,
                   }}
                 />
-            </div>
-          )}
+              </div>
+            )}
         </>
       )}
     </button>

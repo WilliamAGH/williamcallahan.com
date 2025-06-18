@@ -3,8 +3,8 @@
  * @module lib/hooks/use-logo
  */
 
-import { useState, useEffect } from 'react';
-import { fetchLogo } from '../logo';
+import { useEffect, useState } from "react";
+import { fetchLogo } from "../logo";
 
 export function useLogo(input: string | undefined) {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export function useLogo(input: string | undefined) {
         }
       } catch (err) {
         if (mounted) {
-          console.error('Error loading logo:', err);
+          console.error("Error loading logo:", err);
           setError(true);
         }
       }
@@ -42,6 +42,6 @@ export function useLogo(input: string | undefined) {
 
   return {
     logoUrl,
-    error
+    error,
   };
 }

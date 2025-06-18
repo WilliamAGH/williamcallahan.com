@@ -6,13 +6,21 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import type { ReactNode } from 'react';
-import type { LucideIcon } from 'lucide-react'; // Assuming lucide-react for icons
-import { useFixSvgTransforms } from '@/hooks/use-fix-svg-transforms';
+import { useFixSvgTransforms } from "@/hooks/use-fix-svg-transforms";
+import type { LucideIcon } from "lucide-react"; // Assuming lucide-react for icons
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
+import type { ReactNode } from "react";
 
 // Define the possible states (same as before)
-export type WindowState = 'normal' | 'minimized' | 'maximized' | 'closed';
+export type WindowState = "normal" | "minimized" | "maximized" | "closed";
 
 // Define the structure for storing state about a single window
 interface WindowInstanceInfo {
@@ -23,7 +31,8 @@ interface WindowInstanceInfo {
 }
 
 // Define the shape of the context data
-export interface GlobalWindowRegistryContextType { // Add export keyword
+export interface GlobalWindowRegistryContextType {
+  // Add export keyword
   windows: Record<string, WindowInstanceInfo>; // Map of windowId -> state info
   registerWindow: (id: string, icon: LucideIcon, title: string, initialState?: WindowState) => void;
   unregisterWindow: (id: string) => void;
@@ -36,7 +45,9 @@ export interface GlobalWindowRegistryContextType { // Add export keyword
 }
 
 // Create the context
-const GlobalWindowRegistryContext = createContext<GlobalWindowRegistryContextType | undefined>(undefined);
+const GlobalWindowRegistryContext = createContext<GlobalWindowRegistryContextType | undefined>(
+  undefined,
+);
 
 // Define provider props
 interface GlobalWindowRegistryProviderProps {
@@ -46,89 +57,90 @@ interface GlobalWindowRegistryProviderProps {
 // Define the provider component
 export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryProviderProps) => {
   const [windows, setWindows] = useState<Record<string, WindowInstanceInfo>>({});
-  // Add client-side initialization flag
-  const [isClient, setIsClient] = useState(false);
 
-  // Initialize on client-side only
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const registerWindow = useCallback((id: string, icon: LucideIcon, title: string, initialState: WindowState = 'normal') => {
-    // Skip registration during server rendering
-    if (!isClient) return;
-
-    if (process.env.NODE_ENV !== 'production') {
-      // console.log(`WindowRegistry: Registering window '${id}' with initial state '${initialState}'`);
-    }
-    setWindows(prev => {
-      // Avoid re-registering if already present with the same info
-      if (prev[id] && prev[id].state === initialState && prev[id].icon === icon) {
-        return prev;
-      }
-      return {
-        ...prev,
-        [id]: { id, state: initialState, icon, title },
-      };
-    });
-  }, [isClient]);
+  const registerWindow = useCallback(
+    (id: string, icon: LucideIcon, title: string, initialState: WindowState = "normal") => {
+      // Registration logging removed to keep development console clean
+      setWindows((prev) => {
+        // Avoid re-registering if already present with the same info
+        if (prev[id] && prev[id].state === initialState && prev[id].icon === icon) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [id]: { id, state: initialState, icon, title },
+        };
+      });
+    },
+    [],
+  );
 
   const unregisterWindow = useCallback((id: string) => {
-    if (process.env.NODE_ENV !== 'production') {
-      // console.log(`WindowRegistry: Unregistering window '${id}'`);
-    }
-    setWindows(prev => {
-    // Destructure to get all windows except the one we're removing
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { [id]: removed, ...rest } = prev; // Using _prefix convention for unused vars
+    setWindows((prev) => {
+      // Destructure to get all windows except the one we're removing
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { [id]: removed, ...rest } = prev; // Using _prefix convention for unused vars
       return rest;
     });
     // TODO: Consider removing from sessionStorage on unregister?
   }, []);
 
   const setWindowState = useCallback((id: string, state: WindowState) => {
-    setWindows(prev => {
+    setWindows((prev) => {
       if (!prev[id] || prev[id].state === state) return prev; // No change needed
-      if (process.env.NODE_ENV !== 'production') {
-        // console.log(`WindowRegistry: Setting state for '${id}' to '${state}'`);
-      }
       // TODO: Persist to sessionStorage here?
       return { ...prev, [id]: { ...prev[id], state } };
     });
   }, []);
 
-  const minimizeWindow = useCallback((id: string) => setWindowState(id, 'minimized'), [setWindowState]);
-  const closeWindow = useCallback((id: string) => setWindowState(id, 'closed'), [setWindowState]);
-  const restoreWindow = useCallback((id: string) => setWindowState(id, 'normal'), [setWindowState]);
+  const minimizeWindow = useCallback(
+    (id: string) => setWindowState(id, "minimized"),
+    [setWindowState],
+  );
+  const closeWindow = useCallback((id: string) => setWindowState(id, "closed"), [setWindowState]);
+  const restoreWindow = useCallback((id: string) => setWindowState(id, "normal"), [setWindowState]);
 
   const maximizeWindow = useCallback((id: string) => {
-    setWindows(prev => {
+    setWindows((prev) => {
       if (!prev[id]) return prev;
-      const newState = prev[id].state === 'maximized' ? 'normal' : 'maximized';
-      if (process.env.NODE_ENV !== 'production') {
-        // console.log(`WindowRegistry: Toggling state for '${id}' to '${newState}'`);
-      }
-       // TODO: Persist to sessionStorage here?
+      const newState = prev[id].state === "maximized" ? "normal" : "maximized";
+      // TODO: Persist to sessionStorage here?
       return { ...prev, [id]: { ...prev[id], state: newState } };
     });
   }, []);
 
-  const getWindowState = useCallback((id: string): WindowInstanceInfo | undefined => {
-    return windows[id];
-  }, [windows]);
+  const getWindowState = useCallback(
+    (id: string): WindowInstanceInfo | undefined => {
+      return windows[id];
+    },
+    [windows],
+  );
 
   // Memoize context value
-  const value = useMemo(() => ({
-    windows,
-    registerWindow,
-    unregisterWindow,
-    setWindowState,
-    minimizeWindow,
-    maximizeWindow,
-    closeWindow,
-    restoreWindow,
-    getWindowState,
-  }), [windows, registerWindow, unregisterWindow, setWindowState, minimizeWindow, maximizeWindow, closeWindow, restoreWindow, getWindowState]);
+  const value = useMemo(
+    () => ({
+      windows,
+      registerWindow,
+      unregisterWindow,
+      setWindowState,
+      minimizeWindow,
+      maximizeWindow,
+      closeWindow,
+      restoreWindow,
+      getWindowState,
+    }),
+    [
+      windows,
+      registerWindow,
+      unregisterWindow,
+      setWindowState,
+      minimizeWindow,
+      maximizeWindow,
+      closeWindow,
+      restoreWindow,
+      getWindowState,
+    ],
+  );
 
   // Add ref to fix SVG transforms
   const containerRef = useRef<HTMLDivElement>(null);
@@ -138,9 +150,7 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
 
   return (
     <GlobalWindowRegistryContext.Provider value={value}>
-      <div ref={containerRef}>
-        {children}
-      </div>
+      <div ref={containerRef}>{children}</div>
     </GlobalWindowRegistryContext.Provider>
   );
 };
@@ -149,14 +159,19 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
 export const useWindowRegistry = (): GlobalWindowRegistryContextType => {
   const context = useContext(GlobalWindowRegistryContext);
   if (context === undefined) {
-    throw new Error('useWindowRegistry must be used within a GlobalWindowRegistryProvider');
+    throw new Error("useWindowRegistry must be used within a GlobalWindowRegistryProvider");
   }
   return context;
 };
 
 // Optional: Hook specifically for a single window instance to simplify component usage
 // This hook handles registration/unregistration automatically
-export const useRegisteredWindowState = (id: string, icon: LucideIcon, title: string, initialState: WindowState = 'normal') => {
+export const useRegisteredWindowState = (
+  id: string,
+  icon: LucideIcon,
+  title: string,
+  initialState: WindowState = "normal",
+) => {
   const {
     windows,
     registerWindow,
@@ -165,34 +180,41 @@ export const useRegisteredWindowState = (id: string, icon: LucideIcon, title: st
     maximizeWindow,
     closeWindow,
     restoreWindow,
-    setWindowState
-   } = useWindowRegistry();
+    setWindowState,
+  } = useWindowRegistry();
 
-   // Register on mount, unregister on unmount
-   useEffect(() => {
-     // Delay registration slightly to potentially improve HMR stability
-     const timerId = setTimeout(() => {
-       registerWindow(id, icon, title, initialState);
-     }, 0);
+  // Register immediately on mount; avoid setTimeout delay which can defer visibility on slow devices
+  registerWindow(id, icon, title, initialState);
 
-     // Cleanup function: clear timeout and unregister
-     return () => {
-       clearTimeout(timerId);
-       unregisterWindow(id);
-     };
-     // Ensure dependencies cover potential changes that require re-registration
-   }, [registerWindow, unregisterWindow, id, icon, title, initialState]);
+  // Cleanup: unregister on unmount
+  useEffect(() => {
+    return () => {
+      unregisterWindow(id);
+    };
+  }, [unregisterWindow, id]);
 
-   const windowInfo = windows[id];
+  const windowInfo = windows[id];
 
-   // Return state and actions specific to this ID
-   return useMemo(() => ({
-     windowState: windowInfo?.state ?? initialState, // Provide default state before registration completes
-     isRegistered: !!windowInfo, // Flag indicating if registration is complete
-     minimize: () => minimizeWindow(id),
-     maximize: () => maximizeWindow(id),
-     close: () => closeWindow(id),
-     restore: () => restoreWindow(id),
-     setState: (state: WindowState) => setWindowState(id, state),
-   }), [id, windowInfo, initialState, minimizeWindow, maximizeWindow, closeWindow, restoreWindow, setWindowState]);
- };
+  // Return state and actions specific to this ID
+  return useMemo(
+    () => ({
+      windowState: windowInfo?.state ?? initialState, // Fallback to the provided initial state until registration finishes
+      minimize: () => minimizeWindow(id),
+      maximize: () => maximizeWindow(id),
+      close: () => closeWindow(id),
+      restore: () => restoreWindow(id),
+      setState: (state: WindowState) => setWindowState(id, state),
+      isRegistered: true,
+    }),
+    [
+      id,
+      windowInfo,
+      initialState,
+      minimizeWindow,
+      maximizeWindow,
+      closeWindow,
+      restoreWindow,
+      setWindowState,
+    ],
+  );
+};

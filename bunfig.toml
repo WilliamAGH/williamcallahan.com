@@ -1,4 +1,0 @@
-[test]
-# Preload scripts: register Happy DOM then testing-library setup
-preload = ["./happydom.ts", "./__tests__/lib/setup/testing-library.ts"]
-# Removed server-only-mock and happydom preloads

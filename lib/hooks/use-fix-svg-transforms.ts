@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
-import type { RefObject } from 'react';
-import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
+import { processSvgTransforms } from "@/lib/utils/svg-transform-fix";
+import { useEffect, useRef } from "react";
+import type { RefObject } from "react";
 
 /**
  * A React hook that fixes SVG transform attributes in a container element
@@ -29,9 +29,9 @@ export function useFixSvgTransforms<T extends HTMLElement = HTMLDivElement>(
   options: {
     rootRef?: RefObject<T | null>;
     selector?: string;
-  } = {}
+  } = {},
 ): RefObject<T | null> {
-  const { rootRef, selector = 'svg' } = options;
+  const { rootRef, selector = "svg" } = options;
   const internalRef = useRef<T>(null);
   const ref = rootRef || internalRef;
 
@@ -40,18 +40,18 @@ export function useFixSvgTransforms<T extends HTMLElement = HTMLDivElement>(
 
     // Fix all SVGs in the container
     const svgs = ref.current.querySelectorAll(selector);
-    svgs.forEach(svg => {
+    for (const svg of svgs) {
       if (svg instanceof SVGElement) {
         processSvgTransforms(svg);
       }
-    });
+    }
 
     // Set up a MutationObserver to fix SVGs added dynamically
-    const observer = new MutationObserver(mutations => {
+    const observer = new MutationObserver((mutations) => {
       // Check if any mutations involve SVGs
-      mutations.forEach(mutation => {
-        if (mutation.type === 'childList') {
-          mutation.addedNodes.forEach(node => {
+      for (const mutation of mutations) {
+        if (mutation.type === "childList") {
+          for (const node of mutation.addedNodes) {
             // If the node itself is an SVG
             if (node instanceof SVGElement) {
               processSvgTransforms(node);
@@ -61,22 +61,22 @@ export function useFixSvgTransforms<T extends HTMLElement = HTMLDivElement>(
             if (node.nodeType === Node.ELEMENT_NODE) {
               const svgsInNode = (node as Element).querySelectorAll(selector);
               if (svgsInNode.length > 0) {
-                svgsInNode.forEach(svg => {
+                for (const svg of svgsInNode) {
                   if (svg instanceof SVGElement) {
                     processSvgTransforms(svg);
                   }
-                });
+                }
               }
             }
-          });
+          }
         }
-      });
+      }
     });
 
     // Start observing the container
     observer.observe(ref.current, {
       childList: true,
-      subtree: true
+      subtree: true,
     });
 
     // Clean up

@@ -7,12 +7,12 @@
 
 "use client";
 
-import Image, { type ImageProps } from 'next/image';
-import { useState, useEffect, type JSX } from 'react';
+import Image, { type ImageProps } from "next/image";
+import { type JSX, useEffect, useState } from "react";
 
 export function Base64Image({
-  className = '',
-  alt = '',
+  className = "",
+  alt = "",
   width,
   height,
   ...props
@@ -30,7 +30,7 @@ export function Base64Image({
     return (
       <div
         className={`bg-gray-200 dark:bg-gray-700 animate-pulse ${className}`}
-        style={{ aspectRatio, width: '100%', height: aspectRatio ? 'auto' : '200px' }}
+        style={{ aspectRatio, width: "100%", height: aspectRatio ? "auto" : "200px" }}
         aria-label={alt}
       />
     );
@@ -40,10 +40,10 @@ export function Base64Image({
   return (
     <Image
       className={className}
-      alt={alt || ''}
+      alt={alt || ""}
       width={width}
       height={height}
-      style={{ width: '100%', height: 'auto' }} // Key fix: always maintain aspect ratio
+      style={{ width: "100%", height: "auto" }} // Key fix: always maintain aspect ratio
       unoptimized // Skip optimization for base64 images
       {...props}
     />

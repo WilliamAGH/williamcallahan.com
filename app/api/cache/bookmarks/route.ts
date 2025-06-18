@@ -7,11 +7,11 @@
  * - DELETE: Clears the bookmarks cache
  */
 
-import { NextResponse } from 'next/server';
-import { ServerCacheInstance } from '@/lib/server-cache';
+import { ServerCacheInstance } from "@/lib/server-cache";
+import { NextResponse } from "next/server";
 
 // Ensure this route is not statically cached
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 /**
  * API Key validation middleware
@@ -22,12 +22,12 @@ function validateApiKey(request: Request): boolean {
   const apiKey = process.env.ADMIN_API_KEY;
   if (!apiKey) return false;
 
-  const authHeader = request.headers.get('Authorization');
+  const authHeader = request.headers.get("Authorization");
   if (!authHeader) return false;
 
   // Check 'Bearer TOKEN' format
-  const [type, token] = authHeader.split(' ');
-  if (type !== 'Bearer' || !token) return false;
+  const [type, token] = authHeader.split(" ");
+  if (type !== "Bearer" || !token) return false;
 
   return token === apiKey;
 }
@@ -37,7 +37,7 @@ function validateApiKey(request: Request): boolean {
  */
 export async function GET(request: Request): Promise<NextResponse> {
   if (!validateApiKey(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // Use Promise.resolve to satisfy require-await rule
@@ -45,14 +45,16 @@ export async function GET(request: Request): Promise<NextResponse> {
   const needsRefresh = await Promise.resolve(ServerCacheInstance.shouldRefreshBookmarks());
 
   return NextResponse.json({
-    status: 'success',
+    status: "success",
     data: {
       cached: !!cached,
       bookmarksCount: cached?.bookmarks.length || 0,
       lastFetchedAt: cached?.lastFetchedAt ? new Date(cached.lastFetchedAt).toISOString() : null,
-      lastAttemptedAt: cached?.lastAttemptedAt ? new Date(cached.lastAttemptedAt).toISOString() : null,
-      needsRefresh
-    }
+      lastAttemptedAt: cached?.lastAttemptedAt
+        ? new Date(cached.lastAttemptedAt).toISOString()
+        : null,
+      needsRefresh,
+    },
   });
 }
 
@@ -61,31 +63,34 @@ export async function GET(request: Request): Promise<NextResponse> {
  */
 export async function POST(request: Request): Promise<NextResponse> {
   if (!validateApiKey(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     // Forcibly refresh by calling the actual API
-    const { refreshBookmarksData } = await import('@/lib/bookmarks.client');
+    const { refreshBookmarksData } = await import("@/lib/bookmarks.client");
     await refreshBookmarksData();
 
     const cached = ServerCacheInstance.getBookmarks();
 
     return NextResponse.json({
-      status: 'success',
-      message: 'Bookmarks cache refreshed successfully',
+      status: "success",
+      message: "Bookmarks cache refreshed successfully",
       data: {
         bookmarksCount: cached?.bookmarks.length || 0,
-        lastFetchedAt: cached?.lastFetchedAt ? new Date(cached.lastFetchedAt).toISOString() : null
-      }
+        lastFetchedAt: cached?.lastFetchedAt ? new Date(cached.lastFetchedAt).toISOString() : null,
+      },
     });
   } catch (error) {
-    console.error('Failed to refresh bookmarks cache:', error);
-    return NextResponse.json({
-      status: 'error',
-      message: 'Failed to refresh bookmarks cache',
-      error: error instanceof Error ? error.message : String(error)
-    }, { status: 500 });
+    console.error("Failed to refresh bookmarks cache:", error);
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "Failed to refresh bookmarks cache",
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    );
   }
 }
 
@@ -94,7 +99,7 @@ export async function POST(request: Request): Promise<NextResponse> {
  */
 export async function DELETE(request: Request): Promise<NextResponse> {
   if (!validateApiKey(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -102,15 +107,18 @@ export async function DELETE(request: Request): Promise<NextResponse> {
     await Promise.resolve(ServerCacheInstance.clearBookmarks());
 
     return NextResponse.json({
-      status: 'success',
-      message: 'Bookmarks cache cleared successfully'
+      status: "success",
+      message: "Bookmarks cache cleared successfully",
     });
   } catch (error) {
-    console.error('Failed to clear bookmarks cache:', error);
-    return NextResponse.json({
-      status: 'error',
-      message: 'Failed to clear bookmarks cache',
-      error: error instanceof Error ? error.message : String(error)
-    }, { status: 500 });
+    console.error("Failed to clear bookmarks cache:", error);
+    return NextResponse.json(
+      {
+        status: "error",
+        message: "Failed to clear bookmarks cache",
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    );
   }
 }

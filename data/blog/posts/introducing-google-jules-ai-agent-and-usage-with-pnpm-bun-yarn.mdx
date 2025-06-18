@@ -3,7 +3,7 @@ title: "Google's Jules AI Agent: Autonomous Coding and Environment Setup Guide"
 slug: "google-jules-ai-agent-launched-and-pnpm-bun-yarn-environment-setup"
 excerpt: "A hands-on look at Google's new Jules AI coding agent, its key capabilities, and how to configure your development environment for full autonomous abilities in Jules."
 publishedAt: "2025-05-21"
-updatedAt: "2025-05-22"
+updatedAt: "2025-06-06"
 author: "william-callahan"
 tags: ["ai", "google", "jules", "package-managers", "pnpm", "bun", "yarn", "coding-agents"]
 coverImage: "/images/posts/jules-ai.png"
@@ -19,30 +19,20 @@ Google has officially released [Jules](https://jules.google) in public beta, mak
 
 Jules operates asynchronously in a secure cloud environment, allowing you to focus on other work while it handles tasks like writing tests, fixing bugs, building features, or updating dependencies. When finished, it presents its reasoning and a diff of the changes made.
 
-<div className="my-8">
-  <video
-    className="w-full rounded-lg shadow-lg"
-    controls
-    poster="/images/posts/jules-ai.png"
-  >
-    <source src="https://storage.googleapis.com/gweb-uniblog-publish-prod/original_videos/Copy_of_jules-demo-with-cursor.mp4" type="video/mp4" />
-    Your browser doesn't support embedded videos.
-  </video>
-  <p className="text-sm text-center mt-2 text-gray-600 dark:text-gray-400">Jules updating a codebase to a new version of Node.js</p>
-</div>
-
 ## Key Features and Capabilities
 
 Jules leverages [Gemini 2.5 Pro](https://blog.google/technology/google-deepmind/gemini-model-thinking-updates-march-2025/#gemini-2-5-pro), giving it access to advanced coding reasoning capabilities. Combined with its cloud VM system, it can handle complex, multi-file changes with impressive speed and precision.
 
 <CollapseDropdown summary="What Makes Jules Different">
   <div>
+
     - **Works on real codebases**: Jules doesn't need a sandbox. It takes the full context of your existing project to reason about changes intelligently.
     - **Parallel execution**: Tasks run inside a cloud VM, enabling concurrent execution and handling multiple requests simultaneously.
     - **Visible workflow**: Jules shows you its plan and reasoning before making changes, maintaining transparency.
     - **GitHub integration**: Works directly with your GitHub repositories without requiring context-switching.
     - **User control**: Modify the presented plan before, during, and after execution to maintain control over your code.
     - **Audio summaries**: Get audio changelogs of recent commits, turning your project history into something you can listen to.
+
   </div>
 </CollapseDropdown>
 
@@ -54,11 +44,13 @@ Getting started with Jules is straightforward. You'll need to connect your GitHu
 
 <CollapseDropdown summary="Onboarding Process">
   <div>
+
     1. Visit [jules.google](https://jules.google) and sign in with your Google account.
     2. In the Jules dashboard, click **Add Codebase** and authorize GitHub to select your repository.
     3. Open the project dropdown in the top bar and choose **Configuration**.
     4. Review the **Initial setup** commands. These ensure Jules has the right environment to work with your code.
     5. Save your configuration before assigning your first task.
+
   </div>
 </CollapseDropdown>
 
@@ -70,219 +62,76 @@ Once connected, you can start assigning tasks to Jules using natural language pr
 
 ### Package Manager Configuration
 
-Make sure you setup your specific package manager for this to work properly. While npm is the default, Jules works with alternative package managers like pnpm, Bun, and Yarn with a bit of tweaking. Here's how I did it.
+Jules doesn't properly detect alternative package managers like pnpm and Bun automatically. You need to configure these manually using custom setup scripts in the **Configuration** tab of your Jules project:
 
-<CollapseDropdown summary="Automatic Package Manager Detection">
-  <div>
-    Jules can automatically detect your package manager by identifying lock files in your repository:
-    - <code>pnpm-lock.yaml</code> for pnpm
-    - <code>bun.lockb</code> for Bun
-    - <code>yarn.lock</code> for Yarn
-
-    This automatic detection ensures Jules uses the correct commands when installing dependencies or running scripts.
+<div className="mdx-tab-group" data-active-tab="pnpm">
+  <div className="mdx-tab-list">
+    <button className="mdx-tab-button" data-tab="pnpm" data-active="true">pnpm Configuration</button>
+    <button className="mdx-tab-button" data-tab="bun" data-active="false">Bun Configuration</button>
   </div>
-</CollapseDropdown>
 
-<CollapseDropdown summary="Manual Package Manager Configuration">
-  <div>
-    If automatic detection doesn't work or you want to explicitly set your package manager:
+  <div className="mdx-tab-panel" data-tab="pnpm">
 
-    1. Open your project in the Jules dashboard
-    2. Navigate to the **Configuration** section
-    3. In **Initial setup**, select <code>pnpm</code>, <code>bun</code>, or <code>yarn</code> as your package manager
-    4. Save your configuration
+```bash
+set -ux 
+export CI=true
+cd /app
 
-    This ensures Jules uses the correct commands when working with your codebase.
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+  set +e; \\. "$NVM_DIR/nvm.sh"; NVM_SOURCE_STATUS=$?; set -e
+  if [ $NVM_SOURCE_STATUS -ne 0 ] && [ $NVM_SOURCE_STATUS -ne 3 ]; then
+    echo "ERROR: NVM sourcing failed: $NVM_SOURCE_STATUS"; exit 1
+  fi
+else
+  echo "ERROR: NVM script not found"; exit 1
+fi
+set -e 
+
+nvm install 22 && nvm use 22 && nvm alias default 22
+npm install -g pnpm@10
+pnpm install --frozen-lockfile
+```
+
   </div>
-</CollapseDropdown>
 
-<CollapseDropdown summary="Custom Configuration Scripts">
-  <div>
-    Here are example configuration scripts I used for Jules to set up Node.js with different package managers. You can add these in the **Configuration** tab of your Jules project:
+  <div className="mdx-tab-panel" data-tab="bun">
 
-    <InstructionToggleTabs>
-      <InstructionTab label="pnpm Configuration" isDefault={true}>
-        ```bash
-        set -ux # Start with -u (unset variables are errors) and -x (tracing).
-        cd /app
+```bash
+set -ux
+export CI=true
+cd /app
 
-        echo "--- Initial environment ---"
-        echo "Node version: $(node -v)"
-        echo "npm version: $(npm -v)"
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+export NVM_DIR="$HOME/.nvm"
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+  set +e; \\. "$NVM_DIR/nvm.sh"; NVM_SOURCE_STATUS=$?; set -e
+  if [ $NVM_SOURCE_STATUS -ne 0 ] && [ $NVM_SOURCE_STATUS -ne 3 ]; then
+    echo "ERROR: NVM sourcing failed: $NVM_SOURCE_STATUS"; exit 1
+  fi
+else
+  echo "ERROR: NVM script not found"; exit 1
+fi
+set -e 
 
-        echo "--- Installing NVM ---"
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+nvm install 22 && nvm use 22 && nvm alias default 22
+curl -fsSL https://bun.sh/install | bash
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+bun install
+```
 
-        echo "--- Sourcing NVM ---"
-        export NVM_DIR="$HOME/.nvm"
-        if [ -s "$NVM_DIR/nvm.sh" ]; then
-          set +e # Temporarily disable 'exit on error' for sourcing nvm
-          \. "$NVM_DIR/nvm.sh"
-          NVM_SOURCE_STATUS=$?
-          set -e # Re-enable 'exit on error'
-
-          if [ $NVM_SOURCE_STATUS -ne 0 ] && [ $NVM_SOURCE_STATUS -ne 3 ]; then
-            echo "ERROR: NVM sourcing failed with critical status: $NVM_SOURCE_STATUS"
-            exit 1
-          else
-            echo "NVM sourced. Status: $NVM_SOURCE_STATUS (0 or 3 is acceptable as we install Node next)."
-          fi
-        else
-          echo "ERROR: NVM script not found at $NVM_DIR/nvm.sh. Current PATH: $PATH"
-          exit 1
-        fi
-
-        set -e # Ensure exit on error is active for subsequent commands
-
-        echo "--- Installing Node.js v18.20.8 (specific version >= 18.20.5) ---"
-        nvm install 18.20.8
-        nvm use 18.20.8
-        nvm alias default 18.20.8
-
-        echo "--- Verifying Node.js and npm versions after NVM ---"
-        echo "Node version: $(node -v)"
-        echo "npm version: $(npm -v)"
-        echo "Which node: $(command -v node)"
-        echo "nvm current: $(nvm current)"
-
-        # Corrected Node.js version check for >=18.20.5
-        NODE_VERSION_MAJOR=$(node -p "process.versions.node.split('.')[0]")
-        NODE_VERSION_MINOR=$(node -p "process.versions.node.split('.')[1]")
-        NODE_VERSION_PATCH=$(node -p "process.versions.node.split('.')[2]")
-
-        REQ_MAJOR=18
-        REQ_MINOR=20
-        REQ_PATCH=5
-
-        VERSION_OK=false
-        if [ "$NODE_VERSION_MAJOR" -gt "$REQ_MAJOR" ]; then
-          VERSION_OK=true
-        elif [ "$NODE_VERSION_MAJOR" -eq "$REQ_MAJOR" ]; then
-          if [ "$NODE_VERSION_MINOR" -gt "$REQ_MINOR" ]; then
-            VERSION_OK=true
-          elif [ "$NODE_VERSION_MINOR" -eq "$REQ_MINOR" ]; then
-            if [ "$NODE_VERSION_PATCH" -ge "$REQ_PATCH" ]; then
-              VERSION_OK=true
-            fi
-          fi
-        fi
-
-        if [ "$VERSION_OK" = "false" ]; then
-          echo "ERROR: Installed Node version $(node -v) does not meet requirement >=${REQ_MAJOR}.${REQ_MINOR}.${REQ_PATCH}."
-          exit 1
-        fi
-        echo "Node version requirement (>=${REQ_MAJOR}.${REQ_MINOR}.${REQ_PATCH}) met: $(node -v)"
-
-        echo "--- Installing project dependencies using pnpm ---"
-        npx pnpm@10.11.0 install --frozen-lockfile
-        echo "pnpm install completed."
-
-        echo "--- Setup complete (Node and pnpm dependencies) ---"
-        ```
-      </InstructionTab>
-      <InstructionTab label="Bun Configuration">
-        ```bash
-        set -ux # Start with -u (unset variables are errors) and -x (tracing).
-        cd /app
-
-        echo "--- Initial environment ---"
-        echo "Node version: $(node -v)"
-        echo "npm version: $(npm -v)"
-
-        echo "--- Installing NVM ---"
-        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-
-        echo "--- Sourcing NVM ---"
-        export NVM_DIR="$HOME/.nvm"
-        if [ -s "$NVM_DIR/nvm.sh" ]; then
-          set +e # Temporarily disable 'exit on error' for sourcing nvm
-          \. "$NVM_DIR/nvm.sh"
-          NVM_SOURCE_STATUS=$?
-          set -e # Re-enable 'exit on error'
-
-          if [ $NVM_SOURCE_STATUS -ne 0 ] && [ $NVM_SOURCE_STATUS -ne 3 ]; then
-            echo "ERROR: NVM sourcing failed with critical status: $NVM_SOURCE_STATUS"
-            exit 1
-          else
-            echo "NVM sourced. Status: $NVM_SOURCE_STATUS (0 or 3 is acceptable as we install Node next)."
-          fi
-        else
-          echo "ERROR: NVM script not found at $NVM_DIR/nvm.sh. Current PATH: $PATH"
-          exit 1
-        fi
-
-        set -e # Ensure exit on error is active for subsequent commands
-
-        echo "--- Installing Node.js v18.20.8 (specific version >= 18.20.5) ---"
-        nvm install 18.20.8
-        nvm use 18.20.8
-        nvm alias default 18.20.8
-
-        echo "--- Verifying Node.js and npm versions after NVM ---"
-        echo "Node version: $(node -v)"
-        echo "npm version: $(npm -v)"
-        echo "Which node: $(command -v node)"
-        echo "nvm current: $(nvm current)"
-
-        # Corrected Node.js version check for >=18.20.5
-        NODE_VERSION_MAJOR=$(node -p "process.versions.node.split('.')[0]")
-        NODE_VERSION_MINOR=$(node -p "process.versions.node.split('.')[1]")
-        NODE_VERSION_PATCH=$(node -p "process.versions.node.split('.')[2]")
-
-        REQ_MAJOR=18
-        REQ_MINOR=20
-        REQ_PATCH=5
-
-        VERSION_OK=false
-        if [ "$NODE_VERSION_MAJOR" -gt "$REQ_MAJOR" ]; then
-          VERSION_OK=true
-        elif [ "$NODE_VERSION_MAJOR" -eq "$REQ_MAJOR" ]; then
-          if [ "$NODE_VERSION_MINOR" -gt "$REQ_MINOR" ]; then
-            VERSION_OK=true
-          elif [ "$NODE_VERSION_MINOR" -eq "$REQ_MINOR" ]; then
-            if [ "$NODE_VERSION_PATCH" -ge "$REQ_PATCH" ]; then
-              VERSION_OK=true
-            fi
-          fi
-        fi
-
-        if [ "$VERSION_OK" = "false" ]; then
-          echo "ERROR: Installed Node version $(node -v) does not meet requirement >=${REQ_MAJOR}.${REQ_MINOR}.${REQ_PATCH}."
-          exit 1
-        fi
-        echo "Node version requirement (>=${REQ_MAJOR}.${REQ_MINOR}.${REQ_PATCH}) met: $(node -v)"
-
-        echo "--- Installing Bun ---"
-        curl -fsSL https://bun.sh/install | bash
-        # Add Bun to PATH for the current script session.
-        # The Bun installer usually prints instructions on how to add it to PATH permanently.
-        # For CI, we might need to explicitly add its bin directory to PATH.
-        # Common Bun install path: $HOME/.bun/bin
-        export BUN_INSTALL="$HOME/.bun"
-        export PATH="$BUN_INSTALL/bin:$PATH"
-        echo "Bun installed. Verifying Bun version:"
-        bun --version
-
-        echo "--- Installing project dependencies using Bun ---"
-        bun install
-        echo "Bun install completed."
-
-        echo "--- Setup complete (Node and Bun dependencies) ---"
-        ```
-      </InstructionTab>
-    </InstructionToggleTabs>
-
-    These scripts:
-    - Install NVM (Node Version Manager)
-    - Set up a specific Node.js version (18.20.8)
-    - Verify the Node.js version meets requirements
-    - Install dependencies using your chosen package manager
-
-    Both scripts are robust with error handling and verbose logging, which helps when debugging any issues in the Jules environment.
   </div>
-</CollapseDropdown>
+</div>
 
-You don't need to modify your scripts or workflow to accommodate Jules—it adapts to your existing setup. Just make sure your dependencies are properly specified in your package.json file, and Jules will handle the rest.
+These scripts:
+- Install NVM (Node Version Manager)
+- Set up Node.js 22 (latest stable)
+- Install the latest version of your chosen package manager
+- Install project dependencies with frozen lockfiles
+
+Both scripts are minimal but include necessary error handling for the Jules cloud environment.
 
 ## The AI Coding Agent Landscape in 2025
 

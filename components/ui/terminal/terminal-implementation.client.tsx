@@ -7,52 +7,43 @@
 
 "use client";
 
-import React, { useEffect, useRef } from 'react'; // Assuming useCallback was here and removed
-import { TerminalHeader } from './terminal-header';
-import { History } from "./history";
-import { CommandInput } from "./command-input.client";
-import { SelectionView } from "./selection-view.client";
-import { useTerminal } from "./use-terminal.client";
-// Import the history context hook
-import { useTerminalContext } from "./terminal-context.client";
 // Import the new generalized context hook
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
-import { TerminalSquare } from 'lucide-react'; // Import specific icon
 import { cn } from "@/lib/utils";
+import { TerminalSquare } from "lucide-react"; // Import specific icon
+import React, { useEffect, useRef } from "react"; // Assuming useCallback was here and removed
+import { CommandInput } from "./command-input.client";
+import { History } from "./history";
+import { SelectionView } from "./selection-view.client";
+// Import the history context hook
+import { useTerminalContext } from "./terminal-context.client";
+import { TerminalHeader } from "./terminal-header";
+import { useTerminal } from "./use-terminal.client";
 
 // Define a unique ID for this instance of a window-like component
-const TERMINAL_WINDOW_ID = 'main-terminal';
-const isDevelopment = process.env.NODE_ENV === 'development';
-const enableDebugLogs = isDevelopment && false; // Set to true only when debugging terminal
+const TERMINAL_WINDOW_ID = "main-terminal";
 
 export function Terminal() {
-  // Log component mount/unmount
-  useEffect(() => {
-    if (enableDebugLogs) {
-      console.debug("--- Terminal Component Mounted ---");
-    }
-    return () => {
-      if (enableDebugLogs) {
-        console.debug("--- Terminal Component Unmounted ---");
-      }
-    };
-  }, []); // Empty dependency array ensures this runs only on mount/unmount
-
   // Ref for the scrollable content area
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-   // --- Get State from Hooks ---
-   // History state from TerminalContext
-   const { history: terminalHistory } = useTerminalContext();
+  // --- Get State from Hooks ---
+  // History state from TerminalContext
+  const { history: terminalHistory } = useTerminalContext();
 
   // Register this window instance and get its state/actions
+  /**
+   * IMPORTANT: The terminal should always register in the `normal` state.
+   * Do NOT change the `initialState` argument to "closed" or "minimized" —
+   * doing so hides the terminal on initial render and breaks expected UX.
+   */
   const {
     windowState,
-    close: closeWindow,       // Rename actions for consistency if desired
+    close: closeWindow, // Rename actions for consistency if desired
     minimize: minimizeWindow,
     maximize: maximizeWindow,
-    isRegistered           // Flag if the window is ready in the context
-  } = useRegisteredWindowState(TERMINAL_WINDOW_ID, TerminalSquare, 'Restore Terminal', 'normal');
+    isRegistered, // Flag if the window is ready in the context
+  } = useRegisteredWindowState(TERMINAL_WINDOW_ID, TerminalSquare, "Restore Terminal", "normal");
 
   // Local terminal interaction logic (input, selection, etc.)
   const {
@@ -77,7 +68,7 @@ export function Terminal() {
   }, [terminalHistory.length]); // Dependency on history from context
 
   // Determine maximized state - moved up before hooks that depend on it
-  const isMaximized = windowState === 'maximized';
+  const isMaximized = windowState === "maximized";
 
   // Add effect to scroll to the bottom when maximized
   useEffect(() => {
@@ -100,7 +91,7 @@ export function Terminal() {
       observer.observe(scrollContainerRef.current, {
         childList: true,
         subtree: true,
-        characterData: true
+        characterData: true,
       });
 
       // Also set a timeout as a fallback
@@ -126,12 +117,12 @@ export function Terminal() {
     };
 
     if (isMaximized) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     // Cleanup function to remove the event listener
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isMaximized, maximizeWindow]);
 
@@ -139,51 +130,44 @@ export function Terminal() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Check if maximized and the key is Escape
-      if (isMaximized && event.key === 'Escape') {
+      if (isMaximized && event.key === "Escape") {
         maximizeWindow(); // Toggle back to normal state
       }
     };
 
     if (isMaximized) {
-      document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener("keydown", handleKeyDown);
     }
 
     // Cleanup function to remove the event listener
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isMaximized, maximizeWindow]); // Dependencies: run when isMaximized or maximizeWindow changes
 
-   // --- Conditional Rendering ---
+  // --- Conditional Rendering ---
 
-   // If not yet ready (mounted and registered in context), render nothing.
+  // If not yet ready (mounted and registered in context), render nothing.
   if (!isRegistered) {
-    if (enableDebugLogs) {
-      console.debug("Terminal Component: Not ready (pre-mount/hydration from context), rendering null.");
-    }
     return null;
   }
 
   // Now that we are ready (mounted), render based on the current windowState
   // If closed or minimized, render null - the FloatingTerminalButton handles this
   if (windowState === "closed" || windowState === "minimized") {
-    if (enableDebugLogs) {
-      console.debug(`Terminal Component: Rendering null (windowState is ${windowState})`);
-    }
     return null;
   }
 
   // Render normal or maximized view (implicit else, because we checked !isReady earlier)
-  if (enableDebugLogs) {
-    console.debug(`Terminal Component: Rendering ${windowState} view`);
-  }
-
   // Define class sets for clarity
-  const commonTerminalClasses = "bg-[#1a1b26] border border-gray-700 font-mono text-sm cursor-text overflow-hidden flex flex-col shadow-xl";
+  const commonTerminalClasses =
+    "bg-[#1a1b26] border border-gray-700 font-mono text-sm cursor-text overflow-hidden flex flex-col shadow-xl";
   // Margin handled with responsive utilities
   // Add z-10 to ensure it stays below the mobile menu dropdown
-  const normalTerminalClasses = "relative z-10 mx-auto mt-4 mb-4 sm:mt-8 sm:mb-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl p-4 sm:p-6 rounded-lg";
-  const maximizedTerminalClasses = "fixed left-0 right-0 top-14 bottom-0 z-[60] w-full h-[calc(100vh-56px)] p-6 border-0 rounded-none"; // Full window below nav
+  const normalTerminalClasses =
+    "relative z-10 mx-auto mt-4 mb-4 sm:mt-8 sm:mb-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl p-4 sm:p-6 rounded-lg";
+  const maximizedTerminalClasses =
+    "fixed left-0 right-0 top-14 bottom-0 z-[60] w-full h-[calc(100vh-56px)] p-6 border-0 rounded-none"; // Full window below nav
 
   // Define classes for the inner scrollable area
   const commonScrollClasses = "text-gray-300 custom-scrollbar overflow-y-auto";
@@ -201,7 +185,7 @@ export function Terminal() {
             maximizeWindow();
           }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
+            if (e.key === "Enter" || e.key === " ") {
               maximizeWindow();
             }
           }}
@@ -215,7 +199,7 @@ export function Terminal() {
         data-testid="terminal-container"
         className={cn(
           commonTerminalClasses,
-          isMaximized ? maximizedTerminalClasses : normalTerminalClasses
+          isMaximized ? maximizedTerminalClasses : normalTerminalClasses,
         )}
       >
         {/* Header */}
@@ -230,23 +214,38 @@ export function Terminal() {
 
         {/* Scrollable Content Area */}
         <section
-          className={cn(commonScrollClasses, isMaximized ? maximizedScrollClasses : normalScrollClasses)}
+          className={cn(
+            commonScrollClasses,
+            isMaximized ? maximizedScrollClasses : normalScrollClasses,
+          )}
           ref={scrollContainerRef}
           onClick={() => focusInput()}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
+            // Only prevent space key default behavior if the input is not focused
+            // This allows typing spaces in the input while preventing scroll when clicking elsewhere
+            if (e.key === " " && document.activeElement !== inputRef.current) {
               e.preventDefault(); // Prevent default space scroll
               focusInput();
             }
+            // Don't handle Enter key here - let it propagate to the form
           }}
           aria-label="Terminal content area"
         >
           <div className="whitespace-pre-wrap break-words select-text">
             <History history={terminalHistory} />
             {selection ? (
-              <SelectionView items={selection} onSelectAction={handleSelection} onExitAction={cancelSelection} />
+              <SelectionView
+                items={selection}
+                onSelectAction={handleSelection}
+                onExitAction={cancelSelection}
+              />
             ) : (
-              <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={(e) => { void handleSubmit(e); }} />
+              <CommandInput
+                ref={inputRef}
+                value={input}
+                onChange={setInput}
+                onSubmit={handleSubmit}
+              />
             )}
           </div>
         </section>

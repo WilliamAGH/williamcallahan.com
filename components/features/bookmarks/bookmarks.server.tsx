@@ -6,11 +6,10 @@
  */
 import "server-only"; // Ensure this component remains server-only
 
-import { BookmarksClientWithWindow } from './bookmarks-client-with-window';
-import type { UnifiedBookmark, BookmarkError } from '@/types';
-import { getBookmarks } from '@/lib/data-access/bookmarks';
-import { ServerCacheInstance } from '@/lib/server-cache';
-import { AppError } from '@/lib/errors';
+import { getBookmarks } from "@/lib/data-access/bookmarks";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import type { UnifiedBookmark } from "@/types";
+import { BookmarksClientWithWindow } from "./bookmarks-client-with-window";
 
 import type { JSX } from "react";
 
@@ -20,6 +19,11 @@ interface BookmarksServerProps {
   bookmarks?: UnifiedBookmark[];
   showFilterBar?: boolean;
   titleSlug?: string;
+  initialPage?: number;
+  baseUrl?: string;
+  usePagination?: boolean;
+  initialTag?: string;
+  tag?: string;  // Tag to filter by (for server-side filtering)
 }
 
 /**
@@ -38,7 +42,12 @@ export async function BookmarksServer({
   description,
   bookmarks: propsBookmarks,
   showFilterBar,
-  titleSlug
+  titleSlug,
+  initialPage,
+  baseUrl,
+  usePagination = true,
+  initialTag,
+  tag,
 }: BookmarksServerProps): Promise<JSX.Element> {
   // If bookmarks are provided via props, use those; otherwise fetch from API
   let bookmarks: UnifiedBookmark[] = [];
@@ -53,31 +62,42 @@ export async function BookmarksServer({
       return safeTs(b.dateBookmarked) - safeTs(a.dateBookmarked);
     });
 
-  if (propsBookmarks) {
+  // If a tag is provided, let the client-side pagination handle filtering
+  // This enables proper server-side pagination with tag filtering
+  if (tag) {
+    console.log(`[BookmarksServer] Tag filtering enabled for tag: "${tag}"`);
+    // Don't fetch any bookmarks server-side when using tag filtering
+    // The pagination hook will handle everything
+    bookmarks = [];
+  } else if (propsBookmarks) {
     // Apply the same consistent sorting even when bookmarks are provided externally
     bookmarks = sortByDateDesc(propsBookmarks);
-    console.log('[BookmarksServer] Using provided bookmarks, count:', bookmarks.length);
+    console.log("[BookmarksServer] Using provided bookmarks, count:", bookmarks.length);
   } else {
     // Fetch bookmarks. If getBookmarks() throws, it will propagate up.
     bookmarks = await getBookmarks(false);
-    console.log('[BookmarksServer] Fetched via getBookmarks, count:', bookmarks.length);
+    console.log("[BookmarksServer] Fetched via getBookmarks, count:", bookmarks.length);
     if (bookmarks.length > 0) {
-      console.log('[BookmarksServer] First bookmark title:', bookmarks[0]?.title);
+      console.log("[BookmarksServer] First bookmark title:", bookmarks[0]?.title);
     } else {
-      console.warn('[BookmarksServer] No bookmarks found via getBookmarks (API may have returned empty or fetch was skipped).');
+      console.warn(
+        "[BookmarksServer] No bookmarks found via getBookmarks (API may have returned empty or fetch was skipped).",
+      );
     }
 
     // Sort bookmarks by date (newest first) if we have any
     bookmarks = bookmarks.length ? sortByDateDesc(bookmarks) : [];
 
-    // If no bookmarks were fetched (e.g., API returned empty) and not provided via props, in production, throw an error to show boundary
-    // This condition will now primarily be met if getBookmarks() resolves successfully but with an empty array.
-    if (!propsBookmarks && bookmarks.length === 0 && process.env.NODE_ENV === 'production') {
+    // Previously, an error was thrown in production if bookmark data was unavailable.
+    // This caused a hard failure when the external bookmarks service was unreachable.
+    // Instead, log the situation and allow the component tree to render an empty state gracefully.
+    if (!propsBookmarks && bookmarks.length === 0) {
       const lastFetched = ServerCacheInstance.getBookmarks()?.lastFetchedAt ?? 0;
-      // Create a new error specifically for this scenario (empty data, not necessarily API failure)
-      const error: BookmarkError = new AppError('Bookmarks unavailable: No data returned.', 'BOOKMARKS_NO_DATA');
-      error.lastFetchedTimestamp = lastFetched;
-      throw error;
+      console.warn(
+        "[BookmarksServer] No bookmark data available after fetch. lastFetchedAt=",
+        lastFetched,
+      );
+      // Proceed with empty array – downstream components will show an empty state UI.
     }
   }
 
@@ -92,6 +112,11 @@ export async function BookmarksServer({
       forceClientFetch={!propsBookmarks}
       showFilterBar={showFilterBar}
       titleSlug={titleSlug}
+      initialPage={initialPage}
+      baseUrl={baseUrl}
+      usePagination={usePagination}
+      initialTag={initialTag}
+      tag={tag}
     />
   );
 }

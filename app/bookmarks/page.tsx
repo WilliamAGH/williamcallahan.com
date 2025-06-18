@@ -10,12 +10,14 @@
  */
 
 // Configure dynamic rendering
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
+// Revalidate static HTML every 30 minutes to keep bookmark counts fresh
+export const revalidate = 1800; // 30 minutes (60 * 30)
 
-import { getStaticPageMetadata } from '../../lib/seo/metadata';
+import type { Metadata } from "next";
+import { BookmarksServer } from "../../components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "../../components/seo/json-ld";
-import { BookmarksServer } from '../../components/features/bookmarks/bookmarks.server';
-import type { Metadata } from 'next';
+import { getStaticPageMetadata } from "../../lib/seo/metadata";
 
 /**
  * Page Metadata
@@ -23,9 +25,10 @@ import type { Metadata } from 'next';
  */
 const PAGE_METADATA = {
   bookmarks: {
-    title: 'Bookmarks',
-    description: 'A collection of articles, websites, and resources I\'ve bookmarked for future reference.',
-    path: '/bookmarks',
+    title: "Bookmarks",
+    description:
+      "A collection of articles, websites, and resources I've bookmarked for future reference.",
+    path: "/bookmarks",
   },
 };
 
@@ -35,15 +38,15 @@ const PAGE_METADATA = {
 const jsonLdData = {
   "@context": "https://schema.org",
   "@type": "CollectionPage",
-  "name": PAGE_METADATA.bookmarks.title,
-  "description": PAGE_METADATA.bookmarks.description
+  name: PAGE_METADATA.bookmarks.title,
+  description: PAGE_METADATA.bookmarks.description,
 };
 
 /**
  * Generate metadata for the Bookmarks page
  */
 export function generateMetadata(): Metadata {
-  return getStaticPageMetadata('/bookmarks', 'bookmarks');
+  return getStaticPageMetadata("/bookmarks", "bookmarks");
 }
 
 export default function BookmarksPage() {
@@ -54,8 +57,9 @@ export default function BookmarksPage() {
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-5xl mx-auto">
         <BookmarksServer 
-          title={pageMetadata.title}
+          title={pageMetadata.title} 
           description={pageMetadata.description}
+          initialPage={1}
         />
       </div>
     </>

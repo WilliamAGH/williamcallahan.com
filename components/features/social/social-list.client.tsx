@@ -8,9 +8,9 @@
  * Client component that renders the list of social media profile cards.
  */
 
-import { useState, useEffect } from 'react';
-import { socialLinks } from '@/components/ui/social-icons/social-links';
-import { SocialCardClient } from './social-card.client';
+import { socialLinks } from "@/components/ui/social-icons/social-links";
+import { useEffect, useState } from "react";
+import { SocialCardClient } from "./social-card.client";
 
 /**
  * SocialListClient Component
@@ -40,19 +40,20 @@ export function SocialListClient() {
 
       {/* Social Media Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-        {mounted ? (
-          // Only render actual cards when mounted to prevent hydration mismatch
-          socialLinks.map((social) => (
-            <div key={social.href} className="h-full">
-              <SocialCardClient social={social} />
-            </div>
-          ))
-        ) : (
-          // Render skeleton placeholders during server-side rendering
-          Array.from({ length: 5 }).map((_, i) => (
-            <div key={`skeleton-${i}`} className="relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl h-full" />
-          ))
-        )}
+        {mounted
+          ? // Only render actual cards when mounted to prevent hydration mismatch
+            socialLinks.map((social) => (
+              <div key={social.href} className="h-full">
+                <SocialCardClient social={social} />
+              </div>
+            ))
+          : // Render skeleton placeholders during server-side rendering
+            ["skeleton-1", "skeleton-2", "skeleton-3", "skeleton-4", "skeleton-5"].map((id) => (
+              <div
+                key={id}
+                className="relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl h-full"
+              />
+            ))}
       </div>
     </div>
   );

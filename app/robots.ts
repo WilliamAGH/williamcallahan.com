@@ -9,7 +9,7 @@
  * @see https://nextjs.org/docs/app/api-reference/file-conventions/metadata/robots
  */
 
-import type { MetadataRoute } from 'next';
+import type { MetadataRoute } from "next";
 
 /**
  * Generate robots.txt for the application
@@ -21,37 +21,37 @@ import type { MetadataRoute } from 'next';
  * @see https://nextjs.org/docs/app/api-reference/file-conventions/metadata/robots
  */
 export default function robots(): MetadataRoute.Robots {
-  const isProd = process.env.NEXT_PUBLIC_SITE_URL === 'https://williamcallahan.com';
+  const isProd = process.env.NEXT_PUBLIC_SITE_URL === "https://williamcallahan.com";
 
   // Define common problematic paths to disallow in production
   const disallowedProdPaths = [
-    '/api/',
-    '/opt/',
-    '/Library/',
-    '/Applications/',
-    '/bin/',
-    '/etc/',
-    '/comments/feed/',
+    "/api/",
+    "/api/debug/", // Explicitly block debug endpoints
+    "/opt/",
+    "/Library/",
+    "/Applications/",
+    "/bin/",
+    "/etc/",
+    "/comments/feed/",
     // Add specific old/invalid paths if needed, though redirects might be better
-    '/legacy-homepage/',
-    '/author/' // Disallow author base
+    "/legacy-homepage/",
+    "/author/", // Disallow author base
   ];
 
   return {
     rules: {
-      userAgent: '*',
+      userAgent: "*",
       ...(isProd
         ? {
-            allow: '/',
-            disallow: disallowedProdPaths
+            allow: "/",
+            disallow: disallowedProdPaths,
           }
         : {
-            disallow: '/'
-          }
-      ),
+            disallow: "/",
+          }),
     },
     ...(isProd && {
-      sitemap: 'https://williamcallahan.com/sitemap.xml'
+      sitemap: "https://williamcallahan.com/sitemap.xml",
     }),
   };
 }

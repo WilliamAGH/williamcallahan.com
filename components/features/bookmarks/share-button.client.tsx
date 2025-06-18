@@ -7,18 +7,17 @@
  */
 "use client";
 
-import { useState, useEffect, useRef, type JSX } from 'react';
-import { Check } from 'lucide-react';
-import { generateUniqueSlug } from '@/lib/utils/domain-utils';
-import type { UnifiedBookmark } from '@/types';
-import { useFixSvgTransforms } from '@/lib/hooks/use-fix-svg-transforms';
+import { useFixSvgTransforms } from "@/lib/hooks/use-fix-svg-transforms";
+import type { UnifiedBookmark } from "@/types";
+import { Check } from "lucide-react";
+import { type JSX, useEffect, useRef, useState } from "react";
 
 interface ShareButtonProps {
-  bookmark: Pick<UnifiedBookmark, 'id' | 'url'>;
-  allBookmarks: Array<Pick<UnifiedBookmark, 'id' | 'url'>>;
+  bookmark: Pick<UnifiedBookmark, "id" | "url">;
+  shareUrl: string;
 }
 
-export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.Element {
+export function ShareButton({ shareUrl }: ShareButtonProps): JSX.Element {
   const [mounted, setMounted] = useState(false);
   const [copied, setCopied] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(false);
@@ -46,12 +45,11 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
     }
   }, [copied]);
 
-  // Generate the slug for this bookmark
+  // Get the full URL for sharing
   const getBookmarkUrl = () => {
-    const slug = generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id);
     // Get the base URL (works in both development and production)
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-    return `${baseUrl}/bookmarks/${slug}`;
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+    return `${baseUrl}${shareUrl}`;
   };
 
   const handleCopy = async () => {
@@ -71,7 +69,7 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
         setTooltipVisible(false);
       }, 2000);
     } catch (error) {
-      console.error('Failed to copy URL:', error);
+      console.error("Failed to copy URL:", error);
       // Could show an error state here
     }
   };
@@ -86,6 +84,7 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
           className="p-2 text-gray-500 dark:text-gray-400 transition-colors pointer-events-none"
           aria-label="Copy link"
           disabled
+          type="button"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -95,9 +94,13 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
             className="text-gray-500 dark:text-gray-400"
             data-transform-fix="true"
           >
-            <path fill="currentColor" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z"/>
-            <path fill="currentColor" d="M24 7h2v21h-2z"/>
-            <path fill="currentColor" d="M35 40H15c-1.7 0-3-1.3-3-3V19c0-1.7 1.3-3 3-3h7v2h-7c-.6 0-1 .4-1 1v18c0 .6.4 1 1 1h20c.6 0 1-.4 1-1V19c0-.6-.4-1-1-1h-7v-2h7c1.7 0 3 1.3 3 3v18c0 1.7-1.3 3-3 3z"/>
+            <title>Copy link icon</title>
+            <path fill="currentColor" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z" />
+            <path fill="currentColor" d="M24 7h2v21h-2z" />
+            <path
+              fill="currentColor"
+              d="M35 40H15c-1.7 0-3-1.3-3-3V19c0-1.7 1.3-3 3-3h7v2h-7c-.6 0-1 .4-1 1v18c0 .6.4 1 1 1h20c.6 0 1-.4 1-1V19c0-.6-.4-1-1-1h-7v-2h7c1.7 0 3 1.3 3 3v18c0 1.7-1.3 3-3 3z"
+            />
           </svg>
         </button>
       </div>
@@ -112,6 +115,7 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
         data-transform-fix-container="true"
         className="p-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
         aria-label="Copy link"
+        type="button"
       >
         {copied ? (
           <Check className="w-6 h-6 text-green-500" />
@@ -124,9 +128,13 @@ export function ShareButton({ bookmark, allBookmarks }: ShareButtonProps): JSX.E
             className="text-gray-500 dark:text-gray-400"
             data-transform-fix="true"
           >
-            <path fill="currentColor" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z"/>
-            <path fill="currentColor" d="M24 7h2v21h-2z"/>
-            <path fill="currentColor" d="M35 40H15c-1.7 0-3-1.3-3-3V19c0-1.7 1.3-3 3-3h7v2h-7c-.6 0-1 .4-1 1v18c0 .6.4 1 1 1h20c.6 0 1-.4 1-1V19c0-.6-.4-1-1-1h-7v-2h7c1.7 0 3 1.3 3 3v18c0 1.7-1.3 3-3 3z"/>
+            <title>Copy link icon</title>
+            <path fill="currentColor" d="M30.3 13.7L25 8.4l-5.3 5.3-1.4-1.4L25 5.6l6.7 6.7z" />
+            <path fill="currentColor" d="M24 7h2v21h-2z" />
+            <path
+              fill="currentColor"
+              d="M35 40H15c-1.7 0-3-1.3-3-3V19c0-1.7 1.3-3 3-3h7v2h-7c-.6 0-1 .4-1 1v18c0 .6.4 1 1 1h20c.6 0 1-.4 1-1V19c0-.6-.4-1-1-1h-7v-2h7c1.7 0 3 1.3 3 3v18c0 1.7-1.3 3-3 3z"
+            />
           </svg>
         )}
       </button>

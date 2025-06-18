@@ -8,7 +8,7 @@
  * - MDXContent: Client component for rendering MDX content with syntax highlighting
  */
 
-export { BlogArticle } from './blog-article';
-export { BlogAuthor } from '../shared/blog-author';
-export { BlogTags } from '../shared/blog-tags';
-export { MDXContent } from './mdx-content';
+export { BlogArticle } from "./blog-article.client";
+export { BlogAuthor } from "../shared/blog-author";
+export { BlogTags } from "../shared/blog-tags";
+export { MDXContent } from "./mdx-content";

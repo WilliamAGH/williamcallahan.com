@@ -39,7 +39,7 @@ const CONFIG = {
   DEFAULT_FORMAT: "png" as const,
 
   /** Valid image formats */
-  FORMATS: VALID_IMAGE_FORMATS
+  FORMATS: VALID_IMAGE_FORMATS,
 } as const;
 
 /**
@@ -122,7 +122,7 @@ function convertToLegacyFormat(analysis: LogoBrightnessAnalysis): LogoInversion 
     needsLightInversion: analysis.needsInversionInLightTheme,
     hasTransparency: analysis.hasTransparency,
     format: analysis.format,
-    dimensions: analysis.dimensions
+    dimensions: analysis.dimensions,
   };
 }
 
@@ -141,15 +141,18 @@ function convertToLegacyFormat(analysis: LogoBrightnessAnalysis): LogoInversion 
  */
 function validateImage(metadata: sharp.Metadata): void {
   const formatStr = metadata.format as string;
-  if (!formatStr || !CONFIG.FORMATS.includes(formatStr as "png" | "jpeg" | "webp" | "gif" | "svg" | "ico")) {
+  if (
+    !formatStr ||
+    !CONFIG.FORMATS.includes(formatStr as "png" | "jpeg" | "webp" | "gif" | "svg" | "ico")
+  ) {
     throw new ImageAnalysisError(
-      `Invalid image format: ${metadata.format}. Must be one of: ${CONFIG.FORMATS.join(", ")}`
+      `Invalid image format: ${metadata.format}. Must be one of: ${CONFIG.FORMATS.join(", ")}`,
     );
   }
 
   if (!metadata.width || !metadata.height || metadata.width < 1 || metadata.height < 1) {
     throw new ImageAnalysisError(
-      `Invalid image dimensions: ${metadata.width}x${metadata.height}. Must be positive numbers.`
+      `Invalid image dimensions: ${metadata.width}x${metadata.height}. Must be positive numbers.`,
     );
   }
 }
@@ -191,8 +194,8 @@ export async function analyzeLogo(buffer: Buffer): Promise<LogoBrightnessAnalysi
       Math.min(height, CONFIG.MAX_ANALYSIS_DIMENSION),
       {
         fit: "inside",
-        withoutEnlargement: true
-      }
+        withoutEnlargement: true,
+      },
     )
     .raw()
     .grayscale();
@@ -237,8 +240,8 @@ export async function analyzeLogo(buffer: Buffer): Promise<LogoBrightnessAnalysi
     format: metadata.format || CONFIG.DEFAULT_FORMAT,
     dimensions: {
       width: metadata.width || CONFIG.MAX_ANALYSIS_DIMENSION,
-      height: metadata.height || CONFIG.MAX_ANALYSIS_DIMENSION
-    }
+      height: metadata.height || CONFIG.MAX_ANALYSIS_DIMENSION,
+    },
   };
 }
 
@@ -278,10 +281,7 @@ export async function invertLogo(buffer: Buffer, preserveTransparency = true): P
   }
 
   // Simple inversion for non-transparent images
-  return image
-    .negate()
-    .png()
-    .toBuffer();
+  return image.negate().png().toBuffer();
 }
 
 /**
@@ -300,7 +300,10 @@ export async function invertLogo(buffer: Buffer, preserveTransparency = true): P
  * const needsInversion = await doesLogoNeedInversion(buffer, false);
  * ```
  */
-export async function doesLogoNeedInversion(buffer: Buffer, isDarkTheme: boolean): Promise<boolean> {
+export async function doesLogoNeedInversion(
+  buffer: Buffer,
+  isDarkTheme: boolean,
+): Promise<boolean> {
   const analysis = await analyzeLogo(buffer);
   return isDarkTheme ? analysis.needsInversionInDarkTheme : analysis.needsInversionInLightTheme;
 }

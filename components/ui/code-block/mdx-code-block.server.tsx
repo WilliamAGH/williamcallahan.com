@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
-import { CodeBlock } from './code-block.client';
-import type { DetailedHTMLProps, HTMLAttributes } from 'react';
-import { processSvgTransforms } from '@/lib/utils/svg-transform-fix';
+import { processSvgTransforms } from "@/lib/utils/svg-transform-fix";
+import { useEffect, useRef } from "react";
+import type { DetailedHTMLProps, HTMLAttributes } from "react";
+import { CodeBlock } from "./code-block.client";
 
 type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>;
 
@@ -11,27 +11,26 @@ type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement
  * Server component for initial render
  * This is what gets used during MDX serialization
  */
-import { cn } from '@/lib/utils'; // Import cn utility
+import { cn } from "@/lib/utils"; // Import cn utility
 
-export function ServerMDXCodeBlock(props: PreProps) {
+export function MDXCodeBlockFallback(props: PreProps) {
   // Destructure className and children from props
   const { children, className, ...rest } = props;
 
   // Define default classes for the PRE tag - make sure they match the CodeBlock component
   const preClasses = cn(
-    'not-prose',
-    'text-gray-100',
-    'text-[13px]',
-    'whitespace-pre-wrap',
-    'break-words',
-    'custom-scrollbar',
-    'p-4',
-    'border-t-0'
+    "not-prose",
+    "text-gray-100",
+    "text-xs",
+    "whitespace-pre-wrap",
+    "break-words",
+    "custom-scrollbar",
+    "border-t-0",
   );
 
   // Define classes for the wrapping DIV
   const wrapperClasses = cn(
-    'relative group w-full'
+    "relative group w-full",
     // No border, rounded corners handled by CodeBlock on client hydration
   );
 
@@ -58,11 +57,11 @@ export function MDXCodeBlock(props: PreProps & { embeddedInTabFrame?: boolean })
   useEffect(() => {
     // Client-side only code
     if (codeRef.current) {
-      const codeContent = codeRef.current.textContent || '';
-      codeRef.current.setAttribute('data-code-content', codeContent);
+      const codeContent = codeRef.current.textContent || "";
+      codeRef.current.setAttribute("data-code-content", codeContent);
 
       // Fix SVG transform attributes in any SVGs within code blocks
-      const svgs = codeRef.current.querySelectorAll('svg');
+      const svgs = codeRef.current.querySelectorAll("svg");
       for (const svg of svgs) {
         processSvgTransforms(svg);
       }

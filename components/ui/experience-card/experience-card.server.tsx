@@ -6,14 +6,14 @@
  * Uses direct logo fetching to work during build time.
  */
 
-import type { Experience } from '../../../types/experience';
-import { ExperienceCardClient } from './experience-card.client';
-import { fetchLogo, normalizeDomain } from '../../../lib/logo-fetcher';
+import { fetchLogo, normalizeDomain } from "@/lib/logo.server";
+import type { Experience } from "../../../types/experience";
+import { ExperienceCardClient } from "./experience-card.client";
 
 import type { JSX } from "react";
 
 // Define the path to the static placeholder image
-const PLACEHOLDER_IMAGE_URL = '/images/company-placeholder.svg';
+const PLACEHOLDER_IMAGE_URL = "/images/company-placeholder.svg";
 
 /**
  * Experience Card Server Component
@@ -37,36 +37,42 @@ export async function ExperienceCard(props: Experience): Promise<JSX.Element> {
 
     if (result.buffer) {
       // Convert buffer to data URL for client
-      const base64 = result.buffer.toString('base64');
-      const mimeType = result.buffer[0] === 0x3c ? 'image/svg+xml' : 'image/png';
+      const base64 = result.buffer.toString("base64");
+      const mimeType = result.buffer[0] === 0x3c ? "image/svg+xml" : "image/png";
       const dataUrl = `data:${mimeType};base64,${base64}`;
 
-      return <ExperienceCardClient
-        {...props}
-        logoData={{
-          url: dataUrl,
-          source: result.source
-        }}
-      />;
+      return (
+        <ExperienceCardClient
+          {...props}
+          logoData={{
+            url: dataUrl,
+            source: result.source,
+          }}
+        />
+      );
     }
 
     // Use placeholder for failed fetches
-    return <ExperienceCardClient
-      {...props}
-      logoData={{
-        url: PLACEHOLDER_IMAGE_URL, // Use the static path
-        source: null
-      }}
-    />;
+    return (
+      <ExperienceCardClient
+        {...props}
+        logoData={{
+          url: PLACEHOLDER_IMAGE_URL, // Use the static path
+          source: null,
+        }}
+      />
+    );
   } catch (error) {
-    console.error('Error in ExperienceCard:', error);
+    console.error("Error in ExperienceCard:", error);
     // Return placeholder on any error
-    return <ExperienceCardClient
-      {...props}
-      logoData={{
-        url: PLACEHOLDER_IMAGE_URL, // Use the static path
-        source: null
-      }}
-    />;
+    return (
+      <ExperienceCardClient
+        {...props}
+        logoData={{
+          url: PLACEHOLDER_IMAGE_URL, // Use the static path
+          source: null,
+        }}
+      />
+    );
   }
 }

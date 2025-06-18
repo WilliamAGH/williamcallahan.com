@@ -18,20 +18,23 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from 'react'; // Added useMemo
-import { WindowControls } from '../../../components/ui/navigation/window-controls';
-import type { Education, Certification, Class } from '../../../types/education';
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client"; // Use new hook
-import { GraduationCap, Search, ChevronDown, ChevronUp } from 'lucide-react'; // Import additional icons
-import { cn } from '@/lib/utils'; // Import cn utility
-import { EducationCardClient } from './education-card.client';
-import type { LogoData } from '../../../lib/education-data-processor';
+import { cn } from "@/lib/utils"; // Import cn utility
+import { ChevronDown, ChevronUp, GraduationCap, Search } from "lucide-react"; // Import additional icons
+import { useEffect, useMemo, useState } from "react"; // Added useMemo
+import { WindowControls } from "../../../components/ui/navigation/window-controls";
+import type { LogoData } from "../../../lib/education-data-processor";
+import type { Certification, Class, Education } from "../../../types/education";
+import { EducationCardClient } from "./education-card.client";
 
 // Define a unique ID for this window instance
-const EDUCATION_WINDOW_ID = 'education-window';
+const EDUCATION_WINDOW_ID = "education-window";
 
 // Type for combined certification/class items
-type EducationTableItem = (Class | Certification) & { logoData: LogoData, type: 'course' | 'certification' };
+type EducationTableItem = (Class | Certification) & {
+  logoData: LogoData;
+  type: "course" | "certification";
+};
 
 /**
  * Props for the Education Client Component
@@ -52,7 +55,7 @@ interface EducationClientProps {
 export function EducationClient({
   education,
   recentCourses,
-  certifications
+  certifications,
 }: EducationClientProps) {
   // Register this window instance and get its state/actions
   const {
@@ -60,35 +63,39 @@ export function EducationClient({
     close: closeWindow,
     minimize: minimizeWindow,
     maximize: maximizeWindow,
-    isRegistered
-  } = useRegisteredWindowState(EDUCATION_WINDOW_ID, GraduationCap, 'Restore Education', 'normal');
+    isRegistered,
+  } = useRegisteredWindowState(EDUCATION_WINDOW_ID, GraduationCap, "Restore Education", "normal");
 
   // Combined table data for filtering
-  const tableData = useMemo<EducationTableItem[]>(() => [
-    ...recentCourses.map(course => ({ ...course, type: 'course' as const })),
-    ...certifications.map(cert => ({ ...cert, type: 'certification' as const }))
-  ], [recentCourses, certifications]);
+  const tableData = useMemo<EducationTableItem[]>(
+    () => [
+      ...recentCourses.map((course) => ({ ...course, type: "course" as const })),
+      ...certifications.map((cert) => ({ ...cert, type: "certification" as const })),
+    ],
+    [recentCourses, certifications],
+  );
 
   // State for filtering/searching
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedType, setSelectedType] = useState<'all' | 'course' | 'certification'>('all');
-  const [sortField, setSortField] = useState<'name' | 'institution' | 'year'>('institution');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedType, setSelectedType] = useState<"all" | "course" | "certification">("all");
+  const [sortField, setSortField] = useState<"name" | "institution" | "year">("institution");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   // Filter and sort the table data
   const filteredTableData = useMemo(() => {
     return tableData
-      .filter(item => {
+      .filter((item) => {
         // Type filter
-        if (selectedType !== 'all' && item.type !== selectedType) {
+        if (selectedType !== "all" && item.type !== selectedType) {
           return false;
         }
 
         // Search filter
         if (searchQuery) {
-          const searchTerms = searchQuery.toLowerCase().split(' ').filter(Boolean);
-          const itemText = `${item.name} ${item.institution} ${item.location} ${item.year || ''}`.toLowerCase();
-          return searchTerms.every(term => itemText.includes(term));
+          const searchTerms = searchQuery.toLowerCase().split(" ").filter(Boolean);
+          const itemText =
+            `${item.name} ${item.institution} ${item.location} ${item.year || ""}`.toLowerCase();
+          return searchTerms.every((term) => itemText.includes(term));
         }
 
         return true;
@@ -98,12 +105,12 @@ export function EducationClient({
         let valueA: string;
         let valueB: string;
 
-        if (sortField === 'name') {
+        if (sortField === "name") {
           valueA = a.name;
           valueB = b.name;
-        } else if (sortField === 'year') {
-          valueA = a.year || '';
-          valueB = b.year || '';
+        } else if (sortField === "year") {
+          valueA = a.year || "";
+          valueB = b.year || "";
         } else {
           valueA = a.institution;
           valueB = b.institution;
@@ -111,32 +118,32 @@ export function EducationClient({
 
         // Sort by the selected field
         const comparison = valueA.localeCompare(valueB);
-        return sortDirection === 'asc' ? comparison : -comparison;
+        return sortDirection === "asc" ? comparison : -comparison;
       });
   }, [tableData, selectedType, searchQuery, sortField, sortDirection]);
 
   // Toggle sort direction and field
-  const toggleSort = (field: 'name' | 'institution' | 'year') => {
+  const toggleSort = (field: "name" | "institution" | "year") => {
     if (sortField === field) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection("asc");
     }
   };
 
-
-
   // Log state changes (optional)
   useEffect(() => {
-    if (isRegistered) { // Check isRegistered
+    if (isRegistered) {
+      // Check isRegistered
       console.log(`EducationClient Render (${EDUCATION_WINDOW_ID}) - Window State:`, windowState);
     }
   }, [windowState, isRegistered]); // Dependency on isRegistered
 
   // Render nothing until ready
-  if (!isRegistered) { // Check isRegistered
-     return <></>; // Or a suitable skeleton/placeholder
+  if (!isRegistered) {
+    // Check isRegistered
+    return <></>; // Or a suitable skeleton/placeholder
   }
 
   // Handle closed state
@@ -151,26 +158,32 @@ export function EducationClient({
   }
 
   // Render normal or maximized view
-  const isMaximized = windowState === 'maximized';
+  const isMaximized = windowState === "maximized";
 
   // Sort indicator component
-  const SortIndicator = ({ field }: { field: 'name' | 'institution' | 'year' }) => {
+  const SortIndicator = ({ field }: { field: "name" | "institution" | "year" }) => {
     if (sortField !== field) return null;
-    return sortDirection === 'asc' ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />;
+    return sortDirection === "asc" ? (
+      <ChevronUp className="w-4 h-4 ml-1" />
+    ) : (
+      <ChevronDown className="w-4 h-4 ml-1" />
+    );
   };
 
   // Refactored structure to match ProjectsClient (single main wrapper)
   return (
-    <div className={cn(
-      // Base styles
-      "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-hidden",
-      "transition-all duration-300 ease-in-out", // Optional: Add transition like projects
-      // Normal state styles
-      "relative max-w-5xl mx-auto mt-8 rounded-lg shadow-lg",
-      // Maximized state overrides
-      isMaximized &&
-        "fixed inset-0 z-[60] max-w-none m-0 rounded-none shadow-none flex flex-col h-full top-16 bottom-16 md:bottom-4" // Adjust insets if needed
-    )}>
+    <div
+      className={cn(
+        // Base styles
+        "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 overflow-hidden",
+        "transition-all duration-300 ease-in-out", // Optional: Add transition like projects
+        // Normal state styles
+        "relative max-w-5xl mx-auto mt-8 rounded-lg shadow-lg",
+        // Maximized state overrides
+        isMaximized &&
+          "fixed inset-0 z-[60] max-w-none m-0 rounded-none shadow-none flex flex-col h-full top-16 bottom-16 md:bottom-4", // Adjust insets if needed
+      )}
+    >
       {/* Sticky Header (remains the same) */}
       <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 flex-shrink-0 sticky top-0 z-10">
         <div className="flex items-center">
@@ -184,11 +197,13 @@ export function EducationClient({
       </div>
 
       {/* Scrollable Content Area */}
-      <div className={cn(
-        "p-6",
-        // Apply overflow and flex-grow only when maximized
-        isMaximized ? "overflow-y-auto flex-grow" : ""
-      )}>
+      <div
+        className={cn(
+          "p-6",
+          // Apply overflow and flex-grow only when maximized
+          isMaximized ? "overflow-y-auto flex-grow" : "",
+        )}
+      >
         {/* Degrees Section (Featured Cards) */}
         <div className="mb-12">
           <h2 className="text-2xl font-bold mb-6">University Degrees</h2>
@@ -222,7 +237,9 @@ export function EducationClient({
 
             <select
               value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value as 'all' | 'course' | 'certification')}
+              onChange={(e) =>
+                setSelectedType(e.target.value as "all" | "course" | "certification")
+              }
               className="px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
                          text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Filter by type"
@@ -238,40 +255,52 @@ export function EducationClient({
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                  >
                     <button
                       type="button"
                       className="flex items-center hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:text-gray-700 dark:focus:text-gray-200"
-                      onClick={() => toggleSort('name')}
+                      onClick={() => toggleSort("name")}
                       aria-label="Sort by name"
                     >
                       Name
                       <SortIndicator field="name" />
                     </button>
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                  >
                     <button
                       type="button"
                       className="flex items-center hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:text-gray-700 dark:focus:text-gray-200"
-                      onClick={() => toggleSort('institution')}
+                      onClick={() => toggleSort("institution")}
                       aria-label="Sort by institution"
                     >
                       Institution
                       <SortIndicator field="institution" />
                     </button>
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                  >
                     <button
                       type="button"
                       className="flex items-center hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:text-gray-700 dark:focus:text-gray-200"
-                      onClick={() => toggleSort('year')}
+                      onClick={() => toggleSort("year")}
                       aria-label="Sort by year"
                     >
                       Year
                       <SortIndicator field="year" />
                     </button>
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                  >
                     Type
                   </th>
                 </tr>
@@ -279,7 +308,10 @@ export function EducationClient({
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
                 {filteredTableData.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td
+                      colSpan={4}
+                      className="px-6 py-8 text-center text-gray-500 dark:text-gray-400"
+                    >
                       No results found. Try adjusting your search or filters.
                     </td>
                   </tr>
@@ -306,16 +338,18 @@ export function EducationClient({
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {item.year || '—'}
+                        {item.year || "—"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        <span className={cn(
-                          "px-2 inline-flex text-xs leading-5 font-semibold rounded-full",
-                          item.type === 'certification'
-                            ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
-                            : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
-                        )}>
-                          {item.type === 'certification' ? 'Certification' : 'Course'}
+                        <span
+                          className={cn(
+                            "px-2 inline-flex text-xs leading-5 font-semibold rounded-full",
+                            item.type === "certification"
+                              ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+                              : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+                          )}
+                        >
+                          {item.type === "certification" ? "Certification" : "Course"}
                         </span>
                       </td>
                     </tr>

@@ -5,7 +5,7 @@
  * These functions will throw runtime errors when code is executed in the wrong context.
  */
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from "react";
 
 /**
  * @serverOnly
@@ -15,12 +15,12 @@ import { useState, useEffect } from 'react';
  * @param moduleName Optional name of the module for better error messages
  */
 export function assertServerOnly(moduleName?: string): void {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     const message = moduleName
       ? `Module '${moduleName}' cannot be imported from a Client Component module.`
       : "This module cannot be imported from a Client Component module.";
     throw new Error(
-      `${message} It should only be used from a Server Component or other server-side code.`
+      `${message} It should only be used from a Server Component or other server-side code.`,
     );
   }
 }
@@ -33,9 +33,9 @@ export function assertServerOnly(moduleName?: string): void {
  * @param featureName Name of the feature requiring client context
  */
 export function assertClientOnly(featureName: string): void {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     throw new Error(
-      `'${featureName}' can only be used in client components. Add 'use client' directive or move to a .client.tsx file.`
+      `'${featureName}' can only be used in client components. Add 'use client' directive or move to a .client.tsx file.`,
     );
   }
 }
@@ -67,7 +67,7 @@ export function useIsClient(): boolean {
  * @returns Result of fn() on the client, or fallback on the server
  */
 export function safeClientOnly<T>(fn: () => T, fallback: T): T {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return fallback;
   }
   return fn();

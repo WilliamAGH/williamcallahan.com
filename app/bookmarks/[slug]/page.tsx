@@ -7,35 +7,37 @@
  */
 
 // Configure dynamic rendering
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-import { getBookmarksForStaticBuild } from '@/lib/bookmarks.server';
-import { BookmarksServer } from '@/components/features/bookmarks/bookmarks.server';
-import { JsonLdScript } from '@/components/seo/json-ld';
-import { getStaticPageMetadata } from '@/lib/seo/metadata';
-import { generateUniqueSlug } from '@/lib/utils/domain-utils';
-import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
-import type { UnifiedBookmark } from '@/types';
+import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { getBookmarksForStaticBuild } from "@/lib/bookmarks.server";
+import { getStaticPageMetadata } from "@/lib/seo/metadata";
+import { generateUniqueSlug } from "@/lib/utils/domain-utils";
+import type { UnifiedBookmark } from "@/types";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 /**
  * Generate static paths for slug pages
  */
 export async function generateStaticParams() {
   const bookmarks = await getBookmarksForStaticBuild();
-  return bookmarks.map(bookmark => ({
-    slug: generateUniqueSlug(bookmark.url, bookmarks, bookmark.id)
+  return bookmarks.map((bookmark) => ({
+    slug: generateUniqueSlug(bookmark.url, bookmarks, bookmark.id),
   }));
 }
 
 /**
  * Generate metadata for this bookmark page
  */
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: { params: { slug: string } }): Promise<Metadata> {
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
   const path = `/bookmarks/${paramsResolved.slug}`;
-  const baseMetadata = getStaticPageMetadata(path, 'bookmarks');
+  const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
   // Fetch bookmark data to create more specific metadata
   const allBookmarks = await getBookmarksForStaticBuild();
@@ -55,22 +57,26 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   if (!foundBookmark) {
     return {
       ...baseMetadata,
-      title: "Bookmark | William Callahan"
+      title: "Bookmark | William Callahan",
     };
   }
 
   // Extract domain for display
-  let domainName = '';
+  let domainName = "";
   try {
-    const url = new URL(foundBookmark.url.startsWith('http') ? foundBookmark.url : `https://${foundBookmark.url}`);
-    domainName = url.hostname.replace(/^www\./, '');
+    const url = new URL(
+      foundBookmark.url.startsWith("http") ? foundBookmark.url : `https://${foundBookmark.url}`,
+    );
+    domainName = url.hostname.replace(/^www\./, "");
   } catch {
-    domainName = 'website';
+    domainName = "website";
   }
 
   // Create custom title and description based on the bookmark
-  const customTitle = `${foundBookmark.title || 'Bookmark'} | William Callahan`;
-  const customDescription = foundBookmark.description || `A bookmark from ${domainName} that I've saved for future reference.`;
+  const customTitle = `${foundBookmark.title || "Bookmark"} | William Callahan`;
+  const customDescription =
+    foundBookmark.description ||
+    `A bookmark from ${domainName} that I've saved for future reference.`;
 
   // Create image URL if available
   let imageUrl = foundBookmark.ogImage;
@@ -86,31 +92,35 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       ...baseMetadata.openGraph,
       title: customTitle,
       description: customDescription,
-      type: 'article',
+      type: "article",
       url: `https://williamcallahan.com/bookmarks/${slug}`,
       ...(imageUrl && {
-        images: [{
-          url: imageUrl,
-          width: 1200,
-          height: 630,
-          alt: foundBookmark.title || 'Bookmark image'
-        }]
-      })
+        images: [
+          {
+            url: imageUrl,
+            width: 1200,
+            height: 630,
+            alt: foundBookmark.title || "Bookmark image",
+          },
+        ],
+      }),
     },
     twitter: {
       ...baseMetadata.twitter,
       title: customTitle,
       description: customDescription,
       ...(imageUrl && {
-        images: [{
-          url: imageUrl,
-          alt: foundBookmark.title || 'Bookmark image'
-        }]
-      })
+        images: [
+          {
+            url: imageUrl,
+            alt: foundBookmark.title || "Bookmark image",
+          },
+        ],
+      }),
     },
     alternates: {
       canonical: `https://williamcallahan.com/bookmarks/${slug}`,
-    }
+    },
   };
 }
 
@@ -140,52 +150,41 @@ export default async function BookmarkPage({ params }: BookmarkPageProps) {
     return notFound();
   }
 
-  // Create a collection of related bookmarks from the same domain
-  const domainBookmarks = allBookmarks.filter(b => {
-    try {
-      const bookmarkUrl = new URL(b.url.startsWith('http') ? b.url : `https://${b.url}`);
-      const foundBookmarkUrl = new URL(
-        foundBookmark.url.startsWith('http') ? foundBookmark.url : `https://${foundBookmark.url}`
-      );
-      return bookmarkUrl.hostname === foundBookmarkUrl.hostname;
-    } catch {
-      return false;
-    }
-  });
-
   // Extract domain for display purposes (needed for JSON-LD)
-  let domainName = '';
+  let domainName = "";
   try {
-    const url = new URL(foundBookmark.url.startsWith('http') ? foundBookmark.url : `https://${foundBookmark.url}`);
-    domainName = url.hostname.replace(/^www\./, '');
+    const url = new URL(
+      foundBookmark.url.startsWith("http") ? foundBookmark.url : `https://${foundBookmark.url}`,
+    );
+    domainName = url.hostname.replace(/^www\./, "");
   } catch {
-    domainName = 'website';
+    domainName = "website";
   }
 
   // Create enhanced JSON-LD data for better SEO
   const jsonLdData = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "name": foundBookmark.title || 'Bookmark',
-    "description": foundBookmark.description || `A bookmark from ${domainName}`,
-    "url": `https://williamcallahan.com/bookmarks/${slug}`,
-    "mainEntity": {
+    name: foundBookmark.title || "Bookmark",
+    description: foundBookmark.description || `A bookmark from ${domainName}`,
+    url: `https://williamcallahan.com/bookmarks/${slug}`,
+    mainEntity: {
       "@type": "WebPage",
-      "name": foundBookmark.title,
-      "url": foundBookmark.url,
-      "description": foundBookmark.description,
-      "publisher": {
+      name: foundBookmark.title,
+      url: foundBookmark.url,
+      description: foundBookmark.description,
+      publisher: {
         "@type": "Organization",
-        "name": domainName,
-        "url": `https://${domainName}`
-      }
+        name: domainName,
+        url: `https://${domainName}`,
+      },
     },
-    "author": {
+    author: {
       "@type": "Person",
-      "name": "William Callahan",
-      "url": "https://williamcallahan.com"
+      name: "William Callahan",
+      url: "https://williamcallahan.com",
     },
-    "datePublished": foundBookmark.dateBookmarked || new Date().toISOString()
+    datePublished: foundBookmark.dateBookmarked || new Date().toISOString(),
   };
 
   return (
@@ -193,10 +192,11 @@ export default async function BookmarkPage({ params }: BookmarkPageProps) {
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-5xl mx-auto">
         <BookmarksServer
-          title={`Bookmark: ${foundBookmark.title || domainName}`}
-          description={foundBookmark.description || `A bookmark from ${domainName} I found useful.`}
-          bookmarks={domainBookmarks}
+          title="Bookmark"
+          description={domainName ? `This is a bookmark from ${domainName} I saved and found useful.` : "This is a bookmark I saved and found useful."}
+          bookmarks={[foundBookmark]}
           showFilterBar={false}
+          usePagination={false}
         />
       </div>
     </>

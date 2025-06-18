@@ -90,6 +90,19 @@ COPY --from=builder /app/package.json ./package.json
 # Copy public directory (run as root, so no chown needed)
 COPY --from=builder /app/public ./public
 
+# Ensure TypeScript path-mapping files are available at runtime so that Bun can
+# resolve "@/*" import aliases used by our standalone scripts (e.g. update-s3).
+# We copy any root-level tsconfig variants that might contain the "paths" map.
+COPY --from=builder /app/tsconfig*.json ./
+
+# Runtime helper scripts (`scripts/*.ts`) import source modules directly from the
+# repository (e.g. `@/lib/*`, `@/types/*`). These folders are *not* included in
+# the Next.js standalone output, so we need to copy them into the final image
+# as well.
+COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/types ./types
+COPY --from=builder /app/config ./config
+
 # REMOVED: Copying initial data from builder stage - data now lives in S3
 # COPY --from=builder --chown=nextjs:nodejs /app/data/images/logos /app/.initial-logos
 # COPY --from=builder --chown=nextjs:nodejs /app/data/github-activity /app/.initial-github-activity
@@ -119,7 +132,7 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # Add healthcheck to ensure the container is properly running
-HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
   CMD curl --silent --show-error --fail http://127.0.0.1:3000/api/health || exit 1
 
 # Use entrypoint to seed logos, then start server

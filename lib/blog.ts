@@ -2,10 +2,10 @@
  * Blog Data Management
  */
 
-import { posts as staticPosts } from '@/data/blog/posts';
-import { getAllMDXPosts } from './blog/mdx';
-import type { BlogPost } from '@/types/blog';
-import { BlogPostDataError } from './errors';
+import { posts as staticPosts } from "@/data/blog/posts";
+import type { BlogPost } from "@/types/blog";
+import { getAllMDXPosts } from "./blog/mdx";
+import { BlogPostDataError } from "./errors";
 
 /**
  * Retrieves all blog posts sorted by publish date
@@ -19,7 +19,7 @@ export async function getAllPosts(): Promise<BlogPost[]> {
 
     // Check for empty static posts (unlikely but defensive)
     if (!staticPosts || !Array.isArray(staticPosts)) {
-      console.warn('Static posts array is empty or invalid');
+      console.warn("Static posts array is empty or invalid");
     }
 
     // Combine posts from both sources
@@ -27,12 +27,12 @@ export async function getAllPosts(): Promise<BlogPost[]> {
 
     // Sort by date, newest first
     return allPosts.sort(
-      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
     );
   } catch (error) {
     // We're explicitly logging the error here to ensure it's visible,
     // but then we're re-throwing it to propagate up to the API handler
-    console.error('[getAllPosts] Error retrieving blog posts:', error);
+    console.error("[getAllPosts] Error retrieving blog posts:", error);
     throw error; // Re-throw to allow API layer to handle error response
   }
 }
@@ -45,7 +45,7 @@ export async function getAllPosts(): Promise<BlogPost[]> {
  */
 export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
   if (!slug) {
-    console.warn('Blog post slug is empty or undefined');
+    console.warn("Blog post slug is empty or undefined");
     return null;
   }
 
@@ -55,7 +55,7 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     // and then find the one with the matching slug.
     // This avoids needing to guess filenames or re-implement file iteration logic here.
     const allPosts = await getAllPosts();
-    const foundPost = allPosts.find(post => post.slug === slug);
+    const foundPost = allPosts.find((post) => post.slug === slug);
 
     if (!foundPost) {
       console.log(`[getPostBySlug] Blog post not found with slug: ${slug}`);
@@ -70,9 +70,9 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
     // For unexpected errors, we still throw to allow API error handling
     if (!(error instanceof BlogPostDataError)) {
       throw new BlogPostDataError(`Error retrieving blog post: ${slug}`, slug, error);
-    } else {
-      throw error;
     }
+    // If we reach here, error is already a BlogPostDataError, so rethrow it
+    throw error;
   }
 }
 
@@ -87,14 +87,14 @@ export async function getAllTags(): Promise<string[]> {
 
     // Filter out posts with no tags and flatten the array
     const allTags = posts
-      .filter(post => post.tags && Array.isArray(post.tags))
-      .flatMap(post => post.tags);
+      .filter((post) => post.tags && Array.isArray(post.tags))
+      .flatMap((post) => post.tags);
 
     // Create a set to remove duplicates
     const tags = new Set(allTags);
     return Array.from(tags).sort();
   } catch (error) {
-    console.error('[getAllTags] Error retrieving blog tags:', error);
+    console.error("[getAllTags] Error retrieving blog tags:", error);
     throw error;
   }
 }

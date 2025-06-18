@@ -1,567 +1,347 @@
 /**
- * Simple Open Graph Image API
- * Fetches OpenGraph image URLs from social media profiles
+ * Universal OpenGraph Image API
+ * 
+ * Single source of truth for ALL OpenGraph images in the application.
+ * Handles S3 keys, Karakeep asset IDs, and external URLs with comprehensive
+ * fallback logic and security measures.
+ * 
+ * Hierarchy: Memory cache → S3 storage → External fetch → Karakeep fallback
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import type { OgFetchResult } from '@/types';
+import { type NextRequest, NextResponse } from "next/server";
+import { HeadObjectCommand } from "@aws-sdk/client-s3";
+import { s3Client } from "@/lib/s3-utils";
+import { getDomainType } from "@/lib/utils/opengraph-utils";
+import { getDomainFallbackImage, getContextualFallbackImage } from "@/lib/opengraph/fallback";
+import { scheduleImagePersistence } from "@/lib/opengraph/persistence";
+import { OPENGRAPH_IMAGES_S3_DIR } from "@/lib/opengraph/constants";
+import { getOpenGraphData } from "@/lib/data-access/opengraph";
+// persistImageToS3 is now handled by scheduleImagePersistence from lib/opengraph/persistence
+import type { OgResult, UnifiedBookmark } from "@/types";
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+const S3_BUCKET = process.env.S3_BUCKET;
+const S3_CDN_URL = process.env.NEXT_PUBLIC_S3_CDN_URL;
+
+// In-memory cache for S3 existence checks (5 minutes TTL)
+const s3ExistenceCache = new Map<string, { exists: boolean; timestamp: number }>();
+const S3_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Check if an S3 object exists
+ */
+async function checkS3Exists(key: string): Promise<boolean> {
+  // Check cache first
+  const cached = s3ExistenceCache.get(key);
+  if (cached && Date.now() - cached.timestamp < S3_CACHE_TTL) {
+    return cached.exists;
+  }
+
+  if (!s3Client || !S3_BUCKET) {
+    console.warn('[OG-Image] S3 not configured, cannot check existence');
+    return false;
+  }
+
+  try {
+    await s3Client.send(new HeadObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+    }));
+    
+    // Cache positive result
+    s3ExistenceCache.set(key, { exists: true, timestamp: Date.now() });
+    return true;
+  } catch {
+    // Cache negative result
+    s3ExistenceCache.set(key, { exists: false, timestamp: Date.now() });
+    return false;
+  }
+}
+
+/**
+ * Main handler for OpenGraph image requests
+ * 
+ * Supported parameters:
+ * - url: S3 key, external URL, or domain URL for OpenGraph fetching
+ * - assetId: Karakeep asset ID (optional, provides context for better fallbacks)
+ * - bookmarkId: Bookmark ID (optional, enables domain fallback for Karakeep assets)
+ */
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const url = searchParams.get('url');
-    const fetchDomain = searchParams.get('fetchDomain') === 'true';
-
-    if (!url) {
-      console.log('Error: URL parameter is required');
-      return NextResponse.json({ error: 'URL parameter is required' }, { status: 400 });
-    }
-
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(url);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (e) {
-      console.log('Error: Invalid URL format');
-      return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
-    }
-
-    // --- SSRF Mitigation ---
-    // 1. Allow-list supported domains
-    const allowedHosts = [
-      'github.com',
-      'x.com',
-      'twitter.com',
-      'linkedin.com',
-      'discord.com',
-      'bsky.app',
-      'cdn.bsky.app', // Added for Bluesky avatars
-      'avatars.githubusercontent.com' // Added for GitHub avatars
-    ];
-
-    // Remove www. prefix for consistent checking
-    const hostnameToCheck = parsedUrl.hostname.replace(/^www\./, '');
-
-    if (!allowedHosts.includes(hostnameToCheck)) {
-      console.log(`Error: Unsupported domain - ${parsedUrl.hostname}`);
-      return NextResponse.json(
-        { error: 'Unsupported domain' },
-        { status: 400 }
-      );
-    }
-
-    // 2. Reject local / private IPs (simplified check)
-    // Note: This is a basic check. More robust validation might be needed depending on security requirements.
-    if (/^(localhost|127\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/.test(parsedUrl.hostname)) {
-      console.log(`Error: IP range not allowed - ${parsedUrl.hostname}`);
-      return NextResponse.json({ error: 'IP range not allowed' }, { status: 400 });
-    }
-    // --- End SSRF Mitigation ---
-
-    // Get domain type for special handling
-    const domainType = getDomainType(url);
-    console.log(`⏳ Fetching OpenGraph data for ${domainType} URL: ${url}`);
-
-    // Parse URL to get root domain for fetching domain-level OG image
-    const urlObj = new URL(url);
-    const rootDomainUrl = `${urlObj.protocol}//${urlObj.hostname}`;
-
-    // Setup for parallel fetches
-    const fetchPromises: Promise<OgFetchResult>[] = [fetchOgDataForUrl(url)];
-
-    if (fetchDomain) {
-      console.log(`⏳ Also fetching domain-level OpenGraph data from: ${rootDomainUrl}`);
-      fetchPromises.push(fetchOgDataForUrl(rootDomainUrl));
-    }
-
-    // Execute fetches
-    let profileResult: OgFetchResult | null = null;
-    let domainResult: OgFetchResult | null = null;
-
-    if (fetchPromises.length === 1) {
-      profileResult = await fetchPromises[0];
-    } else if (fetchPromises.length === 2) {
-      [profileResult, domainResult] = await Promise.all(fetchPromises);
-    }
-
-    // Get profile image with fallback
-    let profileImageUrl = profileResult?.imageUrl;
-
-    // For specific platforms, we need more reliable fallbacks
-    if (!profileImageUrl || profileImageUrl.includes('placeholder')) {
-      console.log(`⚠️ No profile image found for ${domainType}, using fallback`);
-      profileImageUrl = getLocalImageForSocialNetwork(url);
-    }
-
-    // Get domain branding image - first try banner image from the profile result
-    let domainBrandingImage = profileResult?.bannerImageUrl;
-
-    // If no banner image, try domain result
-    if (!domainBrandingImage) {
-      // Ensure domainResult is not null before accessing its properties
-      domainBrandingImage = domainResult?.imageUrl || domainResult?.bannerImageUrl;
-    }
-
-    // If we still don't have a good domain image, use our pre-selected branding image
-    if (!domainBrandingImage || domainBrandingImage.includes('placeholder')) {
-      console.log(`⚠️ No domain branding image found for ${domainType}, using fallback`);
-      domainBrandingImage = getDomainBrandingImage(url) || '';
-    }
-
-    // Construct the response with both profile and domain OG images
-    return NextResponse.json({
-      // Profile-specific OG image and metadata
-      profileImageUrl: profileImageUrl,
-      ogMetadata: profileResult?.ogMetadata || {},
-
-      // Domain-level OG image (root site branding)
-      domainImageUrl: domainBrandingImage,
-      domainOgMetadata: domainResult?.ogMetadata || {},
-
-      // Always provide fallbacks
-      fallbackImageUrl: getLocalImageForSocialNetwork(url),
-      error: profileResult?.error || null,
-
-      // Include domain info for debugging
-      domain: domainType
-    });
-
-  } catch (error) {
-    console.error('💥 Critical API error:', error);
-    return NextResponse.json({
-      error: 'Failed to process request',
-      profileImageUrl: '/images/company-placeholder.svg',
-      domainImageUrl: null
-    });
+  const { searchParams } = new URL(request.url);
+  const input = searchParams.get('url');
+  const assetId = searchParams.get('assetId');
+  const bookmarkId = searchParams.get('bookmarkId');
+  
+  if (!input) {
+    return new NextResponse('Missing url parameter', { status: 400 });
   }
-}
 
-/**
- * Fetch and process OpenGraph data for a specific URL
- */
-async function fetchOgDataForUrl(url: string): Promise<OgFetchResult> {
-  try {
-    // Determine domain type for specialized handling
-    const domain = getDomainType(url);
-    console.log(`🔍 Fetching data for ${domain} URL: ${url}`);
+  // Log request for debugging
+  console.log(`[OG-Image] Processing request - URL: ${input}, AssetID: ${assetId || 'none'}, BookmarkID: ${bookmarkId || 'none'}`);
 
-    // Customize User-Agent for better scraping results
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml',
-      'Accept-Language': 'en-US,en;q=0.9'
-    };
+  // 1. Check if it's an S3 key (contains '/' but no protocol)
+  if (input.includes('/') && !input.includes('://')) {
+    console.log(`[OG-Image] Detected S3 key: ${input}`);
 
-    // Add credentials for certain sites that require them
-    const options: RequestInit = { headers };
-    if (domain === 'LinkedIn' || domain === 'Discord') {
-      options.credentials = 'include';
-    }
-
-    // Fetch HTML from the URL
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`📥 Sending request to ${url} with headers:`, headers);
-    }
-    const response = await fetch(url, options);
-
-    if (!response.ok) {
-      console.log(`❌ Failed to fetch from ${url}: ${response.status} ${response.statusText}`);
-      return {
-        imageUrl: getLocalImageForSocialNetwork(url),
-        bannerImageUrl: null,
-        ogMetadata: {},
-        error: `Failed to fetch from ${domain}: ${response.status}`
-      };
-    }
-
-    const html = await response.text();
-    console.log(`✅ Successfully fetched HTML from ${domain} (${url}) - ${html.length} bytes`);
-
-    // General handling for platforms with known OG pattern limitations
-    // Note: We have specific handlers for each network below
-
-    // Configuration for default/fallback profiles (could be moved to env vars)
-    const DEFAULT_PROFILES: Record<string, string> = {
-      GitHub: 'https://avatars.githubusercontent.com/u/99231285?v=4',
-      X: 'https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg',
-      Twitter: 'https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg',
-      LinkedIn: 'https://media.licdn.com/dms/image/C5603AQGjv8C3WhrUfQ/profile-displayphoto-shrink_800_800/0/1651775977276',
-      Bluesky: 'https://cdn.bsky.app/img/avatar/plain/did:plc:o3rar2atqxlmczkaf6npbcqz/bafkreidpq75jyggvzlm5ddgpzhfkm4vprgitpxukqpgkrwr6sqx54b2oka@jpeg',
-      Discord: '/images/william.jpeg' // Local fallback for Discord
-    };
-
-    // Special handling for GitHub profile
-    // Use the default profile if no specific user logic is needed
-    if (domain === 'GitHub') {
-      console.log(`ℹ️ Using GitHub-specific images`);
-      return {
-        imageUrl: DEFAULT_PROFILES.GitHub,
-        bannerImageUrl: '/images/social-banners/github.svg',
-        ogMetadata: { title: 'Profile on GitHub' } // Generic title
-      };
-    }
-
-    // Special handling for X/Twitter
-    // Use the default profile if no specific user logic is needed
-    if (domain === 'X' || domain === 'Twitter') {
-      console.log(`ℹ️ Using X/Twitter-specific images`);
-      return {
-        imageUrl: DEFAULT_PROFILES[domain], // Use domain (X or Twitter)
-        bannerImageUrl: '/images/social-banners/twitter-x.svg',
-        ogMetadata: { title: 'Profile on X' } // Generic title
-      };
-    }
-
-    // Special handling for LinkedIn
-    // Use the default profile if no specific user logic is needed
-    if (domain === 'LinkedIn') {
-      console.log(`ℹ️ Using LinkedIn-specific images`);
-      return {
-        imageUrl: DEFAULT_PROFILES.LinkedIn,
-        bannerImageUrl: '/images/social-banners/linkedin.svg',
-        ogMetadata: { title: 'Profile on LinkedIn' } // Generic title
-      };
-    }
-
-    // Special handling for Discord - always uses local file paths
-    if (domain === 'Discord') {
-      console.log(`ℹ️ Using Discord-specific local images`);
-      return {
-        imageUrl: DEFAULT_PROFILES.Discord,
-        bannerImageUrl: '/images/social-banners/discord.svg',
-        ogMetadata: { title: 'Profile on Discord' } // Generic title
-      };
-    }
-
-    // Special handling for Bluesky
-    // Use the default profile if no specific user logic is needed
-    if (domain === 'Bluesky') {
-      console.log(`ℹ️ Using Bluesky-specific images`);
-      return {
-        imageUrl: DEFAULT_PROFILES.Bluesky,
-        bannerImageUrl: '/images/social-banners/bluesky.png',
-        ogMetadata: { title: 'Profile on Bluesky' } // Generic title
-      };
-    }
-
-    // Extract Open Graph metadata with platform-specific parsing
-    const ogTags = extractOpenGraphTags(html, url);
-    console.log(`📊 Extracted ${domain} OG metadata for ${url}:`, ogTags);
-
-    // First priority: platform-specific profile image extraction
-    if (ogTags.profileImage) {
-      let absoluteImageUrl: string = ogTags.profileImage; // Default to using as-is
-      try {
-        absoluteImageUrl = new URL(ogTags.profileImage, url).toString();
-      } catch (urlError) {
-        console.log(`⚠️ Error creating absolute URL for profile image ${ogTags.profileImage}: ${(urlError as Error).message}`);
-        // absoluteImageUrl remains ogTags.profileImage
+    // In development we may lack S3 credentials; optimistically redirect to CDN
+    if (isDevelopment || (await checkS3Exists(input))) {
+      if (!S3_CDN_URL) {
+        console.error('[OG-Image] S3_CDN_URL not configured; cannot redirect');
+        const fallbackImage = getContextualFallbackImage(input);
+        return NextResponse.redirect(new URL(fallbackImage, request.url).toString(), { status: 302 });
       }
+      const cdnUrl = `${S3_CDN_URL}/${input}`;
+      console.log(`[OG-Image] Redirecting to CDN: ${cdnUrl}`);
+      return NextResponse.redirect(cdnUrl, { status: 301 });
+    }
 
-      console.log(`👤 Found platform-specific profile image for ${domain}: ${absoluteImageUrl}`);
+    console.warn(`[OG-Image] S3 object not found: ${input}`);
+    const fallbackImage = getContextualFallbackImage(input);
+    return NextResponse.redirect(new URL(fallbackImage, request.url).toString(), { status: 302 });
+  }
 
-      let absoluteBannerUrl: string | null = null;
-      if (ogTags.bannerImage) {
-        absoluteBannerUrl = ogTags.bannerImage; // Default to using as-is
+  // 2. Check if it's a Karakeep asset ID (alphanumeric with dashes/underscores)
+  if (/^[a-zA-Z0-9_-]+$/.test(input) && !input.includes('/')) {
+    console.log(`[OG-Image] Detected Karakeep asset ID: ${input}`);
+    
+    // First try the direct asset
+    const assetUrl = `/api/assets/${input}`;
+    
+    // If we have a bookmarkId, we can provide better fallbacks
+    if (bookmarkId) {
+      try {
+        // Check if asset exists by making a HEAD request with timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const assetCheck = await fetch(`${request.nextUrl.origin}${assetUrl}`, {
+          method: 'HEAD',
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (assetCheck.ok) {
+          return NextResponse.redirect(new URL(assetUrl, request.url).toString(), { status: 302 });
+        }
+        
+        // Asset doesn't exist, try to get bookmark's domain OG image
+        console.log(`[OG-Image] Karakeep asset not found, attempting domain fallback for bookmark: ${bookmarkId}`);
+        
+        // Read bookmarks directly from S3 to avoid triggering refresh logic
         try {
-          absoluteBannerUrl = new URL(ogTags.bannerImage, url).toString();
-          console.log(`🏞️ Also found banner image for ${domain}: ${absoluteBannerUrl}`);
-        } catch (urlError) {
-          console.log(`⚠️ Error creating absolute URL for banner image ${ogTags.bannerImage}: ${(urlError as Error).message}`);
-          // absoluteBannerUrl remains ogTags.bannerImage
+          const { readJsonS3 } = await import("@/lib/s3-utils");
+          const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
+          
+          const bookmarksData = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+          if (bookmarksData && Array.isArray(bookmarksData)) {
+            const bookmark = bookmarksData.find((b) => b.id === bookmarkId);
+            
+            if (bookmark?.url) {
+              console.log(`[OG-Image] Found bookmark URL: ${bookmark.url}, fetching domain OG image`);
+              // Recursively call ourselves with the bookmark URL
+              const fallbackUrl = `/api/og-image?url=${encodeURIComponent(bookmark.url)}`;
+              return NextResponse.redirect(new URL(fallbackUrl, request.url).toString(), { status: 302 });
+            }
+          }
+        } catch (s3Error) {
+          console.error("[OG-Image] Failed to read bookmarks from S3:", s3Error);
         }
+      } catch (error) {
+        console.error("[OG-Image] Error checking Karakeep asset or fetching fallback:", error);
       }
-
-      return {
-        imageUrl: absoluteImageUrl,
-        bannerImageUrl: absoluteBannerUrl,
-        ogMetadata: ogTags
-      };
     }
-
-    // Second priority: og:image
-    if (ogTags.image) {
-      let absoluteImageUrl: string = ogTags.image; // Default to using as-is
-      try {
-        absoluteImageUrl = new URL(ogTags.image, url).toString();
-      } catch (urlError) {
-        console.log(`⚠️ Error creating absolute URL for og:image ${ogTags.image}: ${(urlError as Error).message}`);
-        // absoluteImageUrl remains ogTags.image
-      }
-
-      console.log(`🖼️ Found og:image for ${domain}: ${absoluteImageUrl}`);
-
-      return {
-        imageUrl: absoluteImageUrl,
-        ogMetadata: ogTags,
-        bannerImageUrl: null
-      };
-    }
-
-    // Third priority: twitter:image
-    if (ogTags.twitterImage) {
-      let absoluteImageUrl: string = ogTags.twitterImage; // Default to using as-is
-      try {
-        absoluteImageUrl = new URL(ogTags.twitterImage, url).toString();
-      } catch (urlError) {
-        console.log(`⚠️ Error creating absolute URL for twitter:image ${ogTags.twitterImage}: ${(urlError as Error).message}`);
-        // absoluteImageUrl remains ogTags.twitterImage
-      }
-
-      console.log(`🖼️ Found twitter:image for ${domain}: ${absoluteImageUrl}`);
-
-      return {
-        imageUrl: absoluteImageUrl,
-        ogMetadata: ogTags,
-        bannerImageUrl: null
-      };
-    }
-
-    // No images found
-    console.log(`⚠️ No Open Graph image found for ${domain} (${url})`);
-    return {
-      imageUrl: getLocalImageForSocialNetwork(url),
-      ogMetadata: ogTags,
-      bannerImageUrl: null
-    };
-
-  } catch (fetchError: unknown) {
-    const errorMessage = fetchError instanceof Error ? fetchError.message : 'Unknown fetch error';
-    console.log(`❌ Error during fetch or parsing for ${url}: ${errorMessage}`);
-    return {
-      imageUrl: getLocalImageForSocialNetwork(url),
-      bannerImageUrl: null,
-      ogMetadata: {},
-      error: `Fetch error: ${errorMessage}`
-    };
+    
+    // No fallback available, return the asset URL anyway
+    return NextResponse.redirect(new URL(assetUrl, request.url).toString(), { status: 302 });
   }
-}
 
-/**
- * Determine domain type from URL for special handling
- */
-function getDomainType(url: string): string {
-  if (url.includes('github.com')) return 'GitHub';
-  if (url.includes('x.com')) return 'X';
-  if (url.includes('twitter.com')) return 'Twitter';
-  if (url.includes('linkedin.com')) return 'LinkedIn';
-  if (url.includes('discord.com')) return 'Discord';
-  if (url.includes('bsky.app')) return 'Bluesky';
-
-  const urlObj = new URL(url);
-  return urlObj.hostname;
-}
-
-/**
- * Extract Open Graph tags from HTML content
- * Also extracts platform-specific content like profile images
- */
-function extractOpenGraphTags(html: string, url: string = '') {
-  const domain = getDomainType(url);
-
-  // Standard OG tags extraction
-  const result: {
-    title: string | null;
-    description: string | null;
-    image: string | null;
-    twitterImage: string | null;
-    site: string | null;
-    type: string | null;
-    profileImage: string | null;
-    bannerImage: string | null;
-  } = {
-    title: extractMetaContent(html, 'property="og:title"') ||
-           extractMetaContent(html, 'name="twitter:title"'),
-
-    description: extractMetaContent(html, 'property="og:description"') ||
-                 extractMetaContent(html, 'name="twitter:description"'),
-
-    image: extractMetaContent(html, 'property="og:image"'),
-
-    twitterImage: extractMetaContent(html, 'name="twitter:image"') ||
-                 extractMetaContent(html, 'name="twitter:image:src"'),
-
-    site: extractMetaContent(html, 'property="og:site_name"') ||
-          extractMetaContent(html, 'name="twitter:site"'),
-
-    type: extractMetaContent(html, 'property="og:type"'),
-
-    // Additional fields for platform-specific extraction
-    profileImage: null as string | null,
-    bannerImage: null as string | null
-  };
-
-  // Platform-specific image extraction
+  // 3. Must be a URL - validate and process
   try {
-    if (domain === 'Bluesky' && url.includes('williamcallahan.com')) {
-      // For Bluesky, try to extract the avatar image from the HTML
-      console.log('🔍 Attempting to extract Bluesky profile avatar from HTML...');
-
-      // Look for avatar image patterns in Bluesky's HTML
-      const avatarPattern = /<img[^>]*class="[^"]*avatar[^"]*"[^>]*src="([^"]+)"/i;
-      const avatarMatch = html.match(avatarPattern);
-
-      if (avatarMatch?.[1]) {
-        console.log(`✅ Found Bluesky avatar: ${avatarMatch[1]}`);
-        result.profileImage = avatarMatch[1];
-      } else {
-        // Fallback to a known pattern for Bluesky avatars
-        const blueskyUserPattern = /did:plc:[a-zA-Z0-9]+/i;
-        const didMatch = html.match(blueskyUserPattern);
-
-        if (didMatch?.[0]) {
-          console.log(`✅ Found Bluesky DID: ${didMatch[0]}`);
-          // This is a fallback since we know William's avatar URL pattern
-          result.profileImage = `https://cdn.bsky.app/img/avatar/plain/${didMatch[0]}/bafkreidpq75jyggvzlm5ddgpzhfkm4vprgitpxukqpgkrwr6sqx54b2oka@jpeg`;
-        }
+    const url = new URL(input);
+    const hostname = url.hostname.replace(/^www\./, '');
+    
+    // Development mode: allow localhost and local IPs
+    if (isDevelopment) {
+      const isLocalhost = hostname === 'localhost' || 
+                         hostname === '127.0.0.1' ||
+                         hostname.endsWith('.local') ||
+                         /^192\.168\.|^10\.|^172\.(1[6-9]|2[0-9]|3[01])\./.test(hostname);
+      
+      if (isLocalhost) {
+        console.log(`[OG-Image] [DEV] Allowing local URL: ${url.toString()}`);
       }
-    } else if (domain === 'GitHub') {
-      // Look for GitHub avatar
-      const avatarPattern = /<img[^>]*class="[^"]*avatar[^"]*"[^>]*src="([^"]+)"/i;
-      const avatarMatch = html.match(avatarPattern);
-
-      if (avatarMatch?.[1]) {
-        console.log(`✅ Found GitHub avatar: ${avatarMatch[1]}`);
-        result.profileImage = avatarMatch[1];
-      }
-    } else if (domain === 'X' || domain === 'Twitter') {
-      // Extract Twitter profile image (from various patterns)
-      console.log('🔍 Attempting to extract X/Twitter profile image...');
-
-      // Try multiple patterns since Twitter's HTML structure can vary
-      const twitterPatterns = [
-        /<img[^>]*class="[^"]*css-9pa8cd[^"]*"[^>]*src="([^"]+)"/i,
-        /<img[^>]*src="([^"]+)"[^>]*alt="[^"]*profile image/i,
-        /<a[^>]*href="\/williamcallahan\/photo"[^>]*><img[^>]*src="([^"]+)"/i
+    } else {
+      // Blocklist strategy – deny only obviously dangerous internal networks / metadata endpoints.
+      const blockedHostPatterns = [
+        /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/, // private networks
+        /\.internal$/i,
       ];
 
-      for (const pattern of twitterPatterns) {
-        const match = html.match(pattern);
-        if (match?.[1]) {
-          // Found a profile image
-          console.log(`✅ Found X/Twitter profile image: ${match[1]}`);
-          result.profileImage = match[1];
-          break;
+      const isBlocked = blockedHostPatterns.some((re) => re.test(hostname));
+      if (isBlocked) {
+        console.warn(`[OG-Image] Blocked private/internal domain: ${hostname}`);
+        return NextResponse.redirect(new URL('/images/opengraph-placeholder.png', request.url).toString(), { status: 302 });
+      }
+    }
+    
+    // Try to get from our OpenGraph data access layer first
+    // This will use memory cache → S3 → external fetch
+    try {
+      const ogData: OgResult = await getOpenGraphData(url.toString());
+      
+      if (ogData.imageUrl) {
+        // If it's an S3 key, redirect to CDN
+        if (ogData.imageUrl.includes('/') && !ogData.imageUrl.includes('://')) {
+          if (!S3_CDN_URL) {
+            console.error('[OG-Image] S3_CDN_URL not configured; cannot redirect cached OG image');
+            const fallbackImage = getContextualFallbackImage(input);
+            return NextResponse.redirect(new URL(fallbackImage, request.url).toString(), { status: 302 });
+          }
+          const cdnUrl = `${S3_CDN_URL}/${ogData.imageUrl}`;
+          console.log(`[OG-Image] Found OG image in cache, redirecting to: ${cdnUrl}`);
+          return NextResponse.redirect(cdnUrl, { status: 301 });
+        }
+        
+        // If it's an external URL, fetch and stream it
+        console.log(`[OG-Image] Fetching external image: ${ogData.imageUrl}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+        
+        try {
+          const response = await fetch(ogData.imageUrl, { 
+            signal: controller.signal,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; OpenGraphBot/1.0; +https://williamcallahan.com)'
+            }
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          
+          // Check content type
+          const contentType = response.headers.get('content-type');
+          if (!contentType?.startsWith('image/')) {
+            throw new Error('Not an image');
+          }
+          
+          // Check size
+          const contentLength = response.headers.get('content-length');
+          if (contentLength && Number.parseInt(contentLength) > 10 * 1024 * 1024) { // 10MB limit
+            throw new Error('Image too large');
+          }
+          
+          // Clone the response so we can both stream it and save it
+          const clonedResponse = response.clone();
+          
+          // Persist to S3 in background (using the clone)
+          clonedResponse.arrayBuffer().then(() => {
+            if (ogData.imageUrl) {
+              scheduleImagePersistence(ogData.imageUrl, OPENGRAPH_IMAGES_S3_DIR, "OG-Image-Background", bookmarkId || undefined, url.toString());
+            }
+          }).catch((err: unknown) => {
+            console.error('[OG-Image] Failed to clone for S3 persistence:', err);
+          });
+          
+          // Stream the original response to client
+          return new NextResponse(response.body, {
+            headers: {
+              'Content-Type': contentType,
+              'Cache-Control': 'public, max-age=31536000, immutable',
+              'X-Content-Source': 'opengraph-cached'
+            },
+          });
+        } finally {
+          clearTimeout(timeoutId);
         }
       }
-
-      // Banner extraction for X/Twitter
-      const bannerPattern = /<img[^>]*class="[^"]*css-1dbjc4n[^"]*"[^>]*style="background-image: url\("([^&]+)"\)"/i;
-      const bannerMatch = html.match(bannerPattern);
-
-      if (bannerMatch?.[1]) {
-        console.log(`✅ Found X/Twitter banner image: ${bannerMatch[1]}`);
-        result.bannerImage = bannerMatch[1];
-      }
-    } else if (domain === 'LinkedIn') {
-      // LinkedIn profile image extraction
-      console.log('🔍 Attempting to extract LinkedIn profile image...');
-
-      // Try multiple patterns for LinkedIn
-      const linkedinPatterns = [
-        /<img[^>]*class="[^"]*profile-picture[^"]*"[^>]*src="([^"]+)"/i,
-        /<img[^>]*class="[^"]*pv-top-card-profile-picture__image[^"]*"[^>]*src="([^"]+)"/i,
-        /<img[^>]*id="ember[0-9]+"[^>]*src="([^"]+)"[^>]*alt="[^"]*profile/i
-      ];
-
-      for (const pattern of linkedinPatterns) {
-        const match = html.match(pattern);
-        if (match?.[1]) {
-          console.log(`✅ Found LinkedIn profile image: ${match[1]}`);
-          result.profileImage = match[1];
-          break;
+    } catch (ogError) {
+      console.error("[OG-Image] OpenGraph fetch failed:", ogError);
+    }
+    
+    // If OpenGraph fetch failed or no image found, try direct fetch
+    console.log(`[OG-Image] Attempting direct fetch: ${url.toString()}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    
+    try {
+      const response = await fetch(url.toString(), { 
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; OpenGraphBot/1.0; +https://williamcallahan.com)'
         }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
-
-      // LinkedIn background/banner image
-      const backgroundPattern = /<img[^>]*class="[^"]*profile-background-image[^"]*"[^>]*src="([^"]+)"/i;
-      const backgroundMatch = html.match(backgroundPattern);
-
-      if (backgroundMatch?.[1]) {
-        console.log(`✅ Found LinkedIn background image: ${backgroundMatch[1]}`);
-        result.bannerImage = backgroundMatch[1];
+      
+      // Check content type
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.startsWith('image/')) {
+        throw new Error('Not an image');
       }
+      
+      // Check size
+      const contentLength = response.headers.get('content-length');
+      if (contentLength && Number.parseInt(contentLength) > 10 * 1024 * 1024) {
+        throw new Error('Image too large');
+      }
+      
+      // Clone the response so we can both stream it and save it
+      const clonedResponse = response.clone();
+      
+      // Persist to S3 in background (using the clone)
+      clonedResponse.arrayBuffer().then(() => {
+        scheduleImagePersistence(url.toString(), OPENGRAPH_IMAGES_S3_DIR, "OG-Image-Background", bookmarkId || undefined, url.toString());
+      }).catch((err: unknown) => {
+        console.error('[OG-Image] Failed to clone for S3 persistence:', err);
+      });
+      
+      // Stream the original response to client
+      return new NextResponse(response.body, {
+        headers: {
+          'Content-Type': contentType,
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          'X-Content-Source': 'direct-fetch'
+        },
+      });
+    } finally {
+      clearTimeout(timeoutId);
     }
   } catch (error) {
-    console.error('Error during platform-specific image extraction:', error);
-  }
-
-  return result;
-}
-
-/**
- * Helper to extract content from meta tags
- */
-function extractMetaContent(html: string, attributePattern: string): string | null {
-  // Pattern to match meta tags with the given attribute
-  const pattern = new RegExp(`<meta[^>]*${attributePattern}[^>]*content=["']([^"']+)["'][^>]*>`, 'i');
-  // Also match alternate order (content attribute comes first)
-  const alternatePattern = new RegExp(`<meta[^>]*content=["']([^"']+)["'][^>]*${attributePattern}[^>]*>`, 'i');
-
-  const match = html.match(pattern) || html.match(alternatePattern);
-  return match && match[1] ? match[1] : null;
-}
-
-/**
- * Get appropriate network-specific profile images
- */
-function getLocalImageForSocialNetwork(url: string): string | null {
-  const domain = getDomainType(url);
-
-  // Return appropriate profile image based on domain
-  switch (domain) {
-    case 'GitHub':
-      return 'https://avatars.githubusercontent.com/u/99231285?v=4';
-
-    case 'X':
-    case 'Twitter':
-      return 'https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg';
-
-    case 'LinkedIn':
-      return 'https://media.licdn.com/dms/image/C5603AQGjv8C3WhrUfQ/profile-displayphoto-shrink_800_800/0/1651775977276?e=1716422400&v=beta&t=UwKIV3BKofXiG88FRnc7yp0oN75lmbQNHNTR2lqTJrY';
-
-    case 'Discord':
-      return '/images/william.jpeg'; // Discord doesn't have easy profile access
-
-    case 'Bluesky':
-      if (url.includes('williamcallahan.com')) {
-        return 'https://cdn.bsky.app/img/avatar/plain/did:plc:o3rar2atqxlmczkaf6npbcqz/bafkreidpq75jyggvzlm5ddgpzhfkm4vprgitpxukqpgkrwr6sqx54b2oka@jpeg';
-      }
-      // Fallback to null if not the specific Bluesky profile, or handle generic Bluesky logo if available
-      return '/images/bluesky_logo.svg'; // Or null if this is also a placeholder
-
-    default:
-      // Fallback to null if no specific image is available
-      return '/images/william.jpeg'; // Or null
+    // Log expected errors without stack trace
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isExpectedError = errorMessage.includes('Not an image') || 
+                           errorMessage.includes('HTTP') || 
+                           errorMessage.includes('too large') ||
+                           errorMessage.includes('abort');
+    
+    if (isExpectedError) {
+      console.log(`[OG-Image] Expected error for ${input}: ${errorMessage}`);
+    } else {
+      console.error("[OG-Image] Unexpected error processing URL:", error);
+    }
+    
+    // Try domain-specific fallback first
+    const domainType = getDomainType(input);
+    let fallbackImage = getDomainFallbackImage(domainType);
+    
+    // If no domain-specific fallback, use contextual fallback
+    if (fallbackImage === "/images/opengraph-placeholder.png") {
+      fallbackImage = getContextualFallbackImage(input, errorMessage);
+    }
+    
+    console.log(`[OG-Image] Returning fallback for ${domainType}: ${fallbackImage}`);
+    return NextResponse.redirect(new URL(fallbackImage, request.url).toString(), { status: 302 });
   }
 }
 
-/**
- * Get domain branding background images for each platform
- * These are beautiful banner/brand images for each platform
- */
-function getDomainBrandingImage(url: string): string | null {
-  const domain = getDomainType(url);
+// Domain fallback functions are now imported from lib/opengraph/fallback.ts
 
-  // Return appropriate branding image based on domain (using local files)
-  switch (domain) {
-    case 'GitHub':
-      return '/images/social-banners/github.svg';
-
-    case 'X':
-    case 'Twitter':
-      return '/images/social-banners/twitter-x.svg';
-
-    case 'LinkedIn':
-      return '/images/social-banners/linkedin.svg';
-
-    case 'Discord':
-      return '/images/social-banners/discord.svg';
-
-    case 'Bluesky':
-      return '/images/social-banners/bluesky.png';
-
-    default:
-      return '/images/company-placeholder.svg';
-  }
-}
+// Persistence function is now imported from lib/opengraph/persistence.ts

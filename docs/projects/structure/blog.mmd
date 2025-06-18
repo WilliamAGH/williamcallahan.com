@@ -1,0 +1,19 @@
+graph TD
+    subgraph "Build Time / Server-Side"
+        A[data/blog/posts.ts] --> C{lib/blog.ts};
+        B[data/blog/posts/*.mdx] -- "Reads & Parses" --> D{lib/blog/mdx.ts};
+        D --> C[getAllPosts()];
+        C --> E[app/blog/page.tsx];
+        E -- "Pre-renders List" --> F[blog-list.server.tsx];
+        F -- "Renders Card" --> G[blog-card.tsx];
+    end
+
+    subgraph "Client-Side"
+        H[User Request] --> I[Next.js serves static page];
+        I --> J{blog.client.tsx};
+        J -- "Wraps content in" --> K{blog-window.client.tsx};
+        K -- "Receives pre-rendered HTML" --> F;
+    end
+
+    style F fill:#ccf,stroke:#333,stroke-width:2px
+    style J fill:#f9f,stroke:#333,stroke-width:2px 

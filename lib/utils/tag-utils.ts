@@ -7,7 +7,7 @@
  * @module lib/utils/tag-utils
  */
 
-import type { BookmarkTag } from '@/types';
+import type { BookmarkTag } from "@/types";
 
 /**
  * Format tag for display: Title Case unless mixed-case proper nouns
@@ -23,7 +23,7 @@ import type { BookmarkTag } from '@/types';
  * formatTagDisplay('AI tools') // Returns 'AI Tools'
  */
 export function formatTagDisplay(tag: string): string {
-  if (!tag) return '';
+  if (!tag) return "";
 
   // Preserve if mixed-case beyond first char (e.g. iPhone, aVenture)
   if (/[A-Z]/.test(tag.slice(1))) {
@@ -33,8 +33,8 @@ export function formatTagDisplay(tag: string): string {
   // Otherwise convert to title case
   return tag
     .split(/[\s-]+/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
 /**
@@ -47,7 +47,7 @@ export function normalizeTagsToStrings(tags: Array<string | BookmarkTag>): strin
   if (!Array.isArray(tags)) return [];
 
   return tags
-    .map(tag => typeof tag === 'string' ? tag : (tag && 'name' in tag ? tag.name : ''))
+    .map((tag) => (typeof tag === "string" ? tag : tag && "name" in tag ? tag.name : ""))
     .filter(Boolean);
 }
 
@@ -58,10 +58,10 @@ export function normalizeTagsToStrings(tags: Array<string | BookmarkTag>): strin
  * @returns Sanitized string without Unicode control characters
  */
 export function sanitizeUnicode(text: string): string {
-  if (!text) return '';
+  if (!text) return "";
 
   // Strip Unicode control characters (including bidi controls)
-  return text.replace(/[\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, '');
+  return text.replace(/[\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, "");
 }
 
 /**
@@ -71,14 +71,12 @@ export function sanitizeUnicode(text: string): string {
  * @returns URL-friendly slug
  */
 export function sanitizeTagSlug(text: string): string {
-  if (!text) return '';
+  if (!text) return "";
 
   // First sanitize Unicode control characters
   const cleanText = sanitizeUnicode(text);
 
-  return cleanText
-    .toLowerCase()
-    .replace(/\s+/g, '-'); // Replace spaces with hyphens
+  return cleanText.toLowerCase().replace(/\s+/g, "-"); // Replace spaces with hyphens
 }
 
 /**
@@ -89,19 +87,48 @@ export function sanitizeTagSlug(text: string): string {
  *
  * @example
  * tagToSlug('React Native') // Returns 'react-native'
- * tagToSlug('AI & ML') // Returns 'ai-ml'
+ * tagToSlug('AI & ML') // Returns 'ai-and-ml'
+ * tagToSlug('C++') // Returns 'c-plus-plus'
+ * tagToSlug('.NET') // Returns 'dotnet'
  */
 export function tagToSlug(tag: string): string {
-  if (!tag) return '';
+  if (!tag) return "";
 
   // First sanitize Unicode control characters
-  const cleanTag = sanitizeUnicode(tag);
+  let cleanTag = sanitizeUnicode(tag);
 
-  return cleanTag
+  // Handle common special cases before converting to lowercase
+  cleanTag = cleanTag
+    .replace(/\+\+/g, '-plus-plus')
+    .replace(/\+/g, '-plus')
+    .replace(/&/g, '-and-')
+    .replace(/#/g, '-sharp')
+    .replace(/@/g, '-at-');
+  
+  // Now handle dots more carefully - only replace dots that are part of extensions
+  if (cleanTag.startsWith('.')) {
+    cleanTag = `dot${cleanTag.substring(1)}`;
+  }
+  cleanTag = cleanTag.replace(/\.(?=[a-zA-Z])/g, 'dot'); // .NET -> dotNET, Node.js -> Nodedotjs
+
+  // Remove diacritics by normalizing to NFD then removing combining marks
+  // Using character code checks to avoid character class issues
+  const normalized = cleanTag.normalize("NFD");
+  const withoutDiacritics = Array.from(normalized)
+    .filter(char => {
+      const code = char.charCodeAt(0);
+      // Filter out combining diacritical marks (U+0300 to U+036F)
+      return code < 0x0300 || code > 0x036F;
+    })
+    .join("");
+  
+  return withoutDiacritics
     .toLowerCase()
-    .replace(/[^\w\s-]/g, '') // Remove special chars except spaces and hyphens
-    .replace(/\s+/g, '-') // Replace spaces with hyphens
-    .replace(/-+/g, '-'); // Replace multiple hyphens with single hyphen
+    .replace(/[^\w\s-]/g, "") // Remove remaining special chars except spaces and hyphens
+    .replace(/_/g, "-") // Replace underscores with hyphens
+    .replace(/\s+/g, "-") // Replace spaces with hyphens
+    .replace(/-+/g, "-") // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, ""); // Remove leading/trailing hyphens
 }
 
 /**
@@ -114,7 +141,7 @@ export function tagToSlug(tag: string): string {
  * slugToTagDisplay('react-native') // Returns 'React Native'
  */
 export function slugToTagDisplay(slug: string): string {
-  if (!slug) return '';
+  if (!slug) return "";
 
-  return formatTagDisplay(slug.replace(/-/g, ' '));
+  return formatTagDisplay(slug.replace(/-/g, " "));
 }

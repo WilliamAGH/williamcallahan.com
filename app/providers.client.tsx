@@ -8,24 +8,17 @@
 
 "use client";
 
-import { ThemeProvider } from "@/components/ui/theme/theme-provider.client";
 import { TerminalProvider } from "@/components/ui/terminal";
+import { ThemeProvider } from "@/components/ui/theme/theme-provider.client";
 import { Suspense } from "react";
 
 // Memoize the entire providers component to prevent rerendering during navigation
 function Providers({ children }: { children: React.ReactNode }) {
   // NOTE: Dark Reader detection and class addition is handled by an inline script in app/layout.tsx
   return (
-    <ThemeProvider
-      disableTransitionOnChange
-      enableSystem
-      attribute="class"
-      defaultTheme="system"
-    >
+    <ThemeProvider disableTransitionOnChange enableSystem attribute="class" defaultTheme="system">
       <TerminalProvider>
-        <Suspense fallback={null}>
-          {children}
-        </Suspense>
+        <Suspense fallback={null}>{children}</Suspense>
       </TerminalProvider>
     </ThemeProvider>
   );

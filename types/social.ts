@@ -4,7 +4,7 @@
  * Type definitions for social media links and icons with runtime validation.
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // Runtime validation schema
 export const socialLinkSchema = z.object({
@@ -12,7 +12,7 @@ export const socialLinkSchema = z.object({
   label: z.string(),
   // Can't strongly type the icon function itself with Zod
   icon: z.any(),
-  emphasized: z.boolean().optional()
+  emphasized: z.boolean().optional(),
 });
 
 // For arrays of social links

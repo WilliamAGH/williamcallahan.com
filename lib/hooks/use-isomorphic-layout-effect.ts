@@ -26,7 +26,7 @@
  * @clientComponent - This is a client component utility and should only be used in client components
  */
 
-import { useEffect, useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect } from "react";
 
 /**
  * A hook that safely provides layout effects in all environments.
@@ -34,4 +34,4 @@ import { useEffect, useLayoutEffect } from 'react';
  * - Falls back to useEffect on the server to avoid warning messages
  */
 export const useIsomorphicLayoutEffect =
-  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;

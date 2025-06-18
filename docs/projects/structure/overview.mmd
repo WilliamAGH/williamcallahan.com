@@ -1,0 +1,102 @@
+graph LR
+    %% Core Infrastructure
+    subgraph INFRA[Core Infrastructure]
+        DATA[Data Access Layer]
+        CACHE[Caching System]
+        BUILD[Build Configuration]
+    end
+    
+    %% Home Section
+    subgraph HOME[Home Section]
+        HOMEPAGE[Home Page]
+        PROFILE[Profile Image]
+        HOMEPAGE --> PROFILE
+    end
+    
+    %% Blog Section
+    subgraph BLOG[Blog Section]
+        BLOGPAGE[Blog Page]
+        BLOGARTICLE[Blog Article Pages]
+        BLOGSYS[Blog System]
+        BLOGWIN[Blog Window]
+        EMBED[Tweet Embed]
+        
+        BLOGPAGE --> BLOGARTICLE
+        BLOGPAGE --> BLOGSYS
+        BLOGPAGE --> BLOGWIN
+        BLOGARTICLE --> EMBED
+    end
+    
+    %% Projects Section
+    subgraph PROJ[Projects Section]
+        PROJPAGE[Projects Page]
+        PROJSYS[Projects Portfolio]
+        PROJWIN[Projects Window]
+        TAGS[Project Tags]
+        GITHUB[GitHub Activity]
+        
+        PROJPAGE --> PROJSYS
+        PROJPAGE --> PROJWIN
+        PROJPAGE --> TAGS
+        PROJPAGE --> GITHUB
+    end
+    
+    %% Education Section
+    subgraph EDU[Education Section]
+        EDUPAGE[Education Page]
+        EDUSYS[Education History]
+        EDUWIN[Education Window]
+        
+        EDUPAGE --> EDUSYS
+        EDUPAGE --> EDUWIN
+    end
+    
+    %% Experience Section
+    subgraph EXP[Experience Section]
+        EXPPAGE[Experience Page]
+        EXPSYS[Work Experience]
+        EXPWIN[Experience Window]
+        
+        EXPPAGE --> EXPSYS
+        EXPPAGE --> EXPWIN
+    end
+    
+    %% Investments Section
+    subgraph INV[Investments Section]
+        INVPAGE[Investments Page]
+        INVSYS[Investment Portfolio]
+        INVWIN[Investments Window]
+        
+        INVPAGE --> INVSYS
+        INVPAGE --> INVWIN
+    end
+    
+    %% Global Features
+    subgraph GLOBAL[Global Features]
+        TERMINAL[Terminal Interface]
+        SOCIAL[Social Links]
+        SOCIALWIN[Social Window]
+    end
+    
+    %% Dependencies
+    DATA -.-> BLOGSYS
+    DATA -.-> PROJSYS
+    DATA -.-> EDUSYS
+    DATA -.-> EXPSYS
+    DATA -.-> INVSYS
+    DATA -.-> GITHUB
+    CACHE -.-> GITHUB
+    CACHE -.-> BLOGSYS
+    BUILD -.-> HOMEPAGE
+    BUILD -.-> BLOGPAGE
+    BUILD -.-> PROJPAGE
+    BUILD -.-> EDUPAGE
+    BUILD -.-> EXPPAGE
+    BUILD -.-> INVPAGE
+    
+    %% Styling
+    style INFRA fill:#e1f5fe
+    style GLOBAL fill:#fff3e0
+    style DATA fill:#f0f8ff
+    style CACHE fill:#f0fff0
+    style BUILD fill:#fffaf0

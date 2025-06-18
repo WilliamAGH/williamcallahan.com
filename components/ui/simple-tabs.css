@@ -1,0 +1,64 @@
+/* Simple CSS-based tabs for MDX content */
+
+/* Hide all tab panels by default */
+.mdx-tab-panel {
+  display: none;
+}
+
+/* Show the active tab panel */
+.mdx-tab-group[data-active-tab="pnpm"] .mdx-tab-panel[data-tab="pnpm"],
+.mdx-tab-group[data-active-tab="bun"] .mdx-tab-panel[data-tab="bun"],
+.mdx-tab-group[data-active-tab="yarn"] .mdx-tab-panel[data-tab="yarn"],
+.mdx-tab-group[data-active-tab="npm"] .mdx-tab-panel[data-tab="npm"] {
+  display: block;
+}
+
+/* Tab button styles */
+.mdx-tab-list {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid rgb(229 231 235);
+  margin-bottom: 1rem;
+}
+
+.dark .mdx-tab-list {
+  border-bottom-color: rgb(55 65 81);
+}
+
+.mdx-tab-button {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.15s ease-in-out;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  cursor: pointer;
+  color: rgb(107 114 128);
+}
+
+.dark .mdx-tab-button {
+  color: rgb(156 163 175);
+}
+
+.mdx-tab-button:hover {
+  color: rgb(17 24 39);
+}
+
+.dark .mdx-tab-button:hover {
+  color: rgb(229 231 235);
+}
+
+/* Active tab button */
+.mdx-tab-button[data-active="true"] {
+  color: rgb(37 99 235);
+  border-bottom-color: rgb(37 99 235);
+}
+
+.dark .mdx-tab-button[data-active="true"] {
+  color: rgb(96 165 250);
+  border-bottom-color: rgb(96 165 250);
+}

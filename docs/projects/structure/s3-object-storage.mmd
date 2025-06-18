@@ -1,0 +1,59 @@
+graph LR
+    %% Entry Points
+    A["💾 Storage Request"] --> B{Operation Type?}
+    
+    %% Read Operations
+    B -->|Read| C[Read Operations]
+    C --> D{Content Type?}
+    D -->|JSON| E["🚫 Bypass CDN - Direct S3"]
+    D -->|Binary/Images| F{CDN Available?}
+    
+    F -->|✅ Yes| G["🚀 Try CDN First (~50ms)"]
+    F -->|❌ No| H["📁 Direct S3 (~100-200ms)"]
+    
+    G --> I{CDN Success?}
+    I -->|✅ Yes| J["Return CDN Data"]
+    I -->|❌ No| K["Fallback to S3"]
+    
+    %% S3 Operations (Peer Level)
+    E --> L[S3Client.GetObjectCommand]
+    H --> L
+    K --> L
+    L --> M["📁 Return S3 Data"]
+    
+    %% Write Operations (Parallel)
+    B -->|Write| N[Write Operations]
+    N --> O[JSON.stringify / Buffer Processing]
+    O --> P[S3Client.PutObjectCommand]
+    P --> Q[Public ACL for CDN Access]
+    Q --> R["💾 S3 Upload (~200-500ms)"]
+    
+    %% Management Operations (Parallel)
+    B -->|Management| S[Management Operations]
+    S --> T[S3Client.ListObjectsCommand]
+    S --> U[S3Client.DeleteObjectCommand]
+    
+    %% Storage Organization
+    subgraph Storage ["🗂️ S3 Organization"]
+        V["images/ - handled by image-handling"]
+        W["opengraph/ - handled by image-handling & json-handling"]
+        X["bookmarks/ - handled by json-handling"]
+        Y["github/ - handled by json-handling"]
+    end
+    
+    %% Critical Issues
+    subgraph Issues ["🚨 Critical Issues"]
+        AA["CDN Decision: Hardcoded by file extension"]
+        BB["Error Handling: Limited S3 error coverage"]
+        CC["Concurrency: Race conditions in logo key initialization"]
+        DD["No refresh mechanism for stale logos"]
+    end
+    
+    style A fill:#e1f5fe
+    style AA fill:#ffebee
+    style BB fill:#ffebee
+    style CC fill:#ffebee
+    style DD fill:#ffebee
+    style J fill:#e8f5e8
+    style M fill:#fff3e0
+    style R fill:#fce4ec

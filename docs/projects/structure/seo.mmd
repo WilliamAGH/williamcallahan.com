@@ -1,0 +1,89 @@
+graph TB
+    %% SEO Architecture Overview
+    
+    subgraph "Metadata Configuration"
+        METADATA[data/metadata.ts<br/>Site constants & defaults]
+        TYPES[types/seo/*<br/>Type definitions & validation]
+    end
+    
+    subgraph "Core SEO Library (lib/seo/)"
+        INDEX[index.ts<br/>Barrel exports & core functions]
+        META[metadata.ts<br/>Metadata generation]
+        SCHEMA[schema.ts<br/>JSON-LD generation]
+        OG[opengraph.ts<br/>OpenGraph metadata]
+        UTILS[utils.ts<br/>Date formatting & URLs]
+        CONST[constants.ts<br/>Field name constants]
+    end
+    
+    subgraph "Page Implementation"
+        PAGES[app/**/page.tsx<br/>Page components]
+        JSONLD[components/seo/json-ld.tsx<br/>JSON-LD renderer]
+        OGLOGO[components/seo/opengraph-logo.tsx<br/>OG logo meta tag]
+    end
+    
+    subgraph "Site Indexing"
+        ROBOTS[app/robots.ts<br/>Dynamic robots.txt]
+        SITEMAP[app/sitemap.ts<br/>Dynamic sitemap.xml]
+    end
+    
+    subgraph "Content Sources"
+        BLOG[data/blog/posts.ts]
+        BOOKMARKS[Bookmarks API/Cache]
+        STATIC[Static Routes]
+    end
+    
+    subgraph "Automated Submission"
+        SCHEDULER[scripts/scheduler.ts<br/>Cron orchestrator]
+        SUBMIT[scripts/submit-sitemap.ts<br/>Search engine submission]
+    end
+    
+    subgraph "External Services"
+        GOOGLE[Google Search Console API]
+        BING[Bing IndexNow API]
+    end
+    
+    %% Data Flow - Metadata Generation
+    METADATA --> INDEX
+    TYPES --> INDEX
+    INDEX --> META
+    META --> SCHEMA
+    META --> OG
+    UTILS --> META
+    CONST --> META
+    PAGES --> INDEX
+    INDEX --> PAGES
+    JSONLD --> PAGES
+    OGLOGO --> PAGES
+    
+    %% Data Flow - Sitemap Generation
+    BLOG --> SITEMAP
+    BOOKMARKS --> SITEMAP
+    STATIC --> SITEMAP
+    METADATA --> SITEMAP
+    
+    %% Data Flow - Submission
+    SCHEDULER -->|Every 2 hours| LOCK[refresh-lock.json (Distributed Lock)]
+    LOCK -->|Acquired| BOOKMARKS
+    LOCK -->|Held by another process| WAIT[Skip – already refreshing]
+    BOOKMARKS -->|On success| SUBMIT
+    SUBMIT --> SITEMAP
+    SUBMIT --> GOOGLE
+    SUBMIT --> BING
+    
+    %% Styling
+    classDef config fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef lib fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef page fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef index fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef data fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef auto fill:#f1f8e9,stroke:#33691e,stroke-width:2px
+    classDef external fill:#ffebee,stroke:#b71c1c,stroke-width:2px
+    
+    class METADATA,TYPES config
+    class INDEX,META,SCHEMA,OG,UTILS,CONST lib
+    class PAGES,JSONLD,OGLOGO page
+    class ROBOTS,SITEMAP index
+    class BLOG,BOOKMARKS,STATIC data
+    class SCHEDULER,SUBMIT auto
+    class GOOGLE,BING external
+    class LOCK,WAIT auto

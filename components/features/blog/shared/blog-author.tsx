@@ -9,10 +9,12 @@
  * @param {Author} props.author - Author information including name, avatar, and bio
  */
 
-import Image from 'next/image';
-import Link from 'next/link';
-import type { Author } from 'types/blog';
-import { useState, useEffect } from 'react';
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import type { Author } from "types/blog";
 
 interface BlogAuthorProps {
   author: Author;
@@ -50,9 +52,7 @@ export function BlogAuthor({ author }: BlogAuthorProps) {
       <div>
         <div className="font-semibold text-gray-900 dark:text-white text-lg">{author.name}</div>
         {author.bio && (
-          <p className="text-sm text-gray-700 dark:text-gray-400 mt-1">
-            {author.bio}
-          </p>
+          <p className="text-sm text-gray-700 dark:text-gray-400 mt-1">{author.bio}</p>
         )}
       </div>
     </Link>

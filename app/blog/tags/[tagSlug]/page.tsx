@@ -1,16 +1,16 @@
-import type { Metadata } from 'next';
-import fs from 'node:fs';
-import path from 'node:path';
-import matter from 'gray-matter';
-import { BlogList } from '@/components/features/blog/blog-list';
-import type { BlogPost, Author } from '@/types/blog';
-import { metadata } from '@/data/metadata';
-import { kebabCase, deslugify } from '@/lib/utils/formatters';
+import fs from "node:fs";
+import path from "node:path";
+import { BlogList } from "@/components/features/blog/blog-list";
+import { metadata } from "@/data/metadata";
+import { deslugify, kebabCase } from "@/lib/utils/formatters";
+import type { Author, BlogPost } from "@/types/blog";
+import matter from "gray-matter";
+import type { Metadata } from "next";
 
 import type { JSX } from "react";
 
 // Directory where blog posts are stored
-const postsDirectory = path.join(process.cwd(), 'data/blog/posts');
+const postsDirectory = path.join(process.cwd(), "data/blog/posts");
 
 // Define the expected structure of frontmatter data for this page
 interface PageFrontmatter {
@@ -26,11 +26,11 @@ interface PageFrontmatter {
 
 // Define the primary author based on site metadata
 const primaryAuthor: Author = {
-  id: 'william-callahan', // Assuming a fixed ID for the main author
+  id: "william-callahan", // Assuming a fixed ID for the main author
   name: metadata.author,
   // Add avatar/bio/url if available in metadata or define statically
-  url: metadata.social.profiles.find(p => p.includes('linkedin')) || metadata.url,
-  avatar: '/images/profile.jpg' // Example static avatar
+  url: metadata.social.profiles.find((p) => p.includes("linkedin")) || metadata.url,
+  avatar: "/images/profile.jpg", // Example static avatar
 };
 
 /**
@@ -42,20 +42,27 @@ function getAllPosts(): BlogPost[] {
     const filenames = fs.readdirSync(postsDirectory);
 
     const posts = filenames
-      .filter((filename) => filename.endsWith('.mdx'))
+      .filter((filename) => filename.endsWith(".mdx"))
       .map((filename) => {
         const filePath = path.join(postsDirectory, filename);
-        const fileContents = fs.readFileSync(filePath, 'utf8');
+        const fileContents = fs.readFileSync(filePath, "utf8");
         // Cast the frontmatter data to the defined interface, via unknown
         const { data: frontmatter, content: rawContent } = matter(fileContents) as unknown as {
           data: PageFrontmatter;
           content: string;
         };
-        const slug = filename.replace(/\.mdx$/, '');
+        const slug = filename.replace(/\.mdx$/, "");
 
         // Basic validation using the typed frontmatter
-        if (!frontmatter.title || !frontmatter.publishedAt || !frontmatter.tags || !frontmatter.author) {
-          console.warn(`Skipping post ${filename}: Missing essential frontmatter (title, publishedAt, tags, author)`);
+        if (
+          !frontmatter.title ||
+          !frontmatter.publishedAt ||
+          !frontmatter.tags ||
+          !frontmatter.author
+        ) {
+          console.warn(
+            `Skipping post ${filename}: Missing essential frontmatter (title, publishedAt, tags, author)`,
+          );
           return null;
         }
 
@@ -67,9 +74,9 @@ function getAllPosts(): BlogPost[] {
           id: slug, // Use slug as ID for now
           slug,
           title: frontmatter.title, // Now frontmatter.title is string
-          excerpt: frontmatter.excerpt || '', // frontmatter.excerpt is string | undefined
+          excerpt: frontmatter.excerpt || "", // frontmatter.excerpt is string | undefined
           // Simulate MDXRemoteSerializeResult - not needed for list view
-          content: { compiledSource: '', scope: {}, frontmatter: {} },
+          content: { compiledSource: "", scope: {}, frontmatter: {} },
           rawContent: rawContent,
           publishedAt: String(frontmatter.publishedAt), // Convert Date to string if necessary
           updatedAt: frontmatter.updatedAt ? String(frontmatter.updatedAt) : undefined,
@@ -102,7 +109,7 @@ export async function generateStaticParams(): Promise<{ tagSlug: string }[]> {
       tags.add(kebabCase(tag));
     }
   }
-  return Array.from(tags).map(tag => ({ tagSlug: tag }));
+  return Array.from(tags).map((tag) => ({ tagSlug: tag }));
 }
 
 /**
@@ -111,7 +118,9 @@ export async function generateStaticParams(): Promise<{ tagSlug: string }[]> {
  * @param {string} params.tagSlug - The slug of the tag.
  * @returns {Promise<Metadata>} The metadata object for the page.
  */
-export async function generateMetadata({ params }: { params: { tagSlug: string } }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: { params: { tagSlug: string } }): Promise<Metadata> {
   // Use Promise.resolve to satisfy require-await rule
   const tagName = await Promise.resolve(deslugify(params.tagSlug));
   const title = `Posts tagged "${tagName}"`;
@@ -129,12 +138,12 @@ export async function generateMetadata({ params }: { params: { tagSlug: string }
       description: description,
       url: url,
       siteName: metadata.site.name,
-      type: 'website',
-      locale: 'en_US',
+      type: "website",
+      locale: "en_US",
       images: metadata.openGraph.images, // Use openGraph images
     },
     twitter: {
-      card: 'summary_large_image',
+      card: "summary_large_image",
       title: title,
       description: description,
       images: metadata.openGraph.images, // Use openGraph images for Twitter too
@@ -149,12 +158,14 @@ export async function generateMetadata({ params }: { params: { tagSlug: string }
  * @param {string} params.tagSlug - The URL-friendly tag slug.
  * @returns {JSX.Element} The rendered page component.
  */
-export default async function TagPage({ params }: { params: { tagSlug: string } }): Promise<JSX.Element> {
+export default async function TagPage({
+  params,
+}: { params: { tagSlug: string } }): Promise<JSX.Element> {
   const { tagSlug } = params;
   const allPosts = getAllPosts();
 
-  const filteredPosts = allPosts.filter(post =>
-    post.tags.map((tag: string) => kebabCase(tag)).includes(tagSlug)
+  const filteredPosts = allPosts.filter((post) =>
+    post.tags.map((tag: string) => kebabCase(tag)).includes(tagSlug),
   );
 
   // Wrap in Promise.resolve to satisfy linter's await-thenable rule

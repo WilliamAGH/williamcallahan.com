@@ -1,0 +1,109 @@
+graph TD
+    subgraph "Application Layer"
+        APP[Application Code]
+        COMP[React Components]
+        API[API Routes]
+        TEST[Test Environment]
+    end
+
+    subgraph "Logging Infrastructure"
+        LOGGER[logger.ts<br/>Global Logger]
+        ENVLOG[utils/logger.ts<br/>Environment Logger]
+        DEBUG[utils/debug.ts<br/>Debug Functions]
+        SILENT{isSilent Flag}
+        CONSOLE[Console Output]
+    end
+
+    subgraph "Error Handling"
+        TYPES[types/error.ts<br/>Error Types]
+        ERRORS[lib/errors.ts<br/>Error Classes]
+        BOUNDARY[Error Boundaries]
+        PAGES[Error Pages]
+        RECOVERY[Recovery UI]
+    end
+
+    subgraph "Network Resilience"
+        RETRY[utils/retry.ts<br/>Retry Logic]
+        BACKOFF[Exponential<br/>Backoff]
+        FETCHMOCK[node-fetch<br/>Mock]
+    end
+
+    subgraph "Debug & Monitoring"
+        HEALTH[/api/health]
+        DEBUGAPI[/api/debug/*]
+        LOGAPI[/api/log-client-error]
+        TUNNEL[/api/tunnel]
+        IP[/api/ip]
+    end
+
+    subgraph "External Services"
+        SENTRY[Sentry<br/>Error Tracking]
+        METRICS[Performance<br/>Metrics]
+        EXTAPI[External APIs]
+    end
+
+    subgraph "Instrumentation"
+        INSTSERVER[instrumentation.ts<br/>Server Setup]
+        INSTCLIENT[instrumentation-client.ts<br/>Client Setup]
+    end
+
+    %% Logging Flow
+    APP --> LOGGER
+    APP --> ENVLOG
+    APP --> DEBUG
+    TEST --> SILENT
+    LOGGER --> |Check isSilent| CONSOLE
+    ENVLOG --> |Check ENV| CONSOLE
+    DEBUG --> |Check NODE_ENV| CONSOLE
+
+    %% Error Flow
+    COMP --> |Throws| BOUNDARY
+    API --> |Throws| ERRORS
+    ERRORS --> TYPES
+    BOUNDARY --> RECOVERY
+    BOUNDARY --> PAGES
+    BOUNDARY --> SENTRY
+
+    %% Debug Endpoints
+    API --> HEALTH
+    API --> DEBUGAPI
+    API --> LOGAPI
+    API --> IP
+    API --> TUNNEL
+
+    %% Client Errors
+    COMP --> |Client Errors| LOGAPI
+    LOGAPI --> LOGGER
+
+    %% Sentry Integration
+    TUNNEL --> SENTRY
+    INSTSERVER --> SENTRY
+    INSTCLIENT --> SENTRY
+    PAGES --> SENTRY
+
+    %% Monitoring
+    HEALTH --> METRICS
+    SENTRY --> METRICS
+
+    %% Network Operations
+    API --> |API Calls| RETRY
+    RETRY --> BACKOFF
+    RETRY --> |Success| EXTAPI
+    RETRY --> |Failure| ERRORS
+    TEST --> FETCHMOCK
+    FETCHMOCK --> |Mock| RETRY
+
+    %% Security
+    DEBUGAPI --> |Bearer Token| AUTH{Auth Check}
+    AUTH --> |Valid| DATA[Debug Data]
+    AUTH --> |Invalid| DENY[403 Forbidden]
+
+    %% Styling
+    style SILENT fill:#f8d7da,stroke:#721c24
+    style AUTH fill:#fff3cd,stroke:#856404
+    style SENTRY fill:#d1ecf1,stroke:#0c5460
+    style BOUNDARY fill:#f8d7da,stroke:#721c24
+    style DENY fill:#f8d7da,stroke:#721c24
+    style DATA fill:#d4edda,stroke:#155724
+    style RETRY fill:#d4edda,stroke:#155724
+    style BACKOFF fill:#fff3cd,stroke:#856404

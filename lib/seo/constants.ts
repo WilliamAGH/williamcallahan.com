@@ -38,35 +38,35 @@
 export const SEO_DATE_FIELDS = {
   // OpenGraph article dates (primary standard for social sharing)
   openGraph: {
-    published: 'article:published_time',
-    modified: 'article:modified_time'
+    published: "article:published_time",
+    modified: "article:modified_time",
   },
   // Standard HTML meta dates
   meta: {
-    published: 'date',
-    modified: 'last-modified'
+    published: "date",
+    modified: "last-modified",
   },
   // Schema.org dates for JSON-LD structured data
   jsonLd: {
-    context: 'https://schema.org',
+    context: "https://schema.org",
     dateFields: {
-      created: 'dateCreated',
-      published: 'datePublished',
-      modified: 'dateModified'
+      created: "dateCreated",
+      published: "datePublished",
+      modified: "dateModified",
     },
     types: {
-      profile: 'ProfilePage',
-      article: 'Article',
-      person: 'Person',
-      collection: 'CollectionPage'
-    }
+      profile: "ProfilePage",
+      article: "Article",
+      person: "Person",
+      collection: "CollectionPage",
+    },
   },
   // Optional Dublin Core dates (legacy support)
   dublinCore: {
-    created: 'DC.date.created',
-    modified: 'DC.date.modified',
-    issued: 'DC.date.issued'
-  }
+    created: "DC.date.created",
+    modified: "DC.date.modified",
+    issued: "DC.date.issued",
+  },
 } as const;
 
 /**

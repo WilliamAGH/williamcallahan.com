@@ -7,9 +7,9 @@
 
 "use client";
 
-import { Component } from 'react';
-import type { ReactNode, ErrorInfo } from 'react';
 import * as Sentry from "@sentry/nextjs";
+import { Component } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -41,9 +41,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
 
     // Only log in development to avoid console pollution in production
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('Component error caught by ErrorBoundary:', error);
-      console.error('Component stack:', errorInfo.componentStack);
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Component error caught by ErrorBoundary:", error);
+      console.error("Component stack:", errorInfo.componentStack);
     }
   }
 
@@ -58,16 +58,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       if (this.props.silent) {
         // Check if we're on a mobile device (approximate detection)
         const isMobileDevice =
-          typeof window !== 'undefined' &&
-          ((typeof window.innerWidth !== 'undefined' && window.innerWidth <= 768) ||
-           (typeof navigator !== 'undefined' &&
-            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)));
+          typeof window !== "undefined" &&
+          ((typeof window.innerWidth !== "undefined" && window.innerWidth <= 768) ||
+            (typeof navigator !== "undefined" &&
+              /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                navigator.userAgent,
+              )));
 
         // For mobile devices, render an even more subtle fallback
         if (isMobileDevice) {
           return (
             <div className="py-1">
               <button
+                type="button"
                 onClick={() => this.setState({ hasError: false })}
                 className="text-xs text-gray-400 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-500"
                 aria-label="Reload component"
@@ -82,6 +85,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return (
           <div className="py-2">
             <button
+              type="button"
               onClick={() => this.setState({ hasError: false })}
               className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded text-gray-500 dark:text-gray-400"
             >
@@ -99,6 +103,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             We&apos;ve been notified and will fix this as soon as possible.
           </p>
           <button
+            type="button"
             onClick={() => this.setState({ hasError: false })}
             className="mt-2 px-3 py-1 text-xs bg-red-100 dark:bg-red-800/50 text-red-800 dark:text-red-300 rounded-md hover:bg-red-200 dark:hover:bg-red-800 transition-colors"
           >

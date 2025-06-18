@@ -1,13 +1,13 @@
-import { cache } from '../../lib/cache';
+import { cache } from "@/lib/cache";
 
-describe('cache', () => {
+describe("cache", () => {
   beforeEach(() => {
     cache.flushAll();
   });
 
-  it('should store and retrieve values', () => {
-    const key = 'test-key';
-    const value = { data: 'test-value' };
+  it("should store and retrieve values", () => {
+    const key = "test-key";
+    const value = { data: "test-value" };
 
     cache.set(key, value);
     const retrieved = cache.get(key);
@@ -15,14 +15,14 @@ describe('cache', () => {
     expect(retrieved).toEqual(value);
   });
 
-  it('should handle non-existent keys', () => {
-    const retrieved = cache.get('non-existent');
+  it("should handle non-existent keys", () => {
+    const retrieved = cache.get("non-existent");
     expect(retrieved).toBeUndefined();
   });
 
-  it('should respect TTL', async () => {
-    const key = 'ttl-test';
-    const value = 'test-value';
+  it("should respect TTL", async () => {
+    const key = "ttl-test";
+    const value = "test-value";
 
     // Set with 1 second TTL
     cache.set(key, value, 1);
@@ -31,15 +31,15 @@ describe('cache', () => {
     expect(cache.get(key)).toBe(value);
 
     // Wait for TTL to expire
-    await new Promise(resolve => setTimeout(resolve, 1100));
+    await new Promise((resolve) => setTimeout(resolve, 1100));
 
     // Value should be gone
     expect(cache.get(key)).toBeUndefined();
   });
 
-  it('should not clone stored objects', () => {
-    const key = 'object-test';
-    const value = { nested: { data: 'test' } };
+  it("should not clone stored objects", () => {
+    const key = "object-test";
+    const value = { nested: { data: "test" } };
     type TestValue = typeof value;
 
     cache.set(key, value);
@@ -47,17 +47,17 @@ describe('cache', () => {
 
     // Modify the retrieved object
     if (retrieved) {
-      retrieved.nested.data = 'modified';
+      retrieved.nested.data = "modified";
     }
 
     // Original cached value should also be modified due to useClones: false
     const retrievedAgain = cache.get<TestValue>(key);
-    expect(retrievedAgain?.nested.data).toBe('modified');
+    expect(retrievedAgain?.nested.data).toBe("modified");
   });
 
-  it('should delete keys', () => {
-    const key = 'delete-test';
-    const value = 'test-value';
+  it("should delete keys", () => {
+    const key = "delete-test";
+    const value = "test-value";
 
     cache.set(key, value);
     expect(cache.get(key)).toBe(value);
@@ -66,19 +66,19 @@ describe('cache', () => {
     expect(cache.get(key)).toBeUndefined();
   });
 
-  it('should flush all keys', () => {
-    cache.set('key1', 'value1');
-    cache.set('key2', 'value2');
+  it("should flush all keys", () => {
+    cache.set("key1", "value1");
+    cache.set("key2", "value2");
 
     cache.flushAll();
 
-    expect(cache.get('key1')).toBeUndefined();
-    expect(cache.get('key2')).toBeUndefined();
+    expect(cache.get("key1")).toBeUndefined();
+    expect(cache.get("key2")).toBeUndefined();
   });
 
-  it('should get statistics', () => {
-    cache.set('key1', 'value1');
-    cache.set('key2', 'value2');
+  it("should get statistics", () => {
+    cache.set("key1", "value1");
+    cache.set("key2", "value2");
 
     const stats = cache.getStats();
 

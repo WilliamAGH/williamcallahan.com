@@ -1,0 +1,167 @@
+graph TD
+    subgraph "Orchestration Layer"
+        A[Bookmarks Feature]
+    end
+
+    subgraph "Core Functionalities"
+        B[json-handling]
+        C[image-handling]
+        D[s3-object-storage]
+        E[caching]
+    end
+
+    subgraph "External Services"
+        F[Karakeep API]
+    end
+
+    A -- "1. Fetch & Process Bookmarks" --> B
+    B -- "Fetches from" --> F
+    B -- "2. Returns Normalized JSON" --> A
+    
+    A -- "3. Enrich with Images" --> C
+    C -- "4. Returns Image URLs" --> A
+    
+    A -- "5. Persist Enriched JSON" --> D
+    
+    A -- "Caches results via" --> E
+
+    style A fill:#e1f5fe,stroke:#333,stroke-width:2px
+    classDef core fill:#d4edda,stroke:#155724
+    class B,C,D,E core;
+    
+    %% Entry Points
+    A["📖 Bookmark Request"] --> B{Request Type?}
+    B -->|Static Generation| C[getBookmarksForStaticBuild]
+    B -->|Component Rendering| D[getBookmarks]
+    B -->|API Call| E[Refresh Endpoints]
+    
+    %% Core Data Access - Priority Flow
+    C --> F[Data Access Layer]
+    D --> F
+    E --> G[Force Refresh]
+    
+    F --> H{Memory Cache?}
+    H -->|✅ Hit + Fresh| I["Return Cached + Background Refresh if Stale"]
+    H -->|✅ Hit + Stale| J["Return Cached + Trigger Background Refresh"]
+    H -->|❌ Miss| K{S3 Storage?}
+    
+    K -->|✅ Hit| L["Load from S3 → Update Cache → Background Refresh"]
+    K -->|❌ Miss| M["Synchronous API Refresh (Cold Start)"]
+    
+    %% Lock Management - Critical Decision Point
+    G --> N{Acquire Lock?}
+    J --> O{Acquire Lock?}
+    L --> O
+    
+    N -->|❌ No| P["Another process refreshing - return existing"]
+    N -->|✅ Yes| Q[Full Karakeep API Refresh]
+    O -->|❌ No| R["Skip - already refreshing"]
+    O -->|✅ Yes| S[Background Karakeep Refresh]
+    
+    %% Karakeep API Integration
+    Q --> T[Fetch Paginated Bookmarks from Karakeep]
+    S --> T
+    M --> T
+    
+    T --> U[Normalize Raw API Data]
+    U --> V["Transform: RawApiBookmark → UnifiedBookmark"]
+    V --> W[OpenGraph Enhancement Pipeline]
+    
+    %% OpenGraph Enhancement - Batch Processing
+    W --> X["Batch Process (5 concurrent, 1s delays)"]
+    X --> Y{OG Fetch Success?}
+    Y -->|✅ Yes| Z[Enhance with OG metadata + S3 image storage]
+    Y -->|❌ No| AA["🚨 MISSING: Should use Karakeep fallback!"]
+    
+    %% Asset Integration
+    subgraph Assets ["🖼️ Asset Management"]
+        BB["/api/assets/[id] - Proxy to Karakeep"]
+        CC["Stream with Bearer token auth"]
+        DD["Cache headers for optimization"]
+    end
+    
+    %% Data Persistence
+    Z --> EE[Enhanced Bookmark Data]
+    AA --> EE
+    EE --> FF[S3 Persistence: bookmarks/bookmarks.json]
+    FF --> GG[Update Memory Cache]
+    GG --> HH[Release Lock]
+    
+    %% Performance Characteristics
+    I --> II["⚡ 1-5ms (Cache Hit)"]
+    L --> JJ["🏃 50-200ms (S3 Hit)"]
+    M --> KK["🐌 10-30s (Cold Start)"]
+    
+    %% Data Transformation Chain
+    subgraph Transform ["🔄 Data Flow"]
+        LL["Karakeep API: id, title, content, tags, assets"]
+        MM["→ UnifiedBookmark: normalized structure"]
+        NN["→ OpenGraph Enhanced: improved metadata + images"]
+        OO["→ S3 Stored: persistent, fast access"]
+    end
+    
+    %% Issues Resolved
+    subgraph Resolved ["✅ Issues Fixed"]
+        AA["✅ OpenGraph fallback now uses Karakeep assets"]
+        PP["✅ Circular dependency broken via callback pattern"]
+        QQ["✅ Atomic S3 locking implemented with IfNoneMatch"]
+        RR["✅ Server no longer makes HTTP calls to itself"]
+        SS["✅ Pagination implemented with infinite scroll & manual controls"]
+        TT["✅ Per-card API calls eliminated - 96% reduction in requests"]
+        UU["✅ Singleton initialization prevents duplicate setups"]
+        VV["✅ Request deduplication prevents concurrent refreshes"]
+        WW["✅ Tag navigation with URL routing and special char support"]
+    end
+    
+    %% Performance Improvements
+    subgraph Performance ["⚡ Performance Gains"]
+        W1["API calls per page: 25+ → 1 (96% reduction)"]
+        W2["Page load time: 2-3s → <500ms"]
+        W3["Memory usage: Stable with singleton pattern"]
+        W4["Concurrent requests: Properly deduplicated"]
+    end
+    
+    %% Integration Points
+    subgraph Integration ["🔗 Integration"]
+        INT1["Static Pages: generateStaticParams()"]
+        INT2["Components: <BookmarksServer />"]
+        INT3["API Routes: /api/bookmarks/refresh"]
+        INT4["Individual Pages: app/bookmarks/[slug]"]
+        INT5["Tag Pages: app/bookmarks/tags/[tagSlug]"]
+    end
+    
+    %% Navigation Flow (NEW)
+    subgraph Navigation ["🧭 Navigation Flow"]
+        NAV1["Tag Click → Update State"]
+        NAV2["useEffect → Check URL"]
+        NAV3["router.push → Navigate"]
+        NAV4["Special Chars → Safe Slugs"]
+    end
+    
+    NAV1 --> NAV2
+    NAV2 --> NAV3
+    NAV4 --> NAV3
+    
+    %% Safeguards & Timing (NEW)
+    subgraph "Safeguards & Timing"
+        SAFE1["inFlightGetPromise – request coalescing"]
+        SAFE2["15-min Background-Refresh Cool-down"]
+        SAFE3["validateBookmarksDataset()/validateCachedData"]
+        SAFE4["Cache TTLs: 7 d success / 1 h fail / 1 h revalidation"]
+    end
+    
+    style A fill:#e1f5fe
+    style AA fill:#ffebee
+    style PP fill:#ffebee
+    style QQ fill:#ffebee
+    style RR fill:#ffebee
+    style TT fill:#ffebee
+    style UU fill:#ffebee
+    style VV fill:#ffebee
+    style II fill:#e8f5e8
+    style JJ fill:#fff3e0
+    style KK fill:#fce4ec
+    style SAFE1 fill:#fffde7,stroke:#f57f17
+    style SAFE2 fill:#fffde7,stroke:#f57f17
+    style SAFE3 fill:#fffde7,stroke:#f57f17
+    style SAFE4 fill:#fffde7,stroke:#f57f17 

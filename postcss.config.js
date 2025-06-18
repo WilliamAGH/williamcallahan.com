@@ -1,28 +1,39 @@
+/**
+ * PostCSS Configuration for Next.js (2025)
+ * Modern configuration that follows Next.js best practices
+ * @see https://nextjs.org/docs/pages/guides/post-css
+ */
+
 export default {
   plugins: {
-    'tailwindcss/nesting': {},
-    'tailwindcss': {},
-    'autoprefixer': {
-      flexbox: 'no-2009',
-      grid: true
+    // Tailwind CSS nesting support
+    "tailwindcss/nesting": {},
+    
+    // Tailwind CSS
+    "tailwindcss": {
+      config: "./config/tailwind.config.js",
     },
-    'postcss-preset-env': {
-      stage: 2,
+    
+    // Autoprefixer with modern browser support
+    "autoprefixer": {
+      // Support flexbox (IE10+) but not IE9 flexbox
+      flexbox: "no-2009",
+      // Disable grid autoplacement warnings for third-party CSS
+      grid: false,
+    },
+    
+    // PostCSS Preset Env for modern CSS features
+    "postcss-preset-env": {
+      // Stage 3 features (stable)
+      stage: 3,
       features: {
-        'nesting-rules': true,
-        'custom-properties': false,
-        'is-pseudo-class': false,
-        'custom-media-queries': true,
-        'gap-properties': true,
-        'logical-properties-and-values': true
+        // Disable custom properties (CSS variables) polyfill
+        "custom-properties": false,
+        // Enable nesting rules
+        "nesting-rules": true,
       },
-      browsers: [
-        'defaults',
-        'not IE 11'
-      ],
-      autoprefixer: {
-        grid: true
-      }
-    }
-  }
-};
+      // Modern browser support (no IE11)
+      browsers: ["> 0.5%", "last 2 versions", "not dead", "not IE 11"],
+    },
+  },
+}; 

@@ -1,0 +1,40 @@
+graph TD
+    A[State, Theme & Window Providers] --> B[Theme Management]
+    A --> C[Terminal State]
+    A --> D[Window State Management]
+    
+    B --> E[ThemeProvider]
+    E --> F[System Theme Detection]
+    E --> G[Light/Dark Toggle]
+    E --> H[24-hour Expiry]
+    E --> I[Dark Reader Support]
+    
+    C --> J[TerminalProvider]
+    J --> K[Visibility Toggle]
+    J --> L[Command History]
+    J --> M[Selection State]
+    
+    D --> N[GlobalWindowRegistryProvider]
+    N --> O[Window Size Tracking]
+    N --> P[Window State Management]
+    N --> Q[Multi-Window Coordination]
+    
+    O --> R[use-window-size Hook]
+    R --> S[Resize Events]
+    R --> T[Dimension Updates]
+    
+    P --> U[use-window-state Hook]
+    U --> V[State Persistence]
+    U --> W[Hydration Safety]
+    
+    Q --> X[Window Registry Context]
+    X --> Y[State Actions]
+    Y --> Z[Minimize/Maximize/Close]
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px,color:#000
+    style B fill:#bbf,stroke:#333,stroke-width:2px,color:#000
+    style C fill:#bbf,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#bbf,stroke:#333,stroke-width:2px,color:#000
+    style E fill:#bfb,stroke:#333,color:#000
+    style J fill:#bfb,stroke:#333,color:#000
+    style N fill:#bfb,stroke:#333,color:#000

@@ -1,0 +1,83 @@
+```mermaid
+graph TB
+    subgraph "Hooks Infrastructure"
+        subgraph "Navigation & Scrolling"
+            AS[use-anchor-scroll]
+            AS --> |"Opens if needed"| CD[CollapseDropdown]
+            AS --> |"Retry logic"| EB[Exponential Backoff]
+            AS --> |"Browser detection"| FF[Firefox Optimization]
+        end
+
+        subgraph "SVG Processing"
+            FST[use-fix-svg-transforms]
+            FST --> |"Returns ref"| REF[Container Ref]
+            FST --> |"Watches for"| MO[MutationObserver]
+            FST --> |"Calls"| PST[processSvgTransforms]
+        end
+
+        subgraph "SSR Compatibility"
+            ILE[use-isomorphic-layout-effect]
+            ILE --> |"Client"| ULE[useLayoutEffect]
+            ILE --> |"Server"| UE[useEffect]
+        end
+
+        subgraph "Data Fetching"
+            UL[use-logo]
+            UL --> |"Calls"| FL[fetchLogo]
+            UL --> |"Returns"| LS[logoUrl, error]
+            UL --> |"Cleanup"| CM[Component Mount Check]
+        end
+
+        subgraph "Window Management"
+            UWS[use-window-size]
+            UWST[use-window-state]
+            
+            UWS --> |"Tracks"| WD[Window Dimensions]
+            UWS --> |"Listens"| RE[Resize Events]
+            
+            UWST --> |"States"| WST[normal/minimized/maximized/closed]
+            UWST --> |"Persists to"| SS[sessionStorage]
+            UWST --> |"Methods"| WM[closeWindow/minimizeWindow/maximizeWindow]
+        end
+    end
+
+    subgraph "Provider Integration"
+        GWR[GlobalWindowRegistryProvider]
+        TP[ThemeProvider]
+        TP2[TerminalProvider]
+        
+        UWST --> |"Integrates with"| GWR
+        UWS --> |"Used by"| GWR
+    end
+
+    subgraph "Common Patterns"
+        SSR[SSR Safety]
+        PERF[Performance]
+        ERR[Error Handling]
+        TS[TypeScript]
+        
+        SSR --> |"undefined initial"| UWS
+        SSR --> |"isReady flag"| UWST
+        SSR --> |"typeof window"| ILE
+        
+        PERF --> |"useCallback"| AS
+        PERF --> |"useMemo"| UWST
+        PERF --> |"Cleanup"| UL
+        
+        ERR --> |"try-catch"| UWST
+        ERR --> |"Graceful degradation"| FST
+        
+        TS --> |"Generic types"| FST
+        TS --> |"JSDoc"| All[All Hooks]
+    end
+
+    style AS fill:#e1f5fe
+    style FST fill:#f3e5f5
+    style ILE fill:#fff3e0
+    style UL fill:#e8f5e9
+    style UWS fill:#fce4ec
+    style UWST fill:#fce4ec
+    style GWR fill:#e0f2f1
+    style TP fill:#e0f2f1
+    style TP2 fill:#e0f2f1
+```

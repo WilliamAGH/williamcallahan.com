@@ -1,7 +1,7 @@
 "use client";
 
-import React from 'react';
-import type { LucideProps } from 'lucide-react';
+import type { LucideProps } from "lucide-react";
+import type React from "react";
 
 /**
  * IconWrapper - A wrapper component for Lucide icons that works with Dark Reader

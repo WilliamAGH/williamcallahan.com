@@ -1,0 +1,18 @@
+graph TD
+    subgraph "Build Time / Server-Side"
+        A[data/experience.ts] --> B[Page Component - app/experience/page.tsx];
+        B -- "Maps over data, renders" --> C[ExperienceCardServer];
+        C -- "Fetches logo with" --> D[lib/logo.server];
+        C -- "Creates data URL, renders" --> E[ExperienceCardClient];
+        B -- "Renders" --> F[Skills Component];
+    end
+
+    subgraph "Client-Side"
+        G[ExperienceClient] -- "Receives pre-rendered cards from" --> B;
+        G -- "Renders" --> E;
+        G -- "Manages" --> H[Window State];
+    end
+
+    style A fill:#fef,stroke:#333,stroke-width:2px
+    style B fill:#ccf,stroke:#333,stroke-width:2px
+    style G fill:#f9f,stroke:#333,stroke-width:2px 

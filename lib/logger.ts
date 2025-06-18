@@ -20,5 +20,5 @@ export const logger = {
   },
   setSilent: (silent: boolean) => {
     isSilent = silent;
-  }
+  },
 };

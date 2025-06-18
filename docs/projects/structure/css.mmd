@@ -1,0 +1,85 @@
+graph TB
+    subgraph "CSS Architecture"
+        globals["app/globals.css<br/>• Tailwind directives<br/>• CSS variables<br/>• Global styles"]
+        
+        subgraph "Component CSS"
+            codeblocks["app/code-blocks.css<br/>• Dark mode tokens<br/>• Prism overrides"]
+            simpletabs["components/ui/simple-tabs.css<br/>• CSS-only tabs<br/>• Package managers"]
+            socialstyles["styles/social-styles.css<br/>• Hover effects<br/>• Brand colors"]
+            prism["prism.css<br/>• Syntax highlighting<br/>• Token colors"]
+        end
+        
+        subgraph "Theming System"
+            cssVars["CSS Custom Properties<br/>• Light/Dark modes<br/>• Component tokens"]
+            darkMode["Dark Mode<br/>• Class-based (.dark)<br/>• next-themes"]
+        end
+        
+        subgraph "Styling Approach"
+            tailwind["Tailwind CSS<br/>• Utility-first<br/>• Responsive"]
+            custom["Custom CSS<br/>• Animations<br/>• Complex states"]
+        end
+    end
+    
+    subgraph "Components Using CSS"
+        terminal["Terminal<br/>• Selection styles<br/>• Custom scrollbar"]
+        codeComp["Code Blocks<br/>• Syntax colors<br/>• Copy button"]
+        social["Social Cards<br/>• Glow effects<br/>• Animations"]
+        nav["Navigation<br/>• Window states<br/>• Mobile fixes"]
+        blog["Blog Articles<br/>• Typography & layout<br/>• MDX content"]
+    end
+    
+    subgraph "Issues & Improvements"
+        duplicates["Duplicate Styles<br/>• Token colors<br/>• Repeated selectors"]
+        unused["Dead Code<br/>• Chart variables<br/>• Height: 0 bars"]
+        perf["Performance<br/>• Specificity<br/>• !important usage"]
+    end
+    
+    %% Main relationships
+    globals --> cssVars
+    globals --> tailwind
+    cssVars --> darkMode
+    
+    %% Component relationships
+    codeblocks --> prism
+    prism --> codeComp
+    simpletabs --> terminal
+    socialstyles --> social
+    globals --> nav
+    
+    %% Usage relationships
+    terminal --> custom
+    codeComp --> custom
+    social --> custom
+    nav --> tailwind
+    
+    %% Issue relationships
+    codeblocks -.-> duplicates
+    prism -.-> duplicates
+    socialstyles -.-> unused
+    globals -.-> perf
+    
+    %% Styling approach
+    tailwind --> globals
+    custom --> globals
+    
+    %% Build Pipeline
+    subgraph "Build Pipeline"
+        tailwindConfig["tailwind.config.js<br/>• Design tokens<br/>• Custom animations"]
+        postcss["PostCSS Pipeline<br/>• Nesting & preset-env<br/>• Autoprefixer"]
+        runtimeUtils["Runtime Utilities<br/>• tailwind-merge<br/>• framer-motion"]
+    end
+    
+    classDef primary fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef component fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef issue fill:#ffebee,stroke:#b71c1c,stroke-width:2px
+    classDef system fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    
+    class globals,tailwind,cssVars primary
+    class codeblocks,simpletabs,socialstyles,prism component
+    class duplicates,unused,perf issue
+    class darkMode,custom system
+
+    blog --> tailwind
+    tailwindConfig --> tailwind
+    postcss --> tailwind
+    runtimeUtils --> tailwind
