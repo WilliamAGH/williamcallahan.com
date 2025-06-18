@@ -7,6 +7,7 @@ The "blog-article" functionality encompasses components and utilities that manag
 ## Key Files and Responsibilities
 
 ### Components
+
 - **components/features/blog/standard-tweet-embed.client.tsx**: A component for embedding tweets in blog articles using a standard approach.
 - **components/features/blog/tweet-embed.tsx**: Embeds tweets using react-tweet with an image proxy for enhanced display in blog content.
 - **components/features/blog/blog-article/blog-article.client.tsx**: Client-side component for rendering article content and metadata.
@@ -20,6 +21,7 @@ The "blog-article" functionality encompasses components and utilities that manag
 - **components/ui/simple-tabs.css**: Provides styling for tab functionality in MDX content, managing tab panel visibility and button styles for active and hover states in both light and dark themes.
 
 ### API Routes
+
 - **app/api/posts/route.ts**: API endpoint for blog post data retrieval.
   - Properly sanitizes blog posts before sending to client
   - Removes sensitive fields like `filePath` and `rawContent`
@@ -35,6 +37,7 @@ The "blog-article" functionality encompasses components and utilities that manag
   - Streams responses to avoid memory overhead
 
 ### Pages
+
 - **app/blog/[slug]/page.tsx**: Individual blog post page
   - **🟠 HIGH**: Incorrectly serializes MDX object for SEO instead of raw content
   - Implements ISR with 1-hour revalidation
@@ -45,6 +48,7 @@ The "blog-article" functionality encompasses components and utilities that manag
   - Duplicates logic from centralized blog utilities
 
 ### Content Files
+
 - **data/blog/posts/*.mdx**: Blog post content files (22 posts)
   - Written in MDX format (Markdown with JSX)
   - Includes frontmatter metadata (title, author, date, tags, etc.)
@@ -53,6 +57,7 @@ The "blog-article" functionality encompasses components and utilities that manag
   - Processed by MDX compiler with custom plugins
 
 ### Libraries
+
 - **lib/blog.ts**: Main blog data management
   - Combines posts from multiple sources
   - Proper error handling and logging
@@ -76,7 +81,7 @@ The "blog-article" functionality encompasses components and utilities that manag
 - Responsive design is a key aspect, ensuring accessibility and usability across device sizes.
 - Integration with external services for embeds and metadata enhances user engagement and search visibility.
 
-# Blog Article Components
+## Blog Article Components
 
 **Functionality:** `blog-article`
 

@@ -62,7 +62,9 @@ graph TB
     METADATA --> SITEMAP
     
     %% Data Flow - Submission
-    SCHEDULER -->|Every 2 hours| BOOKMARKS
+    SCHEDULER -->|Every 2 hours| LOCK[refresh-lock.json (Distributed Lock)]
+    LOCK -->|Acquired| BOOKMARKS
+    LOCK -->|Held by another process| WAIT[Skip – already refreshing]
     BOOKMARKS -->|On success| SUBMIT
     SUBMIT --> SITEMAP
     SUBMIT --> GOOGLE
@@ -84,3 +86,4 @@ graph TB
     class BLOG,BOOKMARKS,STATIC data
     class SCHEDULER,SUBMIT auto
     class GOOGLE,BING external
+    class LOCK,WAIT auto

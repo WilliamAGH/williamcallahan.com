@@ -88,4 +88,20 @@ graph TD
     class J,K slow;
     style M fill:#e1f5fe,stroke:#333
 
+    %% OpenGraph Cache (NEW)
+    subgraph "OpenGraph Cache"
+        OGC1["OgCacheEntry – 7 d success / 2 h fail"]
+        OGC2["shouldRefreshOpenGraph() decision"]
+    end
+
+    B --> OG1
+    E --> OG1
+    OG1 --> OGC1
+    OGC1 -->|HIT + Fresh| N
+    OGC1 -->|Stale| OGC2
+    OGC2 --> OG2
+
+    style OGC1 fill:#fffde7,stroke:#f57f17
+    style OGC2 fill:#fffde7,stroke:#f57f17
+
 </rewritten_file> 

@@ -128,6 +128,14 @@ graph TD
         XX["Individual Pages: app/bookmarks/[slug]"]
     end
     
+    %% Safeguards & Timing (NEW)
+    subgraph "Safeguards & Timing"
+        SAFE1["inFlightGetPromise – request coalescing"]
+        SAFE2["15-min Background-Refresh Cool-down"]
+        SAFE3["validateBookmarksDataset()/validateCachedData"]
+        SAFE4["Cache TTLs: 7 d success / 1 h fail / 1 h revalidation"]
+    end
+    
     style A fill:#e1f5fe
     style AA fill:#ffebee
     style PP fill:#ffebee
@@ -138,4 +146,8 @@ graph TD
     style VV fill:#ffebee
     style II fill:#e8f5e8
     style JJ fill:#fff3e0
-    style KK fill:#fce4ec 
+    style KK fill:#fce4ec
+    style SAFE1 fill:#fffde7,stroke:#f57f17
+    style SAFE2 fill:#fffde7,stroke:#f57f17
+    style SAFE3 fill:#fffde7,stroke:#f57f17
+    style SAFE4 fill:#fffde7,stroke:#f57f17 

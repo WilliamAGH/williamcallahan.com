@@ -53,6 +53,8 @@ The "seo" functionality manages search engine optimization by generating metadat
     - Command line options: `--sitemaps-only`, `--individual-only`, `--all`
 - **`scripts/scheduler.ts`**: Orchestrates automated tasks
   - Bookmark refresh: Every 2 hours → triggers sitemap submission
+  - **Distributed-Lock Aware**: Before starting a refresh it attempts to acquire the `bookmarks/refresh-lock*.json` object in S3. If another
+    instance already holds the lock the scheduler skips this cycle to avoid double-refreshing and duplicate sitemap submissions.
   - GitHub activity: Daily at midnight PT
   - Logo updates: Weekly on Sunday at 1 AM PT
   - Uses `node-cron` with jitter for load distribution

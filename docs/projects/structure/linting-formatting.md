@@ -47,6 +47,7 @@ Maintain consistent code quality, style, and formatting across the entire codeba
 ### Key Configuration Sections
 
 #### 1. TypeScript Project Setup
+
 ```typescript
 {
   languageOptions: {
@@ -59,6 +60,7 @@ Maintain consistent code quality, style, and formatting across the entire codeba
 ```
 
 **🔴 ISSUE**: The error shows `jest.config.ts` is not included in the TypeScript project. This needs to be fixed by either:
+
 - Adding `jest.config.ts` to the `include` array in `tsconfig.json`
 - Creating a separate TypeScript config override for config files
 - Adding it to the ESLint config file patterns
@@ -84,6 +86,7 @@ Maintain consistent code quality, style, and formatting across the entire codeba
 ### Custom Type Definitions
 
 **File: `types/eslint-custom-types.d.ts`**
+
 - Provides TypeScript definitions for ESLint plugins
 - Necessary for modules without built-in types
 - Includes MDX plugin type definitions
@@ -115,6 +118,7 @@ Maintain consistent code quality, style, and formatting across the entire codeba
 ```
 
 ### Biome Overrides
+
 - Config files: Disables `noExplicitAny` and `noForEach`
 - Test files: Disables import organization and `noExplicitAny`
 
@@ -208,6 +212,7 @@ Maintain consistent code quality, style, and formatting across the entire codeba
 ```
 
 This approach:
+
 - Keeps configuration files in TypeScript for better type safety
 - Avoids the overhead of type-aware linting for config files
 - Maintains a clear separation between application code and configuration
@@ -215,11 +220,13 @@ This approach:
 ### 2. Dual Tool Overlap
 
 ESLint and Biome have overlapping responsibilities:
+
 - **Import organization**: Both tools can organize imports
 - **Formatting**: Biome handles formatting, ESLint should not
 - **Linting**: Both provide linting rules
 
-**Current Resolution**: 
+**Current Resolution**:
+
 - Biome handles all formatting
 - ESLint focuses on code quality rules
 - Import organization is handled by Biome
@@ -227,6 +234,7 @@ ESLint and Biome have overlapping responsibilities:
 ### 3. MDX Files
 
 MDX files require special handling:
+
 - Custom processor for MDX content
 - Separate rules for code blocks within MDX
 - Type checking disabled for MDX files
