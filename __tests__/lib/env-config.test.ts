@@ -18,7 +18,7 @@
  */
 describe('Environment Variable Configuration', () => {
   /** Original process.env snapshot for restoration after each test */
-  const originalEnv = process.env;
+  const originalEnv = { ...process.env };
 
   /**
    * Pre-test setup ensuring clean module state and environment isolation
@@ -37,7 +37,7 @@ describe('Environment Variable Configuration', () => {
    */
   afterEach(() => {
     /** Restore original env */
-    process.env = originalEnv;
+    process.env = { ...originalEnv };
   });
 
   /**
