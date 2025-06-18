@@ -17,7 +17,7 @@ import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/valid
 // --- Configuration & Constants ---
 const LOG_PREFIX = "[Bookmarks]";
 const DISTRIBUTED_LOCK_S3_KEY = BOOKMARKS_S3_PATHS.LOCK;
-const LOCK_TTL_MS = 5 * 60 * 1000; // 5 minutes lock TTL (reduced from 10 minutes)
+const LOCK_TTL_MS = Number(process.env.BOOKMARKS_LOCK_TTL_MS) || 15 * 60 * 1000; // 15 minutes default (configurable via env)
 const LOCK_CLEANUP_INTERVAL_MS = 2 * 60 * 1000; // Check for stale locks every 2 minutes
 const INSTANCE_ID = `instance-${randomInt(1000000, 9999999)}-${Date.now()}`;
 
@@ -415,8 +415,8 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
     `[Bookmarks] getBookmarks called. skipExternalFetch=${skipExternalFetch}, cachedExists=${!!(cached?.bookmarks?.length)}, shouldRefresh=${shouldRefresh}, isRefreshLocked=${isRefreshLocked}`,
   );
 
-  // ALWAYS return cached data first if available and valid (even if stale)
-  if (cached?.bookmarks?.length && !shouldRefresh) {
+  // ALWAYS return cached data first if available and valid
+  if (cached?.bookmarks?.length) {
     // Validate cached data before returning
     const validation = validateBookmarkDataset(cached.bookmarks);
     if (!validation.isValid) {
@@ -429,14 +429,14 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
         `[Bookmarks] Returning ${cached.bookmarks.length} bookmarks from in-memory cache.`,
       );
 
-      // Trigger background refresh if needed (NON-BLOCKING)
-      if (canStartBackgroundRefresh()) {
-        console.log("[Bookmarks] Triggering background refresh (non-blocking).");
+      // Only trigger a background refresh if the data is considered stale.
+      if (shouldRefresh && canStartBackgroundRefresh()) {
+        console.log("[Bookmarks] Cached data is stale – triggering background refresh (non-blocking).");
         markBackgroundRefreshStarted();
         // Start background refresh without awaiting
         refreshInBackground().catch((error) => {
           console.error(
-            "[Bookmarks] Background refresh failed (called from getBookmarks initial cache check):",
+            "[Bookmarks] Background refresh failed (called from getBookmarks cache stale check):",
             error,
           );
         });

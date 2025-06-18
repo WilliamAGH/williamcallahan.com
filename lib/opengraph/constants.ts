@@ -12,11 +12,11 @@ export const OPENGRAPH_S3_KEY_DIR = "opengraph";
 export const OPENGRAPH_METADATA_S3_DIR = `${OPENGRAPH_S3_KEY_DIR}/metadata`;
 export const OPENGRAPH_IMAGES_S3_DIR = "images/opengraph";
 
-// Fetch Configuration
+// Fetch Configuration with environment variable overrides
 export const OPENGRAPH_FETCH_CONFIG = {
-  TIMEOUT: 10000, // 10 seconds
-  MAX_RETRIES: 3,
-  BACKOFF_BASE: 1000, // 1 second
+  TIMEOUT: Number(process.env.OG_FETCH_TIMEOUT_MS) || 7000, // 7 seconds default (reduced from 10s)
+  MAX_RETRIES: Number(process.env.OG_MAX_RETRIES) || 2, // 2 retries default (reduced from 3)
+  BACKOFF_BASE: Number(process.env.OG_RETRY_DELAY_MS) || 1000, // 1 second
   MAX_BACKOFF: 5000, // 5 seconds
   MAX_HTML_SIZE_BYTES: 5 * 1024 * 1024, // 5MB
   PARTIAL_HTML_SIZE: 512 * 1024, // 512KB for partial parsing

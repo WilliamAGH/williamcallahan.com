@@ -11,6 +11,7 @@ import type { SearchResult } from "../types/search";
 import MiniSearch from "minisearch";
 import { ServerCacheInstance } from "./server-cache";
 import { sanitizeSearchQuery } from "./validators/search";
+import { prepareDocumentsForIndexing } from "./utils/search-helpers";
 
 // --- MiniSearch Index Management ---
 
@@ -126,19 +127,27 @@ function getPostsIndex(): MiniSearch<BlogPost> {
         boost: { title: 2 }, // Title matches are more important
         fuzzy: 0.1,
         prefix: true
+      },
+      extractField: (document, fieldName) => {
+        // Handle virtual fields and array conversions
+        if (fieldName === 'authorName') {
+          return document.author?.name || '';
+        }
+        if (fieldName === 'tags') {
+          return Array.isArray(document.tags) ? document.tags.join(' ') : '';
+        }
+        // Default field extraction
+        const field = fieldName as keyof BlogPost;
+        const value = document[field];
+        return typeof value === 'string' ? value : '';
       }
     });
 
-    // Add posts directly with virtual fields
-    for (const post of posts) {
-      if (postsIndex) {
-        postsIndex.add({
-          ...post,
-          authorName: post.author?.name || '',
-          tags: Array.isArray(post.tags) ? post.tags.join(' ') : ''
-        } as BlogPost & { authorName: string; tags: string });
-      }
-    }
+    // Deduplicate posts by slug before adding to index
+    const dedupedPosts = prepareDocumentsForIndexing(posts, 'Blog Posts', (post) => post.slug);
+    
+    // Add posts directly - virtual fields are handled by extractField
+    postsIndex.addAll(dedupedPosts);
   }
   return postsIndex;
 }
@@ -184,7 +193,9 @@ function getInvestmentsIndex(): MiniSearch<typeof investments[0]> {
       }
     });
 
-    investmentsIndex.addAll(investments);
+    // Deduplicate investments by id before adding to index
+    const dedupedInvestments = prepareDocumentsForIndexing(investments, 'Investments');
+    investmentsIndex.addAll(dedupedInvestments);
   }
   return investmentsIndex;
 }
@@ -238,7 +249,9 @@ function getExperienceIndex(): MiniSearch<typeof experiences[0]> {
       }
     });
 
-    experienceIndex.addAll(experiences);
+    // Deduplicate experiences by id before adding to index
+    const dedupedExperiences = prepareDocumentsForIndexing(experiences, 'Experience');
+    experienceIndex.addAll(dedupedExperiences);
   }
   return experienceIndex;
 }
@@ -299,7 +312,9 @@ function getEducationIndex(): MiniSearch<EducationItem> {
       })),
     ];
 
-    educationIndex.addAll(allEducationItems);
+    // Deduplicate education items by id before adding to index
+    const dedupedEducationItems = prepareDocumentsForIndexing(allEducationItems, 'Education');
+    educationIndex.addAll(dedupedEducationItems);
   }
   return educationIndex;
 }
@@ -450,7 +465,9 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
         } : undefined
       }));
 
-      bookmarksIndex.addAll(bookmarksForIndex);
+      // Deduplicate bookmarks by id before adding to index
+      const dedupedBookmarks = prepareDocumentsForIndexing(bookmarksForIndex, 'Bookmarks');
+      bookmarksIndex.addAll(dedupedBookmarks);
       bookmarksIndexTimestamp = now;
     }
 
