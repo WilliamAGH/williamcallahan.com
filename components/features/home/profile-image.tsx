@@ -8,29 +8,18 @@ import Image from "next/image";
 
 export function ProfileImage() {
   return (
-    <div className="profile-image-container mx-auto">
-      <div 
-        className="relative w-full max-w-[280px] sm:w-80 md:w-64 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800"
-        style={{ 
-          width: '100%',
-          maxWidth: '280px',
-          height: 'auto',
-          aspectRatio: '1 / 1'
-        }}
-      >
-        <Image
-          src="/images/william-callahan-san-francisco.png"
-          alt="William Callahan in San Francisco"
-          fill
-          sizes="(max-width: 640px) 280px, (max-width: 768px) 320px, 256px"
-          className="object-cover rounded-full"
-          priority
-          style={{ 
-            borderRadius: '50%',
-            objectFit: 'cover'
-          }}
-        />
-      </div>
+    <div
+      className="mx-auto w-48 h-48 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800"
+    >
+      <Image
+        src="/images/william-callahan-san-francisco.png"
+        alt="William Callahan in San Francisco"
+        width={288}
+        height={288}
+        sizes="(max-width:640px) 192px, (max-width:768px) 256px, 288px"
+        className="object-cover w-full h-full rounded-full"
+        priority
+      />
     </div>
   );
 }
