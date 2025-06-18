@@ -5,6 +5,18 @@
 import { dedupeDocuments, prepareDocumentsForIndexing } from '@/lib/utils/search-helpers';
 
 describe('Search Helpers', () => {
+  let consoleWarnSpy: jest.SpyInstance;
+  let consoleLogSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleWarnSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+  });
   describe('dedupeDocuments', () => {
     it('should remove duplicate documents by id', () => {
       const documents = [
@@ -85,8 +97,6 @@ describe('Search Helpers', () => {
     });
 
     it('should log warning for duplicates', () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-      
       const documents = [
         { id: '1', name: 'First' },
         { id: '1', name: 'Duplicate' },
@@ -96,20 +106,16 @@ describe('Search Helpers', () => {
 
       dedupeDocuments(documents);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('[Search] 2 duplicate ID(s) detected and skipped:'),
         expect.any(String),
         expect.any(String)
       );
-
-      consoleSpy.mockRestore();
     });
   });
 
   describe('prepareDocumentsForIndexing', () => {
     it('should deduplicate and log statistics', () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-      
       const documents = [
         { id: '1', name: 'First' },
         { id: '2', name: 'Second' },
@@ -119,16 +125,12 @@ describe('Search Helpers', () => {
       const result = prepareDocumentsForIndexing(documents, 'Test Source');
 
       expect(result).toHaveLength(2);
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(consoleLogSpy).toHaveBeenCalledWith(
         '[Search] Test Source: Deduplicated 3 documents to 2 (removed 1 duplicates)'
       );
-
-      consoleSpy.mockRestore();
     });
 
     it('should not log when no duplicates found', () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-      
       const documents = [
         { id: '1', name: 'First' },
         { id: '2', name: 'Second' }
@@ -137,9 +139,7 @@ describe('Search Helpers', () => {
       const result = prepareDocumentsForIndexing(documents, 'Test Source');
 
       expect(result).toHaveLength(2);
-      expect(consoleSpy).not.toHaveBeenCalled();
-
-      consoleSpy.mockRestore();
+      expect(consoleLogSpy).not.toHaveBeenCalled();
     });
 
     it('should use custom id extractor', () => {
