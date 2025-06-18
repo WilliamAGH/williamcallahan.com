@@ -59,7 +59,7 @@ describe('Sitemap URL Generation', () => {
         { tag: 'Tag!@#$%^&*()', expectedSlug: 'tag-at-sharp-and' },
         { tag: 'UPPERCASE', expectedSlug: 'uppercase' },
         { tag: 'CamelCase', expectedSlug: 'camelcase' },
-        { tag: 'snake_case', expectedSlug: 'snake_case' },
+        { tag: 'snake_case', expectedSlug: 'snake-case' },
       ];
 
       for (const { tag, expectedSlug } of edgeCases) {
@@ -68,7 +68,7 @@ describe('Sitemap URL Generation', () => {
         
         if (slug) {
           const url = `${siteUrl}/bookmarks/tags/${slug}`;
-          expect(url).toMatch(/^https:\/\/[a-zA-Z0-9.-]+\/bookmarks\/tags\/[a-z0-9-_]*$/);
+          expect(url).toMatch(/^https:\/\/[a-zA-Z0-9.-]+\/bookmarks\/tags\/[a-z0-9-]*$/);
         }
       }
     });
