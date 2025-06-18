@@ -1,13 +1,14 @@
 Comprehensive issue resolution workflow with full context gathering and testing.
 
-Repository: https://github.com/WilliamAGH/williamcallahan.com
+Repository: <https://github.com/WilliamAGH/williamcallahan.com>
 Owner: WilliamAGH
 Repo: williamcallahan.com
 
 Issue/Problem Description: $ARGUMENTS
 
 STEP 1: Issue Tracking Setup
-First, ask the user: "Would you like to: 
+First, ask the user: "Would you like to:
+
 1) Create a new GitHub issue for this problem
 2) Link this to an existing GitHub issue (provide issue number)
 3) Proceed without creating/linking to an issue (just fix it now)
@@ -21,23 +22,26 @@ While waiting for user response, begin gathering context:
 a) List all documented functionalities: ls -la docs/projects/structure/
 b) Based on the problem description, identify which functionality areas are likely affected
 c) For each potentially affected functionality:
-   - Read docs/projects/structure/<functionality>.md
-   - Read docs/projects/structure/<functionality>.mmd if it exists
-   - Use Grep to find all files tagged with that functionality
+
+- Read docs/projects/structure/<functionality>.md
+- Read docs/projects/structure/<functionality>.mmd if it exists
+- Use Grep to find all files tagged with that functionality
 d) Use Read tool to examine docs/projects/file-overview-map.md to understand file-to-functionality mapping
 
 STEP 3: Deep Analysis with Zen MCP
 Once all context is gathered:
 a) Use @mcp__zen__thinkdeep with model="pro" and thinking_mode="max" to:
-   - Analyze the issue in context of the functionality documentation
-   - Identify all files that need to be modified
-   - Consider edge cases and potential side effects
-   - Create a comprehensive solution plan
+
+- Analyze the issue in context of the functionality documentation
+- Identify all files that need to be modified
+- Consider edge cases and potential side effects
+- Create a comprehensive solution plan
 b) Use @mcp__zen__codereview on key files to understand current implementation
 c) Identify any gaps or risks in the plan and address them
 
 STEP 4: Create Action Plan
 Generate a detailed todo list using TodoWrite with:
+
 - Specific files to modify
 - Tests to write or update
 - Documentation to update
@@ -85,9 +89,10 @@ Ask: "All tests are passing and the fix is verified. Would you like to commit th
 If yes:
 a) Show all changed files with git status
 b) Create a comprehensive commit message summarizing:
-   - What issue was fixed
-   - Which functionality was affected
-   - What approach was taken
+
+- What issue was fixed
+- Which functionality was affected
+- What approach was taken
 c) Commit using conventional format (fix:, feat:, etc.)
 d) Show the commit hash
 

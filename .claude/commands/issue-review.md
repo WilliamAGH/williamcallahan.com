@@ -1,6 +1,6 @@
 Review and potentially fix a GitHub issue.
 
-Repository: https://github.com/WilliamAGH/williamcallahan.com
+Repository: <https://github.com/WilliamAGH/williamcallahan.com>
 Owner: WilliamAGH
 Repo: williamcallahan.com
 
