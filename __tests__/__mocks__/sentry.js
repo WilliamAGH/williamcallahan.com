@@ -1,4 +1,3 @@
-/* global jest */
 // Mock for @sentry/nextjs in Jest tests
 module.exports = {
   captureException: jest.fn(),
