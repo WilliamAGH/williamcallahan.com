@@ -35,7 +35,10 @@ import { randomInt } from "node:crypto";
 import rawCron from "node-cron";
 // Maximum random jitter for scheduled tasks: 5 minutes
 const DEFAULT_JITTER_MS = 5 * 60 * 1000;
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
+
+// Track running jobs to prevent concurrent executions
+const runningJobs = new Set<string>();
 
 console.log("[Scheduler] Process started. Setting up cron jobs...");
 // Debug: log key environment variables
@@ -64,41 +67,58 @@ cron.schedule(bookmarksCron, () => {
   const jitter = randomInt(DEFAULT_JITTER_MS);
   console.log(`[Scheduler] [Bookmarks] Applying jitter of ${jitter}ms before update-s3`);
   setTimeout(() => {
+    // Check if job is already running
+    if (runningJobs.has('bookmarks')) {
+      console.warn('[Scheduler] [Bookmarks] Job is already running, skipping this execution');
+      return;
+    }
+    runningJobs.add('bookmarks');
     console.log("[Scheduler] [Bookmarks] Command: bun run update-s3 -- --bookmarks");
     console.log(`[Scheduler] [Bookmarks] Using S3_BUCKET=${process.env.S3_BUCKET}`);
-    const result = spawnSync("bun", ["run", "update-s3", "--", "--bookmarks"], {
+    
+    const updateProcess = spawn("bun", ["run", "update-s3", "--", "--bookmarks"], {
       env: process.env,
       stdio: "inherit",
+      detached: false,
     });
 
-    if (result.status !== 0) {
-      console.error(
-        `[Scheduler] [Bookmarks] update-s3 script failed (code ${result.status}). Error: ${result.error}`,
-      );
-    } else {
-      console.log("[Scheduler] [Bookmarks] update-s3 script completed successfully");
+    updateProcess.on("error", (err) => {
+      console.error("[Scheduler] [Bookmarks] Failed to start update-s3 process:", err);
+    });
 
-      // Submit updated sitemap to search engines
-      console.log(
-        "[Scheduler] [Bookmarks] Submitting updated sitemap to search engines asynchronously...",
-      );
-      const sitemapProcess = spawn("bun", ["run", "submit-sitemap"], {
-        env: process.env,
-        stdio: "inherit",
-      });
+    updateProcess.on("close", (code) => {
+      // Remove from running jobs
+      runningJobs.delete('bookmarks');
+      
+      if (code !== 0) {
+        console.error(
+          `[Scheduler] [Bookmarks] update-s3 script failed (code ${code}).`,
+        );
+      } else {
+        console.log("[Scheduler] [Bookmarks] update-s3 script completed successfully");
 
-      sitemapProcess.on("error", (err) => {
-        console.error("[Scheduler] [Bookmarks] Failed to start sitemap submission process:", err);
-      });
+        // Submit updated sitemap to search engines
+        console.log(
+          "[Scheduler] [Bookmarks] Submitting updated sitemap to search engines asynchronously...",
+        );
+        const sitemapProcess = spawn("bun", ["run", "submit-sitemap"], {
+          env: process.env,
+          stdio: "inherit",
+        });
 
-      sitemapProcess.on("close", (code) => {
-        if (code !== 0) {
-          console.error(`[Scheduler] [Bookmarks] Sitemap submission failed (code ${code}).`);
-        } else {
-          console.log("[Scheduler] [Bookmarks] Sitemap submitted successfully to search engines");
-        }
-      });
-    }
+        sitemapProcess.on("error", (err) => {
+          console.error("[Scheduler] [Bookmarks] Failed to start sitemap submission process:", err);
+        });
+
+        sitemapProcess.on("close", (code) => {
+          if (code !== 0) {
+            console.error(`[Scheduler] [Bookmarks] Sitemap submission failed (code ${code}).`);
+          } else {
+            console.log("[Scheduler] [Bookmarks] Sitemap submitted successfully to search engines");
+          }
+        });
+      }
+    });
   }, jitter);
 });
 
@@ -110,19 +130,37 @@ cron.schedule(githubCron, () => {
   const jitterGH = randomInt(DEFAULT_JITTER_MS);
   console.log(`[Scheduler] [GitHub] Applying jitter of ${jitterGH}ms before update-s3`);
   setTimeout(() => {
+    // Check if job is already running
+    if (runningJobs.has('github')) {
+      console.warn('[Scheduler] [GitHub] Job is already running, skipping this execution');
+      return;
+    }
+    runningJobs.add('github');
     console.log("[Scheduler] [GitHub] Command: bun run update-s3 -- --github-activity");
     console.log(`[Scheduler] [GitHub] Using S3_BUCKET=${process.env.S3_BUCKET}`);
-    const result = spawnSync("bun", ["run", "update-s3", "--", "--github-activity"], {
+    
+    const updateProcess = spawn("bun", ["run", "update-s3", "--", "--github-activity"], {
       env: process.env,
       stdio: "inherit",
+      detached: false,
     });
-    if (result.status !== 0) {
-      console.error(
-        `[Scheduler] [GitHub] update-s3 script failed (code ${result.status}). Error: ${result.error}`,
-      );
-    } else {
-      console.log("[Scheduler] [GitHub] update-s3 script completed successfully");
-    }
+
+    updateProcess.on("error", (err) => {
+      console.error("[Scheduler] [GitHub] Failed to start update-s3 process:", err);
+    });
+
+    updateProcess.on("close", (code) => {
+      // Remove from running jobs
+      runningJobs.delete('github');
+      
+      if (code !== 0) {
+        console.error(
+          `[Scheduler] [GitHub] update-s3 script failed (code ${code}).`,
+        );
+      } else {
+        console.log("[Scheduler] [GitHub] update-s3 script completed successfully");
+      }
+    });
   }, jitterGH);
 });
 
@@ -134,19 +172,37 @@ cron.schedule(logosCron, () => {
   const jitterLogo = randomInt(DEFAULT_JITTER_MS);
   console.log(`[Scheduler] [Logos] Applying jitter of ${jitterLogo}ms before update-s3`);
   setTimeout(() => {
+    // Check if job is already running
+    if (runningJobs.has('logos')) {
+      console.warn('[Scheduler] [Logos] Job is already running, skipping this execution');
+      return;
+    }
+    runningJobs.add('logos');
     console.log("[Scheduler] [Logos] Command: bun run update-s3 -- --logos");
     console.log(`[Scheduler] [Logos] Using S3_BUCKET=${process.env.S3_BUCKET}`);
-    const result = spawnSync("bun", ["run", "update-s3", "--", "--logos"], {
+    
+    const updateProcess = spawn("bun", ["run", "update-s3", "--", "--logos"], {
       env: process.env,
       stdio: "inherit",
+      detached: false,
     });
-    if (result.status !== 0) {
-      console.error(
-        `[Scheduler] [Logos] update-s3 script failed (code ${result.status}). Error: ${result.error}`,
-      );
-    } else {
-      console.log("[Scheduler] [Logos] update-s3 script completed successfully");
-    }
+
+    updateProcess.on("error", (err) => {
+      console.error("[Scheduler] [Logos] Failed to start update-s3 process:", err);
+    });
+
+    updateProcess.on("close", (code) => {
+      // Remove from running jobs
+      runningJobs.delete('logos');
+      
+      if (code !== 0) {
+        console.error(
+          `[Scheduler] [Logos] update-s3 script failed (code ${code}).`,
+        );
+      } else {
+        console.log("[Scheduler] [Logos] update-s3 script completed successfully");
+      }
+    });
   }, jitterLogo);
 });
 
