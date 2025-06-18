@@ -276,7 +276,7 @@ if (typeof process !== "undefined" && process.env?.NEXT_RUNTIME === "nodejs") {
   }, cleanupInterval);
 
   // Prevent the timer from keeping the event loop alive in Node
-  if (typeof (timer as unknown as { unref?: () => void }).unref === "function") {
-    (timer as unknown as { unref: () => void }).unref();
+  if ('unref' in timer && typeof timer.unref === 'function') {
+    timer.unref();
   }
 }
