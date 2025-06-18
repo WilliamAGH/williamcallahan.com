@@ -90,6 +90,19 @@ COPY --from=builder /app/package.json ./package.json
 # Copy public directory (run as root, so no chown needed)
 COPY --from=builder /app/public ./public
 
+# Ensure TypeScript path-mapping files are available at runtime so that Bun can
+# resolve "@/*" import aliases used by our standalone scripts (e.g. update-s3).
+# We copy any root-level tsconfig variants that might contain the "paths" map.
+COPY --from=builder /app/tsconfig*.json ./
+
+# Runtime helper scripts (`scripts/*.ts`) import source modules directly from the
+# repository (e.g. `@/lib/*`, `@/types/*`). These folders are *not* included in
+# the Next.js standalone output, so we need to copy them into the final image
+# as well.
+COPY --from=builder /app/lib ./lib
+COPY --from=builder /app/types ./types
+COPY --from=builder /app/config ./config
+
 # REMOVED: Copying initial data from builder stage - data now lives in S3
 # COPY --from=builder --chown=nextjs:nodejs /app/data/images/logos /app/.initial-logos
 # COPY --from=builder --chown=nextjs:nodejs /app/data/github-activity /app/.initial-github-activity
