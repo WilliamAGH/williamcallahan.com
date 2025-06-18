@@ -72,19 +72,12 @@ export function BookmarkCardClient({
   favourited,
   shareUrl,
 }: BookmarkCardClientProps): JSX.Element {
-  const [imageError, setImageError] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   // Effects for handling client-side initialization
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  // Reset image error state when URLs change
-  // biome-ignore lint/correctness/useExhaustiveDependencies: These dependencies are needed as triggers to reset error state when any image URL changes
-  useEffect(() => {
-    setImageError(false);
-  }, [ogImage, content?.imageUrl, content?.screenshotAssetId, content?.imageAssetId]);
 
   // Define the date variables but only format them when mounted to avoid hydration mismatches
   const displayBookmarkDate = createdAt ?? dateBookmarked;
@@ -166,16 +159,20 @@ export function BookmarkCardClient({
       >
         <div className="relative w-full h-full">
           {/* Try unified OG image API first */}
-          {displayImageUrl && !imageError ? (
+          {displayImageUrl ? (
             <img
               src={displayImageUrl}
               alt={title}
               loading="lazy"
               className="w-full h-full object-cover"
-              onError={() => setImageError(true)}
+              onError={() => {
+                // Log the error but don't set imageError state
+                // The /api/og-image endpoint should handle fallbacks internally
+                console.warn(`[BookmarkCard] Image failed to load: ${displayImageUrl}`);
+              }}
             />
           ) : (
-            /* Fallback to logo */
+            /* Only fallback to logo when no image sources are available */
             <div className="flex items-center justify-center w-full h-full">
               {domain ? (
                 <LogoImage
