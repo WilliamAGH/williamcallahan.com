@@ -122,7 +122,6 @@ const GitHubActivity = () => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "x-refresh-secret": process.env.NEXT_PUBLIC_GITHUB_REFRESH_SECRET || "",
             },
           });
           if (!refreshResponse.ok) {

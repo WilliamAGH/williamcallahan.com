@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD029 -->
 # GitHub Activity Architecture
 
 **Functionality:** `github-activity`
@@ -46,17 +47,17 @@ See `github-activity.mmd` for a visual diagram illustrating how this feature orc
 The GitHub Activity system coordinates several modules to produce its final output:
 
 1. **Data Fetching & Processing (`json-handling`)**:
-    * The process is initiated by invoking the `json-handling` functionality.
-    * This core service is responsible for the complex task of fetching data from multiple GitHub sources (GraphQL API, REST API, and a CSV export fallback).
-    * It handles the aggregation and processing of this raw data, producing a structured JSON object containing contribution calendars, language statistics, and repository breakdowns.
+    - The process is initiated by invoking the `json-handling` functionality.
+    - This core service is responsible for the complex task of fetching data from multiple GitHub sources (GraphQL API, REST API, and a CSV export fallback).
+    - It handles the aggregation and processing of this raw data, producing a structured JSON object containing contribution calendars, language statistics, and repository breakdowns.
 
 2. **Persistence (`s3-object-storage`)**:
-    * Once the `json-handling` module returns the final, processed JSON data, the GitHub Activity orchestrator passes it to the `s3-object-storage` service.
-    * This service is responsible for writing the `github_stats_summary.json` and related files to the S3 bucket, ensuring the data is stored persistently.
+    - Once the `json-handling` module returns the final, processed JSON data, the GitHub Activity orchestrator passes it to the `s3-object-storage` service.
+    - This service is responsible for writing the `github_stats_summary.json` and related files to the S3 bucket, ensuring the data is stored persistently.
 
 3. **Caching (`caching`)**:
-    * To ensure performance, the final JSON data is cached in the in-memory `ServerCacheInstance`. This is managed by the `caching` module.
-    * This allows the application to serve the complex GitHub statistics rapidly without needing to hit S3 or the GitHub APIs on every request.
+    - To ensure performance, the final JSON data is cached in the in-memory `ServerCacheInstance`. This is managed by the `caching` module.
+    - This allows the application to serve the complex GitHub statistics rapidly without needing to hit S3 or the GitHub APIs on every request.
 
 This orchestration model allows the GitHub Activity feature to focus on its specific domain—presenting GitHub statistics—while delegating the complex, reusable tasks of data fetching, processing, and storage to the appropriate core services.
 
@@ -77,14 +78,14 @@ In-memory Cache (ServerCacheInstance)
       → UI rendering
 ```
 
-### Current Caching Issues:
+### Current Caching Issues
 
-1. **In-Memory Cache**: 
+1. **In-Memory Cache**:
    - **Problem**: No TTL, data never expires
    - **Current**: Cached indefinitely
    - **Should be**: 30-minute TTL
 
-2. **S3 Storage**: 
+2. **S3 Storage**:
    - Works correctly as persistent storage
    - ~50-100ms retrieval time
 
@@ -96,35 +97,36 @@ In-memory Cache (ServerCacheInstance)
 
 A hybrid approach is used to gather comprehensive data:
 
-* **GraphQL API**: Efficiently fetches user-level aggregated data, such as the contribution calendar and total commit counts.
-* **REST API**: Used for granular, repository-specific data like contributor stats and language breakdowns.
-* **CSV Export**: A fallback mechanism parses raw contribution history from a CSV file, with built-in logic to auto-repair common formatting issues.
+- **GraphQL API**: Efficiently fetches user-level aggregated data, such as the contribution calendar and total commit counts.
+- **REST API**: Used for granular, repository-specific data like contributor stats and language breakdowns.
+- **CSV Export**: A fallback mechanism parses raw contribution history from a CSV file, with built-in logic to auto-repair common formatting issues.
 
 ## S3 Storage Structure
 
 All GitHub-related data is stored under the `github/` prefix in the S3 bucket:
 
-* `activity_data.json`: Combined activity for the trailing year and all-time.
-* `github_stats_summary.json`: Summary of the trailing year's statistics.
-* `github_stats_summary_all_time.json`: Summary of all-time statistics.
-* `aggregated_weekly_activity.json`: Pre-calculated weekly activity.
-* `repo_raw_weekly_stats/`: Raw weekly stats CSVs for each repository.
+- `activity_data.json`: Combined activity for the trailing year and all-time.
+- `github_stats_summary.json`: Summary of the trailing year's statistics.
+- `github_stats_summary_all_time.json`: Summary of all-time statistics.
+- `aggregated_weekly_activity.json`: Pre-calculated weekly activity.
+- `repo_raw_weekly_stats/`: Raw weekly stats CSVs for each repository.
 
 ## Scheduled Data Refresh
 
 A cron job automatically refreshes the data from GitHub's APIs to ensure it remains up-to-date.
 
-* **Schedule**: Daily at midnight Pacific Time (`0 7 * * *` in UTC).
-* **Mechanism**: A `scheduler.ts` script uses `node-cron` to trigger the `update-s3-data.ts` script. A lock is acquired to prevent multiple concurrent refresh operations.
+- **Schedule**: Daily at midnight Pacific Time (`0 7 * * *` in UTC).
+- **Mechanism**: A `scheduler.ts` script uses `node-cron` to trigger the `update-s3-data.ts` script. A lock is acquired to prevent multiple concurrent refresh operations.
 
 ## API Endpoints
 
-* `GET /api/github-activity`: Retrieves the currently cached GitHub activity data.
-* `POST /api/github-activity/refresh`: A protected endpoint that forces a full refresh of the GitHub data. Requires a secret token for authentication.
+- `GET /api/github-activity`: Retrieves the currently cached GitHub activity data.
+- `POST /api/github-activity/refresh`: A protected endpoint that forces a full refresh of the GitHub data. Requires a secret token for authentication.
 
 ## Key Files & Responsibilities
 
 ### Core Data Layer
+
 - **`lib/data-access/github.ts`** (600+ lines - needs refactoring)
   - Fetches from GitHub APIs (GraphQL + REST)
   - Manages S3 storage and caching
@@ -132,6 +134,7 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
   - **Issues**: Too large, needs splitting
 
 ### API Endpoints
+
 - **`app/api/github-activity/route.ts`**
   - Read-only endpoint for cached data
   - Never triggers refresh
@@ -142,6 +145,7 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
   - **Issue**: No rate limiting
 
 ### UI Components
+
 - **`components/features/github/github-activity.client.tsx`**
   - Main activity display
   - Contribution calendar
@@ -151,6 +155,7 @@ A cron job automatically refreshes the data from GitHub's APIs to ensure it rema
   - Simple stats display cards
 
 ### Supporting Files
+
 - **`scripts/scheduler.ts`**: Cron job scheduling
 - **`scripts/update-s3-data.ts`**: Data refresh script
 - **`types/github.ts`**: Type definitions
@@ -174,16 +179,19 @@ GITHUB_CONTRIBUTION_CSV_URL=https://...
 ## Architectural Issues
 
 ### Code Quality
+
 1. **Function Length**: `refreshGitHubActivityDataFromApi` is 600+ lines
 2. **Retry Logic**: Retries on 4xx errors (wastes API calls)
 3. **Concurrent Calls**: Can spawn unlimited parallel API calls
 
 ### Data Consistency
+
 - All-time stats calculation doesn't ensure consistency
 - Only `totalContributions` is reconciled
 - Lines added/removed can be inconsistent
 
 ### Performance
+
 - No request deduplication
 - No health metrics
 - Memory usage unbounded
