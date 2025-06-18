@@ -732,7 +732,6 @@ fi
 # For a specific file's comments
 gh api graphql -f query='...' | jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.path == "lib/utils/api-sanitization.ts" and .isResolved == false)'
 ```
-```
 </CollapseDropdown>
 
 <CollapseDropdown summary="4.6 /issue-review – Deep Dive on a GitHub Issue" id="user-issue-review">
