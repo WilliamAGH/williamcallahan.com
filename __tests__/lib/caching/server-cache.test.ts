@@ -21,13 +21,13 @@ describe("ServerCache", () => {
   describe("Logo Validation", () => {
     it("should cache and retrieve logo validation results", () => {
       const imageHash = "test-hash-123";
-      
+
       // Initially should be undefined
       expect(cache.getLogoValidation(imageHash)).toBeUndefined();
-      
+
       // Set validation result
       cache.setLogoValidation(imageHash, true);
-      
+
       // Should retrieve the result
       const result = cache.getLogoValidation(imageHash);
       expect(result).toBeDefined();
@@ -38,7 +38,7 @@ describe("ServerCache", () => {
     it("should handle multiple validation entries", () => {
       cache.setLogoValidation("hash1", true);
       cache.setLogoValidation("hash2", false);
-      
+
       expect(cache.getLogoValidation("hash1")?.isGlobeIcon).toBe(true);
       expect(cache.getLogoValidation("hash2")?.isGlobeIcon).toBe(false);
     });
@@ -52,10 +52,10 @@ describe("ServerCache", () => {
         source: "google" as const,
         contentType: "image/png",
       };
-      
+
       // Set fetch result
       cache.setLogoFetch(domain, fetchResult);
-      
+
       // Should retrieve the result
       const result = cache.getLogoFetch(domain);
       expect(result).toBeDefined();
@@ -68,7 +68,7 @@ describe("ServerCache", () => {
     it("should handle error results with shorter TTL", () => {
       const domain = "error.com";
       cache.setLogoFetch(domain, { error: "Failed to fetch" });
-      
+
       const result = cache.getLogoFetch(domain);
       expect(result?.error).toBe("Failed to fetch");
     });
@@ -76,9 +76,9 @@ describe("ServerCache", () => {
     it("should clear individual logo fetch results", () => {
       cache.setLogoFetch("domain1.com", { url: "url1" });
       cache.setLogoFetch("domain2.com", { url: "url2" });
-      
+
       cache.clearLogoFetch("domain1.com");
-      
+
       expect(cache.getLogoFetch("domain1.com")).toBeUndefined();
       expect(cache.getLogoFetch("domain2.com")?.url).toBe("url2");
     });
@@ -86,9 +86,9 @@ describe("ServerCache", () => {
     it("should clear all logo fetch results", () => {
       cache.setLogoFetch("domain1.com", { url: "url1" });
       cache.setLogoFetch("domain2.com", { url: "url2" });
-      
+
       cache.clearAllLogoFetches();
-      
+
       expect(cache.getLogoFetch("domain1.com")).toBeUndefined();
       expect(cache.getLogoFetch("domain2.com")).toBeUndefined();
     });
@@ -103,9 +103,9 @@ describe("ServerCache", () => {
         brightness: 0.8,
         needsInversion: true,
       };
-      
+
       cache.setInvertedLogo(cacheKey, buffer, analysis);
-      
+
       const result = cache.getInvertedLogo(cacheKey);
       expect(result).toBeDefined();
       expect(result?.buffer).toEqual(buffer);
@@ -122,9 +122,9 @@ describe("ServerCache", () => {
         brightness: 0.3,
         needsInversion: false,
       };
-      
+
       cache.setLogoAnalysis(cacheKey, analysis);
-      
+
       const result = cache.getLogoAnalysis(cacheKey);
       expect(result).toEqual(analysis);
     });
@@ -148,7 +148,7 @@ describe("ServerCache", () => {
 
     it("should cache and retrieve bookmarks", () => {
       cache.setBookmarks(mockBookmarks);
-      
+
       const result = cache.getBookmarks();
       expect(result).toBeDefined();
       expect(result?.bookmarks).toEqual(mockBookmarks);
@@ -161,14 +161,14 @@ describe("ServerCache", () => {
       cache.setBookmarks(mockBookmarks);
       const initialResult = cache.getBookmarks();
       const initialFetchTime = initialResult?.lastFetchedAt;
-      
+
       // Wait a bit
       const futureTime = Date.now() + 1000;
       jest.spyOn(Date, "now").mockReturnValue(futureTime);
-      
+
       // Set as failure
       cache.setBookmarks([], true);
-      
+
       const failureResult = cache.getBookmarks();
       expect(failureResult?.bookmarks).toEqual(mockBookmarks); // Preserved original bookmarks
       expect(failureResult?.lastFetchedAt).toBe(initialFetchTime); // Preserved fetch time
@@ -178,11 +178,11 @@ describe("ServerCache", () => {
     it("should correctly determine refresh needs", () => {
       // No cache should need refresh
       expect(cache.shouldRefreshBookmarks()).toBe(true);
-      
+
       // Fresh cache should not need refresh
       cache.setBookmarks(mockBookmarks);
       expect(cache.shouldRefreshBookmarks()).toBe(false);
-      
+
       // Empty bookmarks should need refresh
       cache.setBookmarks([]);
       expect(cache.shouldRefreshBookmarks()).toBe(true);
@@ -212,7 +212,7 @@ describe("ServerCache", () => {
 
     it("should cache and retrieve GitHub activity", () => {
       cache.setGithubActivity(mockActivity);
-      
+
       const result = cache.getGithubActivity();
       expect(result).toBeDefined();
       expect(result?.commitCount).toBe(100);
@@ -227,7 +227,7 @@ describe("ServerCache", () => {
           dataComplete: false,
         },
       };
-      
+
       cache.setGithubActivity(incompleteActivity);
       const result = cache.getGithubActivity();
       expect(result).toBeDefined();
@@ -251,7 +251,7 @@ describe("ServerCache", () => {
     it("should cache and retrieve OpenGraph data", () => {
       const url = "https://example.com";
       cache.setOpenGraphData(url, mockOgData);
-      
+
       const result = cache.getOpenGraphData(url);
       expect(result).toBeDefined();
       expect(result?.title).toBe("Test Page");
@@ -263,7 +263,7 @@ describe("ServerCache", () => {
       const errorData: OgResult = {
         error: "Failed to fetch",
       };
-      
+
       cache.setOpenGraphData(url, errorData, true);
       const result = cache.getOpenGraphData(url);
       expect(result?.isFailure).toBe(true);
@@ -271,14 +271,14 @@ describe("ServerCache", () => {
 
     it("should determine refresh needs correctly", () => {
       const url = "https://example.com";
-      
+
       // No cache should need refresh
       expect(cache.shouldRefreshOpenGraph(url)).toBe(true);
-      
+
       // Fresh cache should not need refresh
       cache.setOpenGraphData(url, mockOgData);
       expect(cache.shouldRefreshOpenGraph(url)).toBe(false);
-      
+
       // Recent failure should not refresh immediately
       cache.setOpenGraphData(url, { error: "Failed" }, true);
       expect(cache.shouldRefreshOpenGraph(url)).toBe(false);
@@ -287,7 +287,7 @@ describe("ServerCache", () => {
     it("should clear specific OpenGraph data", () => {
       cache.setOpenGraphData("url1", mockOgData);
       cache.setOpenGraphData("url2", mockOgData);
-      
+
       cache.clearOpenGraphData("url1");
       expect(cache.getOpenGraphData("url1")).toBeUndefined();
       expect(cache.getOpenGraphData("url2")).toBeDefined();
@@ -296,7 +296,7 @@ describe("ServerCache", () => {
     it("should clear all OpenGraph data", () => {
       cache.setOpenGraphData("url1", mockOgData);
       cache.setOpenGraphData("url2", mockOgData);
-      
+
       cache.clearOpenGraphData();
       expect(cache.getOpenGraphData("url1")).toBeUndefined();
       expect(cache.getOpenGraphData("url2")).toBeUndefined();
@@ -311,7 +311,7 @@ describe("ServerCache", () => {
 
     it("should cache and retrieve search results", () => {
       cache.setSearchResults("posts", "test query", mockResults);
-      
+
       const result = cache.getSearchResults("posts", "test query");
       expect(result).toBeDefined();
       expect(result?.results).toEqual(mockResults);
@@ -321,7 +321,7 @@ describe("ServerCache", () => {
 
     it("should normalize query case", () => {
       cache.setSearchResults("posts", "Test Query", mockResults);
-      
+
       // Should find with different case
       const result = cache.getSearchResults("posts", "TEST QUERY");
       expect(result?.results).toEqual(mockResults);
@@ -330,10 +330,10 @@ describe("ServerCache", () => {
     it("should track different data types separately", () => {
       const postsResults = [{ id: "p1" }];
       const bookmarksResults = [{ id: "b1" }];
-      
+
       cache.setSearchResults("posts", "query", postsResults);
       cache.setSearchResults("bookmarks", "query", bookmarksResults);
-      
+
       expect(cache.getSearchResults("posts", "query")?.results).toEqual(postsResults);
       expect(cache.getSearchResults("bookmarks", "query")?.results).toEqual(bookmarksResults);
     });
@@ -341,7 +341,7 @@ describe("ServerCache", () => {
     it("should determine refresh needs", () => {
       // No cache should need refresh
       expect(cache.shouldRefreshSearch("posts", "query")).toBe(true);
-      
+
       // Fresh cache should not need refresh
       cache.setSearchResults("posts", "query", mockResults);
       expect(cache.shouldRefreshSearch("posts", "query")).toBe(false);
@@ -351,9 +351,9 @@ describe("ServerCache", () => {
       cache.setSearchResults("posts", "query1", mockResults);
       cache.setSearchResults("posts", "query2", mockResults);
       cache.setSearchResults("bookmarks", "query1", mockResults);
-      
+
       cache.clearSearchCache("posts");
-      
+
       expect(cache.getSearchResults("posts", "query1")).toBeUndefined();
       expect(cache.getSearchResults("posts", "query2")).toBeUndefined();
       expect(cache.getSearchResults("bookmarks", "query1")).toBeDefined();
@@ -362,9 +362,9 @@ describe("ServerCache", () => {
     it("should clear all search caches", () => {
       cache.setSearchResults("posts", "query", mockResults);
       cache.setSearchResults("bookmarks", "query", mockResults);
-      
+
       cache.clearSearchCache();
-      
+
       expect(cache.getSearchResults("posts", "query")).toBeUndefined();
       expect(cache.getSearchResults("bookmarks", "query")).toBeUndefined();
     });
@@ -384,25 +384,25 @@ describe("ServerCache", () => {
     it("should track hits and misses", () => {
       // Get initial stats
       const initialStats = cache.getStats();
-      
+
       // Cause a miss
       cache.getLogoValidation("non-existent");
-      
+
       // Add data
       cache.setLogoValidation("exists", true);
-      
+
       // Cause a hit
       cache.getLogoValidation("exists");
-      
+
       // Cause another miss
       cache.getLogoValidation("another-non-existent");
-      
+
       const finalStats = cache.getStats();
-      
+
       // NodeCache tracks total hits and misses from the beginning
       expect(finalStats.hits).toBeGreaterThan(initialStats.hits);
       expect(finalStats.misses).toBeGreaterThan(initialStats.misses);
-      
+
       // Should have at least 1 key (the one we set)
       expect(finalStats.keys).toBeGreaterThanOrEqual(1);
     });
@@ -413,9 +413,9 @@ describe("ServerCache", () => {
       cache.setLogoValidation("hash", true);
       cache.setBookmarks([]);
       cache.setSearchResults("posts", "query", []);
-      
+
       cache.clearAllCaches();
-      
+
       expect(cache.getLogoValidation("hash")).toBeUndefined();
       expect(cache.getBookmarks()).toBeUndefined();
       expect(cache.getSearchResults("posts", "query")).toBeUndefined();
@@ -424,9 +424,9 @@ describe("ServerCache", () => {
     it("should clear all caches with clear", () => {
       cache.setLogoValidation("hash", true);
       cache.setBookmarks([]);
-      
+
       cache.clear();
-      
+
       expect(cache.getLogoValidation("hash")).toBeUndefined();
       expect(cache.getBookmarks()).toBeUndefined();
     });
@@ -438,9 +438,9 @@ describe("ServerCache", () => {
       const incompleteActivity = {
         commitCount: 100,
       } as GitHubActivityApiResponse;
-      
+
       expect(() => cache.setGithubActivity(incompleteActivity)).not.toThrow();
-      
+
       const result = cache.getGithubActivity();
       expect(result?.commitCount).toBe(100);
     });
@@ -448,7 +448,7 @@ describe("ServerCache", () => {
     it("should handle Buffer data correctly", () => {
       const buffer = Buffer.from([0x89, 0x50, 0x4e, 0x47]); // PNG header
       cache.setLogoFetch("test.com", { buffer });
-      
+
       const result = cache.getLogoFetch("test.com");
       expect(result?.buffer).toEqual(buffer);
     });

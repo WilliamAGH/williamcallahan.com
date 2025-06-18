@@ -49,4 +49,4 @@ describe("useRegisteredWindowState", () => {
 
     expect(unregisterSpy).toHaveBeenCalledTimes(1);
   });
-}); 
+});

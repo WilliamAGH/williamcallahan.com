@@ -1,10 +1,10 @@
-import { renderHook, act } from '@testing-library/react';
-import { useBookmarksPagination } from '@/hooks/use-bookmarks-pagination';
-import useSWRInfinite from 'swr/infinite';
-import type { UnifiedBookmark } from '@/types/bookmark';
+import { renderHook, act } from "@testing-library/react";
+import { useBookmarksPagination } from "@/hooks/use-bookmarks-pagination";
+import useSWRInfinite from "swr/infinite";
+import type { UnifiedBookmark } from "@/types/bookmark";
 
 // Mock SWR
-jest.mock('swr/infinite');
+jest.mock("swr/infinite");
 
 const mockBookmarks: UnifiedBookmark[] = Array.from({ length: 50 }, (_, i) => ({
   id: `bookmark-${i}`,
@@ -13,20 +13,20 @@ const mockBookmarks: UnifiedBookmark[] = Array.from({ length: 50 }, (_, i) => ({
   description: `Description for bookmark ${i}`,
   tags: [`tag${i % 3}`],
   imageUrl: null,
-  domain: 'example.com',
-  createdAt: '2024-01-01',
-  updatedAt: '2024-01-01',
+  domain: "example.com",
+  createdAt: "2024-01-01",
+  updatedAt: "2024-01-01",
   isFavorite: false,
 }));
 
-describe('useBookmarksPagination', () => {
+describe("useBookmarksPagination", () => {
   const mockUseSWRInfinite = useSWRInfinite as jest.MockedFunction<typeof useSWRInfinite>;
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('initializes with correct default values', () => {
+  it("initializes with correct default values", () => {
     mockUseSWRInfinite.mockReturnValue({
       data: undefined,
       error: undefined,
@@ -46,7 +46,7 @@ describe('useBookmarksPagination', () => {
     expect(result.current.error).toBeUndefined();
   });
 
-  it('processes paginated data correctly', () => {
+  it("processes paginated data correctly", () => {
     const mockData = [
       {
         data: mockBookmarks.slice(0, 24),
@@ -82,7 +82,7 @@ describe('useBookmarksPagination', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  it('handles initial page parameter', () => {
+  it("handles initial page parameter", () => {
     mockUseSWRInfinite.mockReturnValue({
       data: undefined,
       error: undefined,
@@ -93,14 +93,12 @@ describe('useBookmarksPagination', () => {
       isLoading: true,
     } as any);
 
-    const { result } = renderHook(() => 
-      useBookmarksPagination({ initialPage: 3 })
-    );
+    const { result } = renderHook(() => useBookmarksPagination({ initialPage: 3 }));
 
     expect(result.current.currentPage).toBe(3);
   });
 
-  it('loads more pages when requested', () => {
+  it("loads more pages when requested", () => {
     const mockSetSize = jest.fn();
     const mockData = [
       {
@@ -117,7 +115,7 @@ describe('useBookmarksPagination', () => {
         },
       },
     ];
-    
+
     mockUseSWRInfinite.mockReturnValue({
       data: mockData,
       error: undefined,
@@ -137,7 +135,7 @@ describe('useBookmarksPagination', () => {
     expect(mockSetSize).toHaveBeenCalledWith(2);
   });
 
-  it('navigates to specific page', () => {
+  it("navigates to specific page", () => {
     const mockSetSize = jest.fn();
     const mockData = [
       {
@@ -154,7 +152,7 @@ describe('useBookmarksPagination', () => {
         },
       },
     ];
-    
+
     mockUseSWRInfinite.mockReturnValue({
       data: mockData,
       error: undefined,
@@ -175,9 +173,9 @@ describe('useBookmarksPagination', () => {
     expect(mockSetSize).toHaveBeenCalledWith(3);
   });
 
-  it('handles errors gracefully', () => {
-    const mockError = new Error('Failed to fetch bookmarks');
-    
+  it("handles errors gracefully", () => {
+    const mockError = new Error("Failed to fetch bookmarks");
+
     mockUseSWRInfinite.mockReturnValue({
       data: undefined,
       error: mockError,
@@ -195,14 +193,14 @@ describe('useBookmarksPagination', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  it('uses fallback data when provided', () => {
+  it("uses fallback data when provided", () => {
     const initialBookmarks = mockBookmarks.slice(0, 10);
-    
+
     mockUseSWRInfinite.mockImplementation((getKey, fetcher, options) => {
       // The hook should provide fallback data
       expect(options?.fallbackData).toBeDefined();
       expect(options?.fallbackData?.[0].data).toHaveLength(10);
-      
+
       return {
         data: options?.fallbackData,
         error: undefined,
@@ -214,11 +212,11 @@ describe('useBookmarksPagination', () => {
       } as any;
     });
 
-    const { result } = renderHook(() => 
-      useBookmarksPagination({ 
+    const { result } = renderHook(() =>
+      useBookmarksPagination({
         initialData: initialBookmarks,
-        limit: 24 
-      })
+        limit: 24,
+      }),
     );
 
     expect(result.current.bookmarks).toHaveLength(10);

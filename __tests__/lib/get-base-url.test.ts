@@ -58,4 +58,4 @@ describe("getBaseUrl", () => {
     const result = getBaseUrl();
     expect(result).toBe("http://localhost:4567");
   });
-}); 
+});

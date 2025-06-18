@@ -177,10 +177,10 @@ describe("ServerCache Tests", () => {
     it("should have memory limits configured (Issue #115)", () => {
       // This test documents that the cache currently lacks memory limits
       // When Issue #115 is fixed, this test should verify maxKeys is set
-      
+
       // Current behavior: no memory limits
       // Expected behavior: cache should have maxKeys limit
-      
+
       // For now, we just document the issue
       expect(true).toBe(true); // Placeholder until fix is implemented
     });
@@ -213,20 +213,20 @@ describe("ServerCache Tests", () => {
       // 1. Check memory cache (ServerCacheInstance) - ~1ms
       // 2. Check S3 storage - ~10-50ms
       // 3. Fetch from external APIs - 100ms-5s
-      
+
       // The actual implementation is in lib/data-access/logos.ts
       // This test serves as documentation of the architecture
-      
+
       expect(true).toBe(true);
     });
 
     it("documents different TTLs for success vs failure", () => {
       // Success TTL: LOGO_CACHE_DURATION.SUCCESS (30 days)
       // Failure TTL: LOGO_CACHE_DURATION.FAILURE (1 day)
-      
+
       // This prevents hammering external APIs for known failures
       // while keeping successful results cached longer
-      
+
       expect(LOGO_CACHE_DURATION.SUCCESS).toBe(30 * 24 * 60 * 60); // 30 days in seconds
       expect(LOGO_CACHE_DURATION.FAILURE).toBe(24 * 60 * 60); // 1 day in seconds
     });

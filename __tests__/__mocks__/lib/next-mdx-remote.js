@@ -11,7 +11,7 @@ module.exports = {
    * @returns {object} A mock MDX-serialized object
    */
   serialize: jest.fn((source /*, options */) => ({
-    compiledSource: source ?? '',
+    compiledSource: source ?? "",
     frontmatter: {},
     scope: {},
   })),
