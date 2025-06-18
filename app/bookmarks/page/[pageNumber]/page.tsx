@@ -12,7 +12,7 @@
 // Configure dynamic rendering
 export const dynamic = "force-dynamic";
 // Incremental Static Regeneration – recache every 30 minutes for fresh-but-fast UX
-export const revalidate = 60 * 30; // 30 minutes
+export const revalidate = 1800; // 30 minutes (60 * 30)
 
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
