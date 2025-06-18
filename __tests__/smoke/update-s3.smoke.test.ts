@@ -48,9 +48,9 @@ describe("Update S3 Script Smoke Tests", () => {
    * Validates dry-run mode behavior without performing actual updates
    * Confirms script recognizes DRY_RUN environment variable and exits cleanly
    */
-  it("should run with --dry-run flag", () => {
+  it("should run with DRY_RUN environment variable", () => {
     /** Execute script in dry-run mode and capture output */
-    const stdout = execSync(`bun ${scriptPath} --dry-run`, {
+    const stdout = execSync(`bun ${scriptPath}`, {
       encoding: "utf8",
       env: { ...process.env, DRY_RUN: "true", S3_BUCKET: "test-bucket" },
     });
@@ -75,7 +75,7 @@ describe("Update S3 Script Smoke Tests", () => {
 
     try {
       // Use test limit and dry run to ensure quick execution
-      stdout = execSync(`bun ${scriptPath} --dry-run`, {
+      stdout = execSync(`bun ${scriptPath}`, {
         encoding: "utf8",
         env: { ...cleanEnv, DRY_RUN: "true", S3_TEST_LIMIT: "1" },
         timeout: 5000, // 5 second timeout
@@ -97,13 +97,13 @@ describe("Update S3 Script Smoke Tests", () => {
    */
   it("should accept individual update flags", () => {
     /** Execute script with specific flags in dry-run mode */
-    const stdout = execSync(`bun ${scriptPath} --bookmarks --logos --dry-run`, {
+    const stdout = execSync(`bun ${scriptPath} --bookmarks --logos`, {
       encoding: "utf8",
       env: { ...process.env, DRY_RUN: "true", S3_BUCKET: "test-bucket" },
     });
 
     // The script logs the raw args, which should include our flags
-    expect(stdout).toContain("Args: --bookmarks --logos --dry-run");
+    expect(stdout).toContain("Args: --bookmarks --logos");
     // In dry run mode, it exits before flag-specific processing
     expect(stdout).toContain("DRY RUN mode");
   });
@@ -114,7 +114,7 @@ describe("Update S3 Script Smoke Tests", () => {
    */
   it("should handle test limit environment variable", () => {
     /** Execute script with test limit set */
-    const stdout = execSync(`bun ${scriptPath} --dry-run`, {
+    const stdout = execSync(`bun ${scriptPath}`, {
       encoding: "utf8",
       env: { ...process.env, DRY_RUN: "true", S3_BUCKET: "test-bucket", S3_TEST_LIMIT: "5" },
     });
