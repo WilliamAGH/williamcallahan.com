@@ -97,6 +97,11 @@ const nextConfig = {
           /node_modules\/@opentelemetry\/instrumentation\/build\/esm\/platform\/node\/instrumentation\.js/,
       },
       { module: /node_modules\/@sentry/ },
+      // Suppress webpack cache serialization warnings
+      /Skipped not serializable cache item/,
+      // Suppress third-party CSS warnings
+      /autoprefixer.*grid-auto-rows.*not supported by IE/,
+      /autoprefixer.*grid-gap.*only works if grid-template/,
     ];
 
     // We no longer need to externalize require-in-the-middle since we've added it as a dependency

@@ -4,6 +4,8 @@
  */
 
 export default {
+  // Suppress warnings for third-party CSS files
+  map: process.env.NODE_ENV === 'development' ? { inline: false } : false,
   plugins: {
     "tailwindcss/nesting": {},
     "tailwindcss": {
@@ -11,11 +13,20 @@ export default {
     },
     "autoprefixer": {
       flexbox: "no-2009",
-      grid: true,
+      grid: "autoplace",
       // Suppress common warnings that don't affect functionality
       ignoreUnknownVersions: true,
-      // Configure grid support to reduce warnings
-      supports: false,
+      // Reduce verbose warnings
+      cascade: false,
+      // Configure environment-specific settings
+      env: {
+        production: {
+          remove: true,
+        },
+        development: {
+          remove: false,
+        },
+      },
     },
     "postcss-preset-env": {
       stage: 2,
