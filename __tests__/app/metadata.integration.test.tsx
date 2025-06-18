@@ -31,7 +31,7 @@ jest.mock('next/navigation', () => ({
 }));
 
 describe('Metadata Integration Tests', () => {
-  const mockGetBookmarks = getBookmarks as jest.MockedFunction<typeof getBookmarks>;
+  const mockGetBookmarks = getBookmarks;
   
   // Mock bookmarks data
   const mockBookmarks = Array.from({ length: 50 }, (_, i) => ({
@@ -177,7 +177,14 @@ describe('Metadata HTML Output Verification', () => {
     
     // Title
     if (metadata.title) {
-      const titleStr = typeof metadata.title === 'string' ? metadata.title : String(metadata.title);
+      let titleStr: string;
+      if (typeof metadata.title === 'string') {
+        titleStr = metadata.title;
+      } else if (metadata.title && typeof metadata.title === 'object' && 'absolute' in metadata.title) {
+        titleStr = metadata.title.absolute || '';
+      } else {
+        titleStr = '';
+      }
       tags.push(`<title>${titleStr}</title>`);
     }
     
@@ -195,19 +202,31 @@ describe('Metadata HTML Output Verification', () => {
     
     // Canonical
     if (metadata.alternates?.canonical) {
-      const canonicalStr = typeof metadata.alternates.canonical === 'string' 
-        ? metadata.alternates.canonical 
-        : metadata.alternates.canonical.toString();
-      tags.push(`<link rel="canonical" href="${canonicalStr}">`);
+      let canonicalStr: string;
+      if (typeof metadata.alternates.canonical === 'string') {
+        canonicalStr = metadata.alternates.canonical;
+      } else if (metadata.alternates.canonical && typeof metadata.alternates.canonical === 'object' && 'href' in metadata.alternates.canonical) {
+        canonicalStr = metadata.alternates.canonical.href;
+      } else {
+        canonicalStr = '';
+      }
+      if (canonicalStr) {
+        tags.push(`<link rel="canonical" href="${canonicalStr}">`);
+      }
     }
     
     // OpenGraph
     if (metadata.openGraph) {
       if (metadata.openGraph.title) {
-        const ogTitleStr = typeof metadata.openGraph.title === 'string' 
-          ? metadata.openGraph.title 
-          : String(metadata.openGraph.title);
-        tags.push(`<meta property="og:title" content="${ogTitleStr}">`);
+        let ogTitleStr: string;
+        if (typeof metadata.openGraph.title === 'string') {
+          ogTitleStr = metadata.openGraph.title;
+        } else {
+          ogTitleStr = '';
+        }
+        if (ogTitleStr) {
+          tags.push(`<meta property="og:title" content="${ogTitleStr}">`);
+        }
       }
       if (metadata.openGraph.url) {
         const ogUrlStr = typeof metadata.openGraph.url === 'string'
