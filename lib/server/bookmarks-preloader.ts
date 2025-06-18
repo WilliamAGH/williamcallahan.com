@@ -8,6 +8,7 @@
  */
 
 import * as Sentry from "@sentry/nextjs";
+import { monitoredAsync } from "../async-operations-monitor";
 
 // Flags to prevent redundant work across calls within the same process
 let isPreloading = false;
@@ -34,14 +35,19 @@ export async function preloadBookmarksIfNeeded(): Promise<void> {
        
       console.log("Preloading bookmarks into server cache...");
 
-      // Guard against hangs
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("Preload timeout after 30 seconds")), 30_000);
-      });
-
-      await Promise.race([fetchExternalBookmarks(), timeoutPromise]);
-       
-      console.log("Bookmarks preloaded successfully");
+      await monitoredAsync(
+        null, // Let monitor generate ID
+        'Bookmark Preload',
+        async () => {
+          const result = await fetchExternalBookmarks();
+          console.log("Bookmarks preloaded successfully");
+          return result;
+        },
+        {
+          timeoutMs: 30000,
+          metadata: { source: 'instrumentation', production: true }
+        }
+      );
     } catch (err) {
       Sentry.captureException(err);
        
