@@ -25,33 +25,6 @@ export const masterConfig = {
     environment: PROJECT_GLOBALS.NODE_ENV,
   },
 
-  // PostCSS configuration
-  postcss: {
-    plugins: {
-      "tailwindcss/nesting": {},
-      tailwindcss: {},
-      autoprefixer: {
-        flexbox: "no-2009",
-        grid: true,
-      },
-      "postcss-preset-env": {
-        stage: 2,
-        features: {
-          "nesting-rules": true,
-          "custom-properties": false,
-          "is-pseudo-class": false,
-          "custom-media-queries": true,
-          "gap-properties": true,
-          "logical-properties-and-values": true,
-        },
-        browsers: SUPPORTED_BROWSERS.concat(["not IE 11"]),
-        autoprefixer: {
-          grid: true,
-        },
-      },
-    },
-  },
-
   // Stylelint configuration
   stylelint: {
     // Enable automatic fixes for fixable rules
@@ -103,7 +76,7 @@ export const masterConfig = {
 };
 
 // Export individual configs for tools that need them
-export const { postcss, stylelint, browserslist, build, patterns, ignores } = masterConfig;
+export const { stylelint, browserslist, build, patterns, ignores } = masterConfig;
 
 // Default export for tools that import the whole config
 export default masterConfig;
