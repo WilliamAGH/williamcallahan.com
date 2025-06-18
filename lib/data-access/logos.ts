@@ -8,7 +8,7 @@
  * @module lib/data-access/logos
  */
 
-import fs from "node:fs";
+import * as fs from "node:fs/promises";
 import path from "node:path";
 import { S3_BUCKET } from "@/lib/constants";
 import { fetchExternalLogo } from "@/lib/data-access/logos/external-fetch";
@@ -27,14 +27,35 @@ const PLACEHOLDER_LOGO_PATH = path.join(
   "images",
   "company-placeholder.svg",
 );
-// Placeholder logo buffer (loaded once at startup if it exists)
-let PLACEHOLDER_LOGO_BUFFER: Buffer | null = null;
-try {
-  PLACEHOLDER_LOGO_BUFFER = fs.readFileSync(PLACEHOLDER_LOGO_PATH);
-  logger.info(`[Logos] Placeholder logo loaded from ${PLACEHOLDER_LOGO_PATH}`);
-} catch (error) {
-  logger.warn(`[Logos] Could not load placeholder logo from ${PLACEHOLDER_LOGO_PATH}:`, error);
-  PLACEHOLDER_LOGO_BUFFER = null;
+// Placeholder logo promise (cached to prevent race conditions)
+let placeholderLogoPromise: Promise<Buffer | null> | null = null;
+
+/**
+ * Lazily loads the placeholder logo on first access
+ * This avoids blocking server startup with synchronous file I/O
+ * and prevents race conditions by caching the promise itself
+ */
+async function getPlaceholderLogoBuffer(): Promise<Buffer | null> {
+  // If already loading or loaded, return the cached promise
+  if (placeholderLogoPromise) {
+    return placeholderLogoPromise;
+  }
+
+  // Create and cache the loading promise
+  placeholderLogoPromise = (async () => {
+    try {
+      const buffer = await fs.readFile(PLACEHOLDER_LOGO_PATH);
+      logger.info(`[Logos] Placeholder logo loaded from ${PLACEHOLDER_LOGO_PATH}`);
+      return buffer;
+    } catch (error) {
+      logger.warn(`[Logos] Could not load placeholder logo from ${PLACEHOLDER_LOGO_PATH}:`, error);
+      // Reset the promise on failure to allow retries
+      placeholderLogoPromise = null;
+      return null;
+    }
+  })();
+  
+  return placeholderLogoPromise;
 }
 
 /**
@@ -66,7 +87,8 @@ export async function writePlaceholderLogo(domain: string): Promise<boolean> {
     return false;
   }
 
-  if (!PLACEHOLDER_LOGO_BUFFER) {
+  const placeholderBuffer = await getPlaceholderLogoBuffer();
+  if (!placeholderBuffer) {
     logger.warn(
       `[Logos] Placeholder logo buffer not available. Cannot write for domain: ${domain}`,
     );
@@ -76,13 +98,13 @@ export async function writePlaceholderLogo(domain: string): Promise<boolean> {
   // Use 'unknown' as source since this is a placeholder after all sources failed
   const s3Key = getLogoS3Key(domain, "unknown", "svg");
   try {
-    await writeBinaryS3(s3Key, PLACEHOLDER_LOGO_BUFFER, "image/svg+xml");
+    await writeBinaryS3(s3Key, placeholderBuffer, "image/svg+xml");
     logger.info(
       `[Logos] Successfully wrote placeholder logo to S3 for domain: ${domain} at key: ${s3Key}`,
     );
     // Cache the placeholder result to avoid repeated writes
     ServerCacheInstance.setLogoFetch(domain, {
-      buffer: PLACEHOLDER_LOGO_BUFFER,
+      buffer: placeholderBuffer,
       source: "unknown",
       url: null,
     });
@@ -280,14 +302,17 @@ export async function getLogoWithRetryAndPlaceholder(
         `[Logos] All ${maxRetries} attempts failed for domain: ${domain}. Writing placeholder logo.`,
       );
       const placeholderWritten = await writePlaceholderLogo(domain);
-      if (placeholderWritten && PLACEHOLDER_LOGO_BUFFER) {
-        return {
-          buffer: PLACEHOLDER_LOGO_BUFFER,
-          retrieval: "s3-store",
-          source: "unknown",
-          url: null,
-          contentType: "image/svg+xml",
-        };
+      if (placeholderWritten) {
+        const placeholderBuffer = await getPlaceholderLogoBuffer();
+        if (placeholderBuffer) {
+          return {
+            buffer: placeholderBuffer,
+            retrieval: "s3-store",
+            source: "unknown",
+            url: null,
+            contentType: "image/svg+xml",
+          };
+        }
       }
       logger.error(
         `[Logos] Failed to write placeholder logo for domain: ${domain}. No logo available.`,
