@@ -105,4 +105,6 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   jest.clearAllMocks();
+  // Remove any remaining timers (setTimeout/Interval) created during a test so Jest can exit cleanly.
+  jest.clearAllTimers();
 });
