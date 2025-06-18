@@ -183,20 +183,15 @@ export const useRegisteredWindowState = (
     setWindowState,
   } = useWindowRegistry();
 
-  // Register on mount, unregister on unmount
-  useEffect(() => {
-    // Delay registration slightly to potentially improve HMR stability
-    const timerId = setTimeout(() => {
-      registerWindow(id, icon, title, initialState);
-    }, 0);
+  // Register immediately on mount; avoid setTimeout delay which can defer visibility on slow devices
+  registerWindow(id, icon, title, initialState);
 
-    // Cleanup function: clear timeout and unregister
+  // Cleanup: unregister on unmount
+  useEffect(() => {
     return () => {
-      clearTimeout(timerId);
       unregisterWindow(id);
     };
-    // Ensure dependencies cover potential changes that require re-registration
-  }, [registerWindow, unregisterWindow, id, icon, title, initialState]);
+  }, [unregisterWindow, id]);
 
   const windowInfo = windows[id];
 
