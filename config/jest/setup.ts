@@ -133,6 +133,28 @@ if (typeof window !== "undefined") {
   global.MessageChannel = MockMessageChannel as unknown as typeof MessageChannel;
 }
 
+// Mock NextResponse.json helper used in API routes
+jest.mock("next/server", () => {
+  const original = jest.requireActual("next/server");
+  return {
+    ...original,
+    NextResponse: {
+      json: (data: unknown, init: { status?: number; headers?: Record<string, string> } = {}) => {
+        return {
+          status: init.status ?? 200,
+          headers: {
+            get: (key: string) => {
+              if (key.toLowerCase() === "content-type") return "application/json";
+              return init.headers?.[key] ?? null;
+            },
+          },
+          json: async () => data,
+        } as unknown as Response;
+      },
+    },
+  };
+});
+
 // ---------------------------------------------------------------------------
 // Suppress noisy console.error logs during test runs
 // ---------------------------------------------------------------------------

@@ -334,7 +334,7 @@ async function updateGithubActivityInS3(): Promise<void> {
   logger.info("[UpdateS3] 🐙 Starting GitHub Activity update to S3...");
   
   if (TEST_LIMIT > 0) {
-    logger.info(`[UpdateS3] Test mode: limiting GitHub activity to basic validation only.`);
+    logger.info("[UpdateS3] Test mode: limiting GitHub activity to basic validation only.");
   }
 
   try {
