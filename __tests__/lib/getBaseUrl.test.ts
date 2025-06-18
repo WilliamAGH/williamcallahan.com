@@ -1,6 +1,7 @@
 /**
  * @fileoverview Tests for getBaseUrl utility function that determines the application's base URL
  * @module __tests__/lib/getBaseUrl.test
+ * @jest-environment node
  */
 
 import { getBaseUrl } from "@/lib/getBaseUrl";
@@ -41,7 +42,7 @@ describe("getBaseUrl", () => {
    * Verifies fallback to NEXT_PUBLIC_SITE_URL and trailing slash removal
    */
   it("falls back to NEXT_PUBLIC_SITE_URL if API_BASE_URL not set", () => {
-    process.env.API_BASE_URL = undefined as unknown as string;
+    process.env.API_BASE_URL = undefined;
     process.env.NEXT_PUBLIC_SITE_URL = "https://public.example.com/"; // with trailing slash
     const result = getBaseUrl();
     expect(result).toBe("https://public.example.com"); // trailing slash removed
@@ -51,8 +52,8 @@ describe("getBaseUrl", () => {
    * Verifies localhost fallback with custom PORT environment variable
    */
   it("defaults to localhost with provided PORT", () => {
-    process.env.API_BASE_URL = undefined as unknown as string;
-    process.env.NEXT_PUBLIC_SITE_URL = undefined as unknown as string;
+    process.env.API_BASE_URL = undefined;
+    process.env.NEXT_PUBLIC_SITE_URL = undefined;
     process.env.PORT = "4567";
     const result = getBaseUrl();
     expect(result).toBe("http://localhost:4567");

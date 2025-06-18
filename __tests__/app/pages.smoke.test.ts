@@ -64,7 +64,7 @@ afterAll(() => {
   global.fetch = originalFetch;
 });
 
-describe.skip("App Router Page Smoke Tests (Static Routes)", () => {
+describe("App Router Page Smoke Tests (Static Routes)", () => {
   for (const pageInfo of staticPageRoutes) {
     it(`should render ${pageInfo.name} page component to string without errors`, async () => {
       // Skip server-only and async/client-only pages
