@@ -132,6 +132,11 @@ The `app/sitemap.ts` file aggregates content from multiple sources:
 3. **Blog Tags**: Dynamically generated from unique post tags
 4. **Bookmarks**: Retrieved from cache or API with domain groupings
 5. **Bookmark Tags**: Extracted from bookmark metadata
+   - Main tag pages: `/bookmarks/tags/[tagSlug]`
+   - Paginated tag pages: `/bookmarks/tags/[tagSlug]/page/[n]`
+6. **Paginated Pages**:
+   - Bookmark list pages: `/bookmarks/page/[n]`
+   - Tag-filtered pages: `/bookmarks/tags/[tagSlug]/page/[n]`
 
 ### URL Construction
 
@@ -140,8 +145,10 @@ The `app/sitemap.ts` file aggregates content from multiple sources:
 https://site.com/                    // Home (priority: 1.0)
 https://site.com/blog/post-slug      // Blog posts (priority: 0.7)
 https://site.com/blog/tags/tag-slug  // Blog tags (priority: 0.6)
-https://site.com/bookmarks/123       // Bookmarks (priority: 0.7)
-https://site.com/bookmarks/tags/tag  // Bookmark tags (priority: 0.6)
+https://site.com/bookmarks/[slug]              // Individual bookmarks (priority: 0.65)
+https://site.com/bookmarks/page/2              // Paginated bookmarks (priority: 0.65)
+https://site.com/bookmarks/tags/react-native   // Bookmark tags (priority: 0.6)
+https://site.com/bookmarks/tags/ai-and-ml/page/2 // Paginated tag pages (priority: 0.55)
 ```
 
 ## Automated Submission Workflow
@@ -247,6 +254,28 @@ NODE_ENV=production SITE_URL=https://williamcallahan.com bun run scripts/submit-
 3. **IndexNow 403 Error**: Ensure verification file is publicly accessible
 4. **Stale Sitemap**: Build process must complete before submission
 
+## Special Character Handling in URLs
+
+### Tag Slug Generation
+
+The `tagToSlug` function handles special characters in tags to generate SEO-friendly URLs:
+
+| Original Tag | Generated Slug | URL Path |
+|--------------|----------------|-----------|
+| `AI & ML` | `ai-and-ml` | `/bookmarks/tags/ai-and-ml` |
+| `C++` | `c-plus-plus` | `/bookmarks/tags/c-plus-plus` |
+| `C#` | `c-sharp` | `/bookmarks/tags/c-sharp` |
+| `.NET` | `dotnet` | `/bookmarks/tags/dotnet` |
+| `Node.js` | `nodedotjs` | `/bookmarks/tags/nodedotjs` |
+| `Vue@3` | `vue-at-3` | `/bookmarks/tags/vue-at-3` |
+
+### URL Safety
+
+- All generated slugs are URL-safe (lowercase alphanumeric with hyphens)
+- Unicode control characters are stripped
+- Leading/trailing special characters are handled gracefully
+- Empty or whitespace-only tags are filtered out
+
 ## Notes
 
 - The SEO functionality is critical for improving the application's discoverability and user engagement through search engines and social media platforms
@@ -254,3 +283,4 @@ NODE_ENV=production SITE_URL=https://williamcallahan.com bun run scripts/submit-
 - Validation ensures metadata adheres to SEO best practices, preventing common mistakes
 - The barrel export pattern in `lib/seo/index.ts` provides a clean API for consuming SEO functionality
 - Automated submission runs only in production to prevent accidental submissions during development
+- Special character handling in tags ensures all URLs are SEO-friendly and crawlable

@@ -197,6 +197,21 @@ To serve as the primary orchestration layer for fetching, processing, enriching,
   - Reduces load on external APIs
   - More predictable refresh behavior
 
+### ✅ FIXED: Tag Navigation & Routing (2025-06)
+
+- **Previous Issue**: Tag clicks in filter bar only updated local state without changing URL
+- **Solutions**:
+  - Implemented URL navigation when clicking tags (`/bookmarks/tags/[tagSlug]`)
+  - Added `usePagination` and `initialTag` props through component chain
+  - Fixed single bookmark pages to disable pagination
+  - Enhanced tag slug generation to handle special characters (& → and, + → plus, etc.)
+  - Used `useEffect` for navigation to prevent race conditions
+- **Impact**:
+  - Users can bookmark and share tag-filtered URLs
+  - Browser back/forward navigation works correctly
+  - Tag state properly initialized when navigating directly to tag URLs
+  - Special characters in tags handled gracefully
+
 ## Architecture Diagram
 
 See `bookmarks.mmd` for a visual diagram of how this orchestration layer coordinates with other core functionalities.
@@ -235,10 +250,12 @@ By acting as an orchestrator, the bookmarks feature remains focused on its speci
 - **`components/features/bookmarks/bookmarks-window.client.tsx`**: Main window UI
 - **`components/features/bookmarks/bookmarks-with-options.client.tsx`**: Options UI
   - Updated (2025-06): Generates share URLs once for all cards
+  - Updated (2025-06): Added initialTag support and URL navigation for tags
 - **`components/features/bookmarks/bookmarks-with-pagination.client.tsx`**: Paginated view
   - Implements efficient pagination with SWR
   - Generates share URLs once to avoid per-card API calls
   - Supports both manual pagination and infinite scroll
+  - Updated (2025-06): Added initialTag support and URL navigation for tags
 - **`components/ui/pagination-control.client.tsx`**: Reusable pagination component
   - Full keyboard navigation support
   - Loading states and transitions
@@ -261,6 +278,7 @@ By acting as an orchestrator, the bookmarks feature remains focused on its speci
   - Static path generation at build time
   - Comprehensive metadata and JSON-LD
   - Shows related bookmarks from same domain
+  - Fixed (2025-06): Disabled pagination with `usePagination={false}`
 - **`app/bookmarks/domain/[domainSlug]/page.tsx`**: Legacy URL redirector
   - Maintains backward compatibility
   - Redirects to new slug-based URLs
@@ -269,6 +287,8 @@ By acting as an orchestrator, the bookmarks feature remains focused on its speci
   - Preserves tag capitalization (e.g., "iPhone")
   - Case-insensitive filtering
   - Custom metadata per tag
+  - Fixed (2025-06): Pre-selects tag with `initialTag` prop
+  - Fixed (2025-06): Supports paginated navigation
 
 ### Business Logic
 
@@ -303,6 +323,10 @@ By acting as an orchestrator, the bookmarks feature remains focused on its speci
   - `getAssetUrl()`: Consistent asset URL construction
   - `selectBestImage()`: Intelligent image fallback selection
   - `createKarakeepFallback()`: Karakeep fallback object creation
+- **`lib/utils/tag-utils.ts`**: Tag formatting and slug utilities
+  - `tagToSlug()`: Enhanced to handle special characters (& → and, + → plus, etc.)
+  - `formatTagDisplay()`: Preserves mixed-case tags
+  - `normalizeTagsToStrings()`: Handles both string and object tag arrays
 - **`lib/utils/retry.ts`**: Generic retry utility with exponential backoff
   - `retryWithOptions()`: Configurable retry mechanism with jitter support
 
