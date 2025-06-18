@@ -87,7 +87,6 @@ const config: Config = {
     '<rootDir>/node_modules/',
     '<rootDir>/.next/',
     '<rootDir>/__tests__/lib/bookmarks-s3-external-sync.unit.test.ts',
-    '<rootDir>/__tests__/blog/blog.smoke.test.ts',
     '<rootDir>/__tests__/components/ui/navigation/navigation.test.tsx',
     '<rootDir>/__tests__/components/ui/navigation/navigation-link.test.tsx',
   ],
