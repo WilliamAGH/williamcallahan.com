@@ -22,6 +22,9 @@ import { formatSeoDate } from "../../lib/seo/utils";
  */
 export const metadata: Metadata = getStaticPageMetadata("/investments", "investments");
 
+// Avoid long static generation by rendering this page dynamically at request time
+export const dynamic = "force-dynamic";
+
 /**
  * Investments page component
  */
