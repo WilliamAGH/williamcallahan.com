@@ -348,12 +348,24 @@ const sentryWebpackPluginOptions = {
   org: "williamcallahan-com",
   project: "williamcallahan-com",
   authToken: process.env.SENTRY_AUTH_TOKEN,
-  release: { name: process.env.NEXT_PUBLIC_APP_VERSION },
+  release: { 
+    name: process.env.NEXT_PUBLIC_APP_VERSION,
+    deploy: {
+      env: process.env.NODE_ENV || "production",
+    },
+  },
   // For all available options, see:
   // https://github.com/getsentry/sentry-webpack-plugin#options
   widenClientFileUpload: true, // Uploads more sourcemaps for client-side code
   // Transpile the Sentry client SDK for wider browser support (option previously in nextConfig.sentry)
   transpileClientSDK: true,
+  // Additional options to improve source map coverage
+  sourcemaps: {
+    assets: ["**/*.js", "**/*.map"],
+    ignore: ["node_modules/**"],
+  },
+  // Disable telemetry if desired
+  telemetry: false,
 };
 
 // Configure Content Security Policy
