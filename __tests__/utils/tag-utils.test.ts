@@ -137,9 +137,9 @@ describe('Tag Utility Functions', () => {
     });
 
     it('should handle unicode characters', () => {
-      expect(tagToSlug('Café')).toBe('caf');
-      expect(tagToSlug('Naïve')).toBe('nave');
-      expect(tagToSlug('Zürich')).toBe('zrich');
+      expect(tagToSlug('Café')).toBe('cafe');
+      expect(tagToSlug('Naïve')).toBe('naive');
+      expect(tagToSlug('Zürich')).toBe('zurich');
     });
   });
 

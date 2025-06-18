@@ -16,7 +16,7 @@ import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.serve
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { getBookmarksForStaticBuild } from "@/lib/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
-import { sanitizeTagSlug, sanitizeUnicode } from "@/lib/utils/tag-utils";
+import { tagToSlug, sanitizeUnicode } from "@/lib/utils/tag-utils";
 import type { Metadata } from "next";
 
 /**
@@ -31,7 +31,7 @@ export async function generateStaticParams() {
   );
   const uniqueSlugs = Array.from(new Set(tags)).map((tag) => {
     // tag should now be string after the flatMap transformation
-    return sanitizeTagSlug(tag);
+    return tagToSlug(tag);
   });
   return uniqueSlugs.map((tagSlug) => ({ tagSlug }));
 }
