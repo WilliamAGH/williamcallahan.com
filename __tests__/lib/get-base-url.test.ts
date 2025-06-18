@@ -31,7 +31,7 @@ describe("getBaseUrl", () => {
   it("prefers API_BASE_URL when defined", async () => {
     process.env.API_BASE_URL = "https://api.example.com";
     process.env.NEXT_PUBLIC_SITE_URL = "https://public.example.com";
-    const { getBaseUrl } = await import("@/lib/getBaseUrl");
+    const { getBaseUrl } = await import("@/lib/utils/get-base-url");
     const result = getBaseUrl();
     expect(result).toBe("https://api.example.com");
   });
@@ -42,7 +42,7 @@ describe("getBaseUrl", () => {
   it("falls back to NEXT_PUBLIC_SITE_URL if API_BASE_URL not set", async () => {
     process.env.API_BASE_URL = undefined;
     process.env.NEXT_PUBLIC_SITE_URL = "https://public.example.com/"; // with trailing slash
-    const { getBaseUrl } = await import("@/lib/getBaseUrl");
+    const { getBaseUrl } = await import("@/lib/utils/get-base-url");
     const result = getBaseUrl();
     expect(result).toBe("https://public.example.com"); // trailing slash removed
   });
@@ -54,7 +54,7 @@ describe("getBaseUrl", () => {
     process.env.API_BASE_URL = undefined;
     process.env.NEXT_PUBLIC_SITE_URL = undefined;
     process.env.PORT = "4567";
-    const { getBaseUrl } = await import("@/lib/getBaseUrl");
+    const { getBaseUrl } = await import("@/lib/utils/get-base-url");
     const result = getBaseUrl();
     expect(result).toBe("http://localhost:4567");
   });

@@ -5,11 +5,11 @@
  */
 
 import { generateMetadata as generateBookmarksMetadata } from "@/app/bookmarks/page/[pageNumber]/page";
-import { getBookmarks } from "@/lib/data-access/bookmarks";
+import { getBookmarks } from "@/lib/bookmarks";
 import type { Metadata } from "next";
 
 // Mock dependencies
-jest.mock("@/lib/data-access/bookmarks", () => ({
+jest.mock("@/lib/bookmarks", () => ({
   getBookmarks: jest.fn(),
 }));
 

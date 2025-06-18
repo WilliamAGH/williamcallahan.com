@@ -1,5 +1,5 @@
 // Jest provides describe, expect, it, beforeEach globally
-import { compareImages } from "@/lib/imageCompare";
+import { compareImages } from "@/lib/image-handling/image-compare";
 import { logger } from "@/lib/logger";
 import type { Metadata, FormatEnum, ResizeOptions } from "sharp";
 

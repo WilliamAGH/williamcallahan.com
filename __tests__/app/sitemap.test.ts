@@ -5,11 +5,11 @@
  */
 
 import sitemap from "@/app/sitemap";
-import { getBookmarksForStaticBuild } from "@/lib/bookmarks.server";
+import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 
 // Mock dependencies
-jest.mock("@/lib/bookmarks.server", () => ({
+jest.mock("@/lib/bookmarks/bookmarks.server", () => ({
   getBookmarksForStaticBuild: jest.fn(),
 }));
 

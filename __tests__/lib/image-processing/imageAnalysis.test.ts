@@ -8,7 +8,7 @@ import {
   ImageAnalysisError, // Import error class
   type LogoBrightnessAnalysis, // Import the type
   type LogoInversion, // Import the type
-} from "@/lib/imageAnalysis";
+} from "@/lib/image-handling/image-analysis";
 import { VALID_IMAGE_FORMATS } from "@/lib/constants";
 
 // Helper type to make mocking chainable methods easier

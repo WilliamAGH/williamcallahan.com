@@ -30,8 +30,20 @@ jest.mock("node:crypto", () => ({
   randomInt: jest.fn(() => 123456),
 }));
 
+// Mock cheerio before importing modules that use it
+jest.mock("cheerio", () => ({
+  load: jest.fn(() => ({
+    html: jest.fn(),
+    text: jest.fn(),
+    find: jest.fn().mockReturnThis(),
+    first: jest.fn().mockReturnThis(),
+    attr: jest.fn(),
+    each: jest.fn(),
+  })),
+}));
+
 // Import after mocks
-import { getBookmarks, setRefreshBookmarksCallback } from "@/lib/data-access/bookmarks";
+import { getBookmarks, setRefreshBookmarksCallback } from "@/lib/bookmarks";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { readJsonS3 } from "@/lib/s3-utils";
 

@@ -2,7 +2,7 @@
 import { render } from "@testing-library/react";
 import { notFound, redirect } from "next/navigation";
 import PaginatedBookmarksPage, { generateMetadata } from "@/app/bookmarks/page/[pageNumber]/page";
-import { getBookmarks } from "@/lib/data-access/bookmarks";
+import { getBookmarks } from "@/lib/bookmarks";
 
 // Mock dependencies
 jest.mock("next/navigation", () => ({
@@ -10,7 +10,7 @@ jest.mock("next/navigation", () => ({
   redirect: jest.fn(),
 }));
 
-jest.mock("@/lib/data-access/bookmarks", () => ({
+jest.mock("@/lib/bookmarks", () => ({
   getBookmarks: jest.fn(),
 }));
 
