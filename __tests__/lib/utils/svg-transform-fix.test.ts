@@ -129,20 +129,48 @@ describe("SVG Transform Fix Utilities", () => {
       expect(processSvgTransforms(svgString)).toBe(expected);
     });
 
-    // Skip test for DOM element processing in server environment
-    it.skip("should process SVG DOM elements", () => {
-      // This test uses browser-specific DOM APIs and should only run in a browser environment
-      // Skipping this test for now as it's likely running in a server environment
+    it("should process SVG DOM elements", () => {
+      // Create an SVG element with a malformed transform attribute
+      const svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svgElement.setAttribute("width", "100");
+      svgElement.setAttribute("height", "100");
+
+      const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      rect.setAttribute("transform", "translate10,20");
+      svgElement.appendChild(rect);
+
+      // Act – process the SVG element in-place
+      processSvgTransforms(svgElement);
+
+      // Assert – attribute has been fixed
+      expect(rect.getAttribute("transform")).toBe("translate(10,20)");
     });
 
-    it.skip("should process child elements in SVG DOM", () => {
-      // This test uses browser-specific DOM APIs and should only run in a browser environment
-      // Skipping this test for now as it's likely running in a server environment
+    it("should process child elements in SVG DOM", () => {
+      const svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute("transform", "scale0.5");
+      group.appendChild(circle);
+
+      svgElement.appendChild(group);
+
+      // Act
+      processSvgTransforms(svgElement);
+
+      expect(circle.getAttribute("transform")).toBe("scale(0.5)");
     });
 
-    it.skip("should handle SVG DOM elements without transform attributes", () => {
-      // This test uses browser-specific DOM APIs and should only run in a browser environment
-      // Skipping this test for now as it's likely running in a server environment
+    it("should handle SVG DOM elements without transform attributes", () => {
+      const svgElement = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      // No transform attribute set
+      svgElement.appendChild(path);
+
+      // Should not throw and should leave element unchanged
+      expect(() => processSvgTransforms(svgElement)).not.toThrow();
+      expect(path.hasAttribute("transform")).toBe(false);
     });
   });
 });
