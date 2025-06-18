@@ -5,7 +5,7 @@
  * are properly fixed by adding parentheses when missing.
  */
 
-import { fixSvgTransform, processSvgTransforms } from "@/lib/utils/svg-transform-fix";
+import { fixSvgTransform, processSvgTransforms } from "@/lib/image-handling/svg-transform-fix";
 
 describe("SVG Transform Fix Utilities", () => {
   /**

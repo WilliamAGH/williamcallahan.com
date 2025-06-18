@@ -108,7 +108,7 @@ describe("Environment Variable Configuration", () => {
       Reflect.deleteProperty(process.env, "BOOKMARKS_LOCK_TTL_MS");
 
       /** Import fresh module */
-      const bookmarksModule = await import("@/lib/data-access/bookmarks");
+      const bookmarksModule = await import("@/lib/bookmarks");
       /** The module exports or internal constants would need to be checked */
       /** This is a placeholder for the actual test */
       expect(bookmarksModule).toBeDefined();
@@ -121,7 +121,7 @@ describe("Environment Variable Configuration", () => {
     it("should use environment variable for TTL when set", async () => {
       process.env.BOOKMARKS_LOCK_TTL_MS = "1800000"; // 30 minutes
 
-      const bookmarksModule = await import("@/lib/data-access/bookmarks");
+      const bookmarksModule = await import("@/lib/bookmarks");
       /** The module exports or internal constants would need to be checked */
       expect(bookmarksModule).toBeDefined();
     });

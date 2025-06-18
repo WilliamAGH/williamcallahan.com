@@ -96,6 +96,13 @@ const createMockResponse = (options: {
 };
 
 describe("Bookmarks Module (Simplified)", () => {
+  // Mock getBaseUrl
+  beforeAll(() => {
+    jest.mock("@/lib/utils/get-base-url", () => ({
+      getBaseUrl: () => "http://localhost:3000",
+    }));
+  });
+
   // Timeout for individual tests to prevent hanging
   const TEST_TIMEOUT = 10000; // 10 seconds
 
@@ -136,9 +143,9 @@ describe("Bookmarks Module (Simplified)", () => {
 
       try {
         // Import module after setting up mocks
-        const { fetchExternalBookmarks } = await import("../../../lib/bookmarks.client");
+        const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
 
-        const bookmarks = await fetchExternalBookmarks();
+        const bookmarks = await fetchBookmarksFromApi();
 
         // Verify fetch was called
         expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -177,9 +184,9 @@ describe("Bookmarks Module (Simplified)", () => {
 
       try {
         // Import module after setting up mocks
-        const { fetchExternalBookmarks } = await import("../../../lib/bookmarks.client");
+        const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
 
-        const bookmarks = await fetchExternalBookmarks();
+        const bookmarks = await fetchBookmarksFromApi();
 
         // Verify fetch was called
         expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -189,7 +196,7 @@ describe("Bookmarks Module (Simplified)", () => {
 
         // Should log error
         expect(consoleSpy).toHaveBeenCalledWith(
-          "Client library: Failed to fetch bookmarks from /api/bookmarks:",
+          "[Bookmarks] Failed to fetch from /api/bookmarks:",
           expect.any(Error),
         );
       } finally {
@@ -216,9 +223,9 @@ describe("Bookmarks Module (Simplified)", () => {
 
       try {
         // Import module after setting up mocks
-        const { fetchExternalBookmarks } = await import("../../../lib/bookmarks.client");
+        const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
 
-        const bookmarks = await fetchExternalBookmarks();
+        const bookmarks = await fetchBookmarksFromApi();
 
         // Verify fetch was called
         expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -228,7 +235,7 @@ describe("Bookmarks Module (Simplified)", () => {
 
         // Should log error
         expect(consoleSpy).toHaveBeenCalledWith(
-          "Client library: Failed to fetch bookmarks from /api/bookmarks:",
+          "[Bookmarks] Failed to fetch from /api/bookmarks:",
           expect.any(Error),
         );
       } finally {
@@ -255,15 +262,18 @@ describe("Bookmarks Module (Simplified)", () => {
 
       try {
         // Import module after setting up environment
-        const { fetchExternalBookmarks } = await import("../../../lib/bookmarks.client");
+        const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
 
-        const bookmarks = await fetchExternalBookmarks();
+        const bookmarks = await fetchBookmarksFromApi();
 
         // Should return empty array
         expect(bookmarks).toEqual([]);
 
         // Should log error
-        expect(consoleSpy).toHaveBeenCalled();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining("Failed to fetch from"),
+          expect.any(Error),
+        );
       } finally {
         fetchSpy.mockRestore();
         consoleSpy.mockRestore();
@@ -303,9 +313,9 @@ describe("Bookmarks Module (Simplified)", () => {
 
       try {
         // Import module after setting up mocks
-        const { fetchExternalBookmarks } = await import("../../../lib/bookmarks.client");
+        const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
 
-        const bookmarks = await fetchExternalBookmarks();
+        const bookmarks = await fetchBookmarksFromApi();
 
         // Verify fetch was called
         expect(fetchSpy).toHaveBeenCalledTimes(1);
