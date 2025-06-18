@@ -13,14 +13,21 @@ export function getBaseUrl(): string {
     return "";
   }
 
-  // Server-side
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    // Ensure no trailing slash from the env variable if we add one
-    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
+  // Server-side: prioritize explicit environment variables defined in .env-example
+  // 1. API_BASE_URL (preferred for server-to-server calls)
+  // 2. NEXT_PUBLIC_SITE_URL (public-facing canonical URL)
+  // Fallback: localhost with PORT or 3000.
+
+  const apiBase = process.env.API_BASE_URL;
+  if (apiBase) {
+    return apiBase.replace(/\/$/, "");
   }
 
-  // Fallback for local development if NEXT_PUBLIC_SITE_URL is not set
-  // Ensure no trailing slash
+  const publicSite = process.env.NEXT_PUBLIC_SITE_URL;
+  if (publicSite) {
+    return publicSite.replace(/\/$/, "");
+  }
+
   const port = process.env.PORT || 3000;
   return `http://localhost:${port}`;
 }
