@@ -310,7 +310,7 @@ Before implementing ANY suggestion:
 2. Analyze: Is this actually an improvement? What are the risks? Better alternatives?
 3. Get second opinion:
 
-```
+```text
 @mcp__zen__thinkdeep model="pro" thinking_mode="high" prompt="
 Comment: [paste]
 File: [path] | Functionality: [from docs]
@@ -514,7 +514,7 @@ mutation {
 ## 🤖 CRITICAL LLM INSTRUCTIONS
 
 **MANDATORY EXECUTION PATTERN**:
-```
+```bash
 1. RUN: UNRESOLVED_COUNT=$(gh api graphql -f query='...' | jq '[...] | length')
 2. READ: The numeric value of $UNRESOLVED_COUNT
 3. DECISION: If UNRESOLVED_COUNT > 0, then unresolved comments EXIST
