@@ -66,7 +66,7 @@ This consolidated document serves as the primary reference for the overall proje
 
 ## Core Architectural Patterns
 
-### Isomorphic URL Resolution (`lib/getBaseUrl.ts`)
+### Isomorphic URL Resolution (`lib/get-base-url.ts`)
 
 To ensure API calls work seamlessly on both the client and the server, the application uses a `getBaseUrl()` utility.
 

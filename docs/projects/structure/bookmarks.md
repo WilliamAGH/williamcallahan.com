@@ -212,6 +212,12 @@ To serve as the primary orchestration layer for fetching, processing, enriching,
   - Tag state properly initialized when navigating directly to tag URLs
   - Special characters in tags handled gracefully
 
+### ✅ FIXED: Client-Side Error Logging (2025-06)
+
+- **Previous Issue**: Client wrapper `fetchBookmarksFromApi` swallowed errors without logging, making debugging network issues difficult and causing test expectations to fail.
+- **Solution**: Added explicit `console.error` call inside the `catch` block while still returning a safe empty array. Ensures consistent logging behaviour on both server and client paths.
+- **Impact**: Restored visibility into client-side fetch failures and fixed related unit tests.
+
 ## Architecture Diagram
 
 See `bookmarks.mmd` for a visual diagram of how this orchestration layer coordinates with other core functionalities.
@@ -248,7 +254,7 @@ By acting as an orchestrator, the bookmarks feature remains focused on its speci
   - Fixed (2025-06): Removed per-card API calls, now receives shareUrl as prop
 - **`components/features/bookmarks/bookmarks-client-with-window.tsx`**: Window entrypoint
 - **`components/features/bookmarks/bookmarks-window.client.tsx`**: Main window UI
-- **`components/features/bookmarks/bookmarks-with-options.client.tsx`**: Options UI
+- **`components/features/bookmarks/bookmarks-with-options.client.tsx`**: Options UI (removed)
   - Updated (2025-06): Generates share URLs once for all cards
   - Updated (2025-06): Added initialTag support and URL navigation for tags
 - **`components/features/bookmarks/bookmarks-with-pagination.client.tsx`**: Paginated view
@@ -292,11 +298,12 @@ By acting as an orchestrator, the bookmarks feature remains focused on its speci
 
 ### Business Logic
 
-- **`lib/bookmarks.ts`**: Core orchestration logic
+- **`lib/bookmarks/bookmarks.ts`**: Core orchestration logic
   - Coordinates fetching, processing, enrichment
   - Circular dependency resolved via callback pattern
-- **`lib/bookmarks.client.ts`**: Client-side helpers
-- **`lib/bookmarks.server.ts`**: Server-side helpers
+- **`lib/bookmarks/bookmarks.client.ts`**: Client-side helpers
+  - Fixed: Removed direct ServerCacheInstance usage
+- **`lib/bookmarks/bookmarks.server.ts`**: Server-side helpers
   - Fixed: Now imports directly from data access layer
 - **`lib/bookmarks/index.ts`**: Barrel exports
 
