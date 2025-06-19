@@ -7,8 +7,9 @@
 import "server-only"; // Ensure this component remains server-only
 
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
+import { normalizeBookmarkTag } from "@/lib/bookmarks/utils";
 import { ServerCacheInstance } from "@/lib/server-cache";
-import type { BookmarkTag, UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types";
 import { BookmarksClientWithWindow } from "./bookmarks-client-with-window";
 
 import type { JSX } from "react";
@@ -93,24 +94,7 @@ export async function BookmarksServer({
     url: bookmark.url,
     title: bookmark.title,
     description: bookmark.description,
-    tags:
-      bookmark.tags?.map((tag: string | BookmarkTag) => {
-        // Handle both string tags and BookmarkTag objects
-        if (typeof tag === "string") {
-          return {
-            id: tag,
-            name: tag,
-            slug: tag.toLowerCase().replace(/\s+/g, "-"),
-            color: undefined,
-          };
-        }
-        return {
-          id: tag.id || tag.name,
-          name: tag.name,
-          slug: tag.slug || tag.name.toLowerCase().replace(/\s+/g, "-"),
-          color: tag.color,
-        };
-      }) || [],
+    tags: bookmark.tags?.map(normalizeBookmarkTag) || [],
     dateBookmarked: bookmark.dateBookmarked,
     dateCreated: bookmark.dateCreated,
     dateUpdated: bookmark.dateUpdated,
