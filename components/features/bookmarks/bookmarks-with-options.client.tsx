@@ -17,12 +17,7 @@ import { useEffect, useState } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
 
-interface BookmarksWithOptionsProps {
-  bookmarks: UnifiedBookmark[];
-  showFilterBar?: boolean;
-  searchAllBookmarks?: boolean;
-  initialTag?: string;
-}
+import type { BookmarksWithOptionsClientProps } from "@/types";
 
 // Environment detection helper
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -32,7 +27,7 @@ const getTagsAsStringArray = (tags: UnifiedBookmark["tags"]): string[] => {
   return normalizeTagsToStrings(tags);
 };
 
-export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
+export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = ({
   bookmarks,
   showFilterBar = true,
   searchAllBookmarks = false,
@@ -87,26 +82,30 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
         setIsSearchingAPI(true);
         const response = await fetch(`/api/search/all?q=${encodeURIComponent(searchQuery)}`);
         if (response.ok) {
-          const results = await response.json() as Array<{ label: string; description: string; path: string }>;
+          const results = (await response.json()) as Array<{
+            label: string;
+            description: string;
+            path: string;
+          }>;
           // Filter only bookmark results and map back to UnifiedBookmark format
           const bookmarkResults = results
-            .filter(r => r.path.startsWith('/bookmarks/'))
-            .map(r => {
+            .filter((r) => r.path.startsWith("/bookmarks/"))
+            .map((r) => {
               // Find the matching bookmark from our current set
-              const matchingBookmark = [...allBookmarks, ...bookmarks].find(b => 
-                r.label === b.title || r.path.includes(b.id)
+              const matchingBookmark = [...allBookmarks, ...bookmarks].find(
+                (b) => r.label === b.title || r.path.includes(b.id),
               );
               return matchingBookmark;
             })
             .filter((b): b is UnifiedBookmark => b !== undefined);
-          
+
           setSearchResults(bookmarkResults);
         } else {
           // API failed, fall back to client-side search
           setSearchResults(null);
         }
       } catch (error) {
-        console.warn('Search API failed, falling back to client-side search:', error);
+        console.warn("Search API failed, falling back to client-side search:", error);
         setSearchResults(null);
       } finally {
         setIsSearchingAPI(false);
@@ -138,7 +137,10 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
             throw new Error(`API request failed with status ${response.status}`);
           }
 
-          const responseData = await response.json() as { data: UnifiedBookmark[]; meta: unknown };
+          const responseData = (await response.json()) as {
+            data: UnifiedBookmark[];
+            meta: unknown;
+          };
           const allBookmarksData = responseData.data;
           console.log("Client-side direct fetch bookmarks count:", allBookmarksData?.length || 0);
 
@@ -247,7 +249,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
   // Handle navigation based on tag selection
   useEffect(() => {
     if (!mounted) return;
-    
+
     if (selectedTag && !pathname.includes("/tags/")) {
       // Navigate to tag page when tag is selected
       const tagSlug = tagToSlug(selectedTag);
@@ -282,22 +284,14 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        interface ErrorResponse {
-          error: string | null;
-        }
         const errorData = (await response
           .json()
-          .catch(() => ({ error: null }) as ErrorResponse)) as ErrorResponse;
+          .catch(() => ({ error: null }) as import("@/types").ErrorResponse)) as import("@/types").ErrorResponse;
         const errorMessage = errorData.error || `Refresh failed: ${response.status}`;
         throw new Error(errorMessage);
       }
 
-      interface RefreshResult {
-        status: string;
-        message?: string;
-      }
-
-      const result = (await response.json()) as RefreshResult;
+      const result = (await response.json()) as import("@/types").RefreshResult;
       console.log("Bookmarks refresh result:", result);
 
       // If refresh was successful, fetch the new bookmarks
@@ -391,11 +385,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
               className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               aria-label="Refresh Bookmarks"
             >
-              {isRefreshing ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4" />
-              )}
+              {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             </button>
           )}
           {/* Display Refresh Error */}
@@ -462,15 +452,17 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsProps> = ({
               <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">
                 No bookmarks found for &ldquo;{searchQuery}&rdquo;
               </p>
-              <p className="text-gray-500 dark:text-gray-400 text-sm">
-                Try adjusting your search terms or filters.
-              </p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">Try adjusting your search terms or filters.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
               {filteredBookmarks.map((bookmark) => {
                 // Generate share URL once per bookmark to avoid per-card API calls
-                const shareUrl = `/bookmarks/${generateUniqueSlug(bookmark.url, bookmarks.map(b => ({ id: b.id, url: b.url })), bookmark.id)}`;
+                const shareUrl = `/bookmarks/${generateUniqueSlug(
+                  bookmark.url,
+                  bookmarks.map((b) => ({ id: b.id, url: b.url })),
+                  bookmark.id,
+                )}`;
                 return <BookmarkCardClient key={bookmark.id} {...bookmark} shareUrl={shareUrl} />;
               })}
             </div>

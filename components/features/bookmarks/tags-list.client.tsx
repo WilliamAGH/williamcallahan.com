@@ -8,14 +8,9 @@
 
 import { formatTagDisplay } from "@/lib/utils/tag-utils";
 import React, { useState, useEffect } from "react";
+import type { TagsListClientProps } from "@/types";
 
-interface TagsListProps {
-  tags: string[];
-  selectedTag: string | null;
-  onTagSelectAction: (tag: string) => void;
-}
-
-export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListProps) {
+export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListClientProps) {
   const [mounted, setMounted] = useState(false);
   const [showAllTags, setShowAllTags] = useState(false);
 
