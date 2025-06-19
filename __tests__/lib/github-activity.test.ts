@@ -264,8 +264,7 @@ describe("lib/data-access/github.ts functionality", () => {
       process.env.GITHUB_CRON_REFRESH_SECRET = secrets.cronSecret;
       process.env.BOOKMARK_CRON_REFRESH_SECRET = "fallback-secret";
 
-      const cronSecret =
-        process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+      const cronSecret = process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
       expect(cronSecret).toBe(secrets.cronSecret);
 
       // Test refresh secret
@@ -278,8 +277,7 @@ describe("lib/data-access/github.ts functionality", () => {
       process.env.GITHUB_CRON_REFRESH_SECRET = "";
       process.env.BOOKMARK_CRON_REFRESH_SECRET = "fallback-secret";
 
-      const cronSecret =
-        process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+      const cronSecret = process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
       expect(cronSecret).toBe("fallback-secret");
     });
   });

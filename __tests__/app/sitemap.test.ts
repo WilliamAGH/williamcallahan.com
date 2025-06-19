@@ -87,9 +87,7 @@ describe("Sitemap Generation", () => {
       expect(totalPages).toBe(3); // 50 / 24 = 2.08, rounded up to 3
 
       // Find paginated bookmark entries (pages 2 and 3, since page 1 is /bookmarks)
-      const paginatedEntries = sitemapEntries.filter((entry) =>
-        entry.url.includes("/bookmarks/page/"),
-      );
+      const paginatedEntries = sitemapEntries.filter((entry) => entry.url.includes("/bookmarks/page/"));
 
       // Should have entries for pages 2 and 3
       expect(paginatedEntries).toHaveLength(2);
@@ -176,16 +174,12 @@ describe("Sitemap Generation", () => {
       const sitemapEntries = await sitemap();
 
       // Should not have any paginated entries
-      const paginatedEntries = sitemapEntries.filter((entry) =>
-        entry.url.includes("/bookmarks/page/"),
-      );
+      const paginatedEntries = sitemapEntries.filter((entry) => entry.url.includes("/bookmarks/page/"));
 
       expect(paginatedEntries).toHaveLength(0);
 
       // But should still have the main bookmarks page
-      const mainBookmarksEntry = sitemapEntries.find(
-        (entry) => entry.url === "https://williamcallahan.com/bookmarks",
-      );
+      const mainBookmarksEntry = sitemapEntries.find((entry) => entry.url === "https://williamcallahan.com/bookmarks");
 
       expect(mainBookmarksEntry).toBeDefined();
     });
@@ -227,15 +221,11 @@ describe("Sitemap Generation", () => {
 
       // Should generate slugs based on domain and title
       expect(
-        bookmarkEntries.some(
-          (entry) => entry.url.includes("/bookmarks/") && entry.url.includes("example-com"),
-        ),
+        bookmarkEntries.some((entry) => entry.url.includes("/bookmarks/") && entry.url.includes("example-com")),
       ).toBe(true);
 
       expect(
-        bookmarkEntries.some(
-          (entry) => entry.url.includes("/bookmarks/") && entry.url.includes("another-com"),
-        ),
+        bookmarkEntries.some((entry) => entry.url.includes("/bookmarks/") && entry.url.includes("another-com")),
       ).toBe(true);
     });
   });

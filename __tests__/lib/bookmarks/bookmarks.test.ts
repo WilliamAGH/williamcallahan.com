@@ -177,9 +177,7 @@ describe("Bookmarks Module (Simplified)", () => {
     "should handle API fetch errors gracefully",
     async () => {
       // Set up fetch mock to reject
-      const fetchSpy = jest
-        .spyOn(globalThis, "fetch")
-        .mockRejectedValueOnce(new Error("Network error"));
+      const fetchSpy = jest.spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("Network error"));
       const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
       try {
@@ -195,10 +193,7 @@ describe("Bookmarks Module (Simplified)", () => {
         expect(bookmarks).toEqual([]);
 
         // Should log error
-        expect(consoleSpy).toHaveBeenCalledWith(
-          "[Bookmarks] Failed to fetch from /api/bookmarks:",
-          expect.any(Error),
-        );
+        expect(consoleSpy).toHaveBeenCalledWith("[Bookmarks] Failed to fetch from /api/bookmarks:", expect.any(Error));
       } finally {
         fetchSpy.mockRestore();
         consoleSpy.mockRestore();
@@ -234,10 +229,7 @@ describe("Bookmarks Module (Simplified)", () => {
         expect(bookmarks).toEqual([]);
 
         // Should log error
-        expect(consoleSpy).toHaveBeenCalledWith(
-          "[Bookmarks] Failed to fetch from /api/bookmarks:",
-          expect.any(Error),
-        );
+        expect(consoleSpy).toHaveBeenCalledWith("[Bookmarks] Failed to fetch from /api/bookmarks:", expect.any(Error));
       } finally {
         fetchSpy.mockRestore();
         consoleSpy.mockRestore();
@@ -270,10 +262,7 @@ describe("Bookmarks Module (Simplified)", () => {
         expect(bookmarks).toEqual([]);
 
         // Should log error
-        expect(consoleSpy).toHaveBeenCalledWith(
-          expect.stringContaining("Failed to fetch from"),
-          expect.any(Error),
-        );
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch from"), expect.any(Error));
       } finally {
         fetchSpy.mockRestore();
         consoleSpy.mockRestore();

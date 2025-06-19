@@ -78,9 +78,7 @@ describe("Search API: GET /api/search/all", () => {
      */
     it("should handle queries with special characters", async () => {
       const specialQuery = encodeURIComponent("test & special <characters>");
-      const request = new MockNextRequest(
-        `http://localhost:3000/api/search/all?q=${specialQuery}`,
-      ) as any;
+      const request = new MockNextRequest(`http://localhost:3000/api/search/all?q=${specialQuery}`) as any;
       const response = await GET(request);
 
       expect(response.status).toBe(200);
@@ -92,9 +90,7 @@ describe("Search API: GET /api/search/all", () => {
      */
     it("should return 400 for queries exceeding maximum length", async () => {
       const longQuery = "a".repeat(1000);
-      const request = new MockNextRequest(
-        `http://localhost:3000/api/search/all?q=${longQuery}`,
-      ) as any;
+      const request = new MockNextRequest(`http://localhost:3000/api/search/all?q=${longQuery}`) as any;
       const response = await GET(request);
       const data = await response.json();
 

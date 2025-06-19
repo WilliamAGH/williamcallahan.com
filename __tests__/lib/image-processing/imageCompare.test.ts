@@ -1,16 +1,8 @@
 // Jest provides describe, expect, it, beforeEach globally
+import type { SharpInstance } from "@/types/test";
 import { compareImages } from "@/lib/image-handling/image-compare";
 import { logger } from "@/lib/logger";
 import type { Metadata, FormatEnum, ResizeOptions } from "sharp";
-
-type SharpInstance = {
-  metadata: () => Promise<Metadata>;
-  toBuffer: () => Promise<Buffer>;
-  png: () => SharpInstance;
-  grayscale: () => SharpInstance;
-  raw: () => SharpInstance;
-  resize: (width: number, height: number, options: ResizeOptions) => SharpInstance;
-};
 
 // Mock sharp
 const createMockSharp = (metadata: Partial<Metadata> = {}): SharpInstance => ({

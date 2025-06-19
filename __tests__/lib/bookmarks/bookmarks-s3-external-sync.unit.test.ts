@@ -78,13 +78,10 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
 
     // Mock a successful response for the bookmarks API
     const mockBookmarks = [{ id: "1", title: "Test Bookmark" }];
-    const apiResponse = new Response(
-      JSON.stringify({ bookmarks: mockBookmarks, next_cursor: null }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    const apiResponse = new Response(JSON.stringify({ bookmarks: mockBookmarks, next_cursor: null }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
     mockFetchImplementation.mockResolvedValue(apiResponse);
 
     // Check for necessary environment variables
@@ -129,9 +126,7 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
     }
 
     try {
-      console.log(
-        "[UnitTest] Attempting to fetch from external bookmarks API with mocked fetch...",
-      );
+      console.log("[UnitTest] Attempting to fetch from external bookmarks API with mocked fetch...");
       console.log(
         "[UnitTest] BOOKMARK_BEARER_TOKEN before refreshBookmarksData:",
         process.env.BOOKMARK_BEARER_TOKEN ? "SET" : "NOT SET or EMPTY",
@@ -206,9 +201,7 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
     if (!process.env.S3_BUCKET) return; // Skip if S3_BUCKET not set
     expect(s3Error).toBeNull(); // Expect no direct error from S3 read attempt
     expect(s3Bookmarks).toBeInstanceOf(Array);
-    console.log(
-      `[UnitTest] Bookmarks count from S3: ${s3Bookmarks?.length ?? "Error/Not Fetched"}`,
-    );
+    console.log(`[UnitTest] Bookmarks count from S3: ${s3Bookmarks?.length ?? "Error/Not Fetched"}`);
   });
 
   /**
@@ -231,9 +224,7 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
    */
   it("should test bookmark count synchronization logic between S3 and mocked external API", () => {
     if (!s3Bookmarks || !externalApiBookmarks) {
-      console.warn(
-        "[UnitTest] Skipping quantity comparison due to fetch errors or missing env vars.",
-      );
+      console.warn("[UnitTest] Skipping quantity comparison due to fetch errors or missing env vars.");
       expect(true).toBe(true); // Pass benignly if setup failed
       return;
     }
@@ -252,8 +243,7 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
       const externalIds = new Set(externalApiBookmarks.map((b) => b.id));
       const inExternalOnly = externalApiBookmarks.filter((b) => !s3Ids.has(b.id)).map((b) => b.id);
       const inS3Only = s3Bookmarks.filter((b) => !externalIds.has(b.id)).map((b) => b.id);
-      if (inExternalOnly.length > 0)
-        console.error(`[UnitTest] IDs in External API only: ${inExternalOnly.join(", ")}`);
+      if (inExternalOnly.length > 0) console.error(`[UnitTest] IDs in External API only: ${inExternalOnly.join(", ")}`);
       if (inS3Only.length > 0) console.error(`[UnitTest] IDs in S3 only: ${inS3Only.join(", ")}`);
     }
 
@@ -262,9 +252,7 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
       console.log("[UnitTest] ✅ SUCCESS: Bookmark count synchronization logic works correctly!");
       expect(s3Bookmarks.length).toBe(externalApiBookmarks.length);
     } else {
-      console.error(
-        "[UnitTest] ❌ SYNC LOGIC ISSUE: Bookmark count comparison logic detected mismatch",
-      );
+      console.error("[UnitTest] ❌ SYNC LOGIC ISSUE: Bookmark count comparison logic detected mismatch");
       // This tests that the comparison logic itself works
       expect(s3Bookmarks.length).toBe(externalApiBookmarks.length);
     }
