@@ -38,7 +38,8 @@
     "biome:format": "biome format --write .",
     "biome:lint": "biome lint .",
     "type-check": "tsc --noEmit",
-    "validate": "bun run lint && bun run type-check && bun run biome:check",
+    "validate": "bun run lint && bun run type-check",
+    "validate:full": "bun run lint && bun run type-check && bun run biome:check",
     "clean": "rm -rf .next out node_modules",
     "cleanCache": "rm -rf .next/cache",
     "test": "jest --color --config=config/jest/config.ts",
@@ -98,6 +99,7 @@
     "zod": "^3.25.67"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@eslint/js": "^9.28.0",
     "@happy-dom/global-registrator": "^17.6.3",
     "@mdx-js/react": "^3.1.0",
