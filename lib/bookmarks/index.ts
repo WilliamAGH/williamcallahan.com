@@ -19,3 +19,6 @@ export * from "./api-client";
 
 // Re-export client-safe functions from bookmarks (no server imports)
 export { fetchExternalBookmarks, refreshBookmarksData } from "./bookmarks";
+
+// Server-side utility (re-exported for tests – not intended for browser bundles)
+export { getBookmarks } from "./bookmarks-data-access.server";

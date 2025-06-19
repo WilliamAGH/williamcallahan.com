@@ -27,6 +27,17 @@ const rateLimitStores: Record<string, Record<string, RateLimitRecord>> = {};
  * @returns True if the operation is allowed, false otherwise.
  */
 export function isOperationAllowed(storeName: string, contextId: string, config: RateLimiterConfig): boolean {
+  // ---------------------------------------------------------------------------
+  // Validate configuration – throw early for clearly invalid settings so that
+  // callers (and tests) can rely on deterministic behaviour.
+  // ---------------------------------------------------------------------------
+  if (config.maxRequests <= 0) {
+    throw new Error(`Invalid maxRequests: ${config.maxRequests}. Must be greater than 0.`);
+  }
+  if (config.windowMs <= 0) {
+    throw new Error(`Invalid windowMs: ${config.windowMs}. Must be greater than 0.`);
+  }
+
   if (!rateLimitStores[storeName]) {
     rateLimitStores[storeName] = {};
   }

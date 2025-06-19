@@ -34,3 +34,5 @@
 
 // Re-export types (breaking circular dependency by importing directly from types)
 export type { ArticleParams, SoftwareAppParams } from "../../types/seo";
+
+export { SEO_DATE_FIELDS } from "../../types/seo";
