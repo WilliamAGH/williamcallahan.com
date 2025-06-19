@@ -10,19 +10,8 @@
 
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
+import type { CopyButtonExtendedProps as CopyButtonProps } from "@/types/ui";
 import { cn } from "../../../lib/utils";
-
-/**
- * Props for the CopyButton component
- * @interface CopyButtonProps
- */
-interface CopyButtonProps {
-  /** The text content to be copied to clipboard */
-  content: string;
-  className?: string;
-  /** Indicates if the parent CodeBlock has padding, to adjust button position */
-  parentIsPadded?: boolean;
-}
 
 /**
  * A button component that copies content to clipboard with visual feedback
@@ -30,11 +19,7 @@ interface CopyButtonProps {
  * @param {CopyButtonProps} props - The component props
  * @returns {JSX.Element} A button that copies text to clipboard
  */
-export const CopyButton: React.FC<CopyButtonProps> = ({
-  content,
-  className,
-  parentIsPadded = false,
-}) => {
+export const CopyButton: React.FC<CopyButtonProps> = ({ content, className, parentIsPadded = false }) => {
   /** State to track if content was copied */
   const [copied, setCopied] = useState(false);
 

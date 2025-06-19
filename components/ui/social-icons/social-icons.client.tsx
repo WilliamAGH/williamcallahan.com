@@ -12,12 +12,8 @@ import Link from "next/link";
 import React from "react";
 import { ErrorBoundary } from "../error-boundary.client";
 import { socialLinks } from "./social-links";
+import type { SocialIconsProps } from "@/types/ui/social";
 // SocialLink type is imported in social-links.ts, no need to import it here
-
-interface SocialIconsProps {
-  className?: string;
-  showXOnly?: boolean;
-}
 
 // Simple hook to detect client-side mounting
 function useHasMounted() {
@@ -44,9 +40,7 @@ export function SocialIcons({ className = "", showXOnly = false }: SocialIconsPr
     "p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-all duration-200 ease-in-out hover:scale-110 active:scale-100";
 
   // Filter links based on showXOnly prop
-  const linksToShow = showXOnly
-    ? socialLinks.filter((link) => link.label === "X (Twitter)")
-    : socialLinks;
+  const linksToShow = showXOnly ? socialLinks.filter((link) => link.label === "X (Twitter)") : socialLinks;
 
   // During server rendering and before hydration completes on client,
   // just render nothing with suppressHydrationWarning

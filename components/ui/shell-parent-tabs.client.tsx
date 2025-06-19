@@ -9,28 +9,9 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import {
-  Children,
-  type JSX,
-  cloneElement,
-  createContext,
-  isValidElement,
-  useId,
-  useState,
-} from "react";
+import { Children, type JSX, cloneElement, createContext, isValidElement, useId, useState } from "react";
 import type { ReactNode } from "react";
-
-/**
- * Props for the ShellTab component.
- */
-interface ShellTabProps {
-  /** The label to display for the tab. */
-  label: string;
-  /** The content to render within the tab. */
-  children: ReactNode;
-  /** Whether this tab should be selected by default. */
-  isDefault?: boolean;
-}
+import type { ShellTabProps, ShellParentTabsContextProps } from "@/types/ui";
 
 /**
  * Represents a single tab within a ShellParentTabs container.
@@ -73,20 +54,6 @@ export function ShellTab({ children }: ShellTabProps): JSX.Element {
 }
 
 /**
- * Context properties for ShellParentTabs.
- */
-interface ShellParentTabsContextProps {
-  /** The label of the currently active tab. */
-  activeTab: string;
-  /** Function to set the active tab. */
-  setActiveTab: (label: string) => void;
-  /** Array of tab labels and their generated IDs. */
-  tabs: Array<{ label: string; id: string }>;
-  /** Base ID used for generating unique IDs for tab elements. */
-  baseId: string;
-}
-
-/**
  * React context for managing the state of ShellParentTabs.
  * @internal
  */
@@ -104,10 +71,7 @@ const ShellTabsContext = createContext<ShellParentTabsContextProps | null>(null)
  * @param {string} [props.className] - Optional CSS class name for the container.
  * @returns {JSX.Element | null} The rendered tabs container or a message if no tabs are configured.
  */
-export function ShellParentTabs({
-  children,
-  className = "",
-}: { children: ReactNode; className?: string }) {
+export function ShellParentTabs({ children, className = "" }: { children: ReactNode; className?: string }) {
   const baseId = useId();
   const [activeTab, setActiveTab] = useState<string>("");
 
@@ -128,15 +92,14 @@ export function ShellParentTabs({
     })
     .filter(Boolean) as Array<{ label: string; id: string }>;
 
-  if (!activeTab && tabs.length > 0) {
+  if (!activeTab && tabs.length > 0 && tabs[0]) {
     setActiveTab(tabs[0].label); // Set activeTab to the first tab's label
   }
 
   if (tabs.length === 0) {
     return (
       <div className="my-4 p-4 border border-red-500 rounded-md bg-red-50 text-red-700">
-        No tabs configured for ShellParentTabs. Please add one or more ShellTab components with a
-        label.
+        No tabs configured for ShellParentTabs. Please add one or more ShellTab components with a label.
       </div>
     );
   }

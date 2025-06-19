@@ -8,26 +8,9 @@
 "use client";
 
 import { ExternalLink as ExternalLinkIcon } from "lucide-react";
+import type { ExternalLinkProps } from "@/types";
 
 import type { JSX } from "react";
-
-/**
- * Props for the ExternalLink component
- */
-interface ExternalLinkProps {
-  /** The URL the link points to */
-  href?: string | null;
-  /** The text or elements to display inside the link */
-  children: React.ReactNode;
-  /** Whether to show the external link icon */
-  showIcon?: boolean;
-  /** Additional CSS classes */
-  className?: string;
-  /** Title to show on hover */
-  title?: string;
-  /** When true, uses the title text exactly as provided without adding "Visit" prefix */
-  rawTitle?: boolean;
-}
 
 /**
  * A component that renders an external link with proper SEO and accessibility attributes

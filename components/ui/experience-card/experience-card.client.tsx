@@ -7,39 +7,19 @@
 "use client";
 
 import { ExternalLink as ExternalLinkIcon } from "lucide-react";
-import type { Experience } from "../../../types/experience";
 import { ExternalLink } from "../external-link.client";
 import { LogoImage } from "../logo-image.client";
 
 import type { JSX } from "react";
 
-/**
- * Logo data structure for experience cards
- * @interface LogoData
- */
-interface LogoData {
-  /** URL path to the logo image */
-  url: string;
-  /** Source identifier for logo origin tracking, null if unknown */
-  source: string | null;
-}
-
-/**
- * Props for the ExperienceCardClient component
- * @interface ExperienceCardClientProps
- * @extends Experience
- */
-interface ExperienceCardClientProps extends Experience {
-  /** Logo data containing URL and source information */
-  logoData: LogoData;
-}
+import type { ExperienceCardExtendedProps } from "@/types";
 
 /**
  * Client-side experience card component that displays professional experience information
  * with interactive elements like hover effects and external links.
- * 
+ *
  * @component
- * @param {ExperienceCardClientProps} props - The experience data and logo information
+ * @param {ExperienceCardExtendedProps} props - The experience data and logo information
  * @param {string} props.id - Unique identifier for the experience entry
  * @param {string} props.company - Company name
  * @param {string} props.period - Formatted time period string
@@ -50,7 +30,7 @@ interface ExperienceCardClientProps extends Experience {
  * @param {string} [props.location] - Work location, optional
  * @param {LogoData} props.logoData - Logo image data
  * @returns {JSX.Element} Rendered experience card with hover effects and external links
- * 
+ *
  * @example
  * ```tsx
  * <ExperienceCardClient
@@ -76,7 +56,7 @@ export function ExperienceCardClient({
   website,
   location,
   logoData,
-}: ExperienceCardClientProps): JSX.Element {
+}: ExperienceCardExtendedProps): JSX.Element {
   return (
     <div
       id={id}
@@ -85,7 +65,17 @@ export function ExperienceCardClient({
       <div className="p-6">
         <div className="flex items-start gap-5">
           <div className="w-12 h-12 relative flex-shrink-0">
-            <ExternalLink href={website} title={company} rawTitle={true} showIcon={false}>
+            {website ? (
+              <ExternalLink href={website} title={company} rawTitle={true} showIcon={false}>
+                <LogoImage
+                  src={logoData.url}
+                  width={48}
+                  height={48}
+                  className="object-contain rounded-lg"
+                  alt={company}
+                />
+              </ExternalLink>
+            ) : (
               <LogoImage
                 src={logoData.url}
                 width={48}
@@ -93,19 +83,23 @@ export function ExperienceCardClient({
                 className="object-contain rounded-lg"
                 alt={company}
               />
-            </ExternalLink>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1">
-                <ExternalLink
-                  href={website}
-                  title={`Visit ${company}'s website`}
-                  showIcon={false}
-                  className="text-xl font-semibold hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  {company}
-                </ExternalLink>
+                {website ? (
+                  <ExternalLink
+                    href={website}
+                    title={`Visit ${company}'s website`}
+                    showIcon={false}
+                    className="text-xl font-semibold hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    {company}
+                  </ExternalLink>
+                ) : (
+                  <span className="text-xl font-semibold">{company}</span>
+                )}
                 {website && (
                   <ExternalLink
                     href={website}
@@ -125,11 +119,7 @@ export function ExperienceCardClient({
             </div>
             <div className="space-y-1">
               <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{role}</p>
-              {location && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                  {location}
-                </p>
-              )}
+              {location && <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">{location}</p>}
             </div>
           </div>
         </div>

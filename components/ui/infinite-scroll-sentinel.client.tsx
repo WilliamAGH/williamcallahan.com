@@ -1,24 +1,17 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
-
-interface InfiniteScrollSentinelProps {
-  onIntersect: () => void;
-  loading?: boolean;
-  hasMore?: boolean;
-  threshold?: number;
-  rootMargin?: string;
-  children?: React.ReactNode;
-}
+import type React from "react";
+import { useEffect, useRef } from "react";
+import { Loader2 } from "lucide-react";
+import type { InfiniteScrollSentinelProps } from "@/types/ui/async";
 
 export const InfiniteScrollSentinel: React.FC<InfiniteScrollSentinelProps> = ({
   onIntersect,
   loading = false,
   hasMore = true,
   threshold = 0.1,
-  rootMargin = '100px',
-  children
+  rootMargin = "100px",
+  children,
 }) => {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -27,15 +20,16 @@ export const InfiniteScrollSentinel: React.FC<InfiniteScrollSentinelProps> = ({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
+        const firstEntry = entries[0];
+        if (firstEntry?.isIntersecting) {
           onIntersect();
         }
       },
       {
         root: null,
         rootMargin,
-        threshold
-      }
+        threshold,
+      },
     );
 
     const currentSentinel = sentinelRef.current;

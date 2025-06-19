@@ -8,22 +8,11 @@
 
 "use client";
 
-import type { JSX, ReactNode } from "react";
+import type { JSX } from "react";
 import { useEffect, useRef } from "react";
+import type { CollapseDropdownExtendedProps as CollapseDropdownProps } from "@/types/ui";
 import { useCollapseDropdownContext } from "../../lib/context/collapse-dropdown-context.client";
 import { cn } from "../../lib/utils";
-
-interface CollapseDropdownProps {
-  summary: ReactNode;
-  children: ReactNode;
-  className?: string;
-  summaryClassName?: string;
-  contentClassName?: string;
-  defaultOpen?: boolean;
-  id?: string;
-  // Allow nested flag to adjust styling specifically for nested dropdowns
-  isNested?: boolean;
-}
 
 export function CollapseDropdown({
   summary,
@@ -38,8 +27,7 @@ export function CollapseDropdown({
   const detailsRef = useRef<HTMLDetailsElement>(null);
 
   // Try to use context, but don't fail if not available (backward compatibility)
-  let registerDropdown: ((id: string, ref: React.RefObject<HTMLDetailsElement>) => void) | null =
-    null;
+  let registerDropdown: ((id: string, ref: React.RefObject<HTMLDetailsElement>) => void) | null = null;
   let unregisterDropdown: ((id: string) => void) | null = null;
 
   try {

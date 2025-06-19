@@ -13,29 +13,9 @@ import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
-// Define the interface for a single tab
-export interface WindowTab {
-  id: string;
-  label: string;
-}
+import type { MacOSWindowExtendedProps as MacOSWindowProps, WindowTab } from "@/types/ui";
 
-interface MacOSWindowProps {
-  children: ReactNode;
-  className?: string;
-  contentClassName?: string;
-  hideTrafficLights?: boolean;
-  title?: string;
-  tabs?: WindowTab[];
-  activeTabId?: string;
-  onTabClick?: (id: string) => void;
-  // To control traffic light appearance more granularly if needed later
-  showTrafficLights?: boolean;
-  // Add window control handlers
-  onClose?: () => void;
-  onMinimize?: () => void;
-  onMaximize?: () => void;
-  isMaximized?: boolean; // Already used by InstructionMacOSFrameTabs, ensure it's here
-}
+export type { WindowTab };
 
 export function MacOSWindow({
   children,
@@ -56,15 +36,11 @@ export function MacOSWindow({
   isMaximized, // Already used by InstructionMacOSFrameTabs
 }: MacOSWindowProps) {
   // Determine if traffic lights should be shown
-  const displayTrafficLights =
-    hideTrafficLights === undefined ? showTrafficLights : !hideTrafficLights;
+  const displayTrafficLights = hideTrafficLights === undefined ? showTrafficLights : !hideTrafficLights;
 
   return (
     <div
-      className={cn(
-        "my-4 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm",
-        className,
-      )}
+      className={cn("my-4 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm", className)}
     >
       {/* macOS-style window header */}
       <div
@@ -150,8 +126,7 @@ export function MacOSCodeWindow({
   hideTrafficLights?: boolean;
 }) {
   // Determine if traffic lights should be shown
-  const displayTrafficLights =
-    hideTrafficLights === undefined ? showTrafficLights : !hideTrafficLights;
+  const displayTrafficLights = hideTrafficLights === undefined ? showTrafficLights : !hideTrafficLights;
 
   return (
     <MacOSWindow
@@ -164,9 +139,7 @@ export function MacOSCodeWindow({
       contentClassName={cn("!p-0", contentClassName)}
     >
       {typeof children === "string" ? (
-        <CodeBlock
-          className={cn(language ? `language-${language}` : "", "!my-0 !shadow-none !border-0")}
-        >
+        <CodeBlock className={cn(language ? `language-${language}` : "", "!my-0 !shadow-none !border-0")}>
           {children}
         </CodeBlock>
       ) : (

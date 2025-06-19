@@ -23,6 +23,11 @@ import {
 import { CollapseDropdown } from "./collapse-dropdown.client";
 import { MacOSWindow, type WindowTab } from "./macos-window.client";
 import { WindowControls } from "./navigation/window-controls";
+import type {
+  InstructionMACOSTabProps,
+  InstructionMacOSFrameTabsProps,
+  InstructionMacOSFrameTabsContextProps,
+} from "@/types/ui";
 
 /**
  * Context to track when we're inside a macOS frame to prevent double nesting
@@ -33,19 +38,6 @@ const MacOSFrameContext = createContext<boolean>(false);
  * Export the context for use in other components
  */
 export { MacOSFrameContext };
-
-/**
- * Props for the InstructionMACOSTab component.
- * Defines the expected properties for each tab.
- */
-interface InstructionMACOSTabProps {
-  /** The label displayed on the tab button. Required. */
-  label: string;
-  /** The content to be rendered when this tab is active. Required. */
-  children: ReactNode;
-  /** If true, this tab will be selected by default when the component mounts. Optional. */
-  isDefault?: boolean;
-}
 
 /**
  * Represents an individual tab within an InstructionMacOSFrameTabs container.
@@ -76,37 +68,12 @@ export function InstructionMACOSTab({ children }: InstructionMACOSTabProps): JSX
 }
 
 /**
- * Defines the shape of the context provided by InstructionMacOSFrameTabs.
- */
-interface InstructionMacOSFrameTabsContextProps {
-  /** The label of the currently active tab, or null if none is active. */
-  activeTab: string | null;
-  /** Function to set the active tab by its label. */
-  setActiveTab: (label: string) => void;
-  /** An array of objects, each representing a tab with its label and unique ID. */
-  tabs: Array<{ label: string; id: string }>;
-  /** A base ID string used for generating unique, accessible IDs for tab elements. */
-  baseId: string;
-}
-
-/**
  * React context for managing the state of InstructionMacOSFrameTabs.
  * This context provides descendant components with information about the active tab
  * and a function to change the active tab.
  * @internal This context is not intended for direct external use.
  */
-const InstructionMacOSFrameTabsContext =
-  createContext<InstructionMacOSFrameTabsContextProps | null>(null);
-
-/**
- * Props for the InstructionMacOSFrameTabs component.
- */
-interface InstructionMacOSFrameTabsProps {
-  /** One or more {@link InstructionMACOSTab} components. */
-  children: ReactNode;
-  /** Optional CSS class names to apply to the main window container. */
-  className?: string;
-}
+const InstructionMacOSFrameTabsContext = createContext<InstructionMacOSFrameTabsContextProps | null>(null);
 
 /**
  * A component that renders a macOS-style window with tabbed navigation.
@@ -213,18 +180,14 @@ export function InstructionMacOSFrameTabs({
   }));
 
   // Process activeChildContent to open CollapseDropdowns
-  const activeTabDetails = activeTabLabel
-    ? instructionTabs.find((it) => it.label === activeTabLabel)
-    : undefined;
+  const activeTabDetails = activeTabLabel ? instructionTabs.find((it) => it.label === activeTabLabel) : undefined;
   let activeChildContentProcessed: ReactNode = null;
 
   if (activeTabDetails) {
     const originalContent = activeTabDetails.originalChild.props.children;
     activeChildContentProcessed = React.Children.map(originalContent, (child, index) => {
       if (React.isValidElement(child) && child.type === CollapseDropdown) {
-        const collapseDropdownElement = child as ReactElement<
-          React.ComponentProps<typeof CollapseDropdown>
-        >;
+        const collapseDropdownElement = child as ReactElement<React.ComponentProps<typeof CollapseDropdown>>;
 
         let keyPart: string | number = index; // Default to index
         if (collapseDropdownElement.props.id) {
@@ -264,9 +227,7 @@ export function InstructionMacOSFrameTabs({
             isMaximized={isMaximized} // Pass the state
             size="md"
           />
-          <span className="ml-2 text-xs text-gray-300 dark:text-gray-400">
-            Content hidden (click to show)
-          </span>
+          <span className="ml-2 text-xs text-gray-300 dark:text-gray-400">Content hidden (click to show)</span>
         </button>
       </div>
     );
@@ -291,8 +252,7 @@ export function InstructionMacOSFrameTabs({
         <MacOSWindow
           className={cn(
             "!my-0 !border-0 !shadow-none !rounded-none",
-            isMaximized &&
-              "w-full max-w-[95vw] sm:max-w-5xl max-h-[90vh] sm:max-h-[80vh] flex flex-col",
+            isMaximized && "w-full max-w-[95vw] sm:max-w-5xl max-h-[90vh] sm:max-h-[80vh] flex flex-col",
             !isMaximized && className,
           )}
           tabs={windowTabs}
@@ -311,8 +271,7 @@ export function InstructionMacOSFrameTabs({
           isMaximized={isMaximized}
         >
           <MacOSFrameContext.Provider value={true}>
-            {!isMinimized && activeChildContentProcessed}{" "}
-            {/* Render processed content only if not minimized */}
+            {!isMinimized && activeChildContentProcessed} {/* Render processed content only if not minimized */}
           </MacOSFrameContext.Provider>
         </MacOSWindow>
       </InstructionMacOSFrameTabsContext.Provider>

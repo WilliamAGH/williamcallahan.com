@@ -8,23 +8,12 @@
 
 "use client";
 
-import Image, { type ImageProps } from "next/image";
+import Image from "next/image";
 import { type JSX, useCallback, useEffect, useRef, useState } from "react"; // Import useEffect and useCallback
 import { useWindowSize } from "../../../lib/hooks/use-window-size.client";
 import { cn } from "../../../lib/utils";
 import { WindowControls } from "../navigation/window-controls";
-
-/**
- * Props for the ImageWindow component
- */
-export interface ImageWindowProps extends Omit<ImageProps, "className"> {
-  /** Optional className override for the main wrapper */
-  wrapperClassName?: string;
-  /** Alt text for the image (used as accessible title potentially) */
-  alt: string; // Make alt text required for accessibility
-  /** Control vertical spacing */
-  noMargin?: boolean;
-}
+import type { ImageWindowProps } from "@/types/ui";
 
 /**
  * A component that renders an image within a macOS-style window frame
@@ -55,11 +44,7 @@ export const ImageWindow = ({
 
   // Determine the appropriate control size based on screen width
   const controlSize =
-    windowSize.width && windowSize.width < 640
-      ? "sm"
-      : windowSize.width && windowSize.width > 1280
-        ? "lg"
-        : "md";
+    windowSize.width && windowSize.width < 640 ? "sm" : windowSize.width && windowSize.width > 1280 ? "lg" : "md";
 
   // Handler functions for window controls
   const handleClose = () => {
@@ -107,9 +92,7 @@ export const ImageWindow = ({
   // Return early if window is closed
   if (!isVisible) {
     return (
-      <div
-        className={cn("relative group mx-auto max-w-full", !noMargin && "my-6", wrapperClassName)}
-      >
+      <div className={cn("relative group mx-auto max-w-full", !noMargin && "my-6", wrapperClassName)}>
         <button
           type="button"
           className={cn(
@@ -135,10 +118,7 @@ export const ImageWindow = ({
             size={controlSize}
           />
           {/* Optional: Add title or filename here if available */}
-          <div
-            className="ml-2 sm:ml-4 flex-shrink min-w-0 text-xs text-gray-400 truncate"
-            title={alt}
-          >
+          <div className="ml-2 sm:ml-4 flex-shrink min-w-0 text-xs text-gray-400 truncate" title={alt}>
             {" "}
             {/* Allow shrinking */}
             {alt || "Image"}

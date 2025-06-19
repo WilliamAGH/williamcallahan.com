@@ -8,26 +8,16 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
-import { Component } from "react";
-import type { ErrorInfo, ReactNode } from "react";
-
-interface ErrorBoundaryProps {
-  children: ReactNode;
-  fallback?: ReactNode;
-  silent?: boolean;
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error?: Error;
-}
+import { Component, type ReactNode } from "react";
+import type { ErrorInfo } from "react";
+import type { LocalErrorBoundaryProps, ErrorBoundaryState } from "@/types/ui";
 
 /**
  * Generic Error Boundary component to prevent component errors from crashing the entire app
  * Catches all errors in its child component tree and displays a fallback UI
  */
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
+export class ErrorBoundary extends Component<LocalErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: LocalErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
   }
@@ -61,9 +51,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           typeof window !== "undefined" &&
           ((typeof window.innerWidth !== "undefined" && window.innerWidth <= 768) ||
             (typeof navigator !== "undefined" &&
-              /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-                navigator.userAgent,
-              )));
+              /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)));
 
         // For mobile devices, render an even more subtle fallback
         if (isMobileDevice) {

@@ -51,8 +51,7 @@ export function Navigation() {
           {/* For mobile, show all navigation links including Contact regardless of screen size */}
           {navigationLinks.map((link) => {
             // Override the responsive settings for Contact in mobile menu to ensure it always appears
-            const mobileProps =
-              link.path === "/contact" ? { ...link, responsive: undefined } : link;
+            const mobileProps = link.path === "/contact" ? { ...link, responsive: undefined } : link;
 
             return (
               <NavigationLink

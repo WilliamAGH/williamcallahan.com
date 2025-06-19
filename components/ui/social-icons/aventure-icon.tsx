@@ -4,7 +4,7 @@
 
 import React from "react";
 import { BaseIcon } from "./base-icon";
-import type { BaseIconProps } from "./base-icon";
+import type { BaseIconProps } from "@/types/ui/social";
 
 /**
  * aVenture icon component

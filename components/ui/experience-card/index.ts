@@ -7,7 +7,7 @@
 /**
  * Re-exports the main ExperienceCard component from the server implementation.
  * This is the primary entry point for the experience card component.
- * 
+ *
  * @module ExperienceCard
  * @see {@link ./experience-card.server} - Server implementation
  */
