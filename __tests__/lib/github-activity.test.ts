@@ -315,42 +315,4 @@ describe("lib/data-access/github.ts functionality", () => {
       expect(metadata).toBeNull();
     });
   });
-
-  describe("test completion validation", () => {
-    it("should validate test execution flow", () => {
-      // Simulate the test flow structure
-      const testSteps = [
-        "Environment Check",
-        "S3 Data Check (Before Refresh)",
-        "Executing Direct Refresh",
-        "S3 Data Check (After Refresh)",
-        "API Authentication Check",
-        "Testing with Bearer Token",
-        "Testing with x-refresh-secret",
-      ];
-
-      for (const step of testSteps) {
-        expect(step).toBeTruthy();
-        expect(typeof step).toBe("string");
-      }
-    });
-
-    it("should validate color code usage", () => {
-      const colors = {
-        reset: "\x1b[0m",
-        red: "\x1b[31m",
-        green: "\x1b[32m",
-        yellow: "\x1b[33m",
-        blue: "\x1b[34m",
-        magenta: "\x1b[35m",
-        cyan: "\x1b[36m",
-      };
-
-      // Validate ANSI color codes
-      expect(colors.reset).toBe("\x1b[0m");
-      expect(colors.red).toBe("\x1b[31m");
-      expect(colors.green).toBe("\x1b[32m");
-      expect(colors.blue).toBe("\x1b[34m");
-    });
-  });
 });
