@@ -1,19 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-interface WindowSize {
-  width: number | undefined;
-  height: number | undefined;
-}
+import type { UseWindowSizeResult } from "@/types/lib";
 
 /**
  * A hook to get the current window dimensions
  * @returns The current window width and height
  */
-export function useWindowSize(): WindowSize {
+export function useWindowSize(): UseWindowSizeResult {
   // Initialize state with undefined so server and client renders match
-  const [windowSize, setWindowSize] = useState<WindowSize>({
+  const [windowSize, setWindowSize] = useState<UseWindowSizeResult>({
     width: undefined,
     height: undefined,
   });

@@ -46,9 +46,7 @@ export function formatTagDisplay(tag: string): string {
 export function normalizeTagsToStrings(tags: Array<string | BookmarkTag>): string[] {
   if (!Array.isArray(tags)) return [];
 
-  return tags
-    .map((tag) => (typeof tag === "string" ? tag : tag && "name" in tag ? tag.name : ""))
-    .filter(Boolean);
+  return tags.map((tag) => (typeof tag === "string" ? tag : tag && "name" in tag ? tag.name : "")).filter(Boolean);
 }
 
 /**
@@ -99,29 +97,29 @@ export function tagToSlug(tag: string): string {
 
   // Handle common special cases before converting to lowercase
   cleanTag = cleanTag
-    .replace(/\+\+/g, '-plus-plus')
-    .replace(/\+/g, '-plus')
-    .replace(/&/g, '-and-')
-    .replace(/#/g, '-sharp')
-    .replace(/@/g, '-at-');
-  
+    .replace(/\+\+/g, "-plus-plus")
+    .replace(/\+/g, "-plus")
+    .replace(/&/g, "-and-")
+    .replace(/#/g, "-sharp")
+    .replace(/@/g, "-at-");
+
   // Now handle dots more carefully - only replace dots that are part of extensions
-  if (cleanTag.startsWith('.')) {
+  if (cleanTag.startsWith(".")) {
     cleanTag = `dot${cleanTag.substring(1)}`;
   }
-  cleanTag = cleanTag.replace(/\.(?=[a-zA-Z])/g, 'dot'); // .NET -> dotNET, Node.js -> Nodedotjs
+  cleanTag = cleanTag.replace(/\.(?=[a-zA-Z])/g, "dot"); // .NET -> dotNET, Node.js -> Nodedotjs
 
   // Remove diacritics by normalizing to NFD then removing combining marks
   // Using character code checks to avoid character class issues
   const normalized = cleanTag.normalize("NFD");
   const withoutDiacritics = Array.from(normalized)
-    .filter(char => {
+    .filter((char) => {
       const code = char.charCodeAt(0);
       // Filter out combining diacritical marks (U+0300 to U+036F)
-      return code < 0x0300 || code > 0x036F;
+      return code < 0x0300 || code > 0x036f;
     })
     .join("");
-  
+
   return withoutDiacritics
     .toLowerCase()
     .replace(/[^\w\s-]/g, "") // Remove remaining special chars except spaces and hyphens

@@ -23,8 +23,9 @@
 
 import { createHash } from "node:crypto";
 import sharp from "sharp";
-import { MAX_SIZE_DIFF, MIN_LOGO_SIZE, VALID_IMAGE_FORMATS } from "./constants";
-import { logger } from "./logger";
+import { VALID_IMAGE_FORMATS, MAX_SIZE_DIFF, MIN_LOGO_SIZE } from "@/lib/constants";
+import { logger } from "@/lib/logger";
+import type { ValidatedMetadata } from "@/types/logo";
 
 /**
  * Configuration constants for image comparison
@@ -79,23 +80,6 @@ export class ImageCompareError extends Error {
     super(message);
     this.name = "ImageCompareError";
   }
-}
-
-/**
- * Image metadata with validation results
- * @interface
- */
-interface ValidatedMetadata {
-  /** Image width in pixels */
-  width: number;
-  /** Image height in pixels */
-  height: number;
-  /** Image format (e.g., 'png', 'jpeg') */
-  format: string;
-  /** Whether the image meets all validation criteria */
-  isValid: boolean;
-  /** Reason for validation failure, if any */
-  validationError?: string;
 }
 
 /**
@@ -234,10 +218,7 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
     let meta2: ValidatedMetadata; // Explicitly type meta2
     try {
       // Get and validate metadata for both images
-      [meta1, meta2] = await Promise.all([
-        getValidatedMetadata(image1),
-        getValidatedMetadata(image2),
-      ]);
+      [meta1, meta2] = await Promise.all([getValidatedMetadata(image1), getValidatedMetadata(image2)]);
     } catch (error) {
       logger.warn(
         "Metadata validation failed:",
@@ -266,15 +247,9 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
     let norm2: Buffer; // Explicitly type norm2
     try {
       // Convert both images to PNG for consistent comparison
-      [norm1, norm2] = await Promise.all([
-        sharp(image1).png().toBuffer(),
-        sharp(image2).png().toBuffer(),
-      ]);
+      [norm1, norm2] = await Promise.all([sharp(image1).png().toBuffer(), sharp(image2).png().toBuffer()]);
     } catch (error) {
-      logger.warn(
-        "PNG conversion failed:",
-        error instanceof Error ? error.message : "Unknown error",
-      );
+      logger.warn("PNG conversion failed:", error instanceof Error ? error.message : "Unknown error");
       return false;
     }
 
@@ -288,10 +263,7 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
       // Compare hashes
       return hash1 === hash2;
     } catch (error) {
-      logger.warn(
-        "Hash generation failed:",
-        error instanceof ImageCompareError ? error.message : "Unknown error",
-      );
+      logger.warn("Hash generation failed:", error instanceof ImageCompareError ? error.message : "Unknown error");
       return false;
     }
   } catch (error) {
@@ -299,10 +271,7 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
     if (error instanceof ImageCompareError) {
       throw error;
     }
-    logger.error(
-      "Unexpected error during image comparison:",
-      error instanceof Error ? error.message : "Unknown error",
-    );
+    logger.error("Unexpected error during image comparison:", error instanceof Error ? error.message : "Unknown error");
     return false;
   }
 }

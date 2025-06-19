@@ -9,15 +9,14 @@
 
 import type { LogoSource } from "@/types"; // Still used for typing the return
 import { getLogo as getLogoFromDataAccess } from "./data-access"; // Import direct data access function
-import { getBaseUrl } from "./getBaseUrl"; // Added import
-import { isDebug } from "./utils/debug"; // Import debug flag
+import { getBaseUrl } from "./utils/get-base-url";
+import { isDebug } from "./utils/debug";
 import { normalizeDomain } from "./utils/domain-utils";
 import { assertServerOnly } from "./utils/ensure-server-only";
 
 // Detect if we're in a build environment
 const IS_BUILD_PHASE =
-  process.env.NEXT_PHASE === "phase-production-build" ||
-  process.env.NEXT_PUBLIC_USE_DIRECT_DATA_ACCESS === "true";
+  process.env.NEXT_PHASE === "phase-production-build" || process.env.NEXT_PUBLIC_USE_DIRECT_DATA_ACCESS === "true";
 // FS imports no longer needed here
 // import fs from 'node:fs/promises';
 // import path from 'node:path';
@@ -57,9 +56,7 @@ export async function fetchLogo(domain: string): Promise<{
   // During build phase, use direct data access instead of API calls
   if (IS_BUILD_PHASE) {
     if (isDebug)
-      console.debug(
-        `[logo-fetcher] Build phase detected, using direct data access for logo: ${normalizedDomain}`,
-      );
+      console.debug(`[logo-fetcher] Build phase detected, using direct data access for logo: ${normalizedDomain}`);
     try {
       // Use empty string as baseUrl to signal "no network validation"
       // or use API_BASE_URL which is guaranteed to exist in the build context
@@ -86,10 +83,7 @@ export async function fetchLogo(domain: string): Promise<{
   }
 
   // 2. Fetch from /api/logo endpoint (normal runtime behavior)
-  if (isDebug)
-    console.debug(
-      `[logo-fetcher] Cache miss (Memory): ${normalizedDomain}. Calling /api/logo endpoint...`,
-    );
+  if (isDebug) console.debug(`[logo-fetcher] Cache miss (Memory): ${normalizedDomain}. Calling /api/logo endpoint...`);
   try {
     // Construct the URL for the API endpoint.
     const baseUrl = getBaseUrl(); // Added
@@ -131,8 +125,7 @@ export async function fetchLogo(domain: string): Promise<{
     const errorText = await response.text().catch(() => `Status ${response.status}`);
     const logoErrorHeader = response.headers.get("x-logo-error");
     const apiError =
-      logoErrorHeader ||
-      `API request to /api/logo failed for ${normalizedDomain}: ${errorText.substring(0, 100)}`;
+      logoErrorHeader || `API request to /api/logo failed for ${normalizedDomain}: ${errorText.substring(0, 100)}`;
     console.warn(`[logo-fetcher] ${apiError}`);
     // The API route should have already cached the error via getLogo()
     return { buffer: null, source: null, error: apiError };

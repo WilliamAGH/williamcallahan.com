@@ -1,14 +1,14 @@
 /**
  * OpenGraph Image Persistence Module
- * 
+ *
  * Handles background image persistence to S3
  * Fire-and-forget operations that don't block responses
- * 
+ *
  * @module opengraph/persistence
  */
 
 import { debug } from "@/lib/utils/debug";
-import { persistImageToS3 } from "@/lib/utils/image-s3-utils";
+import { persistImageToS3 } from "@/lib/image-handling/image-s3-utils";
 
 /**
  * Schedules image persistence to happen in the background without blocking the response
@@ -36,8 +36,6 @@ export function scheduleImagePersistence(
     .catch((error) => {
       // Log error but don't throw - this is background processing
       const errorMessage = error instanceof Error ? error.message : String(error);
-      debug(
-        `[DataAccess/OpenGraph] Background persistence failed for ${imageUrl}: ${errorMessage}`,
-      );
+      debug(`[DataAccess/OpenGraph] Background persistence failed for ${imageUrl}: ${errorMessage}`);
     });
 }

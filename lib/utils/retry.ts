@@ -5,27 +5,7 @@
  * @module lib/utils/retry
  */
 
-/**
- * Configuration options for retry behavior
- */
-export interface RetryOptions {
-  /** Maximum number of retry attempts (default: 3) */
-  maxRetries?: number;
-  /** Maximum backoff time in milliseconds (default: 30000) */
-  maxBackoff?: number;
-  /** Base delay in milliseconds for exponential backoff (default: 1000) */
-  baseDelay?: number;
-  /** Whether to add jitter to prevent thundering herd (default: false) */
-  jitter?: boolean;
-  /** Log prefix for console messages (default: "[Retry]") */
-  logPrefix?: string;
-  /** Whether to log debug messages (default: false) */
-  debug?: boolean;
-  /** Custom function to determine if an error is retryable */
-  isRetryable?: (error: unknown) => boolean;
-  /** Callback for each retry attempt */
-  onRetry?: (error: unknown, attempt: number) => void;
-}
+import type { RetryConfig } from "@/types/lib";
 
 /**
  * Retries an asynchronous operation with exponential backoff.
@@ -67,17 +47,12 @@ export async function retryOperation<T>(
  * );
  * ```
  */
-export async function retryWithOptions<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = {},
-): Promise<T | null> {
+export async function retryWithOptions<T>(operation: () => Promise<T>, options: RetryConfig = {}): Promise<T | null> {
   const {
     maxRetries = 3,
     maxBackoff = 30000,
     baseDelay = 1000,
     jitter = false,
-    logPrefix = "[Retry]",
-    debug = false,
     isRetryable = () => true,
     onRetry = () => {},
   } = options;
@@ -85,48 +60,37 @@ export async function retryWithOptions<T>(
   let retries = 0;
   while (retries < maxRetries) {
     try {
-      const result = await operation();
-      if (result) {
-        return result;
-      }
-      retries++;
-      if (retries === maxRetries) {
-        console.warn(`${logPrefix} Operation failed after ${maxRetries} attempts.`);
-        return null;
-      }
+      return await operation();
     } catch (error) {
-      if (!isRetryable(error)) {
-        console.error(`${logPrefix} Non-retryable error encountered:`, error instanceof Error ? error.message : String(error));
+      const currentError = error as Error;
+      if (!isRetryable(currentError)) {
+        console.error("[Retry] Non-retryable error encountered:", currentError.message);
         return null;
       }
-      
+
       retries++;
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`${logPrefix} Operation failed (attempt ${retries}/${maxRetries}):`, errorMessage);
-      
+      console.error(`[Retry] Operation failed (attempt ${retries}/${maxRetries}):`, currentError.message);
+
       if (retries === maxRetries) {
-        console.warn(`${logPrefix} All ${maxRetries} attempts failed. Giving up.`);
+        console.warn(`[Retry] All ${maxRetries} attempts failed. Giving up.`);
         return null;
       }
-      
-      // Call retry callback
-      onRetry(error, retries);
+
+      onRetry(currentError, retries);
     }
-    
+
     // Calculate exponential backoff with optional jitter
-    let backoff = Math.min(baseDelay * Math.pow(2, retries - 1), maxBackoff);
-    
+    let backoff = Math.min(baseDelay * 2 ** (retries - 1), maxBackoff);
+
     if (jitter) {
       // Add random jitter between -20% and +20% of the delay
       const jitterFactor = 0.8 + Math.random() * 0.4;
       backoff = Math.round(backoff * jitterFactor);
     }
-    
-    if (debug) {
-      console.debug(`${logPrefix} Retrying operation after ${backoff}ms delay...`);
-    }
-    
+
+    console.debug(`[Retry] Retrying operation after ${backoff}ms delay...`);
+
     await new Promise((resolve) => setTimeout(resolve, backoff));
   }
-  return null; // This line should never be reached due to the check above
+  return null;
 }

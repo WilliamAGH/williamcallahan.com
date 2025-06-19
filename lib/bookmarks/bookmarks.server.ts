@@ -10,7 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { UnifiedBookmark } from "@/types";
-import { getBookmarks, initializeBookmarksDataAccess } from "@/lib/data-access/bookmarks";
+import { getBookmarks, initializeBookmarksDataAccess } from "@/lib/bookmarks/bookmarks-data-access.server";
 
 /**
  * Read bookmarks directly from the file system during build time
@@ -38,6 +38,6 @@ export async function getBookmarksForStaticBuild(): Promise<UnifiedBookmark[]> {
   }
 
   // Fall back to data access layer for non-build environments
-  await initializeBookmarksDataAccess();
+  initializeBookmarksDataAccess();
   return getBookmarks();
 }

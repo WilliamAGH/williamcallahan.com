@@ -82,16 +82,10 @@ export async function getInvestmentDomainsAndIds(): Promise<Map<string, string>>
           }
         }
       }
-      console.log(
-        `[DataAccess/Investments] Successfully parsed ${domainToIdMap.size} investment domains via regex`,
-      );
+      console.log(`[DataAccess/Investments] Successfully parsed ${domainToIdMap.size} investment domains via regex`);
     } catch (regexParseError: unknown) {
-      const message =
-        regexParseError instanceof Error ? regexParseError.message : String(regexParseError);
-      console.error(
-        "[DataAccess/Investments] Failed to parse investment domains via regex:",
-        message,
-      );
+      const message = regexParseError instanceof Error ? regexParseError.message : String(regexParseError);
+      console.error("[DataAccess/Investments] Failed to parse investment domains via regex:", message);
     }
   }
   return domainToIdMap;

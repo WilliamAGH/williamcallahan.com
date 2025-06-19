@@ -7,7 +7,7 @@
  * @module lib/data-access
  */
 
-export * from "./data-access/bookmarks";
+export * from "./bookmarks/bookmarks-data-access.server";
 export * from "./data-access/logos";
 export * from "./data-access/investments";
 export * from "./data-access/github";

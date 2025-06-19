@@ -19,9 +19,7 @@ export function assertServerOnly(moduleName?: string): void {
     const message = moduleName
       ? `Module '${moduleName}' cannot be imported from a Client Component module.`
       : "This module cannot be imported from a Client Component module.";
-    throw new Error(
-      `${message} It should only be used from a Server Component or other server-side code.`,
-    );
+    throw new Error(`${message} It should only be used from a Server Component or other server-side code.`);
   }
 }
 

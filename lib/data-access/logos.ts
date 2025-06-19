@@ -21,12 +21,7 @@ import type { LogoResult, LogoSource } from "@/types/logo";
 // S3 key prefix for logo data - using the same as s3-operations
 
 // Placeholder logo path - using the actual SVG that exists
-const PLACEHOLDER_LOGO_PATH = path.join(
-  process.cwd(),
-  "public",
-  "images",
-  "company-placeholder.svg",
-);
+const PLACEHOLDER_LOGO_PATH = path.join(process.cwd(), "public", "images", "company-placeholder.svg");
 // Placeholder logo promise (cached to prevent race conditions)
 let placeholderLogoPromise: Promise<Buffer | null> | null = null;
 
@@ -54,7 +49,7 @@ async function getPlaceholderLogoBuffer(): Promise<Buffer | null> {
       return null;
     }
   })();
-  
+
   return placeholderLogoPromise;
 }
 
@@ -89,9 +84,7 @@ export async function writePlaceholderLogo(domain: string): Promise<boolean> {
 
   const placeholderBuffer = await getPlaceholderLogoBuffer();
   if (!placeholderBuffer) {
-    logger.warn(
-      `[Logos] Placeholder logo buffer not available. Cannot write for domain: ${domain}`,
-    );
+    logger.warn(`[Logos] Placeholder logo buffer not available. Cannot write for domain: ${domain}`);
     return false;
   }
 
@@ -99,9 +92,7 @@ export async function writePlaceholderLogo(domain: string): Promise<boolean> {
   const s3Key = getLogoS3Key(domain, "unknown", "svg");
   try {
     await writeBinaryS3(s3Key, placeholderBuffer, "image/svg+xml");
-    logger.info(
-      `[Logos] Successfully wrote placeholder logo to S3 for domain: ${domain} at key: ${s3Key}`,
-    );
+    logger.info(`[Logos] Successfully wrote placeholder logo to S3 for domain: ${domain} at key: ${s3Key}`);
     // Cache the placeholder result to avoid repeated writes
     ServerCacheInstance.setLogoFetch(domain, {
       buffer: placeholderBuffer,
@@ -110,10 +101,7 @@ export async function writePlaceholderLogo(domain: string): Promise<boolean> {
     });
     return true;
   } catch (error) {
-    logger.error(
-      `[Logos] Failed to write placeholder logo to S3 for domain: ${domain} at key: ${s3Key}:`,
-      error,
-    );
+    logger.error(`[Logos] Failed to write placeholder logo to S3 for domain: ${domain} at key: ${s3Key}:`, error);
     return false;
   }
 }
@@ -134,9 +122,7 @@ export async function readLogoFromS3(domain: string): Promise<LogoResult | null>
   try {
     const result = await findLogoInS3(domain);
     if (result) {
-      logger.debug(
-        `[Logos] Successfully read logo from S3 for domain: ${domain} with source: ${result.source}`,
-      );
+      logger.debug(`[Logos] Successfully read logo from S3 for domain: ${domain} with source: ${result.source}`);
       return {
         buffer: result.buffer,
         source: result.source,
@@ -181,15 +167,10 @@ export async function writeLogoToS3(
   const s3Key = getLogoS3Key(domain, source, ext);
   try {
     await writeBinaryS3(s3Key, buffer, contentType);
-    logger.info(
-      `[Logos] Successfully wrote logo to S3 for domain: ${domain} from source: ${source} at key: ${s3Key}`,
-    );
+    logger.info(`[Logos] Successfully wrote logo to S3 for domain: ${domain} from source: ${source} at key: ${s3Key}`);
     return true;
   } catch (error) {
-    logger.error(
-      `[Logos] Failed to write logo to S3 for domain: ${domain} at key: ${s3Key}:`,
-      error,
-    );
+    logger.error(`[Logos] Failed to write logo to S3 for domain: ${domain} at key: ${s3Key}:`, error);
     return false;
   }
 }
@@ -242,12 +223,7 @@ export async function getLogoWithCache(
     if (fetchResult && Buffer.isBuffer(fetchResult.buffer) && fetchResult.buffer.length > 0) {
       // Write to S3 for persistence with source information
       if (fetchResult.source && fetchResult.contentType) {
-        await writeLogoToS3(
-          domain,
-          fetchResult.buffer,
-          fetchResult.source,
-          fetchResult.contentType,
-        );
+        await writeLogoToS3(domain, fetchResult.buffer, fetchResult.source, fetchResult.contentType);
       }
       // Cache the successful result
       ServerCacheInstance.setLogoFetch(domain, {
@@ -298,9 +274,7 @@ export async function getLogoWithRetryAndPlaceholder(
     }
     retries++;
     if (retries === maxRetries) {
-      logger.warn(
-        `[Logos] All ${maxRetries} attempts failed for domain: ${domain}. Writing placeholder logo.`,
-      );
+      logger.warn(`[Logos] All ${maxRetries} attempts failed for domain: ${domain}. Writing placeholder logo.`);
       const placeholderWritten = await writePlaceholderLogo(domain);
       if (placeholderWritten) {
         const placeholderBuffer = await getPlaceholderLogoBuffer();
@@ -314,9 +288,7 @@ export async function getLogoWithRetryAndPlaceholder(
           };
         }
       }
-      logger.error(
-        `[Logos] Failed to write placeholder logo for domain: ${domain}. No logo available.`,
-      );
+      logger.error(`[Logos] Failed to write placeholder logo for domain: ${domain}. No logo available.`);
       return null;
     }
     // Exponential backoff with cap at 30 seconds

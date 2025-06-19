@@ -1,9 +1,9 @@
 /**
  * OpenGraph Constants Module
- * 
+ *
  * Centralized constants for OpenGraph functionality
  * Single source of truth for configuration values
- * 
+ *
  * @module opengraph/constants
  */
 
@@ -42,25 +42,23 @@ export const CIRCUIT_BREAKER_CONFIG = {
 export const IMAGE_CONFIG = {
   MAX_SIZE_BYTES: 10 * 1024 * 1024, // 10MB
   ALLOWED_CONTENT_TYPES: [
-    'image/jpeg',
-    'image/jpg', 
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'image/svg+xml',
-    'image/x-icon',
-    'image/vnd.microsoft.icon'
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/svg+xml",
+    "image/x-icon",
+    "image/vnd.microsoft.icon",
   ],
 };
 
-// Platform-specific domains
+// Social Platforms (moved from types/social.ts to break circular dependency)
 export const SOCIAL_PLATFORMS = {
   GITHUB: "GitHub",
-  TWITTER: "Twitter", 
+  TWITTER: "Twitter",
   X: "X",
   LINKEDIN: "LinkedIn",
   DISCORD: "Discord",
   BLUESKY: "Bluesky",
 } as const;
-
-export type SocialPlatform = typeof SOCIAL_PLATFORMS[keyof typeof SOCIAL_PLATFORMS];

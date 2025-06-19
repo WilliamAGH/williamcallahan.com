@@ -11,27 +11,8 @@
 "use client";
 
 import type React from "react";
-import {
-  type ReactNode,
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-} from "react";
-
-interface DropdownRegistryEntry {
-  ref: React.RefObject<HTMLDetailsElement>;
-  isOpen: boolean;
-}
-
-interface CollapseDropdownContextType {
-  registerDropdown: (id: string, ref: React.RefObject<HTMLDetailsElement>) => void;
-  unregisterDropdown: (id: string) => void;
-  findDropdownForHash: (hash: string) => HTMLDetailsElement | null;
-  openAndScrollToDropdownAnchor: (dropdownElement: HTMLDetailsElement, hash: string) => void;
-}
+import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import type { DropdownRegistryEntry, CollapseDropdownContextType } from "@/types/ui/interactive";
 
 const CollapseDropdownContext = createContext<CollapseDropdownContextType | null>(null);
 
@@ -74,18 +55,14 @@ export function CollapseDropdownProvider({ children }: { children: ReactNode }) 
 
   const findDropdownForHash = useCallback((hash: string): HTMLDetailsElement | null => {
     if (enableDebugLogs) {
-      console.debug(
-        `[CollapseDropdownContext] findDropdownForHash: Searching for dropdown related to #${hash}`,
-      );
+      console.debug(`[CollapseDropdownContext] findDropdownForHash: Searching for dropdown related to #${hash}`);
     }
 
     // 1. Exact ID match in registry
     const exactMatch = dropdownRegistry.current.get(hash);
     if (exactMatch?.ref.current) {
       if (enableDebugLogs)
-        console.debug(
-          `[CollapseDropdownContext] findDropdownForHash: Found exact match for #${hash}`,
-        );
+        console.debug(`[CollapseDropdownContext] findDropdownForHash: Found exact match for #${hash}`);
       return exactMatch.ref.current;
     }
 
@@ -95,9 +72,7 @@ export function CollapseDropdownProvider({ children }: { children: ReactNode }) 
       const matchCount = hashWords.filter((word) => id.includes(word)).length;
       if (matchCount > 0 && matchCount >= hashWords.length * 0.5 && entry.ref.current) {
         if (enableDebugLogs)
-          console.debug(
-            `[CollapseDropdownContext] findDropdownForHash: Found partial match '${id}' for #${hash}`,
-          );
+          console.debug(`[CollapseDropdownContext] findDropdownForHash: Found partial match '${id}' for #${hash}`);
         return entry.ref.current;
       }
     }
@@ -116,85 +91,70 @@ export function CollapseDropdownProvider({ children }: { children: ReactNode }) 
       }
     }
 
-    if (enableDebugLogs)
-      console.debug(
-        `[CollapseDropdownContext] findDropdownForHash: No dropdown found for #${hash}`,
-      );
+    if (enableDebugLogs) console.debug(`[CollapseDropdownContext] findDropdownForHash: No dropdown found for #${hash}`);
     return null;
   }, []);
 
-  const openAndScrollToDropdownAnchor = useCallback(
-    (dropdownElement: HTMLDetailsElement, hash: string) => {
+  const openAndScrollToDropdownAnchor = useCallback((dropdownElement: HTMLDetailsElement, hash: string) => {
+    if (enableDebugLogs)
+      console.debug(`[CollapseDropdownContext] openAndScrollToDropdownAnchor: Opening dropdown for #${hash}.`);
+
+    // Clear any existing scroll timer
+    if (scrollTimerRef.current) {
+      window.cancelAnimationFrame(scrollTimerRef.current);
+      scrollTimerRef.current = null;
+    }
+
+    dropdownElement.open = true;
+
+    // Remove hash from URL to prevent browser's default scroll behavior
+    if (history.replaceState) {
+      history.replaceState(null, document.title, window.location.pathname + window.location.search);
+    }
+
+    // Use requestAnimationFrame polling to find the element after opening
+    let startTime: number | null = null;
+    const maxPollingDuration = 500; // Max time to poll in ms
+
+    const pollForElement = (timestamp: number) => {
+      if (!startTime) {
+        startTime = timestamp;
+      }
+      const elapsed = timestamp - startTime;
+
       if (enableDebugLogs)
         console.debug(
-          `[CollapseDropdownContext] openAndScrollToDropdownAnchor: Opening dropdown for #${hash}.`,
+          `[CollapseDropdownContext] pollForElement #${hash}: Polling frame. Elapsed: ${elapsed.toFixed(0)}ms`,
         );
 
-      // Clear any existing scroll timer
-      if (scrollTimerRef.current) {
-        window.cancelAnimationFrame(scrollTimerRef.current);
-        scrollTimerRef.current = null;
-      }
+      const targetScrollElement = document.getElementById(hash) || document.querySelector(`a[id="${hash}"]`);
 
-      dropdownElement.open = true;
-
-      // Remove hash from URL to prevent browser's default scroll behavior
-      if (history.replaceState) {
-        history.replaceState(
-          null,
-          document.title,
-          window.location.pathname + window.location.search,
-        );
-      }
-
-      // Use requestAnimationFrame polling to find the element after opening
-      let startTime: number | null = null;
-      const maxPollingDuration = 500; // Max time to poll in ms
-
-      const pollForElement = (timestamp: number) => {
-        if (!startTime) {
-          startTime = timestamp;
-        }
-        const elapsed = timestamp - startTime;
-
+      if (targetScrollElement) {
         if (enableDebugLogs)
           console.debug(
-            `[CollapseDropdownContext] pollForElement #${hash}: Polling frame. Elapsed: ${elapsed.toFixed(0)}ms`,
+            `[CollapseDropdownContext] pollForElement #${hash}: Found element after ${elapsed.toFixed(0)}ms. Scrolling.`,
           );
+        targetScrollElement.scrollIntoView({ block: "start" });
+        scrollTimerRef.current = null;
+      } else if (elapsed < maxPollingDuration) {
+        // Element not found, continue polling
+        scrollTimerRef.current = window.requestAnimationFrame(pollForElement);
+      } else {
+        // Polling timed out
+        if (enableDebugLogs)
+          console.debug(
+            `[CollapseDropdownContext] pollForElement #${hash}: Element not found after ${maxPollingDuration}ms. Giving up and restoring hash.`,
+          );
+        window.location.hash = hash;
+        scrollTimerRef.current = null;
+      }
+    };
 
-        const targetScrollElement =
-          document.getElementById(hash) || document.querySelector(`a[id="${hash}"]`);
-
-        if (targetScrollElement) {
-          if (enableDebugLogs)
-            console.debug(
-              `[CollapseDropdownContext] pollForElement #${hash}: Found element after ${elapsed.toFixed(0)}ms. Scrolling.`,
-            );
-          targetScrollElement.scrollIntoView({ block: "start" });
-          scrollTimerRef.current = null;
-        } else if (elapsed < maxPollingDuration) {
-          // Element not found, continue polling
-          scrollTimerRef.current = window.requestAnimationFrame(pollForElement);
-        } else {
-          // Polling timed out
-          if (enableDebugLogs)
-            console.debug(
-              `[CollapseDropdownContext] pollForElement #${hash}: Element not found after ${maxPollingDuration}ms. Giving up and restoring hash.`,
-            );
-          window.location.hash = hash;
-          scrollTimerRef.current = null;
-        }
-      };
-
-      // Start the polling loop
-      if (enableDebugLogs)
-        console.debug(
-          `[CollapseDropdownContext] openAndScrollToDropdownAnchor: Starting rAF polling for #${hash}.`,
-        );
-      scrollTimerRef.current = window.requestAnimationFrame(pollForElement);
-    },
-    [],
-  );
+    // Start the polling loop
+    if (enableDebugLogs)
+      console.debug(`[CollapseDropdownContext] openAndScrollToDropdownAnchor: Starting rAF polling for #${hash}.`);
+    scrollTimerRef.current = window.requestAnimationFrame(pollForElement);
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -215,9 +175,7 @@ export function CollapseDropdownProvider({ children }: { children: ReactNode }) 
     [registerDropdown, unregisterDropdown, findDropdownForHash, openAndScrollToDropdownAnchor],
   );
 
-  return (
-    <CollapseDropdownContext.Provider value={value}>{children}</CollapseDropdownContext.Provider>
-  );
+  return <CollapseDropdownContext.Provider value={value}>{children}</CollapseDropdownContext.Provider>;
 }
 
 export function useCollapseDropdownContext() {

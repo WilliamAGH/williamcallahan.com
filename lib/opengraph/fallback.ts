@@ -1,9 +1,9 @@
 /**
  * OpenGraph Fallback Module
- * 
+ *
  * Unified fallback logic for OpenGraph images and metadata
  * Single source of truth for all fallback handling
- * 
+ *
  * @module opengraph/fallback
  */
 
@@ -12,6 +12,7 @@ import { getDomainType, isValidImageUrl, constructKarakeepAssetUrl } from "@/lib
 import { scheduleImagePersistence } from "./persistence";
 import { OPENGRAPH_IMAGES_S3_DIR, SOCIAL_PLATFORMS } from "./constants";
 import type { OgResult, KarakeepImageFallback } from "@/types";
+import { karakeepImageFallbackSchema } from "@/types/seo/opengraph";
 
 /**
  * Creates a fallback result when OpenGraph data cannot be fetched
@@ -25,8 +26,12 @@ import type { OgResult, KarakeepImageFallback } from "@/types";
 export function createFallbackResult(
   url: string,
   error: string,
-  fallbackImageData?: KarakeepImageFallback,
+  fallbackImageData?: KarakeepImageFallback | null,
 ): OgResult {
+  // Validate fallback image data if provided
+  const validatedFallbackData = fallbackImageData
+    ? karakeepImageFallbackSchema.safeParse(fallbackImageData).data
+    : undefined;
   const domain = getDomainType(url);
 
   // Priority chain for image selection:
@@ -36,25 +41,19 @@ export function createFallbackResult(
   // 4. Domain fallback images
   let imageUrl: string | null = null;
 
-  if (fallbackImageData) {
+  if (validatedFallbackData) {
     // Try Karakeep imageUrl first (highest priority)
-    if (fallbackImageData.imageUrl && isValidImageUrl(fallbackImageData.imageUrl)) {
-      imageUrl = fallbackImageData.imageUrl;
+    if (validatedFallbackData.imageUrl && isValidImageUrl(validatedFallbackData.imageUrl)) {
+      imageUrl = validatedFallbackData.imageUrl;
       console.log(`[DataAccess/OpenGraph] Using Karakeep imageUrl fallback: ${imageUrl}`);
 
       // Schedule S3 persistence for Karakeep image
-      scheduleImagePersistence(
-        imageUrl,
-        OPENGRAPH_IMAGES_S3_DIR,
-        "Karakeep-Fallback",
-        undefined,
-        url,
-      );
+      scheduleImagePersistence(imageUrl, OPENGRAPH_IMAGES_S3_DIR, "Karakeep-Fallback", undefined, url);
     }
     // Try Karakeep imageAssetId (second priority)
-    else if (fallbackImageData.imageAssetId) {
+    else if (validatedFallbackData.imageAssetId) {
       try {
-        imageUrl = constructKarakeepAssetUrl(fallbackImageData.imageAssetId);
+        imageUrl = constructKarakeepAssetUrl(validatedFallbackData.imageAssetId);
         console.log(`[DataAccess/OpenGraph] Using Karakeep imageAssetId fallback: ${imageUrl}`);
 
         // Schedule S3 persistence for Karakeep asset
@@ -62,35 +61,33 @@ export function createFallbackResult(
           imageUrl,
           OPENGRAPH_IMAGES_S3_DIR,
           "Karakeep-Asset-Fallback",
-          fallbackImageData.imageAssetId,
+          validatedFallbackData.imageAssetId,
           url,
         );
       } catch (error) {
         console.warn(
-          `[DataAccess/OpenGraph] Failed to construct Karakeep asset URL for ${fallbackImageData.imageAssetId}:`,
+          `[DataAccess/OpenGraph] Failed to construct Karakeep asset URL for ${validatedFallbackData.imageAssetId}:`,
           error,
         );
       }
     }
     // Try Karakeep screenshotAssetId (third priority)
-    else if (fallbackImageData.screenshotAssetId) {
+    else if (validatedFallbackData.screenshotAssetId) {
       try {
-        imageUrl = constructKarakeepAssetUrl(fallbackImageData.screenshotAssetId);
-        console.log(
-          `[DataAccess/OpenGraph] Using Karakeep screenshotAssetId fallback: ${imageUrl}`,
-        );
+        imageUrl = constructKarakeepAssetUrl(validatedFallbackData.screenshotAssetId);
+        console.log(`[DataAccess/OpenGraph] Using Karakeep screenshotAssetId fallback: ${imageUrl}`);
 
         // Schedule S3 persistence for Karakeep screenshot
         scheduleImagePersistence(
           imageUrl,
           OPENGRAPH_IMAGES_S3_DIR,
           "Karakeep-Screenshot-Fallback",
-          fallbackImageData.screenshotAssetId,
+          validatedFallbackData.screenshotAssetId,
           url,
         );
       } catch (error) {
         console.warn(
-          `[DataAccess/OpenGraph] Failed to construct Karakeep screenshot URL for ${fallbackImageData.screenshotAssetId}:`,
+          `[DataAccess/OpenGraph] Failed to construct Karakeep screenshot URL for ${validatedFallbackData.screenshotAssetId}:`,
           error,
         );
       }
@@ -103,14 +100,11 @@ export function createFallbackResult(
   }
 
   return {
+    url,
+    title: "Fallback Data",
+    description: `Could not retrieve OpenGraph data: ${error}`,
     imageUrl,
     bannerImageUrl: getFallbackBannerForDomain(domain),
-    ogMetadata: {
-      title: `Profile on ${domain}`,
-      description: "Social media profile",
-      site: domain,
-      url: url,
-    },
     error,
     timestamp: Date.now(),
     source: "fallback",
@@ -124,14 +118,11 @@ export function createFallbackResult(
 export function getFallbackImageForDomain(domain: string): string | null {
   switch (domain) {
     case SOCIAL_PLATFORMS.GITHUB:
-      return (
-        process.env.FALLBACK_IMAGE_GITHUB || "https://avatars.githubusercontent.com/u/99231285?v=4"
-      );
+      return process.env.FALLBACK_IMAGE_GITHUB || "https://avatars.githubusercontent.com/u/99231285?v=4";
     case SOCIAL_PLATFORMS.X:
     case SOCIAL_PLATFORMS.TWITTER:
       return (
-        process.env.FALLBACK_IMAGE_X ||
-        "https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg"
+        process.env.FALLBACK_IMAGE_X || "https://pbs.twimg.com/profile_images/1515007138717503494/KUQNKo_M_400x400.jpg"
       );
     case SOCIAL_PLATFORMS.LINKEDIN:
       return (
@@ -202,15 +193,15 @@ export function getDomainFallbackImage(domain: string): string {
  */
 export function getContextualFallbackImage(input: string, error?: string): string {
   // For person/profile URLs, use person placeholder
-  if (input.includes('/profile') || input.includes('/user') || input.includes('/people')) {
+  if (input.includes("/profile") || input.includes("/user") || input.includes("/people")) {
     return "/images/person-placeholder.png"; // Person placeholder
   }
-  
+
   // For OpenGraph-specific failures or when we know it's an OG image request
-  if (input.includes('og') || input.includes('opengraph') || error?.includes('opengraph')) {
+  if (input.includes("og") || input.includes("opengraph") || error?.includes("opengraph")) {
     return "/images/opengraph-placeholder.png"; // OpenGraph card placeholder
   }
-  
+
   // Default to generic OpenGraph card placeholder
   return "/images/opengraph-placeholder.png";
 }

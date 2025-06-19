@@ -62,10 +62,7 @@ export async function persistImageToS3(
       if (isDebug) debug(`[${logContext}] ${sizeErrorMsg}`);
       throw new Error(sizeErrorMsg);
     }
-    if (isDebug)
-      debug(
-        `[${logContext}] Raw image buffer size: ${rawBuffer.length} bytes for URL: ${imageUrl}`,
-      );
+    if (isDebug) debug(`[${logContext}] Raw image buffer size: ${rawBuffer.length} bytes for URL: ${imageUrl}`);
 
     // Process the image (handles SVG detection, PNG conversion, etc.)
     if (isDebug) debug(`[${logContext}] Processing image buffer for: ${imageUrl}`);
@@ -76,19 +73,11 @@ export async function persistImageToS3(
       );
 
     // Generate S3 key based on idempotency key if available, otherwise fallback to content hash
-    const s3Key = getOgImageS3Key(
-      imageUrl,
-      s3Directory,
-      pageUrl,
-      idempotencyKey,
-      hashImageContent(processedBuffer),
-    );
-    if (isDebug)
-      debug(`[${logContext}] Generated S3 key: ${s3Key} for image from URL: ${imageUrl}`);
+    const s3Key = getOgImageS3Key(imageUrl, s3Directory, pageUrl, idempotencyKey, hashImageContent(processedBuffer));
+    if (isDebug) debug(`[${logContext}] Generated S3 key: ${s3Key} for image from URL: ${imageUrl}`);
 
     // Upload to S3
-    if (isDebug)
-      debug(`[${logContext}] Attempting to write processed image to S3 with key: ${s3Key}`);
+    if (isDebug) debug(`[${logContext}] Attempting to write processed image to S3 with key: ${s3Key}`);
     await writeBinaryS3(s3Key, processedBuffer, contentType);
 
     if (isDebug)
@@ -127,10 +116,7 @@ export async function findImageInS3(
 ): Promise<string | null> {
   // 1. Direct lookup for the ideal filename based on the full known path
   const idealKey = getOgImageS3Key(imageUrl, s3Directory, pageUrl, idempotencyKey);
-  if (isDebug)
-    debug(
-      `[${logContext}] Attempting direct S3 lookup with key: ${idealKey} for image: ${imageUrl}`,
-    );
+  if (isDebug) debug(`[${logContext}] Attempting direct S3 lookup with key: ${idealKey} for image: ${imageUrl}`);
   try {
     const buffer = await readBinaryS3(idealKey);
     if (buffer) {
@@ -158,10 +144,7 @@ export async function findImageInS3(
       if (allImages.length > 0) {
         const foundById = allImages.find((key) => key.includes(idempotencyKey));
         if (foundById) {
-          if (isDebug)
-            debug(
-              `[${logContext}] Fallback search: Found image by ID '${idempotencyKey}': ${foundById}`,
-            );
+          if (isDebug) debug(`[${logContext}] Fallback search: Found image by ID '${idempotencyKey}': ${foundById}`);
           return foundById;
         }
         if (isDebug)
@@ -182,10 +165,7 @@ export async function findImageInS3(
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(
-      `[${logContext}] Error during fallback S3 object listing in ${s3Directory}:`,
-      errorMessage,
-    );
+    console.error(`[${logContext}] Error during fallback S3 object listing in ${s3Directory}:`, errorMessage);
   }
 
   if (isDebug)
@@ -209,8 +189,7 @@ export async function serveImageFromS3(
   try {
     const buffer = await readBinaryS3(s3Key);
     if (!buffer) {
-      if (isDebug)
-        debug(`[${logContext}] serveImageFromS3: readBinaryS3 returned null for key ${s3Key}.`);
+      if (isDebug) debug(`[${logContext}] serveImageFromS3: readBinaryS3 returned null for key ${s3Key}.`);
       return null;
     }
 

@@ -30,27 +30,27 @@ export async function preloadBookmarksIfNeeded(): Promise<void> {
       // Ensure the server is fully ready before we spike outbound bandwidth
       await new Promise((r) => setTimeout(r, 1_000));
 
-      // Dynamic import avoids pulling client-only deps into the Edge bundle
-      const { fetchExternalBookmarks } = await import("../bookmarks.client");
-       
+      // Dynamic import to use the unified service
+      const { fetchBookmarks } = await import("./service.server");
+
       console.log("Preloading bookmarks into server cache...");
 
       await monitoredAsync(
         null, // Let monitor generate ID
-        'Bookmark Preload',
+        "Bookmark Preload",
         async () => {
-          const result = await fetchExternalBookmarks();
+          const result = await fetchBookmarks({ mode: "immediate" });
           console.log("Bookmarks preloaded successfully");
           return result;
         },
         {
           timeoutMs: 30000,
-          metadata: { source: 'instrumentation', production: true }
-        }
+          metadata: { source: "instrumentation", production: true },
+        },
       );
     } catch (err) {
       Sentry.captureException(err);
-       
+
       console.error("Failed to preload bookmarks:", err);
     } finally {
       hasPreloaded = true;
@@ -73,6 +73,12 @@ export function scheduleBackgroundBookmarkPreload(): void {
   // Only run in a long-lived Node process.
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
+  // Skip during build phase to prevent blocking I/O
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    console.log("[Bookmarks Preloader] Build phase detected - skipping preload");
+    return;
+  }
+
   const initialDelayMs = Number(process.env.BOOKMARKS_PRELOAD_DELAY_MS ?? "5000");
   const intervalMs = Number(process.env.BOOKMARKS_PRELOAD_INTERVAL_MS ?? "7200000");
 
@@ -86,4 +92,4 @@ export function scheduleBackgroundBookmarkPreload(): void {
       // Allow Node to exit gracefully if nothing else is keeping it alive
       .unref();
   }, initialDelayMs).unref();
-} 
+}
