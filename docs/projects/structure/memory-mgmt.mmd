@@ -1,0 +1,95 @@
+graph TB
+    subgraph "Request Layer"
+        REQ[Incoming Request]
+        MW["Memory Pressure<br/>Middleware"]
+        RESP503["503 Service<br/>Unavailable"]
+        ALLOW[Allow Request]
+    end
+
+    subgraph "Memory Management Core"
+        IMM["ImageMemoryManager<br/>512MB Budget<br/>LRU Cache"]
+        MHM["MemoryHealthMonitor<br/>RSS Monitoring<br/>State Management"]
+        MG["mem-guard.ts<br/>30s Check<br/>Emergency Flush"]
+        AOM["AsyncOperationsMonitor<br/>30s Timeouts<br/>Operation Tracking"]
+    end
+
+    subgraph "Progressive Thresholds"
+        T1["75% Warning<br/>(384MB)"]
+        T2["80% Reject Large<br/>(410MB)"]
+        T3["90% Critical<br/>(460MB)"]
+        T4["100% Image Clear<br/>(512MB)"]
+        T5["120% Emergency<br/>(614MB)"]
+    end
+
+    subgraph "Memory States"
+        HEALTHY["🟢 Healthy<br/>Normal ops"]
+        WARNING["🟡 Warning<br/>Log & monitor"]
+        CRITICAL["🔴 Critical<br/>Shed load"]
+    end
+
+    subgraph "Cache Storage"
+        SC["ServerCache<br/>Metadata only<br/>No buffers"]
+        S3["S3 Storage<br/>Immediate persist"]
+        CDN["CDN Delivery<br/>No memory load"]
+    end
+
+    subgraph "Protection Layers"
+        L1["Size Limits<br/>50MB/image"]
+        L2["Pressure Detection<br/>RSS/Heap checks"]
+        L3["Health Checks<br/>/api/health"]
+        L4["Emergency Cleanup<br/>Clear all caches"]
+        L5["Process Monitor<br/>Container restart"]
+    end
+
+    %% Request flow
+    REQ --> MW
+    MW --> MHM
+    MHM -->|Critical| RESP503
+    MHM -->|OK| ALLOW
+
+    %% State transitions
+    MHM --> HEALTHY
+    MHM --> WARNING
+    MHM --> CRITICAL
+    
+    %% Threshold monitoring
+    MG --> T1
+    T1 --> T2
+    T2 --> T3
+    T3 --> T4
+    T4 --> T5
+
+    %% Memory pressure actions
+    T1 -->|Log| MHM
+    T2 -->|Reject| IMM
+    T3 -->|503s| MW
+    T4 -->|Clear| IMM
+    T5 -->|Flush| SC & IMM
+
+    %% Cache flow
+    IMM -->|Metadata| SC
+    IMM -->|Persist| S3
+    S3 -->|Serve| CDN
+
+    %% Protection integration
+    L1 --> IMM
+    L2 --> MHM
+    L3 --> ALLOW
+    L4 --> MHM
+    L5 --> REQ
+
+    %% Monitoring
+    AOM -.->|Track| IMM
+    AOM -.->|Metrics| MHM
+    IMM -.->|Events| MHM
+
+    %% Styling
+    classDef healthy fill:#d4edda,stroke:#155724
+    classDef warning fill:#fff3cd,stroke:#856404
+    classDef critical fill:#f8d7da,stroke:#721c24
+    classDef memory fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
+    
+    class HEALTHY healthy
+    class WARNING,T1,T2 warning
+    class CRITICAL,RESP503,T3,T4,T5 critical
+    class IMM,MHM,MG,AOM memory

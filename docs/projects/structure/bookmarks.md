@@ -218,6 +218,16 @@ To serve as the primary orchestration layer for fetching, processing, enriching,
 - **Solution**: Added explicit `console.error` call inside the `catch` block while still returning a safe empty array. Ensures consistent logging behaviour on both server and client paths.
 - **Impact**: Restored visibility into client-side fetch failures and fixed related unit tests.
 
+### ✅ FIXED: Memory Leak from Image Buffers (2025-06)
+
+- **Previous Issue**: OpenGraph image buffers stored directly in ServerCache without limits
+- **Solutions**: 
+  - Integrated with new `memory-mgmt` functionality for all image operations
+  - ServerCache now stores only metadata (S3 keys, CDN URLs), not buffers
+  - All image operations use `UnifiedImageService` with memory limits
+  - See `memory-mgmt.md` for complete memory management architecture
+- **Impact**: Stable memory usage, no more OOM errors from image processing
+
 ## Architecture Diagram
 
 See `bookmarks.mmd` for a visual diagram of how this orchestration layer coordinates with other core functionalities.
@@ -242,6 +252,16 @@ The bookmark system operates as a high-level coordinator, delegating specific ta
     - roughout the process, results are stored in an in-memory cache to ensure rapid delivery for subsequent requests. The `caching` module manages the TTL and revalidation logic for this data.
 
 By acting as an orchestrator, the bookmarks feature remains focused on its specific business logic while leveraging the robust, reusable functionalities of the core services for tasks like data handling, image processing, and storage.
+
+### Memory Management Integration
+
+The bookmark system integrates with the new `memory-mgmt` functionality to prevent memory leaks:
+
+- **Image Processing**: All OpenGraph images are processed through `UnifiedImageService` with memory limits
+- **Buffer Storage**: No raw buffers are stored in `ServerCache` - only metadata (S3 keys, CDN URLs)
+- **Memory Pressure**: Image operations are rejected when system is under memory pressure
+- **Automatic Cleanup**: Emergency cleanup clears all caches when memory critical
+- See `memory-mgmt.md` for complete memory protection architecture
 
 ## Key Files and Responsibilities
 

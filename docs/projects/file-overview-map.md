@@ -244,6 +244,7 @@ File/Path                                       Functionality                   
   - [x] `bookmarks-preloader.ts`                `bookmarks`             - Server-side bookmark preloading orchestrator
   - [x] `data-fetch-manager.ts`                 `batch-fetch-update`    - Centralized data fetching orchestrator with CLI handler
   - [x] `scheduler.ts`                           `batch-fetch-update`    - Cron scheduler for automated data updates
+  - [x] `mem-guard.ts`                          `memory-mgmt`           - Lightweight RSS watchdog for cache flushing
 - [x] **server-cache/**
   - [x] `index.ts`                              `caching`               - Barrel file for server cache
 - [x] **test-utils/**
@@ -331,6 +332,10 @@ File/Path                                       Functionality                   
 ## Middleware Directory
 
 - [x] `cache-debug.ts`                          `caching`               - Middleware for debugging cache behavior
+- [ ] **health/**
+  - [x] `memory-health-monitor.ts`              `memory-mgmt`           - Memory health monitor with graceful degradation
+- [ ] **middleware/**
+  - [x] `memory-pressure.ts`                  `memory-mgmt`           - Middleware to shed load under memory pressure
 
 ## Root Directory
 
