@@ -54,8 +54,7 @@ export const investments: Investment[] = [
   {
     id: "aescape",
     name: "Aescape",
-    description:
-      "Robotics company developing automated massage and wellness solutions using advanced robotics and AI.",
+    description: "Robotics company developing automated massage and wellness solutions using advanced robotics and AI.",
     category: "Robotics",
     type: "Direct",
     stage: "Seed+",
@@ -140,8 +139,7 @@ export const investments: Investment[] = [
   {
     id: "albo",
     name: "albo",
-    description:
-      "Digital banking platform in Mexico providing modern financial services and money management tools.",
+    description: "Digital banking platform in Mexico providing modern financial services and money management tools.",
     category: "Payments",
     type: "Direct",
     stage: "Series B+",
@@ -225,8 +223,7 @@ export const investments: Investment[] = [
   {
     id: "anfin",
     name: "Anfin",
-    description:
-      "Vietnamese investment platform making stock and crypto investing accessible to retail investors.",
+    description: "Vietnamese investment platform making stock and crypto investing accessible to retail investors.",
     category: "Finance",
     type: "Direct",
     stage: "Seed",
@@ -267,8 +264,7 @@ export const investments: Investment[] = [
   {
     id: "angellist",
     name: "AngelList",
-    description:
-      "Platform connecting startups with investors, talent, and resources for fundraising and growth.",
+    description: "Platform connecting startups with investors, talent, and resources for fundraising and growth.",
     category: "Investment Platforms",
     type: "Direct",
     stage: "Other",
@@ -310,8 +306,7 @@ export const investments: Investment[] = [
   {
     id: "auditmate",
     name: "AuditMate",
-    description:
-      "AI-powered audit automation platform streamlining financial audit processes for enterprises.",
+    description: "AI-powered audit automation platform streamlining financial audit processes for enterprises.",
     category: "SaaS",
     type: "Direct",
     stage: "Seed",
@@ -352,8 +347,7 @@ export const investments: Investment[] = [
   {
     id: "bastille",
     name: "Bastille",
-    description:
-      "Enterprise mobile security and threat detection platform protecting against wireless threats.",
+    description: "Enterprise mobile security and threat detection platform protecting against wireless threats.",
     category: "Security",
     type: "Direct",
     stage: "Series B+",
@@ -607,8 +601,7 @@ export const investments: Investment[] = [
   {
     id: "ceres-imaging",
     name: "Ceres Imaging",
-    description:
-      "Aerial imagery and analytics platform for agriculture optimization using AI and thermal imaging.",
+    description: "Aerial imagery and analytics platform for agriculture optimization using AI and thermal imaging.",
     category: "Analytics",
     type: "Direct",
     stage: "Series C",
@@ -692,8 +685,7 @@ export const investments: Investment[] = [
   {
     id: "cogito",
     name: "Cogito",
-    description:
-      "AI platform providing real-time emotional intelligence analysis for customer service interactions.",
+    description: "AI platform providing real-time emotional intelligence analysis for customer service interactions.",
     category: "Analytics",
     type: "Direct",
     stage: "Series C",
@@ -904,8 +896,7 @@ export const investments: Investment[] = [
   {
     id: "databerry",
     name: "Databerry",
-    description:
-      "AI-powered data analytics platform helping businesses extract insights from unstructured data.",
+    description: "AI-powered data analytics platform helping businesses extract insights from unstructured data.",
     category: "Analytics",
     type: "Direct",
     stage: "Seed",
@@ -1117,8 +1108,7 @@ export const investments: Investment[] = [
   {
     id: "everyday-dose",
     name: "Everyday Dose",
-    description:
-      "Clean coffee brand focused on functional mushroom coffee blends and wellness products.",
+    description: "Clean coffee brand focused on functional mushroom coffee blends and wellness products.",
     category: "Consumer Wellness",
     type: "Direct",
     stage: "Seed",
@@ -1202,8 +1192,7 @@ export const investments: Investment[] = [
   {
     id: "flow-finance",
     name: "Flow Finance",
-    description:
-      "Supply chain finance platform providing working capital solutions for businesses.",
+    description: "Supply chain finance platform providing working capital solutions for businesses.",
     category: "Finance",
     type: "Direct",
     stage: "Seed",
@@ -1287,8 +1276,7 @@ export const investments: Investment[] = [
   {
     id: "gem-health",
     name: "Gem Health",
-    description:
-      "Healthcare technology platform streamlining medical practice operations and patient engagement.",
+    description: "Healthcare technology platform streamlining medical practice operations and patient engagement.",
     category: "Health",
     type: "Direct",
     stage: "Seed",
@@ -1330,8 +1318,7 @@ export const investments: Investment[] = [
   {
     id: "gojom",
     name: "GoJom",
-    description:
-      "Real estate technology platform streamlining property transactions and management in Southeast Asia.",
+    description: "Real estate technology platform streamlining property transactions and management in Southeast Asia.",
     category: "Real Estate",
     type: "Direct",
     stage: "Seed+",
@@ -1373,8 +1360,7 @@ export const investments: Investment[] = [
   {
     id: "gojom-2023",
     name: "GoJom",
-    description:
-      "Real estate technology platform streamlining property transactions and management in Southeast Asia.",
+    description: "Real estate technology platform streamlining property transactions and management in Southeast Asia.",
     category: "Real Estate",
     type: "Direct",
     stage: "Seed+",
@@ -1416,8 +1402,7 @@ export const investments: Investment[] = [
   {
     id: "guava",
     name: "Guava",
-    description:
-      "Digital banking and networking platform designed for Black small business owners and entrepreneurs.",
+    description: "Digital banking and networking platform designed for Black small business owners and entrepreneurs.",
     category: "Finance",
     type: "Direct",
     stage: "Seed",
@@ -1500,8 +1485,7 @@ export const investments: Investment[] = [
   {
     id: "heard-mental-health",
     name: "Heard Mental Health",
-    description:
-      "Practice management platform for mental health professionals, streamlining operations and billing.",
+    description: "Practice management platform for mental health professionals, streamlining operations and billing.",
     category: "Productivity",
     type: "Direct",
     stage: "Series A",
@@ -1543,8 +1527,7 @@ export const investments: Investment[] = [
   {
     id: "helaina",
     name: "Helaina",
-    description:
-      "Biotech company developing human milk proteins through precision fermentation for infant formula.",
+    description: "Biotech company developing human milk proteins through precision fermentation for infant formula.",
     category: "Biotech",
     type: "Direct",
     stage: "Series A",
@@ -1586,8 +1569,7 @@ export const investments: Investment[] = [
   {
     id: "helaina-2023",
     name: "Helaina",
-    description:
-      "Biotech company developing human milk proteins through precision fermentation for infant formula.",
+    description: "Biotech company developing human milk proteins through precision fermentation for infant formula.",
     category: "Biotech",
     type: "Direct",
     stage: "Series A+",
@@ -1629,8 +1611,7 @@ export const investments: Investment[] = [
   {
     id: "here",
     name: "Here",
-    description:
-      "Real estate technology platform streamlining residential property management and tenant experience.",
+    description: "Real estate technology platform streamlining residential property management and tenant experience.",
     category: "Real Estate",
     type: "Direct",
     stage: "Seed",
@@ -1671,8 +1652,7 @@ export const investments: Investment[] = [
   {
     id: "heroes-jobs",
     name: "Heroes Jobs",
-    description:
-      "AI-powered job matching platform connecting healthcare professionals with opportunities.",
+    description: "AI-powered job matching platform connecting healthcare professionals with opportunities.",
     category: "HR & Recruiting",
     type: "Direct",
     stage: "Seed+",
@@ -1714,8 +1694,7 @@ export const investments: Investment[] = [
   {
     id: "idilika",
     name: "Idilika",
-    description:
-      "Real estate investment platform democratizing access to premium property investments.",
+    description: "Real estate investment platform democratizing access to premium property investments.",
     category: "Real Estate",
     type: "Direct",
     stage: "Pre-Seed",
@@ -1756,8 +1735,7 @@ export const investments: Investment[] = [
   {
     id: "jetty",
     name: "Jetty",
-    description:
-      "Modern financial services company providing rental insurance and security deposit alternatives.",
+    description: "Modern financial services company providing rental insurance and security deposit alternatives.",
     category: "Payments",
     type: "Direct",
     stage: "Series B+",
@@ -1798,8 +1776,7 @@ export const investments: Investment[] = [
   {
     id: "kambio",
     name: "Kambio",
-    description:
-      "Real estate investment platform enabling fractional ownership of premium properties.",
+    description: "Real estate investment platform enabling fractional ownership of premium properties.",
     category: "Real Estate",
     type: "Direct",
     stage: "Pre-Seed",
@@ -1883,8 +1860,7 @@ export const investments: Investment[] = [
   {
     id: "kins",
     name: "Kins",
-    description:
-      "Digital health platform providing personalized physical therapy and rehabilitation services.",
+    description: "Digital health platform providing personalized physical therapy and rehabilitation services.",
     category: "Health",
     type: "Direct",
     stage: "Seed",
@@ -1926,8 +1902,7 @@ export const investments: Investment[] = [
   {
     id: "koffie-financial",
     name: "Koffie Financial",
-    description:
-      "Commercial trucking insurance platform using telematics and AI for risk assessment.",
+    description: "Commercial trucking insurance platform using telematics and AI for risk assessment.",
     category: "Insurance",
     type: "Direct",
     stage: "Series A",
@@ -2093,8 +2068,7 @@ export const investments: Investment[] = [
   {
     id: "lula",
     name: "LULA",
-    description:
-      "Insurance infrastructure platform enabling delivery platforms to provide coverage for their drivers.",
+    description: "Insurance infrastructure platform enabling delivery platforms to provide coverage for their drivers.",
     category: "Insurance",
     type: "Direct",
     stage: "Series A+",
@@ -2262,8 +2236,7 @@ export const investments: Investment[] = [
   {
     id: "northone",
     name: "NorthOne Business Banking",
-    description:
-      "Digital banking platform designed specifically for small businesses and startups.",
+    description: "Digital banking platform designed specifically for small businesses and startups.",
     category: "Finance",
     type: "Direct",
     stage: "Series C",
@@ -2304,8 +2277,7 @@ export const investments: Investment[] = [
   {
     id: "oliver-space",
     name: "Oliver Space",
-    description:
-      "Furniture rental and home design platform offering flexible furnishing solutions.",
+    description: "Furniture rental and home design platform offering flexible furnishing solutions.",
     category: "Consumer",
     type: "Direct",
     stage: "Series B",
@@ -2388,8 +2360,7 @@ export const investments: Investment[] = [
   {
     id: "panther",
     name: "Panther",
-    description:
-      "Global employment platform enabling companies to hire and pay international employees compliantly.",
+    description: "Global employment platform enabling companies to hire and pay international employees compliantly.",
     category: "HR & Recruiting",
     type: "Direct",
     stage: "Series A",
@@ -2514,8 +2485,7 @@ export const investments: Investment[] = [
   {
     id: "point",
     name: "Atlas Card",
-    description:
-      "Mobile banking platform offering premium debit card with rewards and financial tools.",
+    description: "Mobile banking platform offering premium debit card with rewards and financial tools.",
     category: "Payments",
     type: "Direct",
     stage: "Series B+",
@@ -2598,8 +2568,7 @@ export const investments: Investment[] = [
   {
     id: "postpilotcom",
     name: "PostPilot.com",
-    description:
-      "Direct mail automation platform for e-commerce brands to drive customer retention and acquisition.",
+    description: "Direct mail automation platform for e-commerce brands to drive customer retention and acquisition.",
     category: "E-Commerce",
     type: "Direct",
     stage: "Seed",
@@ -2724,8 +2693,7 @@ export const investments: Investment[] = [
   {
     id: "pulppo",
     name: "Pulppo",
-    description:
-      "Real estate marketplace platform in Latin America streamlining property transactions and management.",
+    description: "Real estate marketplace platform in Latin America streamlining property transactions and management.",
     category: "Real Estate",
     type: "Direct",
     stage: "Pre-Seed",
@@ -2767,8 +2735,7 @@ export const investments: Investment[] = [
   {
     id: "pym",
     name: "PYM",
-    description:
-      "Mental health company creating natural supplements for stress and anxiety management.",
+    description: "Mental health company creating natural supplements for stress and anxiety management.",
     category: "Consumer Wellness",
     type: "Direct",
     stage: "Seed",
@@ -2977,8 +2944,7 @@ export const investments: Investment[] = [
   {
     id: "sailplan",
     name: "SailPlan",
-    description:
-      "Maritime navigation and vessel optimization platform using AI for route planning.",
+    description: "Maritime navigation and vessel optimization platform using AI for route planning.",
     category: "Logistics",
     type: "Direct",
     stage: "Series A",
@@ -3188,8 +3154,7 @@ export const investments: Investment[] = [
   {
     id: "sprout",
     name: "Vest",
-    description:
-      "Vest is an application that allows investing in the US stock market in Latin America.",
+    description: "Vest is an application that allows investing in the US stock market in Latin America.",
     category: "Investment Platforms",
     type: "Direct",
     stage: "Seed",
@@ -3272,8 +3237,7 @@ export const investments: Investment[] = [
   {
     id: "stock-perks",
     name: "Stock Perks",
-    description:
-      "Platform connecting public companies with retail investors through shareholder rewards.",
+    description: "Platform connecting public companies with retail investors through shareholder rewards.",
     category: "Investment Platforms",
     type: "Direct",
     stage: "Seed",
@@ -3440,8 +3404,7 @@ export const investments: Investment[] = [
   {
     id: "tellie",
     name: "Tellie",
-    description:
-      "No-code platform for creators to build and monetize their digital presence and communities.",
+    description: "No-code platform for creators to build and monetize their digital presence and communities.",
     category: "Consumer",
     type: "Direct",
     stage: "Series A",
@@ -3524,8 +3487,7 @@ export const investments: Investment[] = [
   {
     id: "toucan",
     name: "Toucan",
-    description:
-      "Toucan was a language learning Chrome extension for in-browser language learning.",
+    description: "Toucan was a language learning Chrome extension for in-browser language learning.",
     category: "Education",
     type: "Direct",
     stage: "Seed+",
@@ -3608,8 +3570,7 @@ export const investments: Investment[] = [
   {
     id: "turing",
     name: "Turing",
-    description:
-      "AI-powered platform connecting companies with vetted software developers for remote work.",
+    description: "AI-powered platform connecting companies with vetted software developers for remote work.",
     category: "AI / ML",
     type: "Direct",
     stage: "Series D",
@@ -3734,8 +3695,7 @@ export const investments: Investment[] = [
   {
     id: "upstock",
     name: "Upstock",
-    description:
-      "Equity management platform helping companies create and manage employee equity plans.",
+    description: "Equity management platform helping companies create and manage employee equity plans.",
     category: "Investment Platforms",
     type: "Direct",
     stage: "Seed",
@@ -3776,8 +3736,7 @@ export const investments: Investment[] = [
   {
     id: "upstream",
     name: "Upstream",
-    description:
-      "Web3 platform enabling communities and creators to launch their own social tokens and NFT projects.",
+    description: "Web3 platform enabling communities and creators to launch their own social tokens and NFT projects.",
     category: "Social",
     type: "Direct",
     stage: "Series A",
@@ -3860,8 +3819,7 @@ export const investments: Investment[] = [
   {
     id: "user-interviews",
     name: "User Interviews",
-    description:
-      "Platform connecting companies with participants for user research and customer feedback studies.",
+    description: "Platform connecting companies with participants for user research and customer feedback studies.",
     category: "Analytics",
     type: "Direct",
     stage: "Series B",
@@ -3986,8 +3944,7 @@ export const investments: Investment[] = [
   {
     id: "wibond",
     name: "Wibond",
-    description:
-      "Payment infrastructure platform for Latin American businesses enabling flexible payment solutions.",
+    description: "Payment infrastructure platform for Latin American businesses enabling flexible payment solutions.",
     category: "Payments",
     type: "Direct",
     stage: "Pre-Seed",
@@ -4070,8 +4027,7 @@ export const investments: Investment[] = [
   {
     id: "workymx",
     name: "Worky.mx",
-    description:
-      "HR management platform for SMBs in Latin America, streamlining payroll and employee operations.",
+    description: "HR management platform for SMBs in Latin America, streamlining payroll and employee operations.",
     category: "HR & Recruiting",
     type: "Direct",
     stage: "Seed+",

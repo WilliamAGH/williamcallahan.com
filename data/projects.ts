@@ -11,22 +11,13 @@ export const projects: Project[] = [
     shortSummary: "Data-driven research platform for the VC ecosystem",
     url: "https://aventure.vc",
     image: "/images/posts/aventurevc-homepage.png",
-    tags: [
-      "Venture Capital",
-      "Data Platform",
-      "Startups",
-      "Funding Trends",
-      "Research",
-      "Web App",
-      "SaaS",
-    ],
+    tags: ["Venture Capital", "Data Platform", "Startups", "Funding Trends", "Research", "Web App", "SaaS"],
   },
   {
     name: "williamcallahan.com",
     description:
       "This personal site featuring interactive macOS-style window components (Terminal, Code Blocks, Images) with close/minimize/maximize controls and animations. Includes a lot of dynamic content, an API for fetching investment logos (with refetch/cache logic), MDX blog posts, and more. Built with Next.js App Router, TypeScript, Tailwind CSS, and deployable via Docker across various cloud environments (Vercel, GCP, Oracle Cloud, Hetzner, Railway, Fly.io, etc.).",
-    shortSummary:
-      "Interactive personal site with beautiful terminal/code components & other dynamic content",
+    shortSummary: "Interactive personal site with beautiful terminal/code components & other dynamic content",
     url: "https://williamcallahan.com",
     image: "/images/williamcallahan-com-project.png",
     tags: ["Next.js", "TypeScript", "Tailwind CSS", "React", "MDX", "Server Components"],
@@ -57,17 +48,7 @@ export const projects: Project[] = [
     shortSummary: "AI-powered web search with a contextual chat assistant",
     url: "https://search-ai.io",
     image: "/images/searchAI.png",
-    tags: [
-      "AI",
-      "Web Search",
-      "Chat Assistant",
-      "OpenAI",
-      "GPT",
-      "RAG",
-      "Contextual Search",
-      "Web App",
-      "Groq",
-    ],
+    tags: ["AI", "Web Search", "Chat Assistant", "OpenAI", "GPT", "RAG", "Contextual Search", "Web App", "Groq"],
   },
   {
     name: "Book Finder (findmybook.net)",

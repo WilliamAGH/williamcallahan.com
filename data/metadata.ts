@@ -56,37 +56,7 @@ export const SITE_DESCRIPTION_SHORT =
  * @see {@link "https://schema.org/dateModified"} - Update dateModified whenever page content changes
  * @see {@link "https://schema.org/dateCreated"} - The date each page was first published
  */
-/**
- * Base metadata interface for all pages
- */
-interface BasePageMetadata {
-  title: string;
-  description: string;
-  dateCreated: string;
-  dateModified: string;
-}
-
-/**
- * Profile page metadata interface
- */
-interface ProfilePageMetadata extends BasePageMetadata {
-  bio: string;
-  interactionStats?: {
-    follows?: number;
-    likes?: number;
-    posts?: number;
-  };
-  profileImage?: string;
-  alternateName?: string;
-  identifier?: string;
-}
-
-/**
- * Collection page metadata interface
- */
-interface CollectionPageMetadata extends BasePageMetadata {
-  bio?: never;
-}
+import type { ProfilePageMetadata, CollectionPageMetadata } from "@/types/seo";
 
 /**
  * Page-specific metadata configurations
