@@ -28,7 +28,7 @@ export async function fetchBookmarksFromApi(endpoint = "/api/bookmarks"): Promis
     // Even though callBookmarksApi already logs the same error on the server-side,
     // logging it again here guarantees the message is captured in tests that invoke
     // the client wrapper directly without going through the full data-access layer.
-    console.error(`${getLogPrefix()} Failed to fetch from ${endpoint}:`, error);
+    console.error(`${getLogPrefix("Client")} Failed to fetch from ${endpoint}:`, error);
 
     // Return an empty array so that consuming components can handle the failure
     // gracefully without additional try/catch logic.
