@@ -68,6 +68,8 @@ export interface Investment {
     label: string;
     value: string;
   }[];
+  /** Additional metadata for the investment */
+  // metadata?: InvestmentMetadata;
 }
 
 /**
@@ -86,4 +88,17 @@ export interface InvestmentCardClientProps extends Investment {
   logoData: LogoData;
   isDarkTheme: boolean;
   renderedMetrics?: JSX.Element;
+}
+
+/** Investment URL validation result with detailed checks */
+export interface InvestmentUrlValidationResult {
+  investment: Investment;
+  url: string;
+  isValidFormat: boolean;
+  isReachable: boolean;
+  httpStatus?: number;
+  responseTime?: number;
+  errorType?: string;
+  redirectUrl?: string;
+  hasSSL?: boolean;
 }

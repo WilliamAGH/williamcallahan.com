@@ -31,8 +31,11 @@ export interface S3ClientWrapper {
   /** Get a file handle by key. */
   file: (key: string) => S3File;
   /** List objects by prefix. */
-  list: (
-    prefix?: string,
-    options?: unknown,
-  ) => Promise<{ contents: { key: string }[]; isTruncated: boolean }>;
+  list: (prefix?: string, options?: unknown) => Promise<{ contents: { key: string }[]; isTruncated: boolean }>;
+}
+
+export interface DistributedLockEntry {
+  instanceId: string;
+  acquiredAt: number;
+  ttlMs: number;
 }

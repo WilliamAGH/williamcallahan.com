@@ -1,8 +1,17 @@
 /**
- * Component Type Definitions
+ * Component Architectural Type Definitions
  *
- * This file contains type definitions that help enforce the separation
- * between server and client components.
+ * SCOPE: Component architecture patterns and server/client separation
+ *
+ * This file contains ONLY architectural type definitions that help enforce
+ * the separation between server and client components. It defines component
+ * patterns and architectural boundaries.
+ *
+ * DO NOT ADD: Specific component props interfaces (use types/ui.ts instead)
+ * DO ADD: Component pattern types, architectural helpers, component classifications
+ *
+ * @see types/ui.ts for specific component props interfaces
+ * @see types/features.ts for feature-specific component props
  */
 
 import type { ReactNode } from "react";
@@ -58,3 +67,117 @@ export interface ClientBoundaryProps {
  * Helper type for React.FC with explicit children
  */
 export type FCWithChildren<P = Record<string, unknown>> = React.FC<P & { children: ReactNode }>;
+
+/**
+ * Base props that all components should have access to
+ */
+export interface BaseComponentProps {
+  /** Optional CSS class names */
+  className?: string;
+  /** Optional HTML id attribute */
+  id?: string;
+  /** Optional data test id for testing */
+  "data-testid"?: string;
+}
+
+/**
+ * Props for components that can be in loading states
+ */
+export interface LoadableComponentProps {
+  /** Whether the component is in a loading state */
+  loading?: boolean;
+  /** Custom loading component */
+  loadingComponent?: ReactNode;
+}
+
+/**
+ * Props for components that can have error states
+ */
+export interface ErrorableComponentProps {
+  /** Error state */
+  error?: Error | string | null;
+  /** Custom error component */
+  errorComponent?: ReactNode;
+  /** Error recovery callback */
+  onErrorRetry?: () => void;
+}
+
+/**
+ * Combined props for components that can be in loading or error states
+ */
+export interface AsyncComponentProps extends LoadableComponentProps, ErrorableComponentProps {
+  /** Whether the component has successfully loaded */
+  ready?: boolean;
+}
+
+/**
+ * Props for components that can be conditionally rendered
+ */
+export interface ConditionalComponentProps {
+  /** Whether the component should be rendered */
+  show?: boolean;
+  /** Fallback component when not shown */
+  fallback?: ReactNode;
+}
+
+/**
+ * Props for components that support theming
+ */
+export interface ThemedComponentProps {
+  /** Theme variant */
+  theme?: "light" | "dark" | "system";
+  /** Custom theme properties */
+  themeProps?: Record<string, unknown>;
+}
+
+/**
+ * Props for interactive components
+ */
+export interface InteractiveComponentProps {
+  /** Whether the component is disabled */
+  disabled?: boolean;
+  /** Whether the component is in a focused state */
+  focused?: boolean;
+  /** Whether the component is in an active state */
+  active?: boolean;
+}
+
+/**
+ * Generic component wrapper type for HOCs
+ */
+export type ComponentWrapper<P = Record<string, never>> = <T extends Record<string, unknown>>(
+  Component: React.ComponentType<T>,
+) => React.ComponentType<T & P>;
+
+/**
+ * Type for component ref forwarding
+ */
+export type ForwardedComponent<T, P = Record<string, never>> = React.ForwardRefExoticComponent<
+  React.PropsWithoutRef<P> & React.RefAttributes<T>
+>;
+
+/**
+ * Props for components that support custom rendering
+ */
+export interface RenderPropComponentProps<T = unknown> {
+  /** Custom render function */
+  render?: (props: T) => ReactNode;
+  /** Alternative children render function */
+  children?: ReactNode | ((props: T) => ReactNode);
+}
+
+/**
+ * Props for polymorphic components that can render as different elements
+ */
+export interface PolymorphicComponentProps<T extends keyof JSX.IntrinsicElements = "div"> {
+  /** Element type to render as */
+  as?: T;
+}
+
+/**
+ * Complete polymorphic component type
+ */
+export type PolymorphicComponent<
+  T extends keyof JSX.IntrinsicElements = "div",
+  P = Record<string, never>,
+> = React.ComponentType<P & PolymorphicComponentProps<T> & JSX.IntrinsicElements[T]>;

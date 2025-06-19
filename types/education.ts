@@ -14,8 +14,8 @@ interface EducationBase {
   id: string;
   /** Institution name */
   institution: string;
-  /** Year completed (optional) */
-  year?: string;
+  /** Year completed */
+  year: number;
   /** Institution website URL */
   website: string;
   /** Location (city, state) */
@@ -54,4 +54,46 @@ export interface Class extends EducationBase {
 export interface Certification extends EducationBase {
   /** Certification or course name */
   name: string;
+}
+
+/**
+ * Represents the processed logo data for an education or certification item.
+ */
+export interface EducationLogoData {
+  url: string;
+  source: string | null;
+}
+
+/**
+ * A union type representing an item in the education table, which can be a course or a certification.
+ * It includes processed logo data.
+ */
+export type EducationTableItem = (Class | Certification) & {
+  logoData: EducationLogoData;
+  type: "course" | "certification";
+};
+
+/**
+ * Props for the main client-side Education component.
+ */
+export interface EducationClientProps {
+  education: (Education & { logoData: EducationLogoData })[];
+  recentCourses: EducationTableItem[];
+  recentCertifications: EducationTableItem[];
+}
+
+/**
+ * Props for the client-side EducationCard component.
+ */
+export interface EducationCardClientProps {
+  education: Education;
+  className?: string;
+}
+
+/**
+ * Props for the client-side CertificationCard component.
+ */
+export interface CertificationCardClientProps {
+  certification: Certification;
+  className?: string;
 }

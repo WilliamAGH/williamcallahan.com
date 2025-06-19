@@ -55,10 +55,8 @@ export function isArticleDates(dates: unknown): dates is ArticleDates {
   // Use type assertion to Record<string, unknown> for safe property access
   const dateObj = dates as Record<string, unknown>;
 
-  const hasValidPublished =
-    typeof dateObj.datePublished === "string" && isPacificDateString(dateObj.datePublished);
-  const hasValidModified =
-    typeof dateObj.dateModified === "string" && isPacificDateString(dateObj.dateModified);
+  const hasValidPublished = typeof dateObj.datePublished === "string" && isPacificDateString(dateObj.datePublished);
+  const hasValidModified = typeof dateObj.dateModified === "string" && isPacificDateString(dateObj.dateModified);
   const hasValidCreated =
     dateObj.dateCreated === undefined ||
     (typeof dateObj.dateCreated === "string" && isPacificDateString(dateObj.dateCreated));
