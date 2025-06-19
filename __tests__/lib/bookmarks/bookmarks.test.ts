@@ -5,8 +5,8 @@
  * @module __tests__/lib/bookmarks.test
  */
 
-import { describe, beforeEach, afterEach, expect, it, jest } from "@jest/globals";
-import type { UnifiedBookmark, BookmarkContent, BookmarkTag } from "../../types";
+import { describe, beforeAll, beforeEach, afterEach, expect, it, jest } from "@jest/globals";
+import type { UnifiedBookmark, BookmarkContent, BookmarkTag } from "../../../types";
 
 // Add global fetch if it doesn't exist
 if (!globalThis.fetch) {
@@ -193,7 +193,7 @@ describe("Bookmarks Module (Simplified)", () => {
         expect(bookmarks).toEqual([]);
 
         // Should log error
-        expect(consoleSpy).toHaveBeenCalledWith("[Bookmarks] Failed to fetch from /api/bookmarks:", expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith("[Bookmarks] [Client] Failed to fetch from /api/bookmarks:", expect.any(Error));
       } finally {
         fetchSpy.mockRestore();
         consoleSpy.mockRestore();
@@ -229,7 +229,7 @@ describe("Bookmarks Module (Simplified)", () => {
         expect(bookmarks).toEqual([]);
 
         // Should log error
-        expect(consoleSpy).toHaveBeenCalledWith("[Bookmarks] Failed to fetch from /api/bookmarks:", expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith("[Bookmarks] [Client] Failed to fetch from /api/bookmarks:", expect.any(Error));
       } finally {
         fetchSpy.mockRestore();
         consoleSpy.mockRestore();

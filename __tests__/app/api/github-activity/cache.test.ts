@@ -25,20 +25,37 @@ jest.mock("../../../../lib/server-cache", () => ({
     setGithubActivity: jest.fn(),
     getGithubActivity: jest.fn(),
     clearGithubActivity: jest.fn(),
-    getStats: jest.fn(() => ({ hits: 0, misses: 0, keys: 0, ksize: 0, vsize: 0 })),
+    getStats: jest.fn(() => ({
+      hits: 0,
+      misses: 0,
+      keys: 0,
+      ksize: 0,
+      vsize: 0,
+    })),
   },
   __esModule: true,
 }));
 
 // Import the mocked ServerCacheInstance after the mock is defined
 import { ServerCacheInstance } from "../../../../lib/server-cache";
-import { CacheTester } from "../../../../lib/test-utils/cache-tester";
 
 // Get references to the mocked functions
-const mockSetGithubActivity = ServerCacheInstance.setGithubActivity as jest.MockedFunction<any>;
-const mockGetGithubActivity = ServerCacheInstance.getGithubActivity as jest.MockedFunction<any>;
-const mockClearGithubActivity = ServerCacheInstance.clearGithubActivity as jest.MockedFunction<any>;
-const mockGetStats = ServerCacheInstance.getStats as jest.MockedFunction<any>;
+const mockSetGithubActivity = ServerCacheInstance.setGithubActivity as jest.MockedFunction<
+  (activity: GitHubActivityApiResponse) => void
+>;
+const mockGetGithubActivity = ServerCacheInstance.getGithubActivity as jest.MockedFunction<
+  () => GitHubActivityApiResponse | undefined
+>;
+const mockClearGithubActivity = ServerCacheInstance.clearGithubActivity as jest.MockedFunction<() => void>;
+const mockGetStats = ServerCacheInstance.getStats as jest.MockedFunction<
+  () => {
+    hits: number;
+    misses: number;
+    keys: number;
+    ksize: number;
+    vsize: number;
+  }
+>;
 
 // Set up mock state
 const mockGithubActivity: { current: GitHubActivityApiResponse | undefined } = {
@@ -65,9 +82,6 @@ mockGetGithubActivity.mockImplementation(() => {
 mockClearGithubActivity.mockImplementation(() => {
   mockGithubActivity.current = undefined;
 });
-
-// These tests should run in all environments to validate caching behavior
-const shouldSkip = false;
 
 // Mock GitHub activity data
 const MOCK_GITHUB_ACTIVITY: GitHubActivityApiResponse = {
@@ -216,7 +230,6 @@ describe("GitHub Activity API Cache Tests", () => {
     expect(result).toBeDefined();
 
     // The last call should be the one that persists
-    const lastCall = mockSetGithubActivity.mock.calls[4][0];
     expect(result?.trailingYearData.data[0].count).toBe(4);
   });
 });

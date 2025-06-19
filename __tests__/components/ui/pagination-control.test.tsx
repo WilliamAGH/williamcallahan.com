@@ -10,7 +10,6 @@
  * - Edge cases and error handling
  */
 
-import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { PaginationControl } from "@/components/ui/pagination-control.client";
 import { describe, beforeEach, it, expect, jest } from "@jest/globals";

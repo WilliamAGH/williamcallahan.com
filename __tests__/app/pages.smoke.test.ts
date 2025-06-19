@@ -19,7 +19,7 @@ beforeAll(() => {
   originalFetch = global.fetch;
   // Create a mock fetch function that includes the preconnect method required by Bun
 
-  const mockFetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const mockFetch = (input: RequestInfo | URL, _init?: RequestInit): Promise<Response> => {
     const urlString = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 
     if (urlString.startsWith("/api/logo")) {
@@ -38,8 +38,8 @@ beforeAll(() => {
   // Add the preconnect method to match fetch's interface
   const mockFetchWithPreconnect = Object.assign(mockFetch, {
     preconnect: (
-      url: string | URL,
-      options?: {
+      _url: string | URL,
+      _options?: {
         dns?: boolean;
         tcp?: boolean;
         http?: boolean;

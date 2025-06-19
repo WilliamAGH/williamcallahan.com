@@ -2,7 +2,6 @@
  * aVenture Icon Component Tests
  */
 
-import React from "react";
 import { render } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { AVentureIcon } from "../../../../components/ui/social-icons/aventure-icon";

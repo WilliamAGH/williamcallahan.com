@@ -1,4 +1,3 @@
-import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { NavigationLink } from "@/components/ui/navigation/navigation-link.client";
 // Import the REAL provider (hook is used internally by NavigationLink)
