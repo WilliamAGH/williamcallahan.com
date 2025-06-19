@@ -14,11 +14,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { Author } from "types/blog";
-
-interface BlogAuthorProps {
-  author: Author;
-}
+import type { BlogAuthorProps } from "@/types/features";
 
 export function BlogAuthor({ author }: BlogAuthorProps) {
   const [isMounted, setIsMounted] = useState(false);
@@ -51,9 +47,7 @@ export function BlogAuthor({ author }: BlogAuthorProps) {
       )}
       <div>
         <div className="font-semibold text-gray-900 dark:text-white text-lg">{author.name}</div>
-        {author.bio && (
-          <p className="text-sm text-gray-700 dark:text-gray-400 mt-1">{author.bio}</p>
-        )}
+        {author.bio && <p className="text-sm text-gray-700 dark:text-gray-400 mt-1">{author.bio}</p>}
       </div>
     </Link>
   );

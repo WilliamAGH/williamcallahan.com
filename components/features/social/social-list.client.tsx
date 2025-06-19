@@ -33,8 +33,8 @@ export function SocialListClient() {
     <div className="p-6 sm:p-4">
       <div className="prose dark:prose-invert max-w-none mb-8 text-sm sm:text-base">
         <p>
-          Here are some of the places I can be found online. I share content about technology,
-          startups, investing, AI, LLMs,and software engineering.
+          Here are some of the places I can be found online. I share content about technology, startups, investing, AI,
+          LLMs,and software engineering.
         </p>
       </div>
 

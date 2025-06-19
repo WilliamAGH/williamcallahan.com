@@ -42,19 +42,7 @@ const proxy = (srcInput: string | Blob): string => {
   return `/api/twitter-image/${proxiedPath}`;
 };
 
-/**
- * Props for the ImgProxy component.
- */
-interface ImgProxyProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> {
-  /** The original source URL of the image or a Blob. */
-  src?: string | Blob;
-  /** Alt text for the image. */
-  alt?: string;
-  /** Optional width for Next.js Image optimization. */
-  width?: number;
-  /** Optional height for Next.js Image optimization. */
-  height?: number;
-}
+import type { ImgProxyProps, TweetEmbedProps } from "@/types";
 
 /**
  * An image component that uses the `proxy` function to serve Twitter images.
@@ -71,25 +59,13 @@ const ImgProxy = ({ src = "", alt, width, height, ...rest }: ImgProxyProps) => {
 
   // Use Next.js Image component for better performance when dimensions are available
   if (width && height) {
-    return (
-      <Image src={proxiedSrc} alt={alt || "Tweet image"} width={width} height={height} {...rest} />
-    );
+    return <Image src={proxiedSrc} alt={alt || "Tweet image"} width={width} height={height} {...rest} />;
   }
 
   // Fallback to regular img with explicit alt text for accessibility
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={proxiedSrc} alt={alt || "Tweet image"} {...rest} />;
 };
-
-/**
- * Props for the TweetEmbed component.
- */
-interface TweetEmbedProps {
-  /** The URL of the tweet to embed. */
-  url: string;
-  /** Optional CSS class names to apply to the container div. */
-  className?: string;
-}
 
 /**
  * Embeds a tweet using its URL.

@@ -21,15 +21,7 @@ import { BlogTags } from "../shared/blog-tags";
 import { MDXContent } from "./mdx-content";
 import { formatDate } from "@/lib/utils";
 
-import type { Article, WithContext } from "schema-dts";
-import type { BlogPost } from "../../../../types/blog";
-
-interface BlogArticleProps {
-  /** The blog post data to render */
-  post: BlogPost;
-  /** JSON-LD structured data for the blog post */
-  jsonLd?: WithContext<Article>;
-}
+import type { BlogArticleProps } from "@/types/features";
 
 /**
  * BlogArticle Component
@@ -76,11 +68,7 @@ export const BlogArticle: React.FC<BlogArticleProps> = ({ post }) => {
 
       // Additional cleanup
       if (typeof window !== "undefined" && window.document) {
-        for (const selector of [
-          "[data-fullscreen-image]",
-          "[data-modal-backdrop]",
-          "[data-article-image]",
-        ]) {
+        for (const selector of ["[data-fullscreen-image]", "[data-modal-backdrop]", "[data-article-image]"]) {
           const elements = window.document.querySelectorAll(selector);
           for (const el of elements) {
             if (el instanceof HTMLElement) {

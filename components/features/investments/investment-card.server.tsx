@@ -31,20 +31,20 @@ export async function InvestmentCard(props: Investment): Promise<JSX.Element> {
       // Extract domain from website URL
       const url = new URL(website);
       const domain = url.hostname.replace(/^www\./, "");
-      
+
       // Fetch logo using the unified logo system
       const logoResult = await getLogo(domain);
-      
+
       if (logoResult?.buffer && Buffer.isBuffer(logoResult.buffer) && logoResult.buffer.length > 0) {
         // Convert buffer to base64 data URL
         const base64 = logoResult.buffer.toString("base64");
         const dataUrl = `data:${logoResult.contentType || "image/png"};base64,${base64}`;
-        
+
         const logoData: LogoData = {
           url: dataUrl,
           source: logoResult.source || "unknown",
         };
-        
+
         return <InvestmentCardClient {...props} logoData={logoData} />;
       }
     } catch (error) {

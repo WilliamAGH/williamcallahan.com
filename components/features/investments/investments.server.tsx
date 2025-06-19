@@ -4,19 +4,12 @@
  */
 
 import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-registry-context.client";
-import type { Investment } from "../../../types/investment";
 import { InvestmentCardServer } from "./index";
 import { InvestmentsClient } from "./investments.client";
 
 import type { JSX } from "react";
 
-/**
- * Props for the Investments component
- */
-interface InvestmentsProps {
-  /** List of investments to display */
-  investments: Investment[];
-}
+import type { InvestmentsProps } from "@/types";
 
 /**
  * Server-side React component that pre-renders investment cards and provides them to the client component within a global context.
@@ -29,7 +22,7 @@ export async function Investments({ investments = [] }: InvestmentsProps): Promi
     investments.map(async (investment) => ({
       ...investment,
       card: await InvestmentCardServer(investment),
-    }))
+    })),
   );
 
   return (

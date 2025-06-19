@@ -2,11 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
-
-interface PageTransitionWrapperProps {
-  children: ReactNode;
-}
+import type { PageTransitionWrapperProps } from "@/types/ui";
 
 export function PageTransitionWrapper({ children }: PageTransitionWrapperProps) {
   const pathname = usePathname();

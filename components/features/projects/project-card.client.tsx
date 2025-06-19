@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink } from "@/components/ui/external-link.client";
-import type { Project } from "@/types/project";
+import type { ProjectCardProps } from "@/types/features/projects";
 import Image from "next/image";
 import React, { type JSX } from "react";
 
@@ -32,10 +32,6 @@ function PlaceholderImageTop() {
       </svg>
     </div>
   );
-}
-
-interface ProjectCardProps {
-  project: Project;
 }
 
 export function ProjectCard({ project }: ProjectCardProps): JSX.Element {

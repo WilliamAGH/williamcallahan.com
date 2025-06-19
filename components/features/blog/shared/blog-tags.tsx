@@ -9,16 +9,7 @@ import { kebabCase } from "@/lib/utils/formatters";
 import { Tag } from "lucide-react";
 import Link from "next/link";
 
-interface BlogTagsProps {
-  tags: string[];
-  interactive?: boolean;
-}
-
-interface TagWrapperProps {
-  children: React.ReactNode;
-  className: string;
-  href?: string;
-}
+import type { BlogTagsPropsExtended, TagWrapperProps } from "@/types/features";
 
 function TagWrapper({ children, className, href }: TagWrapperProps) {
   if (href) {
@@ -31,7 +22,7 @@ function TagWrapper({ children, className, href }: TagWrapperProps) {
   return <span className={className}>{children}</span>;
 }
 
-export function BlogTags({ tags, interactive = false }: BlogTagsProps) {
+export function BlogTags({ tags, interactive = false }: BlogTagsPropsExtended) {
   return (
     <div className="flex flex-wrap gap-2 mb-4">
       {tags.map((tag) => (

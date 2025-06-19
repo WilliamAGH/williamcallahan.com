@@ -11,17 +11,11 @@ import { Code, RefreshCw } from "lucide-react";
 import { useTheme } from "next-themes";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import ActivityCalendarComponent, {
-  type ThemeInput as ReactActivityCalendarThemeInput,
-} from "react-activity-calendar";
+import ActivityCalendarComponent, { type ThemeInput as ReactActivityCalendarThemeInput } from "react-activity-calendar";
 import CumulativeGitHubStatsCards from "./cumulative-github-stats-cards";
+import type { ApiError } from "@/types/features/github";
 
 const GITHUB_PROFILE_URL = "https://github.com/WilliamAGH/";
-
-interface ApiError {
-  message?: string;
-  error?: string;
-}
 
 // Define the custom theme for the calendar
 const calendarCustomTheme: ReactActivityCalendarThemeInput = {
@@ -115,9 +109,7 @@ const GitHubActivity = () => {
       try {
         if (refresh) {
           setIsRefreshing(true);
-          console.log(
-            "[Client] Requesting GitHub data refresh via POST /api/github-activity/refresh",
-          );
+          console.log("[Client] Requesting GitHub data refresh via POST /api/github-activity/refresh");
           const refreshResponse = await fetch("/api/github-activity/refresh", {
             method: "POST",
             headers: {
@@ -211,9 +203,7 @@ const GitHubActivity = () => {
         }
       } catch (err: unknown) {
         console.error("Failed to fetch or parse GitHub activity:", err); // Log the full error object
-        setError(
-          err instanceof Error ? err.message : "An unknown error occurred while fetching data.",
-        );
+        setError(err instanceof Error ? err.message : "An unknown error occurred while fetching data.");
         resetState(); // Full reset on critical fetch/parse error
       } finally {
         setIsLoading(false);
@@ -295,10 +285,7 @@ const GitHubActivity = () => {
     >
       <div className="flex justify-between items-center mb-3">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-          <Code
-            size={20}
-            className="mr-2 text-blue-500 group-hover:scale-110 transition-transform"
-          />
+          <Code size={20} className="mr-2 text-blue-500 group-hover:scale-110 transition-transform" />
           GitHub Activity
         </h3>
         {showRefreshButtons && (
@@ -322,10 +309,7 @@ const GitHubActivity = () => {
               title="Refresh GitHub data"
               aria-label="Refresh GitHub data"
             >
-              <RefreshCw
-                size={16}
-                className={`${isRefreshing ? "animate-spin text-blue-500" : "text-gray-500"}`}
-              />
+              <RefreshCw size={16} className={`${isRefreshing ? "animate-spin text-blue-500" : "text-gray-500"}`} />
             </button>
           </div>
         )}
@@ -349,8 +333,7 @@ const GitHubActivity = () => {
 
       {!isLoading && !error && (
         <>
-          {activityData.length === 0 &&
-          (totalContributions === null || totalContributions === 0) ? (
+          {activityData.length === 0 && (totalContributions === null || totalContributions === 0) ? (
             <div className="text-center py-10 text-gray-500 dark:text-gray-400">
               <p>No contribution activity found for the trailing year.</p>
               {dataComplete === false && lastRefreshed && (
@@ -400,20 +383,18 @@ const GitHubActivity = () => {
               </span>
             )}
           </div>
-          {allTimeLinesAdded !== null &&
-            allTimeLinesRemoved !== null &&
-            allTimeTotalContributions !== null && (
-              <div className="mt-6">
-                <CumulativeGitHubStatsCards
-                  stats={{
-                    totalContributions: allTimeTotalContributions,
-                    linesAdded: allTimeLinesAdded,
-                    linesRemoved: allTimeLinesRemoved,
-                    netLinesOfCode: allTimeLinesAdded - allTimeLinesRemoved,
-                  }}
-                />
-              </div>
-            )}
+          {allTimeLinesAdded !== null && allTimeLinesRemoved !== null && allTimeTotalContributions !== null && (
+            <div className="mt-6">
+              <CumulativeGitHubStatsCards
+                stats={{
+                  totalContributions: allTimeTotalContributions,
+                  linesAdded: allTimeLinesAdded,
+                  linesRemoved: allTimeLinesRemoved,
+                  netLinesOfCode: allTimeLinesAdded - allTimeLinesRemoved,
+                }}
+              />
+            </div>
+          )}
         </>
       )}
     </button>

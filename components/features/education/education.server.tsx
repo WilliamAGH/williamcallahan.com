@@ -8,13 +8,11 @@ import "server-only"; // Ensure this component also remains server-only
 
 import { certifications, education, recentCourses } from "../../../data/education";
 // Import the new server-only processing functions
-import {
-  processCertificationItem,
-  processEducationItem,
-} from "../../../lib/education-data-processor";
+import { processCertificationItem, processEducationItem } from "../../../lib/education-data-processor";
 import { EducationClient } from "./education.client";
 
 import type { JSX } from "react";
+// import type { Certification, Education } from "@/types/education";
 
 // Force static generation
 export const dynamic = "force-static";
@@ -24,8 +22,12 @@ export async function Education(): Promise<JSX.Element> {
   // Process all items concurrently using the server-only functions
   const [processedEducation, processedRecentCourses, processedCertifications] = await Promise.all([
     Promise.all(education.map(processEducationItem)),
-    Promise.all(recentCourses.map(processCertificationItem)), // Use processCertificationItem for courses too
-    Promise.all(certifications.map(processCertificationItem)),
+    Promise.all(recentCourses.map(processCertificationItem)).then((courses) =>
+      courses.map((course) => ({ ...course, type: "course" as const })),
+    ),
+    Promise.all(certifications.map(processCertificationItem)).then((certs) =>
+      certs.map((cert) => ({ ...cert, type: "certification" as const })),
+    ),
   ]);
 
   // Pass the processed data (including logoData) to the client component
@@ -33,7 +35,7 @@ export async function Education(): Promise<JSX.Element> {
     <EducationClient
       education={processedEducation}
       recentCourses={processedRecentCourses}
-      certifications={processedCertifications}
+      recentCertifications={processedCertifications}
     />
   );
 }

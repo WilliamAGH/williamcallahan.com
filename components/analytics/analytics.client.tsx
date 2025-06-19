@@ -11,35 +11,11 @@ import Script from "next/script";
 import type React from "react";
 import { Component, type ErrorInfo, type JSX, useCallback, useEffect, useState } from "react";
 
-/**
- * Analytics event data structure based on official specs
- * @see https://umami.is/docs/tracker-functions
- * @see https://plausible.io/docs/custom-event-goals
- */
-interface BaseAnalyticsEvent {
-  /** Current page path (normalized for dynamic routes) */
-  path: string;
-  /** Full page URL */
-  url: string;
-  /** Page referrer */
-  referrer: string;
-}
-
-interface UmamiEvent extends BaseAnalyticsEvent {
-  /** Website ID for tracking */
-  website?: string;
-  /** Current hostname */
-  hostname?: string;
-  /** Allow additional properties for event data compatibility */
-  [key: string]: unknown;
-}
+import type { BaseAnalyticsEvent, UmamiEvent, PlausibleEvent } from "@/types/analytics";
 
 // Used for type checking but not directly referenced
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-interface PlausibleEvent extends BaseAnalyticsEvent {
-  /** Additional custom properties */
-  [key: string]: unknown;
-}
+const PLAUSIBLE_TYPE_CHECK: PlausibleEvent = {} as PlausibleEvent;
 
 /**
  * Error Boundary component to prevent analytics errors from affecting the main app
@@ -237,9 +213,7 @@ function AnalyticsScripts() {
   try {
     if (!process.env.NEXT_PUBLIC_SITE_URL) {
       if (process.env.NODE_ENV === "development") {
-        console.warn(
-          "[Analytics] NEXT_PUBLIC_SITE_URL is not defined. Falling back to default domain.",
-        );
+        console.warn("[Analytics] NEXT_PUBLIC_SITE_URL is not defined. Falling back to default domain.");
       }
       throw new Error("NEXT_PUBLIC_SITE_URL is not defined");
     }

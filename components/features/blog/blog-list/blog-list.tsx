@@ -8,12 +8,9 @@
  * @param {BlogPost[]} props.posts - Array of blog posts to display
  */
 
-import type { BlogPost } from "@/types/blog";
 import { BlogCard } from "./blog-card";
 
-interface BlogListProps {
-  posts: BlogPost[];
-}
+import type { BlogListProps } from "@/types/features";
 
 export function BlogList({ posts }: BlogListProps) {
   return (
