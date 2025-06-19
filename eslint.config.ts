@@ -243,6 +243,7 @@ const config = tseslint.config(
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-require-imports": "off",
+      "no-restricted-syntax": "off",
     },
   },
 
