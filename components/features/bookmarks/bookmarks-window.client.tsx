@@ -15,7 +15,6 @@
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
-import type { ClientBoundaryProps } from "@/types/component-types";
 import { Bookmark } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Suspense, useEffect, useMemo } from "react";
@@ -41,33 +40,11 @@ const SkeletonLoader = () => {
 };
 
 /**
- * Props for the BookmarksWindow component
- * @interface BookmarksWindowProps
- * @extends ClientBoundaryProps
+ * Client-specific props for the BookmarksWindow component
+ * @interface BookmarksWindowClientProps
+ * @extends BookmarksWindowProps
  */
-interface BookmarksWindowProps extends ClientBoundaryProps {
-  /**
-   * Content to be displayed within the window
-   */
-  children: React.ReactNode;
-
-  /**
-   * Optional slug to display in the title bar
-   * Example: "~/tag-name/bookmarks" instead of just "~/bookmarks"
-   */
-  titleSlug?: string;
-
-  /**
-   * Optional custom window title to display instead of the default.
-   * This overrides the titleSlug if both are provided.
-   */
-  windowTitle?: string;
-
-  /**
-   * Optional window ID. If not provided, uses the default 'bookmarks-window'
-   */
-  windowId?: string;
-}
+import type { BookmarksWindowClientPropsExtended as BookmarksWindowClientProps } from "@/types";
 
 /**
  * Dynamic import of the window content component to prevent server-side rendering
@@ -137,18 +114,12 @@ const BookmarksWindowContent = dynamic(
  * Renders content within a window-like UI that supports minimizing, maximizing, and closing.
  * Uses the global window registry to manage state across the application.
  *
- * @param {BookmarksWindowProps} props - Component props
+ * @param {BookmarksWindowClientProps} props - Component props
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
  */
-export function BookmarksWindow({
-  children,
-  titleSlug,
-  windowTitle,
-  windowId,
-}: BookmarksWindowProps) {
+export function BookmarksWindow({ children, titleSlug, windowTitle, windowId }: BookmarksWindowClientProps) {
   // Generate a unique windowId if a slug is provided
-  const uniqueId =
-    windowId || (titleSlug ? `bookmarks-${titleSlug}-window` : DEFAULT_BOOKMARKS_WINDOW_ID);
+  const uniqueId = windowId || (titleSlug ? `bookmarks-${titleSlug}-window` : DEFAULT_BOOKMARKS_WINDOW_ID);
 
   // Add display title for restore button
   const restoreTitle = titleSlug ? `Restore ${titleSlug} Bookmarks` : "Restore Bookmarks";

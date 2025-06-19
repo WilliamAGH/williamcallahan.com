@@ -6,25 +6,14 @@
  */
 import "server-only"; // Ensure this component remains server-only
 
-import { getBookmarks } from "@/lib/data-access/bookmarks";
+import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { ServerCacheInstance } from "@/lib/server-cache";
-import type { UnifiedBookmark } from "@/types";
+import type { BookmarkTag, UnifiedBookmark } from "@/types";
 import { BookmarksClientWithWindow } from "./bookmarks-client-with-window";
 
 import type { JSX } from "react";
 
-interface BookmarksServerProps {
-  title: string;
-  description: string;
-  bookmarks?: UnifiedBookmark[];
-  showFilterBar?: boolean;
-  titleSlug?: string;
-  initialPage?: number;
-  baseUrl?: string;
-  usePagination?: boolean;
-  initialTag?: string;
-  tag?: string;  // Tag to filter by (for server-side filtering)
-}
+import type { BookmarksServerExtendedProps, SerializableBookmark } from "@/types";
 
 /**
  * Server-side React component that prepares and provides bookmark data to the client component.
@@ -48,7 +37,7 @@ export async function BookmarksServer({
   usePagination = true,
   initialTag,
   tag,
-}: BookmarksServerProps): Promise<JSX.Element> {
+}: BookmarksServerExtendedProps): Promise<JSX.Element> {
   // If bookmarks are provided via props, use those; otherwise fetch from API
   let bookmarks: UnifiedBookmark[] = [];
 
@@ -77,8 +66,8 @@ export async function BookmarksServer({
     // Fetch bookmarks. If getBookmarks() throws, it will propagate up.
     bookmarks = await getBookmarks(false);
     console.log("[BookmarksServer] Fetched via getBookmarks, count:", bookmarks.length);
-    if (bookmarks.length > 0) {
-      console.log("[BookmarksServer] First bookmark title:", bookmarks[0]?.title);
+    if (bookmarks.length > 0 && bookmarks[0]) {
+      console.log("[BookmarksServer] First bookmark title:", bookmarks[0].title);
     } else {
       console.warn(
         "[BookmarksServer] No bookmarks found via getBookmarks (API may have returned empty or fetch was skipped).",
@@ -93,20 +82,60 @@ export async function BookmarksServer({
     // Instead, log the situation and allow the component tree to render an empty state gracefully.
     if (!propsBookmarks && bookmarks.length === 0) {
       const lastFetched = ServerCacheInstance.getBookmarks()?.lastFetchedAt ?? 0;
-      console.warn(
-        "[BookmarksServer] No bookmark data available after fetch. lastFetchedAt=",
-        lastFetched,
-      );
+      console.warn("[BookmarksServer] No bookmark data available after fetch. lastFetchedAt=", lastFetched);
       // Proceed with empty array – downstream components will show an empty state UI.
     }
   }
 
-  const initialBookmarks = propsBookmarks || bookmarks;
+  // Transform to serializable format for client component
+  const serializableBookmarks: SerializableBookmark[] = (propsBookmarks || bookmarks).map((bookmark) => ({
+    id: bookmark.id,
+    url: bookmark.url,
+    title: bookmark.title,
+    description: bookmark.description,
+    tags:
+      bookmark.tags?.map((tag: string | BookmarkTag) => {
+        // Handle both string tags and BookmarkTag objects
+        if (typeof tag === "string") {
+          return {
+            id: tag,
+            name: tag,
+            slug: tag.toLowerCase().replace(/\s+/g, "-"),
+            color: undefined,
+          };
+        }
+        return {
+          id: tag.id || tag.name,
+          name: tag.name,
+          slug: tag.slug || tag.name.toLowerCase().replace(/\s+/g, "-"),
+          color: tag.color,
+        };
+      }) || [],
+    dateBookmarked: bookmark.dateBookmarked,
+    dateCreated: bookmark.dateCreated,
+    dateUpdated: bookmark.dateUpdated,
+    logoData: bookmark.logoData
+      ? {
+          url: bookmark.logoData.url,
+          alt: bookmark.logoData.alt || "Logo",
+          width: bookmark.logoData.width,
+          height: bookmark.logoData.height,
+        }
+      : null,
+    isPrivate: bookmark.isPrivate || false,
+    isFavorite: bookmark.isFavorite || false,
+    readingTime: bookmark.readingTime,
+    wordCount: bookmark.wordCount,
+    ogTitle: bookmark.ogTitle,
+    ogDescription: bookmark.ogDescription,
+    ogImage: bookmark.ogImage,
+    domain: bookmark.domain,
+  }));
 
-  // Pass the processed data to the client component
+  // Pass the processed data to the client component with explicit typing
   return (
     <BookmarksClientWithWindow
-      bookmarks={initialBookmarks}
+      bookmarks={serializableBookmarks}
       title={title}
       description={description}
       forceClientFetch={!propsBookmarks}

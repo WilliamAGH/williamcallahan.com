@@ -23,7 +23,6 @@
 "use client";
 
 import { formatTagDisplay, normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import type { UnifiedBookmark } from "@/types";
 import { Bookmark, Calendar, ExternalLink as LucideExternalLinkIcon } from "lucide-react";
 import Link from "next/link";
 import { type JSX, useEffect, useState } from "react";
@@ -32,17 +31,7 @@ import { ExternalLink } from "../../ui/external-link.client";
 import { LogoImage } from "../../ui/logo-image.client";
 import { ShareButton } from "./share-button.client";
 
-/**
- * Props for the BookmarkCardClient component
- * @interface
- * @extends {UnifiedBookmark}
- */
-interface BookmarkCardClientProps extends UnifiedBookmark {
-  /** Whether dark theme is active */
-  favourited?: boolean;
-  /** Pre-generated share URL to avoid per-card API calls */
-  shareUrl?: string;
-}
+import type { BookmarkCardClientProps } from "@/types";
 
 /**
  * Bookmark Card Client Component
@@ -95,8 +84,7 @@ export function BookmarkCardClient({
   };
 
   const formattedBookmarkDate = mounted ? formatDate(displayBookmarkDate) : "";
-  const formattedPublishDate =
-    mounted && displayPublishDate ? formatDate(displayPublishDate) : null;
+  const formattedPublishDate = mounted && displayPublishDate ? formatDate(displayPublishDate) : null;
 
   // Handle image sources with multiple fallbacks
   // Priority: content.imageUrl > ogImage > imageAssetId > screenshotAssetId > logo
@@ -104,27 +92,27 @@ export function BookmarkCardClient({
   const getDisplayImageUrl = () => {
     // Always include bookmarkId for better fallbacks
     const baseParams = `&bookmarkId=${encodeURIComponent(id)}`;
-    
+
     // If we have a direct image URL from content
     if (content?.imageUrl) {
       return `/api/og-image?url=${encodeURIComponent(content.imageUrl)}${baseParams}`;
     }
-    
+
     // If we have an ogImage (could be S3 key or URL)
     if (ogImage) {
       return `/api/og-image?url=${encodeURIComponent(ogImage)}${baseParams}`;
     }
-    
+
     // If we have an image asset ID (Karakeep)
     if (content?.imageAssetId) {
       return `/api/og-image?url=${encodeURIComponent(content.imageAssetId)}&assetId=${encodeURIComponent(content.imageAssetId)}${baseParams}`;
     }
-    
+
     // If we have a screenshot asset ID (Karakeep)
     if (content?.screenshotAssetId) {
       return `/api/og-image?url=${encodeURIComponent(content.screenshotAssetId)}&assetId=${encodeURIComponent(content.screenshotAssetId)}${baseParams}`;
     }
-    
+
     return null;
   };
 
@@ -138,10 +126,7 @@ export function BookmarkCardClient({
   // Truncate title to max 10 words
   const maxTitleWords = 10;
   const titleWords = title.split(" ");
-  const displayTitle =
-    titleWords.length > maxTitleWords
-      ? `${titleWords.slice(0, maxTitleWords).join(" ")}...`
-      : title;
+  const displayTitle = titleWords.length > maxTitleWords ? `${titleWords.slice(0, maxTitleWords).join(" ")}...` : title;
 
   // Don't use a placeholder for SSR - render full card without interactive elements
   // Server will render as much as possible for SEO, client will hydrate
@@ -208,9 +193,7 @@ export function BookmarkCardClient({
         </ExternalLink>
 
         {/* Description */}
-        <p className="flex-1 text-gray-700 dark:text-gray-300 text-base leading-6 overflow-hidden">
-          {description}
-        </p>
+        <p className="flex-1 text-gray-700 dark:text-gray-300 text-base leading-6 overflow-hidden">{description}</p>
 
         {/* Meta Information */}
         <div className="mt-auto space-y-2 text-sm text-gray-500 dark:text-gray-400">
@@ -230,12 +213,7 @@ export function BookmarkCardClient({
             </div>
 
             {/* Share button right-aligned - only show when we have a share URL */}
-            {shareUrl && (
-              <ShareButton
-                bookmark={{ id, url }}
-                shareUrl={shareUrl}
-              />
-            )}
+            {shareUrl && <ShareButton bookmark={{ id, url }} shareUrl={shareUrl} />}
           </div>
         </div>
 

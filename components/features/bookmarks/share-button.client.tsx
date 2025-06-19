@@ -8,16 +8,11 @@
 "use client";
 
 import { useFixSvgTransforms } from "@/lib/hooks/use-fix-svg-transforms";
-import type { UnifiedBookmark } from "@/types";
+import type { BookmarkShareButtonProps } from "@/types";
 import { Check } from "lucide-react";
 import { type JSX, useEffect, useRef, useState } from "react";
 
-interface ShareButtonProps {
-  bookmark: Pick<UnifiedBookmark, "id" | "url">;
-  shareUrl: string;
-}
-
-export function ShareButton({ shareUrl }: ShareButtonProps): JSX.Element {
+export function ShareButton({ shareUrl }: BookmarkShareButtonProps): JSX.Element {
   const [mounted, setMounted] = useState(false);
   const [copied, setCopied] = useState(false);
   const [tooltipVisible, setTooltipVisible] = useState(false);
