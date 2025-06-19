@@ -255,7 +255,10 @@ Domain/URL → Check Memory Cache → HIT? Return (~1ms)
 3. **S3 Fallback**: If memory miss, checks S3 for previously stored logo
 4. **External Fetch**: If S3 miss, fetches from external APIs
 5. **Caching**: Successful fetches cached for 30 days, failures for 1 day
-6. **Build-Time Prefetch**: Scripts populate S3 during build to minimize runtime fetches
+6. **On-Demand Fetching**: Logos are fetched on-demand at runtime when first requested
+   - **Previous behavior**: Scripts populated S3 during build (slow builds)
+   - **Current behavior**: First request triggers fetch, then cached for 30 days
+   - **Weekly refresh**: Scheduler updates logos to keep cache warm
 
 ## Security Recommendations
 
