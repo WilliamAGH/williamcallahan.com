@@ -16,7 +16,7 @@ import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { useFixSvgTransforms } from "@/hooks/use-fix-svg-transforms";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
-import type { ClientBoundaryProps } from "@/types/component-types";
+import type { BlogWindowClientProps } from "@/types/features";
 import { Newspaper } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
@@ -24,15 +24,7 @@ import { useEffect, useRef } from "react";
 // Define a unique ID for this window instance
 const BLOG_WINDOW_ID = "blog-window";
 
-/**
- * Props for the BlogWindow component
- */
-interface BlogWindowProps extends ClientBoundaryProps {
-  /**
-   * Server-rendered content to be displayed within the window
-   */
-  children: React.ReactNode;
-}
+// Using centralized BlogWindowClientProps from @/types/features
 
 /**
  * Dynamic import of the window content component to prevent server-side rendering
@@ -110,10 +102,10 @@ const BlogWindowContent = dynamic(
  * Renders server-side generated content within a window-like UI that
  * supports minimizing, maximizing, and closing.
  *
- * @param {BlogWindowProps} props - Component props
+ * @param {BlogWindowClientProps} props - Component props
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
  */
-export function BlogWindow({ children }: BlogWindowProps) {
+export function BlogWindow({ children }: BlogWindowClientProps) {
   // Ref for the content container
   const contentRef = useRef<HTMLDivElement>(null);
 

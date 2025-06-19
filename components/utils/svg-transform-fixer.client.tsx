@@ -1,6 +1,6 @@
 "use client";
 
-import { processSvgTransforms } from "@/lib/utils/svg-transform-fix";
+import { processSvgTransforms } from "@/lib/image-handling/svg-transform-fix";
 import { useEffect, useRef } from "react";
 
 /**
@@ -79,8 +79,7 @@ export function SvgTransformFixer() {
           for (const node of mutation.addedNodes) {
             if (
               node instanceof SVGElement ||
-              (node.nodeType === Node.ELEMENT_NODE &&
-                (node as Element).querySelectorAll("svg").length > 0)
+              (node.nodeType === Node.ELEMENT_NODE && (node as Element).querySelectorAll("svg").length > 0)
             ) {
               hasSvgs = true;
             }

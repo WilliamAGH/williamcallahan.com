@@ -8,28 +8,7 @@
 
 import type React from "react";
 
-import type {
-  DetailedHTMLProps,
-  HTMLAttributes,
-  TableHTMLAttributes,
-  TdHTMLAttributes,
-  ThHTMLAttributes,
-} from "react";
-
-type TableProps = DetailedHTMLProps<TableHTMLAttributes<HTMLTableElement>, HTMLTableElement>;
-type TheadProps = DetailedHTMLProps<
-  HTMLAttributes<HTMLTableSectionElement>,
-  HTMLTableSectionElement
->;
-type TrProps = DetailedHTMLProps<HTMLAttributes<HTMLTableRowElement>, HTMLTableRowElement>;
-type ThProps = DetailedHTMLProps<
-  ThHTMLAttributes<HTMLTableHeaderCellElement>,
-  HTMLTableHeaderCellElement
->;
-type TdProps = DetailedHTMLProps<
-  TdHTMLAttributes<HTMLTableDataCellElement>,
-  HTMLTableDataCellElement
->;
+import type { TableProps, TheadProps, TrProps, ThProps, TdProps } from "@/types";
 
 export const MDXTable: React.FC<TableProps> = ({ children, ...props }) => {
   return (

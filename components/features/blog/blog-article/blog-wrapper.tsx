@@ -1,19 +1,11 @@
 "use client";
 
-import type { BlogPost } from "@/types/blog";
 import dynamic from "next/dynamic";
+import type { BlogWrapperProps } from "@/types/features";
 
 // Dynamically import the BlogArticle component with no SSR
 // This ensures proper hydration of MDX content on the client
 const BlogArticle = dynamic(() => import("./blog-article.client"), { ssr: false });
-
-/**
- * Props for the BlogWrapper component
- */
-interface BlogWrapperProps {
-  /** The blog post data to render */
-  post: BlogPost;
-}
 
 /**
  * BlogWrapper Component

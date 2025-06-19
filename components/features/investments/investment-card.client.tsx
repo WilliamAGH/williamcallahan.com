@@ -19,28 +19,13 @@
 import { LogoImage } from "@/components/ui";
 import { ExternalLink } from "@/components/ui/external-link.client";
 import { ExternalLink as ExternalLinkIcon } from "lucide-react";
-import type { Investment } from "../../../types/investment";
-import type { LogoData } from "../../../types/logo";
+import type { InvestmentCardExtendedProps } from "@/types/features/investments";
 
 import type { JSX } from "react";
 
 /**
- * Props for the InvestmentCardClient component
- * @interface
- * @extends {Investment}
- */
-interface InvestmentCardClientProps extends Investment {
-  /** Pre-fetched logo data from server */
-  logoData: LogoData;
-  /** Whether dark theme is active */
-  isDarkTheme?: boolean;
-  /** Rendered financial metrics */
-  renderedMetrics?: JSX.Element;
-}
-
-/**
  * Investment Card Client Component
- * @param {InvestmentCardClientProps} props - Component properties
+ * @param {InvestmentCardExtendedProps} props - Component properties
  * @returns {JSX.Element} Rendered investment card with pre-fetched logo
  *
  * @remarks
@@ -55,7 +40,7 @@ export function InvestmentCardClient({
   logoData,
   renderedMetrics,
   ...investment
-}: InvestmentCardClientProps): JSX.Element {
+}: InvestmentCardExtendedProps): JSX.Element {
   const {
     name,
     website,
@@ -78,11 +63,7 @@ export function InvestmentCardClient({
 
   // Get accelerator display name
   const acceleratorName =
-    accelerator?.program === "techstars"
-      ? "Techstars"
-      : accelerator?.program === "ycombinator"
-        ? "Y Combinator"
-        : null;
+    accelerator?.program === "techstars" ? "Techstars" : accelerator?.program === "ycombinator" ? "Y Combinator" : null;
 
   return (
     <div className="group rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200">
@@ -92,31 +73,28 @@ export function InvestmentCardClient({
           <div className="flex items-start gap-5">
             <div className="flex items-start gap-3 flex-1 min-w-0">
               <div className="w-12 h-12 relative flex-shrink-0">
-                <ExternalLink
-                  href={website ?? undefined}
-                  title={name}
-                  rawTitle={true}
-                  showIcon={false}
-                >
-                  <LogoImage
-                    src={logoData.url}
-                    width={48}
-                    height={48}
-                    className="object-contain"
-                    alt={name}
-                  />
-                </ExternalLink>
+                {website ? (
+                  <ExternalLink href={website} title={name} rawTitle={true} showIcon={false}>
+                    <LogoImage src={logoData.url} width={48} height={48} className="object-contain" alt={name} />
+                  </ExternalLink>
+                ) : (
+                  <LogoImage src={logoData.url} width={48} height={48} className="object-contain" alt={name} />
+                )}
               </div>
               <div>
                 <div className="flex items-center gap-1">
-                  <ExternalLink
-                    href={website ?? undefined}
-                    title={`Visit ${name}'s website`}
-                    showIcon={false}
-                    className="text-lg font-semibold hover:text-gray-600 dark:hover:text-gray-300"
-                  >
-                    {name}
-                  </ExternalLink>
+                  {website ? (
+                    <ExternalLink
+                      href={website}
+                      title={`Visit ${name}'s website`}
+                      showIcon={false}
+                      className="text-lg font-semibold hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      {name}
+                    </ExternalLink>
+                  ) : (
+                    <span className="text-lg font-semibold">{name}</span>
+                  )}
                   {website && (
                     <ExternalLink
                       href={website}
@@ -130,34 +108,20 @@ export function InvestmentCardClient({
                 </div>
                 {accelerator && (
                   <div className="flex items-center gap-1">
-                    <span className="text-sm text-cyan-500 dark:text-cyan-400">
-                      {acceleratorName}
-                    </span>
+                    <span className="text-sm text-cyan-500 dark:text-cyan-400">{acceleratorName}</span>
                     <span className="text-sm text-gray-400 dark:text-gray-500">•</span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {accelerator.batch}
-                    </span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{accelerator.batch}</span>
                     <span className="text-sm text-gray-400 dark:text-gray-500">•</span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {accelerator.location}
-                    </span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{accelerator.location}</span>
                   </div>
                 )}
               </div>
             </div>
             <div className="flex flex-col items-end text-sm space-y-1 min-w-[140px] flex-shrink-0">
-              {founded_year && (
-                <span className="text-gray-400 dark:text-gray-500">Founded {founded_year}</span>
-              )}
-              {invested_year && (
-                <span className="text-gray-500 dark:text-gray-400">Invested {invested_year}</span>
-              )}
-              {acquired_year && (
-                <span className="text-gray-600 dark:text-gray-300">Acquired {acquired_year}</span>
-              )}
-              {shutdown_year && (
-                <span className="text-gray-700 dark:text-gray-200">Closed {shutdown_year}</span>
-              )}
+              {founded_year && <span className="text-gray-400 dark:text-gray-500">Founded {founded_year}</span>}
+              {invested_year && <span className="text-gray-500 dark:text-gray-400">Invested {invested_year}</span>}
+              {acquired_year && <span className="text-gray-600 dark:text-gray-300">Acquired {acquired_year}</span>}
+              {shutdown_year && <span className="text-gray-700 dark:text-gray-200">Closed {shutdown_year}</span>}
             </div>
           </div>
 
@@ -208,21 +172,15 @@ export function InvestmentCardClient({
             <div className="border rounded-lg border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-3 sm:p-4">
               <div className="grid grid-cols-3 gap-x-2 sm:gap-x-6">
                 <div className="flex flex-col text-center">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">
-                    Round Size
-                  </div>
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Round Size</div>
                   <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt(details?.find((d) => d.label === "Round Size")?.value?.replace(/[^0-9]/g, "") || "0"))}`}</div>
                 </div>
                 <div className="flex flex-col text-center">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">
-                    Valuation
-                  </div>
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Valuation</div>
                   <div className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{`$${new Intl.NumberFormat().format(Number.parseInt(details?.find((d) => d.label === "Valuation")?.value?.replace(/[^0-9]/g, "") || "0"))}`}</div>
                 </div>
                 <div className="flex flex-col text-center">
-                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">
-                    Return
-                  </div>
+                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-1">Return</div>
                   <div
                     className={`text-xs sm:text-sm font-medium whitespace-nowrap ${holding_return >= 0 ? "text-emerald-500" : "text-red-500"}`}
                   >

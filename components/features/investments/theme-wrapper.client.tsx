@@ -22,11 +22,7 @@ import type { JSX } from "react";
  * @param {ThemeWrapperProps} props - Component properties
  * @returns {JSX.Element} Wrapped investment card with theme context
  */
-export function ThemeWrapper({
-  investment,
-  logoData,
-  renderedMetrics,
-}: ThemeWrapperProps): JSX.Element {
+export function ThemeWrapper({ investment, logoData, renderedMetrics }: ThemeWrapperProps): JSX.Element {
   const { theme } = useTheme();
   const isDarkTheme = theme === "dark";
 

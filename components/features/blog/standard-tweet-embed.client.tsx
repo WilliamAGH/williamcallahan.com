@@ -3,76 +3,44 @@
 import type React from "react";
 import { useEffect, useRef } from "react";
 
-// Ensure window.twttr is typed for TypeScript
-declare global {
-  interface Window {
-    twttr?: {
-      widgets?: {
-        load: (element?: HTMLElement | null) => void;
-      };
-    };
-  }
-}
+import type { StandardTweetEmbedProps } from "@/types";
 
-interface StandardTweetEmbedProps {
-  theme: "light" | "dark";
-}
-
-const StandardTweetEmbed: React.FC<StandardTweetEmbedProps> = ({ theme }) => {
+const StandardTweetEmbed: React.FC<StandardTweetEmbedProps> = ({ id, theme }) => {
   const embedContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const loadTwitterWidget = () => {
+    const createTweetEmbed = () => {
       if (window.twttr?.widgets && embedContainerRef.current) {
-        // Ensure any existing content from a previous render is cleared
-        // or that widgets.load can correctly re-process.
-        // For simplicity, we rely on widgets.load() to handle updates.
-        // Update the wrapper attribute so Twitter can pick up the theme change when re-processing.
-        embedContainerRef.current.setAttribute("data-theme", theme);
+        // Clear previous tweet before rendering a new one
+        embedContainerRef.current.innerHTML = "";
 
-        window.twttr.widgets.load(embedContainerRef.current);
+        window.twttr.widgets
+          .createTweet(id, embedContainerRef.current, {
+            theme,
+            dnt: true,
+          })
+          .catch((error) => console.error("Error creating Tweet embed:", error));
       }
     };
 
     const scriptId = "twitter-widgets-script";
-    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
 
-    if (!script) {
-      script = document.createElement("script");
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement("script");
       script.id = scriptId;
       script.src = "https://platform.twitter.com/widgets.js";
       script.async = true;
       script.charset = "utf-8";
       document.body.appendChild(script);
-      script.onload = loadTwitterWidget;
+      script.onload = createTweetEmbed;
     } else {
-      // If script is already loaded, just call load.
-      // This ensures that if the component re-renders (e.g., theme prop changes),
-      // the tweet is re-processed by the Twitter widget script.
-      loadTwitterWidget();
+      createTweetEmbed();
     }
-    // No cleanup for the script tag itself, as it's generally loaded once per page
-    // and used by all tweet embeds.
-  }, [theme]); // Re-run effect if theme changes to re-render the tweet.
+  }, [id, theme]);
 
   return (
     <div ref={embedContainerRef} className={`standard-tweet-embed-wrapper theme-${theme}`}>
-      {/* This is the exact blockquote structure from the working tweet-test.html */}
-      <blockquote
-        className="twitter-tweet"
-        data-lang="en"
-        data-dnt="true"
-        data-theme={theme} // Use the theme prop here
-      >
-        <p lang="en" dir="ltr">
-          At dawn from the gateway to Mars, the launch of Starship&#39;s second flight test{" "}
-          <a href="https://t.co/ffKnsVKwG4">pic.twitter.com/ffKnsVKwG4</a>
-        </p>
-        &mdash; SpaceX (@SpaceX){" "}
-        <a href="https://twitter.com/SpaceX/status/1732824684683784516?ref_src=twsrc%5Etfw">
-          December 7, 2023
-        </a>
-      </blockquote>
+      {/* Tweet will be rendered here by the script */}
     </div>
   );
 };

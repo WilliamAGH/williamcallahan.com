@@ -10,15 +10,11 @@
  */
 
 import { ExternalLink } from "@/components/ui/external-link.client";
-import type { SocialLink } from "@/types/social";
 import { ExternalLink as LucideExternalLinkIcon } from "lucide-react";
 import Image from "next/image";
 import type React from "react";
 import { type JSX, useCallback, useEffect, useState } from "react";
-
-interface SocialCardProps {
-  social: SocialLink;
-}
+import type { SocialCardProps, OgImageApiResponse } from "@/types/features/social";
 
 /**
  * Client-side component for rendering a social media profile card.
@@ -27,10 +23,10 @@ interface SocialCardProps {
  * @returns {JSX.Element} The rendered social card.
  */
 export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
-  const href: string = social.href;
-  const label: string = social.label;
+  const href = social.href;
+  const label = social.label;
   const Icon = social.icon as React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  const emphasized: boolean = social.emphasized || false;
+  const emphasized = Boolean(social.emphasized);
 
   const [imageError, setImageError] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -73,10 +69,8 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
    */
   const getProfileFallbackImage = useCallback((networkLabel: string): string => {
     try {
-      if (networkLabel.includes("GitHub"))
-        return "https://avatars.githubusercontent.com/u/99231285?v=4";
-      if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
-        return "/images/social-pics/x.jpg";
+      if (networkLabel.includes("GitHub")) return "https://avatars.githubusercontent.com/u/99231285?v=4";
+      if (networkLabel.includes("X") || networkLabel.includes("Twitter")) return "/images/social-pics/x.jpg";
       if (networkLabel.includes("LinkedIn")) return "/images/social-pics/linkedin.jpg";
       if (networkLabel.includes("Bluesky"))
         return "https://cdn.bsky.app/img/avatar/plain/did:plc:6y3lzhinepgneechfrv3w55d/bafkreicuryva5uglksh2tqrc5tu66kwvnjwnpd2fdb6epsa6fjhhdehhyy@jpeg";
@@ -85,8 +79,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
       // Changed error to _error
       console.error(`Error getting profile image for ${networkLabel}:`, _error);
       if (networkLabel.includes("GitHub")) return "/images/social-pics/github.jpg";
-      if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
-        return "/images/social-pics/x.jpg";
+      if (networkLabel.includes("X") || networkLabel.includes("Twitter")) return "/images/social-pics/x.jpg";
       if (networkLabel.includes("LinkedIn")) return "/images/social-pics/linkedin.jpg";
       if (networkLabel.includes("Bluesky")) return "/images/social-pics/bluesky.jpg";
       if (networkLabel.includes("Discord")) return "/images/social-pics/discord.jpg";
@@ -101,8 +94,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
    */
   const getDomainFallbackImage = useCallback((networkLabel: string): string => {
     if (networkLabel.includes("GitHub")) return "/images/social-banners/github.svg";
-    if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
-      return "/images/social-banners/twitter-x.svg";
+    if (networkLabel.includes("X") || networkLabel.includes("Twitter")) return "/images/social-banners/twitter-x.svg";
     if (networkLabel.includes("LinkedIn")) return "/images/social-banners/linkedin.svg";
     if (networkLabel.includes("Discord")) return "/images/social-banners/discord.svg";
     if (networkLabel.includes("Bluesky")) return "/images/social-banners/bluesky.png";
@@ -129,10 +121,6 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
 
         const apiUrl = `/api/og-image?url=${encodeURIComponent(url)}&fetchDomain=false`;
         const response = await fetch(apiUrl);
-        interface OgImageApiResponse {
-          profileImageUrl?: string;
-          domainImageUrl?: string;
-        }
 
         if (response.ok) {
           const data = (await response.json()) as OgImageApiResponse;
@@ -170,10 +158,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
       ? "linkedin-card"
       : label.includes("GitHub") || domain.includes("github")
         ? "github-card"
-        : label.includes("X") ||
-            label.includes("Twitter") ||
-            domain.includes("twitter") ||
-            domain.includes("x.com")
+        : label.includes("X") || label.includes("Twitter") || domain.includes("twitter") || domain.includes("x.com")
           ? "twitter-card"
           : label.includes("Bluesky") || domain.includes("bsky")
             ? "bluesky-card"
@@ -335,8 +320,7 @@ function getNetworkDescription(label: string): string {
  */
 function getNetworkCategory(label: string): string {
   if (label.includes("GitHub")) return "Development";
-  if (label.includes("X") || label.includes("Twitter") || label.includes("Bluesky"))
-    return "Social";
+  if (label.includes("X") || label.includes("Twitter") || label.includes("Bluesky")) return "Social";
   if (label.includes("LinkedIn")) return "Professional";
   if (label.includes("Discord")) return "Community";
   return "Social";
