@@ -11,31 +11,7 @@ import { CSP_DIRECTIVES } from "./lib/constants";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-/**
- * Type definition for server-side request logging
- * @interface RequestLog
- */
-interface RequestLog {
-  /** ISO timestamp of the request */
-  timestamp: string;
-  /** Type of log entry */
-  type: "server_pageview";
-  /** Request data payload */
-  data: {
-    /** Normalized path without query params */
-    path: string;
-    /** Full request path including query params */
-    fullPath: string;
-    /** HTTP method used */
-    method: string;
-    /** Real client IP from trusted headers */
-    clientIp: string;
-    /** Client's user agent string */
-    userAgent: string;
-    /** Request referrer or 'direct' */
-    referer: string;
-  };
-}
+import type { RequestLog } from "@/types/lib";
 
 /**
  * Gets the real client IP from various headers
@@ -160,10 +136,7 @@ export default function middleware(request: NextRequest): NextResponse {
       }
     } else if (url === "/" || !url.includes(".")) {
       // Ensure HTML pages are freshly served so analytics scripts always update
-      response.headers.set(
-        "Cache-Control",
-        "no-store, no-cache, must-revalidate, proxy-revalidate",
-      );
+      response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     }
   } else {
     response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");

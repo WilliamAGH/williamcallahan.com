@@ -30,11 +30,11 @@ function getPackageVersion(): string {
   if (process.env.NEXT_PUBLIC_APP_VERSION) {
     return process.env.NEXT_PUBLIC_APP_VERSION;
   }
-  
+
   // During build time only, read package.json
   // This is acceptable because builds happen in a controlled environment
   // and this code doesn't run during request handling
-  if (process.env.NODE_ENV === 'production' || process.env.NEXT_PHASE === 'phase-production-build') {
+  if (process.env.NODE_ENV === "production" || process.env.NEXT_PHASE === "phase-production-build") {
     try {
       const { readFileSync } = require("node:fs");
       const { resolve } = require("node:path");
@@ -45,7 +45,7 @@ function getPackageVersion(): string {
       return "0.0.0";
     }
   }
-  
+
   // Development fallback
   return "0.0.0-dev";
 }
@@ -110,15 +110,39 @@ const nextConfig = {
       fs: false,
       crypto: false,
       path: false,
+      child_process: false,
+      os: false,
+      stream: false,
+      util: false,
+      net: false,
+      tls: false,
+      worker_threads: false,
     };
+
+    // Add server externals to prevent bundling server-only code
+    if (!config.externals) {
+      config.externals = [];
+    }
+    if (Array.isArray(config.externals)) {
+      config.externals.push({
+        sharp: "commonjs sharp",
+        "node:child_process": "commonjs child_process",
+        "node:crypto": "commonjs crypto",
+        "node:fs": "commonjs fs",
+        "node:os": "commonjs os",
+        "node:path": "commonjs path",
+        "node:stream": "commonjs stream",
+        "node:util": "commonjs util",
+        "detect-libc": "commonjs detect-libc",
+      });
+    }
 
     // Suppress warnings for Sentry and OpenTelemetry dynamic requires
     config.ignoreWarnings = [
       // Suppress warnings about dynamic requires
       { module: /node_modules\/require-in-the-middle\/index\.js/ },
       {
-        module:
-          /node_modules\/@opentelemetry\/instrumentation\/build\/esm\/platform\/node\/instrumentation\.js/,
+        module: /node_modules\/@opentelemetry\/instrumentation\/build\/esm\/platform\/node\/instrumentation\.js/,
       },
       { module: /node_modules\/@sentry/ },
       // Suppress webpack cache serialization warnings
@@ -141,11 +165,7 @@ const nextConfig = {
       config.optimization.minimizer.forEach((minimizer: unknown) => {
         // Added type annotation
         // Runtime check is still necessary as minimizer is unknown
-        if (
-          typeof minimizer === "object" &&
-          minimizer !== null &&
-          minimizer.constructor.name === "TerserPlugin"
-        ) {
+        if (typeof minimizer === "object" && minimizer !== null && minimizer.constructor.name === "TerserPlugin") {
           // Explicitly type options to satisfy ESLint/TypeScript
           const terserOptions = (minimizer as any).options; // Keep 'as any' for flexibility with webpack plugins
           if (terserOptions && typeof terserOptions === "object") {
@@ -372,7 +392,7 @@ const sentryWebpackPluginOptions = {
   org: "williamcallahan-com",
   project: "williamcallahan-com",
   authToken: process.env.SENTRY_AUTH_TOKEN,
-  release: { 
+  release: {
     name: process.env.NEXT_PUBLIC_APP_VERSION,
     deploy: {
       env: process.env.NODE_ENV || "production",
@@ -398,7 +418,4 @@ const sentryWebpackPluginOptions = {
 // Make sure to an Sentry Webpack plugin to Node SDK options to allow for source map uploads to Sentry
 // For more information, see the Sentry documentation:
 // https://docssentryio/platforms/javascript/guides/nextjs/manual-setup/
-export default withSentryConfig(
-  nextConfig,
-  sentryWebpackPluginOptions,
-);
+export default withSentryConfig(nextConfig, sentryWebpackPluginOptions);

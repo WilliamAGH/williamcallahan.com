@@ -155,6 +155,25 @@ jest.mock("next/server", () => {
   };
 });
 
+// Provide a default mock for the server-side bookmarks data access module so that
+// tests can override it with their own implementations (e.g., mockResolvedValue).
+// This ensures that importing `getBookmarks` from either
+// `@/lib/bookmarks` *or* `@/lib/bookmarks/bookmarks-data-access.server` always
+// yields a `jest.fn()` that supports mock helpers like `mockResolvedValue`.
+jest.mock("@/lib/bookmarks/bookmarks-data-access.server", () => {
+  // Preserve all the actual exports to avoid breaking tests that rely on
+  // helpers like `setRefreshBookmarksCallback`, while overriding
+  // `getBookmarks` with a jest mock function that individual tests can
+  // customise via `mockResolvedValue`/`mockImplementation`.
+  const actual = jest.requireActual("@/lib/bookmarks/bookmarks-data-access.server");
+  const wrappedGetBookmarks = jest.fn(actual.getBookmarks);
+  return {
+    __esModule: true,
+    ...actual,
+    getBookmarks: wrappedGetBookmarks,
+  };
+});
+
 // ---------------------------------------------------------------------------
 // Suppress noisy console.error logs during test runs
 // ---------------------------------------------------------------------------
@@ -181,10 +200,7 @@ const SUPPRESSED_PATTERNS = [
 
 console.error = (...args: unknown[]) => {
   const firstArg = args[0];
-  if (
-    typeof firstArg === "string" &&
-    SUPPRESSED_PATTERNS.some((p) => (firstArg as string).includes(p))
-  ) {
+  if (typeof firstArg === "string" && SUPPRESSED_PATTERNS.some((p) => (firstArg as string).includes(p))) {
     return;
   }
   originalError(...args);
