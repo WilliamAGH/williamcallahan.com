@@ -1,6 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
 import type { MockImageProps } from "@/types/test";
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, jest } from "@jest/globals";
 import "@testing-library/jest-dom";
@@ -16,6 +15,7 @@ jest.mock("next/image", () => ({
     const effectiveLayout = layout ?? (fill ? "fill" : undefined);
     const priorityAttr = priority ? { "data-priority": "true" } : {};
     return (
+      // biome-ignore lint/performance/noImgElement: This is a test mock for Next.js Image component
       <img
         src={src}
         alt={alt}

@@ -101,9 +101,9 @@ describe("Logo Analysis Module", () => {
         resize: jest.fn().mockReturnThis() as jest.Mock<() => MockedSharp>,
         grayscale: jest.fn().mockReturnThis() as jest.Mock<() => MockedSharp>,
         toBuffer: jest.fn(
-          (options?: { resolveWithObject?: boolean }): Promise<
-            Buffer | { data: Buffer; info: import("sharp").OutputInfo }
-          > => {
+          (options?: {
+            resolveWithObject?: boolean;
+          }): Promise<Buffer | { data: Buffer; info: import("sharp").OutputInfo }> => {
             if (options?.resolveWithObject) {
               const pixels = new Uint8Array(TEST_DATA.IMAGE_SIZE * TEST_DATA.IMAGE_SIZE);
               pixels.fill(brightness);

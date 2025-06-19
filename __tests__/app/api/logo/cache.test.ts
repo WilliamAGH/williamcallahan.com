@@ -46,7 +46,6 @@ import { ServerCacheInstance } from "@/lib/server-cache";
 import { CacheTester } from "@/lib/test-utils/cache-tester";
 
 // These tests should run in all environments to validate caching behavior
-const shouldSkip = false;
 
 // Mock logo data for tests
 const MOCK_LOGO_DATA = {

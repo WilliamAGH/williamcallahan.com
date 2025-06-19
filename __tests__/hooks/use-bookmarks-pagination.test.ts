@@ -196,7 +196,7 @@ describe("useBookmarksPagination", () => {
   it("uses fallback data when provided", () => {
     const initialBookmarks = mockBookmarks.slice(0, 10);
 
-    mockUseSWRInfinite.mockImplementation((getKey, fetcher, options) => {
+    mockUseSWRInfinite.mockImplementation((_getKey, _fetcher, options) => {
       // The hook should provide fallback data
       expect(options?.fallbackData).toBeDefined();
       expect(options?.fallbackData?.[0].data).toHaveLength(10);

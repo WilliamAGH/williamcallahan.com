@@ -1,7 +1,7 @@
-import { jest, describe, beforeEach, it, expect } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
 import "@testing-library/jest-dom";
-import React from "react";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import { navigationLinks } from "@/components/ui/navigation/navigation-links";
 import { Navigation } from "@/components/ui/navigation/navigation.client";
 import { TerminalProvider } from "@/components/ui/terminal/terminal-context.client";
 // Import the REAL provider is already imported above
@@ -34,23 +34,23 @@ jest.mock("@/components/ui/navigation/window-controls", () => {
 });
 
 // Mock next/link using jest.mock
+interface LinkProps {
+  children: React.ReactNode;
+  href: string;
+  prefetch?: boolean;
+  scroll?: boolean;
+  [key: string]: unknown;
+}
 jest.mock("next/link", () => ({
   __esModule: true,
-  default: ({ children, href, prefetch, scroll, ...props }: any) => {
-    // Import React properly at the top instead of requiring it
-    return (
-      <a href={href} {...props}>
-        {children}
-      </a>
-    );
-  },
+  default: ({ children, href, ...props }: LinkProps) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 // Import mocks *after* setting them up
-import { useWindowSize as useWindowSizeImported } from "@/lib/hooks/use-window-size.client";
-import { usePathname as usePathnameImported } from "next/navigation";
-import { navigationLinks } from "@/components/ui/navigation/navigation-links";
-
 describe("Navigation", () => {
   // Store original window values
   const originalInnerWidth = window.innerWidth;

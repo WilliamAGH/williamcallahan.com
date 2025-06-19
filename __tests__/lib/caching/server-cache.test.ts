@@ -1,7 +1,7 @@
 /**
  * Tests for Server Cache
  */
-import { ServerCache } from "@/lib/server-cache";
+import { type ServerCache, ServerCacheInstance } from "@/lib/server-cache";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { GitHubActivityApiResponse } from "@/types/github";
 import type { OgResult } from "@/types";
@@ -10,7 +10,9 @@ describe("ServerCache", () => {
   let cache: ServerCache;
 
   beforeEach(() => {
-    cache = new ServerCache();
+    // ServerCache is now a singleton
+    cache = ServerCacheInstance;
+    cache.clear();
   });
 
   afterEach(() => {
@@ -48,9 +50,11 @@ describe("ServerCache", () => {
     it("should cache and retrieve logo fetch results", () => {
       const domain = "example.com";
       const fetchResult = {
-        url: "https://example.com/logo.png",
+        s3Key: "logos/example.com_google.png",
+        cdnUrl: "https://cdn.example.com/logos/example.com_google.png",
         source: "google" as const,
         contentType: "image/png",
+        retrieval: "external" as const,
       };
 
       // Set fetch result
@@ -59,33 +63,70 @@ describe("ServerCache", () => {
       // Should retrieve the result
       const result = cache.getLogoFetch(domain);
       expect(result).toBeDefined();
-      expect(result?.url).toBe("https://example.com/logo.png");
+      expect(result?.s3Key).toBe("logos/example.com_google.png");
+      expect(result?.cdnUrl).toBe("https://cdn.example.com/logos/example.com_google.png");
       expect(result?.source).toBe("google");
       expect(result?.contentType).toBe("image/png");
       expect(result?.timestamp).toBeDefined();
+      expect(result?.buffer).toBeUndefined();
     });
 
     it("should handle error results with shorter TTL", () => {
       const domain = "error.com";
-      cache.setLogoFetch(domain, { error: "Failed to fetch" });
+      cache.setLogoFetch(domain, {
+        error: "Failed to fetch",
+        s3Key: null,
+        cdnUrl: null,
+        source: null,
+        contentType: "",
+        retrieval: "external",
+      });
 
       const result = cache.getLogoFetch(domain);
       expect(result?.error).toBe("Failed to fetch");
     });
 
     it("should clear individual logo fetch results", () => {
-      cache.setLogoFetch("domain1.com", { url: "url1" });
-      cache.setLogoFetch("domain2.com", { url: "url2" });
+      const result1 = {
+        s3Key: "key1",
+        cdnUrl: "url1",
+        source: "google" as const,
+        contentType: "image/png",
+        retrieval: "external" as const,
+      };
+      const result2 = {
+        s3Key: "key2",
+        cdnUrl: "url2",
+        source: "google" as const,
+        contentType: "image/png",
+        retrieval: "external" as const,
+      };
+      cache.setLogoFetch("domain1.com", result1);
+      cache.setLogoFetch("domain2.com", result2);
 
       cache.clearLogoFetch("domain1.com");
 
       expect(cache.getLogoFetch("domain1.com")).toBeUndefined();
-      expect(cache.getLogoFetch("domain2.com")?.url).toBe("url2");
+      expect(cache.getLogoFetch("domain2.com")?.cdnUrl).toBe("url2");
     });
 
     it("should clear all logo fetch results", () => {
-      cache.setLogoFetch("domain1.com", { url: "url1" });
-      cache.setLogoFetch("domain2.com", { url: "url2" });
+      const result1 = {
+        s3Key: "key1",
+        cdnUrl: "url1",
+        source: "google" as const,
+        contentType: "image/png",
+        retrieval: "external" as const,
+      };
+      const result2 = {
+        s3Key: "key2",
+        cdnUrl: "url2",
+        source: "google" as const,
+        contentType: "image/png",
+        retrieval: "external" as const,
+      };
+      cache.setLogoFetch("domain1.com", result1);
+      cache.setLogoFetch("domain2.com", result2);
 
       cache.clearAllLogoFetches();
 
@@ -95,21 +136,27 @@ describe("ServerCache", () => {
   });
 
   describe("Inverted Logo", () => {
-    it("should cache and retrieve inverted logos", () => {
+    it("should cache and retrieve inverted logo metadata", () => {
       const cacheKey = "inverted-key";
-      const buffer = Buffer.from("fake-image-data");
-      const analysis = {
-        shouldInvert: true,
-        brightness: 0.8,
-        needsInversion: true,
+      const entry = {
+        s3Key: "inverted/inverted-key",
+        analysis: {
+          hasTransparency: true,
+          brightness: 0.8,
+          needsLightInversion: false,
+          needsDarkInversion: true,
+        },
+        contentType: "image/png",
       };
 
-      cache.setInvertedLogo(cacheKey, buffer, analysis);
+      cache.setInvertedLogo(cacheKey, entry);
 
       const result = cache.getInvertedLogo(cacheKey);
       expect(result).toBeDefined();
-      expect(result?.buffer).toEqual(buffer);
-      expect(result?.analysis).toEqual(analysis);
+      expect(result?.buffer).toBeUndefined();
+      expect(result?.s3Key).toBe("inverted/inverted-key");
+      expect(result?.analysis).toEqual(entry.analysis);
+      expect(result?.contentType).toBe("image/png");
       expect(result?.timestamp).toBeDefined();
     });
   });
@@ -445,12 +492,21 @@ describe("ServerCache", () => {
       expect(result?.commitCount).toBe(100);
     });
 
-    it("should handle Buffer data correctly", () => {
-      const buffer = Buffer.from([0x89, 0x50, 0x4e, 0x47]); // PNG header
-      cache.setLogoFetch("test.com", { buffer });
+    it("should not store buffer data in logo fetch cache", () => {
+      const fetchResult = {
+        s3Key: "logos/test.com_google.png",
+        url: "https://test.com/logo.png",
+        source: "google" as const,
+        contentType: "image/png",
+        retrieval: "external" as const,
+      };
+
+      cache.setLogoFetch("test.com", fetchResult);
 
       const result = cache.getLogoFetch("test.com");
-      expect(result?.buffer).toEqual(buffer);
+      expect(result).toBeDefined();
+      expect(result?.buffer).toBeUndefined();
+      expect(result?.s3Key).toBe("logos/test.com_google.png");
     });
   });
 });

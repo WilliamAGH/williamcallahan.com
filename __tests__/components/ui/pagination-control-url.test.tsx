@@ -1,4 +1,3 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { useSearchParams } from "next/navigation";

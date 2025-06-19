@@ -4,12 +4,10 @@
 
 // @typescript-eslint/ban-ts-comment
 
-// biome-disable-next-line lint/style/useImportType
-import type { MockExternalLinkProps } from "@/types/test";
-import React, { type ReactNode } from "react";
+import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import { InvestmentCardClient } from "../../../../components/features/investments/investment-card.client";
-import "@testing-library/jest-dom";
+import type { MockExternalLinkProps } from "@/types/test";
 // Mock lucide-react icons
 jest.mock("lucide-react", () => ({
   ExternalLink: (props: any) => <svg {...props} data-testid="external-link-icon" />,

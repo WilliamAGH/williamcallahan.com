@@ -33,11 +33,6 @@ import type {
   WindowState,
 } from "../../../../lib/context/global-window-registry-context.client"; // Import types for mocking
 import type { SearchResult } from "../../../../types/search"; // Import SearchResult type
-import type {
-  GlobalWindowRegistryContextType as GlobalWindowRegistryContextTypeImported,
-  WindowState as WindowStateImported,
-} from "../../../lib/context/global-window-registry-context.client";
-import type { MockedWindowEntry } from "@/types/test";
 
 // --- Mock TerminalHeader ---
 jest.mock("../../../../components/ui/terminal/terminal-header", () => ({

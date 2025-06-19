@@ -1,5 +1,4 @@
-import type { UmamiMock, PlausibleMock, MockScriptProps } from "@/types/test";
-import React from "react";
+import type { UmamiMock, MockScriptProps } from "@/types/test";
 import { render, waitFor, act } from "@testing-library/react";
 import { Analytics } from "../../../components/analytics/analytics.client";
 import { jest, describe, beforeEach, afterEach, it, expect } from "@jest/globals";
@@ -57,7 +56,6 @@ jest.mock("next/script", () => ({
 }));
 
 // Statically import the mocked modules *after* mocking
-import { usePathname as usePathnameImported } from "next/navigation";
 
 describe.skip("Analytics", () => {
   const originalEnv = process.env;
