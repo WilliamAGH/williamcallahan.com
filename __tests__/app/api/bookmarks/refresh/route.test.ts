@@ -117,9 +117,7 @@ describe("Bookmarks Refresh API Route", () => {
 
       // Priority: x-forwarded-for first IP
       const forwardedFor = headers["x-forwarded-for"];
-      const ip = forwardedFor
-        ? forwardedFor.split(",")[0].trim()
-        : headers["x-real-ip"] || "127.0.0.1";
+      const ip = forwardedFor ? forwardedFor.split(",")[0].trim() : headers["x-real-ip"] || "127.0.0.1";
 
       expect(ip).toBe("192.168.1.1");
     });
@@ -127,8 +125,7 @@ describe("Bookmarks Refresh API Route", () => {
     it("should handle missing headers", () => {
       const headers = {};
 
-      const ip =
-        headers["x-forwarded-for"]?.split(",")[0]?.trim() || headers["x-real-ip"] || "127.0.0.1";
+      const ip = headers["x-forwarded-for"]?.split(",")[0]?.trim() || headers["x-real-ip"] || "127.0.0.1";
 
       expect(ip).toBe("127.0.0.1");
     });

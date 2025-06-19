@@ -5,6 +5,7 @@
 // @typescript-eslint/ban-ts-comment
 
 // biome-disable-next-line lint/style/useImportType
+import type { MockExternalLinkProps } from "@/types/test";
 import React, { type ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import { InvestmentCardClient } from "../../../../components/features/investments/investment-card.client";
@@ -13,13 +14,6 @@ import "@testing-library/jest-dom";
 jest.mock("lucide-react", () => ({
   ExternalLink: (props: any) => <svg {...props} data-testid="external-link-icon" />,
 }));
-
-type MockExternalLinkProps = {
-  children: ReactNode;
-  href: string;
-  title: string;
-  className?: string;
-};
 
 // Mock the external link component using jest.mock
 jest.mock("../../../../components/ui/external-link.client", () => ({
@@ -92,8 +86,7 @@ describe("InvestmentCardClient", () => {
     const aventureLinks = screen.getAllByRole("link");
     const aventureLink = aventureLinks.find(
       (link) =>
-        link.getAttribute("href") ===
-        "https://aventure.vc/companies/aventure-venture-capital-san-francisco-ca-usa",
+        link.getAttribute("href") === "https://aventure.vc/companies/aventure-venture-capital-san-francisco-ca-usa",
     );
     expect(aventureLink).toBeInTheDocument();
     expect(aventureLink).toHaveAttribute("title", "aVenture - aVenture Startup Research");

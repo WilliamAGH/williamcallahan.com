@@ -40,10 +40,9 @@ describe("cache", () => {
   it("should not clone stored objects", () => {
     const key = "object-test";
     const value = { nested: { data: "test" } };
-    type TestValue = typeof value;
 
     cache.set(key, value);
-    const retrieved = cache.get<TestValue>(key);
+    const retrieved = cache.get<typeof value>(key);
 
     // Modify the retrieved object
     if (retrieved) {

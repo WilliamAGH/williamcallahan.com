@@ -1,15 +1,11 @@
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
+import type { BlogFrontmatter } from "@/types/test";
 import fs from "node:fs/promises";
 import path from "node:path";
 import matter from "gray-matter";
 import { getMDXPost } from "../../lib/blog/mdx";
 
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
-
-interface BlogFrontmatter {
-  slug: string;
-  // Add other expected frontmatter properties here if needed
-}
 
 describe("Blog MDX Smoke Tests", () => {
   let mdxFiles: string[] = [];

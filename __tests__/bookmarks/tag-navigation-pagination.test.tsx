@@ -159,13 +159,7 @@ describe("Tag Navigation with Pagination", () => {
     it("should navigate back to /bookmarks when tag is cleared", async () => {
       (usePathname as jest.Mock).mockReturnValue("/bookmarks/tags/react");
 
-      render(
-        <BookmarksWithPagination
-          initialBookmarks={mockBookmarks}
-          showFilterBar={true}
-          initialTag="React"
-        />,
-      );
+      render(<BookmarksWithPagination initialBookmarks={mockBookmarks} showFilterBar={true} initialTag="React" />);
 
       // Click the same tag again to clear it
       const reactTag = await screen.findByRole("button", { name: /React/i });
@@ -362,12 +356,7 @@ describe("Tag Navigation with Pagination", () => {
         mutate: mockMutate,
       });
 
-      render(
-        <BookmarksWithPagination
-          initialBookmarks={bookmarksWithSpecialTags}
-          showFilterBar={true}
-        />,
-      );
+      render(<BookmarksWithPagination initialBookmarks={bookmarksWithSpecialTags} showFilterBar={true} />);
 
       const cppTag = await screen.findByRole("button", { name: "C++" });
       fireEvent.click(cppTag);

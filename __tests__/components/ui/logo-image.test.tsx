@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
+import type { MockImageProps } from "@/types/test";
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, jest } from "@jest/globals";
@@ -9,16 +10,6 @@ import "@testing-library/jest-dom";
 // expect.extend({ toHaveAttribute });
 
 // Mock next/image BEFORE importing the component under test
-interface MockImageProps {
-  src: string;
-  alt?: string;
-  priority?: boolean;
-  layout?: string | undefined;
-  objectFit?: string | undefined;
-  fill?: boolean;
-  [key: string]: unknown;
-}
-
 jest.mock("next/image", () => ({
   __esModule: true,
   default: ({ src, alt, priority, layout, objectFit, fill, ...restProps }: MockImageProps) => {

@@ -75,9 +75,7 @@ describe("PaginationControl", () => {
    */
   it("should handle navigation button clicks", () => {
     const onPageChange = jest.fn();
-    const { rerender } = render(
-      <PaginationControl {...defaultProps} currentPage={1} onPageChange={onPageChange} />,
-    );
+    const { rerender } = render(<PaginationControl {...defaultProps} currentPage={1} onPageChange={onPageChange} />);
 
     // From page 1, test next button
     fireEvent.click(screen.getByLabelText("Go to next page"));
@@ -131,9 +129,7 @@ describe("PaginationControl", () => {
    */
   it("should support keyboard navigation", () => {
     const onPageChange = jest.fn();
-    const { rerender } = render(
-      <PaginationControl {...defaultProps} currentPage={5} onPageChange={onPageChange} />,
-    );
+    const { rerender } = render(<PaginationControl {...defaultProps} currentPage={5} onPageChange={onPageChange} />);
 
     const currentPageButton = screen.getByLabelText("Go to page 5");
     currentPageButton.focus();
@@ -174,18 +170,14 @@ describe("PaginationControl", () => {
 
     expect(screen.getByText("Loading...")).toBeInTheDocument();
     // Check for spinner on current page button
-    expect(
-      screen.getByLabelText("Go to page 1").querySelector(".animate-spin"),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Go to page 1").querySelector(".animate-spin")).toBeInTheDocument();
   });
 
   /**
    * Test: Ellipsis for large page ranges
    */
   it("should show ellipsis for large page ranges", () => {
-    render(
-      <PaginationControl {...defaultProps} currentPage={10} totalPages={20} maxVisiblePages={5} />,
-    );
+    render(<PaginationControl {...defaultProps} currentPage={10} totalPages={20} maxVisiblePages={5} />);
 
     // Should show page 1 with ellipsis
     expect(screen.getByLabelText("Go to page 1")).toBeInTheDocument();
@@ -231,13 +223,7 @@ describe("PaginationControl", () => {
 
     // Last page with partial items
     rerender(
-      <PaginationControl
-        {...defaultProps}
-        currentPage={10}
-        totalItems={95}
-        itemsPerPage={10}
-        totalPages={10}
-      />,
+      <PaginationControl {...defaultProps} currentPage={10} totalItems={95} itemsPerPage={10} totalPages={10} />,
     );
 
     expect(screen.getByText("Showing 91-95 of 95 bookmarks")).toBeInTheDocument();

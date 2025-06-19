@@ -14,16 +14,14 @@ jest.mock("../../../lib/utils/domain-utils", () => {
   );
   return {
     ...actual,
-    generateUniqueSlug: jest.fn<typeof actual.generateUniqueSlug>(
-      (url, allBookmarks, currentBookmarkId) => {
-        // Special case for specific test
-        if (currentBookmarkId === "2" && url === "https://example.com/page") {
-          return "example-com-page-2";
-        }
-        // Otherwise, call the original function
-        return actual.generateUniqueSlug(url, allBookmarks, currentBookmarkId);
-      },
-    ),
+    generateUniqueSlug: jest.fn<typeof actual.generateUniqueSlug>((url, allBookmarks, currentBookmarkId) => {
+      // Special case for specific test
+      if (currentBookmarkId === "2" && url === "https://example.com/page") {
+        return "example-com-page-2";
+      }
+      // Otherwise, call the original function
+      return actual.generateUniqueSlug(url, allBookmarks, currentBookmarkId);
+    }),
   };
 });
 

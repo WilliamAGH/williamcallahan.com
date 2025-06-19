@@ -1,4 +1,5 @@
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
+import type { MockedSharp } from "@/types/test";
 import type { Sharp, Metadata } from "sharp";
 import {
   analyzeLogo,
@@ -10,15 +11,6 @@ import {
   type LogoInversion, // Import the type
 } from "@/lib/image-handling/image-analysis";
 import { VALID_IMAGE_FORMATS } from "@/lib/constants";
-
-// Helper type to make mocking chainable methods easier
-type MockedSharp = {
-  [K in keyof Sharp]: Sharp[K] extends (...args: infer P) => Sharp
-    ? jest.Mock<(...args: P) => MockedSharp>
-    : Sharp[K] extends (...args: infer P) => Promise<infer R>
-      ? jest.Mock<(...args: P) => Promise<R>>
-      : Sharp[K];
-};
 
 // Define the mock factory function
 const createMockSharp = (metadata: Partial<Metadata> = {}): Partial<MockedSharp> => {
@@ -40,17 +32,15 @@ const createMockSharp = (metadata: Partial<Metadata> = {}): Partial<MockedSharp>
     png: jest.fn().mockReturnThis(),
     extractChannel: jest.fn().mockReturnThis(),
     joinChannel: jest.fn().mockReturnThis(),
-    toBuffer: jest
-      .fn()
-      .mockImplementation(({ resolveWithObject }: { resolveWithObject?: boolean } = {}) => {
-        if (resolveWithObject) {
-          return Promise.resolve({
-            data: Buffer.from([255, 255]),
-            info: { channels: 2 },
-          });
-        }
-        return Promise.resolve(Buffer.from([0, 0, 0]));
-      }),
+    toBuffer: jest.fn().mockImplementation(({ resolveWithObject }: { resolveWithObject?: boolean } = {}) => {
+      if (resolveWithObject) {
+        return Promise.resolve({
+          data: Buffer.from([255, 255]),
+          info: { channels: 2 },
+        });
+      }
+      return Promise.resolve(Buffer.from([0, 0, 0]));
+    }),
     clone: jest.fn().mockImplementation(() => createMockSharp(metadata)),
   };
 
@@ -126,7 +116,7 @@ describe("Logo Analysis Module", () => {
           },
         ) as MockedSharp["toBuffer"],
       };
-      return mock as MockedSharp; // Cast to full MockedSharp if the partial is compatible enough for usage
+      return mock;
     });
     return Buffer.from([0]);
   };

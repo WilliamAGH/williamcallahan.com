@@ -80,9 +80,7 @@ describe("Terminal Commands", () => {
         ok: true,
         json: jest
           .fn()
-          .mockResolvedValue([
-            { label: "Test Post", description: "Test description", path: "/blog/test" },
-          ]),
+          .mockResolvedValue([{ label: "Test Post", description: "Test description", path: "/blog/test" }]),
       };
       (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
 

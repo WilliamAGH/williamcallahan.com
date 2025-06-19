@@ -123,9 +123,7 @@ describe("GitHub Activity API Cache Tests", () => {
 
     // Verify the result
     expect(result).toBeDefined();
-    expect(result?.trailingYearData.data).toHaveLength(
-      MOCK_GITHUB_ACTIVITY.trailingYearData.data.length,
-    );
+    expect(result?.trailingYearData.data).toHaveLength(MOCK_GITHUB_ACTIVITY.trailingYearData.data.length);
   });
 
   it("should clear GitHub activity", () => {

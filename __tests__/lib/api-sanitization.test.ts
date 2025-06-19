@@ -194,11 +194,7 @@ describe("API Sanitization Utilities", () => {
 
     it("handles arrays with nested objects", () => {
       const obj = {
-        items: [
-          { name: "item1", secret: "remove" },
-          { name: "item2", path: "/remove" },
-          "primitive-value",
-        ],
+        items: [{ name: "item1", secret: "remove" }, { name: "item2", path: "/remove" }, "primitive-value"],
       };
 
       const sanitized = sanitizeSystemInfo(obj);

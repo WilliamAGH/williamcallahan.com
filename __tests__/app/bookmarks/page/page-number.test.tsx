@@ -2,7 +2,8 @@
 import { render } from "@testing-library/react";
 import { notFound, redirect } from "next/navigation";
 import PaginatedBookmarksPage, { generateMetadata } from "@/app/bookmarks/page/[pageNumber]/page";
-import { getBookmarks } from "@/lib/bookmarks";
+import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
+import type { BookmarksServerExtendedProps } from "@/types";
 
 // Mock dependencies
 jest.mock("next/navigation", () => ({
@@ -27,7 +28,7 @@ jest.mock("@/lib/seo/metadata", () => ({
 }));
 
 jest.mock("@/components/features/bookmarks/bookmarks.server", () => ({
-  BookmarksServer: ({ title, description, initialPage }: any) => (
+  BookmarksServer: ({ title, description, initialPage }: Partial<BookmarksServerExtendedProps>) => (
     <div data-testid="bookmarks-server">
       <h1>{title}</h1>
       <p>{description}</p>

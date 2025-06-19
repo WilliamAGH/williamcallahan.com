@@ -5,11 +5,11 @@
  */
 
 import { generateMetadata as generateBookmarksMetadata } from "@/app/bookmarks/page/[pageNumber]/page";
-import { getBookmarks } from "@/lib/bookmarks";
+import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import type { Metadata } from "next";
 
 // Mock dependencies
-jest.mock("@/lib/bookmarks", () => ({
+jest.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
   getBookmarks: jest.fn(),
 }));
 
@@ -180,11 +180,7 @@ describe("Metadata HTML Output Verification", () => {
       let titleStr: string;
       if (typeof metadata.title === "string") {
         titleStr = metadata.title;
-      } else if (
-        metadata.title &&
-        typeof metadata.title === "object" &&
-        "absolute" in metadata.title
-      ) {
+      } else if (metadata.title && typeof metadata.title === "object" && "absolute" in metadata.title) {
         titleStr = metadata.title.absolute || "";
       } else {
         titleStr = "";
@@ -238,9 +234,7 @@ describe("Metadata HTML Output Verification", () => {
       }
       if (metadata.openGraph.url) {
         const ogUrlStr =
-          typeof metadata.openGraph.url === "string"
-            ? metadata.openGraph.url
-            : metadata.openGraph.url.toString();
+          typeof metadata.openGraph.url === "string" ? metadata.openGraph.url : metadata.openGraph.url.toString();
         tags.push(`<meta property="og:url" content="${ogUrlStr}">`);
       }
     }
@@ -257,9 +251,7 @@ describe("Metadata HTML Output Verification", () => {
 
     // Verify pagination links are in correct format
     expect(htmlTags).toContain('<link rel="prev" href="https://williamcallahan.com/bookmarks">');
-    expect(htmlTags).toContain(
-      '<link rel="next" href="https://williamcallahan.com/bookmarks/page/3">',
-    );
+    expect(htmlTags).toContain('<link rel="next" href="https://williamcallahan.com/bookmarks/page/3">');
 
     // Verify other important tags
     expect(htmlTags.some((tag) => tag.includes("<title>Bookmarks - Page 2</title>"))).toBe(true);

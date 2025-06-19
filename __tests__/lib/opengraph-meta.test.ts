@@ -28,11 +28,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
   });
 
   describe("OpenGraph data extraction", () => {
-    const testUrls = [
-      "https://railway.app",
-      "https://github.com/openai/whisper",
-      "https://x.com/elonmusk",
-    ];
+    const testUrls = ["https://railway.app", "https://github.com/openai/whisper", "https://x.com/elonmusk"];
 
     it("should handle successful OpenGraph extraction", async () => {
       const mockOpenGraphData = {
@@ -95,11 +91,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
 
   describe("URL validation and processing", () => {
     it("should handle valid URLs", () => {
-      const validUrls = [
-        "https://railway.app",
-        "https://github.com/openai/whisper",
-        "https://x.com/elonmusk",
-      ];
+      const validUrls = ["https://railway.app", "https://github.com/openai/whisper", "https://x.com/elonmusk"];
 
       for (const url of validUrls) {
         // Validate URL format
@@ -123,12 +115,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
     });
 
     it("should detect invalid URLs", () => {
-      const actuallyInvalidUrls = [
-        "not a url with spaces",
-        "http://",
-        "https://",
-        "://missing-protocol",
-      ];
+      const actuallyInvalidUrls = ["not a url with spaces", "http://", "https://", "://missing-protocol"];
 
       // These URLs are actually invalid and will throw
       for (const url of actuallyInvalidUrls) {

@@ -54,14 +54,7 @@ describe("NavigationLink", () => {
   });
 
   it("applies custom className when provided", () => {
-    render(
-      <NavigationLink
-        path="/test"
-        name="Test Link"
-        currentPath="/other"
-        className="custom-class"
-      />,
-    );
+    render(<NavigationLink path="/test" name="Test Link" currentPath="/other" className="custom-class" />);
 
     const link = screen.getByRole("link");
     expect(link).toHaveClass("custom-class");
