@@ -4,231 +4,142 @@
 
 ## Core Objective
 
-To provide a high-performance, multi-tiered caching system that significantly reduces latency, minimizes redundant computations and network requests, and coordinates cache operations across multiple instances. The system implements sophisticated patterns including request coalescing, distributed locking, and stale-while-revalidate strategies.
+High-performance multi-tiered caching with request coalescing, distributed locking, and memory-safe operations. Reduces latency and prevents redundant API calls.
 
 ## Architecture Diagram
 
-See `caching.mmd` for a visual diagram of the caching strategy.
+See `caching.mmd` for visual flow.
 
-## Core Concepts
+## Core Systems
 
-1. **Singleton Instance (`ServerCacheInstance`)**: The entire server application shares a single instance of the cache (`lib/server-cache.ts`). Built on `node-cache` with custom extensions for request coalescing and distributed locking.
+### 1. ServerCacheInstance (`lib/server-cache.ts`)
 
-2. **Multi-Tiered Architecture**:
-    - **Layer 1**: In-memory cache (`ServerCacheInstance`) - microsecond access
-    - **Layer 2**: S3 persistent storage - millisecond access, survives restarts
-    - **Layer 3**: External APIs - second+ access, rate-limited
+- Singleton NodeCache instance
+- `useClones: false` - safe since buffers removed
+- Max 100k keys with 10% batch eviction
+- Rejects buffers >10MB automatically
+- Stores only metadata for images
 
-3. **Strategic Caching Patterns**:
-    - **Success Caching**: Valid data cached with long TTL (days)
-    - **Failure Caching**: Failed requests cached with short TTL (hours) to prevent hammering
-    - **Request Coalescing**: Multiple concurrent requests for same resource share single fetch
-    - **Stale-While-Revalidate**: Serve stale data while refreshing in background
+### 2. ImageMemoryManager (`lib/image-memory-manager.ts`)  
 
-4. **Distributed Coordination**:
-    - S3-based locking mechanism prevents multiple instances from refreshing same data
-    - In-flight promise tracking prevents duplicate API calls within single instance
+- Dedicated LRU cache for image buffers
+- 512MB budget, 50MB per-image limit
+- Size-aware eviction with TTL
+- Request coalescing built-in
+- See `memory-mgmt.md` for details
 
-## Interaction with Other Systems
-
-- **`json-handling`**: Caches the final, processed JSON objects for bookmarks and GitHub activity. This prevents expensive re-fetching and re-processing from the external APIs.
-- **`image-handling`**: Caches multiple stages of the image pipeline, including fetch results (both positive and negative), analysis data (like brightness), and the final processed image data.
-- **`s3-object-storage`**: The cache works in concert with S3. Data is fetched from S3 and stored in the cache for faster access on subsequent requests.
-
-## Key Files & Responsibilities
-
-### Core Cache Implementation
-
-- **`lib/server-cache.ts`**: Primary cache implementation with `ServerCache` class
-  - Request coalescing via `inFlightPromises` Map
-  - Domain-specific methods for logos and bookmarks
-  - Integration with S3 for persistent storage
-  - Memory management (though currently lacks limits)
-
-- **`lib/cache.ts`**: Legacy cache setup (currently unused, should be removed)
-
-- **`lib/server-cache/index.ts`**: Barrel export for ServerCacheInstance
-
-### Cache Management
-
-- **`app/api/cache/clear/route.ts`**: ⚠️ **SECURITY RISK** - Unauthenticated endpoint for clearing cache
-- **`middleware/cache-debug.ts`**: Development middleware adding cache stats to response headers
-- **`lib/utils/revalidate-path.ts`**: Next.js cache invalidation wrapper
-
-### Integration Points
-
-- **`lib/data-access/bookmarks.ts`**: Implements distributed locking for bookmark refresh
-- **`lib/data-access/logos.ts`**: Complex logo fetching with multi-stage caching
-- **`app/api/cache/bookmarks/route.ts`**: Bookmark-specific cache operations
-- **`app/api/cache/images/route.ts`**: Image processing with cache integration
-
-## Logic Flow and Interactions
-
-### Request Flow Example (Logo Fetch)
+### 3. Multi-Tier Architecture
 
 ```
-Request → Check Memory Cache → Hit? Return
-          ↓ Miss
-          Check S3 → Hit? Cache in Memory & Return
-          ↓ Miss
-          Check In-Flight? → Yes? Wait for Promise
-          ↓ No
-          Create Promise → Fetch from API → Process → Store S3 → Cache → Return
+L1: Memory Cache (~1ms) → L2: S3 Storage (~50ms) → L3: External APIs (100ms-5s)
 ```
 
-### Distributed Refresh Flow (Bookmarks)
+## Caching Patterns
+
+### Success/Failure Strategy
+
+- **Success**: Long TTL (7-30 days)
+- **Failure**: Short TTL (1-2 hours)
+- Prevents API hammering on errors
+
+### Request Coalescing
 
 ```
-Refresh Request → Check S3 Lock → Locked? Return "Already Refreshing"
-                 ↓ Not Locked
-                 Acquire Lock → Fetch Data → Process → Update S3 → Update Cache → Release Lock
+Multiple requests for same resource → Share single fetch promise
+                                    ↓
+                                Return same result to all
 ```
 
-## Critical Issues & Security Vulnerabilities
+### Distributed Locking (Bookmarks)
 
-### 🚨 CRITICAL SECURITY VULNERABILITIES IN `/api/cache/clear`
+```
+Request → Check S3 Lock → Locked? Wait
+                      ↓ Available
+                   Acquire → Fetch → Update → Release
+```
 
-#### 1. **Unauthenticated Cache Invalidation (DoS Attack Vector)**
+## Cache Durations
 
-- **Issue**: The `/api/cache/clear` endpoint has NO authentication while other cache endpoints (`/api/cache/bookmarks`) require API keys
-- **Impact**: Attackers can repeatedly clear the cache, forcing expensive regeneration of all cached data:
-  - Database queries re-executed
-  - External API calls repeated (risk of rate limiting)
-  - Server CPU/memory spike from regenerating content
-  - Complete service degradation or downtime
-- **Attack Scenario**: Simple curl loop can take down the service:
-  ```bash
-  while true; do curl -X POST https://site.com/api/cache/clear; done
-  ```
+```javascript
+LOGO_CACHE: 30 days success / 1 day failure
+BOOKMARKS_CACHE: 7 days success / 1 hour failure  
+GITHUB_CACHE: 24 hours success / 1 hour failure
+OPENGRAPH_CACHE: 7 days success / 2 hours failure
+SEARCH_CACHE: 15 minutes success / 1 minute failure
+```
 
-#### 2. **Information Disclosure via GET Endpoint**
+## Critical Security Issues
 
-- **Issue**: GET `/api/cache/clear` exposes cache statistics without authentication
-- **Impact**: Reveals internal metrics (hit rates, key count, memory usage) useful for attack planning
+### 🔴 CRITICAL: Unauthenticated Cache Clear
 
-#### 3. **No Rate Limiting Protection**
+**`/api/cache/clear`** - NO AUTHENTICATION!
 
-- **Issue**: Even with authentication, no rate limiting exists
-- **Impact**: Compromised API key or malicious insider can still cause DoS
+- Enables DoS attacks via cache invalidation
+- Exposes internal metrics on GET
+- No rate limiting
 
-### Required Fixes (Priority Order)
+**Fix Required:**
+```typescript
+const apiKey = request.headers.get('Authorization');
+if (apiKey !== `Bearer ${process.env.CACHE_API_KEY}`) {
+  return new Response('Unauthorized', { status: 401 });
+}
+```
 
-1. **Immediate: Add Authentication**
-   ```typescript
-   function isAuthenticated(request: NextRequest): boolean {
-     const apiKey = request.headers.get('Authorization');
-     return apiKey === `Bearer ${process.env.CACHE_API_KEY}`;
-   }
-   ```
+## Integration Points
 
-2. **Add Rate Limiting**
-   - Max 5 requests per minute per IP
-   - Use Redis-backed rate limiter for production
-   - Return 429 status when exceeded
+### Data Access Layer
 
-3. **Restrict Methods**
-   - POST only for cache clearing
-   - GET for stats (still authenticated)
+- `lib/data-access/bookmarks.ts` - Distributed locking
+- `lib/data-access/logos.ts` - Multi-stage caching
+- `lib/data-access/opengraph.ts` - Stale-while-revalidate
 
-4. **Add Audit Logging**
-   - Log all cache clear attempts with IP, timestamp
-   - Alert on suspicious patterns
+### API Routes  
 
-### Memory Management Risks
+- `/api/cache/bookmarks` - Authenticated operations
+- `/api/cache/images` - Image processing
+- `/api/cache/clear` - ⚠️ NEEDS AUTH
 
-- **No memory limits**: Cache can grow unbounded, risking OOM errors
-  - Image buffers can be 5-10MB each
-  - No eviction policy when memory pressure occurs
-- **Object mutation risk**: `useClones: false` allows cached objects to be modified
-  - Can lead to cache corruption
-  - Unpredictable behavior across requests
-- **Raw buffer storage**: Image buffers stored without size limits
-  - A malicious actor could trigger caching of large images
-  - No validation of buffer sizes before caching
+### Memory Safety
 
-### Architectural Issues
+- All image buffers through ImageMemoryManager
+- ServerCache stores only lightweight metadata
+- Emergency cleanup via MemoryHealthMonitor
+- Max keys limit prevents unbounded growth
 
-- **Dual cache confusion**: Two cache instances exist but only one is used
-- **Race conditions**: Global state anti-pattern with `globalThis.isBookmarkRefreshLocked`
-- **Cache poisoning risks**:
-  - Failed image processing results might be cached as successes
-  - No validation of cached data integrity
-  - Potential for serving corrupted data
-- **Next.js integration gaps**: Custom cache updates don't trigger `revalidatePath`
-- **Missing middleware protection**: While `/api/debug` routes are blocked in production, `/api/cache` routes are fully exposed
+## Key Files
+
+- `lib/server-cache.ts` - Core cache implementation
+- `lib/server-cache/index.ts` - Type-safe methods
+- `app/api/cache/*` - Cache management endpoints
+- `types/cache.ts` - TypeScript definitions
 
 ## Performance Optimizations
 
-- **Request Coalescing**: Prevents duplicate API calls for same resource
-- **Negative Caching**: Failed requests cached with shorter TTL
-- **Background Refresh**: Stale data served while fresh data fetched
-- **Multi-Stage Caching**: Different cache keys for different processing stages
+1. **Negative Caching** - Failed requests cached
+2. **Background Refresh** - Serve stale while fetching
+3. **Request Coalescing** - Prevent duplicate calls
+4. **Multi-Stage Keys** - Different keys for processing stages
 
 ## Testing Requirements
 
-### Test Utilities
+### Test Utility: `lib/test-utils/cache-tester.ts`
 
-#### `lib/test-utils/cache-tester.ts`
+- `verifyCacheHit()` - Tests cache behavior
+- `clearCacheFor()` - Type-safe cache clearing
 
-- Standardized utility class for integration testing API endpoints with caching
-- Test Utility Class with static methods
-- **Key Methods:**
-  - `verifyCacheHit(endpoint: string)`: Tests cache behavior by:
-    1. Making initial fetch to endpoint
-    2. Recording cache statistics
-    3. Making second fetch to same endpoint
-    4. Verifying data consistency
-    5. Confirming cache hit count increased
-  - `clearCacheFor(type: 'logo' | 'bookmarks' | 'github-activity')`: Type-safe cache clearing for test isolation
+### Coverage Needed
 
-### Currently untested components that need coverage
+- Authentication validation
+- Rate limiting behavior
+- Distributed locking
+- Race conditions
+- DoS simulation
 
-- ServerCache class methods and TTL behavior
-- Data access layer with mocked dependencies
-- API route security and functionality
-  - Authentication validation
-  - Rate limiting behavior
-  - Error handling paths
-- Distributed locking mechanism
-- Race condition scenarios
-- DoS attack simulation
-- Cache poisoning prevention
+## ✅ FIXED (2025-06)
 
-## Bugs and Improvements Log
-
-### Critical Bugs
-
-1. **BUG-001**: Unauthenticated cache clear endpoint enables DoS attacks
-   - Severity: CRITICAL
-   - File: `/app/api/cache/clear/route.ts`
-   - Fix: Add authentication matching `/api/cache/bookmarks` pattern
-
-2. **BUG-002**: Cache stats endpoint leaks operational metrics
-   - Severity: HIGH
-   - File: `/app/api/cache/clear/route.ts`
-   - Fix: Require authentication for GET requests
-
-3. **BUG-003**: No rate limiting on cache management endpoints
-   - Severity: HIGH
-   - Files: All `/app/api/cache/*` routes
-   - Fix: Implement rate limiting middleware
-
-### Improvements Needed
-
-1. **IMP-001**: Implement structured logging for cache operations
-   - Current: `console.error` with string messages
-   - Needed: JSON structured logs with context
-
-2. **IMP-002**: Add cache operation metrics
-   - Track clear operations per hour
-   - Monitor cache regeneration costs
-   - Alert on anomalous patterns
-
-3. **IMP-003**: Create cache management dashboard
-   - Protected admin UI for cache operations
-   - Visual representation of cache state
-   - Audit log viewer
-
-4. **IMP-004**: Implement cache warming strategy
-   - Pre-populate critical paths after clear
-   - Gradual cache rebuild to prevent thundering herd
+- Memory limits implemented
+- `useClones: true` → `false` (safe now)
+- Buffer rejection >10MB
+- Batch eviction at 100k keys
+- Integration with memory management
