@@ -80,12 +80,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
       const networkError = new Error("Network timeout");
       mockGetOpenGraphData.mockRejectedValue(networkError);
 
-      try {
-        await getOpenGraphData("https://example.com");
-        expect(true).toBe(false); // Should not reach here
-      } catch (error) {
-        expect(error).toEqual(networkError);
-      }
+      await expect(getOpenGraphData("https://example.com")).rejects.toThrow(networkError);
     });
   });
 
