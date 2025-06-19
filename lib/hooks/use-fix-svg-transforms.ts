@@ -1,6 +1,6 @@
 "use client";
 
-import { processSvgTransforms } from "@/lib/utils/svg-transform-fix";
+import { processSvgTransforms } from "@/lib/image-handling/svg-transform-fix";
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
 

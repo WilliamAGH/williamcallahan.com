@@ -46,9 +46,7 @@ export function ensureAbsoluteUrl(path: string): string {
   const cleanPath = path.replace(/^\/+/, "");
 
   // Prepend the site URL (with trailing slash if needed)
-  const baseUrl = NEXT_PUBLIC_SITE_URL.endsWith("/")
-    ? NEXT_PUBLIC_SITE_URL
-    : `${NEXT_PUBLIC_SITE_URL}/`;
+  const baseUrl = NEXT_PUBLIC_SITE_URL.endsWith("/") ? NEXT_PUBLIC_SITE_URL : `${NEXT_PUBLIC_SITE_URL}/`;
 
   return `${baseUrl}${cleanPath}`;
 }
@@ -136,9 +134,7 @@ function getPacificOffset(date: Date): string {
 export function formatSeoDate(date: string | Date | undefined | number): PacificDateString {
   let inputDate = date;
   if (typeof inputDate === "number") {
-    throw new Error(
-      "Numeric timestamp inputs are not supported by formatSeoDate. Provide string or Date.",
-    );
+    throw new Error("Numeric timestamp inputs are not supported by formatSeoDate. Provide string or Date.");
   }
   if (!inputDate) {
     inputDate = new Date();

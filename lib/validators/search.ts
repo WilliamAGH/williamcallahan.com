@@ -8,7 +8,7 @@
 /**
  * Validates and sanitizes a search query to prevent ReDoS attacks
  * and ensure safe processing.
- * 
+ *
  * @param query - The raw search query
  * @returns Object with sanitized query and validation status
  */
@@ -18,55 +18,55 @@ export function validateSearchQuery(query: unknown): {
   error?: string;
 } {
   // Check if query exists and is a string
-  if (!query || typeof query !== 'string') {
+  if (!query || typeof query !== "string") {
     return {
       isValid: false,
-      sanitized: '',
-      error: 'Query must be a non-empty string'
+      sanitized: "",
+      error: "Query must be a non-empty string",
     };
   }
 
   // Trim and check length
   const trimmed = query.trim();
-  
+
   if (trimmed.length === 0) {
     return {
       isValid: false,
-      sanitized: '',
-      error: 'Query cannot be empty'
+      sanitized: "",
+      error: "Query cannot be empty",
     };
   }
 
   if (trimmed.length > 100) {
     return {
       isValid: false,
-      sanitized: '',
-      error: 'Query is too long (max 100 characters)'
+      sanitized: "",
+      error: "Query is too long (max 100 characters)",
     };
   }
 
   // Remove or escape potentially dangerous regex characters
   // This prevents ReDoS attacks from malicious regex patterns
-  let sanitized = trimmed.replace(/[.*+?^${}()|[\]\\]/g, ' ');
+  let sanitized = trimmed.replace(/[.*+?^${}()|[\]\\]/g, " ");
 
   // Replace multiple consecutive spaces with single space
-  sanitized = sanitized.replace(/\s+/g, ' ');
+  sanitized = sanitized.replace(/\s+/g, " ");
 
   // Remove leading/trailing special characters
-  sanitized = sanitized.replace(/^[^\w]+|[^\w]+$/g, '');
+  sanitized = sanitized.replace(/^[^\w]+|[^\w]+$/g, "");
 
   // Final check after sanitization
   if (sanitized.length === 0) {
     return {
       isValid: false,
-      sanitized: '',
-      error: 'Query contains only special characters'
+      sanitized: "",
+      error: "Query contains only special characters",
     };
   }
 
   return {
     isValid: true,
-    sanitized: sanitized.toLowerCase()
+    sanitized: sanitized.toLowerCase(),
   };
 }
 
@@ -76,5 +76,5 @@ export function validateSearchQuery(query: unknown): {
  */
 export function sanitizeSearchQuery(query: string): string {
   const result = validateSearchQuery(query);
-  return result.isValid ? result.sanitized : '';
+  return result.isValid ? result.sanitized : "";
 }

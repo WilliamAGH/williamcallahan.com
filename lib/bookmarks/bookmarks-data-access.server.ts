@@ -11,13 +11,13 @@ import { randomInt } from "node:crypto";
 import { readJsonS3, writeJsonS3, deleteFromS3 } from "@/lib/s3-utils";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark, DistributedLockEntry, RefreshBookmarksCallback } from "@/types";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 
 // --- Configuration & Constants ---
 const LOG_PREFIX = "[Bookmarks]";
 const DISTRIBUTED_LOCK_S3_KEY = BOOKMARKS_S3_PATHS.LOCK;
-const LOCK_TTL_MS = Number(process.env.BOOKMARKS_LOCK_TTL_MS) || 15 * 60 * 1000; // 15 minutes default (configurable via env)
+const LOCK_TTL_MS = Number(process.env.BOOKMARKS_LOCK_TTL_MS) || 5 * 60 * 1000; // 5 minutes default (configurable via env)
 const LOCK_CLEANUP_INTERVAL_MS = 2 * 60 * 1000; // Check for stale locks every 2 minutes
 const INSTANCE_ID = `instance-${randomInt(1000000, 9999999)}-${Date.now()}`;
 
@@ -32,11 +32,6 @@ let inFlightGetPromise: Promise<UnifiedBookmark[]> | null = null;
 /**
  * S3-based distributed lock for coordinating bookmark refreshes across multiple instances
  */
-interface DistributedLockEntry {
-  instanceId: string;
-  acquiredAt: number;
-  ttlMs: number;
-}
 
 /**
  * Attempts to acquire a distributed lock using S3 with atomic operations
@@ -57,19 +52,23 @@ async function acquireDistributedLock(lockKey: string, ttlMs: number): Promise<b
       // This will only succeed if the object doesn't exist
       IfNoneMatch: "*",
     });
-    
+
     console.log(`${LOG_PREFIX} Distributed lock acquired atomically by ${INSTANCE_ID}`);
     return true;
   } catch (error: unknown) {
     // Check if error is due to precondition failure (lock already exists)
-    if (error instanceof Error && (error.name === 'PreconditionFailed' || (error as { $metadata?: { httpStatusCode: number } }).$metadata?.httpStatusCode === 412)) {
+    if (
+      error instanceof Error &&
+      (error.name === "PreconditionFailed" ||
+        (error as { $metadata?: { httpStatusCode: number } }).$metadata?.httpStatusCode === 412)
+    ) {
       // Lock already exists - check if it's expired
       try {
         const existingLock = await readJsonS3<DistributedLockEntry>(lockKey);
         if (existingLock && typeof existingLock === "object") {
           const now = Date.now();
           const lockAge = now - existingLock.acquiredAt;
-          
+
           // If lock is still valid (not expired), acquisition fails
           if (lockAge < existingLock.ttlMs) {
             const remainingMs = existingLock.ttlMs - lockAge;
@@ -78,26 +77,27 @@ async function acquireDistributedLock(lockKey: string, ttlMs: number): Promise<b
             );
             return false;
           }
-          
+
           // Lock is expired - try to clean it up and retry
-          console.log(
-            `[Bookmarks] Found expired lock from ${existingLock.instanceId}, attempting cleanup`,
-          );
+          console.log(`[Bookmarks] Found expired lock from ${existingLock.instanceId}, attempting cleanup`);
           await releaseDistributedLock(lockKey);
-          
+
           // Retry lock acquisition
           return acquireDistributedLock(lockKey, ttlMs);
         }
       } catch (readError: unknown) {
         console.error("[Bookmarks] Error reading existing lock:", String(readError));
       }
-      
+
       // Lock exists but we couldn't read it or handle it
       return false;
     }
-    
+
     // Any other error
-    console.error("[Bookmarks] Error during atomic lock acquisition:", error instanceof Error ? error.message : String(error));
+    console.error(
+      "[Bookmarks] Error during atomic lock acquisition:",
+      error instanceof Error ? error.message : String(error),
+    );
     return false;
   }
 }
@@ -115,17 +115,19 @@ async function releaseDistributedLock(lockKey: string, forceRelease = false): Pr
     if (existingLock?.instanceId === INSTANCE_ID || forceRelease) {
       // Actually delete the S3 object to release the lock
       await deleteFromS3(lockKey);
-      console.log(`[Bookmarks] Distributed lock released ${forceRelease ? '(forced)' : ''} by ${INSTANCE_ID}`);
+      console.log(`[Bookmarks] Distributed lock released ${forceRelease ? "(forced)" : ""} by ${INSTANCE_ID}`);
     } else if (existingLock) {
       // Only warn if lock exists but is owned by another instance
-      console.warn(
-        `[Bookmarks] Cannot release lock owned by ${existingLock.instanceId}`,
-      );
+      console.warn(`[Bookmarks] Cannot release lock owned by ${existingLock.instanceId}`);
     }
     // If lock doesn't exist, stay silent - it's already released
   } catch (error: unknown) {
     // If the lock doesn't exist, that's fine - it's already released, stay silent
-    if (error instanceof Error && (error.name === 'NoSuchKey' || (error as { $metadata?: { httpStatusCode: number } }).$metadata?.httpStatusCode === 404)) {
+    if (
+      error instanceof Error &&
+      (error.name === "NoSuchKey" ||
+        (error as { $metadata?: { httpStatusCode: number } }).$metadata?.httpStatusCode === 404)
+    ) {
       return;
     }
     console.error("[Bookmarks] Error during distributed lock release:", String(error));
@@ -142,7 +144,7 @@ async function cleanupStaleLocks(): Promise<void> {
     if (existingLock && typeof existingLock === "object") {
       const now = Date.now();
       const lockAge = now - existingLock.acquiredAt;
-      
+
       // If lock is expired, clean it up
       if (lockAge > existingLock.ttlMs) {
         console.log(
@@ -153,7 +155,13 @@ async function cleanupStaleLocks(): Promise<void> {
     }
   } catch (error: unknown) {
     // Ignore errors - lock might not exist or we might not have permissions
-    if (!(error instanceof Error && (error.name === 'NoSuchKey' || (error as { $metadata?: { httpStatusCode: number } }).$metadata?.httpStatusCode === 404))) {
+    if (
+      !(
+        error instanceof Error &&
+        (error.name === "NoSuchKey" ||
+          (error as { $metadata?: { httpStatusCode: number } }).$metadata?.httpStatusCode === 404)
+      )
+    ) {
       console.debug("[Bookmarks] Error checking for stale locks:", String(error));
     }
   }
@@ -183,11 +191,6 @@ async function releaseRefreshLock(): Promise<void> {
 }
 
 /**
- * Callback function type for refreshing bookmarks data
- */
-type RefreshBookmarksCallback = () => Promise<UnifiedBookmark[]>;
-
-/**
  * Stores the refresh callback function
  * This is set by the bookmarks module to avoid circular dependencies
  */
@@ -197,7 +200,6 @@ let refreshBookmarksCallback: RefreshBookmarksCallback | null = null;
  * Track initialization state to ensure singleton behavior
  */
 let isInitialized = false;
-let initializationPromise: Promise<void> | null = null;
 
 /**
  * Track in-flight refresh operations to prevent duplicates
@@ -215,82 +217,53 @@ export function setRefreshBookmarksCallback(callback: RefreshBookmarksCallback):
 /**
  * Initialize the bookmarks data access layer
  * This ensures the refresh callback is properly set up and starts lock cleanup
+ * NOTE: This function is now SYNCHRONOUS to prevent blocking I/O during module initialization
  */
-export async function initializeBookmarksDataAccess(): Promise<void> {
-  // Return existing initialization if already done
+export function initializeBookmarksDataAccess(): void {
+  // Return if already initialized
   if (isInitialized) {
     return;
   }
-  
-  // If initialization is in progress, return the existing promise
-  if (initializationPromise) {
-    return initializationPromise;
-  }
-  
-  // Start new initialization
-  initializationPromise = (async () => {
-    try {
-      if (!refreshBookmarksCallback) {
-        try {
-          // Dynamically import to avoid circular dependency at module load time
-          const { refreshBookmarksData } = await import("@/lib/bookmarks");
-          setRefreshBookmarksCallback(refreshBookmarksData);
-          console.log("[Bookmarks] Data access layer initialized with refresh callback");
 
-          /**
-           * Warm-up step: load bookmark data from S3 straight into the in-memory cache _once_ at
-           * process start.  That means the very first page view (e.g. `/bookmarks` or
-           * `/bookmarks/page/2`) can be served from RAM instead of paying the extra network
-           * round-trip to S3.
-           *
-           * We set `skipExternalFetch=true` so it never triggers a Karakeep crawl during build or
-           * cold-start.  If S3 is empty the normal request path will handle refresh logic.
-           */
-          try {
-            await getBookmarks(/* skipExternalFetch */ true);
-            console.log("[Bookmarks] Pre-loaded bookmarks into memory cache at startup.");
-          } catch (warmErr) {
-            console.warn(
-              "[Bookmarks] Startup warm-up failed (will fall back to lazy load):",
-              warmErr instanceof Error ? warmErr.message : String(warmErr),
-            );
-          }
-        } catch (error) {
-          console.error("[Bookmarks] Failed to initialize refresh callback:", error);
-        }
-      }
-      
-      // Start the lock cleanup interval if not already running
-      if (!lockCleanupInterval) {
-        // Do an immediate cleanup check on startup
-        cleanupStaleLocks().catch((error) => {
-          console.debug("[Bookmarks] Initial lock cleanup check failed:", String(error));
-        });
-        
-        // Then schedule regular cleanup
-        lockCleanupInterval = setInterval(() => {
-          cleanupStaleLocks().catch((error) => {
-            console.debug("[Bookmarks] Scheduled lock cleanup failed:", String(error));
-          });
-        }, LOCK_CLEANUP_INTERVAL_MS);
-        
-        // Allow the process to exit naturally if this is the only pending handle (e.g. in Jest)
-        // This prevents "Jest did not exit one second after the test run" warnings/hangs.
-        lockCleanupInterval.unref();
-        
-        console.log("[Bookmarks] Started lock cleanup interval (every 2 minutes)");
-      }
-      
-      isInitialized = true;
-    } catch (error) {
-      console.error("[Bookmarks] Initialization failed:", error);
-      // Reset state on failure
-      initializationPromise = null;
-      throw error;
-    }
-  })();
-  
-  return initializationPromise;
+  // Mark as initialized immediately to prevent duplicate initialization
+  isInitialized = true;
+
+  // Set up the refresh callback asynchronously (non-blocking)
+  if (!refreshBookmarksCallback) {
+    // Dynamically import to avoid circular dependency at module load time
+    // This is now fire-and-forget to prevent blocking
+    import("@/lib/bookmarks")
+      .then(({ refreshBookmarksData }) => {
+        setRefreshBookmarksCallback(refreshBookmarksData);
+        console.log("[Bookmarks] Data access layer initialized with refresh callback");
+      })
+      .catch((error) => {
+        console.error("[Bookmarks] Failed to initialize refresh callback:", error);
+      });
+  }
+
+  // Start the lock cleanup interval if not already running
+  if (!lockCleanupInterval) {
+    // Do an immediate cleanup check on startup (non-blocking)
+    cleanupStaleLocks().catch((error) => {
+      console.debug("[Bookmarks] Initial lock cleanup check failed:", String(error));
+    });
+
+    // Then schedule regular cleanup
+    lockCleanupInterval = setInterval(() => {
+      cleanupStaleLocks().catch((error) => {
+        console.debug("[Bookmarks] Scheduled lock cleanup failed:", String(error));
+      });
+    }, LOCK_CLEANUP_INTERVAL_MS);
+
+    // Allow the process to exit naturally if this is the only pending handle (e.g. in Jest)
+    // This prevents "Jest did not exit one second after the test run" warnings/hangs.
+    lockCleanupInterval.unref();
+
+    console.log("[Bookmarks] Started lock cleanup interval (every 2 minutes)");
+  }
+
+  console.log("[Bookmarks] Data access layer initialization completed (non-blocking)");
 }
 
 /**
@@ -303,17 +276,16 @@ export function cleanupBookmarksDataAccess(): void {
     lockCleanupInterval = null;
     console.log("[Bookmarks] Stopped lock cleanup interval");
   }
-  
+
   // Release any locks held by this instance
   if (isRefreshLocked) {
     releaseRefreshLock().catch((error) => {
       console.error("[Bookmarks] Failed to release lock on cleanup:", error);
     });
   }
-  
+
   // Reset initialization state
   isInitialized = false;
-  initializationPromise = null;
 }
 
 export async function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> {
@@ -322,7 +294,7 @@ export async function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | 
     console.log("[Bookmarks] Refresh already in progress, returning existing promise");
     return inFlightRefreshPromise;
   }
-  
+
   // Start new refresh operation
   inFlightRefreshPromise = (async () => {
     try {
@@ -335,13 +307,18 @@ export async function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | 
         if (!refreshBookmarksCallback) {
           // During build time or when callback isn't set, gracefully handle by returning null
           console.warn(
-            "[Bookmarks] Refresh callback not set. This is expected during build time or initial module load."
+            "[Bookmarks] Refresh callback not set. This is expected during build time or initial module load.",
           );
           await releaseRefreshLock();
           return null;
         }
-        
+
         const bookmarks = await refreshBookmarksCallback();
+
+        if (!bookmarks) {
+          console.log("[Bookmarks] Refresh callback returned null, nothing to persist.");
+          return null;
+        }
 
         // Validate before persisting
         const validation = validateBookmarkDataset(bookmarks);
@@ -354,19 +331,18 @@ export async function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | 
         }
 
         // Write to S3 and update cache
-        console.log(
-          `[Bookmarks] About to write ${bookmarks.length} bookmarks to S3 at key ${BOOKMARKS_S3_PATHS.FILE}`,
-        );
+        console.log(`[Bookmarks] About to write ${bookmarks.length} bookmarks to S3 at key ${BOOKMARKS_S3_PATHS.FILE}`);
         await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarks);
         console.log(`[Bookmarks] Completed write of ${bookmarks.length} bookmarks to S3`);
         ServerCacheInstance.setBookmarks(bookmarks);
-        console.log(
-          `[Bookmarks] Successfully refreshed and persisted ${bookmarks.length} bookmarks.`,
-        );
-        
+        console.log(`[Bookmarks] Successfully refreshed and persisted ${bookmarks.length} bookmarks.`);
+
         return bookmarks;
       } catch (error: unknown) {
-        console.error("[Bookmarks] CRITICAL: Failed to refresh and persist bookmarks.", error instanceof Error ? error.message : String(error));
+        console.error(
+          "[Bookmarks] CRITICAL: Failed to refresh and persist bookmarks.",
+          error instanceof Error ? error.message : String(error),
+        );
         return null;
       } finally {
         await releaseRefreshLock();
@@ -376,7 +352,7 @@ export async function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | 
       inFlightRefreshPromise = null;
     }
   })();
-  
+
   return inFlightRefreshPromise;
 }
 
@@ -424,14 +400,11 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
     // Validate cached data before returning
     const validation = validateBookmarkDataset(cached.bookmarks);
     if (!validation.isValid) {
-      console.error(
-        "[Bookmarks][VALIDATION] Cached data failed validation checks. Not returning invalid cache.",
-      );
+      console.error("[Bookmarks][VALIDATION] Cached data failed validation checks. Not returning invalid cache.");
       console.error(`[Bookmarks][VALIDATION] Reason: ${validation.reason}`);
+      // If validation fails, proceed as if cache was empty by not returning here.
     } else {
-      console.log(
-        `[Bookmarks] Returning ${cached.bookmarks.length} bookmarks from in-memory cache.`,
-      );
+      console.log(`[Bookmarks] Returning ${cached.bookmarks.length} bookmarks from in-memory cache.`);
 
       // Only trigger a background refresh if the data is considered stale.
       if (shouldRefresh && canStartBackgroundRefresh()) {
@@ -439,10 +412,7 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
         markBackgroundRefreshStarted();
         // Start background refresh without awaiting
         refreshInBackground().catch((error) => {
-          console.error(
-            "[Bookmarks] Background refresh failed (called from getBookmarks cache stale check):",
-            error,
-          );
+          console.error("[Bookmarks] Background refresh failed (called from getBookmarks cache stale check):", error);
         });
       }
 
@@ -461,67 +431,41 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
       // No cached data - try S3 first
       try {
         const s3Bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
-        console.log(
-          `[Bookmarks] S3 load returned ${s3Bookmarks?.length ?? 0} bookmarks (skipExternalFetch=${skipExternalFetch}, isRefreshLocked=${isRefreshLocked})`,
-        );
-        if (Array.isArray(s3Bookmarks) && s3Bookmarks.length > 0) {
-          // Validate S3 data before returning
-          const validation = validateBookmarkDataset(s3Bookmarks);
-          if (!validation.isValid) {
-            console.error(
-              "[Bookmarks][VALIDATION] S3 data failed validation checks. Not returning invalid data.",
-            );
-            console.error(`[Bookmarks][VALIDATION] Reason: ${validation.reason}`);
-          } else {
-        console.log(`[Bookmarks] Loaded ${s3Bookmarks.length} bookmarks from S3.`);
-        ServerCacheInstance.setBookmarks(s3Bookmarks);
 
-        // Trigger background refresh only if the **revalidation window** has elapsed. This prevents
-        // a full Karakeep crawl from re-running on every source-file save during development, while
-        // still keeping production data fresh once the 1-hour window expires.
-        if (
-          !skipExternalFetch &&
-          !isRefreshLocked &&
-          ServerCacheInstance.shouldRefreshBookmarks() &&
-          canStartBackgroundRefresh()
-        ) {
-          console.log("[Bookmarks] Triggering background refresh after S3 load (non-blocking).");
-          markBackgroundRefreshStarted();
-          refreshInBackground().catch((error) => {
+        if (s3Bookmarks && Array.isArray(s3Bookmarks)) {
+          console.log(`${LOG_PREFIX} Successfully fetched ${s3Bookmarks.length} bookmarks from S3`);
+
+          // Validate before caching to prevent bad data propagation
+          const { isValid } = validateBookmarkDataset(s3Bookmarks);
+          if (!isValid) {
             console.error(
-              "[Bookmarks] Background refresh failed (called from getBookmarks after S3 load):",
-              error,
+              `${LOG_PREFIX}[S3-VALIDATION] S3 bookmark data is invalid, returning empty array to prevent further issues`,
             );
-            // TODO: Send to error tracking service
-            // e.g., trackError('bookmark_background_refresh_failed_after_s3', error);
-          });
+            // Do not cache invalid data
+            return [];
+          }
+
+          // Update in-memory cache with S3 data
+          ServerCacheInstance.setBookmarks(s3Bookmarks);
+
+          // Start a background refresh if needed, but don't block
+          void refreshInBackground();
+
+          return s3Bookmarks;
         }
-
-        return s3Bookmarks;
+      } catch (error) {
+        if (error instanceof Error && error.name === "NoSuchKey") {
+          console.warn(`${LOG_PREFIX} No bookmarks file found in S3. Triggering external refresh.`);
+        } else {
+          console.error(`${LOG_PREFIX} Failed to fetch from S3:`, String(error));
+        }
+        // S3 fetch failed, proceed to external fetch
       }
-    }
-  } catch (error: unknown) {
-    console.warn("[Bookmarks] Failed to read from S3:", error instanceof Error ? error.message : String(error));
-  }
 
-  // No cached data and no S3 data - do synchronous refresh as last resort
-  if (!skipExternalFetch) {
-    console.log(
-      "[Bookmarks] No cached or S3 data available. Performing synchronous refresh as last resort.",
-    );
-    const freshBookmarks = await refreshAndPersistBookmarks();
-    if (freshBookmarks) {
-      return freshBookmarks;
-    }
-    console.warn("[Bookmarks] Synchronous refresh failed. No bookmarks available from any source.");
-  } else {
-    console.log(
-      "[Bookmarks] Skipping external fetch due to build-time or configuration. No bookmarks available from cache or S3.",
-    );
-  }
-
-      console.warn("[Bookmarks] No bookmarks available from any source.");
-      return [];
+      // If S3 is empty or fails, fetch from external source and persist
+      console.log(`${LOG_PREFIX} No valid data in cache or S3, fetching from external source`);
+      const refreshedBookmarks = await refreshAndPersistBookmarks();
+      return refreshedBookmarks ?? [];
     } finally {
       inFlightGetPromise = null;
     }

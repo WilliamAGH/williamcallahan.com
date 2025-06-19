@@ -39,11 +39,7 @@ export const LOGO_CACHE_DURATION = {
  * Type definition for S3 storage paths for bookmarks.
  * Explicitly defines the literal string types for each property.
  */
-export type BookmarksS3Paths = {
-  readonly DIR: "bookmarks";
-  readonly FILE: `bookmarks/bookmarks${string}.json`;
-  readonly LOCK: `bookmarks/refresh-lock${string}.json`;
-};
+import type { BookmarksS3Paths } from "@/types/lib";
 
 /**
  * S3 storage paths for bookmarks (environment-aware).
@@ -82,6 +78,22 @@ export const BOOKMARKS_CACHE_DURATION = {
   FAILURE: 60 * 60,
   /** Revalidation interval (1 hour in seconds) - how often to check for new data */
   REVALIDATION: 1 * 60 * 60,
+} as const;
+
+/**
+ * Bookmarks API configuration
+ * @constant
+ * @type {Object}
+ */
+export const BOOKMARKS_API_CONFIG = {
+  /** Base URL for the bookmarks API */
+  API_URL: process.env.BOOKMARKS_API_URL ?? "https://bookmark.iocloudhost.net/api/v1",
+  /** List ID for fetching bookmarks */
+  LIST_ID: process.env.BOOKMARKS_LIST_ID,
+  /** Bearer token for API authentication */
+  BEARER_TOKEN: process.env.BOOKMARK_BEARER_TOKEN,
+  /** Request timeout in milliseconds */
+  REQUEST_TIMEOUT_MS: 10_000,
 } as const;
 
 /**
@@ -164,8 +176,7 @@ export const OPENGRAPH_FETCH_CONFIG = {
  * In production, this defaults to the main domain.
  * In development, it uses localhost.
  */
-export const NEXT_PUBLIC_SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
+export const NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
 
 /**
  * Base URL for API endpoints
@@ -359,20 +370,8 @@ export const CSP_DIRECTIVES = {
     "https://react-tweet.vercel.app",
     "https:",
   ],
-  styleSrc: [
-    "'self'",
-    "'unsafe-inline'",
-    "https://platform.twitter.com",
-    "https://*.twimg.com",
-    "https://*.x.com",
-  ],
-  fontSrc: [
-    "'self'",
-    "data:",
-    "https://platform.twitter.com",
-    "https://*.twimg.com",
-    "https://*.x.com",
-  ],
+  styleSrc: ["'self'", "'unsafe-inline'", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com"],
+  fontSrc: ["'self'", "data:", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com"],
   frameSrc: ["https://platform.twitter.com", "https://*.x.com"],
   frameAncestors: ["'none'"],
   baseUri: ["'self'"],

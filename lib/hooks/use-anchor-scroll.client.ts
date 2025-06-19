@@ -58,11 +58,7 @@ export function useAnchorScrollHandler(): void {
         const scrollFunction = () => {
           directTargetElement.scrollIntoView({ behavior: "smooth", block: "start" });
           if (history.replaceState) {
-            history.replaceState(
-              null,
-              document.title,
-              `${pathname + window.location.search}#${hash}`,
-            );
+            history.replaceState(null, document.title, `${pathname + window.location.search}#${hash}`);
           }
         };
 
@@ -84,25 +80,19 @@ export function useAnchorScrollHandler(): void {
         );
       }
     } else if (isDevelopment) {
-      console.log(
-        `[Anchor Debug] handleAnchorScroll: Direct target for '#${hash}' not found initially.`,
-      );
+      console.log(`[Anchor Debug] handleAnchorScroll: Direct target for '#${hash}' not found initially.`);
     }
 
     const dropdownElement = findDropdownForHash(hash);
     if (dropdownElement) {
       if (isDevelopment) {
-        console.log(
-          `[Anchor Debug] handleAnchorScroll: Target '#${hash}' is associated with a dropdown. Delegating.`,
-        );
+        console.log(`[Anchor Debug] handleAnchorScroll: Target '#${hash}' is associated with a dropdown. Delegating.`);
       }
       openAndScrollToDropdownAnchor(dropdownElement, hash);
       return;
     }
     if (isDevelopment) {
-      console.log(
-        `[Anchor Debug] handleAnchorScroll: Target '#${hash}' not associated with any known dropdown.`,
-      );
+      console.log(`[Anchor Debug] handleAnchorScroll: Target '#${hash}' not associated with any known dropdown.`);
     }
 
     let retryAttempts = 0;
@@ -125,11 +115,7 @@ export function useAnchorScrollHandler(): void {
             () => {
               targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
               if (history.replaceState) {
-                history.replaceState(
-                  null,
-                  document.title,
-                  `${pathname + window.location.search}#${hash}`,
-                );
+                history.replaceState(null, document.title, `${pathname + window.location.search}#${hash}`);
               }
             },
             isFirefox ? 50 : 0,
@@ -138,8 +124,7 @@ export function useAnchorScrollHandler(): void {
           console.error(`[Anchor Debug] Error scrolling to target #${hash} on retry:`, error);
         }
       } else if (retryAttempts < MAX_GENERAL_RETRIES) {
-        const nextRetryDelay =
-          GENERAL_RETRY_INTERVAL * EXPONENTIAL_BACKOFF_FACTOR ** (retryAttempts - 1);
+        const nextRetryDelay = GENERAL_RETRY_INTERVAL * EXPONENTIAL_BACKOFF_FACTOR ** (retryAttempts - 1);
         retryTimerRef.current = setTimeout(retryScroll, nextRetryDelay);
       } else if (isDevelopment) {
         console.log(
@@ -149,14 +134,9 @@ export function useAnchorScrollHandler(): void {
     };
 
     if (isDevelopment) {
-      console.log(
-        `[Anchor Debug] handleAnchorScroll: Initiating general fallback retry for '#${hash}'.`,
-      );
+      console.log(`[Anchor Debug] handleAnchorScroll: Initiating general fallback retry for '#${hash}'.`);
     }
-    retryTimerRef.current = setTimeout(
-      retryScroll,
-      isFirefox ? GENERAL_RETRY_INTERVAL * 1.5 : GENERAL_RETRY_INTERVAL,
-    );
+    retryTimerRef.current = setTimeout(retryScroll, isFirefox ? GENERAL_RETRY_INTERVAL * 1.5 : GENERAL_RETRY_INTERVAL);
   }, [findDropdownForHash, openAndScrollToDropdownAnchor, pathname]);
 
   useEffect(() => {

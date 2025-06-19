@@ -33,11 +33,7 @@ function normalizeSourceForS3(source: LogoSource): string {
  * @param ext - The file extension for the logo (default: 'png')
  * @returns The S3 key string for storing or retrieving the logo
  */
-export function getLogoS3Key(
-  domain: string,
-  source: LogoSource,
-  ext: "png" | "svg" = "png",
-): string {
+export function getLogoS3Key(domain: string, source: LogoSource, ext: "png" | "svg" = "png"): string {
   const id = domain.split(".")[0];
   const normalizedSource = normalizeSourceForS3(source);
   return `${LOGOS_S3_KEY_DIR}/${id}_${normalizedSource}.${ext}`;
@@ -61,8 +57,7 @@ export async function findLogoInS3(
   try {
     keys = await listS3Objects(prefix);
   } catch (error) {
-    if (isDebug)
-      logger.warn(`[DataAccess/Logos-S3] Error listing S3 objects for prefix ${prefix}:`, error);
+    if (isDebug) logger.warn(`[DataAccess/Logos-S3] Error listing S3 objects for prefix ${prefix}:`, error);
     return null;
   }
 
@@ -72,6 +67,11 @@ export async function findLogoInS3(
 
   const pngKey = keys.find((k) => k.endsWith(".png"));
   const bestKey = pngKey ?? keys[0];
+
+  if (!bestKey) {
+    if (isDebug) logger.debug(`[DataAccess/Logos-S3] No valid key found for ${domain}`);
+    return null;
+  }
 
   try {
     const buffer = await readBinaryS3(bestKey);

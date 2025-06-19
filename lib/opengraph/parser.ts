@@ -1,9 +1,9 @@
 /**
  * OpenGraph HTML Parser Module
- * 
+ *
  * Handles all HTML parsing and metadata extraction for OpenGraph
  * Contains platform-specific extraction logic
- * 
+ *
  * @module opengraph/parser
  */
 
@@ -12,7 +12,7 @@ import { debug, debugWarn } from "@/lib/utils/debug";
 import { getDomainType } from "@/lib/utils/opengraph-utils";
 import { OPENGRAPH_FETCH_CONFIG, SOCIAL_PLATFORMS } from "./constants";
 import { isValidImageUrl, constructKarakeepAssetUrl } from "@/lib/utils/opengraph-utils";
-import type { KarakeepImageFallback } from "@/types";
+import { karakeepImageFallbackSchema, type KarakeepImageFallback } from "@/types";
 // OgMetadata type not needed in parser - only returns raw Record<string, string | null>
 
 /**
@@ -23,24 +23,30 @@ import type { KarakeepImageFallback } from "@/types";
  * @param fallbackImageData - Optional Karakeep fallback data for bookmarks
  * @returns Extracted metadata object
  */
-export function extractOpenGraphTags(html: string, url: string, fallbackImageData?: KarakeepImageFallback): Record<string, string | null> {
+export function extractOpenGraphTags(
+  html: string,
+  url: string,
+  fallbackImageData?: KarakeepImageFallback,
+): Record<string, string | null> {
   const htmlSizeBytes = Buffer.byteLength(html, "utf8");
-  
+
   // Process HTML - create a new variable instead of reassigning parameter
   let processedHtml = html;
-  
+
   // If HTML is too large, try to extract just the head section
   if (htmlSizeBytes > OPENGRAPH_FETCH_CONFIG.MAX_HTML_SIZE_BYTES) {
     debugWarn(
       `[DataAccess/OpenGraph] HTML content for ${url} is ${(htmlSizeBytes / (1024 * 1024)).toFixed(2)}MB. Attempting partial parse.`,
     );
-    
+
     // Try to extract just the <head> section which should contain OpenGraph tags
-    const headEndIndex = html.toLowerCase().indexOf('</head>');
+    const headEndIndex = html.toLowerCase().indexOf("</head>");
     if (headEndIndex > 0 && headEndIndex < OPENGRAPH_FETCH_CONFIG.MAX_HTML_SIZE_BYTES) {
       // Parse just up to the end of head tag plus a buffer
       processedHtml = html.substring(0, headEndIndex + 7); // +7 for "</head>"
-      debug(`[DataAccess/OpenGraph] Successfully extracted head section for parsing (${Buffer.byteLength(processedHtml, "utf8")} bytes)`);
+      debug(
+        `[DataAccess/OpenGraph] Successfully extracted head section for parsing (${Buffer.byteLength(processedHtml, "utf8")} bytes)`,
+      );
     } else {
       // If we can't find head or it's still too large, just take the first chunk
       processedHtml = html.substring(0, OPENGRAPH_FETCH_CONFIG.PARTIAL_HTML_SIZE);
@@ -93,12 +99,13 @@ export function extractOpenGraphTags(html: string, url: string, fallbackImageDat
     // Schema.org image
     schemaImage: getMetaContent(['meta[itemprop="image"]']),
     // Apple touch icon (often high quality)
-    appleTouchIcon: $('link[rel="apple-touch-icon"]').attr("href") || 
-                    $('link[rel="apple-touch-icon-precomposed"]').attr("href") || null,
+    appleTouchIcon:
+      $('link[rel="apple-touch-icon"]').attr("href") ||
+      $('link[rel="apple-touch-icon-precomposed"]').attr("href") ||
+      null,
     // Standard icon/favicon (last resort)
-    icon: $('link[rel="icon"]').attr("href") || 
-          $('link[rel="shortcut icon"]').attr("href") || null,
-    
+    icon: $('link[rel="icon"]').attr("href") || $('link[rel="shortcut icon"]').attr("href") || null,
+
     site: getMetaContent(['meta[property="og:site_name"]', 'meta[name="twitter:site"]']),
     type: getMetaContent(['meta[property="og:type"]']),
     url: getMetaContent(['meta[property="og:url"]']) || url,
@@ -125,27 +132,31 @@ export function extractOpenGraphTags(html: string, url: string, fallbackImageDat
       result.profileImage = extractBlueskyProfileImage($);
     }
   } catch (error) {
-    debugWarn(
-      `[DataAccess/OpenGraph] Error during platform-specific extraction for ${domain}:`,
-      error,
-    );
+    debugWarn(`[DataAccess/OpenGraph] Error during platform-specific extraction for ${domain}:`, error);
   }
 
   // Add Karakeep fallback images if provided (for bookmarks)
-  if (fallbackImageData) {
-    if (fallbackImageData.imageUrl && isValidImageUrl(fallbackImageData.imageUrl)) {
-      result.karakeepImage = fallbackImageData.imageUrl;
+  // Validate fallback image data before use
+  const validatedFallbackData: KarakeepImageFallback | undefined = fallbackImageData
+    ? karakeepImageFallbackSchema.safeParse(fallbackImageData).success
+      ? karakeepImageFallbackSchema.parse(fallbackImageData)
+      : undefined
+    : undefined;
+
+  if (validatedFallbackData) {
+    if (validatedFallbackData.imageUrl && isValidImageUrl(validatedFallbackData.imageUrl)) {
+      result.karakeepImage = validatedFallbackData.imageUrl;
     }
-    if (fallbackImageData.imageAssetId) {
+    if (validatedFallbackData.imageAssetId) {
       try {
-        result.karakeepAssetImage = constructKarakeepAssetUrl(fallbackImageData.imageAssetId);
+        result.karakeepAssetImage = constructKarakeepAssetUrl(validatedFallbackData.imageAssetId);
       } catch {
         // Silently ignore invalid asset IDs
       }
     }
-    if (fallbackImageData.screenshotAssetId) {
+    if (validatedFallbackData.screenshotAssetId) {
       try {
-        result.karakeepScreenshotImage = constructKarakeepAssetUrl(fallbackImageData.screenshotAssetId);
+        result.karakeepScreenshotImage = constructKarakeepAssetUrl(validatedFallbackData.screenshotAssetId);
       } catch {
         // Silently ignore invalid asset IDs
       }

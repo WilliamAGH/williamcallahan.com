@@ -52,7 +52,7 @@ export function sanitizeError(error: unknown, includeStack = false): Record<stri
 export function sanitizeSystemInfo(obj: Record<string, unknown>): Record<string, unknown> {
   // Use WeakSet to track visited objects and prevent circular references
   const visited = new WeakSet<object>();
-  
+
   // Use Set for O(1) lookups and lowercase for case-insensitive matching
   const sensitiveKeys = new Set([
     "path",
@@ -130,10 +130,10 @@ export function sanitizeSystemInfo(obj: Record<string, unknown>): Record<string,
 export function sanitizeUrl(url: string): string {
   try {
     const parsed = new URL(url);
-    
+
     // Remove basic auth credentials
-    parsed.username = '';
-    parsed.password = '';
+    parsed.username = "";
+    parsed.password = "";
 
     // Remove sensitive query parameters
     const sensitiveParams = ["token", "secret", "key", "auth", "password"];

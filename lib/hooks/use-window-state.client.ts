@@ -9,19 +9,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-
-// Define the possible states
-export type WindowState = "normal" | "minimized" | "maximized" | "closed";
+import type { WindowStateValue } from "@/types/ui/window";
 
 // Helper to generate storage key
 const getStorageKey = (id: string): string => `windowState-${id}`;
 
 // Helper function to safely access sessionStorage
-const getSessionStorageState = (id: string): WindowState | null => {
+const getSessionStorageState = (id: string): WindowStateValue | null => {
   const key = getStorageKey(id);
   try {
     if (typeof window !== "undefined") {
-      return sessionStorage.getItem(key) as WindowState | null;
+      return sessionStorage.getItem(key) as WindowStateValue | null;
     }
   } catch (error) {
     console.warn(`sessionStorage is not available for key ${key}:`, error);
@@ -30,7 +28,7 @@ const getSessionStorageState = (id: string): WindowState | null => {
 };
 
 // Helper function to safely set sessionStorage
-const setSessionStorageState = (id: string, state: WindowState) => {
+const setSessionStorageState = (id: string, state: WindowStateValue) => {
   const key = getStorageKey(id);
   try {
     if (typeof window !== "undefined") {
@@ -47,9 +45,9 @@ const setSessionStorageState = (id: string, state: WindowState) => {
  * @param id - A unique identifier for the component instance.
  * @param initialState - The initial state if none is found in storage (defaults to 'normal').
  */
-export function useWindowState(id: string, initialState: WindowState = "normal") {
+export function useWindowState(id: string, initialState: WindowStateValue = "normal") {
   // State for the window's current status
-  const [windowState, setWindowState] = useState<WindowState>(initialState);
+  const [windowState, setWindowState] = useState<WindowStateValue>(initialState);
   // State to track if the component has mounted on the client
   const [isMounted, setIsMounted] = useState(false);
 

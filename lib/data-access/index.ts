@@ -4,7 +4,12 @@
  * @module lib/data-access/index
  */
 
-export * from "./bookmarks";
+// Bookmarks exports are now in @/lib/bookmarks (server-specific)
+export {
+  getBookmarks,
+  initializeBookmarksDataAccess,
+  cleanupBookmarksDataAccess,
+} from "@/lib/bookmarks/bookmarks-data-access.server";
 export * from "./logos";
 export * from "./investments";
 export * from "./github";

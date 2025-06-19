@@ -1,21 +1,14 @@
 /**
  * Async Operations Monitor
- * 
+ *
  * Provides monitoring and management for all async operations in the application
  * to ensure they don't block server startup or cause performance issues.
  */
 
-type AsyncOperation = {
-  name: string;
-  startTime: number;
-  endTime?: number;
-  status: 'pending' | 'completed' | 'failed' | 'timeout';
-  error?: Error;
-  metadata?: Record<string, unknown>;
-};
+import type { MonitoredAsyncOperation } from "@/types/lib";
 
 class AsyncOperationsMonitor {
-  private operations: Map<string, AsyncOperation> = new Map();
+  private operations: Map<string, MonitoredAsyncOperation> = new Map();
   private timeouts: Map<string, NodeJS.Timeout> = new Map();
 
   /**
@@ -25,7 +18,7 @@ class AsyncOperationsMonitor {
     this.operations.set(id, {
       name,
       startTime: Date.now(),
-      status: 'pending',
+      status: "pending",
       metadata,
     });
   }
@@ -37,7 +30,7 @@ class AsyncOperationsMonitor {
     const operation = this.operations.get(id);
     if (operation) {
       operation.endTime = Date.now();
-      operation.status = 'completed';
+      operation.status = "completed";
       const duration = operation.endTime - operation.startTime;
       console.log(`[AsyncMonitor] Operation "${operation.name}" completed in ${duration}ms`);
     }
@@ -47,14 +40,14 @@ class AsyncOperationsMonitor {
   /**
    * Mark an operation as failed
    */
-  failOperation(id: string, error: Error, status: 'failed' | 'timeout' = 'failed'): void {
+  failOperation(id: string, error: Error, status: "failed" | "timeout" = "failed"): void {
     const operation = this.operations.get(id);
     if (operation) {
       operation.endTime = Date.now();
       operation.status = status;
-      operation.error = error;
+      operation.error = error.message;
       const duration = operation.endTime - operation.startTime;
-      const statusText = status === 'timeout' ? 'timed out' : 'failed';
+      const statusText = status === "timeout" ? "timed out" : "failed";
       console.error(`[AsyncMonitor] Operation "${operation.name}" ${statusText} after ${duration}ms:`, error.message);
     }
     this.clearTimeout(id);
@@ -82,22 +75,22 @@ class AsyncOperationsMonitor {
   /**
    * Get all operations
    */
-  getOperations(): AsyncOperation[] {
+  getOperations(): MonitoredAsyncOperation[] {
     return Array.from(this.operations.values());
   }
 
   /**
    * Get a single operation by its ID
    */
-  getOperation(id: string): AsyncOperation | undefined {
+  getOperation(id: string): MonitoredAsyncOperation | undefined {
     return this.operations.get(id);
   }
 
   /**
    * Get operations by status
    */
-  getOperationsByStatus(status: AsyncOperation['status']): AsyncOperation[] {
-    return this.getOperations().filter(op => op.status === status);
+  getOperationsByStatus(status: MonitoredAsyncOperation["status"]): MonitoredAsyncOperation[] {
+    return this.getOperations().filter((op) => op.status === status);
   }
 
   /**
@@ -112,8 +105,8 @@ class AsyncOperationsMonitor {
     averageDuration: number;
   } {
     const operations = this.getOperations();
-    const completed = operations.filter(op => op.status === 'completed' && op.endTime);
-    
+    const completed = operations.filter((op) => op.status === "completed" && op.endTime);
+
     const totalDuration = completed.reduce((sum, op) => {
       if (op.endTime !== undefined) {
         return sum + (op.endTime - op.startTime);
@@ -123,10 +116,10 @@ class AsyncOperationsMonitor {
 
     return {
       total: operations.length,
-      pending: operations.filter(op => op.status === 'pending').length,
+      pending: operations.filter((op) => op.status === "pending").length,
       completed: completed.length,
-      failed: operations.filter(op => op.status === 'failed').length,
-      timeout: operations.filter(op => op.status === 'timeout').length,
+      failed: operations.filter((op) => op.status === "failed").length,
+      timeout: operations.filter((op) => op.status === "timeout").length,
       averageDuration: completed.length > 0 ? Math.round(totalDuration / completed.length) : 0,
     };
   }
@@ -136,17 +129,20 @@ class AsyncOperationsMonitor {
    */
   logStatus(): void {
     const summary = this.getSummary();
-    console.log('[AsyncMonitor] Status:', {
+    console.log("[AsyncMonitor] Status:", {
       ...summary,
       averageDuration: `${summary.averageDuration}ms`,
     });
 
-    const pending = this.getOperationsByStatus('pending');
+    const pending = this.getOperationsByStatus("pending");
     if (pending.length > 0) {
-      console.log('[AsyncMonitor] Pending operations:', pending.map(op => ({
-        name: op.name,
-        duration: `${Date.now() - op.startTime}ms`,
-      })));
+      console.log(
+        "[AsyncMonitor] Pending operations:",
+        pending.map((op) => ({
+          name: op.name,
+          duration: `${Date.now() - op.startTime}ms`,
+        })),
+      );
     }
   }
 
@@ -154,7 +150,7 @@ class AsyncOperationsMonitor {
    * Clear all completed operations (for memory management)
    */
   clearCompleted(): void {
-    const completed = this.getOperationsByStatus('completed');
+    const completed = this.getOperationsByStatus("completed");
     for (const op of completed) {
       const entry = Array.from(this.operations.entries()).find(([, value]) => value === op);
       if (entry) {
@@ -178,37 +174,37 @@ export async function monitoredAsync<T>(
   options: {
     timeoutMs?: number;
     metadata?: Record<string, unknown>;
-  } = {}
+  } = {},
 ): Promise<T> {
   // Generate ID if not provided
   const operationId = id || asyncMonitor.generateId();
   asyncMonitor.startOperation(operationId, name, options.metadata);
-  
+
   let timeoutId: NodeJS.Timeout | undefined;
-  
+
   try {
     const operationPromise = operation();
-    
+
     if (options.timeoutMs) {
       // Create a timeout promise that rejects after the specified time
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => {
           const error = new Error(`Operation "${name}" timed out after ${options.timeoutMs}ms`);
-          asyncMonitor.failOperation(operationId, error, 'timeout');
+          asyncMonitor.failOperation(operationId, error, "timeout");
           reject(error);
         }, options.timeoutMs);
       });
-      
+
       // Race the operation against the timeout
       const result = await Promise.race([operationPromise, timeoutPromise]);
-      
+
       // Clear the timeout if operation completed first
       if (timeoutId) clearTimeout(timeoutId);
-      
+
       asyncMonitor.completeOperation(operationId);
       return result;
     }
-    
+
     // No timeout, just await the operation
     const result = await operationPromise;
     asyncMonitor.completeOperation(operationId);
@@ -216,10 +212,10 @@ export async function monitoredAsync<T>(
   } catch (error) {
     // Clear any pending timeout
     if (timeoutId) clearTimeout(timeoutId);
-    
+
     // Avoid double-logging if timeout already failed it
     const operation = asyncMonitor.getOperation(operationId);
-    if (operation?.status !== 'timeout') {
+    if (operation?.status !== "timeout") {
       asyncMonitor.failOperation(operationId, error as Error);
     }
     throw error;
@@ -237,7 +233,7 @@ export function nonBlockingAsync<T>(
     timeoutMs?: number;
     metadata?: Record<string, unknown>;
     onError?: (error: Error) => void;
-  } = {}
+  } = {},
 ): void {
   // Use setImmediate to ensure this doesn't block the event loop
   setImmediate(() => {
@@ -276,7 +272,7 @@ if (typeof process !== "undefined" && process.env?.NEXT_RUNTIME === "nodejs") {
   }, cleanupInterval);
 
   // Prevent the timer from keeping the event loop alive in Node
-  if ('unref' in timer && typeof timer.unref === 'function') {
+  if ("unref" in timer && typeof timer.unref === "function") {
     timer.unref();
   }
 }

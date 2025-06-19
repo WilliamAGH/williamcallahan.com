@@ -277,9 +277,7 @@ function createProfilePageEntity(params: SchemaParams): ProfilePageSchema {
  */
 function createNewsArticleEntity(params: SchemaParams): NewsArticleSchema {
   // Create array of images
-  const images =
-    params.images ||
-    (params.image ? [params.image.url] : [ensureAbsoluteUrl(metadata.defaultImage.url)]);
+  const images = params.images || (params.image ? [params.image.url] : [ensureAbsoluteUrl(metadata.defaultImage.url)]);
 
   // Format author information
   const authorEntities = params.authors
@@ -414,13 +412,7 @@ export function generateSchemaGraph(params: SchemaParams): SchemaGraph {
   // Add image if provided
   if (params.image) {
     graph["@graph"].push(
-      createImageEntity(
-        params.path,
-        params.image.url,
-        params.title,
-        params.image.width,
-        params.image.height,
-      ),
+      createImageEntity(params.path, params.image.url, params.title, params.image.width, params.image.height),
     );
   }
 

@@ -113,10 +113,7 @@ export function resetLogoSessionTracking(): void {
     try {
       invalidateS3LogoKeysStore();
     } catch (cacheError) {
-      console.error(
-        "[DataAccess/Logos] Error invalidating S3 cache during session reset:",
-        cacheError,
-      );
+      console.error("[DataAccess/Logos] Error invalidating S3 cache during session reset:", cacheError);
       // Continue with reset even if cache invalidation fails
     }
 

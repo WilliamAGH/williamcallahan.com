@@ -26,9 +26,11 @@ export async function getAllPosts(): Promise<BlogPost[]> {
     const allPosts = [...(staticPosts || []), ...mdxPosts];
 
     // Sort by date, newest first
-    return allPosts.sort(
-      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
-    );
+    return allPosts.sort((a, b) => {
+      const dateA = new Date(a.publishedAt || 0).getTime();
+      const dateB = new Date(b.publishedAt || 0).getTime();
+      return dateB - dateA;
+    });
   } catch (error) {
     // We're explicitly logging the error here to ensure it's visible,
     // but then we're re-throwing it to propagate up to the API handler
@@ -86,9 +88,7 @@ export async function getAllTags(): Promise<string[]> {
     const posts = await getAllPosts();
 
     // Filter out posts with no tags and flatten the array
-    const allTags = posts
-      .filter((post) => post.tags && Array.isArray(post.tags))
-      .flatMap((post) => post.tags);
+    const allTags = posts.filter((post) => post.tags && Array.isArray(post.tags)).flatMap((post) => post.tags);
 
     // Create a set to remove duplicates
     const tags = new Set(allTags);

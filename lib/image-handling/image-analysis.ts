@@ -22,7 +22,8 @@
  */
 
 import sharp from "sharp";
-import { VALID_IMAGE_FORMATS } from "./constants";
+import { VALID_IMAGE_FORMATS } from "@/lib/constants";
+import type { LogoInversion, LogoBrightnessAnalysis } from "@/types";
 
 /**
  * Configuration constants for image analysis
@@ -54,79 +55,6 @@ export class ImageAnalysisError extends Error {
 }
 
 /**
- * Legacy interface for backwards compatibility
- * @deprecated Use LogoBrightnessAnalysis instead
- */
-export interface LogoInversion {
-  /** Average brightness value (0-255) */
-  brightness: number;
-  /** Whether the logo needs inversion in dark theme */
-  needsDarkInversion: boolean;
-  /** Whether the logo needs inversion in light theme */
-  needsLightInversion: boolean;
-  /** Whether the logo has transparency */
-  hasTransparency: boolean;
-  /** Image format (e.g., 'png', 'jpeg') */
-  format: string;
-  /** Image dimensions */
-  dimensions: {
-    /** Width in pixels */
-    width: number;
-    /** Height in pixels */
-    height: number;
-  };
-}
-
-/**
- * Results of analyzing a logo's brightness and characteristics
- * @interface
- */
-export interface LogoBrightnessAnalysis {
-  /** Average brightness value (0-255) */
-  averageBrightness: number;
-  /** Whether the logo is predominantly light-colored */
-  isLightColored: boolean;
-  /** Whether the logo needs inversion in light theme for contrast */
-  needsInversionInLightTheme: boolean;
-  /** Whether the logo needs inversion in dark theme for contrast */
-  needsInversionInDarkTheme: boolean;
-  /** Whether the logo contains transparent pixels */
-  hasTransparency: boolean;
-  /** Image format (e.g., 'png', 'jpeg') */
-  format: string;
-  /** Image dimensions */
-  dimensions: {
-    /** Width in pixels */
-    width: number;
-    /** Height in pixels */
-    height: number;
-  };
-}
-
-/**
- * Converts new analysis format to legacy format for backwards compatibility
- * @param {LogoBrightnessAnalysis} analysis - New format analysis results
- * @returns {LogoInversion} Legacy format analysis results
- * @internal
- *
- * @example
- * ```typescript
- * const newAnalysis = await analyzeLogo(buffer);
- * const legacyFormat = convertToLegacyFormat(newAnalysis);
- * ```
- */
-function convertToLegacyFormat(analysis: LogoBrightnessAnalysis): LogoInversion {
-  return {
-    brightness: analysis.averageBrightness,
-    needsDarkInversion: analysis.needsInversionInDarkTheme,
-    needsLightInversion: analysis.needsInversionInLightTheme,
-    hasTransparency: analysis.hasTransparency,
-    format: analysis.format,
-    dimensions: analysis.dimensions,
-  };
-}
-
-/**
  * Validates image format and dimensions
  * @param {sharp.Metadata} metadata - Image metadata from Sharp
  * @returns {void}
@@ -141,10 +69,7 @@ function convertToLegacyFormat(analysis: LogoBrightnessAnalysis): LogoInversion 
  */
 function validateImage(metadata: sharp.Metadata): void {
   const formatStr = metadata.format as string;
-  if (
-    !formatStr ||
-    !CONFIG.FORMATS.includes(formatStr as "png" | "jpeg" | "webp" | "gif" | "svg" | "ico")
-  ) {
+  if (!formatStr || !CONFIG.FORMATS.includes(formatStr as "png" | "jpeg" | "webp" | "gif" | "svg" | "ico")) {
     throw new ImageAnalysisError(
       `Invalid image format: ${metadata.format}. Must be one of: ${CONFIG.FORMATS.join(", ")}`,
     );
@@ -189,14 +114,10 @@ export async function analyzeLogo(buffer: Buffer): Promise<LogoBrightnessAnalysi
 
   // Resize for consistent analysis
   const resized = image
-    .resize(
-      Math.min(width, CONFIG.MAX_ANALYSIS_DIMENSION),
-      Math.min(height, CONFIG.MAX_ANALYSIS_DIMENSION),
-      {
-        fit: "inside",
-        withoutEnlargement: true,
-      },
-    )
+    .resize(Math.min(width, CONFIG.MAX_ANALYSIS_DIMENSION), Math.min(height, CONFIG.MAX_ANALYSIS_DIMENSION), {
+      fit: "inside",
+      withoutEnlargement: true,
+    })
     .raw()
     .grayscale();
 
@@ -300,10 +221,7 @@ export async function invertLogo(buffer: Buffer, preserveTransparency = true): P
  * const needsInversion = await doesLogoNeedInversion(buffer, false);
  * ```
  */
-export async function doesLogoNeedInversion(
-  buffer: Buffer,
-  isDarkTheme: boolean,
-): Promise<boolean> {
+export async function doesLogoNeedInversion(buffer: Buffer, isDarkTheme: boolean): Promise<boolean> {
   const analysis = await analyzeLogo(buffer);
   return isDarkTheme ? analysis.needsInversionInDarkTheme : analysis.needsInversionInLightTheme;
 }
@@ -314,7 +232,14 @@ export async function doesLogoNeedInversion(
  */
 export async function analyzeImage(buffer: Buffer): Promise<LogoInversion> {
   const analysis = await analyzeLogo(buffer);
-  return convertToLegacyFormat(analysis);
+  return {
+    brightness: analysis.averageBrightness,
+    needsDarkInversion: analysis.needsInversionInDarkTheme,
+    needsLightInversion: analysis.needsInversionInLightTheme,
+    hasTransparency: analysis.hasTransparency,
+    format: analysis.format,
+    dimensions: analysis.dimensions,
+  };
 }
 
 /** @deprecated Use invertLogo instead */

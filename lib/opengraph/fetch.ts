@@ -1,28 +1,22 @@
 /**
  * OpenGraph Fetch Module
- * 
+ *
  * Handles external HTML fetching with retry logic and circuit breaking
  * Responsible for all networking operations
- * 
+ *
  * @module opengraph/fetch
  */
 
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { getBrowserHeaders } from "@/lib/data-access/logos/external-fetch";
 import { hasDomainFailedTooManyTimes, markDomainAsFailed } from "@/lib/data-access/logos/session";
-import {
-  DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG,
-  waitForPermit,
-} from "@/lib/rate-limiter";
-import {
-  calculateBackoffDelay,
-  getDomainType,
-  sanitizeOgMetadata,
-  shouldRetryUrl,
-} from "@/lib/utils/opengraph-utils";
+import { DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG, waitForPermit } from "@/lib/rate-limiter";
+import { calculateBackoffDelay, getDomainType, shouldRetryUrl } from "@/lib/utils/opengraph-utils";
+import { sanitizeOgMetadata } from "@/lib/utils/opengraph-utils";
+import { ogMetadataSchema, type ValidatedOgMetadata } from "@/types/seo/opengraph";
 import { OPENGRAPH_FETCH_CONFIG, OPENGRAPH_FETCH_CONTEXT_ID, OPENGRAPH_FETCH_STORE_NAME } from "./constants";
 import { extractOpenGraphTags } from "./parser";
-import { selectBestOpenGraphImage } from "./imageSelector";
+import { selectBestOpenGraphImage } from "@/lib/image-handling/image-selector";
 import type { OgResult, KarakeepImageFallback } from "@/types";
 
 /**
@@ -32,7 +26,10 @@ import type { OgResult, KarakeepImageFallback } from "@/types";
  * @param fallbackImageData - Optional Karakeep fallback data
  * @returns Promise resolving to OpenGraph result or null if failed
  */
-export async function fetchExternalOpenGraphWithRetry(url: string, fallbackImageData?: KarakeepImageFallback): Promise<OgResult | null> {
+export async function fetchExternalOpenGraphWithRetry(
+  url: string,
+  fallbackImageData?: KarakeepImageFallback,
+): Promise<OgResult | { networkFailure: true; lastError: Error | null } | null> {
   let lastError: Error | null = null;
   let isPermanentFailure = false;
   let headers = getBrowserHeaders();
@@ -50,52 +47,62 @@ export async function fetchExternalOpenGraphWithRetry(url: string, fallbackImage
       }
 
       const result = await fetchExternalOpenGraph(url, fallbackImageData, headers);
-      
+
       // Handle special result types
-      if (result && typeof result === 'object' && 'permanentFailure' in result) {
+      if (result && typeof result === "object" && "permanentFailure" in result) {
         debug(`[DataAccess/OpenGraph] Permanent failure (${result.status}) for ${url}, stopping retries`);
         isPermanentFailure = true;
         return null;
       }
-      
-      if (result && typeof result === 'object' && 'blocked' in result && attempt === 0) {
-        // Try once more with Googlebot user agent for 403 responses
-        debug(`[DataAccess/OpenGraph] Access blocked for ${url}, retrying with Googlebot UA`);
-        headers = {
-          ...headers,
-          'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-        };
-        continue;
+
+      if (result && typeof result === "object" && "blocked" in result) {
+        if (attempt === 0) {
+          // Try once more with Googlebot user agent for 403 responses
+          debug(`[DataAccess/OpenGraph] Access blocked for ${url}, retrying with Googlebot UA`);
+          headers = {
+            ...headers,
+            "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+          };
+          continue;
+        }
+        // If still blocked after Googlebot retry, treat as permanent failure
+        debug(`[DataAccess/OpenGraph] Still blocked after Googlebot retry for ${url}, treating as permanent failure`);
+        return null;
       }
-      
-      if (result && !('permanentFailure' in result) && !('blocked' in result)) {
+
+      if (result && !("permanentFailure" in result) && !("blocked" in result)) {
         debug(`[DataAccess/OpenGraph] Successfully fetched on attempt ${attempt + 1}: ${url}`);
         return result;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      debugWarn(
-        `[DataAccess/OpenGraph] Attempt ${attempt + 1} failed for ${url}:`,
-        lastError.message,
-      );
+      debugWarn(`[DataAccess/OpenGraph] Attempt ${attempt + 1} failed for ${url}:`, lastError.message);
 
       // Check if we should retry this error
       if (!shouldRetryUrl(lastError)) {
-        debug(
-          `[DataAccess/OpenGraph] Non-retryable error, stopping attempts: ${lastError.message}`,
-        );
+        debug(`[DataAccess/OpenGraph] Non-retryable error, stopping attempts: ${lastError.message}`);
         break;
       }
     }
   }
 
-  if (!isPermanentFailure) {
-    console.error(
-      `[DataAccess/OpenGraph] All retry attempts exhausted for ${url}. Last error:`,
-      lastError?.message,
-    );
+  if (!isPermanentFailure && lastError) {
+    // Categorize common network errors as expected vs unexpected
+    const isNetworkError =
+      lastError.message.includes("fetch failed") ||
+      lastError.message.includes("ENOTFOUND") ||
+      lastError.message.includes("timeout") ||
+      lastError.message.includes("ECONNREFUSED");
+
+    if (isNetworkError) {
+      // Network errors are expected - log at debug level
+      debug(`[DataAccess/OpenGraph] Network connectivity issue for ${url}: ${lastError.message}`);
+    } else {
+      // Unexpected errors should be logged normally
+      console.error(`[DataAccess/OpenGraph] Unexpected error for ${url}:`, lastError.message || "Unknown error");
+    }
   }
-  return null;
+  return { networkFailure: true, lastError };
 }
 
 /**
@@ -108,16 +115,14 @@ export async function fetchExternalOpenGraphWithRetry(url: string, fallbackImage
  * @returns Promise resolving to OpenGraph result or special status object
  */
 async function fetchExternalOpenGraph(
-  url: string, 
+  url: string,
   fallbackImageData?: KarakeepImageFallback,
-  headers?: Record<string, string>
+  headers?: Record<string, string>,
 ): Promise<OgResult | { permanentFailure: true; status: number } | { blocked: true; status: number } | null> {
   // Check circuit breaker before attempting fetch
   const domain = getDomainType(url);
   if (hasDomainFailedTooManyTimes(domain)) {
-    debugWarn(
-      `[DataAccess/OpenGraph] Skipping ${url} - domain ${domain} has failed too many times`,
-    );
+    debugWarn(`[DataAccess/OpenGraph] Skipping ${url} - domain ${domain} has failed too many times`);
     return null;
   }
 
@@ -127,8 +132,7 @@ async function fetchExternalOpenGraph(
   // AbortSignal extends EventTarget which has setMaxListeners in Node.js
   if (
     "setMaxListeners" in controller.signal &&
-    typeof (controller.signal as { setMaxListeners?: (n: number) => void }).setMaxListeners ===
-      "function"
+    typeof (controller.signal as { setMaxListeners?: (n: number) => void }).setMaxListeners === "function"
   ) {
     (controller.signal as { setMaxListeners: (n: number) => void }).setMaxListeners(20);
   }
@@ -139,11 +143,7 @@ async function fetchExternalOpenGraph(
 
   try {
     // Wait for permit from rate limiter before making the external call
-    await waitForPermit(
-      OPENGRAPH_FETCH_STORE_NAME,
-      OPENGRAPH_FETCH_CONTEXT_ID,
-      DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG,
-    );
+    await waitForPermit(OPENGRAPH_FETCH_STORE_NAME, OPENGRAPH_FETCH_CONTEXT_ID, DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG);
 
     // Use provided headers or get default browser headers
     const requestHeaders = headers || getBrowserHeaders();
@@ -178,27 +178,47 @@ async function fetchExternalOpenGraph(
     const ogMetadata = extractOpenGraphTags(html, url, fallbackImageData);
     const sanitizedMetadata = sanitizeOgMetadata(ogMetadata);
 
+    // Validate sanitized metadata using Zod schema
+    const validationResult = ogMetadataSchema.safeParse(sanitizedMetadata);
+    const validatedMetadata: ValidatedOgMetadata = validationResult.success
+      ? validationResult.data
+      : {
+          title: null,
+          description: null,
+          image: null,
+          twitterImage: null,
+          site: null,
+          type: null,
+          profileImage: null,
+          bannerImage: null,
+          url: null,
+          siteName: null,
+        };
+
     // Select best image based on priority
-    const bestImageUrl = selectBestOpenGraphImage(sanitizedMetadata, response.url || url);
+    const bestImageUrl = selectBestOpenGraphImage(validatedMetadata, response.url || url);
 
     // Create result
     const result: OgResult = {
+      url: response.url || url,
+      finalUrl: response.url !== url ? response.url : undefined,
+      title: validatedMetadata.title || undefined,
+      description: validatedMetadata.description || undefined,
       imageUrl: bestImageUrl,
-      bannerImageUrl: sanitizedMetadata.bannerImage || null,
-      ogMetadata: sanitizedMetadata,
+      bannerImageUrl: validatedMetadata.bannerImage || null,
+      siteName: validatedMetadata.siteName || undefined,
       timestamp: Date.now(),
       source: "external",
-      actualUrl: response.url !== url ? response.url : undefined,
     };
 
     debug(`[DataAccess/OpenGraph] Extracted metadata for ${url}:`, {
-      title: sanitizedMetadata.title,
+      title: validatedMetadata.title,
       imageUrl: result.imageUrl,
       bannerImageUrl: result.bannerImageUrl,
     });
 
     return result;
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof Error && error.name === "AbortError") {
       const timeoutMessage = `Request timeout after ${OPENGRAPH_FETCH_CONFIG.TIMEOUT}ms`;
       debugWarn(`[DataAccess/OpenGraph] ${timeoutMessage} for ${url}`);

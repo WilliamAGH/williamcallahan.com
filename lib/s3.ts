@@ -14,13 +14,7 @@
  * ensuring it works with Next.js in both webpack and Bun environments.
  */
 
-import {
-  listS3Objects as awsListS3Objects,
-  deleteFromS3,
-  readFromS3,
-  writeJsonS3,
-  writeToS3,
-} from "@/lib/s3-utils";
+import { listS3Objects as awsListS3Objects, deleteFromS3, readFromS3, writeJsonS3, writeToS3 } from "@/lib/s3-utils";
 import type { S3ClientWrapper } from "@/types/s3";
 import { S3Client as AwsS3Client } from "@aws-sdk/client-s3";
 
@@ -100,9 +94,7 @@ export const s3Client: S3ClientWrapper = (() => {
               parts.push(chunk);
               return chunk.length;
             }
-            const buf = Buffer.from(
-              new Uint8Array(ArrayBuffer.isView(chunk) ? chunk.buffer : chunk),
-            );
+            const buf = Buffer.from(new Uint8Array(ArrayBuffer.isView(chunk) ? chunk.buffer : chunk));
             parts.push(buf);
             return buf.byteLength;
           },
@@ -110,9 +102,7 @@ export const s3Client: S3ClientWrapper = (() => {
             if (parts.length === 0) return;
             const data = parts.every((p) => typeof p === "string")
               ? parts.join("")
-              : Buffer.concat(
-                  parts.map((p) => (typeof p === "string" ? Buffer.from(p) : p)),
-                ).toString("utf-8");
+              : Buffer.concat(parts.map((p) => (typeof p === "string" ? Buffer.from(p) : p))).toString("utf-8");
             try {
               await writeJsonS3(key, JSON.parse(data));
             } catch {
