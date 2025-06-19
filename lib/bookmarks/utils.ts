@@ -3,7 +3,7 @@
  * @module lib/bookmarks/utils
  */
 
-import type { RawApiBookmarkContent, UnifiedBookmark } from "@/types/bookmark";
+import type { BookmarkTag, RawApiBookmarkContent, UnifiedBookmark } from "@/types/bookmark";
 import type { SerializableBookmark } from "@/types/features/bookmarks";
 
 /**
@@ -19,6 +19,38 @@ export function omitHtmlContent<T extends RawApiBookmarkContent>(content: T): Om
   // eslint-disable-next-line @typescript-eslint/naming-convention, @typescript-eslint/no-unused-vars
   const { htmlContent: _omit, ...rest } = content;
   return rest;
+}
+
+/**
+ * Normalizes a tag from either a string or a BookmarkTag object
+ * into a consistent, serializable format that matches SerializableBookmark requirements.
+ *
+ * @param tag The input tag (string or BookmarkTag object)
+ * @returns A normalized tag object with required id field
+ */
+export function normalizeBookmarkTag(tag: string | BookmarkTag): {
+  id: string;
+  name: string;
+  slug: string;
+  color?: string;
+} {
+  if (typeof tag === "string") {
+    return {
+      id: tag,
+      name: tag,
+      slug: tag.toLowerCase().replace(/\s+/g, "-"),
+      color: undefined,
+    };
+  }
+
+  // Defensively handle malformed tag objects
+  const name = tag?.name || "";
+  return {
+    id: tag?.id || name,
+    name: name,
+    slug: tag?.slug || name.toLowerCase().replace(/\s+/g, "-"),
+    color: tag?.color,
+  };
 }
 
 /**
