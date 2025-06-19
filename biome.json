@@ -1,7 +1,7 @@
 {
   "$schema": "https://biomejs.dev/schemas/1.x/schema.json",
   "organizeImports": {
-    "enabled": true
+    "enabled": false
   },
   "linter": {
     "enabled": true,
@@ -24,7 +24,7 @@
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 100,
+    "lineWidth": 120,
     "ignore": ["node_modules/**", ".next/**", "coverage/**"]
   },
   "files": {

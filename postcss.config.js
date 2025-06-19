@@ -8,20 +8,20 @@ export default {
   plugins: {
     // Tailwind CSS nesting support
     "tailwindcss/nesting": {},
-    
+
     // Tailwind CSS
-    "tailwindcss": {
+    tailwindcss: {
       config: "./config/tailwind.config.js",
     },
-    
+
     // Autoprefixer with modern browser support
-    "autoprefixer": {
+    autoprefixer: {
       // Support flexbox (IE10+) but not IE9 flexbox
       flexbox: "no-2009",
       // Disable grid autoplacement warnings for third-party CSS
       grid: false,
     },
-    
+
     // PostCSS Preset Env for modern CSS features
     "postcss-preset-env": {
       // Stage 3 features (stable)
@@ -36,4 +36,4 @@ export default {
       browsers: ["> 0.5%", "last 2 versions", "not dead", "not IE 11"],
     },
   },
-}; 
+};

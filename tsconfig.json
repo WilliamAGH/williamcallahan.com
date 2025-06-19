@@ -34,7 +34,7 @@
     },
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": false,
-    "noUncheckedIndexedAccess": false,
+    "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
     "noImplicitAny": false,
     "allowUmdGlobalAccess": true
