@@ -11,8 +11,7 @@ console.log("1. Checking global.fetch:");
 console.log("   Type:", typeof global.fetch);
 console.log(
   "   Is Jest Mock?:",
-  "_isMockFunction" in global.fetch &&
-    (global.fetch as { _isMockFunction?: boolean })._isMockFunction === true,
+  "_isMockFunction" in global.fetch && (global.fetch as { _isMockFunction?: boolean })._isMockFunction === true,
 );
 console.log("   Constructor name:", global.fetch?.constructor?.name);
 
@@ -77,11 +76,12 @@ import("../lib/bookmarks")
         .fetchExternalBookmarks()
         .then((bookmarks) => {
           console.log(`   Returned ${bookmarks.length} bookmarks`);
-          if (bookmarks.length > 0 && bookmarks[0].title === "Test Bookmark") {
+          const firstBookmark = bookmarks?.[0];
+          if (firstBookmark && firstBookmark.title === "Test Bookmark") {
             console.log("\n   ⚠️  WARNING: fetchExternalBookmarks is returning test data!");
-            console.log("   First bookmark:", JSON.stringify(bookmarks[0], null, 2));
-          } else if (bookmarks.length > 0) {
-            console.log("   First bookmark title:", bookmarks[0].title);
+            console.log("   First bookmark:", JSON.stringify(firstBookmark, null, 2));
+          } else if (firstBookmark) {
+            console.log("   First bookmark title:", firstBookmark.title);
             console.log("   ✓ Bookmarks appear to be real data");
           }
         })

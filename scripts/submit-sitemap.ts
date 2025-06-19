@@ -30,6 +30,7 @@ import "dotenv/config";
 import type { GaxiosError, GaxiosResponse } from "gaxios";
 import { type Auth, google } from "googleapis";
 import type { MetadataRoute } from "next";
+import type { GoogleIndexingUrlNotificationMetadata } from "@/types/lib";
 import sitemap from "../app/sitemap";
 
 /**
@@ -105,9 +106,7 @@ function getGoogleAuthClient(): Auth.JWT | null {
   const projectId = process.env.GOOGLE_PROJECT_ID;
 
   if (!clientEmail || !rawPrivateKey || !projectId) {
-    console.error(
-      "[GoogleAuth] ❌ Missing Google Service Account email, private key, or project ID in .env.",
-    );
+    console.error("[GoogleAuth] ❌ Missing Google Service Account email, private key, or project ID in .env.");
     return null;
   }
 
@@ -119,10 +118,7 @@ function getGoogleAuthClient(): Auth.JWT | null {
   return new google.auth.JWT({
     email: clientEmail,
     key: privateKey,
-    scopes: [
-      "https://www.googleapis.com/auth/webmasters",
-      "https://www.googleapis.com/auth/indexing",
-    ],
+    scopes: ["https://www.googleapis.com/auth/webmasters", "https://www.googleapis.com/auth/indexing"],
     subject: undefined,
   });
 }
@@ -135,11 +131,7 @@ function getGoogleAuthClient(): Auth.JWT | null {
  * @param {string} sitemapUrl - The full URL of the sitemap.xml file
  * @returns {Promise<boolean>} True if submission was successful, false otherwise
  */
-async function submitSitemapToGoogle(
-  authClient: Auth.JWT,
-  siteUrl: string,
-  sitemapUrl: string,
-): Promise<boolean> {
+async function submitSitemapToGoogle(authClient: Auth.JWT, siteUrl: string, sitemapUrl: string): Promise<boolean> {
   try {
     const webmasters = google.webmasters({ version: "v3", auth: authClient });
     await webmasters.sitemaps.submit({
@@ -172,9 +164,7 @@ async function submitSitemapToGoogle(
 async function submitSitemapToBing(siteUrl: string, sitemapUrl: string): Promise<boolean> {
   const indexNowKey = process.env.INDEXNOW_KEY;
   if (!indexNowKey) {
-    console.error(
-      "[SitemapSubmitBing] ❌ INDEXNOW_KEY not set. Skipping Bing/IndexNow submission.",
-    );
+    console.error("[SitemapSubmitBing] ❌ INDEXNOW_KEY not set. Skipping Bing/IndexNow submission.");
     return false;
   }
 
@@ -184,15 +174,11 @@ async function submitSitemapToBing(siteUrl: string, sitemapUrl: string): Promise
     const response = await fetch(indexnowUrl, { method: "GET" });
 
     if (response.ok) {
-      console.log(
-        `[SitemapSubmitBing] ✅ Successfully submitted sitemap (${sitemapUrl}) via IndexNow to Bing`,
-      );
+      console.log(`[SitemapSubmitBing] ✅ Successfully submitted sitemap (${sitemapUrl}) via IndexNow to Bing`);
       return true;
     }
 
-    console.error(
-      `[SitemapSubmitBing] ❌ IndexNow submission failed: ${response.status} ${response.statusText}`,
-    );
+    console.error(`[SitemapSubmitBing] ❌ IndexNow submission failed: ${response.status} ${response.statusText}`);
     return false;
   } catch (error) {
     const e = error as Error;
@@ -221,9 +207,7 @@ export async function submitSitemapFilesToSearchEngines(): Promise<void> {
 
   // Validate environment
   if (nodeEnv !== "production") {
-    console.log(
-      `[SitemapSubmit] ℹ️ NODE_ENV is '${nodeEnv}'. Sitemap submissions are skipped (requires 'production').`,
-    );
+    console.log(`[SitemapSubmit] ℹ️ NODE_ENV is '${nodeEnv}'. Sitemap submissions are skipped (requires 'production').`);
     return;
   }
 
@@ -243,16 +227,12 @@ export async function submitSitemapFilesToSearchEngines(): Promise<void> {
   // Get Google auth client
   const authClient = getGoogleAuthClient();
   if (!authClient) {
-    console.error(
-      "[SitemapSubmit] ❌ Could not create Google Auth client. Aborting Google sitemap submission.",
-    );
+    console.error("[SitemapSubmit] ❌ Could not create Google Auth client. Aborting Google sitemap submission.");
   }
 
   // Submit to both services in parallel
   const results = await Promise.allSettled([
-    authClient
-      ? submitSitemapToGoogle(authClient, currentSiteUrlFromEnv, sitemapUrl)
-      : Promise.resolve(false),
+    authClient ? submitSitemapToGoogle(authClient, currentSiteUrlFromEnv, sitemapUrl) : Promise.resolve(false),
     submitSitemapToBing(currentSiteUrlFromEnv, sitemapUrl),
   ]);
 
@@ -281,24 +261,6 @@ export async function submitSitemapFilesToSearchEngines(): Promise<void> {
 }
 
 /**
- * Interface for the expected response structure from Google Indexing API metadata endpoint.
- * @interface GoogleIndexingUrlNotificationMetadata
- */
-interface GoogleIndexingUrlNotificationMetadata {
-  /** The URL that was queried */
-  url: string;
-  /** Latest update information if available */
-  latestUpdate?: {
-    /** The URL that was updated */
-    url: string;
-    /** Type of notification sent */
-    type: "URL_UPDATED" | "URL_DELETED";
-    /** ISO timestamp when the notification was sent */
-    notifyTime: string;
-  };
-}
-
-/**
  * Gets the last notification status for a URL from Google Indexing API.
  * Used to avoid re-submitting URLs that have already been recently notified.
  *
@@ -306,10 +268,7 @@ interface GoogleIndexingUrlNotificationMetadata {
  * @param {Auth.JWT} authClient - Authenticated Google JWT client
  * @returns {Promise<string | null>} The notifyTime (ISO string) if available, otherwise null
  */
-async function getGoogleUrlNotificationStatus(
-  urlToQuery: string,
-  authClient: Auth.JWT,
-): Promise<string | null> {
+async function getGoogleUrlNotificationStatus(urlToQuery: string, authClient: Auth.JWT): Promise<string | null> {
   try {
     const metadataUrl = `https://indexing.googleapis.com/v3/urlNotifications/metadata?url=${encodeURIComponent(urlToQuery)}`;
 
@@ -331,9 +290,7 @@ async function getGoogleUrlNotificationStatus(
   } catch (error) {
     const gaxiosError = error as GaxiosError;
     if (gaxiosError.response?.status === 404) {
-      console.log(
-        `[GoogleIndexStatus] ℹ️ URL ${urlToQuery} not found in Indexing API (never submitted or expired).`,
-      );
+      console.log(`[GoogleIndexStatus] ℹ️ URL ${urlToQuery} not found in Indexing API (never submitted or expired).`);
       return null;
     }
     console.error(
@@ -403,9 +360,7 @@ export async function submitIndividualUrlsToGoogle(): Promise<void> {
 
   // Validate environment
   if (nodeEnv !== "production") {
-    console.log(
-      `[IndividualSubmit] ℹ️ NODE_ENV is '${nodeEnv}'. Skipping individual URL submissions.`,
-    );
+    console.log(`[IndividualSubmit] ℹ️ NODE_ENV is '${nodeEnv}'. Skipping individual URL submissions.`);
     return;
   }
 
@@ -420,15 +375,11 @@ export async function submitIndividualUrlsToGoogle(): Promise<void> {
   // Get Google auth client
   const authClient = getGoogleAuthClient();
   if (!authClient) {
-    console.error(
-      "[IndividualSubmit] ❌ Could not create Google Auth client. Aborting individual URL submissions.",
-    );
+    console.error("[IndividualSubmit] ❌ Could not create Google Auth client. Aborting individual URL submissions.");
     return;
   }
 
-  console.log(
-    `[IndividualSubmit] Starting individual URL submission (Env: ${nodeEnv}, Base URL: ${currentSiteUrl})`,
-  );
+  console.log(`[IndividualSubmit] Starting individual URL submission (Env: ${nodeEnv}, Base URL: ${currentSiteUrl})`);
 
   try {
     const entries: MetadataRoute.Sitemap = await sitemap();
@@ -454,9 +405,7 @@ export async function submitIndividualUrlsToGoogle(): Promise<void> {
       if (Number.isNaN(lastModifiedDate.getTime())) continue;
       if (Date.now() - lastModifiedDate.getTime() > FOURTEEN_DAYS_IN_MS) continue;
 
-      console.log(
-        `[IndividualSubmit] 🔎 Checking ${postUrl} (Modified: ${lastModifiedDate.toISOString()})`,
-      );
+      console.log(`[IndividualSubmit] 🔎 Checking ${postUrl} (Modified: ${lastModifiedDate.toISOString()})`);
 
       // Check if already notified recently
       const notifiedAt = await getGoogleUrlNotificationStatus(postUrl, authClient);
@@ -473,14 +422,9 @@ export async function submitIndividualUrlsToGoogle(): Promise<void> {
       }
     }
 
-    console.log(
-      `[IndividualSubmit] Processed ${processedCount}, submitted ${submittedCount} URLs.`,
-    );
+    console.log(`[IndividualSubmit] Processed ${processedCount}, submitted ${submittedCount} URLs.`);
   } catch (error) {
-    console.error(
-      "[IndividualSubmit] ❌ Error processing sitemap entries:",
-      (error as Error).message,
-    );
+    console.error("[IndividualSubmit] ❌ Error processing sitemap entries:", (error as Error).message);
   }
 }
 
@@ -506,19 +450,11 @@ async function main(): Promise<void> {
     runSitemaps = args.includes("--sitemaps-only") || args.includes("--all");
     runIndividual = args.includes("--individual-only") || args.includes("--all");
 
-    if (
-      !args.includes("--sitemaps-only") &&
-      !args.includes("--individual-only") &&
-      !args.includes("--all")
-    ) {
-      console.log(
-        "No specific tasks requested via args, running both sitemap and individual URL submissions.",
-      );
+    if (!args.includes("--sitemaps-only") && !args.includes("--individual-only") && !args.includes("--all")) {
+      console.log("No specific tasks requested via args, running both sitemap and individual URL submissions.");
     }
   } else {
-    console.log(
-      "No arguments provided, running both sitemap and individual URL submissions by default.",
-    );
+    console.log("No arguments provided, running both sitemap and individual URL submissions by default.");
   }
 
   if (runSitemaps) {

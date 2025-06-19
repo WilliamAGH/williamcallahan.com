@@ -104,9 +104,7 @@ async function createConsolidationPlan() {
 }
 
 function executeConsolidation() {
-  console.log(
-    "\n🚀 Would you like to execute this consolidation? (This script just shows the plan)\n",
-  );
+  console.log("\n🚀 Would you like to execute this consolidation? (This script just shows the plan)\n");
   console.log("Next steps:");
   console.log("1. Review the plan above");
   console.log("2. Manually move safe files to config/");
