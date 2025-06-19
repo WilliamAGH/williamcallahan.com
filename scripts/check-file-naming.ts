@@ -31,9 +31,7 @@ const FILE_PATTERNS = {
   KEBAB_CASE: /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:\.(client|server))?\.(tsx|ts)$/,
 };
 
-async function checkFile(
-  filePath: string,
-): Promise<{ file: string; issue: string; type: "error" | "warning" } | null> {
+async function checkFile(filePath: string): Promise<{ file: string; issue: string; type: "error" | "warning" } | null> {
   try {
     const content = await readFileAsync(filePath, "utf8");
     const fileName = path.basename(filePath);

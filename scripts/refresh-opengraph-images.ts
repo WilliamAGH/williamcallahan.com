@@ -8,7 +8,7 @@
  */
 
 import "dotenv/config"; // Make sure all environment variables are loaded
-import { getBookmarks } from "@/lib/data-access/bookmarks";
+import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import { isValidImageUrl } from "@/lib/utils/opengraph-utils";
 
@@ -19,11 +19,7 @@ import { isValidImageUrl } from "@/lib/utils/opengraph-utils";
  * @param timeoutValue - Value to return if timeout occurs
  * @returns Promise that resolves to either the result or timeout value
  */
-async function processWithTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  timeoutValue: T,
-): Promise<T> {
+async function processWithTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutValue: T): Promise<T> {
   const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(timeoutValue), timeoutMs));
   return Promise.race([promise, timeout]);
 }
@@ -64,9 +60,7 @@ async function refreshAllOpenGraphImages() {
         const itemNumber = processedCount;
 
         if (!bookmark.url) {
-          console.log(
-            `[${itemNumber}/${bookmarks.length}] Skipping bookmark ${bookmark.id} (no URL)`,
-          );
+          console.log(`[${itemNumber}/${bookmarks.length}] Skipping bookmark ${bookmark.id} (no URL)`);
           return { status: "skipped" };
         }
 

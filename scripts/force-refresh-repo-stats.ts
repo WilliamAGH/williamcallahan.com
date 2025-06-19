@@ -8,6 +8,8 @@
  * @module scripts/force-refresh-repo-stats
  */
 
+import type { RepoToUpdate } from "@/types/lib";
+
 import dotenv from "dotenv";
 dotenv.config(); // Load .env variables
 
@@ -17,15 +19,8 @@ import { writeBinaryS3 } from "../lib/s3-utils"; // Adjust path as needed
 
 // Support both the new preferred env var and legacy common names to reduce mis-config issues.
 const GITHUB_API_TOKEN =
-  process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH ||
-  process.env.GITHUB_API_TOKEN ||
-  process.env.GITHUB_TOKEN;
+  process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH || process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN;
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || "WilliamAGH";
-
-interface RepoToUpdate {
-  owner: string;
-  name: string;
-}
 
 const REPOS_TO_PROCESS: RepoToUpdate[] = [
   { owner: "aventurevc", name: "data-fusion-processor" },
@@ -75,9 +70,7 @@ async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWe
           .map((w: RepoRawWeeklyStat) => ({ w: w.w, a: w.a, d: w.d, c: w.c }))
           .sort((a, b) => a.w - b.w);
       }
-      console.log(
-        `[Script] No specific stats found for user ${GITHUB_REPO_OWNER} in ${owner}/${name}.`,
-      );
+      console.log(`[Script] No specific stats found for user ${GITHUB_REPO_OWNER} in ${owner}/${name}.`);
       return [];
     }
 
@@ -90,9 +83,7 @@ async function fetchStatsForRepo(owner: string, name: string): Promise<RepoRawWe
       continue;
     }
 
-    console.error(
-      `[Script] Error fetching stats for ${owner}/${name}: ${response.status} ${await response.text()}`,
-    );
+    console.error(`[Script] Error fetching stats for ${owner}/${name}: ${response.status} ${await response.text()}`);
     return []; // Return empty on persistent error
   }
   console.warn(`[Script] Max retries reached for ${owner}/${name}. Could not fetch stats.`);
@@ -147,9 +138,7 @@ async function main() {
     return;
   }
 
-  console.log(
-    "[Script] Starting forceful refresh of specified repo stats from /stats/contributors API...",
-  );
+  console.log("[Script] Starting forceful refresh of specified repo stats from /stats/contributors API...");
   for (const repo of REPOS_TO_PROCESS) {
     await processRepo(repo);
   }
