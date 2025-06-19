@@ -213,9 +213,9 @@ export async function monitoredAsync<T>(
     // Clear any pending timeout
     if (timeoutId) clearTimeout(timeoutId);
 
-    // Avoid double-logging if timeout already failed it
+    // Use atomic check-and-set to avoid race conditions
     const operation = asyncMonitor.getOperation(operationId);
-    if (operation?.status !== "timeout") {
+    if (operation && operation.status === "pending") {
       asyncMonitor.failOperation(operationId, error as Error);
     }
     throw error;
