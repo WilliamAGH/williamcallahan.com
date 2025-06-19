@@ -14,10 +14,11 @@ export const revalidate = 1800;
 
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "@/components/seo/json-ld";
-import { getBookmarksForStaticBuild } from "@/lib/bookmarks.server";
+import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { tagToSlug, sanitizeUnicode } from "@/lib/utils/tag-utils";
 import type { Metadata } from "next";
+import type { TagBookmarkContext } from "@/types";
 
 /**
  * Generate static paths for tag pages
@@ -39,9 +40,7 @@ export async function generateStaticParams() {
 /**
  * Generate metadata for this tag page
  */
-export async function generateMetadata({
-  params,
-}: { params: { tagSlug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: TagBookmarkContext): Promise<Metadata> {
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
   // Use sanitizeUnicode utility for consistency
@@ -99,11 +98,7 @@ export async function generateMetadata({
   };
 }
 
-interface TagPageProps {
-  params: { tagSlug: string };
-}
-
-export default async function TagPage({ params }: TagPageProps) {
+export default async function TagPage({ params }: TagBookmarkContext) {
   const allBookmarks = await getBookmarksForStaticBuild();
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
@@ -112,8 +107,8 @@ export default async function TagPage({ params }: TagPageProps) {
   const tagQuery = tagSlug.replace(/-/g, " ");
 
   const filtered = allBookmarks.filter((b) => {
-    const names = (Array.isArray(b.tags) ? b.tags : []).map(
-      (t: string | import("@/types").BookmarkTag) => (typeof t === "string" ? t : t.name),
+    const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
+      typeof t === "string" ? t : t.name,
     );
     return names.some((n) => n.toLowerCase() === tagQuery.toLowerCase());
   });
@@ -162,7 +157,7 @@ export default async function TagPage({ params }: TagPageProps) {
         <BookmarksServer
           title={pageTitle}
           description={pageDescription}
-          tag={displayTag}  // Use server-side tag filtering instead of pre-filtered bookmarks
+          tag={displayTag} // Use server-side tag filtering instead of pre-filtered bookmarks
           showFilterBar={true}
           titleSlug={tagSlug}
           initialPage={1}

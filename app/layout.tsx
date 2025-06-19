@@ -25,12 +25,7 @@ import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-regist
 // Re-add direct imports
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
 import { ClientTerminal } from "../components/ui/terminal/terminal.client";
-import {
-  SITE_DESCRIPTION,
-  SITE_NAME,
-  SITE_TITLE,
-  metadata as siteMetadata,
-} from "../data/metadata";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, metadata as siteMetadata } from "../data/metadata";
 import { Providers } from "./providers.client";
 
 import { Analytics } from "@/components/analytics/analytics.client";

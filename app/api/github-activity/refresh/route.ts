@@ -25,14 +25,17 @@ const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
 const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per hour per IP
 
 // Clean up expired entries every 5 minutes – unref so it doesn't hold the Node event-loop open in tests
-const cleanupInterval = setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of rateLimitMap.entries()) {
-    if (entry.resetTime < now) {
-      rateLimitMap.delete(key);
+const cleanupInterval = setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, entry] of rateLimitMap.entries()) {
+      if (entry.resetTime < now) {
+        rateLimitMap.delete(key);
+      }
     }
-  }
-}, 5 * 60 * 1000);
+  },
+  5 * 60 * 1000,
+);
 cleanupInterval.unref();
 
 /**
@@ -58,11 +61,17 @@ cleanupInterval.unref();
  * - Server logs provide detailed information on failures or unauthorized attempts.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Skip during build phase to prevent blocking
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    console.log("[API Refresh] Build phase detected - skipping GitHub activity refresh");
+    return NextResponse.json({ message: "Skipping refresh during build phase", buildPhase: true }, { status: 200 });
+  }
+
   // Check for cron job authentication first
   const authorizationHeader = request.headers.get("Authorization");
   const cronRefreshSecret = process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
   let isCronJob = false;
-  
+
   if (cronRefreshSecret && authorizationHeader && authorizationHeader.startsWith("Bearer ")) {
     const token = authorizationHeader.substring(7); // Remove "Bearer " prefix
     if (token === cronRefreshSecret) {
@@ -70,9 +79,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       console.log("[API Refresh] Authenticated as cron job via GITHUB_CRON_REFRESH_SECRET.");
     }
   }
-  
+
   let rateLimitEntry: { count: number; resetTime: number } | undefined;
-  
+
   // Only apply rate limiting if not a cron job
   if (!isCronJob) {
     // Extract IP for rate limiting
@@ -80,11 +89,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const realIp = request.headers.get("x-real-ip");
     const ip = forwarded?.split(",")[0] || realIp || "unknown";
     const rateLimitKey = `github-refresh:${ip}`;
-    
+
     // Check rate limit
     const now = Date.now();
     rateLimitEntry = rateLimitMap.get(rateLimitKey);
-    
+
     if (!rateLimitEntry || rateLimitEntry.resetTime < now) {
       // Create new entry
       rateLimitEntry = {
@@ -93,36 +102,36 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       };
       rateLimitMap.set(rateLimitKey, rateLimitEntry);
     }
-    
+
     // Increment request count
     rateLimitEntry.count++;
-    
+
     // Check if rate limit exceeded
     if (rateLimitEntry.count > RATE_LIMIT_MAX_REQUESTS) {
       const resetDate = new Date(rateLimitEntry.resetTime);
       console.warn(
-        `[API Refresh] Rate limit exceeded for IP ${ip}. Count: ${rateLimitEntry.count}, Limit: ${RATE_LIMIT_MAX_REQUESTS}`
+        `[API Refresh] Rate limit exceeded for IP ${ip}. Count: ${rateLimitEntry.count}, Limit: ${RATE_LIMIT_MAX_REQUESTS}`,
       );
-      
+
       return NextResponse.json(
         {
           message: "Rate limit exceeded. Please try again later.",
           code: "RATE_LIMIT_EXCEEDED",
           retryAfter: resetDate.toISOString(),
         },
-        { 
+        {
           status: 429,
           headers: {
             "X-RateLimit-Limit": RATE_LIMIT_MAX_REQUESTS.toString(),
             "X-RateLimit-Remaining": "0",
             "X-RateLimit-Reset": Math.floor(rateLimitEntry.resetTime / 1000).toString(),
             "Retry-After": Math.ceil((rateLimitEntry.resetTime - now) / 1000).toString(),
-          }
-        }
+          },
+        },
       );
     }
   }
-  
+
   // Skip x-refresh-secret check if authenticated as cron job
   if (!isCronJob) {
     const secret = request.headers.get("x-refresh-secret");
@@ -130,10 +139,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (!serverSecret) {
       console.error("[API Refresh] GITHUB_REFRESH_SECRET is not set – refusing to run refresh.");
-      return NextResponse.json(
-        { message: "Server mis-configuration: secret missing." },
-        { status: 500 },
-      );
+      return NextResponse.json({ message: "Server mis-configuration: secret missing." }, { status: 500 });
     }
 
     if (secret !== serverSecret) {
@@ -163,28 +169,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (result) {
       console.log("[API Refresh] GitHub activity data refresh completed successfully");
-      
+
       const responseData = {
         message: `GitHub activity data refresh completed successfully${isCronJob ? " (triggered by cron job)" : ""}.`,
         dataFetched: true,
         trailingYearCommits: result.trailingYearData.totalContributions,
         allTimeCommits: result.allTimeData.totalContributions,
       };
-      
+
       // Only add rate limit headers for non-cron requests
       if (!isCronJob && rateLimitEntry) {
         const remaining = Math.max(0, RATE_LIMIT_MAX_REQUESTS - rateLimitEntry.count);
-        
-        return NextResponse.json(responseData, { 
+
+        return NextResponse.json(responseData, {
           status: 200,
           headers: {
             "X-RateLimit-Limit": RATE_LIMIT_MAX_REQUESTS.toString(),
             "X-RateLimit-Remaining": remaining.toString(),
             "X-RateLimit-Reset": Math.floor(rateLimitEntry.resetTime / 1000).toString(),
-          }
+          },
         });
       }
-      
+
       return NextResponse.json(responseData, { status: 200 });
     }
     // Removed useless else: The previous if block returns early.
@@ -199,10 +205,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    console.error(
-      "[API Refresh] Critical error during GitHub activity data refresh:",
-      errorMessage,
-    );
+    console.error("[API Refresh] Critical error during GitHub activity data refresh:", errorMessage);
     return NextResponse.json(
       { message: "Failed to refresh GitHub activity data.", error: errorMessage },
       { status: 500 },

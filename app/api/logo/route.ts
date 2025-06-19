@@ -46,7 +46,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         domain = new URL(website).hostname.replace("www.", "");
       } catch {
         // If URL parsing fails, try using the website string directly
-        domain = website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
+        domain = website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0] ?? "";
       }
     } else if (company) {
       domain = company.toLowerCase().replace(/\s+/g, "");

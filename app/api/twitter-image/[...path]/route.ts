@@ -1,21 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-/**
- * Context for the dynamic route, containing the path parameter for Twitter images
- */
-interface TwitterImageContext {
-  params: { path: string[] };
-}
+import type { TwitterImageContext } from "@/types";
 
 /**
  * Implements exponential backoff retry mechanism for fetch requests
  */
-async function fetchWithRetry(
-  url: string,
-  options: RequestInit,
-  maxRetries = 3,
-): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -23,10 +14,7 @@ async function fetchWithRetry(
       const response = await fetch(url, options);
 
       // If response is OK or client error (4xx), don't retry
-      if (
-        response.ok ||
-        (response.status >= 400 && response.status < 500 && response.status !== 429)
-      ) {
+      if (response.ok || (response.status >= 400 && response.status < 500 && response.status !== 429)) {
         return response;
       }
 
@@ -38,9 +26,7 @@ async function fetchWithRetry(
 
         // Exponential backoff: 1s, 2s, 4s
         const delay = 2 ** attempt * 1000;
-        console.log(
-          `[Twitter Image Proxy] Retrying ${url} in ${delay}ms (attempt ${attempt + 1}/${maxRetries + 1})`,
-        );
+        console.log(`[Twitter Image Proxy] Retrying ${url} in ${delay}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
@@ -80,7 +66,7 @@ export async function GET(request: NextRequest, { params }: TwitterImageContext)
     let embeddedSearch = "";
     if (fullPath.includes("?")) {
       const [rawPath, ...rest] = fullPath.split("?");
-      pathOnly = rawPath;
+      pathOnly = rawPath ?? "";
       embeddedSearch = `?${rest.join("?")}`;
     }
 

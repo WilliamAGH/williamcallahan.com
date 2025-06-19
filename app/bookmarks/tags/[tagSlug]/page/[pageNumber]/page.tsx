@@ -15,24 +15,18 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "@/components/seo/json-ld";
-import { getBookmarksForStaticBuild } from "@/lib/bookmarks.server";
+import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { sanitizeUnicode } from "@/lib/utils/tag-utils";
 import { z } from "zod";
-
-interface PageProps {
-  params: {
-    tagSlug: string;
-    pageNumber: string;
-  };
-}
+import type { PaginatedTagBookmarkContext } from "@/types";
 
 /**
  * Generate metadata for the paginated tag bookmarks page
  */
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: PaginatedTagBookmarkContext): Promise<Metadata> {
   const paramsResolved = await Promise.resolve(params);
-  
+
   // Validate page number
   const PageParam = z.coerce.number().int().min(1);
   let pageNum: number;
@@ -47,11 +41,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // Get all bookmarks to find the tag and calculate pagination
   const allBookmarks = await getBookmarksForStaticBuild();
-  
+
   // Filter bookmarks by tag
   const taggedBookmarks = allBookmarks.filter((b) => {
-    const names = (Array.isArray(b.tags) ? b.tags : []).map(
-      (t: string | import("@/types").BookmarkTag) => (typeof t === "string" ? t : t.name),
+    const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
+      typeof t === "string" ? t : t.name,
     );
     return names.some((n) => n.toLowerCase() === tagQuery.toLowerCase());
   });
@@ -80,31 +74,37 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const path = `/bookmarks/tags/${paramsResolved.tagSlug}`;
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
-  const customTitle = pageNum === 1 
-    ? `${displayTag} Bookmarks | William Callahan`
-    : `${displayTag} Bookmarks - Page ${pageNum} | William Callahan`;
-  
-  const customDescription = pageNum === 1
-    ? `A collection of articles, websites, and resources I've saved about ${displayTag.toLowerCase()} for future reference.`
-    : `A collection of articles, websites, and resources I've saved about ${displayTag.toLowerCase()} for future reference. Page ${pageNum} of ${totalPages}.`;
+  const customTitle =
+    pageNum === 1
+      ? `${displayTag} Bookmarks | William Callahan`
+      : `${displayTag} Bookmarks - Page ${pageNum} | William Callahan`;
+
+  const customDescription =
+    pageNum === 1
+      ? `A collection of articles, websites, and resources I've saved about ${displayTag.toLowerCase()} for future reference.`
+      : `A collection of articles, websites, and resources I've saved about ${displayTag.toLowerCase()} for future reference. Page ${pageNum} of ${totalPages}.`;
 
   const metadata: Metadata = {
     ...baseMetadata,
     title: customTitle,
     description: customDescription,
     alternates: {
-      canonical: pageNum === 1 
-        ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}`
-        : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`,
+      canonical:
+        pageNum === 1
+          ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}`
+          : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`,
     },
-    openGraph: baseMetadata.openGraph ? {
-      ...baseMetadata.openGraph,
-      title: customTitle,
-      description: customDescription,
-      url: pageNum === 1 
-        ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}`
-        : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`,
-    } : undefined,
+    openGraph: baseMetadata.openGraph
+      ? {
+          ...baseMetadata.openGraph,
+          title: customTitle,
+          description: customDescription,
+          url:
+            pageNum === 1
+              ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}`
+              : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`,
+        }
+      : undefined,
     twitter: {
       ...baseMetadata.twitter,
       title: customTitle,
@@ -121,23 +121,24 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // Build pagination link tags for SEO
   const paginationLinks: Array<{ rel: string; url: string }> = [];
-  
+
   if (pageNum > 1) {
     paginationLinks.push({
       rel: "prev",
-      url: pageNum === 2
-        ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}`
-        : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum - 1}`,
+      url:
+        pageNum === 2
+          ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}`
+          : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum - 1}`,
     });
   }
-  
+
   if (pageNum < totalPages) {
     paginationLinks.push({
       rel: "next",
       url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum + 1}`,
     });
   }
-  
+
   if (paginationLinks.length > 0) {
     metadata.icons = {
       other: paginationLinks,
@@ -147,9 +148,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return metadata;
 }
 
-export default async function PaginatedTagBookmarksPage({ params }: PageProps) {
+export default async function PaginatedTagBookmarksPage({ params }: PaginatedTagBookmarkContext) {
   const paramsResolved = await Promise.resolve(params);
-  
+
   // Validate page number
   const PageParam = z.coerce.number().int().min(1);
   let pageNum: number;
@@ -170,14 +171,14 @@ export default async function PaginatedTagBookmarksPage({ params }: PageProps) {
   // Get all bookmarks and filter by tag
   const allBookmarks = await getBookmarksForStaticBuild();
   const taggedBookmarks = allBookmarks.filter((b) => {
-    const names = (Array.isArray(b.tags) ? b.tags : []).map(
-      (t: string | import("@/types").BookmarkTag) => (typeof t === "string" ? t : t.name),
+    const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
+      typeof t === "string" ? t : t.name,
     );
     return names.some((n) => n.toLowerCase() === tagQuery.toLowerCase());
   });
 
   const totalPages = Math.ceil(taggedBookmarks.length / 24);
-  
+
   if (pageNum > totalPages) {
     notFound();
   }
@@ -229,7 +230,7 @@ export default async function PaginatedTagBookmarksPage({ params }: PageProps) {
         <BookmarksServer
           title={pageTitle}
           description={pageDescription}
-          tag={displayTag}  // Use server-side tag filtering instead of pre-filtered bookmarks
+          tag={displayTag} // Use server-side tag filtering instead of pre-filtered bookmarks
           showFilterBar={true}
           titleSlug={tagSlug}
           initialPage={pageNum}

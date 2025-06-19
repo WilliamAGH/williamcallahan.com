@@ -24,11 +24,7 @@ let referenceGlobeIcon: Buffer | null = null;
  */
 async function getImageHash(buffer: Buffer): Promise<string> {
   try {
-    const normalized = await sharp(buffer)
-      .resize(16, 16, { fit: "fill" })
-      .grayscale()
-      .raw()
-      .toBuffer();
+    const normalized = await sharp(buffer).resize(16, 16, { fit: "fill" }).grayscale().raw().toBuffer();
 
     return createHash("sha256").update(normalized).digest("hex");
   } catch (error) {
@@ -99,10 +95,7 @@ async function compareImages(image1: Buffer, image2: Buffer): Promise<boolean> {
     let norm1: Buffer;
     let norm2: Buffer;
     try {
-      [norm1, norm2] = await Promise.all([
-        sharp(image1).png().toBuffer(),
-        sharp(image2).png().toBuffer(),
-      ]);
+      [norm1, norm2] = await Promise.all([sharp(image1).png().toBuffer(), sharp(image2).png().toBuffer()]);
     } catch (error) {
       console.error("Error normalizing images:", error);
       return false;

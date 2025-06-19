@@ -1,17 +1,17 @@
 /**
  * Debug endpoint for GitHub activity data
- * 
+ *
  * This endpoint provides diagnostic information about the GitHub activity system
  * without triggering any data refreshes or modifications.
  */
 
-import { 
-  GITHUB_ACTIVITY_S3_KEY_FILE, 
+import {
+  GITHUB_ACTIVITY_S3_KEY_FILE,
   GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK,
   GITHUB_STATS_SUMMARY_S3_KEY_FILE,
   ALL_TIME_SUMMARY_S3_KEY_FILE,
   REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
-  AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE
+  AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE,
 } from "@/lib/data-access/github";
 import { getS3ObjectMetadata, listS3Objects } from "@/lib/s3-utils";
 import { ServerCacheInstance } from "@/lib/server-cache";
@@ -25,14 +25,11 @@ export async function GET(): Promise<NextResponse> {
   const isProduction = process.env.NODE_ENV === "production";
   const isDevelopment = process.env.NODE_ENV === "development";
   const debugEnabled = isDevelopment && process.env.GITHUB_DEBUG !== "false";
-  
+
   if (isProduction || !debugEnabled) {
-    return NextResponse.json(
-      { message: "Debug endpoint is disabled" },
-      { status: 403 }
-    );
+    return NextResponse.json({ message: "Debug endpoint is disabled" }, { status: 403 });
   }
-  
+
   const diagnostics: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
     environment: {
@@ -58,7 +55,7 @@ export async function GET(): Promise<NextResponse> {
     },
     s3Status: {} as Record<string, unknown>,
   };
-  
+
   try {
     // Check main activity file
     const mainMeta = await getS3ObjectMetadata(GITHUB_ACTIVITY_S3_KEY_FILE);
@@ -68,9 +65,9 @@ export async function GET(): Promise<NextResponse> {
         exists: !!mainMeta,
         lastModified: mainMeta?.LastModified?.toISOString(),
         size: undefined,
-      }
+      },
     };
-    
+
     // Check fallback file
     const fallbackMeta = await getS3ObjectMetadata(GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK);
     diagnostics.s3Status = {
@@ -79,16 +76,16 @@ export async function GET(): Promise<NextResponse> {
         exists: !!fallbackMeta,
         lastModified: fallbackMeta?.LastModified?.toISOString(),
         size: undefined,
-      }
+      },
     };
-    
+
     // List weekly stats files with pagination limit to avoid S3 performance issues
     try {
       // Limit to first 10 files to prevent excessive S3 API calls
       const maxKeys = 10;
       const weeklyFiles = await listS3Objects(REPO_RAW_WEEKLY_STATS_S3_KEY_DIR);
       const limitedFiles = weeklyFiles.slice(0, maxKeys);
-      
+
       diagnostics.s3Status = {
         ...(diagnostics.s3Status as Record<string, unknown>),
         weeklyStatsCount: limitedFiles.length,
@@ -101,21 +98,20 @@ export async function GET(): Promise<NextResponse> {
         weeklyStatsError: err instanceof Error ? err.message : "Unknown error",
       };
     }
-    
   } catch (error) {
     diagnostics.s3Error = error instanceof Error ? error.message : "Unknown error";
   }
-  
+
   // Add scheduler info
   diagnostics.scheduler = {
     expectedCron: "0 0 * * * (daily at midnight PT)",
     note: "Check container/process logs for scheduler status",
   };
-  
-  return NextResponse.json(diagnostics, { 
+
+  return NextResponse.json(diagnostics, {
     status: 200,
     headers: {
       "Content-Type": "application/json",
-    }
+    },
   });
 }
