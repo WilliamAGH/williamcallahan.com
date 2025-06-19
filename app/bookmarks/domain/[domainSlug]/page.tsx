@@ -9,7 +9,7 @@
 // Configure dynamic rendering
 export const dynamic = "force-dynamic";
 
-import { getBookmarksForStaticBuild } from "@/lib/bookmarks.server";
+import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
 import { generateUniqueSlug, getDomainSlug } from "@/lib/utils/domain-utils";
 import { redirect } from "next/navigation";
 
@@ -17,15 +17,9 @@ import { redirect } from "next/navigation";
  * No static params for this page as it's just a redirector
  */
 
-interface DomainPageRedirectorProps {
-  params: { domainSlug: string };
-  searchParams: { id?: string | string[] };
-}
+import type { DomainPageRedirectorProps } from "@/types";
 
-export default async function DomainPageRedirector({
-  params,
-  searchParams,
-}: DomainPageRedirectorProps) {
+export default async function DomainPageRedirector({ params, searchParams }: DomainPageRedirectorProps) {
   const allBookmarks = await getBookmarksForStaticBuild();
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
@@ -53,11 +47,7 @@ export default async function DomainPageRedirector({
   });
 
   if (bookmarkWithDomain) {
-    const uniqueSlug = generateUniqueSlug(
-      bookmarkWithDomain.url,
-      allBookmarks,
-      bookmarkWithDomain.id,
-    );
+    const uniqueSlug = generateUniqueSlug(bookmarkWithDomain.url, allBookmarks, bookmarkWithDomain.id);
     redirect(`/bookmarks/${uniqueSlug}`);
   }
 

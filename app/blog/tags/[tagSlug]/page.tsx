@@ -3,7 +3,7 @@ import path from "node:path";
 import { BlogList } from "@/components/features/blog/blog-list";
 import { metadata } from "@/data/metadata";
 import { deslugify, kebabCase } from "@/lib/utils/formatters";
-import type { Author, BlogPost } from "@/types/blog";
+import type { Author, BlogPost, BlogPageFrontmatter } from "@/types/blog";
 import matter from "gray-matter";
 import type { Metadata } from "next";
 
@@ -11,18 +11,6 @@ import type { JSX } from "react";
 
 // Directory where blog posts are stored
 const postsDirectory = path.join(process.cwd(), "data/blog/posts");
-
-// Define the expected structure of frontmatter data for this page
-interface PageFrontmatter {
-  title: string;
-  publishedAt: string | Date; // gray-matter can parse dates
-  tags: string[];
-  author: string; // Assuming author in frontmatter is an ID string for this simplified getter
-  excerpt?: string;
-  updatedAt?: string | Date;
-  coverImage?: string;
-  // Add other fields if used from frontmatter by this specific getAllPosts
-}
 
 // Define the primary author based on site metadata
 const primaryAuthor: Author = {
@@ -48,21 +36,14 @@ function getAllPosts(): BlogPost[] {
         const fileContents = fs.readFileSync(filePath, "utf8");
         // Cast the frontmatter data to the defined interface, via unknown
         const { data: frontmatter, content: rawContent } = matter(fileContents) as unknown as {
-          data: PageFrontmatter;
+          data: BlogPageFrontmatter;
           content: string;
         };
         const slug = filename.replace(/\.mdx$/, "");
 
         // Basic validation using the typed frontmatter
-        if (
-          !frontmatter.title ||
-          !frontmatter.publishedAt ||
-          !frontmatter.tags ||
-          !frontmatter.author
-        ) {
-          console.warn(
-            `Skipping post ${filename}: Missing essential frontmatter (title, publishedAt, tags, author)`,
-          );
+        if (!frontmatter.title || !frontmatter.publishedAt || !frontmatter.tags || !frontmatter.author) {
+          console.warn(`Skipping post ${filename}: Missing essential frontmatter (title, publishedAt, tags, author)`);
           return null;
         }
 
@@ -118,9 +99,7 @@ export async function generateStaticParams(): Promise<{ tagSlug: string }[]> {
  * @param {string} params.tagSlug - The slug of the tag.
  * @returns {Promise<Metadata>} The metadata object for the page.
  */
-export async function generateMetadata({
-  params,
-}: { params: { tagSlug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: { tagSlug: string } }): Promise<Metadata> {
   // Use Promise.resolve to satisfy require-await rule
   const tagName = await Promise.resolve(deslugify(params.tagSlug));
   const title = `Posts tagged "${tagName}"`;
@@ -158,15 +137,11 @@ export async function generateMetadata({
  * @param {string} params.tagSlug - The URL-friendly tag slug.
  * @returns {JSX.Element} The rendered page component.
  */
-export default async function TagPage({
-  params,
-}: { params: { tagSlug: string } }): Promise<JSX.Element> {
+export default async function TagPage({ params }: { params: { tagSlug: string } }): Promise<JSX.Element> {
   const { tagSlug } = params;
   const allPosts = getAllPosts();
 
-  const filteredPosts = allPosts.filter((post) =>
-    post.tags.map((tag: string) => kebabCase(tag)).includes(tagSlug),
-  );
+  const filteredPosts = allPosts.filter((post) => post.tags.map((tag: string) => kebabCase(tag)).includes(tagSlug));
 
   // Wrap in Promise.resolve to satisfy linter's await-thenable rule
   const tagName = await Promise.resolve(deslugify(tagSlug));
@@ -176,11 +151,7 @@ export default async function TagPage({
       <h1 className="mb-8 text-3xl font-bold leading-tight tracking-tighter text-primary md:text-5xl">
         <span className="capitalize">{tagName}</span> Posts
       </h1>
-      {filteredPosts.length > 0 ? (
-        <BlogList posts={filteredPosts} />
-      ) : (
-        <p>No posts found for this tag.</p>
-      )}
+      {filteredPosts.length > 0 ? <BlogList posts={filteredPosts} /> : <p>No posts found for this tag.</p>}
     </div>
   );
 }

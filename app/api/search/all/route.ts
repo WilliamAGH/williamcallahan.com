@@ -6,12 +6,7 @@
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
-import {
-  searchBookmarks,
-  searchEducation,
-  searchExperience,
-  searchInvestments,
-} from "@/lib/search";
+import { searchBookmarks, searchEducation, searchExperience, searchInvestments } from "@/lib/search";
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { SearchResult } from "@/types/search";
 import { NextResponse } from "next/server";
@@ -40,12 +35,9 @@ export async function GET(request: Request) {
 
     // Validate and sanitize the query
     const validation = validateSearchQuery(rawQuery);
-    
+
     if (!validation.isValid) {
-      return NextResponse.json(
-        { error: validation.error || 'Invalid search query' },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: validation.error || "Invalid search query" }, { status: 400 });
     }
 
     const query = validation.sanitized;
@@ -65,15 +57,9 @@ export async function GET(request: Request) {
       searchBookmarks(query),
     ]);
 
-    const [blogResults, investmentResults, experienceResults, educationResults, bookmarkResults] = (
-      settled.map(getFulfilled) as [
-        SearchResult[],
-        SearchResult[],
-        SearchResult[],
-        SearchResult[],
-        SearchResult[],
-      ]
-    );
+    const [blogResults, investmentResults, experienceResults, educationResults, bookmarkResults] = settled.map(
+      getFulfilled,
+    ) as [SearchResult[], SearchResult[], SearchResult[], SearchResult[], SearchResult[]];
 
     // Add prefixes to non-blog results for clarity in the terminal
     const prefixedInvestmentResults = investmentResults.map((r) => ({
@@ -109,9 +95,6 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("Site-wide search API error:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    return NextResponse.json(
-      { error: "Failed to perform site-wide search", details: errorMessage },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to perform site-wide search", details: errorMessage }, { status: 500 });
   }
 }

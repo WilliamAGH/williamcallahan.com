@@ -26,8 +26,7 @@ import { getStaticPageMetadata } from "../../lib/seo/metadata";
 const PAGE_METADATA = {
   bookmarks: {
     title: "Bookmarks",
-    description:
-      "A collection of articles, websites, and resources I've bookmarked for future reference.",
+    description: "A collection of articles, websites, and resources I've bookmarked for future reference.",
     path: "/bookmarks",
   },
 };
@@ -56,11 +55,7 @@ export default function BookmarksPage() {
     <>
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-5xl mx-auto">
-        <BookmarksServer 
-          title={pageMetadata.title} 
-          description={pageMetadata.description}
-          initialPage={1}
-        />
+        <BookmarksServer title={pageMetadata.title} description={pageMetadata.description} initialPage={1} />
       </div>
     </>
   );

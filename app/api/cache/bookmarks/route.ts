@@ -8,6 +8,7 @@
  */
 
 import { ServerCacheInstance } from "@/lib/server-cache";
+import type { DataFetchOperationSummary } from "@/types/lib";
 import { NextResponse } from "next/server";
 
 // Ensure this route is not statically cached
@@ -50,9 +51,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       cached: !!cached,
       bookmarksCount: cached?.bookmarks.length || 0,
       lastFetchedAt: cached?.lastFetchedAt ? new Date(cached.lastFetchedAt).toISOString() : null,
-      lastAttemptedAt: cached?.lastAttemptedAt
-        ? new Date(cached.lastAttemptedAt).toISOString()
-        : null,
+      lastAttemptedAt: cached?.lastAttemptedAt ? new Date(cached.lastAttemptedAt).toISOString() : null,
       needsRefresh,
     },
   });
@@ -67,9 +66,18 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    // Forcibly refresh by calling the actual API
-    const { refreshBookmarksData } = await import("@/lib/bookmarks.client");
-    await refreshBookmarksData();
+    // Use DataFetchManager for centralized data fetching
+    const { DataFetchManager } = await import("@/lib/server/data-fetch-manager");
+    const manager = new DataFetchManager();
+    const results = await manager.fetchData({
+      bookmarks: true,
+      forceRefresh: true,
+    });
+
+    const bookmarkResult: DataFetchOperationSummary | undefined = results.find((r) => r.operation === "bookmarks");
+    if (!bookmarkResult?.success) {
+      throw new Error(bookmarkResult?.error ?? "Bookmark refresh failed");
+    }
 
     const cached = ServerCacheInstance.getBookmarks();
 

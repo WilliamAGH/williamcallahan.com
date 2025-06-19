@@ -34,10 +34,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     const query = searchParams.get("q");
 
     if (!query) {
-      return NextResponse.json(
-        { error: 'Search query parameter "q" is required' },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: 'Search query parameter "q" is required' }, { status: 400 });
     }
 
     // Call the imported server-side search function
@@ -48,9 +45,6 @@ export async function GET(request: Request): Promise<NextResponse> {
     console.error("Blog search API error:", error);
     // Determine if it's a known error type or generic
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    return NextResponse.json(
-      { error: "Failed to perform blog search", details: errorMessage },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to perform blog search", details: errorMessage }, { status: 500 });
   }
 }

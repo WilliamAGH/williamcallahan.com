@@ -47,8 +47,7 @@ export async function POST(request: NextRequest) {
     // Mirror status and headers (omit length-restricted headers)
     const responseHeaders = new Headers();
     upstreamResponse.headers.forEach((value, key) => {
-      if (key.toLowerCase() === "content-encoding" || key.toLowerCase() === "content-length")
-        return;
+      if (key.toLowerCase() === "content-encoding" || key.toLowerCase() === "content-length") return;
       responseHeaders.set(key, value);
     });
 

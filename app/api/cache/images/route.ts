@@ -6,16 +6,10 @@
  * Provides a consistent caching layer on top of Next.js image optimization.
  */
 
+import type { ImageCacheEntry } from "@/types/cache";
 import { type NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { ServerCacheInstance } from "../../../../lib/server-cache";
-
-// Cache image data with timestamp
-interface ImageCacheEntry {
-  buffer: Buffer;
-  contentType: string;
-  timestamp: number;
-}
 
 // Cache key prefix
 const IMAGE_CACHE_PREFIX = "optimized-image:";

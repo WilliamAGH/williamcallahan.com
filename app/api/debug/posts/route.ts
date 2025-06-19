@@ -5,6 +5,7 @@
  * and is only available in development mode.
  */
 
+import type { MDXPost, AuthorIssue, FrontmatterIssue, ErrorInfo } from "@/types/debug";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { authors } from "@/data/blog/authors";
@@ -22,25 +23,6 @@ import type { NextRequest } from "next/server";
 //   }
 // }
 
-interface MDXPost {
-  slug: string;
-  // Add other fields as needed
-}
-
-interface AuthorIssue {
-  [filename: string]: string;
-}
-
-interface FrontmatterIssue {
-  [filename: string]: string[];
-}
-
-interface ErrorInfo {
-  message: string;
-  stack?: string;
-  cause?: unknown;
-}
-
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // SECURITY: Require authentication for debug endpoints
@@ -53,10 +35,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // In production, return a simple "not available" message instead of throwing an error
     if (process.env.NODE_ENV !== "development") {
-      return NextResponse.json(
-        { message: "Debug information is only available in development mode" },
-        { status: 403 },
-      );
+      return NextResponse.json({ message: "Debug information is only available in development mode" }, { status: 403 });
     }
 
     // Get information about the posts directory - BUT DON'T EXPOSE PATHS
@@ -112,8 +91,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           authorIssues[filename] = "No author found in frontmatter";
         }
       } catch (error) {
-        authorIssues[filename] =
-          `Error checking author: ${error instanceof Error ? error.message : String(error)}`;
+        authorIssues[filename] = `Error checking author: ${error instanceof Error ? error.message : String(error)}`;
       }
     });
 
@@ -193,10 +171,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         stack: undefined,
       },
       {
-        status:
-          error instanceof Error && error.message.includes("only available in development")
-            ? 403
-            : 500,
+        status: error instanceof Error && error.message.includes("only available in development") ? 403 : 500,
       },
     );
   }

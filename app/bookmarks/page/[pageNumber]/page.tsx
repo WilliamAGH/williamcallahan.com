@@ -19,14 +19,9 @@ import { notFound, redirect } from "next/navigation";
 import { BookmarksServer } from "../../../../components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "../../../../components/seo/json-ld";
 import { getStaticPageMetadata } from "../../../../lib/seo/metadata";
-import { getBookmarks } from "../../../../lib/data-access/bookmarks";
+import { getBookmarks } from "../../../../lib/bookmarks/bookmarks-data-access.server";
 import { z } from "zod";
-
-interface PageProps {
-  params: {
-    pageNumber: string;
-  };
-}
+import type { PaginatedBookmarkContext, UnifiedBookmark } from "@/types";
 
 /**
  * Page Metadata for paginated bookmarks
@@ -34,8 +29,7 @@ interface PageProps {
 const PAGE_METADATA = {
   bookmarks: {
     title: "Bookmarks",
-    description:
-      "A collection of articles, websites, and resources I've bookmarked for future reference.",
+    description: "A collection of articles, websites, and resources I've bookmarked for future reference.",
     path: "/bookmarks",
   },
 };
@@ -43,9 +37,9 @@ const PAGE_METADATA = {
 /**
  * Generate metadata for the paginated Bookmarks page
  */
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: PaginatedBookmarkContext): Promise<Metadata> {
   const paramsResolved = await Promise.resolve(params);
-  
+
   // Strict runtime validation for the dynamic route param
   const PageParam = z.coerce.number().int().min(1);
   let pageNum: number;
@@ -56,35 +50,36 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   // Get total count for meta description
-  const bookmarks = await getBookmarks();
+  const bookmarks: UnifiedBookmark[] = await getBookmarks();
   const totalPages = Math.ceil(bookmarks.length / 24);
 
   const baseMetadata = getStaticPageMetadata("/bookmarks", "bookmarks") as Metadata;
-  
+
   // Add pagination-specific metadata
   const metadata: Metadata = {
     ...baseMetadata,
-    title: pageNum === 1 
-      ? baseMetadata.title 
-      : `${PAGE_METADATA.bookmarks.title} - Page ${pageNum}`,
-    description: pageNum === 1
-      ? baseMetadata.description
-      : `${PAGE_METADATA.bookmarks.description} Page ${pageNum} of ${totalPages}.`,
+    title: pageNum === 1 ? baseMetadata.title : `${PAGE_METADATA.bookmarks.title} - Page ${pageNum}`,
+    description:
+      pageNum === 1
+        ? baseMetadata.description
+        : `${PAGE_METADATA.bookmarks.description} Page ${pageNum} of ${totalPages}.`,
     alternates: {
       ...baseMetadata.alternates,
-      canonical: pageNum === 1 
-        ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks`
-        : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum}`,
+      canonical:
+        pageNum === 1
+          ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks`
+          : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum}`,
     },
-    openGraph: baseMetadata.openGraph ? {
-      ...baseMetadata.openGraph,
-      title: pageNum === 1 
-        ? PAGE_METADATA.bookmarks.title 
-        : `${PAGE_METADATA.bookmarks.title} - Page ${pageNum}`,
-      url: pageNum === 1 
-        ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks`
-        : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum}`,
-    } : undefined,
+    openGraph: baseMetadata.openGraph
+      ? {
+          ...baseMetadata.openGraph,
+          title: pageNum === 1 ? PAGE_METADATA.bookmarks.title : `${PAGE_METADATA.bookmarks.title} - Page ${pageNum}`,
+          url:
+            pageNum === 1
+              ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks`
+              : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum}`,
+        }
+      : undefined,
     robots: {
       index: true,
       follow: true,
@@ -96,23 +91,24 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // Build pagination link tags for SEO using icons.other workaround
   const paginationLinks: Array<{ rel: string; url: string }> = [];
-  
+
   if (pageNum > 1) {
     paginationLinks.push({
       rel: "prev",
-      url: pageNum === 2
-        ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks`
-        : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum - 1}`,
+      url:
+        pageNum === 2
+          ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks`
+          : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum - 1}`,
     });
   }
-  
+
   if (pageNum < totalPages) {
     paginationLinks.push({
       rel: "next",
       url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum + 1}`,
     });
   }
-  
+
   // Use icons.other as a workaround to generate <link> tags
   if (paginationLinks.length > 0) {
     metadata.icons = {
@@ -123,9 +119,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return metadata;
 }
 
-export default async function PaginatedBookmarksPage({ params }: PageProps) {
+export default async function PaginatedBookmarksPage({ params }: PaginatedBookmarkContext) {
   const paramsResolved = await Promise.resolve(params);
-  
+
   // Re-use the same Zod schema to validate/parse the page param
   const PageParam = z.coerce.number().int().min(1);
   let pageNum: number;
@@ -141,9 +137,9 @@ export default async function PaginatedBookmarksPage({ params }: PageProps) {
   }
 
   // Get bookmarks to check if page exists
-  const bookmarks = await getBookmarks();
+  const bookmarks: UnifiedBookmark[] = await getBookmarks();
   const totalPages = Math.ceil(bookmarks.length / 24);
-  
+
   if (pageNum > totalPages) {
     notFound();
   }
@@ -169,11 +165,7 @@ export default async function PaginatedBookmarksPage({ params }: PageProps) {
     <>
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-5xl mx-auto">
-        <BookmarksServer 
-          title={pageMetadata.title} 
-          description={pageMetadata.description}
-          initialPage={pageNum}
-        />
+        <BookmarksServer title={pageMetadata.title} description={pageMetadata.description} initialPage={pageNum} />
       </div>
     </>
   );

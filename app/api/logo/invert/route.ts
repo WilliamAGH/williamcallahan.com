@@ -8,8 +8,8 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { analyzeImage, invertImage, needsInversion } from "../../../../lib/imageAnalysis";
-import { ServerCacheInstance } from "../../../../lib/server-cache";
+import { analyzeImage, invertImage, needsInversion } from "@/lib/image-handling/image-analysis";
+import { ServerCacheInstance } from "@/lib/server-cache";
 
 /**
  * Safely parse and validate URL
@@ -190,10 +190,7 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
 
     return new NextResponse(null, {
       headers: {
-        "X-Needs-Inversion": (isDarkTheme
-          ? analysis.needsDarkInversion
-          : analysis.needsLightInversion
-        ).toString(),
+        "X-Needs-Inversion": (isDarkTheme ? analysis.needsDarkInversion : analysis.needsLightInversion).toString(),
         "X-Has-Transparency": analysis.hasTransparency.toString(),
         "X-Brightness": analysis.brightness.toString(),
         "Cache-Control": "public, max-age=31536000",
