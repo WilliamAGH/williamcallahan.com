@@ -7,28 +7,52 @@
  * This is a shared component that can be used in both client and server contexts.
  */
 
-import type { TerminalCommand } from "@/types/terminal";
-
-interface HistoryProps {
-  history: TerminalCommand[];
-}
+import type { HistoryProps, TerminalCommand } from "@/types";
+import {
+  isTextCommand,
+  isNavigationCommand,
+  isClearCommand,
+  isErrorCommand,
+  isHelpCommand,
+  isSelectionCommand,
+} from "@/types";
 
 export function History({ history }: HistoryProps) {
+  const getOutputContent = (line: TerminalCommand): string | null => {
+    if (isTextCommand(line) || isNavigationCommand(line) || isClearCommand(line)) {
+      return line.output;
+    }
+    if (isErrorCommand(line)) {
+      return line.error + (line.details ? `\n${line.details}` : "");
+    }
+    if (isHelpCommand(line)) {
+      return line.commands
+        .map((cmd) => `${cmd.name}: ${cmd.description}${cmd.usage ? ` (${cmd.usage})` : ""}`)
+        .join("\n");
+    }
+    if (isSelectionCommand(line)) {
+      return line.items.map((item) => `${item.label}: ${item.description}`).join("\n");
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-1 mb-4">
-      {history.map((line, i) => (
-        <div key={`${line.input}-${line.output}-${i}`}>
-          {line.input && (
-            <div className="flex items-start">
-              <span className="text-[#7aa2f7] select-none mr-2 shrink-0">$</span>
-              <span className="text-gray-300 break-words">{line.input}</span>
+      {Array.isArray(history) &&
+        history.map((line: TerminalCommand, i) => {
+          const outputContent = getOutputContent(line);
+          return (
+            <div key={`${line.input}-${line.id}-${i}`}>
+              {line.input && (
+                <div className="flex items-start">
+                  <span className="text-[#7aa2f7] select-none mr-2 shrink-0">$</span>
+                  <span className="text-gray-300 break-words">{line.input}</span>
+                </div>
+              )}
+              {outputContent && <div className="text-gray-300 whitespace-pre-wrap break-words">{outputContent}</div>}
             </div>
-          )}
-          {line.output && (
-            <div className="text-gray-300 whitespace-pre-wrap break-words">{line.output}</div>
-          )}
-        </div>
-      ))}
+          );
+        })}
     </div>
   );
 }

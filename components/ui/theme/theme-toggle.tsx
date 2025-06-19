@@ -31,12 +31,8 @@ export function ThemeToggle() {
   const toggleTheme = () => {
     const newTheme = isDark ? "light" : "dark";
     if (isDevelopment) {
-      console.log(
-        `[ThemeDev] ThemeToggle: User clicked. Current resolvedTheme: '${resolvedTheme}'.`,
-      );
-      console.log(
-        `[ThemeDev] ThemeToggle: ACTION - Setting theme to '${newTheme}'. (User override)`,
-      );
+      console.log(`[ThemeDev] ThemeToggle: User clicked. Current resolvedTheme: '${resolvedTheme}'.`);
+      console.log(`[ThemeDev] ThemeToggle: ACTION - Setting theme to '${newTheme}'. (User override)`);
     }
     setTheme(newTheme);
     try {
@@ -46,10 +42,7 @@ export function ThemeToggle() {
       }
     } catch (error) {
       if (isDevelopment) {
-        console.error(
-          "[ThemeDev] ThemeToggle: Error setting theme timestamp in localStorage.",
-          error,
-        );
+        console.error("[ThemeDev] ThemeToggle: Error setting theme timestamp in localStorage.", error);
       }
       // Consider setting a fallback indicator or using an alternative storage method
     }

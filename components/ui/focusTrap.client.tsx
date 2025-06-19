@@ -9,13 +9,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-
-interface FocusTrapProps {
-  children: React.ReactNode;
-  active: boolean;
-  initialFocus?: boolean;
-  onEscape?: () => void;
-}
+import type { FocusTrapExtendedProps as FocusTrapProps } from "@/types/ui";
 
 /**
  * FocusTrap Component

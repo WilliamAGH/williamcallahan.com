@@ -39,43 +39,45 @@ export function useTerminal() {
     if (!input.trim()) return;
 
     const commandInput = input.trim();
-    // Removed immediate addToHistory call here
 
     try {
-      const result = await handleCommand(commandInput); // Use trimmed input
+      const result = await handleCommand(commandInput);
 
       if (result.clear) {
-        clearHistory(); // Use context clearHistory
+        clearHistory();
       } else {
         if (result.selectionItems) {
           setSelection(result.selectionItems);
-        } else {
-          // Add command and first output line together
-          if (result.results.length > 0) {
-            addToHistory({ input: commandInput, output: result.results[0]?.output ?? "" });
-            // Add subsequent output lines without input
-            for (const item of result.results.slice(1)) {
-              addToHistory({ input: "", output: item?.output ?? "" });
-            }
-          } else {
-            // If handleCommand returns no results (e.g., unexpected case), still add the input
-            addToHistory({ input: commandInput, output: "" });
-          }
+        }
 
-          if (result.navigation) {
-            router.push(result.navigation);
+        if (result.results && result.results.length > 0) {
+          for (const res of result.results) {
+            addToHistory(res);
           }
+        } else if (!result.selectionItems) {
+          // If handleCommand returns no results and no selection, still add the input
+          addToHistory({
+            type: "text",
+            id: crypto.randomUUID(),
+            input: commandInput,
+            output: "",
+            timestamp: Date.now(),
+          });
+        }
+
+        if (result.navigation) {
+          router.push(result.navigation);
         }
       }
-    } catch (error) {
-      console.error(
-        "Command execution error:",
-        error instanceof Error ? error.message : "Unknown error",
-      ); // Log error safely
-      // Add error output associated with the input command
+    } catch (error: unknown) {
+      console.error("Command execution error:", error instanceof Error ? error.message : "Unknown error");
+      // Add a generic error to history for unexpected failures
       addToHistory({
-        input: commandInput, // Associate error with the command that caused it
-        output: "An error occurred while processing the command.",
+        type: "error",
+        id: crypto.randomUUID(),
+        input: commandInput,
+        error: "An unexpected error occurred. Please try again.",
+        timestamp: Date.now(),
       });
     }
 

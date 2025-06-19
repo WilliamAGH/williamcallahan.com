@@ -17,7 +17,7 @@
 "use client";
 
 import { type JSX, isValidElement, useCallback, useEffect, useRef, useState } from "react"; // Import useEffect, useRef, useCallback, isValidElement
-import type { ComponentProps, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useWindowSize } from "../../../lib/hooks/use-window-size.client";
 import { cn } from "../../../lib/utils";
 import { WindowControls } from "../navigation/window-controls";
@@ -26,19 +26,7 @@ import { CopyButton } from "./copy-button.client";
 // Note: Prism CSS is loaded globally in layout.tsx
 // We rely on rehype-prism for build-time syntax highlighting
 
-/**
- * Props for the CodeBlock component
- * @interface CodeBlockProps
- * @extends {ComponentProps<'pre'>} - Extends pre element props
- */
-export interface CodeBlockProps extends ComponentProps<"pre"> {
-  /** The content to be displayed in the code block */
-  children: React.ReactNode;
-  /** Optional className override */
-  className?: string;
-  /** If true, indicates the CodeBlock is embedded within another tabbed MacOSFrame, influencing its chrome */
-  embeddedInTabFrame?: boolean;
-}
+import type { CodeBlockProps } from "@/types";
 
 /**
  * Extract language from className (e.g., "language-typescript" -> "typescript")
@@ -118,11 +106,7 @@ export const CodeBlock = ({
 
   // Determine the appropriate control size based on screen width
   const controlSize =
-    windowSize.width && windowSize.width < 640
-      ? "sm"
-      : windowSize.width && windowSize.width > 1280
-        ? "lg"
-        : "md";
+    windowSize.width && windowSize.width < 640 ? "sm" : windowSize.width && windowSize.width > 1280 ? "lg" : "md";
 
   /**
    * Handler function for close button - toggles visibility
@@ -193,9 +177,7 @@ export const CodeBlock = ({
   });
 
   // Extract the text content
-  const content = Array.isArray(children)
-    ? children.map(getTextContent).join("")
-    : getTextContent(children);
+  const content = Array.isArray(children) ? children.map(getTextContent).join("") : getTextContent(children);
 
   // Preserve original content for display but filter comments for copy functionality
   const filteredContent = filterComments(content);
@@ -207,12 +189,7 @@ export const CodeBlock = ({
   if (!isVisible) {
     // Common content for both button and div versions
     const contentSection = (
-      <div
-        className={cn(
-          "text-gray-400",
-          embeddedInTabFrame ? "w-full text-center" : "ml-1.5 sm:ml-2.5 md:ml-3.5",
-        )}
-      >
+      <div className={cn("text-gray-400", embeddedInTabFrame ? "w-full text-center" : "ml-1.5 sm:ml-2.5 md:ml-3.5")}>
         <span>Code block hidden (click to show)</span>
         {language && !embeddedInTabFrame && (
           <span style={{ fontSize: "12px" }} className="not-prose ml-1 sm:ml-2 opacity-75">
@@ -321,12 +298,7 @@ export const CodeBlock = ({
         {/* Content (pre + CopyButton) */}
         {/* Ensure this div is present and `relative group` for CopyButton positioning */}
         {!isMinimized && (
-          <div
-            className={cn(
-              "relative group",
-              isMaximized && !embeddedInTabFrame && "flex-1 overflow-hidden",
-            )}
-          >
+          <div className={cn("relative group", isMaximized && !embeddedInTabFrame && "flex-1 overflow-hidden")}>
             <pre
               className={cn(
                 "not-prose max-w-full",

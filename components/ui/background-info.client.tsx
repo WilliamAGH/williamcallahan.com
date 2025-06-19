@@ -9,19 +9,9 @@
 "use client";
 
 import { ChevronDown, ChevronUp, InfoIcon } from "lucide-react";
-import { type JSX, type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { type JSX, useEffect, useId, useRef, useState } from "react";
+import type { LocalBackgroundInfoProps } from "@/types/ui";
 import { cn } from "../../lib/utils";
-
-interface BackgroundInfoProps {
-  /** The content to display inside the box */
-  children: ReactNode;
-  /** Optional title for the background info box (defaults to "Background Info") */
-  title?: string;
-  /** Optional CSS class name for additional styling. */
-  className?: string;
-  /** Optional icon to display (defaults to InfoIcon). */
-  icon?: ReactNode;
-}
 
 /**
  * A client component that renders a collapsible box for supplementary background information.
@@ -35,7 +25,7 @@ export function BackgroundInfo({
   title = "Background Info",
   className = "",
   icon = <InfoIcon className="w-4 h-4" />,
-}: BackgroundInfoProps): JSX.Element | null {
+}: LocalBackgroundInfoProps): JSX.Element | null {
   const [isExpanded, setIsExpanded] = useState(false); // Whether the content is expanded on mobile
   const [showToggleButton, setShowToggleButton] = useState(false); // Whether to show the "Read more/less" button
   const [isMounted, setIsMounted] = useState(false); // Tracks if the component has mounted on the client
@@ -60,13 +50,10 @@ export function BackgroundInfo({
         if (contentRef.current) {
           const buffer = 16; // Buffer to prevent toggle for slightly taller content
           const collapsedHeightThreshold = 144; // Corresponds to max-h-36 (1rem = 16px, 9rem = 144px)
-          const isContentSignificantlyTaller =
-            contentRef.current.scrollHeight > collapsedHeightThreshold + buffer;
+          const isContentSignificantlyTaller = contentRef.current.scrollHeight > collapsedHeightThreshold + buffer;
 
           // Only update if the value actually changes to prevent unnecessary re-renders
-          setShowToggleButton((prev) =>
-            prev !== isContentSignificantlyTaller ? isContentSignificantlyTaller : prev,
-          );
+          setShowToggleButton((prev) => (prev !== isContentSignificantlyTaller ? isContentSignificantlyTaller : prev));
         }
       }, 0);
     };
@@ -118,12 +105,7 @@ export function BackgroundInfo({
       </div>
 
       {/* Content: suppressHydrationWarning might still be helpful as a fallback */}
-      <div
-        id={contentId}
-        ref={contentRef}
-        className={contentClasses}
-        suppressHydrationWarning={true}
-      >
+      <div id={contentId} ref={contentRef} className={contentClasses} suppressHydrationWarning={true}>
         {children}
       </div>
 
@@ -140,11 +122,7 @@ export function BackgroundInfo({
             aria-controls={contentId}
           >
             {isExpanded ? "Read less" : "Read more"}
-            {isExpanded ? (
-              <ChevronUp className="ml-1 h-4 w-4" />
-            ) : (
-              <ChevronDown className="ml-1 h-4 w-4" />
-            )}
+            {isExpanded ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />}
           </button>
         </div>
       )}

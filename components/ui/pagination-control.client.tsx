@@ -1,22 +1,9 @@
 "use client";
 
-import type React from 'react';
-import { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
-
-interface PaginationControlProps {
-  currentPage?: number;
-  totalPages?: number;
-  totalItems?: number;
-  itemsPerPage?: number;
-  onPageChange?: (page: number) => void;
-  isLoading?: boolean;
-  disabled?: boolean;
-  showFirstLast?: boolean;
-  showPageInfo?: boolean;
-  maxVisiblePages?: number;
-  className?: string;
-}
+import type React from "react";
+import { useState, useEffect, useCallback } from "react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from "lucide-react";
+import type { PaginationControlProps } from "@/types";
 
 export const PaginationControl: React.FC<PaginationControlProps> = ({
   currentPage = 1,
@@ -29,7 +16,7 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
   showFirstLast = true,
   showPageInfo = true,
   maxVisiblePages = 5,
-  className = ''
+  className = "",
 }) => {
   const [internalCurrentPage, setInternalCurrentPage] = useState(currentPage);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -38,42 +25,48 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
     setInternalCurrentPage(currentPage);
   }, [currentPage]);
 
-  const handlePageChange = useCallback((page: number) => {
-    if (page === internalCurrentPage || page < 1 || page > totalPages || disabled || isLoading) {
-      return;
-    }
+  const handlePageChange = useCallback(
+    (page: number) => {
+      if (page === internalCurrentPage || page < 1 || page > totalPages || disabled || isLoading) {
+        return;
+      }
 
-    setIsTransitioning(true);
-    setInternalCurrentPage(page);
-    
-    try {
-      onPageChange(page);
-    } catch (error) {
-      console.error('Page navigation failed:', error);
-      setInternalCurrentPage(currentPage);
-    } finally {
-      setTimeout(() => setIsTransitioning(false), 150);
-    }
-  }, [internalCurrentPage, totalPages, disabled, isLoading, onPageChange, currentPage]);
+      setIsTransitioning(true);
+      setInternalCurrentPage(page);
 
-  const handleKeyDown = useCallback((event: React.KeyboardEvent, page: number) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      handlePageChange(page);
-    } else if (event.key === 'ArrowLeft' && internalCurrentPage > 1) {
-      event.preventDefault();
-      handlePageChange(internalCurrentPage - 1);
-    } else if (event.key === 'ArrowRight' && internalCurrentPage < totalPages) {
-      event.preventDefault();
-      handlePageChange(internalCurrentPage + 1);
-    } else if (event.key === 'Home') {
-      event.preventDefault();
-      handlePageChange(1);
-    } else if (event.key === 'End') {
-      event.preventDefault();
-      handlePageChange(totalPages);
-    }
-  }, [internalCurrentPage, totalPages, handlePageChange]);
+      try {
+        onPageChange(page);
+      } catch (error) {
+        console.error("Page navigation failed:", error);
+        setInternalCurrentPage(currentPage);
+      } finally {
+        setTimeout(() => setIsTransitioning(false), 150);
+      }
+    },
+    [internalCurrentPage, totalPages, disabled, isLoading, onPageChange, currentPage],
+  );
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent, page: number) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        handlePageChange(page);
+      } else if (event.key === "ArrowLeft" && internalCurrentPage > 1) {
+        event.preventDefault();
+        handlePageChange(internalCurrentPage - 1);
+      } else if (event.key === "ArrowRight" && internalCurrentPage < totalPages) {
+        event.preventDefault();
+        handlePageChange(internalCurrentPage + 1);
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        handlePageChange(1);
+      } else if (event.key === "End") {
+        event.preventDefault();
+        handlePageChange(totalPages);
+      }
+    },
+    [internalCurrentPage, totalPages, handlePageChange],
+  );
 
   const getVisiblePages = useCallback(() => {
     if (totalPages <= maxVisiblePages) {
@@ -163,7 +156,7 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
         {/* Page Number Buttons */}
         <div className="flex items-center gap-1">
           {/* Show ellipsis if there are pages before visible range */}
-          {visiblePages[0] > 1 && (
+          {visiblePages.length > 0 && visiblePages[0] && visiblePages[0] > 1 && (
             <>
               <button
                 type="button"
@@ -178,7 +171,7 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
               >
                 1
               </button>
-              {visiblePages[0] > 2 && (
+              {visiblePages.length > 0 && visiblePages[0] && visiblePages[0] > 2 && (
                 <span className="px-2 text-gray-500 dark:text-gray-400">...</span>
               )}
             </>
@@ -194,41 +187,43 @@ export const PaginationControl: React.FC<PaginationControlProps> = ({
               disabled={disabled || isLoading}
               className={`h-8 min-w-[2rem] px-2 rounded-md border transition-all duration-200 ${
                 page === internalCurrentPage
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                  : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
-              } ${isTransitioning && page === internalCurrentPage ? 'scale-95' : ''}`}
+                  ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                  : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+              } ${isTransitioning && page === internalCurrentPage ? "scale-95" : ""}`}
               aria-label={`Go to page ${page}`}
-              aria-current={page === internalCurrentPage ? 'page' : undefined}
+              aria-current={page === internalCurrentPage ? "page" : undefined}
             >
-              {isLoading && page === internalCurrentPage ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                page
-              )}
+              {isLoading && page === internalCurrentPage ? <Loader2 className="h-3 w-3 animate-spin" /> : page}
             </button>
           ))}
 
           {/* Show ellipsis if there are pages after visible range */}
-          {visiblePages[visiblePages.length - 1] < totalPages && (
-            <>
-              {visiblePages[visiblePages.length - 1] < totalPages - 1 && (
-                <span className="px-2 text-gray-500 dark:text-gray-400">...</span>
-              )}
-              <button
-                type="button"
-                onClick={() => handlePageChange(totalPages)}
-                onKeyDown={(e) => handleKeyDown(e, totalPages)}
-                disabled={disabled || isLoading}
-                className="h-8 min-w-[2rem] px-2 rounded-md border border-gray-200 dark:border-gray-700 
+          {(() => {
+            const lastVisiblePage = visiblePages.length > 0 ? visiblePages[visiblePages.length - 1] : undefined;
+            return (
+              lastVisiblePage &&
+              lastVisiblePage < totalPages && (
+                <>
+                  {lastVisiblePage < totalPages - 1 && (
+                    <span className="px-2 text-gray-500 dark:text-gray-400">...</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handlePageChange(totalPages)}
+                    onKeyDown={(e) => handleKeyDown(e, totalPages)}
+                    disabled={disabled || isLoading}
+                    className="h-8 min-w-[2rem] px-2 rounded-md border border-gray-200 dark:border-gray-700 
                          bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
                          hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white 
                          transition-all duration-200"
-                aria-label={`Go to page ${totalPages}`}
-              >
-                {totalPages}
-              </button>
-            </>
-          )}
+                    aria-label={`Go to page ${totalPages}`}
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )
+            );
+          })()}
         </div>
 
         {/* Next Page Button */}

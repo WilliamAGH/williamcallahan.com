@@ -13,9 +13,7 @@ export function FloatingRestoreButtons() {
   const { windows, restoreWindow } = useWindowRegistry();
 
   // Filter for windows that are minimized or closed
-  const windowsToRestore = Object.values(windows).filter(
-    (win) => win.state === "minimized" || win.state === "closed",
-  );
+  const windowsToRestore = Object.values(windows).filter((win) => win.state === "minimized" || win.state === "closed");
 
   // If no windows need restoring, render nothing
   if (windowsToRestore.length === 0) {

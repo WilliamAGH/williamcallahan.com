@@ -4,7 +4,9 @@
  * Defines available navigation paths for the terminal interface.
  */
 
-export const sections = {
+import type { SectionKey } from "@/types/ui/terminal";
+
+export const sections: Record<SectionKey, string> = {
   home: "/",
   investments: "/investments",
   experience: "/experience",
@@ -19,6 +21,4 @@ export const sections = {
   "callahan-financial": "/experience#callahan-financial",
   "mutual-first": "/experience#mutual-first",
   morningstar: "/experience#morningstar",
-} as const;
-
-export type SectionKey = keyof typeof sections;
+};

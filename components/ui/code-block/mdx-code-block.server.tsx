@@ -1,11 +1,9 @@
 "use client";
 
-import { processSvgTransforms } from "@/lib/utils/svg-transform-fix";
+import { processSvgTransforms } from "@/lib/image-handling/svg-transform-fix";
 import { useEffect, useRef } from "react";
 import type { DetailedHTMLProps, HTMLAttributes } from "react";
 import { CodeBlock } from "./code-block.client";
-
-type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>;
 
 /**
  * Server component for initial render
@@ -13,7 +11,7 @@ type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement
  */
 import { cn } from "@/lib/utils"; // Import cn utility
 
-export function MDXCodeBlockFallback(props: PreProps) {
+export function MDXCodeBlockFallback(props: DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>) {
   // Destructure className and children from props
   const { children, className, ...rest } = props;
 
@@ -50,7 +48,11 @@ export function MDXCodeBlockFallback(props: PreProps) {
  * Client component that gets hydrated with the CodeBlock component
  * This prevents the useState error during MDX serialization
  */
-export function MDXCodeBlock(props: PreProps & { embeddedInTabFrame?: boolean }) {
+export function MDXCodeBlock(
+  props: DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement> & {
+    embeddedInTabFrame?: boolean;
+  },
+) {
   const { children, className, embeddedInTabFrame, ...rest } = props;
   const codeRef = useRef<HTMLDivElement>(null);
 

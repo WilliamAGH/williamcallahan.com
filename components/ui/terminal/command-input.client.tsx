@@ -9,12 +9,7 @@
 
 import { forwardRef, useCallback, useRef } from "react";
 import { preloadSearch } from "./commands.client";
-
-interface CommandInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  onSubmit: () => void;
-}
+import type { CommandInputProps } from "@/types";
 
 export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(function CommandInput(
   { value, onChange, onSubmit },
@@ -22,28 +17,31 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
 ) {
   // Preload search when user types more than 2 characters
   const hasPreloaded = useRef(false);
-  
-  const handleChange = useCallback((newValue: string) => {
-    onChange(newValue);
-    
-    // Preload search functionality after typing 2+ characters
-    if (!hasPreloaded.current && newValue.length >= 2) {
-      hasPreloaded.current = true;
-      // Preload in the background without blocking
-      if (typeof requestIdleCallback !== 'undefined') {
-        requestIdleCallback(() => preloadSearch(), { timeout: 100 });
-      } else {
-        // Fallback for browsers without requestIdleCallback
-        setTimeout(() => preloadSearch(), 0);
+
+  const handleChange = useCallback(
+    (newValue: string) => {
+      onChange(newValue);
+
+      // Preload search functionality after typing 2+ characters
+      if (!hasPreloaded.current && newValue.length >= 2) {
+        hasPreloaded.current = true;
+        // Preload in the background without blocking
+        if (typeof requestIdleCallback !== "undefined") {
+          requestIdleCallback(() => preloadSearch(), { timeout: 100 });
+        } else {
+          // Fallback for browsers without requestIdleCallback
+          setTimeout(() => preloadSearch(), 0);
+        }
       }
-    }
-  }, [onChange]);
+    },
+    [onChange],
+  );
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit();
+        onSubmit(value);
       }}
       className="w-full table"
     >
