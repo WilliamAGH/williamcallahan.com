@@ -1,8 +1,25 @@
 /**
- * Error Type Definitions
+ * Error and API Response Types
  *
- * Defines standard error types and interfaces used throughout the application
- * for consistent error handling and type safety.
+ * SCOPE: Core error types and generic API response structures.
+ * This file defines the fundamental shapes for handling errors and API communication
+ * across the application.
+ *
+ * === INCLUSION RULES ===
+ * ✅ DO ADD:
+ *   - Base error interfaces (e.g., Error, ExtendedError)
+ *   - Generic API response wrappers (e.g., ApiResponse, ErrorResponse)
+ *   - Type guards for core error types.
+ *
+ * === EXCLUSION RULES ===
+ * ❌ DO NOT ADD:
+ *   - Domain-specific errors (→ e.g., types/bookmark.ts for BookmarkError)
+ *   - Runtime utility functions (→ lib/utils/error-utils.ts)
+ *   - Component-specific error props (→ e.g., types/ui/boundaries.ts)
+ *
+ * @see lib/utils/error-utils.ts for runtime error handling helpers
+ * @see types/bookmark.ts for domain-specific bookmark errors
+ * @see types/github.ts for domain-specific GitHub errors
  */
 
 /**
@@ -21,21 +38,23 @@ export interface ExtendedError extends Error {
 
 /**
  * Error interface specifically for bookmark-related errors
+ * @deprecated Use `BookmarkError` from `types/bookmark.ts`
  */
-export interface BookmarkError extends ExtendedError {
-  /** Timestamp of when bookmarks were last successfully fetched */
-  lastFetched?: number;
-  /** Timestamp of the last bookmark fetch attempt */
-  lastFetchedTimestamp?: number;
-}
+// export interface BookmarkError extends ExtendedError {
+//   /** Timestamp of when bookmarks were last successfully fetched */
+//   lastFetched?: number;
+//   /** Timestamp of the last bookmark fetch attempt */
+//   lastFetchedTimestamp?: number;
+// }
 
 /**
  * Error interface for GitHub activity related errors
+ * @deprecated Use `GitHubActivityError` from `types/github.ts`
  */
-export interface GitHubActivityError extends ExtendedError {
-  /** Timestamp of when GitHub activity was last successfully fetched */
-  lastActivityFetch?: number;
-}
+// export interface GitHubActivityError extends ExtendedError {
+//   /** Timestamp of when GitHub activity was last successfully fetched */
+//   lastActivityFetch?: number;
+// }
 
 /**
  * Type guard to check if an error has the lastFetched property
@@ -52,9 +71,7 @@ export function hasLastFetched(error: unknown): error is ExtendedError & { lastF
 /**
  * Type guard to check if an error has the lastFetchedTimestamp property
  */
-export function hasLastFetchedTimestamp(
-  error: unknown,
-): error is ExtendedError & { lastFetchedTimestamp: number } {
+export function hasLastFetchedTimestamp(error: unknown): error is ExtendedError & { lastFetchedTimestamp: number } {
   return (
     typeof error === "object" &&
     error !== null &&
@@ -93,3 +110,44 @@ export function getErrorTimestamp(
   }
   return undefined;
 }
+
+/**
+ * Payload for client-side errors logged to the server.
+ * @usage - API endpoint for /api/log-client-error
+ */
+export interface ClientErrorPayload {
+  message?: string;
+  resource?: string; // e.g., script URL if it's a script error
+  type?: string; // e.g., 'ChunkLoadError', 'TypeError'
+  url?: string; // The URL where the error occurred
+  stack?: string;
+  buildId?: string; // Next.js build ID
+  // Allow other properties that might be sent from various client-side error sources
+  [key: string]: unknown; // Use unknown instead of any for better type safety
+}
+
+export interface ErrorWithCode {
+  code: string;
+}
+
+export interface ErrorWithStatusCode {
+  statusCode: number;
+}
+
+// Generic error response format for APIs
+// export interface ErrorResponse {
+//   message: string;
+//   error?: unknown; // Allow for additional error details
+// }
+
+// Generic success response format for APIs that refresh data
+// export interface RefreshResult {
+//   /** Number of items processed or updated */
+//   updated?: number;
+//   /** Number of items newly created */
+//   created?: number;
+//   /** Number of items that failed to process */
+//   failed?: number;
+//   /** Total number of items processed */
+//   total?: number;
+// }

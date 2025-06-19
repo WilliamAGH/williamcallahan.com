@@ -1,5 +1,5 @@
-import type { JSX } from "react";
 import { z } from "zod";
+import type { ExtendedError } from "./error";
 
 /**
  * Bookmarks API Types
@@ -21,9 +21,12 @@ export interface Bookmark {
   telegramUsername?: string;
 }
 
+// This type is UI-specific and is being moved to types/features/bookmarks.ts
+/*
 export interface BookmarkWithPreview extends Bookmark {
   preview: JSX.Element;
 }
+*/
 
 // Added unified bookmark types
 export interface BookmarkTag {
@@ -31,8 +34,13 @@ export interface BookmarkTag {
   id?: string;
   /** Tag name */
   name: string;
+  /** URL-friendly slug */
+  slug?: string;
+  /** Optional color for display */
+  color?: string;
   /** Source of tagging (ai or user) */
   attachedBy?: "ai" | "user";
+  assetType?: string;
 }
 
 // Define known content types with a catch-all fallback
@@ -75,12 +83,27 @@ export interface BookmarkAsset {
   assetType: string;
 }
 
-// Zod Validation Schemas
+/**
+ * Zod schema for BookmarkAsset.
+ */
 export const BookmarkAssetSchema = z.object({
+  /** Asset ID */
   id: z.string(),
+  /** Type of asset (e.g., screenshot, bannerImage) */
   assetType: z.string(),
 });
 
+/**
+ * Error interface specifically for bookmark-related errors
+ */
+export interface BookmarkError extends ExtendedError {
+  /** Timestamp of when bookmarks were last successfully fetched */
+  lastFetched?: number;
+  /** Timestamp of the last bookmark fetch attempt */
+  lastFetchedTimestamp?: number;
+}
+
+// Zod Validation Schemas have been moved to lib/validators/bookmarks.ts
 export interface UnifiedBookmark {
   /** Globally unique bookmark ID */
   id: string;
@@ -112,6 +135,23 @@ export interface UnifiedBookmark {
   assets?: BookmarkAsset[];
   /** Legacy field */
   telegramUsername?: string;
+
+  // Additional fields from SerializableBookmark for client compatibility
+  dateCreated?: string;
+  dateUpdated?: string;
+  logoData?: {
+    url: string;
+    alt: string | null | undefined;
+    width?: number;
+    height?: number;
+  } | null;
+  isPrivate?: boolean;
+  isFavorite?: boolean;
+  readingTime?: number;
+  wordCount?: number;
+  ogTitle?: string | null;
+  ogDescription?: string | null;
+  domain?: string;
 }
 
 /**
@@ -203,10 +243,16 @@ export const BookmarksApiResponseSchema = z.object({
   nextCursor: z.string().nullable(),
 });
 
+/** Paginated bookmarks response for API endpoints */
+export type BookmarksResponse = import("./lib").PaginatedResponse<UnifiedBookmark>;
+
 // Helper function to validate API responses
+// MOVED to lib/validators/bookmarks.ts
+/*
 export function validateBookmarksApiResponse(data: unknown): BookmarksApiResponse {
   return BookmarksApiResponseSchema.parse(data);
 }
+*/
 
 // Dataset validation helpers
 // Re-export the validator from the centralized location

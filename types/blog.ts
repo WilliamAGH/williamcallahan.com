@@ -80,3 +80,18 @@ export interface BlogTag {
   /** Number of posts using this tag */
   count: number;
 }
+
+export interface BlogPostPageProps {
+  // params might be a Promise due to instrumentation and needs to be awaited.
+  params: Promise<{ slug: string }>;
+}
+
+export interface BlogPageFrontmatter {
+  title: string;
+  publishedAt: string | Date; // gray-matter can parse dates
+  tags: string[];
+  author: string; // Assuming author in frontmatter is an ID string for this simplified getter
+  excerpt?: string;
+  updatedAt?: string | Date;
+  coverImage?: string;
+}
