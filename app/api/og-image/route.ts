@@ -159,7 +159,16 @@ export async function GET(request: NextRequest) {
         }
       } catch (error) {
         console.error("[OG-Image] Error checking Karakeep asset or fetching fallback:", error);
+
+        // Log the specific failure point for debugging
+        console.log(
+          `[OG-Image] Karakeep asset '${input}' failed - bookmarkId: ${bookmarkId || "none"}, error: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
+
+      // No fallback available, return the asset URL anyway (it may still work)
+      console.log(`[OG-Image] All Karakeep fallbacks exhausted, redirecting to asset URL: ${assetUrl}`);
+      return NextResponse.redirect(new URL(assetUrl, request.url).toString(), { status: 302 });
     }
 
     // No fallback available, return the asset URL anyway
@@ -317,7 +326,28 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`[OG-Image] Returning fallback for ${domainType}: ${fallbackImage}`);
-    return NextResponse.redirect(new URL(fallbackImage, request.url).toString(), { status: 302 });
+
+    // Ensure the fallback redirect always works by using absolute URL construction
+    const fallbackUrl = new URL(fallbackImage, request.url);
+
+    // Add a final safety net - if somehow the fallback URL construction fails,
+    // provide a guaranteed base64 image to prevent broken image displays
+    try {
+      return NextResponse.redirect(fallbackUrl.toString(), { status: 302 });
+    } catch (redirectError) {
+      console.error("[OG-Image] Fallback redirect failed, using emergency base64 image:", redirectError);
+
+      // Emergency fallback: return a minimal base64 encoded placeholder
+      const emergencyImageBase64 =
+        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0ibTIxIDEyLTQuMzktNC4zOS0yLjczIDEwLjAyTDkuODggOC44NGwtMy41MSAzLjUxTDQgMTR2NGMwIDEuMS45IDIgMiAyaDE0YzEuMSAwIDItLjkgMi0ydi0yLTZaIiBmaWxsPSIjOTQwNkY3Ii8+CjxwYXRoIGQ9Ik0xOCAySDZjLTEuMSAwLTIgLjktMiAydjEyaDJWNGgxMlYyWiIgZmlsbD0iIzk0MDZGNyIvPgo8L3N2Zz4K";
+
+      return new NextResponse("", {
+        status: 302,
+        headers: {
+          Location: emergencyImageBase64,
+        },
+      });
+    }
   }
 }
 
