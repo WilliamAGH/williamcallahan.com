@@ -10,6 +10,7 @@
 import { CSP_DIRECTIVES } from "./lib/constants";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { memoryPressureMiddleware } from "./lib/middleware/memory-pressure";
 
 import type { RequestLog } from "@/types/lib";
 
@@ -35,8 +36,14 @@ function getRealIp(request: NextRequest): string {
  * @param request - The incoming Nextjs request
  * @returns The modified response with added headers
  */
-export default function middleware(request: NextRequest): NextResponse {
+export default async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
+
+  // Check memory pressure first (before any expensive operations)
+  const memoryResponse = await memoryPressureMiddleware(request);
+  if (memoryResponse) {
+    return memoryResponse;
+  }
 
   // SECURITY: Block debug endpoints in production
   if (pathname.startsWith("/api/debug") && process.env.NODE_ENV === "production") {

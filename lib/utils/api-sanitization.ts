@@ -13,8 +13,10 @@ import type { BlogPost } from "@/types/blog";
  * Removes sensitive fields like filePath and rawContent
  */
 export function sanitizeBlogPost(post: BlogPost): Omit<BlogPost, "filePath" | "rawContent"> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { filePath, rawContent, ...sanitizedPost } = post;
+  const { filePath: removedFilePath, rawContent: removedRawContent, ...sanitizedPost } = post;
+  // Explicitly acknowledge removed sensitive fields
+  void removedFilePath;
+  void removedRawContent;
   return sanitizedPost;
 }
 
