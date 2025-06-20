@@ -15,6 +15,7 @@ import { JsonLdScript } from "../components/seo/json-ld";
 import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../data/metadata";
 import { getStaticPageMetadata } from "../lib/seo/metadata";
 import { formatSeoDate } from "../lib/seo/utils";
+import type { ProfilePageMetadata } from "../types/seo/metadata";
 
 /**
  * Generate metadata for the home page using Next.js 14 Metadata API
@@ -34,7 +35,7 @@ export const revalidate = 3600; // Revalidate every hour
  * Renders the main landing page with JSON-LD structured data
  */
 export default function HomePage() {
-  const pageMetadata = PAGE_METADATA.home;
+  const pageMetadata: ProfilePageMetadata = PAGE_METADATA.home;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 

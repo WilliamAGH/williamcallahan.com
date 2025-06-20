@@ -119,16 +119,22 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       ],
     });
 
-    // Extract needed properties for Metadata type
-    return {
+    const metadata: Metadata = {
       title: articleMetadata.title,
       description: articleMetadata.description,
       alternates: articleMetadata.alternates,
       openGraph: articleMetadata.openGraph,
       twitter: articleMetadata.twitter,
-      // Include the JSON-LD script with type assertion
-      ...(articleMetadata.script && { script: articleMetadata.script }),
-    } as Metadata;
+    };
+
+    if (articleMetadata.script) {
+      (
+        metadata as unknown as {
+          script: { type: string; text: string }[];
+        }
+      ).script = articleMetadata.script;
+    }
+    return metadata;
   }
   // Use standard NewsArticle schema for regular blog posts
   const articleMetadata = createArticleMetadata({
@@ -149,16 +155,23 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     ],
   });
 
-  // Extract needed properties for Metadata type
-  return {
+  const metadata: Metadata = {
     title: articleMetadata.title,
     description: articleMetadata.description,
     alternates: articleMetadata.alternates,
     openGraph: articleMetadata.openGraph,
     twitter: articleMetadata.twitter,
-    // Include the JSON-LD script with type assertion
-    ...(articleMetadata.script && { script: articleMetadata.script }),
-  } as Metadata;
+  };
+
+  if (articleMetadata.script) {
+    (
+      metadata as unknown as {
+        script: { type: string; text: string }[];
+      }
+    ).script = articleMetadata.script;
+  }
+
+  return metadata;
 }
 
 /**
