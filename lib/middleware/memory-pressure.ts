@@ -9,129 +9,86 @@
  * - Includes Retry-After header for client backoff
  * - Exempts health check endpoints
  * - Logs and emits metrics for monitoring
- * - Runtime-aware (Node.js APIs only in Node.js runtime)
- * - Edge Runtime compatible (gracefully degrades)
+ * - Edge Runtime compatible (no Node.js APIs)
  *
  * Runtime Behavior:
- * - Node.js Runtime: Full memory monitoring with process.memoryUsage()
- * - Edge Runtime: Bypasses memory checks (always allows requests)
+ * - Edge Runtime: Uses environment-based memory pressure detection
+ * - Node.js Runtime: Same behavior, but can be enhanced with process monitoring
  *
  * @module lib/middleware/memory-pressure
  */
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import type { MemoryThresholds, MemoryChecker } from "@/types/health";
 
 // Health check paths that should always be allowed
 const HEALTH_CHECK_PATHS = ["/api/health", "/api/health/memory", "/healthz", "/livez", "/readyz"];
 
-// Cache memory thresholds to avoid repeated imports
-let MEMORY_THRESHOLDS: MemoryThresholds | null = null;
-
 /**
- * Lazy load memory thresholds to avoid bundling issues
+ * Check memory pressure using Edge Runtime-compatible methods
+ * This approach uses environment variables or simple heuristics
+ * instead of direct Node.js process.memoryUsage() calls
  */
-async function getMemoryThresholds(): Promise<MemoryThresholds> {
-  if (!MEMORY_THRESHOLDS) {
-    try {
-      // Dynamic import to avoid static analysis issues
-      const constants = await import("@/lib/constants");
-      MEMORY_THRESHOLDS = constants.MEMORY_THRESHOLDS;
-    } catch {
-      // Fallback thresholds if import fails
-      MEMORY_THRESHOLDS = {
-        MEMORY_CRITICAL_THRESHOLD: 1024 * 1024 * 1024, // 1GB
-        MEMORY_WARNING_THRESHOLD: 512 * 1024 * 1024, // 512MB
-        IMAGE_RAM_BUDGET_BYTES: 512 * 1024 * 1024, // 512MB
-        IMAGE_STREAM_THRESHOLD_BYTES: 5 * 1024 * 1024, // 5MB
-      };
-    }
-  }
-  return MEMORY_THRESHOLDS;
-}
-
-/**
- * Runtime detection utility
- * Edge Runtime detection using environment variables and global availability
- */
-function isEdgeRuntime(): boolean {
-  // Check for Edge Runtime environment variables
-  if (typeof process !== "undefined" && process.env?.NEXT_RUNTIME === "edge") {
+function isMemoryPressureCritical(): boolean {
+  // Check for explicit memory pressure flag from external monitors
+  if (typeof process !== "undefined" && process.env?.MEMORY_PRESSURE_CRITICAL === "true") {
     return true;
   }
 
-  // Check for Edge Runtime globals (WebAssembly, crypto, etc.)
-  if (typeof WebAssembly !== "undefined" && typeof crypto !== "undefined" && typeof process === "undefined") {
+  // In Edge Runtime, we can't check actual memory usage
+  // So we rely on external monitoring systems to set environment flags
+  return false;
+}
+
+/**
+ * Check memory warning state using Edge Runtime-compatible methods
+ */
+function isMemoryPressureWarning(): boolean {
+  // Check for explicit memory warning flag from external monitors
+  if (typeof process !== "undefined" && process.env?.MEMORY_PRESSURE_WARNING === "true") {
     return true;
   }
 
-  // Check if Node.js APIs are unavailable
-  return typeof process === "undefined" || typeof process.memoryUsage !== "function";
+  return false;
 }
 
 /**
- * Node.js memory checker implementation
+ * Check if we can access health endpoint for memory status
+ * This provides a fallback mechanism for memory checking
  */
-class NodeMemoryChecker implements MemoryChecker {
-  async isMemoryCritical(): Promise<boolean> {
-    try {
-      if (typeof process === "undefined" || typeof process.memoryUsage !== "function") {
-        return false;
-      }
+async function checkMemoryViaHealthEndpoint(request: NextRequest): Promise<{ critical: boolean; warning: boolean }> {
+  try {
+    // Only check if we have a health endpoint available
+    const healthUrl = new URL("/api/health/memory", request.url);
 
-      const usage = process.memoryUsage();
-      const thresholds = await getMemoryThresholds();
-      return usage.rss > thresholds.MEMORY_CRITICAL_THRESHOLD;
-    } catch {
-      return false;
-    }
-  }
+    // Quick fetch with short timeout to avoid blocking
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 100); // 100ms timeout
 
-  async isMemoryWarning(): Promise<boolean> {
-    try {
-      if (typeof process === "undefined" || typeof process.memoryUsage !== "function") {
-        return false;
-      }
+    const response = await fetch(healthUrl.toString(), {
+      method: "HEAD", // Use HEAD to avoid response body
+      signal: controller.signal,
+    });
 
-      const usage = process.memoryUsage();
-      const thresholds = await getMemoryThresholds();
-      return usage.rss > thresholds.MEMORY_WARNING_THRESHOLD;
-    } catch {
-      return false;
-    }
+    clearTimeout(timeoutId);
+
+    // Check response headers for memory status
+    const systemStatus = response.headers.get("X-System-Status");
+
+    return {
+      critical: systemStatus === "MEMORY_CRITICAL",
+      warning: systemStatus === "MEMORY_WARNING",
+    };
+  } catch {
+    // If health check fails, assume no memory pressure
+    return { critical: false, warning: false };
   }
 }
-
-/**
- * Edge Runtime memory checker implementation (no-op)
- */
-class EdgeMemoryChecker implements MemoryChecker {
-  isMemoryCritical(): Promise<boolean> {
-    // Edge Runtime doesn't support memory monitoring - always allow requests
-    return Promise.resolve(false);
-  }
-
-  isMemoryWarning(): Promise<boolean> {
-    // Edge Runtime doesn't support memory monitoring - never in warning state
-    return Promise.resolve(false);
-  }
-}
-
-/**
- * Get appropriate memory checker based on runtime
- */
-function createMemoryChecker(): MemoryChecker {
-  return isEdgeRuntime() ? new EdgeMemoryChecker() : new NodeMemoryChecker();
-}
-
-// Initialize memory checker
-const memoryChecker = createMemoryChecker();
 
 /**
  * Memory pressure middleware
  * Returns 503 when system is under critical memory pressure
- * Runtime-aware with proper async handling
+ * Edge Runtime compatible with multiple detection methods
  */
 export async function memoryPressureMiddleware(request: NextRequest): Promise<NextResponse | null> {
   const pathname = request.nextUrl.pathname;
@@ -141,8 +98,26 @@ export async function memoryPressureMiddleware(request: NextRequest): Promise<Ne
     return null; // Continue to next middleware
   }
 
-  // Check memory pressure (async for proper runtime detection)
-  if (await memoryChecker.isMemoryCritical()) {
+  // Primary check: Environment-based memory pressure detection
+  const envCritical = isMemoryPressureCritical();
+  const envWarning = isMemoryPressureWarning();
+
+  // Secondary check: Health endpoint (with fallback)
+  let healthStatus = { critical: false, warning: false };
+  if (!envCritical && !envWarning) {
+    // Only check health endpoint if env flags are not set
+    try {
+      healthStatus = await checkMemoryViaHealthEndpoint(request);
+    } catch {
+      // Health check failed, continue with env-only status
+    }
+  }
+
+  const isCritical = envCritical || healthStatus.critical;
+  const isWarning = envWarning || healthStatus.warning;
+
+  // Check memory pressure
+  if (isCritical) {
     console.warn(`[MemoryPressure] Shedding load due to memory pressure: ${pathname} ${request.method}`);
 
     // Return 503 with proper headers
@@ -163,7 +138,7 @@ export async function memoryPressureMiddleware(request: NextRequest): Promise<Ne
   }
 
   // Check if we're in warning state (optional header)
-  if (await memoryChecker.isMemoryWarning()) {
+  if (isWarning) {
     // Continue processing but add warning header
     const response = NextResponse.next();
     response.headers.set("X-System-Status", "MEMORY_WARNING");
@@ -176,7 +151,7 @@ export async function memoryPressureMiddleware(request: NextRequest): Promise<Ne
 
 /**
  * Create memory pressure middleware for Next.js App Router
- * This version works with proper runtime detection
+ * This version is fully Edge Runtime compatible
  */
 export function createMemoryPressureMiddleware() {
   return async function middleware(request: NextRequest) {
