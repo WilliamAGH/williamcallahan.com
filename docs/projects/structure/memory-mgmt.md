@@ -196,7 +196,7 @@ MAX_IMAGE_SIZE_BYTES=52428800                 # 50MB max per image
 
 # Memory Pressure Thresholds (calculated from TOTAL_PROCESS_MEMORY_BUDGET_BYTES)
 IMAGE_RSS_THRESHOLD=1610612736                # 1.5GB RSS limit for ImageMemoryManager
-IMAGE_HEAP_THRESHOLD=0.85                     # 85% of heap for ImageMemoryManager
+IMAGE_HEAP_THRESHOLD=268435456                # 256MB heap limit for ImageMemoryManager
 
 # Health Check Thresholds (calculated from TOTAL_PROCESS_MEMORY_BUDGET_BYTES)
 MEMORY_WARNING_THRESHOLD=751619276            # 717MB (70% of 1GB total budget)
