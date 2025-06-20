@@ -30,6 +30,7 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       ? raw.tags.map((tag) => ({
           id: tag.id,
           name: tag.name,
+          slug: tag.name.toLowerCase().replace(/\s+/g, "-"),
           attachedBy: ((value): "user" | "ai" | undefined => {
             return value === "user" ? "user" : value === "ai" ? "ai" : undefined;
           })(tag.attachedBy),
@@ -60,15 +61,20 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
       ogImage: raw.content?.imageUrl, // Will be enhanced with OpenGraph data
       dateBookmarked: raw.createdAt,
       datePublished: raw.content?.datePublished,
-      createdAt: raw.createdAt,
+      dateCreated: raw.createdAt,
       modifiedAt: raw.modifiedAt,
       archived: raw.archived,
-      favourited: raw.favourited,
+      isFavorite: raw.favourited,
       taggingStatus: raw.taggingStatus,
       note: raw.note,
       summary: raw.summary,
       content: unifiedContent,
       assets: Array.isArray(raw.assets) ? raw.assets : [],
+
+      // Add new fields for selective refresh
+      sourceUpdatedAt: raw.modifiedAt,
+      ogImageLastFetchedAt: undefined,
+      ogImageEtag: undefined,
     };
   } catch (normError) {
     console.error(

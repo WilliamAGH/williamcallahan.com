@@ -14,10 +14,10 @@ import { processBookmarksInBatches } from "./enrich-opengraph";
 import type { UnifiedBookmark, RawApiBookmark, BookmarksApiResponse as ApiResponse } from "@/types/bookmark";
 
 /**
- * @deprecated Use fetchBookmarks from service.server.ts instead
+ * @deprecated Use getBookmarks from service.server.ts instead
  * This function is kept for backward compatibility during migration
  */
-export { fetchBookmarks as fetchExternalBookmarks } from "./service.server";
+export { getBookmarks as fetchExternalBookmarks } from "./service.server";
 
 /**
  * Refreshes bookmarks data directly from the external API, normalizes it,
