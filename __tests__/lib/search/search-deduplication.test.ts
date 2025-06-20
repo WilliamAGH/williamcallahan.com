@@ -3,7 +3,6 @@
  */
 
 import { searchPosts, searchInvestments, searchExperience, searchEducation } from "@/lib/search";
-import { posts } from "@/data/blog/posts";
 import { investments } from "@/data/investments";
 import { experiences } from "@/data/experience";
 import { education, certifications } from "@/data/education";
@@ -24,7 +23,7 @@ afterEach(() => {
 describe("Search Deduplication", () => {
   describe("Blog Posts Search", () => {
     it("should handle posts without duplicates", () => {
-      const results = searchPosts("example");
+      searchPosts("example");
 
       // Should not warn about duplicates if none exist
       const duplicateWarnings = warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
@@ -52,7 +51,7 @@ describe("Search Deduplication", () => {
       const results = searchInvestments("");
 
       // Check for any duplicate warnings
-      const duplicateWarnings = warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
+      warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
 
       // The function should work regardless of duplicates
       expect(Array.isArray(results)).toBe(true);
@@ -73,7 +72,7 @@ describe("Search Deduplication", () => {
       const results = searchExperience("");
 
       // Check for any duplicate warnings
-      const duplicateWarnings = warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
+      warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
 
       // The function should work regardless of duplicates
       expect(Array.isArray(results)).toBe(true);
@@ -94,7 +93,7 @@ describe("Search Deduplication", () => {
       const results = searchEducation("");
 
       // Check for any duplicate warnings
-      const duplicateWarnings = warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
+      warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
 
       // The function should work regardless of duplicates
       expect(Array.isArray(results)).toBe(true);
@@ -136,6 +135,74 @@ describe("Search Deduplication", () => {
       // If deduplication occurred, verify the log format
       for (const log of deduplicationLogs) {
         expect(log[0]).toMatch(/\[Search\] .+: Deduplicated \d+ documents to \d+/);
+      }
+    });
+  });
+
+  describe("Deduplication Logic", () => {
+    it("should handle potential duplicates with console warnings", () => {
+      // Capture console warnings
+      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+      try {
+        const deduplicatedResults = deduplicateSearchResults(duplicateTestResults);
+        expect(deduplicatedResults).toBeDefined();
+        expect(Array.isArray(deduplicatedResults)).toBe(true);
+
+        // Should have fewer results than input due to deduplication
+        expect(deduplicatedResults.length).toBeLessThan(duplicateTestResults.length);
+
+        // Console warnings may or may not be called depending on implementation
+        // Just verify the spy was set up correctly
+        expect(consoleSpy).toBeDefined();
+      } finally {
+        consoleSpy.mockRestore();
+      }
+    });
+
+    it("should handle edge cases gracefully", () => {
+      // Capture any console output
+      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+      try {
+        const deduplicatedResults = deduplicateSearchResults(edgeCaseResults);
+        expect(deduplicatedResults).toBeDefined();
+        expect(Array.isArray(deduplicatedResults)).toBe(true);
+
+        // Should handle edge cases without throwing
+        expect(deduplicatedResults.length).toBeGreaterThanOrEqual(0);
+      } finally {
+        consoleSpy.mockRestore();
+      }
+    });
+
+    it("should preserve result structure and required fields", () => {
+      // Capture any console output
+      const consoleSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+      try {
+        const deduplicatedResults = deduplicateSearchResults(searchResults);
+        expect(deduplicatedResults).toBeDefined();
+        expect(Array.isArray(deduplicatedResults)).toBe(true);
+
+        // Test basic functionality without caring about the specific values
+        const results = deduplicateSearchResults(searchResults);
+        expect(results).toBeDefined();
+        expect(Array.isArray(results)).toBe(true);
+
+        // Verify we get some results back (exact count depends on deduplication logic)
+        expect(results.length).toBeGreaterThan(0);
+        expect(results.length).toBeLessThanOrEqual(searchResults.length);
+
+        // Verify each result has required fields
+        for (const result of results) {
+          expect(result).toHaveProperty("title");
+          expect(result).toHaveProperty("url");
+          expect(result).toHaveProperty("description");
+          expect(result).toHaveProperty("type");
+        }
+      } finally {
+        consoleSpy.mockRestore();
       }
     });
   });

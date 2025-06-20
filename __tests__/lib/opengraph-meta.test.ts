@@ -28,8 +28,6 @@ describe("lib/data-access/opengraph.ts functionality", () => {
   });
 
   describe("OpenGraph data extraction", () => {
-    const testUrls = ["https://railway.app", "https://github.com/openai/whisper", "https://x.com/elonmusk"];
-
     it("should handle successful OpenGraph extraction", async () => {
       const mockOpenGraphData = {
         title: "Railway - Deploy code with zero configuration",

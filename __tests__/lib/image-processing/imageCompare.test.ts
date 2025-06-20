@@ -2,7 +2,7 @@
 import type { SharpInstance } from "@/types/test";
 import { compareImages } from "@/lib/image-handling/image-compare";
 import { logger } from "@/lib/logger";
-import type { Metadata, FormatEnum, ResizeOptions } from "sharp";
+import type { Metadata, FormatEnum } from "sharp";
 
 // Mock sharp
 const createMockSharp = (metadata: Partial<Metadata> = {}): SharpInstance => ({

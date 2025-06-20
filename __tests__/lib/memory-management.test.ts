@@ -463,8 +463,8 @@ describe("Memory Health Middleware", () => {
     it("should allow requests when healthy", () => {
       // Force the monitor to be in healthy state for this test
       const monitor = getMemoryHealthMonitor();
-      jest.spyOn(monitor, 'shouldAcceptNewRequests').mockReturnValue(true);
-      
+      jest.spyOn(monitor, "shouldAcceptNewRequests").mockReturnValue(true);
+
       memoryPressureMiddleware(mockReq, mockRes, mockNext);
 
       expect(mockNext).toHaveBeenCalled();
@@ -537,13 +537,13 @@ describe("Memory Leak Prevention", () => {
     // Add some buffers
     manager.set("test-1", testBuffer, metadata);
     manager.set("test-2", testBuffer, metadata);
-    
+
     // Clear should trigger disposal events
     manager.clear();
 
     // Verify disposal events were emitted
     expect(disposalSpy).toHaveBeenCalled();
-    
+
     manager.destroy();
   });
 });

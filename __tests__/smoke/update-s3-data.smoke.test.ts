@@ -15,7 +15,6 @@ describe("scripts/data-updater.ts Smoke Test", () => {
   // - DRY: Mock all operations (fast, no real calls)
   // - NORMAL: Test 1 real operation of each type (GitHub hangs due to lack of test limiting)
   const testMode = process.env.S3_TEST_MODE || "DRY";
-  const _isS3Configured = IS_S3_CONFIGURED || testMode === "DRY";
 
   const displayMode = !IS_S3_CONFIGURED && testMode !== "DRY" ? "DRY RUN (no S3 config)" : testMode;
 

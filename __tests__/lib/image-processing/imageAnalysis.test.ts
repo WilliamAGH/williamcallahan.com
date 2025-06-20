@@ -1,6 +1,6 @@
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 import type { MockedSharp } from "@/types/test";
-import type { Sharp, Metadata } from "sharp";
+import type { Metadata } from "sharp";
 import {
   analyzeLogo,
   invertLogo,
