@@ -5,6 +5,7 @@ Update the PR title and description based on commit analysis and file changes.
 **Repository**: <https://github.com/WilliamAGH/williamcallahan.com>
 
 **Project Constants**:
+
 - Owner: `WilliamAGH`
 - Repo: `williamcallahan.com`
 
@@ -37,6 +38,7 @@ Update the PR title and description based on commit analysis and file changes.
    - Documentation
    - Other changes
 10. Do not make assumptions - only describe what is evident from the changes
+11. IMPORTANT: When analyzing commits, ignore any Claude code attribution or co-author tags - never include these in PR descriptions
 
 ## Purpose
 

@@ -94,6 +94,7 @@ b) Create a comprehensive commit message summarizing:
 - Which functionality was affected
 - What approach was taken
 c) Commit using conventional format (fix:, feat:, etc.)
+   IMPORTANT: NEVER include Claude code attribution or co-author tags in commits
 d) Show the commit hash
 
 STEP 11: Issue Closure
