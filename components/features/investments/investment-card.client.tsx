@@ -20,6 +20,7 @@ import { LogoImage } from "@/components/ui";
 import { ExternalLink } from "@/components/ui/external-link.client";
 import { ExternalLink as ExternalLinkIcon } from "lucide-react";
 import type { InvestmentCardExtendedProps } from "@/types/features/investments";
+import Image from "next/image";
 
 import type { JSX } from "react";
 
@@ -154,13 +155,12 @@ export function InvestmentCardClient({
                 showIcon={false}
                 className="flex items-center bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-gray-700/50 px-3 py-2 rounded-full transition-colors"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src="/images/aVenture Favicon.png"
                   alt="aVenture"
-                  width={32}
-                  height={32}
-                  className="inline-block"
+                  width={24}
+                  height={24}
+                  className="inline-block h-6 w-6"
                   data-testid="aventure-icon"
                 />
               </ExternalLink>
