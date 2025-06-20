@@ -18,7 +18,7 @@ describe("ServerCache Tests", () => {
 
   beforeEach(() => {
     // Clear cache before each test
-    ServerCacheInstance.clear();
+    ServerCacheInstance.flushAll();
   });
 
   describe("Basic Functionality", () => {
@@ -28,7 +28,7 @@ describe("ServerCache Tests", () => {
       expect(typeof ServerCacheInstance.set).toBe("function");
       expect(typeof ServerCacheInstance.del).toBe("function");
       expect(typeof ServerCacheInstance.keys).toBe("function");
-      expect(typeof ServerCacheInstance.clear).toBe("function");
+      expect(typeof ServerCacheInstance.flushAll).toBe("function");
       expect(typeof ServerCacheInstance.getStats).toBe("function");
 
       // Test basic logo methods
@@ -76,7 +76,6 @@ describe("ServerCache Tests", () => {
       // Retrieve immediately
       const cached = ServerCacheInstance.getLogoFetch(testDomain);
       expect(cached).toMatchObject({
-        buffer: mockLogoData.buffer,
         contentType: mockLogoData.contentType,
         source: mockLogoData.source,
       });
@@ -95,7 +94,6 @@ describe("ServerCache Tests", () => {
       // Retrieve immediately
       const cached = ServerCacheInstance.getLogoFetch(testDomain);
       expect(cached).toMatchObject({
-        buffer: null,
         error: "Logo not found",
       });
       expect(cached?.timestamp).toBeDefined();

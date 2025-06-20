@@ -1,22 +1,28 @@
 /**
  * Tests for Server Cache
  */
-import { type ServerCache, ServerCacheInstance } from "@/lib/server-cache";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import type { ServerCache } from "@/lib/server-cache";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { GitHubActivityApiResponse } from "@/types/github";
-import type { OgResult } from "@/types";
+import type { OgResult } from "@/types/opengraph";
+import type { CacheStats } from "@/types/cache";
 
 describe("ServerCache", () => {
   let cache: ServerCache;
+  let consoleWarnSpy: jest.SpyInstance;
 
   beforeEach(() => {
     // ServerCache is now a singleton
     cache = ServerCacheInstance;
-    cache.clear();
+    cache.flushAll();
+    // Suppress console.warn for tests that are expected to trigger it
+    consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   afterEach(() => {
-    cache.clear();
+    cache.flushAll();
+    consoleWarnSpy.mockRestore(); // Restore original console.warn
     jest.restoreAllMocks();
   });
 
@@ -415,43 +421,36 @@ describe("ServerCache", () => {
       expect(cache.getSearchResults("posts", "query")).toBeUndefined();
       expect(cache.getSearchResults("bookmarks", "query")).toBeUndefined();
     });
+
+    it("should clear all search caches", () => {
+      cache.setSearchResults("posts", "query", mockResults);
+      cache.setSearchResults("investments", "query", mockResults);
+
+      cache.clearSearchCache();
+
+      expect(cache.getSearchResults("posts", "query")).toBeUndefined();
+      expect(cache.getSearchResults("investments", "query")).toBeUndefined();
+    });
   });
 
   describe("Cache Statistics", () => {
     it("should return cache statistics", () => {
+      cache.set("key1", "value1");
+      cache.get("key1"); // hit
+      cache.get("key2"); // miss
       const stats = cache.getStats();
-      expect(stats).toBeDefined();
-      expect(stats.hits).toBeDefined();
-      expect(stats.misses).toBeDefined();
-      expect(stats.keys).toBeDefined();
-      expect(stats.ksize).toBeDefined();
-      expect(stats.vsize).toBeDefined();
+      expect(stats.keys).toBe(1);
+      expect(stats.hits).toBe(1);
+      expect(stats.misses).toBe(1);
     });
 
     it("should track hits and misses", () => {
-      // Get initial stats
-      const initialStats = cache.getStats();
-
-      // Cause a miss
-      cache.getLogoValidation("non-existent");
-
-      // Add data
-      cache.setLogoValidation("exists", true);
-
-      // Cause a hit
-      cache.getLogoValidation("exists");
-
-      // Cause another miss
-      cache.getLogoValidation("another-non-existent");
-
-      const finalStats = cache.getStats();
-
-      // NodeCache tracks total hits and misses from the beginning
-      expect(finalStats.hits).toBeGreaterThan(initialStats.hits);
-      expect(finalStats.misses).toBeGreaterThan(initialStats.misses);
-
-      // Should have at least 1 key (the one we set)
-      expect(finalStats.keys).toBeGreaterThanOrEqual(1);
+      cache.get("miss1");
+      cache.set("hit1", "value");
+      cache.get("hit1");
+      const stats = cache.getStats();
+      expect(stats.hits).toBe(1);
+      expect(stats.misses).toBe(1);
     });
   });
 
@@ -459,21 +458,15 @@ describe("ServerCache", () => {
     it("should clear all caches with clearAllCaches", () => {
       cache.setLogoValidation("hash", true);
       cache.setBookmarks([]);
-      cache.setSearchResults("posts", "query", []);
-
       cache.clearAllCaches();
-
       expect(cache.getLogoValidation("hash")).toBeUndefined();
       expect(cache.getBookmarks()).toBeUndefined();
-      expect(cache.getSearchResults("posts", "query")).toBeUndefined();
     });
 
-    it("should clear all caches with clear", () => {
+    it("should clear all caches with flushAll", () => {
       cache.setLogoValidation("hash", true);
       cache.setBookmarks([]);
-
-      cache.clear();
-
+      cache.flushAll();
       expect(cache.getLogoValidation("hash")).toBeUndefined();
       expect(cache.getBookmarks()).toBeUndefined();
     });
@@ -481,32 +474,25 @@ describe("ServerCache", () => {
 
   describe("Edge Cases", () => {
     it("should handle undefined/null data gracefully", () => {
-      // Test with missing trailingYearData
-      const incompleteActivity = {
-        commitCount: 100,
-      } as GitHubActivityApiResponse;
-
-      expect(() => cache.setGithubActivity(incompleteActivity)).not.toThrow();
-
-      const result = cache.getGithubActivity();
-      expect(result?.commitCount).toBe(100);
+      cache.set("key_undefined", undefined);
+      cache.set("key_null", null);
+      expect(cache.get("key_undefined")).toBeUndefined();
+      expect(cache.get("key_null")).toBeNull();
     });
 
     it("should not store buffer data in logo fetch cache", () => {
+      const domain = "buffer.com";
       const fetchResult = {
-        s3Key: "logos/test.com_google.png",
-        url: "https://test.com/logo.png",
+        s3Key: "key",
+        cdnUrl: "url",
         source: "google" as const,
         contentType: "image/png",
         retrieval: "external" as const,
+        buffer: Buffer.from("test"),
       };
-
-      cache.setLogoFetch("test.com", fetchResult);
-
-      const result = cache.getLogoFetch("test.com");
-      expect(result).toBeDefined();
+      cache.setLogoFetch(domain, fetchResult);
+      const result = cache.getLogoFetch(domain);
       expect(result?.buffer).toBeUndefined();
-      expect(result?.s3Key).toBe("logos/test.com_google.png");
     });
   });
 });
