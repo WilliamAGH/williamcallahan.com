@@ -22,13 +22,21 @@ export function GET(): NextResponse {
     return NextResponse.json({ error: "This endpoint is only available in development mode." }, { status: 403 });
   }
 
-  const monitor = getMemoryHealthMonitor();
-  const serverCacheStats = monitor.getHealthStatus().details.cacheStats?.serverCache;
+  try {
+    const monitor = getMemoryHealthMonitor();
+    const serverCacheStats = monitor.getHealthStatus().details.cacheStats?.serverCache;
 
-  const response = {
-    serverCache: serverCacheStats,
-    // Add other metrics as needed
-  };
+    const response = {
+      serverCache: serverCacheStats,
+      // Add other metrics as needed
+    };
 
-  return NextResponse.json(response);
+    return NextResponse.json(response);
+  } catch (error) {
+    console.error("Error retrieving health metrics:", error);
+    return NextResponse.json(
+      { error: "Failed to retrieve health metrics" },
+      { status: 500 }
+    );
+  }
 }
