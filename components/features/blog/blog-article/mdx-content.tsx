@@ -213,6 +213,68 @@ const ArticleGallery = ({ children, className = "" }: ArticleGalleryProps): JSX.
   );
 };
 
+/* -------------------------------------------------------------------
+ * Component renderers extracted to avoid nested component definitions
+ * ------------------------------------------------------------------- */
+
+const MetricsGroupRenderer = (props: ComponentProps<typeof FinancialMetrics>) => (
+  <div className="mb-4">
+    <FinancialMetrics {...props} />
+  </div>
+);
+
+const BackgroundInfoRenderer = (props: ComponentProps<typeof BackgroundInfo>) => (
+  <BackgroundInfo {...props} className={cn(props.className)} />
+);
+
+const CollapseDropdownRenderer = (props: ComponentProps<typeof CollapseDropdown>) => (
+  <CollapseDropdown {...props} className={cn(props.className)} />
+);
+
+const InstructionToggleTabsRenderer = (props: ComponentProps<typeof InstructionMacOSFrameTabs>) => (
+  <InstructionMacOSFrameTabs {...props} className={cn(props.className)} />
+);
+
+const InstructionTabRenderer = (props: ComponentProps<typeof InstructionMACOSTab>) => (
+  <MacOSFrameContext.Provider value={true}>
+    <InstructionMACOSTab {...props} />
+  </MacOSFrameContext.Provider>
+);
+
+const ShellParentTabsRenderer = (props: ComponentProps<typeof ShellParentTabs>) => (
+  <ShellParentTabs {...props} className={cn(props.className)} />
+);
+
+const ShellTabRenderer = (props: ComponentProps<typeof ShellTab>) => (
+  <MacOSFrameContext.Provider value={true}>
+    <ShellTab {...props} />
+  </MacOSFrameContext.Provider>
+);
+
+const MacOSWindowRenderer = (props: ComponentProps<typeof MacOSWindow>) => (
+  <MacOSWindow {...props} className={cn(props.className)} />
+);
+
+const MacOSCodeWindowRenderer = (props: ComponentProps<typeof MacOSCodeWindow>) => (
+  <MacOSCodeWindow {...props} className={cn(props.className)} />
+);
+
+const MDXCodeBlockRenderer = (props: ComponentProps<typeof MDXCodeBlock>) => (
+  <MDXCodeBlock {...props} className={cn(props.className)} />
+);
+
+const SoftwareSchemaRenderer = (props: ComponentProps<typeof SoftwareSchema>) => (
+  <div>
+    <SoftwareSchema {...props} />
+  </div>
+);
+
+const TweetEmbedRenderer = (props: ComponentProps<typeof TweetEmbed>) => (
+  <div className="not-prose">
+    <TweetEmbed {...props} />
+  </div>
+);
+
 /**
  * @component MDXContent
  * The primary client-side component for rendering serialized MDX (Markdown Extended) content.
@@ -288,65 +350,35 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
         );
       },
       /** Renderer for the custom `MetricsGroup` component, providing specific layout. */
-      MetricsGroup: (props: ComponentProps<typeof FinancialMetrics>) => (
-        <div className="mb-4">
-          <FinancialMetrics {...props} />
-        </div>
-      ),
+      MetricsGroup: MetricsGroupRenderer,
       /** Renderer for `<img>` tags, delegating to the {@link MdxImage} component for enhanced features like captions and optimized loading. */
       img: MdxImage,
       /** Renderer for the custom `ArticleGallery` component, used for displaying a collection of images. */
-      ArticleGallery: (props: ComponentProps<typeof ArticleGallery>) => <ArticleGallery {...props} />,
+      ArticleGallery: ArticleGallery,
       /** Alias for `img` renderer, ensuring {@link MdxImage} is also used for the custom `ArticleImage` tag if used in MDX. */
       ArticleImage: MdxImage,
       /** Renderer for the custom `BackgroundInfo` component. */
-      BackgroundInfo: (props: ComponentProps<typeof BackgroundInfo>) => (
-        <BackgroundInfo {...props} className={cn(props.className)} />
-      ),
+      BackgroundInfo: BackgroundInfoRenderer,
       /** Renderer for the custom `CollapseDropdown` component. */
-      CollapseDropdown: (props: ComponentProps<typeof CollapseDropdown>) => (
-        <CollapseDropdown {...props} className={cn(props.className)} />
-      ),
+      CollapseDropdown: CollapseDropdownRenderer,
       /** Direct mapping for the `ExternalLink` component, used for links opening in a new tab. */
       ExternalLink,
       /** Renderer for the custom `InstructionToggleTabs` component (which maps to `InstructionMacOSFrameTabs`). */
-      InstructionToggleTabs: (props: ComponentProps<typeof InstructionMacOSFrameTabs>) => (
-        <InstructionMacOSFrameTabs {...props} className={cn(props.className)} />
-      ),
+      InstructionToggleTabs: InstructionToggleTabsRenderer,
       /** Renderer for the `InstructionMACOSTab` component with MacOSFrameContext provider. */
-      InstructionTab: (props: ComponentProps<typeof InstructionMACOSTab>) => (
-        <MacOSFrameContext.Provider value={true}>
-          <InstructionMACOSTab {...props} />
-        </MacOSFrameContext.Provider>
-      ),
+      InstructionTab: InstructionTabRenderer,
       /** Renderer for the custom `ShellParentTabs` component. */
-      ShellParentTabs: (props: ComponentProps<typeof ShellParentTabs>) => (
-        <ShellParentTabs {...props} className={cn(props.className)} />
-      ),
+      ShellParentTabs: ShellParentTabsRenderer,
       /** Renderer for the `ShellTab` component with MacOSFrameContext provider. */
-      ShellTab: (props: ComponentProps<typeof ShellTab>) => (
-        <MacOSFrameContext.Provider value={true}>
-          <ShellTab {...props} />
-        </MacOSFrameContext.Provider>
-      ),
+      ShellTab: ShellTabRenderer,
       /** Renderer for the custom `MacOSWindow` component. */
-      MacOSWindow: (props: ComponentProps<typeof MacOSWindow>) => (
-        <MacOSWindow {...props} className={cn(props.className)} />
-      ),
+      MacOSWindow: MacOSWindowRenderer,
       /** Renderer for the custom `MacOSCodeWindow` component. */
-      MacOSCodeWindow: (props: ComponentProps<typeof MacOSCodeWindow>) => (
-        <MacOSCodeWindow {...props} className={cn(props.className)} />
-      ),
+      MacOSCodeWindow: MacOSCodeWindowRenderer,
       /** Renderer for `MDXCodeBlock` if used directly as a component tag in MDX (as opposed to via a `<pre>` tag). */
-      MDXCodeBlock: (props: ComponentProps<typeof MDXCodeBlock>) => (
-        <MDXCodeBlock {...props} className={cn(props.className)} />
-      ),
+      MDXCodeBlock: MDXCodeBlockRenderer,
       /** Renderer for the custom `SoftwareSchema` component, typically for structured data. */
-      SoftwareSchema: (props: ComponentProps<typeof SoftwareSchema>) => (
-        <div>
-          <SoftwareSchema {...props} />
-        </div>
-      ),
+      SoftwareSchema: SoftwareSchemaRenderer,
       /**
        * Custom renderer for anchor `<a>` tags.
        * This function intelligently handles different types of links:
@@ -465,11 +497,7 @@ export function MDXContent({ content }: MDXContentProps): JSX.Element {
        * Wrapped in a `div` with `not-prose` to prevent Tailwind Typography styles from interfering
        * with the TweetEmbed component's own internal styling.
        */
-      TweetEmbed: (props: ComponentProps<typeof TweetEmbed>) => (
-        <div className="not-prose">
-          <TweetEmbed {...props} />
-        </div>
-      ),
+      TweetEmbed: TweetEmbedRenderer,
     }),
     [],
   );

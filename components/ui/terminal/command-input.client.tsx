@@ -7,7 +7,7 @@
 
 "use client";
 
-import { forwardRef, useCallback, useRef } from "react";
+import { forwardRef, useCallback, useRef, useId } from "react";
 import { preloadSearch } from "./commands.client";
 import type { CommandInputProps } from "@/types";
 
@@ -15,6 +15,9 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
   { value, onChange, onSubmit },
   ref,
 ) {
+  // Generate unique ID for accessibility
+  const inputId = useId();
+
   // Preload search when user types more than 2 characters
   const hasPreloaded = useRef(false);
 
@@ -48,11 +51,11 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
       <div className="flex items-center w-full">
         <span className="text-[#7aa2f7] select-none mr-2">$</span>
         <div className="relative flex-1 transform-gpu">
-          <label htmlFor="terminal-command" className="sr-only">
+          <label htmlFor={inputId} className="sr-only">
             Terminal command
           </label>
           <input
-            id="terminal-command"
+            id={inputId}
             ref={ref}
             type="text"
             value={value}

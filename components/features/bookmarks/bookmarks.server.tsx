@@ -94,7 +94,7 @@ export async function BookmarksServer({
     url: bookmark.url,
     title: bookmark.title,
     description: bookmark.description,
-    tags: bookmark.tags?.map(normalizeBookmarkTag) || [],
+    tags: Array.isArray(bookmark.tags) ? bookmark.tags.map(normalizeBookmarkTag) : [],
     dateBookmarked: bookmark.dateBookmarked,
     dateCreated: bookmark.dateCreated,
     dateUpdated: bookmark.dateUpdated,

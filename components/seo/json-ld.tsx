@@ -10,7 +10,7 @@
  */
 
 // eslint-disable react/no-danger
-import React, { type JSX } from "react";
+import type { JSX } from "react";
 
 import type { JsonLdScriptProps } from "@/types";
 
@@ -29,7 +29,7 @@ export function JsonLdScript({ data }: JsonLdScriptProps): JSX.Element {
   return (
     <script
       type="application/ld+json"
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: <explanation>
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: Necessary for embedding JSON-LD, and the content is sanitized.
       dangerouslySetInnerHTML={{ __html: json }}
     />
   );

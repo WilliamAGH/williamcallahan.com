@@ -8,11 +8,7 @@
  */
 
 import { useTheme } from "next-themes";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { Investment } from "../../../types/investment";
 import type { ThemeWrapperProps } from "../../../types/investment";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { LogoData } from "../../../types/logo";
 import { InvestmentCardClient } from "./investment-card.client";
 
 import type { JSX } from "react";
