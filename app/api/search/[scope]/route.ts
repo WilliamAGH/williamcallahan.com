@@ -75,6 +75,21 @@ export async function GET(request: Request, { params }: { params: { scope: strin
       case "bookmarks":
         results = await searchBookmarks(query);
         break;
+      case "all": {
+        // Search across all scopes and aggregate results
+        const [blogResults, investmentResults, experienceResults, educationResults, bookmarkResults] = await Promise.all([
+          searchBlogPostsServerSide(query),
+          Promise.resolve(searchInvestments(query)),
+          Promise.resolve(searchExperience(query)),
+          Promise.resolve(searchEducation(query)),
+          searchBookmarks(query),
+        ]);
+        
+        // Combine all results and sort by score (highest first)
+        results = [...blogResults, ...investmentResults, ...experienceResults, ...educationResults, ...bookmarkResults]
+          .sort((a, b) => b.score - a.score);
+        break;
+      }
     }
 
     // Return results with metadata
