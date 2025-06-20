@@ -406,14 +406,16 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
     } else {
       console.log(`[Bookmarks] Returning ${cached.bookmarks.length} bookmarks from in-memory cache.`);
 
-      // Only trigger a background refresh if the data is considered stale.
-      if (shouldRefresh && canStartBackgroundRefresh()) {
+      // Only trigger a background refresh if the data is considered stale AND we're not skipping external fetches
+      if (shouldRefresh && canStartBackgroundRefresh() && !skipExternalFetch) {
         console.log("[Bookmarks] Cached data is stale – triggering background refresh (non-blocking).");
         markBackgroundRefreshStarted();
         // Start background refresh without awaiting
         refreshInBackground().catch((error) => {
           console.error("[Bookmarks] Background refresh failed (called from getBookmarks cache stale check):", error);
         });
+      } else if (skipExternalFetch && shouldRefresh) {
+        console.log("[Bookmarks] Skipping background refresh due to skipExternalFetch=true (build-time optimization).");
       }
 
       return cached.bookmarks;
@@ -448,8 +450,14 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
           // Update in-memory cache with S3 data
           ServerCacheInstance.setBookmarks(s3Bookmarks);
 
-          // Start a background refresh if needed, but don't block
-          void refreshInBackground();
+          // Only start background refresh if not skipping external fetches (build-time optimization)
+          if (!skipExternalFetch) {
+            void refreshInBackground();
+          } else {
+            console.log(
+              "[Bookmarks] Skipping background refresh due to skipExternalFetch=true (build-time optimization).",
+            );
+          }
 
           return s3Bookmarks;
         }
@@ -462,10 +470,15 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
         // S3 fetch failed, proceed to external fetch
       }
 
-      // If S3 is empty or fails, fetch from external source and persist
-      console.log(`${LOG_PREFIX} No valid data in cache or S3, fetching from external source`);
-      const refreshedBookmarks = await refreshAndPersistBookmarks();
-      return refreshedBookmarks ?? [];
+      // If S3 is empty or fails, fetch from external source and persist (only if not skipping external fetches)
+      if (!skipExternalFetch) {
+        console.log(`${LOG_PREFIX} No valid data in cache or S3, fetching from external source`);
+        const refreshedBookmarks = await refreshAndPersistBookmarks();
+        return refreshedBookmarks ?? [];
+      } else {
+        console.log(`${LOG_PREFIX} No data available and skipExternalFetch=true, returning empty array`);
+        return [];
+      }
     } finally {
       inFlightGetPromise = null;
     }
