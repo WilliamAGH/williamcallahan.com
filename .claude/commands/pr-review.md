@@ -27,6 +27,7 @@
 7. **COMMIT MESSAGE RULES - ABSOLUTELY NO EXCEPTIONS:**
    - **NEVER COMBINE MULTIPLE FILES IN ONE COMMIT**
    - **EACH FILE GETS ITS OWN COMMIT WITH SPECIFIC MESSAGE**
+   - **NEVER include Claude code attribution or co-author tags in commits**
    - Format: `fix(scope): specific change description`
    - Examples:
      - ✅ `fix(eslint): re-enable jsx-no-target-blank rule with allowReferrer`
