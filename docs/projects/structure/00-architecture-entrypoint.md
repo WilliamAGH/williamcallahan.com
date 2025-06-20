@@ -4,6 +4,24 @@ This document serves as the master index for all architectural documentation in 
 
 **Start here** to understand the structure and responsibilities of different parts of the application.
 
+## 🚨 CRITICAL: TypeScript, Next.js & React Guidance
+
+This project enforces **100% strict TypeScript type safety** and adherence to modern Next.js and React best practices. All code must pass `bun run validate` before any commit. This is non-negotiable.
+
+For a comprehensive guide on how to diagnose and fix type errors, and for crucial framework guidance, see the master playbook:
+
+**[➡️ Architecting for 100% Type Safety: A Guide for Developers & LLMs](./linting-formatting.md)**
+
+This guide is the **single source of truth** for code quality and covers:
+
+- Foundational TypeScript & ESLint rules.
+- Runtime validation with Zod.
+- **The Next.js & React Frontend Playbook**: Top 10 common infrastructure issues and their solutions.
+- **Tool-Assisted Debugging**: How to use MCP tools like Context7 and web search to resolve issues.
+- A visual map of the entire validation and development pipeline.
+
+---
+
 ## Functionality Map
 
 | Functionality | Core Objective | Documentation | Diagram |
@@ -30,7 +48,7 @@ This document serves as the master index for all architectural documentation in 
 | `interactive-containers` | Comprise UI components that act as interactive wrappers for other content, managing visibility and layout (e.g., dropdowns). | [interactive-containers.md](./interactive-containers.md) | |
 | `investments` | Display a list of private company investments, pre-rendering content on the server for performance. | [investments.md](./investments.md) | [Diagram](./investments.mmd) |
 | `json-handling` | Manage the fetching, processing, caching, and storage of various JSON-based data sets (bookmarks, GitHub activity, etc.). | [json-handling.md](./json-handling.md) | [Diagram](./json-handling.mmd) |
-| `linting-formatting` | Maintain consistent code quality, style, and formatting across the codebase using ESLint and Biome. | [linting-formatting.md](./linting-formatting.md) | [Diagram](./linting-formatting.mmd) |
+| `linting-formatting` | **[CRITICAL]** The master guide for code quality, formatting, and **100% strict TypeScript type safety**. | [linting-formatting.md](./linting-formatting.md) | [Diagram](./linting-formatting.mmd) |
 | `log-error-debug-handling` | Provide comprehensive logging, error handling, debugging, network resilience, and monitoring capabilities. | [log-error-debug-handling.md](./log-error-debug-handling.md) | [Diagram](./log-error-debug-handling.mmd) |
 | `macos-gui` | Encompass components that emulate the macOS operating system's graphical user interface style. | [macos-gui.md](./macos-gui.md) | [Diagram](./macos-gui.mmd) |
 | `memory-mgmt` | Provide robust, multi-layered memory management to prevent leaks and ensure application stability under load. | [memory-mgmt.md](./memory-mgmt.md) | [Diagram](./memory-mgmt.mmd) |
