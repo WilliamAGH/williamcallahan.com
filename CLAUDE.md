@@ -16,20 +16,29 @@ alwaysApply: true  # Exception: This master config file always applies to provid
 
 ### Functionality Documentation & File Overview Map
 
-Before you edit, delete, create, or refactor ANY piece of code, you **MUST** locate its owning *Functionality* and review the corresponding architecture documentation.
+Before you edit, delete, create, or refactor ANY piece of code, you **MUST** understand its architectural context.
 
-1. **Locate the Functionality**  
-   • Open `docs/projects/file-overview-map.md` and search for the file (or directory) you intend to touch.  
-   • Each entry in the *Functionality* column maps directly to a markdown file in `docs/projects/structure/` (e.g. a value of `github-activity` → `docs/projects/structure/github-activity.md`).
-2. **Read the Architecture Doc**  
-   • Open the mapped `docs/projects/structure/<functionality>.md`.  
-   • Skim at minimum the *Core Objective*, *Key Files*, *Logic Flow*, and *Critical Issues* sections to understand context, dependencies, and known pitfalls.
-3. **Identify Related Logic**  
-   • Use the architecture doc (and any linked `.mmd` diagrams) to discover all related files that could be impacted by your change.  
-   • Search the codebase for the `Functionality` tag to catch any stragglers.
-4. **Keep Docs in Sync**  
-   • Ensure your change does not violate the documented architecture or critical issues list.  
-   • Whenever you **create, delete, move, or significantly edit** any file, update **both** `docs/projects/file-overview-map.md` **and** the relevant `docs/projects/structure/<functionality>.md` files so they accurately reflect the new state.
+1. **Start with the Master Entrypoint**  
+    • Open `docs/projects/structure/00-architecture-entrypoint.md`. This file is the master index for all architectural documentation.
+    • Use it to find the high-level "Functionality" you are working on and get a quick overview of its core objective.
+
+2. **Read the Detailed Architecture Doc**  
+    • From the entrypoint, click the link to the detailed documentation for the relevant functionality (e.g., `[bookmarks.md](./bookmarks.md)`).
+    • Skim at minimum the *Core Objective*, *Key Files*, *Logic Flow*, and *Critical Issues* sections to understand context, dependencies, and known pitfalls.
+
+3. **Consult the File Overview Map for Specifics**
+    • If you need to map a *specific file* back to its owning functionality, open `docs/projects/file-overview-map.md`.
+
+4. **Identify Related Logic**  
+    • Use the architecture doc (and any linked `.mmd` diagrams) to discover all related files that could be impacted by your change.  
+    • Search the codebase for the `Functionality` tag to catch any stragglers.
+
+5. **Keep Docs in Sync**  
+    • Ensure your change does not violate the documented architecture or critical issues list.  
+    • Whenever you **create, delete, move, or significantly edit** any file, you **must** update all relevant documentation. This includes:
+      - The master entrypoint: `docs/projects/structure/00-architecture-entrypoint.md`
+      - The file overview map: `docs/projects/file-overview-map.md`
+      - The specific functionality document: `docs/projects/structure/<functionality>.md`
 
 Skipping these steps is the fastest way to re-introduce lost context and architectural drift—don't do it. 🛑
 

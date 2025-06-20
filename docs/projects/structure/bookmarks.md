@@ -221,7 +221,7 @@ To serve as the primary orchestration layer for fetching, processing, enriching,
 ### ✅ FIXED: Memory Leak from Image Buffers (2025-06)
 
 - **Previous Issue**: OpenGraph image buffers stored directly in ServerCache without limits
-- **Solutions**: 
+- **Solutions**:
   - Integrated with new `memory-mgmt` functionality for all image operations
   - ServerCache now stores only metadata (S3 keys, CDN URLs), not buffers
   - All image operations use `UnifiedImageService` with memory limits
