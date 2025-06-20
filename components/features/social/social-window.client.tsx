@@ -97,16 +97,19 @@ export function SocialWindow({ socialLinks = [], title = "Contact", onClose }: S
       {socialLinks.length > 0 && (
         <div className="p-6">
           <h2 className="text-xl font-mono mb-4">Social Links</h2>
-          <div className="grid gap-4">
+          <div className="grid gap-3">
             {socialLinks.map((link) => (
               <a
                 key={link.platform}
                 href={link.href}
-                className="block p-3 rounded border hover:bg-gray-50 dark:hover:bg-gray-800"
+                className={`flex items-center gap-3 p-3 rounded border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                  link.emphasized ? 'border-blue-200 dark:border-blue-800' : ''
+                }`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {link.platform}: {link.href}
+                <link.icon className="w-5 h-5" />
+                <span className="font-medium">{link.label}</span>
               </a>
             ))}
           </div>
