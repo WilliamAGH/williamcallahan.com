@@ -1,51 +1,55 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.x/schema.json",
-  "organizeImports": {
-    "enabled": false
-  },
-  "linter": {
-    "enabled": true,
-    "ignore": [
-      "node_modules/**",
-      "components/ui/code-block/prism-syntax-highlighting/prism.js",
-      ".next/**",
-      "coverage/**",
-      "**/*.mdx"
+  "$schema": "https://biomejs.dev/schemas/2.0.0/schema.json",
+  "files": {
+    "includes": [
+      "**/*",
+      "!node_modules/**",
+      "!components/ui/code-block/prism-syntax-highlighting/prism.js",
+      "!.next/**",
+      "!coverage/**",
+      "!**/*.mdx",
+      "!.DS_Store",
+      "!.husky/**",
+      "!*.env*",
+      "!*.ico",
+      "!bun.lock",
+      "!README.md",
+      "!docs/**/*.md"
     ],
-    "rules": {
-      "recommended": true,
-      "a11y": {
-        "useAltText": "off",
-        "noBlankTarget": "off"
-      }
-    }
+    "maxSize": 1048576,
+    "ignoreUnknown": true
   },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 120,
-    "ignore": ["node_modules/**", ".next/**", "coverage/**"]
+    "lineWidth": 120
   },
-  "files": {
-    "ignore": [
-      "node_modules/**",
-      ".next/**",
-      "coverage/**",
-      ".DS_Store",
-      ".husky/**",
-      "*.env*",
-      "*.ico",
-      "bun.lock",
-      "README.md",
-      "docs/**/*.md"
-    ],
-    "maxSize": 1048576,
-    "ignoreUnknown": true
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": {
+        "useAltText": "off"
+      },
+      "security": {
+        "noBlankTarget": "off"
+      },
+      "style": {
+        "useImportType": "off"
+      }
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
+    }
   },
   "overrides": [
     {
-      "include": [
+      "includes": [
         "eslint.config.ts",
         "eslint.config.js",
         "*.config.{js,ts,mjs,cjs}",
@@ -64,17 +68,28 @@
             "noForEach": "off"
           }
         }
+      },
+      "assist": {
+        "actions": {
+          "source": {
+            "organizeImports": "off"
+          }
+        }
       }
     },
     {
-      "include": ["**/__tests__/**/*", "**/*.{test,spec}.{js,ts,jsx,tsx}"],
-      "organizeImports": {
-        "enabled": false
-      },
+      "includes": ["**/__tests__/**/*", "**/*.{test,spec}.{js,ts,jsx,tsx}"],
       "linter": {
         "rules": {
           "suspicious": {
             "noExplicitAny": "off"
+          }
+        }
+      },
+      "assist": {
+        "actions": {
+          "source": {
+            "organizeImports": "off"
           }
         }
       }
