@@ -11,6 +11,8 @@
 export const OPENGRAPH_S3_KEY_DIR = "opengraph";
 export const OPENGRAPH_METADATA_S3_DIR = `${OPENGRAPH_S3_KEY_DIR}/metadata`;
 export const OPENGRAPH_IMAGES_S3_DIR = "images/opengraph";
+export const OPENGRAPH_JINA_HTML_S3_DIR = `${OPENGRAPH_S3_KEY_DIR}/jina-html`;
+export const OPENGRAPH_OVERRIDES_S3_DIR = `${OPENGRAPH_S3_KEY_DIR}/overrides`;
 
 // Fetch Configuration with environment variable overrides
 export const OPENGRAPH_FETCH_CONFIG = {
@@ -53,12 +55,12 @@ export const IMAGE_CONFIG = {
   ],
 };
 
-// Social Platforms (moved from types/social.ts to break circular dependency)
-export const SOCIAL_PLATFORMS = {
-  GITHUB: "GitHub",
-  TWITTER: "Twitter",
-  X: "X",
-  LINKEDIN: "LinkedIn",
-  DISCORD: "Discord",
-  BLUESKY: "Bluesky",
-} as const;
+/**
+ * Configuration for the Jina AI fetch limiter.
+ * Limits the number of times the Jina AI Reader service can be called
+ * within a rolling time window to prevent excessive usage.
+ */
+export const JINA_FETCH_CONFIG = {
+  MAX_FETCHES_PER_WINDOW: 10, // Max 10 fetches per day
+  WINDOW_MS: 24 * 60 * 60 * 1000, // Per 24 hours
+};

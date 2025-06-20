@@ -26,7 +26,7 @@ import {
   metadata as siteMetadata,
 } from "../../data/metadata";
 import type { ArticleMetadata, ExtendedMetadata, ArticleParams, SoftwareAppParams } from "../../types/seo";
-import { SEO_DATE_FIELDS } from "../../types/seo";
+import { SEO_DATE_FIELDS } from "./constants";
 import type { ExtendedOpenGraph } from "../../types/seo/opengraph";
 import type { SchemaParams } from "../../types/seo/schema";
 import { createArticleOgMetadata } from "./opengraph";
@@ -236,12 +236,19 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
     ...(isProfilePage &&
       "bio" in pageMetadata && {
         profileMetadata: {
-          bio: pageMetadata.bio,
-          ...("alternateName" in pageMetadata && { alternateName: pageMetadata.alternateName }),
-          ...("identifier" in pageMetadata && { identifier: pageMetadata.identifier }),
-          ...("profileImage" in pageMetadata && { profileImage: pageMetadata.profileImage }),
+          bio: (pageMetadata as { bio: string }).bio,
+          ...("alternateName" in pageMetadata && {
+            alternateName: (pageMetadata as { alternateName: string }).alternateName,
+          }),
+          ...("identifier" in pageMetadata && {
+            identifier: (pageMetadata as { identifier: string }).identifier,
+          }),
+          ...("profileImage" in pageMetadata && {
+            profileImage: (pageMetadata as { profileImage: string }).profileImage,
+          }),
           ...("interactionStats" in pageMetadata && {
-            interactionStats: pageMetadata.interactionStats,
+            interactionStats: (pageMetadata as { interactionStats: { follows: number; posts: number } })
+              .interactionStats,
           }),
         },
       }),

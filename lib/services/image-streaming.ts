@@ -17,15 +17,35 @@ import type { StreamToS3Options, StreamingResult } from "@/types/s3";
  */
 class StreamMonitor extends Transform {
   private bytesStreamed = 0;
+  private maxSize = 100 * 1024 * 1024; // 100MB max to prevent memory exhaustion
 
-  _transform(chunk: Buffer, _encoding: string, callback: () => void): void {
+  _transform(chunk: Buffer, _encoding: string, callback: (error?: Error) => void): void {
     this.bytesStreamed += chunk.length;
+
+    // Check for size limits to prevent memory exhaustion
+    if (this.bytesStreamed > this.maxSize) {
+      const error = new Error(`Stream too large: ${this.bytesStreamed} bytes exceeds ${this.maxSize} bytes`);
+      this.destroy(error);
+      callback(error);
+      return;
+    }
+
     this.push(chunk);
+    callback();
+  }
+
+  _flush(callback: (error?: Error) => void): void {
+    // Ensure cleanup on stream end
     callback();
   }
 
   getBytesStreamed(): number {
     return this.bytesStreamed;
+  }
+
+  destroy(error?: Error): this {
+    // Ensure proper cleanup
+    return super.destroy(error);
   }
 }
 
@@ -38,10 +58,20 @@ export async function streamToS3(
   options: StreamToS3Options,
 ): Promise<StreamingResult> {
   const monitor = new StreamMonitor();
+  let nodeStream: Readable | null = null;
+  let timeoutId: NodeJS.Timeout | null = null;
 
   try {
+    // Set timeout to prevent hanging streams
+    const STREAM_TIMEOUT_MS = 300000; // 5 minutes
+    timeoutId = setTimeout(() => {
+      console.error(`[ImageStreaming] Stream timeout after ${STREAM_TIMEOUT_MS}ms`);
+      if (nodeStream) {
+        nodeStream.destroy();
+      }
+    }, STREAM_TIMEOUT_MS);
+
     // Convert Web ReadableStream to Node.js stream if needed
-    let nodeStream: Readable;
     if (responseStream instanceof Readable) {
       nodeStream = responseStream;
     } else {
@@ -94,6 +124,20 @@ export async function streamToS3(
       error: error instanceof Error ? error : new Error(String(error)),
       bytesStreamed: monitor.getBytesStreamed(),
     };
+  } finally {
+    // Cleanup resources
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+
+    // Ensure stream is properly closed
+    if (nodeStream && !nodeStream.destroyed) {
+      try {
+        nodeStream.destroy();
+      } catch (cleanupError) {
+        console.warn("[ImageStreaming] Error during stream cleanup:", cleanupError);
+      }
+    }
   }
 }
 
