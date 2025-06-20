@@ -6,13 +6,24 @@
  * such as the structure for cached image entries.
  */
 
+import type { LRUCache } from "lru-cache";
 import type { GitHubActivityApiResponse } from "./github";
+import type { LogoResult } from "./logo";
 import type { OgResult } from "./opengraph";
+import type { ImageDataWithBuffer, ImageSource } from "./image";
 
-export interface ImageCacheEntry {
-  buffer: Buffer;
-  contentType: string;
-  timestamp: number;
+/**
+ * Image cache entry with buffer
+ * Used by ImageMemoryManager for storing actual image data
+ */
+export interface ImageCacheEntry extends ImageDataWithBuffer {
+  // Inherits: buffer, contentType, source, cdnUrl, error, timestamp
+  // Override source to be required
+  source: ImageSource;
+  /** S3 key where the image is stored */
+  s3Key?: string;
+  /** CDN URL for serving the image (overrides base cdnUrl) */
+  cdnUrl?: string;
 }
 
 /**
@@ -27,32 +38,45 @@ export interface LogoValidationResult {
 
 /**
  * Logo fetch result from the server
+ * Extends LogoResult with additional server-side metadata
  */
-export interface LogoFetchResult {
-  /** URL of the logo, or null if no valid logo found */
-  url: string | null;
-  /** Source of the logo (google, duckduckgo, or null) */
-  source: import("./logo").LogoSource;
-  /** Raw image buffer */
-  buffer?: Buffer;
-  /** Content type of the image (e.g., 'image/png', 'image/svg+xml') */
-  contentType?: string;
-  /** Error message if logo fetch failed */
-  error?: string;
-  /** Timestamp when the logo was fetched */
+export interface LogoFetchResult extends LogoResult {
+  /** Domain the logo is for */
+  domain?: string;
+  /** Whether the logo is valid */
+  isValid?: boolean;
+  /** Whether the logo is a generic globe icon */
+  isGlobeIcon?: boolean;
+}
+
+/**
+ * Inverted logo cache entry (metadata only, buffer stored in ImageMemoryManager)
+ */
+export interface InvertedLogoEntry {
+  /** S3 key where the inverted logo is stored */
+  s3Key: string;
+  /** CDN URL for the inverted logo */
+  cdnUrl?: string;
+  /** Analysis results */
+  analysis: import("./logo").LogoInversion;
+  /** Content type of the image */
+  contentType: string;
+  /** Timestamp when the inversion was created */
   timestamp: number;
 }
 
 /**
- * Inverted logo cache entry
+ * Defines the core methods of a cache that domain-specific helpers can rely on.
+ * This allows splitting the ServerCache class logic into multiple files
+ * while maintaining type safety for the `this` context in the helper methods.
  */
-export interface InvertedLogoEntry {
-  /** Inverted image buffer */
-  buffer: Buffer;
-  /** Analysis results */
-  analysis: import("./logo").LogoInversion;
-  /** Timestamp when the inversion was created */
-  timestamp: number;
+export interface ICache {
+  get<T>(key: string): T | undefined;
+  set<T extends CacheValue>(key: string, value: T, ttl?: number): boolean;
+  del(key: string | string[]): void;
+  keys(): string[];
+  has(key: string): boolean;
+  getStats(): CacheStats;
 }
 
 /**
@@ -101,3 +125,37 @@ export interface OgCacheEntry extends OgResult {
   lastAttemptedAt: number;
   isFailure?: boolean;
 }
+
+/**
+ * Cache statistics interface
+ */
+export interface CacheStats {
+  keys: number;
+  hits: number;
+  misses: number;
+  ksize: number;
+  vsize: number;
+}
+
+/**
+ * Type for LRU cache storing buffers
+ */
+export type BufferCache = LRUCache<string, Buffer, unknown>;
+
+/**
+ * Type for LRU cache storing metadata
+ */
+export type MetadataCache = LRUCache<string, Omit<ImageCacheEntry, "buffer">, unknown>;
+
+/**
+ * Types that can be safely stored in LRUCache (excludes null/undefined)
+ * These satisfy LRUCache's constraint that values must extend {}
+ * Using 'object' instead of Record<string, unknown> to allow any object type
+ */
+export type StorableCacheValue = string | number | boolean | object | Buffer;
+
+/**
+ * The full cache value type for the public interface (includes null)
+ * null values are handled by not storing them (returning undefined instead)
+ */
+export type CacheValue = StorableCacheValue | null;

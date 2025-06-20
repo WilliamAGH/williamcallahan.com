@@ -29,6 +29,9 @@ export * from "./blog";
 export type { OgResult, KarakeepImageFallback, OgCacheEntry, OgMetadata } from "./opengraph";
 export { OgError, isOgResult } from "./opengraph";
 
+/** 🖼️ IMAGE DOMAIN (types/image.ts) - Image processing, memory management, and service types */
+export type { ImageMemoryMetrics, ImageServiceOptions, ImageResult } from "./image";
+
 /** 🔗 SEO DOMAIN (types/seo/*) - SEO metadata, Open Graph, structured data */
 export * from "./seo";
 
@@ -94,6 +97,9 @@ export type {
   SearchCacheEntry,
   // OgCacheEntry is exported from ./seo, so we avoid a conflict here.
 } from "./cache";
+
+/** ⛑️ HEALTH & MONITORING (types/health.ts) - System health, memory usage, monitoring types */
+export * from "./health";
 
 // =============================================================================
 // 🌐 API & EXTERNAL TYPES - Data Exchange & Integration

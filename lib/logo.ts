@@ -220,7 +220,7 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
     }
     return {
       url: cached.url,
-      source: determineSource(cached.url),
+      source: determineSource(cached.url || null),
       inversion: cached.inversion,
       contentType: cached.contentType || "image/png",
     };

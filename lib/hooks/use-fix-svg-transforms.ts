@@ -26,10 +26,7 @@ import type { RefObject } from "react";
  * ```
  */
 export function useFixSvgTransforms<T extends HTMLElement = HTMLDivElement>(
-  options: {
-    rootRef?: RefObject<T | null>;
-    selector?: string;
-  } = {},
+  options: { rootRef?: RefObject<T | null>; selector?: string } = {},
 ): RefObject<T | null> {
   const { rootRef, selector = "svg" } = options;
   const internalRef = useRef<T>(null);

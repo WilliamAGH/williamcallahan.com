@@ -61,10 +61,13 @@ export async function validateLogoBuffer(buffer: Buffer, url: string): Promise<b
 
 /**
  * Processes an image buffer to determine format and preserve animated images.
+ * Uses memory-safe string extraction without Buffer.slice() to prevent parent
+ * buffer retention and memory leaks.
  *
  * @param buffer - The image data to process
  * @returns Object with processed buffer, SVG flag, and appropriate content type
  * @remark Preserves GIF and WebP animations, only converts static images to PNG
+ * @remark Memory-safe: Uses toString(encoding, start, end) instead of slice()
  */
 export async function processImageBuffer(buffer: Buffer): Promise<{
   processedBuffer: Buffer;
@@ -72,7 +75,8 @@ export async function processImageBuffer(buffer: Buffer): Promise<{
   contentType: string;
 }> {
   // Prioritize a direct SVG string check - only inspect first 1KB to avoid excessive memory usage
-  const bufferString: string = buffer.slice(0, 1024).toString("utf-8").trim();
+  // CRITICAL: Use toString with offset/length to avoid Buffer.slice() memory retention
+  const bufferString: string = buffer.toString("utf-8", 0, Math.min(1024, buffer.length)).trim();
   if (bufferString.startsWith("<svg") && bufferString.includes("</svg>")) {
     if (isDebug) console.log("[DataAccess/Logos] Detected SVG by string content (startsWith <svg).");
     return { processedBuffer: buffer, isSvg: true, contentType: "image/svg+xml" };

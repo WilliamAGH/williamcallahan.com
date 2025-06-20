@@ -70,15 +70,29 @@ export interface ValidatedMetadata {
 
 /**
  * Contains the fetched logo data along with metadata about the fetch operation.
+ * Includes buffer when available for immediate use, otherwise stored separately in ImageMemoryManager
  */
 export interface LogoResult {
-  url: string | null;
+  /** S3 key where the logo is stored */
+  s3Key?: string;
+  /** Public URL for the logo (typically CDN) */
+  url?: string | null;
+  /** CDN URL for the logo */
+  cdnUrl?: string;
+  /** Source service that provided the logo */
   source: LogoSource;
-  retrieval?: "mem-cache" | "s3-store" | "external" | "placeholder";
+  /** Where the logo was retrieved from in this request */
+  retrieval?: "mem-cache" | "s3-store" | "external" | "placeholder" | "api";
+  /** Error message if fetch failed */
   error?: string;
+  /** Logo inversion analysis results */
   inversion?: LogoInversion;
-  buffer?: Buffer;
+  /** MIME type of the logo */
   contentType: string;
+  /** Timestamp when fetched */
+  timestamp?: number;
+  /** Image buffer when available */
+  buffer?: Buffer;
 }
 
 /**

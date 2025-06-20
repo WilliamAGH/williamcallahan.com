@@ -8,7 +8,12 @@
  */
 
 import { readFile } from "node:fs/promises"; // Using direct import for readFile
-import { investments } from "@/data/investments";
+
+// IMPORTANT: This module is used by standalone scripts (e.g., data-updater.ts)
+// that are executed directly by Bun. The Bun runtime, in this context, does not
+// automatically resolve tsconfig.json path aliases. To ensure reliability, this
+// import MUST use a relative path instead of a path alias (e.g., "@/data/investments").
+import { investments } from "../../data/investments";
 
 /**
  * Asynchronously retrieves a map linking investment domain names to their corresponding investment IDs

@@ -11,7 +11,7 @@
 import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { debug } from "@/lib/utils/debug";
-import { findImageInS3, persistImageToS3, serveImageFromS3 } from "@/lib/image-handling/image-s3-utils";
+import { findImageInS3, serveImageFromS3 } from "@/lib/image-handling/image-s3-utils";
 import { getDomainType, hashUrl, isValidImageUrl, normalizeUrl, validateOgUrl } from "@/lib/utils/opengraph-utils";
 import { hasDomainFailedTooManyTimes, markDomainAsFailed } from "@/lib/data-access/logos/session";
 import {
@@ -195,8 +195,9 @@ export async function getOpenGraphData(
       ServerCacheInstance.setOpenGraphData(normalizedUrl, updatedStoredResult, false);
       return updatedStoredResult;
     }
-  } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "NoSuchKey") {
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    if ("code" in error && error.code === "NoSuchKey") {
       debug(`[DataAccess/OpenGraph]  S3 cache miss for: ${normalizedUrl}`);
     } else {
       const ogError = new OgError(`Failed to read from S3 for ${normalizedUrl}`, "s3-read", {
@@ -241,6 +242,9 @@ export async function refreshOpenGraphData(
   const normalizedUrl = normalizeUrl(url);
   const urlHash = hashUrl(normalizedUrl);
   let promise = inFlightOgPromises.get(urlHash);
+
+  // Acknowledge unused parameters for now
+  void idempotencyKey;
 
   if (promise) {
     debug(`[DataAccess/OpenGraph] Joining in-flight request for: ${normalizedUrl}`);
@@ -300,36 +304,6 @@ export async function refreshOpenGraphData(
 
   inFlightOgPromises.set(urlHash, promise);
   return promise;
-}
-
-/**
- * Persists an image to S3 and returns the S3 key
- *
- * @param imageUrl - URL of the image to persist
- * @param idempotencyKey - Unique key for idempotent storage
- * @param sourceUrl - The URL of the page the image is from
- * @returns The S3 key of the persisted image, or null if persistence fails
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function persistImage(
-  imageUrl: string | null | undefined,
-  idempotencyKey: string | undefined,
-  sourceUrl: string,
-): Promise<string | null> {
-  if (!imageUrl || !isValidImageUrl(imageUrl)) {
-    return null;
-  }
-
-  try {
-    const s3Key = await persistImageToS3(imageUrl, OPENGRAPH_IMAGES_S3_DIR, "OpenGraph", idempotencyKey, sourceUrl);
-    return s3Key;
-  } catch (error) {
-    const ogError = new OgError(`Failed to persist image ${imageUrl}`, "s3-persist-image", {
-      originalError: error,
-    });
-    console.warn(`[DataAccess/OpenGraph] ${ogError.message}`, ogError);
-    return null;
-  }
 }
 
 /**

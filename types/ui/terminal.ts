@@ -66,11 +66,7 @@ export interface SelectionViewProps {
     description: string;
     path: string;
   }>;
-  onSelectAction: (item: {
-    label: string;
-    description: string;
-    path: string;
-  }) => void;
+  onSelectAction: (item: { label: string; description: string; path: string }) => void;
   onExitAction: () => void;
 }
 
