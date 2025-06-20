@@ -229,11 +229,13 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
       `⏳ Processing logo batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(domainArray.length / BATCH_SIZE)} for ${batch.length} domains`,
     );
 
+    // Import once per batch
+    const { ImageMemoryManagerInstance } = await import("@/lib/image-memory-manager");
+
     // Process domains sequentially within each batch to prevent memory overload
     for (const domain of batch) {
       try {
         // Check memory pressure before processing each logo
-        const { ImageMemoryManagerInstance } = await import("@/lib/image-memory-manager");
         const metrics = ImageMemoryManagerInstance.getMetrics();
 
         // Skip processing if in memory pressure mode
