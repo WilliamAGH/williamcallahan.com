@@ -2,61 +2,50 @@
  * @module lib/server-cache/bookmarks
  * @description Domain-specific cache methods for bookmarks.
  * These methods are intended to be attached to the ServerCache prototype.
+ *
+ * NOTE: Bookmarks are stored in S3, not in memory cache.
+ * These methods now only track metadata about the last fetch.
  */
 
 import type { BookmarksCacheEntry, ICache } from "@/types/cache";
-import type { UnifiedBookmark } from "@/types/bookmark";
-import { rawBookmarkSchema } from "@/lib/schemas/bookmarks";
 import { BOOKMARKS_CACHE_DURATION } from "@/lib/constants";
 
-const BOOKMARKS_CACHE_KEY = "bookmarks-data";
+const BOOKMARKS_METADATA_KEY = "bookmarks:metadata";
 
+/**
+ * Get bookmarks metadata (not the actual bookmarks)
+ * For actual bookmarks, they should be loaded from S3
+ *
+ * @deprecated Use S3 index directly for metadata
+ */
 export function getBookmarks(this: ICache): BookmarksCacheEntry | undefined {
-  return this.get<BookmarksCacheEntry>(BOOKMARKS_CACHE_KEY);
-}
-
-export function setBookmarks(this: ICache, bookmarks: UnifiedBookmark[], isFailure = false): void {
-  if (!isFailure && bookmarks.length > 0) {
-    const sampleBookmark = bookmarks[0];
-    if (sampleBookmark) {
-      const validationResult = rawBookmarkSchema.safeParse({
-        id: sampleBookmark.id,
-        url: sampleBookmark.url,
-        title: sampleBookmark.title,
-        description: sampleBookmark.description,
-        tags: Array.isArray(sampleBookmark.tags)
-          ? sampleBookmark.tags.map((tag: string | { name: string }) => (typeof tag === "string" ? tag : tag.name))
-          : [],
-        dateBookmarked: sampleBookmark.dateBookmarked,
-      });
-      if (!validationResult.success) {
-        console.warn(
-          "[ServerCache] Bookmark data failed strict validation – falling back to lenient caching:",
-          validationResult.error?.issues?.[0]?.message ?? validationResult.error,
-        );
-      }
+  // Only return cached metadata
+  const cachedMetadata = this.get<BookmarksCacheEntry>(BOOKMARKS_METADATA_KEY);
+  return (
+    cachedMetadata || {
+      bookmarks: [],
+      lastFetchedAt: Date.now(),
+      lastAttemptedAt: Date.now(),
     }
-  }
-
-  const now = Date.now();
-  const existing = getBookmarks.call(this);
-
-  const entry: BookmarksCacheEntry = {
-    bookmarks: isFailure ? existing?.bookmarks || [] : bookmarks,
-    lastFetchedAt: isFailure ? (existing?.lastFetchedAt ?? now) : now,
-    lastAttemptedAt: now,
-  };
-
-  this.set(BOOKMARKS_CACHE_KEY, entry, isFailure ? BOOKMARKS_CACHE_DURATION.FAILURE : BOOKMARKS_CACHE_DURATION.SUCCESS);
+  );
 }
 
-export function shouldRefreshBookmarks(this: ICache): boolean {
-  const cached = getBookmarks.call(this);
-  if (!cached) {
-    return true;
-  }
+/**
+ * This method is deprecated - bookmarks should not be stored in memory
+ *
+ * @deprecated Bookmarks are stored in S3, not in cache
+ */
+export function setBookmarks(this: ICache): void {
+  console.warn("[ServerCache] setBookmarks called - this is deprecated. Bookmarks should be stored in S3 only.");
+}
 
-  if (!cached.bookmarks || !Array.isArray(cached.bookmarks) || cached.bookmarks.length === 0) {
+/**
+ * Check if bookmarks should be refreshed
+ * This method checks the age of cached metadata
+ */
+export function shouldRefreshBookmarks(this: ICache): boolean {
+  const cached = this.get<BookmarksCacheEntry>(BOOKMARKS_METADATA_KEY);
+  if (!cached) {
     return true;
   }
 
@@ -68,5 +57,5 @@ export function shouldRefreshBookmarks(this: ICache): boolean {
 }
 
 export function clearBookmarks(this: ICache): void {
-  this.del(BOOKMARKS_CACHE_KEY);
+  this.del(BOOKMARKS_METADATA_KEY);
 }

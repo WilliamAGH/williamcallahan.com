@@ -20,8 +20,7 @@ export function setGithubActivity(this: ICache, activityData: GitHubActivityApiR
   const isDataComplete = activityData?.trailingYearData?.dataComplete === true;
 
   const payload: GitHubActivityCacheEntry = {
-    ...activityData,
-    timestamp: Date.now(),
+    data: activityData,
     lastFetchedAt: isFailure ? (getGithubActivity.call(this)?.lastFetchedAt ?? Date.now()) : Date.now(),
     lastAttemptedAt: Date.now(),
   };
@@ -42,12 +41,12 @@ export function clearGithubActivity(this: ICache): void {
 
 export function shouldRefreshGithubActivity(this: ICache): boolean {
   const cached = getGithubActivity.call(this);
-  if (!cached?.timestamp) {
+  if (!cached?.lastFetchedAt) {
     return true;
   }
 
   const now = Date.now();
-  const timeSinceLastFetch = now - cached.timestamp;
+  const timeSinceLastFetch = now - cached.lastFetchedAt;
   const revalidationThreshold = GITHUB_ACTIVITY_CACHE_DURATION.REVALIDATION * 1000;
 
   return timeSinceLastFetch > revalidationThreshold;
