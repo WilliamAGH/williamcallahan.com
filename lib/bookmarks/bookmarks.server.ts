@@ -13,20 +13,23 @@ import { getBookmarks, initializeBookmarksDataAccess } from "@/lib/bookmarks/boo
 /**
  * Get bookmarks for static site generation
  *
- * Uses the same S3 data source as the build prefetch to ensure consistency.
- * Previously read from local file system which could be outdated.
+ * Optimized for build-time performance:
+ * 1. Uses memory cache first (populated by prefetch)
+ * 2. Falls back to S3 with skipExternalFetch=true
+ * 3. Prevents OpenGraph/logo refetching during build
  *
  * This function should only be called server-side during build or static generation.
  */
 export async function getBookmarksForStaticBuild(): Promise<UnifiedBookmark[]> {
+  console.log("[Static Build] Getting bookmarks for static site generation");
+
   // Always use the data access layer for consistency with prefetch data
-  // This ensures sitemap generation uses the same S3 data (99 bookmarks)
-  // that was fetched during the build prefetch phase
-  console.log("[Static Build] Fetching bookmarks from S3 data access layer");
-
+  // The prefetch phase should have already populated the memory cache
   initializeBookmarksDataAccess();
-  const bookmarks = await getBookmarks(true); // skipExternalFetch = true for build performance
 
-  console.log(`[Static Build] Successfully retrieved ${bookmarks.length} bookmarks from S3`);
+  // Use skipExternalFetch=true to prevent OpenGraph/logo refetching during build
+  const bookmarks = await getBookmarks(true); // This will use memory cache first, then S3
+
+  console.log(`[Static Build] Successfully retrieved ${bookmarks.length} bookmarks (memory cache + S3 fallback)`);
   return bookmarks;
 }
