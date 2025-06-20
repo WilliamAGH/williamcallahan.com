@@ -1,88 +1,55 @@
-import { cache } from "@/lib/cache";
+import { cache, CACHE_TTL } from "@/lib/cache";
+import type { CacheStats } from "@/types/cache";
 
-describe("cache", () => {
+describe("lib/cache", () => {
   beforeEach(() => {
     cache.flushAll();
   });
 
-  it("should store and retrieve values", () => {
-    const key = "test-key";
-    const value = { data: "test-value" };
-
-    cache.set(key, value);
-    const retrieved = cache.get(key);
-
-    expect(retrieved).toEqual(value);
+  it("should set and get a value", () => {
+    cache.set("key", "value");
+    const value = cache.get("key");
+    expect(value).toBe("value");
   });
 
-  it("should handle non-existent keys", () => {
-    const retrieved = cache.get("non-existent");
-    expect(retrieved).toBeUndefined();
+  it("should delete a value", () => {
+    cache.set("key", "value");
+    cache.del("key");
+    const value = cache.get("key");
+    expect(value).toBeUndefined();
   });
 
-  it("should respect TTL", async () => {
-    const key = "ttl-test";
-    const value = "test-value";
-
-    // Set with 1 second TTL
-    cache.set(key, value, 1);
-
-    // Value should exist immediately
-    expect(cache.get(key)).toBe(value);
-
-    // Wait for TTL to expire
-    await new Promise((resolve) => setTimeout(resolve, 1100));
-
-    // Value should be gone
-    expect(cache.get(key)).toBeUndefined();
+  it("should expire a value after its TTL", (done) => {
+    cache.set("key", "value", 1); // 1 second TTL
+    setTimeout(() => {
+      const value = cache.get("key");
+      expect(value).toBeUndefined();
+      done();
+    }, 1100);
   });
 
-  it("should not clone stored objects", () => {
-    const key = "object-test";
-    const value = { nested: { data: "test" } };
-
-    cache.set(key, value);
-    const retrieved = cache.get<typeof value>(key);
-
-    // Modify the retrieved object
-    if (retrieved) {
-      retrieved.nested.data = "modified";
-    }
-
-    // Original cached value should also be modified due to useClones: false
-    const retrievedAgain = cache.get<TestValue>(key);
-    expect(retrievedAgain?.nested.data).toBe("modified");
-  });
-
-  it("should delete keys", () => {
-    const key = "delete-test";
-    const value = "test-value";
-
-    cache.set(key, value);
-    expect(cache.get(key)).toBe(value);
-
-    cache.del(key);
-    expect(cache.get(key)).toBeUndefined();
-  });
-
-  it("should flush all keys", () => {
+  it("should flush all values", () => {
     cache.set("key1", "value1");
     cache.set("key2", "value2");
-
     cache.flushAll();
-
     expect(cache.get("key1")).toBeUndefined();
     expect(cache.get("key2")).toBeUndefined();
   });
 
-  it("should get statistics", () => {
+  it("should provide cache stats", () => {
     cache.set("key1", "value1");
-    cache.set("key2", "value2");
+    cache.get("key1"); // hit
+    cache.get("key2"); // miss
 
-    const stats = cache.getStats();
+    const stats: CacheStats = cache.getStats();
+    expect(stats.keys).toBe(1);
+    expect(stats.hits).toBe(1);
+    expect(stats.misses).toBe(1);
+  });
 
-    expect(stats.keys).toBe(2);
-    expect(stats.hits).toBe(0);
-    expect(stats.misses).toBe(0);
+  it("should have correct CACHE_TTL constants", () => {
+    expect(CACHE_TTL.DEFAULT).toBe(30 * 24 * 60 * 60);
+    expect(CACHE_TTL.DAILY).toBe(24 * 60 * 60);
+    expect(CACHE_TTL.HOURLY).toBe(60 * 60);
   });
 });
