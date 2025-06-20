@@ -13,11 +13,13 @@ See `s3-object-storage.mmd` for visual data flow.
 ## Read/Write Strategy
 
 ### Read Operations
+
 1. **JSON**: Always bypasses CDN (prevents stale metadata)
 2. **Images**: CDN first (~50ms) → S3 fallback (~100-200ms)
 3. **404 Handling**: Returns `null` gracefully
 
 ### Write Operations
+
 - Direct S3 writes with configurable ACL
 - Content-Type auto-inference
 - Immediate CDN availability for public assets
@@ -25,6 +27,7 @@ See `s3-object-storage.mmd` for visual data flow.
 ## Key Files
 
 ### Core Infrastructure
+
 - **`lib/s3-utils.ts`**: Low-level S3 operations
   - AWS SDK v3 commands
   - CDN fallback logic
@@ -36,6 +39,7 @@ See `s3-object-storage.mmd` for visual data flow.
   - Environment portability
 
 ### Specialized Modules
+
 - **`lib/data-access/logos/s3-operations.ts`**: Logo operations
   - Domain-based key generation
   - Source normalization
@@ -78,10 +82,12 @@ bucket/
 ## Critical Issues
 
 ### ✅ FIXED (2025-06)
+
 - Default public ACLs → Now explicit parameter
 - Retry logic → 3 attempts with backoff
 
 ### High Priority
+
 - **Full Directory Scans**: `findImageInS3` lists entire directories
   - Fix: Implement prefix-based key structure
   
@@ -89,6 +95,7 @@ bucket/
   - Fix: Promise-based initialization
 
 ### Medium Priority  
+
 - **Duplicate Clients**: Both `s3.ts` and `s3-utils.ts` create clients
 - **Brittle Logo Selection**: String matching for "best" logo
 
