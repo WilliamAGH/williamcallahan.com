@@ -37,7 +37,7 @@ export function CollapseDropdownProvider({ children }: { children: ReactNode }) 
     }, 100);
 
     return () => clearTimeout(timer);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // These functions are stable and defined below
 
   const registerDropdown = useCallback((id: string, ref: React.RefObject<HTMLDetailsElement>) => {
     if (enableDebugLogs) {
