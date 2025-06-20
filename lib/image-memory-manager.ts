@@ -300,9 +300,11 @@ export class ImageMemoryManager extends EventEmitter {
       const usage = process.memoryUsage();
       const budget = MEMORY_THRESHOLDS.IMAGE_RAM_BUDGET_BYTES;
 
-      // Multi-level thresholds
+      // Multi-level thresholds with more reasonable heap limit
       const rssThreshold = Number(process.env.IMAGE_RSS_THRESHOLD ?? 1.5 * 1024 * 1024 * 1024); // 1.5GB
-      const heapThreshold = Number(process.env.IMAGE_HEAP_THRESHOLD ?? 0.85 * usage.heapTotal);
+      // Use a fixed heap threshold instead of percentage of heapTotal to avoid false positives
+      // Default to 256MB heap threshold for image operations
+      const heapThreshold = Number(process.env.IMAGE_HEAP_THRESHOLD ?? 256 * 1024 * 1024);
 
       // Enter memory pressure if thresholds exceeded
       if (usage.rss > rssThreshold || usage.heapUsed > heapThreshold) {
