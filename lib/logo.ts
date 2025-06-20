@@ -73,7 +73,7 @@ function loadCache(): LogoCache {
     const potentialCache = parsedJson as Record<string, unknown>;
 
     for (const key in potentialCache) {
-      if (Object.prototype.hasOwnProperty.call(potentialCache, key)) {
+      if (Object.hasOwn(potentialCache, key)) {
         const entry = potentialCache[key]; // entry is unknown
 
         // Type guard to check if entry matches LogoCacheEntry structure

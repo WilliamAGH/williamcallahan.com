@@ -49,9 +49,7 @@ export function getBrowserHeaders(): Record<string, string> {
  * @returns Promise with processed logo buffer and source, or null if no valid logo found
  * @remark Uses parallel fetching with 2-second timeout per source to minimize total time
  */
-export async function fetchExternalLogo(
-  domain: string,
-): Promise<ExternalFetchResult | null> {
+export async function fetchExternalLogo(domain: string): Promise<ExternalFetchResult | null> {
   const domainVariants: string[] = getDomainVariants(domain);
 
   // Try domain variants sequentially

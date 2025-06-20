@@ -50,7 +50,7 @@ export const s3Client: S3Client | null =
         forcePathStyle: true,
         // Increase retry attempts for better resilience
         maxAttempts: 5, // Default is 3, increase to 5
-        retryMode: 'standard', // Use standard retry mode with exponential backoff
+        retryMode: "standard", // Use standard retry mode with exponential backoff
       })
     : null;
 
