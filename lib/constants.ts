@@ -382,27 +382,32 @@ export const CSP_DIRECTIVES = {
  * Memory usage thresholds for health monitoring and load shedding.
  * All values are in bytes.
  *
- * - `IMAGE_RAM_BUDGET_BYTES`: Total memory allocated for the image cache (default 512MB)
- * - `MEMORY_WARNING_THRESHOLD`: RSS memory usage that triggers a "warning" state (default 75% of budget)
- * - `MEMORY_CRITICAL_THRESHOLD`: RSS memory usage that triggers a "critical" state and load shedding (default 90% of budget)
+ * - `TOTAL_PROCESS_MEMORY_BUDGET_BYTES`: Total memory budget for the entire process (default 1GB)
+ * - `IMAGE_RAM_BUDGET_BYTES`: Memory allocated specifically for the image cache (default 512MB)
+ * - `MEMORY_WARNING_THRESHOLD`: RSS memory usage that triggers a "warning" state (default 70% of total budget)
+ * - `MEMORY_CRITICAL_THRESHOLD`: RSS memory usage that triggers a "critical" state and load shedding (default 90% of total budget)
  * - `IMAGE_STREAM_THRESHOLD_BYTES`: Images larger than this are streamed to S3 (default 5MB)
  */
 export const MEMORY_THRESHOLDS = {
+  // Total process memory budget (used by mem-guard for RSS monitoring)
+  TOTAL_PROCESS_MEMORY_BUDGET_BYTES: Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 1024 * 1024 * 1024), // 1GB default
+
+  // Image cache-specific budget (used by ImageMemoryManager)
   IMAGE_RAM_BUDGET_BYTES: Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? 512 * 1024 * 1024), // 512MB default
-  
+
+  // Warning threshold based on total process memory (70% of 1GB = 717MB)
   MEMORY_WARNING_THRESHOLD: Number(
-    process.env.MEMORY_WARNING_THRESHOLD ?? 
-    (Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? 512 * 1024 * 1024) * 0.75)
+    process.env.MEMORY_WARNING_THRESHOLD ??
+      Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 1024 * 1024 * 1024) * 0.7,
   ),
-  
+
+  // Critical threshold based on total process memory (90% of 1GB = 922MB)
   MEMORY_CRITICAL_THRESHOLD: Number(
-    process.env.MEMORY_CRITICAL_THRESHOLD ?? 
-    (Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? 512 * 1024 * 1024) * 0.9)
+    process.env.MEMORY_CRITICAL_THRESHOLD ??
+      Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 1024 * 1024 * 1024) * 0.9,
   ),
-  
-  IMAGE_STREAM_THRESHOLD_BYTES: Number(
-    process.env.IMAGE_STREAM_THRESHOLD_BYTES ?? 5 * 1024 * 1024
-  ), // 5MB default
+
+  IMAGE_STREAM_THRESHOLD_BYTES: Number(process.env.IMAGE_STREAM_THRESHOLD_BYTES ?? 5 * 1024 * 1024), // 5MB default
 } as const;
 
 /**
