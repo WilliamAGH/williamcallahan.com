@@ -39,9 +39,21 @@ c) Read relevant docs/projects/structure/<functionality>.md files
 d) Search for relevant code using @mcp__github__search_code with q="repo:WilliamAGH/williamcallahan.com <search_terms>" and Read tools
 
 STEP 4: If issue is actionable and can be fixed now:
-a) Implement the fix using Edit/MultiEdit tools
-b) Document all changes made
-c) Create comprehensive test if needed
+a) **MANDATORY: Run validation before making changes:**
+   ```bash
+   bun run validate
+   ```
+   Must show 0 errors, 0 warnings. Fix any issues following @docs/projects/structure/linting-formatting.md guidance.
+
+b) Implement the fix using Edit/MultiEdit tools
+c) Document all changes made
+d) Create comprehensive test if needed
+
+e) **MANDATORY: Run validation after making changes:**
+   ```bash
+   bun run validate
+   ```
+   Never use @ts-ignore, @ts-expect-error, or eslint-disable. Fix all type safety issues properly.
 
 STEP 5: Post detailed comment on issue using @mcp__github__add_issue_comment with owner="WilliamAGH" repo="williamcallahan.com" issue_number=$ARGUMENTS body="<your_analysis_and_plan>" including: analysis, changes made (if any), or implementation plan if changes are too large.
 
