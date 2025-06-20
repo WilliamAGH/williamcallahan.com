@@ -232,7 +232,7 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
       try {
         // getLogo handles fetching, validation (if possible), and writing to volume.
         const logoResult = await getLogo(domain); // Removed placeholder baseUrl
-        if (logoResult?.buffer) {
+        if (logoResult && (logoResult.buffer || logoResult.s3Key || logoResult.url)) {
           console.log(`✅ Logo processed for ${domain} via data-access (source: ${logoResult.source})`);
           successCount++;
         } else {

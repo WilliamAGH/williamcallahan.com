@@ -19,6 +19,9 @@ export function register() {
   }
 
   if (isNodeRuntime && !isBuildPhase) {
+    // import { startMemoryGuard } from "./lib/server/mem-guard";
+    // startMemoryGuard();
+    import("@/lib/server/mem-guard");
     // Dynamic import only in the Node runtime to keep the Edge bundle clean
     // Using `import()` avoids static analysis pulling this into the Edge chunks
     const nodeEvents = require("node:events");
