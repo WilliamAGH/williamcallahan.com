@@ -43,9 +43,9 @@ export async function GET(): Promise<NextResponse> {
           external: Math.round(memUsage.external / 1024 / 1024), // MB
         },
         limits: {
-          totalBudget: Math.round(healthStatus.details.budget! / 1024 / 1024), // MB
-          warningThreshold: Math.round(healthStatus.details.threshold! / 1024 / 1024), // MB
-          criticalThreshold: Math.round((healthStatus.details.budget! * 0.9) / 1024 / 1024), // MB
+          totalBudget: Math.round((healthStatus.details.budget || 0) / 1024 / 1024), // MB
+          warningThreshold: Math.round((healthStatus.details.threshold || 0) / 1024 / 1024), // MB
+          criticalThreshold: Math.round(((healthStatus.details.budget || 0) * 0.9) / 1024 / 1024), // MB
         },
       },
       caches: {
