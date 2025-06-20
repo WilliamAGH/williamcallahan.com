@@ -13,6 +13,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { MIN_LOGO_SIZE, VALID_IMAGE_FORMATS } from "../../../lib/constants";
 import { ServerCacheInstance } from "../../../lib/server-cache";
+import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 
 /** Reference globe icon buffer - loaded once and reused */
 let referenceGlobeIcon: Buffer | null = null;
@@ -173,7 +174,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const formData = await request.formData();
     const imageFile = formData.get("image") as File;
-    if (!imageFile) {
+    const imageUrl = formData.get("url") as string;
+
+    let buffer: Buffer;
+
+    if (imageFile) {
+      buffer = Buffer.from(await imageFile.arrayBuffer());
+    } else if (imageUrl) {
+      // Use UnifiedImageService to fetch the image
+      const imageService = getUnifiedImageService();
+      const result = await imageService.getImage(imageUrl);
+
+      if (!result.buffer) {
+        return NextResponse.json(
+          { error: result.error || "Failed to fetch image" },
+          {
+            status: 500,
+            headers: {
+              "Cache-Control": "no-store",
+            },
+          },
+        );
+      }
+
+      buffer = result.buffer;
+    } else {
       return NextResponse.json(
         { error: "No image provided" },
         {
@@ -184,8 +209,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         },
       );
     }
-
-    const buffer = Buffer.from(await imageFile.arrayBuffer());
 
     // Check cache first
     const imageHash = await getImageHash(buffer);

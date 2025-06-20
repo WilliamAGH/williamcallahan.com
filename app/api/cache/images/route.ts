@@ -3,16 +3,11 @@
  * @module app/api/cache/images
  * @description
  * Server-side API endpoint for caching and serving optimized images.
- * Provides a consistent caching layer on top of Next.js image optimization.
+ * Uses UnifiedImageService for consistent image handling across the application.
  */
 
-import type { ImageCacheEntry } from "@/types/cache";
 import { type NextRequest, NextResponse } from "next/server";
-import sharp from "sharp";
-import { ServerCacheInstance } from "../../../../lib/server-cache";
-
-// Cache key prefix
-const IMAGE_CACHE_PREFIX = "optimized-image:";
+import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 
 // Configure cache duration (1 year in seconds)
 const CACHE_DURATION = 60 * 60 * 24 * 365;
@@ -63,114 +58,44 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const imageWidth = !Number.isNaN(parsedWidth) && parsedWidth > 0 ? parsedWidth : 1920;
 
   // Validate format
-  const imageFormat = VALID_IMAGE_FORMATS.includes(format) ? format : "webp";
-
-  // Create a cache key based on URL, width and format
-  const cacheKey = `${IMAGE_CACHE_PREFIX}${url}-${imageWidth}-${imageFormat}`;
+  const imageFormat = VALID_IMAGE_FORMATS.includes(format)
+    ? (format as "jpeg" | "jpg" | "png" | "webp" | "avif" | "gif")
+    : ("webp" as "jpeg" | "jpg" | "png" | "webp" | "avif" | "gif");
 
   try {
-    // Try to get from cache
-    const cached = ServerCacheInstance.get<ImageCacheEntry>(cacheKey);
+    const imageService = getUnifiedImageService();
 
-    if (cached) {
-      // Return cached image with proper headers
-      return new NextResponse(cached.buffer, {
+    // Use UnifiedImageService to get the image with options
+    const result = await imageService.getImage(url, {
+      width: imageWidth,
+      format: imageFormat,
+      quality: imageFormat === "webp" ? 80 : imageFormat === "avif" ? 75 : 85,
+    });
+
+    // If we got a CDN URL, redirect to it
+    if (result.cdnUrl && !result.buffer) {
+      return NextResponse.redirect(result.cdnUrl, { status: 302 });
+    }
+
+    // If we have a buffer, return it
+    if (result.buffer) {
+      return new NextResponse(result.buffer, {
         headers: {
-          "Content-Type": cached.contentType,
+          "Content-Type": result.contentType,
           "Cache-Control": `public, max-age=${CACHE_DURATION}, immutable`,
-          "X-Cache": "HIT",
+          "X-Cache": result.source === "memory" ? "HIT" : "MISS",
+          "X-Source": result.source,
         },
       });
     }
 
-    // Fetch the original image
-    const imageResponse = await fetch(url, {
-      headers: {
-        Accept: "image/*",
-      },
-    });
-
-    if (!imageResponse.ok) {
-      return NextResponse.json(
-        { error: `Failed to fetch image: ${imageResponse.status}` },
-        { status: imageResponse.status },
-      );
+    // If we have an error, return it
+    if (result.error) {
+      return NextResponse.json({ error: result.error }, { status: 500 });
     }
 
-    const contentType = imageResponse.headers.get("Content-Type") || "image/jpeg";
-    const buffer = Buffer.from(await imageResponse.arrayBuffer());
-
-    // Process with sharp for optimization
-    let processedImage: Buffer;
-
-    try {
-      const sharpInstance = sharp(buffer);
-
-      // Resize if width provided
-      if (imageWidth > 0) {
-        sharpInstance.resize({
-          width: imageWidth,
-          withoutEnlargement: true,
-          fit: "inside",
-        });
-      }
-
-      // Convert to specified format
-      switch (imageFormat) {
-        case "webp":
-          processedImage = await sharpInstance.webp({ quality: 80 }).toBuffer();
-          break;
-        case "avif":
-          processedImage = await sharpInstance.avif({ quality: 75 }).toBuffer();
-          break;
-        case "png":
-          processedImage = await sharpInstance.png({ compressionLevel: 9 }).toBuffer();
-          break;
-        case "jpeg":
-        case "jpg":
-          processedImage = await sharpInstance.jpeg({ quality: 85 }).toBuffer();
-          break;
-        default:
-          // Default to webp
-          processedImage = await sharpInstance.webp({ quality: 80 }).toBuffer();
-      }
-    } catch (error) {
-      console.error("Image processing error:", error);
-      // Fall back to original image
-      processedImage = buffer;
-    }
-
-    // Set content type based on format
-    const outputContentType =
-      imageFormat === "webp"
-        ? "image/webp"
-        : imageFormat === "avif"
-          ? "image/avif"
-          : imageFormat === "png"
-            ? "image/png"
-            : imageFormat === "jpeg" || imageFormat === "jpg"
-              ? "image/jpeg"
-              : contentType;
-
-    // Cache the optimized image
-    ServerCacheInstance.set(
-      cacheKey,
-      {
-        buffer: processedImage,
-        contentType: outputContentType,
-        timestamp: Date.now(),
-      },
-      CACHE_DURATION,
-    );
-
-    // Return the processed image
-    return new NextResponse(processedImage, {
-      headers: {
-        "Content-Type": outputContentType,
-        "Cache-Control": `public, max-age=${CACHE_DURATION}, immutable`,
-        "X-Cache": "MISS",
-      },
-    });
+    // Fallback error
+    return NextResponse.json({ error: "Failed to process image" }, { status: 500 });
   } catch (error) {
     console.error("Image cache error:", error);
     return NextResponse.json({ error: "Failed to process image" }, { status: 500 });

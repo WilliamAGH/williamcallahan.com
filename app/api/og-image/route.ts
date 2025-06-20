@@ -10,12 +10,14 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
+import { LRUCache } from "lru-cache";
 import { s3Client } from "@/lib/s3-utils";
 import { getDomainType } from "@/lib/utils/opengraph-utils";
 import { getDomainFallbackImage, getContextualFallbackImage } from "@/lib/opengraph/fallback";
 import { scheduleImagePersistence } from "@/lib/opengraph/persistence";
 import { OPENGRAPH_IMAGES_S3_DIR } from "@/lib/opengraph/constants";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
+import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 // persistImageToS3 is now handled by scheduleImagePersistence from lib/opengraph/persistence
 import type { UnifiedBookmark } from "@/types";
 
@@ -23,18 +25,19 @@ const isDevelopment = process.env.NODE_ENV === "development";
 const S3_BUCKET = process.env.S3_BUCKET;
 const S3_CDN_URL = process.env.NEXT_PUBLIC_S3_CDN_URL;
 
-// In-memory cache for S3 existence checks (5 minutes TTL)
-const s3ExistenceCache = new Map<string, { exists: boolean; timestamp: number }>();
-const S3_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// In-memory cache for S3 existence checks
+const s3ExistenceCache = new LRUCache<string, boolean>({
+  max: 1000, // Max 1000 items
+  ttl: 5 * 60 * 1000, // 5 minutes
+});
 
 /**
  * Check if an S3 object exists
  */
 async function checkS3Exists(key: string): Promise<boolean> {
   // Check cache first
-  const cached = s3ExistenceCache.get(key);
-  if (cached && Date.now() - cached.timestamp < S3_CACHE_TTL) {
-    return cached.exists;
+  if (s3ExistenceCache.has(key)) {
+    return s3ExistenceCache.get(key) ?? false;
   }
 
   if (!s3Client || !S3_BUCKET) {
@@ -51,11 +54,11 @@ async function checkS3Exists(key: string): Promise<boolean> {
     );
 
     // Cache positive result
-    s3ExistenceCache.set(key, { exists: true, timestamp: Date.now() });
+    s3ExistenceCache.set(key, true);
     return true;
   } catch {
     // Cache negative result
-    s3ExistenceCache.set(key, { exists: false, timestamp: Date.now() });
+    s3ExistenceCache.set(key, false);
     return false;
   }
 }
@@ -86,7 +89,6 @@ export async function GET(request: NextRequest) {
   // 1. Check if it's an S3 key (contains '/' but no protocol)
   if (input.includes("/") && !input.includes("://")) {
     console.log(`[OG-Image] Detected S3 key: ${input}`);
-
     // In development we may lack S3 credentials; optimistically redirect to CDN
     if (isDevelopment || (await checkS3Exists(input))) {
       if (!S3_CDN_URL) {
@@ -200,152 +202,96 @@ export async function GET(request: NextRequest) {
     // This will use memory cache → S3 → external fetch
     try {
       const ogData = await getOpenGraphData(url.toString());
+      const imageService = getUnifiedImageService();
 
       if (ogData.imageUrl && typeof ogData.imageUrl === "string") {
         // If it's an S3 key, redirect to CDN
         if (ogData.imageUrl.includes("/") && !ogData.imageUrl.includes("://")) {
-          if (!S3_CDN_URL) {
-            console.error("[OG-Image] S3_CDN_URL not configured; cannot redirect cached OG image");
-            const fallbackImage = getContextualFallbackImage(input);
-            return NextResponse.redirect(new URL(fallbackImage, request.url).toString(), {
-              status: 302,
-            });
-          }
-          const cdnUrl = `${S3_CDN_URL}/${ogData.imageUrl}`;
+          const cdnUrl = imageService.getCdnUrl(ogData.imageUrl);
           console.log(`[OG-Image] Found OG image in cache, redirecting to: ${cdnUrl}`);
           return NextResponse.redirect(cdnUrl, { status: 301 });
         }
 
-        // If it's an external URL, fetch and stream it
+        // If it's an external URL, fetch using UnifiedImageService
         console.log(`[OG-Image] Fetching external image: ${ogData.imageUrl}`);
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
-        try {
-          const response = await fetch(ogData.imageUrl, {
-            signal: controller.signal,
+        const imageResult = await imageService.getImage(ogData.imageUrl);
+
+        // If we got a CDN URL, redirect to it
+        if (imageResult.cdnUrl && !imageResult.buffer) {
+          console.log(`[OG-Image] Found OG image in S3, redirecting to: ${imageResult.cdnUrl}`);
+          return NextResponse.redirect(imageResult.cdnUrl, { status: 301 });
+        }
+
+        // If we have a buffer, return it
+        if (imageResult.buffer) {
+          // Persist to S3 in background
+          if (ogData.imageUrl && typeof ogData.imageUrl === "string") {
+            scheduleImagePersistence(
+              ogData.imageUrl,
+              OPENGRAPH_IMAGES_S3_DIR,
+              "OG-Image-Background",
+              bookmarkId || undefined,
+              url.toString(),
+            );
+          }
+
+          return new NextResponse(imageResult.buffer, {
             headers: {
-              "User-Agent": "Mozilla/5.0 (compatible; OpenGraphBot/1.0; +https://williamcallahan.com)",
-            },
-          });
-
-          clearTimeout(timeoutId);
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-
-          // Check content type
-          const contentType = response.headers.get("content-type");
-          if (!contentType?.startsWith("image/")) {
-            throw new Error("Not an image");
-          }
-
-          // Check size
-          const contentLength = response.headers.get("content-length");
-          if (contentLength && Number.parseInt(contentLength) > 10 * 1024 * 1024) {
-            // 10MB limit
-            throw new Error("Image too large");
-          }
-
-          // Clone the response so we can both stream it and save it
-          const clonedResponse = response.clone();
-
-          // Persist to S3 in background (using the clone)
-          clonedResponse
-            .arrayBuffer()
-            .then(() => {
-              if (ogData.imageUrl && typeof ogData.imageUrl === "string") {
-                scheduleImagePersistence(
-                  ogData.imageUrl,
-                  OPENGRAPH_IMAGES_S3_DIR,
-                  "OG-Image-Background",
-                  bookmarkId || undefined,
-                  url.toString(),
-                );
-              }
-            })
-            .catch((err: unknown) => {
-              console.error("[OG-Image] Failed to clone for S3 persistence:", err);
-            });
-
-          // Stream the original response to client
-          return new NextResponse(response.body, {
-            headers: {
-              "Content-Type": contentType,
+              "Content-Type": imageResult.contentType,
               "Cache-Control": "public, max-age=31536000, immutable",
               "X-Content-Source": "opengraph-cached",
             },
           });
-        } finally {
-          clearTimeout(timeoutId);
+        }
+
+        // If there was an error, throw it to fall back to direct fetch
+        if (imageResult.error) {
+          throw new Error(imageResult.error);
         }
       }
     } catch (ogError) {
       console.error("[OG-Image] OpenGraph fetch failed:", ogError);
     }
 
-    // If OpenGraph fetch failed or no image found, try direct fetch
+    // If OpenGraph fetch failed or no image found, try direct fetch using UnifiedImageService
     console.log(`[OG-Image] Attempting direct fetch: ${url.toString()}`);
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
-    try {
-      const response = await fetch(url.toString(), {
-        signal: controller.signal,
-        headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; OpenGraphBot/1.0; +https://williamcallahan.com)",
-        },
-      });
+    const imageService = getUnifiedImageService();
+    const imageResult = await imageService.getImage(url.toString());
 
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      // Check content type
-      const contentType = response.headers.get("content-type");
-      if (!contentType?.startsWith("image/")) {
-        throw new Error("Not an image");
-      }
-
-      // Check size
-      const contentLength = response.headers.get("content-length");
-      if (contentLength && Number.parseInt(contentLength) > 10 * 1024 * 1024) {
-        throw new Error("Image too large");
-      }
-
-      // Clone the response so we can both stream it and save it
-      const clonedResponse = response.clone();
-
-      // Persist to S3 in background (using the clone)
-      clonedResponse
-        .arrayBuffer()
-        .then(() => {
-          scheduleImagePersistence(
-            url.toString(),
-            OPENGRAPH_IMAGES_S3_DIR,
-            "OG-Image-Background",
-            bookmarkId || undefined,
-            url.toString(),
-          );
-        })
-        .catch((err: unknown) => {
-          console.error("[OG-Image] Failed to clone for S3 persistence:", err);
-        });
-
-      // Stream the original response to client
-      return new NextResponse(response.body, {
-        headers: {
-          "Content-Type": contentType,
-          "Cache-Control": "public, max-age=31536000, immutable",
-          "X-Content-Source": "direct-fetch",
-        },
-      });
-    } finally {
-      clearTimeout(timeoutId);
+    // If we got a CDN URL, redirect to it
+    if (imageResult.cdnUrl && !imageResult.buffer) {
+      console.log(`[OG-Image] Found image in S3, redirecting to: ${imageResult.cdnUrl}`);
+      return NextResponse.redirect(imageResult.cdnUrl, { status: 301 });
     }
+
+    // If we have a buffer, return it
+    if (imageResult.buffer) {
+      // Persist to S3 in background
+      scheduleImagePersistence(
+        url.toString(),
+        OPENGRAPH_IMAGES_S3_DIR,
+        "OG-Image-Background",
+        bookmarkId || undefined,
+        url.toString(),
+      );
+
+      return new NextResponse(imageResult.buffer, {
+        headers: {
+          "Content-Type": imageResult.contentType,
+          "Cache-Control": "public, max-age=31536000, immutable",
+          "X-Content-Source": imageResult.source,
+        },
+      });
+    }
+
+    // If there was an error, throw it
+    if (imageResult.error) {
+      throw new Error(imageResult.error);
+    }
+
+    throw new Error("Failed to fetch image");
   } catch (error) {
     // Log expected errors without stack trace
     const errorMessage = error instanceof Error ? error.message : String(error);
