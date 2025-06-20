@@ -25,19 +25,11 @@ export function CollapseDropdown({
   isNested = false,
 }: CollapseDropdownProps): JSX.Element {
   const detailsRef = useRef<HTMLDetailsElement>(null);
+  const context = useCollapseDropdownContext();
 
   // Try to use context, but don't fail if not available (backward compatibility)
-  let registerDropdown: ((id: string, ref: React.RefObject<HTMLDetailsElement>) => void) | null = null;
-  let unregisterDropdown: ((id: string) => void) | null = null;
-
-  try {
-    const context = useCollapseDropdownContext();
-    registerDropdown = context.registerDropdown;
-    unregisterDropdown = context.unregisterDropdown;
-  } catch {
-    // Context not available - component used outside of provider
-    // This is fine for backward compatibility
-  }
+  const registerDropdown = context?.registerDropdown;
+  const unregisterDropdown = context?.unregisterDropdown;
 
   // Warn about missing ID in development mode
   // This is a warning, not an error, since we have fallback logic to generate IDs
