@@ -13,12 +13,7 @@ if (!globalThis.fetch) {
   (globalThis as any).fetch = jest.fn();
 }
 
-// Simplified mock approach - create fresh mocks for each test
-let _mockFetch: any;
-let _mockGetBookmarksCache: any;
-let _mockSetBookmarksCache: any;
-let _mockShouldRefreshBookmarksCache: any;
-let _mockClearBookmarksCache: any;
+// Simplified mock approach - variables removed as they were unused
 
 // Define properly typed API response
 const mockApiResponse: UnifiedBookmark[] = [
@@ -113,12 +108,7 @@ describe("Bookmarks Module (Simplified)", () => {
     // Set up environment
     process.env.BOOKMARK_BEARER_TOKEN = "test-token";
 
-    // Create fresh mocks for each test
-    _mockFetch = jest.fn();
-    _mockGetBookmarksCache = jest.fn();
-    _mockSetBookmarksCache = jest.fn();
-    _mockShouldRefreshBookmarksCache = jest.fn();
-    _mockClearBookmarksCache = jest.fn();
+    // Fresh mocks are created inline as needed
 
     // Clear all existing mocks
     jest.clearAllMocks();

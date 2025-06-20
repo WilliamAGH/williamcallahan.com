@@ -157,7 +157,7 @@ describe("search", () => {
     });
 
     it("should cache search results", () => {
-      const results = searchPosts("react");
+      searchPosts("react");
 
       expect(ServerCacheInstance.setSearchResults).toHaveBeenCalledWith(
         "posts",

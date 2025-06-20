@@ -8,7 +8,7 @@ import { SEO_DATE_FIELDS } from "@/lib/seo/constants";
 // Remove unused imports - commented out rather than deleted to maintain line numbers
 // import { metadata as siteMetadata, SITE_NAME, PAGE_METADATA } from '../../../../data/metadata';
 import { isPacificDateString, type ArticleOpenGraph, type ProfileOpenGraph } from "@/types/seo";
-import type { SchemaGraph, WebPageBase, CollectionPageSchema, ProfilePageSchema } from "@/types/seo/schema";
+import type { SchemaGraph, WebPageBase, CollectionPageSchema } from "@/types/seo/schema";
 // import type { Metadata } from 'next';
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 // Mock process.env for tests

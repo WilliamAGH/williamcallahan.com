@@ -6,7 +6,6 @@ import type { ServerCache } from "@/lib/server-cache";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { GitHubActivityApiResponse } from "@/types/github";
 import type { OgResult } from "@/types/opengraph";
-import type { CacheStats } from "@/types/cache";
 
 describe("ServerCache", () => {
   let cache: ServerCache;
