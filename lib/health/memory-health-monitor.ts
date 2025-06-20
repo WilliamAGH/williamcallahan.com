@@ -59,8 +59,8 @@ export class MemoryHealthMonitor extends EventEmitter {
   constructor() {
     super();
 
-    // Load thresholds from environment
-    this.memoryBudget = MEMORY_THRESHOLDS.IMAGE_RAM_BUDGET_BYTES;
+    // Load thresholds from environment - use total process budget for health monitoring
+    this.memoryBudget = MEMORY_THRESHOLDS.TOTAL_PROCESS_MEMORY_BUDGET_BYTES;
     this.warningThreshold = MEMORY_THRESHOLDS.MEMORY_WARNING_THRESHOLD;
     this.criticalThreshold = MEMORY_THRESHOLDS.MEMORY_CRITICAL_THRESHOLD;
 

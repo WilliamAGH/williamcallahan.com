@@ -190,17 +190,51 @@ Health monitoring and graceful degradation:
 
 ```bash
 # Memory Budgets
-IMAGE_RAM_BUDGET_BYTES=536870912      # 512MB for images
-MAX_IMAGE_SIZE_BYTES=52428800         # 50MB max per image
+TOTAL_PROCESS_MEMORY_BUDGET_BYTES=1073741824  # 1GB total process memory budget
+IMAGE_RAM_BUDGET_BYTES=536870912              # 512MB for images specifically
+MAX_IMAGE_SIZE_BYTES=52428800                 # 50MB max per image
 
-# Memory Pressure Thresholds
-IMAGE_RSS_THRESHOLD=1610612736        # 1.5GB RSS limit
-IMAGE_HEAP_THRESHOLD=0.85             # 85% of heap
+# Memory Pressure Thresholds (calculated from TOTAL_PROCESS_MEMORY_BUDGET_BYTES)
+IMAGE_RSS_THRESHOLD=1610612736                # 1.5GB RSS limit for ImageMemoryManager
+IMAGE_HEAP_THRESHOLD=0.85                     # 85% of heap for ImageMemoryManager
 
-# Health Check Thresholds
-MEMORY_WARNING_THRESHOLD=402653184    # 384MB (75% of 512MB)
-MEMORY_CRITICAL_THRESHOLD=483183820   # 460MB (90% of 512MB)
+# Health Check Thresholds (calculated from TOTAL_PROCESS_MEMORY_BUDGET_BYTES)
+MEMORY_WARNING_THRESHOLD=751619276            # 717MB (70% of 1GB total budget)
+MEMORY_CRITICAL_THRESHOLD=966367641           # 922MB (90% of 1GB total budget)
 ```
+
+### Memory Budget Architecture
+
+The system now uses **two separate memory budgets**:
+
+1. **Total Process Memory Budget** (`TOTAL_PROCESS_MEMORY_BUDGET_BYTES`):
+   - Used by `mem-guard.ts` to monitor overall RSS usage
+   - Default: 1GB for containers
+   - Prevents false positives on normal Node.js memory usage
+
+2. **Image Cache Budget** (`IMAGE_RAM_BUDGET_BYTES`):
+   - Used by `ImageMemoryManager` for LRU cache sizing
+   - Default: 512MB for image buffers only
+   - Prevents image processing from consuming too much memory
+
+### Memory Thresholds Explained
+
+| Threshold | RSS Usage | Action | Purpose |
+|-----------|-----------|--------|---------|
+| 70% (717MB) | Monitor | Log usage | Early awareness |
+| 80% (819MB) | Image Pressure | Reject new image ops | Protect image processing |
+| 90% (922MB) | Critical | Clear image cache | Aggressive cleanup |
+| 95% (972MB) | Emergency | Flush all caches | Last resort |
+
+### Why This Fixes False Positives
+
+**Previous Issue**: The system was using a 512MB image cache budget to monitor **total process RSS**, causing warnings at 409MB RSS - but this is normal for Next.js + data loading.
+
+**New Approach**: Separate budgets mean:
+
+- RSS at 430MB is now only 43% of 1GB budget (healthy)
+- Image operations are protected when RSS hits 80% (819MB)
+- Critical warnings only trigger at truly problematic levels (922MB+)
 
 ## Monitoring & Observability
 
