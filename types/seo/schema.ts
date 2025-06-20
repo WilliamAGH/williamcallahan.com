@@ -252,53 +252,6 @@ export interface SchemaGraph {
 }
 
 /**
- * Complete SoftwareApplication script with context
- */
-export type SoftwareScriptSchema = SoftwareApplicationSchema & {
-  "@context": "https://schema.org";
-};
-
-/**
- * Props for SoftwareSchema component
- */
-export interface SoftwareSchemaProps {
-  /** Name of the software application */
-  name: string;
-  /** Description of the software application */
-  description: string;
-  /** Operating system(s) the software runs on */
-  operatingSystem?: string;
-  /** Application category */
-  applicationCategory?: string;
-  /** Download URL */
-  downloadUrl?: string;
-  /** Software version */
-  softwareVersion?: string;
-  /** Screenshot URLs */
-  screenshot?: string | string[];
-  /** Whether the software is free */
-  isFree?: boolean;
-  /** Price if not free */
-  price?: number;
-  /** Price currency */
-  priceCurrency?: string;
-  /** Rating value */
-  ratingValue?: number;
-  /** Number of ratings */
-  ratingCount?: number;
-  /** Author information */
-  author?: {
-    name: string;
-    url?: string;
-  };
-  /** Publisher information */
-  publisher?: {
-    name: string;
-    url?: string;
-  };
-}
-
-/**
  * Parameters for generating page schemas
  */
 export interface SchemaParams {

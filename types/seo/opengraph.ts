@@ -107,10 +107,15 @@ export const ogResultSchema = ogFetchResultSchema.extend({
  * Schema for Karakeep image fallback data
  */
 export const karakeepImageFallbackSchema = z.object({
+  /** Canonical URL of the image (preferred) */
+  url: urlSchema.or(z.string().nullable().optional()),
   imageUrl: urlSchema.or(z.string().nullable().optional()),
   imageAssetId: z.string().nullable().optional(),
   screenshotAssetId: z.string().nullable().optional(),
   karakeepBaseUrl: urlSchema,
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  alt: z.string().nullable().optional(),
 });
 
 /**

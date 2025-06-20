@@ -9,7 +9,6 @@
 import type { LRUCache } from "lru-cache";
 import type { GitHubActivityApiResponse } from "./github";
 import type { LogoResult } from "./logo";
-import type { OgResult } from "./opengraph";
 import type { ImageDataWithBuffer, ImageSource } from "./image";
 
 /**
@@ -26,28 +25,18 @@ export interface ImageCacheEntry extends ImageDataWithBuffer {
   cdnUrl?: string;
 }
 
-/**
- * Logo validation result from the server
- */
-export interface LogoValidationResult {
-  /** Whether the image is a generic globe icon */
+// Simple type alias
+export type LogoValidationResult = {
   isGlobeIcon: boolean;
-  /** Timestamp when the validation was performed */
   timestamp: number;
-}
+};
 
-/**
- * Logo fetch result from the server
- * Extends LogoResult with additional server-side metadata
- */
-export interface LogoFetchResult extends LogoResult {
-  /** Domain the logo is for */
+// Type alias extending LogoResult
+export type LogoFetchResult = LogoResult & {
   domain?: string;
-  /** Whether the logo is valid */
   isValid?: boolean;
-  /** Whether the logo is a generic globe icon */
   isGlobeIcon?: boolean;
-}
+};
 
 /**
  * Inverted logo cache entry (metadata only, buffer stored in ImageMemoryManager)
@@ -79,52 +68,31 @@ export interface ICache {
   getStats(): CacheStats;
 }
 
-/**
- * GitHub Activity cache entry
- */
-export interface GitHubActivityCacheEntry extends GitHubActivityApiResponse {
-  /** Timestamp when the cache entry was created */
-  timestamp: number;
-  /** Last successful API fetch timestamp */
+// Custom structure for GitHub activity cache
+export interface GitHubActivityCacheEntry {
+  data: GitHubActivityApiResponse;
   lastFetchedAt: number;
-  /** Last fetch attempt timestamp */
   lastAttemptedAt: number;
+  timestamp?: number; // Legacy field for backward compatibility
 }
 
-/**
- * Bookmarks cache entry
- */
+// Custom structure for bookmarks cache (doesn't follow standard CacheEntry pattern)
 export interface BookmarksCacheEntry {
-  /** Bookmarks data */
   bookmarks: import("./bookmark").UnifiedBookmark[];
-  /** Last successful API fetch timestamp */
   lastFetchedAt: number;
-  /** Last fetch attempt timestamp */
   lastAttemptedAt: number;
 }
 
-/**
- * Search results cache entry
- */
+// Custom structure for search cache
 export interface SearchCacheEntry<T = unknown> {
-  /** Search results */
   results: T[];
-  /** Search query that generated these results */
   query: string;
-  /** Data type being searched (posts, bookmarks, etc.) */
   dataType: string;
-  /** Timestamp when the cache entry was created */
   timestamp: number;
 }
 
-/**
- * OpenGraph cache entry
- */
-export interface OgCacheEntry extends OgResult {
-  lastFetchedAt: number;
-  lastAttemptedAt: number;
-  isFailure?: boolean;
-}
+// OgCacheEntry removed - use import from types/opengraph.ts instead
+// import type { OgCacheEntry } from "./opengraph";
 
 /**
  * Cache statistics interface
@@ -135,6 +103,9 @@ export interface CacheStats {
   misses: number;
   ksize: number;
   vsize: number;
+  sizeBytes?: number;
+  maxSizeBytes?: number;
+  utilizationPercent?: number;
 }
 
 /**

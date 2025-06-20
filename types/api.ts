@@ -10,6 +10,8 @@
  * @see types/[domain].ts for business logic types (bookmark, blog, etc.)
  */
 
+// OpenGraph types are no longer needed for API context types
+
 /**
  * Context for Twitter image dynamic routes ([...path])
  * @usage - API route handlers for twitter image generation
@@ -106,3 +108,5 @@ export interface RefreshResult {
   status: string;
   message?: string;
 }
+
+// Cache clear API is now simplified to only support cache clearing operations
