@@ -7,37 +7,26 @@
  * @module lib/bookmarks.server
  */
 
-import fs from "node:fs";
-import path from "node:path";
 import type { UnifiedBookmark } from "@/types";
 import { getBookmarks, initializeBookmarksDataAccess } from "@/lib/bookmarks/bookmarks-data-access.server";
 
 /**
- * Read bookmarks directly from the file system during build time
+ * Get bookmarks for static site generation
  *
- * Used for static site generation to avoid API calls during build
- * This function should only be called server-side
+ * Uses the same S3 data source as the build prefetch to ensure consistency.
+ * Previously read from local file system which could be outdated.
+ *
+ * This function should only be called server-side during build or static generation.
  */
 export async function getBookmarksForStaticBuild(): Promise<UnifiedBookmark[]> {
-  const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+  // Always use the data access layer for consistency with prefetch data
+  // This ensures sitemap generation uses the same S3 data (99 bookmarks)
+  // that was fetched during the build prefetch phase
+  console.log("[Static Build] Fetching bookmarks from S3 data access layer");
 
-  if (isBuildPhase) {
-    const bookmarksPath = path.join(process.cwd(), "data", "bookmarks", "bookmarks.json");
-    try {
-      const fileContents = fs.readFileSync(bookmarksPath, "utf-8");
-      const bookmarks = JSON.parse(fileContents) as UnifiedBookmark[];
-      console.log(`[Static Build] Read ${bookmarks.length} bookmarks from file system`);
-      return bookmarks;
-    } catch (error) {
-      console.error("[Static Build] Error reading bookmarks from file system:", {
-        path: bookmarksPath,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return [];
-    }
-  }
-
-  // Fall back to data access layer for non-build environments
   initializeBookmarksDataAccess();
-  return getBookmarks();
+  const bookmarks = await getBookmarks(true); // skipExternalFetch = true for build performance
+
+  console.log(`[Static Build] Successfully retrieved ${bookmarks.length} bookmarks from S3`);
+  return bookmarks;
 }
