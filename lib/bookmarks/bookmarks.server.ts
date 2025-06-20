@@ -8,28 +8,23 @@
  */
 
 import type { UnifiedBookmark } from "@/types";
-import { getBookmarks, initializeBookmarksDataAccess } from "@/lib/bookmarks/bookmarks-data-access.server";
 
 /**
- * Get bookmarks for static site generation
+ * Get minimal bookmark data for static site generation
  *
- * Optimized for build-time performance:
- * 1. Uses memory cache first (populated by prefetch)
- * 2. Falls back to S3 with skipExternalFetch=true
- * 3. Prevents OpenGraph/logo refetching during build
+ * Build-time optimization strategy:
+ * 1. Returns empty array to prevent any image/logo processing during build
+ * 2. Static pages will show loading states initially
+ * 3. Client-side hydration will fetch actual bookmark data with images
+ * 4. Prevents build-time external API calls and S3 image processing
  *
- * This function should only be called server-side during build or static generation.
+ * This ensures fast, predictable builds while maintaining full functionality at runtime.
+ * All image processing (OpenGraph, logos) happens on first client request only.
  */
-export async function getBookmarksForStaticBuild(): Promise<UnifiedBookmark[]> {
-  console.log("[Static Build] Getting bookmarks for static site generation");
+export function getBookmarksForStaticBuild(): UnifiedBookmark[] {
+  console.log("[Static Build] Skipping bookmark data fetch - images/logos will load on first request only");
 
-  // Always use the data access layer for consistency with prefetch data
-  // The prefetch phase should have already populated the memory cache
-  initializeBookmarksDataAccess();
-
-  // Use skipExternalFetch=true to prevent OpenGraph/logo refetching during build
-  const bookmarks = await getBookmarks(true); // This will use memory cache first, then S3
-
-  console.log(`[Static Build] Successfully retrieved ${bookmarks.length} bookmarks (memory cache + S3 fallback)`);
-  return bookmarks;
+  // Return empty array to prevent any build-time image processing
+  // Static pages will show appropriate loading states until client-side hydration
+  return [];
 }
