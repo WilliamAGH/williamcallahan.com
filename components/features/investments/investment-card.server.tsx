@@ -8,7 +8,7 @@
 
 import type { Investment } from "../../../types/investment";
 import { InvestmentCardClient } from "./investment-card.client";
-import { getLogo } from "../../../lib/data-access/logos";
+import { getLogo } from "@/lib/data-access/logos";
 import type { LogoData } from "../../../types/logo";
 
 /**
@@ -47,8 +47,9 @@ export async function InvestmentCard(props: Investment): Promise<JSX.Element> {
 
         return <InvestmentCardClient {...props} logoData={logoData} />;
       }
-    } catch (error) {
-      console.warn(`Failed to fetch logo for ${name} (${website}):`, error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Failed to fetch logo for ${name} (${website}):`, errorMessage);
       // Fall through to placeholder return below
     }
   }

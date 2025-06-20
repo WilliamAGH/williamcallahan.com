@@ -31,6 +31,20 @@ const EDUCATION_WINDOW_ID = "education-window";
 
 import type { EducationClientProps, EducationTableItem } from "@/types/education";
 
+// Sort indicator component
+const SortIndicator = ({
+  field,
+  sortField,
+  sortDirection,
+}: {
+  field: "name" | "institution" | "year";
+  sortField: "name" | "institution" | "year";
+  sortDirection: "asc" | "desc";
+}) => {
+  if (sortField !== field) return null;
+  return sortDirection === "asc" ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />;
+};
+
 /**
  * Education Client Component
  * @param {EducationClientProps} props - Component properties
@@ -132,12 +146,6 @@ export function EducationClient({ education, recentCourses, recentCertifications
   // Render normal or maximized view
   const isMaximized = windowState === "maximized";
 
-  // Sort indicator component
-  const SortIndicator = ({ field }: { field: "name" | "institution" | "year" }) => {
-    if (sortField !== field) return null;
-    return sortDirection === "asc" ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />;
-  };
-
   // Refactored structure to match ProjectsClient (single main wrapper)
   return (
     <div
@@ -228,7 +236,7 @@ export function EducationClient({ education, recentCourses, recentCertifications
                       aria-label="Sort by name"
                     >
                       Name
-                      <SortIndicator field="name" />
+                      <SortIndicator field="name" sortField={sortField} sortDirection={sortDirection} />
                     </button>
                   </th>
                   <th
@@ -242,7 +250,7 @@ export function EducationClient({ education, recentCourses, recentCertifications
                       aria-label="Sort by institution or issuer"
                     >
                       Institution
-                      <SortIndicator field="institution" />
+                      <SortIndicator field="institution" sortField={sortField} sortDirection={sortDirection} />
                     </button>
                   </th>
                   <th
@@ -256,7 +264,7 @@ export function EducationClient({ education, recentCourses, recentCertifications
                       aria-label="Sort by year"
                     >
                       Year
-                      <SortIndicator field="year" />
+                      <SortIndicator field="year" sortField={sortField} sortDirection={sortDirection} />
                     </button>
                   </th>
                   <th

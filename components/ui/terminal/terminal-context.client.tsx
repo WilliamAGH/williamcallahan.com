@@ -30,7 +30,7 @@ const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
   input: "",
   output: 'Welcome! Type "help" for available commands.',
   id: "initial-welcome-message",
-  timestamp: new Date().getTime(),
+  timestamp: Date.now(),
 };
 
 const HISTORY_STORAGE_KEY = "terminal_history";

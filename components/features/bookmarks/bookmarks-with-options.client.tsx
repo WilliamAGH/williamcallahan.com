@@ -122,7 +122,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         try {
           console.log("Client-side: Attempting to fetch bookmarks from API");
           // Add a random query parameter to bust cache
-          const timestamp = new Date().getTime();
+          const timestamp = Date.now();
           console.log("BookmarksWithOptions: Fetching client-side data with timestamp", timestamp);
           const response = await fetch(`/api/bookmarks?t=${timestamp}`, {
             method: "GET",
@@ -296,7 +296,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
 
       // If refresh was successful, fetch the new bookmarks
       if (result.status === "success") {
-        const timestamp = new Date().getTime();
+        const timestamp = Date.now();
         const bookmarksResponse = await fetch(`/api/bookmarks?t=${timestamp}`, {
           method: "GET",
           headers: {
