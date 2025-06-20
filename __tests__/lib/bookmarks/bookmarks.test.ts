@@ -14,11 +14,11 @@ if (!globalThis.fetch) {
 }
 
 // Simplified mock approach - create fresh mocks for each test
-let mockFetch: any;
-let mockGetBookmarksCache: any;
-let mockSetBookmarksCache: any;
-let mockShouldRefreshBookmarksCache: any;
-let mockClearBookmarksCache: any;
+let _mockFetch: any;
+let _mockGetBookmarksCache: any;
+let _mockSetBookmarksCache: any;
+let _mockShouldRefreshBookmarksCache: any;
+let _mockClearBookmarksCache: any;
 
 // Define properly typed API response
 const mockApiResponse: UnifiedBookmark[] = [
@@ -114,11 +114,11 @@ describe("Bookmarks Module (Simplified)", () => {
     process.env.BOOKMARK_BEARER_TOKEN = "test-token";
 
     // Create fresh mocks for each test
-    mockFetch = jest.fn();
-    mockGetBookmarksCache = jest.fn();
-    mockSetBookmarksCache = jest.fn();
-    mockShouldRefreshBookmarksCache = jest.fn();
-    mockClearBookmarksCache = jest.fn();
+    _mockFetch = jest.fn();
+    _mockGetBookmarksCache = jest.fn();
+    _mockSetBookmarksCache = jest.fn();
+    _mockShouldRefreshBookmarksCache = jest.fn();
+    _mockClearBookmarksCache = jest.fn();
 
     // Clear all existing mocks
     jest.clearAllMocks();
@@ -193,7 +193,10 @@ describe("Bookmarks Module (Simplified)", () => {
         expect(bookmarks).toEqual([]);
 
         // Should log error
-        expect(consoleSpy).toHaveBeenCalledWith("[Bookmarks] [Client] Failed to fetch from /api/bookmarks:", expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith(
+          "[Bookmarks] [Client] Failed to fetch from /api/bookmarks:",
+          expect.any(Error),
+        );
       } finally {
         fetchSpy.mockRestore();
         consoleSpy.mockRestore();
@@ -229,7 +232,10 @@ describe("Bookmarks Module (Simplified)", () => {
         expect(bookmarks).toEqual([]);
 
         // Should log error
-        expect(consoleSpy).toHaveBeenCalledWith("[Bookmarks] [Client] Failed to fetch from /api/bookmarks:", expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith(
+          "[Bookmarks] [Client] Failed to fetch from /api/bookmarks:",
+          expect.any(Error),
+        );
       } finally {
         fetchSpy.mockRestore();
         consoleSpy.mockRestore();

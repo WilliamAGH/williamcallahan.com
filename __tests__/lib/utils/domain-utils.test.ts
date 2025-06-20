@@ -1,12 +1,3 @@
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
-/**
- * Domain Utilities Tests
- *
- * Tests for URL normalization, slug generation, and domain display formatting
- * Verifies domain extraction and manipulation functions
- */
-import type { UnifiedBookmark } from "../../../types/bookmark";
-
 // Mock only the generateUniqueSlug function
 jest.mock("../../../lib/utils/domain-utils", () => {
   const actual = jest.requireActual<typeof import("../../../lib/utils/domain-utils")>(
