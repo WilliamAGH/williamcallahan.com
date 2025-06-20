@@ -8,6 +8,7 @@
  */
 
 import * as Sentry from "@sentry/nextjs";
+import { ImageMemoryManagerInstance } from "@/lib/image-memory-manager";
 import { monitoredAsync } from "../async-operations-monitor";
 
 // Flags to prevent redundant work across calls within the same process
@@ -27,11 +28,17 @@ export async function preloadBookmarksIfNeeded(): Promise<void> {
 
   preloadPromise = (async () => {
     try {
+      // Check memory pressure before starting
+      if (ImageMemoryManagerInstance.getMetrics().memoryPressure) {
+        console.warn("[BookmarkPreloader] Skipping preload due to memory pressure.");
+        return; // Exit early
+      }
+
       // Ensure the server is fully ready before we spike outbound bandwidth
       await new Promise((r) => setTimeout(r, 1_000));
 
       // Dynamic import to use the unified service
-      const { fetchBookmarks } = await import("./service.server");
+      const { getBookmarks } = await import("./service.server");
 
       console.log("Preloading bookmarks into server cache...");
 
@@ -39,7 +46,7 @@ export async function preloadBookmarksIfNeeded(): Promise<void> {
         null, // Let monitor generate ID
         "Bookmark Preload",
         async () => {
-          const result = await fetchBookmarks({ mode: "immediate" });
+          const result = await getBookmarks(false);
           console.log("Bookmarks preloaded successfully");
           return result;
         },
