@@ -47,7 +47,6 @@ export {
   type MetadataConfig,
   type ProfilePageMetadata as ValidatedProfilePageMetadata,
   type CollectionPageMetadata as ValidatedCollectionPageMetadata,
-  type ValidatedMetadata,
 } from "../../types/seo/metadata";
 
 import type { Metadata as NextMetadata } from "next";

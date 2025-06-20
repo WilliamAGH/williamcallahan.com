@@ -19,9 +19,20 @@ export function register() {
   }
 
   if (isNodeRuntime && !isBuildPhase) {
-    // import { startMemoryGuard } from "./lib/server/mem-guard";
-    // startMemoryGuard();
-    import("@/lib/server/mem-guard");
+    // Configure Sharp memory settings before any usage
+    import("sharp").then((sharp) => {
+      // Disable Sharp's internal cache completely to prevent memory retention
+      sharp.cache({ files: 0, items: 0, memory: 0 });
+      // Limit concurrency to reduce memory spikes
+      sharp.concurrency(1);
+      console.log("[Instrumentation] Sharp configured: cache fully disabled (files: 0, items: 0, memory: 0), concurrency set to 1");
+    }).catch((err) => {
+      console.warn("[Instrumentation] Failed to configure Sharp:", err);
+    });
+    
+    // Initialize ImageMemoryManager singleton by importing it.
+    // This replaces the deprecated mem-guard.
+    import("@/lib/image-memory-manager");
     // Dynamic import only in the Node runtime to keep the Edge bundle clean
     // Using `import()` avoids static analysis pulling this into the Edge chunks
     const nodeEvents = require("node:events");
@@ -37,15 +48,19 @@ export function register() {
     if (process.setMaxListeners) {
       process.setMaxListeners(25);
     }
-    // Initialize Sentry for the Node.js runtime
-    Sentry.init({
-      dsn: process.env.SENTRY_DSN,
-      release: releaseVersion,
-      // Adjust this value in production, or use tracesSampler for greater control
-      tracesSampleRate: 1.0,
-      // Setting this option to true will print useful information to the console while you're setting up Sentry.
-      debug: false,
-    });
+    
+    // Only initialize Sentry in production to save memory in development
+    if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
+      // Initialize Sentry for the Node.js runtime
+      Sentry.init({
+        dsn: process.env.SENTRY_DSN,
+        release: releaseVersion,
+        // Adjust this value in production, or use tracesSampler for greater control
+        tracesSampleRate: 1.0,
+        // Setting this option to true will print useful information to the console while you're setting up Sentry.
+        debug: false,
+      });
+    }
 
     // ----------------------------------------------------------------------------
     // Background Bookmark Pre-loader
@@ -96,8 +111,8 @@ export function register() {
     }
   }
 
-  if (process.env.NEXT_RUNTIME === "edge" && !isBuildPhase) {
-    // Initialize Sentry for the Edge runtime
+  if (process.env.NEXT_RUNTIME === "edge" && !isBuildPhase && process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
+    // Initialize Sentry for the Edge runtime - only in production
     Sentry.init({
       dsn: process.env.SENTRY_DSN,
       release: releaseVersion,

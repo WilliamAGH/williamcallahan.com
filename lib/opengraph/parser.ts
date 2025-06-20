@@ -10,9 +10,10 @@
 import * as cheerio from "cheerio";
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { getDomainType } from "@/lib/utils/opengraph-utils";
-import { OPENGRAPH_FETCH_CONFIG, SOCIAL_PLATFORMS } from "./constants";
+import { OPENGRAPH_FETCH_CONFIG } from "./constants";
 import { isValidImageUrl, constructKarakeepAssetUrl } from "@/lib/utils/opengraph-utils";
 import { karakeepImageFallbackSchema, type KarakeepImageFallback } from "@/types";
+import { SOCIAL_PLATFORMS } from "@/types/social";
 // OgMetadata type not needed in parser - only returns raw Record<string, string | null>
 
 /**
@@ -137,7 +138,7 @@ export function extractOpenGraphTags(
 
   // Add Karakeep fallback images if provided (for bookmarks)
   // Validate fallback image data before use
-  const validatedFallbackData: KarakeepImageFallback | undefined = fallbackImageData
+  const validatedFallbackData = fallbackImageData
     ? karakeepImageFallbackSchema.safeParse(fallbackImageData).success
       ? karakeepImageFallbackSchema.parse(fallbackImageData)
       : undefined

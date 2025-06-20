@@ -27,9 +27,11 @@ import type { ImageServiceOptions, ImageResult } from "../../types/image";
 import { createHash } from "node:crypto";
 import { LRUCache } from "lru-cache";
 
-// Cache for S3 existence checks (bounded)
+// Cache for S3 existence checks (bounded by count and size)
 const s3ExistenceCache = new LRUCache<string, boolean>({
   max: 50000,
+  maxSize: 8 * 1024 * 1024, // 8MB max size
+  sizeCalculation: () => 100, // Each key-value pair ~100 bytes (conservative estimate)
   ttl: 24 * 60 * 60 * 1000, // 24 hours
 });
 

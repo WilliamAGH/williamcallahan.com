@@ -31,7 +31,7 @@ import type { GaxiosError, GaxiosResponse } from "gaxios";
 import { type Auth, google } from "googleapis";
 import type { MetadataRoute } from "next";
 import type { GoogleIndexingUrlNotificationMetadata } from "@/types/lib";
-import sitemap from "../app/sitemap";
+import sitemap from "../app/sitemap.ts";
 
 /**
  * Delay in milliseconds between individual URL submissions to the Google Indexing API.

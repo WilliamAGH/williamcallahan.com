@@ -228,8 +228,21 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
     console.log(
       `⏳ Processing logo batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(domainArray.length / BATCH_SIZE)} for ${batch.length} domains`,
     );
-    const promises = batch.map(async (domain) => {
+
+    // Process domains sequentially within each batch to prevent memory overload
+    for (const domain of batch) {
       try {
+        // Check memory pressure before processing each logo
+        const { ImageMemoryManagerInstance } = await import("@/lib/image-memory-manager");
+        const metrics = ImageMemoryManagerInstance.getMetrics();
+
+        // Skip processing if in memory pressure mode
+        if (metrics.memoryPressure) {
+          console.log(`⚠️ Skipping logo for ${domain} - memory pressure detected`);
+          failureCount++;
+          continue;
+        }
+
         // getLogo handles fetching, validation (if possible), and writing to volume.
         const logoResult = await getLogo(domain); // Removed placeholder baseUrl
         if (logoResult && (logoResult.buffer || logoResult.s3Key || logoResult.url)) {
@@ -239,13 +252,16 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
           console.log(`⚠️ Could not fetch/process logo for ${domain} via data-access.`);
           failureCount++;
         }
+
+        // Small delay between individual logos to allow garbage collection
+        await new Promise((r) => setTimeout(r, 100));
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`❌ Error processing logo for ${domain} via data-access:`, message);
         failureCount++;
       }
-    });
-    await Promise.allSettled(promises);
+    }
+
     if (i + BATCH_SIZE < domainArray.length) {
       console.log("⏱️ Waiting 500ms before next logo batch...");
       await new Promise((r) => setTimeout(r, 500));
@@ -276,9 +292,21 @@ async function populateOpenGraphImages(bookmarks: UnifiedBookmark[]) {
       `⏳ Processing OpenGraph batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(bookmarksWithUrls.length / BATCH_SIZE)} for ${batch.length} bookmarks`,
     );
 
-    const promises = batch.map(async (bookmark) => {
+    // Process bookmarks sequentially within each batch to prevent memory overload
+    for (const bookmark of batch) {
       processedCount++;
       try {
+        // Check memory pressure before processing each OpenGraph image
+        const { ImageMemoryManagerInstance } = await import("@/lib/image-memory-manager");
+        const metrics = ImageMemoryManagerInstance.getMetrics();
+
+        // Skip processing if in memory pressure mode
+        if (metrics.memoryPressure) {
+          console.log(`⚠️ Skipping OpenGraph for ${bookmark.url} - memory pressure detected`);
+          failureCount++;
+          continue;
+        }
+
         console.log(`[${processedCount}/${bookmarksWithUrls.length}] Processing OpenGraph for: ${bookmark.url}`);
 
         // Call getOpenGraphData with bookmark ID as idempotency key
@@ -303,14 +331,15 @@ async function populateOpenGraphImages(bookmarks: UnifiedBookmark[]) {
           }
           failureCount++;
         }
+
+        // Small delay between individual images to allow garbage collection
+        await new Promise((r) => setTimeout(r, 200));
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`❌ Error processing OpenGraph for ${bookmark.url}:`, message);
         failureCount++;
       }
-    });
-
-    await Promise.allSettled(promises);
+    }
 
     if (i + BATCH_SIZE < bookmarksWithUrls.length) {
       console.log("⏱️ Waiting 1000ms before next OpenGraph batch...");

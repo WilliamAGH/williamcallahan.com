@@ -10,9 +10,10 @@
 // debug import removed - using console.log for fallback logging
 import { getDomainType, isValidImageUrl, constructKarakeepAssetUrl } from "@/lib/utils/opengraph-utils";
 import { scheduleImagePersistence } from "./persistence";
-import { OPENGRAPH_IMAGES_S3_DIR, SOCIAL_PLATFORMS } from "./constants";
+import { OPENGRAPH_IMAGES_S3_DIR } from "./constants";
 import type { OgResult, KarakeepImageFallback } from "@/types";
 import { karakeepImageFallbackSchema } from "@/types/seo/opengraph";
+import { SOCIAL_PLATFORMS } from "@/types/social";
 
 /**
  * Creates a fallback result when OpenGraph data cannot be fetched
