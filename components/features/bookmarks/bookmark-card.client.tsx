@@ -23,7 +23,7 @@
 "use client";
 
 import { formatTagDisplay, normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import { Bookmark, Calendar, ExternalLink as LucideExternalLinkIcon } from "lucide-react";
+import { Calendar, ExternalLink as LucideExternalLinkIcon } from "lucide-react";
 import Link from "next/link";
 import { type JSX, useEffect, useState } from "react";
 import { normalizeDomain } from "../../../lib/utils/domain-utils";
@@ -47,22 +47,11 @@ import type { BookmarkCardClientProps } from "@/types";
  * - Handling external links
  */
 
-export function BookmarkCardClient({
-  id,
-  url,
-  title,
-  description,
-  tags,
-  ogImage,
-  dateBookmarked,
-  datePublished,
-  content,
-  createdAt,
-  favourited,
-  shareUrl,
-}: BookmarkCardClientProps): JSX.Element {
+export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element {
+  const { id, url, title, description, tags, ogImage, dateBookmarked, shareUrl: initialShareUrl } = props;
   const [mounted, setMounted] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const shareUrl = initialShareUrl;
 
   // Effects for handling client-side initialization
   useEffect(() => {
@@ -70,11 +59,11 @@ export function BookmarkCardClient({
   }, []);
 
   // Define the date variables but only format them when mounted to avoid hydration mismatches
-  const displayBookmarkDate = createdAt ?? dateBookmarked;
-  const displayPublishDate = content?.datePublished ?? datePublished;
+  const displayBookmarkDate = dateBookmarked;
+  const displayPublishDate = null;
 
   // Format dates only after component is mounted to avoid hydration issues
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string): string => {
     if (!mounted) return "";
 
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -84,34 +73,19 @@ export function BookmarkCardClient({
     });
   };
 
-  const formattedBookmarkDate = mounted ? formatDate(displayBookmarkDate) : "";
+  const formattedBookmarkDate = mounted && displayBookmarkDate ? formatDate(displayBookmarkDate) : "";
   const formattedPublishDate = mounted && displayPublishDate ? formatDate(displayPublishDate) : null;
 
   // Handle image sources with multiple fallbacks
-  // Priority: content.imageUrl > ogImage > imageAssetId > screenshotAssetId > logo
+  // Priority: ogImage > logo
   // All images go through the unified /api/og-image route
   const getDisplayImageUrl = () => {
     // Always include bookmarkId for better fallbacks
     const baseParams = `&bookmarkId=${encodeURIComponent(id)}`;
 
-    // If we have a direct image URL from content
-    if (content?.imageUrl) {
-      return `/api/og-image?url=${encodeURIComponent(content.imageUrl)}${baseParams}`;
-    }
-
     // If we have an ogImage (could be S3 key or URL)
     if (ogImage) {
       return `/api/og-image?url=${encodeURIComponent(ogImage)}${baseParams}`;
-    }
-
-    // If we have an image asset ID (Karakeep)
-    if (content?.imageAssetId) {
-      return `/api/og-image?url=${encodeURIComponent(content.imageAssetId)}&assetId=${encodeURIComponent(content.imageAssetId)}${baseParams}`;
-    }
-
-    // If we have a screenshot asset ID (Karakeep)
-    if (content?.screenshotAssetId) {
-      return `/api/og-image?url=${encodeURIComponent(content.screenshotAssetId)}&assetId=${encodeURIComponent(content.screenshotAssetId)}${baseParams}`;
     }
 
     return null;
@@ -139,6 +113,8 @@ export function BookmarkCardClient({
 
   // Don't use a placeholder for SSR - render full card without interactive elements
   // Server will render as much as possible for SEO, client will hydrate
+
+  if (!id || !url) return <></>;
 
   return (
     <div
@@ -202,7 +178,7 @@ export function BookmarkCardClient({
         </ExternalLink>
 
         {/* Description */}
-        <p className="flex-1 text-gray-700 dark:text-gray-300 text-base leading-6 overflow-hidden">{description}</p>
+        <p className="flex-1 text-gray-700 dark:text-gray-300 text-base line-clamp-5-resilient">{description}</p>
 
         {/* Meta Information */}
         <div className="mt-auto space-y-2 text-sm text-gray-500 dark:text-gray-400">
@@ -244,13 +220,6 @@ export function BookmarkCardClient({
           </div>
         )}
       </div>
-      {/* Favorite Icon - simplified for SSR */}
-      {favourited && (
-        <div className="absolute top-5 right-5 bg-yellow-500 p-2 rounded-full shadow-lg">
-          <Bookmark className="w-5 h-5 text-white" />
-        </div>
-      )}
-      {/* Share button moved inline with the date */}
     </div>
   );
 }

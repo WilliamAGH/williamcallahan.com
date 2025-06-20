@@ -13,7 +13,7 @@ import { BookmarksWithPagination } from "./bookmarks-with-pagination.client";
 
 export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> = ({
   bookmarks,
-  forceClientFetch = false,
+  searchAllBookmarks = false,
   showFilterBar = true,
   usePagination = true,
   enableInfiniteScroll = true,
@@ -28,8 +28,8 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
     console.log(
       "BookmarksPaginatedClient receiving bookmarks:",
       bookmarks?.length || 0,
-      "forceClientFetch:",
-      forceClientFetch,
+      "searchAllBookmarks:",
+      searchAllBookmarks,
       "usePagination:",
       usePagination,
     );
@@ -39,9 +39,9 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
   if (usePagination) {
     return (
       <BookmarksWithPagination
-        initialBookmarks={bookmarks}
+        bookmarks={bookmarks}
         showFilterBar={showFilterBar}
-        searchAllBookmarks={forceClientFetch}
+        searchAllBookmarks={searchAllBookmarks}
         enableInfiniteScroll={enableInfiniteScroll}
         itemsPerPage={itemsPerPage}
         initialPage={initialPage}

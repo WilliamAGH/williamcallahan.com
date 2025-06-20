@@ -13,7 +13,7 @@ import { Suspense } from "react";
 import { BookmarksWindow } from "./bookmarks-window.client";
 // Alias BookmarksPaginatedClient as BookmarksClient for backwards compatibility with tests and type checks
 import { BookmarksPaginatedClient as BookmarksClient } from "./bookmarks-paginated.client";
-import { convertToUnifiedBookmarks } from "@/lib/bookmarks/utils";
+import { convertSerializableBookmarksToUnified } from "@/lib/bookmarks/utils";
 
 // Loading state when bookmarks are fetching
 function BookmarksLoading() {
@@ -57,7 +57,7 @@ export function BookmarksClientWithWindow({
   bookmarks,
   title,
   description,
-  forceClientFetch = false,
+  searchAllBookmarks = false,
   showFilterBar = true,
   titleSlug,
   initialPage,
@@ -66,13 +66,12 @@ export function BookmarksClientWithWindow({
   initialTag,
   tag,
 }: BookmarksClientWithWindowProps) {
-  const unifiedBookmarks = convertToUnifiedBookmarks(bookmarks);
+  const unifiedBookmarks = convertSerializableBookmarksToUnified(bookmarks);
 
   return (
     <BookmarksWindow
       titleSlug={titleSlug}
       windowTitle={title} // Pass the title to be used as window title
-      bookmarks={unifiedBookmarks}
     >
       <div className="w-full mx-auto py-8">
         {/* Only show description if provided */}
@@ -84,7 +83,7 @@ export function BookmarksClientWithWindow({
         <Suspense fallback={<BookmarksLoading />}>
           <BookmarksClient
             bookmarks={unifiedBookmarks}
-            forceClientFetch={forceClientFetch}
+            searchAllBookmarks={searchAllBookmarks}
             showFilterBar={showFilterBar}
             usePagination={usePagination}
             enableInfiniteScroll={false}

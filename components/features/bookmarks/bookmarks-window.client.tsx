@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { Bookmark } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Suspense, useEffect, useMemo } from "react";
+import type { LucideIcon } from "lucide-react";
+import type { RegisteredWindowState, BookmarksWindowContentProps } from "@/types";
 
 // Define a unique ID for this window instance
 // Use this as the default window ID, but it can be overridden with props
@@ -50,7 +52,7 @@ import type { BookmarksWindowClientPropsExtended as BookmarksWindowClientProps }
  * Dynamic import of the window content component to prevent server-side rendering
  * This ensures any layout effects or DOM manipulations only run on the client
  */
-const BookmarksWindowContent = dynamic(
+const BookmarksWindowContent = dynamic<BookmarksWindowContentProps>(
   () =>
     Promise.resolve(
       ({
@@ -130,7 +132,7 @@ export function BookmarksWindow({ children, titleSlug, windowTitle, windowId }: 
     minimize: minimizeWindow,
     maximize: maximizeWindow,
     isRegistered,
-  } = useRegisteredWindowState(uniqueId, Bookmark, restoreTitle, "normal");
+  }: RegisteredWindowState = useRegisteredWindowState(uniqueId, Bookmark as LucideIcon, restoreTitle, "normal");
 
   // Log state changes for debugging purposes
   useEffect(() => {
