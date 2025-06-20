@@ -10,32 +10,9 @@
 import { CSP_DIRECTIVES } from "./lib/constants";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { memoryPressureMiddleware } from "./lib/middleware/memory-pressure";
 
-/**
- * Type definition for server-side request logging
- * @interface RequestLog
- */
-interface RequestLog {
-  /** ISO timestamp of the request */
-  timestamp: string;
-  /** Type of log entry */
-  type: "server_pageview";
-  /** Request data payload */
-  data: {
-    /** Normalized path without query params */
-    path: string;
-    /** Full request path including query params */
-    fullPath: string;
-    /** HTTP method used */
-    method: string;
-    /** Real client IP from trusted headers */
-    clientIp: string;
-    /** Client's user agent string */
-    userAgent: string;
-    /** Request referrer or 'direct' */
-    referer: string;
-  };
-}
+import type { RequestLog } from "@/types/lib";
 
 /**
  * Gets the real client IP from various headers
@@ -59,8 +36,14 @@ function getRealIp(request: NextRequest): string {
  * @param request - The incoming Nextjs request
  * @returns The modified response with added headers
  */
-export default function middleware(request: NextRequest): NextResponse {
+export default async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
+
+  // Check memory pressure first (before any expensive operations)
+  const memoryResponse = await memoryPressureMiddleware(request);
+  if (memoryResponse) {
+    return memoryResponse;
+  }
 
   // SECURITY: Block debug endpoints in production
   if (pathname.startsWith("/api/debug") && process.env.NODE_ENV === "production") {
@@ -160,10 +143,7 @@ export default function middleware(request: NextRequest): NextResponse {
       }
     } else if (url === "/" || !url.includes(".")) {
       // Ensure HTML pages are freshly served so analytics scripts always update
-      response.headers.set(
-        "Cache-Control",
-        "no-store, no-cache, must-revalidate, proxy-revalidate",
-      );
+      response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     }
   } else {
     response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");

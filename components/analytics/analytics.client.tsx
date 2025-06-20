@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 /**
  * Client-side component for loading and managing third-party analytics scripts.
  * Includes Plausible, Umami, Simple Analytics, and Clicky.
@@ -6,40 +5,13 @@
 
 "use client";
 
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
 import type React from "react";
-import { Component, type ErrorInfo, type JSX, useCallback, useEffect, useState } from "react";
+import { Component, type ErrorInfo, type JSX, useCallback, useEffect, useState, useId } from "react";
 
-/**
- * Analytics event data structure based on official specs
- * @see https://umami.is/docs/tracker-functions
- * @see https://plausible.io/docs/custom-event-goals
- */
-interface BaseAnalyticsEvent {
-  /** Current page path (normalized for dynamic routes) */
-  path: string;
-  /** Full page URL */
-  url: string;
-  /** Page referrer */
-  referrer: string;
-}
-
-interface UmamiEvent extends BaseAnalyticsEvent {
-  /** Website ID for tracking */
-  website?: string;
-  /** Current hostname */
-  hostname?: string;
-  /** Allow additional properties for event data compatibility */
-  [key: string]: unknown;
-}
-
-// Used for type checking but not directly referenced
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-interface PlausibleEvent extends BaseAnalyticsEvent {
-  /** Additional custom properties */
-  [key: string]: unknown;
-}
+import type { BaseAnalyticsEvent, UmamiEvent } from "@/types/analytics";
 
 /**
  * Error Boundary component to prevent analytics errors from affecting the main app
@@ -90,8 +62,7 @@ function createBaseEventData(): BaseAnalyticsEvent {
       url: window.location.href,
       referrer: document.referrer,
     };
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (err) {
+  } catch {
     // Fallback if there's any issue accessing window/document
     return { path: "", url: "", referrer: "" };
   }
@@ -112,8 +83,7 @@ function trackPlausible(path: string): void {
       };
       window.plausible("pageview", { props: eventData });
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (error) {
+  } catch {
     // Silent failure in production, log in development
     if (process.env.NODE_ENV !== "production") {
       console.warn("[Analytics] Plausible tracking error - silent failure");
@@ -138,8 +108,7 @@ export function trackUmami(path: string): void {
       };
       window.umami.track("pageview", eventData);
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (error) {
+  } catch {
     // Silent failure in production, log in development
     if (process.env.NODE_ENV !== "production") {
       console.warn("[Analytics] Umami tracking error - silent failure");
@@ -159,6 +128,10 @@ function AnalyticsScripts() {
     clicky: false,
   });
   const [isMounted, setIsMounted] = useState(false);
+  const umamiId = useId();
+  const plausibleId = useId();
+  const simpleAnalyticsId = useId();
+  const clickyId = useId();
 
   useEffect(() => {
     setIsMounted(true);
@@ -178,8 +151,7 @@ function AnalyticsScripts() {
         if (scriptsLoaded.plausible) {
           trackPlausible(normalizedPath);
         }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      } catch (error) {
+      } catch {
         // Silent error handling to prevent app crashes
         return;
       }
@@ -207,8 +179,7 @@ function AnalyticsScripts() {
       }, 500); // Increased from 100ms to 500ms
 
       return () => clearTimeout(trackingTimeout);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
+    } catch {
       // Silent failure
       return undefined;
     }
@@ -237,15 +208,12 @@ function AnalyticsScripts() {
   try {
     if (!process.env.NEXT_PUBLIC_SITE_URL) {
       if (process.env.NODE_ENV === "development") {
-        console.warn(
-          "[Analytics] NEXT_PUBLIC_SITE_URL is not defined. Falling back to default domain.",
-        );
+        console.warn("[Analytics] NEXT_PUBLIC_SITE_URL is not defined. Falling back to default domain.");
       }
       throw new Error("NEXT_PUBLIC_SITE_URL is not defined");
     }
     domain = new URL(process.env.NEXT_PUBLIC_SITE_URL).hostname;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (e) {
+  } catch {
     // Fallback if URL parsing fails or env var is missing
     domain = "williamcallahan.com";
   }
@@ -260,7 +228,7 @@ function AnalyticsScripts() {
     <>
       {process.env.NODE_ENV === "production" && (
         <Script
-          id="umami"
+          id={umamiId}
           strategy="lazyOnload"
           src={`https://umami.iocloudhost.net/script.js?t=${Date.now()}`}
           data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
@@ -268,8 +236,7 @@ function AnalyticsScripts() {
           onLoad={() => {
             try {
               setScriptsLoaded((prev) => ({ ...prev, umami: true }));
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch (e) {
+            } catch {
               // Silent failure
             }
           }}
@@ -277,7 +244,7 @@ function AnalyticsScripts() {
         />
       )}
       <Script
-        id="plausible"
+        id={plausibleId}
         strategy="lazyOnload"
         src={`https://plausible.iocloudhost.net/js/script.js?t=${Date.now()}`}
         data-domain={domain}
@@ -288,8 +255,7 @@ function AnalyticsScripts() {
             if (pathname) {
               trackPageview(pathname);
             }
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          } catch (e) {
+          } catch {
             // Silent failure
           }
         }}
@@ -297,7 +263,7 @@ function AnalyticsScripts() {
       />
       {/* Simple Analytics */}
       <Script
-        id="simple-analytics"
+        id={simpleAnalyticsId}
         strategy="lazyOnload"
         src="https://scripts.simpleanalyticscdn.com/latest.js"
         data-collect-dnt="true"
@@ -311,10 +277,12 @@ function AnalyticsScripts() {
       />
       {isMounted && (
         <noscript>
-          <img
+          <Image
             src="https://queue.simpleanalyticscdn.com/noscript.gif?collect-dnt=true"
             alt=""
             referrerPolicy="no-referrer-when-downgrade"
+            width={1}
+            height={1}
           />
         </noscript>
       )}
@@ -322,7 +290,7 @@ function AnalyticsScripts() {
       {/* Clicky Analytics */}
       {/* Using Next/Script component, equivalent to <script async src="..."> */}
       <Script
-        id="clicky-analytics"
+        id={clickyId}
         strategy="afterInteractive" // Use afterInteractive to mimic 'async' behavior
         src="https://static.getclicky.com/101484018.js" // Use https protocol
         onLoad={() => {
@@ -337,7 +305,7 @@ function AnalyticsScripts() {
         <noscript>
           {/* Standard Clicky noscript tag */}
           <p>
-            <img alt="Clicky" width="1" height="1" src="https://in.getclicky.com/101484018ns.gif" />
+            <Image alt="Clicky" width="1" height="1" src="https://in.getclicky.com/101484018ns.gif" />
           </p>{" "}
           {/* Use https protocol */}
         </noscript>

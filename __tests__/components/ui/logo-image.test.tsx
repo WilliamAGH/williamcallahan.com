@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import React from "react";
+import type { MockImageProps } from "@/types/test";
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, jest } from "@jest/globals";
 import "@testing-library/jest-dom";
@@ -9,22 +9,13 @@ import "@testing-library/jest-dom";
 // expect.extend({ toHaveAttribute });
 
 // Mock next/image BEFORE importing the component under test
-interface MockImageProps {
-  src: string;
-  alt?: string;
-  priority?: boolean;
-  layout?: string | undefined;
-  objectFit?: string | undefined;
-  fill?: boolean;
-  [key: string]: unknown;
-}
-
 jest.mock("next/image", () => ({
   __esModule: true,
   default: ({ src, alt, priority, layout, objectFit, fill, ...restProps }: MockImageProps) => {
     const effectiveLayout = layout ?? (fill ? "fill" : undefined);
     const priorityAttr = priority ? { "data-priority": "true" } : {};
     return (
+      // biome-ignore lint/performance/noImgElement: This is a test mock for Next.js Image component
       <img
         src={src}
         alt={alt}

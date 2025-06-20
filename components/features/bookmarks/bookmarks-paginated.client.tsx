@@ -7,22 +7,9 @@
  */
 "use client";
 
-import type { UnifiedBookmark } from "@/types";
+import type { BookmarksPaginatedClientProps } from "@/types";
 import { BookmarksWithOptions } from "./bookmarks-with-options.client";
 import { BookmarksWithPagination } from "./bookmarks-with-pagination.client";
-
-interface BookmarksPaginatedClientProps {
-  bookmarks: UnifiedBookmark[];
-  forceClientFetch?: boolean;
-  showFilterBar?: boolean;
-  usePagination?: boolean;
-  enableInfiniteScroll?: boolean;
-  itemsPerPage?: number;
-  initialPage?: number;
-  baseUrl?: string;
-  initialTag?: string;
-  tag?: string;
-}
 
 export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> = ({
   bookmarks,

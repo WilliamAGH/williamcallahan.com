@@ -28,6 +28,7 @@ Categories:
 Keep under 50 characters.
 
 STEP 6: Execute the commit with your generated message.
+IMPORTANT: NEVER include Claude code attribution or co-author tags in commits.
 
 STEP 7: Show the commit hash and message.
 

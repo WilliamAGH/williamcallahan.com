@@ -8,9 +8,7 @@ import Image from "next/image";
 
 export function ProfileImage() {
   return (
-    <div
-      className="mx-auto w-56 h-56 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800"
-    >
+    <div className="mx-auto w-56 h-56 sm:w-64 sm:h-64 md:w-72 md:h-72 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800">
       <Image
         src="/images/william-callahan-san-francisco.png"
         alt="William Callahan in San Francisco"

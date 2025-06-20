@@ -6,22 +6,14 @@
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
-import {
-  searchBookmarks,
-  searchExperience,
-  searchEducation,
-  searchInvestments,
-} from "@/lib/search";
+import { searchBookmarks, searchExperience, searchEducation, searchInvestments } from "@/lib/search";
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { SearchResult } from "@/types/search";
+import { type SearchScope, VALID_SCOPES } from "@/types/search";
 import { NextResponse } from "next/server";
 
 // Ensure this route is not statically cached
 export const dynamic = "force-dynamic";
-
-// Valid search scopes
-const VALID_SCOPES = ["blog", "posts", "investments", "experience", "education", "bookmarks"] as const;
-type SearchScope = typeof VALID_SCOPES[number];
 
 /**
  * Server-side API route for scoped search.
@@ -33,10 +25,7 @@ type SearchScope = typeof VALID_SCOPES[number];
  * @param params - Route parameters including the search scope.
  * @returns A JSON response containing the search results or an error message.
  */
-export async function GET(
-  request: Request,
-  { params }: { params: { scope: string } }
-) {
+export async function GET(request: Request, { params }: { params: { scope: string } }) {
   try {
     const { searchParams } = new URL(request.url);
     const rawQuery = searchParams.get("q") ?? "";
@@ -45,22 +34,19 @@ export async function GET(
     // Validate scope
     if (!VALID_SCOPES.includes(scope)) {
       return NextResponse.json(
-        { 
+        {
           error: `Invalid search scope: ${params.scope}`,
-          validScopes: VALID_SCOPES 
+          validScopes: VALID_SCOPES,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Validate and sanitize the query
     const validation = validateSearchQuery(rawQuery);
-    
+
     if (!validation.isValid) {
-      return NextResponse.json(
-        { error: validation.error || "Invalid search query" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: validation.error || "Invalid search query" }, { status: 400 });
     }
 
     const query = validation.sanitized;
@@ -95,19 +81,19 @@ export async function GET(
         query: validation.sanitized,
         scope,
         count: results.length,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     });
   } catch (error) {
     console.error(`Scoped search API error for scope ${params.scope}:`, error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     return NextResponse.json(
-      { 
-        error: "Failed to perform search", 
+      {
+        error: "Failed to perform search",
         details: errorMessage,
-        scope: params.scope 
+        scope: params.scope,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -9,8 +9,6 @@
 import { assertServerOnly } from "../utils/ensure-server-only";
 assertServerOnly(); // Ensure this module runs only on the server
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import type { BlogPost } from "@/types/blog";
 import type { SearchResult } from "@/types/search";
 import { getAllMDXPosts } from "./mdx";
 

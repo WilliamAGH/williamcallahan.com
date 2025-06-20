@@ -11,7 +11,7 @@
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
 import { TerminalSquare } from "lucide-react"; // Import specific icon
-import React, { useEffect, useRef } from "react"; // Assuming useCallback was here and removed
+import { useEffect, useRef } from "react"; // Assuming useCallback was here and removed
 import { CommandInput } from "./command-input.client";
 import { History } from "./history";
 import { SelectionView } from "./selection-view.client";
@@ -197,10 +197,7 @@ export function Terminal() {
       {/* Terminal Container - conditionally styled for maximized/normal state */}
       <div
         data-testid="terminal-container"
-        className={cn(
-          commonTerminalClasses,
-          isMaximized ? maximizedTerminalClasses : normalTerminalClasses,
-        )}
+        className={cn(commonTerminalClasses, isMaximized ? maximizedTerminalClasses : normalTerminalClasses)}
       >
         {/* Header */}
         <div className="flex-shrink-0">
@@ -214,10 +211,7 @@ export function Terminal() {
 
         {/* Scrollable Content Area */}
         <section
-          className={cn(
-            commonScrollClasses,
-            isMaximized ? maximizedScrollClasses : normalScrollClasses,
-          )}
+          className={cn(commonScrollClasses, isMaximized ? maximizedScrollClasses : normalScrollClasses)}
           ref={scrollContainerRef}
           onClick={() => focusInput()}
           onKeyDown={(e) => {
@@ -234,18 +228,9 @@ export function Terminal() {
           <div className="whitespace-pre-wrap break-words select-text">
             <History history={terminalHistory} />
             {selection ? (
-              <SelectionView
-                items={selection}
-                onSelectAction={handleSelection}
-                onExitAction={cancelSelection}
-              />
+              <SelectionView items={selection} onSelectAction={handleSelection} onExitAction={cancelSelection} />
             ) : (
-              <CommandInput
-                ref={inputRef}
-                value={input}
-                onChange={setInput}
-                onSubmit={handleSubmit}
-              />
+              <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={handleSubmit} />
             )}
           </div>
         </section>

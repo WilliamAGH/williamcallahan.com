@@ -12,22 +12,8 @@
 "use client";
 
 import Image from "next/image"; // Import next/image
-import React, { type JSX } from "react";
-
-interface LogoImageProps {
-  /** Source URL for the image (can be a regular URL or a data URL) */
-  src: string;
-  /** Width of the image in pixels */
-  width: number;
-  /** Height of the image in pixels */
-  height: number;
-  /** Alternate text for accessibility */
-  alt?: string;
-  /** Additional CSS classes to apply to the container/image */
-  className?: string;
-  /** Optional: Priority loading (only applies to next/image) */
-  priority?: boolean;
-}
+import { type JSX } from "react";
+import type { LogoImageProps } from "@/types";
 
 export function LogoImage({
   src,
@@ -37,6 +23,10 @@ export function LogoImage({
   className = "",
   priority = false,
 }: LogoImageProps): JSX.Element {
+  if (!src) {
+    // Return a placeholder or null if src is not provided
+    return <div style={{ width, height }} className="bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />;
+  }
   // Determine if the src is a data URL
   const isDataUrl = src.startsWith("data:");
 

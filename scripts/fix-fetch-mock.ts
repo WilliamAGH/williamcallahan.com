@@ -16,9 +16,7 @@ console.log(`NODE_ENV: ${process.env.NODE_ENV || "not set"}`);
 console.log("\nChecking fetch status:");
 console.log(`- typeof fetch: ${typeof globalThis.fetch}`);
 console.log(`- fetch.name: ${globalThis.fetch?.name}`);
-console.log(
-  `- fetch.toString().includes('mock'): ${globalThis.fetch?.toString().includes("mock") || false}`,
-);
+console.log(`- fetch.toString().includes('mock'): ${globalThis.fetch?.toString().includes("mock") || false}`);
 
 // Test fetch functionality with async IIFE
 void (async () => {
@@ -59,10 +57,10 @@ void (async () => {
   if (
     globalThis.fetch?.toString().includes("mock") ||
     globalThis.fetch?.name === "fetch" ||
-    ("_isMockFunction" in (globalThis.fetch as unknown as { [key: string]: unknown }))
+    "_isMockFunction" in (globalThis.fetch as unknown as { [key: string]: unknown })
   ) {
     console.log("\n⚠️  Detected potential mock - attempting restoration...");
-    
+
     // Try to import native fetch
     try {
       const { fetch: undiciFetch } = await import("undici");

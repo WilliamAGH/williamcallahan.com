@@ -12,32 +12,34 @@
     "url": "https://github.com/WilliamAGH/williamcallahan.com/issues"
   },
   "scripts": {
-    "update-s3": "bun scripts/update-s3-data.ts",
-    "scheduler": "bun scripts/scheduler.ts",
+    "update-s3": "bun scripts/data-updater.ts",
+    "scheduler": "bun lib/server/scheduler.ts",
     "submit-sitemap": "bun scripts/submit-sitemap.ts",
     "analyze": "ANALYZE=true next build",
     "benchmark": "bun scripts/benchmark.js",
     "benchmark-api": "bun scripts/benchmark-api.js",
     "predev": "mkdir -p data/bookmarks data/github-activity data/images/logos",
     "prestart": "mkdir -p data/bookmarks data/github-activity data/images/logos",
-    "prefetch": "node scripts/prefetch-data.js",
+    "prefetch": "bun scripts/data-updater.ts --prefetch-dev",
     "populate-volumes": "NODE_ENV=development bun scripts/populate-volumes.ts",
     "dev": "bun run populate-volumes && bun run cleanCache && next dev",
-    "build": "bun run validate && NEXT_PHASE=phase-production-build bun run scripts/prefetch-data.js && next build",
+    "build": "bun run validate && NEXT_PHASE=phase-production-build bun scripts/data-updater.ts --prefetch-build && next build",
+    "build:full": "bun run validate && NEXT_PHASE=phase-production-build bun scripts/data-updater.ts --prefetch-dev && next build",
     "start": "node .next/standalone/server.js",
     "start:plain": "next start",
     "docker:build": "docker buildx build --platform=linux/amd64 --build-arg NODE_ENV=production --build-arg NEXT_TELEMETRY_DISABLED=1 --load -t williamcallahan-web:latest .",
     "docker:start": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production williamcallahan-web:latest",
-    "docker:prefetch": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production -e CONTAINER=true williamcallahan-web:latest node scripts/prefetch-data.js",
+    "docker:prefetch": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production -e CONTAINER=true williamcallahan-web:latest bun scripts/data-updater.ts --prefetch-dev",
     "docker:populate-volumes": "docker run --platform=linux/amd64 -p 3010:3000 -e NODE_ENV=production -e CONTAINER=true williamcallahan-web:latest bun scripts/populate-volumes.ts",
-    "lint": "eslint . --config eslint.config.ts",
-    "lint:errors": "eslint . --config eslint.config.ts --quiet",
+    "lint": "eslint . --config eslint.config.ts --format compact",
+    "lint:errors": "eslint . --config eslint.config.ts --quiet --format compact",
     "lint:css": "stylelint --fix 'app/**/*.css' 'styles/**/*.css'",
     "biome:check": "biome check .",
     "biome:format": "biome format --write .",
     "biome:lint": "biome lint .",
     "type-check": "tsc --noEmit",
     "validate": "bun run lint && bun run type-check",
+    "validate:full": "bun run lint && bun run type-check && bun run biome:check",
     "clean": "rm -rf .next out node_modules",
     "cleanCache": "rm -rf .next/cache",
     "test": "jest --color --config=config/jest/config.ts",
@@ -51,6 +53,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.826.0",
+    "@aws-sdk/lib-storage": "^3.832.0",
     "@fontsource/ibm-plex-mono": "^5.2.6",
     "@mapbox/rehype-prism": "^0.9.0",
     "@mdx-js/mdx": "^3.1.0",
@@ -70,13 +73,13 @@
     "googleapis": "^149.0.0",
     "gray-matter": "^4.0.3",
     "import-in-the-middle": "^1.14.0",
+    "lru-cache": "^11.1.0",
     "lucide-react": "^0.512.0",
     "mdast-util-mdx-jsx": "^3.2.0",
     "minisearch": "^7.1.2",
     "next": "^15.3.3",
     "next-mdx-remote": "4.4.1",
     "next-themes": "^0.4.6",
-    "node-cache": "^5.1.2",
     "node-cron": "^4.1.0",
     "prismjs": "^1.30.0",
     "react": "^19.1.0",
@@ -94,9 +97,10 @@
     "sharp": "^0.34.2",
     "tailwind-merge": "^3.3.0",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "3.25.50"
+    "zod": "^3.25.67"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
     "@eslint/js": "^9.28.0",
     "@happy-dom/global-registrator": "^17.6.3",
     "@mdx-js/react": "^3.1.0",
@@ -119,6 +123,7 @@
     "dotenv": "^16.5.0",
     "eslint": "^9.28.0",
     "eslint-config-next": "^15.3.3",
+    "eslint-formatter-compact": "^8.40.0",
     "eslint-plugin-jest": "^28.13.0",
     "eslint-plugin-mdx": "^3.4.2",
     "eslint-plugin-react": "^7.37.5",
@@ -159,12 +164,22 @@
     "undici": "^7.10.0"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,mdx}": ["eslint --config eslint.config.ts --fix"]
+    "*.{js,jsx,ts,tsx,mdx}": [
+      "eslint --config eslint.config.ts --fix"
+    ]
   },
-  "trustedDependencies": ["@sentry/cli", "@swc/core", "sharp", "unrs-resolver"],
+  "trustedDependencies": [
+    "@sentry/cli",
+    "@swc/core",
+    "sharp",
+    "unrs-resolver"
+  ],
   "stylelint": {
     "fix": true,
-    "extends": ["stylelint-config-recommended", "stylelint-config-tailwindcss"],
+    "extends": [
+      "stylelint-config-recommended",
+      "stylelint-config-tailwindcss"
+    ],
     "rules": {
       "declaration-no-important": true,
       "selector-max-specificity": "1,5,0",
@@ -174,7 +189,14 @@
       "at-rule-no-unknown": [
         true,
         {
-          "ignoreAtRules": ["tailwind", "apply", "variants", "responsive", "screen", "layer"]
+          "ignoreAtRules": [
+            "tailwind",
+            "apply",
+            "variants",
+            "responsive",
+            "screen",
+            "layer"
+          ]
         }
       ],
       "selector-class-pattern": null

@@ -13,6 +13,7 @@ import { useRegisteredWindowState } from "@/lib/context/global-window-registry-c
 import { cn } from "@/lib/utils"; // Import cn utility
 import { Briefcase } from "lucide-react"; // Import specific icon
 import { type JSX, useEffect } from "react"; // Import hooks (useState might not be needed)
+import type { ExperienceProps } from "@/types/features/experience";
 import { WindowControls } from "../../ui/navigation/window-controls";
 // ReactElement type is no longer explicitly imported if JSX.Element is used directly
 
@@ -24,17 +25,6 @@ const EXPERIENCE_WINDOW_ID = "experience-window";
 
 // Force static generation for the content component if possible (may need adjustment)
 // export const dynamic = 'force-static'; // This directive likely belongs with data fetching/rendering logic
-
-/**
- * Props for the Experience client component.
- */
-interface ExperienceProps {
-  /**
-   * An array of experience card objects. Each object should contain an `id`
-   * and a pre-rendered `card` (JSX.Element) representing an experience item.
-   */
-  experienceCards: Array<{ id: string; card: JSX.Element }>;
-}
 
 /**
  * Client component wrapper for the Experience section.
@@ -59,10 +49,7 @@ export function Experience({ experienceCards }: ExperienceProps): JSX.Element {
   useEffect(() => {
     if (isRegistered) {
       // Check isRegistered
-      console.log(
-        `Experience Component Render (${EXPERIENCE_WINDOW_ID}) - Window State:`,
-        windowState,
-      );
+      console.log(`Experience Component Render (${EXPERIENCE_WINDOW_ID}) - Window State:`, windowState);
     }
   }, [windowState, isRegistered]); // Dependency on isRegistered
 
@@ -103,11 +90,7 @@ export function Experience({ experienceCards }: ExperienceProps): JSX.Element {
       {/* Sticky Header */}
       <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 flex-shrink-0 sticky top-0 z-10">
         <div className="flex items-center">
-          <WindowControls
-            onClose={closeWindow}
-            onMinimize={minimizeWindow}
-            onMaximize={maximizeWindow}
-          />
+          <WindowControls onClose={closeWindow} onMinimize={minimizeWindow} onMaximize={maximizeWindow} />
           <h1 className="text-xl font-mono ml-4">~/experience</h1>
         </div>
       </div>

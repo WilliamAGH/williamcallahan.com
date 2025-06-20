@@ -6,31 +6,7 @@
  * @module lib/rate-limiter
  */
 
-interface RateLimitRecord {
-  count: number;
-  resetAt: number;
-}
-
-export interface RateLimitConfig {
-  /** Maximum number of requests allowed within the window. Must be > 0. */
-  maxRequests: number;
-  /** Duration of the rate limit window in milliseconds. Must be > 0. */
-  windowMs: number;
-}
-
-/**
- * Validates a RateLimitConfig to ensure it has valid values.
- * @param config - The configuration to validate
- * @throws Error if configuration is invalid
- */
-function validateRateLimitConfig(config: RateLimitConfig): void {
-  if (config.maxRequests <= 0) {
-    throw new Error(`Invalid maxRequests: ${config.maxRequests}. Must be greater than 0.`);
-  }
-  if (config.windowMs <= 0) {
-    throw new Error(`Invalid windowMs: ${config.windowMs}. Must be greater than 0.`);
-  }
-}
+import type { RateLimiterConfig, RateLimitRecord } from "@/types/lib";
 
 /**
  * In-memory store for rate limit records.
@@ -50,12 +26,17 @@ const rateLimitStores: Record<string, Record<string, RateLimitRecord>> = {};
  * @param config - The rate limit configuration (maxRequests, windowMs).
  * @returns True if the operation is allowed, false otherwise.
  */
-export function isOperationAllowed(
-  storeName: string,
-  contextId: string,
-  config: RateLimitConfig,
-): boolean {
-  validateRateLimitConfig(config);
+export function isOperationAllowed(storeName: string, contextId: string, config: RateLimiterConfig): boolean {
+  // ---------------------------------------------------------------------------
+  // Validate configuration – throw early for clearly invalid settings so that
+  // callers (and tests) can rely on deterministic behaviour.
+  // ---------------------------------------------------------------------------
+  if (config.maxRequests <= 0) {
+    throw new Error(`Invalid maxRequests: ${config.maxRequests}. Must be greater than 0.`);
+  }
+  if (config.windowMs <= 0) {
+    throw new Error(`Invalid windowMs: ${config.windowMs}. Must be greater than 0.`);
+  }
 
   if (!rateLimitStores[storeName]) {
     rateLimitStores[storeName] = {};
@@ -106,12 +87,10 @@ export function isOperationAllowed(
 export async function waitForPermit(
   storeName: string,
   contextId: string,
-  config: RateLimitConfig,
+  config: RateLimiterConfig,
   pollIntervalMs = 50,
   timeoutMs?: number,
 ): Promise<void> {
-  validateRateLimitConfig(config);
-
   const startTime = Date.now();
 
   // Ensure pollInterval is sensible, e.g., not too small compared to window
@@ -158,7 +137,7 @@ export async function waitForPermit(
  * Default configuration for API endpoint rate limiting (e.g., per IP).
  * Original values from app/api/bookmarks/refresh/route.ts were 5 requests per 60 seconds.
  */
-export const DEFAULT_API_ENDPOINT_LIMIT_CONFIG: RateLimitConfig = {
+export const DEFAULT_API_ENDPOINT_LIMIT_CONFIG: RateLimiterConfig = {
   maxRequests: 5,
   windowMs: 60 * 1000, // 1 minute
 };
@@ -168,7 +147,7 @@ export const API_ENDPOINT_STORE_NAME = "apiEndpoints";
  * Default configuration for outgoing OpenGraph fetch requests.
  * Aiming for approximately 10 requests per second.
  */
-export const DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG: RateLimitConfig = {
+export const DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG: RateLimiterConfig = {
   maxRequests: 10,
   windowMs: 1000, // per 1 second
 };

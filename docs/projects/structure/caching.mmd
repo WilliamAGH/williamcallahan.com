@@ -1,58 +1,62 @@
 graph TD
-    subgraph "Request Layer"
-        A[API Route / Server Component]
-    end
-
-    subgraph "Caching Logic (Singleton: ServerCacheInstance)"
+    subgraph "Request Flow"
+        A[API/Component Request]
         B{Cache Check}
-        C["✅ HIT<br/>(~1-5ms)"]
+        C["✅ HIT<br/>~1ms"]
         D["❌ MISS"]
-        E["Set Cache<br/>(Success: 30d TTL<br/>Failure: 1d TTL)"]
-        RC["Request Coalescing<br/>(In-Flight Promises)"]
     end
 
-    subgraph "Downstream Services"
-        F["S3 Storage<br/>(s3-object-storage.md)<br/>~10-50ms"]
-        G["External APIs<br/>(via json-handling/image-handling)<br/>100ms-5s"]
+    subgraph "Caching Layers" 
+        L1["ServerCacheInstance<br/>Metadata Only"]
+        L2["ImageMemoryManager<br/>512MB Buffers"]
+        L3["S3 Storage<br/>~50ms"]
+        L4["External APIs<br/>100ms-5s"]
     end
     
-    subgraph "Response Layer"
-        H[Cached Response]
-        I[Fresh Response]
+    subgraph "Advanced Patterns"
+        RC["Request Coalescing<br/>(Share promises)"]
+        DL["Distributed Lock<br/>(S3-based)"]
+        NC["Negative Cache<br/>(Failed = 1-2hr)"]
     end
 
-    A -- "Requests Data" --> B
+    subgraph "Memory Safety"
+        MS1["No buffers in ServerCache"]
+        MS2["10MB buffer rejection"]
+        MS3["100k key limit"]
+        MS4["Batch eviction 10%"]
+    end
+
+    A --> B
     B -->|HIT| C
-    C --> H
-    
     B -->|MISS| D
-    D --> RC
-    RC -->|"Already Fetching"| RC
-    RC -->|"New Request"| F
-    F -- "Data Found" --> E
-    F -- "Data NOT Found" --> G
     
-    G -- "Data Fetched" --> E
-    E --> I
+    D --> RC
+    RC -->|New| L3
+    RC -->|Waiting| RC
+    
+    L3 -->|Found| L1
+    L3 -->|Miss| L4
+    L4 --> NC
+    NC --> L1
+    
+    L1 -.->|Images| L2
+    L2 -.->|Buffers| C
+    L1 -.->|Metadata| C
 
-    subgraph "Debug Tools"
-        J["middleware/cache-debug.ts"]
+    subgraph "🔴 Security Issue"
+        SEC1["/api/cache/clear"]
+        SEC2["NO AUTH!"]
+        SEC3["DoS Risk"]
     end
-
-    subgraph "Known Issues"
-        K["⚠️ No Memory Limits<br/>(Issue #115)"]
-        L["⚠️ No Clone Protection<br/>(useClones: false)"]
-        M["⚠️ No S3 Refresh<br/>(Stale logos persist)"]
-    end
-
-    J -- "Adds headers to" --> A
+    
+    SEC1 --> SEC2
+    SEC2 --> SEC3
 
     %% Styling
-    style B fill:#e1f5fe,stroke:#333
+    style B fill:#e1f5fe
     style C fill:#d4edda,stroke:#155724
     style D fill:#f8d7da,stroke:#721c24
-    style H fill:#d4edda,stroke:#155724
-    style I fill:#fff3cd,stroke:#856404
-    style K fill:#ffebee,stroke:#c62828
-    style L fill:#ffebee,stroke:#c62828
-    style M fill:#ffebee,stroke:#c62828
+    style L2 fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
+    style SEC1 fill:#ffcdd2,stroke:#d32f2f
+    style SEC2 fill:#ffcdd2,stroke:#d32f2f
+    style SEC3 fill:#ffcdd2,stroke:#d32f2f

@@ -10,24 +10,7 @@
 
 // No longer needs "use client" as it's purely presentational again
 
-/**
- * Props for the WindowControls component
- * @interface WindowControlsProps
- */
-interface WindowControlsProps {
-  /** Additional CSS classes to apply to the container */
-  className?: string;
-  /** Callback function when close button is clicked */
-  onClose?: () => void;
-  /** Callback function when minimize button is clicked */
-  onMinimize?: () => void;
-  /** Callback function when maximize/restore button is clicked */
-  onMaximize?: () => void;
-  /** Size variant for responsive controls */
-  size?: "sm" | "md" | "lg";
-  /** Flag to indicate if window is currently maximized (affects button icon) */
-  isMaximized?: boolean;
-}
+import type { WindowControlsProps } from "@/types/ui/window";
 
 /**
  * Helper component for rendering hover icons on window control buttons

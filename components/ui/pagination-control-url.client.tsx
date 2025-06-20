@@ -1,23 +1,53 @@
 "use client";
 
-import type React from 'react';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from 'lucide-react';
+import type React from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Loader2 } from "lucide-react";
+import type { PaginationControlUrlProps } from "@/types";
 
-interface PaginationControlUrlProps {
-  currentPage?: number;
-  totalPages?: number;
-  totalItems?: number;
-  itemsPerPage?: number;
-  isLoading?: boolean;
-  disabled?: boolean;
-  showFirstLast?: boolean;
-  showPageInfo?: boolean;
-  maxVisiblePages?: number;
+const LinkButton = ({
+  page,
+  children,
+  className: btnClassName,
+  ariaLabel,
+  getPageUrl,
+  disabled,
+  isLoading,
+  currentPage,
+  totalPages,
+}: {
+  page: number;
+  children: React.ReactNode;
   className?: string;
-  baseUrl?: string;
-}
+  ariaLabel?: string;
+  getPageUrl: (page: number) => string;
+  disabled: boolean;
+  isLoading: boolean;
+  currentPage: number;
+  totalPages: number;
+}) => {
+  const isDisabled = disabled || isLoading || page < 1 || page > totalPages || page === currentPage;
+
+  if (isDisabled) {
+    return (
+      <button
+        type="button"
+        disabled
+        className={`${btnClassName} disabled:opacity-50 disabled:cursor-not-allowed`}
+        aria-label={ariaLabel}
+      >
+        {children}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={getPageUrl(page)} className={btnClassName} aria-label={ariaLabel} prefetch={false}>
+      {children}
+    </Link>
+  );
+};
 
 export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
   currentPage = 1,
@@ -29,20 +59,20 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
   showFirstLast = true,
   showPageInfo = true,
   maxVisiblePages = 5,
-  className = '',
-  baseUrl = '/bookmarks'
+  className = "",
+  baseUrl = "/bookmarks",
 }) => {
   const searchParams = useSearchParams();
 
   const getPageUrl = (page: number) => {
     // Preserve query parameters
     const params = new URLSearchParams(searchParams);
-    
+
     // For page 1, use the base URL without page number
     if (page === 1) {
       return params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
     }
-    
+
     // For other pages, append the page number with /page/ prefix
     return params.toString() ? `${baseUrl}/page/${page}?${params.toString()}` : `${baseUrl}/page/${page}`;
   };
@@ -76,40 +106,6 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
     return null;
   }
 
-  const LinkButton = ({ page, children, className: btnClassName, ariaLabel }: { 
-    page: number; 
-    children: React.ReactNode; 
-    className?: string;
-    ariaLabel?: string;
-  }) => {
-    const isDisabled = disabled || isLoading || 
-      (page < 1) || (page > totalPages) || (page === currentPage);
-    
-    if (isDisabled) {
-      return (
-        <button
-          type="button"
-          disabled
-          className={`${btnClassName} disabled:opacity-50 disabled:cursor-not-allowed`}
-          aria-label={ariaLabel}
-        >
-          {children}
-        </button>
-      );
-    }
-
-    return (
-      <Link
-        href={getPageUrl(page)}
-        className={btnClassName}
-        aria-label={ariaLabel}
-        prefetch={false}
-      >
-        {children}
-      </Link>
-    );
-  };
-
   return (
     <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 ${className}`}>
       {/* Page Info */}
@@ -136,6 +132,11 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
         {showFirstLast && (
           <LinkButton
             page={1}
+            getPageUrl={getPageUrl}
+            disabled={disabled}
+            isLoading={isLoading}
+            currentPage={currentPage}
+            totalPages={totalPages}
             className="h-8 w-8 p-0 rounded-md border border-gray-200 dark:border-gray-700 
                      bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
                      hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white 
@@ -149,6 +150,11 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
         {/* Previous Page Button */}
         <LinkButton
           page={currentPage - 1}
+          getPageUrl={getPageUrl}
+          disabled={disabled}
+          isLoading={isLoading}
+          currentPage={currentPage}
+          totalPages={totalPages}
           className="h-8 w-8 p-0 rounded-md border border-gray-200 dark:border-gray-700 
                    bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
                    hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white 
@@ -161,10 +167,15 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
         {/* Page Number Buttons */}
         <div className="flex items-center gap-1">
           {/* Show ellipsis if there are pages before visible range */}
-          {visiblePages[0] > 1 && (
+          {visiblePages && visiblePages.length > 0 && visiblePages[0] && visiblePages[0] > 1 && (
             <>
               <LinkButton
                 page={1}
+                getPageUrl={getPageUrl}
+                disabled={disabled}
+                isLoading={isLoading}
+                currentPage={currentPage}
+                totalPages={totalPages}
                 className="h-8 min-w-[2rem] px-2 rounded-md border border-gray-200 dark:border-gray-700 
                          bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
                          hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white 
@@ -173,14 +184,12 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
               >
                 1
               </LinkButton>
-              {visiblePages[0] > 2 && (
-                <span className="px-2 text-gray-500 dark:text-gray-400">...</span>
-              )}
+              {visiblePages[0] > 2 && <span className="px-2 text-gray-500 dark:text-gray-400">...</span>}
             </>
           )}
 
           {/* Visible page numbers */}
-          {visiblePages.map((page) => (
+          {visiblePages?.map((page) =>
             page === currentPage ? (
               <button
                 key={page}
@@ -191,16 +200,17 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
                 aria-label={`Current page ${page}`}
                 aria-current="page"
               >
-                {isLoading ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  page
-                )}
+                {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : page}
               </button>
             ) : (
               <LinkButton
                 key={page}
                 page={page}
+                getPageUrl={getPageUrl}
+                disabled={disabled}
+                isLoading={isLoading}
+                currentPage={currentPage}
+                totalPages={totalPages}
                 className="h-8 min-w-[2rem] px-2 rounded-md border transition-all duration-200 
                          border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
                          hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white
@@ -209,32 +219,49 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
               >
                 {page}
               </LinkButton>
-            )
-          ))}
+            ),
+          )}
 
           {/* Show ellipsis if there are pages after visible range */}
-          {visiblePages[visiblePages.length - 1] < totalPages && (
-            <>
-              {visiblePages[visiblePages.length - 1] < totalPages - 1 && (
-                <span className="px-2 text-gray-500 dark:text-gray-400">...</span>
-              )}
-              <LinkButton
-                page={totalPages}
-                className="h-8 min-w-[2rem] px-2 rounded-md border border-gray-200 dark:border-gray-700 
+          {(() => {
+            const lastVisiblePage =
+              visiblePages && visiblePages.length > 0 ? visiblePages[visiblePages.length - 1] : undefined;
+            return (
+              lastVisiblePage &&
+              lastVisiblePage < totalPages && (
+                <>
+                  {lastVisiblePage < totalPages - 1 && (
+                    <span className="px-2 text-gray-500 dark:text-gray-400">...</span>
+                  )}
+                  <LinkButton
+                    page={totalPages}
+                    getPageUrl={getPageUrl}
+                    disabled={disabled}
+                    isLoading={isLoading}
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    className="h-8 min-w-[2rem] px-2 rounded-md border border-gray-200 dark:border-gray-700 
                          bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
                          hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white 
                          transition-all duration-200 inline-flex items-center justify-center"
-                ariaLabel={`Go to page ${totalPages}`}
-              >
-                {totalPages}
-              </LinkButton>
-            </>
-          )}
+                    ariaLabel={`Go to page ${totalPages}`}
+                  >
+                    {totalPages}
+                  </LinkButton>
+                </>
+              )
+            );
+          })()}
         </div>
 
         {/* Next Page Button */}
         <LinkButton
           page={currentPage + 1}
+          getPageUrl={getPageUrl}
+          disabled={disabled}
+          isLoading={isLoading}
+          currentPage={currentPage}
+          totalPages={totalPages}
           className="h-8 w-8 p-0 rounded-md border border-gray-200 dark:border-gray-700 
                    bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
                    hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white 
@@ -248,6 +275,11 @@ export const PaginationControlUrl: React.FC<PaginationControlUrlProps> = ({
         {showFirstLast && (
           <LinkButton
             page={totalPages}
+            getPageUrl={getPageUrl}
+            disabled={disabled}
+            isLoading={isLoading}
+            currentPage={currentPage}
+            totalPages={totalPages}
             className="h-8 w-8 p-0 rounded-md border border-gray-200 dark:border-gray-700 
                      bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 
                      hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white 

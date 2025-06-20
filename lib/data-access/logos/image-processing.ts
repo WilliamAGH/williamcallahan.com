@@ -61,10 +61,13 @@ export async function validateLogoBuffer(buffer: Buffer, url: string): Promise<b
 
 /**
  * Processes an image buffer to determine format and preserve animated images.
+ * Uses memory-safe string extraction without Buffer.slice() to prevent parent
+ * buffer retention and memory leaks.
  *
  * @param buffer - The image data to process
  * @returns Object with processed buffer, SVG flag, and appropriate content type
  * @remark Preserves GIF and WebP animations, only converts static images to PNG
+ * @remark Memory-safe: Uses toString(encoding, start, end) instead of slice()
  */
 export async function processImageBuffer(buffer: Buffer): Promise<{
   processedBuffer: Buffer;
@@ -72,10 +75,10 @@ export async function processImageBuffer(buffer: Buffer): Promise<{
   contentType: string;
 }> {
   // Prioritize a direct SVG string check - only inspect first 1KB to avoid excessive memory usage
-  const bufferString: string = buffer.slice(0, 1024).toString("utf-8").trim();
+  // CRITICAL: Use toString with offset/length to avoid Buffer.slice() memory retention
+  const bufferString: string = buffer.toString("utf-8", 0, Math.min(1024, buffer.length)).trim();
   if (bufferString.startsWith("<svg") && bufferString.includes("</svg>")) {
-    if (isDebug)
-      console.log("[DataAccess/Logos] Detected SVG by string content (startsWith <svg).");
+    if (isDebug) console.log("[DataAccess/Logos] Detected SVG by string content (startsWith <svg).");
     return { processedBuffer: buffer, isSvg: true, contentType: "image/svg+xml" };
   }
 
@@ -91,10 +94,10 @@ export async function processImageBuffer(buffer: Buffer): Promise<{
     // Preserve animated formats (GIF and WebP)
     if (format === "gif" || (format === "webp" && metadata.pages && metadata.pages > 1)) {
       if (isDebug) console.log(`[DataAccess/Logos] Preserving animated ${format} format.`);
-      return { 
-        processedBuffer: buffer, 
-        isSvg: false, 
-        contentType: format === "gif" ? "image/gif" : "image/webp" 
+      return {
+        processedBuffer: buffer,
+        isSvg: false,
+        contentType: format === "gif" ? "image/gif" : "image/webp",
       };
     }
 
@@ -105,7 +108,7 @@ export async function processImageBuffer(buffer: Buffer): Promise<{
         if (isDebug) console.log("[DataAccess/Logos] Already PNG format, returning as-is.");
         return { processedBuffer: buffer, isSvg: false, contentType: "image/png" };
       }
-      
+
       // Convert other static formats to PNG
       if (isDebug) console.log(`[DataAccess/Logos] Converting static ${format} to PNG.`);
       const processedBuffer: Buffer = await sharp(buffer).png().toBuffer();
@@ -117,13 +120,10 @@ export async function processImageBuffer(buffer: Buffer): Promise<{
     const processedBuffer: Buffer = await sharp(buffer).png().toBuffer();
     return { processedBuffer, isSvg: false, contentType: "image/png" };
   } catch (error: unknown) {
-    console.warn(
-      `[DataAccess/Logos] processImageBuffer error with sharp: ${String(error)}. Falling back.`,
-    );
+    console.warn(`[DataAccess/Logos] processImageBuffer error with sharp: ${String(error)}. Falling back.`);
     // Fallback: Re-check for SVG string content if sharp failed, as sharp might not support all SVGs
     if (bufferString.includes("<svg")) {
-      if (isDebug)
-        console.log("[DataAccess/Logos] Fallback: Detected SVG-like content after sharp error.");
+      if (isDebug) console.log("[DataAccess/Logos] Fallback: Detected SVG-like content after sharp error.");
       return { processedBuffer: buffer, isSvg: true, contentType: "image/svg+xml" };
     }
 
@@ -131,7 +131,7 @@ export async function processImageBuffer(buffer: Buffer): Promise<{
     // Try to detect format from buffer magic numbers
     const isGif = buffer.slice(0, 3).toString() === "GIF";
     const isPng = buffer.slice(1, 4).toString() === "PNG";
-    const isJpeg = buffer[0] === 0xFF && buffer[1] === 0xD8;
+    const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8;
     const isWebP = buffer.slice(0, 4).toString() === "RIFF" && buffer.slice(8, 12).toString() === "WEBP";
 
     if (isGif) {
@@ -148,9 +148,7 @@ export async function processImageBuffer(buffer: Buffer): Promise<{
     }
 
     // Ultimate fallback
-    console.warn(
-      "[DataAccess/Logos] Could not determine image format. Returning original buffer as PNG.",
-    );
+    console.warn("[DataAccess/Logos] Could not determine image format. Returning original buffer as PNG.");
     return { processedBuffer: buffer, isSvg: false, contentType: "image/png" };
   }
 }

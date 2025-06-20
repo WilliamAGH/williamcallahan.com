@@ -25,12 +25,7 @@ import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-regist
 // Re-add direct imports
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
 import { ClientTerminal } from "../components/ui/terminal/terminal.client";
-import {
-  SITE_DESCRIPTION,
-  SITE_NAME,
-  SITE_TITLE,
-  metadata as siteMetadata,
-} from "../data/metadata";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, metadata as siteMetadata } from "../data/metadata";
 import { Providers } from "./providers.client";
 
 import { Analytics } from "@/components/analytics/analytics.client";
@@ -96,11 +91,7 @@ export const metadata: Metadata = {
  * @param {React.ReactNode} props.children - Child components to render
  * @returns {JSX.Element} The root layout structure
  */
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={cn("scroll-smooth")}>
       <head>

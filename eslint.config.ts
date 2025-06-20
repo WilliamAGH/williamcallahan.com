@@ -70,7 +70,7 @@ const config = tseslint.config(
       "react/prop-types": "off",
       "react/react-in-jsx-scope": "off",
       "react/no-unknown-property": ["error", { ignore: ["jsx", "global"] }],
-      "react/jsx-no-target-blank": ["error", { "allowReferrer": true }],
+      "react/jsx-no-target-blank": ["error", { allowReferrer: true }],
     },
   },
 
@@ -113,6 +113,29 @@ const config = tseslint.config(
     },
   },
 
+  // Enforce centralized type definitions (all types must live in @/types or *.d.ts)
+  {
+    files: ["**/*.{ts,tsx}"],
+    ignores: ["types/**/*", "**/*.d.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "TSTypeAliasDeclaration",
+          message: "Type aliases must reside in @/types or declaration files (*.d.ts)",
+        },
+        {
+          selector: "TSInterfaceDeclaration",
+          message: "Interfaces must reside in @/types or declaration files (*.d.ts)",
+        },
+        {
+          selector: "TSEnumDeclaration",
+          message: "Enums must reside in @/types or declaration files (*.d.ts)",
+        },
+      ],
+    },
+  },
+
   // Server Components
   {
     files: ["**/*.server.{ts,tsx}"],
@@ -149,6 +172,7 @@ const config = tseslint.config(
       "instrumentation.ts",
       "sentry.*.config.ts",
       "jest.config.ts",
+      "scripts/**/*.ts",
     ],
     languageOptions: {
       globals: {
@@ -219,6 +243,7 @@ const config = tseslint.config(
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-require-imports": "off",
+      "no-restricted-syntax": "off",
     },
   },
 

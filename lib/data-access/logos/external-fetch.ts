@@ -8,10 +8,11 @@
  */
 
 import { LOGO_SOURCES } from "@/lib/constants";
-import { getBaseUrl } from "@/lib/getBaseUrl";
+import { getBaseUrl } from "@/lib/utils/get-base-url";
 import { isDebug } from "@/lib/utils/debug";
 import { getDomainVariants } from "@/lib/utils/domain-utils";
 import type { LogoSource } from "@/types/logo";
+import type { ExternalFetchResult } from "@/types/image";
 import { processImageBuffer, validateLogoBuffer } from "./image-processing";
 
 /**
@@ -24,8 +25,13 @@ export function getBrowserHeaders(): Record<string, string> {
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
   ];
 
+  const selectedUserAgent =
+    userAgents[Math.floor(Math.random() * userAgents.length)] ??
+    userAgents[0] ??
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
   return {
-    "User-Agent": userAgents[Math.floor(Math.random() * userAgents.length)],
+    "User-Agent": selectedUserAgent,
     Accept: "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
     "Accept-Encoding": "gzip, deflate, br",
@@ -43,9 +49,7 @@ export function getBrowserHeaders(): Record<string, string> {
  * @returns Promise with processed logo buffer and source, or null if no valid logo found
  * @remark Uses parallel fetching with 2-second timeout per source to minimize total time
  */
-export async function fetchExternalLogo(
-  domain: string,
-): Promise<{ buffer: Buffer; source: LogoSource; contentType: string } | null> {
+export async function fetchExternalLogo(domain: string): Promise<ExternalFetchResult | null> {
   const domainVariants: string[] = getDomainVariants(domain);
 
   // Try domain variants sequentially
@@ -81,8 +85,7 @@ export async function fetchExternalLogo(
           clearTimeout(timeoutId);
         }
 
-        if (isDebug)
-          console.log(`[DEBUG] ${name} (${size}) response status: ${response.status} for ${url}`);
+        if (isDebug) console.log(`[DEBUG] ${name} (${size}) response status: ${response.status} for ${url}`);
         if (!response.ok) continue;
 
         // Standard handling for all sources
@@ -118,23 +121,18 @@ export async function fetchExternalLogo(
                 const { isGlobeIcon } = validateResult;
                 if (isGlobeIcon) {
                   if (isDebug)
-                    console.log(
-                      `[DEBUG] ${name} detected as globe icon by validate-logo API for ${testDomain}`,
-                    );
+                    console.log(`[DEBUG] ${name} detected as globe icon by validate-logo API for ${testDomain}`);
                   return null;
                 }
               }
             } catch (validateError) {
               // If validation fails, continue with the logo (don't block on validation errors)
-              if (isDebug)
-                console.log(`[DEBUG] validate-logo API error for ${testDomain}:`, validateError);
+              if (isDebug) console.log(`[DEBUG] validate-logo API error for ${testDomain}:`, validateError);
             }
           }
 
-          console.log(
-            `[DataAccess/Logos] Fetched logo for ${domain} from ${name} (${size}) using ${testDomain}`,
-          );
-          return { buffer: processedBuffer, source: name, contentType };
+          console.log(`[DataAccess/Logos] Fetched logo for ${domain} from ${name} (${size}) using ${testDomain}`);
+          return { buffer: processedBuffer, source: name, contentType, url };
         }
 
         // Debug: show why validation failed
@@ -146,9 +144,7 @@ export async function fetchExternalLogo(
               `[DEBUG] ${name} (${size}) validation failed for ${testDomain}: ${metadata.width}x${metadata.height} (${metadata.format})`,
             );
           } catch {
-            console.log(
-              `[DEBUG] ${name} (${size}) validation failed for ${testDomain}: metadata error`,
-            );
+            console.log(`[DEBUG] ${name} (${size}) validation failed for ${testDomain}: metadata error`);
           }
         }
         // Move to next source

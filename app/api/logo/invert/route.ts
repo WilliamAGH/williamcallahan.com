@@ -8,8 +8,13 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { analyzeImage, invertImage, needsInversion } from "../../../../lib/imageAnalysis";
-import { ServerCacheInstance } from "../../../../lib/server-cache";
+import { getUnifiedImageService } from "@/lib/services/unified-image-service";
+import type { UnifiedImageService } from "@/lib/services/unified-image-service";
+import { ImageMemoryManagerInstance } from "@/lib/image-memory-manager";
+import type { ImageMemoryManager } from "@/lib/image-memory-manager";
+import type { LogoFetchResult } from "@/types/cache";
+import { ServerCacheInstance } from "@/lib/server-cache";
+import { analyzeImage } from "@/lib/image-handling/image-analysis";
 
 /**
  * Safely parse and validate URL
@@ -40,94 +45,58 @@ export const revalidate = 3600; // Cache for 1 hour
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const searchParams = request.nextUrl.searchParams;
-  const urlParam = searchParams.get("url");
-  const isDarkTheme = searchParams.get("theme") === "dark";
+  const domain = searchParams.get("domain");
+  const forceRefresh = searchParams.get("forceRefresh") === "true";
 
-  if (!urlParam) {
-    return NextResponse.json(
-      { error: "URL parameter required" },
-      {
-        status: 400,
-        headers: {
-          "Cache-Control": "no-store",
-        },
-      },
-    );
+  if (!domain) {
+    return NextResponse.json({ error: "Domain parameter required" }, { status: 400 });
   }
 
   try {
-    const url = validateUrl(urlParam);
+    const imageService: UnifiedImageService = getUnifiedImageService();
+    const imageManager: ImageMemoryManager = ImageMemoryManagerInstance;
 
-    // Get cached inverted version if available
-    const cacheKey = `${url}-${isDarkTheme ? "dark" : "light"}`;
-    const cached = ServerCacheInstance.getInvertedLogo(cacheKey);
-    if (cached?.buffer) {
-      return new NextResponse(cached.buffer, {
-        headers: {
-          "Content-Type": "image/png",
-          "Cache-Control": "public, max-age=31536000",
-        },
+    const logoMeta: LogoFetchResult = await imageService.getLogo(domain, {
+      invertColors: true,
+      forceRefresh,
+    });
+
+    if (logoMeta.error || (!logoMeta.cdnUrl && !logoMeta.s3Key)) {
+      const error = logoMeta.error || "Inverted logo not found";
+      return new NextResponse(null, {
+        status: 404,
+        headers: { "x-logo-error": error },
       });
     }
 
-    // Fetch the original image
-    const response = await fetch(url, {
-      next: { revalidate: 3600 }, // Cache for 1 hour
-    });
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: "Failed to fetch image" },
-        {
-          status: response.status,
+    if (logoMeta.s3Key) {
+      const bufferEntry = await imageManager.get(logoMeta.s3Key);
+      if (bufferEntry?.buffer) {
+        return new NextResponse(bufferEntry.buffer, {
+          status: 200,
           headers: {
-            "Cache-Control": "no-store",
+            "Content-Type": logoMeta.contentType || "image/png",
+            "Cache-Control": "public, max-age=31536000, immutable",
           },
-        },
-      );
+        });
+      }
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-
-    // Check if we need to invert
-    const shouldInvert = await needsInversion(buffer, isDarkTheme);
-    if (!shouldInvert) {
-      // Return original image if no inversion needed
-      return new NextResponse(buffer, {
-        headers: {
-          "Content-Type": response.headers.get("Content-Type") || "image/png",
-          "Cache-Control": "public, max-age=31536000",
-        },
-      });
+    if (logoMeta.cdnUrl) {
+      return NextResponse.redirect(logoMeta.cdnUrl, 301);
     }
 
-    // Analyze image for transparency
-    const analysis = await analyzeImage(buffer);
-
-    // Create inverted version
-    const inverted = await invertImage(buffer);
-
-    // Cache the result
-    ServerCacheInstance.setInvertedLogo(cacheKey, inverted, analysis);
-
-    // Return inverted image
-    return new NextResponse(inverted, {
-      headers: {
-        "Content-Type": "image/png",
-        "Cache-Control": "public, max-age=31536000",
-      },
+    return new NextResponse(null, {
+      status: 404,
+      headers: { "x-logo-error": "No content available for inverted logo" },
     });
-  } catch (error) {
-    console.error("Error inverting logo:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to process image" },
-      {
-        status: 500,
-        headers: {
-          "Cache-Control": "no-store",
-        },
-      },
-    );
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error(`[API Logo Invert] Error for domain ${domain}:`, errorMessage);
+    return new NextResponse(null, {
+      status: 500,
+      headers: { "x-logo-error": errorMessage },
+    });
   }
 }
 
@@ -137,6 +106,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  * @returns {Promise<NextResponse>} API response with inversion status
  */
 export async function HEAD(request: NextRequest): Promise<NextResponse> {
+  const serverCache = ServerCacheInstance;
   const searchParams = request.nextUrl.searchParams;
   const urlParam = searchParams.get("url");
   const isDarkTheme = searchParams.get("theme") === "dark";
@@ -155,7 +125,7 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
 
     // Check cache first
     const cacheKey = `${url}-analysis`;
-    const cached = ServerCacheInstance.getLogoAnalysis(cacheKey);
+    const cached = serverCache.getLogoAnalysis(cacheKey);
     if (cached) {
       const needsInv = isDarkTheme ? cached.needsDarkInversion : cached.needsLightInversion;
       return new NextResponse(null, {
@@ -186,21 +156,19 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
     const analysis = await analyzeImage(buffer);
 
     // Cache the analysis
-    ServerCacheInstance.setLogoAnalysis(cacheKey, analysis);
+    serverCache.setLogoAnalysis(cacheKey, analysis);
 
     return new NextResponse(null, {
       headers: {
-        "X-Needs-Inversion": (isDarkTheme
-          ? analysis.needsDarkInversion
-          : analysis.needsLightInversion
-        ).toString(),
+        "X-Needs-Inversion": (isDarkTheme ? analysis.needsDarkInversion : analysis.needsLightInversion).toString(),
         "X-Has-Transparency": analysis.hasTransparency.toString(),
         "X-Brightness": analysis.brightness.toString(),
         "Cache-Control": "public, max-age=31536000",
       },
     });
-  } catch (error) {
-    console.error("Error analyzing logo:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("Error analyzing logo:", errorMessage);
     return new NextResponse(null, {
       status: 500,
       headers: {

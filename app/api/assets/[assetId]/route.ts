@@ -27,10 +27,7 @@ function getAssetBaseUrl(apiUrl: string): string {
   }
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { assetId: string } },
-) {
+export async function GET(_request: NextRequest, { params }: { params: { assetId: string } }) {
   const { assetId } = params;
 
   console.log(`[Assets API] Request for assetId: ${assetId}`);
@@ -41,8 +38,7 @@ export async function GET(
 
   try {
     // Get the external bookmarks API URL
-    const bookmarksApiUrl =
-      process.env.BOOKMARKS_API_URL ?? "https://bookmark.iocloudhost.net/api/v1";
+    const bookmarksApiUrl = process.env.BOOKMARKS_API_URL ?? "https://bookmark.iocloudhost.net/api/v1";
     // More robust base URL extraction
     const baseUrl = getAssetBaseUrl(bookmarksApiUrl);
     const bearerToken = process.env.BOOKMARK_BEARER_TOKEN;
@@ -93,10 +89,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error(
-      `[Assets API] Error for asset ${assetId}:`,
-      error instanceof Error ? error.message : String(error),
-    );
+    console.error(`[Assets API] Error for asset ${assetId}:`, error instanceof Error ? error.message : String(error));
     return NextResponse.json(
       {
         error: "Internal server error",

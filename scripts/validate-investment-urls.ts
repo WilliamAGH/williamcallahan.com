@@ -12,18 +12,7 @@
 
 import { investments } from "../data/investments";
 import type { Investment } from "../types/investment";
-
-interface UrlValidationResult {
-  investment: Investment;
-  url: string;
-  isValidFormat: boolean;
-  isReachable: boolean;
-  httpStatus?: number;
-  responseTime?: number;
-  errorType?: string;
-  redirectUrl?: string;
-  hasSSL?: boolean;
-}
+import type { InvestmentUrlValidationResult } from "@/types/investment";
 
 /**
  * Validate URL format using URL constructor (from web search results)
@@ -115,7 +104,7 @@ async function testUrlReachability(url: string): Promise<{
 /**
  * Validate a single investment URL
  */
-async function validateInvestmentUrl(investment: Investment): Promise<UrlValidationResult> {
+async function validateInvestmentUrl(investment: Investment): Promise<InvestmentUrlValidationResult> {
   const website = investment.website;
 
   if (!website) {
@@ -177,8 +166,8 @@ function isActiveInvestment(investment: Investment): boolean {
 async function processBatch(
   investments: Investment[],
   concurrencyLimit: number,
-): Promise<UrlValidationResult[]> {
-  const results: UrlValidationResult[] = [];
+): Promise<InvestmentUrlValidationResult[]> {
+  const results: InvestmentUrlValidationResult[] = [];
   const queue = [...investments];
   const activePromises = new Set<Promise<void>>();
 

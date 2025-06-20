@@ -8,33 +8,52 @@
  * @module lib/data-access/logos
  */
 
-import fs from "node:fs";
+import * as fs from "node:fs/promises";
 import path from "node:path";
 import { S3_BUCKET } from "@/lib/constants";
 import { fetchExternalLogo } from "@/lib/data-access/logos/external-fetch";
 import { findLogoInS3, getLogoS3Key } from "@/lib/data-access/logos/s3-operations";
-import { writeBinaryS3 } from "@/lib/s3-utils";
+import { ImageMemoryManagerInstance } from "@/lib/image-memory-manager";
+
 import { ServerCacheInstance } from "@/lib/server-cache";
+import { writeBinaryS3 } from "@/lib/s3-utils";
 import logger from "@/lib/utils/logger";
 import type { LogoResult, LogoSource } from "@/types/logo";
+import type { ImageSource } from "@/types/image";
 
 // S3 key prefix for logo data - using the same as s3-operations
 
 // Placeholder logo path - using the actual SVG that exists
-const PLACEHOLDER_LOGO_PATH = path.join(
-  process.cwd(),
-  "public",
-  "images",
-  "company-placeholder.svg",
-);
-// Placeholder logo buffer (loaded once at startup if it exists)
-let PLACEHOLDER_LOGO_BUFFER: Buffer | null = null;
-try {
-  PLACEHOLDER_LOGO_BUFFER = fs.readFileSync(PLACEHOLDER_LOGO_PATH);
-  logger.info(`[Logos] Placeholder logo loaded from ${PLACEHOLDER_LOGO_PATH}`);
-} catch (error) {
-  logger.warn(`[Logos] Could not load placeholder logo from ${PLACEHOLDER_LOGO_PATH}:`, error);
-  PLACEHOLDER_LOGO_BUFFER = null;
+const PLACEHOLDER_LOGO_PATH = path.join(process.cwd(), "public", "images", "company-placeholder.svg");
+// Placeholder logo promise (cached to prevent race conditions)
+let placeholderLogoPromise: Promise<Buffer | null> | null = null;
+
+/**
+ * Lazily loads the placeholder logo on first access
+ * This avoids blocking server startup with synchronous file I/O
+ * and prevents race conditions by caching the promise itself
+ */
+async function getPlaceholderLogoBuffer(): Promise<Buffer | null> {
+  // If already loading or loaded, return the cached promise
+  if (placeholderLogoPromise) {
+    return placeholderLogoPromise;
+  }
+
+  // Create and cache the loading promise
+  placeholderLogoPromise = (async () => {
+    try {
+      const buffer = await fs.readFile(PLACEHOLDER_LOGO_PATH);
+      logger.info(`[Logos] Placeholder logo loaded from ${PLACEHOLDER_LOGO_PATH}`);
+      return buffer;
+    } catch (error) {
+      logger.warn(`[Logos] Could not load placeholder logo from ${PLACEHOLDER_LOGO_PATH}:`, error);
+      // Reset the promise on failure to allow retries
+      placeholderLogoPromise = null;
+      return null;
+    }
+  })();
+
+  return placeholderLogoPromise;
 }
 
 /**
@@ -66,32 +85,28 @@ export async function writePlaceholderLogo(domain: string): Promise<boolean> {
     return false;
   }
 
-  if (!PLACEHOLDER_LOGO_BUFFER) {
-    logger.warn(
-      `[Logos] Placeholder logo buffer not available. Cannot write for domain: ${domain}`,
-    );
+  const placeholderBuffer = await getPlaceholderLogoBuffer();
+  if (!placeholderBuffer) {
+    logger.warn(`[Logos] Placeholder logo buffer not available. Cannot write for domain: ${domain}`);
     return false;
   }
 
   // Use 'unknown' as source since this is a placeholder after all sources failed
   const s3Key = getLogoS3Key(domain, "unknown", "svg");
   try {
-    await writeBinaryS3(s3Key, PLACEHOLDER_LOGO_BUFFER, "image/svg+xml");
-    logger.info(
-      `[Logos] Successfully wrote placeholder logo to S3 for domain: ${domain} at key: ${s3Key}`,
-    );
+    await writeBinaryS3(s3Key, placeholderBuffer, "image/svg+xml");
+    logger.info(`[Logos] Successfully wrote placeholder logo to S3 for domain: ${domain} at key: ${s3Key}`);
     // Cache the placeholder result to avoid repeated writes
     ServerCacheInstance.setLogoFetch(domain, {
-      buffer: PLACEHOLDER_LOGO_BUFFER,
+      s3Key,
       source: "unknown",
       url: null,
+      retrieval: "s3-store",
+      contentType: "image/svg+xml",
     });
     return true;
   } catch (error) {
-    logger.error(
-      `[Logos] Failed to write placeholder logo to S3 for domain: ${domain} at key: ${s3Key}:`,
-      error,
-    );
+    logger.error(`[Logos] Failed to write placeholder logo to S3 for domain: ${domain} at key: ${s3Key}:`, error);
     return false;
   }
 }
@@ -112,15 +127,26 @@ export async function readLogoFromS3(domain: string): Promise<LogoResult | null>
   try {
     const result = await findLogoInS3(domain);
     if (result) {
-      logger.debug(
-        `[Logos] Successfully read logo from S3 for domain: ${domain} with source: ${result.source}`,
-      );
+      logger.debug(`[Logos] Successfully read logo from S3 for domain: ${domain} with source: ${result.source}`);
+      // Determine content type from file extension
+      const contentType = result.key.endsWith(".svg") ? "image/svg+xml" : "image/png";
+
+      // Also store this buffer in the in-memory manager for faster access next time
+      ImageMemoryManagerInstance.set(result.key, result.buffer, {
+        contentType,
+        source: "s3",
+      });
+      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL
+        ? `${process.env.NEXT_PUBLIC_S3_CDN_URL}/${result.key}`
+        : undefined;
       return {
-        buffer: result.buffer,
+        s3Key: result.key,
         source: result.source,
-        url: null,
+        url: cdnUrl, // Use CDN URL as the primary URL
+        cdnUrl,
         retrieval: "s3-store",
-        contentType: result.key.endsWith(".svg") ? "image/svg+xml" : "image/png",
+        contentType,
+        buffer: result.buffer,
       };
     }
     logger.debug(`[Logos] No logo found in S3 for domain: ${domain}`);
@@ -137,38 +163,33 @@ export async function readLogoFromS3(domain: string): Promise<LogoResult | null>
  * @param buffer - The logo data as a Buffer.
  * @param source - The source of the logo (google, duckduckgo, etc).
  * @param contentType - The MIME type of the logo.
- * @returns Promise resolving to true if successful, false otherwise.
+ * @returns Promise resolving to the S3 key if successful, null otherwise.
  */
 export async function writeLogoToS3(
   domain: string,
   buffer: Buffer,
   source: LogoSource,
   contentType: string,
-): Promise<boolean> {
+): Promise<string | null> {
   if (!process.env.S3_BUCKET) {
     logger.error("[Logos] S3_BUCKET environment variable not set. Cannot write logo.");
-    return false;
+    return null;
   }
 
   if (!source) {
     logger.error(`[Logos] Cannot write logo without source information for domain: ${domain}`);
-    return false;
+    return null;
   }
 
   const ext = contentType === "image/svg+xml" ? "svg" : "png";
   const s3Key = getLogoS3Key(domain, source, ext);
   try {
     await writeBinaryS3(s3Key, buffer, contentType);
-    logger.info(
-      `[Logos] Successfully wrote logo to S3 for domain: ${domain} from source: ${source} at key: ${s3Key}`,
-    );
-    return true;
+    logger.info(`[Logos] Successfully wrote logo to S3 for domain: ${domain} from source: ${source} at key: ${s3Key}`);
+    return s3Key;
   } catch (error) {
-    logger.error(
-      `[Logos] Failed to write logo to S3 for domain: ${domain} at key: ${s3Key}:`,
-      error,
-    );
-    return false;
+    logger.error(`[Logos] Failed to write logo to S3 for domain: ${domain} at key: ${s3Key}:`, error);
+    return null;
   }
 }
 
@@ -183,73 +204,60 @@ export async function getLogoWithCache(
   domain: string,
   fetchFunction: (domain: string) => Promise<LogoResult | null>,
 ): Promise<LogoResult | null> {
-  // Check ServerCacheInstance (memory cache with TTL)
-  const cached = ServerCacheInstance.getLogoFetch(domain);
-  if (cached) {
-    if (cached.error) {
-      logger.debug(`[Logos] Cached error for domain: ${domain} - ${cached.error}`);
+  const serverCache = ServerCacheInstance;
+  const imageMemoryManager = ImageMemoryManagerInstance;
+
+  // 1. Check ServerCache for metadata
+  const cachedMetadata = serverCache.getLogoFetch(domain);
+  if (cachedMetadata) {
+    if (cachedMetadata.error) {
+      logger.debug(`[Logos] Cached error for domain: ${domain} - ${cachedMetadata.error}`);
       return null;
     }
-    if (cached.buffer) {
-      logger.debug(`[Logos] Using cached logo result for domain: ${domain}`);
-      return {
-        buffer: cached.buffer,
-        source: cached.source || "unknown",
-        url: null,
-        retrieval: "mem-cache",
-        contentType: cached.buffer[0] === 0x3c ? "image/svg+xml" : "image/png",
-      };
+    if (cachedMetadata.s3Key) {
+      // 2. If metadata exists, check ImageMemoryManager for buffer
+      const cachedImage = await imageMemoryManager.get(cachedMetadata.s3Key);
+      if (cachedImage?.buffer) {
+        logger.debug(`[Logos] Using cached logo from ImageMemoryManager for domain: ${domain}`);
+        return { ...cachedMetadata, buffer: cachedImage.buffer, retrieval: "mem-cache" };
+      }
     }
   }
 
-  // Check S3 store
+  // 3. Check S3 store if not in memory
   const s3Result = await readLogoFromS3(domain);
-  if (s3Result) {
-    // Cache the S3 result
-    ServerCacheInstance.setLogoFetch(domain, {
-      buffer: s3Result.buffer,
-      source: s3Result.source,
-      url: null,
-    });
+  if (s3Result?.s3Key) {
+    serverCache.setLogoFetch(domain, s3Result);
     return s3Result;
   }
 
-  // Fetch from external source if not in cache or S3
+  // 4. Fetch from external source if not in cache or S3
   try {
     const fetchResult = await fetchFunction(domain);
-    if (fetchResult && Buffer.isBuffer(fetchResult.buffer) && fetchResult.buffer.length > 0) {
-      // Write to S3 for persistence with source information
-      if (fetchResult.source && fetchResult.contentType) {
-        await writeLogoToS3(
-          domain,
-          fetchResult.buffer,
-          fetchResult.source,
-          fetchResult.contentType,
-        );
-      }
-      // Cache the successful result
-      ServerCacheInstance.setLogoFetch(domain, {
-        buffer: fetchResult.buffer,
-        source: fetchResult.source,
-        url: null,
-      });
+    // The fetch function now handles caching, so we just return the result
+    if (fetchResult) {
       return fetchResult;
     }
+
     logger.warn(`[Logos] Fetch returned no valid logo for domain: ${domain}`);
     // Cache the failure with TTL
-    ServerCacheInstance.setLogoFetch(domain, {
+    serverCache.setLogoFetch(domain, {
       error: "No valid logo found",
       source: null,
       url: null,
+      retrieval: "external",
+      contentType: "",
     });
     return null;
   } catch (error) {
     logger.error(`[Logos] Error fetching logo for domain: ${domain}:`, error);
     // Cache the error with TTL
-    ServerCacheInstance.setLogoFetch(domain, {
+    serverCache.setLogoFetch(domain, {
       error: error instanceof Error ? error.message : "Fetch error",
       source: null,
       url: null,
+      retrieval: "external",
+      contentType: "",
     });
     return null;
   }
@@ -271,27 +279,19 @@ export async function getLogoWithRetryAndPlaceholder(
   let retries = 0;
   while (retries < maxRetries) {
     const result = await getLogoWithCache(domain, fetchFunction);
-    if (result && Buffer.isBuffer(result.buffer) && result.buffer.length > 0) {
+    if (result?.s3Key) {
+      // Buffer is now managed by ImageMemoryManager, so we just return the metadata
       return result;
     }
     retries++;
     if (retries === maxRetries) {
-      logger.warn(
-        `[Logos] All ${maxRetries} attempts failed for domain: ${domain}. Writing placeholder logo.`,
-      );
+      logger.warn(`[Logos] All ${maxRetries} attempts failed for domain: ${domain}. Writing placeholder logo.`);
       const placeholderWritten = await writePlaceholderLogo(domain);
-      if (placeholderWritten && PLACEHOLDER_LOGO_BUFFER) {
-        return {
-          buffer: PLACEHOLDER_LOGO_BUFFER,
-          retrieval: "s3-store",
-          source: "unknown",
-          url: null,
-          contentType: "image/svg+xml",
-        };
+      if (placeholderWritten) {
+        // After writing, we can attempt one final read from cache/S3
+        return getLogoWithCache(domain, () => Promise.resolve(null));
       }
-      logger.error(
-        `[Logos] Failed to write placeholder logo for domain: ${domain}. No logo available.`,
-      );
+      logger.error(`[Logos] Failed to write placeholder logo for domain: ${domain}. No logo available.`);
       return null;
     }
     // Exponential backoff with cap at 30 seconds
@@ -299,42 +299,64 @@ export async function getLogoWithRetryAndPlaceholder(
     logger.debug(`[Logos] Retrying logo fetch for ${domain} after ${backoff}ms delay...`);
     await new Promise((resolve) => setTimeout(resolve, backoff));
   }
-  return null; // This line should never be reached due to the placeholder logic above
+  return null;
 }
 
 export async function getLogo(domain: string): Promise<LogoResult | null> {
-  // Standard public helper used by data-access consumers and scripts
+  const imageMemoryManager = ImageMemoryManagerInstance;
+  const serverCache = ServerCacheInstance;
+
   return getLogoWithRetryAndPlaceholder(
     domain,
     async (d: string): Promise<LogoResult | null> => {
       const external = await fetchExternalLogo(d);
-      if (!external) return null;
+      if (!external || !external.buffer) return null;
 
-      // The processImageBuffer in external-fetch already determines if it's SVG or PNG
-      // But it doesn't return the contentType. For now, we know it converts everything
-      // to PNG unless it's already SVG
       const contentType = determineContentType(external.buffer);
+      const ext = contentType === "image/svg+xml" ? "svg" : "png";
+      const s3Key = getLogoS3Key(d, external.source, ext);
 
-      return {
-        buffer: external.buffer,
+      // Write to S3
+      await writeLogoToS3(d, external.buffer, external.source, contentType);
+
+      // Set in memory manager
+      imageMemoryManager.set(s3Key, external.buffer, {
+        contentType,
+        source: external.source as ImageSource,
+      });
+
+      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL ? `${process.env.NEXT_PUBLIC_S3_CDN_URL}/${s3Key}` : undefined;
+      const result: LogoResult = {
+        s3Key,
         source: external.source,
         retrieval: "external",
-        url: null,
+        url: cdnUrl,
+        cdnUrl,
         contentType,
+        buffer: external.buffer,
       };
+
+      // Set in server cache
+      serverCache.setLogoFetch(d, result);
+
+      return result;
     },
     3,
   );
 }
 
 /**
- * Determines the content type of a logo buffer.
- * @param buffer - The logo buffer to analyze.
- * @returns The content type of the buffer.
+ * Determines the content type of a logo buffer safely without memory retention.
+ * Uses buffer.toString() with offset/length instead of buffer.slice() to prevent
+ * parent buffer retention that causes memory leaks.
+ *
+ * @param buffer - The logo buffer to analyze
+ * @returns The content type: "image/svg+xml" for SVG, "image/png" otherwise
  */
 function determineContentType(buffer: Buffer): string {
   // Check if it's SVG by examining the content
-  const bufferString = buffer.slice(0, 1024).toString("utf-8").trim();
+  // CRITICAL: Use toString with offset/length to avoid Buffer.slice() memory retention
+  const bufferString = buffer.toString("utf-8", 0, Math.min(1024, buffer.length)).trim();
   if (bufferString.startsWith("<svg") || bufferString.includes("</svg>")) {
     return "image/svg+xml";
   }

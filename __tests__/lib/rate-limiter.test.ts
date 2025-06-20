@@ -76,7 +76,7 @@ describe("Rate Limiter", () => {
       const config = { maxRequests: 0, windowMs: 60000 };
 
       expect(() => isOperationAllowed("test-store-5", clientId, config)).toThrow(
-        "Invalid maxRequests: 0. Must be greater than 0."
+        "Invalid maxRequests: 0. Must be greater than 0.",
       );
     });
 
@@ -85,7 +85,7 @@ describe("Rate Limiter", () => {
       const config = { maxRequests: 1, windowMs: -1 };
 
       expect(() => isOperationAllowed("test-store-6", clientId, config)).toThrow(
-        "Invalid windowMs: -1. Must be greater than 0."
+        "Invalid windowMs: -1. Must be greater than 0.",
       );
     });
 
@@ -143,7 +143,7 @@ describe("Rate Limiter", () => {
       // Advance time past window
       jest.advanceTimersByTime(600);
       await Promise.resolve();
-      
+
       // Should now be resolved
       await waitPromise;
       expect(resolved).toBe(true);
@@ -168,13 +168,13 @@ describe("Rate Limiter", () => {
     });
 
     it("should validate configuration", async () => {
-      await expect(
-        waitForPermit("test", "client", { maxRequests: 0, windowMs: 1000 })
-      ).rejects.toThrow("Invalid maxRequests");
+      await expect(waitForPermit("test", "client", { maxRequests: 0, windowMs: 1000 })).rejects.toThrow(
+        "Invalid maxRequests",
+      );
 
-      await expect(
-        waitForPermit("test", "client", { maxRequests: 1, windowMs: 0 })
-      ).rejects.toThrow("Invalid windowMs");
+      await expect(waitForPermit("test", "client", { maxRequests: 1, windowMs: 0 })).rejects.toThrow(
+        "Invalid windowMs",
+      );
     });
 
     it("should use intelligent wait times for long windows", async () => {
@@ -226,18 +226,14 @@ describe("Rate Limiter", () => {
   describe("Real-world usage patterns", () => {
     it("should handle API endpoint rate limiting correctly", () => {
       const ipAddress = "192.168.1.100";
-      
+
       // Simulate 5 requests from same IP
       for (let i = 0; i < 5; i++) {
-        expect(
-          isOperationAllowed(API_ENDPOINT_STORE_NAME, ipAddress, DEFAULT_API_ENDPOINT_LIMIT_CONFIG)
-        ).toBe(true);
+        expect(isOperationAllowed(API_ENDPOINT_STORE_NAME, ipAddress, DEFAULT_API_ENDPOINT_LIMIT_CONFIG)).toBe(true);
       }
 
       // 6th request should be blocked
-      expect(
-        isOperationAllowed(API_ENDPOINT_STORE_NAME, ipAddress, DEFAULT_API_ENDPOINT_LIMIT_CONFIG)
-      ).toBe(false);
+      expect(isOperationAllowed(API_ENDPOINT_STORE_NAME, ipAddress, DEFAULT_API_ENDPOINT_LIMIT_CONFIG)).toBe(false);
     });
 
     it("should handle OpenGraph fetch rate limiting correctly", () => {
@@ -247,8 +243,8 @@ describe("Rate Limiter", () => {
           isOperationAllowed(
             OPENGRAPH_FETCH_STORE_NAME,
             OPENGRAPH_FETCH_CONTEXT_ID,
-            DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG
-          )
+            DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG,
+          ),
         ).toBe(true);
       }
 
@@ -257,8 +253,8 @@ describe("Rate Limiter", () => {
         isOperationAllowed(
           OPENGRAPH_FETCH_STORE_NAME,
           OPENGRAPH_FETCH_CONTEXT_ID,
-          DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG
-        )
+          DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG,
+        ),
       ).toBe(false);
 
       // After 1 second, should be allowed again
@@ -267,8 +263,8 @@ describe("Rate Limiter", () => {
         isOperationAllowed(
           OPENGRAPH_FETCH_STORE_NAME,
           OPENGRAPH_FETCH_CONTEXT_ID,
-          DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG
-        )
+          DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG,
+        ),
       ).toBe(true);
     });
   });

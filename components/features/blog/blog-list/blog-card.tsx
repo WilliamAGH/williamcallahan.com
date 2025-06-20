@@ -10,35 +10,31 @@
  */
 
 import { formatDate } from "@/lib/utils";
-import type { BlogPost } from "@/types/blog";
 import { Calendar } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { BlogTags } from "../shared/blog-tags";
 
-interface BlogCardProps {
-  post: BlogPost;
-  isPriority?: boolean;
-}
+import type { BlogCardPropsExtended } from "@/types/features";
 
-export function BlogCard({ post, isPriority = false }: BlogCardProps) {
+// Use extended props from centralized types
+
+export function BlogCard({ post, isPriority = false }: BlogCardPropsExtended) {
   return (
     <Link href={`/blog/${post.slug}`} className="block group h-full">
       <article className="flex flex-col h-full rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden bg-gray-50 dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-700 transition-all duration-200">
-        {post.coverImage &&
-          typeof post.coverImage === "string" &&
-          post.coverImage.trim() !== "" && (
-            <div className="relative h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
-              <Image
-                src={post.coverImage}
-                alt={post.title}
-                fill
-                priority={isPriority}
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                className="object-cover transition-transform duration-300 group-hover:scale-105"
-              />
-            </div>
-          )}
+        {post.coverImage && typeof post.coverImage === "string" && post.coverImage.trim() !== "" && (
+          <div className="relative h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
+            <Image
+              src={post.coverImage}
+              alt={post.title}
+              fill
+              priority={isPriority}
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+          </div>
+        )}
 
         <div className="flex flex-col flex-grow p-6">
           <BlogTags tags={post.tags} interactive={false} />

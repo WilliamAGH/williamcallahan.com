@@ -16,12 +16,10 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { processSvgTransforms } from "@/lib/utils/svg-transform-fix";
+import { processSvgTransforms } from "@/lib/image-handling/svg-transform-fix";
 import { useEffect, useRef } from "react";
 import type { DetailedHTMLProps, HTMLAttributes } from "react";
 import { CodeBlock } from "./code-block.client";
-
-type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>;
 
 /**
  * MDXCodeBlockFallback - SSR fallback renderer for code blocks
@@ -33,7 +31,7 @@ type PreProps = DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement
  * @param props - Standard HTML pre element props
  * @returns A minimally styled pre element wrapped in a div
  */
-export function MDXCodeBlockFallback(props: PreProps) {
+export function MDXCodeBlockFallback(props: DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement>) {
   const { children, className, ...rest } = props;
 
   // Define default classes for the PRE tag - make sure they match the CodeBlock component
@@ -78,7 +76,11 @@ export function MDXCodeBlockFallback(props: PreProps) {
  * @param props.embeddedInTabFrame - If true, renders without window chrome (for use inside tabs)
  * @returns The full-featured CodeBlock component with proper context
  */
-export function MDXCodeBlock(props: PreProps & { embeddedInTabFrame?: boolean }) {
+export function MDXCodeBlock(
+  props: DetailedHTMLProps<HTMLAttributes<HTMLPreElement>, HTMLPreElement> & {
+    embeddedInTabFrame?: boolean;
+  },
+) {
   const { children, className, embeddedInTabFrame, ...rest } = props;
   const codeRef = useRef<HTMLDivElement>(null);
 

@@ -6,6 +6,7 @@
  * Implements proper SEO with schema.org structured data.
  */
 
+import type { BlogPostPageProps } from "@/types/blog";
 // Import getPostBySlug and getAllPosts from the main blog library
 import { getAllPosts, getPostBySlug } from "@/lib/blog.ts";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
@@ -13,11 +14,6 @@ import { ensureAbsoluteUrl } from "@/lib/seo/utils.ts";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BlogArticle } from "../../../components/features/blog";
-
-interface BlogPostPageProps {
-  // params might be a Promise due to instrumentation and needs to be awaited.
-  params: Promise<{ slug: string }>;
-}
 
 /**
  * Generate static paths for all blog posts at build time
@@ -60,8 +56,7 @@ const SOFTWARE_DETAILS: Record<
     name: "Flag Deprecated Files",
     operatingSystem: "Windows, macOS, Linux",
     applicationCategory: "DeveloperApplication",
-    downloadUrl:
-      "https://marketplace.visualstudio.com/items?itemName=WilliamCallahan.flag-deprecated-files",
+    downloadUrl: "https://marketplace.visualstudio.com/items?itemName=WilliamCallahan.flag-deprecated-files",
     softwareVersion: "1.0.0",
     screenshot: "/images/posts/filey-flag-deprecated-files.png",
   },

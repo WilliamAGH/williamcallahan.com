@@ -212,6 +212,22 @@ To serve as the primary orchestration layer for fetching, processing, enriching,
   - Tag state properly initialized when navigating directly to tag URLs
   - Special characters in tags handled gracefully
 
+### ✅ FIXED: Client-Side Error Logging (2025-06)
+
+- **Previous Issue**: Client wrapper `fetchBookmarksFromApi` swallowed errors without logging, making debugging network issues difficult and causing test expectations to fail.
+- **Solution**: Added explicit `console.error` call inside the `catch` block while still returning a safe empty array. Ensures consistent logging behaviour on both server and client paths.
+- **Impact**: Restored visibility into client-side fetch failures and fixed related unit tests.
+
+### ✅ FIXED: Memory Leak from Image Buffers (2025-06)
+
+- **Previous Issue**: OpenGraph image buffers stored directly in ServerCache without limits
+- **Solutions**: 
+  - Integrated with new `memory-mgmt` functionality for all image operations
+  - ServerCache now stores only metadata (S3 keys, CDN URLs), not buffers
+  - All image operations use `UnifiedImageService` with memory limits
+  - See `memory-mgmt.md` for complete memory management architecture
+- **Impact**: Stable memory usage, no more OOM errors from image processing
+
 ## Architecture Diagram
 
 See `bookmarks.mmd` for a visual diagram of how this orchestration layer coordinates with other core functionalities.
@@ -237,6 +253,16 @@ The bookmark system operates as a high-level coordinator, delegating specific ta
 
 By acting as an orchestrator, the bookmarks feature remains focused on its specific business logic while leveraging the robust, reusable functionalities of the core services for tasks like data handling, image processing, and storage.
 
+### Memory Management Integration
+
+The bookmark system integrates with the new `memory-mgmt` functionality to prevent memory leaks:
+
+- **Image Processing**: All OpenGraph images are processed through `UnifiedImageService` with memory limits
+- **Buffer Storage**: No raw buffers are stored in `ServerCache` - only metadata (S3 keys, CDN URLs)
+- **Memory Pressure**: Image operations are rejected when system is under memory pressure
+- **Automatic Cleanup**: Emergency cleanup clears all caches when memory critical
+- See `memory-mgmt.md` for complete memory protection architecture
+
 ## Key Files and Responsibilities
 
 ### UI Components
@@ -248,7 +274,7 @@ By acting as an orchestrator, the bookmarks feature remains focused on its speci
   - Fixed (2025-06): Removed per-card API calls, now receives shareUrl as prop
 - **`components/features/bookmarks/bookmarks-client-with-window.tsx`**: Window entrypoint
 - **`components/features/bookmarks/bookmarks-window.client.tsx`**: Main window UI
-- **`components/features/bookmarks/bookmarks-with-options.client.tsx`**: Options UI
+- **`components/features/bookmarks/bookmarks-with-options.client.tsx`**: Options UI (removed)
   - Updated (2025-06): Generates share URLs once for all cards
   - Updated (2025-06): Added initialTag support and URL navigation for tags
 - **`components/features/bookmarks/bookmarks-with-pagination.client.tsx`**: Paginated view
@@ -292,11 +318,12 @@ By acting as an orchestrator, the bookmarks feature remains focused on its speci
 
 ### Business Logic
 
-- **`lib/bookmarks.ts`**: Core orchestration logic
+- **`lib/bookmarks/bookmarks.ts`**: Core orchestration logic
   - Coordinates fetching, processing, enrichment
   - Circular dependency resolved via callback pattern
-- **`lib/bookmarks.client.ts`**: Client-side helpers
-- **`lib/bookmarks.server.ts`**: Server-side helpers
+- **`lib/bookmarks/bookmarks.client.ts`**: Client-side helpers
+  - Fixed: Removed direct ServerCacheInstance usage
+- **`lib/bookmarks/bookmarks.server.ts`**: Server-side helpers
   - Fixed: Now imports directly from data access layer
 - **`lib/bookmarks/index.ts`**: Barrel exports
 

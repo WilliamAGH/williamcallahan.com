@@ -1,203 +1,155 @@
 /**
- * Logo Types Module
- * @module types/logo
- * @description Type definitions for logo fetching, caching, and display functionality.
- * This module contains all type definitions used across the logo handling system,
- * including fetching, analysis, caching, and display components.
- * @since 1.0.0
+ * Logo Data and API Types
+ *
+ * SCOPE: Defines the data structures for logos throughout their lifecycle,
+ * from fetching and analysis, to storage and retrieval. This file should
+ * contain ONLY data models and API response types for logos.
+ *
+ * === INCLUSION RULES ===
+ * ✅ DO ADD:
+ *   - Logo data models (e.g., LogoData, CompanyData)
+ *   - API response types for logo services
+ *   - Enums for logo-related states (e.g., LogoSource)
+ *
+ * === EXCLUSION RULES ===
+ * ❌ DO NOT ADD:
+ *   - UI component props (→ types/ui/image.ts for LogoImageProps)
+ *   - Display options (→ types/ui/image.ts for LogoDisplayOptions)
+ *
+ * @see types/ui/image.ts for logo component props
  */
 
-/**
- * Supported sources for logo fetching
- * @description Identifies the source service used to fetch a company logo
- * @example
- * ```typescript
- * const source: LogoSource = 'google';
- * ```
- */
+// import type { z } from "zod";
+// import type { CompanyDataSchema, LogoConfigSchema } from "@/lib/validators/logo";
+
+/** Identifies the source service used to fetch a company logo. */
 export type LogoSource = "google" | "duckduckgo" | "clearbit" | "unknown" | null;
 
 /**
- * Analysis results for logo color inversion needs
- * @description Contains analysis results determining when a logo needs color inversion
- * based on theme and image characteristics
- * @interface
- * @see {@link LogoResult}
- * @see {@link LogoDisplayOptions}
- * @example
- * ```typescript
- * const analysis: LogoInversion = {
- *   needsDarkInversion: true,
- *   needsLightInversion: false,
- *   hasTransparency: true,
- *   brightness: 240
- * };
- * ```
+ * Contains analysis results determining if a logo needs color inversion
+ * based on theme and image characteristics.
  */
 export interface LogoInversion {
-  /** Whether the logo needs inversion on dark theme */
   needsDarkInversion: boolean;
-  /** Whether the logo needs inversion on light theme */
   needsLightInversion: boolean;
-  /** Whether the logo has transparency */
   hasTransparency: boolean;
-  /** Average brightness value (0-255) */
   brightness: number;
+  format: string;
+  dimensions: {
+    width: number;
+    height: number;
+  };
 }
 
 /**
- * Result of a logo fetch operation
- * @description Contains the fetched logo data along with metadata about the fetch operation
- * @interface
- * @see {@link LogoInversion}
- * @see {@link LogoCacheEntry}
- * @example
- * ```typescript
- * const result: LogoResult = {
- *   url: 'https://example.com/logo.png',
- *   source: 'google',
- *   inversion: {
- *     needsDarkInversion: true,
- *     needsLightInversion: false,
- *     hasTransparency: true,
- *     brightness: 240
- *   }
- * };
- * ```
+ * Results of analyzing a logo's brightness and characteristics
+ */
+export interface LogoBrightnessAnalysis {
+  averageBrightness: number;
+  isLightColored: boolean;
+  needsInversionInLightTheme: boolean;
+  needsInversionInDarkTheme: boolean;
+  hasTransparency: boolean;
+  format: string;
+  dimensions: {
+    width: number;
+    height: number;
+  };
+}
+
+/**
+ * Image metadata with validation results
+ */
+export interface ValidatedMetadata {
+  width: number;
+  height: number;
+  format: string;
+  isValid: boolean;
+  validationError?: string;
+}
+
+/**
+ * Contains the fetched logo data along with metadata about the fetch operation.
+ * Includes buffer when available for immediate use, otherwise stored separately in ImageMemoryManager
  */
 export interface LogoResult {
-  /** URL of the logo, or null if no valid logo found */
-  url: string | null;
-  /** Source of the logo */
+  /** S3 key where the logo is stored */
+  s3Key?: string;
+  /** Public URL for the logo (typically CDN) */
+  url?: string | null;
+  /** CDN URL for the logo */
+  cdnUrl?: string;
+  /** Source service that provided the logo */
   source: LogoSource;
-  /** How the logo was retrieved in the current request */
-  retrieval?: "mem-cache" | "s3-store" | "external" | "placeholder";
-  /** Error message if logo fetch failed */
+  /** Where the logo was retrieved from in this request */
+  retrieval?: "mem-cache" | "s3-store" | "external" | "placeholder" | "api";
+  /** Error message if fetch failed */
   error?: string;
-  /** Inversion analysis results */
+  /** Logo inversion analysis results */
   inversion?: LogoInversion;
-  /** Raw image buffer */
-  buffer?: Buffer;
-  /** MIME content type of the image */
+  /** MIME type of the logo */
   contentType: string;
+  /** Timestamp when fetched */
+  timestamp?: number;
+  /** Image buffer when available */
+  buffer?: Buffer;
 }
 
 /**
- * Cache entry for a fetched logo
- * @description Extends LogoResult with timestamp information for cache management
- * @interface
- * @extends {LogoResult}
- * @see {@link LogoCache}
- * @example
- * ```typescript
- * const cacheEntry: LogoCacheEntry = {
- *   url: 'https://example.com/logo.png',
- *   source: 'google',
- *   timestamp: Date.now(),
- *   inversion: {
- *     needsDarkInversion: true,
- *     needsLightInversion: false,
- *     hasTransparency: true,
- *     brightness: 240
- *   }
- * };
- * ```
+ * Represents a cached logo entry, extending `LogoResult` with a timestamp
+ * for cache management.
  */
 export interface LogoCacheEntry extends LogoResult {
-  /** Timestamp when the cache entry was created */
   timestamp: number;
 }
 
 /**
- * Structure for the logo cache
- * @description Maps domain names to their corresponding cached logo entries
- * @interface
- * @see {@link LogoCacheEntry}
- * @example
- * ```typescript
- * const cache: LogoCache = {
- *   'example.com': {
- *     url: 'https://example.com/logo.png',
- *     source: 'google',
- *     timestamp: Date.now(),
- *     inversion: {
- *       needsDarkInversion: true,
- *       needsLightInversion: false,
- *       hasTransparency: true,
- *       brightness: 240
- *     }
- *   }
- * };
- * ```
+ * Defines the structure for the logo cache, mapping domain names
+ * to their `LogoCacheEntry`.
  */
 export interface LogoCache {
   [domain: string]: LogoCacheEntry;
 }
 
-/** Structure for the raw API response when fetching logos */
+/** Structure for the raw API response when fetching logos. */
 export interface LogoApiResponse {
-  url?: string | null; // URL might be missing or null on error
-  error?: string; // Error message if fetch failed server-side
-  source?: LogoSource; // Source might be provided by server
-  inversion?: LogoInversion; // Inversion analysis might be done server-side
+  url?: string | null;
+  error?: string;
+  source?: LogoSource;
+  inversion?: LogoInversion;
 }
 
-/**
- * Logo data passed from server to client components
- * @interface
- */
+/** Defines the logo data structure passed from server to client components. */
 export interface LogoData {
-  /** URL of the logo image */
   url: string;
-  /** Source of the logo (e.g., 'google', 'clearbit', etc.) */
   source: string | null;
 }
 
 /**
- * Configuration options for logo display
- * @description Controls how a logo is displayed, including theme-based inversion
- * and fallback behavior
- * @interface
- * @see {@link LogoInversion}
- * @example
- * ```typescript
- * const options: LogoDisplayOptions = {
- *   enableInversion: true,
- *   isDarkTheme: true,
- *   className: 'company-logo',
- *   alt: 'Company Logo',
- *   showPlaceholder: true
- * };
- * ```
+ * Display options for logo components
+ * MOVED to types/ui/image.ts
  */
+/*
 export interface LogoDisplayOptions {
-  /**
-   * Whether to enable automatic logo inversion based on theme
-   * @default false
-   */
-  enableInversion?: boolean;
-
-  /**
-   * Whether the current theme is dark mode
-   * @default false
-   */
-  isDarkTheme?: boolean;
-
-  /**
-   * CSS classes to apply to the logo image element
-   * @default ''
-   */
-  className?: string;
-
-  /**
-   * Accessible alt text for the logo image
-   * @default 'Company Logo'
-   */
-  alt?: string;
-
-  /**
-   * Whether to show a placeholder image when logo loading fails
-   * @default true
-   */
-  showPlaceholder?: boolean;
+  shouldInvert?: boolean;
+  size?: number;
 }
+*/
+
+/**
+ * Props for the logo validation API endpoint
+ */
+export interface ValidateLogoProps {
+  url: string;
+  domain: string;
+}
+
+/**
+ * Configuration options for the logo processing system
+ */
+// export type LogoConfig = z.infer<typeof LogoConfigSchema>;
+
+/**
+ * Represents the data structure for a company, including its logos
+ */
+// export type CompanyData = z.infer<typeof CompanyDataSchema>;

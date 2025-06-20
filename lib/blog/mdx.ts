@@ -32,6 +32,7 @@ assertServerOnly(); // Ensure this module runs only on the server
 
 import { assertServerOnly } from "../utils/ensure-server-only";
 import { formatSeoDate } from "../seo/utils"; // Import the Pacific Time formatter
+import type { FrontmatterData } from "@/types/features/blog";
 
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -42,7 +43,6 @@ import { serialize } from "next-mdx-remote/serialize";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
-import type { Pluggable } from "unified";
 import { authors } from "../../data/blog/authors";
 import type { BlogPost } from "../../types/blog";
 
@@ -51,7 +51,6 @@ const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
 
 // Cache for processed MDX posts
 const postCache = new Map<string, { post: BlogPost | null; lastModified: string }>();
-
 
 /**
  * Converts a date string or Date object to a Pacific Time ISO string
@@ -114,10 +113,7 @@ export async function getMDXPost(
         stats = await fs.stat(filePathForPost);
       } catch (_statError) {
         // Parameter is unused
-        console.warn(
-          `[getMDXPost] Could not stat file ${filePathForPost} even with content override:`,
-          _statError,
-        );
+        console.warn(`[getMDXPost] Could not stat file ${filePathForPost} even with content override:`, _statError);
         stats = {
           mtime: new Date(0),
           birthtime: new Date(0),
@@ -170,9 +166,7 @@ export async function getMDXPost(
     const authorId = frontmatter.author;
     const author = authors[authorId];
     if (!author) {
-      console.error(
-        `Author not found: ${authorId} in post with slug "${frontmatterSlug}" (file: ${filePathForPost})`,
-      );
+      console.error(`Author not found: ${authorId} in post with slug "${frontmatterSlug}" (file: ${filePathForPost})`);
       return null;
     }
 
@@ -219,9 +213,7 @@ export async function getMDXPost(
 
     // Use frontmatter dates, ensuring they are Pacific Time ISO strings
     const publishedAt = toPacificISOString(frontmatter.publishedAt || fileDates.created);
-    const updatedAt = toPacificISOString(
-      frontmatter.updatedAt || frontmatter.modifiedAt || fileDates.modified,
-    );
+    const updatedAt = toPacificISOString(frontmatter.updatedAt || frontmatter.modifiedAt || fileDates.modified);
 
     // Validate coverImage using helper
     const coverImage = sanitizeCoverImage(frontmatter.coverImage, frontmatterSlug, filePathForPost);
@@ -258,19 +250,6 @@ export async function getMDXPost(
   }
 }
 
-interface FrontmatterData {
-  slug: string;
-  title: string;
-  author: string;
-  publishedAt?: string | Date;
-  updatedAt?: string | Date;
-  modifiedAt?: string | Date; // Alias for updatedAt
-  excerpt?: string;
-  tags?: string[];
-  readingTime?: number;
-  coverImage?: unknown; // Keep as unknown for sanitizeCoverImage to handle
-}
-
 /**
  * Retrieves and processes all MDX blog posts concurrently.
  * Uses frontmatter slug as the canonical identifier.
@@ -297,14 +276,8 @@ export async function getAllMDXPosts(): Promise<BlogPost[]> {
           content: string;
         };
 
-        if (
-          !frontmatter.slug ||
-          typeof frontmatter.slug !== "string" ||
-          frontmatter.slug.trim() === ""
-        ) {
-          console.warn(
-            `[getAllMDXPosts] MDX file ${fileName} has missing or invalid slug in frontmatter. Skipping.`,
-          );
+        if (!frontmatter.slug || typeof frontmatter.slug !== "string" || frontmatter.slug.trim() === "") {
+          console.warn(`[getAllMDXPosts] MDX file ${fileName} has missing or invalid slug in frontmatter. Skipping.`);
           return null; // Skip this file
         }
         frontmatterSlug = frontmatter.slug.trim();

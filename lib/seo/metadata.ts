@@ -25,10 +25,10 @@ import {
   SITE_TITLE,
   metadata as siteMetadata,
 } from "../../data/metadata";
-import type { ArticleMetadata, ExtendedMetadata } from "../../types/seo";
+import type { ArticleMetadata, ExtendedMetadata, ArticleParams, SoftwareAppParams } from "../../types/seo";
+import { SEO_DATE_FIELDS } from "../../types/seo";
 import type { ExtendedOpenGraph } from "../../types/seo/opengraph";
 import type { SchemaParams } from "../../types/seo/schema";
-import { type ArticleParams, SEO_DATE_FIELDS, type SoftwareAppParams } from "./constants";
 import { createArticleOgMetadata } from "./opengraph";
 import { generateSchemaGraph } from "./schema";
 import { ensureAbsoluteUrl, formatSeoDate } from "./utils";
@@ -101,15 +101,9 @@ export function createArticleMetadata({
     const baseImageUrl = ensureAbsoluteUrl(image);
     // Create different image aspect ratios (1:1, 4:3, 16:9) for Google's rich results
     imageVariations = [
-      image.endsWith(".jpg")
-        ? baseImageUrl.replace(".jpg", "-1x1.jpg")
-        : `${baseImageUrl}?format=1x1`,
-      image.endsWith(".jpg")
-        ? baseImageUrl.replace(".jpg", "-4x3.jpg")
-        : `${baseImageUrl}?format=4x3`,
-      image.endsWith(".jpg")
-        ? baseImageUrl.replace(".jpg", "-16x9.jpg")
-        : `${baseImageUrl}?format=16x9`,
+      image.endsWith(".jpg") ? baseImageUrl.replace(".jpg", "-1x1.jpg") : `${baseImageUrl}?format=1x1`,
+      image.endsWith(".jpg") ? baseImageUrl.replace(".jpg", "-4x3.jpg") : `${baseImageUrl}?format=4x3`,
+      image.endsWith(".jpg") ? baseImageUrl.replace(".jpg", "-16x9.jpg") : `${baseImageUrl}?format=16x9`,
     ];
   }
 
@@ -206,10 +200,7 @@ export function createArticleMetadata({
  * @param {keyof typeof PAGE_METADATA} pageKey - The key for the page's metadata in PAGE_METADATA
  * @returns {ExtendedMetadata} Next.js metadata object for the page
  */
-export function getStaticPageMetadata(
-  path: string,
-  pageKey: keyof typeof PAGE_METADATA,
-): ExtendedMetadata {
+export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_METADATA): ExtendedMetadata {
   const pageMetadata = PAGE_METADATA[pageKey];
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
@@ -234,13 +225,7 @@ export function getStaticPageMetadata(
     description: pageMetadata.description,
     datePublished: formattedCreated,
     dateModified: formattedModified,
-    type: isProfilePage
-      ? "profile"
-      : isDatasetPage
-        ? "dataset"
-        : isCollectionPage
-          ? "collection"
-          : undefined,
+    type: isProfilePage ? "profile" : isDatasetPage ? "dataset" : isCollectionPage ? "collection" : undefined,
     breadcrumbs,
     image: {
       url: siteMetadata.defaultImage.url,

@@ -5,6 +5,7 @@
  * Using window architecture similar to projects page
  */
 
+import { socialLinks } from "@/components/ui/social-icons/social-links";
 import { useEffect, useState } from "react";
 import { SocialCardEffects } from "./social-card-effects.client";
 import { SocialWindow } from "./social-window.client";
@@ -27,13 +28,7 @@ export function SocialContactClient() {
       <SocialCardEffects />
 
       {/* Render window only when mounted */}
-      {mounted && (
-        <SocialWindow>
-          <div className="relative">
-            {/* Additional UI components could be placed here in the future */}
-          </div>
-        </SocialWindow>
-      )}
+      {mounted && <SocialWindow socialLinks={socialLinks} />}
     </div>
   );
 }

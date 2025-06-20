@@ -7,7 +7,7 @@ import { certifications, education } from "../data/education";
 import { experiences } from "../data/experience";
 import { investments } from "../data/investments";
 import type { BlogPost } from "../types/blog";
-import type { SearchResult } from "../types/search";
+import type { SearchResult, EducationItem, BookmarkIndexItem } from "../types/search";
 import MiniSearch from "minisearch";
 import { ServerCacheInstance } from "./server-cache";
 import { sanitizeSearchQuery } from "./validators/search";
@@ -17,27 +17,8 @@ import { prepareDocumentsForIndexing } from "./utils/search-helpers";
 
 // MiniSearch indexes for static data (created once on first use)
 let postsIndex: MiniSearch<BlogPost> | null = null;
-let investmentsIndex: MiniSearch<typeof investments[0]> | null = null;
-let experienceIndex: MiniSearch<typeof experiences[0]> | null = null;
-type EducationItem = {
-  id: string;
-  label: string;
-  description: string;
-  path: string;
-};
-
-type BookmarkIndexItem = {
-  id: string;
-  title: string;
-  description: string;
-  tags: string;
-  url: string;
-  content?: {
-    author?: string | null;
-    publisher?: string | null;
-  };
-};
-
+let investmentsIndex: MiniSearch<(typeof investments)[0]> | null = null;
+let experienceIndex: MiniSearch<(typeof experiences)[0]> | null = null;
 let educationIndex: MiniSearch<EducationItem> | null = null;
 
 // Dynamic bookmark index (updated when bookmarks are fetched)
@@ -48,7 +29,7 @@ const BOOKMARK_INDEX_TTL = 5 * 60 * 1000; // 5 minutes cache
 /**
  * Generic search function that filters items based on a query.
  * Uses MiniSearch for fuzzy matching when available, falls back to substring search.
- * 
+ *
  * @param items - Array of items to search
  * @param query - Search query string
  * @param getSearchableFields - Function to extract searchable text from an item
@@ -61,7 +42,7 @@ function searchContent<T>(
   query: string,
   getSearchableFields: (item: T) => (string | undefined | null)[],
   getExactMatchField?: (item: T) => string,
-  miniSearchIndex?: MiniSearch<T> | null
+  miniSearchIndex?: MiniSearch<T> | null,
 ): T[] {
   // Sanitize the query first
   const sanitizedQuery = sanitizeSearchQuery(query);
@@ -72,15 +53,16 @@ function searchContent<T>(
     try {
       const searchResults = miniSearchIndex.search(sanitizedQuery, {
         prefix: true, // Allow prefix matching for autocomplete-like behavior
-        fuzzy: 0.1,   // Allow minimal typos (10% edit distance)
-        boost: {      // Boost exact matches
-          exactMatch: 2
+        fuzzy: 0.1, // Allow minimal typos (10% edit distance)
+        boost: {
+          // Boost exact matches
+          exactMatch: 2,
         },
-        combineWith: 'AND' // All terms must match
+        combineWith: "AND", // All terms must match
       });
-      
+
       // Map search results back to original items
-      const resultIds = new Set(searchResults.map(r => String(r.id)));
+      const resultIds = new Set(searchResults.map((r) => String(r.id)));
       return items.filter((item) => {
         const itemWithId = item as T & { id?: string | number };
         const itemId = String(itemWithId.id ?? item);
@@ -94,7 +76,7 @@ function searchContent<T>(
 
   // Fallback: Original substring search implementation
   const searchTerms = sanitizedQuery.split(/\s+/).filter(Boolean);
-  
+
   return items.filter((item) => {
     // First try exact match if exact match field is provided
     if (getExactMatchField) {
@@ -120,32 +102,32 @@ function searchContent<T>(
 function getPostsIndex(): MiniSearch<BlogPost> {
   if (!postsIndex) {
     postsIndex = new MiniSearch<BlogPost>({
-      fields: ['title', 'excerpt', 'tags', 'authorName'], // Fields to index
-      storeFields: ['id', 'title', 'excerpt', 'slug', 'publishedAt'], // Fields to return with results
-      idField: 'slug', // Unique identifier
+      fields: ["title", "excerpt", "tags", "authorName"], // Fields to index
+      storeFields: ["id", "title", "excerpt", "slug", "publishedAt"], // Fields to return with results
+      idField: "slug", // Unique identifier
       searchOptions: {
         boost: { title: 2 }, // Title matches are more important
         fuzzy: 0.1,
-        prefix: true
+        prefix: true,
       },
       extractField: (document, fieldName) => {
         // Handle virtual fields and array conversions
-        if (fieldName === 'authorName') {
-          return document.author?.name || '';
+        if (fieldName === "authorName") {
+          return document.author?.name || "";
         }
-        if (fieldName === 'tags') {
-          return Array.isArray(document.tags) ? document.tags.join(' ') : '';
+        if (fieldName === "tags") {
+          return Array.isArray(document.tags) ? document.tags.join(" ") : "";
         }
         // Default field extraction
         const field = fieldName as keyof BlogPost;
         const value = document[field];
-        return typeof value === 'string' ? value : '';
-      }
+        return typeof value === "string" ? value : "";
+      },
     });
 
     // Deduplicate posts by slug before adding to index
-    const dedupedPosts = prepareDocumentsForIndexing(posts, 'Blog Posts', (post) => post.slug);
-    
+    const dedupedPosts = prepareDocumentsForIndexing(posts, "Blog Posts", (post) => post.slug);
+
     // Add posts directly - virtual fields are handled by extractField
     postsIndex.addAll(dedupedPosts);
   }
@@ -154,47 +136,51 @@ function getPostsIndex(): MiniSearch<BlogPost> {
 
 export function searchPosts(query: string): BlogPost[] {
   // Check cache first
-  const cached = ServerCacheInstance.getSearchResults<BlogPost>('posts', query);
-  if (cached && !ServerCacheInstance.shouldRefreshSearch('posts', query)) {
+  const cached = ServerCacheInstance.getSearchResults<BlogPost>("posts", query);
+  if (cached && !ServerCacheInstance.shouldRefreshSearch("posts", query)) {
     return cached.results;
   }
 
   const results = searchContent(
     posts,
     query,
-    (post) => [
-      post.title || "",
-      post.excerpt || "",
-      ...(post.tags || []),
-      post.author?.name || "",
-    ],
+    (post) => [post.title || "", post.excerpt || "", ...(post.tags || []), post.author?.name || ""],
     (post) => post.title,
-    getPostsIndex()
+    getPostsIndex(),
   );
-  
+
   const sortedResults = results.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
-  
+
   // Cache the results
-  ServerCacheInstance.setSearchResults('posts', query, sortedResults);
-  
+  ServerCacheInstance.setSearchResults("posts", query, sortedResults);
+
   return sortedResults;
 }
 
-function getInvestmentsIndex(): MiniSearch<typeof investments[0]> {
+function getInvestmentsIndex(): MiniSearch<(typeof investments)[0]> {
   if (!investmentsIndex) {
-    investmentsIndex = new MiniSearch<typeof investments[0]>({
-      fields: ['name', 'description', 'type', 'status', 'founded_year', 'invested_year', 'acquired_year', 'shutdown_year'],
-      storeFields: ['id', 'name', 'description'],
-      idField: 'id',
+    investmentsIndex = new MiniSearch<(typeof investments)[0]>({
+      fields: [
+        "name",
+        "description",
+        "type",
+        "status",
+        "founded_year",
+        "invested_year",
+        "acquired_year",
+        "shutdown_year",
+      ],
+      storeFields: ["id", "name", "description"],
+      idField: "id",
       searchOptions: {
         boost: { name: 2 },
         fuzzy: 0.1,
-        prefix: true
-      }
+        prefix: true,
+      },
     });
 
     // Deduplicate investments by id before adding to index
-    const dedupedInvestments = prepareDocumentsForIndexing(investments, 'Investments');
+    const dedupedInvestments = prepareDocumentsForIndexing(investments, "Investments");
     investmentsIndex.addAll(dedupedInvestments);
   }
   return investmentsIndex;
@@ -202,8 +188,8 @@ function getInvestmentsIndex(): MiniSearch<typeof investments[0]> {
 
 export function searchInvestments(query: string): SearchResult[] {
   // Check cache first
-  const cached = ServerCacheInstance.getSearchResults<SearchResult>('investments', query);
-  if (cached && !ServerCacheInstance.shouldRefreshSearch('investments', query)) {
+  const cached = ServerCacheInstance.getSearchResults<SearchResult>("investments", query);
+  if (cached && !ServerCacheInstance.shouldRefreshSearch("investments", query)) {
     return cached.results;
   }
 
@@ -221,7 +207,7 @@ export function searchInvestments(query: string): SearchResult[] {
       inv.shutdown_year,
     ],
     (inv) => inv.name,
-    getInvestmentsIndex()
+    getInvestmentsIndex(),
   );
 
   const searchResults = results.map((inv) => ({
@@ -231,26 +217,26 @@ export function searchInvestments(query: string): SearchResult[] {
   }));
 
   // Cache the results
-  ServerCacheInstance.setSearchResults('investments', query, searchResults);
-  
+  ServerCacheInstance.setSearchResults("investments", query, searchResults);
+
   return searchResults;
 }
 
-function getExperienceIndex(): MiniSearch<typeof experiences[0]> {
+function getExperienceIndex(): MiniSearch<(typeof experiences)[0]> {
   if (!experienceIndex) {
-    experienceIndex = new MiniSearch<typeof experiences[0]>({
-      fields: ['company', 'role', 'period'],
-      storeFields: ['id', 'company', 'role'],
-      idField: 'id',
+    experienceIndex = new MiniSearch<(typeof experiences)[0]>({
+      fields: ["company", "role", "period"],
+      storeFields: ["id", "company", "role"],
+      idField: "id",
       searchOptions: {
         boost: { company: 2, role: 1.5 },
         fuzzy: 0.2,
-        prefix: true
-      }
+        prefix: true,
+      },
     });
 
     // Deduplicate experiences by id before adding to index
-    const dedupedExperiences = prepareDocumentsForIndexing(experiences, 'Experience');
+    const dedupedExperiences = prepareDocumentsForIndexing(experiences, "Experience");
     experienceIndex.addAll(dedupedExperiences);
   }
   return experienceIndex;
@@ -258,8 +244,8 @@ function getExperienceIndex(): MiniSearch<typeof experiences[0]> {
 
 export function searchExperience(query: string): SearchResult[] {
   // Check cache first
-  const cached = ServerCacheInstance.getSearchResults<SearchResult>('experience', query);
-  if (cached && !ServerCacheInstance.shouldRefreshSearch('experience', query)) {
+  const cached = ServerCacheInstance.getSearchResults<SearchResult>("experience", query);
+  if (cached && !ServerCacheInstance.shouldRefreshSearch("experience", query)) {
     return cached.results;
   }
 
@@ -268,7 +254,7 @@ export function searchExperience(query: string): SearchResult[] {
     query,
     (exp) => [exp.company, exp.role, exp.period],
     (exp) => exp.company,
-    getExperienceIndex()
+    getExperienceIndex(),
   );
 
   const searchResults = results.map((exp) => ({
@@ -278,22 +264,22 @@ export function searchExperience(query: string): SearchResult[] {
   }));
 
   // Cache the results
-  ServerCacheInstance.setSearchResults('experience', query, searchResults);
-  
+  ServerCacheInstance.setSearchResults("experience", query, searchResults);
+
   return searchResults;
 }
 
 function getEducationIndex(): MiniSearch<EducationItem> {
   if (!educationIndex) {
     educationIndex = new MiniSearch({
-      fields: ['label', 'description'],
-      storeFields: ['id', 'label', 'description', 'path'],
-      idField: 'id',
+      fields: ["label", "description"],
+      storeFields: ["id", "label", "description", "path"],
+      idField: "id",
       searchOptions: {
         boost: { label: 2 },
         fuzzy: 0.2,
-        prefix: true
-      }
+        prefix: true,
+      },
     });
 
     // Combine education and certifications
@@ -313,7 +299,7 @@ function getEducationIndex(): MiniSearch<EducationItem> {
     ];
 
     // Deduplicate education items by id before adding to index
-    const dedupedEducationItems = prepareDocumentsForIndexing(allEducationItems, 'Education');
+    const dedupedEducationItems = prepareDocumentsForIndexing(allEducationItems, "Education");
     educationIndex.addAll(dedupedEducationItems);
   }
   return educationIndex;
@@ -321,8 +307,8 @@ function getEducationIndex(): MiniSearch<EducationItem> {
 
 export function searchEducation(query: string): SearchResult[] {
   // Check cache first
-  const cached = ServerCacheInstance.getSearchResults<SearchResult>('education', query);
-  if (cached && !ServerCacheInstance.shouldRefreshSearch('education', query)) {
+  const cached = ServerCacheInstance.getSearchResults<SearchResult>("education", query);
+  if (cached && !ServerCacheInstance.shouldRefreshSearch("education", query)) {
     return cached.results;
   }
 
@@ -348,29 +334,29 @@ export function searchEducation(query: string): SearchResult[] {
     query,
     (item) => item.searchableText,
     (item) => item.label, // Exact match on institution
-    getEducationIndex()
+    getEducationIndex(),
   );
 
   // Remove the temporary searchableText field
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const searchResults = results.map(({ searchableText: _searchableText, ...item }) => item);
-  
+
   // Cache the results
-  ServerCacheInstance.setSearchResults('education', query, searchResults);
-  
+  ServerCacheInstance.setSearchResults("education", query, searchResults);
+
   return searchResults;
 }
 
 export async function searchBookmarks(query: string): Promise<SearchResult[]> {
   try {
     // Check cache first - for bookmarks we use a shorter cache duration since they're dynamic
-    const cached = ServerCacheInstance.getSearchResults<SearchResult>('bookmarks', query);
-    if (cached && !ServerCacheInstance.shouldRefreshSearch('bookmarks', query)) {
+    const cached = ServerCacheInstance.getSearchResults<SearchResult>("bookmarks", query);
+    if (cached && !ServerCacheInstance.shouldRefreshSearch("bookmarks", query)) {
       return cached.results;
     }
 
     // Fetch bookmark data via the API so that no server-only modules are bundled in client builds
-    const { getBaseUrl } = await import("@/lib/getBaseUrl");
+    const { getBaseUrl } = await import("@/lib/utils/get-base-url");
     const apiUrl = `${getBaseUrl()}/api/bookmarks`;
 
     // Abort the request if it hangs >5 s to keep site-wide search snappy
@@ -391,18 +377,18 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     }
 
     // API can return either an array or an object with a data/bookmarks field
-    const raw = await resp.json() as unknown;
-    
+    const raw = (await resp.json()) as unknown;
+
     let bookmarksData: unknown;
     if (Array.isArray(raw)) {
       bookmarksData = raw;
-    } else if (typeof raw === 'object' && raw !== null) {
+    } else if (typeof raw === "object" && raw !== null) {
       const obj = raw as Record<string, unknown>;
       bookmarksData = obj.data ?? obj.bookmarks ?? [];
     } else {
       bookmarksData = [];
     }
-    
+
     const bookmarks = (Array.isArray(bookmarksData) ? bookmarksData : []) as Array<{
       id: string;
       url: string;
@@ -417,7 +403,7 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     // Lazy slug generator (memoised)
     const { generateUniqueSlug } = await import("@/lib/utils/domain-utils");
     const slugMap = new Map<string, string>();
-    const slugFor = (b: typeof bookmarks[number]): string => {
+    const slugFor = (b: (typeof bookmarks)[number]): string => {
       const cached = slugMap.get(b.id);
       if (cached) return cached;
       const g = generateUniqueSlug(b.url, bookmarks, b.id);
@@ -438,46 +424,46 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     const now = Date.now();
     if (!bookmarksIndex || now - bookmarksIndexTimestamp > BOOKMARK_INDEX_TTL) {
       bookmarksIndex = new MiniSearch<BookmarkIndexItem>({
-        fields: ['title', 'description', 'tags', 'url', 'content.author', 'content.publisher'],
-        storeFields: ['id', 'title', 'description', 'url'],
-        idField: 'id',
+        fields: ["title", "description", "tags", "url", "content.author", "content.publisher"],
+        storeFields: ["id", "title", "description", "url"],
+        idField: "id",
         searchOptions: {
           boost: { title: 2, description: 1.5 },
           fuzzy: 0.2,
-          prefix: true
+          prefix: true,
         },
         extractField: (document, fieldName) => {
           // Handle nested content fields
-          if (fieldName === 'content.author') {
-            return document.content?.author || '';
+          if (fieldName === "content.author") {
+            return document.content?.author || "";
           }
-          if (fieldName === 'content.publisher') {
-            return document.content?.publisher || '';
+          if (fieldName === "content.publisher") {
+            return document.content?.publisher || "";
           }
           // Default field extraction
           const field = fieldName as keyof BookmarkIndexItem;
           const value = document[field];
-          return typeof value === 'string' ? value : '';
-        }
+          return typeof value === "string" ? value : "";
+        },
       });
 
       // Transform bookmarks for indexing
-      const bookmarksForIndex: BookmarkIndexItem[] = bookmarks.map(b => ({
+      const bookmarksForIndex: BookmarkIndexItem[] = bookmarks.map((b) => ({
         id: b.id,
         title: b.title || b.url,
-        description: b.description || '',
-        tags: Array.isArray(b.tags) 
-          ? b.tags.map(t => typeof t === 'string' ? t : t?.name || '').join(' ')
-          : '',
+        description: b.description || "",
+        tags: Array.isArray(b.tags) ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
         url: b.url,
-        content: b.content ? {
-          author: b.content.author,
-          publisher: b.content.publisher
-        } : undefined
+        content: b.content
+          ? {
+              author: b.content.author,
+              publisher: b.content.publisher,
+            }
+          : undefined,
       }));
 
       // Deduplicate bookmarks by id before adding to index
-      const dedupedBookmarks = prepareDocumentsForIndexing(bookmarksForIndex, 'Bookmarks');
+      const dedupedBookmarks = prepareDocumentsForIndexing(bookmarksForIndex, "Bookmarks");
       bookmarksIndex.addAll(dedupedBookmarks);
       bookmarksIndexTimestamp = now;
     }
@@ -495,7 +481,7 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
               })
               .filter(Boolean)
           : [];
-        
+
         return [
           b.title || "",
           b.description || "",
@@ -506,7 +492,7 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
         ];
       },
       (b) => b.title || b.url, // Exact match on title
-      bookmarksIndex as MiniSearch<unknown> | null
+      bookmarksIndex as MiniSearch<unknown> | null,
     );
 
     const results = filteredBookmarks.map((b) => ({
@@ -516,13 +502,13 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     }));
 
     // Cache the results
-    ServerCacheInstance.setSearchResults('bookmarks', query, results);
+    ServerCacheInstance.setSearchResults("bookmarks", query, results);
 
     return results;
   } catch (err) {
     console.error("[searchBookmarks] Unexpected failure:", err);
     // Return cached results if available on error
-    const cached = ServerCacheInstance.getSearchResults<SearchResult>('bookmarks', query);
+    const cached = ServerCacheInstance.getSearchResults<SearchResult>("bookmarks", query);
     return cached?.results || [];
   }
 }

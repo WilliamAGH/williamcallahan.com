@@ -1,29 +1,18 @@
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
-/**
- * Domain Utilities Tests
- *
- * Tests for URL normalization, slug generation, and domain display formatting
- * Verifies domain extraction and manipulation functions
- */
-import type { UnifiedBookmark } from "../../../types/bookmark";
-
 // Mock only the generateUniqueSlug function
 jest.mock("../../../lib/utils/domain-utils", () => {
-  const actual = jest.requireActual<
-    typeof import("../../../lib/utils/domain-utils")
-  >("../../../lib/utils/domain-utils");
+  const actual = jest.requireActual<typeof import("../../../lib/utils/domain-utils")>(
+    "../../../lib/utils/domain-utils",
+  );
   return {
     ...actual,
-    generateUniqueSlug: jest.fn<typeof actual.generateUniqueSlug>(
-      (url, allBookmarks, currentBookmarkId) => {
-        // Special case for specific test
-        if (currentBookmarkId === "2" && url === "https://example.com/page") {
-          return "example-com-page-2";
-        }
-        // Otherwise, call the original function
-        return actual.generateUniqueSlug(url, allBookmarks, currentBookmarkId);
-      },
-    ),
+    generateUniqueSlug: jest.fn<typeof actual.generateUniqueSlug>((url, allBookmarks, currentBookmarkId) => {
+      // Special case for specific test
+      if (currentBookmarkId === "2" && url === "https://example.com/page") {
+        return "example-com-page-2";
+      }
+      // Otherwise, call the original function
+      return actual.generateUniqueSlug(url, allBookmarks, currentBookmarkId);
+    }),
   };
 });
 

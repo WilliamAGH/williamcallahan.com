@@ -165,10 +165,7 @@ export const basePageMetadataSchema = z.object({
   title: z
     .string()
     .min(SEO_LIMITS.MIN_LENGTH, `Title must be at least ${SEO_LIMITS.MIN_LENGTH} characters`)
-    .max(
-      SEO_LIMITS.TITLE_MAX,
-      `Title should be under ${SEO_LIMITS.TITLE_MAX} characters for optimal SEO`,
-    ),
+    .max(SEO_LIMITS.TITLE_MAX, `Title should be under ${SEO_LIMITS.TITLE_MAX} characters for optimal SEO`),
 
   description: z
     .string()
@@ -190,10 +187,7 @@ export const profilePageMetadataSchema = basePageMetadataSchema.extend({
   bio: z
     .string()
     .min(SEO_LIMITS.MIN_LENGTH)
-    .max(
-      SEO_LIMITS.OG_DESCRIPTION_MAX,
-      `Bio should be under ${SEO_LIMITS.OG_DESCRIPTION_MAX} characters`,
-    ),
+    .max(SEO_LIMITS.OG_DESCRIPTION_MAX, `Bio should be under ${SEO_LIMITS.OG_DESCRIPTION_MAX} characters`),
 
   interactionStats: z
     .object({
@@ -355,6 +349,4 @@ export function safeValidateMetadata(metadata: unknown) {
 export type MetadataConfig = z.infer<typeof metadataSchema>;
 export type ProfilePageMetadata = z.infer<typeof profilePageMetadataSchema>;
 export type CollectionPageMetadata = z.infer<typeof collectionPageMetadataSchema>;
-export type ValidatedMetadata<K extends keyof typeof pageMetadataSchemas> = z.infer<
-  (typeof pageMetadataSchemas)[K]
->;
+export type ValidatedMetadata<K extends keyof typeof pageMetadataSchemas> = z.infer<(typeof pageMetadataSchemas)[K]>;

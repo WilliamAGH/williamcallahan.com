@@ -27,6 +27,7 @@
 7. **COMMIT MESSAGE RULES - ABSOLUTELY NO EXCEPTIONS:**
    - **NEVER COMBINE MULTIPLE FILES IN ONE COMMIT**
    - **EACH FILE GETS ITS OWN COMMIT WITH SPECIFIC MESSAGE**
+   - **NEVER include Claude code attribution or co-author tags in commits**
    - Format: `fix(scope): specific change description`
    - Examples:
      - ✅ `fix(eslint): re-enable jsx-no-target-blank rule with allowReferrer`
@@ -54,6 +55,31 @@ Analyze: 1) Improvement? 2) Risks? 3) Alternatives? 4) Edge cases?"
 ```
 
 ## 📋 WORKFLOW
+
+### 🔍 PRE-REVIEW VALIDATION - ALWAYS RUN FIRST
+
+Before starting the PR review process:
+
+1. **Run full validation to check for existing issues:**
+   ```bash
+   bun run validate
+   ```
+
+2. **If validation fails:**
+   - Fix all existing linting, type, and formatting errors FIRST
+   - Commit each fixed file separately with descriptive messages:
+     ```bash
+     # Example: Fix linting issues in specific file
+     git add lib/context/collapse-dropdown-context.client.tsx
+     git commit -m "fix(context): resolve hook usage order in collapse dropdown context"
+     ```
+   - Once all validation errors are fixed, run validation again to confirm
+   - Only proceed with PR review after validation passes
+
+3. **Why this matters:**
+   - Ensures a clean baseline before making review-driven changes
+   - Prevents mixing pre-existing issues with review feedback
+   - Makes commit history clearer and easier to review
 
 ### ⚠️ COMMIT WORKFLOW - FOLLOW EXACTLY
 

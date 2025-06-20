@@ -149,7 +149,7 @@ File/Path                                       Functionality                   
     - [x] `copy-button.client.tsx`              `code-block`            - Copy button for code blocks
     - [x] `mdx-code-block-wrapper.client.tsx`   `code-block`            - MDX wrapper for code blocks
     - [x] `mdx-code-block.server.tsx`           `code-block`            - Renders MDX code blocks on the server
-    - [x] **prism-syntax-highlighting/**
+    - [ ] **prism-syntax-highlighting/**
       - [x] `prism.css`                         `css`                   - Prism syntax highlighting theme
       - [x] `prism.js`                          `code-block`            - Prism syntax highlighting library
   - [ ] **experience-card/**
@@ -164,7 +164,8 @@ File/Path                                       Functionality                   
 
 ## Lib Directory
 
-- [x] `async-job-queue.ts`                      `bookmarks`             - Asynchronous job queue implementation`                      - Asynchronous job queue implementation
+- [x] `async-job-queue.ts`                      `bookmarks`             - Asynchronous job queue implementation
+- [ ] `async-operations-monitor.ts`             `instrumentation-monitoring` - Global async operations tracker & timeout guard
 - [x] `blog.ts`                                 `blog`                  - Blog data helper functions
 - [x] `bookmarks.{client,server}.ts`            `json-handling`         - Helper functions for bookmarks
 - [x] `bookmarks.ts`                            `json-handling`         - Core bookmarks logic
@@ -239,6 +240,11 @@ File/Path                                       Functionality                   
   - [x] `opengraph.ts`                          `seo`                   - OpenGraph metadata helpers
   - [x] `schema.ts`                             `seo`                   - Schema.org generation helpers
   - [x] `utils.ts`                              `seo`                   - SEO utility functions
+- [x] **server/**
+  - [x] `bookmarks-preloader.ts`                `bookmarks`             - Server-side bookmark preloading orchestrator
+  - [x] `data-fetch-manager.ts`                 `batch-fetch-update`    - Centralized data fetching orchestrator with CLI handler
+  - [x] `scheduler.ts`                           `batch-fetch-update`    - Cron scheduler for automated data updates
+  - [x] `mem-guard.ts`                          `memory-mgmt`           - Lightweight RSS watchdog for cache flushing
 - [x] **server-cache/**
   - [x] `index.ts`                              `caching`               - Barrel file for server cache
 - [x] **test-utils/**
@@ -293,6 +299,22 @@ File/Path                                       Functionality                   
   - [x] `opengraph.ts`                          `seo`                   - OpenGraph metadata helpers
   - [x] `schema.ts`                             `seo`                   - Types for Schema.org
   - [x] `shared.ts`                             `seo`                   - Shared SEO type definitions
+- [x] **ui/**
+  - [x] `async.ts`                          `ui-framework`          - Types for async UI components (e.g., infinite scroll)
+  - [x] `boundaries.ts`                     `log-error-debug-handling`- Types for UI boundary components (e.g., ErrorBoundary)
+  - [x] `code-block.ts`                     `code-block`            - Types for code block components
+  - [x] `data-display.ts`                   `investments`           - Types for data display components (e.g., financial metrics)
+  - [x] `forms.ts`                          `interactive-containers`- Types for form and input components
+  - [x] `image.ts`                          `image-handling`        - Types for image-related components
+  - [x] `index.ts`                          `ui-framework`          - Barrel file for all modular UI component types
+  - [x] `interactive.ts`                    `interactive-containers`- Types for interactive components (e.g., dropdowns, focus traps)
+  - [x] `layout.ts`                         `app-layout`            - Types for layout and structural components
+  - [x] `pagination.ts`                     `ui-framework`          - Types for pagination components
+  - [x] `social.ts`                         `social-links`          - Types for social icon components
+  - [x] `table.ts`                          `interactive-containers`- Types for table components
+  - [x] `tabs.ts`                           `interactive-containers`- Types for tabbed interface components
+  - [x] `terminal.ts`                       `terminal`              - Types for the interactive terminal component
+  - [x] `window.ts`                         `macos-gui`             - Types for windowed UI components
 
 ## Config Directory
 
@@ -310,6 +332,10 @@ File/Path                                       Functionality                   
 ## Middleware Directory
 
 - [x] `cache-debug.ts`                          `caching`               - Middleware for debugging cache behavior
+- [ ] **health/**
+  - [x] `memory-health-monitor.ts`              `memory-mgmt`           - Memory health monitor with graceful degradation
+- [ ] **middleware/**
+  - [x] `memory-pressure.ts`                  `memory-mgmt`           - Middleware to shed load under memory pressure
 
 ## Root Directory
 
@@ -412,14 +438,12 @@ File/Path                                       Functionality                   
 - [x] `force-refresh-repo-stats.ts`             `batch-fetch-update`    - Script to force-refresh GitHub repo stats
 - [x] `populate-volumes.ts`                     `build`                 - Script to populate Docker volumes with data
 - [x] `pre-build-checks.sh`                     `build`                 - Pre-build check script
-- [x] `prefetch-data.ts`                        `batch-fetch-update`    - Script to prefetch data
+- [x] `data-updater.ts`                         `batch-fetch-update`    - Unified CLI for all data operations
 - [x] `refresh-opengraph-images.ts`             `opengraph`             - Script to refresh OpenGraph images and metadata
 - [x] `run-bun-tests.sh`                        `testing-config`        - Script to run Bun tests
 - [x] `run-tests.sh`                            `testing-config`        - Script to run all tests
-- [x] `scheduler.ts`                            `batch-fetch-update`    - Script to run scheduled tasks
 - [x] `setup-test-alias.sh`                     `testing-config`        - Script to set up test aliases
 - [x] `submit-sitemap.ts`                       `seo`                   - Script to submit sitemap to search engines
-- [x] `update-s3-data.ts`                       `batch-fetch-update`    - Script to update S3 data
 
 ## Styles Directory
 

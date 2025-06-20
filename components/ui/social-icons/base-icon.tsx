@@ -4,7 +4,7 @@
  * Common SVG component for social icons.
  */
 
-import type React from "react";
+import type { BaseIconProps } from "@/types/ui/social";
 
 // For backwards compatibility with existing icon components
 export const baseIconProps = {
@@ -18,18 +18,7 @@ export const baseIconProps = {
   strokeLinejoin: "round",
 } as const;
 
-export interface BaseIconProps extends React.SVGProps<SVGSVGElement> {
-  className?: string;
-  viewBox?: string;
-  "aria-label"?: string;
-}
-
-export function BaseIcon({
-  className = "",
-  viewBox = "0 0 24 24",
-  children,
-  ...props
-}: BaseIconProps) {
+export function BaseIcon({ className = "", viewBox = "0 0 24 24", children, ...props }: BaseIconProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

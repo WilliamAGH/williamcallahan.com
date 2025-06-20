@@ -15,14 +15,7 @@ const PRIORITY_PATHS = ["/projects", "/blog", "/experience", "/contact"];
 // Navigation cooldown settings
 const NAVIGATION_COOLDOWN = 300; // ms
 
-export function NavigationLink({
-  path,
-  name,
-  responsive,
-  currentPath,
-  className = "",
-  onClick,
-}: NavigationLinkProps) {
+export function NavigationLink({ path, name, responsive, currentPath, className = "", onClick }: NavigationLinkProps) {
   // Use the original hook name
   const { clearHistory } = useTerminalContext();
   const isActive = currentPath === path;

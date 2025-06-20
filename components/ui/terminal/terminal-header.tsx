@@ -9,32 +9,15 @@
 
 // No "use client" directive needed as it doesn't use client-side hooks directly
 import { WindowControls } from "@/components/ui/navigation/window-controls";
+import type { TerminalHeaderProps } from "@/types/ui/terminal";
 
-// Define props for the handlers
-interface TerminalHeaderProps {
-  onClose?: () => void;
-  onMinimize?: () => void;
-  onMaximize?: () => void;
-  isMaximized?: boolean;
-}
-
-export function TerminalHeader({
-  onClose,
-  onMinimize,
-  onMaximize,
-  isMaximized = false,
-}: TerminalHeaderProps) {
+export function TerminalHeader(props: TerminalHeaderProps) {
   // Remove internal handlers and context usage
 
   return (
     <div className="flex items-center gap-2 mb-3">
       {/* Pass the received handlers directly to WindowControls */}
-      <WindowControls
-        onClose={onClose}
-        onMinimize={onMinimize}
-        onMaximize={onMaximize}
-        isMaximized={isMaximized}
-      />
+      <WindowControls {...props} />
       {/* Add any other header elements here if needed */}
     </div>
   );

@@ -31,8 +31,25 @@ export interface S3ClientWrapper {
   /** Get a file handle by key. */
   file: (key: string) => S3File;
   /** List objects by prefix. */
-  list: (
-    prefix?: string,
-    options?: unknown,
-  ) => Promise<{ contents: { key: string }[]; isTruncated: boolean }>;
+  list: (prefix?: string, options?: unknown) => Promise<{ contents: { key: string }[]; isTruncated: boolean }>;
+}
+
+export interface DistributedLockEntry {
+  instanceId: string;
+  acquiredAt: number;
+  ttlMs: number;
+}
+
+export interface StreamToS3Options {
+  bucket: string;
+  key: string;
+  contentType: string;
+  s3Client: import("@aws-sdk/client-s3").S3Client;
+}
+
+export interface StreamingResult {
+  success: boolean;
+  location?: string;
+  error?: Error;
+  bytesStreamed?: number;
 }

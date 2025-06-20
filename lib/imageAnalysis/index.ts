@@ -1,2 +1,2 @@
 // Re-export from main imageAnalysis file
-export * from "../imageAnalysis";
+export * from "../image-handling/image-analysis";

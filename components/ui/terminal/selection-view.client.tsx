@@ -6,14 +6,8 @@
 
 "use client";
 
-import type { SelectionItem } from "@/types/terminal";
 import { useEffect, useState } from "react";
-
-interface SelectionViewProps {
-  items: SelectionItem[];
-  onSelectAction: (item: SelectionItem) => void;
-  onExitAction: () => void;
-}
+import type { SelectionViewProps } from "@/types/ui/terminal";
 
 export function SelectionView({ items, onSelectAction, onExitAction }: SelectionViewProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -51,9 +45,7 @@ export function SelectionView({ items, onSelectAction, onExitAction }: Selection
 
   return (
     <div className="mt-1">
-      <div className="text-gray-400 text-xs mb-1">
-        Use ↑↓ to navigate, Enter to select, Esc to cancel
-      </div>
+      <div className="text-gray-400 text-xs mb-1">Use ↑↓ to navigate, Enter to select, Esc to cancel</div>
       {validItems.map((item, index) => (
         <button
           key={item.path} // Use item.path for a more stable key

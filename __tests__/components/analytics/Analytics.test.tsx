@@ -1,23 +1,7 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
-import React from "react";
+import type { UmamiMock, MockScriptProps } from "@/types/test";
 import { render, waitFor, act } from "@testing-library/react";
 import { Analytics } from "../../../components/analytics/analytics.client";
 import { jest, describe, beforeEach, afterEach, it, expect } from "@jest/globals";
-
-type UmamiMock = {
-  track: jest.Mock;
-} & jest.Mock;
-
-type PlausibleMock = jest.Mock;
-
-// Override the window object for tests
-declare global {
-  // eslint-disable-next-line no-var
-  var umami: UmamiMock | undefined;
-  // eslint-disable-next-line no-var
-  var plausible: PlausibleMock | undefined;
-}
 
 // Create mock functions
 const mockUsePathname = jest.fn();
@@ -32,15 +16,6 @@ const loadedScripts: Record<string, boolean> = {};
 let mockScriptShouldError = false;
 
 // Mock next/script using jest.mock
-
-type MockScriptProps = {
-  id: string;
-  onLoad?: () => void;
-  onError?: (error: Error) => void;
-  src?: string; // Added src as it's a common prop, though not used in this mock
-  strategy?: string; // Added strategy, though not used
-  // Add other props if your mock needs to handle them
-};
 
 jest.mock("next/script", () => ({
   __esModule: true,
@@ -63,12 +38,12 @@ jest.mock("next/script", () => ({
             const umamiMock: UmamiMock = Object.assign(jest.fn(), {
               track: jest.fn(),
             });
-            global.umami = umamiMock;
+            (global as any).umami = umamiMock;
             loadedScripts[id] = true; // Mark as loaded
             onLoad?.();
           } else if (id === "plausible") {
             // Mock Plausible initialization
-            global.plausible = jest.fn();
+            (global as any).plausible = jest.fn();
             loadedScripts[id] = true; // Mark as loaded
             onLoad?.();
           }
@@ -81,7 +56,6 @@ jest.mock("next/script", () => ({
 }));
 
 // Statically import the mocked modules *after* mocking
-import { usePathname as usePathnameImported } from "next/navigation";
 
 describe.skip("Analytics", () => {
   const originalEnv = process.env;
@@ -106,8 +80,8 @@ describe.skip("Analytics", () => {
     mockScriptShouldError = false;
 
     // Reset window objects between tests
-    global.umami = undefined;
-    global.plausible = undefined;
+    (global as any).umami = undefined;
+    (global as any).plausible = undefined;
 
     // Use fake timers
     jest.useFakeTimers();
@@ -133,13 +107,13 @@ describe.skip("Analytics", () => {
 
     // Wait for scripts to "load"
     await waitFor(() => {
-      expect(global.umami).toBeDefined();
-      expect(global.umami?.track).toHaveBeenCalled();
-      expect(global.plausible).toBeDefined();
+      expect((global as any).umami).toBeDefined();
+      expect((global as any).umami?.track).toHaveBeenCalled();
+      expect((global as any).plausible).toBeDefined();
     });
 
     // Verify tracking was called with correct arguments
-    expect(global.umami?.track).toHaveBeenCalledWith(
+    expect((global as any).umami?.track).toHaveBeenCalledWith(
       "pageview",
       expect.objectContaining({
         path: "/test-page",
@@ -183,10 +157,10 @@ describe.skip("Analytics", () => {
 
     // Wait for the initial track calls (could be multiple) to settle
     await waitFor(() => {
-      expect(global.umami?.track).toHaveBeenCalled();
+      expect((global as any).umami?.track).toHaveBeenCalled();
     });
     // Verify at least one call was for the initial path
-    expect(global.umami?.track).toHaveBeenCalledWith(
+    expect((global as any).umami?.track).toHaveBeenCalledWith(
       "pageview",
       expect.objectContaining({
         path: "/initial-path",
@@ -194,8 +168,8 @@ describe.skip("Analytics", () => {
     );
 
     // Clear the mock for next assertions
-    if (global.umami?.track) {
-      global.umami.track.mockClear();
+    if ((global as any).umami?.track) {
+      (global as any).umami.track.mockClear();
     }
 
     // Change pathname
@@ -212,7 +186,7 @@ describe.skip("Analytics", () => {
 
     // Wait for the track call triggered by the pathname change
     await waitFor(() => {
-      expect(global.umami?.track).toHaveBeenCalledWith(
+      expect((global as any).umami?.track).toHaveBeenCalledWith(
         "pageview",
         expect.objectContaining({
           path: "/new-path",
@@ -220,7 +194,7 @@ describe.skip("Analytics", () => {
       );
     });
     // Ensure it was called exactly once after the clear
-    expect(global.umami?.track).toHaveBeenCalledTimes(1);
+    expect((global as any).umami?.track).toHaveBeenCalledTimes(1);
   });
 
   it("handles script load errors gracefully", async () => {
@@ -237,9 +211,7 @@ describe.skip("Analytics", () => {
 
     await waitFor(() => {
       // Check for the new warning message format
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "[Analytics] Failed to load Umami script - continuing without analytics",
-      );
+      expect(consoleSpy).toHaveBeenCalledWith("[Analytics] Failed to load Umami script - continuing without analytics");
     });
   });
 });

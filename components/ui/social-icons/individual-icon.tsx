@@ -4,7 +4,7 @@
  * Renders a single social media icon with link.
  */
 
-import type { SocialIconProps } from "@/types/social";
+import type { SocialIconProps } from "@/types/ui/social";
 
 export const IndividualIcon = ({ href, label, icon: Icon }: SocialIconProps) => {
   return (

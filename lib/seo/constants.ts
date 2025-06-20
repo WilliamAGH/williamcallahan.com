@@ -28,95 +28,11 @@
  * @see {@link "https://schema.org/dateModified"} - Schema.org date properties
  * @see {@link "https://dublincore.org/specifications/dublin-core/dcmi-terms/#created"} - Dublin Core dates
  */
-/**
- * SEO date field constants following current web standards
- * @see {@link "https://ogp.me/#type_article"} - OpenGraph article dates
- * @see {@link "https://schema.org/ProfilePage"} - Schema.org ProfilePage
- * @see {@link "https://schema.org/Article"} - Schema.org Article
- * @see {@link "https://developers.google.com/search/docs/appearance/publication-dates"} - Schema.org Person
- */
-export const SEO_DATE_FIELDS = {
-  // OpenGraph article dates (primary standard for social sharing)
-  openGraph: {
-    published: "article:published_time",
-    modified: "article:modified_time",
-  },
-  // Standard HTML meta dates
-  meta: {
-    published: "date",
-    modified: "last-modified",
-  },
-  // Schema.org dates for JSON-LD structured data
-  jsonLd: {
-    context: "https://schema.org",
-    dateFields: {
-      created: "dateCreated",
-      published: "datePublished",
-      modified: "dateModified",
-    },
-    types: {
-      profile: "ProfilePage",
-      article: "Article",
-      person: "Person",
-      collection: "CollectionPage",
-    },
-  },
-  // Optional Dublin Core dates (legacy support)
-  dublinCore: {
-    created: "DC.date.created",
-    modified: "DC.date.modified",
-    issued: "DC.date.issued",
-  },
-} as const;
+// SEO_DATE_FIELDS constant has been moved to types/seo.ts to break circular dependency
 
-/**
- * Shared interfaces for article metadata
- * @see {@link "../../types/seo.ts"} - Full type definitions
- */
-export interface ArticleParams {
-  title: string;
-  description: string;
-  url: string;
-  image?: string;
-  datePublished: string;
-  dateModified: string;
-  tags?: string[];
-  articleBody?: string;
-  /** Whether to use NewsArticle schema (recommended for better SEO) */
-  useNewsArticle?: boolean;
-  /** Authors information for multiple authors */
-  authors?: Array<{
-    name: string;
-    url?: string;
-  }>;
-}
+// Type definitions for these parameters are now located in `types/seo.ts`.
 
-/**
- * Shared interfaces for software application metadata
- * @see {@link "https://schema.org/SoftwareApplication"} - Schema.org SoftwareApplication
- */
-export interface SoftwareAppParams {
-  title: string;
-  description: string;
-  url: string;
-  image?: string;
-  datePublished: string;
-  dateModified: string;
-  tags?: string[];
-  articleBody?: string;
-  softwareName: string;
-  operatingSystem?: string;
-  applicationCategory?: string;
-  isFree?: boolean;
-  price?: number;
-  priceCurrency?: string;
-  ratingValue?: number;
-  ratingCount?: number;
-  downloadUrl?: string;
-  softwareVersion?: string;
-  screenshot?: string | string[];
-  authors?: Array<{
-    name: string;
-    url?: string;
-  }>;
-}
+// Re-export types (breaking circular dependency by importing directly from types)
+export type { ArticleParams, SoftwareAppParams } from "../../types/seo";
+
+export { SEO_DATE_FIELDS } from "../../types/seo";

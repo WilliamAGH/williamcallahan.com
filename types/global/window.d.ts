@@ -1,5 +1,5 @@
 // Needed for JSX namespace re-exports
-import type * as React from 'react';
+import type * as React from "react";
 
 // Define the structure for the Clicky analytics object on the window
 interface ClickyAnalytics {
@@ -18,6 +18,12 @@ declare global {
     umami?: { track: (eventName: string, data?: Record<string, unknown>) => void };
     /** Plausible analytics function */
     plausible?: (eventName: string, options?: { props?: Record<string, unknown> }) => void;
+    /** Twitter widgets API */
+    twttr?: {
+      widgets?: {
+        load: (element?: HTMLElement | null) => void;
+      };
+    };
   }
 
   // Fix for JSX namespace issues with @types/mdx and React 19

@@ -1,18 +1,11 @@
 "use client";
 
-import React, { Suspense } from "react";
+import { Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { SocialListClient } from "./social-list.client";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 
-interface SocialWindowContentProps {
-  children: React.ReactNode;
-  windowState: string;
-  onClose: () => void;
-  onMinimize: () => void;
-  onMaximize: () => void;
-  hasMounted: boolean;
-}
+import type { SocialWindowContentProps } from "@/types";
 
 export function SocialWindowContent({
   children,
@@ -58,10 +51,7 @@ export function SocialWindowContent({
           fallback={
             <div className="animate-pulse space-y-4 p-6">
               {Array.from({ length: 3 }, () => (
-                <div
-                  key={crypto.randomUUID()}
-                  className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg"
-                />
+                <div key={crypto.randomUUID()} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
               ))}
             </div>
           }

@@ -16,12 +16,7 @@ export function Skills() {
     },
     {
       title: "Leadership",
-      skills: [
-        "Team Management",
-        "Strategic Planning",
-        "Product Development",
-        "Stakeholder Relations",
-      ],
+      skills: ["Team Management", "Strategic Planning", "Product Development", "Stakeholder Relations"],
     },
     {
       title: "Technical",
@@ -43,10 +38,7 @@ export function Skills() {
             <h3 className="text-xl font-semibold mb-4">{category.title}</h3>
             <div className="flex flex-wrap gap-2">
               {category.skills.map((skill) => (
-                <span
-                  key={skill}
-                  className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-sm"
-                >
+                <span key={skill} className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-sm">
                   {skill}
                 </span>
               ))}

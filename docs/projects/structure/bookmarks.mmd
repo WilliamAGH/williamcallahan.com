@@ -71,7 +71,7 @@ graph TD
     W --> X["Batch Process (5 concurrent, 1s delays)"]
     X --> Y{OG Fetch Success?}
     Y -->|✅ Yes| Z[Enhance with OG metadata + S3 image storage]
-    Y -->|❌ No| AA["🚨 MISSING: Should use Karakeep fallback!"]
+    Y -->|❌ No| AA["Use Karakeep fallback images"]
     
     %% Asset Integration
     subgraph Assets ["🖼️ Asset Management"]
@@ -111,12 +111,13 @@ graph TD
         UU["✅ Singleton initialization prevents duplicate setups"]
         VV["✅ Request deduplication prevents concurrent refreshes"]
         WW["✅ Tag navigation with URL routing and special char support"]
+        XX["✅ Client-side error logging added to fetchBookmarksFromApi"]
     end
     
     %% Performance Improvements
     subgraph Performance ["⚡ Performance Gains"]
         W1["API calls per page: 25+ → 1 (96% reduction)"]
-        W2["Page load time: 2-3s → <500ms"]
+        W2["Page load time: significantly improved"]
         W3["Memory usage: Stable with singleton pattern"]
         W4["Concurrent requests: Properly deduplicated"]
     end
@@ -128,7 +129,23 @@ graph TD
         INT3["API Routes: /api/bookmarks/refresh"]
         INT4["Individual Pages: app/bookmarks/[slug]"]
         INT5["Tag Pages: app/bookmarks/tags/[tagSlug]"]
+        INT6["Memory Manager: ImageMemoryManager"]
+        INT7["Image Service: UnifiedImageService"]
     end
+    
+    %% Memory Management Integration
+    subgraph MemoryMgmt ["🧠 Memory Management"]
+        MEM1["No buffers in ServerCache"]
+        MEM2["All images via UnifiedImageService"]
+        MEM3["Memory pressure detection"]
+        MEM4["Automatic cleanup on critical"]
+        MEM5["See memory-mgmt.md"]
+    end
+    
+    W --> INT6
+    INT6 --> INT7
+    INT7 --> MEM1
+    Z --> MEM2
     
     %% Navigation Flow (NEW)
     subgraph Navigation ["🧭 Navigation Flow"]

@@ -15,7 +15,7 @@
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
-import type { ClientBoundaryProps } from "@/types/component-types";
+import type { ProjectsWindowClientProps } from "@/types/features/projects";
 import { FolderKanban } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Suspense, useEffect } from "react";
@@ -23,16 +23,6 @@ import { ProjectsListClient } from "./projects-list.client";
 
 // Define a unique ID for this window instance
 const PROJECTS_WINDOW_ID = "projects-window";
-
-/**
- * Props for the ProjectsWindow component
- */
-interface ProjectsWindowProps extends ClientBoundaryProps {
-  /**
-   * Server-rendered content to be displayed within the window
-   */
-  children: React.ReactNode;
-}
 
 /**
  * Dynamic import of the window content component to prevent server-side rendering
@@ -47,12 +37,14 @@ const ProjectsWindowContent = dynamic(
         onClose,
         onMinimize,
         onMaximize,
+        title,
       }: {
         children: React.ReactNode;
         windowState: string;
         onClose: () => void;
         onMinimize: () => void;
         onMaximize: () => void;
+        title: string;
       }) => {
         const isMaximized = windowState === "maximized";
 
@@ -71,7 +63,7 @@ const ProjectsWindowContent = dynamic(
             <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 sticky top-0 z-10">
               <div className="flex items-center">
                 <WindowControls onClose={onClose} onMinimize={onMinimize} onMaximize={onMaximize} />
-                <h1 className="text-xl font-mono ml-4">~/project-sandbox</h1>
+                <h1 className="text-xl font-mono ml-4">~/{title.toLowerCase().replace(/\s+/g, "-")}</h1>
               </div>
             </div>
 
@@ -80,16 +72,12 @@ const ProjectsWindowContent = dynamic(
                 fallback={
                   <div className="animate-pulse space-y-4 p-6">
                     {Array.from({ length: 3 }, () => (
-                      <div
-                        key={crypto.randomUUID()}
-                        className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg"
-                      />
+                      <div key={crypto.randomUUID()} className="bg-gray-200 dark:bg-gray-700 h-32 rounded-lg" />
                     ))}
                   </div>
                 }
               >
                 {children}
-                <ProjectsListClient />
               </Suspense>
             </div>
           </div>
@@ -108,14 +96,19 @@ const ProjectsWindowContent = dynamic(
  * @param {ProjectsWindowProps} props - Component props
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
  */
-export function ProjectsWindow({ children }: ProjectsWindowProps) {
+export function ProjectsWindow({ title = "Projects", onClose, onMinimize, onMaximize }: ProjectsWindowClientProps) {
   const {
     windowState,
     close: closeWindow,
     minimize: minimizeWindow,
     maximize: maximizeWindow,
     isRegistered,
-  } = useRegisteredWindowState(PROJECTS_WINDOW_ID, FolderKanban, "Restore Projects", "normal");
+  } = useRegisteredWindowState(PROJECTS_WINDOW_ID, FolderKanban, title, "normal");
+
+  // Use provided handlers or fall back to internal handlers
+  const handleClose = onClose || closeWindow;
+  const handleMinimize = onMinimize || minimizeWindow;
+  const handleMaximize = onMaximize || maximizeWindow;
 
   // Log state changes (optional)
   useEffect(() => {
@@ -142,11 +135,12 @@ export function ProjectsWindow({ children }: ProjectsWindowProps) {
   return (
     <ProjectsWindowContent
       windowState={windowState}
-      onClose={closeWindow}
-      onMinimize={minimizeWindow}
-      onMaximize={maximizeWindow}
+      onClose={handleClose}
+      onMinimize={handleMinimize}
+      onMaximize={handleMaximize}
+      title={title}
     >
-      {children}
+      <ProjectsListClient />
     </ProjectsWindowContent>
   );
 }

@@ -5,7 +5,7 @@
  */
 
 import { cn } from "@/lib/utils";
-import type { SocialIconProps } from "@/types/social";
+import type { SocialIconProps } from "@/types/ui/social";
 
 export function SocialIcon({ href, label, icon: Icon, emphasized }: SocialIconProps) {
   return (

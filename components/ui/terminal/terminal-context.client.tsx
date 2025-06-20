@@ -6,17 +6,11 @@
 
 "use client";
 
-import type { TerminalCommand } from "@/types/terminal";
 import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-
-// Define the context type including history and mode state
-interface TerminalContextType {
-  clearHistory: () => void;
-  resetTerminal: () => void;
-  history: TerminalCommand[];
-  addToHistory: (command: TerminalCommand) => void;
-}
+import type { TerminalCommand } from "@/types/terminal";
+import type { TerminalContextType } from "@/types/ui/terminal";
+import { isTerminalCommandArray } from "@/types/terminal";
 
 // Define default context value
 const defaultContext: TerminalContextType = {
@@ -24,39 +18,45 @@ const defaultContext: TerminalContextType = {
   resetTerminal: () => {},
   history: [],
   addToHistory: () => {},
+  addCommand: () => {},
+  currentInput: "",
+  setCurrentInput: () => {},
 };
 
 export const TerminalContext = createContext<TerminalContextType>(defaultContext);
 
 const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
+  type: "text",
   input: "",
   output: 'Welcome! Type "help" for available commands.',
+  id: "initial-welcome-message",
+  timestamp: Date.now(),
 };
 
 const HISTORY_STORAGE_KEY = "terminal_history";
 
 export function TerminalProvider({ children }: { children: React.ReactNode }) {
+  const [currentInput, setCurrentInput] = useState<string>("");
+
   // Initialize state lazily to read from sessionStorage only on the client
-  const [history, setHistory] = useState<TerminalCommand[]>(() => {
+  const [history, setHistory] = useState<TerminalCommand[]>((): TerminalCommand[] => {
     if (typeof window === "undefined") {
       // Server-side rendering: start with empty history
-      return [];
+      return [INITIAL_WELCOME_MESSAGE];
     }
     try {
       // Client-side: try loading from sessionStorage
       const saved = sessionStorage.getItem(HISTORY_STORAGE_KEY);
       if (saved) {
         const parsedData = JSON.parse(saved) as unknown; // Explicitly type as unknown
-        // Ensure it's an array and assert its type
-        if (Array.isArray(parsedData)) {
-          const parsedHistory = parsedData as TerminalCommand[]; // Assert type here
+
+        if (isTerminalCommandArray(parsedData)) {
           // Check if welcome message exists, add if not
-          const hasWelcome = parsedHistory.some(
-            (cmd: TerminalCommand) =>
-              cmd.input === INITIAL_WELCOME_MESSAGE.input &&
-              cmd.output === INITIAL_WELCOME_MESSAGE.output,
-          );
-          return hasWelcome ? parsedHistory : [INITIAL_WELCOME_MESSAGE, ...parsedHistory]; // Now uses typed parsedHistory
+          const hasWelcome = parsedData.some((cmd) => cmd.id === INITIAL_WELCOME_MESSAGE.id);
+          if (hasWelcome) {
+            return parsedData;
+          }
+          return [INITIAL_WELCOME_MESSAGE, ...parsedData];
         }
       }
     } catch (e) {
@@ -101,9 +101,17 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Add command to history
-  const addToHistory = useCallback((command: TerminalCommand) => {
-    setHistory((prev) => [...prev, command]);
+  const addToHistory = useCallback((command: TerminalCommand): void => {
+    setHistory((prev: TerminalCommand[]): TerminalCommand[] => [...prev, command]);
   }, []);
+
+  // Alias for addToHistory to match interface
+  const addCommand = useCallback(
+    (command: TerminalCommand): void => {
+      addToHistory(command);
+    },
+    [addToHistory],
+  );
 
   // Memoize context value for performance
   const contextValue = useMemo(
@@ -112,8 +120,11 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
       resetTerminal,
       history,
       addToHistory,
+      addCommand,
+      currentInput,
+      setCurrentInput,
     }),
-    [clearHistory, resetTerminal, history, addToHistory],
+    [clearHistory, resetTerminal, history, addToHistory, addCommand, currentInput],
   );
 
   return <TerminalContext.Provider value={contextValue}>{children}</TerminalContext.Provider>;

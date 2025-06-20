@@ -91,16 +91,6 @@ const maximizeMock = () => setMockState(mockWindowState === "maximized" ? "norma
 const closeMock = () => setMockState("closed");
 const restoreMock = () => setMockState("normal");
 
-// Define the type for a window entry in the mock
-type MockedWindowEntry = {
-  id: string;
-  state: WindowState; // WindowState is imported
-  icon: React.ForwardRefExoticComponent<
-    React.SVGProps<SVGSVGElement> & React.RefAttributes<SVGSVGElement>
-  >;
-  title: string;
-};
-
 jest.mock("../../../../lib/context/global-window-registry-context.client", () => {
   // Use mock.module
   // Functions defined above
@@ -114,7 +104,7 @@ jest.mock("../../../../lib/context/global-window-registry-context.client", () =>
             state: mockWindowState,
             icon: MockIcon,
             title: "Terminal",
-          } as MockedWindowEntry,
+          },
         },
         registerWindow: jest.fn(),
         unregisterWindow: jest.fn(),
@@ -133,7 +123,7 @@ jest.mock("../../../../lib/context/global-window-registry-context.client", () =>
         restoreWindow: jest.fn((id: string) => {
           if (id === "main-terminal") restoreMock();
         }),
-        getWindowState: jest.fn((id: string): MockedWindowEntry | undefined =>
+        getWindowState: jest.fn((id: string) =>
           id === "main-terminal"
             ? { id: "main-terminal", state: mockWindowState, icon: MockIcon, title: "Terminal" }
             : undefined,
@@ -263,9 +253,7 @@ describe.skip("Terminal Component", () => {
 
       await waitFor(() => {
         // Look for the "command not recognized" message instead of "no site-wide results"
-        expect(
-          screen.getByText(/Command not recognized. Type "help" for available commands./i),
-        ).toBeInTheDocument();
+        expect(screen.getByText(/Command not recognized. Type "help" for available commands./i)).toBeInTheDocument();
       });
     });
   });

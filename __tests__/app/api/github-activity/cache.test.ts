@@ -3,13 +3,13 @@
  *
  * Tests the caching functionality for GitHub activity data according to the
  * multi-tiered caching architecture (docs/projects/structure/caching.md).
- * 
+ *
  * Validates ServerCacheInstance methods for GitHub activity storage and retrieval:
  * - In-memory caching with appropriate TTLs
  * - Request coalescing behavior
  * - Cache invalidation mechanisms
  * - Concurrent access handling
- * 
+ *
  * These tests use mocked ServerCacheInstance to validate cache behavior without
  * external dependencies, aligning with the testing requirements in caching.md.
  */
@@ -25,20 +25,37 @@ jest.mock("../../../../lib/server-cache", () => ({
     setGithubActivity: jest.fn(),
     getGithubActivity: jest.fn(),
     clearGithubActivity: jest.fn(),
-    getStats: jest.fn(() => ({ hits: 0, misses: 0, keys: 0, ksize: 0, vsize: 0 })),
+    getStats: jest.fn(() => ({
+      hits: 0,
+      misses: 0,
+      keys: 0,
+      ksize: 0,
+      vsize: 0,
+    })),
   },
   __esModule: true,
 }));
 
 // Import the mocked ServerCacheInstance after the mock is defined
 import { ServerCacheInstance } from "../../../../lib/server-cache";
-import { CacheTester } from "../../../../lib/test-utils/cache-tester";
 
 // Get references to the mocked functions
-const mockSetGithubActivity = ServerCacheInstance.setGithubActivity as jest.MockedFunction<any>;
-const mockGetGithubActivity = ServerCacheInstance.getGithubActivity as jest.MockedFunction<any>;
-const mockClearGithubActivity = ServerCacheInstance.clearGithubActivity as jest.MockedFunction<any>;
-const mockGetStats = ServerCacheInstance.getStats as jest.MockedFunction<any>;
+const mockSetGithubActivity = ServerCacheInstance.setGithubActivity as jest.MockedFunction<
+  (activity: GitHubActivityApiResponse) => void
+>;
+const mockGetGithubActivity = ServerCacheInstance.getGithubActivity as jest.MockedFunction<
+  () => GitHubActivityApiResponse | undefined
+>;
+const mockClearGithubActivity = ServerCacheInstance.clearGithubActivity as jest.MockedFunction<() => void>;
+const mockGetStats = ServerCacheInstance.getStats as jest.MockedFunction<
+  () => {
+    hits: number;
+    misses: number;
+    keys: number;
+    ksize: number;
+    vsize: number;
+  }
+>;
 
 // Set up mock state
 const mockGithubActivity: { current: GitHubActivityApiResponse | undefined } = {
@@ -65,9 +82,6 @@ mockGetGithubActivity.mockImplementation(() => {
 mockClearGithubActivity.mockImplementation(() => {
   mockGithubActivity.current = undefined;
 });
-
-// These tests should run in all environments to validate caching behavior
-const shouldSkip = false;
 
 // Mock GitHub activity data
 const MOCK_GITHUB_ACTIVITY: GitHubActivityApiResponse = {
@@ -123,102 +137,99 @@ describe("GitHub Activity API Cache Tests", () => {
 
     // Verify the result
     expect(result).toBeDefined();
-    expect(result?.trailingYearData.data).toHaveLength(
-      MOCK_GITHUB_ACTIVITY.trailingYearData.data.length,
-    );
+    expect(result?.trailingYearData.data).toHaveLength(MOCK_GITHUB_ACTIVITY.trailingYearData.data.length);
   });
 
   it("should clear GitHub activity", () => {
-      // Set mock data
-      ServerCacheInstance.setGithubActivity(MOCK_GITHUB_ACTIVITY);
+    // Set mock data
+    ServerCacheInstance.setGithubActivity(MOCK_GITHUB_ACTIVITY);
 
-      // Clear the cache
-      ServerCacheInstance.clearGithubActivity();
+    // Clear the cache
+    ServerCacheInstance.clearGithubActivity();
 
-      // Verify clearGithubActivity was called
-      expect(mockClearGithubActivity).toHaveBeenCalledTimes(1);
+    // Verify clearGithubActivity was called
+    expect(mockClearGithubActivity).toHaveBeenCalledTimes(1);
 
-      // Try to get the data back
-      const result = ServerCacheInstance.getGithubActivity();
+    // Try to get the data back
+    const result = ServerCacheInstance.getGithubActivity();
 
-      // Verify getGithubActivity was called again
-      expect(mockGetGithubActivity).toHaveBeenCalledTimes(1);
+    // Verify getGithubActivity was called again
+    expect(mockGetGithubActivity).toHaveBeenCalledTimes(1);
 
-      // The result should be undefined after clearing
-      expect(result).toBeUndefined();
-    });
+    // The result should be undefined after clearing
+    expect(result).toBeUndefined();
+  });
 
   it("should clear GitHub activity cache properly", () => {
-      // Set mock data
-      ServerCacheInstance.setGithubActivity(MOCK_GITHUB_ACTIVITY);
+    // Set mock data
+    ServerCacheInstance.setGithubActivity(MOCK_GITHUB_ACTIVITY);
 
-      // Verify it's in cache
-      const cached = ServerCacheInstance.getGithubActivity();
-      expect(cached).toBeDefined();
+    // Verify it's in cache
+    const cached = ServerCacheInstance.getGithubActivity();
+    expect(cached).toBeDefined();
 
-      // Clear the cache
-      ServerCacheInstance.clearGithubActivity();
+    // Clear the cache
+    ServerCacheInstance.clearGithubActivity();
 
-      // Verify clearGithubActivity was called
-      expect(mockClearGithubActivity).toHaveBeenCalledTimes(1);
+    // Verify clearGithubActivity was called
+    expect(mockClearGithubActivity).toHaveBeenCalledTimes(1);
 
-      // Try to retrieve after clearing
-      const clearedCache = ServerCacheInstance.getGithubActivity();
+    // Try to retrieve after clearing
+    const clearedCache = ServerCacheInstance.getGithubActivity();
 
-      // Verify getGithubActivity was called
-      expect(mockGetGithubActivity).toHaveBeenCalledTimes(2); // Called once before clear, once after
+    // Verify getGithubActivity was called
+    expect(mockGetGithubActivity).toHaveBeenCalledTimes(2); // Called once before clear, once after
 
-      // The result should be undefined after clearing
-      expect(clearedCache).toBeUndefined();
-    });
+    // The result should be undefined after clearing
+    expect(clearedCache).toBeUndefined();
+  });
 
   it("should handle cache miss gracefully", () => {
-      // Don't store anything in cache
-      // Just try to retrieve
-      const cacheMiss = ServerCacheInstance.getGithubActivity();
+    // Don't store anything in cache
+    // Just try to retrieve
+    const cacheMiss = ServerCacheInstance.getGithubActivity();
 
-      // Verify getGithubActivity was called
-      expect(mockGetGithubActivity).toHaveBeenCalledTimes(1);
+    // Verify getGithubActivity was called
+    expect(mockGetGithubActivity).toHaveBeenCalledTimes(1);
 
-      // Should be undefined when cache is empty
-      expect(cacheMiss).toBeUndefined();
-    });
+    // Should be undefined when cache is empty
+    expect(cacheMiss).toBeUndefined();
+  });
 
   it("should handle concurrent access to cache", async () => {
-      // Reset mock implementation to track concurrent calls
-      mockSetGithubActivity.mockImplementation((data) => {
-        // Simulate some work
-        mockGithubActivity.current = data;
+    // Reset mock implementation to track concurrent calls
+    mockSetGithubActivity.mockImplementation((data) => {
+      // Simulate some work
+      mockGithubActivity.current = data;
+    });
+
+    // Test that the cache can handle concurrent access
+    const concurrentPromises = Array(5)
+      .fill(0)
+      .map((_, i) => {
+        const mockData = {
+          ...MOCK_GITHUB_ACTIVITY,
+          trailingYearData: {
+            ...MOCK_GITHUB_ACTIVITY.trailingYearData,
+            data: MOCK_GITHUB_ACTIVITY.trailingYearData.data.map((item) => ({
+              ...item,
+              count: i, // Each concurrent call gets a different count
+            })),
+          },
+        };
+        return ServerCacheInstance.setGithubActivity(mockData);
       });
 
-      // Test that the cache can handle concurrent access
-      const concurrentPromises = Array(5)
-        .fill(0)
-        .map((_, i) => {
-          const mockData = {
-            ...MOCK_GITHUB_ACTIVITY,
-            trailingYearData: {
-              ...MOCK_GITHUB_ACTIVITY.trailingYearData,
-              data: MOCK_GITHUB_ACTIVITY.trailingYearData.data.map((item) => ({
-                ...item,
-                count: i, // Each concurrent call gets a different count
-              })),
-            },
-          };
-          return ServerCacheInstance.setGithubActivity(mockData);
-        });
+    await Promise.all(concurrentPromises);
 
-      await Promise.all(concurrentPromises);
+    // Verify setGithubActivity was called 5 times
+    expect(mockSetGithubActivity).toHaveBeenCalledTimes(5);
 
-      // Verify setGithubActivity was called 5 times
-      expect(mockSetGithubActivity).toHaveBeenCalledTimes(5);
+    // After all operations, we should have data in cache
+    const result = ServerCacheInstance.getGithubActivity();
+    expect(result).toBeDefined();
 
-      // After all operations, we should have data in cache
-      const result = ServerCacheInstance.getGithubActivity();
-      expect(result).toBeDefined();
-
-      // The last call should be the one that persists
-      const lastCall = mockSetGithubActivity.mock.calls[4][0];
-      expect(result?.trailingYearData.data[0].count).toBe(4);
-    });
+    // The last call should be the one that persists
+    expect(result?.trailingYearData.data[0].count).toBe(4);
   });
+});

@@ -39,11 +39,7 @@ export const LOGO_CACHE_DURATION = {
  * Type definition for S3 storage paths for bookmarks.
  * Explicitly defines the literal string types for each property.
  */
-export type BookmarksS3Paths = {
-  readonly DIR: "bookmarks";
-  readonly FILE: `bookmarks/bookmarks${string}.json`;
-  readonly LOCK: `bookmarks/refresh-lock${string}.json`;
-};
+import type { BookmarksS3Paths } from "@/types/lib";
 
 /**
  * S3 storage paths for bookmarks (environment-aware).
@@ -82,6 +78,22 @@ export const BOOKMARKS_CACHE_DURATION = {
   FAILURE: 60 * 60,
   /** Revalidation interval (1 hour in seconds) - how often to check for new data */
   REVALIDATION: 1 * 60 * 60,
+} as const;
+
+/**
+ * Bookmarks API configuration
+ * @constant
+ * @type {Object}
+ */
+export const BOOKMARKS_API_CONFIG = {
+  /** Base URL for the bookmarks API */
+  API_URL: process.env.BOOKMARKS_API_URL ?? "https://bookmark.iocloudhost.net/api/v1",
+  /** List ID for fetching bookmarks */
+  LIST_ID: process.env.BOOKMARKS_LIST_ID,
+  /** Bearer token for API authentication */
+  BEARER_TOKEN: process.env.BOOKMARK_BEARER_TOKEN,
+  /** Request timeout in milliseconds */
+  REQUEST_TIMEOUT_MS: 10_000,
 } as const;
 
 /**
@@ -164,8 +176,7 @@ export const OPENGRAPH_FETCH_CONFIG = {
  * In production, this defaults to the main domain.
  * In development, it uses localhost.
  */
-export const NEXT_PUBLIC_SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
+export const NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
 
 /**
  * Base URL for API endpoints
@@ -359,25 +370,45 @@ export const CSP_DIRECTIVES = {
     "https://react-tweet.vercel.app",
     "https:",
   ],
-  styleSrc: [
-    "'self'",
-    "'unsafe-inline'",
-    "https://platform.twitter.com",
-    "https://*.twimg.com",
-    "https://*.x.com",
-  ],
-  fontSrc: [
-    "'self'",
-    "data:",
-    "https://platform.twitter.com",
-    "https://*.twimg.com",
-    "https://*.x.com",
-  ],
+  styleSrc: ["'self'", "'unsafe-inline'", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com"],
+  fontSrc: ["'self'", "data:", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com"],
   frameSrc: ["https://platform.twitter.com", "https://*.x.com"],
   frameAncestors: ["'none'"],
   baseUri: ["'self'"],
   formAction: ["'self'"],
 };
+
+/**
+ * Memory usage thresholds for health monitoring and load shedding.
+ * All values are in bytes.
+ *
+ * - `TOTAL_PROCESS_MEMORY_BUDGET_BYTES`: Total memory budget for the entire process (default 1GB)
+ * - `IMAGE_RAM_BUDGET_BYTES`: Memory allocated specifically for the image cache (default 512MB)
+ * - `MEMORY_WARNING_THRESHOLD`: RSS memory usage that triggers a "warning" state (default 70% of total budget)
+ * - `MEMORY_CRITICAL_THRESHOLD`: RSS memory usage that triggers a "critical" state and load shedding (default 90% of total budget)
+ * - `IMAGE_STREAM_THRESHOLD_BYTES`: Images larger than this are streamed to S3 (default 5MB)
+ */
+export const MEMORY_THRESHOLDS = {
+  // Total process memory budget (used by mem-guard for RSS monitoring)
+  TOTAL_PROCESS_MEMORY_BUDGET_BYTES: Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 1024 * 1024 * 1024), // 1GB default
+
+  // Image cache-specific budget (used by ImageMemoryManager)
+  IMAGE_RAM_BUDGET_BYTES: Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? 512 * 1024 * 1024), // 512MB default
+
+  // Warning threshold based on total process memory (70% of 1GB = 717MB)
+  MEMORY_WARNING_THRESHOLD: Number(
+    process.env.MEMORY_WARNING_THRESHOLD ??
+      Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 1024 * 1024 * 1024) * 0.7,
+  ),
+
+  // Critical threshold based on total process memory (90% of 1GB = 922MB)
+  MEMORY_CRITICAL_THRESHOLD: Number(
+    process.env.MEMORY_CRITICAL_THRESHOLD ??
+      Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 1024 * 1024 * 1024) * 0.9,
+  ),
+
+  IMAGE_STREAM_THRESHOLD_BYTES: Number(process.env.IMAGE_STREAM_THRESHOLD_BYTES ?? 5 * 1024 * 1024), // 5MB default
+} as const;
 
 /**
  * Default S3 bucket name used by data-access and utility layers.

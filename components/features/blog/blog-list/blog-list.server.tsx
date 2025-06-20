@@ -10,20 +10,11 @@
  * @serverComponent - This component should only be used in a server context.
  */
 
-import type { BlogPost } from "@/types/blog";
 import { BlogCard } from "./blog-card";
 
 import type { JSX } from "react";
 
-/**
- * Props for the BlogListServer component
- */
-interface BlogListServerProps {
-  /**
-   * Array of blog posts to display
-   */
-  posts: BlogPost[];
-}
+import type { BlogListServerProps } from "@/types/features";
 
 /**
  * Server component that renders a grid of blog post cards

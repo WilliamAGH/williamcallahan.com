@@ -18,13 +18,7 @@ import { useEffect } from "react";
  * minimal UI disruption
  */
 
-export default function GlobalAppError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function GlobalAppError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const pathname = usePathname();
   const isBlogRoute = pathname?.startsWith("/blog");
 

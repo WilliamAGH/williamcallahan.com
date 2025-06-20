@@ -7,28 +7,17 @@
  */
 "use client";
 
-import type { UnifiedBookmark } from "@/types";
+import type { BookmarksClientExtendedProps } from "@/types";
 import { BookmarksWithOptions } from "./bookmarks-with-options.client";
 
-interface BookmarksClientProps {
-  bookmarks: UnifiedBookmark[];
-  forceClientFetch?: boolean;
-  showFilterBar?: boolean;
-}
-
-export const BookmarksClient: React.FC<BookmarksClientProps> = ({
+export const BookmarksClient: React.FC<BookmarksClientExtendedProps> = ({
   bookmarks,
   forceClientFetch = false,
   showFilterBar = true,
 }) => {
   // Debug log to check if bookmarks are passed correctly to client component
   if (process.env.NODE_ENV === "development") {
-    console.log(
-      "BookmarksClient receiving bookmarks:",
-      bookmarks?.length || 0,
-      "forceClientFetch:",
-      forceClientFetch,
-    );
+    console.log("BookmarksClient receiving bookmarks:", bookmarks?.length || 0, "forceClientFetch:", forceClientFetch);
   }
 
   // Force client-side indicators in development

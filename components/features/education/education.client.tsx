@@ -21,42 +21,36 @@
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client"; // Use new hook
 import { cn } from "@/lib/utils"; // Import cn utility
 import { ChevronDown, ChevronUp, GraduationCap, Search } from "lucide-react"; // Import additional icons
-import { useEffect, useMemo, useState } from "react"; // Added useMemo
+import Image from "next/image";
+import { useMemo, useState } from "react";
 import { WindowControls } from "../../../components/ui/navigation/window-controls";
-import type { LogoData } from "../../../lib/education-data-processor";
-import type { Certification, Class, Education } from "../../../types/education";
 import { EducationCardClient } from "./education-card.client";
 
 // Define a unique ID for this window instance
 const EDUCATION_WINDOW_ID = "education-window";
 
-// Type for combined certification/class items
-type EducationTableItem = (Class | Certification) & {
-  logoData: LogoData;
-  type: "course" | "certification";
-};
+import type { EducationClientProps, EducationTableItem } from "@/types/education";
 
-/**
- * Props for the Education Client Component
- * @interface
- */
-interface EducationClientProps {
-  // Updated props to accept processed data (includes logoData)
-  education: (Education & { logoData: LogoData })[];
-  recentCourses: (Class & { logoData: LogoData })[];
-  certifications: (Certification & { logoData: LogoData })[];
-}
+// Sort indicator component
+const SortIndicator = ({
+  field,
+  sortField,
+  sortDirection,
+}: {
+  field: "name" | "institution" | "year";
+  sortField: "name" | "institution" | "year";
+  sortDirection: "asc" | "desc";
+}) => {
+  if (sortField !== field) return null;
+  return sortDirection === "asc" ? <ChevronUp className="w-4 h-4 ml-1" /> : <ChevronDown className="w-4 h-4 ml-1" />;
+};
 
 /**
  * Education Client Component
  * @param {EducationClientProps} props - Component properties
  * @returns {JSX.Element} Rendered education section with client-side cards and window controls
  */
-export function EducationClient({
-  education,
-  recentCourses,
-  certifications,
-}: EducationClientProps) {
+export function EducationClient({ education, recentCourses, recentCertifications }: EducationClientProps) {
   // Register this window instance and get its state/actions
   const {
     windowState,
@@ -68,11 +62,8 @@ export function EducationClient({
 
   // Combined table data for filtering
   const tableData = useMemo<EducationTableItem[]>(
-    () => [
-      ...recentCourses.map((course) => ({ ...course, type: "course" as const })),
-      ...certifications.map((cert) => ({ ...cert, type: "certification" as const })),
-    ],
-    [recentCourses, certifications],
+    () => [...(recentCourses || []), ...(recentCertifications || [])],
+    [recentCourses, recentCertifications],
   );
 
   // State for filtering/searching
@@ -93,8 +84,7 @@ export function EducationClient({
         // Search filter
         if (searchQuery) {
           const searchTerms = searchQuery.toLowerCase().split(" ").filter(Boolean);
-          const itemText =
-            `${item.name} ${item.institution} ${item.location} ${item.year || ""}`.toLowerCase();
+          const itemText = `${item.name} ${item.institution} ${item.year || ""}`.toLowerCase();
           return searchTerms.every((term) => itemText.includes(term));
         }
 
@@ -102,22 +92,22 @@ export function EducationClient({
       })
       .sort((a, b) => {
         // Handle sorting
-        let valueA: string;
-        let valueB: string;
+        let valueA: string | number | undefined;
+        let valueB: string | number | undefined;
 
         if (sortField === "name") {
           valueA = a.name;
           valueB = b.name;
         } else if (sortField === "year") {
-          valueA = a.year || "";
-          valueB = b.year || "";
+          valueA = a.year;
+          valueB = b.year;
         } else {
           valueA = a.institution;
           valueB = b.institution;
         }
 
         // Sort by the selected field
-        const comparison = valueA.localeCompare(valueB);
+        const comparison = String(valueA ?? "").localeCompare(String(valueB ?? ""));
         return sortDirection === "asc" ? comparison : -comparison;
       });
   }, [tableData, selectedType, searchQuery, sortField, sortDirection]);
@@ -133,16 +123,12 @@ export function EducationClient({
   };
 
   // Log state changes (optional)
-  useEffect(() => {
-    if (isRegistered) {
-      // Check isRegistered
-      console.log(`EducationClient Render (${EDUCATION_WINDOW_ID}) - Window State:`, windowState);
-    }
-  }, [windowState, isRegistered]); // Dependency on isRegistered
+  if (isRegistered) {
+    console.log(`EducationClient Render (${EDUCATION_WINDOW_ID}) - Window State:`, windowState);
+  }
 
   // Render nothing until ready
   if (!isRegistered) {
-    // Check isRegistered
     return <></>; // Or a suitable skeleton/placeholder
   }
 
@@ -159,16 +145,6 @@ export function EducationClient({
 
   // Render normal or maximized view
   const isMaximized = windowState === "maximized";
-
-  // Sort indicator component
-  const SortIndicator = ({ field }: { field: "name" | "institution" | "year" }) => {
-    if (sortField !== field) return null;
-    return sortDirection === "asc" ? (
-      <ChevronUp className="w-4 h-4 ml-1" />
-    ) : (
-      <ChevronDown className="w-4 h-4 ml-1" />
-    );
-  };
 
   // Refactored structure to match ProjectsClient (single main wrapper)
   return (
@@ -187,11 +163,7 @@ export function EducationClient({
       {/* Sticky Header (remains the same) */}
       <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 flex-shrink-0 sticky top-0 z-10">
         <div className="flex items-center">
-          <WindowControls
-            onClose={closeWindow}
-            onMinimize={minimizeWindow}
-            onMaximize={maximizeWindow}
-          />
+          <WindowControls onClose={closeWindow} onMinimize={minimizeWindow} onMaximize={maximizeWindow} />
           <h1 className="text-xl font-mono ml-4">~/education</h1>
         </div>
       </div>
@@ -210,7 +182,7 @@ export function EducationClient({
           <div className="space-y-6">
             {/* Render EducationCardClient directly with processed data */}
             {education.map((edu) => (
-              <EducationCardClient key={edu.id} {...edu} />
+              <EducationCardClient key={edu.id} education={edu} />
             ))}
           </div>
         </div>
@@ -237,9 +209,7 @@ export function EducationClient({
 
             <select
               value={selectedType}
-              onChange={(e) =>
-                setSelectedType(e.target.value as "all" | "course" | "certification")
-              }
+              onChange={(e) => setSelectedType(e.target.value as "all" | "course" | "certification")}
               className="px-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700
                          text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Filter by type"
@@ -266,7 +236,7 @@ export function EducationClient({
                       aria-label="Sort by name"
                     >
                       Name
-                      <SortIndicator field="name" />
+                      <SortIndicator field="name" sortField={sortField} sortDirection={sortDirection} />
                     </button>
                   </th>
                   <th
@@ -277,10 +247,10 @@ export function EducationClient({
                       type="button"
                       className="flex items-center hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:text-gray-700 dark:focus:text-gray-200"
                       onClick={() => toggleSort("institution")}
-                      aria-label="Sort by institution"
+                      aria-label="Sort by institution or issuer"
                     >
                       Institution
-                      <SortIndicator field="institution" />
+                      <SortIndicator field="institution" sortField={sortField} sortDirection={sortDirection} />
                     </button>
                   </th>
                   <th
@@ -294,7 +264,7 @@ export function EducationClient({
                       aria-label="Sort by year"
                     >
                       Year
-                      <SortIndicator field="year" />
+                      <SortIndicator field="year" sortField={sortField} sortDirection={sortDirection} />
                     </button>
                   </th>
                   <th
@@ -303,57 +273,69 @@ export function EducationClient({
                   >
                     Type
                   </th>
+                  <th scope="col" className="relative px-6 py-3">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-800">
                 {filteredTableData.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={4}
-                      className="px-6 py-8 text-center text-gray-500 dark:text-gray-400"
-                    >
+                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                       No results found. Try adjusting your search or filters.
                     </td>
                   </tr>
                 ) : (
-                  filteredTableData.map((item) => (
-                    <tr
-                      key={item.id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                        {item.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        <div className="flex items-center">
-                          {item.logoData?.src && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={item.logoData.src}
-                              alt={`${item.institution} logo`}
-                              className="h-6 w-6 mr-2 object-contain rounded-md"
-                            />
+                  filteredTableData.map((item) => {
+                    return (
+                      <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {item.name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center">
+                            {item.logoData?.url && (
+                              <Image
+                                src={item.logoData.url}
+                                alt={`${item.institution} logo`}
+                                width={24}
+                                height={24}
+                                className="h-6 w-6 mr-2 object-contain rounded-md"
+                              />
+                            )}
+                            {item.institution}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {item.year || "—"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          <span
+                            className={cn(
+                              "px-2 inline-flex text-xs leading-5 font-semibold rounded-full",
+                              item.type === "certification"
+                                ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
+                                : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+                            )}
+                          >
+                            {item.type ? item.type.charAt(0).toUpperCase() + item.type.slice(1) : ""}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          {item.website && (
+                            <a
+                              href={item.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                            >
+                              View
+                            </a>
                           )}
-                          {item.institution}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {item.year || "—"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        <span
-                          className={cn(
-                            "px-2 inline-flex text-xs leading-5 font-semibold rounded-full",
-                            item.type === "certification"
-                              ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300"
-                              : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-                          )}
-                        >
-                          {item.type === "certification" ? "Certification" : "Course"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

@@ -11,7 +11,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { getBookmarksForStaticBuild } from "@/lib/bookmarks.server";
+import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import { kebabCase } from "@/lib/utils/formatters";
 import { tagToSlug } from "@/lib/utils/tag-utils";
@@ -60,14 +60,14 @@ const getLatestDate = (...dates: (Date | undefined)[]): Date | undefined => {
 };
 
 // --- Main Sitemap Generation ---
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl = siteMetadata.site.url;
   const postsDirectory = path.join(process.cwd(), "data/blog/posts");
 
   // --- 1. Process Blog Posts and Tags ---
   const postsData: { slug: string; lastModified: Date | undefined; tags: string[] }[] = [];
   const tagLastModifiedMap: { [tagSlug: string]: Date } = {};
-  let latestPostUpdateTime: Date | undefined = undefined;
+  let latestPostUpdateTime: Date | undefined;
 
   try {
     const filenames = fs.readdirSync(postsDirectory);
@@ -127,28 +127,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Create blog tag sitemap entries
-  const blogTagEntries: MetadataRoute.Sitemap = Object.entries(tagLastModifiedMap).map(
-    ([tagSlug, lastModified]) => ({
-      url: `${siteUrl}/blog/tags/${tagSlug}`,
-      lastModified: lastModified,
-      changeFrequency: "weekly",
-      priority: 0.6, // Slightly lower than individual posts
-    }),
-  );
+  const blogTagEntries: MetadataRoute.Sitemap = Object.entries(tagLastModifiedMap).map(([tagSlug, lastModified]) => ({
+    url: `${siteUrl}/blog/tags/${tagSlug}`,
+    lastModified: lastModified,
+    changeFrequency: "weekly",
+    priority: 0.6, // Slightly lower than individual posts
+  }));
 
   // --- 2. Process Bookmarks and Bookmark Tags ---
   const bookmarkEntries: MetadataRoute.Sitemap = [];
   const paginatedBookmarkEntries: MetadataRoute.Sitemap = [];
   let bookmarkTagEntries: MetadataRoute.Sitemap = [];
   const paginatedBookmarkTagEntries: MetadataRoute.Sitemap = [];
-  let latestBookmarkUpdateTime: Date | undefined = undefined;
+  let latestBookmarkUpdateTime: Date | undefined;
   const bookmarkTagLastModifiedMap: { [tagSlug: string]: Date } = {};
   const bookmarkTagCounts: { [tagSlug: string]: number } = {};
 
   try {
     // Use static build function to get bookmarks
     console.log("[Sitemap] Getting bookmarks for static build...");
-    const bookmarks = await getBookmarksForStaticBuild();
+    const bookmarks = getBookmarksForStaticBuild();
     console.log(`[Sitemap] Successfully got ${bookmarks.length} bookmarks for sitemap generation.`);
 
     // Pre-compute slugs to avoid O(n²) complexity
@@ -157,9 +155,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Process each bookmark for individual pages
     for (const bookmark of bookmarks) {
       // Use the bookmark's creation or modification date
-      const bookmarkLastModified = getSafeDate(
-        bookmark.modifiedAt || bookmark.createdAt || bookmark.dateBookmarked,
-      );
+      const bookmarkLastModified = getSafeDate(bookmark.modifiedAt || bookmark.createdAt || bookmark.dateBookmarked);
       if (bookmarkLastModified) {
         // Update latest overall bookmark time
         latestBookmarkUpdateTime = getLatestDate(latestBookmarkUpdateTime, bookmarkLastModified);
@@ -182,24 +178,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
       // Process tags for this bookmark
       const tags = Array.isArray(bookmark.tags)
-        ? bookmark.tags.map((t: string | import("@/types").BookmarkTag) =>
-            typeof t === "string" ? t : t.name,
-          )
+        ? bookmark.tags.map((t: string | import("@/types").BookmarkTag) => (typeof t === "string" ? t : t.name))
         : [];
 
       // Update lastModified time and count for each tag
       if (tags.length > 0) {
         for (const tag of tags) {
           const tagSlug = tagToSlug(tag);
-          
+
           // Update count
           bookmarkTagCounts[tagSlug] = (bookmarkTagCounts[tagSlug] || 0) + 1;
-          
+
           // Update lastModified
           if (bookmarkLastModified) {
             bookmarkTagLastModifiedMap[tagSlug] =
-              getLatestDate(bookmarkTagLastModifiedMap[tagSlug], bookmarkLastModified) ||
-              bookmarkLastModified;
+              getLatestDate(bookmarkTagLastModifiedMap[tagSlug], bookmarkLastModified) || bookmarkLastModified;
           }
         }
       }
@@ -207,7 +200,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // Generate paginated bookmark list entries
     const totalBookmarkPages = Math.ceil(bookmarks.length / BOOKMARKS_PER_PAGE);
-    
+
     // Add paginated bookmark list pages (skip page 1 as it's the main /bookmarks route)
     for (let page = 2; page <= totalBookmarkPages; page++) {
       const entry: MetadataRoute.Sitemap[number] = {
@@ -215,30 +208,28 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: "weekly",
         priority: 0.65, // Same priority as individual bookmarks
       };
-      
+
       // Only add lastModified if we have a valid date
       if (latestBookmarkUpdateTime) {
         entry.lastModified = latestBookmarkUpdateTime;
       }
-      
+
       paginatedBookmarkEntries.push(entry);
     }
 
     // Create bookmark tag sitemap entries
-    bookmarkTagEntries = Object.entries(bookmarkTagLastModifiedMap).map(
-      ([tagSlug, lastModified]) => ({
-        // Strip any remaining unicode control characters using a safe approach
-        url: `${siteUrl}/bookmarks/tags/${tagSlug.replace(/[^\u0020-\u007E]/g, "")}`, // Keep only printable ASCII
-        lastModified: lastModified,
-        changeFrequency: "weekly",
-        priority: 0.6, // Same priority as blog tags
-      }),
-    );
-    
+    bookmarkTagEntries = Object.entries(bookmarkTagLastModifiedMap).map(([tagSlug, lastModified]) => ({
+      // Strip any remaining unicode control characters using a safe approach
+      url: `${siteUrl}/bookmarks/tags/${tagSlug.replace(/[^\u0020-\u007E]/g, "")}`, // Keep only printable ASCII
+      lastModified: lastModified,
+      changeFrequency: "weekly",
+      priority: 0.6, // Same priority as blog tags
+    }));
+
     // Generate paginated bookmark tag entries
     for (const [tagSlug, count] of Object.entries(bookmarkTagCounts)) {
       const totalPages = Math.ceil(count / BOOKMARKS_PER_PAGE);
-      
+
       // Add paginated tag pages (skip page 1 as it's the main tag route)
       for (let page = 2; page <= totalPages; page++) {
         const entry: MetadataRoute.Sitemap[number] = {
@@ -246,12 +237,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           changeFrequency: "weekly",
           priority: 0.55, // Slightly lower than main tag page
         };
-        
+
         // Add lastModified if available
         if (bookmarkTagLastModifiedMap[tagSlug]) {
           entry.lastModified = bookmarkTagLastModifiedMap[tagSlug];
         }
-        
+
         paginatedBookmarkTagEntries.push(entry);
       }
     }
@@ -263,10 +254,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages = {
     "/": {
       priority: 1.0,
-      lastModified: getLatestDate(
-        getPageFileMtime("page.tsx"),
-        getSafeDate(PAGE_METADATA.home.dateModified),
-      ),
+      lastModified: getLatestDate(getPageFileMtime("page.tsx"), getSafeDate(PAGE_METADATA.home.dateModified)),
     },
     "/experience": { priority: 0.8, lastModified: getSafeDate(experienceUpdatedAt) },
     "/investments": { priority: 0.9, lastModified: getSafeDate(investmentsUpdatedAt) },

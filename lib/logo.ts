@@ -73,7 +73,7 @@ function loadCache(): LogoCache {
     const potentialCache = parsedJson as Record<string, unknown>;
 
     for (const key in potentialCache) {
-      if (Object.prototype.hasOwnProperty.call(potentialCache, key)) {
+      if (Object.hasOwn(potentialCache, key)) {
         const entry = potentialCache[key]; // entry is unknown
 
         // Type guard to check if entry matches LogoCacheEntry structure
@@ -220,7 +220,7 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
     }
     return {
       url: cached.url,
-      source: determineSource(cached.url),
+      source: determineSource(cached.url || null),
       inversion: cached.inversion,
       contentType: cached.contentType || "image/png",
     };
@@ -321,10 +321,7 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
       contentType = "image/svg+xml";
     } else if (result.url.toLowerCase().endsWith(".webp")) {
       contentType = "image/webp";
-    } else if (
-      result.url.toLowerCase().endsWith(".jpg") ||
-      result.url.toLowerCase().endsWith(".jpeg")
-    ) {
+    } else if (result.url.toLowerCase().endsWith(".jpg") || result.url.toLowerCase().endsWith(".jpeg")) {
       contentType = "image/jpeg";
     }
 
@@ -332,8 +329,7 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
       url: result.url, // We know this is a string now
       source,
       // Only include inversion if it exists in the response and is valid
-      inversion:
-        result.inversion && typeof result.inversion === "object" ? result.inversion : undefined,
+      inversion: result.inversion && typeof result.inversion === "object" ? result.inversion : undefined,
       contentType,
     };
 
@@ -346,11 +342,7 @@ export async function fetchLogo(input: string): Promise<LogoResult> {
     return successResult;
   } catch (error) {
     const errorMessage =
-      error instanceof LogoError
-        ? error.message
-        : error instanceof Error
-          ? error.message
-          : "Failed to fetch logo";
+      error instanceof LogoError ? error.message : error instanceof Error ? error.message : "Failed to fetch logo";
 
     console.error("Error fetching logo:", errorMessage);
 

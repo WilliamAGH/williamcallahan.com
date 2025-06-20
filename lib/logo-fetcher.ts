@@ -7,17 +7,19 @@
  * @module lib/logo-fetcher
  */
 
-import type { LogoSource } from "@/types"; // Still used for typing the return
+import type { LogoResult, LogoSource } from "@/types";
+import type { ImageSource } from "@/types/image";
 import { getLogo as getLogoFromDataAccess } from "./data-access"; // Import direct data access function
-import { getBaseUrl } from "./getBaseUrl"; // Added import
-import { isDebug } from "./utils/debug"; // Import debug flag
+import { ImageMemoryManagerInstance } from "./image-memory-manager";
+
+import { getBaseUrl } from "./utils/get-base-url";
+import { isDebug } from "./utils/debug";
 import { normalizeDomain } from "./utils/domain-utils";
 import { assertServerOnly } from "./utils/ensure-server-only";
 
 // Detect if we're in a build environment
 const IS_BUILD_PHASE =
-  process.env.NEXT_PHASE === "phase-production-build" ||
-  process.env.NEXT_PUBLIC_USE_DIRECT_DATA_ACCESS === "true";
+  process.env.NEXT_PHASE === "phase-production-build" || process.env.NEXT_PUBLIC_USE_DIRECT_DATA_ACCESS === "true";
 // FS imports no longer needed here
 // import fs from 'node:fs/promises';
 // import path from 'node:path';
@@ -38,15 +40,12 @@ assertServerOnly();
  * 2. If not in memory, calls the /api/logo endpoint to fetch/retrieve the logo.
  *    The API endpoint handles external fetching, validation, disk caching, and serving.
  * @param {string} domain - Domain to fetch logo for
- * @returns {Promise<{buffer: Buffer | null, source: LogoSource | null, error?: string}>}
+ * @returns {Promise<LogoResult | null>}
  */
-export async function fetchLogo(domain: string): Promise<{
-  buffer: Buffer | null;
-  source: LogoSource | null; // The API route will set an x-logo-source header
-  error?: string;
-}> {
+export async function fetchLogo(domain: string): Promise<LogoResult | null> {
   if (!domain) {
-    return { buffer: null, source: null, error: "Domain is required" };
+    console.warn("[logo-fetcher] fetchLogo called with empty domain.");
+    return null;
   }
 
   const normalizedDomain = normalizeDomain(domain); // Ensure consistent domain format for caching/requests
@@ -57,39 +56,33 @@ export async function fetchLogo(domain: string): Promise<{
   // During build phase, use direct data access instead of API calls
   if (IS_BUILD_PHASE) {
     if (isDebug)
-      console.debug(
-        `[logo-fetcher] Build phase detected, using direct data access for logo: ${normalizedDomain}`,
-      );
+      console.debug(`[logo-fetcher] Build phase detected, using direct data access for logo: ${normalizedDomain}`);
     try {
       // Use empty string as baseUrl to signal "no network validation"
       // or use API_BASE_URL which is guaranteed to exist in the build context
       const logoResult = await getLogoFromDataAccess(normalizedDomain);
 
-      if (logoResult?.buffer) {
+      if (logoResult?.s3Key) {
         if (isDebug)
           console.debug(
             `[logo-fetcher] Retrieved logo for ${normalizedDomain} (source: ${logoResult.source || "unknown"}) from data access layer`,
           );
-        // Caching is now handled inside getLogo()
-        return { buffer: logoResult.buffer, source: logoResult.source };
+        return logoResult;
       }
 
       const error = `Failed to retrieve logo for ${normalizedDomain} via direct data access`;
       console.warn(`[logo-fetcher] ${error}`);
-      return { buffer: null, source: null, error };
+      return null;
     } catch (error) {
       const errorObj = error as Error;
       const errorMessage = `[logo-fetcher] Error accessing logo for ${normalizedDomain} via direct data access: ${errorObj.message}`;
       console.error(errorMessage, error);
-      return { buffer: null, source: null, error: errorObj.message };
+      return null;
     }
   }
 
   // 2. Fetch from /api/logo endpoint (normal runtime behavior)
-  if (isDebug)
-    console.debug(
-      `[logo-fetcher] Cache miss (Memory): ${normalizedDomain}. Calling /api/logo endpoint...`,
-    );
+  if (isDebug) console.debug(`[logo-fetcher] Cache miss (Memory): ${normalizedDomain}. Calling /api/logo endpoint...`);
   try {
     // Construct the URL for the API endpoint.
     const baseUrl = getBaseUrl(); // Added
@@ -104,44 +97,40 @@ export async function fetchLogo(domain: string): Promise<{
         Accept: "image/png, image/svg+xml, */*", // Accept expected logo types
       },
       signal: controller.signal,
-      // next: { revalidate: 60 } // Client-side fetch revalidation, API route controls its own revalidation
-      // cache: 'no-store' // Let the browser and Next.js handle caching based on API response headers
     });
     clearTimeout(timer);
 
     if (response.ok) {
-      const buffer = Buffer.from(await response.arrayBuffer());
-      const logoSource = response.headers.get("x-logo-source") as LogoSource | null;
+      // The API returns the image buffer directly. We need to reconstruct the LogoResult.
+      // This is a transitional state; ideally the API would return JSON metadata.
+      const s3Key = response.headers.get("x-logo-s3-key"); // Assuming API returns this
+      const source = response.headers.get("x-logo-source") as LogoSource;
+      const contentType = response.headers.get("content-type");
 
-      if (buffer && buffer.byteLength > 0) {
-        if (isDebug)
-          console.debug(
-            `[logo-fetcher] Successfully fetched logo for ${normalizedDomain} from /api/logo (source: ${logoSource || "unknown"})`,
-          );
-        // The API route should have already cached this via getLogo()
-        return { buffer, source: logoSource };
+      if (s3Key && contentType) {
+        const buffer = Buffer.from(await response.arrayBuffer());
+        // Also cache it in the local memory manager
+        ImageMemoryManagerInstance.set(s3Key, buffer, { contentType, source: source as ImageSource });
+        return {
+          s3Key,
+          source,
+          contentType,
+          retrieval: "api",
+        };
       }
-
-      const emptyBufferError = `Empty response buffer from /api/logo for ${normalizedDomain}`;
-      console.warn(`[logo-fetcher] ${emptyBufferError}`);
-      // Don't cache this specific error type in memory fetcher, let API re-evaluate.
-      return { buffer: null, source: null, error: emptyBufferError };
     }
 
     const errorText = await response.text().catch(() => `Status ${response.status}`);
     const logoErrorHeader = response.headers.get("x-logo-error");
     const apiError =
-      logoErrorHeader ||
-      `API request to /api/logo failed for ${normalizedDomain}: ${errorText.substring(0, 100)}`;
+      logoErrorHeader || `API request to /api/logo failed for ${normalizedDomain}: ${errorText.substring(0, 100)}`;
     console.warn(`[logo-fetcher] ${apiError}`);
-    // The API route should have already cached the error via getLogo()
-    return { buffer: null, source: null, error: apiError };
+    return null;
   } catch (error) {
     const errorObj = error as Error;
     const errorMessage = `[logo-fetcher] Network error calling /api/logo for ${normalizedDomain}: ${errorObj.message}`;
     console.error(errorMessage, error);
-    // Don't cache general network errors here as they might be transient.
-    return { buffer: null, source: null, error: errorObj.message };
+    return null;
   }
 }
 

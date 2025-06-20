@@ -17,8 +17,11 @@ export function CommandInterface() {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<TerminalCommand[]>([
     {
+      type: "text",
+      id: "welcome",
       input: "",
       output: 'Welcome! Type "help" for available commands.',
+      timestamp: Date.now(),
     },
   ]);
   const router = useRouter();
@@ -38,8 +41,11 @@ export function CommandInterface() {
     if (result.clear) {
       setHistory([
         {
+          type: "text",
+          id: "welcome-reset",
           input: "",
           output: 'Welcome! Type "help" for available commands.',
+          timestamp: Date.now(),
         },
       ]);
     } else {

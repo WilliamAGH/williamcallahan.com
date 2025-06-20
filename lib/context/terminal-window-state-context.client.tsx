@@ -6,35 +6,13 @@
 
 "use client";
 
-import { type WindowState, useWindowState } from "@/lib/hooks/use-window-state.client";
+import { useWindowState } from "@/lib/hooks/use-window-state.client";
 import React, { createContext, useContext } from "react";
-import type { ReactNode } from "react";
-
-// Re-export the WindowState type so consumers can use it
-export type { WindowState };
-
-// Define the shape of the context data
-interface TerminalWindowStateContextType {
-  windowState: WindowState;
-  closeWindow: () => void;
-  minimizeWindow: () => void;
-  maximizeWindow: () => void;
-  restoreWindow: () => void; // Add a specific function to restore
-  isReady: boolean;
-}
+import type { TerminalWindowStateContextType, TerminalWindowStateProviderProps } from "@/types/ui/terminal";
 
 // Create the context with a default undefined value
 // This ensures consumers must be wrapped in a provider
-const TerminalWindowStateContext = createContext<TerminalWindowStateContextType | undefined>(
-  undefined,
-);
-
-// Define the props for the provider component
-interface TerminalWindowStateProviderProps {
-  children: ReactNode;
-  terminalId: string; // Require a unique ID for the terminal instance
-  initialState?: WindowState; // Optional initial state
-}
+const TerminalWindowStateContext = createContext<TerminalWindowStateContextType | undefined>(undefined);
 
 // Define the provider component
 export const TerminalWindowStateProvider = ({
@@ -71,11 +49,7 @@ export const TerminalWindowStateProvider = ({
     [windowState, closeWindow, minimizeWindow, maximizeWindow, restoreWindow, isReady],
   );
 
-  return (
-    <TerminalWindowStateContext.Provider value={value}>
-      {children}
-    </TerminalWindowStateContext.Provider>
-  );
+  return <TerminalWindowStateContext.Provider value={value}>{children}</TerminalWindowStateContext.Provider>;
 };
 
 // Define a custom hook for easy consumption of the context

@@ -8,7 +8,9 @@
  * @module app/api/logo
  */
 
-import { getLogo, resetLogoSessionTracking } from "@/lib/data-access/logos";
+import { getUnifiedImageService } from "@/lib/services/unified-image-service";
+import { ImageMemoryManagerInstance } from "@/lib/image-memory-manager";
+import type { LogoFetchResult } from "@/types/cache";
 import logger from "@/lib/utils/logger";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -46,7 +48,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         domain = new URL(website).hostname.replace("www.", "");
       } catch {
         // If URL parsing fails, try using the website string directly
-        domain = website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0];
+        domain = website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0] ?? "";
       }
     } else if (company) {
       domain = company.toLowerCase().replace(/\s+/g, "");
@@ -54,53 +56,60 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       throw new Error("Website or company name required");
     }
 
-    // Reset session tracking if force refresh is requested
-    // This clears the in-memory cache and forces fresh fetching
-    if (forceRefresh) {
-      resetLogoSessionTracking();
-      logger.info(`[Logo API] Force refresh requested for domain: ${domain}`);
-    }
+    const logoSvc = getUnifiedImageService();
+    const imageManager = ImageMemoryManagerInstance;
 
-    // Use the centralized getLogo function which handles the full flow:
-    // 1. Check in-memory session cache
-    // 2. Check S3 storage (with source information preserved)
-    // 3. Fetch from external sources (Google, DuckDuckGo)
-    // 4. Validate against generic globe icons
-    // 5. Persist to S3 with source tracking
-    // 6. Fall back to placeholder if all sources fail
-    const logoResult = await getLogo(domain);
+    const logoMeta: LogoFetchResult = await logoSvc.getLogo(domain, { forceRefresh });
 
-    if (!logoResult || !logoResult.buffer) {
-      const error = logoResult?.error || "Failed to fetch logo";
+    if (logoMeta.error || (!logoMeta.cdnUrl && !logoMeta.s3Key)) {
+      const error = logoMeta.error || "Logo metadata not found";
       logger.warn(`[Logo API] No logo found for domain: ${domain}. Error: ${error}`);
-
       return new NextResponse(null, {
         status: 404,
         headers: {
-          "Cache-Control": "public, max-age=3600", // Cache failures for 1 hour
+          "Cache-Control": "public, max-age=3600",
           "x-logo-error": error,
           "x-logo-domain": domain,
         },
       });
     }
 
-    // Successful response with logo data
-    logger.debug(
-      `[Logo API] Serving logo for domain: ${domain} from source: ${logoResult.source}, retrieval: ${logoResult.retrieval}`,
-    );
+    // Try to get from memory manager first
+    if (logoMeta.s3Key) {
+      const bufferEntry = await imageManager.get(logoMeta.s3Key);
+      if (bufferEntry?.buffer) {
+        logger.debug(`[Logo API] Serving logo for ${domain} from memory cache`);
+        return new NextResponse(bufferEntry.buffer, {
+          status: 200,
+          headers: {
+            "Content-Type": logoMeta.contentType || "image/png",
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "x-logo-source": "memory",
+            "x-logo-domain": domain,
+          },
+        });
+      }
+    }
 
-    return new NextResponse(logoResult.buffer, {
-      status: 200,
+    // If not in memory, redirect to CDN
+    if (logoMeta.cdnUrl) {
+      logger.debug(`[Logo API] Redirecting logo for ${domain} to CDN: ${logoMeta.cdnUrl}`);
+      return NextResponse.redirect(logoMeta.cdnUrl, 301);
+    }
+
+    // Fallback if no buffer and no CDN URL
+    logger.error(`[Logo API] No buffer or CDN URL for domain: ${domain}`);
+    return new NextResponse(null, {
+      status: 404,
       headers: {
-        "Content-Type": logoResult.contentType,
-        "Cache-Control": "public, max-age=31536000, immutable",
-        "x-logo-source": logoResult.source || "unknown",
-        "x-logo-retrieval": logoResult.retrieval || "unknown",
+        "Cache-Control": "public, max-age=300",
+        "x-logo-error": "No content available for logo",
         "x-logo-domain": domain,
       },
     });
-  } catch (error) {
-    logger.error("[Logo API] Unexpected error:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("[Logo API] Unexpected error:", errorMessage);
     return new NextResponse(null, {
       status: 500,
       headers: {

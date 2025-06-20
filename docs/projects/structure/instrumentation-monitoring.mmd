@@ -1,0 +1,14 @@
+sequenceDiagram
+  participant App as Next.js Server Startup
+  participant Monitor as asyncMonitor
+  participant Job as Any Background Task
+
+  App->>Monitor: monitoredAsync(id, name, fn)
+  Monitor->>Job: execute fn()
+  Job-->>Monitor: resolve / reject
+  alt Success
+    Monitor-->>App: completeOperation(id)
+  else Failure / Timeout
+    Monitor-->>App: failOperation(id)
+    Monitor-->>Sentry: captureException
+  end

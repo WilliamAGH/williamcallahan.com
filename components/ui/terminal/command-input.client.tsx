@@ -7,54 +7,55 @@
 
 "use client";
 
-import { forwardRef, useCallback, useRef } from "react";
+import { forwardRef, useCallback, useRef, useId } from "react";
 import { preloadSearch } from "./commands.client";
-
-interface CommandInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  onSubmit: () => void;
-}
+import type { CommandInputProps } from "@/types";
 
 export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(function CommandInput(
   { value, onChange, onSubmit },
   ref,
 ) {
+  // Generate unique ID for accessibility
+  const inputId = useId();
+
   // Preload search when user types more than 2 characters
   const hasPreloaded = useRef(false);
-  
-  const handleChange = useCallback((newValue: string) => {
-    onChange(newValue);
-    
-    // Preload search functionality after typing 2+ characters
-    if (!hasPreloaded.current && newValue.length >= 2) {
-      hasPreloaded.current = true;
-      // Preload in the background without blocking
-      if (typeof requestIdleCallback !== 'undefined') {
-        requestIdleCallback(() => preloadSearch(), { timeout: 100 });
-      } else {
-        // Fallback for browsers without requestIdleCallback
-        setTimeout(() => preloadSearch(), 0);
+
+  const handleChange = useCallback(
+    (newValue: string) => {
+      onChange(newValue);
+
+      // Preload search functionality after typing 2+ characters
+      if (!hasPreloaded.current && newValue.length >= 2) {
+        hasPreloaded.current = true;
+        // Preload in the background without blocking
+        if (typeof requestIdleCallback !== "undefined") {
+          requestIdleCallback(() => preloadSearch(), { timeout: 100 });
+        } else {
+          // Fallback for browsers without requestIdleCallback
+          setTimeout(() => preloadSearch(), 0);
+        }
       }
-    }
-  }, [onChange]);
+    },
+    [onChange],
+  );
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit();
+        onSubmit(value);
       }}
       className="w-full table"
     >
       <div className="flex items-center w-full">
         <span className="text-[#7aa2f7] select-none mr-2">$</span>
         <div className="relative flex-1 transform-gpu">
-          <label htmlFor="terminal-command" className="sr-only">
+          <label htmlFor={inputId} className="sr-only">
             Terminal command
           </label>
           <input
-            id="terminal-command"
+            id={inputId}
             ref={ref}
             type="text"
             value={value}

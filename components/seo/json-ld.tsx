@@ -10,11 +10,9 @@
  */
 
 // eslint-disable react/no-danger
-import React, { type JSX } from "react";
+import type { JSX } from "react";
 
-interface JsonLdScriptProps {
-  data: object;
-}
+import type { JsonLdScriptProps } from "@/types";
 
 export function JsonLdScript({ data }: JsonLdScriptProps): JSX.Element {
   /**
@@ -23,11 +21,7 @@ export function JsonLdScript({ data }: JsonLdScriptProps): JSX.Element {
    * happens to contain the `</script>` sequence. We also guard against `<!--`
    * which would start an HTML comment and break execution in some browsers.
    */
-  const json = JSON.stringify(
-    data,
-    null,
-    process.env.NODE_ENV === "development" ? 2 : 0,
-  )
+  const json = JSON.stringify(data, null, process.env.NODE_ENV === "development" ? 2 : 0)
     // Escape closing script tags and HTML comment openers
     .replace(/<\/(script)/giu, "<\\/$1")
     .replace(/<!--/g, "<\\!--");
@@ -35,7 +29,7 @@ export function JsonLdScript({ data }: JsonLdScriptProps): JSX.Element {
   return (
     <script
       type="application/ld+json"
-      // biome-ignore lint/security/noDangerouslySetInnerHtml: <explanation>
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: Necessary for embedding JSON-LD, and the content is sanitized.
       dangerouslySetInnerHTML={{ __html: json }}
     />
   );

@@ -15,18 +15,14 @@
  * and client components for interactivity
  */
 
-import type { ReactNode } from "react";
 import { BlogWindow } from "./blog-window.client";
 
-// Define props for the Blog component
-interface BlogProps {
-  children: ReactNode;
-}
+import type { BlogPropsWithChildren } from "@/types/features";
 
 /**
  * Main Blog component using a hybrid architecture for optimal performance
  * This client component renders pre-rendered server content passed as children
  */
-export function Blog({ children }: BlogProps) {
+export function Blog({ children }: BlogPropsWithChildren) {
   return <BlogWindow>{children}</BlogWindow>;
 }

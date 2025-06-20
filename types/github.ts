@@ -1,3 +1,5 @@
+import type { ExtendedError } from "./error";
+
 /**
  * GitHub Activity Types
  *
@@ -93,6 +95,11 @@ export interface GitHubGraphQLContributionResponse {
   };
 }
 
+/** Represents a single repository node from the GraphQL contribution response. */
+export type GithubRepoNode = NonNullable<
+  NonNullable<GitHubGraphQLContributionResponse["user"]>["repositoriesContributedTo"]
+>["nodes"][number];
+
 /**
  * Represents the cache structure for repository weekly statistics.
  */
@@ -166,12 +173,7 @@ export interface UserActivityView {
 // --- START: GitHub GraphQL Contribution Calendar Types ---
 export interface GraphQLContributionDay {
   contributionCount: number;
-  contributionLevel:
-    | "NONE"
-    | "FIRST_QUARTILE"
-    | "SECOND_QUARTILE"
-    | "THIRD_QUARTILE"
-    | "FOURTH_QUARTILE";
+  contributionLevel: "NONE" | "FIRST_QUARTILE" | "SECOND_QUARTILE" | "THIRD_QUARTILE" | "FOURTH_QUARTILE";
   date: string; // YYYY-MM-DD
   // weekday: number; // 0-6, Sunday-Saturday - available if needed
 }
@@ -195,3 +197,13 @@ export interface GraphQLUserContributionsResponse {
   };
 }
 // --- END: GitHub GraphQL Contribution Calendar Types ---
+
+/**
+ * Error interface for GitHub activity fetch errors
+ */
+export interface GitHubActivityError extends ExtendedError {
+  /** Timestamp of when activity was last successfully fetched */
+  lastFetched?: number;
+  /** Timestamp of the last fetch attempt */
+  lastFetchedTimestamp?: number;
+}

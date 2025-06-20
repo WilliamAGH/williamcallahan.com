@@ -1,4 +1,3 @@
-import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { NavigationLink } from "@/components/ui/navigation/navigation-link.client";
 // Import the REAL provider (hook is used internally by NavigationLink)
@@ -54,14 +53,7 @@ describe("NavigationLink", () => {
   });
 
   it("applies custom className when provided", () => {
-    render(
-      <NavigationLink
-        path="/test"
-        name="Test Link"
-        currentPath="/other"
-        className="custom-class"
-      />,
-    );
+    render(<NavigationLink path="/test" name="Test Link" currentPath="/other" className="custom-class" />);
 
     const link = screen.getByRole("link");
     expect(link).toHaveClass("custom-class");

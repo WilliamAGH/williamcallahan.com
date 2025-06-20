@@ -163,8 +163,7 @@ export function extractDomain(urlOrCompany: string | number): string {
     try {
       // Ensure the string has a protocol
       const urlStr =
-        inputStr.toLowerCase().startsWith("http://") ||
-        inputStr.toLowerCase().startsWith("https://")
+        inputStr.toLowerCase().startsWith("http://") || inputStr.toLowerCase().startsWith("https://")
           ? inputStr
           : `http://${inputStr}`;
 
@@ -199,17 +198,7 @@ export function extractDomain(urlOrCompany: string | number): string {
 
   // Only remove specific suffixes that aren't part of the company name
   // and only if they're at the very end of the string
-  const commonSuffixes = [
-    "llc",
-    "inc",
-    "ltd",
-    "llp",
-    "pllc",
-    "corp",
-    "corporation",
-    "co",
-    "limited",
-  ];
+  const commonSuffixes = ["llc", "inc", "ltd", "llp", "pllc", "corp", "corporation", "co", "limited"];
   for (const suffix of commonSuffixes) {
     if (cleaned.endsWith(suffix) && cleaned.length > suffix.length) {
       cleaned = cleaned.slice(0, -suffix.length);
@@ -251,4 +240,16 @@ export function randomString(length: number): string {
     result += characters.charAt(Math.floor(Math.random() * characters.length));
   }
   return result;
+}
+
+/**
+ * Throws an error if the function is called in a browser environment.
+ *
+ * This is a safeguard to ensure server-only modules are not accidentally
+ * imported and used on a client.
+ */
+export function assertServerOnly() {
+  if (process.env.NODE_ENV !== "test" && typeof globalThis !== "undefined" && "window" in globalThis) {
+    throw new Error("This module is server-only and should not be imported in a browser environment.");
+  }
 }

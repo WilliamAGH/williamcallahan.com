@@ -8,7 +8,7 @@
  */
 
 import "dotenv/config"; // Make sure all environment variables are loaded
-import { getBookmarks } from "@/lib/data-access/bookmarks";
+import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import { isValidImageUrl } from "@/lib/utils/opengraph-utils";
 
@@ -19,14 +19,8 @@ import { isValidImageUrl } from "@/lib/utils/opengraph-utils";
  * @param timeoutValue - Value to return if timeout occurs
  * @returns Promise that resolves to either the result or timeout value
  */
-async function processWithTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  timeoutValue: T
-): Promise<T> {
-  const timeout = new Promise<T>((resolve) => 
-    setTimeout(() => resolve(timeoutValue), timeoutMs)
-  );
+async function processWithTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutValue: T): Promise<T> {
+  const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(timeoutValue), timeoutMs));
   return Promise.race([promise, timeout]);
 }
 
@@ -46,7 +40,7 @@ async function refreshAllOpenGraphImages() {
     // 2. Process bookmarks in parallel batches with timeout protection
     const BATCH_SIZE = 5; // Process 5 bookmarks concurrently
     const ITEM_TIMEOUT_MS = 15000; // 15 seconds per item
-    
+
     let processedCount = 0;
     let successCount = 0;
     let failureCount = 0;
@@ -57,19 +51,17 @@ async function refreshAllOpenGraphImages() {
       const batch = bookmarks.slice(i, i + BATCH_SIZE);
       const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
       const totalBatches = Math.ceil(bookmarks.length / BATCH_SIZE);
-      
+
       console.log(`\nProcessing batch ${batchNumber}/${totalBatches} (${batch.length} items)`);
-      
+
       // Process batch items in parallel with timeout protection
       const batchPromises = batch.map(async (bookmark) => {
         processedCount++;
         const itemNumber = processedCount;
-        
+
         if (!bookmark.url) {
-          console.log(
-            `[${itemNumber}/${bookmarks.length}] Skipping bookmark ${bookmark.id} (no URL)`,
-          );
-          return { status: 'skipped' };
+          console.log(`[${itemNumber}/${bookmarks.length}] Skipping bookmark ${bookmark.id} (no URL)`);
+          return { status: "skipped" };
         }
 
         console.log(`[${itemNumber}/${bookmarks.length}] Processing: ${bookmark.url}`);
@@ -77,39 +69,35 @@ async function refreshAllOpenGraphImages() {
         try {
           // Wrap the OpenGraph fetch in a timeout
           const ogDataPromise = getOpenGraphData(bookmark.url, false, bookmark.id);
-          const ogData = await processWithTimeout(
-            ogDataPromise,
-            ITEM_TIMEOUT_MS,
-            null
-          );
+          const ogData = await processWithTimeout(ogDataPromise, ITEM_TIMEOUT_MS, null);
 
           if (!ogData) {
             console.warn(`  ⏱️ Timeout: Processing took too long for ${bookmark.url}`);
             timeoutCount++;
-            return { status: 'timeout' };
+            return { status: "timeout" };
           }
 
           if (ogData && isValidImageUrl(ogData.imageUrl) && !ogData.error) {
             console.log(`  ✅ Success: Image for ${bookmark.url} is stored or was just processed.`);
             successCount++;
-            return { status: 'success' };
+            return { status: "success" };
           }
 
           console.warn(
             `  ⚠️ Warning: Could not process OpenGraph data for ${bookmark.url}. Error: ${ogData?.error || "No image URL found"}`,
           );
           failureCount++;
-          return { status: 'failed' };
+          return { status: "failed" };
         } catch (error) {
           console.error(`  ❌ Error processing ${bookmark.url}:`, error);
           failureCount++;
-          return { status: 'error' };
+          return { status: "error" };
         }
       });
-      
+
       // Wait for all items in batch to complete
       await Promise.allSettled(batchPromises);
-      
+
       // Add a small delay between batches to prevent overwhelming services
       if (i + BATCH_SIZE < bookmarks.length) {
         await new Promise((resolve) => setTimeout(resolve, 500));

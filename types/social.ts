@@ -1,23 +1,22 @@
 /**
- * Social Media Types
+ * Social Media and Links Types
  *
- * Type definitions for social media links and icons with runtime validation.
+ * SCOPE: Domain-specific types for social media links, profiles, and related data.
+ * This file defines the shape of social data, not the UI components that display it.
+ *
+ * @see types/ui/social.ts for the UI component props (e.g., SocialIcon component)
  */
+import type { z } from "zod";
+import type { SocialLinkSchema } from "@/lib/validators/social";
+import { SOCIAL_PLATFORMS } from "@/lib/opengraph/constants";
 
-import { z } from "zod";
+/**
+ * Represents a single social media link.
+ * Renamed from SocialIcon to avoid collision with the UI component type.
+ */
+export type SocialLink = z.infer<typeof SocialLinkSchema>;
 
-// Runtime validation schema
-export const socialLinkSchema = z.object({
-  href: z.string().url(),
-  label: z.string(),
-  // Can't strongly type the icon function itself with Zod
-  icon: z.any(),
-  emphasized: z.boolean().optional(),
-});
+export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[keyof typeof SOCIAL_PLATFORMS];
 
-// For arrays of social links
-export const socialLinksSchema = z.array(socialLinkSchema);
-
-// TypeScript types derived from Zod schema for better consistency
-export type SocialIconProps = z.infer<typeof socialLinkSchema>;
-export type SocialLink = SocialIconProps;
+// Re-export for backward compatibility
+export { SOCIAL_PLATFORMS };

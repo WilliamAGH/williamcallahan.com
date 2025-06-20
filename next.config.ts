@@ -16,19 +16,43 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import type { RuleSetRule } from "webpack"; // Import RuleSetRule type
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
 /**
  * @typedef {{ version: string }} PackageJson
  */
 
-// Get packagejson version to use in build ID
-/** @type {PackageJson} */
-const packageJson = JSON.parse(readFileSync(resolve("./package.json"), "utf8"));
+/**
+ * Get package version in a performant way
+ * During build time, we can safely read the file synchronously
+ * At runtime, we use the environment variable that was set during build
+ */
+function getPackageVersion(): string {
+  // If already set from a previous run, use cached value
+  if (process.env.NEXT_PUBLIC_APP_VERSION) {
+    return process.env.NEXT_PUBLIC_APP_VERSION;
+  }
 
-// Make the app version available to client code
-process.env.NEXT_PUBLIC_APP_VERSION = packageJson.version;
+  // During build time only, read package.json
+  // This is acceptable because builds happen in a controlled environment
+  // and this code doesn't run during request handling
+  if (process.env.NODE_ENV === "production" || process.env.NEXT_PHASE === "phase-production-build") {
+    try {
+      const { readFileSync } = require("node:fs");
+      const { resolve } = require("node:path");
+      const packageJson = JSON.parse(readFileSync(resolve("./package.json"), "utf8"));
+      return packageJson.version;
+    } catch {
+      console.warn("[Next Config] Could not read package.json, using fallback version");
+      return "0.0.0";
+    }
+  }
+
+  // Development fallback
+  return "0.0.0-dev";
+}
+
+// Get version and cache it
+const appVersion = getPackageVersion();
+process.env.NEXT_PUBLIC_APP_VERSION = appVersion;
 
 const nextConfig = {
   /**
@@ -86,15 +110,39 @@ const nextConfig = {
       fs: false,
       crypto: false,
       path: false,
+      child_process: false,
+      os: false,
+      stream: false,
+      util: false,
+      net: false,
+      tls: false,
+      worker_threads: false,
     };
+
+    // Add server externals to prevent bundling server-only code
+    if (!config.externals) {
+      config.externals = [];
+    }
+    if (Array.isArray(config.externals)) {
+      config.externals.push({
+        sharp: "commonjs sharp",
+        "node:child_process": "commonjs child_process",
+        "node:crypto": "commonjs crypto",
+        "node:fs": "commonjs fs",
+        "node:os": "commonjs os",
+        "node:path": "commonjs path",
+        "node:stream": "commonjs stream",
+        "node:util": "commonjs util",
+        "detect-libc": "commonjs detect-libc",
+      });
+    }
 
     // Suppress warnings for Sentry and OpenTelemetry dynamic requires
     config.ignoreWarnings = [
       // Suppress warnings about dynamic requires
       { module: /node_modules\/require-in-the-middle\/index\.js/ },
       {
-        module:
-          /node_modules\/@opentelemetry\/instrumentation\/build\/esm\/platform\/node\/instrumentation\.js/,
+        module: /node_modules\/@opentelemetry\/instrumentation\/build\/esm\/platform\/node\/instrumentation\.js/,
       },
       { module: /node_modules\/@sentry/ },
       // Suppress webpack cache serialization warnings
@@ -117,11 +165,7 @@ const nextConfig = {
       config.optimization.minimizer.forEach((minimizer: unknown) => {
         // Added type annotation
         // Runtime check is still necessary as minimizer is unknown
-        if (
-          typeof minimizer === "object" &&
-          minimizer !== null &&
-          minimizer.constructor.name === "TerserPlugin"
-        ) {
+        if (typeof minimizer === "object" && minimizer !== null && minimizer.constructor.name === "TerserPlugin") {
           // Explicitly type options to satisfy ESLint/TypeScript
           const terserOptions = (minimizer as any).options; // Keep 'as any' for flexibility with webpack plugins
           if (terserOptions && typeof terserOptions === "object") {
@@ -141,8 +185,8 @@ const nextConfig = {
    * Only change this when intentionally refreshing all cached assets
    */
   generateBuildId: () => {
-    // Base the build ID on packagejson version for consistent hashing
-    return `v${packageJson.version}-stable`;
+    // Base the build ID on app version for consistent hashing
+    return `v${appVersion}-stable`;
   },
 
   /**
@@ -348,7 +392,7 @@ const sentryWebpackPluginOptions = {
   org: "williamcallahan-com",
   project: "williamcallahan-com",
   authToken: process.env.SENTRY_AUTH_TOKEN,
-  release: { 
+  release: {
     name: process.env.NEXT_PUBLIC_APP_VERSION,
     deploy: {
       env: process.env.NODE_ENV || "production",
@@ -374,7 +418,4 @@ const sentryWebpackPluginOptions = {
 // Make sure to an Sentry Webpack plugin to Node SDK options to allow for source map uploads to Sentry
 // For more information, see the Sentry documentation:
 // https://docssentryio/platforms/javascript/guides/nextjs/manual-setup/
-export default withSentryConfig(
-  nextConfig,
-  sentryWebpackPluginOptions,
-);
+export default withSentryConfig(nextConfig, sentryWebpackPluginOptions);

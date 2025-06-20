@@ -8,11 +8,7 @@
 "use client";
 
 import { THEME_TIMESTAMP_KEY } from "@/lib/constants";
-import {
-  ThemeProvider as NextThemesProvider,
-  type ThemeProviderProps,
-  useTheme,
-} from "next-themes";
+import { ThemeProvider as NextThemesProvider, type ThemeProviderProps, useTheme } from "next-themes";
 import * as React from "react";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
@@ -35,11 +31,7 @@ function ThemeExpiryHandler({ storageKey }: { storageKey?: string }) {
       const explicitTheme = localStorage.getItem(actualStorageKey);
       const timestampStr = localStorage.getItem(THEME_TIMESTAMP_KEY);
 
-      if (
-        explicitTheme &&
-        (explicitTheme === "light" || explicitTheme === "dark") &&
-        timestampStr
-      ) {
+      if (explicitTheme && (explicitTheme === "light" || explicitTheme === "dark") && timestampStr) {
         const timestamp = Number.parseInt(timestampStr, 10);
         if (isDevelopment) {
           if (process.env.NODE_ENV === "development") {
@@ -51,9 +43,7 @@ function ThemeExpiryHandler({ storageKey }: { storageKey?: string }) {
         if (Number.isFinite(timestamp) && Date.now() - timestamp > TWENTY_FOUR_HOURS_MS) {
           if (isDevelopment) {
             if (process.env.NODE_ENV === "development") {
-              console.log(
-                "[ThemeDev] ThemeExpiryHandler: Explicit theme has EXPIRED (older than 24 hours).",
-              );
+              console.log("[ThemeDev] ThemeExpiryHandler: Explicit theme has EXPIRED (older than 24 hours).");
               console.log("[ThemeDev] ThemeExpiryHandler: ACTION - Reverting to 'system' theme.");
             }
           }
@@ -70,9 +60,7 @@ function ThemeExpiryHandler({ storageKey }: { storageKey?: string }) {
         } else {
           if (isDevelopment) {
             if (process.env.NODE_ENV === "development") {
-              console.warn(
-                "[ThemeDev] ThemeExpiryHandler: Invalid timestamp found. Clearing timestamp.",
-              );
+              console.warn("[ThemeDev] ThemeExpiryHandler: Invalid timestamp found. Clearing timestamp.");
             }
           }
           localStorage.removeItem(THEME_TIMESTAMP_KEY);

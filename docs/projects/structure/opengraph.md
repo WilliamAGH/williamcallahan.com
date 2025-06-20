@@ -125,6 +125,19 @@ Request → Cache Check → S3 Check → External Fetch → Process → Store �
   - Content hashing for cache keys
   - Domain type detection
 
+### Type Definitions
+
+- **`types/opengraph.ts`**: OpenGraph type definitions
+  - `OgResult`: Core OpenGraph metadata result
+  - `OpenGraphImage`: Image metadata structure
+  - `KarakeepImageFallback`: Karakeep-specific fallback data
+  - Various platform-specific metadata types
+
+- **`types/image.ts`**: Unified image types used by OpenGraph
+  - `ImageSource`: Source enumeration (memory, s3, origin, etc.)
+  - `BaseImageData`: Base interface for all image data
+  - `ImageResult`: Result from image service operations
+
 ### Image Processing
 
 - **`lib/utils/image-s3-utils.ts`**: Image persistence

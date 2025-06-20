@@ -23,17 +23,7 @@ import { PaginationControl } from "@/components/ui/pagination-control.client";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel.client";
 
-interface BookmarksWithPaginationProps {
-  initialBookmarks?: UnifiedBookmark[];
-  showFilterBar?: boolean;
-  searchAllBookmarks?: boolean;
-  enableInfiniteScroll?: boolean;
-  itemsPerPage?: number;
-  initialPage?: number;
-  baseUrl?: string;
-  initialTag?: string;
-  tag?: string;
-}
+import type { BookmarksWithPaginationClientProps } from "@/types";
 
 // Environment detection helper
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -43,7 +33,7 @@ const getTagsAsStringArray = (tags: UnifiedBookmark["tags"]): string[] => {
   return normalizeTagsToStrings(tags);
 };
 
-export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = ({
+export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProps> = ({
   initialBookmarks = [],
   showFilterBar = true,
   searchAllBookmarks = false,
@@ -80,12 +70,12 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
     error,
     loadMore,
     goToPage,
-    mutate
+    mutate,
   } = useBookmarksPagination({
     limit: itemsPerPage,
     initialData: initialBookmarks,
     initialPage: initialPage,
-    tag: tag  // Pass tag for server-side filtering
+    tag: tag, // Pass tag for server-side filtering
   });
 
   // Keep the original total count based on the initial server payload. This represents the
@@ -146,9 +136,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
           data: UnifiedBookmark[];
         };
 
-        const allBookmarks: UnifiedBookmark[] = Array.isArray(json.data)
-          ? json.data
-          : [];
+        const allBookmarks: UnifiedBookmark[] = Array.isArray(json.data) ? json.data : [];
 
         // Simple client-side filtering (case-insensitive contains across key
         // fields). We reuse the same helper used in the memoized filter below
@@ -327,22 +315,14 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        interface ErrorResponse {
-          error: string | null;
-        }
         const errorData = (await response
           .json()
-          .catch(() => ({ error: null }) as ErrorResponse)) as ErrorResponse;
+          .catch(() => ({ error: null }) as import("@/types").ErrorResponse)) as import("@/types").ErrorResponse;
         const errorMessage = errorData.error || `Refresh failed: ${response.status}`;
         throw new Error(errorMessage);
       }
 
-      interface RefreshResult {
-        status: string;
-        message?: string;
-      }
-
-      const result = (await response.json()) as RefreshResult;
+      const result = (await response.json()) as import("@/types").RefreshResult;
       console.log("Bookmarks refresh result:", result);
 
       // If refresh was successful, mutate to refetch data
@@ -436,11 +416,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
               className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               aria-label="Refresh Bookmarks"
             >
-              {isRefreshing ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4" />
-              )}
+              {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             </button>
           )}
           {/* Display Refresh Error */}
@@ -501,10 +477,10 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
 
                   const totalCount = isFilteredView
                     ? filteredBookmarks.length
-                    // Prefer the value returned from the API (includes pages
-                    // that haven't been fetched yet); if it's missing, fall
-                    // back to the full server payload length.
-                    : totalItems || initialTotalCount;
+                    : // Prefer the value returned from the API (includes pages
+                      // that haven't been fetched yet); if it's missing, fall
+                      // back to the full server payload length.
+                      totalItems || initialTotalCount;
 
                   if (totalCount === 0) {
                     return "No bookmarks found";
@@ -543,46 +519,38 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationProps> = (
 
       {/* Client-side only rendering of bookmark results */}
       {mounted ? (
-        <>
-          {error ? (
-            <div className="text-center py-16 px-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-              <p className="text-red-600 dark:text-red-400 text-lg mb-2">
-                Error loading bookmarks
-              </p>
-              <p className="text-red-500 dark:text-red-300 text-sm">
-                {error.message}
-              </p>
+        error ? (
+          <div className="text-center py-16 px-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+            <p className="text-red-600 dark:text-red-400 text-lg mb-2">Error loading bookmarks</p>
+            <p className="text-red-500 dark:text-red-300 text-sm">{error.message}</p>
+          </div>
+        ) : filteredBookmarks.length === 0 && searchQuery ? (
+          <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
+            <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">
+              No bookmarks found for &ldquo;{searchQuery}&rdquo;
+            </p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Try adjusting your search terms or filters.</p>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
+              {filteredBookmarks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((bookmark) => {
+                // Generate share URL once per bookmark to avoid per-card API calls
+                const shareUrl = `/bookmarks/${generateUniqueSlug(
+                  bookmark.url,
+                  bookmarks.map((b) => ({ id: b.id, url: b.url })),
+                  bookmark.id,
+                )}`;
+                return <BookmarkCardClient key={bookmark.id} {...bookmark} shareUrl={shareUrl} />;
+              })}
             </div>
-          ) : filteredBookmarks.length === 0 && searchQuery ? (
-            <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
-              <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">
-                No bookmarks found for &ldquo;{searchQuery}&rdquo;
-              </p>
-              <p className="text-gray-500 dark:text-gray-400 text-sm">
-                Try adjusting your search terms or filters.
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
-                {filteredBookmarks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((bookmark) => {
-                  // Generate share URL once per bookmark to avoid per-card API calls
-                  const shareUrl = `/bookmarks/${generateUniqueSlug(bookmark.url, bookmarks.map(b => ({ id: b.id, url: b.url })), bookmark.id)}`;
-                  return <BookmarkCardClient key={bookmark.id} {...bookmark} shareUrl={shareUrl} />;
-                })}
-              </div>
 
-              {/* Infinite scroll sentinel */}
-              {enableInfiniteScroll && (
-                <InfiniteScrollSentinel
-                  onIntersect={loadMore}
-                  loading={isLoadingMore}
-                  hasMore={hasMore}
-                />
-              )}
-            </>
-          )}
-        </>
+            {/* Infinite scroll sentinel */}
+            {enableInfiniteScroll && (
+              <InfiniteScrollSentinel onIntersect={loadMore} loading={isLoadingMore} hasMore={hasMore} />
+            )}
+          </>
+        )
       ) : (
         /* Server-side placeholder with hydration suppression */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6" suppressHydrationWarning>

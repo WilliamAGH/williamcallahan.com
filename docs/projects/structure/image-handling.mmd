@@ -1,107 +1,90 @@
 graph TD
     subgraph "Client/Server Request"
-        A["/api/logo (domain)"]
-        B["/api/og-image (unified endpoint)"]
-        C["/api/assets/[assetId]"]
+        A["/api/logo"]
+        B["/api/og-image"]
+        C["/api/cache/images"]
         D["Investment Cards<br/>(Server Components)"]
         E["Bookmark Cards<br/>(Client Components)"]
     end
 
-    subgraph "Image Handling Pipeline"
-        direction LR
-        subgraph "Fetching"
-            F[Multi-Source Fetching]
-        end
-        subgraph "Validation"
-            G["Perceptual Hash Check<br/>(via /api/validate-logo)"]
-        end
-        subgraph "Processing"
-            H["Analysis &<br/>Theme Inversion"]
-        end
+    subgraph "Memory Management Layer"
+        MM1["ImageMemoryManager<br/>512MB LRU Cache<br/>50MB per image"]
+        MM2["UnifiedImageService<br/>Request Router<br/>Stream >5MB"]
+        MM3["MemoryHealthMonitor<br/>Progressive Thresholds"]
+        MM4["mem-guard.ts<br/>30s RSS Check"]
+    end
+
+    subgraph "Image Pipeline"
+        F["Multi-Source<br/>Fetching"]
+        G["Perceptual Hash<br/>Validation"]
+        H["Processing<br/>Buffer.from()"]
+        ST["Stream to S3<br/>(>5MB)"]
     end
     
-    subgraph "Unified OG Image Flow"
-        OG1["Input Detection<br/>(S3 key / Asset ID / URL)"]
-        OG2["S3 Existence Check<br/>(5min cache)"]
-        OG3["Response Streaming<br/>+ Background Persist"]
-        OG4["Contextual Fallbacks<br/>(Person/OG Card/Company)"]
-    end
-
-    subgraph "Core Systems"
-        subgraph "Multi-Tier Cache"
-            I["Memory Cache<br/>(ServerCacheInstance)<br/>~1ms"]
-            J["S3 Storage<br/>(s3-object-storage.md)<br/>~10-50ms"]
-        end
+    subgraph "Storage Tiers"
+        I["Memory Cache<br/>~1ms"]
+        J["S3 Storage<br/>~50ms"]
+        K["CDN Delivery"]
     end
     
-    subgraph "External Dependencies"
-        K[External APIs<br/>(Google, Clearbit)<br/>100ms-5s]
-        L[Web Page<br/>(og:image tag)]
-        M[Proxied Service<br/>(e.g. Karakeep)]
+    subgraph "External Sources"
+        L["External APIs<br/>(Google, Clearbit)<br/>100ms-5s"]
+        M["OpenGraph<br/>Parsing"]
     end
 
-    subgraph "Response"
-        N[UI Component]
-    end
+    %% Request flows
+    A --> MM2
+    B --> MM2
+    C --> MM2
+    D --> MM2
+    E --> B
 
-    %% Logo flows
-    A --> F
-    D --> F
-    F --> I
-    I -->|HIT| N
-    I -->|MISS| J
-    J -->|HIT| I
-    J -->|MISS| K
-    K --> H
-
-    F -- Fetched Image --> G
-    G -- Valid Image --> H
-    G -- Invalid Image --> N
+    %% Memory management
+    MM2 --> MM1
+    MM1 -->|HIT| K
+    MM1 -->|MISS| J
+    J -->|HIT| MM1
+    J -->|MISS| F
     
-    H -- Processed Image & Metadata --> I & J
+    %% Fetching pipeline
+    F --> L
+    F --> M
+    L --> G
+    G -->|Valid| H
+    G -->|Invalid| K
+    H -->|">5MB"| ST
+    H -->|"<5MB"| MM1
+    ST --> J
+    
+    %% Background persistence
+    MM1 -.->|Background| J
+    J --> K
 
-    %% OG Image flows
-    B --> OG1
-    E --> OG1
-    OG1 --> OG2
-    OG2 -->|EXISTS| N
-    OG2 -->|MISS| L
-    L --> OG3
-    OG3 --> N
-    OG1 -->|FAIL| OG4
-    OG4 --> N
+    %% Memory pressure monitoring
+    MM4 -->|"Monitor RSS"| MM3
+    MM3 -->|"75% Warning"| MM2
+    MM3 -->|"80% Reject Large"| MM1
+    MM3 -->|"90% Critical"| A & B & C
+    MM3 -->|"100% Clear Images"| MM1
+    MM3 -->|"120% Emergency"| MM1 & I
 
-    %% Asset proxy
-    C --> M -- Stream --> N
-
-    I -- "Cached Response<br/>(30d success/1d fail)" --> N
-    J -- S3 URL --> N
-
-    %% Style
-    classDef core fill:#d4edda,stroke:#155724;
-    classDef fast fill:#e8f5e9,stroke:#2e7d32;
-    classDef medium fill:#fff3e0,stroke:#ef6c00;
-    classDef slow fill:#ffebee,stroke:#c62828;
-    class H,I core;
-    class H fast;
-    class I medium;
-    class J,K slow;
-    style M fill:#e1f5fe,stroke:#333
-
-    %% OpenGraph Cache (NEW)
-    subgraph "OpenGraph Cache"
-        OGC1["OgCacheEntry – 7 d success / 2 h fail"]
-        OGC2["shouldRefreshOpenGraph() decision"]
+    subgraph "Progressive Thresholds"
+        T1["75% - Warning logs"]
+        T2["80% - Reject large ops"]
+        T3["90% - 503 responses"]
+        T4["100% - Clear images"]
+        T5["120% - Clear all"]
     end
 
-    B --> OG1
-    E --> OG1
-    OG1 --> OGC1
-    OGC1 -->|HIT + Fresh| N
-    OGC1 -->|Stale| OGC2
-    OGC2 --> OG2
-
-    style OGC1 fill:#fffde7,stroke:#f57f17
-    style OGC2 fill:#fffde7,stroke:#f57f17
-
-</rewritten_file> 
+    %% Styling
+    classDef memory fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
+    classDef fast fill:#e8f5e9,stroke:#2e7d32
+    classDef medium fill:#fff3e0,stroke:#ef6c00
+    classDef slow fill:#ffebee,stroke:#c62828
+    classDef critical fill:#ffcdd2,stroke:#d32f2f
+    
+    class MM1,MM2,MM3,MM4 memory
+    class I fast
+    class J medium
+    class L,M slow
+    class T3,T4,T5 critical

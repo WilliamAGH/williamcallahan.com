@@ -25,10 +25,7 @@ import type { UserActivityView } from "../types/github"; // Import UserActivityV
 // CONFIG
 // Default to `false` when the env-var is absent
 const VERBOSE = process.env.VERBOSE === "true";
-const LAST_RUN_SUCCESS_TIMESTAMP_FILE = path.join(
-  process.cwd(),
-  ".populate-volumes-last-run-success",
-);
+const LAST_RUN_SUCCESS_TIMESTAMP_FILE = path.join(process.cwd(), ".populate-volumes-last-run-success");
 const RUN_INTERVAL_HOURS = 12;
 
 // Argument parsing
@@ -93,10 +90,7 @@ async function populateGithubActivityData() {
       await calculateAndStoreAggregatedWeeklyActivity();
       console.log("✅ Aggregated weekly GitHub activity calculated and stored.");
     } catch (aggError: unknown) {
-      console.error(
-        "❌ Failed to calculate and store aggregated weekly GitHub activity:",
-        aggError,
-      );
+      console.error("❌ Failed to calculate and store aggregated weekly GitHub activity:", aggError);
     }
   }
   return activity;
@@ -121,9 +115,7 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
       } catch (error: unknown) {
         if (VERBOSE) {
           const message = error instanceof Error ? error.message : String(error);
-          console.log(
-            `⚠️ Could not parse URL for logo: ${bookmark.url || "undefined"}. Error: ${message}`,
-          );
+          console.log(`⚠️ Could not parse URL for logo: ${bookmark.url || "undefined"}. Error: ${message}`);
         }
       }
     }
@@ -142,10 +134,7 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
   // 3. Extract domains from experience data (simplified, as data-access doesn't have this yet)
   // Extract experience domains using local file parsing
   try {
-    const experienceContent = await fs.readFile(
-      path.join(ROOT_DIR, "data", "experience.ts"),
-      "utf-8",
-    );
+    const experienceContent = await fs.readFile(path.join(ROOT_DIR, "data", "experience.ts"), "utf-8");
     let currentId: string | null = null;
     const experienceBlocks = experienceContent.split(/^\s*{\s*(?:"|')id(?:"|'):/m);
     for (let i = 1; i < experienceBlocks.length; i++) {
@@ -176,9 +165,7 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
         }
       }
     }
-    console.log(
-      `📊 Extracted additional domains from experience.ts. Total unique: ${domains.size}`,
-    );
+    console.log(`📊 Extracted additional domains from experience.ts. Total unique: ${domains.size}`);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
     console.warn(`⚠️ Could not read/parse experience.ts for domains. Error: ${message}`);
@@ -186,10 +173,7 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
 
   // 4. Extract domains from education data (simplified)
   try {
-    const educationContent = await fs.readFile(
-      path.join(ROOT_DIR, "data", "education.ts"),
-      "utf-8",
-    );
+    const educationContent = await fs.readFile(path.join(ROOT_DIR, "data", "education.ts"), "utf-8");
     let currentId: string | null = null;
     const educationBlocks = educationContent.split(/^\s*{\s*(?:"|')id(?:"|'):/m);
     for (let i = 1; i < educationBlocks.length; i++) {
@@ -248,10 +232,8 @@ async function populateLogosData(bookmarks: UnifiedBookmark[]) {
       try {
         // getLogo handles fetching, validation (if possible), and writing to volume.
         const logoResult = await getLogo(domain); // Removed placeholder baseUrl
-        if (logoResult?.buffer) {
-          console.log(
-            `✅ Logo processed for ${domain} via data-access (source: ${logoResult.source})`,
-          );
+        if (logoResult && (logoResult.buffer || logoResult.s3Key || logoResult.url)) {
+          console.log(`✅ Logo processed for ${domain} via data-access (source: ${logoResult.source})`);
           successCount++;
         } else {
           console.log(`⚠️ Could not fetch/process logo for ${domain} via data-access.`);
@@ -286,9 +268,7 @@ async function populateOpenGraphImages(bookmarks: UnifiedBookmark[]) {
   const BATCH_SIZE = 5; // Smaller batch size for OpenGraph to be respectful to external services
 
   const bookmarksWithUrls = bookmarks.filter((bookmark) => bookmark.url);
-  console.log(
-    `📊 Processing OpenGraph images for ${bookmarksWithUrls.length} bookmarks with URLs...`,
-  );
+  console.log(`📊 Processing OpenGraph images for ${bookmarksWithUrls.length} bookmarks with URLs...`);
 
   for (let i = 0; i < bookmarksWithUrls.length; i += BATCH_SIZE) {
     const batch = bookmarksWithUrls.slice(i, i + BATCH_SIZE);
@@ -299,17 +279,13 @@ async function populateOpenGraphImages(bookmarks: UnifiedBookmark[]) {
     const promises = batch.map(async (bookmark) => {
       processedCount++;
       try {
-        console.log(
-          `[${processedCount}/${bookmarksWithUrls.length}] Processing OpenGraph for: ${bookmark.url}`,
-        );
+        console.log(`[${processedCount}/${bookmarksWithUrls.length}] Processing OpenGraph for: ${bookmark.url}`);
 
         // Call getOpenGraphData with bookmark ID as idempotency key
         const ogData = await getOpenGraphData(bookmark.url, false, bookmark.id);
 
         if (ogData && isValidImageUrl(ogData.imageUrl) && !ogData.error) {
-          console.log(
-            `✅ OpenGraph image processed for ${bookmark.url} (source: ${ogData.source})`,
-          );
+          console.log(`✅ OpenGraph image processed for ${bookmark.url} (source: ${ogData.source})`);
           successCount++;
         } else {
           // Use debug logging for sites without images (common case)
@@ -318,13 +294,9 @@ async function populateOpenGraphImages(bookmarks: UnifiedBookmark[]) {
           } else if (ogData?.error) {
             // Log actual errors with more detail
             if (ogData.error.includes("too large")) {
-              console.log(
-                `⚠️ OpenGraph extraction limited for ${bookmark.url}: Large HTML page, partial parsing used`,
-              );
+              console.log(`⚠️ OpenGraph extraction limited for ${bookmark.url}: Large HTML page, partial parsing used`);
             } else {
-              console.log(
-                `⚠️ Could not process OpenGraph image for ${bookmark.url}. Error: ${ogData.error}`,
-              );
+              console.log(`⚠️ Could not process OpenGraph image for ${bookmark.url}. Error: ${ogData.error}`);
             }
           } else {
             debug(`ℹ️ OpenGraph processed but no image found for ${bookmark.url}`);
@@ -404,9 +376,7 @@ async function populateAllVolumes() {
     } catch (error: unknown) {
       // Ignore errors reading the timestamp file (e.g., if it doesn't exist on first run)
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.log(
-        `[Debug] Error during timestamp check logic: ${errorMessage}. Proceeding with volume population.`,
-      );
+      console.log(`[Debug] Error during timestamp check logic: ${errorMessage}. Proceeding with volume population.`);
       console.log("ℹ️ No recent successful run timestamp found, proceeding with volume population.");
     }
   } else {
@@ -421,9 +391,7 @@ async function populateAllVolumes() {
   console.log(`📆 Start time: ${startTime}`);
 
   if (forceRefreshGithub) {
-    console.log(
-      "⚠️ --force-refresh-github: Deleting existing GitHub activity data before re-populating...",
-    );
+    console.log("⚠️ --force-refresh-github: Deleting existing GitHub activity data before re-populating...");
     const activityDataFile = path.join(GITHUB_DATA_DIR, "activity_data.json");
     const aggregatedActivityFile = path.join(GITHUB_DATA_DIR, "aggregated_weekly_activity.json");
     // Note: REPO_RAW_WEEKLY_STATS_DIR is already defined globally
@@ -452,9 +420,7 @@ async function populateAllVolumes() {
           await fs.unlink(path.join(REPO_RAW_WEEKLY_STATS_DIR, file));
         }
         if (filesInRepoStatsDir.length > 0) {
-          console.log(
-            `🗑️ Cleared ${filesInRepoStatsDir.length} files from ${REPO_RAW_WEEKLY_STATS_DIR}`,
-          );
+          console.log(`🗑️ Cleared ${filesInRepoStatsDir.length} files from ${REPO_RAW_WEEKLY_STATS_DIR}`);
         } else {
           debug(`ℹ️ No files found in ${REPO_RAW_WEEKLY_STATS_DIR}, skipping clearing.`);
         }
@@ -495,9 +461,7 @@ async function populateAllVolumes() {
     if (process.env.NODE_ENV === "development" && process.env.CI !== "true") {
       try {
         await fs.writeFile(LAST_RUN_SUCCESS_TIMESTAMP_FILE, new Date().toISOString());
-        console.log(
-          "✅ Successfully updated last run timestamp for populate-volumes (Development run).",
-        );
+        console.log("✅ Successfully updated last run timestamp for populate-volumes (Development run).");
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         console.warn("⚠️ Could not update last run timestamp file:", message);
@@ -505,9 +469,7 @@ async function populateAllVolumes() {
     } else {
       // In production, CI, or other non-development environments, we don't update the timestamp
       // The script should run fully each time during builds in these environments
-      console.log(
-        "ℹ️ Skipping update of last run timestamp for populate-volumes (Production/CI/Non-Dev run).",
-      );
+      console.log("ℹ️ Skipping update of last run timestamp for populate-volumes (Production/CI/Non-Dev run).");
     }
 
     process.exit(0);

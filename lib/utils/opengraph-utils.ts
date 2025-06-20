@@ -116,9 +116,9 @@ export function getOgImageS3Key(
  * @returns The sanitized metadata object
  */
 export function sanitizeOgMetadata(metadata: Record<string, unknown>): OgMetadata {
-  const sanitized: OgMetadata = {};
+  const sanitized: Record<string, string> = {};
   for (const key in metadata) {
-    if (Object.prototype.hasOwnProperty.call(metadata, key)) {
+    if (Object.hasOwn(metadata, key)) {
       const value = metadata[key];
       if (typeof value === "string") {
         sanitized[key] = value.trim();

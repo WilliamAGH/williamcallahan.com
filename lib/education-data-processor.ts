@@ -7,14 +7,8 @@ import "server-only"; // Ensure this module is never bundled for the client
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fetchLogo, normalizeDomain } from "@/lib/logo.server";
-import type { Certification, Class, Education } from "../types/education";
+import type { Certification, Class, Education, EducationLogoData } from "../types/education";
 import { assertServerOnly } from "./utils/ensure-server-only"; // Import the assertion utility
-
-// Define the structure for logo data
-export interface LogoData {
-  src: string;
-  source: string | null;
-}
 
 // Cache for placeholder SVG data URL
 let placeholderSvgDataUrl: string | null = null;
@@ -46,7 +40,7 @@ async function getPlaceholderSvgDataUrl(): Promise<string> {
           loadedPath = p;
           break;
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (err) {
+        } catch (_err) {
           // Continue to next path
         }
       }
@@ -71,34 +65,34 @@ async function getPlaceholderSvgDataUrl(): Promise<string> {
 /**
  * Processes a single education item to add logo data.
  * @param {Education} item - The raw education item.
- * @returns {Promise<Education & { logoData: LogoData }>} The item with added logoData.
+ * @returns {Promise<Education & { logoData: EducationLogoData }>} The item with added logoData.
  */
-export async function processEducationItem<T extends Education>(
-  item: T,
-): Promise<T & { logoData: LogoData }> {
+export async function processEducationItem<T extends Education>(item: T): Promise<T & { logoData: EducationLogoData }> {
   assertServerOnly(); // Assert server context
   const { website, institution, logo } = item;
-  let logoData: LogoData;
+  let logoData: EducationLogoData;
 
   try {
     if (logo) {
-      logoData = { src: logo, source: null };
+      // If a specific logo URL is provided, treat it as definitive
+      logoData = { url: logo, source: null };
     } else {
+      // Otherwise, fetch by domain
       const domain = website ? normalizeDomain(website) : normalizeDomain(institution);
       const result = await fetchLogo(domain);
 
       if (result.buffer) {
         const base64 = result.buffer.toString("base64");
-        const mimeType =
-          result.buffer.subarray(0, 4).toString() === "<svg" ? "image/svg+xml" : "image/png";
-        logoData = { src: `data:${mimeType};base64,${base64}`, source: result.source };
+        // Simple check for SVG based on first few characters
+        const mimeType = result.buffer.subarray(0, 4).toString() === "<svg" ? "image/svg+xml" : "image/png";
+        logoData = { url: `data:${mimeType};base64,${base64}`, source: result.source };
       } else {
-        logoData = { src: await getPlaceholderSvgDataUrl(), source: "placeholder" };
+        logoData = { url: await getPlaceholderSvgDataUrl(), source: "placeholder" };
       }
     }
   } catch (error) {
     console.error(`Error processing logo for education item "${institution}":`, error);
-    logoData = { src: await getPlaceholderSvgDataUrl(), source: "placeholder-error" };
+    logoData = { url: await getPlaceholderSvgDataUrl(), source: "placeholder-error" };
   }
 
   return { ...item, logoData };
@@ -107,18 +101,18 @@ export async function processEducationItem<T extends Education>(
 /**
  * Processes a single certification or class item to add logo data.
  * @param {Certification | Class} item - The raw certification or class item.
- * @returns {Promise<(Certification | Class) & { logoData: LogoData }>} The item with added logoData.
+ * @returns {Promise<(Certification | Class) & { logoData: EducationLogoData }>} The item with added logoData.
  */
 export async function processCertificationItem<T extends Certification | Class>(
   item: T,
-): Promise<T & { logoData: LogoData }> {
+): Promise<T & { logoData: EducationLogoData }> {
   assertServerOnly(); // Assert server context
   const { website, name, logo } = item;
-  let logoData: LogoData;
+  let logoData: EducationLogoData;
 
   try {
     if (logo) {
-      logoData = { src: logo, source: null };
+      logoData = { url: logo, source: null };
     } else {
       const domain = website ? normalizeDomain(website) : normalizeDomain(name);
       const result = await fetchLogo(domain);
@@ -126,16 +120,15 @@ export async function processCertificationItem<T extends Certification | Class>(
       if (result.buffer) {
         const base64 = result.buffer.toString("base64");
         // Simple check for SVG based on first few characters
-        const mimeType =
-          result.buffer.subarray(0, 4).toString() === "<svg" ? "image/svg+xml" : "image/png";
-        logoData = { src: `data:${mimeType};base64,${base64}`, source: result.source };
+        const mimeType = result.buffer.subarray(0, 4).toString() === "<svg" ? "image/svg+xml" : "image/png";
+        logoData = { url: `data:${mimeType};base64,${base64}`, source: result.source };
       } else {
-        logoData = { src: await getPlaceholderSvgDataUrl(), source: "placeholder" };
+        logoData = { url: await getPlaceholderSvgDataUrl(), source: "placeholder" };
       }
     }
   } catch (error) {
     console.error(`Error processing logo for certification item "${name}":`, error);
-    logoData = { src: await getPlaceholderSvgDataUrl(), source: "placeholder-error" };
+    logoData = { url: await getPlaceholderSvgDataUrl(), source: "placeholder-error" };
   }
 
   return { ...item, logoData };

@@ -13,6 +13,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
 import { MIN_LOGO_SIZE, VALID_IMAGE_FORMATS } from "../../../lib/constants";
 import { ServerCacheInstance } from "../../../lib/server-cache";
+import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 
 /** Reference globe icon buffer - loaded once and reused */
 let referenceGlobeIcon: Buffer | null = null;
@@ -24,11 +25,7 @@ let referenceGlobeIcon: Buffer | null = null;
  */
 async function getImageHash(buffer: Buffer): Promise<string> {
   try {
-    const normalized = await sharp(buffer)
-      .resize(16, 16, { fit: "fill" })
-      .grayscale()
-      .raw()
-      .toBuffer();
+    const normalized = await sharp(buffer).resize(16, 16, { fit: "fill" }).grayscale().raw().toBuffer();
 
     return createHash("sha256").update(normalized).digest("hex");
   } catch (error) {
@@ -99,10 +96,7 @@ async function compareImages(image1: Buffer, image2: Buffer): Promise<boolean> {
     let norm1: Buffer;
     let norm2: Buffer;
     try {
-      [norm1, norm2] = await Promise.all([
-        sharp(image1).png().toBuffer(),
-        sharp(image2).png().toBuffer(),
-      ]);
+      [norm1, norm2] = await Promise.all([sharp(image1).png().toBuffer(), sharp(image2).png().toBuffer()]);
     } catch (error) {
       console.error("Error normalizing images:", error);
       return false;
@@ -180,7 +174,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const formData = await request.formData();
     const imageFile = formData.get("image") as File;
-    if (!imageFile) {
+    const imageUrl = formData.get("url") as string;
+
+    let buffer: Buffer;
+
+    if (imageFile) {
+      buffer = Buffer.from(await imageFile.arrayBuffer());
+    } else if (imageUrl) {
+      // Use UnifiedImageService to fetch the image
+      const imageService = getUnifiedImageService();
+      const result = await imageService.getImage(imageUrl);
+
+      if (!result.buffer) {
+        return NextResponse.json(
+          { error: result.error || "Failed to fetch image" },
+          {
+            status: 500,
+            headers: {
+              "Cache-Control": "no-store",
+            },
+          },
+        );
+      }
+
+      buffer = result.buffer;
+    } else {
       return NextResponse.json(
         { error: "No image provided" },
         {
@@ -191,8 +209,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         },
       );
     }
-
-    const buffer = Buffer.from(await imageFile.arrayBuffer());
 
     // Check cache first
     const imageHash = await getImageHash(buffer);

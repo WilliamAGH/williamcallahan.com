@@ -9,11 +9,11 @@
  * @module components/features/bookmarks/bookmarks-client-with-window
  */
 
-import type { UnifiedBookmark } from "@/types";
 import { Suspense } from "react";
 import { BookmarksWindow } from "./bookmarks-window.client";
 // Alias BookmarksPaginatedClient as BookmarksClient for backwards compatibility with tests and type checks
 import { BookmarksPaginatedClient as BookmarksClient } from "./bookmarks-paginated.client";
+import { convertToUnifiedBookmarks } from "@/lib/bookmarks/utils";
 
 // Loading state when bookmarks are fetching
 function BookmarksLoading() {
@@ -23,10 +23,7 @@ function BookmarksLoading() {
         <div className="w-full h-12 rounded-xl bg-gray-200 dark:bg-gray-700 animate-pulse" />
         <div className="flex gap-2">
           {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="h-9 w-20 rounded-lg bg-gray-200 dark:bg-gray-700 animate-pulse"
-            />
+            <div key={i} className="h-9 w-20 rounded-lg bg-gray-200 dark:bg-gray-700 animate-pulse" />
           ))}
         </div>
       </div>
@@ -43,10 +40,7 @@ function BookmarksLoading() {
               </div>
               <div className="pt-4 flex gap-1.5">
                 {[1, 2, 3].map((j) => (
-                  <div
-                    key={j}
-                    className="h-5 w-16 rounded-md bg-gray-200 dark:bg-gray-700 animate-pulse"
-                  />
+                  <div key={j} className="h-5 w-16 rounded-md bg-gray-200 dark:bg-gray-700 animate-pulse" />
                 ))}
               </div>
             </div>
@@ -57,19 +51,7 @@ function BookmarksLoading() {
   );
 }
 
-interface BookmarksClientWithWindowProps {
-  bookmarks: UnifiedBookmark[];
-  title: string;
-  description: string;
-  forceClientFetch?: boolean;
-  showFilterBar?: boolean;
-  titleSlug?: string;
-  initialPage?: number;
-  baseUrl?: string;
-  usePagination?: boolean;
-  initialTag?: string;
-  tag?: string;
-}
+import type { BookmarksClientWithWindowProps } from "@/types";
 
 export function BookmarksClientWithWindow({
   bookmarks,
@@ -84,10 +66,13 @@ export function BookmarksClientWithWindow({
   initialTag,
   tag,
 }: BookmarksClientWithWindowProps) {
+  const unifiedBookmarks = convertToUnifiedBookmarks(bookmarks);
+
   return (
     <BookmarksWindow
       titleSlug={titleSlug}
       windowTitle={title} // Pass the title to be used as window title
+      bookmarks={unifiedBookmarks}
     >
       <div className="w-full mx-auto py-8">
         {/* Only show description if provided */}
@@ -98,7 +83,7 @@ export function BookmarksClientWithWindow({
         )}
         <Suspense fallback={<BookmarksLoading />}>
           <BookmarksClient
-            bookmarks={bookmarks}
+            bookmarks={unifiedBookmarks}
             forceClientFetch={forceClientFetch}
             showFilterBar={showFilterBar}
             usePagination={usePagination}

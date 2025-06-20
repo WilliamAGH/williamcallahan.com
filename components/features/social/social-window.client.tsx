@@ -11,7 +11,7 @@
  */
 
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
-import type { ClientBoundaryProps } from "@/types/component-types";
+import type { SocialWindowClientProps } from "@/types/features/social";
 import { Users } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
@@ -20,23 +20,12 @@ import { useEffect, useState } from "react";
 const SOCIAL_WINDOW_ID = "social-contact-window";
 
 /**
- * Props for the SocialWindow component
- */
-interface SocialWindowProps extends ClientBoundaryProps {
-  /**
-   * Content to be displayed within the window
-   */
-  children: React.ReactNode;
-}
-
-/**
  * Dynamic import of the window content component to prevent server-side rendering
  * This ensures any layout effects or DOM manipulations only run on the client
  */
-const SocialWindowContent = dynamic(
-  () => import("./social-window-content.client").then((m) => m.SocialWindowContent),
-  { ssr: false },
-);
+const SocialWindowContent = dynamic(() => import("./social-window-content.client").then((m) => m.SocialWindowContent), {
+  ssr: false,
+});
 
 /**
  * SocialWindow Client Component
@@ -47,14 +36,17 @@ const SocialWindowContent = dynamic(
  * @param {SocialWindowProps} props - Component props
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
  */
-export function SocialWindow({ children }: SocialWindowProps) {
+export function SocialWindow({ socialLinks = [], title = "Contact", onClose }: SocialWindowClientProps) {
   const {
     windowState,
     close: closeWindow,
     minimize: minimizeWindow,
     maximize: maximizeWindow,
     isRegistered,
-  } = useRegisteredWindowState(SOCIAL_WINDOW_ID, Users, "Restore Contact", "normal");
+  } = useRegisteredWindowState(SOCIAL_WINDOW_ID, Users, title, "normal");
+
+  // Use provided handler or fall back to internal handler
+  const handleClose = onClose || closeWindow;
 
   // Client-side mounting detection for mobile hydration safety
   const [hasMounted, setHasMounted] = useState(false);
@@ -96,12 +88,33 @@ export function SocialWindow({ children }: SocialWindowProps) {
   return (
     <SocialWindowContent
       windowState={windowState}
-      onClose={closeWindow}
+      onClose={handleClose}
       onMinimize={minimizeWindow}
       onMaximize={maximizeWindow}
       hasMounted={hasMounted}
     >
-      {children}
+      {/* Render social links here or as children */}
+      {socialLinks.length > 0 && (
+        <div className="p-6">
+          <h2 className="text-xl font-mono mb-4">Social Links</h2>
+          <div className="grid gap-3">
+            {socialLinks.map((link) => (
+              <a
+                key={link.platform}
+                href={link.href}
+                className={`flex items-center gap-3 p-3 rounded border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                  link.emphasized ? "border-blue-200 dark:border-blue-800" : ""
+                }`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <link.icon className="w-5 h-5" />
+                <span className="font-medium">{link.label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </SocialWindowContent>
   );
 }
