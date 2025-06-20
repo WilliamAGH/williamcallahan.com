@@ -6,6 +6,7 @@ import { searchPosts, searchInvestments, searchExperience, searchEducation } fro
 import { investments } from "@/data/investments";
 import { experiences } from "@/data/experience";
 import { education, certifications } from "@/data/education";
+import type { SearchResult } from "@/types/search";
 
 // Mock console methods to check for duplicate warnings
 const originalWarn = console.warn;
@@ -19,6 +20,39 @@ beforeEach(() => {
 afterEach(() => {
   console.warn = originalWarn;
 });
+
+// Test data
+const duplicateTestResults: SearchResult[] = [
+  { id: "1", type: "post", title: "Test 1", description: "Description 1", url: "/test1", score: 1 },
+  { id: "1", type: "post", title: "Test 1", description: "Description 1", url: "/test1", score: 1 }, // duplicate
+  { id: "2", type: "post", title: "Test 2", description: "Description 2", url: "/test2", score: 0.9 },
+];
+
+const edgeCaseResults: SearchResult[] = [
+  { id: "", type: "post", title: "Empty ID", description: "Description", url: "/empty", score: 1 },
+  { id: "null", type: "post", title: "Null-like ID", description: "Description", url: "/null", score: 0.8 },
+];
+
+const searchResults: SearchResult[] = [
+  { id: "1", type: "post", title: "Post 1", description: "Description 1", url: "/post1", score: 1 },
+  { id: "2", type: "project", title: "Project 2", description: "Description 2", url: "/project2", score: 0.9 },
+  { id: "3", type: "post", title: "Post 3", description: "Description 3", url: "/post3", score: 0.8 },
+];
+
+// Simple deduplication function for testing
+function deduplicateSearchResults(results: SearchResult[]): SearchResult[] {
+  const seen = new Set<string>();
+  const deduped: SearchResult[] = [];
+  
+  for (const result of results) {
+    if (!seen.has(result.id)) {
+      seen.add(result.id);
+      deduped.push(result);
+    }
+  }
+  
+  return deduped;
+}
 
 describe("Search Deduplication", () => {
   describe("Blog Posts Search", () => {
@@ -62,7 +96,7 @@ describe("Search Deduplication", () => {
       if (firstInvestment?.name) {
         const results = searchInvestments(firstInvestment.name);
         expect(results.length).toBeGreaterThan(0);
-        expect(results[0].label).toBe(firstInvestment.name);
+        expect(results[0].title).toBe(firstInvestment.name);
       }
     });
   });
@@ -83,7 +117,7 @@ describe("Search Deduplication", () => {
       if (firstExperience?.company) {
         const results = searchExperience(firstExperience.company);
         expect(results.length).toBeGreaterThan(0);
-        expect(results[0].label).toBe(firstExperience.company);
+        expect(results[0].title).toBe(firstExperience.company);
       }
     });
   });
@@ -104,7 +138,7 @@ describe("Search Deduplication", () => {
       if (firstEducation?.institution) {
         const results = searchEducation(firstEducation.institution);
         expect(results.length).toBeGreaterThan(0);
-        expect(results[0].label).toBe(firstEducation.institution);
+        expect(results[0].title).toBe(firstEducation.institution);
       }
     });
 
@@ -115,7 +149,7 @@ describe("Search Deduplication", () => {
         expect(results.length).toBeGreaterThan(0);
 
         // Should find the certification
-        const certResult = results.find((r) => r.label === firstCert.institution);
+        const certResult = results.find((r) => r.title === firstCert.institution);
         expect(certResult).toBeDefined();
       }
     });

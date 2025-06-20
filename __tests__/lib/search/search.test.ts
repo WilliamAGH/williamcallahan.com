@@ -90,9 +90,12 @@ jest.mock("@/data/education", () => ({
 // Mock ServerCacheInstance
 jest.mock("@/lib/server-cache", () => ({
   ServerCacheInstance: {
+    get: jest.fn(),
+    set: jest.fn(),
     getSearchResults: jest.fn(),
     setSearchResults: jest.fn(),
     shouldRefreshSearch: jest.fn(),
+    clearAllCaches: jest.fn(),
   },
 }));
 
@@ -101,6 +104,7 @@ describe("search", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Default: no cache hit
+    (ServerCacheInstance.get as jest.Mock).mockReturnValue(undefined);
     (ServerCacheInstance.getSearchResults as jest.Mock).mockReturnValue(undefined);
     (ServerCacheInstance.shouldRefreshSearch as jest.Mock).mockReturnValue(true);
   });
@@ -244,17 +248,17 @@ describe("search", () => {
     it("should find investments by name", () => {
       const results = searchInvestments("fintech startup");
       expect(results).toHaveLength(1);
-      expect(results?.[0]?.label).toBe("Test Company 1");
+      expect(results?.[0]?.title).toBe("Test Company 1");
     });
 
     it("should find exact investment matches", () => {
       const results = searchInvestments("Test Company 1 fintech");
       expect(results).toHaveLength(1);
-      expect(results?.[0]?.label).toBe("Test Company 1");
+      expect(results?.[0]?.title).toBe("Test Company 1");
 
       const results2 = searchInvestments("Test Company 2 AI");
       expect(results2).toHaveLength(1);
-      expect(results2?.[0]?.label).toBe("Test Company 2");
+      expect(results2?.[0]?.title).toBe("Test Company 2");
     });
 
     it("should find investments by description", () => {
@@ -270,7 +274,7 @@ describe("search", () => {
 
     it("should include correct path in results", () => {
       const results = searchInvestments("Test Company 1");
-      expect(results?.[0]?.path).toBe("/investments#1");
+      expect(results?.[0]?.url).toBe("/investments#1");
     });
   });
 
@@ -283,7 +287,7 @@ describe("search", () => {
     it("should find experiences by company", () => {
       const results = searchExperience("Tech Corp");
       expect(results).toHaveLength(1);
-      expect(results?.[0]?.label).toBe("Tech Corp");
+      expect(results?.[0]?.title).toBe("Tech Corp");
     });
 
     it("should find experiences by role", () => {
@@ -299,7 +303,7 @@ describe("search", () => {
 
     it("should include correct path in results", () => {
       const results = searchExperience("Tech Corp");
-      expect(results?.[0]?.path).toBe("/experience#1");
+      expect(results?.[0]?.url).toBe("/experience#1");
     });
   });
 
@@ -312,7 +316,7 @@ describe("search", () => {
     it("should find education by institution", () => {
       const results = searchEducation("Test University");
       expect(results).toHaveLength(1);
-      expect(results?.[0]?.label).toBe("Test University");
+      expect(results?.[0]?.title).toBe("Test University");
     });
 
     it("should find education by degree", () => {
@@ -329,7 +333,7 @@ describe("search", () => {
 
     it("should include correct path in results", () => {
       const results = searchEducation("Test University");
-      expect(results?.[0]?.path).toBe("/education#1");
+      expect(results?.[0]?.url).toBe("/education#1");
     });
   });
 });
