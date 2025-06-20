@@ -11,7 +11,7 @@ import type { BlogPostPageProps } from "@/types/blog";
 import { getAllPosts, getPostBySlug } from "@/lib/blog.ts";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils.ts";
-import type { Metadata } from "next";
+import type { ExtendedMetadata } from "@/types/seo";
 import { notFound } from "next/navigation";
 import { BlogArticle } from "../../../components/features/blog";
 
@@ -70,7 +70,7 @@ const SOFTWARE_DETAILS: Record<
  * @see {@link "https://schema.org/NewsArticle"} - Schema.org NewsArticle specification
  * @see {@link "https://schema.org/SoftwareApplication"} - Schema.org SoftwareApplication specification
  */
-export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: BlogPostPageProps): Promise<ExtendedMetadata> {
   // params is already resolved here by Next.js
   const { slug } = await params;
   // Use getPostBySlug which handles finding the post correctly using the canonical frontmatter slug
@@ -119,21 +119,14 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       ],
     });
 
-    const metadata: Metadata = {
+    const metadata: ExtendedMetadata = {
       title: articleMetadata.title,
       description: articleMetadata.description,
       alternates: articleMetadata.alternates,
       openGraph: articleMetadata.openGraph,
       twitter: articleMetadata.twitter,
+      ...(articleMetadata.script && { script: articleMetadata.script }),
     };
-
-    if (articleMetadata.script) {
-      (
-        metadata as unknown as {
-          script: { type: string; text: string }[];
-        }
-      ).script = articleMetadata.script;
-    }
     return metadata;
   }
   // Use standard NewsArticle schema for regular blog posts
@@ -155,21 +148,14 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     ],
   });
 
-  const metadata: Metadata = {
+  const metadata: ExtendedMetadata = {
     title: articleMetadata.title,
     description: articleMetadata.description,
     alternates: articleMetadata.alternates,
     openGraph: articleMetadata.openGraph,
     twitter: articleMetadata.twitter,
+    ...(articleMetadata.script && { script: articleMetadata.script }),
   };
-
-  if (articleMetadata.script) {
-    (
-      metadata as unknown as {
-        script: { type: string; text: string }[];
-      }
-    ).script = articleMetadata.script;
-  }
 
   return metadata;
 }
