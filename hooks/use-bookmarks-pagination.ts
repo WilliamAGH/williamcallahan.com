@@ -21,32 +21,33 @@ const fetcher = async (url: string): Promise<BookmarksResponse> => {
   }
 
   const json: unknown = await response.json();
-  const validation = bookmarkListResponseSchema.safeParse(json);
+  
+  // Parse the actual API response structure: { data: [...], meta: { pagination: {...} } }
+  const apiResponse = json as { data: unknown[]; meta: { pagination: { page: number; limit: number; total: number; totalPages: number; hasNext: boolean; hasPrev: boolean } } };
+  
+  // Validate the bookmark data
+  const validation = bookmarkListResponseSchema.safeParse({
+    bookmarks: apiResponse.data
+  });
 
   if (!validation.success) {
     console.error("Invalid bookmark response:", validation.error);
     throw new Error("Invalid bookmark response format");
   }
 
-  // Derive pagination information from the request URL itself so the fetcher
-  // remains pure and free of hidden dependencies.
-  const urlObj = new URL(url, "http://internal.local");
-  const pageParam = Number(urlObj.searchParams.get("page") ?? 1);
-  const limitParam = Number(urlObj.searchParams.get("limit") ?? validation.data.bookmarks.length);
-
-  const total = validation.data.bookmarks.length;
-  const totalPages = Math.max(1, Math.ceil(total / limitParam));
+  // Use the pagination metadata from the API response, not computed locally
+  const apiPagination = apiResponse.meta.pagination;
 
   return {
     data: convertRawBookmarksToUnified(validation.data.bookmarks),
     meta: {
       pagination: {
-        page: pageParam,
-        limit: limitParam,
-        total,
-        totalPages,
-        hasNext: pageParam < totalPages,
-        hasPrev: pageParam > 1,
+        page: apiPagination.page,
+        limit: apiPagination.limit,
+        total: apiPagination.total,        // Use API-provided total count
+        totalPages: apiPagination.totalPages,
+        hasNext: apiPagination.hasNext,
+        hasPrev: apiPagination.hasPrev,
       },
     },
   };
