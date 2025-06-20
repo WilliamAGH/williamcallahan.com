@@ -28,7 +28,7 @@ export function SocialContactClient() {
       <SocialCardEffects />
 
       {/* Render window only when mounted */}
-      {mounted && <SocialWindow socialLinks={socialLinks} />}
+      {mounted && <SocialWindow data={{ socialLinks }} />}
     </div>
   );
 }

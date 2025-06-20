@@ -10,13 +10,14 @@ import type { Investment } from "../../../types/investment";
 import { InvestmentCardClient } from "./investment-card.client";
 import { getLogo } from "@/lib/data-access/logos";
 import type { LogoData } from "../../../types/logo";
+import type { ReactElement } from "react";
 
 /**
  * Investment Card Server Component
  * @param {Investment} props - Investment entry properties
- * @returns {Promise<JSX.Element>} Pre-rendered investment card with fetched logo
+ * @returns {Promise<ReactElement>} Pre-rendered investment card with fetched logo
  */
-export async function InvestmentCard(props: Investment): Promise<JSX.Element> {
+export async function InvestmentCard(props: Investment): Promise<ReactElement> {
   const { logo, name, website } = props;
 
   // If logo is provided directly (static file path), use it
