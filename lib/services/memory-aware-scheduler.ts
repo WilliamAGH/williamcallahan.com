@@ -43,6 +43,11 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
   private memoryPressureActivations = 0;
   private waitTimes: number[] = [];
 
+  // External event listener references for cleanup
+  private statusChangedHandler?: (data: { status: string; data?: unknown }) => void;
+  private memoryPressureHandler?: (data: import("@/types/health").MemoryPressureEvent) => void;
+  private memoryCriticalHandler?: () => void;
+
   constructor(
     options: {
       maxQueueSize?: number;
@@ -280,27 +285,30 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
    * Setup memory monitoring integration
    */
   private setupMemoryMonitoring(): void {
-    this.memoryHealthMonitor.on("status-changed", ({ to: status }) => {
+    this.statusChangedHandler = ({ status }) => {
       if (status === "critical") {
         // Cancel low priority requests during critical memory pressure
         this.cancelLowPriorityRequests();
       }
-    });
+    };
+    this.memoryHealthMonitor.on("status-changed", this.statusChangedHandler);
 
     // Listen to ImageMemoryManager signals
-    ImageMemoryManagerInstance.on("memory-pressure-detected", (data) => {
+    this.memoryPressureHandler = (data) => {
       this.memoryPressureActivations++;
       this.emit("memory-pressure-throttle", { source: "ImageMemoryManager", ...data });
-    });
+    };
+    ImageMemoryManagerInstance.on("memory-pressure-detected", this.memoryPressureHandler);
 
     // Cancel low-priority requests on critical memory events
-    ImageMemoryManagerInstance.on("memory-critical", () => {
+    this.memoryCriticalHandler = () => {
       this.emit("critical-memory-cancellation", {
         source: "ImageMemoryManager",
         cancelledCount: this.requestQueue.filter((req) => req.priority >= RequestPriority.NORMAL).length,
       });
       this.cancelLowPriorityRequests();
-    });
+    };
+    ImageMemoryManagerInstance.on("memory-critical", this.memoryCriticalHandler);
   }
 
   /**
@@ -339,6 +347,20 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
     if (this.processingInterval) {
       clearInterval(this.processingInterval);
       this.processingInterval = null;
+    }
+
+    // Remove external listeners to prevent memory leaks
+    if (this.statusChangedHandler) {
+      this.memoryHealthMonitor.off("status-changed", this.statusChangedHandler);
+      this.statusChangedHandler = undefined;
+    }
+    if (this.memoryPressureHandler) {
+      ImageMemoryManagerInstance.off("memory-pressure-detected", this.memoryPressureHandler);
+      this.memoryPressureHandler = undefined;
+    }
+    if (this.memoryCriticalHandler) {
+      ImageMemoryManagerInstance.off("memory-critical", this.memoryCriticalHandler);
+      this.memoryCriticalHandler = undefined;
     }
 
     // Reject all pending requests
