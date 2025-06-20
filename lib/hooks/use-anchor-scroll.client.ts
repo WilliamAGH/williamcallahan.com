@@ -16,6 +16,7 @@ const INITIAL_DELAY = 250;
 const GENERAL_RETRY_INTERVAL = 300;
 const MAX_GENERAL_RETRIES = 8;
 const EXPONENTIAL_BACKOFF_FACTOR = 1.5;
+const SCROLL_TIMEOUT = 10000; // 10 seconds max for scroll operations
 
 function isElementPotentiallyVisible(element: HTMLElement): boolean {
   return !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
@@ -29,13 +30,29 @@ const isFirefox = typeof navigator !== "undefined" && /firefox|fxios/i.test(navi
 export function useAnchorScrollHandler(): void {
   const pathname = usePathname();
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { findDropdownForHash, openAndScrollToDropdownAnchor } = useCollapseDropdownHelpers();
 
   const handleAnchorScroll = useCallback(() => {
+    // Cleanup any existing timeouts
     if (retryTimerRef.current) {
       clearTimeout(retryTimerRef.current);
       retryTimerRef.current = null;
     }
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = null;
+    }
+
+    // Abort any ongoing operations
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    // Create new abort controller for this operation
+    abortControllerRef.current = new AbortController();
 
     const hash = getCurrentHash();
     if (!hash) {
@@ -137,12 +154,31 @@ export function useAnchorScrollHandler(): void {
       console.log(`[Anchor Debug] handleAnchorScroll: Initiating general fallback retry for '#${hash}'.`);
     }
     retryTimerRef.current = setTimeout(retryScroll, isFirefox ? GENERAL_RETRY_INTERVAL * 1.5 : GENERAL_RETRY_INTERVAL);
+
+    // Set overall timeout to prevent infinite retries
+    scrollTimeoutRef.current = setTimeout(() => {
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+      if (isDevelopment) {
+        console.log(`[Anchor Debug] handleAnchorScroll: Timeout reached for '#${hash}'. Stopping retries.`);
+      }
+    }, SCROLL_TIMEOUT);
   }, [findDropdownForHash, openAndScrollToDropdownAnchor, pathname]);
 
   useEffect(() => {
     return () => {
+      // Cleanup all timers
       if (retryTimerRef.current) {
         clearTimeout(retryTimerRef.current);
+      }
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      // Abort any ongoing operations
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
     };
   }, []);

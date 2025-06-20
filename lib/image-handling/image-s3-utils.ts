@@ -50,6 +50,12 @@ export async function persistImageToS3(
     if (!response.ok) {
       const fetchErrorMsg = `Failed to fetch original image: ${response.status} ${response.statusText}`;
       if (isDebug) debug(`[${logContext}] ${fetchErrorMsg} from URL: ${imageUrl}`);
+
+      // Handle 404 errors specifically - trigger automatic OpenGraph recrawl
+      if (response.status === 404 && pageUrl && logContext === "OpenGraph") {
+        await handleStaleImageUrl(imageUrl, pageUrl, logContext);
+      }
+
       throw new Error(fetchErrorMsg);
     }
     if (isDebug) debug(`[${logContext}] Successfully fetched original image from: ${imageUrl}`);
@@ -77,13 +83,12 @@ export async function persistImageToS3(
     if (isDebug) debug(`[${logContext}] Generated S3 key: ${s3Key} for image from URL: ${imageUrl}`);
 
     // Upload to S3
-    if (isDebug) debug(`[${logContext}] Attempting to write processed image to S3 with key: ${s3Key}`);
+    console.log(`[OpenGraph S3] 📤 Uploading processed image to S3: ${s3Key} (${processedBuffer.length} bytes)`);
     await writeBinaryS3(s3Key, processedBuffer, contentType);
 
-    if (isDebug)
-      debug(
-        `[${logContext}] Successfully persisted image to S3: ${s3Key} (${processedBuffer.length} bytes) from URL: ${imageUrl}`,
-      );
+    console.log(
+      `[OpenGraph S3] ✅ Successfully persisted image to S3: ${s3Key} (${processedBuffer.length} bytes) from ${imageUrl}`,
+    );
     return s3Key;
   } catch (error) {
     // Ensure error is an instance of Error for consistent message property access
@@ -94,6 +99,49 @@ export async function persistImageToS3(
     //   console.error(`[${logContext}] Full error object for ${imageUrl}:`, error);
     // }
     return null;
+  }
+}
+
+/**
+ * Handle stale image URLs by triggering automatic OpenGraph recrawl
+ * This is called when image URLs return 404, indicating the OpenGraph metadata is stale
+ */
+async function handleStaleImageUrl(imageUrl: string, pageUrl: string, logContext: string): Promise<void> {
+  try {
+    const { ServerCacheInstance } = await import("@/lib/server-cache");
+
+    // Detect if this is a Karakeep asset URL that has become invalid
+    const isKarakeepUrl = imageUrl.includes("karakeep.com") || imageUrl.includes("assets/");
+
+    const invalidated = ServerCacheInstance.invalidateStaleOpenGraphData(
+      pageUrl,
+      `Image URL returned 404: ${imageUrl}${isKarakeepUrl ? " (Karakeep asset)" : ""}`,
+    );
+
+    if (invalidated) {
+      if (isKarakeepUrl) {
+        console.warn(`[${logContext}] 🚨 Karakeep asset URL is invalid: ${imageUrl}`);
+        console.warn(`[${logContext}] 🔄 Automatic recovery initiated for ${pageUrl}`);
+      }
+
+      console.log(
+        `[${logContext}] Triggered automatic OpenGraph recrawl for ${pageUrl} due to stale image URL: ${imageUrl}`,
+      );
+
+      // Trigger background refresh to get fresh OpenGraph data with updated image URLs
+      const { refreshOpenGraphData } = await import("@/lib/data-access/opengraph");
+      refreshOpenGraphData(pageUrl).catch((refreshError) => {
+        console.error(`[${logContext}] Background OpenGraph refresh failed for ${pageUrl}:`, refreshError);
+
+        // If refresh also fails, the system will use fallback images automatically
+        if (isKarakeepUrl) {
+          console.warn(`[${logContext}] ⚠️ Karakeep asset and refresh both failed for ${pageUrl}`);
+          console.warn(`[${logContext}] 🛡️ System will use fallback images automatically`);
+        }
+      });
+    }
+  } catch (error) {
+    console.error(`[${logContext}] Failed to handle stale image URL for ${pageUrl}:`, error);
   }
 }
 
