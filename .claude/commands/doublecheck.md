@@ -37,8 +37,20 @@ d) **Deep Analysis**:
    - Use @mcp__zen__codereview with model="pro" for security and quality analysis
    - Cross-reference findings with official documentation from MCPs
 
-STEP 3: For each issue found, use the Edit or MultiEdit tools to implement the fix directly in the codebase.
+STEP 3: **MANDATORY: Run validation before making any changes:**
+```bash
+bun run validate
+```
+Must show 0 errors, 0 warnings. Fix any issues following @docs/projects/structure/linting-formatting.md guidance.
 
-STEP 4: After all fixes are applied, run git diff again to show the changes made.
+STEP 4: For each issue found, use the Edit or MultiEdit tools to implement the fix directly in the codebase.
+
+STEP 5: **MANDATORY: Run validation after all fixes:**
+```bash
+bun run validate
+```
+Never use @ts-ignore, @ts-expect-error, or eslint-disable. Fix all type safety issues properly.
+
+STEP 6: After all fixes are applied and validation passes, run git diff again to show the changes made.
 
 Output a summary of all fixes implemented.

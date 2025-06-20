@@ -205,4 +205,16 @@ find . -name "*.ts" -o -name "*.tsx" -exec wc -l {} + | awk '$1 > 500' | sort -n
 - Rule content search: `grep -r "pattern" .cursor/rules/`
 - Verify rule format: Ensure proper MDC frontmatter exists
 
+## 🚨 CRITICAL: Git Commit Policy
+
+### No AI Attribution in Commits
+
+**NEVER include any Claude attribution, co-author tags, or AI-generated markers in any commits.** This includes:
+
+- 🤖 Generated with [Claude Code]
+- Co-Authored-By: Claude <noreply@anthropic.com>
+- Any other AI attribution or markers
+
+**All commits must be clean, professional commit messages without AI attribution.**
+
 This system ensures intelligent, context-aware rule application while maintaining clean, maintainable code through the 500-line limit policy.
