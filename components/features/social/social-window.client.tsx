@@ -101,12 +101,12 @@ export function SocialWindow({ socialLinks = [], title = "Contact", onClose }: S
             {socialLinks.map((link) => (
               <a
                 key={link.platform}
-                href={link.url}
+                href={link.href}
                 className="block p-3 rounded border hover:bg-gray-50 dark:hover:bg-gray-800"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                {link.platform}: {link.url}
+                {link.platform}: {link.href}
               </a>
             ))}
           </div>
