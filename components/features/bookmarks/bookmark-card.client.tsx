@@ -62,6 +62,7 @@ export function BookmarkCardClient({
   shareUrl,
 }: BookmarkCardClientProps): JSX.Element {
   const [mounted, setMounted] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   // Effects for handling client-side initialization
   useEffect(() => {
@@ -117,6 +118,14 @@ export function BookmarkCardClient({
   };
 
   const displayImageUrl = getDisplayImageUrl();
+
+  // Reset image error when displayImageUrl changes (happens on prop updates)
+  const [prevDisplayImageUrl, setPrevDisplayImageUrl] = useState(displayImageUrl);
+  if (displayImageUrl !== prevDisplayImageUrl) {
+    setPrevDisplayImageUrl(displayImageUrl);
+    setImageError(false);
+  }
+
   const domain = normalizeDomain(url);
   const domainWithoutWWW = domain.replace(/^www\./, "");
 
@@ -143,21 +152,21 @@ export function BookmarkCardClient({
         className="relative w-full aspect-video overflow-hidden rounded-t-3xl bg-gray-100 dark:bg-gray-800 block"
       >
         <div className="relative w-full h-full">
-          {/* Try unified OG image API first */}
-          {displayImageUrl ? (
+          {/* Try unified OG image API first, but fall back to logo if image fails to load */}
+          {displayImageUrl && !imageError ? (
+            // biome-ignore lint/performance/noImgElement: its a fallback
             <img
               src={displayImageUrl}
               alt={title}
               loading="lazy"
               className="w-full h-full object-cover"
               onError={() => {
-                // Log the error but don't set imageError state
-                // The /api/og-image endpoint should handle fallbacks internally
                 console.warn(`[BookmarkCard] Image failed to load: ${displayImageUrl}`);
+                setImageError(true); // Show fallback UI when image fails
               }}
             />
           ) : (
-            /* Only fallback to logo when no image sources are available */
+            /* Show logo fallback when no image sources are available OR when image loading failed */
             <div className="flex items-center justify-center w-full h-full">
               {domain ? (
                 <LogoImage
