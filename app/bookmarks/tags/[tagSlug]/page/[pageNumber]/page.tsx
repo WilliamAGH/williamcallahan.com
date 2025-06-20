@@ -40,7 +40,7 @@ export async function generateMetadata({ params }: PaginatedTagBookmarkContext):
   const tagQuery = tagSlug.replace(/-/g, " ");
 
   // Get all bookmarks to find the tag and calculate pagination
-  const allBookmarks = await getBookmarksForStaticBuild();
+  const allBookmarks = getBookmarksForStaticBuild();
 
   // Filter bookmarks by tag
   const taggedBookmarks = allBookmarks.filter((b) => {
@@ -169,7 +169,7 @@ export default async function PaginatedTagBookmarksPage({ params }: PaginatedTag
   const tagQuery = tagSlug.replace(/-/g, " ");
 
   // Get all bookmarks and filter by tag
-  const allBookmarks = await getBookmarksForStaticBuild();
+  const allBookmarks = getBookmarksForStaticBuild();
   const taggedBookmarks = allBookmarks.filter((b) => {
     const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
       typeof t === "string" ? t : t.name,

@@ -21,8 +21,8 @@ import { notFound } from "next/navigation";
 /**
  * Generate static paths for slug pages
  */
-export async function generateStaticParams() {
-  const bookmarks = await getBookmarksForStaticBuild();
+export function generateStaticParams() {
+  const bookmarks = getBookmarksForStaticBuild();
   return bookmarks.map((bookmark) => ({
     slug: generateUniqueSlug(bookmark.url, bookmarks, bookmark.id),
   }));
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
   // Fetch bookmark data to create more specific metadata
-  const allBookmarks = await getBookmarksForStaticBuild();
+  const allBookmarks = getBookmarksForStaticBuild();
   const { slug } = paramsResolved;
 
   // Find the bookmark that matches this slug
@@ -122,7 +122,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 import type { BookmarkPageContext } from "@/types";
 
 export default async function BookmarkPage({ params }: BookmarkPageContext) {
-  const allBookmarks = await getBookmarksForStaticBuild();
+  const allBookmarks = getBookmarksForStaticBuild();
   // Await params to fix Next.js warning
   const paramsResolved = await Promise.resolve(params);
   const { slug } = paramsResolved;

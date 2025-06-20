@@ -446,28 +446,26 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
 
       {/* Client-side only rendering of bookmark results */}
       {mounted ? (
-        <>
-          {filteredBookmarks.length === 0 && searchQuery ? (
-            <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
-              <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">
-                No bookmarks found for &ldquo;{searchQuery}&rdquo;
-              </p>
-              <p className="text-gray-500 dark:text-gray-400 text-sm">Try adjusting your search terms or filters.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
-              {filteredBookmarks.map((bookmark) => {
-                // Generate share URL once per bookmark to avoid per-card API calls
-                const shareUrl = `/bookmarks/${generateUniqueSlug(
-                  bookmark.url,
-                  bookmarks.map((b) => ({ id: b.id, url: b.url })),
-                  bookmark.id,
-                )}`;
-                return <BookmarkCardClient key={bookmark.id} {...bookmark} shareUrl={shareUrl} />;
-              })}
-            </div>
-          )}
-        </>
+        filteredBookmarks.length === 0 && searchQuery ? (
+          <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
+            <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">
+              No bookmarks found for &ldquo;{searchQuery}&rdquo;
+            </p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Try adjusting your search terms or filters.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
+            {filteredBookmarks.map((bookmark) => {
+              // Generate share URL once per bookmark to avoid per-card API calls
+              const shareUrl = `/bookmarks/${generateUniqueSlug(
+                bookmark.url,
+                bookmarks.map((b) => ({ id: b.id, url: b.url })),
+                bookmark.id,
+              )}`;
+              return <BookmarkCardClient key={bookmark.id} {...bookmark} shareUrl={shareUrl} />;
+            })}
+          </div>
+        )
       ) : (
         /* Server-side placeholder with hydration suppression */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6" suppressHydrationWarning>

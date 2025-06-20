@@ -60,14 +60,14 @@ const getLatestDate = (...dates: (Date | undefined)[]): Date | undefined => {
 };
 
 // --- Main Sitemap Generation ---
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl = siteMetadata.site.url;
   const postsDirectory = path.join(process.cwd(), "data/blog/posts");
 
   // --- 1. Process Blog Posts and Tags ---
   const postsData: { slug: string; lastModified: Date | undefined; tags: string[] }[] = [];
   const tagLastModifiedMap: { [tagSlug: string]: Date } = {};
-  let latestPostUpdateTime: Date | undefined = undefined;
+  let latestPostUpdateTime: Date | undefined;
 
   try {
     const filenames = fs.readdirSync(postsDirectory);
@@ -139,14 +139,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const paginatedBookmarkEntries: MetadataRoute.Sitemap = [];
   let bookmarkTagEntries: MetadataRoute.Sitemap = [];
   const paginatedBookmarkTagEntries: MetadataRoute.Sitemap = [];
-  let latestBookmarkUpdateTime: Date | undefined = undefined;
+  let latestBookmarkUpdateTime: Date | undefined;
   const bookmarkTagLastModifiedMap: { [tagSlug: string]: Date } = {};
   const bookmarkTagCounts: { [tagSlug: string]: number } = {};
 
   try {
     // Use static build function to get bookmarks
     console.log("[Sitemap] Getting bookmarks for static build...");
-    const bookmarks = await getBookmarksForStaticBuild();
+    const bookmarks = getBookmarksForStaticBuild();
     console.log(`[Sitemap] Successfully got ${bookmarks.length} bookmarks for sitemap generation.`);
 
     // Pre-compute slugs to avoid O(n²) complexity

@@ -23,8 +23,8 @@ import type { TagBookmarkContext } from "@/types";
 /**
  * Generate static paths for tag pages
  */
-export async function generateStaticParams() {
-  const bookmarks = await getBookmarksForStaticBuild();
+export function generateStaticParams() {
+  const bookmarks = getBookmarksForStaticBuild();
   const tags = bookmarks.flatMap((b) =>
     (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
       typeof t === "string" ? t : t.name,
@@ -48,7 +48,7 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
   const tagQuery = tagSlug.replace(/-/g, " ");
 
   // Try to find the original tag capitalization
-  const allBookmarks = await getBookmarksForStaticBuild();
+  const allBookmarks = getBookmarksForStaticBuild();
   let displayTag = tagQuery
     .split(" ")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -99,7 +99,7 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
 }
 
 export default async function TagPage({ params }: TagBookmarkContext) {
-  const allBookmarks = await getBookmarksForStaticBuild();
+  const allBookmarks = getBookmarksForStaticBuild();
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
   // Use sanitizeUnicode utility for consistency
