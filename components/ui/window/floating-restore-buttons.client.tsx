@@ -7,7 +7,6 @@
 
 import { useWindowRegistry } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
-import React from "react";
 
 export function FloatingRestoreButtons() {
   const { windows, restoreWindow } = useWindowRegistry();

@@ -1,5 +1,3 @@
-import { NextResponse } from "next/server"; // eslint-disable-line @typescript-eslint/no-unused-vars
-
 export const dynamic = "force-dynamic";
 class SentryExampleAPIError extends Error {
   constructor(message: string | undefined) {

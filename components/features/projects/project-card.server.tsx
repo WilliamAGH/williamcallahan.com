@@ -1,7 +1,7 @@
 import { ExternalLink } from "@/components/ui/external-link.client";
 import type { ProjectCardServerProps } from "@/types/features/projects";
 import Image from "next/image";
-import React, { type JSX } from "react";
+import { type JSX } from "react";
 
 // Placeholder for centered top image with gradient
 function PlaceholderImageTop() {

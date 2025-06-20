@@ -11,7 +11,6 @@
  */
 
 import type { Metadata } from "next";
-import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types"; // eslint-disable-line @typescript-eslint/no-unused-vars
 
 /**
  * SEO date field constants following current web standards

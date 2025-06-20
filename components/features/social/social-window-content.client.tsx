@@ -1,6 +1,5 @@
 "use client";
 
-import type React from "react";
 import { Suspense } from "react";
 import { cn } from "@/lib/utils";
 import { SocialListClient } from "./social-list.client";

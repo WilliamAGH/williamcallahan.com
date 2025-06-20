@@ -1,10 +1,8 @@
-import type { Matchers } from "bun:test"; // eslint-disable-line @typescript-eslint/no-unused-vars
 // types/global/matchers.d.ts
 import type { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
 
 declare namespace Jest {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  interface Matchers<R, T = unknown> {
+  interface Matchers {
     advanceTimersByTime(ms: number): void;
     useFakeTimers(): void;
     useRealTimers(): void;

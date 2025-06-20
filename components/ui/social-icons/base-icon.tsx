@@ -4,7 +4,6 @@
  * Common SVG component for social icons.
  */
 
-import type React from "react";
 import type { BaseIconProps } from "@/types/ui/social";
 
 // For backwards compatibility with existing icon components

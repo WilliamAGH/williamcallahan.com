@@ -40,7 +40,7 @@ if (typeof globalThis.fetch === "undefined") {
     const undici = require("undici");
     fetchImpl = undici.fetch;
     ({ Headers: HeadersImpl, Request: RequestImpl, Response: ResponseImpl } = undici);
-  } catch (undiciErr) {
+  } catch (_undiciErr) {
     // Fall back to node-fetch (common in Jest environments). Handle both ESM and CJS interop
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const fetchPkg = require("node-fetch");
