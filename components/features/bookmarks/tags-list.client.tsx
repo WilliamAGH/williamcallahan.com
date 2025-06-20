@@ -7,7 +7,7 @@
 "use client";
 
 import { formatTagDisplay } from "@/lib/utils/tag-utils";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import type { TagsListClientProps } from "@/types";
 
 export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListClientProps) {

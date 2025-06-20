@@ -1,7 +1,20 @@
 /**
  * Unified source types for image retrieval
  */
-export type ImageSource = "memory" | "s3" | "origin" | "external" | "cache" | "fallback" | "placeholder" | "google" | "duckduckgo" | "clearbit" | "unknown" | "api";
+
+export type ImageSource =
+  | "memory"
+  | "s3"
+  | "origin"
+  | "external"
+  | "cache"
+  | "fallback"
+  | "placeholder"
+  | "google"
+  | "duckduckgo"
+  | "clearbit"
+  | "unknown"
+  | "api";
 
 /**
  * Base interface for all image data
@@ -80,5 +93,3 @@ export interface ExternalFetchResult {
   /** Optional URL where the image was fetched from */
   url?: string;
 }
-
-

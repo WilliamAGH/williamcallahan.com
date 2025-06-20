@@ -9,7 +9,6 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import React from "react";
 
 // A visually-hidden placeholder to preserve layout without displaying a dark bar.
 // Using Tailwind utility classes keeps it consistent with the rest of the project.

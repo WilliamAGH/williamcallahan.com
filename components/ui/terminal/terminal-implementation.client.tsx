@@ -11,7 +11,7 @@
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
 import { TerminalSquare } from "lucide-react"; // Import specific icon
-import React, { useEffect, useRef } from "react"; // Assuming useCallback was here and removed
+import { useEffect, useRef } from "react"; // Assuming useCallback was here and removed
 import { CommandInput } from "./command-input.client";
 import { History } from "./history";
 import { SelectionView } from "./selection-view.client";

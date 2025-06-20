@@ -103,7 +103,7 @@ export function SocialWindow({ socialLinks = [], title = "Contact", onClose }: S
                 key={link.platform}
                 href={link.href}
                 className={`flex items-center gap-3 p-3 rounded border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                  link.emphasized ? 'border-blue-200 dark:border-blue-800' : ''
+                  link.emphasized ? "border-blue-200 dark:border-blue-800" : ""
                 }`}
                 target="_blank"
                 rel="noopener noreferrer"

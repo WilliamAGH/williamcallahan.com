@@ -12,7 +12,7 @@
 "use client";
 
 import Image from "next/image"; // Import next/image
-import React, { type JSX } from "react";
+import { type JSX } from "react";
 import type { LogoImageProps } from "@/types";
 
 export function LogoImage({
