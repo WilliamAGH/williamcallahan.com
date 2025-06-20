@@ -8,7 +8,20 @@
  */
 import type { z } from "zod";
 import type { SocialLinkSchema } from "@/lib/validators/social";
-import { SOCIAL_PLATFORMS } from "@/lib/opengraph/constants";
+
+/**
+ * Social media platform constants.
+ * Moved from lib/opengraph/constants.ts to break a circular dependency.
+ * This is the single source of truth for social platform names.
+ */
+export const SOCIAL_PLATFORMS = {
+  GITHUB: "GitHub",
+  TWITTER: "Twitter",
+  X: "X",
+  LINKEDIN: "LinkedIn",
+  DISCORD: "Discord",
+  BLUESKY: "Bluesky",
+} as const;
 
 /**
  * Represents a single social media link.
@@ -17,6 +30,3 @@ import { SOCIAL_PLATFORMS } from "@/lib/opengraph/constants";
 export type SocialLink = z.infer<typeof SocialLinkSchema>;
 
 export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[keyof typeof SOCIAL_PLATFORMS];
-
-// Re-export for backward compatibility
-export { SOCIAL_PLATFORMS };

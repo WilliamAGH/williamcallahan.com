@@ -2,15 +2,20 @@
  * Search Types
  */
 
-export interface SearchResult {
-  label: string;
-  description: string;
-  path: string;
-}
+import type { SearchScope, SearchResult } from "./lib";
 
-export const VALID_SCOPES = ["blog", "posts", "investments", "experience", "education", "bookmarks"] as const;
+// Re-export for convenience so consumers can import directly from "@/types/search"
+export type { SearchScope, SearchResult };
 
-export type SearchScope = (typeof VALID_SCOPES)[number];
+export const VALID_SCOPES = [
+  "blog",
+  "posts",
+  "investments",
+  "experience",
+  "education",
+  "bookmarks",
+  "projects",
+] as const;
 
 export interface EducationItem {
   id: string;
@@ -25,8 +30,6 @@ export interface BookmarkIndexItem {
   description: string;
   tags: string;
   url: string;
-  content?: {
-    author?: string | null;
-    publisher?: string | null;
-  };
+  author: string;
+  publisher: string;
 }

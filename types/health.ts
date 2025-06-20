@@ -14,6 +14,7 @@ export interface HealthCheckResult {
     arrayBuffers: number;
     threshold?: number;
     budget?: number;
+    memoryPressure?: boolean;
     cacheStats?: {
       imageCache: {
         size: number;
@@ -42,6 +43,8 @@ export interface MemoryMetrics {
     pending: number;
     total: number;
   };
+  /** Whether the system is currently under memory pressure */
+  memoryPressure?: boolean;
 }
 
 /**
@@ -55,6 +58,7 @@ export interface MiddlewareRequest {
 export interface MiddlewareResponse {
   status(code: number): MiddlewareResponse;
   json(data: unknown): void;
+  setHeader?(name: string, value: string): void;
 }
 
 export type MiddlewareNextFunction = () => void;
@@ -75,4 +79,20 @@ export interface MemoryThresholds {
 export interface MemoryChecker {
   isMemoryCritical(): Promise<boolean>;
   isMemoryWarning(): Promise<boolean>;
+}
+
+export type MemoryStatus = "healthy" | "warning" | "critical";
+
+/** Event payload emitted by ImageMemoryManager when memory pressure starts or ends */
+export interface MemoryPressureEvent {
+  rss: number;
+  heap: number;
+  /** Percentage of total process memory used (0-100) if available */
+  memoryUsagePercent?: number;
+  /** Threshold in bytes that triggered the pressure event, if provided */
+  threshold?: number;
+  /** Source that triggered the event (e.g., "external", "internal") */
+  source?: string;
+  /** Optional size of the image cache when event fired */
+  cacheSize?: number;
 }

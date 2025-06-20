@@ -2,6 +2,8 @@
  * S3 File and Client Wrapper Type Definitions
  *
  * Defines interfaces for a Bun-compatible S3 client file handle and client wrapper.
+ * For schemas related to specific data stored in S3 (e.g., bookmarks index),
+ * see the relevant schema files in `lib/schemas/`.
  */
 
 export interface S3File<T = unknown> {
@@ -32,12 +34,6 @@ export interface S3ClientWrapper {
   file: (key: string) => S3File;
   /** List objects by prefix. */
   list: (prefix?: string, options?: unknown) => Promise<{ contents: { key: string }[]; isTruncated: boolean }>;
-}
-
-export interface DistributedLockEntry {
-  instanceId: string;
-  acquiredAt: number;
-  ttlMs: number;
 }
 
 export interface StreamToS3Options {

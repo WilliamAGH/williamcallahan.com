@@ -52,35 +52,22 @@ export interface OgResult extends OgFetchResult {
   actualUrl?: string;
 }
 
-/** Karakeep image fallback data for OpenGraph enhancement */
-export interface KarakeepImageFallback {
-  imageUrl?: string | null;
-  imageAssetId?: string | null;
-  screenshotAssetId?: string | null;
-  karakeepBaseUrl?: string;
-}
+// KarakeepImageFallback is now defined in types/seo/opengraph.ts
+export type { KarakeepImageFallback } from "./seo/opengraph";
 
-/** OpenGraph cache entry for server-side caching */
-export interface OgCacheEntry extends OgResult {
+// Type alias with extra fields
+export interface OgCacheEntry {
+  data: OgResult;
   lastFetchedAt: number;
   lastAttemptedAt: number;
   isFailure?: boolean;
 }
 
+// Import the validated type from seo/opengraph to avoid duplication
+import type { ValidatedOgMetadata } from "./seo/opengraph";
+
 /** General OpenGraph metadata structure */
-export interface OgMetadata {
-  title?: string | null;
-  description?: string | null;
-  image?: string | null;
-  twitterImage?: string | null;
-  site?: string | null;
-  type?: string | null;
-  profileImage?: string | null;
-  bannerImage?: string | null;
-  url?: string | null;
-  siteName?: string | null;
-  [key: string]: string | null | undefined;
-}
+export type OgMetadata = ValidatedOgMetadata;
 
 /**
  * Custom error for OpenGraph operations

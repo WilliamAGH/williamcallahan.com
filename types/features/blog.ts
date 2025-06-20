@@ -123,26 +123,14 @@ export interface BlogListProps {
  * Server-side blog list component props
  * @usage - Server-rendered blog lists with pagination
  */
-export interface BlogListServerProps extends BlogListProps {
-  /** Server-side pagination info */
+// Type alias - minimal extension
+export type BlogListServerProps = BlogListProps & {
   currentPage?: number;
   totalPages?: number;
-}
+};
 
-/**
- * Blog window component props
- * @usage - Blog posts displayed in window-like UI
- */
-export interface BlogWindowProps {
-  /** Array of blog posts to display */
-  posts: BlogPost[];
-  /** Window title */
-  title?: string;
-  /** Whether the window is active */
-  isActive?: boolean;
-  /** Optional CSS classes */
-  className?: string;
-}
+// Use generic WindowProps pattern
+export type BlogWindowProps = import("../component-types").WindowProps<{ posts: BlogPost[] }>;
 
 /**
  * Client-side blog component props
