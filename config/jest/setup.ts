@@ -205,3 +205,9 @@ console.error = (...args: unknown[]) => {
   }
   originalError(...args);
 };
+
+import { destroyImageMemoryManager } from "@/lib/image-memory-manager";
+
+afterAll(() => {
+  destroyImageMemoryManager();
+});

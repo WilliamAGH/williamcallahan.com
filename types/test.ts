@@ -22,9 +22,10 @@ import type { JSX } from "react";
 import type { jest } from "@jest/globals";
 
 export type PageComponentModule = {
-  default: (props: { params: Record<string, string>; searchParams: Record<string, string> }) =>
-    | Promise<JSX.Element>
-    | JSX.Element;
+  default: (props: {
+    params: Record<string, string>;
+    searchParams: Record<string, string>;
+  }) => Promise<JSX.Element> | JSX.Element;
 };
 
 export interface BlogFrontmatter {

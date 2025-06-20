@@ -159,6 +159,24 @@ class AsyncOperationsMonitor {
       }
     }
   }
+
+  /**
+   * Get health status (alias for getSummary for compatibility)
+   */
+  getHealthStatus(): {
+    activeOperations: number;
+    completedOperations: number;
+    failedOperations: number;
+    totalOperations: number;
+  } {
+    const summary = this.getSummary();
+    return {
+      activeOperations: summary.pending,
+      completedOperations: summary.completed,
+      failedOperations: summary.failed + summary.timeout,
+      totalOperations: summary.total,
+    };
+  }
 }
 
 // Export singleton instance

@@ -241,3 +241,15 @@ export function randomString(length: number): string {
   }
   return result;
 }
+
+/**
+ * Throws an error if the function is called in a browser environment.
+ *
+ * This is a safeguard to ensure server-only modules are not accidentally
+ * imported and used on a client.
+ */
+export function assertServerOnly() {
+  if (process.env.NODE_ENV !== "test" && typeof globalThis !== "undefined" && "window" in globalThis) {
+    throw new Error("This module is server-only and should not be imported in a browser environment.");
+  }
+}

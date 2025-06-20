@@ -379,6 +379,33 @@ export const CSP_DIRECTIVES = {
 };
 
 /**
+ * Memory usage thresholds for health monitoring and load shedding.
+ * All values are in bytes.
+ *
+ * - `IMAGE_RAM_BUDGET_BYTES`: Total memory allocated for the image cache (default 512MB)
+ * - `MEMORY_WARNING_THRESHOLD`: RSS memory usage that triggers a "warning" state (default 75% of budget)
+ * - `MEMORY_CRITICAL_THRESHOLD`: RSS memory usage that triggers a "critical" state and load shedding (default 90% of budget)
+ * - `IMAGE_STREAM_THRESHOLD_BYTES`: Images larger than this are streamed to S3 (default 5MB)
+ */
+export const MEMORY_THRESHOLDS = {
+  IMAGE_RAM_BUDGET_BYTES: Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? 512 * 1024 * 1024), // 512MB default
+  
+  MEMORY_WARNING_THRESHOLD: Number(
+    process.env.MEMORY_WARNING_THRESHOLD ?? 
+    (Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? 512 * 1024 * 1024) * 0.75)
+  ),
+  
+  MEMORY_CRITICAL_THRESHOLD: Number(
+    process.env.MEMORY_CRITICAL_THRESHOLD ?? 
+    (Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? 512 * 1024 * 1024) * 0.9)
+  ),
+  
+  IMAGE_STREAM_THRESHOLD_BYTES: Number(
+    process.env.IMAGE_STREAM_THRESHOLD_BYTES ?? 5 * 1024 * 1024
+  ), // 5MB default
+} as const;
+
+/**
  * Default S3 bucket name used by data-access and utility layers.
  * This is a thin re-export of the `S3_BUCKET` environment variable so that
  * other modules can import a typed constant instead of reading from

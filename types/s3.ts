@@ -39,3 +39,17 @@ export interface DistributedLockEntry {
   acquiredAt: number;
   ttlMs: number;
 }
+
+export interface StreamToS3Options {
+  bucket: string;
+  key: string;
+  contentType: string;
+  s3Client: import("@aws-sdk/client-s3").S3Client;
+}
+
+export interface StreamingResult {
+  success: boolean;
+  location?: string;
+  error?: Error;
+  bytesStreamed?: number;
+}

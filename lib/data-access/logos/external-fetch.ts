@@ -12,6 +12,7 @@ import { getBaseUrl } from "@/lib/utils/get-base-url";
 import { isDebug } from "@/lib/utils/debug";
 import { getDomainVariants } from "@/lib/utils/domain-utils";
 import type { LogoSource } from "@/types/logo";
+import type { ExternalFetchResult } from "@/types/image";
 import { processImageBuffer, validateLogoBuffer } from "./image-processing";
 
 /**
@@ -50,7 +51,7 @@ export function getBrowserHeaders(): Record<string, string> {
  */
 export async function fetchExternalLogo(
   domain: string,
-): Promise<{ buffer: Buffer; source: LogoSource; contentType: string } | null> {
+): Promise<ExternalFetchResult | null> {
   const domainVariants: string[] = getDomainVariants(domain);
 
   // Try domain variants sequentially
@@ -133,7 +134,7 @@ export async function fetchExternalLogo(
           }
 
           console.log(`[DataAccess/Logos] Fetched logo for ${domain} from ${name} (${size}) using ${testDomain}`);
-          return { buffer: processedBuffer, source: name, contentType };
+          return { buffer: processedBuffer, source: name, contentType, url };
         }
 
         // Debug: show why validation failed

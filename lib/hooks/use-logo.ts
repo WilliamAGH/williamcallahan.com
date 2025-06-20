@@ -22,7 +22,7 @@ export function useLogo(input: string | undefined) {
       try {
         const result = await fetchLogo(input);
         if (mounted) {
-          setLogoUrl(result.url);
+          setLogoUrl(result.url || null);
           setError(!result.url);
         }
       } catch (err) {

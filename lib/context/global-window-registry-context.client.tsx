@@ -8,7 +8,7 @@
 
 import { useFixSvgTransforms } from "@/hooks/use-fix-svg-transforms";
 import type { LucideIcon } from "lucide-react"; // Assuming lucide-react for icons
-import React, { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type {
   WindowStateValue,
   WindowInstanceInfo,
@@ -44,8 +44,8 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
   const unregisterWindow = useCallback((id: string) => {
     setWindows((prev) => {
       // Destructure to get all windows except the one we're removing
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { [id]: removed, ...rest } = prev; // Using _prefix convention for unused vars
+      const { [id]: removedWindow, ...rest } = prev; // Extract removed window for cleanup
+      void removedWindow; // Explicitly acknowledge unused variable
       return rest;
     });
     // TODO: Consider removing from sessionStorage on unregister?
