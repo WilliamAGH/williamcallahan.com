@@ -14,7 +14,6 @@ import { X } from "./x-icon";
 const socialLinksData = [
   {
     platform: "github",
-    url: "https://github.com/WilliamAGH",
     href: "https://github.com/WilliamAGH",
     label: "GitHub",
     icon: GitHub,
@@ -22,7 +21,6 @@ const socialLinksData = [
   },
   {
     platform: "x",
-    url: "https://x.com/williamcallahan",
     href: "https://x.com/williamcallahan",
     label: "X (Twitter)",
     icon: X,
@@ -30,21 +28,18 @@ const socialLinksData = [
   },
   {
     platform: "discord",
-    url: "https://discord.com/users/WilliamDscord",
     href: "https://discord.com/users/WilliamDscord",
     label: "Discord",
     icon: Discord,
   },
   {
     platform: "linkedin",
-    url: "https://linkedin.com/in/williamacallahan",
     href: "https://linkedin.com/in/williamacallahan",
     label: "LinkedIn",
     icon: LinkedIn,
   },
   {
     platform: "bluesky",
-    url: "https://bsky.app/profile/williamcallahan.com",
     href: "https://bsky.app/profile/williamcallahan.com",
     label: "Bluesky",
     icon: Bluesky,
