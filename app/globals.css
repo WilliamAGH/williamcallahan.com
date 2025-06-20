@@ -150,19 +150,27 @@ html {
   }
   2% {
     transform: translate(-2px, 1px);
-    text-shadow: 2px 0 #ff00ea, -2px 0 #00ffff;
+    text-shadow:
+      2px 0 #ff00ea,
+      -2px 0 #00ffff;
   }
   4% {
     transform: translate(2px, -1px);
-    text-shadow: 2px 0 #00ffff, -2px 0 #ff00ea;
+    text-shadow:
+      2px 0 #00ffff,
+      -2px 0 #ff00ea;
   }
   5% {
     transform: translate(-1px, 2px);
-    text-shadow: 2px 0 #ff00ea, -2px 0 #00ffff;
+    text-shadow:
+      2px 0 #ff00ea,
+      -2px 0 #00ffff;
   }
   6% {
     transform: translate(1px, -2px);
-    text-shadow: 2px 0 #00ffff, -2px 0 #ff00ea;
+    text-shadow:
+      2px 0 #00ffff,
+      -2px 0 #ff00ea;
   }
   7% {
     transform: translate(0);

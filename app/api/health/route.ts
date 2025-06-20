@@ -1,38 +1,35 @@
 /**
  * Health Check Endpoint
  *
- * Lightweight health check endpoint that returns 200 OK immediately.
- * This endpoint has zero dependencies on modules that perform I/O operations
- * to ensure it can respond quickly during deployment and scaling events.
+ * Provides a simple health check for load balancers and uptime monitors.
+ * Returns a 200 OK response if the service is running.
  *
- * Used by:
- * - Container orchestrators (Kubernetes, ECS, etc.) for liveness/readiness probes
- * - Load balancers for health checks
- * - Monitoring systems for uptime checks
+ * For detailed metrics, see /api/health/metrics.
+ *
+ * @module app/api/health
  */
 
 import { NextResponse } from "next/server";
+import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/health
  *
- * Returns a simple health check response with minimal information.
- * This endpoint is designed to be as fast as possible with no external dependencies.
+ * Returns a detailed health check response, including memory status.
+ * The status code reflects the system's health for load balancers.
  */
 export function GET() {
-  return NextResponse.json(
-    {
-      status: "healthy",
-      timestamp: new Date().toISOString(),
-      service: "williamcallahan.com",
+  const monitor = getMemoryHealthMonitor();
+  const health = monitor.getHealthStatus();
+
+  const status = health.status === "unhealthy" ? 503 : 200;
+
+  return NextResponse.json(health, {
+    status,
+    headers: {
+      "Cache-Control": "no-cache, no-store, must-revalidate",
     },
-    {
-      status: 200,
-      headers: {
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-      },
-    },
-  );
+  });
 }

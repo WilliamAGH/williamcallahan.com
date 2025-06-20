@@ -1,56 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-
+import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import type { TwitterImageContext } from "@/types";
-
-/**
- * Implements exponential backoff retry mechanism for fetch requests
- */
-async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const response = await fetch(url, options);
-
-      // If response is OK or client error (4xx), don't retry
-      if (response.ok || (response.status >= 400 && response.status < 500 && response.status !== 429)) {
-        return response;
-      }
-
-      // Retry on 429 (rate limit) or 5xx server errors
-      if (response.status === 429 || response.status >= 500) {
-        if (attempt === maxRetries) {
-          return response; // Return the error response on final attempt
-        }
-
-        // Exponential backoff: 1s, 2s, 4s
-        const delay = 2 ** attempt * 1000;
-        console.log(`[Twitter Image Proxy] Retrying ${url} in ${delay}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        continue;
-      }
-
-      return response;
-    } catch (error) {
-      lastError = error as Error;
-
-      if (attempt === maxRetries) {
-        throw lastError;
-      }
-
-      // Exponential backoff for network errors
-      const delay = 2 ** attempt * 1000;
-      console.log(
-        `[Twitter Image Proxy] Network error, retrying ${url} in ${delay}ms (attempt ${attempt + 1}/${maxRetries + 1}):`,
-        error,
-      );
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
-
-  throw lastError || new Error("Max retries reached");
-}
 
 export async function GET(request: NextRequest, { params }: TwitterImageContext) {
   try {
@@ -82,39 +33,39 @@ export async function GET(request: NextRequest, { params }: TwitterImageContext)
     const upstreamUrl = `https://pbs.twimg.com/${pathOnly}${search || embeddedSearch}`;
     console.log(`[Twitter Image Proxy] Attempting to fetch: ${upstreamUrl}`);
 
-    // Fetch from Twitter with timeout, retry mechanism, and proper headers
-    const upstreamResponse = await fetchWithRetry(upstreamUrl, {
-      signal: AbortSignal.timeout(10000), // 10 second timeout
-      headers: {
-        "User-Agent": "TwitterImageProxy/1.0",
-      },
-    });
+    // Use UnifiedImageService for consistent image handling
+    const imageService = getUnifiedImageService();
+    const result = await imageService.getImage(upstreamUrl);
 
-    console.log(
-      `[Twitter Image Proxy] Upstream response status for ${upstreamUrl}: ${upstreamResponse.status} ${upstreamResponse.statusText}`,
-    );
-
-    if (!upstreamResponse.ok) {
-      return new NextResponse(null, { status: upstreamResponse.status });
+    // If we got a CDN URL, redirect to it
+    if (result.cdnUrl && !result.buffer) {
+      return NextResponse.redirect(result.cdnUrl, { status: 302 });
     }
 
-    // Mirror content type and set caching headers for better performance
-    const contentType = upstreamResponse.headers.get("Content-Type") || "application/octet-stream";
-    const responseHeaders = new Headers({
-      "Content-Type": contentType,
-      // Enhanced caching: 24 hours with stale-while-revalidate for better performance
-      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800, immutable",
-    });
+    // If we have a buffer, return it
+    if (result.buffer) {
+      const responseHeaders = new Headers({
+        "Content-Type": result.contentType,
+        // Enhanced caching: 24 hours with stale-while-revalidate for better performance
+        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800, immutable",
+        "X-Cache": result.source === "memory" ? "HIT" : "MISS",
+        "X-Source": result.source,
+      });
 
-    // Mirror status and headers (omit only content-length to allow streaming)
-    upstreamResponse.headers.forEach((value, key) => {
-      // Omit content-length since streaming chunk size may differ, but preserve content-encoding
-      if (key.toLowerCase() === "content-length") return;
-      responseHeaders.set(key, value);
-    });
+      return new NextResponse(result.buffer, { headers: responseHeaders });
+    }
 
-    // Stream the image data back
-    return new NextResponse(upstreamResponse.body, { headers: responseHeaders });
+    // If we have an error, return appropriate status
+    if (result.error) {
+      console.error(`[Twitter Image Proxy] Error: ${result.error}`);
+      if (result.error.includes("timeout")) {
+        return new NextResponse(null, { status: 504 }); // Gateway Timeout
+      }
+      return new NextResponse(null, { status: 502 }); // Bad Gateway
+    }
+
+    // Fallback error
+    return new NextResponse(null, { status: 502 }); // Bad Gateway
   } catch (error) {
     console.error("[Twitter Image Proxy] Error fetching image:", error);
 

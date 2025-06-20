@@ -91,11 +91,7 @@ export const metadata: Metadata = {
  * @param {React.ReactNode} props.children - Child components to render
  * @returns {JSX.Element} The root layout structure
  */
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={cn("scroll-smooth")}>
       <head>
