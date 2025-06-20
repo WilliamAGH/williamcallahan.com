@@ -113,7 +113,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return new NextResponse(null, {
       status: 500,
       headers: {
-        "Cache-control": "public, max-age=300", // Cache errors for 5 minutes
+        "Cache-Control": "public, max-age=300", // Cache errors for 5 minutes
         "x-logo-error": "Internal server error",
       },
     });
