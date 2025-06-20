@@ -22,7 +22,7 @@ function validateApiKey(request: NextRequest): boolean {
     return false;
   }
 
-  const providedKey = request.headers.get("x-api-key") || request.nextUrl.searchParams.get("key");
+  const providedKey = request.headers.get("x-api-key");
   return providedKey === apiKey;
 }
 
