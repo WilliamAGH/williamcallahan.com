@@ -129,8 +129,8 @@ export async function readLogoFromS3(domain: string): Promise<LogoResult | null>
     if (result) {
       logger.debug(`[Logos] Successfully read logo from S3 for domain: ${domain} with source: ${result.source}`);
       // Determine content type from file extension
-      const contentType = result.key.endsWith('.svg') ? 'image/svg+xml' : 'image/png';
-      
+      const contentType = result.key.endsWith(".svg") ? "image/svg+xml" : "image/png";
+
       // Also store this buffer in the in-memory manager for faster access next time
       ImageMemoryManagerInstance.set(result.key, result.buffer, {
         contentType,

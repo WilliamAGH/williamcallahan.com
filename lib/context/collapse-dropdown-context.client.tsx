@@ -23,22 +23,6 @@ export function CollapseDropdownProvider({ children }: { children: ReactNode }) 
   const dropdownRegistry = useRef<Map<string, DropdownRegistryEntry>>(new Map());
   const scrollTimerRef = useRef<number | null>(null);
 
-  // Handle initial hash on mount
-  useEffect(() => {
-    const hash = window.location.hash.substring(1);
-    if (!hash) return;
-
-    // Give dropdowns time to register
-    const timer = setTimeout(() => {
-      const dropdown = findDropdownForHash(hash);
-      if (dropdown) {
-        openAndScrollToDropdownAnchor(dropdown, hash);
-      }
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, []); // These functions are stable and defined below
-
   const registerDropdown = useCallback((id: string, ref: React.RefObject<HTMLDetailsElement>) => {
     if (enableDebugLogs) {
       console.debug(`[CollapseDropdownContext] Registering dropdown: ${id}`);
@@ -155,6 +139,22 @@ export function CollapseDropdownProvider({ children }: { children: ReactNode }) 
       console.debug(`[CollapseDropdownContext] openAndScrollToDropdownAnchor: Starting rAF polling for #${hash}.`);
     scrollTimerRef.current = window.requestAnimationFrame(pollForElement);
   }, []);
+
+  // Handle initial hash on mount
+  useEffect(() => {
+    const hash = window.location.hash.substring(1);
+    if (!hash) return;
+
+    // Give dropdowns time to register
+    const timer = setTimeout(() => {
+      const dropdown = findDropdownForHash(hash);
+      if (dropdown) {
+        openAndScrollToDropdownAnchor(dropdown, hash);
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [findDropdownForHash, openAndScrollToDropdownAnchor]);
 
   // Cleanup on unmount
   useEffect(() => {

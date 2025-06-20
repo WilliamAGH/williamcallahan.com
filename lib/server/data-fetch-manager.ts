@@ -301,7 +301,7 @@ export class DataFetchManager {
       const promises = batch.map(async (domain) => {
         try {
           const logoResult = await getLogo(domain);
-          if (logoResult && logoResult.s3Key) {
+          if (logoResult?.s3Key) {
             logger.info(`✅ Logo processed for ${domain}`);
             successCount++;
           } else {

@@ -43,7 +43,6 @@ import { serialize } from "next-mdx-remote/serialize";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
-import type { Pluggable } from "unified";
 import { authors } from "../../data/blog/authors";
 import type { BlogPost } from "../../types/blog";
 

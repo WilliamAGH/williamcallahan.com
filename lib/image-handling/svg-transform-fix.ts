@@ -9,17 +9,6 @@
  * 2. For specific elements: Use the useFixSvgTransforms hook
  * 3. For direct usage: Call processSvgTransforms(yourSvgElement)
  *
- * Example usage in layout component:
- * import { SvgTransformFixer } from '@/components/utils/svg-transform-fixer.client';
- *
- * function Layout() {
- *   return (
- *     <div>
- *       <SvgTransformFixer />
- *       Your components with SVGs
- *     </div>
- *   );
- * }
  */
 
 /**
@@ -111,7 +100,7 @@ export function processSvgTransforms(svg: string | SVGElement): string | undefin
   }
 
   // For string input, use regex to replace transform attributes
-  return svg.replace(/transform="([^"]+)"/g, (match: string, transform: string) => {
+  return svg.replace(/transform="([^"]+)"/g, (_match: string, transform: string) => {
     return `transform="${fixSvgTransform(transform)}"`;
   });
 }
