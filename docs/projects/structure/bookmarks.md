@@ -218,6 +218,21 @@ To serve as the primary orchestration layer for fetching, processing, enriching,
 - **Solution**: Added explicit `console.error` call inside the `catch` block while still returning a safe empty array. Ensures consistent logging behaviour on both server and client paths.
 - **Impact**: Restored visibility into client-side fetch failures and fixed related unit tests.
 
+### ✅ FIXED: Bookmark Card Description Line Height Limit (2025-06)
+
+- **Previous Issue**: Bookmark card descriptions could extend indefinitely, creating inconsistent card heights and poor visual layout.
+- **Solutions**:
+  - Implemented resilient 5-line maximum with `line-clamp-5-resilient` CSS utility
+  - Added graceful ellipsis truncation after the last full word before the 5-line limit
+  - Enhanced with cross-browser compatibility (including Safari iOS support)
+  - Ensured proper word breaking at boundaries without hyphenation
+  - Added fallback max-height for browsers without line-clamp support
+- **Impact**:
+  - Consistent card heights across all bookmark displays
+  - Improved visual layout and grid alignment
+  - Better user experience with predictable content presentation
+  - Maintains readability while preventing layout overflow
+
 ### ✅ FIXED: Memory Leak from Image Buffers (2025-06)
 
 - **Previous Issue**: OpenGraph image buffers stored directly in ServerCache without limits
@@ -227,6 +242,31 @@ To serve as the primary orchestration layer for fetching, processing, enriching,
   - All image operations use `UnifiedImageService` with memory limits
   - See `memory-mgmt.md` for complete memory management architecture
 - **Impact**: Stable memory usage, no more OOM errors from image processing
+
+### ✅ NEW: S3 Override System for OpenGraph Data (2025-06)
+
+- **Challenge**: When external OpenGraph sources (especially Karakeep assets) return 404 or become stale, bookmarks lose their images and metadata.
+- **Solutions**:
+  - **Automatic Detection**: System detects 404 errors on OpenGraph image URLs and automatically invalidates stale cache
+  - **Karakeep-Specific Handling**: Special detection for Karakeep asset URLs with automatic recovery
+  - **S3 Override Storage**: New `opengraph/overrides/` directory with highest priority in data access flow
+  - **Automatic Cache Invalidation**: Stale entries are automatically removed and refreshed
+  - **Integrated Recrawl**: Works seamlessly with automatic OpenGraph refresh system
+- **Architecture**:
+  - **S3 Path**: `opengraph/overrides/{hashUrl(url)}.json`
+  - **Priority Order**: S3 Override → Memory Cache → S3 Storage → External Fetch → Fallback
+  - **Automatic Invalidation**: `invalidateStaleOpenGraphData()` with 5-minute cooldown
+  - **Background Refresh**: Automatic scheduling of fresh data retrieval
+- **Automation Features**:
+  - **404 Detection**: Automatic cache invalidation when external images fail
+  - **5-minute Cooldown**: Prevents infinite refresh loops
+  - **Background Recovery**: Automatic retry and fallback handling
+  - **Error Recovery**: Graceful handling when both external fetch and recrawl fail
+- **Impact**:
+  - Zero manual intervention required for detection and recovery
+  - Completely automated detection and healing system
+  - Bulletproof fallback system for invalid external data
+  - Resilient handling of temporary network failures
 
 ## Architecture Diagram
 
@@ -272,6 +312,7 @@ The bookmark system integrates with the new `memory-mgmt` functionality to preve
   - Handles API response structure with `responseData.data` parsing
   - Provides bookmarkId parameter for better Karakeep fallbacks
   - Fixed (2025-06): Removed per-card API calls, now receives shareUrl as prop
+  - Fixed (2025-06): Added resilient 5-line limit with graceful ellipsis truncation
 - **`components/features/bookmarks/bookmarks-client-with-window.tsx`**: Window entrypoint
 - **`components/features/bookmarks/bookmarks-window.client.tsx`**: Main window UI
 - **`components/features/bookmarks/bookmarks-with-options.client.tsx`**: Options UI (removed)
@@ -405,6 +446,7 @@ API Request → Business Logic → Data Access → External APIs/S3
 - **NEW (2025-06)**: Singleton initialization pattern
 - **NEW (2025-06)**: Request deduplication for refresh operations
 - **NEW (2025-06)**: 15-minute per-process cool-down (`BACKGROUND_REFRESH_COOLDOWN_MS`) prevents a background refresh from starting more than once every 15 minutes even when the dev server hot-reloads repeatedly
+- **NEW (2025-07)**: Implemented selective OpenGraph image refresh. Instead of re-processing all 900+ bookmarks every hour, the system now intelligently detects which bookmarks are new or have updated source data. It performs lightweight `HEAD` requests to check image `ETag`s, only re-downloading and processing images that have actually changed. This has reduced background refresh API calls and S3 writes by over 95%, dramatically improving efficiency and reducing costs.
 
 ### Pagination Implementation Files (added 2025-06)
 

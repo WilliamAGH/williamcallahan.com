@@ -1,87 +1,98 @@
-```mermaid
-graph TB
-    subgraph "Linting & Formatting Tools"
-        subgraph "Primary Tools"
-            ESL[ESLint 9.28.0]
-            BIO[Biome]
-            STY[Stylelint]
-            TS[TypeScript]
-        end
+%%{init: {
+  'theme': 'base',
+  'themeVariables': {
+    'primaryColor': '#1F2937',
+    'primaryTextColor': '#F9FAFB',
+    'primaryBorderColor': '#4B5563',
+    'lineColor': '#6B7280',
+    'secondaryColor': '#374151',
+    'tertiaryColor': '#4B5563',
+    'background': '#111827',
+    'mainBkg': '#111827',
+    'textColor': '#F9FAFB'
+  }
+}}%%
+graph TD
+    subgraph "Development Workflow"
+        A[Code Change] --> B{bun run validate};
+        B -- Fails --> C{Analyze Error};
+        B -- Passes --> D[✅ Commit Ready];
+    end
 
-        subgraph "ESLint Configuration"
-            ESLC[eslint.config.ts]
-            ESLC --> |"Flat Config"| FC[File Categories]
-            FC --> SRV[Server Components]
-            FC --> CLT[Client Components]
-            FC --> CFG[Config Files]
-            FC --> TST[Test Files]
-            FC --> MDX[MDX Files]
-            
-            ESLC --> |"Uses"| PLUGINS[Plugins]
-            PLUGINS --> REACT[React/React Hooks]
-            PLUGINS --> NEXT[Next.js]
-            PLUGINS --> JEST[Jest]
-            PLUGINS --> MDXP[MDX]
-        end
+    subgraph "Validation Pipeline (bun run validate)"
+        Validate_Pipe[Start] --> Tool1[Biome Check];
+        Tool1 --> Tool2[ESLint Type-Aware Linting];
+        Tool2 --> Tool3[TypeScript Compiler (tsc --noEmit)];
+        Tool3 --> End_Pipe[End];
+    end
 
-        subgraph "Biome Configuration"
-            BIOC[biome.json]
-            BIOC --> FMT[Formatting Rules]
-            BIOC --> IMP[Import Organization]
-            BIOC --> LINT[Linting Rules]
-            
-            FMT --> |"Settings"| FMTS[2 spaces, 100 char line]
-            LINT --> |"Disabled"| A11Y[Some a11y rules]
-        end
-
-        subgraph "TypeScript Integration"
-            TSC[tsconfig.json]
-            TSC --> |"Main Project"| MAIN[Source Files]
-            TSC --> |"Missing"| JESTC[jest.config.ts]
-            
-            TESTC[tsconfig.jest.json]
-            TESTC --> |"Test Files"| TESTS[__tests__/**]
+    subgraph "Pillar 1: Foundational TypeScript Issues"
+        C --> P1;
+        subgraph P1 [Static Analysis Errors]
+            P1_1[any / unsafe-*] --> P1_Sol1[Use `unknown` + Zod];
+            P1_2[Null / Undefined] --> P1_Sol2[Use `?.` and `??`];
+            P1_3[Unchecked Index Access] --> P1_Sol3[Check for `undefined`];
+            P1_4[Incorrect Generics] --> P1_Sol4[Use `extends` constraints];
+            P1_5[Duplicate Types] --> P1_Sol5[Centralize in `types/`];
         end
     end
 
-    subgraph "VSCode Integration"
-        VSC[.vscode/settings.json]
-        VSC --> |"Default Formatter"| BIO
-        VSC --> |"Validation"| ESL
-        VSC --> |"Code Actions"| CAS[On Save Actions]
+    subgraph "Pillar 2: Runtime Safety with Zod"
+        C --> P2;
+        subgraph P2 [External Data Handling]
+            direction LR
+            P2_1[API Response] --> P2_Val;
+            P2_2[FormData] --> P2_Val;
+            P2_3[localStorage] --> P2_Val;
+            P2_Val{Zod Schema} --> P2_Parse[Schema.safeParse(data)];
+            P2_Parse -- Success --> P2_Safe[Type-Safe Data];
+            P2_Parse -- Failure --> P2_Error[Handle Error];
+            P2_Safe --> P2_Infer[z.infer<T>];
+            P2_Infer --> P2_TSType[TypeScript Type];
+        end
     end
 
-    subgraph "Pre-commit Hooks"
-        HUSKY[Husky]
-        HUSKY --> STAGED[lint-staged]
-        STAGED --> |"Runs"| ESLF[ESLint --fix]
+    subgraph "Pillar 3: Next.js Specific Challenges"
+        C --> P3;
+        subgraph P3 [Framework Context]
+            P3_1[Page/Layout Props] --> P3_Sol1[Type `params` & `searchParams`];
+            P3_2[Server Actions] --> P3_Sol2[Validate FormData with Zod];
+            P3_3[Server -> Client] --> P3_Sol3[Use Shared Inferred Types];
+            P3_4[Typed Routes] --> P3_Sol4[Use `<Link href={'/valid/route'}>`];
+        end
     end
 
-    subgraph "Scripts"
-        PKG[package.json scripts]
-        PKG --> LINTS[lint commands]
-        PKG --> FORMATS[format commands]
-        PKG --> VALIDATE[validate command]
-        
-        VALIDATE --> |"Runs"| ESL
-        VALIDATE --> |"Then"| TS
+    subgraph "Pillar 4: Next.js & React Frontend Playbook"
+        C --> P4;
+        subgraph P4 [Common Infrastructure Issues]
+            P4_1[Client vs. Server] --> P4_Sol1[Use 'use client' judiciously];
+            P4_2[Data Fetching] --> P4_Sol2[Use RSCs & parallel patterns];
+            P4_3[State & Immutability] --> P4_Sol3[Use spread syntax or Immer];
+            P4_4[Hydration Errors] --> P4_Sol4[Use useEffect or ssr:false];
+        end
     end
 
-    subgraph "Known Issues"
-        ISS1[Jest Config Not in TSConfig]
-        ISS2[Tool Overlap]
-        ISS3[MDX Special Handling]
-        
-        ISS1 --> |"Solution"| SOL1[Add to include array]
-        ISS2 --> |"Solution"| SOL2[Clear separation of concerns]
-        ISS3 --> |"Solution"| SOL3[Custom processor]
+    subgraph "Pillar 5: Tool-Assisted Debugging"
+        C --> P5;
+        subgraph P5 [MCP & Web Search]
+            P5_1[Library Error] --> P5_Sol1[Use Context7/DeepWiki];
+            P5_2[Novel Error] --> P5_Sol2[Use Brave Search];
+        end
     end
 
-    style ESL fill:#e3f2fd
-    style BIO fill:#f3e5f5
-    style STY fill:#fff3e0
-    style TS fill:#e8f5e9
-    style ISS1 fill:#ffebee
-    style ISS2 fill:#ffebee
-    style ISS3 fill:#ffebee
-```
+    subgraph "Configuration & Tooling"
+        T_TS[tsconfig.json] --> T_Rule1[strict: true];
+        T_TS --> T_Rule2[noUncheckedIndexedAccess: true];
+        T_ES[eslint.config.ts] --> T_Rule3[no-unsafe-* rules];
+        T_ES --> T_Rule4[project/no-duplicate-types];
+        T_BM[biome.json] --> T_Rule5[Formatting & Import Sort];
+    end
+
+    %% Styling
+    style A fill:#3B82F6,stroke:#BFDBFE
+    style B fill:#F97316,stroke:#FDBA74
+    style C fill:#EF4444,stroke:#FECACA
+    style D fill:#22C55E,stroke:#BBF7D0
+    style P1_Safe fill:#10B981
+    style P2_Safe fill:#10B981
+    style P2_TSType fill:#10B981
