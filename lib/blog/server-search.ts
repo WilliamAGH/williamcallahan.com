@@ -54,9 +54,15 @@ export async function searchBlogPostsServerSide(query: string): Promise<SearchRe
   // Map results to the SearchResult format
   return results
     .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-    .map((post) => ({
-      label: `[Blog] ${post.title || "Untitled Post"}`, // Add prefix
-      description: post.excerpt || "No excerpt available.",
-      path: `/blog/${post.slug}`,
-    }));
+    .map(
+      (post) =>
+        ({
+          id: post.slug,
+          type: "blog-post",
+          title: `[Blog] ${post.title || "Untitled Post"}`, // Add prefix
+          description: post.excerpt || "No excerpt available.",
+          url: `/blog/${post.slug}`,
+          score: 0,
+        }) as SearchResult,
+    );
 }

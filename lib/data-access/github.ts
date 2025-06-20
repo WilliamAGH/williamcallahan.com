@@ -433,14 +433,24 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
             debug(
               `[DataAccess/GitHub-S3] Trailing Year: Using existing S3 CSV data for ${repoOwnerLogin}/${repoName} due to API status: ${apiStatus}`,
             );
-            finalStatsToSaveForRepo = existingDataBuffer
-              .toString()
-              .split("\n")
-              .filter(Boolean)
-              .map((line) => {
-                const [w, a, d, c] = line.split(",");
-                return { w: Number(w), a: Number(a), d: Number(d), c: Number(c) };
-              });
+            // Limit CSV processing to prevent memory exhaustion
+            const csvString = existingDataBuffer.toString();
+            if (csvString.length > 10 * 1024 * 1024) {
+              // 10MB limit
+              console.warn(
+                `[DataAccess/GitHub] CSV too large (${Math.round(csvString.length / 1024 / 1024)}MB) for ${repoOwnerLogin}/${repoName}, truncating`,
+              );
+              finalStatsToSaveForRepo = [];
+            } else {
+              finalStatsToSaveForRepo = csvString
+                .split("\n")
+                .filter(Boolean)
+                .slice(0, 1000) // Limit to 1000 lines max
+                .map((line) => {
+                  const [w, a, d, c] = line.split(",");
+                  return { w: Number(w), a: Number(a), d: Number(d), c: Number(c) };
+                });
+            }
           } else {
             if (apiStatus === "pending_202_from_api" || apiStatus === "fetch_error") {
               repoDataCompleteForYear = false;
@@ -1155,7 +1165,16 @@ async function detectAndRepairCsvFiles(): Promise<{
         console.log(`[DataAccess/GitHub] CSV repair: Missing or empty CSV for ${repoOwner}/${repoName}`);
         needsRepair = true;
       } else {
-        const lines = csvBuffer.toString().split("\n").filter(Boolean);
+        // Limit CSV processing to prevent memory exhaustion
+        const csvString = csvBuffer.toString();
+        if (csvString.length > 10 * 1024 * 1024) {
+          // 10MB limit
+          console.warn(
+            `[DataAccess/GitHub] CSV repair: CSV too large (${Math.round(csvString.length / 1024 / 1024)}MB) for ${repoOwner}/${repoName}, skipping repair`,
+          );
+          continue;
+        }
+        const lines = csvString.split("\n").filter(Boolean).slice(0, 1000); // Limit lines
         if (lines.length === 0) {
           console.log(`[DataAccess/GitHub] CSV repair: Empty CSV (after filtering) for ${repoOwner}/${repoName}`);
           needsRepair = true;

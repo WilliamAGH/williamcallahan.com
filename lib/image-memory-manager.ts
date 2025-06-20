@@ -2,12 +2,23 @@
  * Central Image Memory Manager
  *
  * Consolidates all image buffer handling with memory-aware caching.
+ * This is now the SINGLE SOURCE OF TRUTH for memory monitoring in the application.
+ *
+ * Unified Memory System:
+ * - Replaces mem-guard.ts functionality
+ * - Provides data for MemoryHealthMonitor (no duplicate monitoring)
+ * - Single 30-second monitoring interval for entire application
+ * - Progressive thresholds: 70% → 80% → 90% → 95%
+ *
  * Prevents memory leaks through:
  * - Size limits (50MB per image, 512MB total budget)
  * - TTL-based eviction (30 days)
  * - Proper buffer copying (no Buffer.slice() retention)
  * - Memory pressure detection with automatic cleanup
  * - Request coalescing to prevent duplicate fetches
+ *
+ * Note: For multi-CPU support, consider using PM2 or Node.js Cluster module
+ * to run multiple instances of the application, each with its own memory space.
  *
  * @module lib/image-memory-manager
  */
@@ -293,29 +304,114 @@ export class ImageMemoryManager extends EventEmitter {
   }
 
   /**
-   * Start memory monitoring with multi-level thresholds
+   * Proactively evicts a percentage of the cache to reduce memory pressure.
+   * @param percentage - The percentage of the cache to evict (e.g., 0.2 for 20%).
+   */
+  private proactiveEviction(percentage: number): void {
+    const budget = this.cache.maxSize;
+    if (!budget) return;
+
+    const targetSize = Math.floor(budget * (1 - percentage));
+    if ((this.cache.calculatedSize ?? 0) <= targetSize) {
+      return; // Already below target
+    }
+
+    console.log(
+      `[ImageMemory] Proactive eviction triggered. Target: ${targetSize}, Current: ${this.cache.calculatedSize ?? 0}`,
+    );
+
+    const initialSize = this.cache.calculatedSize ?? 0;
+    let evictedCount = 0;
+
+    // Trim the cache by evicting oldest items until the target size is met.
+    while ((this.cache.calculatedSize ?? 0) > targetSize && this.cache.size > 0) {
+      // lru-cache's keys() iterates from oldest to newest
+      const oldestKey = this.cache.keys().next().value as string | undefined;
+      if (oldestKey) {
+        this.cache.delete(oldestKey);
+        evictedCount++;
+      } else {
+        break; // Should not happen if size > 0
+      }
+    }
+
+    console.log(
+      `[ImageMemory] Proactive eviction complete. Evicted ${evictedCount} items. Size reduced from ${initialSize} to ${
+        this.cache.calculatedSize ?? 0
+      }.`,
+    );
+  }
+
+  /**
+   * Start memory monitoring with multi-level thresholds and cross-cache coordination
    */
   private startMemoryMonitoring(): NodeJS.Timeout {
     const interval = setInterval(() => {
       const usage = process.memoryUsage();
       const budget = MEMORY_THRESHOLDS.IMAGE_RAM_BUDGET_BYTES;
 
-      // Multi-level thresholds with more reasonable heap limit
-      const rssThreshold = Number(process.env.IMAGE_RSS_THRESHOLD ?? 1.5 * 1024 * 1024 * 1024); // 1.5GB
-      // Use a fixed heap threshold instead of percentage of heapTotal to avoid false positives
-      // Default to 256MB heap threshold for image operations
-      const heapThreshold = Number(process.env.IMAGE_HEAP_THRESHOLD ?? 256 * 1024 * 1024);
+      // Use same thresholds as MemGuard for consistency
+      const totalProcessBudget = MEMORY_THRESHOLDS.TOTAL_PROCESS_MEMORY_BUDGET_BYTES;
+      const warningThreshold = totalProcessBudget * 0.7; // 70% - Coordinate cleanup
+      const pressureThreshold = totalProcessBudget * 0.8; // 80% - Enter pressure mode
+      const criticalThreshold = totalProcessBudget * 0.9; // 90% - Aggressive cleanup
+      const emergencyThreshold = totalProcessBudget * 0.95; // 95% - Emergency flush
 
-      // Enter memory pressure if thresholds exceeded
-      if (usage.rss > rssThreshold || usage.heapUsed > heapThreshold) {
+      // Calculate memory usage percentage
+      const memoryUsagePercent = (usage.rss / totalProcessBudget) * 100;
+
+      // Emergency threshold - 95% - flush everything
+      if (usage.rss > emergencyThreshold) {
+        console.error(
+          `[ImageMemory] EMERGENCY: RSS ${Math.round(usage.rss / 1024 / 1024)}MB exceeds 95% of ${Math.round(totalProcessBudget / 1024 / 1024)}MB budget, flushing all caches`,
+        );
+        this.clear();
+        // Also clear ServerCache
+        import("@/lib/server-cache")
+          .then(({ ServerCacheInstance }) => {
+            ServerCacheInstance.flushAll();
+          })
+          .catch(() => {
+            // Ignore import errors
+          });
+        return; // Skip other checks
+      }
+
+      // Critical threshold - 90% - clear image cache
+      if (usage.rss > criticalThreshold) {
+        console.warn(
+          `[ImageMemory] CRITICAL: RSS ${Math.round(usage.rss / 1024 / 1024)}MB exceeds 90% of ${Math.round(totalProcessBudget / 1024 / 1024)}MB budget, clearing image cache`,
+        );
+        this.clear();
+        return; // Skip other checks
+      }
+
+      // Proactive cache coordination at 70% usage
+      if (usage.rss > warningThreshold && !this.memoryPressure) {
+        console.warn(
+          `[ImageMemory] 70% memory threshold reached (${Math.round(usage.rss / 1024 / 1024)}MB) - triggering coordinated cleanup`,
+        );
+        this.emit("memory-coordination-trigger", {
+          memoryUsagePercent,
+          cacheSize: this.cache.calculatedSize ?? 0,
+          rss: usage.rss,
+          threshold: warningThreshold,
+        });
+
+        // Start proactive LRU eviction
+        this.proactiveEviction(0.2); // Evict 20% of the image cache
+      }
+
+      // Enter memory pressure at 80% - BEFORE MemGuard's 80% critical threshold
+      if (usage.rss > pressureThreshold) {
         if (!this.memoryPressure) {
           this.memoryPressure = true;
           console.warn("[ImageMemory] Memory pressure detected - entering protective mode");
           this.emit("memory-pressure-start", {
             rss: usage.rss,
             heap: usage.heapUsed,
-            rssThreshold,
-            heapThreshold,
+            threshold: pressureThreshold,
+            memoryUsagePercent,
           });
 
           // Aggressive cleanup when entering pressure
@@ -329,22 +425,35 @@ export class ImageMemoryManager extends EventEmitter {
               break;
             }
           }
-          // Also clear the metadata cache completely under pressure
-          this.metadataCache.clear();
-          console.warn("[ImageMemory] Cleared metadata cache due to memory pressure.");
+          // Also reduce the metadata cache size under pressure
+          const metadataTargetSize = Math.floor((this.metadataCache.maxSize ?? 0) * 0.5); // Clear to 50%
+          while ((this.metadataCache.calculatedSize ?? 0) > metadataTargetSize && this.metadataCache.size > 0) {
+            const oldestKey = this.metadataCache.keys().next().value as string | undefined;
+            if (oldestKey) {
+              this.metadataCache.delete(oldestKey);
+            } else {
+              break;
+            }
+          }
+          console.warn(
+            `[ImageMemory] Reduced metadata cache to ${
+              this.metadataCache.calculatedSize ?? 0
+            } bytes due to memory pressure.`,
+          );
 
           // Try to trigger GC if available
           if (global.gc) {
             global.gc();
           }
         }
-      } else if (this.memoryPressure && usage.rss < rssThreshold * 0.7) {
+      } else if (this.memoryPressure && usage.rss < pressureThreshold * 0.7) {
         // Hysteresis: Only clear pressure when well below threshold
         this.memoryPressure = false;
         console.log("[ImageMemory] Memory pressure resolved");
         this.emit("memory-pressure-end", {
           rss: usage.rss,
           heap: usage.heapUsed,
+          memoryUsagePercent,
         });
       }
 

@@ -49,8 +49,13 @@ import type { BlogPost } from "../../types/blog";
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
 
-// Cache for processed MDX posts
-const postCache = new Map<string, { post: BlogPost | null; lastModified: string }>();
+import { LRUCache } from "lru-cache";
+
+// Cache for processed MDX posts - limit to 10 entries to prevent memory growth
+const postCache = new LRUCache<string, { post: BlogPost | null; lastModified: string }>({
+  max: 10, // Max 10 posts cached
+  ttl: 60 * 60 * 1000, // 1 hour TTL
+});
 
 /**
  * Converts a date string or Date object to a Pacific Time ISO string
