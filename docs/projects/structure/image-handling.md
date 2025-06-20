@@ -47,6 +47,7 @@ MEMORY_CRITICAL_THRESHOLD=483183820  # 90% of budget
 ## Key API Routes
 
 ### Logo Management
+
 - **`/api/logo`**: Primary logo endpoint
   - Memory-safe retrieval from ImageMemoryManager
   - Query params: `website`, `company`, `forceRefresh`
@@ -58,6 +59,7 @@ MEMORY_CRITICAL_THRESHOLD=483183820  # 90% of budget
   - Stores inverted buffers in ImageMemoryManager
 
 ### Image Operations
+
 - **`/api/cache/images`**: Generic image optimization
   - ✅ Uses UnifiedImageService for memory safety
   - 🔴 **CRITICAL**: Open proxy vulnerability - needs allowlist
@@ -125,22 +127,26 @@ RSS Check → >80%  → Reject new large operations (mem-guard)
 ## Key Files
 
 ### Core Services
+
 - `lib/image-memory-manager.ts` - Buffer cache management
 - `lib/services/unified-image-service.ts` - Image operations
 - `lib/services/image-streaming.ts` - Large image streaming
 - `lib/health/memory-health-monitor.ts` - Memory monitoring
 
 ### Data Access
+
 - `lib/data-access/logos.ts` - Logo lifecycle management
 - `lib/data-access/logos/external-fetch.ts` - External APIs
 - `lib/data-access/logos/image-processing.ts` - Transformations
 - `lib/data-access/opengraph.ts` - OpenGraph parsing
 
 ### Analysis & Validation
+
 - `lib/imageAnalysis.ts` - Theme suitability analysis
 - `lib/imageCompare.ts` - Perceptual hash validation
 
 ### Types
+
 - `types/image.ts` - Unified image interfaces
 - `types/logo.ts` - Logo-specific types
 - `types/cache.ts` - Cache entry types
