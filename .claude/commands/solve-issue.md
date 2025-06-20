@@ -28,24 +28,71 @@ c) For each potentially affected functionality:
 - Use Grep to find all files tagged with that functionality
 d) Use Read tool to examine docs/projects/file-overview-map.md to understand file-to-functionality mapping
 
-STEP 3: Deep Analysis with Zen MCP
-Once all context is gathered:
-a) Use @mcp__zen__thinkdeep with model="pro" and thinking_mode="max" to:
+STEP 3: Multi-Source Analysis with All Available MCPs
+Gather comprehensive knowledge from multiple sources in parallel:
 
-- Analyze the issue in context of the functionality documentation
-- Identify all files that need to be modified
-- Consider edge cases and potential side effects
-- Create a comprehensive solution plan
-b) Use @mcp__zen__codereview on key files to understand current implementation
-c) Identify any gaps or risks in the plan and address them
+a) **Technology Documentation via MCP Tools**:
+   Use Context7 and other documentation MCPs to get current, accurate information:
+
+- For Next.js 15 issues: @mcp__context7__resolve-library-id libraryName="next.js" then @mcp__context7__get-library-docs
+- For React 19 issues: @mcp__context7__resolve-library-id libraryName="react" then @mcp__context7__get-library-docs
+- For Zod 4 validation: @mcp__context7__resolve-library-id libraryName="zod" then @mcp__context7__get-library-docs
+- For TypeScript issues: Use available documentation MCPs for TypeScript 5.x
+- For any other dependencies: Check package.json and fetch relevant docs via MCPs
+
+   IMPORTANT: Always use MCPs for documentation instead of relying on training data, as versions and APIs change frequently.
+
+b) **Web Search for Known Issues**:
+
+- Use @mcp__brave-search__brave_web_search for:
+  - Similar error messages with framework versions
+  - GitHub issues for the specific library versions we use
+  - Recent Stack Overflow solutions
+  - Breaking changes in recent updates
+
+c) **Deep Analysis with Zen MCP**:
+
+- Use @mcp__zen__thinkdeep with model="pro" and thinking_mode="max" to:
+  - Analyze the issue in context of the functionality documentation
+  - Identify all files that need to be modified
+  - Consider type safety implications
+  - Review existing type definitions that may be affected
+  - Consider edge cases and potential side effects
+  - Create a comprehensive solution plan
+- Use @mcp__zen__codereview on key files to understand current implementation
+- Use @mcp__zen__debug for complex error analysis
+
+d) **Type Safety Analysis**:
+
+- Identify any `any` types that need addressing
+- Look for missing type annotations
+- Check for potential runtime type errors
+- Review Zod schema usage opportunities
+- Cross-reference with TypeScript documentation via MCPs
+
+e) **Framework-Specific Patterns**:
+
+- Use documentation MCPs to verify we're following current best practices
+- Check for deprecated patterns we might be using
+- Ensure compatibility with our specific versions
 
 STEP 4: Create Action Plan
 Generate a detailed todo list using TodoWrite with:
 
+- Type safety checks and improvements needed
 - Specific files to modify
+- Type definitions to create or update
+- Zod schemas to implement for runtime validation
 - Tests to write or update
 - Documentation to update
 - Order of operations to minimize risk
+
+**Type Safety Checklist**:
+
+- All new code must have explicit types
+- External data must use Zod validation
+- No `any` types without justification
+- Proper null/undefined handling with noUncheckedIndexedAccess
 
 STEP 5: Implementation
 For each todo item:
@@ -62,7 +109,17 @@ b) Update docs/projects/structure/<functionality>.mmd diagrams if logic flow cha
 c) Update docs/projects/file-overview-map.md if new files were added or file purposes changed
 d) Ensure all documentation accurately reflects the new state
 
-STEP 7: Automated Testing
+STEP 7: Type Safety Validation
+**CRITICAL**: Before testing, ensure full type safety compliance:
+a) Run: bun run validate
+b) If ANY type errors or warnings:
+
+- Apply type safety resolution strategies
+- Never use @ts-ignore or eslint-disable
+- Fix root causes following TypeScript best practices
+c) Only proceed when validation shows 0 errors, 0 warnings
+
+STEP 8: Automated Testing
 Run tests for affected functionalities:
 a) Identify test files related to the changed functionality
 b) Run those specific tests using: bun run test <test-files>
@@ -70,20 +127,26 @@ c) If any tests fail, fix them immediately
 d) Run tests again to ensure 100% pass rate
 e) Check coverage to ensure no regression
 
-STEP 8: Manual Testing Guidance
+STEP 9: Manual Testing Guidance
 Provide the user with:
 a) Specific steps to test the fix manually
 b) Expected behavior to verify
 c) Edge cases to check
 Wait for user confirmation that manual testing passed.
 
-STEP 9: Final Verification
+STEP 10: Final Verification
 Once user confirms testing passed:
-a) Run full test suite one more time
-b) Run linting on changed files
-c) Ensure no new warnings or errors introduced
+a) Run full test suite: bun run test
 
-STEP 10: Commit Changes
+- Must achieve 100% pass rate
+b) Run full validation: bun run validate
+- Must show 0 errors, 0 warnings
+- This includes TypeScript, ESLint, and Biome checks
+c) Run build: bun run build
+- Must complete successfully
+d) If any issues found, resolve them before proceeding
+
+STEP 11: Commit Changes
 ONLY after ALL tests pass and user confirms:
 Ask: "All tests are passing and the fix is verified. Would you like to commit these changes? (yes/no)"
 If yes:
@@ -97,7 +160,7 @@ c) Commit using conventional format (fix:, feat:, etc.)
    IMPORTANT: NEVER include Claude code attribution or co-author tags in commits
 d) Show the commit hash
 
-STEP 11: Issue Closure
+STEP 12: Issue Closure
 If a GitHub issue was created or linked:
 a) Post a final comment using @mcp__github__add_issue_comment with owner="WilliamAGH" repo="williamcallahan.com" issue_number=<issue_number> summarizing the fix
 b) Reference the commit hash in the comment

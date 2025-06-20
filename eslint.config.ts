@@ -12,6 +12,65 @@ import reactJsxRuntime from "eslint-plugin-react/configs/jsx-runtime.js";
 import reactRecommended from "eslint-plugin-react/configs/recommended.js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+// Local ESLint Rule Types
+import type { Rule } from "eslint";
+
+/**
+ * Global map tracking first occurrence of every type name seen while linting.
+ * Key: type/interface/enum name  →  Value: "filename:line" where first defined.
+ */
+const duplicateTypeTracker = new Map<string, string>();
+
+/**
+ * ESLint rule to disallow duplicate TypeScript type definitions (type aliases, interfaces, enums)
+ * anywhere in the repository. Types must already live under `types/` or declaration files as
+ * enforced by the existing `no-restricted-syntax` rule – this rule focuses solely on *uniqueness*.
+ */
+const noDuplicateTypesRule: Rule.RuleModule = {
+  meta: {
+    type: "problem",
+    docs: {
+      description: "disallow duplicated type, interface or enum names in the codebase",
+      url: "https://eslint.org/docs/latest/extend/custom-rules",
+    },
+    schema: [], // no options
+  },
+  create(context) {
+    /** Records the location of first declaration and reports on duplicates */
+    const record = (idNode: any) => {
+      const name: string = idNode.name;
+      const currentLocation = `${context.getFilename()}:${idNode.loc.start.line}`;
+
+      // Ignore .d.ts files from node_modules to avoid false positives on @types packages
+      if (context.getFilename().includes("node_modules")) return;
+
+      if (duplicateTypeTracker.has(name)) {
+        // Already seen elsewhere – report duplicate
+        const firstSeen = duplicateTypeTracker.get(name);
+        if (firstSeen && firstSeen !== currentLocation) {
+          context.report({
+            node: idNode,
+            message: `Type "${name}" is already declared at ${firstSeen}. All type names must be globally unique.`,
+          });
+        }
+      } else {
+        duplicateTypeTracker.set(name, currentLocation);
+      }
+    };
+
+    return {
+      TSTypeAliasDeclaration(node: any) {
+        record(node.id);
+      },
+      TSInterfaceDeclaration(node: any) {
+        record(node.id);
+      },
+      TSEnumDeclaration(node: any) {
+        record(node.id);
+      },
+    };
+  },
+};
 
 const config = tseslint.config(
   // Global ignores
@@ -321,6 +380,22 @@ const config = tseslint.config(
       ...tseslint.configs.disableTypeChecked.rules,
       "no-var": "error",
       "prefer-const": "error",
+    },
+  },
+
+  // --------------------------------------------------
+  // Project-specific global type uniqueness rule
+  // --------------------------------------------------
+  {
+    plugins: {
+      project: {
+        rules: {
+          "no-duplicate-types": noDuplicateTypesRule,
+        },
+      },
+    },
+    rules: {
+      "project/no-duplicate-types": "error",
     },
   },
 );

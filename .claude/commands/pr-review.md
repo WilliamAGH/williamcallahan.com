@@ -22,8 +22,15 @@
 2. **DO NOT RE-PROCESS ALREADY RESOLVED COMMENTS** - Only process comments where `isResolved == false`
 3. **GraphQL for fetching/resolving** - REST API fails with token limits (GitHub MCP lacks GraphQL support)
 4. **REST API for comment replies** - GitHub's GraphQL lacks working reply mutation (see note below)
-5. **MANDATORY validation before EVERY commit:** `bun run lint && bun run type-check && bun run biome:check`
-6. **Fix ALL language server warnings** - Including biome, ESLint, TypeScript diagnostics in modified files
+5. **MANDATORY validation before EVERY commit:** `bun run validate`
+   - This runs ALL checks: TypeScript, ESLint, and Biome
+   - Must show 0 errors, 0 warnings
+   - NEVER use @ts-ignore, @ts-expect-error, or eslint-disable
+6. **Fix ALL type safety issues properly:**
+   - Replace `any` with `unknown` and use type narrowing
+   - Add proper null/undefined checks (leverage noUncheckedIndexedAccess)
+   - Create missing type definitions in types/ directory
+   - Use Zod schemas for runtime validation of external data
 7. **COMMIT MESSAGE RULES - ABSOLUTELY NO EXCEPTIONS:**
    - **NEVER COMBINE MULTIPLE FILES IN ONE COMMIT**
    - **EACH FILE GETS ITS OWN COMMIT WITH SPECIFIC MESSAGE**
@@ -44,15 +51,45 @@ Before implementing ANY suggestion:
 
 1. Find functionality in `docs/projects/file-overview-map.md` → `docs/projects/structure/<functionality>.md`
 2. Analyze: Is this actually an improvement? What are the risks? Better alternatives?
-3. Get second opinion:
+3. **Gather Context from ALL Available MCPs**:
 
-```text
-@mcp__zen__thinkdeep model="pro" thinking_mode="high" prompt="
-Comment: [paste]
-File: [path] | Functionality: [from docs]
-Current: [explain] | Suggested: [what they want]
-Analyze: 1) Improvement? 2) Risks? 3) Alternatives? 4) Edge cases?"
-```
+   a) **Technology Documentation**:
+      - For Next.js suggestions: @mcp__context7__resolve-library-id libraryName="next.js" then @mcp__context7__get-library-docs
+      - For React patterns: @mcp__context7__resolve-library-id libraryName="react" then @mcp__context7__get-library-docs
+      - For Zod validation: @mcp__context7__resolve-library-id libraryName="zod" then @mcp__context7__get-library-docs
+      - For TypeScript: Use available documentation MCPs
+      - Verify the suggestion aligns with current best practices
+
+   b) **Web Search for Context**:
+      - Use @mcp__brave-search__brave_web_search to verify if the suggestion is:
+        - A known best practice for our framework versions
+        - A deprecated pattern we should avoid
+        - A performance consideration worth implementing
+
+   c) **Get second opinion with TYPE SAFETY FOCUS**:
+      ```text
+      @mcp__zen__thinkdeep model="pro" thinking_mode="high" prompt="
+      Comment: [paste]
+      File: [path] | Functionality: [from docs]
+      Current: [explain] | Suggested: [what they want]
+      Framework docs say: [findings from Context7]
+      Web search shows: [relevant findings]
+      Analyze: 
+      1) Does this improve type safety? 
+      2) Are there any type implications?
+      3) Would this introduce any `any` types or unsafe operations?
+      4) Better type-safe alternatives?
+      5) Edge cases and runtime safety?
+      6) Does this align with Next.js 15/React 19 best practices?"
+      ```
+
+4. **Type Safety Checklist for PR changes:**
+   - No new `any` types introduced
+   - All external data validated with Zod
+   - Proper error types (never `catch(e)` without typing)
+   - Index access protected by checks
+   - Type assertions justified and safe
+   - Follows current framework patterns from documentation
 
 ## 📋 WORKFLOW
 
@@ -65,30 +102,59 @@ Before starting the PR review process:
    bun run validate
    ```
 
-2. **If validation fails:**
-   - Fix all existing linting, type, and formatting errors FIRST
-   - Commit each fixed file separately with descriptive messages:
-     ```bash
-     # Example: Fix linting issues in specific file
-     git add lib/context/collapse-dropdown-context.client.tsx
-     git commit -m "fix(context): resolve hook usage order in collapse dropdown context"
-     ```
-   - Once all validation errors are fixed, run validation again to confirm
-   - Only proceed with PR review after validation passes
+2. **If validation fails - Apply TYPE SAFETY RESOLUTION:**
 
-3. **Why this matters:**
-   - Ensures a clean baseline before making review-driven changes
-   - Prevents mixing pre-existing issues with review feedback
-   - Makes commit history clearer and easier to review
+   **For TypeScript/ESLint type errors:**
+   - `@typescript-eslint/no-unsafe-assignment`: Use `unknown` instead of `any`
+   - `@typescript-eslint/no-unsafe-member-access`: Add null checks or optional chaining
+   - `@typescript-eslint/no-explicit-any`: Define proper types in types/ directory
+   - `project/no-duplicate-types`: Use @type-flattener to consolidate duplicates
+   
+   **Resolution strategies:**
+   ```typescript
+   // BAD: const data = JSON.parse(input);
+   // GOOD: const data: unknown = JSON.parse(input);
+   // BETTER: const data = UserSchema.parse(JSON.parse(input));
+   ```
+
+3. **Commit type safety fixes properly:**
+   ```bash
+   # Example: Fix type safety in specific file
+   git add lib/bookmarks/service.server.ts
+   git commit -m "fix(bookmarks): replace any with proper bookmark types and Zod validation"
+   ```
+
+4. **Why strict type safety matters:**
+   - Prevents runtime errors before they happen
+   - Makes code self-documenting with clear contracts
+   - Enables better IDE support and refactoring
+   - Catches edge cases during development
 
 ### ⚠️ COMMIT WORKFLOW - FOLLOW EXACTLY
 
 When fixing multiple issues:
 
-1. Fix ONE file
-2. Run validation: `bun run lint && bun run type-check && bun run biome:check`
+1. Fix ONE file with proper type safety
+2. Run validation: `bun run validate`
+   - Must show 0 errors, 0 warnings
+   - Fix type issues properly, never bypass
 3. Commit ONLY that file with SPECIFIC message
 4. Move to next file and repeat
+
+**Type Safety Fix Examples:**
+```bash
+# ✅ CORRECT - Type safety improvement
+git add lib/api/bookmarks/route.ts
+git commit -m "fix(api): add Zod validation for bookmark request body"
+
+# ✅ CORRECT - Unsafe operation fix  
+git add components/bookmarks/list.tsx
+git commit -m "fix(bookmarks): add null checks for array access with noUncheckedIndexedAccess"
+
+# ❌ WRONG - Generic or bypassing
+git add lib/utils/helpers.ts  
+git commit -m "fix: add ts-ignore to suppress error" # NEVER DO THIS
+```
 
 **NEVER DO THIS:**
 ```bash

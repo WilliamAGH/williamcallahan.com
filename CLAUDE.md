@@ -18,22 +18,25 @@ alwaysApply: true  # Exception: This master config file always applies to provid
 
 Before you edit, delete, create, or refactor ANY piece of code, you **MUST** understand its architectural context.
 
-1. **Start with the Master Entrypoint**  
+1. **Consult the Core Type Safety & Framework Guide**  
+    • Open `docs/projects/structure/linting-formatting.md`. This is the **single source of truth** for all TypeScript, Next.js, and React development patterns in this project. It contains critical guidance that you must follow.
+
+2. **Start with the Master Entrypoint**  
     • Open `docs/projects/structure/00-architecture-entrypoint.md`. This file is the master index for all architectural documentation.
     • Use it to find the high-level "Functionality" you are working on and get a quick overview of its core objective.
 
-2. **Read the Detailed Architecture Doc**  
+3. **Read the Detailed Architecture Doc**  
     • From the entrypoint, click the link to the detailed documentation for the relevant functionality (e.g., `[bookmarks.md](./bookmarks.md)`).
     • Skim at minimum the *Core Objective*, *Key Files*, *Logic Flow*, and *Critical Issues* sections to understand context, dependencies, and known pitfalls.
 
-3. **Consult the File Overview Map for Specifics**
+4. **Consult the File Overview Map for Specifics**
     • If you need to map a *specific file* back to its owning functionality, open `docs/projects/file-overview-map.md`.
 
-4. **Identify Related Logic**  
+5. **Identify Related Logic**  
     • Use the architecture doc (and any linked `.mmd` diagrams) to discover all related files that could be impacted by your change.  
     • Search the codebase for the `Functionality` tag to catch any stragglers.
 
-5. **Keep Docs in Sync**  
+6. **Keep Docs in Sync**  
     • Ensure your change does not violate the documented architecture or critical issues list.  
     • Whenever you **create, delete, move, or significantly edit** any file, you **must** update all relevant documentation. This includes:
       - The master entrypoint: `docs/projects/structure/00-architecture-entrypoint.md`

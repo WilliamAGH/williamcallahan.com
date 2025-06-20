@@ -137,6 +137,10 @@ const nextConfig = {
       });
     }
 
+    // Keep webpack's default memory cache in development for better performance
+    // The webpackMemoryOptimizations flag already optimizes memory usage
+    // Filesystem cache would be slower and create disk I/O overhead
+    
     // Suppress warnings for Sentry and OpenTelemetry dynamic requires
     config.ignoreWarnings = [
       // Suppress warnings about dynamic requires
@@ -248,22 +252,19 @@ const nextConfig = {
   output: "standalone",
   poweredByHeader: false,
   reactStrictMode: true,
-  productionBrowserSourceMaps: true, // Explicitly enable production source maps
+  productionBrowserSourceMaps: false, // Disable to save memory during builds
   // Nextjs 15 uses SWC by default; swcMinify option is no longer needed
-  // Add transpilePackages to handle ESM packages and instrumentation packages
+  // Add transpilePackages to handle ESM packages - removed Sentry/OpenTelemetry to reduce watchers
   transpilePackages: [
     "next-mdx-remote",
-    "@sentry/nextjs",
-    "@sentry/node",
-    "@sentry/opentelemetry",
-    "@opentelemetry/instrumentation",
-    "@opentelemetry/api",
-    "require-in-the-middle",
   ],
   experimental: {
     taint: true,
     serverMinification: true,
     webpackBuildWorker: true,
+    webpackMemoryOptimizations: true, // Enable webpack memory optimizations
+    preloadEntriesOnStart: false, // Don't preload all pages on server start
+    serverSourceMaps: false, // Disable server source maps to save memory
   },
   /**
    * Image optimization configuration
