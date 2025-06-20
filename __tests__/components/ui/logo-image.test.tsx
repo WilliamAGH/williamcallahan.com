@@ -79,40 +79,36 @@ describe("LogoImage Conditional Rendering", () => {
     });
   });
 
-  describe("Data URL Rendering (uses plain <img>)", () => {
-    it("renders plain img tag with correct props", () => {
+  describe("Data URL Rendering (uses next/image)", () => {
+    it("renders next/image for data URLs with correct props", () => {
       render(<LogoImage {...dataUrlProps} />);
-      // Check if the plain img tag was rendered (and not the next/image mock)
-      expect(screen.queryByTestId("next-image-mock")).not.toBeInTheDocument();
-      expect(screen.queryByTestId("logo-image-wrapper")).not.toBeInTheDocument(); // Wrapper shouldn't exist for plain img
+      // Check if next/image was rendered for data URL
+      const nextImage = screen.getByTestId("next-image-mock");
+      expect(nextImage).toBeInTheDocument();
 
-      const img = screen.getByRole("img"); // Get the plain img tag
-      expect(img).toBeInTheDocument();
-      // Use basic attribute checks
-      expect(img.getAttribute("src")).toBe(dataUrlProps.src);
-      expect(img.getAttribute("alt")).toBe("Company Logo"); // Default alt
-      expect(img.getAttribute("width")).toBe(dataUrlProps.width.toString());
-      expect(img.getAttribute("height")).toBe(dataUrlProps.height.toString());
-      expect(img.getAttribute("loading")).toBe("lazy");
-      // Use basic class check
-      expect(img.classList.contains("object-contain")).toBe(true); // Default class
+      // Check props
+      expect(nextImage).toHaveAttribute("src", dataUrlProps.src);
+      expect(nextImage).toHaveAttribute("alt", "Company Logo"); // Default alt
+      expect(nextImage).toHaveAttribute("width", dataUrlProps.width.toString());
+      expect(nextImage).toHaveAttribute("height", dataUrlProps.height.toString());
+      expect(nextImage).toHaveAttribute("data-priority", "false");
+      // Check classes
+      expect(nextImage).toHaveClass("object-contain");
     });
 
-    it("applies custom className to the plain img tag", () => {
+    it("applies custom className to next/image for data URLs", () => {
       render(<LogoImage {...dataUrlProps} className="custom-img-class" />);
-      const img = screen.getByRole("img");
-      // Use basic class checks
-      expect(img.classList.contains("object-contain")).toBe(true);
-      expect(img.classList.contains("custom-img-class")).toBe(true);
+      const nextImage = screen.getByTestId("next-image-mock");
+      // Check classes
+      expect(nextImage).toHaveClass("object-contain");
+      expect(nextImage).toHaveClass("custom-img-class");
     });
 
-    it("ignores priority prop for plain img tag", () => {
-      // Priority is a next/image specific prop
+    it("handles priority prop for data URLs with next/image", () => {
       render(<LogoImage {...dataUrlProps} priority={true} />);
-      const img = screen.getByRole("img");
-      // Use basic attribute checks for absence
-      expect(img.hasAttribute("priority")).toBe(false);
-      expect(img.hasAttribute("data-priority")).toBe(false);
+      const nextImage = screen.getByTestId("next-image-mock");
+      // Check priority attribute is set correctly
+      expect(nextImage).toHaveAttribute("data-priority", "true");
     });
   });
 });
