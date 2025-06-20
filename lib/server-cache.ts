@@ -10,10 +10,9 @@
 
 import { LRUCache } from "lru-cache";
 import { assertServerOnly } from "./utils";
-import "./server/mem-guard";
 
 import type { ICache, CacheStats, CacheValue, StorableCacheValue } from "@/types/cache";
-import { SERVER_CACHE_DURATION } from "./constants";
+import { SERVER_CACHE_DURATION, MEMORY_THRESHOLDS } from "./constants";
 
 import * as bookmarkHelpers from "./server-cache/bookmarks";
 import * as githubHelpers from "./server-cache/github";
@@ -29,18 +28,74 @@ export class ServerCache implements ICache {
   private misses = 0;
 
   constructor() {
+    // Size-aware cache configuration
+    const maxSizeBytes = MEMORY_THRESHOLDS.SERVER_CACHE_BUDGET_BYTES;
+    
     this.cache = new LRUCache<string, StorableCacheValue>({
       max: 100000,
+      maxSize: maxSizeBytes,
+      sizeCalculation: (value) => {
+        // Estimate memory usage for different value types
+        if (Buffer.isBuffer(value)) {
+          return value.byteLength;
+        }
+        if (typeof value === "string") {
+          return value.length * 2; // JS strings are UTF-16
+        }
+        // For objects, use JSON stringification as estimate
+        try {
+          return JSON.stringify(value).length * 2;
+        } catch {
+          // If circular reference or other issue, use conservative estimate
+          return 1024; // 1KB default
+        }
+      },
       ttl: SERVER_CACHE_DURATION * 1000, // lru-cache uses milliseconds
       allowStale: false,
       updateAgeOnGet: false,
       updateAgeOnHas: false,
       dispose: (_value, key, reason) => {
-        if (reason === "evict") {
-          console.warn(`[ServerCache] Evicting key due to max size limit: ${key}`);
+        if (reason === "evict" || reason === "set") {
+          console.log(`[ServerCache] Evicting key (${reason}): ${key}`);
         }
       },
     });
+
+    // Set up memory coordination listener if in Node.js runtime
+    if (typeof process !== "undefined" && process.env.NEXT_RUNTIME === "nodejs") {
+      this.setupMemoryCoordination();
+    }
+  }
+
+  private setupMemoryCoordination(): void {
+    // Dynamically import to avoid issues in non-Node environments
+    import("@/lib/image-memory-manager")
+      .then(({ ImageMemoryManagerInstance }) => {
+        // Listen for memory coordination trigger from ImageMemoryManager
+        ImageMemoryManagerInstance.on("memory-coordination-trigger", () => {
+          console.log("[ServerCache] Received memory coordination trigger, clearing 25% of cache");
+          this.proactiveEviction(0.25); // Clear 25% of cache
+        });
+      })
+      .catch((err) => {
+        console.warn("[ServerCache] Failed to set up memory coordination:", err);
+      });
+  }
+
+  private proactiveEviction(percentage: number): void {
+    const targetSize = Math.floor(this.cache.size * (1 - percentage));
+    const keysToRemove: string[] = [];
+
+    // Collect oldest keys to remove
+    for (const key of this.cache.keys()) {
+      if (keysToRemove.length >= this.cache.size - targetSize) break;
+      keysToRemove.push(key);
+    }
+
+    // Remove collected keys
+    keysToRemove.forEach((key) => this.cache.delete(key));
+
+    console.log(`[ServerCache] Proactive eviction complete. Removed ${keysToRemove.length} entries.`);
   }
 
   public get<T>(key: string): T | undefined {
@@ -86,12 +141,19 @@ export class ServerCache implements ICache {
   }
 
   public getStats(): CacheStats {
+    const size = this.cache.size;
+    const calculatedSize = this.cache.calculatedSize || 0;
+    const maxSize = (this.cache as LRUCache<string, StorableCacheValue> & { maxSize?: number }).maxSize || 0;
+    
     return {
-      keys: this.cache.size,
+      keys: size,
       hits: this.hits,
       misses: this.misses,
       ksize: 0, // lru-cache does not track key/value sizes by default
-      vsize: 0,
+      vsize: calculatedSize, // Now tracking total size in bytes
+      sizeBytes: calculatedSize,
+      maxSizeBytes: maxSize,
+      utilizationPercent: maxSize > 0 ? (calculatedSize / maxSize) * 100 : 0,
     };
   }
 

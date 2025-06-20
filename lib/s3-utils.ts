@@ -32,6 +32,13 @@ const S3_PUBLIC_CDN_URL = process.env.S3_PUBLIC_CDN_URL ?? process.env.S3_CDN_UR
 const MAX_S3_READ_RETRIES = 3; // Actually do 3 retry attempts
 const S3_READ_RETRY_DELAY_MS = 100; // More reasonable delay of 100ms
 
+// Memory protection constants
+const MAX_S3_READ_SIZE = 50 * 1024 * 1024; // 50MB max read size to prevent memory exhaustion
+// Memory pressure threshold moved to coordinated detection in isUnderMemoryPressure()
+
+// Request coalescing for duplicate S3 reads
+const inFlightReads = new Map<string, Promise<Buffer | string | null>>();
+
 if (!S3_BUCKET || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
   console.warn(
     "[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3 operations may fail.",
@@ -55,6 +62,49 @@ export const s3Client: S3Client | null =
     : null;
 
 /**
+ * Check if system is under memory pressure - coordinates with ImageMemoryManager
+ */
+async function isUnderMemoryPressure(): Promise<boolean> {
+  if (typeof process === "undefined") return false;
+  try {
+    const { ImageMemoryManagerInstance } = await import("@/lib/image-memory-manager");
+    const metrics = ImageMemoryManagerInstance.getMetrics();
+    return metrics.memoryPressure;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validate content size before reading to prevent memory exhaustion
+ */
+async function validateContentSize(key: string): Promise<boolean> {
+  if (!s3Client || !S3_BUCKET) return true; // Skip validation if S3 not configured
+
+  try {
+    const command = new HeadObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+    });
+    const response = await s3Client.send(command);
+    const contentLength = response.ContentLength;
+
+    if (contentLength && contentLength > MAX_S3_READ_SIZE) {
+      console.warn(
+        `[S3Utils] Object ${key} too large (${contentLength} bytes > ${MAX_S3_READ_SIZE} bytes). Skipping read to prevent memory exhaustion.`,
+      );
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    // If we can't get size, allow the read to proceed (might be a permissions issue)
+    if (isDebug) debug(`[S3Utils] Could not validate size for ${key}:`, error);
+    return true;
+  }
+}
+
+/**
  * Retrieves an object from S3 by key, optionally using a byte range.
  *
  * Returns the object content as a UTF-8 string for text or JSON types, or as a Buffer for other content types. If the object is not found or an error occurs, returns null.
@@ -69,14 +119,69 @@ export async function readFromS3(
   key: string,
   options?: { range?: string }, // Add optional options object
 ): Promise<Buffer | string | null> {
+  // Check for in-flight request coalescing (only for non-range requests)
+  const cacheKey = options?.range ? `${key}:${options.range}` : key;
+  if (!options?.range && inFlightReads.has(cacheKey)) {
+    if (isDebug) debug(`[S3Utils] Coalescing duplicate read request for ${key}`);
+    const existingPromise = inFlightReads.get(cacheKey);
+    if (existingPromise) {
+      return existingPromise;
+    }
+  }
+
+  // Create promise for this read operation
+  const readPromise = performS3Read(key, options);
+
+  // Track in-flight request only for non-range requests
+  if (!options?.range) {
+    inFlightReads.set(cacheKey, readPromise);
+    void readPromise.finally(() => inFlightReads.delete(cacheKey));
+  }
+  return readPromise;
+}
+
+async function performS3Read(key: string, options?: { range?: string }): Promise<Buffer | string | null> {
+  // Check memory pressure before attempting read
+  if (await isUnderMemoryPressure()) {
+    console.warn(`[S3Utils] System under memory pressure. Deferring read of ${key}`);
+    return null;
+  }
+
+  // Validate content size before reading (skip for range requests)
+  if (!options?.range && !(await validateContentSize(key))) {
+    return null;
+  }
+
   // Bypass public CDN for JSON files to avoid stale cache; only use CDN for non-JSON
   const isJson = key.endsWith(".json");
   if (!isJson && S3_PUBLIC_CDN_URL) {
     const cdnUrl = `${S3_PUBLIC_CDN_URL.replace(/\/+$/, "")}/${key}`;
     if (isDebug) debug(`[S3Utils] Attempting to read key ${key} via CDN: ${cdnUrl}`);
+
+    // Use AbortController to prevent hanging requests
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 10000); // 10 second timeout
+
     try {
-      const res = await fetch(cdnUrl);
+      const res = await fetch(cdnUrl, {
+        signal: abortController.signal,
+        headers: {
+          "User-Agent": "S3Utils/1.0", // Identify requests
+        },
+      });
+
+      clearTimeout(timeoutId);
+
       if (res.ok) {
+        // Check content length before reading
+        const contentLength = res.headers.get("content-length");
+        if (contentLength && parseInt(contentLength, 10) > MAX_S3_READ_SIZE) {
+          console.warn(
+            `[S3Utils] CDN response too large (${contentLength} bytes > ${MAX_S3_READ_SIZE} bytes). Skipping.`,
+          );
+          return null;
+        }
+
         const arrayBuffer = await res.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         const contentType = res.headers.get("content-type") || "";
@@ -92,6 +197,7 @@ export async function readFromS3(
           `[S3Utils] CDN fetch failed for ${cdnUrl}: ${res.status} ${res.statusText}. Falling back to direct S3 read.`,
         );
     } catch (err) {
+      clearTimeout(timeoutId);
       const errorMessage = err instanceof Error ? err.message : String(err);
       if (isDebug) debug(`[S3Utils] CDN fetch error for ${cdnUrl}: ${errorMessage}. Falling back to direct S3 read.`);
     }
@@ -379,13 +485,55 @@ export async function deleteFromS3(key: string): Promise<void> {
   }
 }
 
-// Helper to convert stream to buffer, as AWS SDK v3 GetObjectCommand Body is a Readable
+// Helper to convert stream to buffer with size limit protection
 async function streamToBuffer(stream: Readable): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    stream.on("data", (chunk) => chunks.push(chunk as Buffer));
-    stream.on("error", reject);
-    stream.on("end", () => resolve(Buffer.concat(chunks)));
+    let totalSize = 0;
+    let timeoutId: NodeJS.Timeout | undefined;
+
+    // Set timeout to prevent hanging streams
+    const STREAM_TIMEOUT_MS = 30000; // 30 seconds
+    timeoutId = setTimeout(() => {
+      stream.destroy();
+      reject(new Error("Stream timeout: took longer than 30 seconds"));
+    }, STREAM_TIMEOUT_MS);
+
+    const cleanup = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = undefined;
+      }
+    };
+
+    stream.on("data", (chunk: Buffer) => {
+      totalSize += chunk.length;
+
+      // Prevent memory exhaustion
+      if (totalSize > MAX_S3_READ_SIZE) {
+        cleanup();
+        stream.destroy();
+        reject(new Error(`Stream too large: ${totalSize} bytes exceeds ${MAX_S3_READ_SIZE} bytes`));
+        return;
+      }
+
+      chunks.push(chunk);
+    });
+
+    stream.on("error", (error) => {
+      cleanup();
+      reject(error);
+    });
+
+    stream.on("end", () => {
+      cleanup();
+      resolve(Buffer.concat(chunks));
+    });
+
+    // Handle stream destruction
+    stream.on("close", () => {
+      cleanup();
+    });
   });
 }
 

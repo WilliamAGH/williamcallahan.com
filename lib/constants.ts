@@ -16,12 +16,12 @@
 export const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000;
 
 /**
- * Cache duration for server-side storage (NodeCache)
+ * Cache duration for server-side storage (LRUCache)
  * @constant
  * @type {number}
- * @default 30 days in seconds
+ * @default 3 days in seconds
  */
-export const SERVER_CACHE_DURATION = 30 * 24 * 60 * 60;
+export const SERVER_CACHE_DURATION = 3 * 24 * 60 * 60;
 
 /**
  * Cache duration for logo fetching
@@ -62,8 +62,10 @@ const envSuffix = ((): string => {
 
 export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
   DIR: "bookmarks",
-  FILE: `bookmarks/bookmarks${envSuffix}.json`,
+  FILE: `bookmarks/bookmarks${envSuffix}.json`, // Legacy - full file
   LOCK: `bookmarks/refresh-lock${envSuffix}.json`,
+  INDEX: `bookmarks/index${envSuffix}.json`, // Lightweight index
+  PAGE_PREFIX: `bookmarks/pages${envSuffix}/page-`, // page-1.json, page-2.json, etc.
 } as const;
 
 /**
@@ -128,8 +130,8 @@ export const GITHUB_ACTIVITY_CACHE_DURATION = {
  * @type {Object}
  */
 export const OPENGRAPH_CACHE_DURATION = {
-  /** Success cache duration (7 days in seconds) */
-  SUCCESS: 7 * 24 * 60 * 60,
+  /** Success cache duration (3 days in seconds) */
+  SUCCESS: 3 * 24 * 60 * 60,
   /** Failed attempt cache duration (2 hours in seconds) */
   FAILURE: 2 * 60 * 60,
   /** Revalidation interval (30 days in seconds) - how often to consider data stale */
@@ -382,7 +384,7 @@ export const CSP_DIRECTIVES = {
  * Memory usage thresholds for health monitoring and load shedding.
  * All values are in bytes.
  *
- * - `TOTAL_PROCESS_MEMORY_BUDGET_BYTES`: Total memory budget for the entire process (default 1GB)
+ * - `TOTAL_PROCESS_MEMORY_BUDGET_BYTES`: Total memory budget for the entire process (default 2GB)
  * - `IMAGE_RAM_BUDGET_BYTES`: Memory allocated specifically for the image cache (default 512MB)
  * - `MEMORY_WARNING_THRESHOLD`: RSS memory usage that triggers a "warning" state (default 70% of total budget)
  * - `MEMORY_CRITICAL_THRESHOLD`: RSS memory usage that triggers a "critical" state and load shedding (default 90% of total budget)
@@ -390,21 +392,25 @@ export const CSP_DIRECTIVES = {
  */
 export const MEMORY_THRESHOLDS = {
   // Total process memory budget (used by mem-guard for RSS monitoring)
-  TOTAL_PROCESS_MEMORY_BUDGET_BYTES: Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 1024 * 1024 * 1024), // 1GB default
+  TOTAL_PROCESS_MEMORY_BUDGET_BYTES: Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 2 * 1024 * 1024 * 1024), // 2GB default
 
   // Image cache-specific budget (used by ImageMemoryManager)
+  // TODO: Consider lowering to 256MB after testing to achieve 600-900MB RSS target
   IMAGE_RAM_BUDGET_BYTES: Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? 512 * 1024 * 1024), // 512MB default
 
-  // Warning threshold based on total process memory (70% of 1GB = 717MB)
+  // Server cache budget (used by ServerCache for general data)
+  SERVER_CACHE_BUDGET_BYTES: Number(process.env.SERVER_CACHE_BUDGET_BYTES ?? 256 * 1024 * 1024), // 256MB default
+
+  // Warning threshold based on total process memory (70% of 2GB = 1.4GB)
   MEMORY_WARNING_THRESHOLD: Number(
     process.env.MEMORY_WARNING_THRESHOLD ??
-      Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 1024 * 1024 * 1024) * 0.7,
+      Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 2 * 1024 * 1024 * 1024) * 0.7,
   ),
 
-  // Critical threshold based on total process memory (90% of 1GB = 922MB)
+  // Critical threshold based on total process memory (90% of 2GB = 1.8GB)
   MEMORY_CRITICAL_THRESHOLD: Number(
     process.env.MEMORY_CRITICAL_THRESHOLD ??
-      Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 1024 * 1024 * 1024) * 0.9,
+      Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 2 * 1024 * 1024 * 1024) * 0.9,
   ),
 
   IMAGE_STREAM_THRESHOLD_BYTES: Number(process.env.IMAGE_STREAM_THRESHOLD_BYTES ?? 5 * 1024 * 1024), // 5MB default
