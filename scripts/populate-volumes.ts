@@ -292,12 +292,14 @@ async function populateOpenGraphImages(bookmarks: UnifiedBookmark[]) {
       `⏳ Processing OpenGraph batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(bookmarksWithUrls.length / BATCH_SIZE)} for ${batch.length} bookmarks`,
     );
 
+    // Import once per batch
+    const { ImageMemoryManagerInstance } = await import("@/lib/image-memory-manager");
+
     // Process bookmarks sequentially within each batch to prevent memory overload
     for (const bookmark of batch) {
       processedCount++;
       try {
         // Check memory pressure before processing each OpenGraph image
-        const { ImageMemoryManagerInstance } = await import("@/lib/image-memory-manager");
         const metrics = ImageMemoryManagerInstance.getMetrics();
 
         // Skip processing if in memory pressure mode
