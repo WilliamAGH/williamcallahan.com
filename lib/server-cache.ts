@@ -157,6 +157,10 @@ export class ServerCache implements ICache {
     };
   }
 
+  /**
+   * Clear all cache entries except logo validation results.
+   * Logo validation entries are preserved to prevent repeated Sharp image processing.
+   */
   public clearAllCaches(): void {
     const LOGO_VALIDATION_PREFIX = "logo-validation:";
 
