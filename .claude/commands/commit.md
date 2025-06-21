@@ -27,11 +27,18 @@ This command runs ALL checks according to @docs/projects/structure/linting-forma
 
 STEP 1: Show git status to see all changes.
 
-STEP 2: Check if there are already staged files:
+STEP 2: Determine what to stage based on current state and user input:
 
-- If files are already staged (in "Changes to be committed"), skip to STEP 3 to review them
-- If no files are staged AND no files specified in arguments, user wants to commit ALL changes - use 'git add .' BUT ONLY if explicitly confirmed
-- If no files are staged AND specific files provided in arguments, stage only those specific files
+**Decision tree:**
+1. **Files already staged?** → Skip to STEP 3 to review them
+2. **No files staged + specific files in $ARGUMENTS?** → Stage only those specific files
+3. **No files staged + no files in $ARGUMENTS?** → This means user wants to commit ALL changes
+
+**🚨 CRITICAL for scenario #3:**
+- NEVER automatically run `git add .`
+- MUST explicitly ask: "No files are staged and you didn't specify any files. Do you want to commit ALL [number] modified files? Please confirm with 'yes' or specify which files."
+- ONLY proceed with `git add .` after receiving explicit "yes" confirmation
+- If user says anything other than clear affirmative, ask them to specify which files
 
 STEP 3: Run git diff --cached to show what will be committed.
 
