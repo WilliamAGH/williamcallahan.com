@@ -15,6 +15,7 @@
  */
 
 import type { ReactNode } from "react";
+import type { BaseComponentProps } from "./ui";
 
 /**
  * @serverComponent
@@ -68,17 +69,8 @@ export interface ClientBoundaryProps {
  */
 export type FCWithChildren<P = Record<string, unknown>> = React.FC<P & { children: ReactNode }>;
 
-/**
- * Base props that all components should have access to
- */
-export interface BaseComponentProps {
-  /** Optional CSS class names */
-  className?: string;
-  /** Optional HTML id attribute */
-  id?: string;
-  /** Optional data test id for testing */
-  "data-testid"?: string;
-}
+// BaseComponentProps is now imported from types/ui
+// to avoid duplication
 
 /**
  * Props for components that can be in loading states
@@ -108,6 +100,52 @@ export interface ErrorableComponentProps {
 export interface AsyncComponentProps extends LoadableComponentProps, ErrorableComponentProps {
   /** Whether the component has successfully loaded */
   ready?: boolean;
+}
+
+/**
+ * Generic window component props
+ */
+export interface WindowProps<T = unknown> extends BaseComponentProps {
+  /** Window title */
+  title?: string;
+  /** Window active state */
+  isActive?: boolean;
+  /** Window-specific data */
+  data?: T;
+  /** Child content */
+  children?: ReactNode;
+  /** Optional slug used for display in window title bar */
+  titleSlug?: string;
+  /** Explicit window title overriding generic title (used in bookmarks window) */
+  windowTitle?: string;
+  /** Explicit unique window identifier */
+  windowId?: string;
+}
+
+/**
+ * Generic pagination props
+ */
+export interface PaginationProps {
+  /** Current page number */
+  currentPage?: number;
+  /** Total number of pages */
+  totalPages?: number;
+  /** Items per page */
+  itemsPerPage?: number;
+  /** Total item count */
+  totalCount?: number;
+}
+
+/**
+ * Generic filter props
+ */
+export interface FilterProps {
+  /** Show filter controls */
+  showFilterBar?: boolean;
+  /** Initial filter value */
+  initialTag?: string;
+  /** Active filter */
+  activeFilter?: string;
 }
 
 /**
@@ -169,7 +207,7 @@ export interface RenderPropComponentProps<T = unknown> {
 /**
  * Props for polymorphic components that can render as different elements
  */
-export interface PolymorphicComponentProps<T extends keyof JSX.IntrinsicElements = "div"> {
+export interface PolymorphicComponentProps<T extends keyof React.JSX.IntrinsicElements = "div"> {
   /** Element type to render as */
   as?: T;
 }
@@ -178,6 +216,6 @@ export interface PolymorphicComponentProps<T extends keyof JSX.IntrinsicElements
  * Complete polymorphic component type
  */
 export type PolymorphicComponent<
-  T extends keyof JSX.IntrinsicElements = "div",
+  T extends keyof React.JSX.IntrinsicElements = "div",
   P = Record<string, never>,
-> = React.ComponentType<P & PolymorphicComponentProps<T> & JSX.IntrinsicElements[T]>;
+> = React.ComponentType<P & PolymorphicComponentProps<T> & React.JSX.IntrinsicElements[T]>;

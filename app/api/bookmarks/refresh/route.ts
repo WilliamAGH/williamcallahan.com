@@ -1,7 +1,7 @@
 /**
  * Bookmarks Refresh API Route
  *
- * Provides a public API endpoint for refreshing the bookmarks cache.
+ * Provides a public API endpoint for refreshing the bookmarks.
  * This endpoint is rate-limited to prevent abuse.
  */
 import "server-only";
@@ -10,16 +10,17 @@ import { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import type { DataFetchOperationSummary } from "@/types/lib";
 import { API_ENDPOINT_STORE_NAME, DEFAULT_API_ENDPOINT_LIMIT_CONFIG, isOperationAllowed } from "@/lib/rate-limiter";
 import { ServerCacheInstance } from "@/lib/server-cache";
+import { readJsonS3 } from "@/lib/s3-utils";
+import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import logger from "@/lib/utils/logger";
 import { NextResponse } from "next/server";
+import type { BookmarksIndex } from "@/types/bookmark";
 
 // Ensure this route is not statically cached
 export const dynamic = "force-dynamic";
 
-// Rate limiting is now handled by the centralized lib/rate-limiter.ts
-
 /**
- * POST handler - Refreshes the bookmarks cache
+ * POST handler - Refreshes the bookmarks
  */
 export async function POST(request: Request): Promise<NextResponse> {
   const authorizationHeader = request.headers.get("Authorization");
@@ -53,15 +54,17 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     // For cron jobs, always refresh. For others, check if refresh is needed.
     if (!isCronJob && !ServerCacheInstance.shouldRefreshBookmarks()) {
-      const cached = ServerCacheInstance.getBookmarks();
-      logger.info("[API Bookmarks Refresh] Regular request: Cache is already up to date.");
+      // Read current count from S3 index
+      const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+
+      logger.info("[API Bookmarks Refresh] Regular request: Bookmarks are already up to date.");
       return NextResponse.json({
         status: "success",
-        message: "Bookmarks cache is already up to date",
+        message: "Bookmarks are already up to date",
         data: {
           refreshed: false,
-          bookmarksCount: cached?.bookmarks.length || 0,
-          lastFetchedAt: cached?.lastFetchedAt ? new Date(cached.lastFetchedAt).toISOString() : null,
+          bookmarksCount: index?.count || 0,
+          lastFetchedAt: index?.lastFetchedAt ? new Date(index.lastFetchedAt).toISOString() : null,
         },
       });
     }
@@ -70,16 +73,20 @@ export async function POST(request: Request): Promise<NextResponse> {
       logger.info("[API Bookmarks Refresh] Cron job: Forcing bookmark data refresh.");
     } else {
       logger.info(
-        "[API Bookmarks Refresh] Regular request: Refreshing bookmarks data as cache is stale or needs update.",
+        "[API Bookmarks Refresh] Regular request: Refreshing bookmarks data as they are stale or need update.",
       );
     }
 
-    // Get current cached bookmarks to compare for new additions
-    const previousBookmarks = await Promise.resolve(ServerCacheInstance.getBookmarks()?.bookmarks || []);
-    const previousCount = previousBookmarks.length;
-    const previousBookmarkIds = new Set(previousBookmarks.map((b) => b.id));
+    // Get previous count from S3 index
+    let previousCount = 0;
+    try {
+      const previousIndex = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+      previousCount = previousIndex?.count || 0;
+    } catch {
+      // Index doesn't exist yet
+    }
 
-    logger.info(`[API Bookmarks Refresh] Previous cached bookmarks count: ${previousCount}`);
+    logger.info(`[API Bookmarks Refresh] Previous bookmarks count: ${previousCount}`);
 
     // Use DataFetchManager for centralized data fetching
     const manager = new DataFetchManager();
@@ -90,29 +97,31 @@ export async function POST(request: Request): Promise<NextResponse> {
     });
 
     const bookmarkResult: DataFetchOperationSummary | undefined = results.find((r) => r.operation === "bookmarks");
-    const bookmarks =
-      bookmarkResult?.success && (bookmarkResult.itemsProcessed ?? 0) > 0
-        ? ServerCacheInstance.getBookmarks()?.bookmarks || []
-        : null;
 
-    // Logo processing is already handled by DataFetchManager when immediate: true
-    const newBookmarksCount = bookmarks ? bookmarks.filter((b) => !previousBookmarkIds.has(b.id)).length : 0;
+    if (!bookmarkResult?.success) {
+      throw new Error(bookmarkResult?.error ?? "Bookmark refresh failed");
+    }
+
+    // Read updated count from S3 index
+    const updatedIndex = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+    const newCount = updatedIndex?.count || 0;
+    const newBookmarksCount = Math.max(0, newCount - previousCount);
 
     return NextResponse.json({
       status: "success",
-      message: `Bookmarks cache refreshed successfully${isCronJob ? " (triggered by cron job)" : ""}`,
+      message: `Bookmarks refreshed successfully${isCronJob ? " (triggered by cron job)" : ""}`,
       data: {
         refreshed: true,
-        bookmarksCount: bookmarks?.length ?? 0,
+        bookmarksCount: newCount,
         newBookmarksProcessed: newBookmarksCount,
       },
     });
   } catch (error) {
-    logger.error("Failed to refresh bookmarks cache:", error);
+    logger.error("Failed to refresh bookmarks:", error);
     return NextResponse.json(
       {
         status: "error",
-        message: "Failed to refresh bookmarks cache",
+        message: "Failed to refresh bookmarks",
         error: error instanceof Error ? error.message : String(error),
       },
       { status: 500 },
@@ -124,17 +133,31 @@ export async function POST(request: Request): Promise<NextResponse> {
  * GET handler - Check if refresh is needed
  */
 export async function GET(): Promise<NextResponse> {
-  // Use Promise.resolve to satisfy require-await rule
-  const cached = await Promise.resolve(ServerCacheInstance.getBookmarks());
-  const needsRefresh = await Promise.resolve(ServerCacheInstance.shouldRefreshBookmarks());
+  try {
+    // Read from S3 index
+    const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
 
-  return NextResponse.json({
-    status: "success",
-    data: {
-      needsRefresh,
-      bookmarksCount: cached?.bookmarks.length || 0,
-      lastFetchedAt: cached?.lastFetchedAt ? new Date(cached.lastFetchedAt).toISOString() : null,
-      lastAttemptedAt: cached?.lastAttemptedAt ? new Date(cached.lastAttemptedAt).toISOString() : null,
-    },
-  });
+    const needsRefresh = ServerCacheInstance.shouldRefreshBookmarks();
+
+    return NextResponse.json({
+      status: "success",
+      data: {
+        needsRefresh,
+        bookmarksCount: index?.count || 0,
+        lastFetchedAt: index?.lastFetchedAt ? new Date(index.lastFetchedAt).toISOString() : null,
+        lastAttemptedAt: index?.lastAttemptedAt ? new Date(index.lastAttemptedAt).toISOString() : null,
+      },
+    });
+  } catch {
+    // No bookmarks yet
+    return NextResponse.json({
+      status: "success",
+      data: {
+        needsRefresh: true,
+        bookmarksCount: 0,
+        lastFetchedAt: null,
+        lastAttemptedAt: null,
+      },
+    });
+  }
 }

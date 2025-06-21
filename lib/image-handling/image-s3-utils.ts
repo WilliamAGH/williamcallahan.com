@@ -31,10 +31,20 @@ export async function persistImageToS3(
   pageUrl?: string,
 ): Promise<string | null> {
   try {
-    if (isDebug)
+    if (isDebug) {
       debug(
         `[${logContext}] Attempting to persist image. Original URL: ${imageUrl}, IdempotencyKey: ${idempotencyKey}, PageURL: ${pageUrl}`,
       );
+    }
+
+    // -------------------------------------------------------------
+    // Fast-path: if the image is already in S3, skip the upload step
+    // -------------------------------------------------------------
+    const existingKey = await findImageInS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
+    if (existingKey) {
+      console.log(`[OpenGraph S3] ⏭️  Skipping upload – image already exists in S3: ${existingKey}`);
+      return existingKey;
+    }
 
     const response = await fetch(imageUrl, {
       method: "GET",
@@ -50,6 +60,12 @@ export async function persistImageToS3(
     if (!response.ok) {
       const fetchErrorMsg = `Failed to fetch original image: ${response.status} ${response.statusText}`;
       if (isDebug) debug(`[${logContext}] ${fetchErrorMsg} from URL: ${imageUrl}`);
+
+      // Handle 404 errors specifically - trigger automatic OpenGraph recrawl
+      if (response.status === 404 && pageUrl && logContext === "OpenGraph") {
+        await handleStaleImageUrl(imageUrl, pageUrl, logContext);
+      }
+
       throw new Error(fetchErrorMsg);
     }
     if (isDebug) debug(`[${logContext}] Successfully fetched original image from: ${imageUrl}`);
@@ -77,13 +93,12 @@ export async function persistImageToS3(
     if (isDebug) debug(`[${logContext}] Generated S3 key: ${s3Key} for image from URL: ${imageUrl}`);
 
     // Upload to S3
-    if (isDebug) debug(`[${logContext}] Attempting to write processed image to S3 with key: ${s3Key}`);
+    console.log(`[OpenGraph S3] 📤 Uploading processed image to S3: ${s3Key} (${processedBuffer.length} bytes)`);
     await writeBinaryS3(s3Key, processedBuffer, contentType);
 
-    if (isDebug)
-      debug(
-        `[${logContext}] Successfully persisted image to S3: ${s3Key} (${processedBuffer.length} bytes) from URL: ${imageUrl}`,
-      );
+    console.log(
+      `[OpenGraph S3] ✅ Successfully persisted image to S3: ${s3Key} (${processedBuffer.length} bytes) from ${imageUrl}`,
+    );
     return s3Key;
   } catch (error) {
     // Ensure error is an instance of Error for consistent message property access
@@ -94,6 +109,47 @@ export async function persistImageToS3(
     //   console.error(`[${logContext}] Full error object for ${imageUrl}:`, error);
     // }
     return null;
+  }
+}
+
+/**
+ * Handle stale image URLs by triggering automatic OpenGraph recrawl
+ * This is called when image URLs return 404, indicating the OpenGraph metadata is stale
+ */
+async function handleStaleImageUrl(imageUrl: string, pageUrl: string, logContext: string): Promise<void> {
+  try {
+    const { ServerCacheInstance } = await import("@/lib/server-cache");
+
+    const isKarakeepUrl = /^https?:\/\/(?:[^/]+\.)?(karakeep\.app|hoarder\.io)\/.+/i.test(imageUrl);
+
+    // Only trigger recrawl for **first-party Karakeep / Hoarder assets**. Third-party images that
+    // disappear (like a site's own og-image.png) should *not* force an immediate refetch cycle – we
+    // will fall back to the cached CDN copy we already have in S3 instead of hammering the origin.
+    if (!isKarakeepUrl) {
+      if (isDebug)
+        debug(
+          `[${logContext}] Stale image URL returned 404 but is NOT a Karakeep asset – skipping auto-recrawl: ${imageUrl}`,
+        );
+      return;
+    }
+
+    const reason = `Image URL returned 404: ${imageUrl} (Karakeep asset)`;
+    const invalidated = ServerCacheInstance.invalidateStaleOpenGraphData(pageUrl, reason);
+
+    if (!invalidated) return;
+
+    console.warn(`[${logContext}] 🚨 Karakeep asset URL is invalid: ${imageUrl}`);
+    console.warn(`[${logContext}] 🔄 Automatic recovery initiated for ${pageUrl}`);
+
+    // Trigger background refresh to get fresh OpenGraph data with updated image URLs
+    console.log(`[${logContext}] Triggering OpenGraph recrawl for ${pageUrl} (stale Karakeep asset)`);
+    const { refreshOpenGraphData } = await import("@/lib/data-access/opengraph");
+    refreshOpenGraphData(pageUrl).catch((refreshError) => {
+      console.error(`[${logContext}] Background OpenGraph refresh failed for ${pageUrl}:`, refreshError);
+      console.warn(`[${logContext}] ⚠️ Karakeep asset and refresh both failed – fallback images will be used`);
+    });
+  } catch (error) {
+    console.error(`[${logContext}] Failed to handle stale image URL for ${pageUrl}:`, error);
   }
 }
 

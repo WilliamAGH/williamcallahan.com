@@ -6,9 +6,10 @@
  */
 import "server-only"; // Ensure this component remains server-only
 
-import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
-import { normalizeBookmarkTag } from "@/lib/bookmarks/utils";
-import { ServerCacheInstance } from "@/lib/server-cache";
+// Defer heavy imports to reduce initial bundle size
+const getBookmarks = async () => (await import("@/lib/bookmarks/service.server")).getBookmarks;
+const normalizeBookmarkTag = async () => (await import("@/lib/bookmarks/utils")).normalizeBookmarkTag;
+const getServerCache = async () => (await import("@/lib/server-cache")).ServerCacheInstance;
 import type { UnifiedBookmark } from "@/types";
 import { BookmarksClientWithWindow } from "./bookmarks-client-with-window";
 
@@ -65,7 +66,8 @@ export async function BookmarksServer({
     console.log("[BookmarksServer] Using provided bookmarks, count:", bookmarks.length);
   } else {
     // Fetch bookmarks. If getBookmarks() throws, it will propagate up.
-    bookmarks = await getBookmarks(false);
+    const getBookmarksFunc = await getBookmarks();
+    bookmarks = await getBookmarksFunc(false);
     console.log("[BookmarksServer] Fetched via getBookmarks, count:", bookmarks.length);
     if (bookmarks.length > 0 && bookmarks[0]) {
       console.log("[BookmarksServer] First bookmark title:", bookmarks[0].title);
@@ -82,22 +84,25 @@ export async function BookmarksServer({
     // This caused a hard failure when the external bookmarks service was unreachable.
     // Instead, log the situation and allow the component tree to render an empty state gracefully.
     if (!propsBookmarks && bookmarks.length === 0) {
-      const lastFetched = ServerCacheInstance.getBookmarks()?.lastFetchedAt ?? 0;
+      const serverCache = await getServerCache();
+      const lastFetched = serverCache.getBookmarks()?.lastFetchedAt ?? 0;
       console.warn("[BookmarksServer] No bookmark data available after fetch. lastFetchedAt=", lastFetched);
       // Proceed with empty array – downstream components will show an empty state UI.
     }
   }
 
   // Transform to serializable format for client component
+  const normalizeFunc = await normalizeBookmarkTag();
   const serializableBookmarks: SerializableBookmark[] = (propsBookmarks || bookmarks).map((bookmark) => ({
     id: bookmark.id,
     url: bookmark.url,
     title: bookmark.title,
     description: bookmark.description,
-    tags: Array.isArray(bookmark.tags) ? bookmark.tags.map(normalizeBookmarkTag) : [],
+    tags: Array.isArray(bookmark.tags) ? bookmark.tags.map(normalizeFunc) : [],
     dateBookmarked: bookmark.dateBookmarked,
     dateCreated: bookmark.dateCreated,
     dateUpdated: bookmark.dateUpdated,
+    content: bookmark.content, // 🎯 CRITICAL: Include content field with Karakeep assets
     logoData: bookmark.logoData
       ? {
           url: bookmark.logoData.url,
@@ -122,7 +127,7 @@ export async function BookmarksServer({
       bookmarks={serializableBookmarks}
       title={title}
       description={description}
-      forceClientFetch={!propsBookmarks}
+      searchAllBookmarks={!propsBookmarks}
       showFilterBar={showFilterBar}
       titleSlug={titleSlug}
       initialPage={initialPage}

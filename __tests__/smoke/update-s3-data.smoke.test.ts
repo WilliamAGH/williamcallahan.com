@@ -79,7 +79,7 @@ describe("scripts/data-updater.ts Smoke Test", () => {
 
       // Mode-specific expectations
       if (testMode === "DRY" || !IS_S3_CONFIGURED) {
-        const dryRunPattern = /DRY RUN mode: skipping all update processes/;
+        const dryRunPattern = /DRY RUN mode - skipping all update processes/;
         expect(dryRunPattern.test(stdout)).toBe(true);
         // In DRY mode, script exits before completion message
       } else {

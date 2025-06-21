@@ -78,3 +78,33 @@ export function sanitizeSearchQuery(query: string): string {
   const result = validateSearchQuery(query);
   return result.isValid ? result.sanitized : "";
 }
+
+/**
+ * Validates search scope parameter
+ */
+export function SearchScopeValidator(scope: unknown): {
+  isValid: boolean;
+  scope?: string;
+  error?: string;
+} {
+  if (typeof scope !== "string") {
+    return {
+      isValid: false,
+      error: "Scope must be a string",
+    };
+  }
+
+  const validScopes = ["blog", "posts", "investments", "experience", "education", "bookmarks", "projects", "all"];
+
+  if (!validScopes.includes(scope.toLowerCase())) {
+    return {
+      isValid: false,
+      error: `Invalid scope. Valid scopes are: ${validScopes.join(", ")}`,
+    };
+  }
+
+  return {
+    isValid: true,
+    scope: scope.toLowerCase(),
+  };
+}

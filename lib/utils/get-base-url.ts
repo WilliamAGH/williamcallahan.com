@@ -8,24 +8,28 @@
 const isServer = typeof globalThis.window === "undefined";
 
 export function getBaseUrl(): string {
-  // Client-side, so use relative path (empty string)
+  // 1. Client-side: always use relative paths
   if (!isServer) {
     return "";
   }
 
-  // Server-side: prioritize explicit environment variables defined in .env-example
-  // 1. API_BASE_URL (preferred for server-to-server calls)
-  // 2. NEXT_PUBLIC_SITE_URL (public-facing canonical URL)
-  // Fallback: localhost with PORT or 3000.
+  // 2. Server-side in Production:
+  if (process.env.NODE_ENV === "production") {
+    const publicSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
+    // Use NEXT_PUBLIC_SITE_URL if it's a valid, non-local URL
+    if (publicSiteUrl && !publicSiteUrl.includes("localhost") && !publicSiteUrl.includes("0.0.0.0")) {
+      return publicSiteUrl.replace(/\/$/, "");
+    }
+    // Otherwise, always fall back to the canonical production URL as a safety net
+    return "https://williamcallahan.com";
+  }
+
+  // 3. Server-side in Development:
+  // Prioritize API_BASE_URL for local development, then fall back to localhost.
   const apiBase = process.env.API_BASE_URL;
   if (apiBase) {
     return apiBase.replace(/\/$/, "");
-  }
-
-  const publicSite = process.env.NEXT_PUBLIC_SITE_URL;
-  if (publicSite) {
-    return publicSite.replace(/\/$/, "");
   }
 
   const port = process.env.PORT || 3000;

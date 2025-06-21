@@ -15,6 +15,7 @@
  */
 
 import type { Experience } from "../experience";
+import type { JSX } from "react";
 
 /**
  * Experience collection component props

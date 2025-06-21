@@ -42,7 +42,8 @@ const proxy = (srcInput: string | Blob): string => {
   return `/api/twitter-image/${proxiedPath}`;
 };
 
-import type { ImgProxyProps, TweetEmbedProps } from "@/types";
+import type { TweetEmbedProps } from "@/types";
+import type { ImgProxyProps } from "@/types/ui";
 
 /**
  * An image component that uses the `proxy` function to serve Twitter images.
@@ -53,18 +54,28 @@ import type { ImgProxyProps, TweetEmbedProps } from "@/types";
  * @returns {JSX.Element} The rendered image element.
  */
 const ImgProxy = ({ src = "", alt, width, height, ...rest }: ImgProxyProps) => {
-  console.log("[ImgProxy] Original src received:", src);
-  const proxiedSrc = proxy(src || ""); // Ensure string for proxy, or handle Blob case if necessary
-  console.log("[ImgProxy] Proxied src to be used:", proxiedSrc);
+  const proxiedSrc = proxy(src || "");
+  // Ensure we have a string for string operations, handle Blob case
+  const safeSrc = typeof src === "string" ? src : "";
 
-  // Use Next.js Image component for better performance when dimensions are available
-  if (width && height) {
-    return <Image src={proxiedSrc} alt={alt || "Tweet image"} width={width} height={height} {...rest} />;
-  }
+  const imageWidth = width || (safeSrc.includes("/profile_images/") ? 48 : 500);
+  const imageHeight = height || (safeSrc.includes("/profile_images/") ? 48 : 300);
 
-  // Fallback to regular img with explicit alt text for accessibility
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={proxiedSrc} alt={alt || "Tweet image"} {...rest} />;
+  return (
+    <Image
+      src={proxiedSrc}
+      alt={alt || "Tweet image"}
+      width={imageWidth}
+      height={imageHeight}
+      style={{
+        objectFit: "cover",
+        width: "100%",
+        height: "auto",
+        borderRadius: safeSrc.includes("/profile_images/") ? "9999px" : "0.5rem",
+      }}
+      {...rest}
+    />
+  );
 };
 
 /**

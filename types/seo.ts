@@ -11,72 +11,11 @@
  */
 
 import type { Metadata } from "next";
-
-/**
- * SEO date field constants following current web standards
- * Moved from lib/seo/constants.ts to break circular dependency
- * @see {@link "https://ogp.me/#type_article"} - OpenGraph article dates
- * @see {@link "https://schema.org/ProfilePage"} - Schema.org ProfilePage
- * @see {@link "https://schema.org/Article"} - Schema.org Article
- * @see {@link "https://developers.google.com/search/docs/appearance/publication-dates"} - Schema.org Person
- */
-export const SEO_DATE_FIELDS = {
-  // OpenGraph article dates (primary standard for social sharing)
-  openGraph: {
-    published: "article:published_time",
-    modified: "article:modified_time",
-  },
-  // Standard HTML meta dates
-  meta: {
-    published: "date",
-    modified: "last-modified",
-  },
-  // Schema.org dates for JSON-LD structured data
-  jsonLd: {
-    context: "https://schema.org",
-    dateFields: {
-      created: "dateCreated",
-      published: "datePublished",
-      modified: "dateModified",
-    },
-    types: {
-      profile: "ProfilePage",
-      article: "Article",
-      person: "Person",
-      collection: "CollectionPage",
-    },
-  },
-  // Optional Dublin Core dates (legacy support)
-  dublinCore: {
-    created: "DC.date.created",
-    modified: "DC.date.modified",
-    issued: "DC.date.issued",
-  },
-} as const;
+import type { ArticleMetadata, CollectionPageMetadata, ProfilePageMetadata } from "./seo/metadata";
+import type { ProfileOpenGraph } from "./seo/opengraph";
 
 // Page Metadata Types
-export interface BasePageMetadata {
-  title: string;
-  description: string;
-  dateCreated: string;
-  dateModified: string;
-}
-
-export interface ProfilePageMetadata extends BasePageMetadata {
-  bio: string;
-  interactionStats?: {
-    follows?: number;
-    likes?: number;
-    posts?: number;
-  };
-  profileImage?: string;
-  alternateName?: string;
-  identifier?: string;
-}
-
-export interface CollectionPageMetadata extends BasePageMetadata {
-  bio?: never;
-}
+// MOVED to types/seo/metadata.ts
 
 // Import for local use and for re-export
 import {
@@ -98,6 +37,9 @@ export {
   PACIFIC_DATE_REGEX,
   isPacificDateString,
   isArticleDates,
+  type ArticleMetadata,
+  type CollectionPageMetadata,
+  type ProfilePageMetadata,
 };
 
 /**
@@ -123,130 +65,11 @@ export {
  * @see {@link "https://schema.org/ImageObject"} - Schema.org image properties
  */
 
-/**
- * OpenGraph article metadata structure
- * @see {@link "https://ogp.me/#type_article"} - OpenGraph article specification
- */
-export type ArticleOpenGraph = {
-  title: string;
-  description: string;
-  url: string;
-  siteName?: string;
-  locale?: string;
-  type: "article";
-  article: {
-    publishedTime: string;
-    modifiedTime: string;
-    section?: string;
-    tags?: string[];
-    authors?: string[];
-  };
-  images?: OpenGraphImage[];
-  // Root level dates for better compatibility
-  publishedTime?: string;
-  modifiedTime?: string;
-};
+// MOVED to types/seo/opengraph.ts
 
-/**
- * OpenGraph profile metadata structure
- * @see {@link "https://ogp.me/#type_profile"} - OpenGraph profile specification
- */
-export type ProfileOpenGraph = {
-  title: string;
-  description: string;
-  url: string;
-  siteName?: string;
-  locale?: string;
-  type: "profile";
-  firstName?: string;
-  lastName?: string;
-  username?: string;
-  gender?: string;
-  images?: OpenGraphImage[];
-  publishedTime?: string;
-  modifiedTime?: string;
-};
+// MOVED to types/seo/opengraph.ts
 
-/**
- * Schema.org Article metadata
- * Used in JSON-LD structured data
- */
-export interface ArticleSchema {
-  "@context": "https://schema.org";
-  "@type": "Article";
-  headline: string;
-  description: string;
-  datePublished: PacificDateString;
-  dateModified: PacificDateString;
-  author: {
-    "@type": "Person";
-    name: string;
-    url?: string;
-  };
-  publisher: {
-    "@type": "Organization";
-    name: string;
-    logo?: {
-      "@type": "ImageObject";
-      url: string;
-    };
-  };
-  image?: {
-    "@type": "ImageObject";
-    url: string;
-    caption?: string;
-  };
-  mainEntityOfPage: {
-    "@type": "WebPage";
-    "@id": string;
-  };
-}
-
-/**
- * Schema.org base metadata shared by all page types
- */
-interface BaseSchema {
-  "@context": "https://schema.org";
-  name: string;
-  description: string;
-  dateCreated: PacificDateString;
-  dateModified: PacificDateString;
-  datePublished: PacificDateString;
-}
-
-/**
- * Schema.org ProfilePage metadata
- * Used for personal, professional, and academic profile pages
- * @see {@link "https://schema.org/ProfilePage"} - Schema.org ProfilePage specification
- */
-export interface ProfileSchema extends BaseSchema {
-  "@type": "ProfilePage";
-  mainEntity: {
-    "@type": "Person";
-    name: string;
-    description: string;
-    sameAs?: string[];
-    image?: string;
-  };
-}
-
-/**
- * Schema.org CollectionPage metadata
- * Used for pages that list multiple items (blog posts, investments, bookmarks)
- * @see {@link "https://schema.org/CollectionPage"} - Schema.org CollectionPage specification
- */
-export interface CollectionSchema extends BaseSchema {
-  "@type": "CollectionPage";
-  mainEntity: {
-    "@type": "ItemList";
-    itemListElement: Array<{
-      "@type": "ListItem";
-      position: number;
-      url: string;
-      name: string;
-    }>;
-  };
-}
+// MOVED to types/seo/schema.ts
 
 /**
  * HTML meta tag date fields
@@ -254,17 +77,17 @@ export interface CollectionSchema extends BaseSchema {
  */
 export interface MetaDateFields {
   // Standard HTML meta dates
-  [SEO_DATE_FIELDS.meta.published]?: PacificDateString;
-  [SEO_DATE_FIELDS.meta.modified]: PacificDateString;
+  published?: PacificDateString;
+  "last-modified": PacificDateString;
 
   // OpenGraph article dates
-  [SEO_DATE_FIELDS.openGraph.published]?: PacificDateString;
-  [SEO_DATE_FIELDS.openGraph.modified]?: PacificDateString;
+  "article:published_time"?: PacificDateString;
+  "article:modified_time"?: PacificDateString;
 
   // Optional Dublin Core dates
-  [SEO_DATE_FIELDS.dublinCore.created]?: PacificDateString;
-  [SEO_DATE_FIELDS.dublinCore.modified]?: PacificDateString;
-  [SEO_DATE_FIELDS.dublinCore.issued]?: PacificDateString;
+  "DC.date.created"?: PacificDateString;
+  "DC.date.modified"?: PacificDateString;
+  "DC.date.issued"?: PacificDateString;
 
   // Allow for additional meta fields
   [key: string]: string | number | (string | number)[] | undefined;
@@ -277,10 +100,10 @@ export interface MetaDateFields {
 export type MetadataOther = {
   [key: string]: string | number | (string | number)[];
 } & {
-  [SEO_DATE_FIELDS.meta.modified]: string;
-  [SEO_DATE_FIELDS.meta.published]?: string;
-  [SEO_DATE_FIELDS.openGraph.published]?: string;
-  [SEO_DATE_FIELDS.openGraph.modified]?: string;
+  "last-modified": string;
+  published?: string;
+  "article:published_time"?: string;
+  "article:modified_time"?: string;
 };
 
 /**
@@ -306,14 +129,7 @@ export interface ExtendedMetadata extends Metadata {
   }>;
 }
 
-/**
- * Complete article metadata structure
- * Combines all metadata types into a single interface
- */
-export interface ArticleMetadata extends Omit<ExtendedMetadata, "openGraph" | "other"> {
-  openGraph: ArticleOpenGraph;
-  other: MetaDateFields;
-}
+// MOVED to types/seo/metadata.ts
 
 /**
  * Complete profile metadata structure
@@ -393,3 +209,4 @@ export interface SoftwareAppParams {
 }
 
 export * from "./seo/opengraph";
+export * from "./seo/schema";

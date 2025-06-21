@@ -4,16 +4,28 @@
  * Provides consistent URL construction and other bookmark-related utilities
  */
 
-import type { UnifiedBookmark, BookmarkContent, ImageSelectionOptions, KarakeepImageFallback } from "@/types";
+import type { UnifiedBookmark, BookmarkContent, KarakeepImageFallback } from "@/types";
+import type { ImageSelectionOptions } from "@/types/features/bookmarks";
 
 /**
  * Constructs a consistent asset URL for Karakeep assets
  * @param assetId The asset ID from Karakeep
+ * @param extension Optional file extension (defaults to .webp for optimization)
  * @returns The full asset URL or undefined
  */
-export function getAssetUrl(assetId: string | undefined | null): string | undefined {
+export function getAssetUrl(assetId: string | undefined | null, extension: string = "webp"): string | undefined {
   if (!assetId) return undefined;
-  // Future enhancement: could use CDN URL from environment
+
+  // Ensure extension starts with dot
+  const ext = extension.startsWith(".") ? extension : `.${extension}`;
+
+  // In production, prefer CDN URLs for better performance
+  // In development, use API proxy to ensure images are available
+  const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
+  if (cdnUrl && process.env.NODE_ENV === "production") {
+    return `${cdnUrl}/images/karakeep/${assetId}${ext}`;
+  }
+
   return `/api/assets/${assetId}`;
 }
 
@@ -49,7 +61,7 @@ export function selectBestImage(
 ): string | null | undefined {
   const { preferOpenGraph = true, includeScreenshots = true, returnUndefined = false } = options;
 
-  const content = bookmark.content;
+  const { content } = bookmark;
   const noImageResult = returnUndefined ? undefined : null;
 
   // Build prioritized image list based on options
@@ -59,25 +71,23 @@ export function selectBestImage(
     candidates.push(bookmark.ogImage);
   }
 
-  if (content) {
-    // Add Karakeep images
-    if (content.imageUrl) {
-      candidates.push(content.imageUrl);
-    }
+  if (content?.imageUrl) {
+    candidates.push(content.imageUrl);
+  }
 
-    if (content.imageAssetId) {
-      candidates.push(getAssetUrl(content.imageAssetId));
-    }
+  if (content?.imageAssetId) {
+    // Use asset ID directly instead of /api/assets/ URL for ogImage compatibility
+    candidates.push(content.imageAssetId);
+  }
 
-    // Add OpenGraph after Karakeep if not preferred
-    if (!preferOpenGraph && bookmark.ogImage) {
-      candidates.push(bookmark.ogImage);
-    }
+  // Add OpenGraph after Karakeep if not preferred
+  if (!preferOpenGraph && bookmark.ogImage) {
+    candidates.push(bookmark.ogImage);
+  }
 
-    // Add screenshot as last resort
-    if (includeScreenshots && content.screenshotAssetId) {
-      candidates.push(getAssetUrl(content.screenshotAssetId));
-    }
+  // Add screenshot as last resort
+  if (includeScreenshots && content?.screenshotAssetId) {
+    candidates.push(getAssetUrl(content.screenshotAssetId));
   }
 
   // Return first non-null/undefined candidate

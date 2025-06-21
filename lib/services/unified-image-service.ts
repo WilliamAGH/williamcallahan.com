@@ -27,9 +27,11 @@ import type { ImageServiceOptions, ImageResult } from "../../types/image";
 import { createHash } from "node:crypto";
 import { LRUCache } from "lru-cache";
 
-// Cache for S3 existence checks (bounded)
+// Cache for S3 existence checks (bounded by count and size)
 const s3ExistenceCache = new LRUCache<string, boolean>({
   max: 50000,
+  maxSize: 8 * 1024 * 1024, // 8MB max size
+  sizeCalculation: () => 100, // Each key-value pair ~100 bytes (conservative estimate)
   ttl: 24 * 60 * 60 * 1000, // 24 hours
 });
 
@@ -48,6 +50,19 @@ export class UnifiedImageService {
   private readonly memoryManager = ImageMemoryManagerInstance;
   private readonly cdnBaseUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
   private readonly s3BucketName = process.env.S3_BUCKET || "";
+  private readonly s3ServerUrl = process.env.S3_SERVER_URL;
+
+  constructor() {
+    if (process.env.NODE_ENV === "production" && !this.cdnBaseUrl) {
+      console.warn(`
+        ##########################################################################################
+        # WARNING: NEXT_PUBLIC_S3_CDN_URL is not set in a production environment.                #
+        # Image URLs will fall back to the S3 endpoint, which is inefficient and may be incorrect. #
+        # Please set this environment variable to your public CDN URL.                           #
+        ##########################################################################################
+      `);
+    }
+  }
 
   /**
    * Get or fetch an image with unified caching strategy and async monitoring
@@ -507,10 +522,19 @@ export class UnifiedImageService {
    * Get CDN URL for S3 key
    */
   getCdnUrl(s3Key: string): string {
-    if (!this.cdnBaseUrl) {
-      return `https://${this.s3BucketName}.s3.amazonaws.com/${s3Key}`;
+    if (this.cdnBaseUrl) {
+      return `${this.cdnBaseUrl}/${s3Key}`;
     }
-    return `${this.cdnBaseUrl}/${s3Key}`;
+    if (this.s3ServerUrl && this.s3BucketName) {
+      try {
+        const hostname = new URL(this.s3ServerUrl).hostname;
+        return `https://${this.s3BucketName}.${hostname}/${s3Key}`;
+      } catch {
+        // fallback for invalid URL
+      }
+    }
+    // Original fallback as a last resort
+    return `https://${this.s3BucketName}.s3.amazonaws.com/${s3Key}`;
   }
 
   /**
@@ -549,9 +573,20 @@ export class UnifiedImageService {
 
   /**
    * Check if URL is a logo URL
+   * Only treat URLs as logo URLs if they're specifically logo/favicon files,
+   * not if they just contain these terms in query parameters
    */
   private isLogoUrl(url: string): boolean {
-    return url.includes("logo") || url.includes("favicon");
+    try {
+      const parsedUrl = new URL(url);
+      const pathname = parsedUrl.pathname.toLowerCase();
+
+      // Check if the actual file path contains logo/favicon
+      return pathname.includes("logo") || pathname.includes("favicon");
+    } catch {
+      // Fallback to simple string check for malformed URLs
+      return url.includes("favicon");
+    }
   }
 
   /**

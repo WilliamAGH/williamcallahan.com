@@ -8,11 +8,13 @@
  */
 
 // debug import removed - using console.log for fallback logging
-import { getDomainType, isValidImageUrl, constructKarakeepAssetUrl } from "@/lib/utils/opengraph-utils";
+import { getDomainType, isValidImageUrl } from "@/lib/utils/opengraph-utils";
+import { getBaseUrl } from "@/lib/utils/get-base-url";
 import { scheduleImagePersistence } from "./persistence";
-import { OPENGRAPH_IMAGES_S3_DIR, SOCIAL_PLATFORMS } from "./constants";
+import { OPENGRAPH_IMAGES_S3_DIR } from "./constants";
 import type { OgResult, KarakeepImageFallback } from "@/types";
 import { karakeepImageFallbackSchema } from "@/types/seo/opengraph";
+import { SOCIAL_PLATFORMS } from "@/types/social";
 
 /**
  * Creates a fallback result when OpenGraph data cannot be fetched
@@ -35,68 +37,100 @@ export function createFallbackResult(
   const domain = getDomainType(url);
 
   // Priority chain for image selection:
-  // 1. Karakeep imageUrl (direct OG image)
-  // 2. Karakeep imageAssetId (construct asset URL)
-  // 3. Karakeep screenshotAssetId (construct screenshot URL)
-  // 4. Domain fallback images
+  // 5. Karakeep imageUrl (direct OG image)
+  // 6. Karakeep imageAssetId (construct asset URL)
+  // 7. Karakeep screenshotAssetId (construct screenshot URL)
+  // 8. Domain fallback images
   let imageUrl: string | null = null;
 
   if (validatedFallbackData) {
-    // Try Karakeep imageUrl first (highest priority)
+    console.log(`[OG-Fallback] 📋 Found Karakeep fallback data for: ${url}`);
+
+    // PRIORITY LEVEL 5: Try Karakeep imageUrl first (highest priority)
+    const karakeepImageUrl = String(validatedFallbackData.imageUrl ?? "not found");
+    console.log(`[OG-Priority-5] 🔍 Checking Karakeep imageUrl: ${karakeepImageUrl}`);
     if (validatedFallbackData.imageUrl && isValidImageUrl(validatedFallbackData.imageUrl)) {
       imageUrl = validatedFallbackData.imageUrl;
-      console.log(`[DataAccess/OpenGraph] Using Karakeep imageUrl fallback: ${imageUrl}`);
+      console.log(`[OG-Priority-5] ✅ Using Karakeep imageUrl: ${imageUrl}`);
 
       // Schedule S3 persistence for Karakeep image
       scheduleImagePersistence(imageUrl, OPENGRAPH_IMAGES_S3_DIR, "Karakeep-Fallback", undefined, url);
+    } else {
+      console.log(`[OG-Priority-5] ❌ Karakeep imageUrl not valid or not found`);
     }
-    // Try Karakeep imageAssetId (second priority)
-    else if (validatedFallbackData.imageAssetId) {
-      try {
-        imageUrl = constructKarakeepAssetUrl(validatedFallbackData.imageAssetId);
-        console.log(`[DataAccess/OpenGraph] Using Karakeep imageAssetId fallback: ${imageUrl}`);
 
-        // Schedule S3 persistence for Karakeep asset
-        scheduleImagePersistence(
-          imageUrl,
-          OPENGRAPH_IMAGES_S3_DIR,
-          "Karakeep-Asset-Fallback",
-          validatedFallbackData.imageAssetId,
-          url,
-        );
+    // PRIORITY LEVEL 6: Try Karakeep imageAssetId (second priority)
+    if (!imageUrl && validatedFallbackData.imageAssetId) {
+      const assetId = validatedFallbackData.imageAssetId;
+      console.log(`[OG-Priority-6] 🔍 Checking Karakeep imageAssetId: ${assetId}`);
+      try {
+        const baseUrl = getBaseUrl();
+        if (baseUrl) {
+          const assetUrl = new URL(`/api/assets/${assetId}`, baseUrl).toString();
+          if (isValidImageUrl(assetUrl)) {
+            imageUrl = assetUrl;
+            console.log(`[OG-Priority-6] ✅ Using Karakeep imageAssetId, constructed URL: ${imageUrl}`);
+
+            // Schedule S3 persistence for Karakeep asset
+            scheduleImagePersistence(
+              imageUrl,
+              OPENGRAPH_IMAGES_S3_DIR,
+              "Karakeep-Asset-Fallback",
+              validatedFallbackData.imageAssetId,
+              url,
+            );
+          }
+        }
       } catch (error) {
-        console.warn(
-          `[DataAccess/OpenGraph] Failed to construct Karakeep asset URL for ${validatedFallbackData.imageAssetId}:`,
-          error,
+        console.error(`[OG-Fallback] Error constructing URL for assetId ${assetId}: ${String(error)}`);
+      }
+    } else if (!imageUrl) {
+      console.log(`[OG-Priority-6] ❌ Karakeep imageAssetId not found`);
+    }
+
+    // PRIORITY LEVEL 7: Try Karakeep screenshotAssetId (third priority)
+    if (!imageUrl && validatedFallbackData.screenshotAssetId) {
+      const screenshotAssetId = validatedFallbackData.screenshotAssetId;
+      console.log(`[OG-Priority-7] 🔍 Checking Karakeep screenshotAssetId: ${screenshotAssetId}`);
+      try {
+        const baseUrl = getBaseUrl();
+        if (baseUrl) {
+          const screenshotUrl = new URL(`/api/assets/${screenshotAssetId}`, baseUrl).toString();
+          if (isValidImageUrl(screenshotUrl)) {
+            imageUrl = screenshotUrl;
+            console.log(`[OG-Priority-7] ✅ Using Karakeep screenshot, constructed URL: ${imageUrl}`);
+
+            // Schedule S3 persistence for Karakeep screenshot
+            scheduleImagePersistence(
+              imageUrl,
+              OPENGRAPH_IMAGES_S3_DIR,
+              "Karakeep-Screenshot-Fallback",
+              validatedFallbackData.screenshotAssetId,
+              url,
+            );
+          }
+        }
+      } catch (error) {
+        console.error(
+          `[OG-Fallback] Error constructing URL for screenshotAssetId ${screenshotAssetId}: ${String(error)}`,
         );
       }
+    } else if (!imageUrl) {
+      console.log(`[OG-Priority-7] ❌ Karakeep screenshotAssetId not found`);
     }
-    // Try Karakeep screenshotAssetId (third priority)
-    else if (validatedFallbackData.screenshotAssetId) {
-      try {
-        imageUrl = constructKarakeepAssetUrl(validatedFallbackData.screenshotAssetId);
-        console.log(`[DataAccess/OpenGraph] Using Karakeep screenshotAssetId fallback: ${imageUrl}`);
-
-        // Schedule S3 persistence for Karakeep screenshot
-        scheduleImagePersistence(
-          imageUrl,
-          OPENGRAPH_IMAGES_S3_DIR,
-          "Karakeep-Screenshot-Fallback",
-          validatedFallbackData.screenshotAssetId,
-          url,
-        );
-      } catch (error) {
-        console.warn(
-          `[DataAccess/OpenGraph] Failed to construct Karakeep screenshot URL for ${validatedFallbackData.screenshotAssetId}:`,
-          error,
-        );
-      }
-    }
+  } else {
+    console.log(`[OG-Fallback] ❌ No Karakeep fallback data available for: ${url}`);
   }
 
-  // Fall back to domain-specific defaults if no Karakeep data available
+  // PRIORITY LEVEL 8: Fall back to domain-specific defaults if no Karakeep data worked
   if (!imageUrl) {
+    console.log(`[OG-Priority-8] 🔍 Checking domain-specific fallback for domain: ${domain}`);
     imageUrl = getFallbackImageForDomain(domain);
+    if (imageUrl) {
+      console.log(`[OG-Priority-8] ✅ Using domain-specific fallback: ${imageUrl}`);
+    } else {
+      console.log(`[OG-Priority-8] ❌ No domain-specific fallback available for: ${domain}`);
+    }
   }
 
   return {

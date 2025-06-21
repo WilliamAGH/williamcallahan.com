@@ -4,8 +4,9 @@
  * Provides client-side access to bookmarks with pagination support.
  */
 
-import { getBookmarks, initializeBookmarksDataAccess } from "@/lib/bookmarks/bookmarks-data-access.server";
-import { ServerCacheInstance } from "@/lib/server-cache";
+import { BookmarksIndexSchema } from "@/lib/schemas/bookmarks";
+import type { BookmarksIndex } from "@/types/bookmark";
+import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -26,11 +27,67 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const tagFilter = searchParams.get("tag") || null;
 
   try {
-    // Ensure the data access layer is initialized (now synchronous)
-    void initializeBookmarksDataAccess();
+    // If no tag filter and requesting a specific page, try to load just that page
+    if (!tagFilter && page > 0) {
+      const { getBookmarksPage } = await import("@/lib/bookmarks/bookmarks-data-access.server");
+      const rawIndex: unknown = await import("@/lib/s3-utils").then((m) =>
+        m.readJsonS3<BookmarksIndex>(`bookmarks/index${process.env.NODE_ENV === "production" ? "" : "-dev"}.json`),
+      );
 
+      const indexResult = BookmarksIndexSchema.safeParse(rawIndex);
+
+      if (indexResult.success) {
+        const indexData = indexResult.data;
+        const { totalPages, count: total, lastFetchedAt = Date.now() } = indexData;
+
+        if (page <= totalPages) {
+          // Load just the requested page
+          const paginatedBookmarks = await getBookmarksPage(page);
+          console.log(`[API Bookmarks] Loaded page ${page} directly (${paginatedBookmarks.length} items)`);
+
+          return NextResponse.json(
+            {
+              data: paginatedBookmarks,
+              meta: {
+                pagination: {
+                  page,
+                  limit,
+                  total,
+                  totalPages,
+                  hasNext: page < totalPages,
+                  hasPrev: page > 1,
+                },
+                dataVersion: lastFetchedAt,
+                lastRefreshed: new Date(lastFetchedAt).toISOString(),
+              },
+            },
+            {
+              headers: {
+                "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+              },
+            },
+          );
+        }
+      }
+    }
+
+    // Fall back to loading all bookmarks for filtering or if paginated format not available
     const allBookmarks = await getBookmarks();
-    const cacheInfo = ServerCacheInstance.getBookmarks();
+
+    // Try to get metadata from S3 index
+    let lastFetchedAt = Date.now();
+    try {
+      const rawIndex: unknown = await import("@/lib/s3-utils").then((m) =>
+        m.readJsonS3<BookmarksIndex>(`bookmarks/index${process.env.NODE_ENV === "production" ? "" : "-dev"}.json`),
+      );
+      const indexResult = BookmarksIndexSchema.safeParse(rawIndex);
+      if (indexResult.success) {
+        const indexData = indexResult.data;
+        lastFetchedAt = indexData.lastFetchedAt;
+      }
+    } catch {
+      // Use default if index read fails
+    }
 
     // Apply tag filter if provided
     let filteredBookmarks = allBookmarks;
@@ -72,8 +129,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           },
           filter: tagFilter ? { tag: tagFilter } : undefined, // Include filter info
           // Data version for client-side cache invalidation
-          dataVersion: cacheInfo?.lastFetchedAt || Date.now(),
-          lastRefreshed: cacheInfo?.lastFetchedAt ? new Date(cacheInfo.lastFetchedAt).toISOString() : null,
+          dataVersion: lastFetchedAt,
+          lastRefreshed: new Date(lastFetchedAt).toISOString(),
         },
       },
       {
@@ -82,9 +139,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         },
       },
     );
-  } catch (error) {
-    console.error("[API Bookmarks] Failed to fetch bookmarks:", error);
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+  } catch (err) {
+    console.error("[API Bookmarks] Failed to fetch bookmarks:", err);
+    const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
     return NextResponse.json({ error: "Failed to fetch bookmarks", details: errorMessage }, { status: 500 });
   }
 }

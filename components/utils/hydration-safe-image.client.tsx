@@ -32,6 +32,7 @@ export function HydrationSafeImage({ className = "", alt, ...props }: ImageProps
         style={{
           aspectRatio: props.width && props.height ? `${props.width}/${props.height}` : "auto",
         }}
+        role="img"
         aria-label={alt}
       />
     );

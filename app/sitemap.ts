@@ -11,13 +11,13 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
-import { generateUniqueSlug } from "@/lib/utils/domain-utils";
-import { kebabCase } from "@/lib/utils/formatters";
-import { tagToSlug } from "@/lib/utils/tag-utils";
+import { getBookmarksForStaticBuild } from "../lib/bookmarks/bookmarks.server";
+import { generateUniqueSlug } from "../lib/utils/domain-utils";
+import { kebabCase } from "../lib/utils/formatters";
+import { tagToSlug } from "../lib/utils/tag-utils";
 import matter from "gray-matter";
 import type { MetadataRoute } from "next";
-import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
+import { BOOKMARKS_PER_PAGE } from "../lib/constants";
 
 import { updatedAt as educationUpdatedAt } from "../data/education";
 // Import data file update timestamps
@@ -155,7 +155,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // Process each bookmark for individual pages
     for (const bookmark of bookmarks) {
       // Use the bookmark's creation or modification date
-      const bookmarkLastModified = getSafeDate(bookmark.modifiedAt || bookmark.createdAt || bookmark.dateBookmarked);
+      const bookmarkLastModified = getSafeDate(bookmark.modifiedAt || bookmark.dateCreated || bookmark.dateBookmarked);
       if (bookmarkLastModified) {
         // Update latest overall bookmark time
         latestBookmarkUpdateTime = getLatestDate(latestBookmarkUpdateTime, bookmarkLastModified);
@@ -178,7 +178,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
       // Process tags for this bookmark
       const tags = Array.isArray(bookmark.tags)
-        ? bookmark.tags.map((t: string | import("@/types").BookmarkTag) => (typeof t === "string" ? t : t.name))
+        ? bookmark.tags.map((t: string | import("../types").BookmarkTag) => (typeof t === "string" ? t : t.name))
         : [];
 
       // Update lastModified time and count for each tag

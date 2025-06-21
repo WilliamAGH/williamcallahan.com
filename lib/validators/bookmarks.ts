@@ -6,7 +6,6 @@
  */
 
 import type { UnifiedBookmark } from "@/types";
-import { z } from "zod";
 
 /**
  * Validates a bookmarks dataset to ensure it is not obviously invalid or test data.
@@ -88,59 +87,13 @@ export function validateBookmarksDataset(bookmarks: UnifiedBookmark[]): {
 }
 
 /**
- * Bookmarks Validator
- *
- * SCOPE: Zod validation schemas for bookmark data structures.
+ * IMPORTANT: All Zod schemas have been moved to types/ directory for centralized type system.
+ * @see types/bookmark.ts for bookmark-related Zod schemas
  */
-export const BookmarkAssetSchema = z.object({
-  id: z.string(),
-  assetType: z.string(),
-});
 
-export const RawApiBookmarkTagSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  attachedBy: z.string(),
-});
-
-export const RawApiBookmarkContentSchema = z.object({
-  type: z.string(),
-  url: z.string(),
-  title: z.string().nullable(),
-  description: z.string().nullable(),
-  imageUrl: z.string().optional(),
-  imageAssetId: z.string().optional(),
-  screenshotAssetId: z.string().optional(),
-  favicon: z.string().optional(),
-  htmlContent: z.string().optional(),
-  crawledAt: z.string().optional(),
-  author: z.string().nullable().optional(),
-  publisher: z.string().nullable().optional(),
-  datePublished: z.string().nullable().optional(),
-  dateModified: z.string().nullable().optional(),
-});
-
-export const RawApiBookmarkSchema = z.object({
-  id: z.string(),
-  createdAt: z.string(),
-  modifiedAt: z.string(),
-  title: z.string().nullable(),
-  archived: z.boolean(),
-  favourited: z.boolean(),
-  taggingStatus: z.string(),
-  note: z.string().nullable(),
-  summary: z.string().nullable(),
-  tags: z.array(RawApiBookmarkTagSchema),
-  content: RawApiBookmarkContentSchema,
-  assets: z.array(BookmarkAssetSchema),
-});
-
-export const BookmarksApiResponseSchema = z.object({
-  bookmarks: z.array(RawApiBookmarkSchema),
-  nextCursor: z.string().nullable(),
-});
-
-// Helper function to validate API responses
-export function validateBookmarksApiResponse(data: unknown) {
+// Helper function to validate API responses - imports schema from types
+export async function validateBookmarksApiResponse(data: unknown) {
+  // Use dynamic import instead of require() for ESLint compliance
+  const { BookmarksApiResponseSchema } = await import("@/types/bookmark");
   return BookmarksApiResponseSchema.parse(data);
 }

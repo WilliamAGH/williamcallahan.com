@@ -16,91 +16,44 @@
 
 import type { Project } from "../project";
 
-/**
- * Project card component props
- * @usage - Individual project display cards
- */
-export interface ProjectCardProps {
-  /** Project data */
+// Use base component props
+export type ProjectCardProps = import("../ui").BaseComponentProps & {
   project: Project;
-  /** Whether to show technologies */
   showTechnologies?: boolean;
-  /** Optional CSS classes */
-  className?: string;
-}
+};
 
-/**
- * Interactive project card component props
- * @usage - Client-side project cards with click handlers
- */
-export interface ProjectCardClientProps extends ProjectCardProps {
-  /** Whether card is interactive */
+// Type extension
+export type ProjectCardClientProps = ProjectCardProps & {
   interactive?: boolean;
-  /** Click callback */
   onClick?: (project: Project) => void;
-}
+};
 
-/**
- * Server-side project card component props
- * @usage - Server-rendered project cards with optimization options
- */
-export interface ProjectCardServerProps extends ProjectCardProps {
-  /** Server-side configuration */
+// Type extension
+export type ProjectCardServerProps = ProjectCardProps & {
   serverConfig?: {
     optimizeImages?: boolean;
     lazyLoad?: boolean;
   };
-}
+};
 
-/**
- * Projects list component props
- * @usage - Grid/list displays of multiple projects
- */
-export interface ProjectsListProps {
-  /** Array of projects */
+// Use base component props
+export type ProjectsListProps = import("../ui").BaseComponentProps & {
   projects: Project[];
-  /** Grid layout columns */
   columns?: number;
-  /** Optional CSS classes */
-  className?: string;
-}
+};
 
-/**
- * Server-side projects list component props
- * @usage - Server-rendered project lists with pagination
- */
-export interface ProjectsListServerProps extends ProjectsListProps {
-  /** Server-side pagination */
-  pagination?: {
-    currentPage: number;
-    totalPages: number;
-  };
-}
+// Type extension with partial pagination
+export type ProjectsListServerProps = ProjectsListProps & {
+  pagination?: Partial<import("../component-types").PaginationProps>;
+};
 
-/**
- * Projects window component props
- * @usage - Projects displayed in window-like UI
- */
-export interface ProjectsWindowProps {
-  /** Projects to display */
-  projects: Project[];
-  /** Window title */
-  title?: string;
-  /** Whether window is active */
-  isActive?: boolean;
-  /** Optional CSS classes */
-  className?: string;
-}
+// Use generic WindowProps
+export type ProjectsWindowProps = import("../component-types").WindowProps<{ projects: Project[] }>;
 
-/**
- * Interactive projects window component props
- * @usage - Client-side project windows with window controls
- */
-export interface ProjectsWindowClientProps extends ProjectsWindowProps {
-  /** Whether window is interactive */
+// Extend window props
+export type ProjectsWindowClientProps = ProjectsWindowProps & {
   interactive?: boolean;
-  /** Window state callbacks */
   onClose?: () => void;
   onMinimize?: () => void;
   onMaximize?: () => void;
-}
+};

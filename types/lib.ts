@@ -36,12 +36,39 @@
  * @see types/component-types.ts for architectural patterns
  */
 
+import type { CacheStats } from "./cache";
+
+// Safe Zod import for types directory only
+import { z } from "zod";
+
 // =============================================================================
 // CORE UTILITY TYPES - Foundation types used across multiple domains
 // =============================================================================
 
+/** Generic result type with discriminated union */
+export type Result<T, E = Error> =
+  | { success: true; data: T; error?: never }
+  | { success: false; data?: never; error: E };
+
+/** Result with metadata */
+export type ResultWithMeta<T, M = Record<string, unknown>, E = Error> = Result<T, E> & { meta?: M };
+
+/** Async operation states */
+export type AsyncStatus = "idle" | "pending" | "success" | "error" | "cancelled";
+
+/** Make all Date fields strings (for serialization) */
+export type Serializable<T> = T extends Date ? string : T extends object ? { [K in keyof T]: Serializable<T[K]> } : T;
+
+/** Add className to any type */
+export type WithClassName<T = object> = T & { className?: string };
+
 /** Standard operation status for any async operation */
-export type OperationStatus = "idle" | "running" | "success" | "error" | "cancelled";
+export type OperationStatus = AsyncStatus;
+
+/** EventEmitter static interface to avoid direct node:events reference in Edge runtime */
+export interface EventEmitterStatic {
+  defaultMaxListeners: number;
+}
 
 /** Generic result wrapper for operations that can succeed or fail */
 export interface OperationResult<T = unknown, E = Error> {
@@ -163,16 +190,6 @@ export interface CacheConfig {
   evictionStrategy?: "lru" | "lfu" | "fifo";
 }
 
-/** Cache performance metrics */
-export interface CacheStats {
-  hits: number;
-  misses: number;
-  hitRatio: number;
-  size: number;
-  maxSize: number;
-  memoryUsage?: number;
-}
-
 // =============================================================================
 // RATE LIMITING - Traffic control infrastructure
 // =============================================================================
@@ -203,7 +220,15 @@ export interface RateLimitInfo {
 // SEARCH SYSTEM - Generic search infrastructure
 // =============================================================================
 
-export type SearchScope = "all" | "bookmarks" | "blog" | "projects";
+export type SearchScope =
+  | "all"
+  | "bookmarks"
+  | "blog"
+  | "projects"
+  | "investments"
+  | "experience"
+  | "education"
+  | "posts";
 export type SearchResultType = "bookmark" | "blog-post" | "project" | "page";
 
 /** Search query specification */
@@ -246,6 +271,9 @@ export interface ValidationRule<T = unknown> {
   message: string;
   required?: boolean;
 }
+
+// Common validation schemas - safe to define here as simple coercion schema
+export const PageNumberSchema = z.coerce.number().int().min(1);
 
 /** Complete validation schema */
 export interface ValidationSchema<T = Record<string, unknown>> {
@@ -328,23 +356,20 @@ export interface UseFixSvgTransformsResult {
   applyFixes: (element: HTMLElement | null) => void;
 }
 
-/** Generic pagination metadata */
-export interface PaginationMeta {
+// Type aliases for pagination
+export type PaginationMeta = {
   page: number;
   limit: number;
   total: number;
   totalPages: number;
   hasNext: boolean;
   hasPrev: boolean;
-}
+};
 
-/** Generic paginated response wrapper */
-export interface PaginatedResponse<T> {
+export type PaginatedResponse<T> = {
   data: T[];
-  meta: {
-    pagination: PaginationMeta;
-  };
-}
+  meta: { pagination: PaginationMeta };
+};
 
 // =============================================================================
 // DATA FETCHING - Generic data access patterns
@@ -533,6 +558,10 @@ export interface BookmarksS3Paths {
   FILE: string;
   /** Full S3 path to refresh lock file */
   LOCK: string;
+  /** S3 path to lightweight bookmark index */
+  INDEX: string;
+  /** S3 path prefix for paginated bookmark files */
+  PAGE_PREFIX: string;
 }
 
 /** URL validation result */

@@ -1,196 +1,301 @@
 ---
-description: "Master index and configuration guide for all Cursor Rules in this project. Explains rule auto-discovery, Agent Requested configuration, and 500-line code limits."
-alwaysApply: true  # Exception: This master config file always applies to provide rule system guidance
+description: "Master configuration for ZERO TEMPERATURE development environment with absolute type safety, no assumptions, and mandatory verification workflow."
+alwaysApply: true  # Exception: This master config file always applies to provide complete development governance
 ---
 
-# Cursor Rules System - Master Index & Configuration
+# CLAUDE Development Environment - ZERO TEMPERATURE PROTOCOLS
 
-## How Cursor Rules Work in This Project
+This project operates under **ZERO TEMPERATURE** development standards where every decision must be explicitly verified, no assumptions are permitted, and type safety is absolute.
 
-### Rule Auto-Discovery and Usage
+## 🚨 ZERO TOLERANCE VIOLATIONS (IMMEDIATE HALT REQUIRED)
 
-- **Agent Requested Rules**: All rules in this project are configured as "Agent Requested" type (except this master config file)
-- **AI-Driven Selection**: The AI automatically evaluates and includes relevant rules based on context
-- **Manual Override**: Use `@ruleName` syntax to explicitly include specific rules
-- **Smart Context**: Rules are intelligently selected based on file patterns, task content, and conversation context
+### Type Safety Violations - ABSOLUTELY FORBIDDEN
 
-### Functionality Documentation & File Overview Map
+**IMMEDIATE HALT CONDITIONS:**
 
-Before you edit, delete, create, or refactor ANY piece of code, you **MUST** locate its owning *Functionality* and review the corresponding architecture documentation.
+- Any `@ts-ignore` usage
+- Any `eslint-disable` usage  
+- Any `any` type without explicit justification in comments
+- Any external data without Zod validation
+- Any type assertion without runtime checks
+- Any implicit `any` types
 
-1. **Locate the Functionality**  
-   • Open `docs/projects/file-overview-map.md` and search for the file (or directory) you intend to touch.  
-   • Each entry in the *Functionality* column maps directly to a markdown file in `docs/projects/structure/` (e.g. a value of `github-activity` → `docs/projects/structure/github-activity.md`).
-2. **Read the Architecture Doc**  
-   • Open the mapped `docs/projects/structure/<functionality>.md`.  
-   • Skim at minimum the *Core Objective*, *Key Files*, *Logic Flow*, and *Critical Issues* sections to understand context, dependencies, and known pitfalls.
-3. **Identify Related Logic**  
-   • Use the architecture doc (and any linked `.mmd` diagrams) to discover all related files that could be impacted by your change.  
-   • Search the codebase for the `Functionality` tag to catch any stragglers.
-4. **Keep Docs in Sync**  
-   • Ensure your change does not violate the documented architecture or critical issues list.  
-   • Whenever you **create, delete, move, or significantly edit** any file, update **both** `docs/projects/file-overview-map.md` **and** the relevant `docs/projects/structure/<functionality>.md` files so they accurately reflect the new state.
+**VIOLATION PROTOCOL:**
 
-Skipping these steps is the fastest way to re-introduce lost context and architectural drift—don't do it. 🛑
+1. **IMMEDIATELY STOP** all development work
+2. **ALERT USER** with specific violation details
+3. **DO NOT PROCEED** until violation is properly resolved
 
-### Available Cursor Rules
+### Boilerplate & Example Code Prohibition - ABSOLUTELY FORBIDDEN
 
-| Rule File | Description | Use When |
-|-----------|-------------|----------|
+Claude is **NEVER EVER ALLOWED** to use:
+
+- Boilerplate code from tutorials or examples
+- Generic placeholder implementations (`// TODO: Implement this`)
+- Copy-paste code from documentation examples
+- Template code from previous projects
+- Generic function names like `handleSubmit`, `processData`
+- Placeholder text like "Lorem ipsum" or "Example content"
+
+**VIOLATION DETECTION PROTOCOL:**
+```
+🚨 CRITICAL VIOLATION DETECTED 🚨
+Boilerplate/example code found in: [file:line]
+Code pattern: [description]
+Source: [where it likely came from]
+Required action: Manual review and replacement
+```
+
+### Assumptions Policy - ABSOLUTELY FORBIDDEN
+
+**ASSUMPTION = VIOLATION**
+
+NEVER assume:
+
+- API behavior without checking current docs
+- Type definitions without reading `.d.ts` files
+- Existing functionality without searching codebase
+- File contents without reading them directly
+- Breaking changes without checking CHANGELOG.md
+
+### File Creation Without Consent - ABSOLUTELY FORBIDDEN
+
+**NO NEW FILES WITHOUT EXPLICIT REPEATED CLEAR AFFIRMATIVE CONSENT**
+
+- Presumption is NEVER consent - must be explicitly stated
+- Always try to use existing files first
+- Ask for specific permission: "Should I create a new file [filename] for [purpose]?"
+- Wait for clear "yes" before proceeding
+
+## 🛡️ MANDATORY PRE-TASK WORKFLOW (Required Before Any Code Changes)
+
+### Step 1: Architecture Context Discovery
+
+**MANDATORY SEQUENCE:**
+
+1. Read `docs/projects/structure/00-architecture-entrypoint.md`
+2. Identify functionality domain from task description
+3. Read `docs/projects/structure/[functionality].md` for that domain
+4. Review any `.mmd` diagrams for that functionality
+5. Read `docs/projects/file-overview-map.md` for file relationships
+
+### Step 2: Type System Review
+
+**MANDATORY for ANY task:**
+
+1. **Review ALL types in `types/` directory related to domain/functionality**
+   ```bash
+   # Search for related types
+   find types/ -name "*.ts" | xargs grep -l "[functionality-keyword]"
+   ```
+2. **Read actual type definitions - NEVER assume what they contain**
+3. **Check for existing types before creating new ones**
+4. **Verify interface compatibility**
+
+### Step 3: Existing Functionality Search
+
+**NEVER assume functionality doesn't exist - ALWAYS search first:**
+```bash
+# Comprehensive search for existing functionality
+grep -r "[task-keyword]" --include="*.ts" --include="*.tsx" .
+find . -name "*[task-keyword]*" -type f
+```
+
+**Use Task tool for complex searches across multiple patterns**
+
+### Step 4: Documentation Verification
+
+**MANDATORY version verification:**
+
+1. Check `package.json` for EXACT dependency versions
+2. Use MCP providers for current documentation:
+   ```bash
+   @mcp__context7__resolve-library-id libraryName="[dependency]"
+   @mcp__context7__get-library-docs context7CompatibleLibraryID="[id]" topic="[feature]"
+   ```
+3. Read `node_modules/[package]/` directly for truth:
+   ```bash
+   Read node_modules/[package]/package.json
+   Read node_modules/[package]/README.md
+   Read node_modules/[package]/CHANGELOG.md
+   ```
+
+## ⚡ CODE MODIFICATION PRINCIPLES (How to Edit Code)
+
+### Efficiency Mandate
+
+**Nearly ALL code edits should result in SAME or FEWER lines of code:**
+
+- Look for duplicate code to remove during EVERY task
+- Find more efficient ways to accomplish the same result
+- Consolidate similar functionality
+- Remove redundant imports and variables
+
+### Existing-First Policy
+
+**ALWAYS prefer editing existing files over creating new ones:**
+
+1. Search for existing implementations
+2. Extend existing functionality rather than duplicating
+3. Refactor existing code to be more general if needed
+4. Only create new files with explicit consent
+
+### Real-Time Verification
+
+**Referenced code MUST be reviewed at that moment:**
+
+- Never assume what imported functions do - read them
+- Check actual type definitions when using types
+- Verify interface implementations immediately
+- Read component props and state definitions before use
+
+### Code Efficiency Checklist
+
+Before completing any task:
+
+- [ ] Could this be done with fewer lines?
+- [ ] Is there duplicate code that can be removed?
+- [ ] Does similar functionality already exist?
+- [ ] Are all imports actually needed?
+- [ ] Can multiple similar functions be consolidated?
+
+## 📚 DOCUMENTATION & ARCHITECTURE SYNC
+
+### Mandatory Documentation Updates
+
+**Whenever you create, delete, move, or significantly edit any file:**
+
+1. Update `docs/projects/structure/00-architecture-entrypoint.md`
+2. Update `docs/projects/file-overview-map.md`
+3. Update specific functionality document: `docs/projects/structure/[functionality].md`
+
+### Architecture Alignment
+
+**MUST verify changes don't violate documented architecture:**
+
+- Check *Critical Issues* sections in functionality docs
+- Verify against documented patterns
+- Ensure consistency with existing implementations
+
+## 📏 FILE MANAGEMENT POLICIES
+
+### 500-Line Limit - ABSOLUTE MAXIMUM
+
+**No file should exceed 500 lines of code:**
+
+- Monitor during edits - stop before exceeding limit
+- Create refactoring PBI if approaching limit
+- Split into logical, maintainable modules
+
+### Refactoring Requirements
+
+When file approaches 500 lines:
+
+1. **STOP development** - do not add more code
+2. **Create refactoring PBI** with data-driven analysis
+3. Study existing patterns in repository
+4. Design safe refactoring maintaining functionality
+
+## ✅ VALIDATION & QUALITY ASSURANCE
+
+### Mandatory Validation
+
+**BEFORE and AFTER every code change:**
+```bash
+bun run validate
+```
+
+**Requirements:**
+
+- MUST show 0 errors, 0 warnings
+- Fix ALL issues according to `@docs/projects/structure/linting-formatting.md`
+- NEVER use bypass methods (@ts-ignore, eslint-disable)
+
+### Type Safety Standards
+
+**EVERY SINGLE LINE OF CODE MUST:**
+
+- Have explicit types (no implicit `any`)
+- Use proper null/undefined handling
+- Validate external data with Zod schemas
+- Follow strictest TypeScript settings
+- Pass validation with ZERO errors/warnings
+
+## 🔄 COMMIT & VERSION CONTROL
+
+### No AI Attribution Policy - ABSOLUTELY FORBIDDEN
+
+**NEVER include in commits:**
+
+- 🤖 Generated with [Claude Code]
+- Co-Authored-By: Claude <noreply@anthropic.com>
+- Any other AI attribution or markers
+
+**All commits must be clean, professional messages without AI attribution.**
+
+### Current Version Documentation
+
+**ALWAYS verify against EXACT versions in package.json:**
+
+- Use MCP providers for current docs
+- Read node_modules directly for truth
+- Check for breaking changes in CHANGELOG.md
+- Research migration guides when APIs change
+
+## 🎯 CURSOR RULES SYSTEM
 
 ### Rule Configuration Standards
 
-All rules in this project follow these configuration standards:
-
+All rules follow Agent Requested configuration:
 ```yaml
 ---
-description: "Brief, specific description focusing on most pertinent details"
+description: "Brief, specific description"
 alwaysApply: false  # All rules are Agent Requested type
 ---
 ```
 
-### ⚠️ IMPORTANT: Cursor Rule Type Configuration Limitation
+### Available Architecture Documentation
 
-**Cursor IDE cannot set rule types automatically.** When creating new rules:
+**Functionality domains in `docs/projects/structure/`:**
 
-1. **Through Cursor Interface**: New rules created via "New Cursor Rule" command will default to a different type
-2. **Manual Configuration Required**: You MUST manually edit the `.mdc` file to set `alwaysApply: false`
-3. **Alternative IDEs**: Other IDEs may provide better rule type configuration interfaces
-4. **File-Based Editing**: Always verify and manually set the frontmatter configuration
-
-#### Manual Configuration Process
-
-```bash
-# After creating a rule through Cursor, immediately edit the .mdc file:
-# 1. Open the new .mdc file in .cursor/rules/
-# 2. Ensure frontmatter includes:
----
-description: "Your specific description here"
-alwaysApply: false
----
-# 3. Save the file for proper Agent Requested configuration
-```
-
-#### Recommended New Rule Workflow
-
-1. **Create Rule**: Use Cursor's "New Cursor Rule" command or create file manually
-2. **Immediate Edit**: Open the `.mdc` file and verify/add proper frontmatter
-3. **Verify Configuration**: Ensure `alwaysApply: false` is set
-4. **Test Rule**: Use `@ruleName` to test the rule works as expected
-5. **Document Usage**: Update this index file with the new rule information
+- accessibility, analytics, app-layout, batch-fetch-update
+- blog-article, blog, bookmarks, caching, code-block
+- config, css, data-access, education, experience
+- github-activity, home, hooks, image-handling
+- instrumentation-monitoring, interactive-containers
+- investments, json-handling, linting-formatting
+- log-error-debug-handling, macos-gui, memory-mgmt
+- middleware, navigation, opengraph, projects
+- rate-limit-and-sanitize, s3-object-storage, search
+- seo, social-links, state-theme-window-providers
+- string-manipulation, terminal, testing-config
 
 ### Agent Requested Benefits
 
-- **Context-Aware**: Rules are included only when relevant to current work
-- **Performance**: Reduced context overhead - only necessary rules are loaded
-- **Flexibility**: AI can make intelligent decisions about which rules to apply
-- **Discoverability**: Good descriptions make rules easy to find and understand
+- **Context-Aware**: Rules included only when relevant
+- **Performance**: Reduced context overhead
+- **Flexibility**: AI makes intelligent rule decisions
+- **Zero Assumptions**: Every decision explicitly verified
 
-## 🚨 CRITICAL: 500-Line Code File Limit Policy
-
-### File Size Limits
-
-- **Maximum Lines**: No file should exceed **500 lines of code**
-- **Threshold Monitoring**: When incremental additions would cause a file to exceed 500 lines
-- **Mandatory Action**: Create a new PBI for refactoring before proceeding
-
-### Refactoring Requirements
-
-When a file approaches or exceeds 500 lines:
-
-1. **Stop Development**: Do not add more code to the file
-2. **Create Refactoring PBI**: New Product Backlog Item specifically for refactoring
-3. **Data-Driven Analysis**: Analyze the file's data structure and domain organization
-4. **Repository Pattern Review**: Study existing patterns in the repository for that domain
-5. **Safe Refactoring**: Design refactoring that maintains functionality while improving structure
-
-### Refactoring PBI Requirements
-
-```markdown
-**Title**: Refactor [filename] to meet 500-line limit
-**Problem**: File has exceeded/will exceed 500 lines, violating project standards
-**Analysis Required**:
-- Current file structure and responsibilities
-- Domain-specific patterns in repository
-- Optimal split points based on data structures
-- Dependencies and import impact
-**Outcome**: File split into logical, maintainable modules under 500 lines each
-```
-
-### File Size Monitoring Commands
+## 🔍 VERIFICATION COMMANDS
 
 ```bash
-# Check file line counts
-find . -name "*.ts" -o -name "*.tsx" | xargs wc -l | sort -n
+# Check current dependency versions
+cat package.json | jq '.dependencies'
 
 # Find files over 400 lines (warning threshold)
 find . -name "*.ts" -o -name "*.tsx" -exec wc -l {} + | awk '$1 > 400' | sort -n
 
-# Find files over 500 lines (violation threshold)
-find . -name "*.ts" -o -name "*.tsx" -exec wc -l {} + | awk '$1 > 500' | sort -n
+# Search for existing functionality
+grep -r "[keyword]" --include="*.ts" --include="*.tsx" .
+
+# Validate codebase
+bun run validate
+
+# Review types for domain
+find types/ -name "*.ts" | xargs grep -l "[domain]"
 ```
 
-### Exception Handling
+---
 
-- **Configuration Files**: Package.json, tsconfig.json, etc. may exceed limits if necessary
-- **Generated Files**: Auto-generated files are exempt but should be minimized
-- **Type Definition Files**: Large type files should be split by domain/feature
-- **User Approval**: Any exception requires explicit user approval with justification
-
-## Rule Development Guidelines
-
-### Creating New Rules
-
-1. **Use MDC Format**: All rules must use .mdc extension with proper frontmatter
-2. **Agent Requested Type**: Set `alwaysApply: false` for all new rules
-   - ⚠️ **Cursor Limitation**: Cursor IDE cannot automatically set this - must be edited manually
-   - Always verify and edit the frontmatter after rule creation
-3. **Descriptive Titles**: Write clear, searchable descriptions
-4. **Focused Content**: Each rule should have a specific, well-defined scope
-5. **Cross-References**: Link to related files using `mdc:filename` syntax
-
-### Rule Maintenance
-
-- **Regular Review**: Periodically review rules for accuracy and relevance
-- **Update Descriptions**: Keep descriptions current with rule content
-- **Remove Duplication**: Consolidate overlapping guidance
-- **Version Control**: All rules are version-controlled with the project
-
-### Best Practices
-
-- **Specific Over General**: Prefer specific, actionable guidance over broad principles
-- **Example-Rich**: Include code examples and patterns
-- **Context-Aware**: Design rules that provide value in specific contexts
-- **Maintenance-Friendly**: Write rules that are easy to update and maintain
-
-## Usage Examples
-
-### Explicit Rule Inclusion
-
-@zod-type-safety - Include Zod validation standards
-@project-development-standards - Include core development guidelines
-@design-system - Include UI/styling guidelines
-
-### Context-Based Auto-Inclusion
-
-- Working with TypeScript → `zod-type-safety.mdc` auto-included
-- Creating React components → `component-architecture.mdc` auto-included
-- UI/styling work → `design-system.mdc` auto-included
-- Package management → `package-manager.mdc` auto-included
-
-## Troubleshooting
-
-### Common Issues
-
-- **Rule Not Applied**: Check if description is clear and specific
-- **New Rule Wrong Type**: Cursor IDE cannot set `alwaysApply: false` automatically - edit manually
-- **Conflicting Rules**: Review multiple rules for consistency
-- **Missing Context**: Use explicit `@ruleName` inclusion when needed
-
-### Debug Commands
-
-- View all available rules: Check `.cursor/rules/` directory
-- Rule content search: `grep -r "pattern" .cursor/rules/`
-- Verify rule format: Ensure proper MDC frontmatter exists
-
-This system ensures intelligent, context-aware rule application while maintaining clean, maintainable code through the 500-line limit policy.
+**REMEMBER: This is a ZERO TEMPERATURE environment. Every decision must be explicitly verified. Assumptions are violations. Type safety is absolute. Efficiency is mandatory.**

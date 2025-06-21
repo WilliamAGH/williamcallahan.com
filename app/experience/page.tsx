@@ -14,6 +14,7 @@ import { experiences } from "../../data/experience";
 import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
 import { getStaticPageMetadata } from "../../lib/seo/metadata";
 import { formatSeoDate } from "../../lib/seo/utils";
+import type { ProfilePageMetadata } from "../../types/seo/metadata";
 import type { Experience as ExperienceType } from "../../types";
 
 /**
@@ -25,7 +26,7 @@ export const metadata: Metadata = getStaticPageMetadata("/experience", "experien
  * Experience page component
  */
 export default async function ExperiencePage() {
-  const pageMetadata = PAGE_METADATA.experience;
+  const pageMetadata: ProfilePageMetadata = PAGE_METADATA.experience;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 

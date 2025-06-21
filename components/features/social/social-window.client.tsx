@@ -36,7 +36,8 @@ const SocialWindowContent = dynamic(() => import("./social-window-content.client
  * @param {SocialWindowProps} props - Component props
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
  */
-export function SocialWindow({ socialLinks = [], title = "Contact", onClose }: SocialWindowClientProps) {
+export function SocialWindow({ data, title = "Contact", onClose }: SocialWindowClientProps) {
+  const socialLinks = data?.socialLinks || [];
   const {
     windowState,
     close: closeWindow,

@@ -14,7 +14,7 @@ export function ProjectsClient() {
   return (
     <div className="relative">
       <ProjectTagsClient />
-      <ProjectsWindow projects={projects} />
+      <ProjectsWindow data={{ projects }} />
       {/* ProjectsListServer is now imported and rendered by the page,
           not directly by this client component */}
     </div>

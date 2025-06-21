@@ -27,8 +27,8 @@ function getAssetBaseUrl(apiUrl: string): string {
   }
 }
 
-export async function GET(_request: NextRequest, { params }: { params: { assetId: string } }) {
-  const { assetId } = params;
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ assetId: string }> }) {
+  const { assetId } = await params;
 
   console.log(`[Assets API] Request for assetId: ${assetId}`);
 

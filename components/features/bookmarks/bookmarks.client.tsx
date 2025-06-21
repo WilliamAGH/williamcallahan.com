@@ -7,17 +7,22 @@
  */
 "use client";
 
-import type { BookmarksClientExtendedProps } from "@/types";
+import type { BookmarksPaginatedClientProps } from "@/types";
 import { BookmarksWithOptions } from "./bookmarks-with-options.client";
 
-export const BookmarksClient: React.FC<BookmarksClientExtendedProps> = ({
-  bookmarks,
+export function BookmarksClient({
+  bookmarks = [],
   forceClientFetch = false,
   showFilterBar = true,
-}) => {
+}: BookmarksPaginatedClientProps) {
   // Debug log to check if bookmarks are passed correctly to client component
   if (process.env.NODE_ENV === "development") {
-    console.log("BookmarksClient receiving bookmarks:", bookmarks?.length || 0, "forceClientFetch:", forceClientFetch);
+    console.log(
+      "BookmarksClient receiving bookmarks:",
+      Array.isArray(bookmarks) ? bookmarks.length : 0,
+      "forceClientFetch:",
+      forceClientFetch,
+    );
   }
 
   // Force client-side indicators in development
@@ -28,11 +33,6 @@ export const BookmarksClient: React.FC<BookmarksClientExtendedProps> = ({
 
   // Use our configurable component with passed settings
   return (
-    <BookmarksWithOptions
-      bookmarks={bookmarks}
-      showFilterBar={showFilterBar}
-      // If forcing client fetch, bypass the passed bookmarks
-      searchAllBookmarks={forceClientFetch}
-    />
+    <BookmarksWithOptions bookmarks={bookmarks} showFilterBar={showFilterBar} searchAllBookmarks={forceClientFetch} />
   );
-};
+}

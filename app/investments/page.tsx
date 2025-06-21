@@ -16,6 +16,7 @@ import { investments } from "../../data/investments";
 import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
 import { getStaticPageMetadata } from "../../lib/seo/metadata";
 import { formatSeoDate } from "../../lib/seo/utils";
+import type { CollectionPageMetadata } from "../../types/seo/metadata";
 
 /**
  * Generate metadata for the investments page
@@ -29,7 +30,7 @@ export const dynamic = "force-dynamic";
  * Investments page component
  */
 export default function InvestmentsPage() {
-  const pageMetadata = PAGE_METADATA.investments;
+  const pageMetadata: CollectionPageMetadata = PAGE_METADATA.investments;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 

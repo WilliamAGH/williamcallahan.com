@@ -14,6 +14,7 @@
  * @see types/ui.ts for generic UI component props
  */
 
+import type { JSX } from "react";
 import type { Investment } from "../investment";
 
 /**
@@ -84,7 +85,7 @@ export interface InvestmentCardExtendedProps extends Investment {
   /** Whether dark theme is active */
   isDarkTheme?: boolean;
   /** Rendered financial metrics */
-  renderedMetrics?: import("react").JSX.Element;
+  renderedMetrics?: JSX.Element;
 }
 
 /**
@@ -94,5 +95,5 @@ export interface InvestmentCardExtendedProps extends Investment {
  */
 export interface InvestmentWithCard extends Investment {
   /** Pre-rendered JSX element for the investment card */
-  card: import("react").JSX.Element;
+  card: JSX.Element;
 }
