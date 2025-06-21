@@ -504,20 +504,10 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
 
     const { index, bookmarks } = indexData;
 
-    // No query? Return all bookmarks
+    // No query? Return empty results (standard REST pattern)
+    // This avoids performance issues with large datasets
     if (!query) {
-      const results = bookmarks.map(
-        (b) =>
-          ({
-            id: b.id,
-            type: "bookmark",
-            title: b.title,
-            description: b.description,
-            url: `/bookmarks/${b.slug}`,
-            score: 0,
-          }) as SearchResult,
-      );
-      return results;
+      return [];
     }
 
     // Use MiniSearch for querying
