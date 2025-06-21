@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
 import useSWRInfinite from "swr/infinite";
-import type { BookmarksResponse, UnifiedBookmark } from "@/types/bookmark";
+import type { BookmarksResponse, UnifiedBookmark, RawBookmark } from "@/types/bookmark";
 import type { UseBookmarksPaginationOptions, UseBookmarksPaginationReturn } from "@/types/features/bookmarks";
-import { bookmarkListResponseSchema } from "@/lib/schemas/bookmarks";
+import { bookmarkListResponseSchema as rawBookmarkListSchema } from "@/lib/schemas/bookmarks";
+import { clientBookmarkSchema } from "@/types/bookmark";
+import { z } from "zod";
 import { convertRawBookmarksToUnified } from "@/lib/bookmarks/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,13 +23,29 @@ const fetcher = async (url: string): Promise<BookmarksResponse> => {
   }
 
   const json: unknown = await response.json();
-  
+
   // Parse the actual API response structure: { data: [...], meta: { pagination: {...} } }
-  const apiResponse = json as { data: unknown[]; meta: { pagination: { page: number; limit: number; total: number; totalPages: number; hasNext: boolean; hasPrev: boolean } } };
-  
-  // Validate the bookmark data
-  const validation = bookmarkListResponseSchema.safeParse({
-    bookmarks: apiResponse.data
+  const apiResponse = json as {
+    data: unknown[];
+    meta: {
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+        hasNext: boolean;
+        hasPrev: boolean;
+      };
+    };
+  };
+
+  // Build a schema that accepts either RawBookmark[] or ClientBookmark[]
+  const flexibleListSchema = rawBookmarkListSchema.extend({
+    bookmarks: z.array(z.union([rawBookmarkListSchema.shape.bookmarks.element, clientBookmarkSchema])),
+  });
+
+  const validation = flexibleListSchema.safeParse({
+    bookmarks: apiResponse.data,
   });
 
   if (!validation.success) {
@@ -35,16 +53,35 @@ const fetcher = async (url: string): Promise<BookmarksResponse> => {
     throw new Error("Invalid bookmark response format");
   }
 
+  const extractTagString = (tag: unknown): string | null => {
+    if (typeof tag === "string") return tag;
+    if (typeof tag === "object" && tag !== null) {
+      const maybeObj = tag as { name?: unknown; id?: unknown };
+      if (typeof maybeObj.name === "string" && maybeObj.name.length > 0) return maybeObj.name;
+      if (typeof maybeObj.id === "string" && maybeObj.id.length > 0) return maybeObj.id;
+    }
+    return null;
+  };
+
+  const rawifiedBookmarks: RawBookmark[] = (validation.data.bookmarks as unknown[]).map((bUnknown) => {
+    const b = bUnknown as Record<string, unknown>;
+    const rawTags: unknown = b.tags;
+
+    const tags = Array.isArray(rawTags) ? (rawTags.map(extractTagString).filter(Boolean) as string[]) : [];
+
+    return { ...(b as RawBookmark), tags };
+  });
+
   // Use the pagination metadata from the API response, not computed locally
   const apiPagination = apiResponse.meta.pagination;
 
   return {
-    data: convertRawBookmarksToUnified(validation.data.bookmarks),
+    data: convertRawBookmarksToUnified(rawifiedBookmarks),
     meta: {
       pagination: {
         page: apiPagination.page,
         limit: apiPagination.limit,
-        total: apiPagination.total,        // Use API-provided total count
+        total: apiPagination.total, // Use API-provided total count
         totalPages: apiPagination.totalPages,
         hasNext: apiPagination.hasNext,
         hasPrev: apiPagination.hasPrev,
@@ -84,7 +121,7 @@ export function useBookmarksPagination({
   // Prepare fallbackData in the expected format if initialData is provided
   const fallbackData = useMemo((): BookmarksResponse[] | undefined => {
     if (!initialData || initialData.length === 0) return undefined;
-    
+
     const response: BookmarksResponse = {
       data: initialData,
       meta: {
@@ -98,7 +135,7 @@ export function useBookmarksPagination({
         },
       },
     };
-    
+
     return [response];
   }, [initialData, limit]);
 
@@ -113,7 +150,10 @@ export function useBookmarksPagination({
   });
 
   const bookmarks: UnifiedBookmark[] = useMemo(
-    () => (data ?? fallbackData ?? []).filter((page): page is BookmarksResponse => !!page).flatMap((page) => page.data ?? []),
+    () =>
+      (data ?? fallbackData ?? [])
+        .filter((page): page is BookmarksResponse => !!page)
+        .flatMap((page) => page.data ?? []),
     [data, fallbackData],
   );
 

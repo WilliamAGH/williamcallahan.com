@@ -110,8 +110,10 @@ async function handleStaleImageUrl(imageUrl: string, pageUrl: string, logContext
   try {
     const { ServerCacheInstance } = await import("@/lib/server-cache");
 
-    // Detect if this is a Karakeep asset URL that has become invalid
-    const isKarakeepUrl = imageUrl.includes("karakeep.com") || imageUrl.includes("assets/");
+    // Detect if this is a Karakeep/Hoarder asset URL that has become invalid
+    // Matches e.g. https://cdn.karakeep.app/assets/abc.png or https://app.hoarder.io/api/assets/xyz
+    // and avoids false positives like "https://example.com/assets/logo.png".
+    const isKarakeepUrl = /^https?:\/\/(?:[^/]+\.)?(karakeep\.app|hoarder\.io)\/.+/i.test(imageUrl);
 
     const invalidated = ServerCacheInstance.invalidateStaleOpenGraphData(
       pageUrl,
