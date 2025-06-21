@@ -9,12 +9,15 @@
 import type { Education } from "@/types";
 import type { JSX } from "react";
 import { EducationCardClient } from "./education-card.client";
+import { processEducationItem } from "@/lib/education-data-processor";
 
 /**
  * Education Card Server Component
  * @param {Education} props - Education entry properties
  * @returns {JSX.Element} Pre-rendered education card
  */
-export function EducationCard(props: Education): JSX.Element {
-  return <EducationCardClient education={props} />;
+export async function EducationCard(props: Education): Promise<JSX.Element> {
+  const educationWithLogo = await processEducationItem(props);
+  
+  return <EducationCardClient education={educationWithLogo} />;
 }
