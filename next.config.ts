@@ -148,6 +148,8 @@ const nextConfig = {
         "node:stream": "commonjs stream",
         "node:util": "commonjs util",
         "detect-libc": "commonjs detect-libc",
+        // Ignore optional dependencies that cause build warnings
+        "osx-temperature-sensor": "commonjs osx-temperature-sensor",
       });
     }
 
