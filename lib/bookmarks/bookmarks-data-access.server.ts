@@ -33,7 +33,8 @@ const isS3Error = (err: unknown): err is { $metadata?: { httpStatusCode?: number
 };
 
 // S3-based distributed lock functions
-async function acquireDistributedLock(lockKey: string, ttlMs: number): Promise<boolean> {
+async function acquireDistributedLock(lockKey: string, ttlMs: number, retryCount = 0): Promise<boolean> {
+  const MAX_RETRIES = 3;
   const lockEntry: DistributedLockEntry = {
     instanceId: INSTANCE_ID,
     acquiredAt: Date.now(),
@@ -51,9 +52,15 @@ async function acquireDistributedLock(lockKey: string, ttlMs: number): Promise<b
         if (existingLock && typeof existingLock === "object") {
           const lockAge = Date.now() - existingLock.acquiredAt;
           if (lockAge > existingLock.ttlMs) {
-            // Stale lock, try to release and re-acquire
+            // Stale lock, try to release and re-acquire with retry limit
+            if (retryCount >= MAX_RETRIES) {
+              console.error(`${LOG_PREFIX} Max retries (${MAX_RETRIES}) exceeded for acquiring lock`);
+              return false;
+            }
             await releaseDistributedLock(lockKey, true);
-            return acquireDistributedLock(lockKey, ttlMs);
+            // Add a small delay to avoid race conditions
+            await new Promise(resolve => setTimeout(resolve, 100));
+            return acquireDistributedLock(lockKey, ttlMs, retryCount + 1);
           }
         }
       } catch (readError: unknown) {
