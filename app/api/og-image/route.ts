@@ -18,7 +18,6 @@ import { scheduleImagePersistence } from "@/lib/opengraph/persistence";
 import { OPENGRAPH_IMAGES_S3_DIR } from "@/lib/opengraph/constants";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
-import { getBaseUrl } from "@/lib/utils/get-base-url";
 // persistImageToS3 is now handled by scheduleImagePersistence from lib/opengraph/persistence
 import type { UnifiedBookmark } from "@/types";
 
@@ -114,67 +113,8 @@ export async function GET(request: NextRequest) {
   if (/^[a-zA-Z0-9_-]+$/.test(input) && !input.includes("/")) {
     console.log(`[OG-Image] Detected Karakeep asset ID: ${input}`);
 
-    // First try the direct asset
+    // Always redirect to the asset URL - let the assets API handle existence checks
     const assetUrl = `/api/assets/${input}`;
-
-    // If we have a bookmarkId, we can provide better fallbacks
-    if (bookmarkId) {
-      try {
-        // Check if asset exists by making a HEAD request with timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-        const baseUrl = getBaseUrl();
-        const assetCheck = await fetch(`${baseUrl}${assetUrl}`, {
-          method: "HEAD",
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        if (assetCheck.ok) {
-          return NextResponse.redirect(new URL(assetUrl, request.url).toString(), { status: 302 });
-        }
-
-        // Asset doesn't exist, try to get bookmark's domain OG image
-        console.log(`[OG-Image] Karakeep asset not found, attempting domain fallback for bookmark: ${bookmarkId}`);
-
-        // Read bookmarks directly from S3 to avoid triggering refresh logic
-        try {
-          const { readJsonS3 } = await import("@/lib/s3-utils");
-          const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
-
-          const bookmarksData = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
-          if (bookmarksData && Array.isArray(bookmarksData)) {
-            const bookmark = bookmarksData.find((b) => b.id === bookmarkId);
-
-            if (bookmark?.url) {
-              console.log(`[OG-Image] Found bookmark URL: ${bookmark.url}, fetching domain OG image`);
-              // Recursively call ourselves with the bookmark URL
-              const fallbackUrl = `/api/og-image?url=${encodeURIComponent(bookmark.url)}`;
-              return NextResponse.redirect(new URL(fallbackUrl, request.url).toString(), {
-                status: 302,
-              });
-            }
-          }
-        } catch (s3Error) {
-          console.error("[OG-Image] Failed to read bookmarks from S3:", s3Error);
-        }
-      } catch (error) {
-        console.error("[OG-Image] Error checking Karakeep asset or fetching fallback:", error);
-
-        // Log the specific failure point for debugging
-        console.log(
-          `[OG-Image] Karakeep asset '${input}' failed - bookmarkId: ${bookmarkId || "none"}, error: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-
-      // No fallback available, return the asset URL anyway (it may still work)
-      console.log(`[OG-Image] All Karakeep fallbacks exhausted, redirecting to asset URL: ${assetUrl}`);
-      return NextResponse.redirect(new URL(assetUrl, request.url).toString(), { status: 302 });
-    }
-
-    // No fallback available, return the asset URL anyway
     return NextResponse.redirect(new URL(assetUrl, request.url).toString(), { status: 302 });
   }
 
