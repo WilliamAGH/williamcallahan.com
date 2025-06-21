@@ -7,6 +7,7 @@
  */
 
 import { createHash } from "node:crypto";
+import { fileTypeFromBuffer } from "file-type";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { type NextRequest, NextResponse } from "next/server";
@@ -32,6 +33,17 @@ async function getImageHash(buffer: Buffer): Promise<string> {
     console.error("Error generating image hash:", error);
     return "";
   }
+}
+
+/**
+ * Fast SHA-256 hash of the raw buffer. Unlike `getImageHash` this does **not**
+ * normalise or decode the image with Sharp, so it is extremely cheap and
+ * avoids allocating large intermediate buffers. We use it purely for cache
+ * look-ups so that identical logo uploads/URLs skip the costly validation
+ * pipeline on subsequent requests.
+ */
+function getBufferSha(buffer: Buffer): string {
+  return createHash("sha256").update(buffer).digest("hex");
 }
 
 /**
@@ -92,23 +104,11 @@ async function compareImages(image1: Buffer, image2: Buffer): Promise<boolean> {
       return false;
     }
 
-    // Convert both images to PNG for consistent comparison
-    let norm1: Buffer;
-    let norm2: Buffer;
-    try {
-      [norm1, norm2] = await Promise.all([sharp(image1).png().toBuffer(), sharp(image2).png().toBuffer()]);
-    } catch (error) {
-      console.error("Error normalizing images:", error);
-      return false;
-    }
-
-    if (!norm1 || !norm2) {
-      console.debug("Failed to normalize images");
-      return false;
-    }
-
-    // Calculate perceptual hashes
-    const [hash1, hash2] = await Promise.all([getImageHash(norm1), getImageHash(norm2)]);
+    // Directly calculate perceptual hashes without an intermediate PNG
+    // conversion.  Sharp will decode the original buffers, resize to a small
+    // 16×16 grayscale bitmap, and we hash that – this avoids allocating large
+    // temporary buffers and significantly reduces RAM churn.
+    const [hash1, hash2] = await Promise.all([getImageHash(image1), getImageHash(image2)]);
 
     if (!hash1 || !hash2) {
       return false;
@@ -210,9 +210,43 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Check cache first
-    const imageHash = await getImageHash(buffer);
-    const cached = ServerCacheInstance.getLogoValidation(imageHash);
+    // Compute cheap hash *once* for caching decisions.
+    const bufferHash = getBufferSha(buffer);
+
+    // Early content-type sniff using file-type to avoid costly Sharp parsing
+    const detectedType = await fileTypeFromBuffer(buffer);
+    if (!detectedType || !VALID_IMAGE_FORMATS.includes(detectedType.ext as (typeof VALID_IMAGE_FORMATS)[number])) {
+      // Unsupported or unknown image format – short-circuit and remember so we
+      // never process this identical buffer again.
+      ServerCacheInstance.setLogoValidation(bufferHash, false);
+
+      return NextResponse.json(
+        { isGlobeIcon: false },
+        {
+          headers: {
+            "Cache-Control": "public, max-age=31536000", // 1 year
+          },
+        },
+      );
+    }
+
+    // Reject extremely large buffers early – generic globe icons are tiny,
+    // so anything > 512 KB is certainly *not* a stock placeholder. Skipping
+    // protects us from loading multi-megabyte images into Sharp.
+    if (buffer.byteLength > 512 * 1024) {
+      return NextResponse.json(
+        { isGlobeIcon: false },
+        {
+          headers: {
+            "Cache-Control": "public, max-age=31536000",
+          },
+        },
+      );
+    }
+
+    // Cheap cache look-up using raw buffer hash. If we have already processed
+    // this **exact** image, skip the expensive Sharp work entirely.
+    const cached = ServerCacheInstance.getLogoValidation(bufferHash);
     if (cached) {
       return NextResponse.json(
         { isGlobeIcon: cached.isGlobeIcon },
@@ -224,11 +258,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Compare with reference icon
+    // Compare with reference icon (expensive path – only if not cached)
     const isGlobeIcon = await compareImages(buffer, referenceGlobeIcon);
 
-    // Cache the result
-    ServerCacheInstance.setLogoValidation(imageHash, isGlobeIcon);
+    // Store result against raw buffer hash so future identical images bypass
+    // Sharp processing.
+    ServerCacheInstance.setLogoValidation(bufferHash, isGlobeIcon);
 
     return NextResponse.json(
       { isGlobeIcon },
@@ -239,7 +274,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       },
     );
   } catch (error) {
-    console.error("Error validating logo:", error);
+    console.debug("Error validating logo:", error);
     return NextResponse.json(
       { error: "Failed to validate logo" },
       {
