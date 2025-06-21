@@ -12,11 +12,13 @@ bun run validate
 ```
 
 This command runs ALL checks according to @docs/projects/structure/linting-formatting.md:
+
 - **Biome:** Formatting and foundational linting
 - **ESLint:** Advanced, type-aware linting  
 - **TypeScript Compiler (tsc):** Ultimate type correctness check
 
 **Requirements:**
+
 - Must show 0 errors, 0 warnings
 - NEVER use @ts-ignore, @ts-expect-error, or eslint-disable
 - Fix ALL type safety issues properly before proceeding
@@ -58,6 +60,7 @@ bun run validate
 STEP 7: Execute the commit with your generated message.
 
 🚨 CRITICAL: NEVER include any Claude attribution, co-author tags, or AI-generated markers in commits. This includes:
+
 - 🤖 Generated with [Claude Code]
 - Co-Authored-By: Claude
 - Any other AI attribution
@@ -71,6 +74,7 @@ STEP 8: Show the commit hash and message.
 If `bun run validate` fails, apply these resolution strategies:
 
 **Common TypeScript/ESLint Issues:**
+
 - `@typescript-eslint/no-unsafe-assignment`: Use `unknown` instead of `any`
 - `@typescript-eslint/no-unsafe-member-access`: Add null checks or optional chaining
 - `@typescript-eslint/no-explicit-any`: Define proper types in types/ directory
