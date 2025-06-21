@@ -5,7 +5,7 @@ import * as Sentry from "@sentry/nextjs";
 // Lazy import EventEmitter to avoid Edge/browser bundling issues
 let EventEmitter: typeof import("node:events").EventEmitter | undefined;
 
-export function register() {
+export async function register() {
   const releaseVersion = process.env.NEXT_PUBLIC_APP_VERSION || process.env.SENTRY_RELEASE;
   const isNodeRuntime = process.env.NEXT_RUNTIME === "nodejs";
   const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
@@ -20,22 +20,27 @@ export function register() {
 
   if (isNodeRuntime && !isBuildPhase) {
     // Configure Sharp memory settings before any usage
-    import("sharp").then((sharp) => {
-      // Disable Sharp's internal cache completely to prevent memory retention
-      sharp.cache({ files: 0, items: 0, memory: 0 });
-      // Limit concurrency to reduce memory spikes
-      sharp.concurrency(1);
-      console.log("[Instrumentation] Sharp configured: cache fully disabled (files: 0, items: 0, memory: 0), concurrency set to 1");
-    }).catch((err) => {
-      console.warn("[Instrumentation] Failed to configure Sharp:", err);
-    });
-    
+    import("sharp")
+      .then((sharp) => {
+        // Disable Sharp's internal cache completely to prevent memory retention
+        sharp.cache({ files: 0, items: 0, memory: 0 });
+        // Limit concurrency to reduce memory spikes
+        sharp.concurrency(1);
+        console.log(
+          "[Instrumentation] Sharp configured: cache fully disabled (files: 0, items: 0, memory: 0), concurrency set to 1",
+        );
+      })
+      .catch((err) => {
+        console.warn("[Instrumentation] Failed to configure Sharp:", err);
+      });
+
     // Initialize ImageMemoryManager singleton by importing it.
     // This replaces the deprecated mem-guard.
     import("@/lib/image-memory-manager");
-    // Dynamic import only in the Node runtime to keep the Edge bundle clean
-    // Using `import()` avoids static analysis pulling this into the Edge chunks
-    const nodeEvents = require("node:events");
+
+    // Use dynamic import with computed string to prevent static analysis
+    const nodeModuleName = "node" + ":" + "events";
+    const nodeEvents = await import(nodeModuleName);
     EventEmitter = nodeEvents.EventEmitter;
 
     // Increase the default max listeners to handle concurrent fetch operations
@@ -44,11 +49,9 @@ export function register() {
       EventEmitter.defaultMaxListeners = 25;
     }
 
-    // Also set it on the global process object to be safe
-    if (process.setMaxListeners) {
-      process.setMaxListeners(25);
-    }
-    
+    // Note: process.setMaxListeners is not available in Edge runtime
+    // EventEmitter.defaultMaxListeners should be sufficient
+
     // Only initialize Sentry in production to save memory in development
     if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
       // Initialize Sentry for the Node.js runtime
@@ -72,12 +75,13 @@ export function register() {
     //  • Refreshes periodically (default every 2 hours) so data stays warm.
 
     if (process.env.NODE_ENV === "production") {
-      // Initialize bookmarks data access layer (synchronous, non-blocking)
-      const { initializeBookmarksDataAccess } = require("@/lib/bookmarks/bookmarks-data-access.server");
-      initializeBookmarksDataAccess();
+      // Use dynamic import with computed string for bookmarks module
+      const bookmarksModulePath = "@/lib/bookmarks/" + "bookmarks-data-access.server";
+      const bookmarksModule = await import(bookmarksModulePath);
+      bookmarksModule.initializeBookmarksDataAccess();
 
-      // Schedule the initial warm-up after server is ready (non-blocking)
-      setImmediate(async () => {
+      // Use setTimeout(0) instead of setImmediate for Edge compatibility
+      setTimeout(async () => {
         console.log("[Instrumentation] Triggering initial bookmark preload (non-blocking)");
         try {
           const { monitoredAsync } = await import("@/lib/async-operations-monitor");
@@ -102,7 +106,7 @@ export function register() {
           const Sentry = await import("@sentry/nextjs");
           Sentry.captureException(err);
         }
-      });
+      }, 0);
 
       // Schedule periodic refreshes
       import("@/lib/bookmarks/bookmarks-preloader.server").then(({ scheduleBackgroundBookmarkPreload }) => {
@@ -111,7 +115,12 @@ export function register() {
     }
   }
 
-  if (process.env.NEXT_RUNTIME === "edge" && !isBuildPhase && process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
+  if (
+    process.env.NEXT_RUNTIME === "edge" &&
+    !isBuildPhase &&
+    process.env.NODE_ENV === "production" &&
+    process.env.SENTRY_DSN
+  ) {
     // Initialize Sentry for the Edge runtime - only in production
     Sentry.init({
       dsn: process.env.SENTRY_DSN,
