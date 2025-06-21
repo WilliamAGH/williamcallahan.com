@@ -82,10 +82,9 @@ export async function processEducationItem<T extends Education>(item: T): Promis
       const result = await fetchLogo(domain);
 
       if (result.buffer) {
-        const base64 = result.buffer.toString("base64");
-        // Simple check for SVG based on first few characters
-        const mimeType = result.buffer.subarray(0, 4).toString() === "<svg" ? "image/svg+xml" : "image/png";
-        logoData = { url: `data:${mimeType};base64,${base64}`, source: result.source };
+        const mime = result.contentType ?? "image/png";
+        const base64Data = result.buffer.toString("base64");
+        logoData = { url: `data:${mime};base64,${base64Data}`, source: result.source };
       } else {
         logoData = { url: await getPlaceholderSvgDataUrl(), source: "placeholder" };
       }
@@ -118,10 +117,9 @@ export async function processCertificationItem<T extends Certification | Class>(
       const result = await fetchLogo(domain);
 
       if (result.buffer) {
-        const base64 = result.buffer.toString("base64");
-        // Simple check for SVG based on first few characters
-        const mimeType = result.buffer.subarray(0, 4).toString() === "<svg" ? "image/svg+xml" : "image/png";
-        logoData = { url: `data:${mimeType};base64,${base64}`, source: result.source };
+        const mime = result.contentType ?? "image/png";
+        const base64Data = result.buffer.toString("base64");
+        logoData = { url: `data:${mime};base64,${base64Data}`, source: result.source };
       } else {
         logoData = { url: await getPlaceholderSvgDataUrl(), source: "placeholder" };
       }
