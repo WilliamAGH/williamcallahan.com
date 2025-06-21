@@ -2,8 +2,7 @@
  * Social Media Links Configuration
  */
 
-import { SocialLinksSchema } from "@/lib/validators/social";
-import type { SocialLink } from "@/types/social";
+import { SocialLinksSchema, type SocialLink } from "@/types/social";
 import { Bluesky } from "./bluesky-icon";
 import { Discord } from "./discord-icon";
 import { GitHub } from "./github-icon";

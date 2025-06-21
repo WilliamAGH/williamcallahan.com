@@ -462,6 +462,17 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
                 bookmarks.map((b) => ({ id: b.id, url: b.url })),
                 bookmark.id,
               )}`;
+              // Debug: Log bookmark data for CLI bookmark
+              if (bookmark.id === 'yz7g8v8vzprsd2bm1w1cjc4y') {
+                console.log('[BookmarksWithOptions] CLI bookmark data:', {
+                  id: bookmark.id,
+                  hasContent: !!bookmark.content,
+                  hasImageAssetId: !!bookmark.content?.imageAssetId,
+                  hasImageUrl: !!bookmark.content?.imageUrl,
+                  hasScreenshotAssetId: !!bookmark.content?.screenshotAssetId,
+                  content: bookmark.content
+                });
+              }
               return <BookmarkCardClient key={bookmark.id} {...bookmark} shareUrl={shareUrl} />;
             })}
           </div>
