@@ -14,7 +14,13 @@ import type { ImageSelectionOptions } from "@/types/features/bookmarks";
  */
 export function getAssetUrl(assetId: string | undefined | null): string | undefined {
   if (!assetId) return undefined;
-  // Future enhancement: could use CDN URL from environment
+  
+  // Use direct CDN URL if available, otherwise fall back to API proxy
+  const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
+  if (cdnUrl) {
+    return `${cdnUrl}/images/${assetId}`;
+  }
+  
   return `/api/assets/${assetId}`;
 }
 
