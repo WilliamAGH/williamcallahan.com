@@ -8,36 +8,83 @@
  * @module server/data-fetch-manager
  */
 
-import { config as loadEnv } from "dotenv";
+import * as dotenv from "dotenv";
+import fs from "node:fs";
+import path from "node:path";
 import logger from "@/lib/utils/logger";
-
-import {
-  getBookmarks,
-  getGithubActivity,
-  initializeBookmarksDataAccess,
-  getInvestmentDomainsAndIds,
-  getLogo,
-} from "@/lib/data-access";
-import { refreshBookmarks } from "@/lib/bookmarks/service.server";
-import { refreshGitHubActivityDataFromApi, calculateAndStoreAggregatedWeeklyActivity } from "@/lib/data-access/github";
-import { invalidateLogoS3Cache, resetLogoSessionTracking } from "@/lib/data-access/logos";
+import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
+import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
 import { KNOWN_DOMAINS } from "@/lib/constants";
+import { getLogo } from "@/lib/data-access/logos";
+import { refreshBookmarks } from "@/lib/bookmarks/service.server";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
+
+// Custom environment loader to handle multi-line keys that break dotenv
+try {
+  const envPath = path.resolve(process.cwd(), ".env");
+  if (fs.existsSync(envPath)) {
+    const envFileContent = fs.readFileSync(envPath, { encoding: "utf-8" });
+    const lines = envFileContent.split("\n");
+    const cleanLines: string[] = [];
+    let privateKeyVal = "";
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY=")) {
+        let value = trimmedLine.substring("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY=".length);
+        if (value.startsWith('"') && value.endsWith('"')) {
+          value = value.slice(1, -1);
+        }
+        privateKeyVal = value;
+      } else {
+        cleanLines.push(line);
+      }
+    }
+
+    const envConfig = dotenv.parse(cleanLines.join("\n"));
+    for (const k in envConfig) {
+      if (!Object.hasOwn(process.env, k)) {
+        process.env[k] = envConfig[k];
+      }
+    }
+    if (privateKeyVal && !process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY) {
+      process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY = privateKeyVal;
+    }
+  }
+} catch (error) {
+  logger.error("Failed to load or parse .env file:", error);
+}
+
+import {
+  calculateAndStoreAggregatedWeeklyActivity,
+  initializeBookmarksDataAccess,
+  invalidateLogoS3Cache,
+  refreshGitHubActivityDataFromApi,
+  resetLogoSessionTracking,
+} from "@/lib/data-access";
 
 /**
  * Main data fetch manager class
  */
 export class DataFetchManager {
+  /**
+   * Configuration for logo batch processing
+   */
   private readonly LOGO_BATCH_CONFIGS = {
     IMMEDIATE: { size: 5, delay: 200 },
     REGULAR: { size: 10, delay: 500 },
   } as const;
 
+  /**
+   * Safety threshold for new bookmarks processing
+   */
   private readonly SAFETY_THRESHOLD_NEW_BOOKMARKS = 10;
 
   /**
    * Fetches data based on the provided configuration
+   * @param config - Configuration specifying which data to fetch
+   * @returns Promise resolving to array of operation summaries
    */
   async fetchData(config: DataFetchConfig): Promise<DataFetchOperationSummary[]> {
     const results: DataFetchOperationSummary[] = [];
@@ -62,6 +109,8 @@ export class DataFetchManager {
 
   /**
    * Fetch bookmarks with optional immediate logo processing for new items
+   * @param config - Configuration for bookmark fetching
+   * @returns Promise resolving to operation summary
    */
   private async fetchBookmarks(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
     const startTime = Date.now();
@@ -69,22 +118,26 @@ export class DataFetchManager {
 
     try {
       // Get current cached bookmarks to compare for new additions
-      const previousBookmarks = await getBookmarks(false);
-      const previousCount = previousBookmarks?.length || 0;
-      const previousBookmarkIds = new Set(previousBookmarks?.map((b) => b.id) || []);
+      const previousBookmarks: UnifiedBookmark[] = await getBookmarks(false);
+      const previousCount = previousBookmarks.length;
+      const previousBookmarkIds = new Set(previousBookmarks.map((b: UnifiedBookmark) => b.id));
 
       // Force fresh data fetch
-      const bookmarks = await refreshBookmarks();
-
-      if (!bookmarks || bookmarks.length === 0) {
+      const bookmarksResult = await refreshBookmarks();
+      if (!bookmarksResult) {
         throw new Error("No bookmarks returned from refresh");
+      }
+
+      const bookmarks: UnifiedBookmark[] = bookmarksResult;
+      if (bookmarks.length === 0) {
+        throw new Error("Empty bookmarks array returned from refresh");
       }
 
       logger.info(`[DataFetchManager] Fetched ${bookmarks.length} bookmarks (previous: ${previousCount})`);
 
       // Process new bookmark logos if immediate processing is enabled
       if (config.immediate) {
-        const newBookmarks = bookmarks.filter((b) => !previousBookmarkIds.has(b.id));
+        const newBookmarks = bookmarks.filter((b: UnifiedBookmark) => !previousBookmarkIds.has(b.id));
         if (newBookmarks.length > 0) {
           await this.processNewBookmarkLogos(newBookmarks, config.testLimit);
         }
@@ -97,12 +150,13 @@ export class DataFetchManager {
         itemsProcessed: bookmarks.length,
         duration,
       };
-    } catch (error) {
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error("[DataFetchManager] Bookmarks fetch failed:", error);
       return {
         success: false,
         operation: "bookmarks",
-        error: error instanceof Error ? error.message : String(error),
+        error: error.message,
         duration: (Date.now() - startTime) / 1000,
       };
     }
@@ -110,6 +164,8 @@ export class DataFetchManager {
 
   /**
    * Fetch GitHub activity data
+   * @param _config - Configuration (acknowledged but unused)
+   * @returns Promise resolving to operation summary
    */
   private async fetchGithubActivity(_config: DataFetchConfig): Promise<DataFetchOperationSummary> {
     const startTime = Date.now();
@@ -138,12 +194,13 @@ export class DataFetchManager {
         itemsProcessed: refreshed.trailingYearData.totalContributions,
         duration,
       };
-    } catch (error) {
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error("[DataFetchManager] GitHub activity fetch failed:", error);
       return {
         success: false,
         operation: "github-activity",
-        error: error instanceof Error ? error.message : String(error),
+        error: error.message,
         duration: (Date.now() - startTime) / 1000,
       };
     }
@@ -151,6 +208,8 @@ export class DataFetchManager {
 
   /**
    * Fetch logos for all domains
+   * @param config - Configuration for logo fetching
+   * @returns Promise resolving to operation summary
    */
   private async fetchLogos(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
     const startTime = Date.now();
@@ -182,12 +241,13 @@ export class DataFetchManager {
         itemsProcessed: successCount,
         duration,
       };
-    } catch (error) {
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error(String(e));
       logger.error("[DataFetchManager] Logos fetch failed:", error);
       return {
         success: false,
         operation: "logos",
-        error: error instanceof Error ? error.message : String(error),
+        error: error.message,
         duration: (Date.now() - startTime) / 1000,
       };
     }
@@ -195,90 +255,108 @@ export class DataFetchManager {
 
   /**
    * Process logos for newly added bookmarks
+   * @param newBookmarks - Array of newly added bookmark objects
+   * @param testLimit - Optional limit for testing purposes
+   * @returns Promise that resolves when processing is complete
    */
   private async processNewBookmarkLogos(newBookmarks: UnifiedBookmark[], testLimit?: number): Promise<void> {
     let bookmarksToProcess = newBookmarks;
 
-    // Apply test limit if set
-    if (testLimit && bookmarksToProcess.length > testLimit) {
-      logger.info(
-        `[DataFetchManager] Test mode: limiting new bookmarks from ${bookmarksToProcess.length} to ${testLimit}`,
+    const newBookmarkCount = newBookmarks.length;
+    logger.info(`[DataFetchManager] Processing logos for ${newBookmarkCount} new bookmarks`);
+
+    // Safety check for excessive new bookmarks
+    if (newBookmarkCount > this.SAFETY_THRESHOLD_NEW_BOOKMARKS) {
+      logger.warn(
+        `[DataFetchManager] New bookmark count (${newBookmarkCount}) exceeds safety threshold (${this.SAFETY_THRESHOLD_NEW_BOOKMARKS}). Processing logos may be throttled.`,
       );
-      bookmarksToProcess = bookmarksToProcess.slice(0, testLimit);
     }
 
-    // Safety check for first run or cache loss
-    const shouldLimit = newBookmarks.length > this.SAFETY_THRESHOLD_NEW_BOOKMARKS;
-    if (shouldLimit) {
-      logger.warn(
-        `[DataFetchManager] Safety: Limiting immediate logo processing to ${this.SAFETY_THRESHOLD_NEW_BOOKMARKS} most recent bookmarks`,
-      );
-      bookmarksToProcess = bookmarksToProcess
-        .sort((a, b) => new Date(b.dateBookmarked).getTime() - new Date(a.dateBookmarked).getTime())
-        .slice(0, this.SAFETY_THRESHOLD_NEW_BOOKMARKS);
+    // Apply test limit if provided
+    if (typeof testLimit === "number" && testLimit > 0) {
+      bookmarksToProcess = newBookmarks.slice(0, testLimit);
+      logger.info(`[DataFetchManager] Applying test limit, processing ${bookmarksToProcess.length} bookmarks`);
     }
 
     const domains = this.extractDomainsFromBookmarks(bookmarksToProcess);
-    if (domains.size > 0) {
-      logger.info(`[DataFetchManager] Processing logos for ${domains.size} new bookmark domains`);
-      await this.processLogoBatch(Array.from(domains), this.LOGO_BATCH_CONFIGS.IMMEDIATE, "new bookmarks");
-    }
+    logger.info(`[DataFetchManager] Found ${domains.size} unique domains from new bookmarks`);
+
+    const { successCount, failureCount } = await this.processLogoBatch(
+      Array.from(domains),
+      this.LOGO_BATCH_CONFIGS.IMMEDIATE,
+      "new bookmark logo update",
+    );
+    logger.info(
+      `[DataFetchManager] ${"new bookmark logo update"} batches complete. Success: ${successCount}, Failures: ${failureCount}`,
+    );
   }
 
   /**
-   * Collect all unique domains from various sources
+   * Collects all unique domains from bookmarks and investments
+   * @param testLimit - Optional limit for testing purposes
+   * @returns Promise resolving to a Set of unique domain strings
    */
   private async collectAllDomains(testLimit?: number): Promise<Set<string>> {
     const domains = new Set<string>();
 
-    // From bookmarks
-    const bookmarks = await getBookmarks(true);
-    const bookmarkDomains = this.extractDomainsFromBookmarks(bookmarks ?? []);
-    for (const domain of bookmarkDomains) {
-      domains.add(domain);
+    try {
+      // Get investment domains
+      const investmentData = await getInvestmentDomainsAndIds();
+      for (const [domain] of investmentData) {
+        domains.add(domain);
+      }
+
+      // Get bookmark domains
+      const bookmarks = await getBookmarks(false);
+      const bookmarkDomains = this.extractDomainsFromBookmarks(bookmarks);
+      for (const domain of bookmarkDomains) {
+        if (domain) {
+          domains.add(domain);
+        }
+      }
+
+      // Add known domains
+      for (const domain of KNOWN_DOMAINS) {
+        domains.add(domain);
+      }
+    } catch (error) {
+      logger.error("[DataFetchManager] Error collecting domains:", error);
     }
 
-    // From investments
-    const investmentDomainsMap = await getInvestmentDomainsAndIds();
-    for (const domain of investmentDomainsMap.values()) {
-      domains.add(domain);
-    }
-
-    // Known domains
-    for (const domain of KNOWN_DOMAINS) {
-      domains.add(domain);
-    }
-
-    // Apply test limit if needed
-    if (testLimit && domains.size > testLimit) {
-      logger.info(`[DataFetchManager] Test mode: limiting domains from ${domains.size} to ${testLimit}`);
+    if (testLimit) {
       return new Set(Array.from(domains).slice(0, testLimit));
     }
-
     return domains;
   }
 
   /**
-   * Extract unique domains from bookmarks
+   * Extracts domains from a list of bookmarks
+   * @param bookmarks - Array of bookmark objects to extract domains from
+   * @returns Set of unique domain strings
    */
   private extractDomainsFromBookmarks(bookmarks: readonly UnifiedBookmark[]): Set<string> {
     const domains = new Set<string>();
     for (const bookmark of bookmarks) {
-      try {
-        if (bookmark.url) {
-          const url = new URL(bookmark.url);
-          const domain = url.hostname.replace(/^www\./, "");
-          domains.add(domain);
+      if (bookmark.url) {
+        try {
+          const { domain } = bookmark;
+          if (domain) {
+            domains.add(domain);
+          }
+        } catch {
+          logger.warn(`[DataFetchManager] Could not parse domain from URL: ${bookmark.url}`);
         }
-      } catch (error) {
-        logger.warn(`Invalid URL in bookmark ${bookmark.id}: ${bookmark.url}`, error);
       }
     }
     return domains;
   }
 
   /**
-   * Process logo fetching in batches
+   * Processes a list of domains to fetch logos in batches
+   * @param domains - Array of domain strings to process
+   * @param batchConfig - Configuration for batch processing (size and delay)
+   * @param context - Context string for logging purposes
+   * @returns Promise resolving to success and failure counts
    */
   private async processLogoBatch(
     domains: readonly string[],
@@ -287,225 +365,106 @@ export class DataFetchManager {
   ): Promise<{ successCount: number; failureCount: number }> {
     let successCount = 0;
     let failureCount = 0;
-    const { size: batchSize, delay } = batchConfig;
 
-    for (let i = 0; i < domains.length; i += batchSize) {
-      const batch = domains.slice(i, i + batchSize);
-      const batchNumber = Math.floor(i / batchSize) + 1;
-      const totalBatches = Math.ceil(domains.length / batchSize);
-
-      logger.verbose(
-        `[DataFetchManager] Processing ${context} batch ${batchNumber}/${totalBatches} (${batch.length} domains)`,
+    for (let i = 0; i < domains.length; i += batchConfig.size) {
+      const batch = domains.slice(i, i + batchConfig.size);
+      logger.info(
+        `[DataFetchManager] [${context}] Processing batch ${i / batchConfig.size + 1} of ${Math.ceil(
+          domains.length / batchConfig.size,
+        )} (size: ${batch.length})`,
       );
 
-      const promises = batch.map(async (domain) => {
-        try {
-          const logoResult = await getLogo(domain);
-          if (logoResult?.s3Key) {
-            logger.info(`✅ Logo processed for ${domain}`);
-            successCount++;
-          } else {
+      const promises = batch.map((domain) =>
+        getLogo(domain)
+          .then((result) => {
+            if (result && !result.error) {
+              successCount++;
+            } else {
+              failureCount++;
+            }
+          })
+          .catch(() => {
             failureCount++;
-          }
-        } catch (error) {
-          logger.error(`❌ Error processing logo for ${domain}:`, error);
-          failureCount++;
-        }
-      });
+          }),
+      );
 
-      await Promise.allSettled(promises);
+      await Promise.all(promises);
 
-      // Rate limiting between batches
-      if (i + batchSize < domains.length) {
-        await new Promise((r) => setTimeout(r, delay));
+      if (i + batchConfig.size < domains.length) {
+        await new Promise((resolve) => setTimeout(resolve, batchConfig.delay));
       }
     }
 
-    logger.info(`[DataFetchManager] ${context} batches complete. Success: ${successCount}, Failures: ${failureCount}`);
+    logger.info(
+      `[DataFetchManager] [${context}] Batches complete. Success: ${successCount}, Failures: ${failureCount}`,
+    );
     return { successCount, failureCount };
   }
 
   /**
-   * Quick prefetch for build process (S3 data only)
+   * Prefetches essential data for the build process.
+   * @returns Promise resolving to array of operation summaries
    */
   async prefetchForBuild(): Promise<DataFetchOperationSummary[]> {
-    logger.info("[DataFetchManager] Starting build prefetch (S3 data only)...");
-
-    const results: DataFetchOperationSummary[] = [];
-    const startTime = Date.now();
-
-    try {
-      // Initialize bookmarks (non-blocking)
-      void initializeBookmarksDataAccess();
-
-      // Fetch bookmarks from S3 only
-      const bookmarks = await getBookmarks(true); // skipExternalFetch = true
-      results.push({
-        success: bookmarks !== null,
-        operation: "bookmarks-prefetch",
-        itemsProcessed: bookmarks?.length || 0,
-        duration: (Date.now() - startTime) / 1000,
-      });
-
-      // Fetch GitHub activity from S3
-      const githubActivity = await getGithubActivity();
-      results.push({
-        success: githubActivity !== null,
-        operation: "github-activity-prefetch",
-        itemsProcessed: githubActivity ? 1 : 0,
-        duration: (Date.now() - startTime) / 1000,
-      });
-
-      logger.info("[DataFetchManager] Build prefetch completed (logos skipped for performance)");
-    } catch (error) {
-      logger.error("[DataFetchManager] Build prefetch failed:", error);
-      results.push({
-        success: false,
-        operation: "build-prefetch",
-        error: error instanceof Error ? error.message : String(error),
-        duration: (Date.now() - startTime) / 1000,
-      });
-    }
-
+    logger.info("[DataFetchManager] Starting prefetch for build...");
+    const results = await this.fetchData({
+      bookmarks: true,
+      githubActivity: true,
+      logos: false, // Logos are not pre-fetched for build
+      immediate: false,
+    });
+    logger.info("[DataFetchManager] Prefetch for build completed.");
     return results;
   }
 }
 
-export const dataFetchManager = new DataFetchManager();
+if (require.main === module) {
+  const args = process.argv.slice(2);
+  const manager = new DataFetchManager();
 
-/**
- * CLI handler for the DataFetchManager
- * Parses command-line arguments and executes appropriate operations
- *
- * The CLI wrapper class only contains static helpers. We intentionally
- * suppress the Biome rule that discourages static-only classes because
- * this structure provides a clear namespace for the CLI entry-point
- * while avoiding top-level function noise.
- */
-export class DataFetchManagerCLI {
-  // Dummy instance field to ensure the class is not static-only (satisfies linter rule)
-  private readonly _instanceMarker = true;
+  const config: {
+    fetchLogos?: boolean;
+    fetchGithub?: boolean;
+    forceRefresh?: boolean;
+    testLimit?: number;
+  } = {};
 
-  static async run(): Promise<void> {
-    // Load environment variables
-    loadEnv();
+  if (args.includes("--logos")) {
+    config.fetchLogos = true;
+  }
+  if (args.includes("--github")) {
+    config.fetchGithub = true;
+  }
+  if (args.includes("--force")) {
+    config.forceRefresh = true;
+  }
 
-    // Parse command-line arguments
-    const args = process.argv.slice(2);
-    const usage = `Usage: data-fetch-manager [options]
-Options:
-  --bookmarks           Run only the Bookmarks update
-  --github-activity     Run only the GitHub Activity update  
-  --logos               Run only the Logos update
-  --prefetch-build      Run optimized build prefetch (S3 only)
-  --prefetch-dev        Run full development prefetch (all data)
-  --force               Force refresh of S3 data
-  --help, -h            Show this help message
-If no options are provided, all updates will run.
-`;
-
-    if (args.includes("--help") || args.includes("-h")) {
-      console.log(usage);
-      process.exit(0);
-    }
-
-    // Determine operation mode
-    const isPrefetchBuild = args.includes("--prefetch-build");
-    const isPrefetchDev = args.includes("--prefetch-dev");
-
-    if (isPrefetchBuild) {
-      console.log("[DataFetchManager] Running optimized build prefetch...");
-      try {
-        const results = await dataFetchManager.prefetchForBuild();
-        DataFetchManagerCLI.reportResults(results);
-        process.exit(results.every((r) => r.success) ? 0 : 1);
-      } catch (error) {
-        console.error("[DataFetchManager] Build prefetch failed:", error);
-        process.exit(1);
+  const testLimitArg = args.find((arg) => arg.startsWith("--testLimit="));
+  if (testLimitArg) {
+    const limitStr = testLimitArg.split("=")[1];
+    if (limitStr) {
+      const limit = parseInt(limitStr, 10);
+      if (!Number.isNaN(limit)) {
+        config.testLimit = limit;
+        logger.info(`[DataFetchManagerCLI] Applying test limit of ${limit}`);
       }
     }
+  }
 
-    if (isPrefetchDev) {
-      console.log("[DataFetchManager] Running full development prefetch...");
-      try {
-        const results = await dataFetchManager.fetchData({
-          bookmarks: true,
-          githubActivity: true,
-          logos: true,
-          testLimit: process.env.S3_TEST_LIMIT ? Number.parseInt(process.env.S3_TEST_LIMIT, 10) : undefined,
-        });
-        DataFetchManagerCLI.reportResults(results);
-        process.exit(results.every((r) => r.success) ? 0 : 1);
-      } catch (error) {
-        console.error("[DataFetchManager] Development prefetch failed:", error);
-        process.exit(1);
-      }
-    }
-
-    // Regular update mode
-    const runBookmarks = args.length === 0 || args.includes("--bookmarks");
-    const runGithub = args.length === 0 || args.includes("--github-activity");
-    const runLogos = args.length === 0 || args.includes("--logos");
-    const forceRefresh = args.includes("--force") || process.env.FORCE_REFRESH === "1";
-
-    logger.info(`[DataFetchManager] CLI execution started. Args: ${args.join(" ")}`);
-    logger.info(`[DataFetchManager] Force refresh: ${forceRefresh}`);
-
-    const testLimit = process.env.S3_TEST_LIMIT ? Number.parseInt(process.env.S3_TEST_LIMIT, 10) : undefined;
-    if (testLimit) {
-      logger.info(`[DataFetchManager] Test limit active: ${testLimit} items per operation`);
-    }
-
-    // Check DRY_RUN mode
-    if (process.env.DRY_RUN === "true") {
-      logger.info("[DataFetchManager] DRY RUN mode: skipping all update processes.");
-      process.exit(0);
-    }
-
-    // Ensure S3_BUCKET is configured for updates
-    if (!process.env.S3_BUCKET && !isPrefetchBuild && !isPrefetchDev) {
-      logger.error("[DataFetchManager] CRITICAL: S3_BUCKET environment variable is not set. Cannot run updates.");
-      process.exit(1);
-    }
-
-    try {
-      const results = await dataFetchManager.fetchData({
-        bookmarks: runBookmarks,
-        githubActivity: runGithub,
-        logos: runLogos,
-        forceRefresh,
-        testLimit,
-        immediate: true, // Process new bookmark logos immediately
-      });
-
-      // Report results
-      for (const result of results) {
+  manager
+    .fetchData(config)
+    .then((results) => {
+      logger.info("[DataFetchManagerCLI] All tasks complete.");
+      results.forEach((result) => {
         if (result.success) {
-          logger.info(
-            `[DataFetchManager] ✅ ${result.operation}: ${result.itemsProcessed} items processed in ${result.duration?.toFixed(2)}s`,
-          );
+          logger.info(`  - ${result.operation}: Success (${result.itemsProcessed} items)`);
         } else {
-          logger.error(`[DataFetchManager] ❌ ${result.operation} failed: ${result.error}`);
+          logger.error(`  - ${result.operation}: Failed (${result.error})`);
         }
-      }
-
-      logger.info("[DataFetchManager] All operations complete.");
-      process.exit(results.every((r) => r.success) ? 0 : 1);
-    } catch (error) {
-      logger.error("[DataFetchManager] Unhandled error:", error);
+      });
+    })
+    .catch((error: unknown) => {
+      logger.error("[DataFetchManagerCLI] An unexpected error occurred:", error);
       process.exit(1);
-    }
-  }
-
-  private static reportResults(results: DataFetchOperationSummary[]): void {
-    for (const result of results) {
-      if (result.success) {
-        console.log(
-          `✓ ${result.operation}: ${result.itemsProcessed} items${result.duration ? ` in ${result.duration.toFixed(2)}s` : ""}`,
-        );
-      } else {
-        console.error(`✗ ${result.operation} failed: ${result.error}`);
-      }
-    }
-  }
+    });
 }

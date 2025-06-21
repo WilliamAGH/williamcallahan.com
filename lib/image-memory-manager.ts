@@ -81,8 +81,10 @@ export class ImageMemoryManager extends EventEmitter {
       // Critical: Help GC by explicitly handling disposal
       dispose: (value: Buffer, key: string, reason: "evict" | "delete" | "set" | "expire" | "fetch"): void => {
         if (reason === "evict" || reason === "delete") {
-          // Log disposal for monitoring
-          console.log(`[ImageMemory] Disposed ${key} (${value.byteLength} bytes) - ${reason}`);
+          // Log disposal for monitoring (suppress in tests)
+          if (process.env.NODE_ENV !== "test") {
+            console.log(`[ImageMemory] Disposed ${key} (${value.byteLength} bytes) - ${reason}`);
+          }
           this.emit("image-disposed", { key, size: value.byteLength, reason });
         }
       },
@@ -109,7 +111,9 @@ export class ImageMemoryManager extends EventEmitter {
       ttl: 30 * 24 * 60 * 60 * 1000, // 30 days
       dispose: (_value: Omit<ImageCacheEntry, "buffer">, key: string, reason: string): void => {
         if (reason === "evict" || reason === "size") {
-          console.log(`[ImageMemory] Metadata evicted for ${key} - ${reason}`);
+          if (process.env.NODE_ENV !== "test") {
+            console.log(`[ImageMemory] Metadata evicted for ${key} - ${reason}`);
+          }
         }
       },
     };
@@ -290,14 +294,18 @@ export class ImageMemoryManager extends EventEmitter {
     this.memoryPressure = pressure;
 
     if (pressure) {
-      console.warn("[ImageMemory] Memory pressure mode enabled by external monitor");
+      if (process.env.NODE_ENV !== "test") {
+        console.warn("[ImageMemory] Memory pressure mode enabled by external monitor");
+      }
       this.emit("memory-pressure-start", {
         rss: process.memoryUsage().rss,
         heap: process.memoryUsage().heapUsed,
         source: "external",
       });
     } else {
-      console.log("[ImageMemory] Memory pressure mode disabled by external monitor");
+      if (process.env.NODE_ENV !== "test") {
+        console.log("[ImageMemory] Memory pressure mode disabled by external monitor");
+      }
       this.emit("memory-pressure-end", {
         rss: process.memoryUsage().rss,
         heap: process.memoryUsage().heapUsed,
