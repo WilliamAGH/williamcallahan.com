@@ -283,6 +283,18 @@ async function fetchAndCacheBookmarks(skipExternalFetch: boolean): Promise<Unifi
     const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
     if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
       console.log(`${LOG_PREFIX} Loaded ${bookmarks.length} bookmarks from S3`);
+      
+      // Debug: Check if CLI bookmark has content on server side
+      const cliBookmark = bookmarks.find(b => b.id === 'yz7g8v8vzprsd2bm1w1cjc4y');
+      if (cliBookmark) {
+        console.log(`[BookmarksServer] CLI bookmark content exists:`, {
+          hasContent: !!cliBookmark.content,
+          hasImageAssetId: !!cliBookmark.content?.imageAssetId,
+          imageAssetId: cliBookmark.content?.imageAssetId,
+          contentKeys: cliBookmark.content ? Object.keys(cliBookmark.content) : []
+        });
+      }
+      
       return bookmarks;
     }
   } catch (e: unknown) {

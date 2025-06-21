@@ -102,6 +102,7 @@ export async function BookmarksServer({
     dateBookmarked: bookmark.dateBookmarked,
     dateCreated: bookmark.dateCreated,
     dateUpdated: bookmark.dateUpdated,
+    content: bookmark.content, // 🎯 CRITICAL: Include content field with Karakeep assets
     logoData: bookmark.logoData
       ? {
           url: bookmark.logoData.url,
