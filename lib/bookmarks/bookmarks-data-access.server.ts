@@ -27,6 +27,11 @@ let lockCleanupInterval: NodeJS.Timeout | null = null;
 let inFlightGetPromise: Promise<UnifiedBookmark[]> | null = null;
 let inFlightRefreshPromise: Promise<UnifiedBookmark[] | null> | null = null;
 
+// Type guard for S3 errors
+const isS3Error = (err: unknown): err is { $metadata?: { httpStatusCode?: number } } => {
+  return typeof err === 'object' && err !== null && '$metadata' in err;
+};
+
 // S3-based distributed lock functions
 async function acquireDistributedLock(lockKey: string, ttlMs: number): Promise<boolean> {
   const lockEntry: DistributedLockEntry = {
@@ -39,8 +44,7 @@ async function acquireDistributedLock(lockKey: string, ttlMs: number): Promise<b
     console.log(`${LOG_PREFIX} Distributed lock acquired atomically by ${INSTANCE_ID}`);
     return true;
   } catch (e: unknown) {
-    const error = e as { $metadata?: { httpStatusCode?: number } };
-    if (error?.$metadata?.httpStatusCode === 412) {
+    if (isS3Error(e) && e.$metadata?.httpStatusCode === 412) {
       // Precondition Failed - lock exists
       try {
         const existingLock = await readJsonS3<DistributedLockEntry>(lockKey);
@@ -70,8 +74,7 @@ async function releaseDistributedLock(lockKey: string, forceRelease = false): Pr
       console.log(`${LOG_PREFIX} Distributed lock released ${forceRelease ? "(forced)" : ""} by ${INSTANCE_ID}`);
     }
   } catch (e: unknown) {
-    const error = e as { $metadata?: { httpStatusCode?: number } };
-    if (error?.$metadata?.httpStatusCode !== 404) {
+    if (!isS3Error(e) || e.$metadata?.httpStatusCode !== 404) {
       console.error(`${LOG_PREFIX} Error during distributed lock release:`, String(e));
     }
   }
@@ -86,8 +89,7 @@ async function cleanupStaleLocks(): Promise<void> {
       }
     }
   } catch (e: unknown) {
-    const error = e as { $metadata?: { httpStatusCode?: number } };
-    if (error?.$metadata?.httpStatusCode !== 404) {
+    if (!isS3Error(e) || e.$metadata?.httpStatusCode !== 404) {
       console.debug(`${LOG_PREFIX} Error checking for stale locks:`, String(e));
     }
   }
@@ -298,8 +300,7 @@ async function fetchAndCacheBookmarks(skipExternalFetch: boolean): Promise<Unifi
       return bookmarks;
     }
   } catch (e: unknown) {
-    const error = e as { $metadata?: { httpStatusCode?: number } };
-    if (error?.$metadata?.httpStatusCode !== 404) {
+    if (!isS3Error(e) || e.$metadata?.httpStatusCode !== 404) {
       console.error(`${LOG_PREFIX} Error reading bookmarks file:`, String(e));
     }
   }
@@ -321,8 +322,7 @@ export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookm
     const pageData = await readJsonS3<UnifiedBookmark[]>(pageKey);
     return pageData ?? [];
   } catch (error) {
-    const e = error as { $metadata?: { httpStatusCode?: number } };
-    if (e?.$metadata?.httpStatusCode === 404) {
+    if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) {
       // Page doesn't exist - normal for pagination
       return [];
     }
