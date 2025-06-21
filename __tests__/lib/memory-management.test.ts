@@ -366,6 +366,10 @@ describe("MemoryHealthMonitor", () => {
 
   describe("Emergency Cleanup", () => {
     it("should perform emergency cleanup", async () => {
+      // Allow console output for this specific test
+      const originalEnv = process.env.ALLOW_MEMORY_TEST_LOGS;
+      process.env.ALLOW_MEMORY_TEST_LOGS = "true";
+
       const consoleSpy = jest.spyOn(console, "warn").mockImplementation();
 
       await monitor.emergencyCleanup();
@@ -373,6 +377,13 @@ describe("MemoryHealthMonitor", () => {
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Starting emergency memory cleanup"));
 
       consoleSpy.mockRestore();
+
+      // Restore original environment
+      if (originalEnv === undefined) {
+        delete process.env.ALLOW_MEMORY_TEST_LOGS;
+      } else {
+        process.env.ALLOW_MEMORY_TEST_LOGS = originalEnv;
+      }
     });
 
     it("should handle cleanup errors gracefully", async () => {
