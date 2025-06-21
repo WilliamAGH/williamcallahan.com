@@ -82,11 +82,11 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   // Priority: Karakeep imageAssetId > S3 CDN URLs > imageUrl > ogImage > screenshots > favicon
   // Use direct URLs when possible, only fall back to /api/og-image for external fetching
   const getDisplayImageUrl = () => {
-    // PRIORITY 1: Karakeep imageAssetId (banner) - DIRECT CDN URL
+    // PRIORITY 1: Karakeep imageAssetId (banner) - CDN in production, API proxy in dev
     if (content?.imageAssetId) {
       console.log(`[BookmarkCard] 🎯 USING DIRECT KARAKEEP BANNER: ${content.imageAssetId} for bookmark: ${id}`);
       const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
-      if (cdnUrl) {
+      if (cdnUrl && process.env.NODE_ENV === "production") {
         return `${cdnUrl}/images/${content.imageAssetId}`;
       }
       return `/api/assets/${content.imageAssetId}`;
@@ -146,11 +146,11 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       return `/api/og-image?url=${encodeURIComponent(ogImage)}&bookmarkId=${encodeURIComponent(id)}`;
     }
 
-    // PRIORITY 5: Screenshot fallback - DIRECT CDN URL
+    // PRIORITY 5: Screenshot fallback - CDN in production, API proxy in dev
     if (content?.screenshotAssetId) {
       console.log(`[BookmarkCard] Using DIRECT screenshot: ${content.screenshotAssetId}`);
       const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
-      if (cdnUrl) {
+      if (cdnUrl && process.env.NODE_ENV === "production") {
         return `${cdnUrl}/images/${content.screenshotAssetId}`;
       }
       return `/api/assets/${content.screenshotAssetId}`;
