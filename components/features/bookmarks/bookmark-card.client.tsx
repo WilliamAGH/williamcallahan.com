@@ -125,14 +125,14 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
         return ogImage;
       }
 
-      // Try to construct S3 URL for this OpenGraph image first, then fall back to API
+      // Try to construct S3 URL for this OpenGraph image in production only
       const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
-      if (s3CdnUrl && ogImage.startsWith("http") && !attemptedDirectS3) {
+      if (s3CdnUrl && process.env.NODE_ENV === "production" && ogImage.startsWith("http") && !attemptedDirectS3) {
         try {
           const domain = new URL(ogImage).hostname;
           const s3Key = `images/opengraph/${domain}/${ogImage.replace(/[^a-zA-Z0-9.-]/g, "_")}.webp`;
           const directS3Url = `${s3CdnUrl}/${s3Key}`;
-          console.log(`[BookmarkCard] Trying DIRECT S3 URL: ${directS3Url}`);
+          console.log(`[BookmarkCard] Trying DIRECT S3 URL (production): ${directS3Url}`);
           return directS3Url;
         } catch (urlError) {
           console.warn(`[BookmarkCard] Invalid ogImage URL: ${ogImage}`, urlError);

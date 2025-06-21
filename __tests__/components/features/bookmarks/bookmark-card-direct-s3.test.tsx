@@ -12,6 +12,7 @@ beforeEach(() => {
   process.env = {
     ...originalEnv,
     NEXT_PUBLIC_S3_CDN_URL: "https://s3-storage.callahan.cloud",
+    NODE_ENV: "production", // Test production behavior by default
   };
 });
 
@@ -145,7 +146,7 @@ describe("BookmarkCard Direct S3 CDN Usage Tests", () => {
     /**
      * @description Test the complete priority hierarchy
      */
-    it("should follow correct priority: Karakeep assets > S3 URLs > direct URLs > og-image API", () => {
+    it("should follow correct priority in production: Karakeep assets > S3 URLs > direct URLs > og-image API", () => {
       const testCases = [
         {
           name: "Karakeep asset (highest priority)",
@@ -213,6 +214,39 @@ describe("BookmarkCard Direct S3 CDN Usage Tests", () => {
         expect(result).toBe(expected);
         console.log(`✓ ${name}: ${result}`);
       });
+    });
+
+    /**
+     * @description Test development behavior uses API proxy instead of direct S3 URLs
+     */
+    it("should use API proxy in development instead of direct S3 URLs", () => {
+      // Set development environment
+      process.env.NODE_ENV = "development";
+
+      const mockBookmark = {
+        id: "test-dev-1",
+        content: {
+          imageAssetId: "dev-asset-123",
+        },
+      };
+
+      // Simulate getDisplayImageUrl logic for development
+      const getDisplayImageUrl = () => {
+        if (mockBookmark.content?.imageAssetId) {
+          const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
+          if (cdnUrl && process.env.NODE_ENV === "production") {
+            return `${cdnUrl}/images/${mockBookmark.content.imageAssetId}`;
+          }
+          return `/api/assets/${mockBookmark.content.imageAssetId}`;
+        }
+        return null;
+      };
+
+      const result = getDisplayImageUrl();
+
+      expect(result).toBe("/api/assets/dev-asset-123");
+      expect(result).not.toContain("s3-storage.callahan.cloud");
+      expect(result).toContain("/api/assets/");
     });
   });
 });
