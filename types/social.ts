@@ -6,8 +6,7 @@
  *
  * @see types/ui/social.ts for the UI component props (e.g., SocialIcon component)
  */
-import type { z } from "zod";
-import type { SocialLinkSchema } from "@/lib/validators/social";
+import { z } from "zod";
 
 /**
  * Social media platform constants.
@@ -22,6 +21,17 @@ export const SOCIAL_PLATFORMS = {
   DISCORD: "Discord",
   BLUESKY: "Bluesky",
 } as const;
+
+// Zod schemas moved from lib/validators/social.ts
+export const SocialLinkSchema = z.object({
+  platform: z.string().min(1, "Platform name cannot be empty."),
+  href: z.string().url("Invalid URL format."),
+  label: z.string().min(1, "Label cannot be empty."),
+  icon: z.any().optional(), // for React components
+  emphasized: z.boolean().optional(),
+});
+
+export const SocialLinksSchema = z.array(SocialLinkSchema);
 
 /**
  * Represents a single social media link.

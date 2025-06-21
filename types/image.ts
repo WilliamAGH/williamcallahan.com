@@ -67,6 +67,12 @@ export interface ImageServiceOptions {
   quality?: number;
   format?: "jpeg" | "jpg" | "png" | "webp" | "avif" | "gif";
   width?: number;
+  /**
+   * Logical grouping for the image (e.g. 'opengraph', 'logo').
+   * Used exclusively for deterministic S3 key generation.
+   * **Do not** rely on this for rendering decisions.
+   */
+  type?: string;
 }
 
 /**
