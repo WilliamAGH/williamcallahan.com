@@ -65,6 +65,11 @@ export type WithClassName<T = object> = T & { className?: string };
 /** Standard operation status for any async operation */
 export type OperationStatus = AsyncStatus;
 
+/** EventEmitter static interface to avoid direct node:events reference in Edge runtime */
+export interface EventEmitterStatic {
+  defaultMaxListeners: number;
+}
+
 /** Generic result wrapper for operations that can succeed or fail */
 export interface OperationResult<T = unknown, E = Error> {
   /** Whether operation succeeded */

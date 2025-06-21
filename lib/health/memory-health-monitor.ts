@@ -274,7 +274,10 @@ export class MemoryHealthMonitor extends EventEmitter {
    */
   async emergencyCleanup(): Promise<void> {
     try {
-      console.warn("[MemoryHealthMonitor] Starting emergency memory cleanup");
+      // Allow console output during specific memory management tests
+      if (process.env.NODE_ENV !== "test" || process.env.ALLOW_MEMORY_TEST_LOGS === "true") {
+        console.warn("[MemoryHealthMonitor] Starting emergency memory cleanup");
+      }
       ServerCacheInstance.clearAllCaches();
 
       // Simulate asynchronous cleanup step to satisfy linter (and preserve API)
