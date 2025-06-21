@@ -87,7 +87,8 @@ export async function GET(request: NextRequest) {
   );
 
   // 1. Check if it's an S3 key (contains '/' but no protocol)
-  if (input.includes("/") && !input.includes("://")) {
+  // Exclude /api/assets/ URLs which are internal API routes, not S3 keys
+  if (input.includes("/") && !input.includes("://") && !input.startsWith("/api/")) {
     console.log(`[OG-Image] Detected S3 key: ${input}`);
     // In development we may lack S3 credentials; optimistically redirect to CDN
     if (isDevelopment || (await checkS3Exists(input))) {
@@ -207,11 +208,106 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Try to get from our OpenGraph data access layer first
+    // Check if this URL looks like a direct image URL (common image extensions or image-related paths)
+    const imageService = getUnifiedImageService();
+    const urlPath = url.pathname.toLowerCase();
+    const isLikelyImage =
+      /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)(\?|$)/i.test(urlPath) || // Common image extensions
+      (url.searchParams.has("url") &&
+        /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)(\?|$)/i.test(url.searchParams.get("url") || "")) || // Proxy URLs with image extensions
+      urlPath.includes("/image") ||
+      urlPath.includes("/img") ||
+      urlPath.includes("/photo") || // Image-related paths
+      url.hostname.includes("imgur") ||
+      url.hostname.includes("cloudinary") ||
+      url.hostname.includes("unsplash"); // Known image hosts
+
+    if (isLikelyImage) {
+      console.log(`[OG-Image] Detected direct image URL, fetching directly: ${url.toString()}`);
+
+      const imageResult = await imageService.getImage(url.toString(), { type: "opengraph" });
+
+      // If we got a CDN URL, redirect to it
+      if (imageResult.cdnUrl && !imageResult.buffer) {
+        console.log(`[OG-Image] Found direct image in S3, redirecting to: ${imageResult.cdnUrl}`);
+        return NextResponse.redirect(imageResult.cdnUrl, { status: 301 });
+      }
+
+      // If we have a buffer, return it
+      if (imageResult.buffer) {
+        // Persist to S3 in background
+        scheduleImagePersistence(
+          url.toString(),
+          OPENGRAPH_IMAGES_S3_DIR,
+          "OG-Image-Direct",
+          bookmarkId || undefined,
+          url.toString(),
+        );
+
+        return new NextResponse(imageResult.buffer, {
+          headers: {
+            "Content-Type": imageResult.contentType,
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "X-Content-Source": "direct-image",
+          },
+        });
+      }
+
+      // If there was an error with direct fetch, fall through to OpenGraph extraction
+      if (imageResult.error) {
+        console.log(`[OG-Image] Direct image fetch failed (${imageResult.error}), trying OpenGraph extraction`);
+      }
+    }
+
+    // PRIORITY CHECK: If we have Karakeep banner assets, check them FIRST before OpenGraph
+    let fallbackImageData: unknown;
+    if (assetId || bookmarkId) {
+      // If we have an assetId directly, use it
+      if (assetId) {
+        console.log(`[OG-Image] Checking Karakeep assetId BEFORE OpenGraph: ${assetId}`);
+        const assetUrl = `/api/assets/${assetId}`;
+        return NextResponse.redirect(new URL(assetUrl, request.url).toString(), { status: 302 });
+      } else if (bookmarkId) {
+        // If we only have bookmarkId, try to get bookmark data and check Karakeep assets first
+        try {
+          const { readJsonS3 } = await import("@/lib/s3-utils");
+          const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
+
+          const bookmarksData = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+          if (bookmarksData && Array.isArray(bookmarksData)) {
+            const bookmark = bookmarksData.find((b) => b.id === bookmarkId);
+
+            if (bookmark) {
+              // PRIORITY: Karakeep bannerImage (imageAssetId) takes precedence over OpenGraph
+              if (bookmark.content?.imageAssetId) {
+                console.log(
+                  `[OG-Priority-KARAKEEP] 🎯 Found Karakeep bannerImage (imageAssetId), using INSTEAD of OpenGraph: ${bookmark.content.imageAssetId}`,
+                );
+                const assetUrl = `/api/assets/${bookmark.content.imageAssetId}`;
+                return NextResponse.redirect(new URL(assetUrl, request.url).toString(), { status: 302 });
+              }
+
+              fallbackImageData = {
+                imageUrl: bookmark.content?.imageUrl || undefined,
+                imageAssetId: bookmark.content?.imageAssetId || undefined,
+                screenshotAssetId: bookmark.content?.screenshotAssetId || undefined,
+              };
+              console.log(
+                `[OG-Image] No Karakeep bannerImage found, proceeding to OpenGraph with fallback data:`,
+                fallbackImageData,
+              );
+            }
+          }
+        } catch (s3Error) {
+          console.error("[OG-Image] Failed to read bookmarks for Karakeep priority check:", s3Error);
+        }
+      }
+    }
+
+    // Try to get from our OpenGraph data access layer (only if no Karakeep banner found)
     // This will use memory cache → S3 → external fetch
     try {
-      const ogData = await getOpenGraphData(url.toString());
-      const imageService = getUnifiedImageService();
+      const ogData = await getOpenGraphData(url.toString(), false, undefined, fallbackImageData);
 
       if (ogData.imageUrl && typeof ogData.imageUrl === "string") {
         // If it's an S3 key, redirect to CDN
@@ -222,9 +318,9 @@ export async function GET(request: NextRequest) {
         }
 
         // If it's an external URL, fetch using UnifiedImageService
-        console.log(`[OG-Image] Fetching external image: ${ogData.imageUrl}`);
+        console.log(`[OG-Image] Fetching external OG image: ${ogData.imageUrl}`);
 
-        const imageResult = await imageService.getImage(ogData.imageUrl);
+        const imageResult = await imageService.getImage(ogData.imageUrl, { type: "opengraph" });
 
         // If we got a CDN URL, redirect to it
         if (imageResult.cdnUrl && !imageResult.buffer) {
@@ -264,10 +360,10 @@ export async function GET(request: NextRequest) {
     }
 
     // If OpenGraph fetch failed or no image found, try direct fetch using UnifiedImageService
-    console.log(`[OG-Image] Attempting direct fetch: ${url.toString()}`);
+    // (This handles cases where the URL wasn't detected as a direct image but might still be one)
+    console.log(`[OG-Image] Attempting fallback direct fetch: ${url.toString()}`);
 
-    const imageService = getUnifiedImageService();
-    const imageResult = await imageService.getImage(url.toString());
+    const imageResult = await imageService.getImage(url.toString(), { type: "opengraph" });
 
     // If we got a CDN URL, redirect to it
     if (imageResult.cdnUrl && !imageResult.buffer) {
@@ -316,16 +412,24 @@ export async function GET(request: NextRequest) {
       console.error("[OG-Image] Unexpected error processing URL:", error);
     }
 
+    // FAILURE LEVELS - All 8 priority levels failed, moving to failures
+    console.log(`[OG-FAILURE] 🚨 ALL PRIORITY LEVELS FAILED for: ${input} - ${errorMessage}`);
+    console.log(`[OG-FAILURE] 📉 Moving to failure fallback chain (logos/placeholders)`);
+
     // Try domain-specific fallback first
     const domainType = getDomainType(input);
+    console.log(`[OG-FAILURE-9] 🔍 Checking domain-specific image fallback for: ${domainType}`);
     let fallbackImage = getDomainFallbackImage(domainType);
 
     // If no domain-specific fallback, use contextual fallback
     if (fallbackImage === "/images/opengraph-placeholder.png") {
+      console.log(`[OG-FAILURE-9] ❌ No domain-specific fallback, using contextual fallback`);
       fallbackImage = getContextualFallbackImage(input, errorMessage);
+    } else {
+      console.log(`[OG-FAILURE-9] ✅ Using domain-specific fallback: ${fallbackImage}`);
     }
 
-    console.log(`[OG-Image] Returning fallback for ${domainType}: ${fallbackImage}`);
+    console.log(`[OG-FAILURE-FINAL] 🔴 RETURNING FALLBACK IMAGE for ${domainType}: ${fallbackImage}`);
 
     // Ensure the fallback redirect always works by using absolute URL construction
     const fallbackUrl = new URL(fallbackImage, request.url);
