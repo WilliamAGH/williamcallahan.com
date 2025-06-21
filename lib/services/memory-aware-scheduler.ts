@@ -251,10 +251,8 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
           const retryDelay = this.backoffBase * 2 ** request.retries;
 
           setTimeout(() => {
-            if (request) {
-              const insertIndex = this.findInsertionIndex(request.priority);
-              this.requestQueue.splice(insertIndex, 0, request);
-            }
+            const insertIndex = this.findInsertionIndex(request.priority);
+            this.requestQueue.splice(insertIndex, 0, request);
           }, retryDelay);
 
           this.emit("request-retry", {
