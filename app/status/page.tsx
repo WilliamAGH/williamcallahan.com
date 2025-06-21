@@ -1,11 +1,11 @@
 import { type NextPage } from "next";
 import { Suspense } from "react";
-import { type HealthMetrics } from "@/types/health";
+import { type HealthMetrics, HealthMetricsResponseSchema } from "@/types/health";
+import { getBaseUrl } from "@/lib/utils/get-base-url";
 
 async function getStatusData(): Promise<HealthMetrics> {
-  // In a real-world app, you'd fetch from the absolute URL
-  // For this example, we'll assume it's running on the same host.
-  const res = await fetch("http://localhost:3000/api/health/metrics", {
+  const baseUrl = getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/health/metrics`, {
     cache: "no-store", // Always fetch the latest data
   });
 
@@ -14,7 +14,8 @@ async function getStatusData(): Promise<HealthMetrics> {
     throw new Error("Failed to fetch status data");
   }
 
-  return res.json() as Promise<HealthMetrics>;
+  const data: unknown = await res.json();
+  return HealthMetricsResponseSchema.parse(data);
 }
 
 const StatusPage: NextPage = async () => {
