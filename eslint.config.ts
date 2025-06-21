@@ -16,17 +16,19 @@ import tseslint from "typescript-eslint";
 import type { Rule } from "eslint";
 
 /**
- * Global map tracking first occurrence of every type name seen while linting.
- * Key: type/interface/enum name  →  Value: "filename:line" where first defined.
- */
-const duplicateTypeTracker = new Map<string, string>();
-
-/**
  * ESLint rule to disallow duplicate TypeScript type definitions (type aliases, interfaces, enums)
  * anywhere in the repository. Types must already live under `types/` or declaration files as
  * enforced by the existing `no-restricted-syntax` rule – this rule focuses solely on *uniqueness*.
+ * 
+ * KNOWN LIMITATION: This rule uses a module-level Map that persists across lint runs,
+ * which can cause false positives in watch mode or when files are renamed/deleted.
+ * This is a fundamental limitation of ESLint's architecture for cross-file validation.
+ * For production use, consider:
+ * 1. TypeScript's built-in duplicate identifier detection
+ * 2. A dedicated build-time script using ts-morph or similar
+ * 3. Running this rule only in CI/CD, not in watch mode
  */
-const noDuplicateTypesRule: Rule.RuleModule = {
+const noDuplicateTypesRule: Rule.RuleModule & { duplicateTypeTracker?: Map<string, string> } = {
   meta: {
     type: "problem",
     docs: {
@@ -36,6 +38,14 @@ const noDuplicateTypesRule: Rule.RuleModule = {
     schema: [], // no options
   },
   create(context) {
+    // Create a static map that persists across files in a single lint run
+    // This allows cross-file duplicate detection within a full project lint
+    // LIMITATION: In watch mode or incremental linting, this may produce false positives
+    // as the map persists across multiple lint runs. For production use, consider
+    // TypeScript's built-in checks or a dedicated build script.
+    const duplicateTypeTracker = noDuplicateTypesRule.duplicateTypeTracker ||
+      (noDuplicateTypesRule.duplicateTypeTracker = new Map<string, string>());
+
     /** Records the location of first declaration and reports on duplicates */
     const record = (idNode: any) => {
       const name: string = idNode.name;
