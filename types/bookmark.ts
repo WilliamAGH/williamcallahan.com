@@ -1,6 +1,5 @@
 import { z } from "zod";
 import type { ExtendedError } from "./error";
-import type { LogoData } from "./logo";
 
 /** Bookmarks API Types */
 
@@ -129,6 +128,14 @@ export type BookmarksApiResponse = z.infer<typeof bookmarksApiResponseSchema>;
 const urlSchema = z.string().url();
 const stringOrNullSchema = z.string().nullable().optional();
 
+// Logo data schema for validating logo data objects
+export const logoDataSchema = z.object({
+  url: z.string().url(),
+  alt: z.string().nullable().optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+});
+
 // Base bookmark schema with common fields
 const baseBookmarkSchema = z.object({
   id: z.string(),
@@ -155,7 +162,7 @@ export type RawBookmark = z.infer<typeof rawBookmarkSchema>;
 // Client bookmark with enriched data
 export const clientBookmarkSchema = baseBookmarkSchema.extend({
   tags: z.array(bookmarkTagSchema).default([]),
-  logoData: z.custom<LogoData>().optional(),
+  logoData: logoDataSchema.optional(),
   // OpenGraph data (optional, from validated schemas)
   ogTitle: stringOrNullSchema,
   ogDescription: stringOrNullSchema,
@@ -254,13 +261,3 @@ export const BookmarksApiResponseSchema = z.object({
 });
 
 export { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
-
-// Standalone schema for validating logo data objects
-export const logoDataSchema = z.object({
-  url: z.string().url(),
-  alt: z.string().nullable().optional(),
-  width: z.number().int().positive().optional(),
-  height: z.number().int().positive().optional(),
-});
-
-// LogoData is already imported above for internal use. Other modules should import it from "types/logo" directly to avoid duplicate re-exports.
