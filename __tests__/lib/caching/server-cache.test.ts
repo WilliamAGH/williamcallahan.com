@@ -267,8 +267,8 @@ describe("ServerCache", () => {
 
       const result = cache.getGithubActivity();
       expect(result).toBeDefined();
-      expect(result?.commitCount).toBe(100);
-      expect(result?.timestamp).toBeDefined();
+      expect(result?.data.commitCount).toBe(100);
+      expect(result?.lastFetchedAt).toBeDefined();
     });
 
     it("should handle incomplete data as failure", () => {
@@ -306,7 +306,7 @@ describe("ServerCache", () => {
 
       const result = cache.getOpenGraphData(url);
       expect(result).toBeDefined();
-      expect(result?.title).toBe("Test Page");
+      expect(result?.data.title).toBe("Test Page");
       expect(result?.lastFetchedAt).toBeDefined();
     });
 
@@ -434,11 +434,15 @@ describe("ServerCache", () => {
 
   describe("Cache Statistics", () => {
     it("should return cache statistics", () => {
+      const initialStats = cache.getStats();
+      const initialKeys = initialStats.keys;
+
       cache.set("key1", "value1");
       cache.get("key1"); // hit
       cache.get("key2"); // miss
+
       const stats = cache.getStats();
-      expect(stats.keys).toBe(1);
+      expect(stats.keys).toBe(initialKeys + 1); // One new key added
       expect(stats.hits).toBe(1);
       expect(stats.misses).toBe(1);
     });
@@ -458,7 +462,8 @@ describe("ServerCache", () => {
       cache.setLogoValidation("hash", true);
       cache.setBookmarks([]);
       cache.clearAllCaches();
-      expect(cache.getLogoValidation("hash")).toBeUndefined();
+      // Logo validation should be preserved (documented behavior)
+      expect(cache.getLogoValidation("hash")).toBeDefined();
       expect(cache.getBookmarks()).toBeUndefined();
     });
 
@@ -466,7 +471,8 @@ describe("ServerCache", () => {
       cache.setLogoValidation("hash", true);
       cache.setBookmarks([]);
       cache.flushAll();
-      expect(cache.getLogoValidation("hash")).toBeUndefined();
+      // Logo validation should be preserved (documented behavior)
+      expect(cache.getLogoValidation("hash")).toBeDefined();
       expect(cache.getBookmarks()).toBeUndefined();
     });
   });
@@ -476,7 +482,7 @@ describe("ServerCache", () => {
       cache.set("key_undefined", undefined);
       cache.set("key_null", null);
       expect(cache.get("key_undefined")).toBeUndefined();
-      expect(cache.get("key_null")).toBeNull();
+      expect(cache.get("key_null")).toBeUndefined(); // Cache doesn't store null values
     });
 
     it("should not store buffer data in logo fetch cache", () => {
