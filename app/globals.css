@@ -473,24 +473,31 @@ html[data-darkreader-mode] {
 }
 
 /* Resilient line clamping utilities for bookmark cards */
-.line-clamp-5-resilient {
+p.line-clamp-4-resilient {
   display: -webkit-box;
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   word-wrap: break-word;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   -webkit-hyphens: none;
   hyphens: none;
   line-height: 1.5;
 
   /* Fallback for browsers that don't support line-clamp */
-  max-height: calc(1.5em * 5); /* 5 lines at 1.5 line-height */
+  max-height: calc(1.5em * 4); /* 4 lines at 1.5 line-height */
 
   /* Ensure graceful breaking at word boundaries */
   word-break: normal;
 
-  /* Prevent orphaned words on last line */
-  text-align: justify;
-  text-align-last: left;
+  /* Natural text alignment without justification - all screen sizes */
+  text-align: left;
+}
+
+/* Mobile-specific override to ensure no text justification */
+@media (max-width: 640px) {
+  p.line-clamp-4-resilient {
+    text-align: left;
+    text-align-last: left;
+  }
 }

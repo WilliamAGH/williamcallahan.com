@@ -22,8 +22,7 @@ import { useBookmarksPagination } from "@/hooks/use-bookmarks-pagination";
 import { PaginationControl } from "@/components/ui/pagination-control.client";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel.client";
-import { bookmarkListResponseSchema, type BookmarkListResponse } from "@/lib/schemas/bookmarks";
-import type { SafeParseReturnType } from "zod";
+import { bookmarkListResponseSchema } from "@/types";
 
 import type { BookmarksWithPaginationClientProps, UseBookmarksPaginationReturn } from "@/types";
 
@@ -139,8 +138,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         }
 
         const json: unknown = await response.json();
-        const validation: SafeParseReturnType<unknown, BookmarkListResponse> =
-          bookmarkListResponseSchema.safeParse(json);
+        const validation = bookmarkListResponseSchema.safeParse(json);
 
         if (!validation.success) {
           console.warn("Full-dataset bookmark search validation failed", validation.error);
@@ -574,9 +572,20 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
               {Array.isArray(displayBookmarks) &&
                 displayBookmarks
                   .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                  .map((bookmark: UnifiedBookmark) => (
-                    <BookmarkCardClient key={bookmark.id} {...bookmark} shareUrl={shareUrls.get(bookmark.id)} />
-                  ))}
+                  .map((bookmark: UnifiedBookmark) => {
+                    // Debug: Log bookmark data for CLI bookmark
+                    if (bookmark.id === 'yz7g8v8vzprsd2bm1w1cjc4y') {
+                      console.log('[BookmarksWithPagination] CLI bookmark data:', {
+                        id: bookmark.id,
+                        hasContent: !!bookmark.content,
+                        hasImageAssetId: !!bookmark.content?.imageAssetId,
+                        hasImageUrl: !!bookmark.content?.imageUrl,
+                        hasScreenshotAssetId: !!bookmark.content?.screenshotAssetId,
+                        content: bookmark.content
+                      });
+                    }
+                    return <BookmarkCardClient key={bookmark.id} {...bookmark} shareUrl={shareUrls.get(bookmark.id)} />;
+                  })}
             </div>
 
             {/* Infinite scroll sentinel */}

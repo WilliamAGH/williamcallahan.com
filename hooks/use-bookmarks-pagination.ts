@@ -2,9 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import useSWRInfinite from "swr/infinite";
 import type { BookmarksResponse, UnifiedBookmark, RawBookmark } from "@/types/bookmark";
 import type { UseBookmarksPaginationOptions, UseBookmarksPaginationReturn } from "@/types/features/bookmarks";
-import { bookmarkListResponseSchema as rawBookmarkListSchema } from "@/lib/schemas/bookmarks";
-import { clientBookmarkSchema } from "@/types/bookmark";
-import { z } from "zod";
+import { bookmarkListResponseSchema as rawBookmarkListSchema } from "@/types/bookmark";
 import { convertRawBookmarksToUnified } from "@/lib/bookmarks/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,12 +37,8 @@ const fetcher = async (url: string): Promise<BookmarksResponse> => {
     };
   };
 
-  // Build a schema that accepts either RawBookmark[] or ClientBookmark[]
-  const flexibleListSchema = rawBookmarkListSchema.extend({
-    bookmarks: z.array(z.union([rawBookmarkListSchema.shape.bookmarks.element, clientBookmarkSchema])),
-  });
-
-  const validation = flexibleListSchema.safeParse({
+  // Validate the basic structure using the existing schema
+  const validation = rawBookmarkListSchema.safeParse({
     bookmarks: apiResponse.data,
   });
 

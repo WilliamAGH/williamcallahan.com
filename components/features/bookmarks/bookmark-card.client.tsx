@@ -23,6 +23,7 @@
 "use client";
 
 import { formatTagDisplay, normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
+import { cn } from "@/lib/utils";
 import { Calendar, ExternalLink as LucideExternalLinkIcon } from "lucide-react";
 import Link from "next/link";
 import { type JSX, useEffect, useState } from "react";
@@ -48,7 +49,7 @@ import type { BookmarkCardClientProps } from "@/types";
  */
 
 export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element {
-  const { id, url, title, description, tags, ogImage, dateBookmarked, shareUrl: initialShareUrl } = props;
+  const { id, url, title, description, tags, ogImage, content, dateBookmarked, shareUrl: initialShareUrl } = props;
   const [mounted, setMounted] = useState(false);
   const [imageError, setImageError] = useState(false);
   const shareUrl = initialShareUrl;
@@ -77,15 +78,43 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   const formattedPublishDate = mounted && displayPublishDate ? formatDate(displayPublishDate) : null;
 
   // Handle image sources with multiple fallbacks
-  // Priority: ogImage > logo
+  // Priority: Karakeep imageAssetId > imageUrl > ogImage > screenshots > favicon
   // All images go through the unified /api/og-image route
   const getDisplayImageUrl = () => {
-    // Always include bookmarkId for better fallbacks
+    // Always include bookmarkId for better fallbacks and asset access
     const baseParams = `&bookmarkId=${encodeURIComponent(id)}`;
 
-    // If we have an ogImage (could be S3 key or URL)
+    // PRIORITY 1: Karakeep imageAssetId (banner) - HIGHEST QUALITY
+    if (content?.imageAssetId) {
+      console.log(`[BookmarkCard] 🎯 USING KARAKEEP BANNER: ${content.imageAssetId} for bookmark: ${id}`);
+      return `/api/og-image?url=${encodeURIComponent(content.imageAssetId)}${baseParams}`;
+    }
+
+    // Debug: Log what we have for this bookmark
+    console.log(`[BookmarkCard] DEBUG for ${id}:`, {
+      hasImageAssetId: !!content?.imageAssetId,
+      hasImageUrl: !!content?.imageUrl,
+      hasOgImage: !!ogImage,
+      hasScreenshot: !!content?.screenshotAssetId,
+      content,
+    });
+
+    // PRIORITY 2: Karakeep imageUrl (direct image)
+    if (content?.imageUrl) {
+      console.log(`[BookmarkCard] Using Karakeep imageUrl: ${content.imageUrl}`);
+      return `/api/og-image?url=${encodeURIComponent(content.imageUrl)}${baseParams}`;
+    }
+
+    // PRIORITY 3: OpenGraph image (only if no Karakeep images)
     if (ogImage) {
+      console.log(`[BookmarkCard] Using OpenGraph image: ${ogImage}`);
       return `/api/og-image?url=${encodeURIComponent(ogImage)}${baseParams}`;
+    }
+
+    // PRIORITY 4: Screenshot fallback
+    if (content?.screenshotAssetId) {
+      console.log(`[BookmarkCard] Using screenshot fallback: ${content.screenshotAssetId}`);
+      return `/api/og-image?url=${encodeURIComponent(content.screenshotAssetId)}${baseParams}`;
     }
 
     return null;
@@ -118,7 +147,10 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
 
   return (
     <div
-      className={`relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transform transition-all duration-200 ${mounted ? "hover:scale-[1.005]" : ""}`}
+      className={cn(
+        "relative flex flex-col bg-white/50 dark:bg-gray-800/50 backdrop-blur-lg ring-0 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transform transition-all duration-200",
+        mounted && "hover:scale-[1.005]",
+      )}
     >
       {/* Image Section with domain overlay */}
       <ExternalLink
@@ -178,7 +210,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
         </ExternalLink>
 
         {/* Description */}
-        <p className="flex-1 text-gray-700 dark:text-gray-300 text-base line-clamp-5-resilient">{description}</p>
+        <p className="flex-1 text-gray-700 dark:text-gray-300 text-base line-clamp-4-resilient">{description}</p>
 
         {/* Meta Information */}
         <div className="mt-auto space-y-2 text-sm text-gray-500 dark:text-gray-400">
@@ -210,7 +242,10 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
               return (
                 <Link key={raw} href={`/bookmarks/tags/${tagToSlug(raw)}`} className="inline-block">
                   <span
-                    className={`inline-block px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-medium transition-colors hover:bg-indigo-200 dark:hover:bg-indigo-800/60 ${mounted ? "transform hover:scale-102" : ""}`}
+                    className={cn(
+                      "inline-block px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-medium transition-colors hover:bg-indigo-200 dark:hover:bg-indigo-800/60",
+                      mounted && "transform hover:scale-102",
+                    )}
                   >
                     {label}
                   </span>
