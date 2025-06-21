@@ -30,43 +30,6 @@ export interface BookmarkError extends ExtendedError {
   lastFetchedTimestamp?: number;
 }
 
-export interface UnifiedBookmark {
-  id: string;
-  url: string;
-  title: string;
-  description: string;
-  tags: BookmarkTag[] | string[];
-  ogImage?: string;
-  dateBookmarked: string;
-  datePublished?: string | null;
-  dateCreated?: string;
-  dateUpdated?: string;
-  modifiedAt?: string;
-  archived?: boolean;
-  taggingStatus?: string;
-  note?: string | null;
-  summary?: string | null;
-  content?: BookmarkContent;
-  assets?: BookmarkAsset[];
-  logoData?: {
-    url: string;
-    alt: string | null | undefined;
-    width?: number;
-    height?: number;
-  } | null;
-  readingTime?: number;
-  wordCount?: number;
-  ogTitle?: string | null;
-  ogDescription?: string | null;
-  ogUrl?: string | null;
-  domain?: string;
-  sourceUpdatedAt: string;
-  ogImageLastFetchedAt?: string;
-  ogImageEtag?: string;
-  isPrivate?: boolean;
-  isFavorite?: boolean;
-}
-
 // Use a single tag schema with optional fields
 export const rawApiBookmarkTagSchema = bookmarkTagSchema
   .extend({
@@ -135,6 +98,41 @@ export const logoDataSchema = z.object({
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
 });
+
+// UnifiedBookmark schema - provides runtime validation for the most comprehensive bookmark type
+export const unifiedBookmarkSchema = z.object({
+  id: z.string(),
+  url: z.string().url(),
+  title: z.string().min(1),
+  description: z.string(),
+  tags: z.union([z.array(bookmarkTagSchema), z.array(z.string())]),
+  ogImage: z.string().url().optional(),
+  dateBookmarked: z.string(),
+  datePublished: z.string().nullable().optional(),
+  dateCreated: z.string().optional(),
+  dateUpdated: z.string().optional(),
+  modifiedAt: z.string().optional(),
+  archived: z.boolean().optional(),
+  taggingStatus: z.string().optional(),
+  note: z.string().nullable().optional(),
+  summary: z.string().nullable().optional(),
+  content: bookmarkContentSchema.optional(),
+  assets: z.array(bookmarkAssetSchema).optional(),
+  logoData: logoDataSchema.nullable().optional(),
+  readingTime: z.number().int().min(0).optional(),
+  wordCount: z.number().int().min(0).optional(),
+  ogTitle: z.string().nullable().optional(),
+  ogDescription: z.string().nullable().optional(),
+  ogUrl: z.string().nullable().optional(),
+  domain: z.string().optional(),
+  sourceUpdatedAt: z.string(),
+  ogImageLastFetchedAt: z.string().optional(),
+  ogImageEtag: z.string().optional(),
+  isPrivate: z.boolean().optional(),
+  isFavorite: z.boolean().optional(),
+});
+
+export type UnifiedBookmark = z.infer<typeof unifiedBookmarkSchema>;
 
 // Base bookmark schema with common fields
 const baseBookmarkSchema = z.object({
