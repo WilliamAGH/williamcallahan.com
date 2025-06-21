@@ -1,9 +1,10 @@
 import * as Sentry from "@sentry/nextjs";
+import type { EventEmitterStatic } from "@/types/lib";
 // Centralised, non-blocking bookmark warm-up logic
 // import { scheduleBackgroundBookmarkPreload } from "./lib/bookmarks/bookmarks-preloader.server";
 
 // Lazy import EventEmitter to avoid Edge/browser bundling issues
-let EventEmitter: typeof import("node:events").EventEmitter | undefined;
+let EventEmitter: EventEmitterStatic | undefined;
 
 export async function register() {
   const releaseVersion = process.env.NEXT_PUBLIC_APP_VERSION || process.env.SENTRY_RELEASE;
@@ -18,7 +19,13 @@ export async function register() {
     return;
   }
 
-  if (isNodeRuntime && !isBuildPhase) {
+  // Skip all Node.js specific initialization in Edge runtime
+  if (process.env.NEXT_RUNTIME === "edge") {
+    console.log("[Instrumentation] Edge runtime detected - skipping Node.js specific initialization");
+    return;
+  }
+
+  if (isNodeRuntime && typeof window === 'undefined') {
     // Configure Sharp memory settings before any usage
     import("sharp")
       .then((sharp) => {
@@ -38,22 +45,19 @@ export async function register() {
     // This replaces the deprecated mem-guard.
     import("@/lib/image-memory-manager");
 
-    // Import node:events directly - Next.js can handle this properly in Node.js runtime
-    try {
-      const nodeEvents = await import("node:events");
-      EventEmitter = nodeEvents.EventEmitter;
-    } catch (err) {
-      console.warn("[Instrumentation] Failed to import node:events:", err);
+    // Import node:events only in actual Node.js environment (not Edge runtime)
+    // Check for NEXT_RUNTIME explicitly to avoid Edge runtime issues
+    if (process.env.NEXT_RUNTIME === 'nodejs') {
+      try {
+        const nodeEvents = await import("node:events");
+        EventEmitter = nodeEvents.EventEmitter;
+        // This prevents the "MaxListenersExceededWarning" when processing bookmarks in batches
+        EventEmitter.defaultMaxListeners = 25;
+        console.log("[Instrumentation] EventEmitter loaded and max listeners set to 25.");
+      } catch (err) {
+        console.warn("[Instrumentation] Failed to import node:events or set max listeners:", err);
+      }
     }
-
-    // Increase the default max listeners to handle concurrent fetch operations
-    // This prevents the "MaxListenersExceededWarning" when processing bookmarks in batches
-    if (EventEmitter) {
-      EventEmitter.defaultMaxListeners = 25;
-    }
-
-    // Note: process.setMaxListeners is not available in Edge runtime
-    // EventEmitter.defaultMaxListeners should be sufficient
 
     // Only initialize Sentry in production to save memory in development
     if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
