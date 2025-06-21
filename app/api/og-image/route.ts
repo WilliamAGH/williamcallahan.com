@@ -55,6 +55,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), { status: 302 });
     }
 
+    // Check if it's a relative asset URL like /api/assets/{id}
+    if (url.startsWith("/api/assets/")) {
+      const assetId = url.replace("/api/assets/", "");
+      console.log(`[OG-Image] Detected relative asset URL, extracting ID: ${assetId}`);
+
+      // Validate it's a proper asset ID (36 character hex)
+      if (/^[a-f0-9]{36}$/.test(assetId)) {
+        const cdnUrl = process.env.S3_CDN_URL;
+        if (cdnUrl) {
+          const directUrl = `${cdnUrl}/images/${assetId}`;
+          return NextResponse.redirect(directUrl, { status: 302 });
+        }
+        return NextResponse.redirect(new URL(url, baseUrl).toString(), { status: 302 });
+      } else {
+        console.warn(`[OG-Image] Invalid asset ID format in URL: ${assetId}`);
+        const fallbackImage = getDomainFallbackImage("unknown");
+        return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), { status: 302 });
+      }
+    }
+
     // Check if it's a Karakeep asset ID (36 character hex)
     if (/^[a-f0-9]{36}$/.test(url)) {
       console.log(`[OG-Image] Detected Karakeep asset ID: ${url}`);
@@ -67,18 +87,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
     }
 
-    // More sophisticated URL validation
-    try {
-      new URL(url);
-    } catch (urlError) {
-      console.warn("[OG-Image] Invalid URL format:", url, urlError);
-      const fallbackImage = getDomainFallbackImage("unknown");
-      return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), {
-        status: 302,
-        headers: {
-          "Cache-Control": "public, max-age=86400",
-        },
-      });
+    // More sophisticated URL validation (skip for relative URLs we handle)
+    if (!url.startsWith("/")) {
+      try {
+        new URL(url);
+      } catch (urlError) {
+        console.warn("[OG-Image] Invalid URL format:", url, urlError);
+        const fallbackImage = getDomainFallbackImage("unknown");
+        return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), {
+          status: 302,
+          headers: {
+            "Cache-Control": "public, max-age=86400",
+          },
+        });
+      }
     }
 
     // Check if it's an S3 key (starts with s3:// or is a simple path)
