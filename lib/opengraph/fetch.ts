@@ -262,7 +262,7 @@ async function fetchExternalOpenGraph(
         siteName: null,
       };
 
-  const bestImageUrl = selectBestOpenGraphImage(validatedMetadata, finalUrl);
+  const bestImageUrl = selectBestOpenGraphImage(validatedMetadata);
 
   const result: OgResult = {
     url: finalUrl,

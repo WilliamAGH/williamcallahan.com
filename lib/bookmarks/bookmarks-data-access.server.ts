@@ -27,11 +27,6 @@ let lockCleanupInterval: NodeJS.Timeout | null = null;
 let inFlightGetPromise: Promise<UnifiedBookmark[]> | null = null;
 let inFlightRefreshPromise: Promise<UnifiedBookmark[] | null> | null = null;
 
-// Type guard for S3 errors
-const isS3Error = (err: unknown): err is { $metadata?: { httpStatusCode?: number } } => {
-  return typeof err === 'object' && err !== null && '$metadata' in err;
-};
-
 // S3-based distributed lock functions
 async function acquireDistributedLock(lockKey: string, ttlMs: number): Promise<boolean> {
   const lockEntry: DistributedLockEntry = {
@@ -288,18 +283,18 @@ async function fetchAndCacheBookmarks(skipExternalFetch: boolean): Promise<Unifi
     const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
     if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
       console.log(`${LOG_PREFIX} Loaded ${bookmarks.length} bookmarks from S3`);
-      
+
       // Debug: Check if CLI bookmark has content on server side
-      const cliBookmark = bookmarks.find(b => b.id === 'yz7g8v8vzprsd2bm1w1cjc4y');
+      const cliBookmark = bookmarks.find((b) => b.id === "yz7g8v8vzprsd2bm1w1cjc4y");
       if (cliBookmark) {
         console.log(`[BookmarksServer] CLI bookmark content exists:`, {
           hasContent: !!cliBookmark.content,
           hasImageAssetId: !!cliBookmark.content?.imageAssetId,
           imageAssetId: cliBookmark.content?.imageAssetId,
-          contentKeys: cliBookmark.content ? Object.keys(cliBookmark.content) : []
+          contentKeys: cliBookmark.content ? Object.keys(cliBookmark.content) : [],
         });
       }
-      
+
       return bookmarks;
     }
   } catch (e: unknown) {

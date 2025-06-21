@@ -26,10 +26,9 @@ import { isValidImageUrl } from "@/lib/utils/opengraph-utils";
  * 10. Standard favicon/icon (last resort)
  *
  * @param metadata - Sanitized metadata object
- * @param pageUrl - The page URL for resolving relative URLs
  * @returns The best available image URL or null
  */
-export function selectBestOpenGraphImage(metadata: Record<string, unknown>, pageUrl: string): string | null {
+export function selectBestOpenGraphImage(metadata: Record<string, unknown>): string | null {
   // Define priority order
   const imagePriority = [
     "profileImage", // Platform-specific (GitHub, Twitter, LinkedIn profile pics)
@@ -63,14 +62,25 @@ export function selectBestOpenGraphImage(metadata: Record<string, unknown>, page
       // Handle relative URLs
       if (imageUrl.startsWith("/") || imageUrl.startsWith("./")) {
         try {
-          const baseUrl = new URL(pageUrl);
+          // Always use the public site URL as the base for resolving relative image paths
+          // This prevents local/internal URLs (e.g., http://localhost:3000) from being used in production
+          const publicSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+          if (!publicSiteUrl) {
+            debugWarn(
+              `[DataAccess/OpenGraph] NEXT_PUBLIC_SITE_URL is not set. Cannot resolve relative image URL: ${imageUrl}`,
+            );
+            continue;
+          }
+          const baseUrl = new URL(publicSiteUrl);
           const absoluteUrl = new URL(imageUrl, baseUrl).toString();
           console.log(
             `[OG-Priority-4.${imageKey}] ✅ Resolved relative ${imageKey} URL: ${imageUrl} -> ${absoluteUrl}`,
           );
           return absoluteUrl;
-        } catch {
-          debugWarn(`[DataAccess/OpenGraph] Failed to resolve relative URL for ${imageKey}: ${imageUrl}`);
+        } catch (e) {
+          debugWarn(
+            `[DataAccess/OpenGraph] Failed to resolve relative URL for ${imageKey}: ${imageUrl} with error: ${e instanceof Error ? e.message : String(e)}`,
+          );
           continue;
         }
       }
