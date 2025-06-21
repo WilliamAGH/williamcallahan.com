@@ -247,7 +247,12 @@ export function constructKarakeepAssetUrl(assetId: string, _baseUrl?: string): s
     throw new Error("Asset ID contains invalid characters");
   }
 
-  // Use local asset proxy endpoint for consistent authentication and error handling
-  // This ensures we go through our own asset proxy which handles Karakeep authentication
+  // Use direct CDN URL if available, otherwise fall back to asset proxy
+  const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
+  if (cdnUrl) {
+    return `${cdnUrl}/images/${sanitizedAssetId}`;
+  }
+  
+  // Fallback to local asset proxy endpoint for consistent authentication and error handling
   return `/api/assets/${sanitizedAssetId}`;
 }

@@ -58,6 +58,11 @@ export async function GET(request: NextRequest) {
     // Check if it's a Karakeep asset ID (36 character hex)
     if (/^[a-f0-9]{36}$/.test(url)) {
       console.log(`[OG-Image] Detected Karakeep asset ID: ${url}`);
+      const cdnUrl = process.env.S3_CDN_URL;
+      if (cdnUrl) {
+        const directUrl = `${cdnUrl}/images/${url}`;
+        return NextResponse.redirect(directUrl, { status: 302 });
+      }
       const assetUrl = `/api/assets/${url}`;
       return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
     }
@@ -130,6 +135,11 @@ export async function GET(request: NextRequest) {
       // If we have an assetId directly, use it
       if (assetId) {
         console.log(`[OG-Image] Checking Karakeep assetId BEFORE OpenGraph: ${assetId}`);
+        const cdnUrl = process.env.S3_CDN_URL;
+        if (cdnUrl) {
+          const directUrl = `${cdnUrl}/images/${assetId}`;
+          return NextResponse.redirect(directUrl, { status: 302 });
+        }
         const assetUrl = `/api/assets/${assetId}`;
         return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
       } else if (bookmarkId) {
@@ -148,6 +158,11 @@ export async function GET(request: NextRequest) {
                 console.log(
                   `[OG-Priority-KARAKEEP] 🎯 Found Karakeep bannerImage (imageAssetId), using INSTEAD of OpenGraph: ${bookmark.content.imageAssetId}`,
                 );
+                const cdnUrl = process.env.S3_CDN_URL;
+                if (cdnUrl) {
+                  const directUrl = `${cdnUrl}/images/${bookmark.content.imageAssetId}`;
+                  return NextResponse.redirect(directUrl, { status: 302 });
+                }
                 const assetUrl = `/api/assets/${bookmark.content.imageAssetId}`;
                 return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
               }

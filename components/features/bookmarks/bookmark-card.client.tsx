@@ -82,9 +82,13 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   // Priority: Karakeep imageAssetId > S3 CDN URLs > imageUrl > ogImage > screenshots > favicon
   // Use direct URLs when possible, only fall back to /api/og-image for external fetching
   const getDisplayImageUrl = () => {
-    // PRIORITY 1: Karakeep imageAssetId (banner) - DIRECT API CALL
+    // PRIORITY 1: Karakeep imageAssetId (banner) - DIRECT CDN URL
     if (content?.imageAssetId) {
       console.log(`[BookmarkCard] 🎯 USING DIRECT KARAKEEP BANNER: ${content.imageAssetId} for bookmark: ${id}`);
+      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
+      if (cdnUrl) {
+        return `${cdnUrl}/images/${content.imageAssetId}`;
+      }
       return `/api/assets/${content.imageAssetId}`;
     }
 
@@ -98,13 +102,13 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
     });
 
     // PRIORITY 2: Direct S3 CDN URLs for stored images
-    if (content?.imageUrl && content.imageUrl.includes(process.env.NEXT_PUBLIC_S3_CDN_URL || "")) {
+    if (content?.imageUrl?.includes(process.env.NEXT_PUBLIC_S3_CDN_URL || "")) {
       console.log(`[BookmarkCard] Using DIRECT S3 CDN URL: ${content.imageUrl}`);
       return content.imageUrl;
     }
 
     // PRIORITY 3: Karakeep direct imageUrl (if not already S3)
-    if (content?.imageUrl && content.imageUrl.startsWith("http")) {
+    if (content?.imageUrl?.startsWith("http")) {
       console.log(`[BookmarkCard] Using direct Karakeep imageUrl: ${content.imageUrl}`);
       return content.imageUrl;
     }
@@ -142,9 +146,13 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       return `/api/og-image?url=${encodeURIComponent(ogImage)}&bookmarkId=${encodeURIComponent(id)}`;
     }
 
-    // PRIORITY 5: Screenshot fallback - DIRECT API CALL
+    // PRIORITY 5: Screenshot fallback - DIRECT CDN URL
     if (content?.screenshotAssetId) {
       console.log(`[BookmarkCard] Using DIRECT screenshot: ${content.screenshotAssetId}`);
+      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
+      if (cdnUrl) {
+        return `${cdnUrl}/images/${content.screenshotAssetId}`;
+      }
       return `/api/assets/${content.screenshotAssetId}`;
     }
 
