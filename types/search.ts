@@ -2,6 +2,7 @@
  * Search Types
  */
 
+import { z } from "zod";
 import type { SearchScope, SearchResult } from "./lib";
 
 // Re-export for convenience so consumers can import directly from "@/types/search"
@@ -33,3 +34,17 @@ export interface BookmarkIndexItem {
   author: string;
   publisher: string;
 }
+
+// Zod schemas moved from lib/schemas/search.ts
+export const searchResultItemSchema = z.object({
+  id: z.string(),
+  type: z.enum(["bookmark", "blog-post", "project", "page"]),
+  title: z.string(),
+  description: z.string().optional(),
+  url: z.string(),
+  score: z.number(),
+  highlights: z.array(z.string()).optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+
+export const searchResultsSchema = z.array(searchResultItemSchema);

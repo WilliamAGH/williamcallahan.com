@@ -179,7 +179,79 @@ LLMs are powerful but often struggle with the nuances of a strict TypeScript env
 
 Static types are not enough. Data from the outside world (APIs, user input, files) is untrusted. Zod is our runtime guardian.
 
-#### 11. Neglecting Runtime Validation
+#### 11. Template Literal Type Inference & 'Never' Types (`@typescript-eslint/restrict-template-expressions`)
+
+- **Problem:** LLMs encounter "Invalid type 'never' of template literal expression" errors, especially in complex control flow where TypeScript's type narrowing creates unreachable code paths.
+- **Root Cause:** TypeScript's control flow analysis narrows types so aggressively that certain branches become unreachable (`never`), but the code still exists and tries to use variables in template literals.
+- **Common Scenarios:**
+  ```typescript
+  // ❌ BAD: TypeScript infers imageUrl as 'never' in the else branch
+  if (typeof imageUrl === "string" && imageUrl) {
+    if (isValidImageUrl(imageUrl)) {
+      return imageUrl;
+    } else {
+      console.log(`Invalid URL: ${imageUrl}`); // Error: 'never' type
+    }
+  }
+  ```
+- **Solution Strategies:**
+  1. **Explicit String Conversion:** Use `String()` to force a string type
+     ```typescript
+     console.log(`Invalid URL: ${String(imageUrl)}`);
+     ```
+  2. **Type Assertion with Comment:** When you know the type is safe
+     ```typescript
+     // At this point imageUrl is definitely a string (we checked above)
+     console.log(`Invalid URL: ${imageUrl as string}`);
+     ```
+  3. **Restructure Control Flow:** Avoid deeply nested type narrowing
+     ```typescript
+     // ✅ GOOD: Simpler control flow
+     if (typeof imageUrl !== "string" || !imageUrl) {
+       console.log(`Invalid URL type: ${typeof imageUrl}`);
+       continue;
+     }
+     
+     if (!isValidImageUrl(imageUrl)) {
+       console.log(`Invalid URL format: ${imageUrl}`); // No 'never' type issue
+       continue;
+     }
+     
+     return imageUrl;
+     ```
+  4. **Early Returns:** Eliminate else branches that cause type narrowing issues
+  5. **Explicit Variable Assignment:** Break complex expressions into steps
+     ```typescript
+     const value = metadata[key];
+     if (value && typeof value === "string") {
+       const stringValue: string = value; // Explicit type annotation
+       checkedTypes.push(`${key}="${stringValue}"`);
+     }
+     ```
+
+#### 12. Complex Type Inference in Loops and Filters
+
+- **Problem:** Array methods like `.filter()` and `.map()` combined with type guards can create type inference issues where TypeScript can't properly narrow types.
+- **Solution:** Replace complex chained operations with explicit loops when type inference fails:
+  ```typescript
+  // ❌ BAD: Complex type inference can fail
+  const checkedTypes = imagePriority
+    .filter((key) => metadata[key] && typeof metadata[key] === "string")
+    .map((key) => `${key}="${metadata[key] as string}"`) // Type assertion needed
+    .join(", ");
+
+  // ✅ GOOD: Explicit loop with clear type handling
+  const checkedTypes: string[] = [];
+  for (const key of imagePriority) {
+    const value = metadata[key];
+    if (value && typeof value === "string") {
+      checkedTypes.push(`${key}="${value}"`);
+    }
+  }
+  const checkedTypesStr = checkedTypes.join(", ");
+  ```
+
+#### 13. Neglecting Runtime Validation
 
 - **Problem:** LLMs write code that implicitly trusts the shape of external data.
 - **Solution:** **ALWAYS** parse external data with a Zod schema at the application boundary.
@@ -195,7 +267,7 @@ Static types are not enough. Data from the outside world (APIs, user input, file
   }
   ```
 
-#### 12. Redundant TypeScript Types
+#### 14. Redundant TypeScript Types
 
 - **Problem:** LLMs manually define a TypeScript `interface` and then a separate, duplicative Zod schema.
 - **Solution:** Zod is the **single source of truth**. Define the schema and infer the type from it.
@@ -209,7 +281,7 @@ Static types are not enough. Data from the outside world (APIs, user input, file
   export type User = z.infer<typeof UserSchema>;
   ```
 
-#### 13. Improper Error Handling
+#### 15. Improper Error Handling
 
 - **Problem:** LLMs use `Schema.parse()` in contexts where validation failure is expected, causing unhandled exceptions.
 - **Solution:** Use `Schema.safeParse()` for a result object (`{ success: true, data: ... }` or `{ success: false, error: ... }`) that won't throw an error.
@@ -222,7 +294,7 @@ Static types are not enough. Data from the outside world (APIs, user input, file
   // result.data is now available and type-safe
   ```
 
-#### 14. Ignoring Transformations & Coercion
+#### 16. Ignoring Transformations & Coercion
 
 - **Problem:** LLMs perform manual data transformation after parsing, which could be handled by Zod.
 - **Solution:** Use Zod's built-in methods to transform data during parsing.
@@ -230,7 +302,7 @@ Static types are not enough. Data from the outside world (APIs, user input, file
   - `.coerce`: For simple type coercions (e.g., `z.coerce.number()` turns a string into a number).
   - `.default()`: To provide a default value for optional fields.
 
-#### 15. Underutilizing `z.discriminatedUnion`
+#### 17. Underutilizing `z.discriminatedUnion`
 
 - **Problem:** LLMs write complex `if/else` or `switch` statements to differentiate between object variants.
 - **Solution:** Use `z.discriminatedUnion` on a shared literal property to create a powerful and type-safe parser that handles the narrowing automatically.
@@ -239,7 +311,7 @@ Static types are not enough. Data from the outside world (APIs, user input, file
 
 ### Pillar III: Framework-Specific Challenges (Next.js)
 
-#### 16. Untyped Route Handlers & Page Props
+#### 18. Untyped Route Handlers & Page Props
 
 - **Problem:** LLMs often leave `params` and `searchParams` in pages and layouts as `any`.
 - **Solution:** Explicitly type them.
@@ -255,7 +327,7 @@ Static types are not enough. Data from the outside world (APIs, user input, file
   }
   ```
 
-#### 17. Unsafe Server Action Payloads
+#### 19. Unsafe Server Action Payloads
 
 - **Problem:** LLMs directly access `FormData` values in Server Actions without validation.
 - **Solution:** Use Zod to parse the `FormData` object.
@@ -278,7 +350,7 @@ Static types are not enough. Data from the outside world (APIs, user input, file
   }
   ```
 
-#### 18. Prop-drilling `any` from Server to Client
+#### 20. Prop-drilling `any` from Server to Client
 
 - **Problem:** Data fetched in a Server Component loses its type when passed to a Client Component.
 - **Solution:** Define a shared type using `z.infer` and use it to type the props of the Client Component. Remember that complex objects like `Date` or `Map` cannot be passed as props directly.
@@ -305,7 +377,7 @@ Static types are not enough. Data from the outside world (APIs, user input, file
   }
   ```
 
-#### 19. Ignoring Statically Typed Links
+#### 21. Ignoring Statically Typed Links
 
 - **Problem:** With `typedRoutes` enabled, LLMs may still use unsafe string concatenation for links, defeating the purpose of the feature.
 - **Solution:** Use valid route literals. For dynamic segments, use template literals or cast with `as Route`.
@@ -322,7 +394,7 @@ Static types are not enough. Data from the outside world (APIs, user input, file
   <Link href={dynamicRoute} />
   ```
 
-#### 20. Mishandling `generateStaticParams` Return Types
+#### 22. Mishandling `generateStaticParams` Return Types
 
 - **Problem:** LLMs return an array of strings or incorrectly shaped objects from `generateStaticParams`.
 - **Solution:** The function **MUST** return an array of objects where each object's keys match the dynamic segment names.
@@ -343,7 +415,7 @@ Static types are not enough. Data from the outside world (APIs, user input, file
 
 This section addresses the most common infrastructure and architectural issues seen in modern Next.js and React development. Adhering to these patterns is critical for performance, maintainability, and type safety.
 
-#### 21. Client vs. Server Component Confusion
+#### 23. Client vs. Server Component Confusion
 
 - **Problem**: Using client-side hooks (`useState`, `useEffect`) or event handlers in a Server Component, or failing to use Server Components for data fetching.
 - **Solution**: Adhere to a strict component model.
@@ -351,7 +423,7 @@ This section addresses the most common infrastructure and architectural issues s
   - **Client Components (`'use client'`):** Use only when you need interactivity, such as `onClick` handlers, or hooks like `useState`, `useEffect`, and `useContext`.
   - **Pattern**: Fetch data in a Server Component and pass it as props to a Client Component. This minimizes the client-side JavaScript bundle.
 
-#### 22. Improper Data Fetching & Caching
+#### 24. Improper Data Fetching & Caching
 
 - **Problem**: Using `useEffect` for initial data fetching (CRA pattern), creating request waterfalls, or misunderstanding Next.js caching.
 - **Solution**: Leverage Next.js's extended `fetch` API and React Server Components.
@@ -359,7 +431,7 @@ This section addresses the most common infrastructure and architectural issues s
   - **Parallel Fetching**: Initiate multiple data fetches concurrently with `Promise.all` to avoid sequential request waterfalls.
   - **Caching**: Use `fetch` with revalidation options (`{ next: { revalidate: 3600 } }`) for incremental static regeneration. Use `React.cache` or `unstable_cache` to deduplicate requests for the same data within a render pass.
 
-#### 23. State Management & Immutability Errors
+#### 25. State Management & Immutability Errors
 
 - **Problem**: Directly mutating state variables (objects or arrays) instead of creating new instances, leading to missed re-renders and bugs.
 - **Solution**: Always treat state as immutable.
@@ -367,13 +439,13 @@ This section addresses the most common infrastructure and architectural issues s
   - **Objects**: Use the spread syntax (`{ ...obj, property: newValue }`) to create a new object.
   - **For complex state**: Use the `useImmer` hook, which allows you to write "mutating" logic on a draft state while ensuring the final update is immutable.
 
-#### 24. Prop Drilling vs. Context
+#### 26. Prop Drilling vs. Context
 
 - **Problem**: Passing props through many intermediate components that don't use them.
 - **Solution**: Use React Context for global state that is accessed by many components at different levels of the tree (e.g., theme, user authentication).
   - **Implementation**: Create the context provider as a Client Component (`'use client'`) and wrap it around your layout in a Server Component. This allows Server Components to render inside, while Client Components deep in the tree can consume the context.
 
-#### 25. Large Bundle Sizes & Lazy Loading
+#### 27. Large Bundle Sizes & Lazy Loading
 
 - **Problem**: Shipping large, monolithic JavaScript bundles that slow down initial page load.
 - **Solution**: Aggressively code-split and lazy load components.
@@ -381,7 +453,7 @@ This section addresses the most common infrastructure and architectural issues s
   - **Example**: `const HeavyComponent = dynamic(() => import('../components/Heavy'), { ssr: false });`
   - **When to use**: Modals, components below the fold, or components that depend on heavy libraries.
 
-#### 26. Hydration Errors
+#### 28. Hydration Errors
 
 - **Problem**: A mismatch between the HTML rendered on the server and the initial render on the client, often caused by using browser-only APIs (`window`, `localStorage`) or dynamic values (`Math.random()`, `new Date()`) directly in the component body.
 - **Solution**: Ensure the first client-side render matches the server-rendered HTML.
@@ -389,24 +461,24 @@ This section addresses the most common infrastructure and architectural issues s
   - **`suppressHydrationWarning`**: As a last resort for unavoidable mismatches (e.g., timestamps), use this prop on the element.
   - **Dynamic Imports**: Use `dynamic(() => ..., { ssr: false })` for components that are entirely client-side and cause hydration issues.
 
-#### 27. SEO and Metadata Management
+#### 29. SEO and Metadata Management
 
 - **Problem**: Incorrectly managing `<head>` tags, leading to poor SEO.
 - **Solution**: Use the built-in Metadata API in the App Router.
   - **Static Metadata**: Export a `metadata` object from a `layout.js` or `page.js` file.
   - **Dynamic Metadata**: Export an `async` function named `generateMetadata` that fetches data and returns a metadata object.
 
-#### 28. Environment Variable Exposure
+#### 30. Environment Variable Exposure
 
 - **Problem**: Accidentally exposing server-side environment variables to the client.
 - **Solution**: Use the `NEXT_PUBLIC_` prefix for any environment variable that needs to be accessible in the browser. Variables without this prefix are only available on the server, preventing leaks.
 
-#### 29. Server Action Error Handling
+#### 31. Server Action Error Handling
 
 - **Problem**: Server Actions fail without providing feedback to the user.
 - **Solution**: Use React's `useActionState` hook in Client Components. It provides state for displaying errors and a `pending` status for disabling form elements during submission. The server action's signature must be updated to accept the previous state as its first argument.
 
-#### 30. Unhandled Promise Rejections in Server Components
+#### 32. Unhandled Promise Rejections in Server Components
 
 - **Problem**: An `async` Server Component throws an error during data fetching, crashing the render.
 - **Solution**: Wrap data-fetching Server Components in a React `<Suspense>` boundary and provide an `error.js` file. The `error.js` file defines a React Error Boundary that will catch the error and display a fallback UI, preventing a full-page crash.
@@ -449,7 +521,71 @@ Our type safety rules are not arbitrary; they are directly enforced by the TypeS
 
 ---
 
-### Pillar VIII: Glossary of Key Terms
+### Pillar VIII: Systematic Debugging Workflow for Template Literal Issues
+
+When encountering `@typescript-eslint/restrict-template-expressions` errors, especially "Invalid type 'never'", follow this diagnostic workflow:
+
+#### Step 1: Identify the Exact Location
+
+```bash
+# Get the exact line causing the issue
+sed -n '[LINE_NUMBER]p' [FILE_PATH]
+```
+
+#### Step 2: Analyze the Control Flow
+
+- **Trace backwards** from the error line to understand how TypeScript narrowed the type
+- **Look for type guards** (`typeof`, `instanceof`, truthiness checks) that created the narrowing
+- **Identify unreachable branches** where TypeScript inferred `never`
+
+#### Step 3: Apply the Appropriate Fix Strategy
+
+**For Simple Cases:**
+```typescript
+// Use String() conversion
+console.log(`Value: ${String(potentiallyNeverValue)}`);
+```
+
+**For Complex Control Flow:**
+```typescript
+// Restructure to use early returns instead of nested if/else
+if (typeof value !== "string") {
+  console.log(`Invalid type: ${typeof value}`);
+  return;
+}
+
+// Now value is definitely a string in all subsequent code
+console.log(`Valid value: ${value}`);
+```
+
+**For Loop/Filter Scenarios:**
+```typescript
+// Replace complex chained operations with explicit loops
+const results: string[] = [];
+for (const item of items) {
+  if (item && typeof item === "string") {
+    results.push(`${key}="${item}"`); // Clear type inference
+  }
+}
+```
+
+#### Step 4: Verify the Fix
+
+```bash
+bun run validate
+```
+
+#### Common Anti-Patterns to Avoid
+
+- **DON'T** use `as any` to bypass the error
+- **DON'T** use `// @ts-ignore` to suppress the warning
+- **DON'T** add unnecessary type assertions without understanding why TypeScript inferred `never`
+- **DO** understand the control flow that led to the `never` type
+- **DO** prefer restructuring code over type assertions when possible
+
+---
+
+### Pillar IX: Glossary of Key Terms
 
 - **Structural Typing:** TypeScript's system for determining type compatibility based on the shape of an object (its properties and methods), not its explicit name or `class` declaration.
 - **Type Narrowing:** The process of refining a broad type (like `string | number` or `unknown`) to a more specific one within a certain code block, usually after a runtime check like `typeof` or `instanceof`.
@@ -460,32 +596,11 @@ Our type safety rules are not arbitrary; they are directly enforced by the TypeS
 - **Zod:** A TypeScript-first schema declaration and validation library used in this project for all runtime data validation.
 - **Dependency Inversion:** An architectural principle where high-level modules do not depend on low-level modules directly, but both depend on a shared abstraction (like a `types/` file). This is a key strategy for breaking circular dependencies.
 - **Barrel File (`index.ts`):** A file that re-exports modules from a directory, providing a single, clean entry point for consumers of that directory. Our `types/index.ts` is an example.
+- **Control Flow Analysis:** TypeScript's ability to track how types change through conditional statements, leading to type narrowing that can sometimes result in `never` types in unreachable branches.
 
 ---
 
-### Pillar IX: Advanced Topics & Troubleshooting
-
-#### 31. Interpreting Vague Type Errors: Symptoms of Deeper Issues
-
-- **Problem:** LLMs encounter a cryptic error like `Type 'A' is not assignable to type 'B'` or `Cannot read properties of undefined (reading '...')` and attempt to fix it locally, often with an unsafe type assertion. This is a "false positive" in the sense that the error message masks the real root cause.
-- **Symptom vs. Cause:** A vague type error is often a **symptom** of a deeper architectural problem. The most common causes are:
-    1. **Circular Dependencies:** Module A imports Module B, and Module B imports Module A. At runtime, one of them will be `undefined` when imported, causing the type to be missing.
-    2. **Failed Data Fetch:** An API call or database query failed silently and returned `null` or `undefined` instead of the expected data structure.
-- **Solution:** When faced with a vague error, **do not fix the symptom**. Investigate the entire data and import flow.
-  - **Trace the Imports:** Check the import graph for the files involved. Do they import each other?
-  - **Trace the Data:** Where does the variable in question get its value? Log the value to the console right before the error occurs to see if it's `undefined`.
-  - **Fix the Root Cause:** Refactor the circular dependency or add proper error handling to the data fetch.
-
-#### 32. Resolving Circular Dependencies
-
-- **Problem:** A direct or indirect circular import between modules (`A -> B -> A`) results in one of the imports being `undefined` at runtime, leading to the vague type errors described above.
-- **Solution:** Refactor the dependency graph to be unidirectional.
-    1. **Dependency Inversion:** Create a third, lower-level module that both A and B can import from. This is the most common pattern. For example, move shared types to a file in `types/` and have both modules import from there.
-    2. **Centralized Barrel File (`index.ts`):** For types, our project uses barrel files (`types/index.ts`) to export all types from a single point. This prevents components from importing types from each other directly.
-    3. **Code Reorganization:** If two components depend on each other, extract the shared logic or types into a new, dedicated utility or hook that both can import from.
-- **LLM Prompt:** "When a type is unexpectedly `undefined`, analyze the import graph of the files involved to check for circular dependencies."
-
-### Pillar V: Connecting Rules to `tsconfig.json`
+### Pillar X: Connecting Rules to `tsconfig.json`
 
 Our type safety rules are not arbitrary; they are directly enforced by the TypeScript compiler settings in `tsconfig.json`. Understanding this connection is key to diagnosing errors.
 
@@ -497,23 +612,9 @@ Our type safety rules are not arbitrary; they are directly enforced by the TypeS
 
 ---
 
-### Pillar VI: Glossary of Key Terms
+### Pillar XI: Advanced Topics & Troubleshooting
 
-- **Structural Typing:** TypeScript's system for determining type compatibility based on the shape of an object (its properties and methods), not its explicit name or `class` declaration.
-- **Type Narrowing:** The process of refining a broad type (like `string | number` or `unknown`) to a more specific one within a certain code block, usually after a runtime check like `typeof` or `instanceof`.
-- **Type Inference:** TypeScript's ability to automatically determine the type of a variable based on its value or usage, without requiring an explicit type annotation.
-- **Generics (`<T>`):** A tool for creating reusable components (functions, classes, types) that can work with a variety of types while maintaining type safety.
-- **Literal Types:** Types that represent a specific, exact value (e.g., `'GET'`, `42`). They are more specific than their primitive counterparts (`string`, `number`).
-- **`as const`:** A type assertion that tells TypeScript to infer the most specific literal type possible for an object or array, making its properties `readonly`.
-- **Zod:** A TypeScript-first schema declaration and validation library used in this project for all runtime data validation.
-- **Dependency Inversion:** An architectural principle where high-level modules do not depend on low-level modules directly, but both depend on a shared abstraction (like a `types/` file). This is a key strategy for breaking circular dependencies.
-- **Barrel File (`index.ts`):** A file that re-exports modules from a directory, providing a single, clean entry point for consumers of that directory. Our `types/index.ts` is an example.
-
----
-
-### Pillar VII: Advanced Topics & Troubleshooting
-
-#### 21. Interpreting Vague Type Errors: Symptoms of Deeper Issues
+#### 35. Interpreting Vague Type Errors: Symptoms of Deeper Issues
 
 - **Problem:** LLMs encounter a cryptic error like `Type 'A' is not assignable to type 'B'` or `Cannot read properties of undefined (reading '...')` and attempt to fix it locally, often with an unsafe type assertion. This is a "false positive" in the sense that the error message masks the real root cause.
 - **Symptom vs. Cause:** A vague type error is often a **symptom** of a deeper architectural problem. The most common causes are:
@@ -524,7 +625,7 @@ Our type safety rules are not arbitrary; they are directly enforced by the TypeS
   - **Trace the Data:** Where does the variable in question get its value? Log the value to the console right before the error occurs to see if it's `undefined`.
   - **Fix the Root Cause:** Refactor the circular dependency or add proper error handling to the data fetch.
 
-#### 22. Resolving Circular Dependencies
+#### 36. Resolving Circular Dependencies
 
 - **Problem:** A direct or indirect circular import between modules (`A -> B -> A`) results in one of the imports being `undefined` at runtime, leading to the vague type errors described above.
 - **Solution:** Refactor the dependency graph to be unidirectional.

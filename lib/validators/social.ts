@@ -1,16 +1,11 @@
 /**
- * Social Data Validator
+ * Social Data Validator Utilities
  *
- * SCOPE: Zod validation schemas for social link data structures.
+ * IMPORTANT: All Zod schemas have been moved to types/ directory for centralized type system.
+ * This file now only contains utility functions that work with the schemas.
+ *
+ * @see types/social.ts for social-related Zod schemas
  */
-import { z } from "zod";
 
-export const SocialLinkSchema = z.object({
-  platform: z.string().min(1, "Platform name cannot be empty."),
-  href: z.string().url("Invalid URL format."),
-  label: z.string().min(1, "Label cannot be empty."),
-  icon: z.any().optional(), // for React components
-  emphasized: z.boolean().optional(),
-});
-
-export const SocialLinksSchema = z.array(SocialLinkSchema);
+// This file intentionally left minimal - all schemas moved to types/social.ts
+// to comply with centralized type system requirements

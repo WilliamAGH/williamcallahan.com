@@ -38,6 +38,9 @@
 
 import type { CacheStats } from "./cache";
 
+// Safe Zod import for types directory only
+import { z } from "zod";
+
 // =============================================================================
 // CORE UTILITY TYPES - Foundation types used across multiple domains
 // =============================================================================
@@ -263,6 +266,9 @@ export interface ValidationRule<T = unknown> {
   message: string;
   required?: boolean;
 }
+
+// Common validation schemas - safe to define here as simple coercion schema
+export const PageNumberSchema = z.coerce.number().int().min(1);
 
 /** Complete validation schema */
 export interface ValidationSchema<T = Record<string, unknown>> {

@@ -86,7 +86,7 @@ export interface EducationClientProps {
  * Props for the client-side EducationCard component.
  */
 export interface EducationCardClientProps {
-  education: Education;
+  education: Education & { logoData: EducationLogoData };
   className?: string;
 }
 

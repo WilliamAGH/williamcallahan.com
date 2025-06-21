@@ -22,6 +22,8 @@
  * @see types/github.ts for domain-specific GitHub errors
  */
 
+import { z } from "zod";
+
 /**
  * Extended Error interface for application-specific errors
  */
@@ -119,6 +121,18 @@ export interface ClientErrorPayload {
   // Allow other properties that might be sent from various client-side error sources
   [key: string]: unknown; // Use unknown instead of any for better type safety
 }
+
+// Zod schema moved from app/api/log-client-error/route.ts
+export const ClientErrorSchema = z
+  .object({
+    message: z.string().optional(),
+    resource: z.string().optional(), // e.g., script URL if it's a script error
+    type: z.string().optional(), // e.g., 'ChunkLoadError', 'TypeError'
+    url: z.string().optional(), // The URL where the error occurred
+    stack: z.string().optional(),
+    buildId: z.string().optional(), // Next.js build ID
+  })
+  .passthrough(); // Allows other properties, matching [key: string]: unknown;
 
 export interface ErrorWithCode {
   code: string;

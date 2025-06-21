@@ -172,7 +172,7 @@ const config = tseslint.config(
     },
   },
 
-  // Enforce centralized type definitions (all types must live in @/types or *.d.ts)
+  // Enforce centralized type definitions (all types AND Zod schemas must live in @/types or *.d.ts)
   {
     files: ["**/*.{ts,tsx}"],
     ignores: ["types/**/*", "**/*.d.ts"],
@@ -190,6 +190,22 @@ const config = tseslint.config(
         {
           selector: "TSEnumDeclaration",
           message: "Enums must reside in @/types or declaration files (*.d.ts)",
+        },
+        {
+          selector: "VariableDeclarator[init.type='CallExpression'][init.callee.object.name='z']",
+          message:
+            "Zod schemas must reside in @/types or declaration files (*.d.ts). Stop trying to cheat the type system!",
+        },
+        {
+          selector:
+            "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[init.type='CallExpression'][init.callee.object.name='z']",
+          message:
+            "Exported Zod schemas must reside in @/types or declaration files (*.d.ts). No sneaky workarounds allowed!",
+        },
+        {
+          selector: "ImportDeclaration[source.value='zod']",
+          message:
+            "Zod imports must only be in @/types or declaration files (*.d.ts). All schemas belong in the centralized type system!",
         },
       ],
     },

@@ -16,10 +16,12 @@ export {
   bookmarkListResponseSchema,
   bookmarksIndexSchema as BookmarksIndexSchema,
   type BookmarkTag,
-  type LogoData,
   type RawBookmark,
   type ClientBookmark,
   type BookmarkPagination,
   type BookmarkListResponse,
   type BookmarksIndex,
 } from "@/types/bookmark";
+
+// Re-export LogoData separately to avoid circular dependency issues
+export type { LogoData } from "@/types/logo";

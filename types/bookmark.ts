@@ -204,6 +204,55 @@ export type BookmarksIndex = z.infer<typeof bookmarksIndexSchema>;
 
 export type BookmarksResponse = import("./lib").PaginatedResponse<UnifiedBookmark>;
 
+// Additional Zod schemas moved from lib/validators/bookmarks.ts
+export const BookmarkAssetSchema = z.object({
+  id: z.string(),
+  assetType: z.string(),
+});
+
+export const RawApiBookmarkTagSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  attachedBy: z.string(),
+});
+
+export const RawApiBookmarkContentSchema = z.object({
+  type: z.string(),
+  url: z.string(),
+  title: z.string().nullable(),
+  description: z.string().nullable(),
+  imageUrl: z.string().optional(),
+  imageAssetId: z.string().optional(),
+  screenshotAssetId: z.string().optional(),
+  favicon: z.string().optional(),
+  htmlContent: z.string().optional(),
+  crawledAt: z.string().optional(),
+  author: z.string().nullable().optional(),
+  publisher: z.string().nullable().optional(),
+  datePublished: z.string().nullable().optional(),
+  dateModified: z.string().nullable().optional(),
+});
+
+export const RawApiBookmarkSchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  modifiedAt: z.string(),
+  title: z.string().nullable(),
+  archived: z.boolean(),
+  favourited: z.boolean(),
+  taggingStatus: z.string(),
+  note: z.string().nullable(),
+  summary: z.string().nullable(),
+  tags: z.array(RawApiBookmarkTagSchema),
+  content: RawApiBookmarkContentSchema,
+  assets: z.array(BookmarkAssetSchema),
+});
+
+export const BookmarksApiResponseSchema = z.object({
+  bookmarks: z.array(RawApiBookmarkSchema),
+  nextCursor: z.string().nullable(),
+});
+
 export { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 
 // Standalone schema for validating logo data objects
@@ -214,5 +263,4 @@ export const logoDataSchema = z.object({
   height: z.number().int().positive().optional(),
 });
 
-// Re-export LogoData for convenience (used by lib/schemas/bookmarks.ts)
-export type { LogoData };
+// LogoData is already imported above for internal use. Other modules should import it from "types/logo" directly to avoid duplicate re-exports.
