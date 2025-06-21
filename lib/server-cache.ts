@@ -30,7 +30,7 @@ export class ServerCache implements ICache {
   constructor() {
     // Size-aware cache configuration
     const maxSizeBytes = MEMORY_THRESHOLDS.SERVER_CACHE_BUDGET_BYTES;
-    
+
     this.cache = new LRUCache<string, StorableCacheValue>({
       max: 100000,
       maxSize: maxSizeBytes,
@@ -144,7 +144,7 @@ export class ServerCache implements ICache {
     const size = this.cache.size;
     const calculatedSize = this.cache.calculatedSize || 0;
     const maxSize = (this.cache as LRUCache<string, StorableCacheValue> & { maxSize?: number }).maxSize || 0;
-    
+
     return {
       keys: size,
       hits: this.hits,
@@ -158,7 +158,19 @@ export class ServerCache implements ICache {
   }
 
   public clearAllCaches(): void {
-    this.cache.clear();
+    const LOGO_VALIDATION_PREFIX = "logo-validation:";
+
+    // Iterate over keys and **only** remove those that are *not* part of the
+    // logo-validation cache.  Those entries are tiny (a boolean + timestamp)
+    // yet extremely helpful in preventing repeated Sharp work after a flush.
+    for (const key of this.cache.keys()) {
+      if (!key.startsWith(LOGO_VALIDATION_PREFIX)) {
+        this.cache.delete(key);
+      }
+    }
+
+    // Reset stats – hits/misses related to logo validation are preserved to
+    // avoid skewing metrics.
     this.hits = 0;
     this.misses = 0;
   }

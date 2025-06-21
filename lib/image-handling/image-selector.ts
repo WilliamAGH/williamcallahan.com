@@ -49,8 +49,13 @@ export function selectBestOpenGraphImage(metadata: Record<string, unknown>, page
   // Try each image type in priority order
   for (const imageKey of imagePriority) {
     const imageUrl = metadata[imageKey];
+    const imageUrlString = typeof imageUrl === "string" ? imageUrl : "not found";
+    console.log(`[OG-Priority-4.${imageKey}] 🔍 Checking ${imageKey}: ${imageUrlString}`);
+
     // Skip if undefined, null, or not a valid string
     if (typeof imageUrl !== "string" || !imageUrl) {
+      const typeInfo = typeof imageUrl;
+      console.log(`[OG-Priority-4.${imageKey}] ❌ ${imageKey} not valid: ${typeInfo} - ${imageUrlString}`);
       continue;
     }
 
@@ -60,7 +65,9 @@ export function selectBestOpenGraphImage(metadata: Record<string, unknown>, page
         try {
           const baseUrl = new URL(pageUrl);
           const absoluteUrl = new URL(imageUrl, baseUrl).toString();
-          debug(`[DataAccess/OpenGraph] Resolved relative ${imageKey} URL: ${imageUrl} -> ${absoluteUrl}`);
+          console.log(
+            `[OG-Priority-4.${imageKey}] ✅ Resolved relative ${imageKey} URL: ${imageUrl} -> ${absoluteUrl}`,
+          );
           return absoluteUrl;
         } catch {
           debugWarn(`[DataAccess/OpenGraph] Failed to resolve relative URL for ${imageKey}: ${imageUrl}`);
@@ -68,19 +75,27 @@ export function selectBestOpenGraphImage(metadata: Record<string, unknown>, page
         }
       }
 
-      debug(`[DataAccess/OpenGraph] Selected ${imageKey} as best image: ${imageUrl}`);
+      console.log(`[OG-Priority-4.${imageKey}] ✅ Selected ${imageKey} as best image: ${imageUrl}`);
       return imageUrl;
+    } else {
+      // At this point imageUrl is definitely a string (we checked above), but isValidImageUrl returned false
+      console.log(`[OG-Priority-4.${imageKey}] ❌ ${imageKey} URL not valid: ${String(imageUrl)}`);
     }
   }
 
   // Log which image types were checked but invalid/missing
-  const checkedTypes = imagePriority
-    .filter((key) => metadata[key] && typeof metadata[key] === "string")
-    .map((key) => `${key}="${metadata[key] as string}"`)
-    .join(", ");
+  const checkedTypes: string[] = [];
+  for (const key of imagePriority) {
+    const value = metadata[key];
+    if (value && typeof value === "string") {
+      const stringValue: string = value;
+      checkedTypes.push(`${key}="${stringValue}"`);
+    }
+  }
+  const checkedTypesStr = checkedTypes.join(", ");
 
-  if (checkedTypes) {
-    debug(`[DataAccess/OpenGraph] No valid image found. Checked: ${checkedTypes}`);
+  if (checkedTypesStr.length > 0) {
+    debug(`[DataAccess/OpenGraph] No valid image found. Checked: ${checkedTypesStr}`);
   } else {
     debug("[DataAccess/OpenGraph] No image metadata found in any standard location");
   }

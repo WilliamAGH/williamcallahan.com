@@ -31,10 +31,20 @@ export async function persistImageToS3(
   pageUrl?: string,
 ): Promise<string | null> {
   try {
-    if (isDebug)
+    if (isDebug) {
       debug(
         `[${logContext}] Attempting to persist image. Original URL: ${imageUrl}, IdempotencyKey: ${idempotencyKey}, PageURL: ${pageUrl}`,
       );
+    }
+
+    // -------------------------------------------------------------
+    // Fast-path: if the image is already in S3, skip the upload step
+    // -------------------------------------------------------------
+    const existingKey = await findImageInS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
+    if (existingKey) {
+      console.log(`[OpenGraph S3] ⏭️  Skipping upload – image already exists in S3: ${existingKey}`);
+      return existingKey;
+    }
 
     const response = await fetch(imageUrl, {
       method: "GET",
@@ -110,38 +120,34 @@ async function handleStaleImageUrl(imageUrl: string, pageUrl: string, logContext
   try {
     const { ServerCacheInstance } = await import("@/lib/server-cache");
 
-    // Detect if this is a Karakeep/Hoarder asset URL that has become invalid
-    // Matches e.g. https://cdn.karakeep.app/assets/abc.png or https://app.hoarder.io/api/assets/xyz
-    // and avoids false positives like "https://example.com/assets/logo.png".
     const isKarakeepUrl = /^https?:\/\/(?:[^/]+\.)?(karakeep\.app|hoarder\.io)\/.+/i.test(imageUrl);
 
-    const invalidated = ServerCacheInstance.invalidateStaleOpenGraphData(
-      pageUrl,
-      `Image URL returned 404: ${imageUrl}${isKarakeepUrl ? " (Karakeep asset)" : ""}`,
-    );
-
-    if (invalidated) {
-      if (isKarakeepUrl) {
-        console.warn(`[${logContext}] 🚨 Karakeep asset URL is invalid: ${imageUrl}`);
-        console.warn(`[${logContext}] 🔄 Automatic recovery initiated for ${pageUrl}`);
-      }
-
-      console.log(
-        `[${logContext}] Triggered automatic OpenGraph recrawl for ${pageUrl} due to stale image URL: ${imageUrl}`,
-      );
-
-      // Trigger background refresh to get fresh OpenGraph data with updated image URLs
-      const { refreshOpenGraphData } = await import("@/lib/data-access/opengraph");
-      refreshOpenGraphData(pageUrl).catch((refreshError) => {
-        console.error(`[${logContext}] Background OpenGraph refresh failed for ${pageUrl}:`, refreshError);
-
-        // If refresh also fails, the system will use fallback images automatically
-        if (isKarakeepUrl) {
-          console.warn(`[${logContext}] ⚠️ Karakeep asset and refresh both failed for ${pageUrl}`);
-          console.warn(`[${logContext}] 🛡️ System will use fallback images automatically`);
-        }
-      });
+    // Only trigger recrawl for **first-party Karakeep / Hoarder assets**. Third-party images that
+    // disappear (like a site's own og-image.png) should *not* force an immediate refetch cycle – we
+    // will fall back to the cached CDN copy we already have in S3 instead of hammering the origin.
+    if (!isKarakeepUrl) {
+      if (isDebug)
+        debug(
+          `[${logContext}] Stale image URL returned 404 but is NOT a Karakeep asset – skipping auto-recrawl: ${imageUrl}`,
+        );
+      return;
     }
+
+    const reason = `Image URL returned 404: ${imageUrl} (Karakeep asset)`;
+    const invalidated = ServerCacheInstance.invalidateStaleOpenGraphData(pageUrl, reason);
+
+    if (!invalidated) return;
+
+    console.warn(`[${logContext}] 🚨 Karakeep asset URL is invalid: ${imageUrl}`);
+    console.warn(`[${logContext}] 🔄 Automatic recovery initiated for ${pageUrl}`);
+
+    // Trigger background refresh to get fresh OpenGraph data with updated image URLs
+    console.log(`[${logContext}] Triggering OpenGraph recrawl for ${pageUrl} (stale Karakeep asset)`);
+    const { refreshOpenGraphData } = await import("@/lib/data-access/opengraph");
+    refreshOpenGraphData(pageUrl).catch((refreshError) => {
+      console.error(`[${logContext}] Background OpenGraph refresh failed for ${pageUrl}:`, refreshError);
+      console.warn(`[${logContext}] ⚠️ Karakeep asset and refresh both failed – fallback images will be used`);
+    });
   } catch (error) {
     console.error(`[${logContext}] Failed to handle stale image URL for ${pageUrl}:`, error);
   }

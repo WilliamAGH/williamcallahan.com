@@ -58,7 +58,7 @@ export class ImageMemoryManager extends EventEmitter {
 
     // Configuration from environment
     const budget = MEMORY_THRESHOLDS.IMAGE_RAM_BUDGET_BYTES;
-    this.maxBufferSize = Number(process.env.MAX_IMAGE_SIZE_BYTES ?? 50 * 1024 * 1024); // 50MB max per image
+    this.maxBufferSize = Number(process.env.MAX_IMAGE_SIZE_BYTES ?? 10 * 1024 * 1024); // 10 MB max per image
 
     // Validate configuration
     if (budget <= 0 || Number.isNaN(budget)) {
@@ -188,9 +188,12 @@ export class ImageMemoryManager extends EventEmitter {
       return false;
     }
 
-    // CRITICAL: Create a copy to avoid slice() retention issues
-    // This ensures we don't hold references to larger parent buffers
-    const copy = Buffer.from(buffer);
+    // CRITICAL: Only create a copy when the incoming Buffer is a slice of a larger
+    // ArrayBuffer.  If the Buffer already owns its entire underlying memory
+    // (byteOffset === 0 and spans the full ArrayBuffer), re-use it to avoid an
+    // extra allocation that can triple memory during bulk logo processing.
+    const needsCopy: boolean = buffer.byteOffset !== 0 || buffer.byteLength !== buffer.buffer.byteLength;
+    const copy: Buffer = needsCopy ? Buffer.from(buffer) : buffer;
 
     try {
       // Store buffer and metadata separately

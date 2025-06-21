@@ -29,6 +29,7 @@ import { normalizeDomain } from "./utils/domain-utils";
 export async function fetchLogo(domainOrCompany: string): Promise<{
   buffer: Buffer | null;
   source: LogoSource | null;
+  contentType?: string | null;
   error?: string;
 }> {
   if (!domainOrCompany) {
@@ -45,6 +46,7 @@ export async function fetchLogo(domainOrCompany: string): Promise<{
     return {
       buffer: result.buffer,
       source: result.source,
+      contentType: result.contentType,
     };
   }
 
