@@ -16,7 +16,8 @@ export function getBaseUrl(): string {
   // Server-side: prioritize explicit environment variables defined in .env-example
   // 1. API_BASE_URL (preferred for server-to-server calls)
   // 2. NEXT_PUBLIC_SITE_URL (public-facing canonical URL)
-  // Fallback: localhost with PORT or 3000.
+  // 3. Production fallback to williamcallahan.com
+  // 4. Final fallback: localhost with PORT or 3000
 
   const apiBase = process.env.API_BASE_URL;
   if (apiBase) {
@@ -26,6 +27,11 @@ export function getBaseUrl(): string {
   const publicSite = process.env.NEXT_PUBLIC_SITE_URL;
   if (publicSite) {
     return publicSite.replace(/\/$/, "");
+  }
+
+  // Production fallback - prevents 0.0.0.0 URLs
+  if (process.env.NODE_ENV === "production") {
+    return "https://williamcallahan.com";
   }
 
   const port = process.env.PORT || 3000;
