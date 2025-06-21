@@ -27,6 +27,11 @@ let lockCleanupInterval: NodeJS.Timeout | null = null;
 let inFlightGetPromise: Promise<UnifiedBookmark[]> | null = null;
 let inFlightRefreshPromise: Promise<UnifiedBookmark[] | null> | null = null;
 
+// Type guard for S3 errors
+const isS3Error = (err: unknown): err is { $metadata?: { httpStatusCode?: number } } => {
+  return typeof err === 'object' && err !== null && '$metadata' in err;
+};
+
 // S3-based distributed lock functions
 async function acquireDistributedLock(lockKey: string, ttlMs: number): Promise<boolean> {
   const lockEntry: DistributedLockEntry = {
