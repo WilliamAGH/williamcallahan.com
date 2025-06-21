@@ -294,6 +294,11 @@ export async function GET(request: NextRequest) {
         // Try imageAssetId
         if (fallbackImageData.imageAssetId) {
           console.log(`[OG-Image] Using Karakeep imageAssetId fallback: ${fallbackImageData.imageAssetId}`);
+          const cdnUrl = process.env.S3_CDN_URL;
+          if (cdnUrl) {
+            const directUrl = `${cdnUrl}/images/${fallbackImageData.imageAssetId}`;
+            return NextResponse.redirect(directUrl, { status: 302 });
+          }
           const assetUrl = `/api/assets/${fallbackImageData.imageAssetId}`;
           return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
         }
@@ -301,6 +306,11 @@ export async function GET(request: NextRequest) {
         // Try screenshotAssetId
         if (fallbackImageData.screenshotAssetId) {
           console.log(`[OG-Image] Using Karakeep screenshotAssetId fallback: ${fallbackImageData.screenshotAssetId}`);
+          const cdnUrl = process.env.S3_CDN_URL;
+          if (cdnUrl) {
+            const directUrl = `${cdnUrl}/images/${fallbackImageData.screenshotAssetId}`;
+            return NextResponse.redirect(directUrl, { status: 302 });
+          }
           const assetUrl = `/api/assets/${fallbackImageData.screenshotAssetId}`;
           return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
         }

@@ -247,9 +247,9 @@ export function constructKarakeepAssetUrl(assetId: string, _baseUrl?: string): s
     throw new Error("Asset ID contains invalid characters");
   }
 
-  // Use direct CDN URL if available, otherwise fall back to asset proxy
+  // Use direct CDN URL in production only, API proxy in development
   const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
-  if (cdnUrl) {
+  if (cdnUrl && process.env.NODE_ENV === "production") {
     return `${cdnUrl}/images/${sanitizedAssetId}`;
   }
   
