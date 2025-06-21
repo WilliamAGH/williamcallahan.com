@@ -18,7 +18,7 @@ if (args.includes("--help") || args.includes("-h")) {
 
 Options:
   --bookmarks          Fetch and update bookmarks data
-  --github-activity    Fetch and update GitHub activity data  
+  --github             Fetch and update GitHub activity data  
   --logos              Fetch and update logos for all domains
   --force              Force refresh of all data
   --testLimit=N        Limit operations to N items for testing
