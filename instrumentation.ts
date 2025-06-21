@@ -38,10 +38,13 @@ export async function register() {
     // This replaces the deprecated mem-guard.
     import("@/lib/image-memory-manager");
 
-    // Use dynamic import with computed string to prevent static analysis
-    const nodeModuleName = "node" + ":" + "events";
-    const nodeEvents = await import(nodeModuleName);
-    EventEmitter = nodeEvents.EventEmitter;
+    // Import node:events directly - Next.js can handle this properly in Node.js runtime
+    try {
+      const nodeEvents = await import("node:events");
+      EventEmitter = nodeEvents.EventEmitter;
+    } catch (err) {
+      console.warn("[Instrumentation] Failed to import node:events:", err);
+    }
 
     // Increase the default max listeners to handle concurrent fetch operations
     // This prevents the "MaxListenersExceededWarning" when processing bookmarks in batches
@@ -75,10 +78,13 @@ export async function register() {
     //  • Refreshes periodically (default every 2 hours) so data stays warm.
 
     if (process.env.NODE_ENV === "production") {
-      // Use dynamic import with computed string for bookmarks module
-      const bookmarksModulePath = "@/lib/bookmarks/" + "bookmarks-data-access.server";
-      const bookmarksModule = await import(bookmarksModulePath);
-      bookmarksModule.initializeBookmarksDataAccess();
+      // Import bookmarks module directly
+      try {
+        const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
+        bookmarksModule.initializeBookmarksDataAccess();
+      } catch (err) {
+        console.warn("[Instrumentation] Failed to import bookmarks module:", err);
+      }
 
       // Use setTimeout(0) instead of setImmediate for Edge compatibility
       setTimeout(async () => {

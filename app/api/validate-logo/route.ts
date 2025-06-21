@@ -155,7 +155,6 @@ async function loadReferenceIcon(): Promise<void> {
  */
 // Enable dynamic rendering to allow API calls during server-side rendering
 export const dynamic = "force-dynamic";
-export const revalidate = 3600; // Cache for 1 hour
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   await loadReferenceIcon();
