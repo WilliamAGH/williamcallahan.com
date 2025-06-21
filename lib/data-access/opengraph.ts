@@ -87,7 +87,7 @@ export async function getOpenGraphData(
     if (!cached.data.url || !cached.data.title || (cached.data.error && typeof cached.data.error !== "string")) {
       console.warn(`[DataAccess/OpenGraph] Cached data for ${normalizedUrl} appears corrupted, invalidating cache`);
       ServerCacheInstance.deleteOpenGraphData(normalizedUrl);
-      //etinue to S3/external fetch
+      // Continue to S3/external fetch
     } else {
       const updatedResult: OgResult = { ...cached.data };
 
