@@ -251,11 +251,8 @@ export async function GET(request: NextRequest) {
         throw new Error(`Invalid content type: ${contentType}`);
       }
 
-      const imageBuffer = await response.arrayBuffer();
-      const uint8Array = new Uint8Array(imageBuffer);
-
       // Schedule async persistence
-      scheduleImagePersistence(url, uint8Array, domain);
+      scheduleImagePersistence(url, OPENGRAPH_IMAGES_S3_DIR, `OG-Image-${domain}`);
 
       // For immediate response, return the original URL
       // This avoids blocking the user while image is being processed
