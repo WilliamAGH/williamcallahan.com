@@ -18,6 +18,7 @@ import { scheduleImagePersistence } from "@/lib/opengraph/persistence";
 import { OPENGRAPH_IMAGES_S3_DIR } from "@/lib/opengraph/constants";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
+import { getBaseUrl } from "@/lib/utils/get-base-url";
 // persistImageToS3 is now handled by scheduleImagePersistence from lib/opengraph/persistence
 import type { UnifiedBookmark } from "@/types";
 
@@ -123,7 +124,8 @@ export async function GET(request: NextRequest) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-        const assetCheck = await fetch(`${request.nextUrl.origin}${assetUrl}`, {
+        const baseUrl = getBaseUrl();
+        const assetCheck = await fetch(`${baseUrl}${assetUrl}`, {
           method: "HEAD",
           signal: controller.signal,
         });
