@@ -12,8 +12,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { type NextRequest, NextResponse } from "next/server";
 import sharp from "sharp";
-import { MIN_LOGO_SIZE, VALID_IMAGE_FORMATS } from "../../../lib/constants";
-import { ServerCacheInstance } from "../../../lib/server-cache";
+import { MIN_LOGO_SIZE, VALID_IMAGE_FORMATS } from "@/lib/constants";
+import { ServerCacheInstance } from "@/lib/server-cache";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 
 /** Reference globe icon buffer - loaded once and reused */
