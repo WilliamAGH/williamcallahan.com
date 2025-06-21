@@ -40,6 +40,7 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
     return (
       <BookmarksWithPagination
         bookmarks={bookmarks}
+        initialBookmarks={bookmarks}
         showFilterBar={showFilterBar}
         searchAllBookmarks={searchAllBookmarks}
         enableInfiniteScroll={enableInfiniteScroll}
