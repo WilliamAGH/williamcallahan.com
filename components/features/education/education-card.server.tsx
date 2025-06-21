@@ -17,7 +17,13 @@ import { processEducationItem } from "@/lib/education-data-processor";
  * @returns {JSX.Element} Pre-rendered education card
  */
 export async function EducationCard(props: Education): Promise<JSX.Element> {
-  const educationWithLogo = await processEducationItem(props);
-  
-  return <EducationCardClient education={educationWithLogo} />;
+  try {
+    const educationWithLogo = await processEducationItem(props);
+    return <EducationCardClient education={educationWithLogo} />;
+  } catch (error) {
+    console.error('Failed to process education item:', error);
+    // Fallback to default logo data
+    const fallbackEducation = { ...props, logoData: { url: '', source: null } };
+    return <EducationCardClient education={fallbackEducation} />;
+  }
 }
