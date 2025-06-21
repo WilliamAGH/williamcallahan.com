@@ -551,9 +551,20 @@ export class UnifiedImageService {
 
   /**
    * Check if URL is a logo URL
+   * Only treat URLs as logo URLs if they're specifically logo/favicon files,
+   * not if they just contain these terms in query parameters
    */
   private isLogoUrl(url: string): boolean {
-    return url.includes("logo") || url.includes("favicon");
+    try {
+      const parsedUrl = new URL(url);
+      const pathname = parsedUrl.pathname.toLowerCase();
+      
+      // Check if the actual file path contains logo/favicon
+      return pathname.includes("logo") || pathname.includes("favicon");
+    } catch {
+      // Fallback to simple string check for malformed URLs
+      return url.includes("favicon");
+    }
   }
 
   /**

@@ -65,12 +65,14 @@ export async function getOpenGraphData(
 
   debug(`[DataAccess/OpenGraph] 🔍 Getting OpenGraph data for: ${normalizedUrl}`);
 
-  // Check for S3 override first
+  // PRIORITY LEVEL 1: Check for S3 override first
+  console.log(`[OG-Priority-1] 🔍 Checking S3 override for: ${normalizedUrl}`);
   const s3Override = await getS3Override(normalizedUrl);
   if (s3Override) {
-    debug(`[DataAccess/OpenGraph] 🛡️ Returning from S3 override: ${normalizedUrl}`);
+    console.log(`[OG-Priority-1] ✅ Found S3 override: ${normalizedUrl}`);
     return s3Override;
   }
+  console.log(`[OG-Priority-1] ❌ No S3 override found for: ${normalizedUrl}`);
 
   // Validate URL first
   if (!validateOgUrl(normalizedUrl)) {
@@ -78,10 +80,11 @@ export async function getOpenGraphData(
     return createFallbackResult(normalizedUrl, "Invalid or unsafe URL", validatedFallback);
   }
 
-  // Check memory cache first
+  // PRIORITY LEVEL 2: Check memory cache first
+  console.log(`[OG-Priority-2] 🔍 Checking memory cache for: ${normalizedUrl}`);
   const cached = ServerCacheInstance.getOpenGraphData(normalizedUrl);
   if (cached && Date.now() - (cached.data.timestamp ?? 0) < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000) {
-    debug(`[DataAccess/OpenGraph] 📋 Returning from memory cache: ${normalizedUrl}`);
+    console.log(`[OG-Priority-2] ✅ Found valid memory cache for: ${normalizedUrl}`);
 
     // Validate cached data integrity
     if (!cached.data.url || !cached.data.title || (cached.data.error && typeof cached.data.error !== "string")) {
@@ -139,6 +142,7 @@ export async function getOpenGraphData(
       return updatedResult;
     }
   }
+  console.log(`[OG-Priority-2] ❌ No valid memory cache found for: ${normalizedUrl}`);
 
   // Check circuit breaker using existing session management
   const domain = getDomainType(normalizedUrl);
@@ -164,13 +168,21 @@ export async function getOpenGraphData(
     };
   }
 
-  // Try to read from S3 persistent storage if not in memory cache
+  // PRIORITY LEVEL 3: Try to read from S3 persistent storage if not in memory cache
+  console.log(`[OG-Priority-3] 🔍 Checking S3 persistent storage for: ${normalizedUrl}`);
   try {
     const stored = await readJsonS3(`${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`);
     if (isOgResult(stored)) {
-      debug(`[DataAccess/OpenGraph] 📁 Found in S3 storage: ${normalizedUrl}`);
+      // Check if S3 data is fresh enough
+      const isDataFresh = stored.timestamp && (Date.now() - stored.timestamp < OPENGRAPH_CACHE_DURATION.SUCCESS * 1000);
+      
+      if (!isDataFresh) {
+        console.log(`[OG-Priority-3] ❌ Found STALE S3 storage (age: ${Math.round((Date.now() - (stored.timestamp || 0)) / 1000)}s), continuing to Priority 4: ${normalizedUrl}`);
+        // Continue to Priority 4 by not returning here
+      } else {
+        console.log(`[OG-Priority-3] ✅ Found FRESH S3 storage: ${normalizedUrl} (age: ${Math.round((Date.now() - (stored.timestamp || 0)) / 1000)}s)`);
 
-      const updatedStoredResult: OgResult = { ...stored };
+        const updatedStoredResult: OgResult = { ...stored };
 
       const imageUrl = updatedStoredResult.imageUrl;
       if (imageUrl && isValidImageUrl(imageUrl) && imageUrl.startsWith("http")) {
@@ -208,20 +220,19 @@ export async function getOpenGraphData(
           debug(`[DataAccess/OpenGraph] Banner not in S3, scheduling background persistence: ${bannerUrl}`);
           scheduleImagePersistence(bannerUrl, OPENGRAPH_IMAGES_S3_DIR, "OpenGraph", idempotencyKey, normalizedUrl);
         }
-      }
+        }
 
-      ServerCacheInstance.setOpenGraphData(normalizedUrl, updatedStoredResult, false);
-      return updatedStoredResult;
+        ServerCacheInstance.setOpenGraphData(normalizedUrl, updatedStoredResult, false);
+        return updatedStoredResult;
+      }
     }
+    console.log(`[OG-Priority-3] ❌ No valid data in S3 storage for: ${normalizedUrl}`);
   } catch (e) {
     const error = e instanceof Error ? e : new Error(String(e));
     if ("code" in error && error.code === "NoSuchKey") {
-      debug(`[DataAccess/OpenGraph] S3 cache miss for: ${normalizedUrl}`);
+      console.log(`[OG-Priority-3] ❌ S3 cache miss for: ${normalizedUrl}`);
     } else {
-      const ogError = new OgError(`Failed to read from S3 for ${normalizedUrl}`, "s3-read", {
-        originalError: error,
-      });
-      console.warn(`[DataAccess/OpenGraph] ${ogError.message}`, ogError.message);
+      console.log(`[OG-Priority-3] ❌ S3 read error for: ${normalizedUrl} - ${error.message}`);
     }
   }
 
@@ -231,16 +242,18 @@ export async function getOpenGraphData(
     return createFallbackResult(normalizedUrl, "Skipped external fetch", validatedFallback);
   }
 
-  // Fetch from external source if not in cache or S3
-  debug(`[DataAccess/OpenGraph] 🌐 Fetching from external source: ${normalizedUrl}`);
+  // PRIORITY LEVEL 4: Fetch from external source if not in cache or S3
+  console.log(`[OG-Priority-4] 🔍 Attempting external OpenGraph fetch for: ${normalizedUrl}`);
   const externalResult = await refreshOpenGraphData(normalizedUrl, idempotencyKey, validatedFallback);
 
   if (externalResult) {
+    console.log(`[OG-Priority-4] ✅ External OpenGraph fetch succeeded for: ${normalizedUrl}`);
     return externalResult;
   }
 
   // If all else fails, return a basic fallback
-  debug("[DataAccess/OpenGraph] Using fallback due to fetch unavailability");
+  console.log(`[OG-Priority-4] ❌ External OpenGraph fetch failed for: ${normalizedUrl}`);
+  console.log(`[OG-Fallback] 🔄 Moving to Karakeep fallback chain for: ${normalizedUrl}`);
   return createFallbackResult(normalizedUrl, "External source unavailable", validatedFallback);
 }
 

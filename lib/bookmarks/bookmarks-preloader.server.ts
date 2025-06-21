@@ -42,11 +42,20 @@ export async function preloadBookmarksIfNeeded(): Promise<void> {
 
       console.log("Preloading bookmarks into server cache...");
 
+      // Determine whether to hit external APIs based on current memory
+      // conditions and the operator override.  External OpenGraph fetches
+      // can easily allocate >300 MB in aggregate, so we avoid them when
+      // the process is already under strain (or when explicitly disabled
+      // via BOOKMARKS_SKIP_EXTERNAL_FETCH=true).
+
+      const metrics = ImageMemoryManagerInstance.getMetrics();
+      const skipExternalFetch: boolean = metrics.memoryPressure || process.env.BOOKMARKS_SKIP_EXTERNAL_FETCH === "true";
+
       await monitoredAsync(
         null, // Let monitor generate ID
         "Bookmark Preload",
         async () => {
-          const result = await getBookmarks(false);
+          const result = await getBookmarks(skipExternalFetch);
           console.log("Bookmarks preloaded successfully");
           return result;
         },

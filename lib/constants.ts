@@ -390,9 +390,23 @@ export const CSP_DIRECTIVES = {
  * - `MEMORY_CRITICAL_THRESHOLD`: RSS memory usage that triggers a "critical" state and load shedding (default 90% of total budget)
  * - `IMAGE_STREAM_THRESHOLD_BYTES`: Images larger than this are streamed to S3 (default 5MB)
  */
+
+/**
+ * Resolve the total memory budget once so dependent thresholds can reference it
+ * without circular/hoisting issues.  Operators can still override via the
+ * `TOTAL_PROCESS_MEMORY_BUDGET_BYTES` environment variable.
+ */
+// In development/CI the dev server and webpack often exceed 2 GB on first compile.
+// Raise the default safety ceiling outside production, while still allowing
+// operators to override via the env variable. Production keeps the tighter 1.5 GB.
+const DEFAULT_TOTAL_MEMORY_BUDGET_BYTES =
+  process.env.NODE_ENV === "production" ? 1.5 * 1024 * 1024 * 1024 : 4 * 1024 * 1024 * 1024;
+
+const TOTAL_MEMORY_BUDGET = Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? DEFAULT_TOTAL_MEMORY_BUDGET_BYTES);
+
 export const MEMORY_THRESHOLDS = {
   // Total process memory budget (used by mem-guard for RSS monitoring)
-  TOTAL_PROCESS_MEMORY_BUDGET_BYTES: Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 2 * 1024 * 1024 * 1024), // 2GB default
+  TOTAL_PROCESS_MEMORY_BUDGET_BYTES: TOTAL_MEMORY_BUDGET, // 1.5GB default (enter pressure before container limit)
 
   // Image cache-specific budget (used by ImageMemoryManager)
   // TODO: Consider lowering to 256MB after testing to achieve 600-900MB RSS target
@@ -401,17 +415,14 @@ export const MEMORY_THRESHOLDS = {
   // Server cache budget (used by ServerCache for general data)
   SERVER_CACHE_BUDGET_BYTES: Number(process.env.SERVER_CACHE_BUDGET_BYTES ?? 256 * 1024 * 1024), // 256MB default
 
-  // Warning threshold based on total process memory (70% of 2GB = 1.4GB)
-  MEMORY_WARNING_THRESHOLD: Number(
-    process.env.MEMORY_WARNING_THRESHOLD ??
-      Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 2 * 1024 * 1024 * 1024) * 0.7,
-  ),
+  // Derive warning / critical thresholds *directly* from the resolved total
+  // process budget so they remain in sync even when the default budget is
+  // changed (e.g. lowered to keep RSS well below container limits).  The
+  // environment variables continue to override when provided so operators can
+  // fine-tune without code changes.
+  MEMORY_WARNING_THRESHOLD: Number(process.env.MEMORY_WARNING_THRESHOLD ?? TOTAL_MEMORY_BUDGET * 0.7),
 
-  // Critical threshold based on total process memory (90% of 2GB = 1.8GB)
-  MEMORY_CRITICAL_THRESHOLD: Number(
-    process.env.MEMORY_CRITICAL_THRESHOLD ??
-      Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? 2 * 1024 * 1024 * 1024) * 0.9,
-  ),
+  MEMORY_CRITICAL_THRESHOLD: Number(process.env.MEMORY_CRITICAL_THRESHOLD ?? TOTAL_MEMORY_BUDGET * 0.9),
 
   IMAGE_STREAM_THRESHOLD_BYTES: Number(process.env.IMAGE_STREAM_THRESHOLD_BYTES ?? 5 * 1024 * 1024), // 5MB default
 } as const;
