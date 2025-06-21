@@ -12,7 +12,6 @@ import { processCertificationItem, processEducationItem } from "../../../lib/edu
 import { EducationClient } from "./education.client";
 
 import type { JSX } from "react";
-// import type { Certification, Education } from "@/types/education";
 
 // Force static generation
 export const dynamic = "force-static";
