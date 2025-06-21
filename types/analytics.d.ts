@@ -64,7 +64,7 @@ export interface PlausibleEvent extends BaseAnalyticsEvent {
 }
 
 /**
- * @file twitter.d.ts
+ * Twitter widgets API interface
  * @description Type definitions for the global `twttr` object from Twitter's widgets.js
  * @see https://developer.twitter.com/en/docs/twitter-for-websites/javascript-api/overview
  */
