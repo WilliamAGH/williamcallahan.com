@@ -9,7 +9,10 @@ import { describe, it, expect, jest, beforeEach, afterEach } from "@jest/globals
 const originalEnv = process.env;
 
 beforeEach(() => {
-  jest.resetModules(); // Clear the module cache
+  // Clear the module cache (only if available - not supported in Bun)
+  if (typeof jest.resetModules === "function") {
+    jest.resetModules();
+  }
   process.env = {
     ...originalEnv,
     NODE_ENV: "production",
@@ -116,8 +119,10 @@ describe("OG-Image API Route: 0.0.0.0 URL Fix Tests", () => {
       delete process.env.NEXT_PUBLIC_SITE_URL;
       delete process.env.API_BASE_URL;
 
-      // Re-import after env change
-      jest.resetModules();
+      // Re-import after env change (only if available - not supported in Bun)
+      if (typeof jest.resetModules === "function") {
+        jest.resetModules();
+      }
       const routeModule = await import("@/app/api/og-image/route");
       const testGET = routeModule.GET;
 
@@ -152,7 +157,10 @@ describe("Production URL Validation", () => {
       // Intentionally omit API_BASE_URL and NEXT_PUBLIC_SITE_URL
     };
 
-    jest.resetModules();
+    // Clear module cache (only if available - not supported in Bun)
+    if (typeof jest.resetModules === "function") {
+      jest.resetModules();
+    }
     const { getBaseUrl } = await import("@/lib/utils/get-base-url");
 
     const baseUrl = getBaseUrl();

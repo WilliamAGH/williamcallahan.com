@@ -60,11 +60,11 @@ export async function GET(request: NextRequest) {
       const assetId = url.replace("/api/assets/", "");
       console.log(`[OG-Image] Detected relative asset URL, extracting ID: ${assetId}`);
 
-      // Validate it's a proper asset ID (36 character hex)
-      if (/^[a-f0-9]{36}$/.test(assetId)) {
-        const cdnUrl = process.env.S3_CDN_URL;
+      // Validate it's a proper asset ID (UUID format with or without hyphens)
+      if (/^[a-f0-9-]{36}$/.test(assetId) || /^[a-f0-9]{32}$/.test(assetId)) {
+        const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
         if (cdnUrl) {
-          const directUrl = `${cdnUrl}/images/${assetId}`;
+          const directUrl = `${cdnUrl}/images/karakeep/${assetId}.webp`;
           return NextResponse.redirect(directUrl, { status: 302 });
         }
         return NextResponse.redirect(new URL(url, baseUrl).toString(), { status: 302 });
@@ -75,12 +75,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Check if it's a Karakeep asset ID (36 character hex)
-    if (/^[a-f0-9]{36}$/.test(url)) {
+    // Check if it's a Karakeep asset ID (UUID format with or without hyphens)
+    if (/^[a-f0-9-]{36}$/.test(url) || /^[a-f0-9]{32}$/.test(url)) {
       console.log(`[OG-Image] Detected Karakeep asset ID: ${url}`);
-      const cdnUrl = process.env.S3_CDN_URL;
+      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
       if (cdnUrl) {
-        const directUrl = `${cdnUrl}/images/${url}`;
+        const directUrl = `${cdnUrl}/images/karakeep/${url}.webp`;
         return NextResponse.redirect(directUrl, { status: 302 });
       }
       const assetUrl = `/api/assets/${url}`;
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
         );
 
         // Object exists, redirect to S3 URL
-        const s3Url = `${process.env.S3_CDN_URL}/${OPENGRAPH_IMAGES_S3_DIR}/${s3Key}`;
+        const s3Url = `${process.env.NEXT_PUBLIC_S3_CDN_URL}/${OPENGRAPH_IMAGES_S3_DIR}/${s3Key}`;
         return NextResponse.redirect(s3Url, {
           status: 302,
           headers: {
@@ -157,9 +157,9 @@ export async function GET(request: NextRequest) {
       // If we have an assetId directly, use it
       if (assetId) {
         console.log(`[OG-Image] Checking Karakeep assetId BEFORE OpenGraph: ${assetId}`);
-        const cdnUrl = process.env.S3_CDN_URL;
+        const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
         if (cdnUrl) {
-          const directUrl = `${cdnUrl}/images/${assetId}`;
+          const directUrl = `${cdnUrl}/images/karakeep/${assetId}.webp`;
           return NextResponse.redirect(directUrl, { status: 302 });
         }
         const assetUrl = `/api/assets/${assetId}`;
@@ -180,9 +180,9 @@ export async function GET(request: NextRequest) {
                 console.log(
                   `[OG-Priority-KARAKEEP] 🎯 Found Karakeep bannerImage (imageAssetId), using INSTEAD of OpenGraph: ${bookmark.content.imageAssetId}`,
                 );
-                const cdnUrl = process.env.S3_CDN_URL;
+                const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
                 if (cdnUrl) {
-                  const directUrl = `${cdnUrl}/images/${bookmark.content.imageAssetId}`;
+                  const directUrl = `${cdnUrl}/images/karakeep/${bookmark.content.imageAssetId}.webp`;
                   return NextResponse.redirect(directUrl, { status: 302 });
                 }
                 const assetUrl = `/api/assets/${bookmark.content.imageAssetId}`;
@@ -245,7 +245,7 @@ export async function GET(request: NextRequest) {
         }),
       );
 
-      s3ImageUrl = `${process.env.S3_CDN_URL}/${s3Key}`;
+      s3ImageUrl = `${process.env.NEXT_PUBLIC_S3_CDN_URL}/${s3Key}`;
       console.log(`[OG-Image] S3 image found: ${s3ImageUrl}`);
 
       // Update cache
@@ -316,9 +316,9 @@ export async function GET(request: NextRequest) {
         // Try imageAssetId
         if (fallbackImageData.imageAssetId) {
           console.log(`[OG-Image] Using Karakeep imageAssetId fallback: ${fallbackImageData.imageAssetId}`);
-          const cdnUrl = process.env.S3_CDN_URL;
+          const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
           if (cdnUrl) {
-            const directUrl = `${cdnUrl}/images/${fallbackImageData.imageAssetId}`;
+            const directUrl = `${cdnUrl}/images/karakeep/${fallbackImageData.imageAssetId}.webp`;
             return NextResponse.redirect(directUrl, { status: 302 });
           }
           const assetUrl = `/api/assets/${fallbackImageData.imageAssetId}`;
@@ -328,9 +328,9 @@ export async function GET(request: NextRequest) {
         // Try screenshotAssetId
         if (fallbackImageData.screenshotAssetId) {
           console.log(`[OG-Image] Using Karakeep screenshotAssetId fallback: ${fallbackImageData.screenshotAssetId}`);
-          const cdnUrl = process.env.S3_CDN_URL;
+          const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
           if (cdnUrl) {
-            const directUrl = `${cdnUrl}/images/${fallbackImageData.screenshotAssetId}`;
+            const directUrl = `${cdnUrl}/images/karakeep/${fallbackImageData.screenshotAssetId}.webp`;
             return NextResponse.redirect(directUrl, { status: 302 });
           }
           const assetUrl = `/api/assets/${fallbackImageData.screenshotAssetId}`;

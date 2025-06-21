@@ -10,18 +10,22 @@ import type { ImageSelectionOptions } from "@/types/features/bookmarks";
 /**
  * Constructs a consistent asset URL for Karakeep assets
  * @param assetId The asset ID from Karakeep
+ * @param extension Optional file extension (defaults to .webp for optimization)
  * @returns The full asset URL or undefined
  */
-export function getAssetUrl(assetId: string | undefined | null): string | undefined {
+export function getAssetUrl(assetId: string | undefined | null, extension: string = "webp"): string | undefined {
   if (!assetId) return undefined;
-  
+
+  // Ensure extension starts with dot
+  const ext = extension.startsWith(".") ? extension : `.${extension}`;
+
   // In production, prefer CDN URLs for better performance
   // In development, use API proxy to ensure images are available
   const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
   if (cdnUrl && process.env.NODE_ENV === "production") {
-    return `${cdnUrl}/images/${assetId}`;
+    return `${cdnUrl}/images/karakeep/${assetId}${ext}`;
   }
-  
+
   return `/api/assets/${assetId}`;
 }
 
@@ -72,7 +76,8 @@ export function selectBestImage(
   }
 
   if (content?.imageAssetId) {
-    candidates.push(getAssetUrl(content.imageAssetId));
+    // Use asset ID directly instead of /api/assets/ URL for ogImage compatibility
+    candidates.push(content.imageAssetId);
   }
 
   // Add OpenGraph after Karakeep if not preferred

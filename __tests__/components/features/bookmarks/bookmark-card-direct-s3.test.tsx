@@ -39,7 +39,7 @@ describe("BookmarkCard Direct S3 CDN Usage Tests", () => {
         if (mockBookmark.content?.imageAssetId) {
           const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
           if (cdnUrl) {
-            return `${cdnUrl}/images/${mockBookmark.content.imageAssetId}`;
+            return `${cdnUrl}/images/karakeep/${mockBookmark.content.imageAssetId}.webp`;
           }
           return `/api/assets/${mockBookmark.content.imageAssetId}`;
         }
@@ -48,7 +48,9 @@ describe("BookmarkCard Direct S3 CDN Usage Tests", () => {
 
       const result = getDisplayImageUrl();
 
-      expect(result).toBe("https://s3-storage.callahan.cloud/images/a1b2c3d4e5f6789012345678901234567890");
+      expect(result).toBe(
+        "https://s3-storage.callahan.cloud/images/karakeep/a1b2c3d4e5f6789012345678901234567890.webp",
+      );
       expect(result).not.toContain("/api/og-image");
       expect(result).toContain("s3-storage.callahan.cloud");
     });
@@ -158,7 +160,7 @@ describe("BookmarkCard Direct S3 CDN Usage Tests", () => {
             },
             ogImage: "https://example.com/og.jpg",
           },
-          expected: "https://s3-storage.callahan.cloud/images/karakeep123",
+          expected: "https://s3-storage.callahan.cloud/images/karakeep/karakeep123.webp",
         },
         {
           name: "S3 CDN URL (second priority)",
@@ -191,7 +193,7 @@ describe("BookmarkCard Direct S3 CDN Usage Tests", () => {
           if (bookmark.content?.imageAssetId) {
             const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
             if (cdnUrl) {
-              return `${cdnUrl}/images/${bookmark.content.imageAssetId}`;
+              return `${cdnUrl}/images/karakeep/${bookmark.content.imageAssetId}.webp`;
             }
             return `/api/assets/${bookmark.content.imageAssetId}`;
           }
@@ -235,7 +237,7 @@ describe("BookmarkCard Direct S3 CDN Usage Tests", () => {
         if (mockBookmark.content?.imageAssetId) {
           const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
           if (cdnUrl && process.env.NODE_ENV === "production") {
-            return `${cdnUrl}/images/${mockBookmark.content.imageAssetId}`;
+            return `${cdnUrl}/images/karakeep/${mockBookmark.content.imageAssetId}.webp`;
           }
           return `/api/assets/${mockBookmark.content.imageAssetId}`;
         }
