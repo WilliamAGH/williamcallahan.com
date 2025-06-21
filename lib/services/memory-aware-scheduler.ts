@@ -91,8 +91,8 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
       const scheduledRequest: ScheduledRequest = {
         id: requestId,
         priority,
-        operation: operation as () => Promise<unknown>,
-        resolve: resolve as (value: unknown) => void,
+        operation: () => operation() as Promise<unknown>,
+        resolve: (value: unknown) => resolve(value as T),
         reject,
         timestamp,
         retries: 0,
