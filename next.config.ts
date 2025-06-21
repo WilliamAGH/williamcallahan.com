@@ -56,6 +56,20 @@ process.env.NEXT_PUBLIC_APP_VERSION = appVersion;
 
 const nextConfig = {
   /**
+   * Turbopack configuration (when using --turbo flag)
+   * Note: This is used instead of webpack config when running with Turbopack
+   */
+  turbopack: {
+    // Custom loaders for Turbopack
+    rules: {
+      "*.svg": {
+        loaders: ["@svgr/webpack"],
+        as: "*.js",
+      },
+    },
+  },
+
+  /**
    * Custom webpack configuration
    * @param {import('webpack').Configuration} config - Webpack config object
    * @returns {import('webpack').Configuration} Modified webpack config
@@ -137,10 +151,42 @@ const nextConfig = {
       });
     }
 
-    // Keep webpack's default memory cache in development for better performance
-    // The webpackMemoryOptimizations flag already optimizes memory usage
-    // Filesystem cache would be slower and create disk I/O overhead
-    
+    // Optimize webpack cache for memory efficiency
+    if (process.env.NODE_ENV === "development") {
+      // Use filesystem cache in development to dramatically reduce memory usage.
+      // Each compiler (server, client, edge-server) needs a unique cache name.
+      const compilerName = config.name || "unknown";
+      config.cache = {
+        type: "filesystem",
+        // Let Next.js handle buildDependencies automatically
+        compression: "gzip",
+        hashAlgorithm: "xxhash64",
+        name: `dev-cache-${compilerName}`,
+        version: appVersion,
+      };
+
+      // Disable source maps in development to save ~30% memory
+      config.devtool = false;
+
+      // Limit parallelism to reduce concurrent memory usage
+      config.parallelism = 1;
+
+      // Optimize module resolution
+      config.optimization = {
+        ...config.optimization,
+        removeAvailableModules: true,
+        removeEmptyChunks: true,
+        sideEffects: false,
+      };
+    } else {
+      // Keep memory cache in production for performance
+      config.cache = {
+        type: "memory",
+        maxGenerations: 1,
+        cacheUnaffected: false,
+      };
+    }
+
     // Suppress warnings for Sentry and OpenTelemetry dynamic requires
     config.ignoreWarnings = [
       // Suppress warnings about dynamic requires
@@ -255,9 +301,7 @@ const nextConfig = {
   productionBrowserSourceMaps: false, // Disable to save memory during builds
   // Nextjs 15 uses SWC by default; swcMinify option is no longer needed
   // Add transpilePackages to handle ESM packages - removed Sentry/OpenTelemetry to reduce watchers
-  transpilePackages: [
-    "next-mdx-remote",
-  ],
+  transpilePackages: ["next-mdx-remote"],
   experimental: {
     taint: true,
     serverMinification: true,
