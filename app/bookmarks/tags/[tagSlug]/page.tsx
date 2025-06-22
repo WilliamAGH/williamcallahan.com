@@ -100,19 +100,31 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
 }
 
 export default async function TagPage({ params }: TagBookmarkContext) {
-  const allBookmarks = await getBookmarks();
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
   // Use sanitizeUnicode utility for consistency
   const tagSlug = sanitizeUnicode(paramsResolved.tagSlug);
   const tagQuery = tagSlug.replace(/-/g, " ");
 
-  const filtered = allBookmarks.filter((b) => {
-    const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
-      typeof t === "string" ? t : t.name,
-    );
-    return names.some((n) => n.toLowerCase() === tagQuery.toLowerCase());
-  });
+  // Try to load from S3 first for better performance
+  const { getTagBookmarksPage } = await import("@/lib/bookmarks/bookmarks-data-access.server");
+  const tagBookmarksFromS3 = await getTagBookmarksPage(tagSlug, 1);
+  
+  let filtered: import("@/types").UnifiedBookmark[];
+  
+  if (tagBookmarksFromS3.length > 0) {
+    // Use S3 cached data if available
+    filtered = tagBookmarksFromS3;
+  } else {
+    // Fall back to filtering all bookmarks
+    const allBookmarks = await getBookmarks();
+    filtered = allBookmarks.filter((b) => {
+      const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
+        typeof t === "string" ? t : t.name,
+      );
+      return names.some((n) => n.toLowerCase() === tagQuery.toLowerCase());
+    });
+  }
 
   // Find the original tag with proper capitalization
   let displayTag = tagQuery;
