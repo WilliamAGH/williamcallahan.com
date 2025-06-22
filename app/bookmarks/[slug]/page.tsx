@@ -14,11 +14,24 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
-import type { UnifiedBookmark } from "@/types";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 // No static params generation for dynamic pages
+
+// Helper function to find bookmark by slug
+async function findBookmarkBySlug(slug: string) {
+  const allBookmarks = await getBookmarks();
+  
+  for (const bookmark of allBookmarks) {
+    const bookmarkSlug = generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id);
+    if (bookmarkSlug === slug) {
+      return { bookmark, allBookmarks };
+    }
+  }
+  
+  return { bookmark: null, allBookmarks };
+}
 
 /**
  * Generate metadata for this bookmark page
@@ -30,18 +43,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
   // Fetch bookmark data to create more specific metadata
-  const allBookmarks = await getBookmarks();
   const { slug } = paramsResolved;
-
-  // Find the bookmark that matches this slug
-  let foundBookmark: UnifiedBookmark | null = null;
-  for (const bookmark of allBookmarks) {
-    const bookmarkSlug = generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id);
-    if (bookmarkSlug === slug) {
-      foundBookmark = bookmark;
-      break;
-    }
-  }
+  const { bookmark: foundBookmark } = await findBookmarkBySlug(slug);
 
   // If no bookmark is found, return basic metadata
   if (!foundBookmark) {
@@ -115,21 +118,10 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 import type { BookmarkPageContext } from "@/types";
 
 export default async function BookmarkPage({ params }: BookmarkPageContext) {
-  const allBookmarks = await getBookmarks();
   // Await params to fix Next.js warning
   const paramsResolved = await Promise.resolve(params);
   const { slug } = paramsResolved;
-
-  // Find the bookmark that matches this slug
-  let foundBookmark: UnifiedBookmark | null = null;
-
-  for (const bookmark of allBookmarks) {
-    const bookmarkSlug = generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id);
-    if (bookmarkSlug === slug) {
-      foundBookmark = bookmark;
-      break;
-    }
-  }
+  const { bookmark: foundBookmark } = await findBookmarkBySlug(slug);
 
   // If no bookmark matches this slug, show a 404
   if (!foundBookmark) {
