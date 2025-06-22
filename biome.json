@@ -93,6 +93,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["components/analytics/analytics.client.tsx"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "useUniqueElementIds": "off"
+          }
+        }
+      }
     }
   ]
 }
