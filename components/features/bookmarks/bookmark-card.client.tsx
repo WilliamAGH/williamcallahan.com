@@ -52,7 +52,6 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   const { id, url, title, description, tags, ogImage, content, dateBookmarked, shareUrl: initialShareUrl } = props;
   const [mounted, setMounted] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [attemptedDirectS3, setAttemptedDirectS3] = useState(false);
   const shareUrl = initialShareUrl;
 
   // Effects for handling client-side initialization
@@ -113,36 +112,10 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       return content.imageUrl;
     }
 
-    // PRIORITY 4: Check if OpenGraph image is already in S3
+    // PRIORITY 4: OpenGraph image - always use og-image API for proper fallback handling
     if (ogImage) {
-      // If ogImage looks like an S3 URL, use it directly
-      if (
-        ogImage.includes(process.env.NEXT_PUBLIC_S3_CDN_URL || "") ||
-        ogImage.includes("s3") ||
-        ogImage.includes("digitaloceanspaces")
-      ) {
-        console.log(`[BookmarkCard] Using DIRECT S3 OpenGraph URL: ${ogImage}`);
-        return ogImage;
-      }
-
-      // Try to construct S3 URL for this OpenGraph image in production only
-      const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
-      if (s3CdnUrl && process.env.NODE_ENV === "production" && ogImage.startsWith("http") && !attemptedDirectS3) {
-        try {
-          const domain = new URL(ogImage).hostname;
-          const s3Key = `images/opengraph/${domain}/${ogImage.replace(/[^a-zA-Z0-9.-]/g, "_")}.webp`;
-          const directS3Url = `${s3CdnUrl}/${s3Key}`;
-          console.log(`[BookmarkCard] Trying DIRECT S3 URL (production): ${directS3Url}`);
-          return directS3Url;
-        } catch (urlError) {
-          console.warn(`[BookmarkCard] Invalid ogImage URL: ${ogImage}`, urlError);
-        }
-      }
-
-      // Fall back to og-image API if direct S3 failed or wasn't attempted
-      console.log(
-        `[BookmarkCard] ${attemptedDirectS3 ? "Fallback to" : "Using"} og-image API for OpenGraph: ${ogImage}`,
-      );
+      // The og-image API handles all the logic for S3 checks, Karakeep fallbacks, etc.
+      console.log(`[BookmarkCard] Using og-image API for OpenGraph: ${ogImage}`);
       return `/api/og-image?url=${encodeURIComponent(ogImage)}&bookmarkId=${encodeURIComponent(id)}`;
     }
 
@@ -166,7 +139,6 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   if (displayImageUrl !== prevDisplayImageUrl) {
     setPrevDisplayImageUrl(displayImageUrl);
     setImageError(false);
-    setAttemptedDirectS3(false);
   }
 
   const domain = normalizeDomain(url);
@@ -210,15 +182,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
               className="w-full h-full object-cover"
               onError={() => {
                 console.warn(`[BookmarkCard] Image failed to load: ${displayImageUrl}`);
-
-                // If this was a direct S3 URL attempt, try falling back to og-image API
-                if (displayImageUrl?.includes(process.env.NEXT_PUBLIC_S3_CDN_URL || "") && !attemptedDirectS3) {
-                  console.log(`[BookmarkCard] Direct S3 failed, attempting og-image API fallback`);
-                  setAttemptedDirectS3(true);
-                  // This will trigger a re-render with getDisplayImageUrl() returning the API fallback
-                } else {
-                  setImageError(true); // Show fallback UI when all image sources fail
-                }
+                setImageError(true); // Show fallback UI when image fails to load
               }}
             />
           ) : (

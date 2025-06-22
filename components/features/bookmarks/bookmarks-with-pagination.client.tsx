@@ -138,7 +138,13 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         }
 
         const json: unknown = await response.json();
-        const validation = bookmarkListResponseSchema.safeParse(json);
+        
+        // The API returns { data: [...], meta: {...} } format
+        const apiResponse = json as { data: unknown[]; meta: unknown };
+        
+        const validation = bookmarkListResponseSchema.safeParse({
+          bookmarks: apiResponse.data
+        });
 
         if (!validation.success) {
           console.warn("Full-dataset bookmark search validation failed", validation.error);

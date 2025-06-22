@@ -76,8 +76,8 @@ export function selectBestImage(
   }
 
   if (content?.imageAssetId) {
-    // Use asset ID directly instead of /api/assets/ URL for ogImage compatibility
-    candidates.push(content.imageAssetId);
+    // Convert asset ID to full URL
+    candidates.push(getAssetUrl(content.imageAssetId));
   }
 
   // Add OpenGraph after Karakeep if not preferred
