@@ -11,7 +11,7 @@
 "use client";
 
 import Image from "next/image";
-import { type JSX } from "react";
+import { type JSX, useState, useCallback } from "react";
 import type { LogoImageProps } from "@/types";
 
 export function LogoImage({
@@ -22,13 +22,37 @@ export function LogoImage({
   className = "",
   priority = false,
 }: LogoImageProps): JSX.Element {
+  const [imageError, setImageError] = useState(false);
+
+  const handleError = useCallback(() => {
+    console.warn(`[LogoImage] Failed to load logo: ${src}`);
+    setImageError(true);
+  }, [src]);
+
   if (!src) {
     // Return a placeholder or null if src is not provided
     return <div style={{ width, height }} className="bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />;
   }
 
-  // Use next/image for all image sources, including data URLs.
-  // Next.js can handle base64 encoded strings directly.
+  // If Next.js Image optimization fails, fall back to regular img tag
+  if (imageError) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        className={`${className} object-contain`}
+        onError={() => {
+          // If even the regular img fails, show placeholder
+          console.error(`[LogoImage] Logo completely failed to load: ${src}`);
+        }}
+      />
+    );
+  }
+
+  // Use next/image for optimization when possible
   return (
     <Image
       src={src}
@@ -39,6 +63,9 @@ export function LogoImage({
       data-priority={priority ? "true" : "false"}
       className={`${className} object-contain`}
       {...(priority ? { priority } : {})}
+      onError={handleError}
+      // Allow external images from the logo API
+      unoptimized={src.includes("/api/logo")}
     />
   );
 }
