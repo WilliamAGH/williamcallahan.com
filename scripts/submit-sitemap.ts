@@ -118,8 +118,12 @@ const main = async (): Promise<void> => {
             console.info(`[Google] Successfully submitted URL ${url}`);
           }
         } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : "Unknown error";
-          console.error(`[Google] Failed to submit URL ${url}: ${errorMessage}`);
+          if (isGaxiosError(err)) {
+            console.error(`[Google] Failed to submit URL ${url}: ${err.response?.status} ${err.response?.statusText} - ${err.message}`);
+          } else {
+            const errorMessage = err instanceof Error ? err.message : "Unknown error";
+            console.error(`[Google] Failed to submit URL ${url}: ${errorMessage}`);
+          }
         }
       }),
     );
