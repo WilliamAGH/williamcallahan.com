@@ -22,7 +22,7 @@
     "prestart": "mkdir -p data/bookmarks data/github-activity data/images/logos",
     "prefetch": "bun scripts/data-updater.ts --prefetch-dev",
     "populate-volumes": "NODE_ENV=development bun scripts/populate-volumes.ts",
-    "dev": "mkdir -p data/bookmarks data/github-activity data/images/logos && bun run cleanCache && NODE_OPTIONS='--max-old-space-size=4096' next dev",
+    "dev": "bun run populate-volumes && bun run cleanCache && NODE_OPTIONS='--max-old-space-size=4096' next dev",
     "dev:full": "bun run populate-volumes && bun run cleanCache && NODE_OPTIONS='--max-old-space-size=4096' next dev",
     "dev:turbo": "mkdir -p data/bookmarks data/github-activity data/images/logos && bun run cleanCache && NODE_OPTIONS='--max-old-space-size=4096' next dev --turbo",
     "build": "bun run validate && NEXT_PHASE=phase-production-build bun scripts/data-updater.ts --prefetch-build && next build",
