@@ -15,6 +15,7 @@ export const revalidate = 1800;
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
+import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { tagToSlug, sanitizeUnicode } from "@/lib/utils/tag-utils";
 import type { Metadata } from "next";
@@ -48,7 +49,7 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
   const tagQuery = tagSlug.replace(/-/g, " ");
 
   // Try to find the original tag capitalization
-  const allBookmarks = getBookmarksForStaticBuild();
+  const allBookmarks = await getBookmarks();
   let displayTag = tagQuery
     .split(" ")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -99,7 +100,7 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
 }
 
 export default async function TagPage({ params }: TagBookmarkContext) {
-  const allBookmarks = getBookmarksForStaticBuild();
+  const allBookmarks = await getBookmarks();
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
   // Use sanitizeUnicode utility for consistency
