@@ -37,10 +37,7 @@ describe("BookmarkCard Direct S3 CDN Usage Tests", () => {
       // Simulate getDisplayImageUrl logic
       const getDisplayImageUrl = () => {
         if (mockBookmark.content?.imageAssetId) {
-          const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
-          if (cdnUrl) {
-            return `${cdnUrl}/images/karakeep/${mockBookmark.content.imageAssetId}.webp`;
-          }
+          // Always use API proxy to ensure correct content-type
           return `/api/assets/${mockBookmark.content.imageAssetId}`;
         }
         return null;
@@ -49,10 +46,10 @@ describe("BookmarkCard Direct S3 CDN Usage Tests", () => {
       const result = getDisplayImageUrl();
 
       expect(result).toBe(
-        "https://s3-storage.callahan.cloud/images/karakeep/a1b2c3d4e5f6789012345678901234567890.webp",
+        "/api/assets/a1b2c3d4e5f6789012345678901234567890",
       );
       expect(result).not.toContain("/api/og-image");
-      expect(result).toContain("s3-storage.callahan.cloud");
+      expect(result).toContain("/api/assets/");
     });
 
     /**

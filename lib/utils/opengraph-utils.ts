@@ -232,10 +232,10 @@ export function isValidImageUrl(url: string | null | undefined): url is string {
  *
  * @param assetId - The Karakeep asset ID
  * @param _baseUrl - The base URL for the Karakeep API (unused, kept for API compatibility)
- * @param extension - File extension (defaults to .webp for optimization)
+ * @param _extension - File extension (unused, kept for API compatibility)
  * @returns Constructed asset URL for proxy access
  */
-export function constructKarakeepAssetUrl(assetId: string, _baseUrl?: string, extension: string = "webp"): string {
+export function constructKarakeepAssetUrl(assetId: string, _baseUrl?: string, _extension?: string): string {
   // Validate asset ID format (should be non-empty string, potentially UUID)
   if (!assetId || typeof assetId !== "string" || assetId.trim().length === 0) {
     throw new Error("Invalid asset ID provided");
@@ -247,15 +247,7 @@ export function constructKarakeepAssetUrl(assetId: string, _baseUrl?: string, ex
     throw new Error("Asset ID contains invalid characters");
   }
 
-  // Ensure extension starts with dot
-  const ext = extension.startsWith(".") ? extension : `.${extension}`;
-
-  // Use direct CDN URL in production only, API proxy in development
-  const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
-  if (cdnUrl && process.env.NODE_ENV === "production") {
-    return `${cdnUrl}/images/karakeep/${sanitizedAssetId}${ext}`;
-  }
-
-  // Fallback to local asset proxy endpoint for consistent authentication and error handling
+  // Always use API proxy to ensure correct content-type is preserved
+  // This guarantees that images work regardless of their actual format
   return `/api/assets/${sanitizedAssetId}`;
 }
