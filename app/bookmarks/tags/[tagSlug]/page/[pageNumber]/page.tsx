@@ -38,18 +38,28 @@ export async function generateMetadata({ params }: PaginatedTagBookmarkContext):
   const tagSlug = sanitizeUnicode(paramsResolved.tagSlug);
   const tagQuery = tagSlug.replace(/-/g, " ");
 
-  // Get all bookmarks to find the tag and calculate pagination
-  const allBookmarks = await getBookmarks();
-
-  // Filter bookmarks by tag
-  const taggedBookmarks = allBookmarks.filter((b) => {
-    const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
-      typeof t === "string" ? t : t.name,
-    );
-    return names.some((n) => n.toLowerCase() === tagQuery.toLowerCase());
-  });
-
-  const totalPages = Math.ceil(taggedBookmarks.length / 24);
+  // Try to get tag index from S3 for pagination metadata
+  const { getTagBookmarksIndex, getBookmarks: getBookmarksFromService } = await import("@/lib/bookmarks/bookmarks-data-access.server");
+  const tagIndex = await getTagBookmarksIndex(tagSlug);
+  
+  let totalPages: number;
+  let taggedBookmarks: import("@/types").UnifiedBookmark[];
+  
+  if (tagIndex) {
+    // Use S3 cached metadata
+    totalPages = tagIndex.totalPages;
+    taggedBookmarks = []; // We only need a sample for display tag extraction
+  } else {
+    // Fall back to filtering all bookmarks
+    const allBookmarks = await getBookmarksFromService();
+    taggedBookmarks = allBookmarks.filter((b) => {
+      const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
+        typeof t === "string" ? t : t.name,
+      );
+      return names.some((n) => n.toLowerCase() === tagQuery.toLowerCase());
+    });
+    totalPages = Math.ceil(taggedBookmarks.length / 24);
+  }
 
   // Find display name for the tag
   let displayTag = tagQuery
@@ -166,16 +176,31 @@ export default async function PaginatedTagBookmarksPage({ params }: PaginatedTag
   const tagSlug = sanitizeUnicode(paramsResolved.tagSlug);
   const tagQuery = tagSlug.replace(/-/g, " ");
 
-  // Get all bookmarks and filter by tag
-  const allBookmarks = await getBookmarks();
-  const taggedBookmarks = allBookmarks.filter((b) => {
-    const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
-      typeof t === "string" ? t : t.name,
-    );
-    return names.some((n) => n.toLowerCase() === tagQuery.toLowerCase());
-  });
-
-  const totalPages = Math.ceil(taggedBookmarks.length / 24);
+  // Try to load from S3 first for better performance
+  const { getTagBookmarksPage, getTagBookmarksIndex } = await import("@/lib/bookmarks/bookmarks-data-access.server");
+  
+  // Get tag index for total pages
+  const tagIndex = await getTagBookmarksIndex(tagSlug);
+  const tagBookmarksFromS3 = await getTagBookmarksPage(tagSlug, pageNum);
+  
+  let taggedBookmarks: import("@/types").UnifiedBookmark[];
+  let totalPages: number;
+  
+  if (tagBookmarksFromS3.length > 0 && tagIndex) {
+    // Use S3 cached data if available
+    taggedBookmarks = tagBookmarksFromS3;
+    totalPages = tagIndex.totalPages;
+  } else {
+    // Fall back to filtering all bookmarks
+    const allBookmarks = await getBookmarks();
+    taggedBookmarks = allBookmarks.filter((b) => {
+      const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
+        typeof t === "string" ? t : t.name,
+      );
+      return names.some((n) => n.toLowerCase() === tagQuery.toLowerCase());
+    });
+    totalPages = Math.ceil(taggedBookmarks.length / 24);
+  }
 
   if (pageNum > totalPages) {
     notFound();
