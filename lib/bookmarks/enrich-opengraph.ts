@@ -44,6 +44,15 @@ export async function processBookmarksInBatches(
         console.log(`${LOG_PREFIX} [DEV] Processing ${i + 1}/${bookmarks.length}`);
       }
 
+      // First check if we already have a good image from Karakeep
+      const karakeepImage = selectBestImage(bookmark, { preferOpenGraph: false });
+      if (karakeepImage && !bookmark.ogImage) {
+        console.log(`${LOG_PREFIX} Using existing Karakeep image for ${bookmark.url}`);
+        bookmark.ogImage = karakeepImage;
+        enrichedBookmarks.push(bookmark);
+        continue;
+      }
+
       const ogData = await getOpenGraphData(bookmark.url, false, bookmark.id, karakeepFallback);
 
       // Small delay between requests to avoid overwhelming services
@@ -58,7 +67,7 @@ export async function processBookmarksInBatches(
           const metadata = result.data;
           bookmark.title = metadata.title || bookmark.title;
           bookmark.description = metadata.description || bookmark.description;
-          bookmark.ogImage = bookmark.ogImage || ogData.imageUrl || metadata.image || undefined;
+          bookmark.ogImage = bookmark.ogImage || ogData.imageUrl || metadata.image || karakeepImage || undefined;
 
           // Update content if it exists
           if (bookmark.content) {
@@ -71,15 +80,9 @@ export async function processBookmarksInBatches(
             bookmark.content.imageUrl = bookmark.content.imageUrl || ogData.imageUrl || metadata.image || undefined;
           }
         }
-      } else if (ogData?.imageUrl) {
-        // Use fallback image if available
-        bookmark.ogImage = bookmark.ogImage || ogData.imageUrl;
       } else {
-        // Try Karakeep fallback
-        const fallbackImage = selectBestImage(bookmark, { preferOpenGraph: false });
-        if (fallbackImage) {
-          bookmark.ogImage = bookmark.ogImage || fallbackImage;
-        }
+        // Use Karakeep image as fallback
+        bookmark.ogImage = bookmark.ogImage || karakeepImage || (ogData?.imageUrl || undefined);
       }
       enrichedBookmarks.push(bookmark);
     } catch (error) {

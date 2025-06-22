@@ -261,7 +261,28 @@ export async function GET(request: NextRequest) {
         },
       });
     } catch {
-      console.log(`[OG-Image] S3 image not found, will fetch: ${url}`);
+      console.log(`[OG-Image] S3 image not found, checking Karakeep fallback before external fetch`);
+      
+      // Check for Karakeep fallback BEFORE trying external fetch
+      if (fallbackImageData) {
+        // Try imageUrl first (this is the Karakeep API response image URL)
+        if (fallbackImageData.imageUrl) {
+          console.log(`[OG-Image] Using Karakeep imageUrl instead of fetching: ${fallbackImageData.imageUrl}`);
+          return NextResponse.redirect(fallbackImageData.imageUrl, { status: 302 });
+        }
+        
+        // Try screenshotAssetId as second option
+        if (fallbackImageData.screenshotAssetId) {
+          console.log(`[OG-Image] Using Karakeep screenshot instead of fetching: ${fallbackImageData.screenshotAssetId}`);
+          const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
+          if (cdnUrl) {
+            const directUrl = `${cdnUrl}/images/karakeep/${fallbackImageData.screenshotAssetId}.webp`;
+            return NextResponse.redirect(directUrl, { status: 302 });
+          }
+          const assetUrl = `/api/assets/${fallbackImageData.screenshotAssetId}`;
+          return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
+        }
+      }
     }
 
     // Fetch external image
