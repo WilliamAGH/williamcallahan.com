@@ -13,6 +13,7 @@ import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import type { UnifiedBookmark, DistributedLockEntry, RefreshBookmarksCallback } from "@/types";
 import type { BookmarksIndex } from "@/types/bookmark";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
+import { tagToSlug } from "@/lib/utils/tag-utils";
 
 // --- Configuration & Constants ---
 const LOG_PREFIX = "[Bookmarks]";
@@ -208,6 +209,53 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
   console.log(`${LOG_PREFIX} Wrote ${totalPages} pages of bookmarks`);
 }
 
+// Write tag-filtered bookmarks in paginated format
+async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<void> {
+  const pageSize = BOOKMARKS_PER_PAGE;
+  
+  // Group bookmarks by tag
+  const bookmarksByTag: Record<string, UnifiedBookmark[]> = {};
+  
+  for (const bookmark of bookmarks) {
+    const tags = Array.isArray(bookmark.tags) ? bookmark.tags : [];
+    for (const tag of tags) {
+      const tagName = typeof tag === "string" ? tag : (tag as { name: string }).name;
+      const tagSlugValue = tagToSlug(tagName);
+      
+      if (!bookmarksByTag[tagSlugValue]) {
+        bookmarksByTag[tagSlugValue] = [];
+      }
+      bookmarksByTag[tagSlugValue].push(bookmark);
+    }
+  }
+  
+  // Write paginated bookmarks for each tag
+  for (const [tagSlug, tagBookmarks] of Object.entries(bookmarksByTag)) {
+    const totalPages = Math.ceil(tagBookmarks.length / pageSize);
+    
+    // Write tag index
+    const tagIndex: BookmarksIndex = {
+      count: tagBookmarks.length,
+      totalPages,
+      pageSize,
+      lastModified: new Date().toISOString(),
+      lastFetchedAt: Date.now(),
+      lastAttemptedAt: Date.now(),
+      checksum: calculateBookmarksChecksum(tagBookmarks),
+    };
+    await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`, tagIndex);
+    
+    // Write each page for this tag
+    for (let page = 1; page <= totalPages; page++) {
+      const start = (page - 1) * pageSize;
+      const pageBookmarks = tagBookmarks.slice(start, start + pageSize);
+      await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${page}.json`, pageBookmarks);
+    }
+  }
+  
+  console.log(`${LOG_PREFIX} Wrote tag-filtered bookmarks for ${Object.keys(bookmarksByTag).length} tags`);
+}
+
 // Core refresh logic - ONLY PROCESS NEW/CHANGED BOOKMARKS
 async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> {
   if (!refreshBookmarksCallback) {
@@ -232,6 +280,8 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
     await writePaginatedBookmarks(allIncomingBookmarks);
     // Also write full file for tag filtering operations
     await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, allIncomingBookmarks);
+    // Write tag-filtered bookmarks
+    await writeTagFilteredBookmarks(allIncomingBookmarks);
 
     return allIncomingBookmarks;
   } catch (error) {
@@ -260,6 +310,8 @@ export function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> 
               await writePaginatedBookmarks(freshBookmarks);
               // Also write full file for tag filtering operations
               await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, freshBookmarks);
+              // Write tag-filtered bookmarks
+              await writeTagFilteredBookmarks(freshBookmarks);
             } else {
               console.log(`${LOG_PREFIX} No changes, skipping S3 write`);
             }
@@ -341,6 +393,40 @@ export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookm
     // S3 service error - log for monitoring
     console.error(`${LOG_PREFIX} S3 service error loading page ${pageNumber}:`, error);
     return [];
+  }
+}
+
+// Get a specific page of tag-filtered bookmarks
+export async function getTagBookmarksPage(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
+  const pageKey = `${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${pageNumber}.json`;
+  try {
+    const pageData = await readJsonS3<UnifiedBookmark[]>(pageKey);
+    return pageData ?? [];
+  } catch (error) {
+    if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) {
+      // Page doesn't exist - normal for pagination
+      return [];
+    }
+    // S3 service error - log for monitoring
+    console.error(`${LOG_PREFIX} S3 service error loading tag page ${tagSlug}/${pageNumber}:`, error);
+    return [];
+  }
+}
+
+// Get tag index with metadata
+export async function getTagBookmarksIndex(tagSlug: string): Promise<BookmarksIndex | null> {
+  const indexKey = `${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`;
+  try {
+    const indexData = await readJsonS3<BookmarksIndex>(indexKey);
+    return indexData;
+  } catch (error) {
+    if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) {
+      // Index doesn't exist
+      return null;
+    }
+    // S3 service error - log for monitoring
+    console.error(`${LOG_PREFIX} S3 service error loading tag index ${tagSlug}:`, error);
+    return null;
   }
 }
 

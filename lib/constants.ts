@@ -66,6 +66,8 @@ export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
   LOCK: `bookmarks/refresh-lock${envSuffix}.json`,
   INDEX: `bookmarks/index${envSuffix}.json`, // Lightweight index
   PAGE_PREFIX: `bookmarks/pages${envSuffix}/page-`, // page-1.json, page-2.json, etc.
+  TAG_PREFIX: `bookmarks/tags${envSuffix}/`, // tags/react/page-1.json, etc.
+  TAG_INDEX_PREFIX: `bookmarks/tags${envSuffix}/`, // tags/react/index.json
 } as const;
 
 /**

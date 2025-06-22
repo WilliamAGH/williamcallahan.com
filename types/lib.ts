@@ -562,6 +562,10 @@ export interface BookmarksS3Paths {
   INDEX: string;
   /** S3 path prefix for paginated bookmark files */
   PAGE_PREFIX: string;
+  /** S3 path prefix for tag-filtered bookmark files */
+  TAG_PREFIX: string;
+  /** S3 path prefix for tag index files */
+  TAG_INDEX_PREFIX: string;
 }
 
 /** URL validation result */
