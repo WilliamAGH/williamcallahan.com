@@ -72,8 +72,14 @@ async function refreshAllOpenGraphImages() {
             imageUrl: bookmark.content?.imageUrl || null,
             imageAssetId: bookmark.content?.imageAssetId || null,
             screenshotAssetId: bookmark.content?.screenshotAssetId || null,
-            karakeepBaseUrl: process.env.BOOKMARKS_API_URL || ""
+            karakeepBaseUrl: process.env.BOOKMARKS_API_URL || null
           };
+
+          if (!process.env.BOOKMARKS_API_URL) {
+            console.warn(
+              `[${itemNumber}/${bookmarks.length}] Missing BOOKMARKS_API_URL environment variable for ${bookmark.url}`
+            );
+          }
 
           // Wrap the OpenGraph fetch in a timeout
           const ogDataPromise = getOpenGraphData(bookmark.url, false, bookmark.id, karakeepFallback);
