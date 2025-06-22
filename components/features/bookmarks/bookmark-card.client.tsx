@@ -31,6 +31,7 @@ import { normalizeDomain } from "../../../lib/utils/domain-utils";
 import { ExternalLink } from "../../ui/external-link.client";
 import { LogoImage } from "../../ui/logo-image.client";
 import { ShareButton } from "./share-button.client";
+import { getAssetUrl } from "@/lib/bookmarks/bookmark-helpers";
 
 import type { BookmarkCardClientProps } from "@/types";
 
@@ -81,14 +82,10 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   // Priority: Karakeep imageAssetId > S3 CDN URLs > imageUrl > ogImage > screenshots > favicon
   // Use direct URLs when possible, only fall back to /api/og-image for external fetching
   const getDisplayImageUrl = () => {
-    // PRIORITY 1: Karakeep imageAssetId (banner) - CDN in production, API proxy in dev
+    // PRIORITY 1: Karakeep imageAssetId (banner) - Use getAssetUrl helper for proper path handling
     if (content?.imageAssetId) {
       console.log(`[BookmarkCard] 🎯 USING DIRECT KARAKEEP BANNER: ${content.imageAssetId} for bookmark: ${id}`);
-      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
-      if (cdnUrl && process.env.NODE_ENV === "production") {
-        return `${cdnUrl}/images/${content.imageAssetId}`;
-      }
-      return `/api/assets/${content.imageAssetId}`;
+      return getAssetUrl(content.imageAssetId);
     }
 
     // Debug: Log what we have for this bookmark
@@ -119,14 +116,10 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       return `/api/og-image?url=${encodeURIComponent(ogImage)}&bookmarkId=${encodeURIComponent(id)}`;
     }
 
-    // PRIORITY 5: Screenshot fallback - CDN in production, API proxy in dev
+    // PRIORITY 5: Screenshot fallback - Use getAssetUrl helper for proper path handling
     if (content?.screenshotAssetId) {
       console.log(`[BookmarkCard] Using DIRECT screenshot: ${content.screenshotAssetId}`);
-      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
-      if (cdnUrl && process.env.NODE_ENV === "production") {
-        return `${cdnUrl}/images/${content.screenshotAssetId}`;
-      }
-      return `/api/assets/${content.screenshotAssetId}`;
+      return getAssetUrl(content.screenshotAssetId);
     }
 
     return null;
