@@ -140,6 +140,12 @@ const main = async (): Promise<void> => {
 
   for (let i = 0; i < googleUrls.length; i += googleBatchSize) {
     const batch = googleUrls.slice(i, i + googleBatchSize);
+    console.info(
+      `[Google] Processing batch ${Math.floor(i / googleBatchSize) + 1} of ${Math.ceil(
+        googleUrls.length / googleBatchSize,
+      )}`,
+    );
+
     await Promise.all(
       batch.map(async (url) => {
         try {
@@ -148,12 +154,16 @@ const main = async (): Promise<void> => {
             console.info(`[Google] Successfully submitted URL ${url}`);
           }
         } catch (err) {
-          const gaxiosError = isGaxiosError(err) ? err : undefined;
-          const errorMessage = gaxiosError?.message || (err instanceof Error ? err.message : "Unknown error");
+          const errorMessage = err instanceof Error ? err.message : "Unknown error";
           console.error(`[Google] Failed to submit URL ${url}: ${errorMessage}`);
         }
       }),
     );
+
+    // Add delay between batches to avoid rate limiting
+    if (i + googleBatchSize < googleUrls.length) {
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
+    }
   }
 
   console.info("[Google] URL submission process completed.");
