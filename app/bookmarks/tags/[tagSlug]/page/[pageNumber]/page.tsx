@@ -15,7 +15,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "@/components/seo/json-ld";
-import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
+import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { sanitizeUnicode } from "@/lib/utils/tag-utils";
 import type { PaginatedTagBookmarkContext } from "@/types";
@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: PaginatedTagBookmarkContext):
   const tagQuery = tagSlug.replace(/-/g, " ");
 
   // Get all bookmarks to find the tag and calculate pagination
-  const allBookmarks = getBookmarksForStaticBuild();
+  const allBookmarks = await getBookmarks();
 
   // Filter bookmarks by tag
   const taggedBookmarks = allBookmarks.filter((b) => {
@@ -167,7 +167,7 @@ export default async function PaginatedTagBookmarksPage({ params }: PaginatedTag
   const tagQuery = tagSlug.replace(/-/g, " ");
 
   // Get all bookmarks and filter by tag
-  const allBookmarks = getBookmarksForStaticBuild();
+  const allBookmarks = await getBookmarks();
   const taggedBookmarks = allBookmarks.filter((b) => {
     const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
       typeof t === "string" ? t : t.name,
