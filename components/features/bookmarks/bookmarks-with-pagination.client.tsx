@@ -22,7 +22,6 @@ import { useBookmarksPagination } from "@/hooks/use-bookmarks-pagination";
 import { PaginationControl } from "@/components/ui/pagination-control.client";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel.client";
-import { bookmarkListResponseSchema } from "@/types";
 
 import type { BookmarksWithPaginationClientProps, UseBookmarksPaginationReturn } from "@/types";
 
@@ -140,19 +139,10 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         const json: unknown = await response.json();
         
         // The API returns { data: [...], meta: {...} } format
-        const apiResponse = json as { data: unknown[]; meta: unknown };
+        const apiResponse = json as { data: UnifiedBookmark[]; meta: unknown };
         
-        const validation = bookmarkListResponseSchema.safeParse({
-          bookmarks: apiResponse.data
-        });
-
-        if (!validation.success) {
-          console.warn("Full-dataset bookmark search validation failed", validation.error);
-          setSearchResults(null);
-          return;
-        }
-
-        const allBookmarks: UnifiedBookmark[] = validation.data.bookmarks as UnifiedBookmark[];
+        // API already returns UnifiedBookmark objects, no validation needed
+        const allBookmarks: UnifiedBookmark[] = apiResponse.data;
 
         // Simple client-side filtering (case-insensitive contains across key
         // fields). We reuse the same helper used in the memoized filter below

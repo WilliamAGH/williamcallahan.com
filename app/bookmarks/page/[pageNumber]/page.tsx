@@ -19,7 +19,7 @@ import { notFound, redirect } from "next/navigation";
 import { BookmarksServer } from "../../../../components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "../../../../components/seo/json-ld";
 import { getStaticPageMetadata } from "../../../../lib/seo/metadata";
-import { getBookmarks } from "../../../../lib/bookmarks/bookmarks-data-access.server";
+import { getBookmarks } from "../../../../lib/bookmarks/service.server";
 import type { PaginatedBookmarkContext, UnifiedBookmark } from "@/types";
 import { PageNumberSchema } from "@/types/lib";
 
