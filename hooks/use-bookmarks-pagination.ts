@@ -1,9 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import useSWRInfinite from "swr/infinite";
-import type { BookmarksResponse, UnifiedBookmark, RawBookmark } from "@/types/bookmark";
+import type { BookmarksResponse, UnifiedBookmark } from "@/types/bookmark";
 import type { UseBookmarksPaginationOptions, UseBookmarksPaginationReturn } from "@/types/features/bookmarks";
-import { bookmarkListResponseSchema as rawBookmarkListSchema } from "@/types/bookmark";
-import { convertRawBookmarksToUnified } from "@/lib/bookmarks/utils";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helper – placed outside the hook to keep stable reference for SWR.
@@ -22,66 +20,11 @@ const fetcher = async (url: string): Promise<BookmarksResponse> => {
 
   const json: unknown = await response.json();
 
-  // Parse the actual API response structure: { data: [...], meta: { pagination: {...} } }
-  const apiResponse = json as {
-    data: unknown[];
-    meta: {
-      pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        totalPages: number;
-        hasNext: boolean;
-        hasPrev: boolean;
-      };
-    };
-  };
+  // The API returns { data: UnifiedBookmark[], meta: { pagination: {...} } }
+  const apiResponse = json as BookmarksResponse;
 
-  // Validate the basic structure using the existing schema
-  const validation = rawBookmarkListSchema.safeParse({
-    bookmarks: apiResponse.data,
-  });
-
-  if (!validation.success) {
-    console.error("Invalid bookmark response:", validation.error);
-    throw new Error("Invalid bookmark response format");
-  }
-
-  const extractTagString = (tag: unknown): string | null => {
-    if (typeof tag === "string") return tag;
-    if (typeof tag === "object" && tag !== null) {
-      const maybeObj = tag as { name?: unknown; id?: unknown };
-      if (typeof maybeObj.name === "string" && maybeObj.name.length > 0) return maybeObj.name;
-      if (typeof maybeObj.id === "string" && maybeObj.id.length > 0) return maybeObj.id;
-    }
-    return null;
-  };
-
-  const rawifiedBookmarks: RawBookmark[] = (validation.data.bookmarks as unknown[]).map((bUnknown) => {
-    const b = bUnknown as Record<string, unknown>;
-    const rawTags: unknown = b.tags;
-
-    const tags = Array.isArray(rawTags) ? (rawTags.map(extractTagString).filter(Boolean) as string[]) : [];
-
-    return { ...(b as RawBookmark), tags };
-  });
-
-  // Use the pagination metadata from the API response, not computed locally
-  const apiPagination = apiResponse.meta.pagination;
-
-  return {
-    data: convertRawBookmarksToUnified(rawifiedBookmarks),
-    meta: {
-      pagination: {
-        page: apiPagination.page,
-        limit: apiPagination.limit,
-        total: apiPagination.total, // Use API-provided total count
-        totalPages: apiPagination.totalPages,
-        hasNext: apiPagination.hasNext,
-        hasPrev: apiPagination.hasPrev,
-      },
-    },
-  };
+  // The API already returns UnifiedBookmark objects, no conversion needed
+  return apiResponse;
 };
 
 export function useBookmarksPagination({
