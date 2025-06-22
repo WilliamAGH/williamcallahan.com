@@ -398,22 +398,22 @@ export const CSP_DIRECTIVES = {
  */
 // In development/CI the dev server and webpack often exceed 2 GB on first compile.
 // Raise the default safety ceiling outside production, while still allowing
-// operators to override via the env variable. Production keeps the tighter 1.5 GB.
+// operators to override via the env variable. Production keeps the tighter 3 GB.
 const DEFAULT_TOTAL_MEMORY_BUDGET_BYTES =
-  process.env.NODE_ENV === "production" ? 1.5 * 1024 * 1024 * 1024 : 4 * 1024 * 1024 * 1024;
+  process.env.NODE_ENV === "production" ? 3 * 1024 * 1024 * 1024 : 8 * 1024 * 1024 * 1024;
 
 const TOTAL_MEMORY_BUDGET = Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? DEFAULT_TOTAL_MEMORY_BUDGET_BYTES);
 
 export const MEMORY_THRESHOLDS = {
   // Total process memory budget (used by mem-guard for RSS monitoring)
-  TOTAL_PROCESS_MEMORY_BUDGET_BYTES: TOTAL_MEMORY_BUDGET, // 1.5GB default (enter pressure before container limit)
+  TOTAL_PROCESS_MEMORY_BUDGET_BYTES: TOTAL_MEMORY_BUDGET, // 3GB prod / 8GB dev default (enter pressure before container limit)
 
   // Image cache-specific budget (used by ImageMemoryManager)
-  // TODO: Consider lowering to 256MB after testing to achieve 600-900MB RSS target
-  IMAGE_RAM_BUDGET_BYTES: Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? 512 * 1024 * 1024), // 512MB default
+  // Increased to 1GB to handle more concurrent image processing
+  IMAGE_RAM_BUDGET_BYTES: Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? 1024 * 1024 * 1024), // 1GB default
 
   // Server cache budget (used by ServerCache for general data)
-  SERVER_CACHE_BUDGET_BYTES: Number(process.env.SERVER_CACHE_BUDGET_BYTES ?? 256 * 1024 * 1024), // 256MB default
+  SERVER_CACHE_BUDGET_BYTES: Number(process.env.SERVER_CACHE_BUDGET_BYTES ?? 512 * 1024 * 1024), // 512MB default
 
   // Derive warning / critical thresholds *directly* from the resolved total
   // process budget so they remain in sync even when the default budget is
