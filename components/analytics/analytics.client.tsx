@@ -9,7 +9,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
 import type React from "react";
-import { Component, type ErrorInfo, type JSX, useCallback, useEffect, useState, useId } from "react";
+import { Component, type ErrorInfo, type JSX, useCallback, useEffect, useState } from "react";
 
 import type { BaseAnalyticsEvent, UmamiEvent } from "@/types/analytics";
 
@@ -125,13 +125,10 @@ function AnalyticsScripts() {
   const [scriptsLoaded, setScriptsLoaded] = useState({
     umami: false,
     plausible: false,
+    simpleAnalytics: false,
     clicky: false,
   });
   const [isMounted, setIsMounted] = useState(false);
-  const umamiId = useId();
-  const plausibleId = useId();
-  const simpleAnalyticsId = useId();
-  const clickyId = useId();
 
   useEffect(() => {
     setIsMounted(true);
@@ -224,11 +221,18 @@ function AnalyticsScripts() {
     console.warn(`[Analytics] Failed to load ${source} script - continuing without analytics`);
   };
 
+  /*
+   * IMPORTANT: The `id` attributes for these third-party scripts MUST be static.
+   * Services like Umami and Plausible require specific, predictable IDs to function.
+   * Using dynamic IDs (e.g., from React.useId) will break analytics.
+   * The `lint/nursery/useUniqueElementIds` rule is disabled for this file in biome.json
+   * to allow for these required static IDs.
+   */
   return (
     <>
       {process.env.NODE_ENV === "production" && (
         <Script
-          id={umamiId}
+          id="umami"
           strategy="lazyOnload"
           src={`https://umami.iocloudhost.net/script.js?t=${Date.now()}`}
           data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
@@ -240,11 +244,11 @@ function AnalyticsScripts() {
               // Silent failure
             }
           }}
-          onError={safeScriptErrorHandler("Umami")}
+          onError={() => setScriptsLoaded((prev) => ({ ...prev, umami: false }))}
         />
       )}
       <Script
-        id={plausibleId}
+        id="plausible"
         strategy="lazyOnload"
         src={`https://plausible.iocloudhost.net/js/script.js?t=${Date.now()}`}
         data-domain={domain}
@@ -259,21 +263,16 @@ function AnalyticsScripts() {
             // Silent failure
           }
         }}
-        onError={safeScriptErrorHandler("Plausible")}
+        onError={() => setScriptsLoaded((prev) => ({ ...prev, plausible: false }))}
       />
       {/* Simple Analytics */}
       <Script
-        id={simpleAnalyticsId}
+        id="simple-analytics"
         strategy="lazyOnload"
         src="https://scripts.simpleanalyticscdn.com/latest.js"
         data-collect-dnt="true"
-        onLoad={() => {
-          // Optional: Add logic if needed after Simple Analytics loads
-          if (process.env.NODE_ENV === "development") {
-            console.log("[Analytics] Simple Analytics script loaded.");
-          }
-        }}
-        onError={safeScriptErrorHandler("Simple Analytics")}
+        onLoad={() => setScriptsLoaded((prev) => ({ ...prev, simpleAnalytics: true }))}
+        onError={() => setScriptsLoaded((prev) => ({ ...prev, simpleAnalytics: false }))}
       />
       {isMounted && (
         <noscript>
@@ -290,7 +289,7 @@ function AnalyticsScripts() {
       {/* Clicky Analytics */}
       {/* Using Next/Script component, equivalent to <script async src="..."> */}
       <Script
-        id={clickyId}
+        id="clicky-analytics"
         strategy="afterInteractive" // Use afterInteractive to mimic 'async' behavior
         src="https://static.getclicky.com/101484018.js" // Use https protocol
         onLoad={() => {

@@ -68,16 +68,13 @@ if (args.includes("--force")) {
 const testLimitArg = args.find((arg) => arg.startsWith("--testLimit="));
 if (testLimitArg) {
   const limitStr = testLimitArg.split("=")[1];
-  if (limitStr && limitStr.trim()) {
+  if (limitStr?.trim()) {
     const limit = parseInt(limitStr, 10);
     if (!Number.isNaN(limit) && limit > 0 && limit <= 10000) {
       config.testLimit = limit;
       logger.info(`[DataUpdaterCLI] Applying test limit of ${limit}`);
     } else {
-      logger.error(
-        `[DataUpdaterCLI] Invalid test limit: ${limitStr}. ` +
-        `Must be a positive integer <= 10000`
-      );
+      logger.error(`[DataUpdaterCLI] Invalid test limit: ${limitStr}. Must be a positive integer <= 10000`);
       process.exit(1);
     }
   }
