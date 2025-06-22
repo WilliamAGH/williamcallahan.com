@@ -53,14 +53,8 @@ export async function BookmarksServer({
       return safeTs(b.dateBookmarked) - safeTs(a.dateBookmarked);
     });
 
-  // If a tag is provided, let the client-side pagination handle filtering
-  // This enables proper server-side pagination with tag filtering
-  if (tag) {
-    console.log(`[BookmarksServer] Tag filtering enabled for tag: "${tag}"`);
-    // Don't fetch any bookmarks server-side when using tag filtering
-    // The pagination hook will handle everything
-    bookmarks = [];
-  } else if (propsBookmarks) {
+  // If bookmarks are provided via props (e.g., pre-filtered for tags), use those
+  if (propsBookmarks) {
     // Apply the same consistent sorting even when bookmarks are provided externally
     bookmarks = sortByDateDesc(propsBookmarks);
     console.log("[BookmarksServer] Using provided bookmarks, count:", bookmarks.length);
@@ -93,7 +87,7 @@ export async function BookmarksServer({
 
   // Transform to serializable format for client component
   const normalizeFunc = await normalizeBookmarkTag();
-  const serializableBookmarks: SerializableBookmark[] = (propsBookmarks || bookmarks).map((bookmark) => ({
+  const serializableBookmarks: SerializableBookmark[] = bookmarks.map((bookmark) => ({
     id: bookmark.id,
     url: bookmark.url,
     title: bookmark.title,

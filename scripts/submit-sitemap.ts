@@ -24,49 +24,13 @@
  * - `bun scripts/submit-sitemap.ts --all` - Explicitly run both (same as no args)
  */
 
-import * as dotenv from "dotenv";
-import fs from "node:fs";
-import path from "node:path";
+import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
+loadEnvironmentWithMultilineSupport();
+
 import type { GaxiosError, GaxiosResponse } from "gaxios";
 import { google } from "googleapis";
 import type { GoogleIndexingUrlNotificationMetadata } from "@/types/lib";
 import sitemap from "../app/sitemap.ts";
-
-// Custom environment loader to handle multi-line keys that break dotenv
-try {
-  const envPath = path.resolve(process.cwd(), ".env");
-  if (fs.existsSync(envPath)) {
-    const envFileContent = fs.readFileSync(envPath, { encoding: "utf-8" });
-    const lines = envFileContent.split("\n");
-    const cleanLines: string[] = [];
-    let privateKeyVal = "";
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (trimmedLine.startsWith("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY=")) {
-        let value = trimmedLine.substring("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY=".length);
-        if (value.startsWith('"') && value.endsWith('"')) {
-          value = value.slice(1, -1);
-        }
-        privateKeyVal = value;
-      } else {
-        cleanLines.push(line);
-      }
-    }
-
-    const envConfig = dotenv.parse(cleanLines.join("\n"));
-    for (const k in envConfig) {
-      if (!Object.hasOwn(process.env, k)) {
-        process.env[k] = envConfig[k];
-      }
-    }
-    if (privateKeyVal && !process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY) {
-      process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY = privateKeyVal;
-    }
-  }
-} catch (error) {
-  console.error("Failed to load or parse .env file:", error);
-}
 
 /**
  * Type guard to check if an object is a GaxiosError.
@@ -140,6 +104,12 @@ const main = async (): Promise<void> => {
 
   for (let i = 0; i < googleUrls.length; i += googleBatchSize) {
     const batch = googleUrls.slice(i, i + googleBatchSize);
+    console.info(
+      `[Google] Processing batch ${Math.floor(i / googleBatchSize) + 1} of ${Math.ceil(
+        googleUrls.length / googleBatchSize,
+      )}`,
+    );
+
     await Promise.all(
       batch.map(async (url) => {
         try {
@@ -148,12 +118,16 @@ const main = async (): Promise<void> => {
             console.info(`[Google] Successfully submitted URL ${url}`);
           }
         } catch (err) {
-          const gaxiosError = isGaxiosError(err) ? err : undefined;
-          const errorMessage = gaxiosError?.message || (err instanceof Error ? err.message : "Unknown error");
+          const errorMessage = err instanceof Error ? err.message : "Unknown error";
           console.error(`[Google] Failed to submit URL ${url}: ${errorMessage}`);
         }
       }),
     );
+
+    // Add delay between batches to avoid rate limiting
+    if (i + googleBatchSize < googleUrls.length) {
+      await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
+    }
   }
 
   console.info("[Google] URL submission process completed.");

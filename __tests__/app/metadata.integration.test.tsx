@@ -11,6 +11,9 @@ import type { Metadata } from "next";
 // Mock dependencies
 jest.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
   getBookmarks: jest.fn(),
+  setRefreshBookmarksCallback: jest.fn(),
+  refreshAndPersistBookmarks: jest.fn(),
+  initializeBookmarksDataAccess: jest.fn(),
 }));
 
 jest.mock("@/lib/seo/metadata", () => ({
