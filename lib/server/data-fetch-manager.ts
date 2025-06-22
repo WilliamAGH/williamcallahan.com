@@ -8,9 +8,9 @@
  * @module server/data-fetch-manager
  */
 
-import * as dotenv from "dotenv";
-import fs from "node:fs";
-import path from "node:path";
+import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
+loadEnvironmentWithMultilineSupport();
+
 import logger from "@/lib/utils/logger";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
@@ -19,42 +19,6 @@ import { getLogo } from "@/lib/data-access/logos";
 import { refreshBookmarks } from "@/lib/bookmarks/service.server";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
-
-// Custom environment loader to handle multi-line keys that break dotenv
-try {
-  const envPath = path.resolve(process.cwd(), ".env");
-  if (fs.existsSync(envPath)) {
-    const envFileContent = fs.readFileSync(envPath, { encoding: "utf-8" });
-    const lines = envFileContent.split("\n");
-    const cleanLines: string[] = [];
-    let privateKeyVal = "";
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (trimmedLine.startsWith("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY=")) {
-        let value = trimmedLine.substring("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY=".length);
-        if (value.startsWith('"') && value.endsWith('"')) {
-          value = value.slice(1, -1);
-        }
-        privateKeyVal = value;
-      } else {
-        cleanLines.push(line);
-      }
-    }
-
-    const envConfig = dotenv.parse(cleanLines.join("\n"));
-    for (const k in envConfig) {
-      if (!Object.hasOwn(process.env, k)) {
-        process.env[k] = envConfig[k];
-      }
-    }
-    if (privateKeyVal && !process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY) {
-      process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY = privateKeyVal;
-    }
-  }
-} catch (error) {
-  logger.error("Failed to load or parse .env file:", error);
-}
 
 import {
   calculateAndStoreAggregatedWeeklyActivity,

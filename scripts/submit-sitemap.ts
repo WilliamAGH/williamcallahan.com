@@ -24,49 +24,13 @@
  * - `bun scripts/submit-sitemap.ts --all` - Explicitly run both (same as no args)
  */
 
-import * as dotenv from "dotenv";
-import fs from "node:fs";
-import path from "node:path";
+import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
+loadEnvironmentWithMultilineSupport();
+
 import type { GaxiosError, GaxiosResponse } from "gaxios";
 import { google } from "googleapis";
 import type { GoogleIndexingUrlNotificationMetadata } from "@/types/lib";
 import sitemap from "../app/sitemap.ts";
-
-// Custom environment loader to handle multi-line keys that break dotenv
-try {
-  const envPath = path.resolve(process.cwd(), ".env");
-  if (fs.existsSync(envPath)) {
-    const envFileContent = fs.readFileSync(envPath, { encoding: "utf-8" });
-    const lines = envFileContent.split("\n");
-    const cleanLines: string[] = [];
-    let privateKeyVal = "";
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (trimmedLine.startsWith("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY=")) {
-        let value = trimmedLine.substring("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY=".length);
-        if (value.startsWith('"') && value.endsWith('"')) {
-          value = value.slice(1, -1);
-        }
-        privateKeyVal = value;
-      } else {
-        cleanLines.push(line);
-      }
-    }
-
-    const envConfig = dotenv.parse(cleanLines.join("\n"));
-    for (const k in envConfig) {
-      if (!Object.hasOwn(process.env, k)) {
-        process.env[k] = envConfig[k];
-      }
-    }
-    if (privateKeyVal && !process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY) {
-      process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY = privateKeyVal;
-    }
-  }
-} catch (error) {
-  console.error("Failed to load or parse .env file:", error);
-}
 
 /**
  * Type guard to check if an object is a GaxiosError.
