@@ -22,6 +22,13 @@ const CONTENT_TYPE_TO_EXTENSION: Record<string, string> = {
 };
 
 /**
+ * Create reverse mapping for efficient lookups
+ */
+const EXTENSION_TO_CONTENT_TYPE: Record<string, string> = Object.fromEntries(
+  Object.entries(CONTENT_TYPE_TO_EXTENSION).map(([contentType, ext]) => [ext, contentType])
+);
+
+/**
  * Gets the file extension for a given content type
  * @param contentType The content-type header value
  * @returns The file extension including the dot (e.g., '.jpg')
@@ -44,27 +51,6 @@ export function getContentTypeFromExtension(extension: string): string {
   // Normalize extension (ensure it starts with a dot)
   const ext = extension.startsWith('.') ? extension : `.${extension}`;
   
-  // Find the content type by extension
-  for (const [contentType, mappedExt] of Object.entries(CONTENT_TYPE_TO_EXTENSION)) {
-    if (mappedExt === ext.toLowerCase()) {
-      return contentType;
-    }
-  }
-  
-  // Fallback based on common extensions
-  switch (ext.toLowerCase()) {
-    case '.jpg':
-    case '.jpeg':
-      return 'image/jpeg';
-    case '.png':
-      return 'image/png';
-    case '.gif':
-      return 'image/gif';
-    case '.webp':
-      return 'image/webp';
-    case '.svg':
-      return 'image/svg+xml';
-    default:
-      return 'application/octet-stream';
-  }
+  // Direct O(1) lookup
+  return EXTENSION_TO_CONTENT_TYPE[ext.toLowerCase()] || 'application/octet-stream';
 }
