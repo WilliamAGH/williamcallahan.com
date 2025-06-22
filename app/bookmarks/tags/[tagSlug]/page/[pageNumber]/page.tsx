@@ -228,7 +228,8 @@ export default async function PaginatedTagBookmarksPage({ params }: PaginatedTag
         <BookmarksServer
           title={pageTitle}
           description={pageDescription}
-          tag={displayTag} // Use server-side tag filtering instead of pre-filtered bookmarks
+          bookmarks={taggedBookmarks} // Pass the pre-filtered bookmarks
+          tag={displayTag}
           showFilterBar={true}
           titleSlug={tagSlug}
           initialPage={pageNum}

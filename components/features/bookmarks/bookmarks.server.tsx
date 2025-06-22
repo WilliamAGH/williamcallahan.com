@@ -53,17 +53,8 @@ export async function BookmarksServer({
       return safeTs(b.dateBookmarked) - safeTs(a.dateBookmarked);
     });
 
-  // If a tag is provided, we still need to fetch bookmarks for filtering
-  // The client-side pagination will handle the actual filtering
-  if (tag) {
-    console.log(`[BookmarksServer] Tag filtering enabled for tag: "${tag}"`);
-    // Fetch bookmarks for tag filtering
-    const getBookmarksFunc = await getBookmarks();
-    bookmarks = await getBookmarksFunc(false);
-    console.log("[BookmarksServer] Fetched for tag filtering, count:", bookmarks.length);
-    // Sort bookmarks by date (newest first)
-    bookmarks = bookmarks.length ? sortByDateDesc(bookmarks) : [];
-  } else if (propsBookmarks) {
+  // If bookmarks are provided via props (e.g., pre-filtered for tags), use those
+  if (propsBookmarks) {
     // Apply the same consistent sorting even when bookmarks are provided externally
     bookmarks = sortByDateDesc(propsBookmarks);
     console.log("[BookmarksServer] Using provided bookmarks, count:", bookmarks.length);
