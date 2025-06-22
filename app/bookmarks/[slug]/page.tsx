@@ -23,14 +23,14 @@ import { notFound } from "next/navigation";
 async function findBookmarkBySlug(slug: string) {
   const allBookmarks = await getBookmarks();
   
-  for (const bookmark of allBookmarks) {
-    const bookmarkSlug = generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id);
-    if (bookmarkSlug === slug) {
-      return { bookmark, allBookmarks };
-    }
-  }
+  // Pre-generate all slugs once to avoid O(n²) complexity
+  const bookmarkWithSlugs = allBookmarks.map(bookmark => ({
+    bookmark,
+    slug: generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id)
+  }));
   
-  return { bookmark: null, allBookmarks };
+  const found = bookmarkWithSlugs.find(item => item.slug === slug);
+  return found?.bookmark || null;
 }
 
 /**
@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
   // Fetch bookmark data to create more specific metadata
   const { slug } = paramsResolved;
-  const { bookmark: foundBookmark } = await findBookmarkBySlug(slug);
+  const foundBookmark = await findBookmarkBySlug(slug);
 
   // If no bookmark is found, return basic metadata
   if (!foundBookmark) {
@@ -121,7 +121,7 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
   // Await params to fix Next.js warning
   const paramsResolved = await Promise.resolve(params);
   const { slug } = paramsResolved;
-  const { bookmark: foundBookmark } = await findBookmarkBySlug(slug);
+  const foundBookmark = await findBookmarkBySlug(slug);
 
   // If no bookmark matches this slug, show a 404
   if (!foundBookmark) {
