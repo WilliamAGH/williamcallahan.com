@@ -7,7 +7,6 @@
  * @module lib/utils/env-loader
  */
 
-import * as dotenv from "dotenv";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -45,10 +44,20 @@ export function loadEnvironmentWithMultilineSupport(): void {
         }
       }
 
-      const envConfig = dotenv.parse(cleanLines.join("\n"));
-      for (const k in envConfig) {
-        if (!Object.hasOwn(process.env, k)) {
-          process.env[k] = envConfig[k];
+      // Parse remaining lines manually
+      for (const line of cleanLines) {
+        const match = line.match(/^([^=]+)=(.*)$/);
+        if (match) {
+          const [, key, value] = match;
+          if (key && !process.env[key]) {
+            let processedValue = value || "";
+            // Remove surrounding quotes if present
+            if ((processedValue.startsWith('"') && processedValue.endsWith('"')) ||
+                (processedValue.startsWith("'") && processedValue.endsWith("'"))) {
+              processedValue = processedValue.slice(1, -1);
+            }
+            process.env[key] = processedValue;
+          }
         }
       }
       if (privateKeyVal && !process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY) {
