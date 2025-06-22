@@ -11,22 +11,14 @@ export const dynamic = "force-dynamic";
 
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "@/components/seo/json-ld";
-import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
+import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { UnifiedBookmark } from "@/types";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-/**
- * Generate static paths for slug pages
- */
-export function generateStaticParams() {
-  const bookmarks = getBookmarksForStaticBuild();
-  return bookmarks.map((bookmark) => ({
-    slug: generateUniqueSlug(bookmark.url, bookmarks, bookmark.id),
-  }));
-}
+// No static params generation for dynamic pages
 
 /**
  * Generate metadata for this bookmark page
@@ -38,7 +30,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
   // Fetch bookmark data to create more specific metadata
-  const allBookmarks = getBookmarksForStaticBuild();
+  const allBookmarks = await getBookmarks();
   const { slug } = paramsResolved;
 
   // Find the bookmark that matches this slug
@@ -73,11 +65,12 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const customDescription =
     foundBookmark.description || `A bookmark from ${domainName} that I've saved for future reference.`;
 
-  // Create image URL if available
-  let imageUrl = foundBookmark.ogImage;
-  if (!imageUrl && foundBookmark.content?.imageUrl) {
-    imageUrl = foundBookmark.content.imageUrl;
-  }
+  // Create image URL if available using the proper helper
+  const { selectBestImage } = await import("@/lib/bookmarks/bookmark-helpers");
+  const imageUrl = selectBestImage(foundBookmark, { 
+    preferOpenGraph: true,
+    includeScreenshots: true 
+  }) || undefined;
 
   return {
     ...baseMetadata,
@@ -122,7 +115,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 import type { BookmarkPageContext } from "@/types";
 
 export default async function BookmarkPage({ params }: BookmarkPageContext) {
-  const allBookmarks = getBookmarksForStaticBuild();
+  const allBookmarks = await getBookmarks();
   // Await params to fix Next.js warning
   const paramsResolved = await Promise.resolve(params);
   const { slug } = paramsResolved;
