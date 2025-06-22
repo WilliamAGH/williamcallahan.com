@@ -95,41 +95,46 @@ export async function fetchExternalLogo(domain: string): Promise<ExternalFetchRe
             console.log(
               `[DEBUG] ${name} (${size}) buffer too small: ${rawBuffer?.byteLength || 0} bytes for ${testDomain}`,
             );
-          // Buffer too small, move to next source
+          continue; // Buffer too small, move to next source
+        }
+
+        // CRITICAL: Validate the *raw* buffer against the globe icon *before* any
+        // processing. This prevents errors in the validation API from bad/corrupt
+        // initial downloads that haven't been sanitized yet.
+        const baseUrl: string | undefined = getBaseUrl();
+        if (baseUrl && !process.env.NEXT_PHASE?.includes("build")) {
+          try {
+            const validateUrl = new URL("/api/validate-logo", baseUrl);
+            const formData = new FormData();
+            // Use the raw buffer directly for validation
+            const blob = new Blob([rawBuffer], {
+              type: response.headers.get("content-type") ?? "application/octet-stream",
+            });
+            formData.append("image", blob, "logo-to-validate");
+            formData.append("url", url);
+
+            const validateResponse = await fetch(validateUrl.toString(), {
+              method: "POST",
+              body: formData,
+            });
+
+            if (validateResponse.ok) {
+              const validateResult = (await validateResponse.json()) as { isGlobeIcon: boolean };
+              if (validateResult.isGlobeIcon) {
+                if (isDebug)
+                  console.log(`[DEBUG] ${name} detected as globe icon by validate-logo API for ${testDomain}`);
+                continue; // It's a globe icon, skip to the next source
+              }
+            }
+          } catch (validateError) {
+            // If validation fails, log it but don't block the logo processing
+            if (isDebug) console.log(`[DEBUG] validate-logo API error for ${testDomain}:`, validateError);
+          }
         }
 
         const isValid = await validateLogoBuffer(rawBuffer, url);
         if (isValid) {
           const { processedBuffer, contentType } = await processImageBuffer(rawBuffer);
-
-          // Additional validation using the validate-logo endpoint if available
-          // Skip during build phase to avoid circular dependencies
-          const baseUrl: string | undefined = getBaseUrl();
-          if (baseUrl && !process.env.NEXT_PHASE?.includes("build")) {
-            try {
-              const validateUrl: URL = new URL("/api/validate-logo", baseUrl);
-              const formData: FormData = new FormData();
-              formData.append("image", new Blob([processedBuffer], { type: contentType }));
-
-              const validateResponse = await fetch(validateUrl.toString(), {
-                method: "POST",
-                body: formData,
-              });
-
-              if (validateResponse.ok) {
-                const validateResult = (await validateResponse.json()) as { isGlobeIcon: boolean };
-                const { isGlobeIcon } = validateResult;
-                if (isGlobeIcon) {
-                  if (isDebug)
-                    console.log(`[DEBUG] ${name} detected as globe icon by validate-logo API for ${testDomain}`);
-                  return null;
-                }
-              }
-            } catch (validateError) {
-              // If validation fails, continue with the logo (don't block on validation errors)
-              if (isDebug) console.log(`[DEBUG] validate-logo API error for ${testDomain}:`, validateError);
-            }
-          }
 
           console.log(`[DataAccess/Logos] Fetched logo for ${domain} from ${name} (${size}) using ${testDomain}`);
           return { buffer: processedBuffer, source: name, contentType, url };

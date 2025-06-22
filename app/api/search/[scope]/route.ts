@@ -15,6 +15,9 @@ import { NextResponse } from "next/server";
 // Ensure this route is not statically cached
 export const dynamic = "force-dynamic";
 
+// Add "all" to the list of valid scopes for validation purposes
+const ALL_VALID_SCOPES = [...VALID_SCOPES, "all"];
+
 /**
  * Server-side API route for scoped search.
  *
@@ -32,11 +35,11 @@ export async function GET(request: Request, { params }: { params: { scope: strin
     const scope = params.scope.toLowerCase() as SearchScope;
 
     // Validate scope
-    if (!VALID_SCOPES.includes(scope)) {
+    if (!ALL_VALID_SCOPES.includes(scope)) {
       return NextResponse.json(
         {
           error: `Invalid search scope: ${params.scope}`,
-          validScopes: VALID_SCOPES,
+          validScopes: ALL_VALID_SCOPES,
         },
         { status: 400 },
       );
@@ -57,7 +60,7 @@ export async function GET(request: Request, { params }: { params: { scope: strin
     switch (scope) {
       case "blog":
       case "posts":
-        // Use server-side blog search for blog/posts
+        // Use searchPosts function
         results = await searchBlogPostsServerSide(query);
         break;
       case "investments":
@@ -72,6 +75,21 @@ export async function GET(request: Request, { params }: { params: { scope: strin
       case "bookmarks":
         results = await searchBookmarks(query);
         break;
+      case "all": {
+        // Search across all scopes and aggregate results
+        const [blogResults, investmentResults, experienceResults, educationResults, bookmarkResults] = await Promise.all([
+          searchBlogPostsServerSide(query),
+          Promise.resolve(searchInvestments(query)),
+          Promise.resolve(searchExperience(query)),
+          Promise.resolve(searchEducation(query)),
+          searchBookmarks(query),
+        ]);
+        
+        // Combine all results and sort by score (highest first)
+        results = [...blogResults, ...investmentResults, ...experienceResults, ...educationResults, ...bookmarkResults]
+          .sort((a, b) => b.score - a.score);
+        break;
+      }
     }
 
     // Return results with metadata

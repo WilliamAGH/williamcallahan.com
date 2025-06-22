@@ -66,10 +66,10 @@ describe("Search API: GET /api/search/all", () => {
 
       // Each result should have the required fields
       for (const result of data) {
-        expect(result).toHaveProperty("label");
-        expect(result).toHaveProperty("path");
-        expect(typeof result.label).toBe("string");
-        expect(typeof result.path).toBe("string");
+        expect(result).toHaveProperty("title");
+        expect(result).toHaveProperty("url");
+        expect(typeof result.title).toBe("string");
+        expect(typeof result.url).toBe("string");
       }
     });
 

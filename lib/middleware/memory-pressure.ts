@@ -22,7 +22,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 // Health check paths that should always be allowed
-const HEALTH_CHECK_PATHS = ["/api/health", "/api/health/memory", "/healthz", "/livez", "/readyz"];
+const HEALTH_CHECK_PATHS = ["/api/health", "/api/health/metrics", "/healthz", "/livez", "/readyz"];
 
 /**
  * Check memory pressure using Edge Runtime-compatible methods
@@ -56,10 +56,11 @@ function isMemoryPressureWarning(): boolean {
  * Check if we can access health endpoint for memory status
  * This provides a fallback mechanism for memory checking
  */
-async function checkMemoryViaHealthEndpoint(request: NextRequest): Promise<{ critical: boolean; warning: boolean }> {
+async function checkMemoryViaHealthEndpoint(): Promise<{ critical: boolean; warning: boolean }> {
   try {
     // Only check if we have a health endpoint available
-    const healthUrl = new URL("/api/health/memory", request.url);
+    const { getBaseUrl } = await import("@/lib/utils/get-base-url");
+    const healthUrl = new URL("/api/health", getBaseUrl());
 
     // Quick fetch with short timeout to avoid blocking
     const controller = new AbortController();
@@ -107,7 +108,7 @@ export async function memoryPressureMiddleware(request: NextRequest): Promise<Ne
   if (!envCritical && !envWarning) {
     // Only check health endpoint if env flags are not set
     try {
-      healthStatus = await checkMemoryViaHealthEndpoint(request);
+      healthStatus = await checkMemoryViaHealthEndpoint();
     } catch {
       // Health check failed, continue with env-only status
     }

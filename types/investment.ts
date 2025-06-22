@@ -81,15 +81,6 @@ export interface ThemeWrapperProps {
   renderedMetrics: JSX.Element;
 }
 
-/**
- * Props for the InvestmentCardClient client component.
- */
-export interface InvestmentCardClientProps extends Investment {
-  logoData: LogoData;
-  isDarkTheme: boolean;
-  renderedMetrics?: JSX.Element;
-}
-
 /** Investment URL validation result with detailed checks */
 export interface InvestmentUrlValidationResult {
   investment: Investment;

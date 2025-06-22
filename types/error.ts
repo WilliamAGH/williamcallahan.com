@@ -22,6 +22,8 @@
  * @see types/github.ts for domain-specific GitHub errors
  */
 
+import { z } from "zod";
+
 /**
  * Extended Error interface for application-specific errors
  */
@@ -37,24 +39,18 @@ export interface ExtendedError extends Error {
 }
 
 /**
- * Error interface specifically for bookmark-related errors
- * @deprecated Use `BookmarkError` from `types/bookmark.ts`
+ * AWS SDK Error interface with metadata
  */
-// export interface BookmarkError extends ExtendedError {
-//   /** Timestamp of when bookmarks were last successfully fetched */
-//   lastFetched?: number;
-//   /** Timestamp of the last bookmark fetch attempt */
-//   lastFetchedTimestamp?: number;
-// }
+export interface AWSError extends Error {
+  /** AWS SDK metadata containing HTTP status codes and other info */
+  $metadata?: {
+    httpStatusCode?: number;
+  };
+}
 
-/**
- * Error interface for GitHub activity related errors
- * @deprecated Use `GitHubActivityError` from `types/github.ts`
- */
-// export interface GitHubActivityError extends ExtendedError {
-//   /** Timestamp of when GitHub activity was last successfully fetched */
-//   lastActivityFetch?: number;
-// }
+// Deprecated error interfaces removed - use specific error types from their domain modules:
+// - BookmarkError from types/bookmark.ts
+// - GitHubActivityError from types/github.ts
 
 /**
  * Type guard to check if an error has the lastFetched property
@@ -126,6 +122,18 @@ export interface ClientErrorPayload {
   [key: string]: unknown; // Use unknown instead of any for better type safety
 }
 
+// Zod schema moved from app/api/log-client-error/route.ts
+export const ClientErrorSchema = z
+  .object({
+    message: z.string().optional(),
+    resource: z.string().optional(), // e.g., script URL if it's a script error
+    type: z.string().optional(), // e.g., 'ChunkLoadError', 'TypeError'
+    url: z.string().optional(), // The URL where the error occurred
+    stack: z.string().optional(),
+    buildId: z.string().optional(), // Next.js build ID
+  })
+  .passthrough(); // Allows other properties, matching [key: string]: unknown;
+
 export interface ErrorWithCode {
   code: string;
 }
@@ -134,20 +142,4 @@ export interface ErrorWithStatusCode {
   statusCode: number;
 }
 
-// Generic error response format for APIs
-// export interface ErrorResponse {
-//   message: string;
-//   error?: unknown; // Allow for additional error details
-// }
-
-// Generic success response format for APIs that refresh data
-// export interface RefreshResult {
-//   /** Number of items processed or updated */
-//   updated?: number;
-//   /** Number of items newly created */
-//   created?: number;
-//   /** Number of items that failed to process */
-//   failed?: number;
-//   /** Total number of items processed */
-//   total?: number;
-// }
+// Generic error/response interfaces removed - use specific response types from API modules

@@ -7,104 +7,29 @@
  * SEO best practices through validation.
  */
 
-import type { Metadata } from "next";
 import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
 import { z } from "zod";
 
-/**
- * Next.js metadata with script support
- * Extends the base Metadata type to include script field
- */
-export interface ExtendedMetadata extends Metadata {
-  script?: Array<{
-    type: string;
-    text: string;
-  }>;
-}
+// Import ExtendedMetadata from main SEO types to avoid duplication
+import type { ExtendedMetadata } from "../seo";
+export type { ExtendedMetadata };
 
-/**
- * Schema.org Article metadata
- * Used in JSON-LD structured data
- */
-export interface ArticleSchema {
-  "@context": "https://schema.org";
-  "@type": "Article";
-  headline: string;
-  description: string;
-  datePublished: string;
-  dateModified: string;
-  author: {
-    "@type": "Person";
-    name: string;
-    url?: string;
-  };
-  publisher: {
-    "@type": "Organization";
-    name: string;
-    logo?: {
-      "@type": "ImageObject";
-      url: string;
-    };
-  };
-  image?: {
-    "@type": "ImageObject";
-    url: string;
-    caption?: string;
-  };
-  mainEntityOfPage: {
-    "@type": "WebPage";
-    "@id": string;
-  };
-}
+// Import ArticleSchema from main SEO types to avoid duplication
+import type { ArticleSchema } from "./schema";
+export type { ArticleSchema };
 
-/**
- * Schema.org base metadata shared by all page types
- */
-export interface BaseSchema {
-  "@context": "https://schema.org";
-  name: string;
-  description: string;
-  dateCreated: string;
-  dateModified: string;
-  datePublished: string;
-}
+// BaseSchema removed - was only used by ProfileSchema and CollectionSchema
+// which are now imported from main SEO types
 
-/**
- * Schema.org ProfilePage metadata
- * Used for personal, professional, and academic profile pages
- */
-export interface ProfileSchema extends BaseSchema {
-  "@type": "ProfilePage";
-  mainEntity: {
-    "@type": "Person";
-    name: string;
-    description: string;
-    sameAs?: string[];
-    image?: string;
-  };
-}
+// Import ProfileSchema from main SEO types to avoid duplication
+import type { ProfilePageSchema as ProfileSchema } from "./schema";
+export type { ProfileSchema };
 
-/**
- * Schema.org CollectionPage metadata
- * Used for pages that list multiple items (blog posts, investments, bookmarks)
- */
-export interface CollectionSchema extends BaseSchema {
-  "@type": "CollectionPage";
-  mainEntity: {
-    "@type": "ItemList";
-    itemListElement: Array<{
-      "@type": "ListItem";
-      position: number;
-      url: string;
-      name: string;
-    }>;
-  };
-}
+// Import CollectionSchema from main SEO types to avoid duplication
+import type { CollectionPageSchema as CollectionSchema } from "./schema";
+export type { CollectionSchema };
 
-/**
- * Complete article metadata structure
- * Combines all metadata types into a single interface
- */
+// Extend if needed for backward compatibility
 export interface ArticleMetadata extends Omit<ExtendedMetadata, "openGraph"> {
   openGraph?: OpenGraph;
   other: {
@@ -349,4 +274,3 @@ export function safeValidateMetadata(metadata: unknown) {
 export type MetadataConfig = z.infer<typeof metadataSchema>;
 export type ProfilePageMetadata = z.infer<typeof profilePageMetadataSchema>;
 export type CollectionPageMetadata = z.infer<typeof collectionPageMetadataSchema>;
-export type ValidatedMetadata<K extends keyof typeof pageMetadataSchemas> = z.infer<(typeof pageMetadataSchemas)[K]>;

@@ -68,7 +68,7 @@ describe("Sitemap Generation", () => {
     /**
      * @description Generates correct paginated entries based on BOOKMARKS_PER_PAGE
      */
-    it("should create paginated entries based on BOOKMARKS_PER_PAGE", async () => {
+    it("should create paginated entries based on BOOKMARKS_PER_PAGE", () => {
       // Mock 50 bookmarks to test pagination logic
       const mockBookmarks = Array.from({ length: 50 }, (_, i) => ({
         id: `bookmark-${i}`,
@@ -78,9 +78,9 @@ describe("Sitemap Generation", () => {
         tags: [],
       }));
 
-      mockGetBookmarksForStaticBuild.mockResolvedValue(mockBookmarks);
+      mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
 
-      const sitemapEntries = await sitemap();
+      const sitemapEntries = sitemap();
 
       // Calculate expected pages
       const totalPages = Math.ceil(mockBookmarks.length / BOOKMARKS_PER_PAGE);
@@ -104,7 +104,7 @@ describe("Sitemap Generation", () => {
     /**
      * @description Handles undefined lastModified gracefully if no dateBookmarked
      */
-    it("should handle undefined lastModified gracefully", async () => {
+    it("should handle undefined lastModified gracefully", () => {
       // Mock bookmarks without dates
       const mockBookmarks = Array.from({ length: 30 }, (_, i) => ({
         id: `bookmark-${i}`,
@@ -114,9 +114,9 @@ describe("Sitemap Generation", () => {
         tags: [],
       }));
 
-      mockGetBookmarksForStaticBuild.mockResolvedValue(mockBookmarks);
+      mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
 
-      const sitemapEntries = await sitemap();
+      const sitemapEntries = sitemap();
 
       // Find paginated bookmark entry
       const paginatedEntry = sitemapEntries.find(
@@ -131,7 +131,7 @@ describe("Sitemap Generation", () => {
     /**
      * @description Includes lastModified with the most recent bookmark date
      */
-    it("should include lastModified when bookmarks have dates", async () => {
+    it("should include lastModified when bookmarks have dates", () => {
       const testDate = new Date("2024-06-15T10:00:00Z");
 
       // Mock bookmarks with dates
@@ -143,9 +143,9 @@ describe("Sitemap Generation", () => {
         tags: [],
       }));
 
-      mockGetBookmarksForStaticBuild.mockResolvedValue(mockBookmarks);
+      mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
 
-      const sitemapEntries = await sitemap();
+      const sitemapEntries = sitemap();
 
       // Find paginated bookmark entry
       const paginatedEntry = sitemapEntries.find(
@@ -159,7 +159,7 @@ describe("Sitemap Generation", () => {
     /**
      * @description Skips pagination if total bookmarks are less than a single page
      */
-    it("should not create pagination for a single page of bookmarks", async () => {
+    it("should not create pagination for a single page of bookmarks", () => {
       // Mock only 20 bookmarks (less than BOOKMARKS_PER_PAGE)
       const mockBookmarks = Array.from({ length: 20 }, (_, i) => ({
         id: `bookmark-${i}`,
@@ -169,9 +169,9 @@ describe("Sitemap Generation", () => {
         tags: [],
       }));
 
-      mockGetBookmarksForStaticBuild.mockResolvedValue(mockBookmarks);
+      mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
 
-      const sitemapEntries = await sitemap();
+      const sitemapEntries = sitemap();
 
       // Should not have any paginated entries
       const paginatedEntries = sitemapEntries.filter((entry) => entry.url.includes("/bookmarks/page/"));
@@ -192,7 +192,7 @@ describe("Sitemap Generation", () => {
     /**
      * @description Creates a unique sitemap entry for each bookmark with a slug
      */
-    it("should create entries for individual bookmarks with slugs", async () => {
+    it("should create entries for individual bookmarks with slugs", () => {
       const mockBookmarks = [
         {
           id: "bookmark-1",
@@ -210,9 +210,9 @@ describe("Sitemap Generation", () => {
         },
       ];
 
-      mockGetBookmarksForStaticBuild.mockResolvedValue(mockBookmarks);
+      mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
 
-      const sitemapEntries = await sitemap();
+      const sitemapEntries = sitemap();
 
       // Should have entries for individual bookmarks
       const bookmarkEntries = sitemapEntries.filter(
@@ -237,10 +237,10 @@ describe("Sitemap Generation", () => {
     /**
      * @description Includes all static pages with correct metadata
      */
-    it("should include all static pages with correct metadata", async () => {
-      mockGetBookmarksForStaticBuild.mockResolvedValue([]);
+    it("should include all static pages with correct metadata", () => {
+      mockGetBookmarksForStaticBuild.mockReturnValue([]);
 
-      const sitemapEntries = await sitemap();
+      const sitemapEntries = sitemap();
 
       // Check for main static pages
       const expectedPages = [

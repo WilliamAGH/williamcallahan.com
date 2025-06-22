@@ -14,6 +14,7 @@ import { JsonLdScript } from "../../components/seo/json-ld";
 import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
 import { getStaticPageMetadata } from "../../lib/seo/metadata";
 import { formatSeoDate } from "../../lib/seo/utils";
+import type { ProfilePageMetadata } from "../../types/seo/metadata";
 
 /**
  * Generate metadata for the education page
@@ -24,7 +25,7 @@ export const metadata: Metadata = getStaticPageMetadata("/education", "education
  * Education page component
  */
 export default function EducationPage() {
-  const pageMetadata = PAGE_METADATA.education;
+  const pageMetadata: ProfilePageMetadata = PAGE_METADATA.education;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 

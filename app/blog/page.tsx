@@ -14,6 +14,7 @@ import { PAGE_METADATA } from "../../data/metadata";
 import { getAllPosts } from "../../lib/blog";
 import { getStaticPageMetadata } from "../../lib/seo/metadata";
 import { formatSeoDate } from "../../lib/seo/utils";
+import type { CollectionPageMetadata } from "../../types/seo/metadata";
 import type { BlogPost } from "../../types/blog";
 
 /**
@@ -33,7 +34,7 @@ export const revalidate = 3600; // Revalidate every hour
  * Blog index page component
  */
 export default async function BlogPage() {
-  const pageMetadata = PAGE_METADATA.blog;
+  const pageMetadata: CollectionPageMetadata = PAGE_METADATA.blog;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 

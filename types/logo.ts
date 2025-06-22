@@ -22,6 +22,11 @@
 // import type { z } from "zod";
 // import type { CompanyDataSchema, LogoConfigSchema } from "@/lib/validators/logo";
 
+export interface LogoData {
+  url: string;
+  source: string | null;
+}
+
 /** Identifies the source service used to fetch a company logo. */
 export type LogoSource = "google" | "duckduckgo" | "clearbit" | "unknown" | null;
 
@@ -60,7 +65,7 @@ export interface LogoBrightnessAnalysis {
 /**
  * Image metadata with validation results
  */
-export interface ValidatedMetadata {
+export interface ValidatedLogoMetadata {
   width: number;
   height: number;
   format: string;
@@ -95,21 +100,13 @@ export interface LogoResult {
   buffer?: Buffer;
 }
 
-/**
- * Represents a cached logo entry, extending `LogoResult` with a timestamp
- * for cache management.
- */
+// Custom structure for logo cache
 export interface LogoCacheEntry extends LogoResult {
   timestamp: number;
 }
 
-/**
- * Defines the structure for the logo cache, mapping domain names
- * to their `LogoCacheEntry`.
- */
-export interface LogoCache {
-  [domain: string]: LogoCacheEntry;
-}
+// Simple record type
+export type LogoCache = Record<string, LogoCacheEntry>;
 
 /** Structure for the raw API response when fetching logos. */
 export interface LogoApiResponse {
@@ -117,12 +114,6 @@ export interface LogoApiResponse {
   error?: string;
   source?: LogoSource;
   inversion?: LogoInversion;
-}
-
-/** Defines the logo data structure passed from server to client components. */
-export interface LogoData {
-  url: string;
-  source: string | null;
 }
 
 /**

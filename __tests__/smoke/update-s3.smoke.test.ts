@@ -39,7 +39,7 @@ describe("Update S3 Script Smoke Tests", () => {
 
     expect(stdout).toContain("Usage: data-fetch-manager [options]");
     expect(stdout).toContain("--bookmarks");
-    expect(stdout).toContain("--github-activity");
+    expect(stdout).toContain("--github");
     expect(stdout).toContain("--logos");
     expect(stdout).toContain("--force");
   });

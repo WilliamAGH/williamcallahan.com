@@ -12,6 +12,75 @@ import reactJsxRuntime from "eslint-plugin-react/configs/jsx-runtime.js";
 import reactRecommended from "eslint-plugin-react/configs/recommended.js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+// Local ESLint Rule Types
+import type { Rule } from "eslint";
+
+/**
+ * ESLint rule to disallow duplicate TypeScript type definitions (type aliases, interfaces, enums)
+ * anywhere in the repository. Types must already live under `types/` or declaration files as
+ * enforced by the existing `no-restricted-syntax` rule – this rule focuses solely on *uniqueness*.
+ * 
+ * KNOWN LIMITATION: This rule uses a module-level Map that persists across lint runs,
+ * which can cause false positives in watch mode or when files are renamed/deleted.
+ * This is a fundamental limitation of ESLint's architecture for cross-file validation.
+ * For production use, consider:
+ * 1. TypeScript's built-in duplicate identifier detection
+ * 2. A dedicated build-time script using ts-morph or similar
+ * 3. Running this rule only in CI/CD, not in watch mode
+ */
+const noDuplicateTypesRule: Rule.RuleModule & { duplicateTypeTracker?: Map<string, string> } = {
+  meta: {
+    type: "problem",
+    docs: {
+      description: "disallow duplicated type, interface or enum names in the codebase",
+      url: "https://eslint.org/docs/latest/extend/custom-rules",
+    },
+    schema: [], // no options
+  },
+  create(context) {
+    // Create a static map that persists across files in a single lint run
+    // This allows cross-file duplicate detection within a full project lint
+    // LIMITATION: In watch mode or incremental linting, this may produce false positives
+    // as the map persists across multiple lint runs. For production use, consider
+    // TypeScript's built-in checks or a dedicated build script.
+    const duplicateTypeTracker = noDuplicateTypesRule.duplicateTypeTracker ||
+      (noDuplicateTypesRule.duplicateTypeTracker = new Map<string, string>());
+
+    /** Records the location of first declaration and reports on duplicates */
+    const record = (idNode: any) => {
+      const name: string = idNode.name;
+      const currentLocation = `${context.getFilename()}:${idNode.loc.start.line}`;
+
+      // Ignore .d.ts files from node_modules to avoid false positives on @types packages
+      if (context.getFilename().includes("node_modules")) return;
+
+      if (duplicateTypeTracker.has(name)) {
+        // Already seen elsewhere – report duplicate
+        const firstSeen = duplicateTypeTracker.get(name);
+        if (firstSeen && firstSeen !== currentLocation) {
+          context.report({
+            node: idNode,
+            message: `Type "${name}" is already declared at ${firstSeen}. All type names must be globally unique.`,
+          });
+        }
+      } else {
+        duplicateTypeTracker.set(name, currentLocation);
+      }
+    };
+
+    return {
+      TSTypeAliasDeclaration(node: any) {
+        record(node.id);
+      },
+      TSInterfaceDeclaration(node: any) {
+        record(node.id);
+      },
+      TSEnumDeclaration(node: any) {
+        record(node.id);
+      },
+    };
+  },
+};
 
 const config = tseslint.config(
   // Global ignores
@@ -113,7 +182,7 @@ const config = tseslint.config(
     },
   },
 
-  // Enforce centralized type definitions (all types must live in @/types or *.d.ts)
+  // Enforce centralized type definitions (all types AND Zod schemas must live in @/types or *.d.ts)
   {
     files: ["**/*.{ts,tsx}"],
     ignores: ["types/**/*", "**/*.d.ts"],
@@ -131,6 +200,22 @@ const config = tseslint.config(
         {
           selector: "TSEnumDeclaration",
           message: "Enums must reside in @/types or declaration files (*.d.ts)",
+        },
+        {
+          selector: "VariableDeclarator[init.type='CallExpression'][init.callee.object.name='z']",
+          message:
+            "Zod schemas must reside in @/types or declaration files (*.d.ts). Stop trying to cheat the type system!",
+        },
+        {
+          selector:
+            "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[init.type='CallExpression'][init.callee.object.name='z']",
+          message:
+            "Exported Zod schemas must reside in @/types or declaration files (*.d.ts). No sneaky workarounds allowed!",
+        },
+        {
+          selector: "ImportDeclaration[source.value='zod']",
+          message:
+            "Zod imports must only be in @/types or declaration files (*.d.ts). All schemas belong in the centralized type system!",
         },
       ],
     },
@@ -321,6 +406,22 @@ const config = tseslint.config(
       ...tseslint.configs.disableTypeChecked.rules,
       "no-var": "error",
       "prefer-const": "error",
+    },
+  },
+
+  // --------------------------------------------------
+  // Project-specific global type uniqueness rule
+  // --------------------------------------------------
+  {
+    plugins: {
+      project: {
+        rules: {
+          "no-duplicate-types": noDuplicateTypesRule,
+        },
+      },
+    },
+    rules: {
+      "project/no-duplicate-types": "error",
     },
   },
 );

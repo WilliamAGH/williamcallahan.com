@@ -8,6 +8,7 @@
  */
 
 import * as Sentry from "@sentry/nextjs";
+import { ImageMemoryManagerInstance } from "@/lib/image-memory-manager";
 import { monitoredAsync } from "../async-operations-monitor";
 
 // Flags to prevent redundant work across calls within the same process
@@ -27,19 +28,34 @@ export async function preloadBookmarksIfNeeded(): Promise<void> {
 
   preloadPromise = (async () => {
     try {
+      // Check memory pressure before starting
+      if (ImageMemoryManagerInstance.getMetrics().memoryPressure) {
+        console.warn("[BookmarkPreloader] Skipping preload due to memory pressure.");
+        return; // Exit early
+      }
+
       // Ensure the server is fully ready before we spike outbound bandwidth
       await new Promise((r) => setTimeout(r, 1_000));
 
       // Dynamic import to use the unified service
-      const { fetchBookmarks } = await import("./service.server");
+      const { getBookmarks } = await import("./service.server");
 
       console.log("Preloading bookmarks into server cache...");
+
+      // Determine whether to hit external APIs based on current memory
+      // conditions and the operator override.  External OpenGraph fetches
+      // can easily allocate >300 MB in aggregate, so we avoid them when
+      // the process is already under strain (or when explicitly disabled
+      // via BOOKMARKS_SKIP_EXTERNAL_FETCH=true).
+
+      const metrics = ImageMemoryManagerInstance.getMetrics();
+      const skipExternalFetch: boolean = metrics.memoryPressure || process.env.BOOKMARKS_SKIP_EXTERNAL_FETCH === "true";
 
       await monitoredAsync(
         null, // Let monitor generate ID
         "Bookmark Preload",
         async () => {
-          const result = await fetchBookmarks({ mode: "immediate" });
+          const result = await getBookmarks(skipExternalFetch);
           console.log("Bookmarks preloaded successfully");
           return result;
         },

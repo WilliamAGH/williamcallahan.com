@@ -1,8 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type NextRequest, NextResponse } from "next/server";
-// import type { ClientErrorPayload } from '@/types'; // Assuming @/types maps to ./types/index.ts or similar
-import { z } from "zod";
+import { ClientErrorSchema, type ClientErrorPayload } from "@/types/error";
 
 /**
  * API route to receive and log client-side errors
@@ -10,25 +9,13 @@ import { z } from "zod";
  * for Docker container logs
  */
 
-// Define the Zod schema for client error payloads
-const ClientErrorSchema = z
-  .object({
-    message: z.string().optional(),
-    resource: z.string().optional(), // e.g., script URL if it's a script error
-    type: z.string().optional(), // e.g., 'ChunkLoadError', 'TypeError'
-    url: z.string().optional(), // The URL where the error occurred
-    stack: z.string().optional(),
-    buildId: z.string().optional(), // Next.js build ID
-  })
-  .passthrough(); // Allows other properties, matching [key: string]: unknown;
-
 export async function POST(request: NextRequest) {
   try {
     // Cast the parsed JSON to our defined type
     const errorData = ClientErrorSchema.parse(await request.json());
 
     // Add server timestamp and request details
-    const enrichedErrorData: z.infer<typeof ClientErrorSchema> & {
+    const enrichedErrorData: ClientErrorPayload & {
       server_timestamp: string;
       ip: string;
       user_agent: string;

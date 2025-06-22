@@ -25,6 +25,7 @@ export function Base64Image({ className = "", alt = "", width, height, ...props 
       <div
         className={`bg-gray-200 dark:bg-gray-700 animate-pulse ${className}`}
         style={{ aspectRatio, width: "100%", height: aspectRatio ? "auto" : "200px" }}
+        role="img"
         aria-label={alt}
       />
     );

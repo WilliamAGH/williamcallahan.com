@@ -64,19 +64,19 @@ export async function GET(request: Request) {
     // Add prefixes to non-blog results for clarity in the terminal
     const prefixedInvestmentResults = investmentResults.map((r) => ({
       ...r,
-      label: `[Investments] ${r.label}`,
+      title: `[Investments] ${r.title}`,
     }));
     const prefixedExperienceResults = experienceResults.map((r) => ({
       ...r,
-      label: `[Experience] ${r.label}`,
+      title: `[Experience] ${r.title}`,
     }));
     const prefixedEducationResults = educationResults.map((r) => ({
       ...r,
-      label: `[Education] ${r.label}`,
+      title: `[Education] ${r.title}`,
     }));
     const prefixedBookmarkResults = bookmarkResults.map((r) => ({
       ...r,
-      label: `[Bookmark] ${r.label}`,
+      title: `[Bookmark] ${r.title}`,
     }));
 
     // Combine all results

@@ -9,14 +9,51 @@ Issue: #$ARGUMENTS
 
 STEP 1: Use @mcp__github__get_issue with owner="WilliamAGH" repo="williamcallahan.com" issue_number=$ARGUMENTS to get and output full issue details.
 
-STEP 2: Use @mcp__zen__thinkdeep with model='pro' to deeply analyze the issue.
+STEP 2: Multi-Source Analysis with All Available MCPs
+Gather comprehensive context from multiple sources:
 
-STEP 3: Search for relevant code using @mcp__github__search_code with q="repo:WilliamAGH/williamcallahan.com <search_terms>" and Read tools.
+a) **Technology Documentation via MCP Tools**:
+   IMPORTANT: Always check current documentation for the specific versions we use:
+   - For Next.js 15: @mcp__context7__resolve-library-id libraryName="next.js" then @mcp__context7__get-library-docs
+   - For React 19: @mcp__context7__resolve-library-id libraryName="react" then @mcp__context7__get-library-docs
+   - For Zod 4: @mcp__context7__resolve-library-id libraryName="zod" then @mcp__context7__get-library-docs
+   - For TypeScript 5.x: Use available documentation MCPs
+   - Check package.json for other relevant dependencies and fetch their docs
+
+b) **Web Search for Similar Issues**:
+   - Use @mcp__brave-search__brave_web_search to find:
+     - Similar issues in GitHub repositories
+     - Stack Overflow solutions for the error/problem
+     - Recent breaking changes or known bugs
+     - Community workarounds or best practices
+
+c) **Deep Analysis with Zen MCP**:
+   - Use @mcp__zen__thinkdeep with model='pro' to deeply analyze the issue
+   - Include all gathered documentation and search results in the analysis
+   - Consider framework-specific patterns and best practices
+
+STEP 3: Architecture Context & Code Search
+a) Read docs/projects/structure/00-architecture-entrypoint.md to understand overall structure
+b) Identify affected functionality domains from the issue description
+c) Read relevant docs/projects/structure/<functionality>.md files
+d) Search for relevant code using @mcp__github__search_code with q="repo:WilliamAGH/williamcallahan.com <search_terms>" and Read tools
 
 STEP 4: If issue is actionable and can be fixed now:
-a) Implement the fix using Edit/MultiEdit tools
-b) Document all changes made
-c) Create comprehensive test if needed
+a) **MANDATORY: Run validation before making changes:**
+   ```bash
+   bun run validate
+   ```
+   Must show 0 errors, 0 warnings. Fix any issues following @docs/projects/structure/linting-formatting.md guidance.
+
+b) Implement the fix using Edit/MultiEdit tools
+c) Document all changes made
+d) Create comprehensive test if needed
+
+e) **MANDATORY: Run validation after making changes:**
+   ```bash
+   bun run validate
+   ```
+   Never use @ts-ignore, @ts-expect-error, or eslint-disable. Fix all type safety issues properly.
 
 STEP 5: Post detailed comment on issue using @mcp__github__add_issue_comment with owner="WilliamAGH" repo="williamcallahan.com" issue_number=$ARGUMENTS body="<your_analysis_and_plan>" including: analysis, changes made (if any), or implementation plan if changes are too large.
 

@@ -17,21 +17,43 @@ To provide robust, multi-layered memory management that prevents leaks, ensures 
 
 ## Logic Flow
 
-1. **Request Handling**:
-    - The `memoryPressureMiddleware` inspects every incoming request. If the `MemoryHealthMonitor` reports a "critical" state, it immediately halts the request with a `503` response, preventing further memory allocation.
-2. **Monitoring Loop**:
-    - The `MemoryHealthMonitor` runs a continuous `setInterval` loop to check `process.memoryUsage().rss`.
-    - It compares the current RSS usage against the `MEMORY_WARNING_THRESHOLD` and `MEMORY_CRITICAL_THRESHOLD` defined in `lib/constants.ts`.
-3. **State Transitions**:
-    - **Healthy → Warning**: If RSS exceeds the warning threshold, the monitor changes its state to "warning". It logs this change and may add a `X-System-Status` header to responses, but continues to accept requests.
-    - **Warning → Critical**: If RSS exceeds the critical threshold, the state becomes "critical". This triggers the `memoryPressureMiddleware` to start shedding load. The monitor also schedules an `emergencyCleanup` after a short delay to allow for natural recovery.
-    - **Critical → Healthy**: The system returns to a healthy state only after an `emergencyCleanup` has run and RSS has dropped significantly below the critical threshold (hysteresis).
-4. **Cache Interaction**:
-    - The `ImageMemoryManager` is the primary consumer of memory for image buffers. When it needs to cache a new image, it checks its internal budget. If the budget is exceeded, it evicts the least recently used items.
-    - During an `emergencyCleanup`, the `MemoryHealthMonitor` directly calls `.clear()` or `.flushAll()` on both the `ImageMemoryManager` and the `ServerCache` to free up memory immediately.
-5. **Observability**:
-    - The `/api/health` endpoint exposes the current status from the `MemoryHealthMonitor`.
-    - The `/api/health/metrics` endpoint provides detailed metrics from both the `ImageMemoryManager` and `ServerCacheInstance`.
+### **Coordinated Memory Management (2025-06 Redesign)**
+
+The system now operates on **coordinated proactive management** rather than independent reactive systems:
+
+1. **Unified Monitoring System**:
+    - **ImageMemoryManager** acts as the primary memory monitor (every 30s)
+    - Uses consistent RSS-based thresholds aligned with total process budget
+    - **S3Utils** and other systems query ImageMemoryManager for pressure state
+
+2. **Proactive Coordination Cascade**:
+    - **70% RSS**: ImageMemoryManager triggers `memory-coordination-trigger` event
+      - Starts proactive LRU eviction in ImageMemoryManager (60% target)
+      - ServerCache listens and clears 25% of oldest entries
+      - All systems begin memory-aware request handling
+    - **80% RSS**: Memory pressure mode activated
+      - All new memory-intensive operations rejected/queued
+      - S3 operations check pressure before reading
+      - OpenGraph enrichment skips processing
+3. **Emergency Failsafes** (should rarely trigger):
+    - **90% RSS**: MemGuard critical monitoring validates coordination worked
+    - **95% RSS**: Nuclear option - full cache flush (coordination failed)
+
+4. **Early Request Rejection**:
+    - Memory pressure checks **before** starting operations, not after
+    - S3 reads validate size limits and memory state
+    - Image processing queued or skipped under pressure
+    - Bookmark enrichment degrades gracefully
+
+5. **State Coordination**:
+    - **Single source of truth**: ImageMemoryManager memory pressure state
+    - **Consistent metrics**: All systems use same RSS thresholds
+    - **Event-driven**: Coordination via event emitters, not polling
+
+6. **Observability**:
+    - The `/api/health` endpoint exposes coordinated system status
+    - The `/api/health/metrics` endpoint shows cross-system memory coordination
+    - MemGuard logs validate that proactive systems are working
 
 ## Critical Issues & Design Decisions
 
@@ -45,7 +67,57 @@ To provide robust, multi-layered memory management that prevents leaks, ensures 
 
 See `memory-mgmt.mmd` for a visual diagram of the memory management flow and safeguards.
 
+## Recent Optimizations (2025-06-20)
+
+### Sharp Memory Configuration
+- **Sharp cache fully disabled**: Uses `sharp.cache({ files: 0, items: 0, memory: 0 })` to prevent libvips internal cache retention
+- **Concurrency limited**: Set to 1 to reduce memory spikes during concurrent processing
+- **Result**: Prevents ~50MB of hidden memory retention per Sharp operation
+
+### Size-Aware Cache Eviction
+- **ServerCache**: Now uses LRU cache with `maxSize` budget (256MB) and byte-accurate size calculation
+- **S3 Existence Cache**: Added 8MB size limit to prevent unbounded growth of 50k keys
+- **Result**: Caches now respect memory budgets and evict based on actual byte usage
+
+### Next.js 15 Optimizations
+- **Webpack memory optimizations**: Enabled via `experimental.webpackMemoryOptimizations`
+- **Source maps disabled**: Both client and server source maps disabled in production
+- **Build worker enabled**: `experimental.webpackBuildWorker` for build-time memory isolation
+- **Route preloading disabled**: Prevents 300-500MB initial RSS spike
+
+### Monitoring Enhancements
+- **New endpoint**: `/api/metrics/cache` provides detailed cache statistics for Grafana
+- **Prometheus support**: Can return metrics in Prometheus format via `METRICS_FORMAT=prometheus`
+- **Comprehensive metrics**: Tracks buffer cache, metadata cache, operations, and hit rates
+
+### Search Standardization
+- **Bookmarks search**: Now uses MiniSearch like all other content types
+- **Unified caching**: All search indexes cached with proper TTLs
+- **Result**: Eliminates API-based bookmark search and standardizes fuzzy search
+
 ## Recently Resolved Issues
+
+### ✅ FIXED: Memory System Coordination (2025-06-20)
+
+**Problem**: Memory guards were constantly firing (every 30s) at emergency thresholds because proactive systems weren't coordinating effectively. RSS usage reached 3.5GB while individual systems operated independently with conflicting metrics.
+
+**Root Cause**:
+
+- ImageMemoryManager used heap-based thresholds
+- MemGuard used RSS-based thresholds  
+- S3Utils used different pressure calculations
+- ServerCache had no coordination with other memory systems
+- Systems accumulated memory instead of failing early
+
+**Solution**: Implemented coordinated proactive memory management:
+
+- **Unified metrics**: All systems now use consistent RSS-based thresholds
+- **Event-driven coordination**: ImageMemoryManager triggers ServerCache cleanup at 70% RSS
+- **Early request rejection**: Memory checks before operations start, not after
+- **Consistent pressure detection**: Single source of truth via ImageMemoryManager
+- **MemGuard as validator**: Now monitors coordination effectiveness vs acting independently
+
+**Result**: Emergency memory guards should rarely trigger as proactive systems coordinate to prevent pressure buildup.
 
 ### ✅ FIXED: Buffer.slice() Memory Retention (2025-06)
 
@@ -190,8 +262,9 @@ Health monitoring and graceful degradation:
 
 ```bash
 # Memory Budgets
-TOTAL_PROCESS_MEMORY_BUDGET_BYTES=1073741824  # 1GB total process memory budget
-IMAGE_RAM_BUDGET_BYTES=536870912              # 512MB for images specifically
+TOTAL_PROCESS_MEMORY_BUDGET_BYTES=2147483648  # 2GB total process memory budget
+IMAGE_RAM_BUDGET_BYTES=536870912              # 512MB for images specifically (consider 256MB)
+SERVER_CACHE_BUDGET_BYTES=268435456           # 256MB for general data caching
 MAX_IMAGE_SIZE_BYTES=52428800                 # 50MB max per image
 
 # Memory Pressure Thresholds (calculated from TOTAL_PROCESS_MEMORY_BUDGET_BYTES)
@@ -199,32 +272,39 @@ IMAGE_RSS_THRESHOLD=1610612736                # 1.5GB RSS limit for ImageMemoryM
 IMAGE_HEAP_THRESHOLD=268435456                # 256MB heap limit for ImageMemoryManager
 
 # Health Check Thresholds (calculated from TOTAL_PROCESS_MEMORY_BUDGET_BYTES)
-MEMORY_WARNING_THRESHOLD=751619276            # 717MB (70% of 1GB total budget)
-MEMORY_CRITICAL_THRESHOLD=966367641           # 922MB (90% of 1GB total budget)
+MEMORY_WARNING_THRESHOLD=1503238553           # 1.4GB (70% of 2GB total budget)
+MEMORY_CRITICAL_THRESHOLD=1932735283          # 1.8GB (90% of 2GB total budget)
 ```
 
 ### Memory Budget Architecture
 
-The system now uses **two separate memory budgets**:
+The system now uses **three separate memory budgets**:
 
 1. **Total Process Memory Budget** (`TOTAL_PROCESS_MEMORY_BUDGET_BYTES`):
    - Used by `mem-guard.ts` to monitor overall RSS usage
-   - Default: 1GB for containers
+   - Default: 2GB for containers
    - Prevents false positives on normal Node.js memory usage
 
 2. **Image Cache Budget** (`IMAGE_RAM_BUDGET_BYTES`):
    - Used by `ImageMemoryManager` for LRU cache sizing
    - Default: 512MB for image buffers only
+   - Consider lowering to 256MB to achieve 600-900MB RSS target
    - Prevents image processing from consuming too much memory
+
+3. **Server Cache Budget** (`SERVER_CACHE_BUDGET_BYTES`):
+   - Used by `ServerCache` for general data caching
+   - Default: 256MB with size-aware eviction
+   - Stores JSON, strings, and metadata (no raw buffers)
 
 ### Memory Thresholds Explained
 
 | Threshold | RSS Usage | Action | Purpose |
 |-----------|-----------|--------|---------|
-| 70% (717MB) | Monitor | Log usage | Early awareness |
-| 80% (819MB) | Image Pressure | Reject new image ops | Protect image processing |
-| 90% (922MB) | Critical | Clear image cache | Aggressive cleanup |
-| 95% (972MB) | Emergency | Flush all caches | Last resort |
+| 70% (1.4GB) | Coordination | ServerCache evicts 25%, ImageManager evicts to 60% | Proactive memory management |
+| 75% (1.5GB) | Warning | Health monitor reports degraded status | Load balancer awareness |
+| 80% (1.6GB) | Image Pressure | Reject new image ops | Protect image processing |
+| 90% (1.8GB) | Critical | Clear image cache, return 503 | Aggressive cleanup |
+| 95% (1.9GB) | Emergency | Flush all caches | Last resort |
 
 ### Why This Fixes False Positives
 

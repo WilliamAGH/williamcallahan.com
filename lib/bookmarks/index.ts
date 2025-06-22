@@ -6,7 +6,6 @@
 
 // Client-safe exports only
 export { fetchBookmarksFromApi } from "./bookmarks.client";
-export type { FetchBookmarksOptions } from "@/types";
 
 // Helper utilities (client-safe)
 export * from "./bookmark-helpers";

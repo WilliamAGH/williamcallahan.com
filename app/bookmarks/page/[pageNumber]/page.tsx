@@ -19,9 +19,9 @@ import { notFound, redirect } from "next/navigation";
 import { BookmarksServer } from "../../../../components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "../../../../components/seo/json-ld";
 import { getStaticPageMetadata } from "../../../../lib/seo/metadata";
-import { getBookmarks } from "../../../../lib/bookmarks/bookmarks-data-access.server";
-import { z } from "zod";
+import { getBookmarks } from "../../../../lib/bookmarks/service.server";
 import type { PaginatedBookmarkContext, UnifiedBookmark } from "@/types";
+import { PageNumberSchema } from "@/types/lib";
 
 /**
  * Page Metadata for paginated bookmarks
@@ -41,10 +41,9 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
   const paramsResolved = await Promise.resolve(params);
 
   // Strict runtime validation for the dynamic route param
-  const PageParam = z.coerce.number().int().min(1);
   let pageNum: number;
   try {
-    pageNum = PageParam.parse(paramsResolved.pageNumber);
+    pageNum = PageNumberSchema.parse(paramsResolved.pageNumber);
   } catch {
     notFound();
   }
@@ -123,10 +122,9 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   const paramsResolved = await Promise.resolve(params);
 
   // Re-use the same Zod schema to validate/parse the page param
-  const PageParam = z.coerce.number().int().min(1);
   let pageNum: number;
   try {
-    pageNum = PageParam.parse(paramsResolved.pageNumber);
+    pageNum = PageNumberSchema.parse(paramsResolved.pageNumber);
   } catch {
     notFound();
   }

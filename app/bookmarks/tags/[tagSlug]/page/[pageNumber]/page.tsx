@@ -18,8 +18,8 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { sanitizeUnicode } from "@/lib/utils/tag-utils";
-import { z } from "zod";
 import type { PaginatedTagBookmarkContext } from "@/types";
+import { PageNumberSchema } from "@/types/lib";
 
 /**
  * Generate metadata for the paginated tag bookmarks page
@@ -28,10 +28,9 @@ export async function generateMetadata({ params }: PaginatedTagBookmarkContext):
   const paramsResolved = await Promise.resolve(params);
 
   // Validate page number
-  const PageParam = z.coerce.number().int().min(1);
   let pageNum: number;
   try {
-    pageNum = PageParam.parse(paramsResolved.pageNumber);
+    pageNum = PageNumberSchema.parse(paramsResolved.pageNumber);
   } catch {
     notFound();
   }
@@ -152,10 +151,9 @@ export default async function PaginatedTagBookmarksPage({ params }: PaginatedTag
   const paramsResolved = await Promise.resolve(params);
 
   // Validate page number
-  const PageParam = z.coerce.number().int().min(1);
   let pageNum: number;
   try {
-    pageNum = PageParam.parse(paramsResolved.pageNumber);
+    pageNum = PageNumberSchema.parse(paramsResolved.pageNumber);
   } catch {
     notFound();
   }

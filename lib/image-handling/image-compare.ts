@@ -25,7 +25,7 @@ import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { VALID_IMAGE_FORMATS, MAX_SIZE_DIFF, MIN_LOGO_SIZE } from "@/lib/constants";
 import { logger } from "@/lib/logger";
-import type { ValidatedMetadata } from "@/types/logo";
+import type { ValidatedLogoMetadata } from "@/types/logo";
 
 /**
  * Configuration constants for image comparison
@@ -85,7 +85,7 @@ export class ImageCompareError extends Error {
 /**
  * Gets and validates image metadata
  * @param {Buffer} buffer - Image buffer to analyze
- * @returns {Promise<ValidatedMetadata>} Image metadata with validation results
+ * @returns {Promise<ValidatedLogoMetadata>} Image metadata with validation results
  * @throws {ImageCompareError} If image processing fails
  * @internal
  *
@@ -97,7 +97,7 @@ export class ImageCompareError extends Error {
  * }
  * ```
  */
-async function getValidatedMetadata(buffer: Buffer): Promise<ValidatedMetadata> {
+async function getValidatedMetadata(buffer: Buffer): Promise<ValidatedLogoMetadata> {
   try {
     const metadata = await sharp(buffer).metadata();
 
@@ -214,8 +214,8 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
       return false;
     }
 
-    let meta1: ValidatedMetadata; // Explicitly type meta1
-    let meta2: ValidatedMetadata; // Explicitly type meta2
+    let meta1: ValidatedLogoMetadata; // Explicitly type meta1
+    let meta2: ValidatedLogoMetadata; // Explicitly type meta2
     try {
       // Get and validate metadata for both images
       [meta1, meta2] = await Promise.all([getValidatedMetadata(image1), getValidatedMetadata(image2)]);
@@ -237,6 +237,15 @@ export async function compareImages(image1: Buffer, image2: Buffer): Promise<boo
     }
 
     // Check if sizes are too different
+    if (
+      typeof meta1.width !== "number" ||
+      typeof meta2.width !== "number" ||
+      typeof meta1.height !== "number" ||
+      typeof meta2.height !== "number"
+    ) {
+      logger.warn("Invalid image dimensions");
+      return false;
+    }
     const sizeDiff = Math.abs(meta1.width - meta2.width) + Math.abs(meta1.height - meta2.height);
     if (sizeDiff > CONFIG.MAX_SIZE_DIFF) {
       logger.warn(`Size difference too large: ${sizeDiff}px (max: ${CONFIG.MAX_SIZE_DIFF}px)`);

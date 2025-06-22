@@ -4,7 +4,8 @@
  * Provides consistent URL construction and other bookmark-related utilities
  */
 
-import type { UnifiedBookmark, BookmarkContent, ImageSelectionOptions, KarakeepImageFallback } from "@/types";
+import type { UnifiedBookmark, BookmarkContent, KarakeepImageFallback } from "@/types";
+import type { ImageSelectionOptions } from "@/types/features/bookmarks";
 
 /**
  * Constructs a consistent asset URL for Karakeep assets
@@ -13,7 +14,9 @@ import type { UnifiedBookmark, BookmarkContent, ImageSelectionOptions, KarakeepI
  */
 export function getAssetUrl(assetId: string | undefined | null): string | undefined {
   if (!assetId) return undefined;
-  // Future enhancement: could use CDN URL from environment
+
+  // Always use API proxy to ensure correct content-type is preserved
+  // This guarantees that images work regardless of their actual format (jpg, png, gif, webp, etc.)
   return `/api/assets/${assetId}`;
 }
 
@@ -49,7 +52,7 @@ export function selectBestImage(
 ): string | null | undefined {
   const { preferOpenGraph = true, includeScreenshots = true, returnUndefined = false } = options;
 
-  const content = bookmark.content;
+  const { content } = bookmark;
   const noImageResult = returnUndefined ? undefined : null;
 
   // Build prioritized image list based on options
@@ -59,25 +62,23 @@ export function selectBestImage(
     candidates.push(bookmark.ogImage);
   }
 
-  if (content) {
-    // Add Karakeep images
-    if (content.imageUrl) {
-      candidates.push(content.imageUrl);
-    }
+  if (content?.imageUrl) {
+    candidates.push(content.imageUrl);
+  }
 
-    if (content.imageAssetId) {
-      candidates.push(getAssetUrl(content.imageAssetId));
-    }
+  if (content?.imageAssetId) {
+    // Convert asset ID to full URL
+    candidates.push(getAssetUrl(content.imageAssetId));
+  }
 
-    // Add OpenGraph after Karakeep if not preferred
-    if (!preferOpenGraph && bookmark.ogImage) {
-      candidates.push(bookmark.ogImage);
-    }
+  // Add OpenGraph after Karakeep if not preferred
+  if (!preferOpenGraph && bookmark.ogImage) {
+    candidates.push(bookmark.ogImage);
+  }
 
-    // Add screenshot as last resort
-    if (includeScreenshots && content.screenshotAssetId) {
-      candidates.push(getAssetUrl(content.screenshotAssetId));
-    }
+  // Add screenshot as last resort
+  if (includeScreenshots && content?.screenshotAssetId) {
+    candidates.push(getAssetUrl(content.screenshotAssetId));
   }
 
   // Return first non-null/undefined candidate

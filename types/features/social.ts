@@ -17,80 +17,39 @@
 import type { ReactNode } from "react";
 import type { SocialLink } from "../social";
 
-/**
- * Social card component props
- * @usage - Individual social media profile/link cards
- */
-export interface SocialCardProps {
-  /** Social link data */
+// Use base component props
+export type SocialCardProps = import("../ui").BaseComponentProps & {
   social: SocialLink;
-  /** Whether to show stats */
   showStats?: boolean;
-  /** Optional CSS classes */
-  className?: string;
-}
+};
 
-/**
- * Interactive social card component props
- * @usage - Client-side social cards with click handlers
- */
-export interface SocialCardClientProps extends SocialCardProps {
-  /** Whether card is interactive */
+// Type extension
+export type SocialCardClientProps = SocialCardProps & {
   interactive?: boolean;
-  /** Click callback */
   onClick?: (social: SocialLink) => void;
-}
+};
 
-/**
- * Social window component props
- * @usage - Social links displayed in window-like UI
- */
-export interface SocialWindowProps {
-  /** Social links to display */
-  socialLinks: SocialLink[];
-  /** Window title */
-  title?: string;
-  /** Whether window is active */
-  isActive?: boolean;
-  /** Optional CSS classes */
-  className?: string;
-}
+// Use generic WindowProps
+export type SocialWindowProps = import("../component-types").WindowProps<{ socialLinks: SocialLink[] }>;
 
-/**
- * Interactive social window component props
- * @usage - Client-side social windows with window controls
- */
-export interface SocialWindowClientProps extends SocialWindowProps {
-  /** Whether window is interactive */
+// Extend window props
+export type SocialWindowClientProps = SocialWindowProps & {
   interactive?: boolean;
-  /** Window callbacks */
   onClose?: () => void;
-}
+};
 
-/**
- * Social window content component props
- * @usage - Content display within social windows with window controls
- */
-export interface SocialWindowContentProps {
-  /** Window content */
+// Simple type
+export type SocialWindowContentProps = {
   children: ReactNode;
-  /** Current window state */
   windowState: string;
-  /** Close callback */
   onClose: () => void;
-  /** Minimize callback */
   onMinimize: () => void;
-  /** Maximize callback */
   onMaximize: () => void;
-  /** Whether component has mounted (for hydration) */
   hasMounted: boolean;
-}
+};
 
-/**
- * OpenGraph image API response structure
- * @usage - Response from og-image API endpoint
- */
-export interface OgImageApiResponse {
+// Simple type
+export type OgImageApiResponse = {
   profileImageUrl?: string;
   domainImageUrl?: string;
-}
+};

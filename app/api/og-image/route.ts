@@ -16,52 +16,8 @@ import { getDomainType } from "@/lib/utils/opengraph-utils";
 import { getDomainFallbackImage, getContextualFallbackImage } from "@/lib/opengraph/fallback";
 import { scheduleImagePersistence } from "@/lib/opengraph/persistence";
 import { OPENGRAPH_IMAGES_S3_DIR } from "@/lib/opengraph/constants";
-import { getOpenGraphData } from "@/lib/data-access/opengraph";
-import { getUnifiedImageService } from "@/lib/services/unified-image-service";
-// persistImageToS3 is now handled by scheduleImagePersistence from lib/opengraph/persistence
+import { getBaseUrl } from "@/lib/utils/get-base-url";
 import type { UnifiedBookmark } from "@/types";
-
-const isDevelopment = process.env.NODE_ENV === "development";
-const S3_BUCKET = process.env.S3_BUCKET;
-const S3_CDN_URL = process.env.NEXT_PUBLIC_S3_CDN_URL;
-
-// In-memory cache for S3 existence checks
-const s3ExistenceCache = new LRUCache<string, boolean>({
-  max: 1000, // Max 1000 items
-  ttl: 5 * 60 * 1000, // 5 minutes
-});
-
-/**
- * Check if an S3 object exists
- */
-async function checkS3Exists(key: string): Promise<boolean> {
-  // Check cache first
-  if (s3ExistenceCache.has(key)) {
-    return s3ExistenceCache.get(key) ?? false;
-  }
-
-  if (!s3Client || !S3_BUCKET) {
-    console.warn("[OG-Image] S3 not configured, cannot check existence");
-    return false;
-  }
-
-  try {
-    await s3Client.send(
-      new HeadObjectCommand({
-        Bucket: S3_BUCKET,
-        Key: key,
-      }),
-    );
-
-    // Cache positive result
-    s3ExistenceCache.set(key, true);
-    return true;
-  } catch {
-    // Cache negative result
-    s3ExistenceCache.set(key, false);
-    return false;
-  }
-}
 
 /**
  * Main handler for OpenGraph image requests
@@ -73,70 +29,131 @@ async function checkS3Exists(key: string): Promise<boolean> {
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const input = searchParams.get("url");
+  const url = searchParams.get("url");
   const assetId = searchParams.get("assetId");
   const bookmarkId = searchParams.get("bookmarkId");
 
-  if (!input) {
-    return new NextResponse("Missing url parameter", { status: 400 });
+  // Get the correct base URL for redirects (not request.url which contains 0.0.0.0 in Docker)
+  const baseUrl = getBaseUrl();
+
+  if (!url) {
+    console.warn("[OG-Image] No URL parameter provided");
+    const fallbackImage = getDomainFallbackImage("unknown");
+    return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), {
+      status: 302,
+      headers: {
+        "Cache-Control": "public, max-age=86400",
+      },
+    });
   }
 
-  // Log request for debugging
-  console.log(
-    `[OG-Image] Processing request - URL: ${input}, AssetID: ${assetId || "none"}, BookmarkID: ${bookmarkId || "none"}`,
-  );
-
-  // 1. Check if it's an S3 key (contains '/' but no protocol)
-  if (input.includes("/") && !input.includes("://")) {
-    console.log(`[OG-Image] Detected S3 key: ${input}`);
-    // In development we may lack S3 credentials; optimistically redirect to CDN
-    if (isDevelopment || (await checkS3Exists(input))) {
-      if (!S3_CDN_URL) {
-        console.error("[OG-Image] S3_CDN_URL not configured; cannot redirect");
-        const fallbackImage = getContextualFallbackImage(input);
-        return NextResponse.redirect(new URL(fallbackImage, request.url).toString(), {
-          status: 302,
-        });
-      }
-      const cdnUrl = `${S3_CDN_URL}/${input}`;
-      console.log(`[OG-Image] Redirecting to CDN: ${cdnUrl}`);
-      return NextResponse.redirect(cdnUrl, { status: 301 });
+  try {
+    // Check for invalid URLs early
+    if (url.startsWith("undefined") || url === "null" || url === "") {
+      console.warn("[OG-Image] Invalid URL parameter:", url);
+      const fallbackImage = getDomainFallbackImage("unknown");
+      return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), { status: 302 });
     }
 
-    console.warn(`[OG-Image] S3 object not found: ${input}`);
-    const fallbackImage = getContextualFallbackImage(input);
-    return NextResponse.redirect(new URL(fallbackImage, request.url).toString(), { status: 302 });
-  }
+    // Check if it's a relative asset URL like /api/assets/{id}
+    if (url.startsWith("/api/assets/")) {
+      const assetId = url.replace("/api/assets/", "");
+      console.log(`[OG-Image] Detected relative asset URL, extracting ID: ${assetId}`);
 
-  // 2. Check if it's a Karakeep asset ID (alphanumeric with dashes/underscores)
-  if (/^[a-zA-Z0-9_-]+$/.test(input) && !input.includes("/")) {
-    console.log(`[OG-Image] Detected Karakeep asset ID: ${input}`);
+      // Validate it's a proper asset ID (UUID format with or without hyphens)
+      if (/^[a-f0-9-]{36}$/.test(assetId) || /^[a-f0-9]{32}$/.test(assetId)) {
+        // Always use API proxy to ensure correct content-type
+        return NextResponse.redirect(new URL(url, baseUrl).toString(), { status: 302 });
+      } else {
+        console.warn(`[OG-Image] Invalid asset ID format in URL: ${assetId}`);
+        const fallbackImage = getDomainFallbackImage("unknown");
+        return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), { status: 302 });
+      }
+    }
 
-    // First try the direct asset
-    const assetUrl = `/api/assets/${input}`;
+    // Check if it's a Karakeep asset ID (UUID format with or without hyphens)
+    if (/^[a-f0-9-]{36}$/.test(url) || /^[a-f0-9]{32}$/.test(url)) {
+      console.log(`[OG-Image] Detected Karakeep asset ID: ${url}`);
+      // Always use API proxy to ensure correct content-type
+      const assetUrl = `/api/assets/${url}`;
+      return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
+    }
 
-    // If we have a bookmarkId, we can provide better fallbacks
-    if (bookmarkId) {
+    // More sophisticated URL validation (skip for relative URLs we handle)
+    if (!url.startsWith("/")) {
       try {
-        // Check if asset exists by making a HEAD request with timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-        const assetCheck = await fetch(`${request.nextUrl.origin}${assetUrl}`, {
-          method: "HEAD",
-          signal: controller.signal,
+        new URL(url);
+      } catch (urlError) {
+        console.warn("[OG-Image] Invalid URL format:", url, urlError);
+        const fallbackImage = getDomainFallbackImage("unknown");
+        return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), {
+          status: 302,
+          headers: {
+            "Cache-Control": "public, max-age=86400",
+          },
         });
+      }
+    }
 
-        clearTimeout(timeoutId);
+    // Check if it's an S3 key (starts with s3:// or is a simple path)
+    if (url.startsWith("s3://") || (!url.startsWith("http") && !url.includes("."))) {
+      console.log(`[OG-Image] Detected S3 key: ${url}`);
+      const s3Key = url.startsWith("s3://") ? url.slice(5) : url;
 
-        if (assetCheck.ok) {
-          return NextResponse.redirect(new URL(assetUrl, request.url).toString(), { status: 302 });
+      // Check if S3 object exists
+      try {
+        if (!process.env.S3_BUCKET) {
+          throw new Error("S3_BUCKET not configured");
+        }
+        if (!s3Client) {
+          throw new Error("S3 client not initialized");
         }
 
-        // Asset doesn't exist, try to get bookmark's domain OG image
-        console.log(`[OG-Image] Karakeep asset not found, attempting domain fallback for bookmark: ${bookmarkId}`);
+        await s3Client.send(
+          new HeadObjectCommand({
+            Bucket: process.env.S3_BUCKET,
+            Key: `${OPENGRAPH_IMAGES_S3_DIR}/${s3Key}`,
+          }),
+        );
 
-        // Read bookmarks directly from S3 to avoid triggering refresh logic
+        // Object exists, redirect to S3 URL
+        const s3Url = `${process.env.NEXT_PUBLIC_S3_CDN_URL}/${OPENGRAPH_IMAGES_S3_DIR}/${s3Key}`;
+        return NextResponse.redirect(s3Url, {
+          status: 302,
+          headers: {
+            "Cache-Control": "public, max-age=86400",
+          },
+        });
+      } catch (s3Error) {
+        console.warn(`[OG-Image] S3 object not found: ${s3Key}`, s3Error);
+        const fallbackImage = getDomainFallbackImage("unknown");
+        return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), {
+          status: 302,
+          headers: {
+            "Cache-Control": "public, max-age=86400",
+          },
+        });
+      }
+    }
+
+    let fallbackImageData:
+      | {
+          imageUrl?: string;
+          imageAssetId?: string;
+          screenshotAssetId?: string;
+        }
+      | undefined;
+
+    // NEW: Check if we have assetId or bookmarkId parameters for Karakeep priority
+    if (assetId || bookmarkId) {
+      // If we have an assetId directly, use it
+      if (assetId) {
+        console.log(`[OG-Image] Checking Karakeep assetId BEFORE OpenGraph: ${assetId}`);
+        // Always use API proxy to ensure correct content-type
+        const assetUrl = `/api/assets/${assetId}`;
+        return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
+      } else if (bookmarkId) {
+        // If we only have bookmarkId, try to get bookmark data and check Karakeep assets first
         try {
           const { readJsonS3 } = await import("@/lib/s3-utils");
           const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
@@ -145,181 +162,204 @@ export async function GET(request: NextRequest) {
           if (bookmarksData && Array.isArray(bookmarksData)) {
             const bookmark = bookmarksData.find((b) => b.id === bookmarkId);
 
-            if (bookmark?.url) {
-              console.log(`[OG-Image] Found bookmark URL: ${bookmark.url}, fetching domain OG image`);
-              // Recursively call ourselves with the bookmark URL
-              const fallbackUrl = `/api/og-image?url=${encodeURIComponent(bookmark.url)}`;
-              return NextResponse.redirect(new URL(fallbackUrl, request.url).toString(), {
-                status: 302,
-              });
+            if (bookmark) {
+              // PRIORITY: Karakeep bannerImage (imageAssetId) takes precedence over OpenGraph
+              if (bookmark.content?.imageAssetId) {
+                console.log(
+                  `[OG-Priority-KARAKEEP] 🎯 Found Karakeep bannerImage (imageAssetId), using INSTEAD of OpenGraph: ${bookmark.content.imageAssetId}`,
+                );
+                // Always use API proxy to ensure correct content-type
+                const assetUrl = `/api/assets/${bookmark.content.imageAssetId}`;
+                return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
+              }
+
+              fallbackImageData = {
+                imageUrl: bookmark.content?.imageUrl || undefined,
+                imageAssetId: bookmark.content?.imageAssetId || undefined,
+                screenshotAssetId: bookmark.content?.screenshotAssetId || undefined,
+              };
+              console.log(
+                `[OG-Image] No Karakeep bannerImage found, proceeding to OpenGraph with fallback data:`,
+                fallbackImageData,
+              );
             }
           }
         } catch (s3Error) {
-          console.error("[OG-Image] Failed to read bookmarks from S3:", s3Error);
+          console.error("[OG-Image] Failed to read bookmarks for Karakeep priority check:", s3Error);
         }
-      } catch (error) {
-        console.error("[OG-Image] Error checking Karakeep asset or fetching fallback:", error);
       }
     }
 
-    // No fallback available, return the asset URL anyway
-    return NextResponse.redirect(new URL(assetUrl, request.url).toString(), { status: 302 });
-  }
+    // If we've reached here, proceed with OpenGraph image fetching
+    const domain = getDomainType(url);
+    const cacheKey = `og-image:${url}`;
 
-  // 3. Must be a URL - validate and process
-  try {
-    const url = new URL(input);
-    const hostname = url.hostname.replace(/^www\./, "");
+    // Check memory cache first
+    const cachedEntry = imageCache.get(cacheKey);
+    if (cachedEntry) {
+      const { imageUrl: cachedUrl, timestamp } = cachedEntry;
+      const age = Date.now() - timestamp;
 
-    // Development mode: allow localhost and local IPs
-    if (isDevelopment) {
-      const isLocalhost =
-        hostname === "localhost" ||
-        hostname === "127.0.0.1" ||
-        hostname.endsWith(".local") ||
-        /^192\.168\.|^10\.|^172\.(1[6-9]|2[0-9]|3[01])\./.test(hostname);
-
-      if (isLocalhost) {
-        console.log(`[OG-Image] [DEV] Allowing local URL: ${url.toString()}`);
-      }
-    } else {
-      // Blocklist strategy – deny only obviously dangerous internal networks / metadata endpoints.
-      const blockedHostPatterns = [
-        /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)/, // private networks
-        /\.internal$/i,
-      ];
-
-      const isBlocked = blockedHostPatterns.some((re) => re.test(hostname));
-      if (isBlocked) {
-        console.warn(`[OG-Image] Blocked private/internal domain: ${hostname}`);
-        return NextResponse.redirect(new URL("/images/opengraph-placeholder.png", request.url).toString(), {
+      if (age < CACHE_DURATION) {
+        console.log(`[OG-Image] Cache hit for ${url} (age: ${Math.round(age / 1000)}s)`);
+        return NextResponse.redirect(cachedUrl, {
           status: 302,
+          headers: {
+            "Cache-Control": "public, max-age=86400",
+          },
         });
       }
     }
 
-    // Try to get from our OpenGraph data access layer first
-    // This will use memory cache → S3 → external fetch
+    // Check if S3 image exists
+    let s3ImageUrl: string | null = null;
     try {
-      const ogData = await getOpenGraphData(url.toString());
-      const imageService = getUnifiedImageService();
-
-      if (ogData.imageUrl && typeof ogData.imageUrl === "string") {
-        // If it's an S3 key, redirect to CDN
-        if (ogData.imageUrl.includes("/") && !ogData.imageUrl.includes("://")) {
-          const cdnUrl = imageService.getCdnUrl(ogData.imageUrl);
-          console.log(`[OG-Image] Found OG image in cache, redirecting to: ${cdnUrl}`);
-          return NextResponse.redirect(cdnUrl, { status: 301 });
-        }
-
-        // If it's an external URL, fetch using UnifiedImageService
-        console.log(`[OG-Image] Fetching external image: ${ogData.imageUrl}`);
-
-        const imageResult = await imageService.getImage(ogData.imageUrl);
-
-        // If we got a CDN URL, redirect to it
-        if (imageResult.cdnUrl && !imageResult.buffer) {
-          console.log(`[OG-Image] Found OG image in S3, redirecting to: ${imageResult.cdnUrl}`);
-          return NextResponse.redirect(imageResult.cdnUrl, { status: 301 });
-        }
-
-        // If we have a buffer, return it
-        if (imageResult.buffer) {
-          // Persist to S3 in background
-          if (ogData.imageUrl && typeof ogData.imageUrl === "string") {
-            scheduleImagePersistence(
-              ogData.imageUrl,
-              OPENGRAPH_IMAGES_S3_DIR,
-              "OG-Image-Background",
-              bookmarkId || undefined,
-              url.toString(),
-            );
-          }
-
-          return new NextResponse(imageResult.buffer, {
-            headers: {
-              "Content-Type": imageResult.contentType,
-              "Cache-Control": "public, max-age=31536000, immutable",
-              "X-Content-Source": "opengraph-cached",
-            },
-          });
-        }
-
-        // If there was an error, throw it to fall back to direct fetch
-        if (imageResult.error) {
-          throw new Error(imageResult.error);
-        }
+      const s3Key = `${OPENGRAPH_IMAGES_S3_DIR}/${domain}/${url.replace(/[^a-zA-Z0-9.-]/g, "_")}.webp`;
+      if (!process.env.S3_BUCKET) {
+        throw new Error("S3_BUCKET not configured");
       }
-    } catch (ogError) {
-      console.error("[OG-Image] OpenGraph fetch failed:", ogError);
-    }
+      if (!s3Client) {
+        throw new Error("S3 client not initialized");
+      }
 
-    // If OpenGraph fetch failed or no image found, try direct fetch using UnifiedImageService
-    console.log(`[OG-Image] Attempting direct fetch: ${url.toString()}`);
-
-    const imageService = getUnifiedImageService();
-    const imageResult = await imageService.getImage(url.toString());
-
-    // If we got a CDN URL, redirect to it
-    if (imageResult.cdnUrl && !imageResult.buffer) {
-      console.log(`[OG-Image] Found image in S3, redirecting to: ${imageResult.cdnUrl}`);
-      return NextResponse.redirect(imageResult.cdnUrl, { status: 301 });
-    }
-
-    // If we have a buffer, return it
-    if (imageResult.buffer) {
-      // Persist to S3 in background
-      scheduleImagePersistence(
-        url.toString(),
-        OPENGRAPH_IMAGES_S3_DIR,
-        "OG-Image-Background",
-        bookmarkId || undefined,
-        url.toString(),
+      await s3Client.send(
+        new HeadObjectCommand({
+          Bucket: process.env.S3_BUCKET,
+          Key: s3Key,
+        }),
       );
 
-      return new NextResponse(imageResult.buffer, {
+      s3ImageUrl = `${process.env.NEXT_PUBLIC_S3_CDN_URL}/${s3Key}`;
+      console.log(`[OG-Image] S3 image found: ${s3ImageUrl}`);
+
+      // Update cache
+      imageCache.set(cacheKey, {
+        imageUrl: s3ImageUrl,
+        timestamp: Date.now(),
+      });
+
+      return NextResponse.redirect(s3ImageUrl, {
+        status: 302,
         headers: {
-          "Content-Type": imageResult.contentType,
-          "Cache-Control": "public, max-age=31536000, immutable",
-          "X-Content-Source": imageResult.source,
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
+    } catch {
+      console.log(`[OG-Image] S3 image not found, checking Karakeep fallback before external fetch`);
+      
+      // Check for Karakeep fallback BEFORE trying external fetch
+      if (fallbackImageData) {
+        // Try imageUrl first (this is the Karakeep API response image URL)
+        if (fallbackImageData.imageUrl) {
+          console.log(`[OG-Image] Using Karakeep imageUrl instead of fetching: ${fallbackImageData.imageUrl}`);
+          return NextResponse.redirect(fallbackImageData.imageUrl, { status: 302 });
+        }
+        
+        // Try screenshotAssetId as second option
+        if (fallbackImageData.screenshotAssetId) {
+          console.log(`[OG-Image] Using Karakeep screenshot instead of fetching: ${fallbackImageData.screenshotAssetId}`);
+          // Always use API proxy to ensure correct content-type
+          const assetUrl = `/api/assets/${fallbackImageData.screenshotAssetId}`;
+          return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
+        }
+      }
+    }
+
+    // Fetch external image
+    console.log(`[OG-Image] Fetching external image: ${url}`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; OpenGraph-Image-Bot/1.0)",
+        },
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType?.startsWith("image/")) {
+        throw new Error(`Invalid content type: ${contentType}`);
+      }
+
+      // Schedule async persistence
+      scheduleImagePersistence(url, OPENGRAPH_IMAGES_S3_DIR, `OG-Image-${domain}`);
+
+      // For immediate response, return the original URL
+      // This avoids blocking the user while image is being processed
+      return NextResponse.redirect(url, {
+        status: 302,
+        headers: {
+          "Cache-Control": "public, max-age=3600",
+        },
+      });
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      console.error(`[OG-Image] Failed to fetch ${url}:`, fetchError);
+
+      // Check for Karakeep fallback images
+      if (fallbackImageData) {
+        console.log("[OG-Image] Checking Karakeep fallback images...");
+
+        // Try imageUrl first
+        if (fallbackImageData.imageUrl) {
+          console.log(`[OG-Image] Using Karakeep imageUrl fallback: ${fallbackImageData.imageUrl}`);
+          return NextResponse.redirect(fallbackImageData.imageUrl, { status: 302 });
+        }
+
+        // Try imageAssetId
+        if (fallbackImageData.imageAssetId) {
+          console.log(`[OG-Image] Using Karakeep imageAssetId fallback: ${fallbackImageData.imageAssetId}`);
+          // Always use API proxy to ensure correct content-type
+          const assetUrl = `/api/assets/${fallbackImageData.imageAssetId}`;
+          return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
+        }
+
+        // Try screenshotAssetId
+        if (fallbackImageData.screenshotAssetId) {
+          console.log(`[OG-Image] Using Karakeep screenshotAssetId fallback: ${fallbackImageData.screenshotAssetId}`);
+          // Always use API proxy to ensure correct content-type
+          const assetUrl = `/api/assets/${fallbackImageData.screenshotAssetId}`;
+          return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
+        }
+      }
+
+      // Final fallback
+      const fallbackImage = getContextualFallbackImage(domain, url);
+      const fallbackUrl = new URL(fallbackImage, baseUrl);
+      return NextResponse.redirect(fallbackUrl.toString(), {
+        status: 302,
+        headers: {
+          "Cache-Control": "public, max-age=86400",
         },
       });
     }
-
-    // If there was an error, throw it
-    if (imageResult.error) {
-      throw new Error(imageResult.error);
-    }
-
-    throw new Error("Failed to fetch image");
   } catch (error) {
-    // Log expected errors without stack trace
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const isExpectedError =
-      errorMessage.includes("Not an image") ||
-      errorMessage.includes("HTTP") ||
-      errorMessage.includes("too large") ||
-      errorMessage.includes("abort");
-
-    if (isExpectedError) {
-      console.log(`[OG-Image] Expected error for ${input}: ${errorMessage}`);
-    } else {
-      console.error("[OG-Image] Unexpected error processing URL:", error);
-    }
-
-    // Try domain-specific fallback first
-    const domainType = getDomainType(input);
-    let fallbackImage = getDomainFallbackImage(domainType);
-
-    // If no domain-specific fallback, use contextual fallback
-    if (fallbackImage === "/images/opengraph-placeholder.png") {
-      fallbackImage = getContextualFallbackImage(input, errorMessage);
-    }
-
-    console.log(`[OG-Image] Returning fallback for ${domainType}: ${fallbackImage}`);
-    return NextResponse.redirect(new URL(fallbackImage, request.url).toString(), { status: 302 });
+    console.error("[OG-Image] Unexpected error:", error);
+    const fallbackImage = getDomainFallbackImage("unknown");
+    return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), {
+      status: 302,
+      headers: {
+        "Cache-Control": "public, max-age=86400",
+      },
+    });
   }
 }
+
+// Memory cache for recently fetched images
+const imageCache = new LRUCache<string, { imageUrl: string; timestamp: number }>({
+  max: 1000,
+  ttl: 1000 * 60 * 60, // 1 hour
+});
+
+const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
 
 // Domain fallback functions are now imported from lib/opengraph/fallback.ts
 

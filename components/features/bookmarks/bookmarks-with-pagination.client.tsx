@@ -23,7 +23,7 @@ import { PaginationControl } from "@/components/ui/pagination-control.client";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel.client";
 
-import type { BookmarksWithPaginationClientProps } from "@/types";
+import type { BookmarksWithPaginationClientProps, UseBookmarksPaginationReturn } from "@/types";
 
 // Environment detection helper
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -43,6 +43,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   baseUrl = "/bookmarks",
   initialTag,
   tag,
+  className,
 }) => {
   // searchAllBookmarks is reserved for future use
   void searchAllBookmarks;
@@ -58,6 +59,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   const router = useRouter();
   const pathname = usePathname();
 
+  // The hook now expects UnifiedBookmark[] directly, not wrapped in pagination structure
+  const paginatedInitialData = initialBookmarks;
+
   // Use the pagination hook
   const {
     bookmarks,
@@ -71,9 +75,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     loadMore,
     goToPage,
     mutate,
-  } = useBookmarksPagination({
+  }: UseBookmarksPaginationReturn = useBookmarksPagination({
     limit: itemsPerPage,
-    initialData: initialBookmarks,
+    initialData: paginatedInitialData,
     initialPage: initialPage,
     tag: tag, // Pass tag for server-side filtering
   });
@@ -83,7 +87,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   // number to show a stable "total bookmarks" value while users paginate through pages that
   // may not have been fetched yet. (Using `bookmarks.length` would under-count because SWR
   // only stores pages that have already been fetched.)
-  const initialTotalCount = initialBookmarks.length;
+  const initialTotalCount = initialBookmarks?.length ?? 0;
 
   // Determine if refresh button should be shown
   const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
@@ -132,11 +136,13 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           throw new Error(`HTTP ${response.status}`);
         }
 
-        const json = (await response.json()) as {
-          data: UnifiedBookmark[];
-        };
-
-        const allBookmarks: UnifiedBookmark[] = Array.isArray(json.data) ? json.data : [];
+        const json: unknown = await response.json();
+        
+        // The API returns { data: [...], meta: {...} } format
+        const apiResponse = json as { data: UnifiedBookmark[]; meta: unknown };
+        
+        // API already returns UnifiedBookmark objects, no validation needed
+        const allBookmarks: UnifiedBookmark[] = apiResponse.data;
 
         // Simple client-side filtering (case-insensitive contains across key
         // fields). We reuse the same helper used in the memoized filter below
@@ -146,7 +152,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           .split(" ")
           .filter((t) => t.length > 0);
 
-        const matches = allBookmarks.filter((b) => {
+        const matches = allBookmarks.filter((b: UnifiedBookmark) => {
           if (terms.length === 0) return true;
 
           const tagsAsString = getTagsAsStringArray(b.tags);
@@ -167,8 +173,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         });
 
         setSearchResults(matches);
-      } catch (err) {
-        console.warn("Full-dataset bookmark search failed, falling back to local filter", err);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "An unknown error occurred during search.";
+        console.warn("Full-dataset bookmark search failed, falling back to local filter", message);
         setSearchResults(null);
       } finally {
         setIsSearchingAPI(false);
@@ -180,8 +187,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
 
   // Extract all unique tags from loaded bookmarks
   const allTags = useMemo(() => {
+    if (!Array.isArray(bookmarks)) return [];
     return bookmarks
-      .flatMap((bookmark) => getTagsAsStringArray(bookmark.tags))
+      .flatMap((bookmark: UnifiedBookmark) => getTagsAsStringArray(bookmark.tags))
       .filter((tag, index, self) => tag && self.indexOf(tag) === index)
       .sort();
   }, [bookmarks]);
@@ -192,7 +200,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     if (searchResults && searchQuery) {
       // Apply tag filter to API results
       if (selectedTag) {
-        return searchResults.filter((bookmark) => {
+        return searchResults.filter((bookmark: UnifiedBookmark) => {
           const tagsAsString = getTagsAsStringArray(bookmark.tags);
           return tagsAsString.includes(selectedTag);
         });
@@ -200,8 +208,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       return searchResults;
     }
 
+    if (!Array.isArray(bookmarks)) return [];
     // Otherwise, use client-side filtering on loaded bookmarks
-    return bookmarks.filter((bookmark) => {
+    return bookmarks.filter((bookmark: UnifiedBookmark) => {
       const tagsAsString = getTagsAsStringArray(bookmark.tags);
 
       // Filter by selected tag if any
@@ -315,11 +324,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorData = (await response
-          .json()
-          .catch(() => ({ error: null }) as import("@/types").ErrorResponse)) as import("@/types").ErrorResponse;
-        const errorMessage = errorData.error || `Refresh failed: ${response.status}`;
-        throw new Error(errorMessage);
+        throw new Error(`HTTP ${response.status}`);
       }
 
       const result = (await response.json()) as import("@/types").RefreshResult;
@@ -332,17 +337,21 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         router.refresh();
       }
     } catch (err: unknown) {
-      const error = err as Error;
-      // Only log non-abort errors to avoid noise
-      if (error.name !== "AbortError") {
-        console.error("Error refreshing bookmarks:", error);
-        const message = error.message || "Failed to refresh bookmarks";
-        setRefreshError(message);
-        setTimeout(() => setRefreshError(null), 5000);
-      } else if (error.name === "AbortError") {
-        console.log("Bookmark refresh was aborted (likely due to timeout)");
-        setRefreshError("Request timed out. Please try again.");
-        setTimeout(() => setRefreshError(null), 5000);
+      if (err instanceof Error) {
+        // Only log non-abort errors to avoid noise
+        if (err.name !== "AbortError") {
+          console.error("Error refreshing bookmarks:", err);
+          const message = err.message || "Failed to refresh bookmarks";
+          setRefreshError(message);
+          setTimeout(() => setRefreshError(null), 5000);
+        } else if (err.name === "AbortError") {
+          console.log("Bookmark refresh was aborted (likely due to timeout)");
+          setRefreshError("Request timed out. Please try again.");
+          setTimeout(() => setRefreshError(null), 5000);
+        }
+      } else {
+        console.error("An unknown error occurred during refresh:", err);
+        setRefreshError("An unexpected error occurred.");
       }
     } finally {
       setIsRefreshing(false);
@@ -369,8 +378,30 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     // Note: `goToPage` is a stable callback from `useCallback`, safe to include.
   }, [searchQuery, selectedTag, currentPage, goToPage, initialPage]);
 
+  const displayBookmarks = useMemo(() => {
+    if (searchResults) return searchResults;
+    return filteredBookmarks;
+  }, [searchResults, filteredBookmarks]);
+
+  const shareUrls = useMemo(() => {
+    const urls = new Map<string, string>();
+    if (Array.isArray(displayBookmarks)) {
+      displayBookmarks.forEach((bookmark: UnifiedBookmark) => {
+        urls.set(
+          bookmark.id,
+          `/bookmarks/${generateUniqueSlug(
+            bookmark.url,
+            Array.isArray(bookmarks) ? bookmarks.map((b: UnifiedBookmark) => ({ id: b.id, url: b.url })) : [],
+            bookmark.id,
+          )}`,
+        );
+      });
+    }
+    return urls;
+  }, [displayBookmarks, bookmarks]);
+
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8">
+    <div className={`w-full px-4 sm:px-6 lg:px-8 ${className}`}>
       {/* Search and filtering */}
       <div className="mb-6 space-y-5">
         <div className="flex items-center justify-between">
@@ -476,11 +507,11 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
                   const isFilteredView = !!searchQuery || !!selectedTag;
 
                   const totalCount = isFilteredView
-                    ? filteredBookmarks.length
+                    ? (displayBookmarks?.length ?? 0)
                     : // Prefer the value returned from the API (includes pages
                       // that haven't been fetched yet); if it's missing, fall
                       // back to the full server payload length.
-                      totalItems || initialTotalCount;
+                      (totalItems ?? initialTotalCount);
 
                   if (totalCount === 0) {
                     return "No bookmarks found";
@@ -522,9 +553,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         error ? (
           <div className="text-center py-16 px-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
             <p className="text-red-600 dark:text-red-400 text-lg mb-2">Error loading bookmarks</p>
-            <p className="text-red-500 dark:text-red-300 text-sm">{error.message}</p>
+            <p className="text-red-500 dark:text-red-300 text-sm">{error?.message}</p>
           </div>
-        ) : filteredBookmarks.length === 0 && searchQuery ? (
+        ) : (displayBookmarks?.length ?? 0) === 0 && searchQuery ? (
           <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
             <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">
               No bookmarks found for &ldquo;{searchQuery}&rdquo;
@@ -534,15 +565,23 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
-              {filteredBookmarks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((bookmark) => {
-                // Generate share URL once per bookmark to avoid per-card API calls
-                const shareUrl = `/bookmarks/${generateUniqueSlug(
-                  bookmark.url,
-                  bookmarks.map((b) => ({ id: b.id, url: b.url })),
-                  bookmark.id,
-                )}`;
-                return <BookmarkCardClient key={bookmark.id} {...bookmark} shareUrl={shareUrl} />;
-              })}
+              {Array.isArray(displayBookmarks) &&
+                displayBookmarks
+                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                  .map((bookmark: UnifiedBookmark) => {
+                    // Debug: Log bookmark data for CLI bookmark
+                    if (bookmark.id === 'yz7g8v8vzprsd2bm1w1cjc4y') {
+                      console.log('[BookmarksWithPagination] CLI bookmark data:', {
+                        id: bookmark.id,
+                        hasContent: !!bookmark.content,
+                        hasImageAssetId: !!bookmark.content?.imageAssetId,
+                        hasImageUrl: !!bookmark.content?.imageUrl,
+                        hasScreenshotAssetId: !!bookmark.content?.screenshotAssetId,
+                        content: bookmark.content
+                      });
+                    }
+                    return <BookmarkCardClient key={bookmark.id} {...bookmark} shareUrl={shareUrls.get(bookmark.id)} />;
+                  })}
             </div>
 
             {/* Infinite scroll sentinel */}
@@ -554,13 +593,16 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       ) : (
         /* Server-side placeholder with hydration suppression */
         <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6" suppressHydrationWarning>
-          {initialBookmarks.slice(0, 6).map((bookmark) => (
-            <div
-              key={bookmark.id}
-              className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg h-96"
-              suppressHydrationWarning
-            />
-          ))}
+          {Array.isArray(initialBookmarks) &&
+            initialBookmarks
+              .slice(0, 6)
+              .map((bookmark: UnifiedBookmark) => (
+                <div
+                  key={bookmark.id}
+                  className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg h-96"
+                  suppressHydrationWarning
+                />
+              ))}
         </div>
       )}
 
