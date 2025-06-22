@@ -67,8 +67,16 @@ async function refreshAllOpenGraphImages() {
         console.log(`[${itemNumber}/${bookmarks.length}] Processing: ${bookmark.url}`);
 
         try {
+          // Create Karakeep fallback data
+          const karakeepFallback = {
+            imageUrl: bookmark.content?.imageUrl || null,
+            imageAssetId: bookmark.content?.imageAssetId || null,
+            screenshotAssetId: bookmark.content?.screenshotAssetId || null,
+            karakeepBaseUrl: process.env.BOOKMARKS_API_URL || ""
+          };
+
           // Wrap the OpenGraph fetch in a timeout
-          const ogDataPromise = getOpenGraphData(bookmark.url, false, bookmark.id);
+          const ogDataPromise = getOpenGraphData(bookmark.url, false, bookmark.id, karakeepFallback);
           const ogData = await processWithTimeout(ogDataPromise, ITEM_TIMEOUT_MS, null);
 
           if (!ogData) {
