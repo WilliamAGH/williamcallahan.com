@@ -156,6 +156,11 @@ export function cleanupBookmarksDataAccess(): void {
   }
 }
 
+// Calculate checksum for bookmarks to detect changes
+function calculateBookmarksChecksum(bookmarks: UnifiedBookmark[]): string {
+  return bookmarks.map((b) => `${b.id}:${b.modifiedAt || b.dateBookmarked}`).join("|");
+}
+
 // Check if bookmarks have actually changed
 async function hasBookmarksChanged(newBookmarks: UnifiedBookmark[]): Promise<boolean> {
   try {
@@ -167,7 +172,7 @@ async function hasBookmarksChanged(newBookmarks: UnifiedBookmark[]): Promise<boo
     if (existingIndex.count !== newBookmarks.length) return true;
 
     // Create a simple checksum of bookmark IDs and dates
-    const checksum = newBookmarks.map((b) => `${b.id}:${b.modifiedAt || b.dateBookmarked}`).join("|");
+    const checksum = calculateBookmarksChecksum(newBookmarks);
 
     return checksum !== existingIndex.checksum;
   } catch {
@@ -189,7 +194,7 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
     lastModified: new Date().toISOString(),
     lastFetchedAt: now,
     lastAttemptedAt: now,
-    checksum: bookmarks.map((b) => `${b.id}:${b.modifiedAt || b.dateBookmarked}`).join("|"),
+    checksum: calculateBookmarksChecksum(bookmarks),
   };
   await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, index);
 
