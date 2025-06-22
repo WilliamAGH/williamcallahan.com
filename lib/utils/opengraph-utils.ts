@@ -231,11 +231,15 @@ export function isValidImageUrl(url: string | null | undefined): url is string {
  * Constructs a Karakeep asset URL for consistent proxy usage
  *
  * @param assetId - The Karakeep asset ID
- * @param _baseUrl - The base URL for the Karakeep API (unused, kept for API compatibility)
- * @param _extension - File extension (unused, kept for API compatibility)
+ * @param baseUrl - The base URL for the Karakeep API (unused, kept for API compatibility)
+ * @param extension - File extension (unused, kept for API compatibility)
  * @returns Constructed asset URL for proxy access
  */
-export function constructKarakeepAssetUrl(assetId: string, _baseUrl?: string, _extension?: string): string {
+export function constructKarakeepAssetUrl(assetId: string, baseUrl?: string, extension?: string): string {
+  // Mark unused parameters explicitly (kept for API compatibility)
+  void baseUrl;
+  void extension;
+  
   // Validate asset ID format (should be non-empty string, potentially UUID)
   if (!assetId || typeof assetId !== "string" || assetId.trim().length === 0) {
     throw new Error("Invalid asset ID provided");
