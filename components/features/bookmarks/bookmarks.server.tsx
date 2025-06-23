@@ -97,8 +97,9 @@ export async function BookmarksServer({
     dateBookmarked: bookmark.dateBookmarked,
     dateCreated: bookmark.dateCreated,
     dateUpdated: bookmark.dateUpdated,
-    content: bookmark.content, // 🎯 CRITICAL: Include content field with Karakeep assets
-    logoData: bookmark.logoData
+    // Only include heavy image data if explicitly requested
+    content: includeImageData ? bookmark.content : undefined,
+    logoData: includeImageData && bookmark.logoData
       ? {
           url: bookmark.logoData.url,
           alt: bookmark.logoData.alt || "Logo",
@@ -110,9 +111,9 @@ export async function BookmarksServer({
     isFavorite: bookmark.isFavorite || false,
     readingTime: bookmark.readingTime,
     wordCount: bookmark.wordCount,
-    ogTitle: bookmark.ogTitle,
-    ogDescription: bookmark.ogDescription,
-    ogImage: bookmark.ogImage,
+    ogTitle: includeImageData ? bookmark.ogTitle : undefined,
+    ogDescription: includeImageData ? bookmark.ogDescription : undefined,
+    ogImage: includeImageData ? bookmark.ogImage : undefined,
     domain: bookmark.domain,
   }));
 
