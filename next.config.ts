@@ -299,7 +299,7 @@ const nextConfig = {
   // Standard Nextjs config options
   output: "standalone",
   poweredByHeader: false,
-  reactStrictMode: process.env.NODE_ENV === "production",
+  reactStrictMode: true,
   productionBrowserSourceMaps: false, // Disable to save memory during builds
   // Nextjs 15 uses SWC by default; swcMinify option is no longer needed
   // Add transpilePackages to handle ESM packages - removed Sentry/OpenTelemetry to reduce watchers
