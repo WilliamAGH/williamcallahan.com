@@ -14,23 +14,26 @@ Gather comprehensive context from multiple sources:
 
 a) **Technology Documentation via MCP Tools**:
    IMPORTANT: Always check current documentation for the specific versions we use:
-   - For Next.js 15: @mcp__context7__resolve-library-id libraryName="next.js" then @mcp__context7__get-library-docs
-   - For React 19: @mcp__context7__resolve-library-id libraryName="react" then @mcp__context7__get-library-docs
-   - For Zod 4: @mcp__context7__resolve-library-id libraryName="zod" then @mcp__context7__get-library-docs
-   - For TypeScript 5.x: Use available documentation MCPs
-   - Check package.json for other relevant dependencies and fetch their docs
+
+- For Next.js 15: @mcp__context7__resolve-library-id libraryName="next.js" then @mcp__context7__get-library-docs
+- For React 19: @mcp__context7__resolve-library-id libraryName="react" then @mcp__context7__get-library-docs
+- For Zod 4: @mcp__context7__resolve-library-id libraryName="zod" then @mcp__context7__get-library-docs
+- For TypeScript 5.x: Use available documentation MCPs
+- Check package.json for other relevant dependencies and fetch their docs
 
 b) **Web Search for Similar Issues**:
-   - Use @mcp__brave-search__brave_web_search to find:
-     - Similar issues in GitHub repositories
-     - Stack Overflow solutions for the error/problem
-     - Recent breaking changes or known bugs
-     - Community workarounds or best practices
+
+- Use @mcp__brave-search__brave_web_search to find:
+  - Similar issues in GitHub repositories
+  - Stack Overflow solutions for the error/problem
+  - Recent breaking changes or known bugs
+  - Community workarounds or best practices
 
 c) **Deep Analysis with Zen MCP**:
-   - Use @mcp__zen__thinkdeep with model='pro' to deeply analyze the issue
-   - Include all gathered documentation and search results in the analysis
-   - Consider framework-specific patterns and best practices
+
+- Use @mcp__zen__thinkdeep with model='pro' to deeply analyze the issue
+- Include all gathered documentation and search results in the analysis
+- Consider framework-specific patterns and best practices
 
 STEP 3: Architecture Context & Code Search
 a) Read docs/projects/structure/00-architecture-entrypoint.md to understand overall structure
