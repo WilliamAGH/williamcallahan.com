@@ -174,7 +174,11 @@ describe("Tag Route Functionality", () => {
           url: "https://example2.com",
           title: "Object tags",
           description: "Has object tags",
-          tags: [{ name: "software development tools" }] as any,
+          tags: [{ 
+            id: "2-tag",
+            name: "software development tools",
+            slug: "software-development-tools"
+          }],
           dateBookmarked: "2025-01-02",
         } as UnifiedBookmark,
       ];
