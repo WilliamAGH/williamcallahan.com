@@ -112,7 +112,7 @@ export async function register() {
               null,
               "Initial Bookmark Preload",
               async () => {
-                const bookmarks = await getBookmarks(true); // skipExternalFetch = true
+                const bookmarks = await getBookmarks({ skipExternalFetch: true });
                 console.log(`[Instrumentation] Initial bookmark preload completed: ${bookmarks.length} bookmarks loaded`);
                 return bookmarks;
               },

@@ -82,7 +82,7 @@ export class DataFetchManager {
 
     try {
       // Get current cached bookmarks to compare for new additions
-      const previousBookmarks: UnifiedBookmark[] = await getBookmarks(false);
+      const previousBookmarks = await getBookmarks({ skipExternalFetch: false }) as UnifiedBookmark[];
       const previousCount = previousBookmarks.length;
       const previousBookmarkIds = new Set(previousBookmarks.map((b: UnifiedBookmark) => b.id));
 
@@ -271,7 +271,7 @@ export class DataFetchManager {
       }
 
       // Get bookmark domains
-      const bookmarks = await getBookmarks(false);
+      const bookmarks = await getBookmarks({ skipExternalFetch: false }) as UnifiedBookmark[];
       const bookmarkDomains = this.extractDomainsFromBookmarks(bookmarks);
       for (const domain of bookmarkDomains) {
         if (domain) {
