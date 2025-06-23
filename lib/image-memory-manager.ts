@@ -400,12 +400,16 @@ export class ImageMemoryManager extends EventEmitter {
       // Proactive cache coordination at 70% usage
       if (usage.rss > warningThreshold && !this.memoryPressure) {
         const imageCacheSize = this.cache.calculatedSize ?? 0;
-        console.warn(
-          `[ImageMemory] 70% memory threshold reached (${Math.round(usage.rss / 1024 / 1024)}MB) - Image cache: ${Math.round(imageCacheSize / 1024 / 1024)}MB`,
-        );
-        
-        // Only trigger coordination if we have significant image cache
-        if (imageCacheSize > 10 * 1024 * 1024) { // More than 10MB in image cache
+
+        // Log and coordinate **only** when the image cache itself is materially contributing
+        // to memory pressure (≥ 10 MB). This prevents a noisy flood of warnings when the
+        // overall RSS is high for unrelated reasons.
+        if (imageCacheSize > 10 * 1024 * 1024) {
+          console.warn(
+            `[ImageMemory] 70% memory threshold reached (${Math.round(usage.rss / 1024 / 1024)}MB) - Image cache: ${Math.round(imageCacheSize / 1024 / 1024)}MB`,
+          );
+
+          // Trigger cross-cache coordination so other caches can shed load.
           this.emit("memory-coordination-trigger", {
             memoryUsagePercent,
             cacheSize: imageCacheSize,
@@ -415,7 +419,8 @@ export class ImageMemoryManager extends EventEmitter {
         }
 
         // Start proactive LRU eviction if we have content
-        if (imageCacheSize > 1024 * 1024) { // More than 1MB
+        if (imageCacheSize > 1024 * 1024) {
+          // More than 1MB
           this.proactiveEviction(0.2); // Evict 20% of the image cache
         }
       }
