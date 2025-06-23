@@ -80,6 +80,7 @@ External API → Fetch & Transform → Enrich with OpenGraph → Persist to S3 �
 ### UnifiedBookmark
 
 Core data model with fields for:
+
 - Basic metadata (id, url, title, description)
 - Tags (supports both string[] and object[] formats)
 - Timestamps (created, updated, bookmarked)
@@ -119,7 +120,8 @@ bookmarks/
 
 **Problem**: Exponential S3 writes causing memory exhaustion
 
-**Solution**: 
+**Solution**:
+
 - Configurable limits on tag caching
 - Memory headroom checks before operations
 - Non-blocking refresh with immediate response
@@ -128,7 +130,8 @@ bookmarks/
 
 **Problem**: Client filtering conflicting with server-filtered data
 
-**Solution**: 
+**Solution**:
+
 - Server provides pre-filtered data for tag pages
 - Client skips redundant filtering on tag routes
 - Pagination hook respects server-provided initial data
