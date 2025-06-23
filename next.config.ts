@@ -299,7 +299,7 @@ const nextConfig = {
   // Standard Nextjs config options
   output: "standalone",
   poweredByHeader: false,
-  reactStrictMode: true,
+  reactStrictMode: process.env.NODE_ENV === "production",
   productionBrowserSourceMaps: false, // Disable to save memory during builds
   // Nextjs 15 uses SWC by default; swcMinify option is no longer needed
   // Add transpilePackages to handle ESM packages - removed Sentry/OpenTelemetry to reduce watchers
@@ -311,6 +311,8 @@ const nextConfig = {
     webpackMemoryOptimizations: true, // Enable webpack memory optimizations
     preloadEntriesOnStart: false, // Don't preload all pages on server start
     serverSourceMaps: false, // Disable server source maps to save memory
+    // Note: Next.js ≥14 replaced `isrMemoryCacheSize` with `cacheMaxMemorySize` at the root level.
+    // Keep experimental section focused on actual experimental flags only.
   },
   /**
    * Image optimization configuration
@@ -430,6 +432,13 @@ const nextConfig = {
      */
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
+  /**
+   * Disable Next.js' default in-memory cache for ISR/data. We already employ
+   * a bespoke cache (see `lib/server-cache.ts` & `lib/image-memory-manager.ts`).
+   * Setting this to 0 prevents duplicated objects in RAM.
+   * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandler
+   */
+  cacheMaxMemorySize: 0,
 };
 
 const sentryWebpackPluginOptions = {
