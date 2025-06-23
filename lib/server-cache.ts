@@ -101,15 +101,12 @@ export class ServerCache implements ICache {
     for (const key of this.cache.keys()) {
       if (currentSizeBytes - removedBytes <= targetSizeBytes) break;
       
-      const item = this.cache.get(key);
-      if (item) {
-        // Get size before deletion
-        const itemSize = this.cache.calculatedSize || 0;
-        this.cache.delete(key);
-        const newSize = this.cache.calculatedSize || 0;
-        removedBytes += (itemSize - newSize);
-        removedCount++;
-      }
+      // Get size before deletion
+      const sizeBefore = this.cache.calculatedSize || 0;
+      this.cache.delete(key);
+      const sizeAfter = this.cache.calculatedSize || 0;
+      removedBytes += (sizeBefore - sizeAfter);
+      removedCount++;
     }
 
     console.log(`[ServerCache] Proactive eviction complete. Removed ${removedCount} entries (${Math.round(removedBytes / 1024)}KB)`);
