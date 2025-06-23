@@ -47,6 +47,11 @@ describe("Bookmark API Tag Filtering", () => {
     console.log = jest.fn(); // Suppress console logs in tests
   });
 
+  afterEach(() => {
+    // Restore original console.log
+    console.log = jest.requireActual('console').log;
+  });
+
   describe("Tag parameter handling", () => {
     it("should filter bookmarks by tag in slug format", async () => {
       mockGetBookmarks.mockResolvedValueOnce(mockBookmarks);
