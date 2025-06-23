@@ -100,19 +100,16 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
 }
 
 export default async function TagPage({ params }: TagBookmarkContext) {
-  const allBookmarks = await getBookmarks();
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
   // Use sanitizeUnicode utility for consistency
   const tagSlug = sanitizeUnicode(paramsResolved.tagSlug);
   const tagQuery = tagSlug.replace(/-/g, " ");
 
-  const filtered = allBookmarks.filter((b) => {
-    const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
-      typeof t === "string" ? t : t.name,
-    );
-    return names.some((n) => n.toLowerCase() === tagQuery.toLowerCase());
-  });
+  // Use unified function that handles caching transparently
+  const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
+  const result = await getBookmarksByTag(tagSlug, 1);
+  const filtered = result.bookmarks;
 
   // Find the original tag with proper capitalization
   let displayTag = tagQuery;
@@ -159,7 +156,7 @@ export default async function TagPage({ params }: TagBookmarkContext) {
           title={pageTitle}
           description={pageDescription}
           bookmarks={filtered} // Pass the pre-filtered bookmarks
-          tag={displayTag}
+          tag={tagSlug} // Pass slug format for API compatibility
           showFilterBar={true}
           titleSlug={tagSlug}
           initialPage={1}

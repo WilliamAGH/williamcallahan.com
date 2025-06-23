@@ -109,7 +109,7 @@ Before starting the PR review process:
    - `@typescript-eslint/no-unsafe-member-access`: Add null checks or optional chaining
    - `@typescript-eslint/no-explicit-any`: Define proper types in types/ directory
    - `project/no-duplicate-types`: Use @type-flattener to consolidate duplicates
-   
+
    **Resolution strategies:**
    ```typescript
    // BAD: const data = JSON.parse(input);

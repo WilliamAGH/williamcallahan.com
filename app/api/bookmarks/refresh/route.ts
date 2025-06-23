@@ -7,7 +7,6 @@
 import "server-only";
 
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
-import type { DataFetchOperationSummary } from "@/types/lib";
 import { API_ENDPOINT_STORE_NAME, DEFAULT_API_ENDPOINT_LIMIT_CONFIG, isOperationAllowed } from "@/lib/rate-limiter";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { readJsonS3 } from "@/lib/s3-utils";
@@ -90,30 +89,41 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     // Use DataFetchManager for centralized data fetching
     const manager = new DataFetchManager();
-    const results = await manager.fetchData({
+    
+    // Start refresh in background (non-blocking)
+    const refreshPromise = manager.fetchData({
       bookmarks: true,
       forceRefresh: true,
-      immediate: true, // Process logos for new bookmarks immediately
+      immediate: false, // Don't process logos immediately to reduce memory pressure
     });
-
-    const bookmarkResult: DataFetchOperationSummary | undefined = results.find((r) => r.operation === "bookmarks");
-
-    if (!bookmarkResult?.success) {
-      throw new Error(bookmarkResult?.error ?? "Bookmark refresh failed");
-    }
-
-    // Read updated count from S3 index
-    const updatedIndex = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
-    const newCount = updatedIndex?.count || 0;
-    const newBookmarksCount = Math.max(0, newCount - previousCount);
-
+    
+    // Handle errors in background without blocking response
+    refreshPromise
+      .then((results) => {
+        const bookmarkResult = results.find((r) => r.operation === "bookmarks");
+        if (bookmarkResult?.success) {
+          logger.info(`[API Bookmarks Refresh] Background refresh completed successfully`);
+        } else {
+          logger.error(`[API Bookmarks Refresh] Background refresh failed:`, bookmarkResult?.error);
+        }
+      })
+      .catch((error) => {
+        logger.error(`[API Bookmarks Refresh] Background refresh error:`, error);
+        // Check if memory related
+        if ((error as Error).message?.includes('memory')) {
+          logger.error(`[API Bookmarks Refresh] Memory exhaustion detected. Container restart may be needed.`);
+        }
+      });
+    
+    // Return immediately without waiting
+    logger.info(`[API Bookmarks Refresh] Started background refresh process`);
+    
     return NextResponse.json({
       status: "success",
-      message: `Bookmarks refreshed successfully${isCronJob ? " (triggered by cron job)" : ""}`,
+      message: `Bookmark refresh started in background${isCronJob ? " (triggered by cron job)" : ""}`,
       data: {
-        refreshed: true,
-        bookmarksCount: newCount,
-        newBookmarksProcessed: newBookmarksCount,
+        refreshStarted: true,
+        previousCount,
       },
     });
   } catch (error) {

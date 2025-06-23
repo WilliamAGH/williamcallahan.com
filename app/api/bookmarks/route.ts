@@ -94,15 +94,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (tagFilter) {
       // Decode the tag filter (handle URL encoding and slug format)
       const decodedTag = decodeURIComponent(tagFilter);
+      
+      // Check if this is a slug format (contains hyphens) or display format
+      const isSlugFormat = decodedTag.includes('-');
+      const tagQuery = isSlugFormat ? decodedTag.replace(/-/g, ' ') : decodedTag;
 
       filteredBookmarks = allBookmarks.filter((bookmark) => {
         const tags = normalizeTagsToStrings(bookmark.tags);
-        // Case-insensitive tag matching
-        return tags.some((tag) => tag.toLowerCase() === decodedTag.toLowerCase());
+        // Case-insensitive tag matching against both slug and display formats
+        return tags.some((tag) => {
+          // Compare against the normalized query
+          return tag.toLowerCase() === tagQuery.toLowerCase();
+        });
       });
 
       console.log(
-        `[API Bookmarks] Filtering by tag "${decodedTag}": ${filteredBookmarks.length} of ${allBookmarks.length} bookmarks match`,
+        `[API Bookmarks] Filtering by tag "${decodedTag}" (normalized: "${tagQuery}"): ${filteredBookmarks.length} of ${allBookmarks.length} bookmarks match`,
       );
     }
 

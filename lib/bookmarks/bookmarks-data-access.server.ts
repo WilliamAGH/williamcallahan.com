@@ -13,6 +13,7 @@ import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import type { UnifiedBookmark, DistributedLockEntry, RefreshBookmarksCallback } from "@/types";
 import type { BookmarksIndex } from "@/types/bookmark";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
+import { tagToSlug } from "@/lib/utils/tag-utils";
 
 // --- Configuration & Constants ---
 const LOG_PREFIX = "[Bookmarks]";
@@ -20,6 +21,8 @@ const DISTRIBUTED_LOCK_S3_KEY = BOOKMARKS_S3_PATHS.LOCK;
 const LOCK_TTL_MS = Number(process.env.BOOKMARKS_LOCK_TTL_MS) || 5 * 60 * 1000; // 5 minutes default
 const LOCK_CLEANUP_INTERVAL_MS = 2 * 60 * 1000; // Check for stale locks every 2 minutes
 const INSTANCE_ID = `instance-${randomInt(1000000, 9999999)}-${Date.now()}`;
+const ENABLE_TAG_CACHING = process.env.ENABLE_TAG_CACHING !== 'false';
+const MAX_TAGS_TO_CACHE = parseInt(process.env.MAX_TAGS_TO_CACHE || '10', 10);
 
 // Module-scoped state
 let isRefreshLocked = false;
@@ -208,6 +211,77 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
   console.log(`${LOG_PREFIX} Wrote ${totalPages} pages of bookmarks`);
 }
 
+// Write tag-filtered bookmarks in paginated format
+async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<void> {
+  // Check if tag caching is enabled
+  if (!ENABLE_TAG_CACHING) {
+    console.log(`${LOG_PREFIX} Tag caching disabled by environment variable`);
+    return;
+  }
+
+  const pageSize = BOOKMARKS_PER_PAGE;
+  
+  // Group bookmarks by tag
+  const bookmarksByTag: Record<string, UnifiedBookmark[]> = {};
+  const tagCounts: Record<string, number> = {};
+  
+  for (const bookmark of bookmarks) {
+    const tags = Array.isArray(bookmark.tags) ? bookmark.tags : [];
+    for (const tag of tags) {
+      const tagName = typeof tag === "string" ? tag : (tag as { name: string }).name;
+      const tagSlugValue = tagToSlug(tagName);
+      
+      if (!bookmarksByTag[tagSlugValue]) {
+        bookmarksByTag[tagSlugValue] = [];
+        tagCounts[tagSlugValue] = 0;
+      }
+      // TypeScript should now know these are defined from the check above
+      const tagBookmarksList = bookmarksByTag[tagSlugValue];
+      const tagCount = tagCounts[tagSlugValue];
+      if (tagBookmarksList && tagCount !== undefined) {
+        tagBookmarksList.push(bookmark);
+        tagCounts[tagSlugValue] = tagCount + 1;
+      }
+    }
+  }
+  
+  // Sort tags by count and take only top N
+  const topTags = Object.entries(tagCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, MAX_TAGS_TO_CACHE)
+    .map(([tag]) => tag);
+  
+  console.log(`${LOG_PREFIX} Processing ${topTags.length} of ${Object.keys(bookmarksByTag).length} tags (limited to top ${MAX_TAGS_TO_CACHE})`);
+  
+  // Write paginated bookmarks only for top tags
+  for (const tagSlug of topTags) {
+    const tagBookmarks = bookmarksByTag[tagSlug];
+    if (!tagBookmarks) continue; // Safety check
+    const totalPages = Math.ceil(tagBookmarks.length / pageSize);
+    
+    // Write tag index
+    const tagIndex: BookmarksIndex = {
+      count: tagBookmarks.length,
+      totalPages,
+      pageSize,
+      lastModified: new Date().toISOString(),
+      lastFetchedAt: Date.now(),
+      lastAttemptedAt: Date.now(),
+      checksum: calculateBookmarksChecksum(tagBookmarks),
+    };
+    await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`, tagIndex);
+    
+    // Write each page for this tag
+    for (let page = 1; page <= totalPages; page++) {
+      const start = (page - 1) * pageSize;
+      const pageBookmarks = tagBookmarks.slice(start, start + pageSize);
+      await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${page}.json`, pageBookmarks);
+    }
+  }
+  
+  console.log(`${LOG_PREFIX} Wrote tag-filtered bookmarks for ${topTags.length} tags`);
+}
+
 // Core refresh logic - ONLY PROCESS NEW/CHANGED BOOKMARKS
 async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> {
   if (!refreshBookmarksCallback) {
@@ -232,6 +306,8 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
     await writePaginatedBookmarks(allIncomingBookmarks);
     // Also write full file for tag filtering operations
     await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, allIncomingBookmarks);
+    // Write tag-filtered bookmarks
+    await writeTagFilteredBookmarks(allIncomingBookmarks);
 
     return allIncomingBookmarks;
   } catch (error) {
@@ -260,6 +336,8 @@ export function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> 
               await writePaginatedBookmarks(freshBookmarks);
               // Also write full file for tag filtering operations
               await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, freshBookmarks);
+              // Write tag-filtered bookmarks
+              await writeTagFilteredBookmarks(freshBookmarks);
             } else {
               console.log(`${LOG_PREFIX} No changes, skipping S3 write`);
             }
@@ -344,6 +422,40 @@ export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookm
   }
 }
 
+// Get a specific page of tag-filtered bookmarks
+export async function getTagBookmarksPage(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
+  const pageKey = `${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${pageNumber}.json`;
+  try {
+    const pageData = await readJsonS3<UnifiedBookmark[]>(pageKey);
+    return pageData ?? [];
+  } catch (error) {
+    if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) {
+      // Page doesn't exist - normal for pagination
+      return [];
+    }
+    // S3 service error - log for monitoring
+    console.error(`${LOG_PREFIX} S3 service error loading tag page ${tagSlug}/${pageNumber}:`, error);
+    return [];
+  }
+}
+
+// Get tag index with metadata
+export async function getTagBookmarksIndex(tagSlug: string): Promise<BookmarksIndex | null> {
+  const indexKey = `${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`;
+  try {
+    const indexData = await readJsonS3<BookmarksIndex>(indexKey);
+    return indexData;
+  } catch (error) {
+    if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) {
+      // Index doesn't exist
+      return null;
+    }
+    // S3 service error - log for monitoring
+    console.error(`${LOG_PREFIX} S3 service error loading tag index ${tagSlug}:`, error);
+    return null;
+  }
+}
+
 export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBookmark[]> {
   if (inFlightGetPromise) {
     return inFlightGetPromise;
@@ -359,6 +471,63 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
   } finally {
     inFlightGetPromise = null;
   }
+}
+
+// Unified function for getting bookmarks by tag - handles caching transparently
+export async function getBookmarksByTag(
+  tagSlug: string, 
+  pageNumber: number = 1
+): Promise<{
+  bookmarks: UnifiedBookmark[];
+  totalCount: number;
+  totalPages: number;
+  fromCache: boolean;
+}> {
+  console.log(`${LOG_PREFIX} getBookmarksByTag called with tagSlug: "${tagSlug}", pageNumber: ${pageNumber}`);
+  
+  // 1. Try cache first (if enabled and tag is cached)
+  const pageKey = `${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${pageNumber}.json`;
+  console.log(`${LOG_PREFIX} Attempting to read cached tag page from: ${pageKey}`);
+  
+  const cachedPage = await getTagBookmarksPage(tagSlug, pageNumber);
+  console.log(`${LOG_PREFIX} Cached page result: ${cachedPage.length} bookmarks found`);
+  
+  if (cachedPage.length > 0) {
+    const index = await getTagBookmarksIndex(tagSlug);
+    console.log(`${LOG_PREFIX} Using cached data for tag "${tagSlug}"`);
+    return {
+      bookmarks: cachedPage,
+      totalCount: index?.count || cachedPage.length,
+      totalPages: index?.totalPages || 1,
+      fromCache: true
+    };
+  }
+
+  // 2. Cache miss - filter from all bookmarks
+  const allBookmarks = await getBookmarks();
+  const tagQuery = tagSlug.replace(/-/g, " ");
+  
+  // Filter bookmarks that have this tag
+  const filtered = allBookmarks.filter((b) => {
+    const tags = Array.isArray(b.tags) ? b.tags : [];
+    return tags.some((t) => {
+      const tagName = typeof t === "string" ? t : (t as { name: string }).name;
+      return tagName.toLowerCase() === tagQuery.toLowerCase();
+    });
+  });
+
+  // 3. Paginate the filtered results
+  const totalCount = filtered.length;
+  const totalPages = Math.ceil(totalCount / BOOKMARKS_PER_PAGE);
+  const start = (pageNumber - 1) * BOOKMARKS_PER_PAGE;
+  const paginated = filtered.slice(start, start + BOOKMARKS_PER_PAGE);
+
+  return {
+    bookmarks: paginated,
+    totalCount,
+    totalPages,
+    fromCache: false
+  };
 }
 
 // ---------------------------------------------------------------------------

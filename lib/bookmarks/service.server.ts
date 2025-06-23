@@ -4,6 +4,7 @@
 
 import {
   getBookmarks as getBookmarksInternal,
+  getBookmarksByTag as getBookmarksByTagInternal,
   refreshAndPersistBookmarks,
   setRefreshBookmarksCallback,
   initializeBookmarksDataAccess,
@@ -27,4 +28,12 @@ export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBo
  */
 export async function refreshBookmarks(): Promise<UnifiedBookmark[] | null> {
   return refreshAndPersistBookmarks();
+}
+
+/**
+ * Get bookmarks by tag with transparent caching
+ */
+export async function getBookmarksByTag(tagSlug: string, pageNumber: number = 1) {
+  initializeBookmarksDataAccess();
+  return getBookmarksByTagInternal(tagSlug, pageNumber);
 }
