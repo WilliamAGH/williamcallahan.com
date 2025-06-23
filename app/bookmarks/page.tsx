@@ -55,7 +55,12 @@ export default function BookmarksPage() {
     <>
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-5xl mx-auto">
-        <BookmarksServer title={pageMetadata.title} description={pageMetadata.description} initialPage={1} />
+        <BookmarksServer 
+          title={pageMetadata.title} 
+          description={pageMetadata.description} 
+          initialPage={1}
+          includeImageData={true}
+        />
       </div>
     </>
   );

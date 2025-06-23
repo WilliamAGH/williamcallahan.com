@@ -50,8 +50,8 @@ export async function generateMetadata({ params }: PaginatedTagBookmarkContext):
     totalPages = tagIndex.totalPages;
     taggedBookmarks = []; // We only need a sample for display tag extraction
   } else {
-    // Fall back to filtering all bookmarks
-    const allBookmarks = await getBookmarksFromService();
+    // Fall back to filtering all bookmarks (lightweight data)
+    const allBookmarks = await getBookmarksFromService({ includeImageData: false }) as import("@/types").UnifiedBookmark[];
     taggedBookmarks = allBookmarks.filter((b) => {
       const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
         typeof t === "string" ? t : t.name,

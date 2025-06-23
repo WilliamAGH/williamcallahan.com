@@ -21,7 +21,7 @@ import { notFound } from "next/navigation";
 
 // Helper function to find bookmark by slug
 async function findBookmarkBySlug(slug: string) {
-  const allBookmarks = await getBookmarks();
+  const allBookmarks = await getBookmarks({ includeImageData: true }) as import("@/types").UnifiedBookmark[];
   
   // Pre-generate all slugs once to avoid O(n²) complexity
   const bookmarkWithSlugs = allBookmarks.map(bookmark => ({
