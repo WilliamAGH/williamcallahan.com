@@ -2,456 +2,182 @@
 
 **Functionality:** `bookmarks`
 
-## Core Objective
+## Core Purpose
 
-To serve as the primary orchestration layer for fetching, processing, enriching, and storing bookmark data. This system coordinates multiple underlying services to transform raw bookmark data from an external API into a rich, presentable format, ready for consumption by the application.
+The bookmarks system orchestrates fetching, processing, enriching, and serving bookmark data from an external API (Karakeep). It provides a rich, searchable, and performant bookmark collection with advanced features like pagination, tag filtering, and automatic metadata enrichment.
 
-## Recently Resolved Issues
+## Architecture Overview
 
-### ✅ FIXED: Circular Dependency
-
-- **Previous Issue**: Between `lib/bookmarks.ts` and `lib/data-access/bookmarks.ts`
-- **Solution**: Implemented callback pattern - data access layer uses `setRefreshBookmarksCallback`
-- **Impact**: Clean unidirectional dependency flow, easier testing
-
-### ✅ FIXED: Inefficient Server-Side Fetching
-
-- **Previous Issue**: Server made HTTP requests to itself via client functions
-- **Solution**: `bookmarks.server.ts` now imports directly from data access layer
-- **Impact**: Improved performance during static builds
-
-### ✅ FIXED: Distributed Lock Race Condition
-
-- **Previous Issue**: Non-atomic read-then-write pattern for S3 locks
-- **Solution**: Implemented atomic S3 conditional writes using `IfNoneMatch: "*"`
-- **Impact**: Prevents concurrent refresh race conditions
-
-### ✅ FIXED: Missing OpenGraph Fallback
-
-- **Previous Issue**: When OG fetch failed, Karakeep assets were ignored
-- **Solution**: Added fallback logic in `processBookmarksInBatches` to use Karakeep screenshots/images
-- **Impact**: Better image coverage for bookmarks
-
-### ✅ FIXED: OpenGraph Extraction Failures (2025-01)
-
-- **Previous Issue**: Sites with large HTML (>1MB) like railway.app failed OpenGraph extraction
-- **Solutions**:
-  - Increased HTML size limit from 1MB to 5MB
-  - Implemented smart partial parsing (extracts `<head>` section or first 512KB)
-  - Added priority-based image selection from multiple sources
-  - Support for relative URL resolution
-- **Impact**: Successfully extracts OpenGraph data from 95%+ of websites
-
-### ✅ FIXED: Pagination (2025-06)
-
-- **Previous Issue**: All bookmarks loaded at once, no pagination support
-- **Solutions**:
-  - Backend API already supported pagination with `page` and `limit` parameters
-  - Created `useBookmarksPagination` hook using SWR for efficient data fetching
-  - Implemented `PaginationControl` component with keyboard navigation
-  - Added `InfiniteScrollSentinel` for progressive loading
-  - Created `BookmarksWithPagination` component supporting both pagination modes
-  - **NEW**: Implemented URL-based pagination (/bookmarks/page/2, /bookmarks/page/3, etc.)
-  - **NEW**: Created `PaginationControlUrl` component for URL navigation
-  - **NEW**: Page 1 uses canonical /bookmarks URL; /bookmarks/page/1 redirects
-  - **NEW**: Sitemap automatically includes all paginated pages
-  - **NEW**: Resolved route conflict by using /bookmarks/page/[pageNumber] structure
-- **Impact**:
-  - Initial page load reduced from loading all bookmarks to just 24 items
-  - Support for both infinite scroll and manual pagination
-  - Preserved existing cursor-based backend pagination logic
-  - Client-side filtering works across all loaded pages
-  - SEO-friendly URLs for each page with proper canonical tags
-  - Improved crawlability with sitemap entries for all pages
-
-### ✅ FIXED: Lock Deletion
-
-- **Previous Issue**: Lock release wrote null instead of deleting S3 object
-- **Solution**: Updated to use `deleteFromS3` for proper lock cleanup
-- **Impact**: Distributed locking now works correctly across multiple instances
-
-### ✅ FIXED: Request Coalescing
-
-- **Previous Issue**: Concurrent initial requests could get empty arrays
-- **Solution**: Added `inFlightGetPromise` to coalesce entire getBookmarks operation
-- **Impact**: All concurrent requests share same data fetch promise
-
-### ✅ FIXED: Asset URL Consistency
-
-- **Previous Issue**: Inconsistent asset URL construction
-- **Solution**: Created `getAssetUrl()` helper in `lib/utils/bookmark-helpers.ts`
-- **Impact**: Consistent asset URL format throughout application
-
-### ✅ FIXED: Health Check Endpoint
-
-- **Previous Issue**: No visibility into system health
-- **Solution**: Created `/api/bookmarks/status` endpoint
-- **Impact**: Better operational monitoring capabilities
-
-### ✅ FIXED: DRY Violations (2025-01)
-
-- **Previous Issue**: Multiple DRY violations across the codebase
-- **Solutions**:
-  - Consolidated duplicate validators into single source
-  - Removed duplicate S3 write pipelines
-  - Eliminated redundant promise coalescing mechanisms
-  - Replaced globalThis with module-scoped state
-  - Unified refresh logic through callback pattern
-  - Enhanced retry utility with configurable options and jitter
-  - Created selectBestImage helper for consistent image fallback logic
-  - Fixed TypeScript/ESLint errors with explicit type annotations
-- **Impact**: Cleaner, more maintainable codebase with no functional duplications
-
-### ✅ FIXED: Bookmark API Response Structure (2025-06)
-
-- **Previous Issue**: Client expected array but API returned `{ data: [...], meta: {...} }`
-- **Solution**: Updated bookmark card component to parse `responseData.data`
-- **Impact**: Fixed "bookmarksData.map is not a function" errors
-
-### ✅ FIXED: Double Lock Release Warnings (2025-06)
-
-- **Previous Issue**: Lock release attempted after already deleted, causing warnings
-- **Solution**: Made `releaseDistributedLock` silent when lock doesn't exist
-- **Impact**: Cleaner logs without spurious warnings
-
-### ✅ FIXED: Unified OG Image Handling (2025-06)
-
-- **Previous Issue**: Bookmark cards had inconsistent OG image handling
-- **Solution**: Updated all bookmark cards to use unified `/api/og-image` endpoint
-- **Impact**: Consistent image display with proper fallbacks across all bookmarks
-
-### ✅ FIXED: Infinite Loop in Bookmark Refresh (2025-06)
-
-- **Previous Issue**: `/api/og-image` calling `/api/bookmarks` triggered refresh logic
-- **Solution**: OG image route now reads bookmarks directly from S3
-- **Impact**: No more infinite loops when fetching Karakeep fallbacks
-
-### ✅ FIXED: Pagination Count & Filter Reset (2025-06)
-
-- **Previous Issue**: The "Showing X–Y of Z bookmarks" indicator used the length of the
-  already-fetched pages, causing the total `Z` to change (24 → 48 → 72 …) as the user
-  navigated. Additionally, applying a search query or tag filter while on a later page
-  could render an empty view because the current page number was not reset.
-- **Solutions**:
-  - Introduced `initialTotalCount` derived from the full server payload and prefer the API's
-    `totalItems` meta when available. This guarantees a stable total across page
-    navigations.
-  - Refactored the pagination info string to use the new stable total while preserving
-    accurate counts for filtered views.
-  - Added a `useEffect` that automatically resets to page 1 whenever `searchQuery` or
-    `selectedTag` changes, preventing empty pages after filters are applied.
-- **Impact**:
-  - Idempotent pagination display – the total number of bookmarks no longer increases as
-    additional pages are fetched.
-  - Seamless UX when switching filters/search – users are always presented with results or
-    a clear "No bookmarks found" state.
-
-### ✅ FIXED: Dev Hot-Reload Refresh Storm (2025-06)
-
-- **Previous Issue**: Every time Next.js hot-reloaded in development, the in-memory cache was
-  empty, we loaded data from S3, **and immediately started a background refresh**. With frequent
-  file saves this created near-continuous OpenGraph scraping loops.
-- **Solution**: Added an extra guard in `getBookmarks()` so the background refresh after an S3
-  load only fires when `ServerCacheInstance.shouldRefreshBookmarks()` returns `true` (i.e.
-  the one-hour revalidation window has expired). Production refresh behaviour is unchanged.
-- **Impact**: Hot-reloading during local development no longer triggers a full 94-bookmark
-  enrichment cycle; the data is served directly from the freshly populated in-memory cache.
-
-### ✅ FIXED: Per-Card API Calls Performance Issue (2025-06)
-
-- **Previous Issue**: Each `BookmarkCardClient` component made its own API call to `/api/bookmarks`
-  on mount just to generate share URLs. With 24 cards per page, this resulted in 24+ redundant
-  API calls fetching the entire bookmark dataset.
-- **Solution**:
-  - Removed the per-card API call from `BookmarkCardClient`
-  - Generate share URLs once in the parent component (`BookmarksWithPagination`)
-  - Pass the pre-generated `shareUrl` as a prop to each card
-- **Impact**:
-  - Reduced API calls from 25+ per page to just 1
-  - Eliminated cascade effects and cache invalidation issues
-  - Significantly improved page load performance
-
-### ✅ FIXED: Singleton Initialization Pattern (2025-06)
-
-- **Previous Issue**: `initializeBookmarksDataAccess()` was called on every API request, setting
-  up intervals and listeners repeatedly, causing memory leaks and potential race conditions.
-- **Solution**:
-  - Implemented singleton pattern with `isInitialized` flag and `initializationPromise`
-  - Ensures initialization happens only once per process
-  - Returns existing promise if initialization is in progress
-- **Impact**:
-  - No more duplicate interval setups
-  - Prevents memory leaks from repeated initialization
-  - Cleaner process lifecycle management
-
-### ✅ FIXED: Request Deduplication for Refresh Operations (2025-06)
-
-- **Previous Issue**: Multiple simultaneous refresh operations could be triggered, causing
-  redundant API calls to Karakeep and excessive load on the system.
-- **Solution**:
-  - Added `inFlightRefreshPromise` tracking for refresh operations
-  - Returns existing promise if refresh is already in progress
-  - Properly clears promise when operation completes
-- **Impact**:
-  - Prevents duplicate refresh operations
-  - Reduces load on external APIs
-  - More predictable refresh behavior
-
-### ✅ FIXED: Tag Navigation & Routing (2025-06)
-
-- **Previous Issue**: Tag clicks in filter bar only updated local state without changing URL
-- **Solutions**:
-  - Implemented URL navigation when clicking tags (`/bookmarks/tags/[tagSlug]`)
-  - Added `usePagination` and `initialTag` props through component chain
-  - Fixed single bookmark pages to disable pagination
-  - Enhanced tag slug generation to handle special characters (& → and, + → plus, etc.)
-  - Used `useEffect` for navigation to prevent race conditions
-- **Impact**:
-  - Users can bookmark and share tag-filtered URLs
-  - Browser back/forward navigation works correctly
-  - Tag state properly initialized when navigating directly to tag URLs
-  - Special characters in tags handled gracefully
-
-### ✅ FIXED: Client-Side Error Logging (2025-06)
-
-- **Previous Issue**: Client wrapper `fetchBookmarksFromApi` swallowed errors without logging, making debugging network issues difficult and causing test expectations to fail.
-- **Solution**: Added explicit `console.error` call inside the `catch` block while still returning a safe empty array. Ensures consistent logging behaviour on both server and client paths.
-- **Impact**: Restored visibility into client-side fetch failures and fixed related unit tests.
-
-### ✅ FIXED: Bookmark Card Description Line Height Limit (2025-06)
-
-- **Previous Issue**: Bookmark card descriptions could extend indefinitely, creating inconsistent card heights and poor visual layout.
-- **Solutions**:
-  - Implemented resilient 5-line maximum with `line-clamp-5-resilient` CSS utility
-  - Added graceful ellipsis truncation after the last full word before the 5-line limit
-  - Enhanced with cross-browser compatibility (including Safari iOS support)
-  - Ensured proper word breaking at boundaries without hyphenation
-  - Added fallback max-height for browsers without line-clamp support
-- **Impact**:
-  - Consistent card heights across all bookmark displays
-  - Improved visual layout and grid alignment
-  - Better user experience with predictable content presentation
-  - Maintains readability while preventing layout overflow
-
-### ✅ FIXED: Memory Leak from Image Buffers (2025-06)
-
-- **Previous Issue**: OpenGraph image buffers stored directly in ServerCache without limits
-- **Solutions**:
-  - Integrated with new `memory-mgmt` functionality for all image operations
-  - ServerCache now stores only metadata (S3 keys, CDN URLs), not buffers
-  - All image operations use `UnifiedImageService` with memory limits
-  - See `memory-mgmt.md` for complete memory management architecture
-- **Impact**: Stable memory usage, no more OOM errors from image processing
-
-### ✅ NEW: S3 Override System for OpenGraph Data (2025-06)
-
-- **Challenge**: When external OpenGraph sources (especially Karakeep assets) return 404 or become stale, bookmarks lose their images and metadata.
-- **Solutions**:
-  - **Automatic Detection**: System detects 404 errors on OpenGraph image URLs and automatically invalidates stale cache
-  - **Karakeep-Specific Handling**: Special detection for Karakeep asset URLs with automatic recovery
-  - **S3 Override Storage**: New `opengraph/overrides/` directory with highest priority in data access flow
-  - **Automatic Cache Invalidation**: Stale entries are automatically removed and refreshed
-  - **Integrated Recrawl**: Works seamlessly with automatic OpenGraph refresh system
-- **Architecture**:
-  - **S3 Path**: `opengraph/overrides/{hashUrl(url)}.json`
-  - **Priority Order**: S3 Override → Memory Cache → S3 Storage → External Fetch → Fallback
-  - **Automatic Invalidation**: `invalidateStaleOpenGraphData()` with 5-minute cooldown
-  - **Background Refresh**: Automatic scheduling of fresh data retrieval
-- **Automation Features**:
-  - **404 Detection**: Automatic cache invalidation when external images fail
-  - **5-minute Cooldown**: Prevents infinite refresh loops
-  - **Background Recovery**: Automatic retry and fallback handling
-  - **Error Recovery**: Graceful handling when both external fetch and recrawl fail
-- **Impact**:
-  - Zero manual intervention required for detection and recovery
-  - Completely automated detection and healing system
-  - Bulletproof fallback system for invalid external data
-  - Resilient handling of temporary network failures
-
-## Architecture Diagram
-
-See `bookmarks.mmd` for a visual diagram of how this orchestration layer coordinates with other core functionalities.
-
-## Orchestration Flow
-
-The bookmark system operates as a high-level coordinator, delegating specific tasks to specialized modules:
-
-1. *Data Fetching & Processing (`json-handling`)**:
-    - e process begins by calling the `json-handling` functionality to fetch raw, paginated bookmark data from the external Karakeep API.
-    - is module is responsible for the core data transformation, normalizing the raw API response into a structured `UnifiedBookmark` JSON format.
-
-2. *Image Enrichment (`image-handling`)**:
-    - ce the normalized JSON is available, the bookmark orchestrator iterates through each bookmark and invokes the `image-handling` service.
-    - mage-handling` is tasked with fetching the OpenGraph image for each bookmark's URL, validating it, and processing it. This step enriches the bookmark JSON with a visual component.
-
-3. *Persistence (`s3-object-storage`)**:
-    - e final, enriched JSON object containing all bookmarks and their associated image references is passed to the `s3-object-storage` service.
-    - is service handles the actual writing of the `bookmarks.json` file to the S3 bucket, ensuring persistent storage.
-
-4. *Caching (`caching`)**:
-    - roughout the process, results are stored in an in-memory cache to ensure rapid delivery for subsequent requests. The `caching` module manages the TTL and revalidation logic for this data.
-
-By acting as an orchestrator, the bookmarks feature remains focused on its specific business logic while leveraging the robust, reusable functionalities of the core services for tasks like data handling, image processing, and storage.
-
-### Memory Management Integration
-
-The bookmark system integrates with the new `memory-mgmt` functionality to prevent memory leaks:
-
-- **Image Processing**: All OpenGraph images are processed through `UnifiedImageService` with memory limits
-- **Buffer Storage**: No raw buffers are stored in `ServerCache` - only metadata (S3 keys, CDN URLs)
-- **Memory Pressure**: Image operations are rejected when system is under memory pressure
-- **Automatic Cleanup**: Emergency cleanup clears all caches when memory critical
-- See `memory-mgmt.md` for complete memory protection architecture
-
-## Key Files and Responsibilities
-
-### UI Components
-
-- **`components/features/bookmarks/bookmark-card.client.tsx`**: Individual bookmark card display
-  - Updated (2025-06): Uses unified `/api/og-image` endpoint for all images
-  - Handles API response structure with `responseData.data` parsing
-  - Provides bookmarkId parameter for better Karakeep fallbacks
-  - Fixed (2025-06): Removed per-card API calls, now receives shareUrl as prop
-  - Fixed (2025-06): Added resilient 5-line limit with graceful ellipsis truncation
-- **`components/features/bookmarks/bookmarks-client-with-window.tsx`**: Window entrypoint
-- **`components/features/bookmarks/bookmarks-window.client.tsx`**: Main window UI
-- **`components/features/bookmarks/bookmarks-with-options.client.tsx`**: Options UI (removed)
-  - Updated (2025-06): Generates share URLs once for all cards
-  - Updated (2025-06): Added initialTag support and URL navigation for tags
-- **`components/features/bookmarks/bookmarks-with-pagination.client.tsx`**: Paginated view
-  - Implements efficient pagination with SWR
-  - Generates share URLs once to avoid per-card API calls
-  - Supports both manual pagination and infinite scroll
-  - Updated (2025-06): Added initialTag support and URL navigation for tags
-- **`components/ui/pagination-control.client.tsx`**: Reusable pagination component
-  - Full keyboard navigation support
-  - Loading states and transitions
-  - Responsive mobile-friendly design
-- **`components/features/bookmarks/bookmarks.{client,server}.tsx`**: Core components
-- **`components/features/bookmarks/share-button.client.tsx`**: Share functionality
-  - Updated (2025-06): Accepts pre-generated shareUrl prop instead of calculating
-- **`components/features/bookmarks/tags-list.client.tsx`**: Tag display
-
-### Page Routes
-
-- **`app/bookmarks/page.tsx`**: Main bookmarks listing page (page 1)
-- **`app/bookmarks/page/[pageNumber]/page.tsx`**: Paginated bookmark pages
-  - URL structure: `/bookmarks/page/2`, `/bookmarks/page/3`, etc.
-  - Page 1 redirects to canonical `/bookmarks`
-  - SEO-friendly with rel="prev" and rel="next" tags
-  - Included in sitemap.xml automatically
-- **`app/bookmarks/[slug]/page.tsx`**: Individual bookmark detail page
-  - Uses `generateUniqueSlug()` for SEO-friendly URLs
-  - Static path generation at build time
-  - Comprehensive metadata and JSON-LD
-  - Shows related bookmarks from same domain
-  - Fixed (2025-06): Disabled pagination with `usePagination={false}`
-- **`app/bookmarks/domain/[domainSlug]/page.tsx`**: Legacy URL redirector
-  - Maintains backward compatibility
-  - Redirects to new slug-based URLs
-  - Handles optional `id` query parameter
-- **`app/bookmarks/tags/[tagSlug]/page.tsx`**: Tag-filtered collections
-  - Preserves tag capitalization (e.g., "iPhone")
-  - Case-insensitive filtering
-  - Custom metadata per tag
-  - Fixed (2025-06): Pre-selects tag with `initialTag` prop
-  - Fixed (2025-06): Supports paginated navigation
-
-### Business Logic
-
-- **`lib/bookmarks/bookmarks.ts`**: Core orchestration logic
-  - Coordinates fetching, processing, enrichment
-  - Circular dependency resolved via callback pattern
-- **`lib/bookmarks/bookmarks.client.ts`**: Client-side helpers
-  - Fixed: Removed direct ServerCacheInstance usage
-- **`lib/bookmarks/bookmarks.server.ts`**: Server-side helpers
-  - Fixed: Now imports directly from data access layer
-- **`lib/bookmarks/index.ts`**: Barrel exports
-
-### Data Access Layer
-
-- **`lib/data-access/bookmarks.ts`**: Data persistence and retrieval
-  - Implements distributed locking via S3
-  - Fixed: Atomic lock acquisition using conditional writes
-  - Manages refresh operations
-  - Fixed (2025-06): Singleton initialization pattern
-  - Fixed (2025-06): Request deduplication for refresh operations
-- **`hooks/use-bookmarks-pagination.ts`**: Pagination state management
-  - Uses SWR's `useSWRInfinite` for efficient data fetching
-  - Supports cursor-based pagination
-  - Fixed (2025-06): Aligned field names with API (hasNext/hasPrev)
-
-### Validation & Types
-
-- **`lib/validators/bookmarks.ts`**: Single source of truth for runtime validation
-  - Fixed: Validation logic consolidated here
-- **`types/bookmark.ts`**: TypeScript interfaces (re-exports validator for compatibility)
-- **`lib/utils/domain-utils.ts`**: URL and domain utilities
-- **`lib/utils/bookmark-helpers.ts`**: Bookmark-specific utilities
-  - `getAssetUrl()`: Consistent asset URL construction
-  - `selectBestImage()`: Intelligent image fallback selection
-  - `createKarakeepFallback()`: Karakeep fallback object creation
-- **`lib/utils/tag-utils.ts`**: Tag formatting and slug utilities
-  - `tagToSlug()`: Enhanced to handle special characters (& → and, + → plus, etc.)
-  - `formatTagDisplay()`: Preserves mixed-case tags
-  - `normalizeTagsToStrings()`: Handles both string and object tag arrays
-- **`lib/utils/retry.ts`**: Generic retry utility with exponential backoff
-  - `retryWithOptions()`: Configurable retry mechanism with jitter support
-
-## Data Flow Issues
-
-### Previous (Problematic) Flow
+### Data Flow
 
 ```
-lib/bookmarks.ts → lib/data-access/bookmarks.ts
-        ↑                      ↓
-        ←──────────────────────←
-        (CIRCULAR DEPENDENCY)
+External API → Fetch & Transform → Enrich with OpenGraph → Persist to S3 → Serve to Client
+                                                              ↓
+                                                     Memory Cache (LRU)
 ```
 
-### Current (Fixed) Flow
+### Key Components
+
+1. **Data Access Layer** (`lib/bookmarks/bookmarks-data-access.server.ts`)
+   - Manages S3 persistence and retrieval
+   - Implements distributed locking for refresh operations
+   - Handles request coalescing and deduplication
+   - Provides paginated and tag-filtered data access
+
+2. **Service Layer** (`lib/bookmarks/service.server.ts`)
+   - Business logic orchestration
+   - Coordinates between data access and external APIs
+   - Manages refresh cycles and cache invalidation
+
+3. **API Endpoints**
+   - `/api/bookmarks` - Paginated bookmark retrieval with tag filtering
+   - `/api/bookmarks/refresh` - Manual refresh trigger
+   - `/api/og-image` - Unified OpenGraph image serving
+
+4. **UI Components**
+   - Server components for initial data fetching
+   - Client components for interactivity and pagination
+   - Tag navigation with URL-based routing
+   - Share functionality with pre-generated URLs
+
+## Key Features
+
+### Pagination System
+
+- **URL-based**: `/bookmarks/page/2`, `/bookmarks/page/3`
+- **Efficient Loading**: 24 items per page
+- **Dual Modes**: Manual pagination or infinite scroll
+- **SEO Optimized**: Proper canonical, prev/next tags
+- **Sitemap Integration**: All pages included automatically
+
+### Tag System
+
+- **URL Routes**: `/bookmarks/tags/[tagSlug]`
+- **Slug Handling**: Converts between slug and display formats
+- **Special Characters**: Handles &, +, and other characters gracefully
+- **S3 Caching**: Pre-computed tag pages for performance
+- **Fallback Logic**: Filters from all bookmarks if cache miss
+
+### Memory Management
+
+- **Tag Caching Controls**:
+  - `ENABLE_TAG_CACHING`: Emergency shutoff
+  - `MAX_TAGS_TO_CACHE`: Limits to top N tags
+- **Memory Pressure Detection**: Defers operations when memory high
+- **Buffer Management**: No raw buffers in cache, only metadata
+- **Health Monitoring**: 5-second timeout with memory checks
+
+### Performance Optimizations
+
+- **Request Coalescing**: Prevents duplicate API calls
+- **Multi-layer Caching**: Memory → S3 → External API
+- **Static Generation**: Individual bookmark pages pre-built
+- **Singleton Pattern**: One initialization per process
+- **Background Refresh**: Non-blocking with 15-minute cooldown
+
+## Data Structures
+
+### UnifiedBookmark
+
+Core data model with fields for:
+- Basic metadata (id, url, title, description)
+- Tags (supports both string[] and object[] formats)
+- Timestamps (created, updated, bookmarked)
+- Enrichment data (OpenGraph, assets, logos)
+- Content from Karakeep (screenshots, metadata)
+
+### S3 Storage Layout
 
 ```
-API Request → Business Logic → Data Access → External APIs/S3
-                    ↓               ↓
-              Validation      Persistence
+bookmarks/
+├── bookmarks.json          # Full dataset
+├── index.json              # Metadata and counts
+├── pages/
+│   ├── page-1.json
+│   └── page-2.json
+└── tags/
+    └── [tag-slug]/
+        ├── index.json
+        └── page-1.json
 ```
 
-## Security & Type Safety Concerns
+## Critical Design Decisions
 
-1. **Stored XSS Risk**
-   - OpenGraph data from external sites stored without sanitization
-   - Currently safe due to React's default escaping
-   - Must ensure proper escaping maintained
+### 1. Callback Pattern for Circular Dependencies
 
-2. **Type Safety Issues**
-   - Unsafe type assertions (`as UnifiedBookmark[]`) on API responses
-   - No runtime validation of external API data
-   - Should use Zod schemas for runtime validation
+**Problem**: Circular dependency between business logic and data access layers
 
-3. **Asset URL Construction**
-   - Multiple fallback mechanisms for images
-   - Complex priority system prone to errors
-   - Needs consolidation and clear hierarchy
+**Solution**: Data access layer accepts refresh callback via `setRefreshBookmarksCallback`
 
-## Performance Optimizations
+### 2. Atomic S3 Locking
 
-- Request coalescing prevents duplicate API calls
-- Multi-layer caching (memory, S3, external API)
-- Lazy loading of bookmark enrichment data
-- Background refresh with stale-while-revalidate pattern
-- Static generation of bookmark pages at build time
-- SEO-optimized individual pages with structured data
-- **NEW (2025-06)**: Per-card API calls eliminated (96% reduction)
-- **NEW (2025-06)**: Singleton initialization pattern
-- **NEW (2025-06)**: Request deduplication for refresh operations
-- **NEW (2025-06)**: 15-minute per-process cool-down (`BACKGROUND_REFRESH_COOLDOWN_MS`) prevents a background refresh from starting more than once every 15 minutes even when the dev server hot-reloads repeatedly
-- **NEW (2025-07)**: Implemented selective OpenGraph image refresh. Instead of re-processing all 900+ bookmarks every hour, the system now intelligently detects which bookmarks are new or have updated source data. It performs lightweight `HEAD` requests to check image `ETag`s, only re-downloading and processing images that have actually changed. This has reduced background refresh API calls and S3 writes by over 95%, dramatically improving efficiency and reducing costs.
+**Problem**: Race conditions with concurrent refresh operations
 
-### Pagination Implementation Files (added 2025-06)
+**Solution**: Conditional writes using `IfNoneMatch: "*"` for atomic lock acquisition
 
-| File | Responsibility |
-|------|----------------|
-| `app/bookmarks/page.tsx` | Canonical first page – lists first 24 bookmarks |
-| `app/bookmarks/page/[pageNumber]/page.tsx` | Dynamic route for subsequent pages with full SEO metadata, canonical/prev/next links, and ISR revalidation |
-| `app/bookmarks/page/[pageNumber]/generate-metadata.ts` *(removed after consolidation)* | Functionality folded into the new dynamic page file |
+### 3. Tag Caching Memory Protection
+
+**Problem**: Exponential S3 writes causing memory exhaustion
+
+**Solution**: 
+- Configurable limits on tag caching
+- Memory headroom checks before operations
+- Non-blocking refresh with immediate response
+
+### 4. Client-Server Data Consistency
+
+**Problem**: Client filtering conflicting with server-filtered data
+
+**Solution**: 
+- Server provides pre-filtered data for tag pages
+- Client skips redundant filtering on tag routes
+- Pagination hook respects server-provided initial data
+
+## Security Considerations
+
+1. **XSS Protection**: React's default escaping for OpenGraph data
+2. **Asset Proxying**: Bearer token authentication for Karakeep assets
+3. **Rate Limiting**: API endpoints protected against abuse
+4. **Input Validation**: Tag slugs sanitized and validated
+
+## Monitoring & Operations
+
+### Health Checks
+
+- `/api/health` endpoint with memory pressure detection
+- Automatic container restart on memory critical
+- Distributed lock cleanup every 2 minutes
+
+### Observability
+
+- Detailed logging for all operations
+- Performance metrics for cache hits/misses
+- Error tracking for external API failures
+
+### Manual Operations
+
+```bash
+# Force refresh bookmarks
+curl -X POST http://localhost:3000/api/bookmarks/refresh
+
+# Check system health
+curl http://localhost:3000/api/health
+
+# View bookmark status
+curl http://localhost:3000/api/bookmarks/status
+```
+
+## Future Improvements
+
+1. **Search Enhancement**: Full-text search with Elasticsearch
+2. **User Personalization**: Per-user bookmark collections
+3. **Batch Operations**: Bulk bookmark management
+4. **Real-time Updates**: WebSocket for live bookmark changes
+5. **Analytics**: Usage tracking and popular bookmarks
+
+## Related Documentation
+
+- See `bookmarks.mmd` for visual architecture diagram
+- See `memory-mgmt.md` for memory management details
+- See `s3-object-storage.md` for storage patterns
+- See `opengraph.md` for metadata enrichment
