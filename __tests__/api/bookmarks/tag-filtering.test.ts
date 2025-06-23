@@ -5,7 +5,6 @@
 import { GET } from "@/app/api/bookmarks/route";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { readJsonS3 } from "@/lib/s3-utils";
-import { NextRequest, NextResponse } from "next/server";
 import type { UnifiedBookmark } from "@/types";
 
 // Mock dependencies
@@ -56,9 +55,12 @@ describe("Bookmark API Tag Filtering", () => {
         lastFetchedAt: Date.now(),
       });
 
-      const request = new NextRequest(
-        "http://localhost:3000/api/bookmarks?tag=web-development"
-      );
+      const request = {
+        url: "http://localhost:3000/api/bookmarks?tag=web-development",
+        nextUrl: {
+          searchParams: new URLSearchParams({ tag: "web-development" }),
+        },
+      } as any;
       
       const response = await GET(request);
       const data = await response.json();
@@ -76,9 +78,12 @@ describe("Bookmark API Tag Filtering", () => {
         lastFetchedAt: Date.now(),
       });
 
-      const request = new NextRequest(
-        "http://localhost:3000/api/bookmarks?tag=software-development-tools"
-      );
+      const request = {
+        url: "http://localhost:3000/api/bookmarks?tag=software-development-tools",
+        nextUrl: {
+          searchParams: new URLSearchParams({ tag: "software-development-tools" }),
+        },
+      } as any;
       
       const response = await GET(request);
       const data = await response.json();
@@ -95,9 +100,12 @@ describe("Bookmark API Tag Filtering", () => {
         lastFetchedAt: Date.now(),
       });
 
-      const request = new NextRequest(
-        "http://localhost:3000/api/bookmarks?tag=web%20development"
-      );
+      const request = {
+        url: "http://localhost:3000/api/bookmarks?tag=web%20development",
+        nextUrl: {
+          searchParams: new URLSearchParams({ tag: "web development" }),
+        },
+      } as any;
       
       const response = await GET(request);
       const data = await response.json();
@@ -114,9 +122,12 @@ describe("Bookmark API Tag Filtering", () => {
         lastFetchedAt: Date.now(),
       });
 
-      const request = new NextRequest(
-        "http://localhost:3000/api/bookmarks?tag=WEB-DEVELOPMENT"
-      );
+      const request = {
+        url: "http://localhost:3000/api/bookmarks?tag=WEB-DEVELOPMENT",
+        nextUrl: {
+          searchParams: new URLSearchParams({ tag: "WEB-DEVELOPMENT" }),
+        },
+      } as any;
       
       const response = await GET(request);
       const data = await response.json();
@@ -133,9 +144,12 @@ describe("Bookmark API Tag Filtering", () => {
         lastFetchedAt: Date.now(),
       });
 
-      const request = new NextRequest(
-        "http://localhost:3000/api/bookmarks?tag=non-existent-tag"
-      );
+      const request = {
+        url: "http://localhost:3000/api/bookmarks?tag=non-existent-tag",
+        nextUrl: {
+          searchParams: new URLSearchParams({ tag: "non-existent-tag" }),
+        },
+      } as any;
       
       const response = await GET(request);
       const data = await response.json();
@@ -151,7 +165,7 @@ describe("Bookmark API Tag Filtering", () => {
         url: `https://example${i}.com`,
         title: `Bookmark ${i}`,
         description: `Description ${i}`,
-        tags: ["test-tag"],
+        tags: ["test tag"],
         dateBookmarked: "2025-01-01",
       } as UnifiedBookmark));
 
@@ -161,9 +175,12 @@ describe("Bookmark API Tag Filtering", () => {
         lastFetchedAt: Date.now(),
       });
 
-      const request = new NextRequest(
-        "http://localhost:3000/api/bookmarks?tag=test-tag&page=2&limit=20"
-      );
+      const request = {
+        url: "http://localhost:3000/api/bookmarks?tag=test-tag&page=2&limit=20",
+        nextUrl: {
+          searchParams: new URLSearchParams({ tag: "test-tag", page: "2", limit: "20" }),
+        },
+      } as any;
       
       const response = await GET(request);
       const data = await response.json();
@@ -189,7 +206,12 @@ describe("Bookmark API Tag Filtering", () => {
         lastFetchedAt: Date.now(),
       });
 
-      const request = new NextRequest("http://localhost:3000/api/bookmarks");
+      const request = {
+        url: "http://localhost:3000/api/bookmarks",
+        nextUrl: {
+          searchParams: new URLSearchParams(),
+        },
+      } as any;
       
       const response = await GET(request);
       const data = await response.json();
@@ -204,7 +226,12 @@ describe("Bookmark API Tag Filtering", () => {
     it("should handle errors gracefully", async () => {
       mockGetBookmarks.mockRejectedValueOnce(new Error("Database error"));
 
-      const request = new NextRequest("http://localhost:3000/api/bookmarks");
+      const request = {
+        url: "http://localhost:3000/api/bookmarks",
+        nextUrl: {
+          searchParams: new URLSearchParams(),
+        },
+      } as any;
       
       const response = await GET(request);
       const data = await response.json();
