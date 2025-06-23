@@ -6,6 +6,7 @@ import { getBookmarksByTag } from "@/lib/bookmarks/bookmarks-data-access.server"
 import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { UnifiedBookmark, BookmarksIndex } from "@/types";
+import type { AWSError } from "@/types/error";
 
 // Mock dependencies
 jest.mock("@/lib/s3-utils");
@@ -174,7 +175,11 @@ describe("Tag Route Functionality", () => {
           url: "https://example2.com",
           title: "Object tags",
           description: "Has object tags",
-          tags: [{ name: "software development tools" }] as any,
+          tags: [{ 
+            id: "2-tag",
+            name: "software development tools",
+            slug: "software-development-tools"
+          }],
           dateBookmarked: "2025-01-02",
         } as UnifiedBookmark,
       ];
@@ -224,8 +229,9 @@ describe("Tag Route Functionality", () => {
         callCount++;
         if (callCount === 1) {
           // First call fails with S3 error
-          const error = new Error("Not Found");
-          (error as any).$metadata = { httpStatusCode: 404 };
+          const error = Object.assign(new Error("Not Found"), {
+            $metadata: { httpStatusCode: 404 }
+          } satisfies Pick<AWSError, '$metadata'>);
           return Promise.reject(error);
         }
         if (path.includes("/tags-test/")) {

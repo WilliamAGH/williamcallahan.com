@@ -41,7 +41,7 @@
     "biome:format": "biome format --write .",
     "biome:lint": "biome lint .",
     "type-check": "tsc --noEmit",
-    "validate": "bun run lint && bun run type-check",
+    "validate": "bun run lint && bun run type-check && bun run biome:lint",
     "validate:full": "bun run lint && bun run type-check && bun run biome:check",
     "clean": "rm -rf .next out node_modules",
     "cleanCache": "rm -rf .next/cache",

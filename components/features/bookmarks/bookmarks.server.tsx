@@ -39,6 +39,7 @@ export async function BookmarksServer({
   usePagination = true,
   initialTag,
   tag,
+  includeImageData = true,
 }: BookmarksServerExtendedProps): Promise<JSX.Element> {
   // If bookmarks are provided via props, use those; otherwise fetch from API
   let bookmarks: UnifiedBookmark[] = [];
@@ -61,8 +62,8 @@ export async function BookmarksServer({
   } else {
     // Fetch bookmarks. If getBookmarks() throws, it will propagate up.
     const getBookmarksFunc = await getBookmarks();
-    bookmarks = await getBookmarksFunc(false);
-    console.log("[BookmarksServer] Fetched via getBookmarks, count:", bookmarks.length);
+    bookmarks = await getBookmarksFunc({ includeImageData }) as UnifiedBookmark[];
+    console.log(`[BookmarksServer] Fetched via getBookmarks, count: ${bookmarks.length}, includeImageData: ${includeImageData}`);
     if (bookmarks.length > 0 && bookmarks[0]) {
       console.log("[BookmarksServer] First bookmark title:", bookmarks[0].title);
     } else {
@@ -96,8 +97,9 @@ export async function BookmarksServer({
     dateBookmarked: bookmark.dateBookmarked,
     dateCreated: bookmark.dateCreated,
     dateUpdated: bookmark.dateUpdated,
-    content: bookmark.content, // 🎯 CRITICAL: Include content field with Karakeep assets
-    logoData: bookmark.logoData
+    // Only include heavy image data if explicitly requested
+    content: includeImageData ? bookmark.content : undefined,
+    logoData: includeImageData && bookmark.logoData
       ? {
           url: bookmark.logoData.url,
           alt: bookmark.logoData.alt || "Logo",
@@ -109,9 +111,9 @@ export async function BookmarksServer({
     isFavorite: bookmark.isFavorite || false,
     readingTime: bookmark.readingTime,
     wordCount: bookmark.wordCount,
-    ogTitle: bookmark.ogTitle,
-    ogDescription: bookmark.ogDescription,
-    ogImage: bookmark.ogImage,
+    ogTitle: includeImageData ? bookmark.ogTitle : undefined,
+    ogDescription: includeImageData ? bookmark.ogDescription : undefined,
+    ogImage: includeImageData ? bookmark.ogImage : undefined,
     domain: bookmark.domain,
   }));
 

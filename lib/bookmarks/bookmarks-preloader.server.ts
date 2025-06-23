@@ -55,7 +55,7 @@ export async function preloadBookmarksIfNeeded(): Promise<void> {
         null, // Let monitor generate ID
         "Bookmark Preload",
         async () => {
-          const result = await getBookmarks(skipExternalFetch);
+          const result = await getBookmarks({ skipExternalFetch });
           console.log("Bookmarks preloaded successfully");
           return result;
         },

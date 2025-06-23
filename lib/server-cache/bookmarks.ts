@@ -8,7 +8,6 @@
  */
 
 import type { BookmarksCacheEntry, ICache } from "@/types/cache";
-import type { UnifiedBookmark } from "@/types/bookmark";
 import { BOOKMARKS_CACHE_DURATION } from "@/lib/constants";
 
 const BOOKMARKS_METADATA_KEY = "bookmarks:metadata";
@@ -30,23 +29,11 @@ export function getBookmarks(this: ICache): BookmarksCacheEntry | undefined {
  *
  * @deprecated Bookmarks are stored in S3, not in cache
  */
-export function setBookmarks(this: ICache, bookmarks?: unknown[], isFailure?: boolean): void {
-  // For test compatibility, we now implement basic metadata tracking
-  if (!bookmarks) {
-    console.warn("[ServerCache] setBookmarks called - this is deprecated. Bookmarks should be stored in S3 only.");
-    return;
+export function setBookmarks(this: ICache): void {
+  // NO-OP: Bookmarks are stored in S3, not in memory cache
+  if (process.env.NODE_ENV !== "test") {
+    console.warn("[ServerCache] setBookmarks called - this is deprecated. Bookmarks are stored in S3 only.");
   }
-
-  const now = Date.now();
-  const existing = this.get<BookmarksCacheEntry>(BOOKMARKS_METADATA_KEY);
-
-  const entry: BookmarksCacheEntry = {
-    bookmarks: isFailure ? (existing?.bookmarks ?? []) : (bookmarks as UnifiedBookmark[]),
-    lastFetchedAt: isFailure ? (existing?.lastFetchedAt ?? now) : now,
-    lastAttemptedAt: now,
-  };
-
-  this.set(BOOKMARKS_METADATA_KEY, entry);
 }
 
 /**

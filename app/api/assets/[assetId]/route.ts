@@ -39,8 +39,8 @@ async function findAssetInS3(assetId: string): Promise<{ key: string; contentTyp
   }
 
   // Common extensions to check
-  const extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
-  
+  const extensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"];
+
   for (const ext of extensions) {
     const key = `images/karakeep/${assetId}${ext}`;
     try {
@@ -48,10 +48,10 @@ async function findAssetInS3(assetId: string): Promise<{ key: string; contentTyp
         Bucket: process.env.S3_BUCKET,
         Key: key,
       });
-      
+
       const response = await s3Client.send(command);
       console.log(`[Assets API] Found asset in S3: ${key}`);
-      
+
       return {
         key,
         contentType: response.ContentType || `image/${ext.substring(1)}`,
@@ -60,7 +60,7 @@ async function findAssetInS3(assetId: string): Promise<{ key: string; contentTyp
       // Continue checking other extensions
     }
   }
-  
+
   return null;
 }
 
@@ -78,7 +78,7 @@ async function streamFromS3(key: string, contentType: string): Promise<NextRespo
   });
 
   const response = await s3Client.send(command);
-  
+
   if (!response.Body) {
     throw new Error("No body in S3 response");
   }
@@ -105,11 +105,11 @@ async function saveAssetToS3(assetId: string, buffer: Buffer, contentType: strin
 
   const extension = getExtensionFromContentType(contentType);
   const key = `images/karakeep/${assetId}${extension}`;
-  
+
   console.log(`[Assets API] Saving asset to S3: ${key} (${buffer.length} bytes, ${contentType})`);
-  
+
   await writeBinaryS3(key, buffer, contentType);
-  
+
   return key;
 }
 
@@ -132,7 +132,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
     // STEP 2: Asset not in S3, fetch from Karakeep/Hoarder
     console.log(`[Assets API] Asset not in S3, fetching from Karakeep: ${assetId}`);
-    
+
     // Get the external bookmarks API URL
     const bookmarksApiUrl = process.env.BOOKMARKS_API_URL ?? "https://bookmark.iocloudhost.net/api/v1";
     // More robust base URL extraction
@@ -147,6 +147,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     // Construct the asset URL for the external service (non-versioned asset endpoint)
     const assetUrl = `${baseUrl}/api/assets/${assetId}`;
 
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
     // Prepare headers for external request
     const fetchHeaders = {
       Authorization: `Bearer ${bearerToken}`,
@@ -154,16 +158,42 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       Accept: "*/*",
     };
 
-    // Fetch the asset from the external service
-    const response = await fetch(assetUrl, {
-      headers: fetchHeaders,
-      method: "GET",
-      signal: AbortSignal.timeout(60000), // 60 second timeout
-    });
+    let response: Response;
+    try {
+      // Fetch the asset from the external service
+      response = await fetch(assetUrl, {
+        headers: fetchHeaders,
+        method: "GET",
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      if (error instanceof Error && error.name === "AbortError") {
+        console.error(`[Assets API] Timeout fetching asset ${assetId} after 30 seconds`);
+        return NextResponse.json(
+          {
+            error: "Asset fetch timed out",
+            assetId,
+            message: "The external asset service is not responding",
+          },
+          { status: 504 }, // Gateway Timeout
+        );
+      }
+
+      console.error(`[Assets API] Failed to fetch asset ${assetId}:`, error);
+      return NextResponse.json(
+        {
+          error: "Failed to fetch asset",
+          assetId,
+        },
+        { status: 502 }, // Bad Gateway
+      );
+    }
 
     if (!response.ok) {
       console.error(`[Assets API] Failed to fetch asset ${assetId}: ${response.status}`);
-
       return NextResponse.json(
         {
           error: "Failed to fetch asset",
@@ -175,27 +205,84 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
     // Get the content type from the response
     const contentType = response.headers.get("content-type") || "application/octet-stream";
-    
-    // STEP 3: Buffer the response for S3 persistence
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    
-    // STEP 4: Save to S3 in the background (don't block the response)
-    if (process.env.S3_BUCKET && s3Client) {
-      // Fire and forget - save to S3 asynchronously
-      saveAssetToS3(assetId, buffer, contentType).catch(error => {
-        console.error(`[Assets API] Failed to save asset ${assetId} to S3:`, error);
+
+    // STEP 3: For images, buffer and save to S3, otherwise stream directly
+    if (contentType.startsWith("image/") && process.env.S3_BUCKET && s3Client) {
+      try {
+        // Set a timeout for reading the response body
+        const readController = new AbortController();
+        const readTimeoutId = setTimeout(() => readController.abort(), 20000); // 20 second read timeout
+
+        const chunks: Uint8Array[] = [];
+        const reader = response.body?.getReader();
+
+        if (!reader) {
+          throw new Error("No response body");
+        }
+
+        while (true) {
+          const readPromise = reader.read();
+
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            const abortHandler = () => reject(new Error("Read timeout"));
+            // The `{ once: true }` option guarantees we attach the handler
+            // only for this iteration and it is removed automatically after
+            // the first invocation – prevents listener accumulation.
+            readController.signal.addEventListener("abort", abortHandler, {
+              once: true,
+            });
+          });
+
+          try {
+            const { done, value } = await Promise.race([readPromise, timeoutPromise]);
+            if (done) break;
+            chunks.push(value);
+          } catch (error) {
+            // Ensure the reader is promptly cancelled to free resources
+            await reader.cancel();
+            throw error;
+          }
+        }
+
+        // All chunks read successfully – clean-up resources
+        reader.releaseLock();
+        clearTimeout(readTimeoutId);
+
+        const buffer = Buffer.concat(chunks);
+
+        // Save to S3 in the background (don't block the response)
+        saveAssetToS3(assetId, buffer, contentType).catch((error) => {
+          console.error(`[Assets API] Failed to save asset ${assetId} to S3:`, error);
+        });
+
+        // Return the asset
+        return new NextResponse(buffer, {
+          status: 200,
+          headers: {
+            "Content-Type": contentType,
+            "Cache-Control": "public, max-age=31536000, immutable", // Cache for 1 year
+          },
+        });
+      } catch (error) {
+        console.error(`[Assets API] Error reading asset ${assetId}:`, error);
+        return NextResponse.json(
+          {
+            error: "Failed to read asset",
+            assetId,
+          },
+          { status: 504 }, // Gateway Timeout
+        );
+      }
+    } else {
+      // For non-images or when S3 is not configured, stream directly
+      return new NextResponse(response.body, {
+        status: 200,
+        headers: {
+          "Content-Type": contentType,
+          "Cache-Control": "public, max-age=31536000, immutable", // Cache for 1 year
+        },
       });
     }
-
-    // STEP 5: Return the asset immediately
-    return new NextResponse(buffer, {
-      status: 200,
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=31536000, immutable", // Cache for 1 year
-      },
-    });
   } catch (error) {
     console.error(`[Assets API] Error for asset ${assetId}:`, error instanceof Error ? error.message : String(error));
     return NextResponse.json(

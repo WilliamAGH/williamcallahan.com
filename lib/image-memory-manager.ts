@@ -399,18 +399,30 @@ export class ImageMemoryManager extends EventEmitter {
 
       // Proactive cache coordination at 70% usage
       if (usage.rss > warningThreshold && !this.memoryPressure) {
-        console.warn(
-          `[ImageMemory] 70% memory threshold reached (${Math.round(usage.rss / 1024 / 1024)}MB) - triggering coordinated cleanup`,
-        );
-        this.emit("memory-coordination-trigger", {
-          memoryUsagePercent,
-          cacheSize: this.cache.calculatedSize ?? 0,
-          rss: usage.rss,
-          threshold: warningThreshold,
-        });
+        const imageCacheSize = this.cache.calculatedSize ?? 0;
 
-        // Start proactive LRU eviction
-        this.proactiveEviction(0.2); // Evict 20% of the image cache
+        // Log and coordinate **only** when the image cache itself is materially contributing
+        // to memory pressure (≥ 10 MB). This prevents a noisy flood of warnings when the
+        // overall RSS is high for unrelated reasons.
+        if (imageCacheSize > 10 * 1024 * 1024) {
+          console.warn(
+            `[ImageMemory] 70% memory threshold reached (${Math.round(usage.rss / 1024 / 1024)}MB) - Image cache: ${Math.round(imageCacheSize / 1024 / 1024)}MB`,
+          );
+
+          // Trigger cross-cache coordination so other caches can shed load.
+          this.emit("memory-coordination-trigger", {
+            memoryUsagePercent,
+            cacheSize: imageCacheSize,
+            rss: usage.rss,
+            threshold: warningThreshold,
+          });
+        }
+
+        // Start proactive LRU eviction if we have content
+        if (imageCacheSize > 1024 * 1024) {
+          // More than 1MB
+          this.proactiveEviction(0.2); // Evict 20% of the image cache
+        }
       }
 
       // Enter memory pressure at 80% - BEFORE MemGuard's 80% critical threshold
