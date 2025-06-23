@@ -392,12 +392,13 @@ async function fetchAndCacheBookmarks(options: BookmarkLoadOptions = {}): Promis
       if (!includeImageData) {
         console.log(`${LOG_PREFIX} Stripping image data from ${bookmarks.length} bookmarks`);
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        return bookmarks.map(({ content, ogImage, logoData, ...rest }) => ({
+        const lightweightBookmarks: LightweightBookmark[] = bookmarks.map(({ content, ogImage, logoData, ...rest }) => ({
           ...rest,
           content: undefined,
           ogImage: undefined,
           logoData: undefined
         })) as LightweightBookmark[];
+        return lightweightBookmarks;
       }
 
       return bookmarks;
@@ -421,12 +422,13 @@ async function fetchAndCacheBookmarks(options: BookmarkLoadOptions = {}): Promis
   if (!includeImageData) {
     console.log(`${LOG_PREFIX} Stripping image data from refreshed bookmarks`);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    return refreshedBookmarks.map(({ content, ogImage, logoData, ...rest }) => ({
+    const lightweightBookmarks: LightweightBookmark[] = refreshedBookmarks.map(({ content, ogImage, logoData, ...rest }) => ({
       ...rest,
       content: undefined,
       ogImage: undefined,
       logoData: undefined
     })) as LightweightBookmark[];
+    return lightweightBookmarks;
   }
   
   return refreshedBookmarks;
