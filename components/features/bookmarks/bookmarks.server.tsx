@@ -39,6 +39,7 @@ export async function BookmarksServer({
   usePagination = true,
   initialTag,
   tag,
+  includeImageData = true,
 }: BookmarksServerExtendedProps): Promise<JSX.Element> {
   // If bookmarks are provided via props, use those; otherwise fetch from API
   let bookmarks: UnifiedBookmark[] = [];
@@ -61,8 +62,8 @@ export async function BookmarksServer({
   } else {
     // Fetch bookmarks. If getBookmarks() throws, it will propagate up.
     const getBookmarksFunc = await getBookmarks();
-    bookmarks = await getBookmarksFunc(false);
-    console.log("[BookmarksServer] Fetched via getBookmarks, count:", bookmarks.length);
+    bookmarks = await getBookmarksFunc({ includeImageData }) as UnifiedBookmark[];
+    console.log(`[BookmarksServer] Fetched via getBookmarks, count: ${bookmarks.length}, includeImageData: ${includeImageData}`);
     if (bookmarks.length > 0 && bookmarks[0]) {
       console.log("[BookmarksServer] First bookmark title:", bookmarks[0].title);
     } else {

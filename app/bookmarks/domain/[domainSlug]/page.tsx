@@ -20,7 +20,7 @@ import { redirect } from "next/navigation";
 import type { DomainPageRedirectorProps } from "@/types";
 
 export default async function DomainPageRedirector({ params, searchParams }: DomainPageRedirectorProps) {
-  const allBookmarks = await getBookmarks();
+  const allBookmarks = await getBookmarks({ includeImageData: false }) as import("@/types").UnifiedBookmark[];
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
   const { domainSlug } = paramsResolved;

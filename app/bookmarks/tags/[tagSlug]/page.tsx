@@ -48,8 +48,8 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
   const tagSlug = sanitizeUnicode(paramsResolved.tagSlug);
   const tagQuery = tagSlug.replace(/-/g, " ");
 
-  // Try to find the original tag capitalization
-  const allBookmarks = await getBookmarks();
+  // Try to find the original tag capitalization (lightweight data)
+  const allBookmarks = await getBookmarks({ includeImageData: false }) as import("@/types").UnifiedBookmark[];
   let displayTag = tagQuery
     .split(" ")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
