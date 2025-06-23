@@ -40,6 +40,12 @@ export function useBookmarksPagination({
       // Don't fetch if we've reached the end
       if (previousPageData && !previousPageData.meta.pagination.hasNext) return null;
 
+      // If we have initial data and it's the first page, don't fetch
+      // This prevents overriding server-provided data with potentially empty API results
+      if (pageIndex === 0 && initialData && initialData.length > 0) {
+        return null;
+      }
+
       // Build URL with pagination and optional tag filter
       const params = new URLSearchParams({
         page: String(pageIndex + 1),
@@ -52,7 +58,7 @@ export function useBookmarksPagination({
 
       return `/api/bookmarks?${params.toString()}`;
     },
-    [limit, tag],
+    [limit, tag, initialData],
   );
 
   // Prepare fallbackData in the expected format if initialData is provided

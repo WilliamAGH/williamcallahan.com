@@ -213,8 +213,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     return bookmarks.filter((bookmark: UnifiedBookmark) => {
       const tagsAsString = getTagsAsStringArray(bookmark.tags);
 
-      // Filter by selected tag if any
-      if (selectedTag && !tagsAsString.includes(selectedTag)) {
+      // Skip tag filtering if we're on a tag-specific page (server already filtered)
+      // Only apply client-side tag filtering when user selects a different tag
+      if (selectedTag && !tag && !tagsAsString.includes(selectedTag)) {
         return false;
       }
 
@@ -241,7 +242,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       // Check if all search terms are included in the bookmark text
       return searchTerms.every((term) => bookmarkText.includes(term));
     });
-  }, [bookmarks, searchQuery, selectedTag, searchResults]);
+  }, [bookmarks, searchQuery, selectedTag, searchResults, tag]);
 
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(event.target.value);
