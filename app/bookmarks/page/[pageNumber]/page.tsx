@@ -11,6 +11,8 @@
 
 // Configure dynamic rendering
 export const dynamic = "force-dynamic";
+// Disable persistent Data Cache – content is updated via revalidation logic in code (we use our own cache via lib/image-memory-manager.ts)
+export const fetchCache = "default-no-store";
 // Incremental Static Regeneration – recache every 30 minutes for fresh-but-fast UX
 export const revalidate = 1800; // 30 minutes (60 * 30)
 
@@ -49,7 +51,7 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
   }
 
   // Get total count for meta description (lightweight for metadata)
-  const bookmarks = await getBookmarks({ includeImageData: false }) as UnifiedBookmark[];
+  const bookmarks = (await getBookmarks({ includeImageData: false })) as UnifiedBookmark[];
   const totalPages = Math.ceil(bookmarks.length / 24);
 
   const baseMetadata = getStaticPageMetadata("/bookmarks", "bookmarks") as Metadata;
@@ -135,7 +137,7 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   }
 
   // Get bookmarks to check if page exists (lightweight for pagination check)
-  const bookmarks = await getBookmarks({ includeImageData: false }) as UnifiedBookmark[];
+  const bookmarks = (await getBookmarks({ includeImageData: false })) as UnifiedBookmark[];
   const totalPages = Math.ceil(bookmarks.length / 24);
 
   if (pageNum > totalPages) {
@@ -163,9 +165,9 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
     <>
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-5xl mx-auto">
-        <BookmarksServer 
-          title={pageMetadata.title} 
-          description={pageMetadata.description} 
+        <BookmarksServer
+          title={pageMetadata.title}
+          description={pageMetadata.description}
           initialPage={pageNum}
           includeImageData={false}
         />

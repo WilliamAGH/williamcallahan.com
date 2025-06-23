@@ -8,6 +8,8 @@
 
 // Configure dynamic rendering
 export const dynamic = "force-dynamic";
+// Disable persistent Data Cache – content is updated via revalidation logic in code (we use our own cache via lib/image-memory-manager.ts)
+export const fetchCache = "default-no-store";
 // Revalidate every 30 minutes for fresh content
 export const revalidate = 1800;
 
@@ -39,19 +41,23 @@ export async function generateMetadata({ params }: PaginatedTagBookmarkContext):
   const tagQuery = tagSlug.replace(/-/g, " ");
 
   // Try to get tag index from S3 for pagination metadata
-  const { getTagBookmarksIndex, getBookmarks: getBookmarksFromService } = await import("@/lib/bookmarks/bookmarks-data-access.server");
+  const { getTagBookmarksIndex, getBookmarks: getBookmarksFromService } = await import(
+    "@/lib/bookmarks/bookmarks-data-access.server"
+  );
   const tagIndex = await getTagBookmarksIndex(tagSlug);
-  
+
   let totalPages: number;
   let taggedBookmarks: import("@/types").UnifiedBookmark[];
-  
+
   if (tagIndex) {
     // Use S3 cached metadata
     totalPages = tagIndex.totalPages;
     taggedBookmarks = []; // We only need a sample for display tag extraction
   } else {
     // Fall back to filtering all bookmarks (lightweight data)
-    const allBookmarks = await getBookmarksFromService({ includeImageData: false }) as import("@/types").UnifiedBookmark[];
+    const allBookmarks = (await getBookmarksFromService({
+      includeImageData: false,
+    })) as import("@/types").UnifiedBookmark[];
     taggedBookmarks = allBookmarks.filter((b) => {
       const names = (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
         typeof t === "string" ? t : t.name,
@@ -178,14 +184,14 @@ export default async function PaginatedTagBookmarksPage({ params }: PaginatedTag
 
   // Try to load from S3 first for better performance
   const { getTagBookmarksPage, getTagBookmarksIndex } = await import("@/lib/bookmarks/bookmarks-data-access.server");
-  
+
   // Get tag index for total pages
   const tagIndex = await getTagBookmarksIndex(tagSlug);
   const tagBookmarksFromS3 = await getTagBookmarksPage(tagSlug, pageNum);
-  
+
   let taggedBookmarks: import("@/types").UnifiedBookmark[];
   let totalPages: number;
-  
+
   if (tagBookmarksFromS3.length > 0 && tagIndex) {
     // Use S3 cached data if available
     taggedBookmarks = tagBookmarksFromS3;

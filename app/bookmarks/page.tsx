@@ -11,6 +11,8 @@
 
 // Configure dynamic rendering
 export const dynamic = "force-dynamic";
+// Opt out of the Next.js Data Cache for this route (we use our own cache via lib/image-memory-manager.ts)
+export const fetchCache = "default-no-store";
 // Revalidate static HTML every 30 minutes to keep bookmark counts fresh
 export const revalidate = 1800; // 30 minutes (60 * 30)
 
@@ -55,9 +57,9 @@ export default function BookmarksPage() {
     <>
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-5xl mx-auto">
-        <BookmarksServer 
-          title={pageMetadata.title} 
-          description={pageMetadata.description} 
+        <BookmarksServer
+          title={pageMetadata.title}
+          description={pageMetadata.description}
           initialPage={1}
           includeImageData={true}
         />

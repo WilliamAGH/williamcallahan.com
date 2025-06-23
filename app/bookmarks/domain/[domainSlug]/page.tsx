@@ -8,6 +8,8 @@
 
 // Configure dynamic rendering
 export const dynamic = "force-dynamic";
+// Disable persistent Data Cache – content is updated via revalidation logic in code (we use our own cache via lib/image-memory-manager.ts)
+export const fetchCache = "default-no-store";
 
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { generateUniqueSlug, getDomainSlug } from "@/lib/utils/domain-utils";
@@ -20,7 +22,7 @@ import { redirect } from "next/navigation";
 import type { DomainPageRedirectorProps } from "@/types";
 
 export default async function DomainPageRedirector({ params, searchParams }: DomainPageRedirectorProps) {
-  const allBookmarks = await getBookmarks({ includeImageData: false }) as import("@/types").UnifiedBookmark[];
+  const allBookmarks = (await getBookmarks({ includeImageData: false })) as import("@/types").UnifiedBookmark[];
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
   const { domainSlug } = paramsResolved;

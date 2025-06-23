@@ -11,6 +11,8 @@
 export const dynamic = "force-dynamic";
 // Revalidate every 30 minutes for fresh content
 export const revalidate = 1800;
+// Force dynamic rendering and disable Next.js Data Cache for heavy tag list pages (we use our own cache via lib/image-memory-manager.ts)
+export const fetchCache = "default-no-store";
 
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "@/components/seo/json-ld";
@@ -49,7 +51,7 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
   const tagQuery = tagSlug.replace(/-/g, " ");
 
   // Try to find the original tag capitalization (lightweight data)
-  const allBookmarks = await getBookmarks({ includeImageData: false }) as import("@/types").UnifiedBookmark[];
+  const allBookmarks = (await getBookmarks({ includeImageData: false })) as import("@/types").UnifiedBookmark[];
   let displayTag = tagQuery
     .split(" ")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
