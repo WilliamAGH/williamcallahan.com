@@ -19,7 +19,7 @@ import type { Rule } from "eslint";
  * ESLint rule to disallow duplicate TypeScript type definitions (type aliases, interfaces, enums)
  * anywhere in the repository. Types must already live under `types/` or declaration files as
  * enforced by the existing `no-restricted-syntax` rule – this rule focuses solely on *uniqueness*.
- * 
+ *
  * KNOWN LIMITATION: This rule uses a module-level Map that persists across lint runs,
  * which can cause false positives in watch mode or when files are renamed/deleted.
  * This is a fundamental limitation of ESLint's architecture for cross-file validation.
@@ -38,13 +38,14 @@ const noDuplicateTypesRule: Rule.RuleModule & { duplicateTypeTracker?: Map<strin
     schema: [], // no options
   },
   create(context) {
-    // Create a static map that persists across files in a single lint run
-    // This allows cross-file duplicate detection within a full project lint
-    // LIMITATION: In watch mode or incremental linting, this may produce false positives
-    // as the map persists across multiple lint runs. For production use, consider
-    // TypeScript's built-in checks or a dedicated build script.
-    const duplicateTypeTracker = noDuplicateTypesRule.duplicateTypeTracker ||
-      (noDuplicateTypesRule.duplicateTypeTracker = new Map<string, string>());
+    // Lazily initialize the shared tracker without using assignment inside an expression
+    const duplicateTypeTracker: Map<string, string> =
+      noDuplicateTypesRule.duplicateTypeTracker ?? new Map<string, string>();
+
+    // Store it on the rule for future files
+    if (!noDuplicateTypesRule.duplicateTypeTracker) {
+      noDuplicateTypesRule.duplicateTypeTracker = duplicateTypeTracker;
+    }
 
     /** Records the location of first declaration and reports on duplicates */
     const record = (idNode: any) => {
