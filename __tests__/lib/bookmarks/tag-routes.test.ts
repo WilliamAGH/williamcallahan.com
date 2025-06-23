@@ -6,6 +6,7 @@ import { getBookmarksByTag } from "@/lib/bookmarks/bookmarks-data-access.server"
 import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { UnifiedBookmark, BookmarksIndex } from "@/types";
+import type { AWSError } from "@/types/error";
 
 // Mock dependencies
 jest.mock("@/lib/s3-utils");
@@ -228,8 +229,9 @@ describe("Tag Route Functionality", () => {
         callCount++;
         if (callCount === 1) {
           // First call fails with S3 error
-          const error = new Error("Not Found") as Error & { $metadata?: { httpStatusCode: number } };
-          error.$metadata = { httpStatusCode: 404 };
+          const error = Object.assign(new Error("Not Found"), {
+            $metadata: { httpStatusCode: 404 }
+          } satisfies Pick<AWSError, '$metadata'>);
           return Promise.reject(error);
         }
         if (path.includes("/tags-test/")) {
