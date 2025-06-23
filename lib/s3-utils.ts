@@ -10,6 +10,7 @@
 
 import { Readable } from "node:stream";
 import { debug, isDebug } from "@/lib/utils/debug"; // Imported isDebug
+import { MEMORY_THRESHOLDS } from "@/lib/constants";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -73,6 +74,23 @@ async function isUnderMemoryPressure(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Check if system has enough memory headroom for S3 operations
+ */
+function hasMemoryHeadroom(): boolean {
+  if (typeof process === "undefined") return true;
+  
+  const usage = process.memoryUsage();
+  const warningThreshold = MEMORY_THRESHOLDS.MEMORY_WARNING_THRESHOLD;
+  
+  if (usage.rss > warningThreshold) {
+    console.warn(`[S3Utils] Memory usage (${(usage.rss / 1024 / 1024).toFixed(2)}MB) exceeds warning threshold. Deferring S3 operations.`);
+    return false;
+  }
+  
+  return true;
 }
 
 /**
@@ -281,6 +299,11 @@ export async function writeToS3(
   contentType?: string,
   acl: "private" | "public-read" | "public-read-write" | "authenticated-read" = "private",
 ): Promise<void> {
+  // Add memory check before write
+  if (!hasMemoryHeadroom()) {
+    throw new Error(`[S3Utils] Insufficient memory headroom for S3 write operation`);
+  }
+  
   if (DRY_RUN) {
     if (isDebug)
       debug(
@@ -579,6 +602,12 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
 export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneMatch?: string }): Promise<void> {
   if (DRY_RUN) {
     if (isDebug) debug(`[S3Utils][DRY RUN] Would write JSON to S3 key: ${s3Key}`);
+    return;
+  }
+
+  // Add memory check before JSON stringify
+  if (!hasMemoryHeadroom()) {
+    console.warn(`[S3Utils] Skipping S3 write for ${s3Key} due to memory pressure`);
     return;
   }
 
