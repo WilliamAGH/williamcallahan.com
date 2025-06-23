@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 /**
  * LogoImage Component
  *
@@ -37,7 +38,7 @@ export function LogoImage({
   // If Next.js Image optimization fails, fall back to regular img tag
   if (imageError) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
+      // biome-ignore lint/performance/noImgElement: This is only a fallback
       <img
         src={src}
         alt={alt}
