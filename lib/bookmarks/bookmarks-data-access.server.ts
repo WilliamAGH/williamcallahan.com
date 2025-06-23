@@ -11,7 +11,7 @@ import { randomInt } from "node:crypto";
 import { readJsonS3, writeJsonS3, deleteFromS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import type { UnifiedBookmark, DistributedLockEntry, RefreshBookmarksCallback } from "@/types";
-import type { BookmarksIndex } from "@/types/bookmark";
+import type { BookmarksIndex, BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 
@@ -27,7 +27,7 @@ const MAX_TAGS_TO_CACHE = parseInt(process.env.MAX_TAGS_TO_CACHE || '10', 10);
 // Module-scoped state
 let isRefreshLocked = false;
 let lockCleanupInterval: NodeJS.Timeout | null = null;
-let inFlightGetPromise: Promise<UnifiedBookmark[]> | null = null;
+let inFlightGetPromise: Promise<UnifiedBookmark[] | LightweightBookmark[]> | null = null;
 let inFlightRefreshPromise: Promise<UnifiedBookmark[] | null> | null = null;
 
 // Type guard for S3 errors
@@ -367,8 +367,9 @@ export function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> 
   return promise;
 }
 
-async function fetchAndCacheBookmarks(skipExternalFetch: boolean): Promise<UnifiedBookmark[]> {
-  console.log(`${LOG_PREFIX} fetchAndCacheBookmarks called. skipExternalFetch=${skipExternalFetch}`);
+async function fetchAndCacheBookmarks(options: BookmarkLoadOptions = {}): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
+  const { skipExternalFetch = false, includeImageData = true } = options;
+  console.log(`${LOG_PREFIX} fetchAndCacheBookmarks called. skipExternalFetch=${skipExternalFetch}, includeImageData=${includeImageData}`);
 
   // Try to load from full file first (needed for tag filtering)
   try {
@@ -387,6 +388,18 @@ async function fetchAndCacheBookmarks(skipExternalFetch: boolean): Promise<Unifi
         });
       }
 
+      // Strip image data if not needed
+      if (!includeImageData) {
+        console.log(`${LOG_PREFIX} Stripping image data from ${bookmarks.length} bookmarks`);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        return bookmarks.map(({ content, ogImage, logoData, ...rest }) => ({
+          ...rest,
+          content: undefined,
+          ogImage: undefined,
+          logoData: undefined
+        })) as LightweightBookmark[];
+      }
+
       return bookmarks;
     }
   } catch (e: unknown) {
@@ -402,7 +415,21 @@ async function fetchAndCacheBookmarks(skipExternalFetch: boolean): Promise<Unifi
   }
 
   const refreshedBookmarks = await refreshAndPersistBookmarks();
-  return refreshedBookmarks ?? [];
+  if (!refreshedBookmarks) return [];
+  
+  // Strip image data if not needed
+  if (!includeImageData) {
+    console.log(`${LOG_PREFIX} Stripping image data from refreshed bookmarks`);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    return refreshedBookmarks.map(({ content, ogImage, logoData, ...rest }) => ({
+      ...rest,
+      content: undefined,
+      ogImage: undefined,
+      logoData: undefined
+    })) as LightweightBookmark[];
+  }
+  
+  return refreshedBookmarks;
 }
 
 // Get a specific page of bookmarks
@@ -456,12 +483,12 @@ export async function getTagBookmarksIndex(tagSlug: string): Promise<BookmarksIn
   }
 }
 
-export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBookmark[]> {
+export async function getBookmarks(options: BookmarkLoadOptions = {}): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
   if (inFlightGetPromise) {
     return inFlightGetPromise;
   }
 
-  inFlightGetPromise = fetchAndCacheBookmarks(skipExternalFetch);
+  inFlightGetPromise = fetchAndCacheBookmarks(options);
 
   try {
     return await inFlightGetPromise;
@@ -503,8 +530,8 @@ export async function getBookmarksByTag(
     };
   }
 
-  // 2. Cache miss - filter from all bookmarks
-  const allBookmarks = await getBookmarks();
+  // 2. Cache miss - filter from all bookmarks (always get lightweight for tag filtering)
+  const allBookmarks = await getBookmarks({ includeImageData: false }) as UnifiedBookmark[];
   const tagQuery = tagSlug.replace(/-/g, " ");
   
   // Filter bookmarks that have this tag

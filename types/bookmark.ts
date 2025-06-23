@@ -259,3 +259,11 @@ export const BookmarksApiResponseSchema = z.object({
 });
 
 export { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
+
+// Lightweight bookmark type that excludes heavy image data
+export type LightweightBookmark = Omit<UnifiedBookmark, 'content' | 'ogImage' | 'logoData'>;
+
+export interface BookmarkLoadOptions {
+  includeImageData?: boolean;
+  skipExternalFetch?: boolean;
+}

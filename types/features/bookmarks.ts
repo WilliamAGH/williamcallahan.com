@@ -154,6 +154,7 @@ export type BookmarksServerExtendedProps = BaseFilterableProps & {
   baseUrl?: string;
   usePagination?: boolean;
   tag?: string;
+  includeImageData?: boolean;
 };
 
 // =============================================================================
