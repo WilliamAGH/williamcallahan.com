@@ -11,6 +11,7 @@ import {
 } from "./bookmarks-data-access.server";
 import { refreshBookmarksData } from "./bookmarks";
 import type { UnifiedBookmark } from "@/types";
+import type { BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
 
 // Initialize the refresh callback
 setRefreshBookmarksCallback(refreshBookmarksData);
@@ -18,9 +19,9 @@ setRefreshBookmarksCallback(refreshBookmarksData);
 /**
  * Get bookmarks from cache or S3, with optional background refresh
  */
-export async function getBookmarks(skipExternalFetch = false): Promise<UnifiedBookmark[]> {
+export async function getBookmarks(options: BookmarkLoadOptions = {}): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
   initializeBookmarksDataAccess();
-  return getBookmarksInternal(skipExternalFetch);
+  return getBookmarksInternal(options);
 }
 
 /**
