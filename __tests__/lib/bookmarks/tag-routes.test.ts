@@ -228,8 +228,8 @@ describe("Tag Route Functionality", () => {
         callCount++;
         if (callCount === 1) {
           // First call fails with S3 error
-          const error = new Error("Not Found");
-          (error as any).$metadata = { httpStatusCode: 404 };
+          const error = new Error("Not Found") as Error & { $metadata?: { httpStatusCode: number } };
+          error.$metadata = { httpStatusCode: 404 };
           return Promise.reject(error);
         }
         if (path.includes("/tags-test/")) {
