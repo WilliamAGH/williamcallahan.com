@@ -112,6 +112,8 @@ graph TD
         VV["✅ Request deduplication prevents concurrent refreshes"]
         WW["✅ Tag navigation with URL routing and special char support"]
         XX["✅ Client-side error logging added to fetchBookmarksFromApi"]
+        YY["✅ Tag route client-server mismatch resolved"]
+        ZZ["✅ Memory exhaustion from tag caching prevented"]
     end
     
     %% Performance Improvements
@@ -165,6 +167,10 @@ graph TD
         SAFE2["15-min Background-Refresh Cool-down"]
         SAFE3["validateBookmarksDataset()/validateCachedData"]
         SAFE4["Cache TTLs: 7 d success / 1 h fail / 1 h revalidation"]
+        SAFE5["ENABLE_TAG_CACHING – emergency shutoff"]
+        SAFE6["MAX_TAGS_TO_CACHE – limit to top N tags"]
+        SAFE7["Memory headroom checks before S3 writes"]
+        SAFE8["5-second health check timeout"]
     end
     
     style A fill:#e1f5fe
