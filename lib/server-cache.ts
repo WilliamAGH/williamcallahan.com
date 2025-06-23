@@ -83,19 +83,36 @@ export class ServerCache implements ICache {
   }
 
   private proactiveEviction(percentage: number): void {
-    const targetSize = Math.floor(this.cache.size * (1 - percentage));
-    const keysToRemove: string[] = [];
-
-    // Collect oldest keys to remove
-    for (const key of this.cache.keys()) {
-      if (keysToRemove.length >= this.cache.size - targetSize) break;
-      keysToRemove.push(key);
+    // Check if cache has any significant content to evict
+    const currentSizeBytes = this.cache.calculatedSize || 0;
+    
+    // Skip eviction if cache is essentially empty (less than 1MB)
+    if (currentSizeBytes < 1024 * 1024) {
+      console.log(`[ServerCache] Skipping eviction - cache size only ${Math.round(currentSizeBytes / 1024)}KB`);
+      return;
     }
 
-    // Remove collected keys
-    keysToRemove.forEach((key) => this.cache.delete(key));
+    // Use memory-based eviction instead of count-based
+    const targetSizeBytes = Math.floor(currentSizeBytes * (1 - percentage));
+    let removedBytes = 0;
+    let removedCount = 0;
 
-    console.log(`[ServerCache] Proactive eviction complete. Removed ${keysToRemove.length} entries.`);
+    // Remove items until we reach target size
+    for (const key of this.cache.keys()) {
+      if (currentSizeBytes - removedBytes <= targetSizeBytes) break;
+      
+      const item = this.cache.get(key);
+      if (item) {
+        // Get size before deletion
+        const itemSize = this.cache.calculatedSize || 0;
+        this.cache.delete(key);
+        const newSize = this.cache.calculatedSize || 0;
+        removedBytes += (itemSize - newSize);
+        removedCount++;
+      }
+    }
+
+    console.log(`[ServerCache] Proactive eviction complete. Removed ${removedCount} entries (${Math.round(removedBytes / 1024)}KB)`);
   }
 
   public get<T>(key: string): T | undefined {
