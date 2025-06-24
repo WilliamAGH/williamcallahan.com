@@ -67,6 +67,19 @@ export async function register() {
       console.warn("[Instrumentation] Failed to load events module:", err);
     }
 
+    // Add global unhandled promise rejection handler to prevent health check timeouts
+    process.on('unhandledRejection', (reason) => {
+      console.error('[Instrumentation] Unhandled Promise Rejection:', reason);
+      // In production, capture with Sentry
+      if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
+        try {
+          Sentry.captureException(reason instanceof Error ? reason : new Error(String(reason)));
+        } catch (sentryErr) {
+          console.error('[Instrumentation] Failed to capture unhandled rejection with Sentry:', sentryErr);
+        }
+      }
+    });
+
     // Only initialize Sentry in production to save memory in development
     if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
       // Initialize Sentry for the Node.js runtime

@@ -400,9 +400,9 @@ export const CSP_DIRECTIVES = {
  */
 // In development/CI the dev server and webpack often exceed 2 GB on first compile.
 // Raise the default safety ceiling outside production, while still allowing
-// operators to override via the env variable. Production keeps the tighter 3 GB.
+// operators to override via the env variable. Production uses 3.75GB to better utilize 4GB container.
 const DEFAULT_TOTAL_MEMORY_BUDGET_BYTES =
-  process.env.NODE_ENV === "production" ? 3 * 1024 * 1024 * 1024 : 8 * 1024 * 1024 * 1024;
+  process.env.NODE_ENV === "production" ? 3.75 * 1024 * 1024 * 1024 : 8 * 1024 * 1024 * 1024;
 
 const TOTAL_MEMORY_BUDGET = Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? DEFAULT_TOTAL_MEMORY_BUDGET_BYTES);
 
@@ -411,11 +411,12 @@ export const MEMORY_THRESHOLDS = {
   TOTAL_PROCESS_MEMORY_BUDGET_BYTES: TOTAL_MEMORY_BUDGET, // 3GB prod / 8GB dev default (enter pressure before container limit)
 
   // Image cache-specific budget (used by ImageMemoryManager)
-  // Increased to 1GB to handle more concurrent image processing
-  IMAGE_RAM_BUDGET_BYTES: Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? 1024 * 1024 * 1024), // 1GB default
+  // Reduced to 15% of total budget to leave headroom for Node.js operations
+  IMAGE_RAM_BUDGET_BYTES: Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? Math.floor(TOTAL_MEMORY_BUDGET * 0.15)), // ~600MB in prod
 
   // Server cache budget (used by ServerCache for general data)
-  SERVER_CACHE_BUDGET_BYTES: Number(process.env.SERVER_CACHE_BUDGET_BYTES ?? 512 * 1024 * 1024), // 512MB default
+  // Reduced to 15% of total budget to leave headroom for Node.js operations
+  SERVER_CACHE_BUDGET_BYTES: Number(process.env.SERVER_CACHE_BUDGET_BYTES ?? Math.floor(TOTAL_MEMORY_BUDGET * 0.15)), // ~600MB in prod
 
   // Derive warning / critical thresholds *directly* from the resolved total
   // process budget so they remain in sync even when the default budget is

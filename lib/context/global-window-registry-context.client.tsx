@@ -29,7 +29,8 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
       // Registration logging removed to keep development console clean
       setWindows((prev) => {
         // Avoid re-registering if already present with the same info
-        if (prev[id] && prev[id].state === initialState && prev[id].icon === icon) {
+        // Don't compare icon since React components are recreated on each render
+        if (prev[id] && prev[id].state === initialState && prev[id].title === title) {
           return prev;
         }
         return {
