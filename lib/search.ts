@@ -12,6 +12,8 @@ import MiniSearch from "minisearch";
 import { ServerCacheInstance } from "./server-cache";
 import { sanitizeSearchQuery } from "./validators/search";
 import { prepareDocumentsForIndexing } from "./utils/search-helpers";
+import { USE_NEXTJS_CACHE, withCacheFallback } from "./cache";
+import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "next/cache";
 
 // --- MiniSearch Index Management ---
 
@@ -145,13 +147,8 @@ function getPostsIndex(): MiniSearch<BlogPost> {
   return postsIndex;
 }
 
-export function searchPosts(query: string): BlogPost[] {
-  // Check cache first
-  const cached = ServerCacheInstance.getSearchResults<BlogPost>("posts", query);
-  if (cached && !ServerCacheInstance.shouldRefreshSearch("posts", query)) {
-    return cached.results;
-  }
-
+// Direct search function (always available)
+function searchPostsDirect(query: string): BlogPost[] {
   const results = searchContent(
     posts,
     query,
@@ -160,12 +157,56 @@ export function searchPosts(query: string): BlogPost[] {
     getPostsIndex(),
   );
 
-  const sortedResults = results.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  return results.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+}
 
-  // Cache the results
-  ServerCacheInstance.setSearchResults("posts", query, sortedResults);
 
-  return sortedResults;
+// Cached version using 'use cache' directive
+async function searchPostsCached(query: string): Promise<BlogPost[]> {
+  "use cache";
+
+  cacheLife("minutes"); // 15 minute cache for search results
+  cacheTag("search");
+  cacheTag("posts-search");
+  cacheTag(`search-posts-${query.slice(0, 20)}`); // Limit tag length
+
+  // Wrap in Promise to satisfy async requirement
+  return await Promise.resolve(searchPostsDirect(query));
+}
+
+export function searchPosts(query: string): BlogPost[] {
+  // If caching is enabled and we can use async, use cached version
+  if (USE_NEXTJS_CACHE) {
+    // For now, return direct search as this is a sync function
+    // The async cached version can be used by consumers that support async
+    return searchPostsDirect(query);
+  }
+
+  // Check legacy cache first
+  const cached = ServerCacheInstance.getSearchResults<BlogPost>("posts", query);
+  if (cached && !ServerCacheInstance.shouldRefreshSearch("posts", query)) {
+    return cached.results;
+  }
+
+  const results = searchPostsDirect(query);
+
+  // Cache the results in legacy cache
+  ServerCacheInstance.setSearchResults("posts", query, results);
+
+  return results;
+}
+
+// Export async version for consumers that can use it
+export async function searchPostsAsync(query: string): Promise<BlogPost[]> {
+  if (USE_NEXTJS_CACHE) {
+    return withCacheFallback(
+      () => searchPostsCached(query),
+      () => Promise.resolve(searchPostsDirect(query)),
+    );
+  }
+
+  // Fall back to sync version wrapped in Promise
+  return Promise.resolve(searchPosts(query));
 }
 
 function getInvestmentsIndex(): MiniSearch<(typeof investments)[0]> {
@@ -382,8 +423,7 @@ export function searchEducation(query: string): SearchResult[] {
   );
 
   // Remove the temporary searchableText field
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const searchResults: SearchResult[] = results.map(({ searchableText: _searchableText, ...item }) => ({
+  const searchResults: SearchResult[] = results.map((item) => ({
     id: item.id,
     type: "page",
     title: item.label,
@@ -399,10 +439,16 @@ export function searchEducation(query: string): SearchResult[] {
 }
 
 // Helper function to get or create bookmarks index
-async function getBookmarksIndex(): Promise<{ index: MiniSearch<BookmarkIndexItem>; bookmarks: Array<BookmarkIndexItem & { slug: string }> }> {
+async function getBookmarksIndex(): Promise<{
+  index: MiniSearch<BookmarkIndexItem>;
+  bookmarks: Array<BookmarkIndexItem & { slug: string }>;
+}> {
   // Try to get from cache first
   const cacheKey = SEARCH_INDEX_KEYS.BOOKMARKS;
-  const cached = ServerCacheInstance.get<{ index: MiniSearch<BookmarkIndexItem>; bookmarks: Array<BookmarkIndexItem & { slug: string }> }>(cacheKey);
+  const cached = ServerCacheInstance.get<{
+    index: MiniSearch<BookmarkIndexItem>;
+    bookmarks: Array<BookmarkIndexItem & { slug: string }>;
+  }>(cacheKey);
   if (cached) {
     return cached;
   }
@@ -450,7 +496,7 @@ async function getBookmarksIndex(): Promise<{ index: MiniSearch<BookmarkIndexIte
 
   // Generate slugs
   const { generateUniqueSlug } = await import("@/lib/utils/domain-utils");
-  
+
   // Create MiniSearch index
   const bookmarksIndex = new MiniSearch<BookmarkIndexItem>({
     fields: ["title", "description", "tags", "author", "publisher", "url"],
@@ -540,7 +586,7 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
 
     // Cache the results
     ServerCacheInstance.setSearchResults("bookmarks", query, results);
-    
+
     return results;
   } catch (err) {
     console.error("[searchBookmarks] Unexpected failure:", err);

@@ -39,8 +39,7 @@ async function getPlaceholderSvgDataUrl(): Promise<string> {
           buffer = await fs.readFile(p);
           loadedPath = p;
           break;
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        } catch (_err) {
+        } catch {
           // Continue to next path
         }
       }

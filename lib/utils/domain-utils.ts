@@ -68,9 +68,9 @@ export function getDomainSlug(url: string): string {
     const slug = domain.replace(/\./g, "-");
 
     return slug;
-  } catch (_error) {
+  } catch {
     // If URL parsing fails, return a fallback
-    console.error(`Failed to parse URL: ${url}`, _error);
+    console.error(`Failed to parse URL: ${url}`);
     return "unknown-domain";
   }
 }
@@ -174,8 +174,7 @@ export function generateUniqueSlug(
     });
 
     return `${baseSlug}-${sameHostBookmarks.length + 1}`;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (_error) {
+  } catch {
     // Don't log during tests - silently handle the error
     if (process.env.NODE_ENV !== "test") {
       console.warn(`generateUniqueSlug: Falling back to 'unknown-url' for invalid input: ${url}`);
@@ -220,8 +219,7 @@ export function getDisplayDomain(url: string): string {
     domain = domain.replace(/^www\./, "");
 
     return domain;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (_error) {
+  } catch {
     // If URL parsing fails, just return the original
     return url;
   }
