@@ -202,7 +202,7 @@ const nextConfig = {
       const webpack = require("webpack");
       config.plugins.push(
         new webpack.ProgressPlugin({
-          handler: (percentage, _message, ..._args) => {
+          handler: (percentage) => {
             // Only log memory usage periodically
             if (percentage === 0 || percentage === 1) {
               const used = process.memoryUsage();
@@ -347,6 +347,8 @@ const nextConfig = {
     serverSourceMaps: false, // Disable server source maps to save memory
     // Reduce memory usage in development
     optimizePackageImports: ["lucide-react", "@sentry/nextjs", "googleapis"],
+    // Enable 'use cache' directive for Next.js 15 caching
+    useCache: true,
     // Note: dynamicIO is only available in canary releases, comment out for stable
     // dynamicIO: true,
     // Note: Next.js ≥14 replaced `isrMemoryCacheSize` with `cacheMaxMemorySize` at the root level.

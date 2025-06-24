@@ -87,12 +87,18 @@ export async function register() {
         const rss = Math.round(usage.rss / 1024 / 1024);
         const heap = Math.round(usage.heapUsed / 1024 / 1024);
         const external = Math.round(usage.external / 1024 / 1024);
+        const nativeMemory = Math.round((usage.rss - usage.heapTotal) / 1024 / 1024);
         
         // Only log if memory is high
         if (rss > 1000) {
           console.log(
-            `[Memory Monitor] RSS: ${rss}MB, Heap: ${heap}MB, External: ${external}MB`
+            `[Memory Monitor] RSS: ${rss}MB, Heap: ${heap}MB, External: ${external}MB, Native: ${nativeMemory}MB`
           );
+        }
+        
+        // Warn if native memory is high (indicates memory leak in native modules like Sharp)
+        if (nativeMemory > 1024) { // 1GB
+          console.warn(`[Memory Monitor] High native memory: ${nativeMemory}MB`);
         }
         
         // Force garbage collection if available and memory is very high
