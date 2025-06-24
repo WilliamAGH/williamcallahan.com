@@ -7,6 +7,7 @@
 "use client";
 
 import type { CommandResult, TerminalSearchResult } from "@/types/terminal";
+import { parseTerminalSearchResponse } from "@/types/terminal";
 
 // Lazy-loaded search function - only loads when first search is performed
 let searchByScopeImpl: ((scope: string, query: string) => Promise<TerminalSearchResult[]>) | null = null;
@@ -22,14 +23,8 @@ async function searchByScope(scope: string, query: string): Promise<TerminalSear
           throw new Error(`API request failed with status ${response.status}`);
         }
         const data: unknown = await response.json();
-        if (Array.isArray(data)) {
-          return data as TerminalSearchResult[];
-        }
-        if (data && typeof data === "object" && "results" in data) {
-          const results = (data as { results?: unknown }).results;
-          return Array.isArray(results) ? (results as TerminalSearchResult[]) : [];
-        }
-        return [];
+        // Use Zod validation instead of type casting
+        return parseTerminalSearchResponse(data);
       } catch (error: unknown) {
         console.error(
           `Search API call failed for scope ${scope}:`,
@@ -57,7 +52,8 @@ async function performSiteWideSearch(query: string): Promise<TerminalSearchResul
           throw new Error(`API request failed with status ${response.status}`);
         }
         const data: unknown = await response.json();
-        return Array.isArray(data) ? (data as TerminalSearchResult[]) : [];
+        // Use Zod validation instead of type casting
+        return parseTerminalSearchResponse(data);
       } catch (error: unknown) {
         console.error(
           "Search API call failed for site-wide search:",
@@ -86,14 +82,8 @@ export function preloadSearch() {
           throw new Error(`API request failed with status ${response.status}`);
         }
         const data: unknown = await response.json();
-        if (Array.isArray(data)) {
-          return data as TerminalSearchResult[];
-        }
-        if (data && typeof data === "object" && "results" in data) {
-          const results = (data as { results?: unknown }).results;
-          return Array.isArray(results) ? (results as TerminalSearchResult[]) : [];
-        }
-        return [];
+        // Use Zod validation instead of type casting
+        return parseTerminalSearchResponse(data);
       } catch (error: unknown) {
         console.error(
           `Search API call failed for scope ${scope}:`,
@@ -111,7 +101,7 @@ export function preloadSearch() {
         throw new Error(`API request failed with status ${response.status}`);
       }
       const data: unknown = await response.json();
-      return Array.isArray(data) ? (data as TerminalSearchResult[]) : [];
+      return parseTerminalSearchResponse(data);
     };
   }
 }
