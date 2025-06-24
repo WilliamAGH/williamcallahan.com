@@ -70,27 +70,32 @@ See `memory-mgmt.mmd` for a visual diagram of the memory management flow and saf
 ## Recent Optimizations (2025-06-20)
 
 ### Sharp Memory Configuration
+
 - **Sharp cache fully disabled**: Uses `sharp.cache({ files: 0, items: 0, memory: 0 })` to prevent libvips internal cache retention
 - **Concurrency limited**: Set to 1 to reduce memory spikes during concurrent processing
 - **Result**: Prevents ~50MB of hidden memory retention per Sharp operation
 
 ### Size-Aware Cache Eviction
+
 - **ServerCache**: Now uses LRU cache with `maxSize` budget (256MB) and byte-accurate size calculation
 - **S3 Existence Cache**: Added 8MB size limit to prevent unbounded growth of 50k keys
 - **Result**: Caches now respect memory budgets and evict based on actual byte usage
 
 ### Next.js 15 Optimizations
+
 - **Webpack memory optimizations**: Enabled via `experimental.webpackMemoryOptimizations`
 - **Source maps disabled**: Both client and server source maps disabled in production
 - **Build worker enabled**: `experimental.webpackBuildWorker` for build-time memory isolation
 - **Route preloading disabled**: Prevents 300-500MB initial RSS spike
 
 ### Monitoring Enhancements
+
 - **New endpoint**: `/api/metrics/cache` provides detailed cache statistics for Grafana
 - **Prometheus support**: Can return metrics in Prometheus format via `METRICS_FORMAT=prometheus`
 - **Comprehensive metrics**: Tracks buffer cache, metadata cache, operations, and hit rates
 
 ### Search Standardization
+
 - **Bookmarks search**: Now uses MiniSearch like all other content types
 - **Unified caching**: All search indexes cached with proper TTLs
 - **Result**: Eliminates API-based bookmark search and standardizes fuzzy search
