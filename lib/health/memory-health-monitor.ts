@@ -269,17 +269,23 @@ export class MemoryHealthMonitor extends EventEmitter {
   }
 
   /**
-   * Attempt an emergency cleanup by clearing server-side caches.
+   * Attempt an emergency cleanup by disabling caches rather than clearing them.
+   * This allows the system to continue functioning without cache operations.
    * Errors are logged but not re-thrown to avoid cascading failures.
    */
   async emergencyCleanup(): Promise<void> {
     try {
       // Allow console output during specific memory management tests
       if (process.env.NODE_ENV !== "test" || process.env.ALLOW_MEMORY_TEST_LOGS === "true") {
-        console.warn("[MemoryHealthMonitor] Starting emergency memory cleanup");
+        console.warn("[MemoryHealthMonitor] Emergency cleanup: disabling cache operations");
       }
-      ServerCacheInstance.clearAllCaches();
-
+      
+      // Set memory pressure mode to prevent new cache entries
+      ImageMemoryManagerInstance.setMemoryPressure(true);
+      
+      // Note: We're NOT clearing caches aggressively anymore
+      // The system should continue to function without caches
+      
       // Simulate asynchronous cleanup step to satisfy linter (and preserve API)
       await Promise.resolve();
     } catch (err) {

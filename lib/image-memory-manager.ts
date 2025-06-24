@@ -52,6 +52,11 @@ export class ImageMemoryManager extends EventEmitter {
   private memoryPressure = false;
   private readonly maxBufferSize: number;
   private readonly memoryCheckInterval: NodeJS.Timeout;
+  private lastCleanupTimestamp = 0;
+  private readonly cleanupCooldownMs = 30000; // 30 second cooldown between cleanups
+  private failureCount = 0;
+  private readonly maxFailures = 3; // After 3 failures, stop trying
+  private disabled = false; // Circuit breaker - disable all operations if too many failures
 
   constructor() {
     super();
@@ -75,7 +80,12 @@ export class ImageMemoryManager extends EventEmitter {
     const cacheOptions = {
       max: 5000, // Max number of items
       maxSize: budget,
-      sizeCalculation: (buffer: Buffer): number => buffer.byteLength,
+      sizeCalculation: (buffer: Buffer): number => {
+        // Account for V8 object overhead, not just buffer bytes
+        const bufferBytes = buffer.byteLength;
+        const overhead = 64; // V8 object header, Map entry, key string, etc.
+        return bufferBytes + overhead;
+      },
       ttl: 30 * 24 * 60 * 60 * 1000, // 30 days
 
       // Critical: Help GC by explicitly handling disposal
@@ -127,79 +137,118 @@ export class ImageMemoryManager extends EventEmitter {
    * Get image from cache with memory pressure awareness
    */
   async get(key: string): Promise<ImageCacheEntry | null> {
-    // Check memory pressure first
-    if (this.memoryPressure) {
-      this.emit("memory-pressure", { key, action: "get-rejected" });
+    // If disabled, return null - let the system work without cache
+    if (this.disabled) {
       return null;
     }
 
-    // Check if we have the buffer in cache
-    const buffer = this.cache.get(key);
-    const metadata = this.metadataCache.get(key);
-
-    if (buffer && metadata) {
-      return {
-        buffer,
-        ...metadata,
-      };
-    }
-
-    // Check if fetch is already in progress (request coalescing)
-    if (this.inFlightFetches.has(key)) {
-      try {
-        const fetchPromise = this.inFlightFetches.get(key);
-        if (!fetchPromise) return null;
-        const buffer = await fetchPromise;
-        const metadata = this.metadataCache.get(key);
-        if (metadata) {
-          return { buffer, ...metadata };
-        }
-      } catch (error) {
-        // Fetch failed, return null
-        console.warn(
-          `[ImageMemory] In-flight fetch for ${key} failed:`,
-          error instanceof Error ? error.message : String(error),
-        );
+    try {
+      // Check memory pressure first
+      if (this.memoryPressure) {
+        this.emit("memory-pressure", { key, action: "get-rejected" });
         return null;
       }
-    }
 
-    return null;
+      // Check if we have the buffer in cache
+      const buffer = this.cache.get(key);
+      const metadata = this.metadataCache.get(key);
+
+      if (buffer && metadata) {
+        return {
+          buffer,
+          ...metadata,
+        };
+      }
+
+      // Check if fetch is already in progress (request coalescing)
+      if (this.inFlightFetches.has(key)) {
+        try {
+          const fetchPromise = this.inFlightFetches.get(key);
+          if (!fetchPromise) return null;
+          const buffer = await fetchPromise;
+          const metadata = this.metadataCache.get(key);
+          if (metadata) {
+            return { buffer, ...metadata };
+          }
+        } catch (error) {
+          // Fetch failed, return null
+          console.warn(
+            `[ImageMemory] In-flight fetch for ${key} failed:`,
+            error instanceof Error ? error.message : String(error),
+          );
+          return null;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      // Any error in cache operations, just return null
+      console.warn(`[ImageMemory] Error in get operation:`, error);
+      this.handleFailure();
+      return null;
+    }
+  }
+
+  /**
+   * Handle cache operation failures - increment counter and disable after threshold
+   */
+  private handleFailure(): void {
+    this.failureCount++;
+    
+    if (this.failureCount >= this.maxFailures && !this.disabled) {
+      this.disabled = true;
+      console.warn(
+        `[ImageMemory] Circuit breaker activated after ${this.failureCount} failures. Cache operations disabled to prevent system instability.`
+      );
+      
+      // Clear all caches to free memory
+      try {
+        this.clear();
+      } catch (error) {
+        // Even clearing failed - system is in bad state but we continue
+        console.error(`[ImageMemory] Failed to clear caches during circuit breaker activation:`, error);
+      }
+    }
   }
 
   /**
    * Set image in cache with size validation and buffer copying
    */
   set(key: string, buffer: Buffer, metadata: Omit<ImageCacheEntry, "buffer" | "timestamp">): boolean {
-    // Validate buffer size
-    if (buffer.byteLength > this.maxBufferSize) {
-      console.warn(`[ImageMemory] Rejected oversized buffer ${key}: ${buffer.byteLength} bytes`);
-      this.emit("buffer-rejected", {
-        key,
-        size: buffer.byteLength,
-        reason: "size-limit",
-      });
+    // If disabled, silently fail - let the system work without cache
+    if (this.disabled) {
       return false;
     }
-
-    // Reject if in memory pressure
-    if (this.memoryPressure) {
-      this.emit("memory-pressure", {
-        key,
-        action: "set-rejected",
-        size: buffer.byteLength,
-      });
-      return false;
-    }
-
-    // CRITICAL: Only create a copy when the incoming Buffer is a slice of a larger
-    // ArrayBuffer.  If the Buffer already owns its entire underlying memory
-    // (byteOffset === 0 and spans the full ArrayBuffer), re-use it to avoid an
-    // extra allocation that can triple memory during bulk logo processing.
-    const needsCopy: boolean = buffer.byteOffset !== 0 || buffer.byteLength !== buffer.buffer.byteLength;
-    const copy: Buffer = needsCopy ? Buffer.from(buffer) : buffer;
 
     try {
+      // Validate buffer size
+      if (buffer.byteLength > this.maxBufferSize) {
+        console.warn(`[ImageMemory] Rejected oversized buffer ${key}: ${buffer.byteLength} bytes`);
+        this.emit("buffer-rejected", {
+          key,
+          size: buffer.byteLength,
+          reason: "size-limit",
+        });
+        return false;
+      }
+
+      // Reject if in memory pressure
+      if (this.memoryPressure) {
+        this.emit("memory-pressure", {
+          key,
+          action: "set-rejected",
+          size: buffer.byteLength,
+        });
+        return false;
+      }
+
+      // CRITICAL: Only create a copy when the incoming Buffer is a slice of a larger
+      // ArrayBuffer.  If the Buffer already owns its entire underlying memory
+      // (byteOffset === 0 and spans the full ArrayBuffer), re-use it to avoid an
+      // extra allocation that can triple memory during bulk logo processing.
+      const needsCopy: boolean = buffer.byteOffset !== 0 || buffer.byteLength !== buffer.buffer.byteLength;
+      const copy: Buffer = needsCopy ? Buffer.from(buffer) : buffer;
+
       // Store buffer and metadata separately
       this.cache.set(key, copy);
       const metadataToCache: Omit<ImageCacheEntry, "buffer"> = {
@@ -214,6 +263,7 @@ export class ImageMemoryManager extends EventEmitter {
       const error = err instanceof Error ? err : new Error(String(err));
       console.error(`[ImageMemory] Failed to cache ${key}:`, error);
       this.emit("cache-error", { key, error });
+      this.handleFailure();
       return false;
     }
   }
@@ -222,20 +272,23 @@ export class ImageMemoryManager extends EventEmitter {
    * Register an in-flight fetch to prevent duplicate requests
    */
   registerFetch(key: string, fetchPromise: Promise<Buffer>): void {
+    // If disabled, don't track fetches
+    if (this.disabled) {
+      return;
+    }
+
     if (this.inFlightFetches.size >= 1000) {
       console.warn(`[ImageMemory] In-flight fetch limit reached, rejecting new fetch for ${key}`);
       return;
     }
-    this.inFlightFetches.set(key, fetchPromise);
-
-    // Clean up after completion
-    fetchPromise
+    
+    // Ensure cleanup happens regardless of promise outcome
+    const wrappedPromise = fetchPromise
       .finally(() => {
         this.inFlightFetches.delete(key);
-      })
-      .catch(() => {
-        // Silently handle - errors are handled by caller
       });
+    
+    this.inFlightFetches.set(key, wrappedPromise);
   }
 
   /**
@@ -264,9 +317,23 @@ export class ImageMemoryManager extends EventEmitter {
    * Clear all caches
    */
   clear(): void {
-    this.cache.clear();
-    this.metadataCache.clear();
-    this.inFlightFetches.clear();
+    try {
+      this.cache.clear();
+    } catch (error) {
+      console.error("[ImageMemory] Failed to clear main cache:", error);
+    }
+    
+    try {
+      this.metadataCache.clear();
+    } catch (error) {
+      console.error("[ImageMemory] Failed to clear metadata cache:", error);
+    }
+    
+    try {
+      this.inFlightFetches.clear();
+    } catch (error) {
+      console.error("[ImageMemory] Failed to clear in-flight fetches:", error);
+    }
   }
 
   /**
@@ -282,6 +349,28 @@ export class ImageMemoryManager extends EventEmitter {
       external: memUsage.external,
       memoryPressure: this.memoryPressure,
     };
+  }
+
+  /**
+   * Reset the circuit breaker - use with caution
+   * This should only be called after memory conditions have improved significantly
+   */
+  resetCircuitBreaker(): void {
+    const memUsage = process.memoryUsage();
+    const totalProcessBudget = MEMORY_THRESHOLDS.TOTAL_PROCESS_MEMORY_BUDGET_BYTES;
+    const safeThreshold = totalProcessBudget * 0.6; // Only reset if below 60%
+    
+    if (memUsage.rss < safeThreshold) {
+      this.disabled = false;
+      this.failureCount = 0;
+      console.log(
+        `[ImageMemory] Circuit breaker reset. Memory usage ${Math.round(memUsage.rss / 1024 / 1024)}MB is below safe threshold.`
+      );
+    } else {
+      console.warn(
+        `[ImageMemory] Cannot reset circuit breaker. Memory usage ${Math.round(memUsage.rss / 1024 / 1024)}MB still above safe threshold.`
+      );
+    }
   }
 
   /**
@@ -319,38 +408,57 @@ export class ImageMemoryManager extends EventEmitter {
    * @param percentage - The percentage of the cache to evict (e.g., 0.2 for 20%).
    */
   private proactiveEviction(percentage: number): void {
-    const budget = this.cache.maxSize;
-    if (!budget) return;
+    // If disabled, don't perform eviction
+    if (this.disabled) {
+      return;
+    }
 
-    const targetSize = Math.floor(budget * (1 - percentage));
+    const maxSize = this.cache.maxSize;
+    if (!maxSize) return;
+
+    const targetSize = Math.floor(maxSize * (1 - percentage));
     if ((this.cache.calculatedSize ?? 0) <= targetSize) {
       return; // Already below target
     }
 
-    console.log(
-      `[ImageMemory] Proactive eviction triggered. Target: ${targetSize}, Current: ${this.cache.calculatedSize ?? 0}`,
-    );
-
     const initialSize = this.cache.calculatedSize ?? 0;
-    let evictedCount = 0;
-
-    // Trim the cache by evicting oldest items until the target size is met.
-    while ((this.cache.calculatedSize ?? 0) > targetSize && this.cache.size > 0) {
-      // lru-cache's keys() iterates from oldest to newest
-      const oldestKey = this.cache.keys().next().value as string | undefined;
-      if (oldestKey) {
-        this.cache.delete(oldestKey);
-        evictedCount++;
-      } else {
-        break; // Should not happen if size > 0
-      }
-    }
-
+    
     console.log(
-      `[ImageMemory] Proactive eviction complete. Evicted ${evictedCount} items. Size reduced from ${initialSize} to ${
-        this.cache.calculatedSize ?? 0
-      }.`,
+      `[ImageMemory] Proactive eviction triggered. Target: ${targetSize}, Current: ${initialSize}`,
     );
+
+    // Schedule async eviction to avoid blocking
+    setImmediate(() => {
+      let evictedCount = 0;
+      const batchSize = 50; // Smaller batches for proactive eviction
+      
+      const evictBatch = () => {
+        let i = 0;
+        while (i < batchSize && (this.cache.calculatedSize ?? 0) > targetSize && this.cache.size > 0) {
+          const oldestKey = this.cache.keys().next().value as string | undefined;
+          if (oldestKey) {
+            this.cache.delete(oldestKey);
+            evictedCount++;
+          } else {
+            break;
+          }
+          i++;
+        }
+        
+        // Continue if needed
+        if ((this.cache.calculatedSize ?? 0) > targetSize && this.cache.size > 0) {
+          setImmediate(evictBatch);
+        } else {
+          console.log(
+            `[ImageMemory] Proactive eviction complete. Evicted ${evictedCount} items. Size reduced from ${initialSize} to ${
+              this.cache.calculatedSize ?? 0
+            }.`,
+          );
+        }
+      };
+      
+      evictBatch();
+    });
   }
 
   /**
@@ -359,7 +467,6 @@ export class ImageMemoryManager extends EventEmitter {
   private startMemoryMonitoring(): NodeJS.Timeout {
     const interval = setInterval(() => {
       const usage = process.memoryUsage();
-      const budget = MEMORY_THRESHOLDS.IMAGE_RAM_BUDGET_BYTES;
 
       // Use same thresholds as MemGuard for consistency
       const totalProcessBudget = MEMORY_THRESHOLDS.TOTAL_PROCESS_MEMORY_BUDGET_BYTES;
@@ -371,29 +478,45 @@ export class ImageMemoryManager extends EventEmitter {
       // Calculate memory usage percentage
       const memoryUsagePercent = (usage.rss / totalProcessBudget) * 100;
 
-      // Emergency threshold - 95% - flush everything
+      // Emergency threshold - 95% - disable cache operations
       if (usage.rss > emergencyThreshold) {
-        console.error(
-          `[ImageMemory] EMERGENCY: RSS ${Math.round(usage.rss / 1024 / 1024)}MB exceeds 95% of ${Math.round(totalProcessBudget / 1024 / 1024)}MB budget, flushing all caches`,
-        );
-        this.clear();
-        // Also clear ServerCache
-        import("@/lib/server-cache")
-          .then(({ ServerCacheInstance }) => {
-            ServerCacheInstance.flushAll();
-          })
-          .catch(() => {
-            // Ignore import errors
+        if (!this.disabled) {
+          console.error(
+            `[ImageMemory] EMERGENCY: RSS ${Math.round(usage.rss / 1024 / 1024)}MB exceeds 95% of ${Math.round(totalProcessBudget / 1024 / 1024)}MB budget. Disabling cache operations.`,
+          );
+          
+          // Disable cache to prevent further memory allocation
+          this.disabled = true;
+          this.memoryPressure = true;
+          
+          // Emit emergency event but don't perform aggressive cleanup
+          this.emit("memory-emergency", {
+            rss: usage.rss,
+            threshold: emergencyThreshold,
+            action: "cache-disabled",
           });
+        }
+        
         return; // Skip other checks
       }
 
-      // Critical threshold - 90% - clear image cache
+      // Critical threshold - 90% - stop accepting new cache entries
       if (usage.rss > criticalThreshold) {
-        console.warn(
-          `[ImageMemory] CRITICAL: RSS ${Math.round(usage.rss / 1024 / 1024)}MB exceeds 90% of ${Math.round(totalProcessBudget / 1024 / 1024)}MB budget, clearing image cache`,
-        );
-        this.clear();
+        if (!this.memoryPressure) {
+          console.warn(
+            `[ImageMemory] CRITICAL: RSS ${Math.round(usage.rss / 1024 / 1024)}MB exceeds 90% of ${Math.round(totalProcessBudget / 1024 / 1024)}MB budget. Entering memory pressure mode.`,
+          );
+          
+          // Enter memory pressure mode to stop accepting new entries
+          this.memoryPressure = true;
+          
+          this.emit("memory-critical", {
+            rss: usage.rss,
+            threshold: criticalThreshold,
+            action: "memory-pressure-enabled",
+          });
+        }
+        
         return; // Skip other checks
       }
 
@@ -425,7 +548,7 @@ export class ImageMemoryManager extends EventEmitter {
         }
       }
 
-      // Enter memory pressure at 80% - BEFORE MemGuard's 80% critical threshold
+      // Enter memory pressure at 80% - stop accepting new entries
       if (usage.rss > pressureThreshold) {
         if (!this.memoryPressure) {
           this.memoryPressure = true;
@@ -436,38 +559,9 @@ export class ImageMemoryManager extends EventEmitter {
             threshold: pressureThreshold,
             memoryUsagePercent,
           });
-
-          // Aggressive cleanup when entering pressure
-          const targetSize = Math.floor(budget * 0.5); // Clear to 50% of budget
-          while ((this.cache.calculatedSize ?? 0) > targetSize && this.cache.size > 0) {
-            // LRU will evict oldest items
-            const oldestKey = this.cache.keys().next().value as string | undefined;
-            if (oldestKey) {
-              this.cache.delete(oldestKey);
-            } else {
-              break;
-            }
-          }
-          // Also reduce the metadata cache size under pressure
-          const metadataTargetSize = Math.floor((this.metadataCache.maxSize ?? 0) * 0.5); // Clear to 50%
-          while ((this.metadataCache.calculatedSize ?? 0) > metadataTargetSize && this.metadataCache.size > 0) {
-            const oldestKey = this.metadataCache.keys().next().value as string | undefined;
-            if (oldestKey) {
-              this.metadataCache.delete(oldestKey);
-            } else {
-              break;
-            }
-          }
-          console.warn(
-            `[ImageMemory] Reduced metadata cache to ${
-              this.metadataCache.calculatedSize ?? 0
-            } bytes due to memory pressure.`,
-          );
-
-          // Try to trigger GC if available
-          if (global.gc) {
-            global.gc();
-          }
+          
+          // No aggressive cleanup - just stop accepting new entries
+          // Let natural TTL eviction and LRU handle cleanup over time
         }
       } else if (this.memoryPressure && usage.rss < pressureThreshold * 0.7) {
         // Hysteresis: Only clear pressure when well below threshold
