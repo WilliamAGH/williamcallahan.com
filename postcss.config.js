@@ -29,11 +29,10 @@ export default {
       features: {
         // Disable custom properties (CSS variables) polyfill
         "custom-properties": false,
-        // Enable nesting rules
-        "nesting-rules": true,
+        // Disable nesting rules, handled by `tailwindcss/nesting`
+        "nesting-rules": false,
       },
-      // Modern browser support (no IE11)
-      browsers: ["> 0.5%", "last 2 versions", "not dead", "not IE 11"],
+      // Modern browser support (no IE11) - REMOVED to use .browserslistrc
     },
   },
 };
