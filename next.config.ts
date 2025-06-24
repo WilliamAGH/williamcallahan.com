@@ -347,6 +347,8 @@ const nextConfig = {
     serverSourceMaps: false, // Disable server source maps to save memory
     // Reduce memory usage in development
     optimizePackageImports: ["lucide-react", "@sentry/nextjs", "googleapis"],
+    // Note: dynamicIO is only available in canary releases, comment out for stable
+    // dynamicIO: true,
     // Note: Next.js ≥14 replaced `isrMemoryCacheSize` with `cacheMaxMemorySize` at the root level.
     // Keep experimental section focused on actual experimental flags only.
   },
