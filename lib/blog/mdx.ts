@@ -27,7 +27,6 @@
  * compatible and maintain the `@ts-nocheck` directive.
  */
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
 assertServerOnly(); // Ensure this module runs only on the server
 
 import { assertServerOnly } from "../utils/ensure-server-only";
@@ -116,9 +115,8 @@ export async function getMDXPost(
       // Need stats for lastModified, even with content override
       try {
         stats = await fs.stat(filePathForPost);
-      } catch (_statError) {
-        // Parameter is unused
-        console.warn(`[getMDXPost] Could not stat file ${filePathForPost} even with content override:`, _statError);
+      } catch {
+        console.warn(`[getMDXPost] Could not stat file ${filePathForPost} even with content override`);
         stats = {
           mtime: new Date(0),
           birthtime: new Date(0),
@@ -131,7 +129,7 @@ export async function getMDXPost(
       // Stat once; failure means the file is missing or unreadable
       try {
         stats = await fs.stat(filePathForPost);
-      } catch (_statError) {
+      } catch {
         console.warn(
           `[getMDXPost] Blog post file not found or unreadable at path ${filePathForPost} (slug: ${frontmatterSlug})`,
         );
