@@ -399,10 +399,11 @@ export const CSP_DIRECTIVES = {
  * `TOTAL_PROCESS_MEMORY_BUDGET_BYTES` environment variable.
  */
 // In development/CI the dev server and webpack often exceed 2 GB on first compile.
-// Raise the default safety ceiling outside production, while still allowing
-// operators to override via the env variable. Production uses 3.75GB to better utilize 4GB container.
+// Use a reasonable 2GB limit for development to prevent excessive memory usage,
+// while still allowing operators to override via the env variable.
+// Production uses 3.75GB to better utilize 4GB container.
 const DEFAULT_TOTAL_MEMORY_BUDGET_BYTES =
-  process.env.NODE_ENV === "production" ? 3.75 * 1024 * 1024 * 1024 : 8 * 1024 * 1024 * 1024;
+  process.env.NODE_ENV === "production" ? 3.75 * 1024 * 1024 * 1024 : 2 * 1024 * 1024 * 1024;
 
 const TOTAL_MEMORY_BUDGET = Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? DEFAULT_TOTAL_MEMORY_BUDGET_BYTES);
 

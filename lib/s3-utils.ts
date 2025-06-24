@@ -83,10 +83,12 @@ function hasMemoryHeadroom(): boolean {
   if (typeof process === "undefined") return true;
   
   const usage = process.memoryUsage();
-  const warningThreshold = MEMORY_THRESHOLDS.MEMORY_WARNING_THRESHOLD;
+  // Use critical threshold (90%) instead of warning threshold (70%)
+  // S3 operations should only be deferred when memory is critically high
+  const criticalThreshold = MEMORY_THRESHOLDS.MEMORY_CRITICAL_THRESHOLD;
   
-  if (usage.rss > warningThreshold) {
-    console.warn(`[S3Utils] Memory usage (${(usage.rss / 1024 / 1024).toFixed(2)}MB) exceeds warning threshold. Deferring S3 operations.`);
+  if (usage.rss > criticalThreshold) {
+    console.warn(`[S3Utils] Memory usage (${(usage.rss / 1024 / 1024).toFixed(2)}MB) exceeds critical threshold. Deferring S3 operations.`);
     return false;
   }
   
@@ -177,12 +179,6 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
   // Bypass public CDN for JSON files to avoid stale cache; only use CDN for non-JSON
   const isJson = key.endsWith(".json");
   if (!isJson && S3_PUBLIC_CDN_URL) {
-    // Check memory pressure before CDN fetch
-    if (!hasMemoryHeadroom()) {
-      console.warn(`[S3Utils] Insufficient memory headroom for CDN fetch of ${key}`);
-      return null;
-    }
-    
     const cdnUrl = `${S3_PUBLIC_CDN_URL.replace(/\/+$/, "")}/${key}`;
     if (isDebug) debug(`[S3Utils] Attempting to read key ${key} via CDN: ${cdnUrl}`);
 

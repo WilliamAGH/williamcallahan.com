@@ -144,6 +144,11 @@ export function initializeBookmarksDataAccess(): void {
         console.debug("[Bookmarks] Periodic lock cleanup check failed:", String(error)),
       );
     }, LOCK_CLEANUP_INTERVAL_MS);
+    
+    // Don't prevent process from exiting
+    if (lockCleanupInterval.unref) {
+      lockCleanupInterval.unref();
+    }
   }
 }
 
