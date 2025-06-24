@@ -5,6 +5,8 @@
  * BOUNDARY: Domain types only - component props belong in types/ui/terminal.ts
  */
 
+import { z } from "zod";
+
 // Base interfaces for terminal items
 export interface SelectionItem {
   label: string;
@@ -153,4 +155,24 @@ export function isTerminalCommand(item: unknown): item is TerminalCommand {
 
 export function isTerminalCommandArray(data: unknown): data is TerminalCommand[] {
   return Array.isArray(data) && data.every(isTerminalCommand);
+}
+
+/**
+ * Zod Schema for Terminal Search API Validation
+ * Terminal search returns SelectionItem format, not the general SearchResult format
+ */
+export const TerminalSearchResultSchema = z.object({
+  label: z.string(),
+  description: z.string(),
+  path: z.string(),
+});
+
+export const TerminalSearchApiResponseSchema = z.union([
+  z.array(TerminalSearchResultSchema),
+  z.object({ results: z.array(TerminalSearchResultSchema) }),
+]);
+
+export function parseTerminalSearchResponse(data: unknown): TerminalSearchResult[] {
+  const parsed = TerminalSearchApiResponseSchema.parse(data);
+  return Array.isArray(parsed) ? parsed : parsed.results;
 }

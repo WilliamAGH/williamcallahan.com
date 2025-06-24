@@ -34,6 +34,7 @@ const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
 };
 
 const HISTORY_STORAGE_KEY = "terminal_history";
+const MAX_HISTORY_SIZE = 100; // Limit history to prevent unbounded growth
 
 export function TerminalProvider({ children }: { children: React.ReactNode }) {
   const [currentInput, setCurrentInput] = useState<string>("");
@@ -53,10 +54,17 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
         if (isTerminalCommandArray(parsedData)) {
           // Check if welcome message exists, add if not
           const hasWelcome = parsedData.some((cmd) => cmd.id === INITIAL_WELCOME_MESSAGE.id);
-          if (hasWelcome) {
-            return parsedData;
+          let loadedHistory = hasWelcome ? parsedData : [INITIAL_WELCOME_MESSAGE, ...parsedData];
+          
+          // Trim history if it exceeds max size
+          if (loadedHistory.length > MAX_HISTORY_SIZE) {
+            const welcomeMsg = loadedHistory.find(cmd => cmd.id === INITIAL_WELCOME_MESSAGE.id);
+            const otherCommands = loadedHistory.filter(cmd => cmd.id !== INITIAL_WELCOME_MESSAGE.id);
+            const trimmedCommands = otherCommands.slice(-(MAX_HISTORY_SIZE - 1));
+            loadedHistory = welcomeMsg ? [welcomeMsg, ...trimmedCommands] : trimmedCommands;
           }
-          return [INITIAL_WELCOME_MESSAGE, ...parsedData];
+          
+          return loadedHistory;
         }
       }
     } catch (e) {
@@ -100,9 +108,20 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
     setHistory([INITIAL_WELCOME_MESSAGE]);
   }, []);
 
-  // Add command to history
+  // Add command to history with size limit
   const addToHistory = useCallback((command: TerminalCommand): void => {
-    setHistory((prev: TerminalCommand[]): TerminalCommand[] => [...prev, command]);
+    setHistory((prev: TerminalCommand[]): TerminalCommand[] => {
+      const newHistory = [...prev, command];
+      // Keep only the most recent MAX_HISTORY_SIZE items
+      if (newHistory.length > MAX_HISTORY_SIZE) {
+        // Always keep the welcome message at index 0
+        const welcomeMsg = newHistory.find(cmd => cmd.id === INITIAL_WELCOME_MESSAGE.id);
+        const otherCommands = newHistory.filter(cmd => cmd.id !== INITIAL_WELCOME_MESSAGE.id);
+        const trimmedCommands = otherCommands.slice(-(MAX_HISTORY_SIZE - 1));
+        return welcomeMsg ? [welcomeMsg, ...trimmedCommands] : trimmedCommands;
+      }
+      return newHistory;
+    });
   }, []);
 
   // Alias for addToHistory to match interface

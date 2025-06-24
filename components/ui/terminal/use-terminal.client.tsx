@@ -90,16 +90,33 @@ export function useTerminal() {
       if (item.path) {
         router.push(item.path);
 
-        // For paths with hash fragments (like /bookmarks#id), scroll to the element
-        setTimeout(() => {
-          const id = item.path.split("#")[1];
-          if (id) {
-            const element = document.getElementById(id);
-            if (element) {
-              element.scrollIntoView({ behavior: "smooth" });
-            }
-          }
-        }, 100);
+        // For paths with hash fragments (like /bookmarks#id), use IntersectionObserver
+        const id = item.path.split("#")[1];
+        if (id) {
+          // Use requestAnimationFrame to ensure DOM has updated after navigation
+          requestAnimationFrame(() => {
+            const checkElement = () => {
+              const element = document.getElementById(id);
+              if (element) {
+                element.scrollIntoView({ behavior: "smooth" });
+              } else {
+                // If element not found yet, try again on next frame (max 10 attempts)
+                let attempts = 0;
+                const retry = () => {
+                  attempts++;
+                  const element = document.getElementById(id);
+                  if (element) {
+                    element.scrollIntoView({ behavior: "smooth" });
+                  } else if (attempts < 10) {
+                    requestAnimationFrame(retry);
+                  }
+                };
+                requestAnimationFrame(retry);
+              }
+            };
+            checkElement();
+          });
+        }
       }
     },
     [router],
