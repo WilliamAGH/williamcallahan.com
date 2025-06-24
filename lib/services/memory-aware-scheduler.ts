@@ -174,6 +174,11 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
         console.error("[MemoryScheduler] Error in processing loop:", error);
       });
     }, 100); // Check every 100ms
+    
+    // Don't prevent process from exiting
+    if (this.processingInterval.unref) {
+      this.processingInterval.unref();
+    }
   }
 
   /**
