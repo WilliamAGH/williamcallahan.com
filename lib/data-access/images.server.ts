@@ -1,7 +1,7 @@
 import "server-only";
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "next/cache";
 import { env } from "@/lib/env";
+import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "next/cache";
 
 const s3Client = new S3Client({ region: env.AWS_REGION });
 
@@ -15,11 +15,9 @@ const s3Client = new S3Client({ region: env.AWS_REGION });
 export async function getCachedS3Image(key: string): Promise<Buffer> {
   "use cache";
 
-  cacheLife({
-    stale: 604800, // 1 week in seconds
-    revalidate: 2592000, // 30 days in seconds
-  });
-  cacheTag("image", `image-key-${key}`);
+  cacheLife('weeks'); // Use predefined profile for consistency
+  cacheTag("image");
+  cacheTag(`image-key-${key}`);
 
   const command = new GetObjectCommand({
     Bucket: env.S3_BUCKET_NAME,

@@ -14,15 +14,50 @@ import type { UnifiedBookmark, DistributedLockEntry, RefreshBookmarksCallback } 
 import type { BookmarksIndex, BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 import { tagToSlug } from "@/lib/utils/tag-utils";
+import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
+import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "next/cache";
+
+// Helper function to convert UnifiedBookmark to LightweightBookmark
+function stripImageData(bookmark: UnifiedBookmark): LightweightBookmark {
+  // Create a new object with only the properties we want to keep
+  return {
+    id: bookmark.id,
+    url: bookmark.url,
+    title: bookmark.title,
+    description: bookmark.description,
+    tags: bookmark.tags,
+    dateBookmarked: bookmark.dateBookmarked,
+    datePublished: bookmark.datePublished,
+    dateCreated: bookmark.dateCreated,
+    dateUpdated: bookmark.dateUpdated,
+    modifiedAt: bookmark.modifiedAt,
+    archived: bookmark.archived,
+    taggingStatus: bookmark.taggingStatus,
+    note: bookmark.note,
+    summary: bookmark.summary,
+    assets: bookmark.assets,
+    readingTime: bookmark.readingTime,
+    wordCount: bookmark.wordCount,
+    ogTitle: bookmark.ogTitle,
+    ogDescription: bookmark.ogDescription,
+    ogUrl: bookmark.ogUrl,
+    domain: bookmark.domain,
+    sourceUpdatedAt: bookmark.sourceUpdatedAt,
+    ogImageLastFetchedAt: bookmark.ogImageLastFetchedAt,
+    ogImageEtag: bookmark.ogImageEtag,
+    isPrivate: bookmark.isPrivate,
+    isFavorite: bookmark.isFavorite,
+  } as LightweightBookmark;
+}
 
 // --- Configuration & Constants ---
-const LOG_PREFIX = "[Bookmarks]";
+const LOG_PREFIX = "[BookmarksDataAccess]";
 const DISTRIBUTED_LOCK_S3_KEY = BOOKMARKS_S3_PATHS.LOCK;
 const LOCK_TTL_MS = Number(process.env.BOOKMARKS_LOCK_TTL_MS) || 5 * 60 * 1000; // 5 minutes default
 const LOCK_CLEANUP_INTERVAL_MS = 2 * 60 * 1000; // Check for stale locks every 2 minutes
 const INSTANCE_ID = `instance-${randomInt(1000000, 9999999)}-${Date.now()}`;
-const ENABLE_TAG_CACHING = process.env.ENABLE_TAG_CACHING !== 'false';
-const MAX_TAGS_TO_CACHE = parseInt(process.env.MAX_TAGS_TO_CACHE || '10', 10);
+const ENABLE_TAG_CACHING = process.env.ENABLE_TAG_CACHING !== "false";
+const MAX_TAGS_TO_CACHE = parseInt(process.env.MAX_TAGS_TO_CACHE || "10", 10);
 
 // Module-scoped state
 let isRefreshLocked = false;
@@ -32,7 +67,7 @@ let inFlightRefreshPromise: Promise<UnifiedBookmark[] | null> | null = null;
 
 // Type guard for S3 errors
 const isS3Error = (err: unknown): err is { $metadata?: { httpStatusCode?: number } } => {
-  return typeof err === 'object' && err !== null && '$metadata' in err;
+  return typeof err === "object" && err !== null && "$metadata" in err;
 };
 
 // S3-based distributed lock functions
@@ -62,7 +97,7 @@ async function acquireDistributedLock(lockKey: string, ttlMs: number, retryCount
             }
             await releaseDistributedLock(lockKey, true);
             // Add a small delay to avoid race conditions
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 100));
             return acquireDistributedLock(lockKey, ttlMs, retryCount + 1);
           }
         }
@@ -144,7 +179,7 @@ export function initializeBookmarksDataAccess(): void {
         console.debug("[Bookmarks] Periodic lock cleanup check failed:", String(error)),
       );
     }, LOCK_CLEANUP_INTERVAL_MS);
-    
+
     // Don't prevent process from exiting
     if (lockCleanupInterval.unref) {
       lockCleanupInterval.unref();
@@ -225,17 +260,17 @@ async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<
   }
 
   const pageSize = BOOKMARKS_PER_PAGE;
-  
+
   // Group bookmarks by tag
   const bookmarksByTag: Record<string, UnifiedBookmark[]> = {};
   const tagCounts: Record<string, number> = {};
-  
+
   for (const bookmark of bookmarks) {
     const tags = Array.isArray(bookmark.tags) ? bookmark.tags : [];
     for (const tag of tags) {
       const tagName = typeof tag === "string" ? tag : (tag as { name: string }).name;
       const tagSlugValue = tagToSlug(tagName);
-      
+
       if (!bookmarksByTag[tagSlugValue]) {
         bookmarksByTag[tagSlugValue] = [];
         tagCounts[tagSlugValue] = 0;
@@ -249,21 +284,23 @@ async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<
       }
     }
   }
-  
+
   // Sort tags by count and take only top N
   const topTags = Object.entries(tagCounts)
     .sort(([, a], [, b]) => b - a)
     .slice(0, MAX_TAGS_TO_CACHE)
     .map(([tag]) => tag);
-  
-  console.log(`${LOG_PREFIX} Processing ${topTags.length} of ${Object.keys(bookmarksByTag).length} tags (limited to top ${MAX_TAGS_TO_CACHE})`);
-  
+
+  console.log(
+    `${LOG_PREFIX} Processing ${topTags.length} of ${Object.keys(bookmarksByTag).length} tags (limited to top ${MAX_TAGS_TO_CACHE})`,
+  );
+
   // Write paginated bookmarks only for top tags
   for (const tagSlug of topTags) {
     const tagBookmarks = bookmarksByTag[tagSlug];
     if (!tagBookmarks) continue; // Safety check
     const totalPages = Math.ceil(tagBookmarks.length / pageSize);
-    
+
     // Write tag index
     const tagIndex: BookmarksIndex = {
       count: tagBookmarks.length,
@@ -275,7 +312,7 @@ async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<
       checksum: calculateBookmarksChecksum(tagBookmarks),
     };
     await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`, tagIndex);
-    
+
     // Write each page for this tag
     for (let page = 1; page <= totalPages; page++) {
       const start = (page - 1) * pageSize;
@@ -283,7 +320,7 @@ async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<
       await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${page}.json`, pageBookmarks);
     }
   }
-  
+
   console.log(`${LOG_PREFIX} Wrote tag-filtered bookmarks for ${topTags.length} tags`);
 }
 
@@ -372,9 +409,13 @@ export function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> 
   return promise;
 }
 
-async function fetchAndCacheBookmarks(options: BookmarkLoadOptions = {}): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
+async function fetchAndCacheBookmarks(
+  options: BookmarkLoadOptions = {},
+): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
   const { skipExternalFetch = false, includeImageData = true } = options;
-  console.log(`${LOG_PREFIX} fetchAndCacheBookmarks called. skipExternalFetch=${skipExternalFetch}, includeImageData=${includeImageData}`);
+  console.log(
+    `${LOG_PREFIX} fetchAndCacheBookmarks called. skipExternalFetch=${skipExternalFetch}, includeImageData=${includeImageData}`,
+  );
 
   // Try to load from full file first (needed for tag filtering)
   try {
@@ -396,13 +437,7 @@ async function fetchAndCacheBookmarks(options: BookmarkLoadOptions = {}): Promis
       // Strip image data if not needed
       if (!includeImageData) {
         console.log(`${LOG_PREFIX} Stripping image data from ${bookmarks.length} bookmarks`);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const lightweightBookmarks: LightweightBookmark[] = bookmarks.map(({ content, ogImage, logoData, ...rest }) => ({
-          ...rest,
-          content: undefined,
-          ogImage: undefined,
-          logoData: undefined
-        })) as LightweightBookmark[];
+        const lightweightBookmarks: LightweightBookmark[] = bookmarks.map(stripImageData);
         return lightweightBookmarks;
       }
 
@@ -422,25 +457,19 @@ async function fetchAndCacheBookmarks(options: BookmarkLoadOptions = {}): Promis
 
   const refreshedBookmarks = await refreshAndPersistBookmarks();
   if (!refreshedBookmarks) return [];
-  
+
   // Strip image data if not needed
   if (!includeImageData) {
     console.log(`${LOG_PREFIX} Stripping image data from refreshed bookmarks`);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const lightweightBookmarks: LightweightBookmark[] = refreshedBookmarks.map(({ content, ogImage, logoData, ...rest }) => ({
-      ...rest,
-      content: undefined,
-      ogImage: undefined,
-      logoData: undefined
-    })) as LightweightBookmark[];
+    const lightweightBookmarks: LightweightBookmark[] = refreshedBookmarks.map(stripImageData);
     return lightweightBookmarks;
   }
-  
+
   return refreshedBookmarks;
 }
 
-// Get a specific page of bookmarks
-export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookmark[]> {
+// Internal direct S3 read function (always available)
+async function getBookmarksPageDirect(pageNumber: number): Promise<UnifiedBookmark[]> {
   const pageKey = `${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${pageNumber}.json`;
   try {
     const pageData = await readJsonS3<UnifiedBookmark[]>(pageKey);
@@ -456,8 +485,33 @@ export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookm
   }
 }
 
-// Get a specific page of tag-filtered bookmarks
-export async function getTagBookmarksPage(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
+// Cached version using 'use cache' directive (wraps the direct function)
+async function getCachedBookmarksPage(pageNumber: number): Promise<UnifiedBookmark[]> {
+  'use cache';
+  
+  cacheLife('hours'); // 1 hour cache
+  cacheTag('bookmarks');
+  cacheTag(`bookmarks-page-${pageNumber}`);
+  
+  return getBookmarksPageDirect(pageNumber);
+}
+
+// Get a specific page of bookmarks - primary export
+export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookmark[]> {
+  // If caching is enabled, try to use it with fallback to direct
+  if (USE_NEXTJS_CACHE) {
+    return withCacheFallback(
+      () => getCachedBookmarksPage(pageNumber),
+      () => getBookmarksPageDirect(pageNumber)
+    );
+  }
+  
+  // Default: Always use direct S3 read
+  return getBookmarksPageDirect(pageNumber);
+}
+
+// Internal direct S3 read function for tag pages (always available)
+async function getTagBookmarksPageDirect(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
   const pageKey = `${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${pageNumber}.json`;
   try {
     const pageData = await readJsonS3<UnifiedBookmark[]>(pageKey);
@@ -473,8 +527,34 @@ export async function getTagBookmarksPage(tagSlug: string, pageNumber: number): 
   }
 }
 
-// Get tag index with metadata
-export async function getTagBookmarksIndex(tagSlug: string): Promise<BookmarksIndex | null> {
+// Cached version using 'use cache' directive for tag pages
+async function getCachedTagBookmarksPage(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
+  'use cache';
+  
+  cacheLife('hours'); // 1 hour cache
+  cacheTag('bookmarks');
+  cacheTag(`bookmarks-tag-${tagSlug}`);
+  cacheTag(`bookmarks-tag-${tagSlug}-page-${pageNumber}`);
+  
+  return getTagBookmarksPageDirect(tagSlug, pageNumber);
+}
+
+// Get a specific page of tag-filtered bookmarks - primary export
+export async function getTagBookmarksPage(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
+  // If caching is enabled, try to use it with fallback to direct
+  if (USE_NEXTJS_CACHE) {
+    return withCacheFallback(
+      () => getCachedTagBookmarksPage(tagSlug, pageNumber),
+      () => getTagBookmarksPageDirect(tagSlug, pageNumber)
+    );
+  }
+  
+  // Default: Always use direct S3 read
+  return getTagBookmarksPageDirect(tagSlug, pageNumber);
+}
+
+// Internal direct S3 read function for tag index (always available)
+async function getTagBookmarksIndexDirect(tagSlug: string): Promise<BookmarksIndex | null> {
   const indexKey = `${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`;
   try {
     const indexData = await readJsonS3<BookmarksIndex>(indexKey);
@@ -490,7 +570,35 @@ export async function getTagBookmarksIndex(tagSlug: string): Promise<BookmarksIn
   }
 }
 
-export async function getBookmarks(options: BookmarkLoadOptions = {}): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
+// Cached version using 'use cache' directive for tag index
+async function getCachedTagBookmarksIndex(tagSlug: string): Promise<BookmarksIndex | null> {
+  'use cache';
+  
+  cacheLife('hours'); // 1 hour cache
+  cacheTag('bookmarks');
+  cacheTag(`bookmarks-tag-${tagSlug}`);
+  cacheTag(`bookmarks-tag-${tagSlug}-index`);
+  
+  return getTagBookmarksIndexDirect(tagSlug);
+}
+
+// Get tag index with metadata - primary export
+export async function getTagBookmarksIndex(tagSlug: string): Promise<BookmarksIndex | null> {
+  // If caching is enabled, try to use it with fallback to direct
+  if (USE_NEXTJS_CACHE) {
+    return withCacheFallback(
+      () => getCachedTagBookmarksIndex(tagSlug),
+      () => getTagBookmarksIndexDirect(tagSlug)
+    );
+  }
+  
+  // Default: Always use direct S3 read
+  return getTagBookmarksIndexDirect(tagSlug);
+}
+
+export async function getBookmarks(
+  options: BookmarkLoadOptions = {},
+): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
   if (inFlightGetPromise) {
     return inFlightGetPromise;
   }
@@ -509,8 +617,8 @@ export async function getBookmarks(options: BookmarkLoadOptions = {}): Promise<U
 
 // Unified function for getting bookmarks by tag - handles caching transparently
 export async function getBookmarksByTag(
-  tagSlug: string, 
-  pageNumber: number = 1
+  tagSlug: string,
+  pageNumber: number = 1,
 ): Promise<{
   bookmarks: UnifiedBookmark[];
   totalCount: number;
@@ -518,14 +626,14 @@ export async function getBookmarksByTag(
   fromCache: boolean;
 }> {
   console.log(`${LOG_PREFIX} getBookmarksByTag called with tagSlug: "${tagSlug}", pageNumber: ${pageNumber}`);
-  
+
   // 1. Try cache first (if enabled and tag is cached)
   const pageKey = `${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${pageNumber}.json`;
   console.log(`${LOG_PREFIX} Attempting to read cached tag page from: ${pageKey}`);
-  
+
   const cachedPage = await getTagBookmarksPage(tagSlug, pageNumber);
   console.log(`${LOG_PREFIX} Cached page result: ${cachedPage.length} bookmarks found`);
-  
+
   if (cachedPage.length > 0) {
     const index = await getTagBookmarksIndex(tagSlug);
     console.log(`${LOG_PREFIX} Using cached data for tag "${tagSlug}"`);
@@ -533,14 +641,14 @@ export async function getBookmarksByTag(
       bookmarks: cachedPage,
       totalCount: index?.count || cachedPage.length,
       totalPages: index?.totalPages || 1,
-      fromCache: true
+      fromCache: true,
     };
   }
 
   // 2. Cache miss - filter from all bookmarks (always get lightweight for tag filtering)
-  const allBookmarks = await getBookmarks({ includeImageData: false }) as UnifiedBookmark[];
+  const allBookmarks = (await getBookmarks({ includeImageData: false })) as UnifiedBookmark[];
   const tagQuery = tagSlug.replace(/-/g, " ");
-  
+
   // Filter bookmarks that have this tag
   const filtered = allBookmarks.filter((b) => {
     const tags = Array.isArray(b.tags) ? b.tags : [];
@@ -560,7 +668,7 @@ export async function getBookmarksByTag(
     bookmarks: paginated,
     totalCount,
     totalPages,
-    fromCache: false
+    fromCache: false,
   };
 }
 

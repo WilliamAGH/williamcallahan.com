@@ -130,8 +130,7 @@ export function isValidUrl(url: string): boolean {
       return false;
     }
     return true;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (_) {
+  } catch {
     return false;
   }
 }
