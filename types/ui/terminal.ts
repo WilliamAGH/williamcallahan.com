@@ -62,11 +62,12 @@ export interface TerminalHeaderProps {
 
 export interface SelectionViewProps {
   items: Array<{
+    id: string;
     label: string;
     description: string;
     path: string;
   }>;
-  onSelectAction: (item: { label: string; description: string; path: string }) => void;
+  onSelectAction: (item: { id: string; label: string; description: string; path: string }) => void;
   onExitAction: () => void;
 }
 

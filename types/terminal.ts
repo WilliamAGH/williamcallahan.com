@@ -9,6 +9,7 @@ import { z } from "zod";
 
 // Base interfaces for terminal items
 export interface SelectionItem {
+  id: string;
   label: string;
   description: string;
   path: string;
@@ -162,6 +163,7 @@ export function isTerminalCommandArray(data: unknown): data is TerminalCommand[]
  * Terminal search returns SelectionItem format, not the general SearchResult format
  */
 export const TerminalSearchResultSchema = z.object({
+  id: z.string().min(1),
   label: z.string(),
   description: z.string(),
   path: z.string(),
