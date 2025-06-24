@@ -165,6 +165,9 @@ const nextConfig = {
         hashAlgorithm: "xxhash64",
         name: `dev-cache-${compilerName}`,
         version: appVersion,
+        // Limit memory usage for filesystem cache
+        maxMemoryGenerations: 1,
+        memoryCacheUnaffected: false,
       };
 
       // Disable source maps in development to save ~30% memory
@@ -179,7 +182,38 @@ const nextConfig = {
         removeAvailableModules: true,
         removeEmptyChunks: true,
         sideEffects: false,
+        // Minimize memory usage during development
+        splitChunks: {
+          chunks: "all",
+          cacheGroups: {
+            // Prevent large vendor bundles in memory
+            default: false,
+            vendors: false,
+          },
+        },
       };
+
+      // Limit TypeScript checker memory usage
+      if (!config.plugins) {
+        config.plugins = [];
+      }
+
+      // Add webpack plugin to monitor memory usage
+      const webpack = require("webpack");
+      config.plugins.push(
+        new webpack.ProgressPlugin({
+          handler: (percentage, _message, ..._args) => {
+            // Only log memory usage periodically
+            if (percentage === 0 || percentage === 1) {
+              const used = process.memoryUsage();
+              console.log(
+                `[Webpack Memory] RSS: ${Math.round(used.rss / 1024 / 1024)}MB, ` +
+                  `Heap: ${Math.round(used.heapUsed / 1024 / 1024)}MB`,
+              );
+            }
+          },
+        }),
+      );
     } else {
       // Keep memory cache in production for performance
       config.cache = {
@@ -311,6 +345,8 @@ const nextConfig = {
     webpackMemoryOptimizations: true, // Enable webpack memory optimizations
     preloadEntriesOnStart: false, // Don't preload all pages on server start
     serverSourceMaps: false, // Disable server source maps to save memory
+    // Reduce memory usage in development
+    optimizePackageImports: ["lucide-react", "@sentry/nextjs", "googleapis"],
     // Note: Next.js ≥14 replaced `isrMemoryCacheSize` with `cacheMaxMemorySize` at the root level.
     // Keep experimental section focused on actual experimental flags only.
   },

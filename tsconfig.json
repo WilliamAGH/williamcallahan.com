@@ -15,6 +15,9 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "disableSourceOfProjectReferenceRedirect": true,
+    "disableSolutionSearching": true,
+    "disableReferencedProjectLoad": true,
     "plugins": [
       {
         "name": "next"
