@@ -147,13 +147,17 @@ export async function readFromS3(
     }
   }
 
-  // Create promise for this read operation
-  const readPromise = performS3Read(key, options);
+  // Create promise for this read operation with guaranteed cleanup
+  const readPromise = performS3Read(key, options).finally(() => {
+    // Ensure cleanup even if performS3Read throws synchronously
+    if (!options?.range) {
+      inFlightReads.delete(cacheKey);
+    }
+  });
 
   // Track in-flight request only for non-range requests
   if (!options?.range) {
     inFlightReads.set(cacheKey, readPromise);
-    void readPromise.finally(() => inFlightReads.delete(cacheKey));
   }
   return readPromise;
 }
@@ -173,6 +177,12 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
   // Bypass public CDN for JSON files to avoid stale cache; only use CDN for non-JSON
   const isJson = key.endsWith(".json");
   if (!isJson && S3_PUBLIC_CDN_URL) {
+    // Check memory pressure before CDN fetch
+    if (!hasMemoryHeadroom()) {
+      console.warn(`[S3Utils] Insufficient memory headroom for CDN fetch of ${key}`);
+      return null;
+    }
+    
     const cdnUrl = `${S3_PUBLIC_CDN_URL.replace(/\/+$/, "")}/${key}`;
     if (isDebug) debug(`[S3Utils] Attempting to read key ${key} via CDN: ${cdnUrl}`);
 
@@ -519,6 +529,8 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
     const STREAM_TIMEOUT_MS = 30000; // 30 seconds
     timeoutId = setTimeout(() => {
       stream.destroy();
+      // Clear accumulated chunks to prevent memory retention
+      chunks.length = 0;
       reject(new Error("Stream timeout: took longer than 30 seconds"));
     }, STREAM_TIMEOUT_MS);
 
@@ -536,6 +548,8 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
       if (totalSize > MAX_S3_READ_SIZE) {
         cleanup();
         stream.destroy();
+        // Clear accumulated chunks to prevent memory retention
+        chunks.length = 0;
         reject(new Error(`Stream too large: ${totalSize} bytes exceeds ${MAX_S3_READ_SIZE} bytes`));
         return;
       }
