@@ -10,6 +10,24 @@ import type { MonitoredAsyncOperation } from "@/types/lib";
 class AsyncOperationsMonitor {
   private operations: Map<string, MonitoredAsyncOperation> = new Map();
   private timeouts: Map<string, NodeJS.Timeout> = new Map();
+  private readonly maxOperations = 1000; // Prevent unbounded growth
+  private cleanupInterval: NodeJS.Timeout | null = null;
+
+  constructor() {
+    // Automatically clean up completed operations every 5 minutes
+    this.cleanupInterval = setInterval(() => {
+      this.clearCompleted();
+      // Also enforce max size
+      if (this.operations.size > this.maxOperations) {
+        this.pruneOldOperations();
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+
+    // Don't prevent process from exiting
+    if (this.cleanupInterval.unref) {
+      this.cleanupInterval.unref();
+    }
+  }
 
   /**
    * Start tracking an async operation
@@ -158,6 +176,44 @@ class AsyncOperationsMonitor {
         this.operations.delete(id);
       }
     }
+  }
+
+  /**
+   * Prune old operations when we exceed max size
+   */
+  private pruneOldOperations(): void {
+    // Sort by start time and keep only the most recent
+    const sortedEntries = Array.from(this.operations.entries())
+      .sort(([, a], [, b]) => b.startTime - a.startTime)
+      .slice(0, Math.floor(this.maxOperations * 0.8)); // Keep 80% of max
+
+    this.operations.clear();
+    for (const [id, op] of sortedEntries) {
+      this.operations.set(id, op);
+    }
+
+    console.warn(
+      `[AsyncMonitor] Pruned operations map to prevent memory leak. Kept ${this.operations.size} most recent operations.`
+    );
+  }
+
+  /**
+   * Clean up resources
+   */
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    
+    // Clear all timeouts
+    for (const timeout of this.timeouts.values()) {
+      clearTimeout(timeout);
+    }
+    this.timeouts.clear();
+    
+    // Clear all operations
+    this.operations.clear();
   }
 
   /**

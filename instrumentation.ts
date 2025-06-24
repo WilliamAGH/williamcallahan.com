@@ -80,6 +80,34 @@ export async function register() {
       }
     });
 
+    // Monitor memory usage in development
+    if (process.env.NODE_ENV === "development") {
+      const monitorInterval = setInterval(() => {
+        const usage = process.memoryUsage();
+        const rss = Math.round(usage.rss / 1024 / 1024);
+        const heap = Math.round(usage.heapUsed / 1024 / 1024);
+        const external = Math.round(usage.external / 1024 / 1024);
+        
+        // Only log if memory is high
+        if (rss > 1000) {
+          console.log(
+            `[Memory Monitor] RSS: ${rss}MB, Heap: ${heap}MB, External: ${external}MB`
+          );
+        }
+        
+        // Force garbage collection if available and memory is very high
+        if (global.gc && rss > 1500) {
+          console.log('[Memory Monitor] Forcing garbage collection due to high memory usage');
+          global.gc();
+        }
+      }, 30000); // Every 30 seconds
+      
+      // Don't prevent process exit
+      if (monitorInterval.unref) {
+        monitorInterval.unref();
+      }
+    }
+
     // Only initialize Sentry in production to save memory in development
     if (process.env.NODE_ENV === "production" && process.env.SENTRY_DSN) {
       // Initialize Sentry for the Node.js runtime

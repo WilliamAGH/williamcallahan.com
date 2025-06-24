@@ -500,6 +500,15 @@ export class ImageMemoryManager extends EventEmitter {
         return; // Skip other checks
       }
 
+      // Re-enable check: If disabled and memory is now safe (below 60%), re-enable
+      if (this.disabled && usage.rss < totalProcessBudget * 0.6) {
+        console.log(
+          `[ImageMemory] Memory recovered to ${Math.round(usage.rss / 1024 / 1024)}MB (below 60% threshold). Re-enabling cache operations.`
+        );
+        this.disabled = false;
+        this.failureCount = 0;
+      }
+
       // Critical threshold - 90% - stop accepting new cache entries
       if (usage.rss > criticalThreshold) {
         if (!this.memoryPressure) {
@@ -552,7 +561,10 @@ export class ImageMemoryManager extends EventEmitter {
       if (usage.rss > pressureThreshold) {
         if (!this.memoryPressure) {
           this.memoryPressure = true;
-          console.warn("[ImageMemory] Memory pressure detected - entering protective mode");
+          // Only log in development/debugging mode - this is normal operation
+          if (process.env.NODE_ENV !== "production" && process.env.DEBUG_MEMORY) {
+            console.log(`[ImageMemory] Memory at ${Math.round(memoryUsagePercent)}% - entering protective mode (normal operation)`);
+          }
           this.emit("memory-pressure-start", {
             rss: usage.rss,
             heap: usage.heapUsed,
@@ -566,7 +578,9 @@ export class ImageMemoryManager extends EventEmitter {
       } else if (this.memoryPressure && usage.rss < pressureThreshold * 0.7) {
         // Hysteresis: Only clear pressure when well below threshold
         this.memoryPressure = false;
-        console.log("[ImageMemory] Memory pressure resolved");
+        if (process.env.NODE_ENV !== "production" && process.env.DEBUG_MEMORY) {
+          console.log(`[ImageMemory] Memory at ${Math.round(memoryUsagePercent)}% - exiting protective mode`);
+        }
         this.emit("memory-pressure-end", {
           rss: usage.rss,
           heap: usage.heapUsed,
