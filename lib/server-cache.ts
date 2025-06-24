@@ -26,6 +26,9 @@ export class ServerCache implements ICache {
   private readonly cache: LRUCache<string, StorableCacheValue>;
   private hits = 0;
   private misses = 0;
+  private failureCount = 0;
+  private readonly maxFailures = 3;
+  private disabled = false;
 
   constructor() {
     // Size-aware cache configuration
@@ -83,6 +86,11 @@ export class ServerCache implements ICache {
   }
 
   private proactiveEviction(percentage: number): void {
+    // If disabled, don't perform eviction
+    if (this.disabled) {
+      return;
+    }
+
     // Check if cache has any significant content to evict
     const currentSizeBytes = this.cache.calculatedSize || 0;
     
@@ -113,29 +121,51 @@ export class ServerCache implements ICache {
   }
 
   public get<T>(key: string): T | undefined {
-    const value = this.cache.get(key) as T | undefined;
-    if (value !== undefined) {
-      this.hits++;
-    } else {
-      this.misses++;
+    // If disabled, return undefined - let the system work without cache
+    if (this.disabled) {
+      return undefined;
     }
-    return value;
+
+    try {
+      const value = this.cache.get(key) as T | undefined;
+      if (value !== undefined) {
+        this.hits++;
+      } else {
+        this.misses++;
+      }
+      return value;
+    } catch (error) {
+      console.error("[ServerCache] Error in get operation:", error);
+      this.handleFailure();
+      return undefined;
+    }
   }
 
   public set<T extends CacheValue>(key: string, value: T, ttlSeconds?: number): boolean {
-    // Handle null values by not storing them (they'll return undefined on get)
-    if (value === null) {
-      return true; // Treat null as successfully "stored" but don't actually store it
-    }
-
-    if (Buffer.isBuffer(value) && value.byteLength > 10 * 1024 * 1024) {
-      console.warn(`[ServerCache] Rejected large buffer for key: ${key}`);
+    // If disabled, silently fail - let the system work without cache
+    if (this.disabled) {
       return false;
     }
 
-    const ttl = ttlSeconds ? ttlSeconds * 1000 : undefined;
-    this.cache.set(key, value, { ttl });
-    return true;
+    try {
+      // Handle null values by not storing them (they'll return undefined on get)
+      if (value === null) {
+        return true; // Treat null as successfully "stored" but don't actually store it
+      }
+
+      if (Buffer.isBuffer(value) && value.byteLength > 10 * 1024 * 1024) {
+        console.warn(`[ServerCache] Rejected large buffer for key: ${key}`);
+        return false;
+      }
+
+      const ttl = ttlSeconds ? ttlSeconds * 1000 : undefined;
+      this.cache.set(key, value, { ttl });
+      return true;
+    } catch (error) {
+      console.error("[ServerCache] Error in set operation:", error);
+      this.handleFailure();
+      return false;
+    }
   }
 
   public del(key: string | string[]): void {
@@ -172,29 +202,81 @@ export class ServerCache implements ICache {
   }
 
   /**
+   * Handle cache operation failures - increment counter and disable after threshold
+   */
+  private handleFailure(): void {
+    this.failureCount++;
+    
+    if (this.failureCount >= this.maxFailures && !this.disabled) {
+      this.disabled = true;
+      console.warn(
+        `[ServerCache] Circuit breaker activated after ${this.failureCount} failures. Cache operations disabled to prevent system instability.`
+      );
+    }
+  }
+
+  /**
    * Clear all cache entries except logo validation results.
    * Logo validation entries are preserved to prevent repeated Sharp image processing.
+   * Now includes error handling to prevent crashes during cleanup.
    */
   public clearAllCaches(): void {
-    const LOGO_VALIDATION_PREFIX = "logo-validation:";
-
-    // Iterate over keys and **only** remove those that are *not* part of the
-    // logo-validation cache.  Those entries are tiny (a boolean + timestamp)
-    // yet extremely helpful in preventing repeated Sharp work after a flush.
-    for (const key of this.cache.keys()) {
-      if (!key.startsWith(LOGO_VALIDATION_PREFIX)) {
-        this.cache.delete(key);
-      }
+    // If disabled, don't attempt cleanup
+    if (this.disabled) {
+      console.warn("[ServerCache] Cache is disabled, skipping clear operation");
+      return;
     }
 
-    // Reset stats – hits/misses related to logo validation are preserved to
-    // avoid skewing metrics.
-    this.hits = 0;
-    this.misses = 0;
+    try {
+      const LOGO_VALIDATION_PREFIX = "logo-validation:";
+
+      // Iterate over keys and **only** remove those that are *not* part of the
+      // logo-validation cache.  Those entries are tiny (a boolean + timestamp)
+      // yet extremely helpful in preventing repeated Sharp work after a flush.
+      for (const key of this.cache.keys()) {
+        if (!key.startsWith(LOGO_VALIDATION_PREFIX)) {
+          try {
+            this.cache.delete(key);
+          } catch (deleteError) {
+            console.error(`[ServerCache] Failed to delete key ${key}:`, deleteError);
+          }
+        }
+      }
+
+      // Reset stats – hits/misses related to logo validation are preserved to
+      // avoid skewing metrics.
+      this.hits = 0;
+      this.misses = 0;
+    } catch (error) {
+      console.error("[ServerCache] Error during cache clear:", error);
+      this.handleFailure();
+    }
   }
 
   public flushAll(): void {
     this.clearAllCaches();
+  }
+
+  /**
+   * Reset the circuit breaker - use with caution
+   * This should only be called after memory conditions have improved significantly
+   */
+  public resetCircuitBreaker(): void {
+    const memUsage = process.memoryUsage();
+    const totalProcessBudget = MEMORY_THRESHOLDS.TOTAL_PROCESS_MEMORY_BUDGET_BYTES;
+    const safeThreshold = totalProcessBudget * 0.6; // Only reset if below 60%
+    
+    if (memUsage.rss < safeThreshold) {
+      this.disabled = false;
+      this.failureCount = 0;
+      console.log(
+        `[ServerCache] Circuit breaker reset. Memory usage ${Math.round(memUsage.rss / 1024 / 1024)}MB is below safe threshold.`
+      );
+    } else {
+      console.warn(
+        `[ServerCache] Cannot reset circuit breaker. Memory usage ${Math.round(memUsage.rss / 1024 / 1024)}MB still above safe threshold.`
+      );
+    }
   }
 }
 

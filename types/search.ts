@@ -37,7 +37,7 @@ export interface BookmarkIndexItem {
 
 // Zod schemas moved from lib/schemas/search.ts
 export const searchResultItemSchema = z.object({
-  id: z.string(),
+  id: z.string().min(1, "Search result ID cannot be empty"),
   type: z.enum(["bookmark", "blog-post", "project", "page"]),
   title: z.string(),
   description: z.string().optional(),

@@ -46,6 +46,11 @@ export async function callBookmarksApi(endpoint: string, options?: RequestInit):
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}${endpoint}`;
 
+  // Add timeout using AbortController
+  const controller = new AbortController();
+  const timeoutMs = 30000; // 30 seconds timeout
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const response = await fetch(url, {
       method: "GET",
@@ -53,11 +58,18 @@ export async function callBookmarksApi(endpoint: string, options?: RequestInit):
         Accept: "application/json",
       },
       cache: "no-store",
+      signal: controller.signal,
       ...options,
     });
 
+    clearTimeout(timeout);
     return handleBookmarkApiResponse(response, endpoint);
   } catch (error) {
+    clearTimeout(timeout);
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`${getLogPrefix()} Request to ${endpoint} timed out after ${timeoutMs}ms`);
+      throw new Error(`Request timed out after ${timeoutMs}ms`);
+    }
     console.error(`${getLogPrefix()} Failed to fetch from ${endpoint}:`, error);
     throw error;
   }
