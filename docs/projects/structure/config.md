@@ -26,6 +26,7 @@ To provide centralized configuration management for the application, including e
 See [`linting-formatting.md`](./linting-formatting.md) for comprehensive documentation on:
 
 - **`eslint.config.ts`**: ESLint linting rules and plugins
+- **`stylelint.config.js`**: Stylelint configuration for CSS. Enforces consistent CSS coding style and prevents common errors.
 - **`biome.json`**: Biome linter and formatter configuration
 - **`types/eslint-custom-types.d.ts`**: TypeScript definitions for ESLint
 
