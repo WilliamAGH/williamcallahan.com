@@ -120,8 +120,7 @@ const GitHubActivity = () => {
             let refreshErrorResult: ApiError | null = null;
             try {
               refreshErrorResult = (await refreshResponse.json()) as ApiError;
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            } catch (_e) {
+            } catch {
               /* Failed to parse response JSON, error message will be generic */
             }
             const errorMessage =
