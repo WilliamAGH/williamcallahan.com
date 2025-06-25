@@ -15,7 +15,6 @@ jest.mock("next/image", () => ({
     const effectiveLayout = layout ?? (fill ? "fill" : undefined);
     const priorityAttr = priority ? { "data-priority": "true" } : {};
     return (
-      // biome-ignore lint/performance/noImgElement: This is a test mock for Next.js Image component
       <img
         src={src}
         alt={alt}

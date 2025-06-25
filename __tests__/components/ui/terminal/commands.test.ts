@@ -80,7 +80,16 @@ describe("Terminal Commands", () => {
         ok: true,
         json: jest
           .fn()
-          .mockResolvedValue([{ label: "Test Post", description: "Test description", path: "/blog/test" }]),
+          .mockResolvedValue([
+            {
+              id: "test-1",
+              type: "blog-post",
+              title: "Test Post",
+              description: "Test description",
+              url: "/blog/test",
+              score: 1.0,
+            },
+          ]),
       };
       (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
 
@@ -142,8 +151,22 @@ describe("Terminal Commands", () => {
       const mockResponse = {
         ok: true,
         json: jest.fn().mockResolvedValue([
-          { label: "Result 1", description: "Test", path: "/test1" },
-          { label: "Result 2", description: "Test", path: "/test2" },
+          {
+            id: "result-1",
+            type: "page",
+            title: "Result 1",
+            description: "Test",
+            url: "/test1",
+            score: 1.0,
+          },
+          {
+            id: "result-2",
+            type: "page",
+            title: "Result 2",
+            description: "Test",
+            url: "/test2",
+            score: 0.9,
+          },
         ]),
       };
       (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
