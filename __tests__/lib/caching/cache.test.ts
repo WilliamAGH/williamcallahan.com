@@ -1,55 +1,63 @@
-import { cache, CACHE_TTL } from "@/lib/cache";
-import type { CacheStats } from "@/types/cache";
+import { CACHE_TTL, getCacheProfile, withCacheFallback, USE_NEXTJS_CACHE } from "@/lib/cache";
 
 describe("lib/cache", () => {
-  beforeEach(() => {
-    cache.flushAll();
+  describe("CACHE_TTL constants", () => {
+    it("should have correct CACHE_TTL constants", () => {
+      expect(CACHE_TTL.DEFAULT).toBe(30 * 24 * 60 * 60);
+      expect(CACHE_TTL.DAILY).toBe(24 * 60 * 60);
+      expect(CACHE_TTL.HOURLY).toBe(60 * 60);
+    });
   });
 
-  it("should set and get a value", () => {
-    cache.set("key", "value");
-    const value = cache.get("key");
-    expect(value).toBe("value");
+  describe("getCacheProfile", () => {
+    it("should return 'minutes' for TTL <= 60 seconds", () => {
+      expect(getCacheProfile(30)).toBe('minutes');
+      expect(getCacheProfile(60)).toBe('minutes');
+    });
+
+    it("should return 'hours' for TTL <= 3600 seconds", () => {
+      expect(getCacheProfile(61)).toBe('hours');
+      expect(getCacheProfile(3600)).toBe('hours');
+    });
+
+    it("should return 'days' for TTL <= 86400 seconds", () => {
+      expect(getCacheProfile(3601)).toBe('days');
+      expect(getCacheProfile(86400)).toBe('days');
+    });
+
+    it("should return 'weeks' for TTL > 86400 seconds", () => {
+      expect(getCacheProfile(86401)).toBe('weeks');
+      expect(getCacheProfile(604800)).toBe('weeks');
+    });
   });
 
-  it("should delete a value", () => {
-    cache.set("key", "value");
-    cache.del("key");
-    const value = cache.get("key");
-    expect(value).toBeUndefined();
+  describe("withCacheFallback", () => {
+    it("should return cached result when cache function succeeds", async () => {
+      const cachedFn = jest.fn().mockResolvedValue("cached result");
+      const fallbackFn = jest.fn().mockResolvedValue("fallback result");
+
+      const result = await withCacheFallback(cachedFn, fallbackFn);
+
+      expect(result).toBe("cached result");
+      expect(cachedFn).toHaveBeenCalled();
+      expect(fallbackFn).not.toHaveBeenCalled();
+    });
+
+    it("should return fallback result when cache function fails", async () => {
+      const cachedFn = jest.fn().mockRejectedValue(new Error("Cache error"));
+      const fallbackFn = jest.fn().mockResolvedValue("fallback result");
+
+      const result = await withCacheFallback(cachedFn, fallbackFn);
+
+      expect(result).toBe("fallback result");
+      expect(cachedFn).toHaveBeenCalled();
+      expect(fallbackFn).toHaveBeenCalled();
+    });
   });
 
-  it("should expire a value after its TTL", (done) => {
-    cache.set("key", "value", 1); // 1 second TTL
-    setTimeout(() => {
-      const value = cache.get("key");
-      expect(value).toBeUndefined();
-      done();
-    }, 1100);
-  });
-
-  it("should flush all values", () => {
-    cache.set("key1", "value1");
-    cache.set("key2", "value2");
-    cache.flushAll();
-    expect(cache.get("key1")).toBeUndefined();
-    expect(cache.get("key2")).toBeUndefined();
-  });
-
-  it("should provide cache stats", () => {
-    cache.set("key1", "value1");
-    cache.get("key1"); // hit
-    cache.get("key2"); // miss
-
-    const stats: CacheStats = cache.getStats();
-    expect(stats.keys).toBe(1);
-    expect(stats.hits).toBe(1);
-    expect(stats.misses).toBe(1);
-  });
-
-  it("should have correct CACHE_TTL constants", () => {
-    expect(CACHE_TTL.DEFAULT).toBe(30 * 24 * 60 * 60);
-    expect(CACHE_TTL.DAILY).toBe(24 * 60 * 60);
-    expect(CACHE_TTL.HOURLY).toBe(60 * 60);
+  describe("USE_NEXTJS_CACHE", () => {
+    it("should be a boolean", () => {
+      expect(typeof USE_NEXTJS_CACHE).toBe('boolean');
+    });
   });
 });

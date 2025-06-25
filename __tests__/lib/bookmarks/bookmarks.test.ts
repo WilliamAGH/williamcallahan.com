@@ -7,13 +7,27 @@
 
 import { describe, beforeAll, beforeEach, afterEach, expect, it, jest } from "@jest/globals";
 import type { UnifiedBookmark, BookmarkContent, BookmarkTag } from "../../../types";
+import { ServerCacheInstance } from "@/lib/server-cache";
 
-// Add global fetch if it doesn't exist
-if (!globalThis.fetch) {
-  (globalThis as any).fetch = jest.fn();
-}
+// Mock getBaseUrl at the top level with the correct path
+jest.mock("@/lib/utils/get-base-url", () => ({
+  getBaseUrl: () => "http://localhost:3000",
+}));
 
-// Simplified mock approach - variables removed as they were unused
+// Mock the API endpoint
+const API_ENDPOINT = "/api/bookmarks";
+void API_ENDPOINT; // Explicitly mark as intentionally unused
+
+// Mock server cache
+jest.mock("@/lib/server-cache", () => ({
+  ServerCacheInstance: {
+    get: jest.fn(),
+    set: jest.fn(),
+  },
+}));
+
+const mockedCache = ServerCacheInstance;
+void mockedCache; // Explicitly mark as intentionally unused
 
 // Define properly typed API response
 const mockApiResponse: UnifiedBookmark[] = [
@@ -80,26 +94,26 @@ const createMockResponse = (options: {
   json?: () => Promise<unknown>;
   text?: () => Promise<string>;
 }): Response => {
+  // Use globalThis.Headers to ensure we get the polyfilled version
+  const headers = globalThis.Headers ? new globalThis.Headers() : {};
+  
   return {
     ok: options.ok,
     status: options.status ?? 200,
     statusText: options.statusText ?? "OK",
-    headers: new Headers(),
+    headers,
     json: options.json ?? (() => Promise.resolve({})),
     text: options.text ?? (() => Promise.resolve("")),
   } as Response;
 };
 
 describe("Bookmarks Module (Simplified)", () => {
-  // Mock getBaseUrl
   beforeAll(() => {
-    jest.mock("@/lib/utils/get-base-url", () => ({
-      getBaseUrl: () => "http://localhost:3000",
-    }));
+    // Ensure fetch is defined on globalThis before tests run
+    if (!globalThis.fetch) {
+      globalThis.fetch = jest.fn();
+    }
   });
-
-  // Timeout for individual tests to prevent hanging
-  const TEST_TIMEOUT = 10000; // 10 seconds
 
   beforeEach(() => {
     // Reset module cache to ensure fresh imports
@@ -120,199 +134,179 @@ describe("Bookmarks Module (Simplified)", () => {
     jest.clearAllMocks();
   });
 
-  it(
-    "should fetch bookmarks from API when no cache exists",
-    async () => {
-      // Set up fetch mock
-      const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-        createMockResponse({
-          ok: true,
-          json: () => Promise.resolve(mockApiResponse),
-        }),
-      );
+  it("should fetch bookmarks from API when no cache exists", async () => {
+    // Set up fetch mock
+    const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      createMockResponse({
+        ok: true,
+        json: () => Promise.resolve(mockApiResponse),
+      }),
+    );
 
-      try {
-        // Import module after setting up mocks
-        const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
+    try {
+      // Import module after setting up mocks
+      const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
 
-        const bookmarks = await fetchBookmarksFromApi();
+      const bookmarks = await fetchBookmarksFromApi();
 
-        // Verify fetch was called
-        expect(fetchSpy).toHaveBeenCalledTimes(1);
-        expect(fetchSpy).toHaveBeenCalledWith(
-          expect.stringMatching(/\/api\/bookmarks$/),
-          expect.objectContaining({
-            method: "GET",
-            headers: expect.objectContaining({
-              Accept: "application/json",
-            }),
-            cache: "no-store",
+      // Verify fetch was called
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/\/api\/bookmarks$/),
+        expect.objectContaining({
+          method: "GET",
+          headers: expect.objectContaining({
+            Accept: "application/json",
           }),
-        );
-
-        // Verify results
-        expect(bookmarks).toBeDefined();
-        expect(Array.isArray(bookmarks)).toBe(true);
-        expect(bookmarks.length).toBe(2);
-        expect(bookmarks[0]?.id).toBe("bookmark1");
-        expect(bookmarks[0]?.title).toBe("Test Bookmark 1");
-      } finally {
-        fetchSpy.mockRestore();
-      }
-    },
-    TEST_TIMEOUT,
-  );
-
-  it(
-    "should handle API fetch errors gracefully",
-    async () => {
-      // Set up fetch mock to reject
-      const fetchSpy = jest.spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("Network error"));
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
-
-      try {
-        // Import module after setting up mocks
-        const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
-
-        const bookmarks = await fetchBookmarksFromApi();
-
-        // Verify fetch was called
-        expect(fetchSpy).toHaveBeenCalledTimes(1);
-
-        // Should return empty array
-        expect(bookmarks).toEqual([]);
-
-        // Should log error
-        expect(consoleSpy).toHaveBeenCalledWith(
-          "[Bookmarks] [Client] Failed to fetch from /api/bookmarks:",
-          expect.any(Error),
-        );
-      } finally {
-        fetchSpy.mockRestore();
-        consoleSpy.mockRestore();
-      }
-    },
-    TEST_TIMEOUT,
-  );
-
-  it(
-    "should handle API error responses",
-    async () => {
-      // Set up fetch mock to return error response
-      const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-        createMockResponse({
-          ok: false,
-          status: 401,
-          statusText: "Unauthorized",
-          text: () => Promise.resolve("Unauthorized"),
+          cache: "no-store",
         }),
       );
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
-      try {
-        // Import module after setting up mocks
-        const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
+      // Verify results
+      expect(bookmarks).toBeDefined();
+      expect(Array.isArray(bookmarks)).toBe(true);
+      expect(bookmarks.length).toBe(2);
+      expect(bookmarks[0]?.id).toBe("bookmark1");
+      expect(bookmarks[0]?.title).toBe("Test Bookmark 1");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
 
-        const bookmarks = await fetchBookmarksFromApi();
+  it("should handle API fetch errors gracefully", async () => {
+    // Set up fetch mock to reject
+    const fetchSpy = jest.spyOn(globalThis, "fetch").mockRejectedValueOnce(new Error("Network error"));
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
-        // Verify fetch was called
-        expect(fetchSpy).toHaveBeenCalledTimes(1);
+    try {
+      // Import module after setting up mocks
+      const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
 
-        // Should return empty array
-        expect(bookmarks).toEqual([]);
+      const bookmarks = await fetchBookmarksFromApi();
 
-        // Should log error
-        expect(consoleSpy).toHaveBeenCalledWith(
-          "[Bookmarks] [Client] Failed to fetch from /api/bookmarks:",
-          expect.any(Error),
-        );
-      } finally {
-        fetchSpy.mockRestore();
-        consoleSpy.mockRestore();
-      }
-    },
-    TEST_TIMEOUT,
-  );
+      // Verify fetch was called
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
 
-  it(
-    "should handle API server errors",
-    async () => {
-      // Mock API to return a server error (which would happen if BOOKMARK_BEARER_TOKEN is missing server-side)
-      const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValue(
-        createMockResponse({
-          ok: false,
-          status: 500,
-          statusText: "Internal Server Error",
-          text: () => Promise.resolve("Server configuration error"),
-        }),
+      // Should return empty array
+      expect(bookmarks).toEqual([]);
+
+      // Should log error
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "[Bookmarks] [Client] Failed to fetch from /api/bookmarks:",
+        expect.any(Error),
       );
-      const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    } finally {
+      fetchSpy.mockRestore();
+      consoleSpy.mockRestore();
+    }
+  });
 
-      try {
-        // Import module after setting up environment
-        const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
+  it("should handle API error responses", async () => {
+    // Set up fetch mock to return error response
+    const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      createMockResponse({
+        ok: false,
+        status: 401,
+        statusText: "Unauthorized",
+        text: () => Promise.resolve("Unauthorized"),
+      }),
+    );
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
-        const bookmarks = await fetchBookmarksFromApi();
+    try {
+      // Import module after setting up mocks
+      const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
 
-        // Should return empty array
-        expect(bookmarks).toEqual([]);
+      const bookmarks = await fetchBookmarksFromApi();
 
-        // Should log error
-        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch from"), expect.any(Error));
-      } finally {
-        fetchSpy.mockRestore();
-        consoleSpy.mockRestore();
-      }
-    },
-    TEST_TIMEOUT,
-  );
+      // Verify fetch was called
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
 
-  it(
-    "should handle API response with minimal data",
-    async () => {
-      // Set up fetch mock with minimal response
-      const minimalResponse = [
-        {
-          id: "minimal",
-          createdAt: "2023-01-01T12:00:00Z",
-          modifiedAt: "2023-01-01T12:00:00Z",
-          title: null,
-          archived: false,
-          favourited: false,
-          taggingStatus: "success",
-          tags: [],
-          content: {
-            type: "link",
-            url: "https://example.com/minimal",
-          },
-          assets: [],
+      // Should return empty array
+      expect(bookmarks).toEqual([]);
+
+      // Should log error
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "[Bookmarks] [Client] Failed to fetch from /api/bookmarks:",
+        expect.any(Error),
+      );
+    } finally {
+      fetchSpy.mockRestore();
+      consoleSpy.mockRestore();
+    }
+  });
+
+  it("should handle API server errors", async () => {
+    // Mock API to return a server error (which would happen if BOOKMARK_BEARER_TOKEN is missing server-side)
+    const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValue(
+      createMockResponse({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+        text: () => Promise.resolve("Server configuration error"),
+      }),
+    );
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      // Import module after setting up environment
+      const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
+
+      const bookmarks = await fetchBookmarksFromApi();
+
+      // Should return empty array
+      expect(bookmarks).toEqual([]);
+
+      // Should log error
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch from"), expect.any(Error));
+    } finally {
+      fetchSpy.mockRestore();
+      consoleSpy.mockRestore();
+    }
+  });
+
+  it("should handle API response with minimal data", async () => {
+    // Set up fetch mock with minimal response
+    const minimalResponse = [
+      {
+        id: "minimal",
+        createdAt: "2023-01-01T12:00:00Z",
+        modifiedAt: "2023-01-01T12:00:00Z",
+        title: null,
+        archived: false,
+        favourited: false,
+        taggingStatus: "success",
+        tags: [],
+        content: {
+          type: "link",
+          url: "https://example.com/minimal",
         },
-      ];
+        assets: [],
+      },
+    ];
 
-      const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-        createMockResponse({
-          ok: true,
-          json: () => Promise.resolve(minimalResponse),
-        }),
-      );
+    const fetchSpy = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      createMockResponse({
+        ok: true,
+        json: () => Promise.resolve(minimalResponse),
+      }),
+    );
 
-      try {
-        // Import module after setting up mocks
-        const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
+    try {
+      // Import module after setting up mocks
+      const { fetchBookmarksFromApi } = await import("../../../lib/bookmarks/bookmarks.client");
 
-        const bookmarks = await fetchBookmarksFromApi();
+      const bookmarks = await fetchBookmarksFromApi();
 
-        // Verify fetch was called
-        expect(fetchSpy).toHaveBeenCalledTimes(1);
+      // Verify fetch was called
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
 
-        // Should return array with minimal data
-        expect(Array.isArray(bookmarks)).toBe(true);
-        expect(bookmarks.length).toBe(1);
-        expect(bookmarks[0]?.id).toBe("minimal");
-      } finally {
-        fetchSpy.mockRestore();
-      }
-    },
-    TEST_TIMEOUT,
-  );
+      // Should return array with minimal data
+      expect(Array.isArray(bookmarks)).toBe(true);
+      expect(bookmarks.length).toBe(1);
+      expect(bookmarks[0]?.id).toBe("minimal");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
 });
