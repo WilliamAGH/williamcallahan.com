@@ -4,11 +4,12 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { navigationLinks } from "@/components/ui/navigation/navigation-links";
 import { Navigation } from "@/components/ui/navigation/navigation.client";
 import { TerminalProvider } from "@/components/ui/terminal/terminal-context.client";
+import { usePathname } from "next/navigation";
 // Import the REAL provider is already imported above
 
 // Create mock functions
 const mockUseWindowSize = jest.fn();
-const mockUsePathname = jest.fn();
+// const mockUsePathname = jest.fn(); // No longer needed
 
 // Mock the useWindowSize hook using mock.module
 // Use relative path for Jest compatibility
@@ -18,9 +19,9 @@ jest.mock("@/lib/hooks/use-window-size.client", () => ({
 }));
 
 // Mock next/navigation using jest.mock
-jest.mock("next/navigation", () => ({
-  usePathname: () => mockUsePathname(),
-}));
+// jest.mock("next/navigation", () => ({
+//   usePathname: () => mockUsePathname(),
+// }));
 
 // REMOVE ALL MOCKING FOR terminal-context.client
 
@@ -57,11 +58,11 @@ describe("Navigation", () => {
   const originalInnerHeight = window.innerHeight;
 
   beforeEach(() => {
-    mockUsePathname.mockReturnValue("/"); // Use mock handle
+    (usePathname as jest.Mock).mockReturnValue("/");
     // Reset any other necessary mocks
     mockUseWindowSize.mockClear(); // Clear window size mock
     mockUseWindowSize.mockReturnValue({ width: 1280, height: 800 }); // Set default desktop size
-    mockUsePathname.mockClear(); // Clear pathname mock
+    // mockUsePathname.mockClear(); // No longer needed
 
     // Mock window dimensions to match our hook mock
     Object.defineProperty(window, "innerWidth", {
@@ -137,7 +138,7 @@ describe("Navigation", () => {
     });
 
     it("highlights current path", () => {
-      mockUsePathname.mockReturnValue("/blog");
+      (usePathname as jest.Mock).mockReturnValue("/blog");
       render(
         <TerminalProvider>
           <Navigation />
@@ -270,7 +271,7 @@ describe("Navigation", () => {
     });
 
     it("marks current page link with aria-current attribute", () => {
-      mockUsePathname.mockReturnValue("/blog");
+      (usePathname as jest.Mock).mockReturnValue("/blog");
       render(
         <TerminalProvider>
           <Navigation />
