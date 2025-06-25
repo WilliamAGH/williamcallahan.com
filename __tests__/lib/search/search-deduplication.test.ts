@@ -56,8 +56,8 @@ function deduplicateSearchResults(results: SearchResult[]): SearchResult[] {
 
 describe("Search Deduplication", () => {
   describe("Blog Posts Search", () => {
-    it("should handle posts without duplicates", () => {
-      searchPosts("example");
+    it("should handle posts without duplicates", async () => {
+      await searchPosts("example");
 
       // Should not warn about duplicates if none exist
       const duplicateWarnings = warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
@@ -69,10 +69,10 @@ describe("Search Deduplication", () => {
       }
     });
 
-    it("should search posts by title", () => {
+    it("should search posts by title", async () => {
       // Since posts array is empty (posts are now in MDX files),
       // we'll test that the search function works without errors
-      const results = searchPosts("test");
+      const results = await searchPosts("test");
 
       // Should return an empty array without errors
       expect(Array.isArray(results)).toBe(true);
@@ -81,8 +81,8 @@ describe("Search Deduplication", () => {
   });
 
   describe("Investments Search", () => {
-    it("should handle investments search", () => {
-      const results = searchInvestments("");
+    it("should handle investments search", async () => {
+      const results = await searchInvestments("");
 
       // Check for any duplicate warnings
       warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
@@ -91,10 +91,10 @@ describe("Search Deduplication", () => {
       expect(Array.isArray(results)).toBe(true);
     });
 
-    it("should search investments by name", () => {
+    it("should search investments by name", async () => {
       const firstInvestment = investments[0];
       if (firstInvestment?.name) {
-        const results = searchInvestments(firstInvestment.name);
+        const results = await searchInvestments(firstInvestment.name);
         expect(results.length).toBeGreaterThan(0);
         expect(results[0].title).toBe(firstInvestment.name);
       }
@@ -102,8 +102,8 @@ describe("Search Deduplication", () => {
   });
 
   describe("Experience Search", () => {
-    it("should handle experience search", () => {
-      const results = searchExperience("");
+    it("should handle experience search", async () => {
+      const results = await searchExperience("");
 
       // Check for any duplicate warnings
       warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
@@ -112,10 +112,10 @@ describe("Search Deduplication", () => {
       expect(Array.isArray(results)).toBe(true);
     });
 
-    it("should search experience by company", () => {
+    it("should search experience by company", async () => {
       const firstExperience = experiences[0];
       if (firstExperience?.company) {
-        const results = searchExperience(firstExperience.company);
+        const results = await searchExperience(firstExperience.company);
         expect(results.length).toBeGreaterThan(0);
         expect(results[0].title).toBe(firstExperience.company);
       }
@@ -123,8 +123,8 @@ describe("Search Deduplication", () => {
   });
 
   describe("Education Search", () => {
-    it("should handle education search with combined data", () => {
-      const results = searchEducation("");
+    it("should handle education search with combined data", async () => {
+      const results = await searchEducation("");
 
       // Check for any duplicate warnings
       warnSpy.mock.calls.filter((call) => call[0]?.includes("duplicate ID"));
@@ -133,19 +133,19 @@ describe("Search Deduplication", () => {
       expect(Array.isArray(results)).toBe(true);
     });
 
-    it("should search education by institution", () => {
+    it("should search education by institution", async () => {
       const firstEducation = education[0];
       if (firstEducation?.institution) {
-        const results = searchEducation(firstEducation.institution);
+        const results = await searchEducation(firstEducation.institution);
         expect(results.length).toBeGreaterThan(0);
         expect(results[0].title).toBe(firstEducation.institution);
       }
     });
 
-    it("should search certifications", () => {
+    it("should search certifications", async () => {
       const firstCert = certifications[0];
       if (firstCert?.institution) {
-        const results = searchEducation(firstCert.institution);
+        const results = await searchEducation(firstCert.institution);
         expect(results.length).toBeGreaterThan(0);
 
         // Should find the certification
@@ -156,12 +156,12 @@ describe("Search Deduplication", () => {
   });
 
   describe("Search Index Building", () => {
-    it("should log deduplication statistics when duplicates found", () => {
+    it("should log deduplication statistics when duplicates found", async () => {
       // Trigger index building by searching
-      searchPosts("test");
-      searchInvestments("test");
-      searchExperience("test");
-      searchEducation("test");
+      await searchPosts("test");
+      await searchInvestments("test");
+      await searchExperience("test");
+      await searchEducation("test");
 
       // Check if any deduplication happened
       const deduplicationLogs = warnSpy.mock.calls.filter((call) => call[0]?.includes("Deduplicated"));
