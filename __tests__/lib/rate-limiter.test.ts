@@ -1,15 +1,14 @@
 /**
  * Tests for Rate Limiter
  */
+import { isOperationAllowed, waitForPermit } from "@/lib/rate-limiter";
 import {
-  isOperationAllowed,
-  waitForPermit,
   API_ENDPOINT_STORE_NAME,
   DEFAULT_API_ENDPOINT_LIMIT_CONFIG,
   OPENGRAPH_FETCH_STORE_NAME,
   DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG,
   OPENGRAPH_FETCH_CONTEXT_ID,
-} from "@/lib/rate-limiter";
+} from "@/lib/constants";
 
 describe("Rate Limiter", () => {
   beforeEach(() => {

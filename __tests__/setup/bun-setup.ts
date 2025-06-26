@@ -12,7 +12,10 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 try {
   // Register the global environment
   GlobalRegistrator.register();
+
+  // Node 22 LTS provides native fetch - no polyfill needed
   console.log("✅ HappyDOM environment registered successfully for Bun tests");
+  console.log("✅ Using native Node 22 fetch API - no polyfills required");
 } catch (error) {
   console.error("❌ Failed to register HappyDOM environment for Bun tests:", error);
 }

@@ -54,7 +54,7 @@ describe("ServerCache", () => {
     it("should cache and retrieve logo fetch results", () => {
       const domain = "example.com";
       const fetchResult = {
-        s3Key: "logos/example.com_google.png",
+        s3Key: "images/logos/example.com_google.png",
         cdnUrl: "https://cdn.example.com/logos/example.com_google.png",
         source: "google" as const,
         contentType: "image/png",
@@ -67,7 +67,7 @@ describe("ServerCache", () => {
       // Should retrieve the result
       const result = cache.getLogoFetch(domain);
       expect(result).toBeDefined();
-      expect(result?.s3Key).toBe("logos/example.com_google.png");
+      expect(result?.s3Key).toBe("images/logos/example.com_google.png");
       expect(result?.cdnUrl).toBe("https://cdn.example.com/logos/example.com_google.png");
       expect(result?.source).toBe("google");
       expect(result?.contentType).toBe("image/png");
