@@ -2,7 +2,7 @@
  * Memory Management System Tests
  *
  * Tests for the comprehensive memory management system including:
- * - ImageMemoryManager: LRU cache with memory budgets
+ * - ImageMemoryManager: Memory-aware cache with size budgets
  * - MemoryHealthMonitor: Health monitoring and graceful degradation
  * - Memory pressure detection and handling
  * - Buffer safety and leak prevention
