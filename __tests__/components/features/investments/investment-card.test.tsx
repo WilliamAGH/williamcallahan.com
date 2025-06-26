@@ -76,7 +76,7 @@ describe("InvestmentCardClient", () => {
     // Check if the aVenture favicon image is rendered
     const aventureIcon = screen.getByTestId("aventure-icon");
     expect(aventureIcon).toBeInTheDocument();
-    expect(aventureIcon).toHaveAttribute("src", "/images/aVenture Favicon.png");
+    expect(aventureIcon).toHaveAttribute("src", "https://s3-storage.callahan.cloud/images/other/company-logos/aventure-favicon_43436169.png");
     expect(aventureIcon).toHaveAttribute("alt", "aVenture");
 
     // Check if the aVenture link with correct URL exists
