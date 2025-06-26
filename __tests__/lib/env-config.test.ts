@@ -54,7 +54,7 @@ describe("Environment Variable Configuration", () => {
       Reflect.deleteProperty(process.env, "OG_MAX_RETRIES");
       Reflect.deleteProperty(process.env, "OG_RETRY_DELAY_MS");
 
-      const { OPENGRAPH_FETCH_CONFIG } = await import("@/lib/opengraph/constants");
+      const { OPENGRAPH_FETCH_CONFIG } = await import("@/lib/constants");
 
       expect(OPENGRAPH_FETCH_CONFIG.TIMEOUT).toBe(7000);
       expect(OPENGRAPH_FETCH_CONFIG.MAX_RETRIES).toBe(2);
@@ -70,7 +70,7 @@ describe("Environment Variable Configuration", () => {
       process.env.OG_MAX_RETRIES = "5";
       process.env.OG_RETRY_DELAY_MS = "2000";
 
-      const { OPENGRAPH_FETCH_CONFIG } = await import("@/lib/opengraph/constants");
+      const { OPENGRAPH_FETCH_CONFIG } = await import("@/lib/constants");
 
       expect(OPENGRAPH_FETCH_CONFIG.TIMEOUT).toBe(15000);
       expect(OPENGRAPH_FETCH_CONFIG.MAX_RETRIES).toBe(5);
@@ -86,7 +86,7 @@ describe("Environment Variable Configuration", () => {
       process.env.OG_MAX_RETRIES = "";
       process.env.OG_RETRY_DELAY_MS = "0";
 
-      const { OPENGRAPH_FETCH_CONFIG } = await import("@/lib/opengraph/constants");
+      const { OPENGRAPH_FETCH_CONFIG } = await import("@/lib/constants");
 
       /** Should fall back to defaults for invalid values */
       expect(OPENGRAPH_FETCH_CONFIG.TIMEOUT).toBe(7000); // NaN || 7000

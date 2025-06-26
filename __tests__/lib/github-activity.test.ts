@@ -99,15 +99,15 @@ describe("lib/data-access/github.ts functionality", () => {
   describe("S3 data key generation", () => {
     it("should generate correct activity key for different environments", () => {
       const testCases = [
-        { env: undefined, expected: "github-activity/activity_data.json" },
-        { env: "production", expected: "github-activity/activity_data.json" },
-        { env: "development", expected: "github-activity/activity_data-dev.json" },
-        { env: "test", expected: "github-activity/activity_data-test.json" },
+        { env: undefined, expected: "json/github-activity/activity_data.json" },
+        { env: "production", expected: "json/github-activity/activity_data.json" },
+        { env: "development", expected: "json/github-activity/activity_data-dev.json" },
+        { env: "test", expected: "json/github-activity/activity_data-test.json" },
       ];
 
       for (const { env, expected } of testCases) {
         const envSuffix = env === "production" || !env ? "" : env === "test" ? "-test" : "-dev";
-        const activityKey = `github-activity/activity_data${envSuffix}.json`;
+        const activityKey = `json/github-activity/activity_data${envSuffix}.json`;
 
         expect(activityKey).toBe(expected);
       }
@@ -148,7 +148,7 @@ describe("lib/data-access/github.ts functionality", () => {
     });
 
     it("should handle S3 metadata retrieval", async () => {
-      const testKey = "github-activity/activity_data.json";
+      const testKey = "json/github-activity/activity_data.json";
       const mockMetadata = {
         LastModified: new Date("2024-01-01"),
         ETag: "test-etag",

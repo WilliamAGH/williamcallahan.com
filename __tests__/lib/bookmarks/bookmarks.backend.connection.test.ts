@@ -4,8 +4,7 @@
  * bookmarks API, fetch data, and handle pagination using cursors.
  * It requires `BOOKMARK_BEARER_TOKEN` and `BOOKMARKS_LIST_ID` environment variables to be set.
  */
-import { default as request } from "node-fetch";
-import type { ApiResponse, RawApiBookmark } from "../lib/bookmarks";
+import type { ApiResponse, RawApiBookmark } from "../../../lib/bookmarks";
 
 /**
  * Test suite for verifying the connection and data retrieval from the external bookmarks API.
@@ -48,7 +47,7 @@ describe.skip("Bookmarks API Backend Connection", () => {
 
         console.log(`Fetching page ${page} with URL: ${url}`);
 
-        const response = await request(url, {
+        const response = await fetch(url, {
           method: "GET",
           headers: {
             Accept: "application/json",

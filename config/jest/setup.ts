@@ -1,20 +1,38 @@
-/* eslint-disable */
+/**
+ * @file Jest setup configuration
+ * @description Sets up Jest environment with polyfills, mocks, and testing utilities
+ *
+ * 🚨 CRITICAL: This file is ONLY loaded when using npm/bun run scripts!
+ *
+ * ❌ NEVER use: bun test (bypasses this setup entirely)
+ * ✅ ALWAYS use: bun run test (loads this setup correctly)
+ *
+ * Without this setup file, you will get:
+ * - jest.mock is not defined
+ * - Missing DOM APIs and polyfills
+ * - React Testing Library failures
+ * - Mock configuration missing
+ */
 /// <reference types="jest" />
 import "jest-extended";
-// Mock react-dom/test-utils to provide a simple act implementation before importing modules
-jest.mock("react-dom/test-utils", () => ({
-  act(callback: () => void) {
-    // Directly invoke the callback for synchronous updates
-    return callback();
-  },
-}));
-// Learn more: https://github.com/testing-library/jest-dom
 import "@testing-library/jest-dom";
-// Ensure React.act is defined for React Testing Library's act compatibility
-import React from "react";
-import * as ReactTestUtils from "react-dom/test-utils";
 import "./core-setup.ts";
 import "./dom-setup.ts";
+import { ServerCacheInstance } from "@/lib/server-cache";
+
+// Mock React.cache for React 19 in test environment
+// This fixes "cache is not a function" errors in tests
+jest.mock("react", () => {
+  const actual = jest.requireActual("react");
+  return {
+    ...actual,
+    cache: jest.fn((fn) => fn), // Pass through function
+  };
+});
+
+// Ensure React.act is available
+import React from "react";
+import * as ReactTestUtils from "react-dom/test-utils";
 
 type ActFn = (callback: () => void) => void;
 const ReactModule = React as unknown as { act?: ActFn };
@@ -38,51 +56,8 @@ if (typeof window !== "undefined") {
       dispatchEvent: jest.fn(),
     })),
   });
-}
 
-// Mock Next.js router
-jest.mock("next/navigation", () => ({
-  useRouter() {
-    return {
-      prefetch: () => null,
-      push: jest.fn(),
-      replace: jest.fn(),
-      refresh: jest.fn(),
-      back: jest.fn(),
-      forward: jest.fn(),
-    };
-  },
-  useSearchParams() {
-    return {
-      get: jest.fn(),
-    };
-  },
-  usePathname() {
-    return "";
-  },
-  useParams() {
-    return {};
-  },
-}));
-
-// Mock Next.js image component
-jest.mock("next/image", () => ({
-  __esModule: true,
-  default: (props: React.ComponentProps<"img"> & { priority?: boolean; fill?: boolean }) => {
-    return React.createElement("img", {
-      ...props,
-      "data-testid": "next-image-mock",
-      // Convert boolean props to strings to avoid React warnings
-      "data-priority": props.priority ? "true" : "false",
-      "data-fill": props.fill ? "true" : "false",
-      priority: undefined, // Remove the boolean prop to avoid React warning
-      fill: undefined, // Remove the boolean prop to avoid React warning
-    });
-  },
-}));
-
-// Mock window.scrollTo (only in jsdom environment)
-if (typeof window !== "undefined") {
+  // Mock window.scrollTo
   global.scrollTo = jest.fn() as typeof window.scrollTo;
 
   // Mock global analytics objects
@@ -131,83 +106,87 @@ if (typeof window !== "undefined") {
     };
   }
   global.MessageChannel = MockMessageChannel as unknown as typeof MessageChannel;
+
+  // Mock global fetch for tests that need it (Node 22 native)
+  if (!global.fetch) {
+    // Create a properly typed fetch mock that includes Node 22's preconnect method
+    interface MockFetch extends jest.Mock {
+      preconnect: jest.Mock;
+    }
+
+    const fetchMock = jest.fn(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({}),
+        text: () => Promise.resolve(""),
+        headers: new Headers(),
+        statusText: "OK",
+      }),
+    ) as MockFetch;
+
+    // Add preconnect method to match Node 22's fetch API
+    fetchMock.preconnect = jest.fn();
+
+    global.fetch = fetchMock as unknown as typeof fetch;
+  }
 }
 
-// Mock NextResponse.json helper used in API routes
-jest.mock("next/server", () => {
-  const original = jest.requireActual("next/server");
-  return {
-    ...original,
-    NextResponse: {
-      json: (data: unknown, init: { status?: number; headers?: Record<string, string> } = {}) => {
-        return {
-          status: init.status ?? 200,
-          headers: {
-            get: (key: string) => {
-              if (key.toLowerCase() === "content-type") return "application/json";
-              return init.headers?.[key] ?? null;
-            },
-          },
-          json: async () => data,
-        } as unknown as Response;
-      },
-    },
-  };
-});
-
-// Provide a default mock for the server-side bookmarks data access module so that
-// tests can override it with their own implementations (e.g., mockResolvedValue).
-// This ensures that importing `getBookmarks` from either
-// `@/lib/bookmarks` *or* `@/lib/bookmarks/bookmarks-data-access.server` always
-// yields a `jest.fn()` that supports mock helpers like `mockResolvedValue`.
-jest.mock("@/lib/bookmarks/bookmarks-data-access.server", () => {
-  // Preserve all the actual exports to avoid breaking tests that rely on
-  // helpers like `setRefreshBookmarksCallback`, while overriding
-  // `getBookmarks` with a jest mock function that individual tests can
-  // customise via `mockResolvedValue`/`mockImplementation`.
-  const actual = jest.requireActual("@/lib/bookmarks/bookmarks-data-access.server");
-  const wrappedGetBookmarks = jest.fn(actual.getBookmarks);
-  return {
-    __esModule: true,
-    ...actual,
-    getBookmarks: wrappedGetBookmarks,
-  };
-});
-
-// ---------------------------------------------------------------------------
-// Suppress noisy console.error logs during test runs
-// ---------------------------------------------------------------------------
-
-// Capture a reference to the *actual* console.error implementation before any
-// test files or mocks have a chance to modify it.
-// Explicitly type the function to avoid implicit `any` usage downstream.
+// Capture console.error for suppression
 const pristineConsoleError = console.error.bind(console);
 const originalError: (...data: unknown[]) => void = (...data) => {
-  // Forward everything straight to the untouched implementation.
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   pristineConsoleError(...(data as unknown[]));
 };
 
-// Patterns we always want to silence. Extend this list as the codebase grows.
+// Patterns we always want to silence
 const SUPPRESSED_PATTERNS = [
   "Warning: ReactDOM.render",
   "inside a test was not wrapped in act",
+  "A suspended resource finished loading inside a test, but the event was not wrapped in act",
   "Consider adding an error boundary",
   "ReactDOMTestUtils.act",
-  // Validator-level safeguards (these are expected failures we assert on)
-  "[validateBookmarksDataset]",
+  "[validateBookmarksDataset][SAFEGUARD]",
+  "[BookmarksDataAccess] Failed to refresh bookmarks",
+  "[refreshBookmarksData] PRIMARY_FETCH_FAILURE",
+  "[refreshBookmarksData] S3_FALLBACK_FAILURE",
+  "[BookmarksDataAccess] Error reading bookmarks file",
+  "[BookmarksDataAccess] Error during distributed lock release",
+  "[API Bookmarks] Failed to fetch bookmarks",
+  "[UnitTest] QUANTITY MISMATCH!",
+  "[UnitTest] IDs in External API only:",
+  "Sitemap: Failed to get mtime",
+  "[OG-Image] Unexpected error:",
+  "Search API call failed for site-wide search:",
+  "Site-wide search API call failed:",
+  "Search API call failed for scope",
+  "Error searching in section",
 ];
 
-console.error = (...args: unknown[]) => {
-  const firstArg = args[0];
-  if (typeof firstArg === "string" && SUPPRESSED_PATTERNS.some((p) => (firstArg as string).includes(p))) {
-    return;
+// Suppress noisy console.error logs during test runs
+const suppressedConsoleError = (...data: unknown[]) => {
+  const message = data.map((item) => (typeof item === "string" ? item : JSON.stringify(item))).join(" ");
+
+  const shouldSuppress = SUPPRESSED_PATTERNS.some((pattern) => message.includes(pattern));
+
+  if (!shouldSuppress) {
+    originalError(...data);
   }
-  originalError(...args);
 };
 
-import { destroyImageMemoryManager } from "@/lib/image-memory-manager";
+// Replace console.error with our suppressed version
+console.error = suppressedConsoleError;
 
+// Clean up test state but maintain console suppression
+afterEach(() => {
+  // Clean up any test-specific state but keep console.error suppressed
+  jest.clearAllMocks();
+  jest.clearAllTimers();
+  // Re-apply suppression in case it was overridden by a test
+  console.error = suppressedConsoleError;
+});
+
+// Restore original console.error after all tests
 afterAll(() => {
-  destroyImageMemoryManager();
+  ServerCacheInstance.destroy();
+  console.error = originalError;
 });
