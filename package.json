@@ -16,11 +16,11 @@
     "scheduler": "bun lib/server/scheduler.ts",
     "submit-sitemap": "bun scripts/submit-sitemap.ts",
     "analyze": "ANALYZE=true next build",
-    "predev": "NODE_ENV=development bun scripts/data-updater.ts",
     "prestart": "",
     "prefetch": "bun scripts/data-updater.ts --bookmarks --github --logos",
     "populate-data": "NODE_ENV=development bun scripts/data-updater.ts --bookmarks --github --logos",
-    "dev": "bun run cleanCache && NODE_OPTIONS='--max-old-space-size=1536 --max-semi-space-size=128' NODE_ENV=development next dev",
+    "dev": "bun run cleanCache && (NODE_ENV=development bun scripts/data-updater.ts --quiet &) && NODE_OPTIONS='--max-old-space-size=1536 --max-semi-space-size=128' NODE_ENV=development next dev",
+    "dev:update-data": "NODE_ENV=development bun scripts/data-updater.ts",
     "dev:with-data": "bun run populate-data && bun run cleanCache && NODE_OPTIONS='--max-old-space-size=1536 --max-semi-space-size=128' NODE_ENV=development next dev",
     "dev:full": "bun run populate-data && bun run cleanCache && NODE_OPTIONS='--max-old-space-size=1536 --max-semi-space-size=128' NODE_ENV=development next dev",
     "dev:turbo": "bun run cleanCache && NODE_OPTIONS='--max-old-space-size=1536 --max-semi-space-size=128' NODE_ENV=development next dev --turbo",
@@ -111,7 +111,7 @@
     "zod": "^3.25.67"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.0.5",
+    "@biomejs/biome": "^2.0.6",
     "@eslint/js": "9.29.0",
     "@happy-dom/global-registrator": "18.0.1",
     "@mdx-js/react": "^3.1.0",

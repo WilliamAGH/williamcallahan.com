@@ -50,7 +50,7 @@ import type { BookmarkCardClientProps } from "@/types";
  * - Handling external links
  */
 
-export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element {
+export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element | null {
   const { id, url, title, description, tags, ogImage, content, dateBookmarked, internalHref } = props;
   const pathname = usePathname();
 
@@ -168,7 +168,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   // Don't use a placeholder for SSR - render full card without interactive elements
   // Server will render as much as possible for SEO, client will hydrate
 
-  if (!id || !url) return <></>;
+  if (!id || !url) return null;
 
   return (
     <div

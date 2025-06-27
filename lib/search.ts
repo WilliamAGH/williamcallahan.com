@@ -516,6 +516,16 @@ async function getBookmarksIndex(): Promise<{
   index: MiniSearch<BookmarkIndexItem>;
   bookmarks: Array<BookmarkIndexItem & { slug: string }>;
 }> {
+  // Memory safety guard – skip rebuild if under critical pressure
+  try {
+    const { getMemoryHealthMonitor } = await import("@/lib/health/memory-health-monitor");
+    if (!getMemoryHealthMonitor().shouldAcceptNewRequests()) {
+      throw new Error("Memory pressure – aborting bookmarks index build");
+    }
+  } catch {
+    /* If monitor not available, continue */
+  }
+
   // Try to get from cache first
   const cacheKey = SEARCH_INDEX_KEYS.BOOKMARKS;
   const cached = ServerCacheInstance.get<{

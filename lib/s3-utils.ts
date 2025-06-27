@@ -11,6 +11,7 @@
 import { Readable } from "node:stream";
 import { debug, isDebug } from "@/lib/utils/debug"; // Imported isDebug
 import { MEMORY_THRESHOLDS } from "@/lib/constants";
+import { safeJsonParse, safeJsonStringify, parseJsonFromBuffer } from "@/lib/utils/json-utils";
 import {
   DeleteObjectCommand,
   GetObjectCommand,
@@ -19,6 +20,8 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
+import { getContentTypeFromExtension, isImageContentType } from "@/lib/utils/content-type";
 
 // Environment variables for S3 configuration
 const S3_BUCKET = process.env.S3_BUCKET;
@@ -39,6 +42,17 @@ const MAX_S3_READ_SIZE = 50 * 1024 * 1024; // 50MB max read size to prevent memo
 
 // Request coalescing for duplicate S3 reads
 const inFlightReads = new Map<string, Promise<Buffer | string | null>>();
+
+// Utility: determine if an S3 key represents a potentially large binary (image) payload
+function isBinaryKey(key: string): boolean {
+  // Fast-path: any key stored under images/ directory is binary
+  if (key.startsWith("images/")) return true;
+
+  // Otherwise infer from file extension using centralised helpers
+  const ext = key.split(".").pop()?.toLowerCase() ?? "";
+  const contentType = getContentTypeFromExtension(ext);
+  return isImageContentType(contentType);
+}
 
 if (!S3_BUCKET || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
   console.warn(
@@ -66,7 +80,8 @@ export const s3Client: S3Client | null =
  * Check if system is under memory pressure
  */
 function isUnderMemoryPressure(): boolean {
-  return false;
+  const monitor = getMemoryHealthMonitor();
+  return !monitor.shouldAcceptNewRequests();
 }
 
 /**
@@ -75,19 +90,15 @@ function isUnderMemoryPressure(): boolean {
 function hasMemoryHeadroom(): boolean {
   if (typeof process === "undefined") return true;
 
-  const usage = process.memoryUsage();
-  // Use critical threshold (90%) instead of warning threshold (70%)
-  // S3 operations should only be deferred when memory is critically high
-  const criticalThreshold = MEMORY_THRESHOLDS.MEMORY_CRITICAL_THRESHOLD;
+  const monitor = getMemoryHealthMonitor();
+  if (!monitor.shouldAcceptNewRequests()) return false;
 
-  if (usage.rss > criticalThreshold) {
-    console.warn(
-      `[S3Utils] Memory usage (${(usage.rss / 1024 / 1024).toFixed(2)}MB) exceeds critical threshold. Deferring S3 operations.`,
-    );
-    return false;
-  }
+  const { rss, heapUsed, heapTotal } = process.memoryUsage();
+  const rssCritical = MEMORY_THRESHOLDS.MEMORY_CRITICAL_THRESHOLD;
+  const HEAP_UTIL_THRESHOLD = 0.9;
+  const heapUtilisation = heapTotal > 0 ? heapUsed / heapTotal : 0;
 
-  return true;
+  return rss <= rssCritical && heapUtilisation < HEAP_UTIL_THRESHOLD;
 }
 
 /**
@@ -160,10 +171,13 @@ export async function readFromS3(
 }
 
 async function performS3Read(key: string, options?: { range?: string }): Promise<Buffer | string | null> {
-  // Check memory pressure before attempting read
-  if (isUnderMemoryPressure()) {
-    console.warn(`[S3Utils] System under memory pressure. Deferring read of ${key}`);
-    return null;
+  if (isUnderMemoryPressure() && isBinaryKey(key)) {
+    // Allow small binaries (e.g., logos) under pressure, but block anything exceeding MAX_S3_READ_SIZE.
+    const canProceed = await validateContentSize(key);
+    if (!canProceed) {
+      console.warn(`[S3Utils] System under memory pressure. Deferring binary read of ${key}`);
+      return null;
+    }
   }
 
   // Validate content size before reading (skip for range requests)
@@ -279,7 +293,7 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
           debug(`[S3Utils] readFromS3: All ${MAX_S3_READ_RETRIES} attempts failed for key ${key}. Returning null.`);
         return null; // All retries failed
       }
-      const message = err instanceof Error ? err.message : JSON.stringify(err);
+      const message = err instanceof Error ? err.message : safeJsonStringify(err) || "Unknown error";
       console.error(`[S3Utils] Error reading from S3 key ${key} (attempt ${attempt}/${MAX_S3_READ_RETRIES}):`, message);
       return null;
     }
@@ -296,19 +310,42 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
  */
 export async function writeToS3(
   key: string,
-  data: Buffer | string,
+  data: Buffer | string | Readable,
   contentType?: string,
   acl: "private" | "public-read" | "public-read-write" | "authenticated-read" = "private",
 ): Promise<void> {
-  // Add memory check before write
-  if (!hasMemoryHeadroom()) {
-    throw new Error(`[S3Utils] Insufficient memory headroom for S3 write operation`);
+  const SMALL_PAYLOAD_THRESHOLD = 512 * 1024; // 512 KB
+  const dataSize =
+    typeof data === "string"
+      ? Buffer.byteLength(data, "utf-8")
+      : Buffer.isBuffer(data)
+        ? data.length
+        : SMALL_PAYLOAD_THRESHOLD; // Unknown stream size – treat as small for head-room check
+
+  if (isBinaryKey(key)) {
+    // For binary payloads, only block when (a) the process is under
+    // memory pressure *and* (b) the payload is larger than the
+    // conservative SMALL_PAYLOAD_THRESHOLD (512&nbsp;KB). This prevents
+    // harmless favicon-sized writes (usually <10&nbsp;KB) from failing
+    // when the process is close to the RSS limit while still protecting
+    // against large image uploads that could exacerbate memory issues.
+
+    if (dataSize > SMALL_PAYLOAD_THRESHOLD && !hasMemoryHeadroom()) {
+      throw new Error(
+        `[S3Utils] Insufficient memory headroom for binary S3 write operation (>${SMALL_PAYLOAD_THRESHOLD} bytes)`,
+      );
+    }
+  } else if (!hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
+    // For non-binary (JSON/string) data, still guard very large writes
+    throw new Error(`[S3Utils] Insufficient memory headroom for large S3 write operation`);
   }
 
   if (DRY_RUN) {
     if (isDebug)
       debug(
-        `[S3Utils][DRY RUN] Would write to S3 key ${key}. ContentType: ${contentType ?? "unknown"}, ACL: ${acl}, Data size: ${data.length}`,
+        `[S3Utils][DRY RUN] Would write to S3 key ${key}. ContentType: ${contentType ?? "unknown"}, ACL: ${acl}, Data size: ${
+          typeof data === "string" ? dataSize : Buffer.isBuffer(data) ? data.length : "stream"
+        }`,
       );
     return;
   }
@@ -331,12 +368,14 @@ export async function writeToS3(
   try {
     if (isDebug)
       debug(
-        `[S3Utils] Attempting to write to S3 key ${key}. ContentType: ${contentType ?? "unknown"}, Data size: ${data.length}`,
+        `[S3Utils] Attempting to write to S3 key ${key}. ContentType: ${contentType ?? "unknown"}, Data size: ${
+          typeof data === "string" ? dataSize : Buffer.isBuffer(data) ? data.length : "stream"
+        }`,
       );
     await s3Client.send(command);
     if (isDebug) debug(`[S3Utils] Successfully wrote to S3 key ${key}`);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : JSON.stringify(error);
+    const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
     console.error(`[S3Utils] Error writing to S3 key ${key}:`, message);
     // Re-throw the error so callers like writeBinaryS3 can catch it if needed
     throw error;
@@ -377,7 +416,7 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
       if (isDebug) debug(`[S3Utils] S3 key ${key} does not exist (NotFound).`);
       return false;
     }
-    const message = err instanceof Error ? err.message : JSON.stringify(err);
+    const message = err instanceof Error ? err.message : safeJsonStringify(err) || "Unknown error";
     console.error(`[S3Utils] Error checking S3 object existence for key ${key}:`, message);
     return false;
   }
@@ -423,7 +462,7 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
       if (isDebug) debug(`[S3Utils] Metadata not found for S3 key ${key} (NotFound).`);
       return null;
     }
-    const message = err instanceof Error ? err.message : JSON.stringify(err);
+    const message = err instanceof Error ? err.message : safeJsonStringify(err) || "Unknown error";
     console.error(`[S3Utils] Error getting S3 object metadata for key ${key}:`, message);
     return null;
   }
@@ -471,7 +510,7 @@ export async function listS3Objects(prefix: string): Promise<string[]> {
     if (isDebug) debug(`[S3Utils] Found ${keys.length} S3 objects with prefix ${prefix}.`);
     return keys;
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : JSON.stringify(error);
+    const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
     console.error(`[S3Utils] Error listing S3 objects with prefix ${prefix}:`, message);
     return [];
   }
@@ -504,7 +543,7 @@ export async function deleteFromS3(key: string): Promise<void> {
     await s3Client.send(command);
     if (isDebug) debug(`[S3Utils] Successfully deleted S3 object: ${key}`);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : JSON.stringify(error);
+    const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
     console.error(`[S3Utils] Error deleting S3 object ${key}:`, message);
   }
 }
@@ -580,19 +619,20 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
   try {
     const content = await readFromS3(s3Key); // readFromS3 already has debug logging
     if (typeof content === "string") {
-      const parsed = JSON.parse(content) as T;
-      if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON from S3 key ${s3Key}.`);
+      const parsed = safeJsonParse<T>(content);
+      if (parsed !== null && isDebug) debug(`[S3Utils] Successfully read and parsed JSON from S3 key ${s3Key}.`);
       return parsed;
     }
     if (Buffer.isBuffer(content)) {
-      const parsed = JSON.parse(content.toString("utf-8")) as T;
-      if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON (from buffer) from S3 key ${s3Key}.`);
+      const parsed = parseJsonFromBuffer<T>(content, "utf-8");
+      if (parsed !== null && isDebug)
+        debug(`[S3Utils] Successfully read and parsed JSON (from buffer) from S3 key ${s3Key}.`);
       return parsed;
     }
     if (isDebug) debug(`[S3Utils] readJsonS3: Key ${s3Key} not found or content was not string/buffer.`);
     return null;
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : JSON.stringify(error);
+    const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
     console.warn(`[S3Utils] Error reading/parsing JSON from S3 key ${s3Key}:`, message);
     return null;
   }
@@ -611,14 +651,22 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
   }
 
   // Add memory check before JSON stringify
-  if (!hasMemoryHeadroom()) {
-    console.warn(`[S3Utils] Skipping S3 write for ${s3Key} due to memory pressure`);
+  const jsonData = safeJsonStringify(data, 2);
+  if (!jsonData) {
+    throw new Error("Failed to stringify JSON data");
+  }
+
+  const dataSize = Buffer.byteLength(jsonData, "utf-8");
+  const SMALL_PAYLOAD_THRESHOLD = 512 * 1024; // 512 KB
+
+  if (!hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
+    console.warn(
+      `[S3Utils] Skipping S3 write for ${s3Key} (${(dataSize / 1024).toFixed(1)} KB) due to memory pressure`,
+    );
     return;
   }
 
   try {
-    const jsonData = JSON.stringify(data, null, 2);
-
     // If conditional write options are provided, use direct S3 command
     if (options?.IfNoneMatch) {
       if (!S3_BUCKET || !s3Client) {
@@ -645,7 +693,7 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
     const err = _error as { name?: string; $metadata?: { httpStatusCode?: number } };
     const isPreconditionFailed = err.name === "PreconditionFailed" || err.$metadata?.httpStatusCode === 412;
 
-    const message = _error instanceof Error ? _error.message : JSON.stringify(_error);
+    const message = _error instanceof Error ? _error.message : safeJsonStringify(_error) || "Unknown error";
 
     if (isPreconditionFailed) {
       // Only log at debug level to keep dev console clean
@@ -682,7 +730,7 @@ export async function readBinaryS3(s3Key: string): Promise<Buffer | null> {
     if (isDebug) debug(`[S3Utils] readBinaryS3: Key ${s3Key} not found or content was not a buffer.`);
     return null;
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : JSON.stringify(error);
+    const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
     console.warn(`[S3Utils] Error reading binary file from S3 key ${s3Key}:`, message);
     return null;
   }
@@ -694,11 +742,13 @@ export async function readBinaryS3(s3Key: string): Promise<Buffer | null> {
  * @param data Buffer to write
  * @param contentType MIME type of the content
  */
-export async function writeBinaryS3(s3Key: string, data: Buffer, contentType: string): Promise<void> {
+export async function writeBinaryS3(s3Key: string, data: Buffer | Readable, contentType: string): Promise<void> {
   if (DRY_RUN) {
     if (isDebug)
       debug(
-        `[S3Utils][DRY RUN] Would write binary file to S3 key: ${s3Key}. ContentType: ${contentType}, Size: ${data.length}`,
+        `[S3Utils][DRY RUN] Would write binary file to S3 key: ${s3Key}. ContentType: ${contentType}, Size: ${
+          Buffer.isBuffer(data) ? data.length : "stream"
+        }`,
       );
     return;
   }
@@ -709,7 +759,7 @@ export async function writeBinaryS3(s3Key: string, data: Buffer, contentType: st
     await writeToS3(s3Key, data, contentType, "public-read");
     // Success is logged by writeToS3.
   } catch (_error: unknown) {
-    const message = _error instanceof Error ? _error.message : JSON.stringify(_error);
+    const message = _error instanceof Error ? _error.message : safeJsonStringify(_error) || "Unknown error";
     console.error(`[S3Utils] Failed to write binary file to S3 key ${s3Key}:`, message);
     throw _error; // Re-throw to let callers handle the error appropriately
   }

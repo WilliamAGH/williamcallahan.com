@@ -1,9 +1,9 @@
 /**
  * Image Manifest Loader
- * 
+ *
  * Loads and caches image manifests from S3 to prevent runtime image fetches.
  * Manifests are loaded once at startup and cached in memory.
- * 
+ *
  * @module lib/image-handling/image-manifest-loader
  */
 
@@ -25,8 +25,20 @@ let loadingPromise: Promise<void> | null = null;
  * Called once during instrumentation/startup
  */
 export async function loadImageManifests(): Promise<void> {
+  // In low-memory situations (local dev or constrained containers) we avoid
+  // the upfront 150-200 MB cost of loading three large manifest JSON files.
+  // If the caller really needs them at boot they can set
+  // `LOAD_IMAGE_MANIFESTS_AT_BOOT=true` in the environment.
+
+  if (!process.env.LOAD_IMAGE_MANIFESTS_AT_BOOT) {
+    logoManifest = {};
+    opengraphManifest = [];
+    blogManifest = [];
+    return; // Lazy loading will kick-in on first access
+  }
+
   console.log("[ImageManifestLoader] Loading image manifests from S3...");
-  
+
   try {
     // Load manifests in parallel
     const [logos, opengraph, blog] = await Promise.all([
@@ -42,7 +54,7 @@ export async function loadImageManifests(): Promise<void> {
 
     const logoCount = Object.keys(logoManifest).length;
     const totalImages = logoCount + (opengraphManifest?.length || 0) + (blogManifest?.length || 0);
-    
+
     console.log(`[ImageManifestLoader] Loaded ${totalImages} images from manifests (${logoCount} logos)`);
   } catch (error) {
     console.error("[ImageManifestLoader] Failed to load image manifests:", error);
@@ -62,19 +74,19 @@ async function ensureManifestsLoaded(): Promise<void> {
   if (logoManifest !== null) {
     return;
   }
-  
+
   // If currently loading, wait for the existing load to complete
   if (isLoading && loadingPromise) {
     return loadingPromise;
   }
-  
+
   // Start loading
   isLoading = true;
   loadingPromise = loadImageManifests().finally(() => {
     isLoading = false;
     loadingPromise = null;
   });
-  
+
   return loadingPromise;
 }
 
@@ -90,12 +102,14 @@ export function getLogoFromManifest(domain: string): LogoManifestEntry | null {
     // The manifest will be loaded on demand if needed
     return null;
   }
-  
+
   const entry = logoManifest[domain];
   if (!entry) {
-    console.log(`[ImageManifestLoader] Domain ${domain} not found in manifest (${Object.keys(logoManifest).length} total entries)`);
+    console.log(
+      `[ImageManifestLoader] Domain ${domain} not found in manifest (${Object.keys(logoManifest).length} total entries)`,
+    );
   }
-  
+
   return entry || null;
 }
 

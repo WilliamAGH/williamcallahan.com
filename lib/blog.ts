@@ -5,7 +5,7 @@
 import { posts as staticPosts } from "@/data/blog/posts";
 import type { BlogPost } from "@/types/blog";
 import { getAllMDXPostsCached } from "./blog/mdx";
-import { BlogPostDataError } from "./errors";
+import { BlogPostDataError } from "./utils/error-utils";
 
 /**
  * Retrieves all blog posts sorted by publish date

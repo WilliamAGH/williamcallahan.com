@@ -11,7 +11,7 @@ import { Experience } from "../../components/features";
 import { JsonLdScript } from "../../components/seo/json-ld";
 import { getLogo } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
-import { getCompanyPlaceholder } from "@/lib/data-access/default-images";
+import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import { experiences } from "../../data/experience";
 import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
 import { getStaticPageMetadata } from "../../lib/seo/metadata";
@@ -35,7 +35,18 @@ export default async function ExperiencePage() {
   const experienceData = await Promise.all(
     experiences.map(async (exp: ExperienceType) => {
       try {
-        const domain = exp.website ? normalizeDomain(exp.website) : normalizeDomain(exp.company);
+        /**
+         * Resolve domain used for logo look-ups.
+         * Order of precedence:
+         * 1. `logoOnlyDomain` – explicit field used *only* for matching assets, never rendered.
+         * 2. `website` – strip scheme / www.
+         * 3. Fallback to company name (normalized).
+         */
+        const domain = exp.logoOnlyDomain
+          ? normalizeDomain(exp.logoOnlyDomain)
+          : exp.website
+            ? normalizeDomain(exp.website)
+            : normalizeDomain(exp.company);
         const logoResult = await getLogo(domain);
 
         return {

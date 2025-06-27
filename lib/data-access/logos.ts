@@ -16,10 +16,10 @@ import { ServerCacheInstance } from "@/lib/server-cache";
 import type { LogoResult, LogoInversion } from "@/types/logo";
 import type { LogoValidationResult } from "@/types/cache";
 import { USE_NEXTJS_CACHE } from "@/lib/cache";
+import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 
 // Type assertions for Next.js cache functions to fix ESLint errors
 const safeRevalidateTag = revalidateTag as (tag: string) => void;
-
 
 /**
  * Resets logo session tracking by clearing the server cache.
@@ -39,17 +39,13 @@ export function invalidateLogoS3Cache(): void {
   console.debug("[Logos] S3 logo cache invalidated (placeholder operation)");
 }
 
-
-
-
-
 export async function getLogo(domain: string): Promise<LogoResult | null> {
   const imageService = getUnifiedImageService();
-  
+
   try {
     // Delegate to UnifiedImageService
     const logoResult = await imageService.getLogo(domain);
-    
+
     if (logoResult.error) {
       console.error(`[Logos] Failed to get logo for domain ${domain}: ${logoResult.error}`);
       // Return error information in the result for better debugging
@@ -65,15 +61,16 @@ export async function getLogo(domain: string): Promise<LogoResult | null> {
       };
     }
 
-    // Convert LogoFetchResult to LogoResult for backward compatibility
+    // Guarantee cdnUrl when we have an s3Key
+    const resolvedCdnUrl =
+      logoResult.cdnUrl || (logoResult.s3Key ? buildCdnUrl(logoResult.s3Key, getCdnConfigFromEnv()) : undefined);
+
     const result: LogoResult = {
       s3Key: logoResult.s3Key,
-      url: logoResult.url,
-      cdnUrl: logoResult.cdnUrl,
+      url: resolvedCdnUrl ?? logoResult.url,
+      cdnUrl: resolvedCdnUrl,
       source: logoResult.source || null,
-      retrieval: logoResult.s3Key ? "s3-store" : 
-                logoResult.source ? "external" : 
-                "api",
+      retrieval: logoResult.s3Key ? "s3-store" : logoResult.source ? "external" : "api",
       contentType: logoResult.contentType || "image/png",
       timestamp: logoResult.timestamp,
     };
@@ -95,7 +92,6 @@ export async function getLogo(domain: string): Promise<LogoResult | null> {
   }
 }
 
-
 /**
  * Invalidate all logo cache entries
  */
@@ -110,7 +106,6 @@ export function invalidateLogoCache(): void {
   }
 }
 
-
 /**
  * Get logo validation - delegates to ServerCache for backward compatibility
  */
@@ -124,11 +119,11 @@ export function getLogoValidation(imageHash: string): LogoValidationResult | nul
  */
 export function setLogoValidation(imageHash: string, isGlobeIcon: boolean): void {
   // Set validation in cache
-  
+
   if (USE_NEXTJS_CACHE) {
     // Store in ServerCache for immediate access
     ServerCacheInstance.setLogoValidation(imageHash, isGlobeIcon);
-    
+
     // Invalidate Next.js cache to trigger re-fetch on next access
     safeRevalidateTag(`logo-validation-${imageHash}`);
     safeRevalidateTag("logo-validations");
@@ -153,7 +148,7 @@ export function setLogoAnalysis(cacheKey: string, analysis: LogoInversion): void
   if (USE_NEXTJS_CACHE) {
     // Store in ServerCache for immediate access
     ServerCacheInstance.setLogoAnalysis(cacheKey, analysis);
-    
+
     // Invalidate Next.js cache to trigger re-fetch on next access
     safeRevalidateTag(`logo-analysis-${cacheKey}`);
     safeRevalidateTag("logo-analyses");

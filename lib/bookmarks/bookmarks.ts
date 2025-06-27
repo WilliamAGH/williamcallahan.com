@@ -108,12 +108,26 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
 
     // Apply test limit if set
     const isNonProd = process.env.NODE_ENV !== "production";
-    const testLimit = isNonProd && process.env.S3_TEST_LIMIT ? Number.parseInt(process.env.S3_TEST_LIMIT, 10) : 0;
+    let testLimit = 0;
+    if (isNonProd) {
+      // Honour explicit developer override first
+      if (process.env.S3_TEST_LIMIT) {
+        testLimit = Number.parseInt(process.env.S3_TEST_LIMIT, 10) || 0;
+      } else if (process.env.IS_DATA_UPDATER !== "true") {
+        // Implicit safe-guard in dev REPL / Next.js server but *not* in the dedicated
+        // data-updater process, because that process is expected to handle the full
+        // dataset.
+        testLimit = 20;
+      } else {
+        testLimit = 0;
+      }
+    }
+
     let bookmarksToProcess = normalizedBookmarks;
     if (testLimit > 0) {
       bookmarksToProcess = normalizedBookmarks.slice(0, testLimit);
       console.log(
-        `[refreshBookmarksData] Test mode active: limiting processing from ${normalizedBookmarks.length} to ${bookmarksToProcess.length} bookmark(s).`,
+        `[refreshBookmarksData] Dev mode limit: processing ${bookmarksToProcess.length} of ${normalizedBookmarks.length} bookmarks to prevent high memory usage.`,
       );
     }
 

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { ExtendedError } from "./error";
 
 /**
@@ -9,11 +10,15 @@ import type { ExtendedError } from "./error";
 /**
  * Represents a single day of contribution activity.
  */
-export interface ContributionDay {
-  date: string;
-  count: number;
-  level: 0 | 1 | 2 | 3 | 4;
-}
+// Zod schemas for runtime validation - Single source of truth pattern
+export const ContributionDaySchema = z.object({
+  date: z.string(),
+  count: z.number(),
+  level: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+});
+
+// Infer type from schema (Zod v4 best practice)
+export type ContributionDay = z.infer<typeof ContributionDaySchema>;
 
 /**
  * Raw GitHub activity shape returned by getGithubActivity (flat structure)
@@ -75,30 +80,76 @@ export interface GitHubActivitySummary {
 }
 
 /**
- * Represents the raw structure of the response from the
- * GitHub GraphQL API for contribution calendar data.
+ * Schema for GitHub GraphQL repository node
  */
-export interface GitHubGraphQLContributionResponse {
-  user: {
-    id?: string; // User's Node ID
-    /** Repositories the user has committed to */
-    repositoriesContributedTo: {
-      nodes: Array<{
-        id: string;
-        name: string;
-        owner: { login: string };
-        nameWithOwner: string;
-        isFork: boolean;
-        isPrivate: boolean;
-      }>;
-    };
-  };
-}
+export const GraphQLRepoNodeSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  owner: z.object({
+    login: z.string(),
+  }),
+  nameWithOwner: z.string(),
+  isFork: z.boolean(),
+  isPrivate: z.boolean(),
+});
+
+export type GraphQLRepoNode = z.infer<typeof GraphQLRepoNodeSchema>;
+
+/**
+ * Schema for GitHub GraphQL contribution response
+ */
+export const GitHubGraphQLContributionResponseSchema = z.object({
+  user: z
+    .object({
+      id: z.string().optional(), // User's Node ID
+      repositoriesContributedTo: z.object({
+        nodes: z.array(GraphQLRepoNodeSchema),
+      }),
+    })
+    .nullable(),
+});
+
+export type GitHubGraphQLContributionResponse = z.infer<typeof GitHubGraphQLContributionResponseSchema>;
 
 /** Represents a single repository node from the GraphQL contribution response. */
-export type GithubRepoNode = NonNullable<
-  NonNullable<GitHubGraphQLContributionResponse["user"]>["repositoriesContributedTo"]
->["nodes"][number];
+export type GithubRepoNode = GraphQLRepoNode;
+
+// Schema for GraphQL commit history response
+export const GraphQLCommitHistoryResponseSchema = z.object({
+  repository: z
+    .object({
+      object: z
+        .object({
+          history: z
+            .object({
+              totalCount: z.number(),
+            })
+            .optional(),
+        })
+        .nullable(),
+    })
+    .nullable(),
+});
+
+export type GraphQLCommitHistoryResponse = z.infer<typeof GraphQLCommitHistoryResponseSchema>;
+
+// Schema for REST API commit response
+export const CommitSchema = z.object({
+  sha: z.string(),
+  commit: z
+    .object({
+      author: z.object({
+        name: z.string(),
+        email: z.string(),
+        date: z.string(),
+      }),
+      message: z.string(),
+    })
+    .optional(),
+});
+
+export const CommitResponseSchema = z.array(CommitSchema);
+export type CommitResponse = z.infer<typeof CommitResponseSchema>;
 
 /**
  * Represents the cache structure for repository weekly statistics.
@@ -107,19 +158,21 @@ export interface RepoWeeklyStatCache {
   repoOwnerLogin: string;
   repoName: string;
   lastFetched: string; // ISO string
-  status: "complete" | "pending_202_from_api" | "fetch_error" | "empty_no_user_contribs";
+  status: "complete" | "pending_202_from_api" | "pending_rate_limit" | "fetch_error" | "empty_no_user_contribs";
   stats: RepoRawWeeklyStat[];
 }
 
 /**
- * Represents raw weekly statistics for a repository.
+ * Schema for raw weekly statistics for a repository
  */
-export interface RepoRawWeeklyStat {
-  w: number; // week timestamp (seconds since epoch)
-  a: number; // additions
-  d: number; // deletions
-  c: number; // commits
-}
+export const RepoRawWeeklyStatSchema = z.object({
+  w: z.number(), // week timestamp (seconds since epoch)
+  a: z.number(), // additions
+  d: z.number(), // deletions
+  c: z.number(), // commits
+});
+
+export type RepoRawWeeklyStat = z.infer<typeof RepoRawWeeklyStatSchema>;
 
 /**
  * Represents aggregated weekly activity data.
@@ -131,22 +184,29 @@ export interface AggregatedWeeklyActivity {
 }
 
 /**
- * Represents the author of a commit/contribution, typically part of a contributor stats entry.
+ * Schema for GitHub author
  */
-export interface GithubAuthor {
-  login: string;
-  // Add other author fields if available/needed (e.g., id, avatar_url)
-}
+export const GithubAuthorSchema = z.object({
+  login: z.string(),
+  id: z.number().optional(),
+  avatar_url: z.string().optional(),
+});
+
+export type GithubAuthor = z.infer<typeof GithubAuthorSchema>;
 
 /**
- * Represents an entry for a single contributor's weekly statistics from the GitHub API.
+ * Schema for contributor stats entry from GitHub API
  */
-export interface GithubContributorStatsEntry {
-  author: GithubAuthor;
-  weeks: RepoRawWeeklyStat[];
-  total?: number; // Total commits for this contributor in this repo
-  // Add other fields if available/needed
-}
+export const GithubContributorStatsEntrySchema = z.object({
+  author: GithubAuthorSchema,
+  weeks: z.array(RepoRawWeeklyStatSchema),
+  total: z.number().optional(), // Total commits for this contributor in this repo
+});
+
+export type GithubContributorStatsEntry = z.infer<typeof GithubContributorStatsEntrySchema>;
+
+// Schema for the full contributor stats API response
+export const ContributorStatsResponseSchema = z.array(GithubContributorStatsEntrySchema);
 
 /**
  * Represents the structured view of user GitHub activity, returned by functions like getGithubActivity.
@@ -170,33 +230,44 @@ export interface UserActivityView {
   lastRefreshed?: string;
 }
 
-// --- START: GitHub GraphQL Contribution Calendar Types ---
-export interface GraphQLContributionDay {
-  contributionCount: number;
-  contributionLevel: "NONE" | "FIRST_QUARTILE" | "SECOND_QUARTILE" | "THIRD_QUARTILE" | "FOURTH_QUARTILE";
-  date: string; // YYYY-MM-DD
-  // weekday: number; // 0-6, Sunday-Saturday - available if needed
-}
+// --- START: GitHub GraphQL Contribution Calendar Schemas ---
+export const GraphQLContributionDaySchema = z.object({
+  contributionCount: z.number(),
+  contributionLevel: z.enum(["NONE", "FIRST_QUARTILE", "SECOND_QUARTILE", "THIRD_QUARTILE", "FOURTH_QUARTILE"]),
+  date: z.string(), // YYYY-MM-DD
+});
 
-export interface GraphQLContributionWeek {
-  contributionDays: GraphQLContributionDay[];
-}
+export type GraphQLContributionDay = z.infer<typeof GraphQLContributionDaySchema>;
 
-export interface GraphQLContributionCalendar {
-  totalContributions: number;
-  weeks: GraphQLContributionWeek[];
-}
+export const GraphQLContributionWeekSchema = z.object({
+  contributionDays: z.array(GraphQLContributionDaySchema),
+});
 
-export interface GraphQLContributionsCollection {
-  contributionCalendar: GraphQLContributionCalendar;
-}
+export type GraphQLContributionWeek = z.infer<typeof GraphQLContributionWeekSchema>;
 
-export interface GraphQLUserContributionsResponse {
-  user: {
-    contributionsCollection: GraphQLContributionsCollection;
-  };
-}
-// --- END: GitHub GraphQL Contribution Calendar Types ---
+export const GraphQLContributionCalendarSchema = z.object({
+  totalContributions: z.number(),
+  weeks: z.array(GraphQLContributionWeekSchema),
+});
+
+export type GraphQLContributionCalendar = z.infer<typeof GraphQLContributionCalendarSchema>;
+
+export const GraphQLContributionsCollectionSchema = z.object({
+  contributionCalendar: GraphQLContributionCalendarSchema,
+});
+
+export type GraphQLContributionsCollection = z.infer<typeof GraphQLContributionsCollectionSchema>;
+
+export const GraphQLUserContributionsResponseSchema = z.object({
+  user: z
+    .object({
+      contributionsCollection: GraphQLContributionsCollectionSchema,
+    })
+    .nullable(),
+});
+
+export type GraphQLUserContributionsResponse = z.infer<typeof GraphQLUserContributionsResponseSchema>;
+// --- END: GitHub GraphQL Contribution Calendar Schemas ---
 
 /**
  * Error interface for GitHub activity fetch errors

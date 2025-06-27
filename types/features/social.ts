@@ -40,7 +40,7 @@ export type SocialWindowClientProps = SocialWindowProps & {
 
 // Simple type
 export type SocialWindowContentProps = {
-  children: ReactNode;
+  children?: ReactNode;
   windowState: string;
   onClose: () => void;
   onMinimize: () => void;

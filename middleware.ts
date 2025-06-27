@@ -7,8 +7,10 @@
  *
  */
 
-// Force Edge Runtime for middleware (experimental in Next.js 15)
-export const runtime = 'experimental-edge';
+// Runtime configuration for middleware (Edge)
+// Next.js v15+ expects runtime to be specified within the exported `config` object.
+// See: https://github.com/vercel/next.js/blob/canary/docs/01-app/03-api-reference/03-file-conventions/middleware.mdx
+// Using `edge` here (not deprecated `experimental-edge`).
 
 import { CSP_DIRECTIVES } from "./lib/constants";
 import { NextResponse } from "next/server";
@@ -178,6 +180,7 @@ export default async function middleware(request: NextRequest): Promise<NextResp
  * Includes image optimization routes and excludes other static files from middleware processing
  */
 export const config = {
+  runtime: "experimental-edge",
   matcher: [
     /*
      * Match all request paths except for the ones starting with:

@@ -90,6 +90,9 @@ COPY --from=builder /app/package.json ./package.json
 # Copy public directory (run as root, so no chown needed)
 COPY --from=builder /app/public ./public
 
+# Copy data directory with all static data files
+COPY --from=builder /app/data ./data
+
 # Ensure TypeScript path-mapping files are available at runtime so that Bun can
 # resolve "@/*" import aliases used by our standalone scripts (e.g. update-s3).
 # We copy any root-level tsconfig variants that might contain the "paths" map.
@@ -102,6 +105,10 @@ COPY --from=builder /app/tsconfig*.json ./
 COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/types ./types
 COPY --from=builder /app/config ./config
+
+# Ensure the sitemap generator used by runtime scripts is available.
+# Only the specific file is copied to minimize image size and avoid unnecessary source files.
+COPY --from=builder /app/app/sitemap.ts ./app/sitemap.ts
 
 # REMOVED: Copying initial data from builder stage - data now lives in S3
 # COPY --from=builder --chown=nextjs:nodejs /app/data/images/logos /app/.initial-logos

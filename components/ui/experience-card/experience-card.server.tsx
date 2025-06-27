@@ -8,7 +8,7 @@
 
 import { getLogo } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
-import { getCompanyPlaceholder } from "@/lib/data-access/default-images";
+import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import type { Experience } from "../../../types/experience";
 import { ExperienceCardClient } from "./experience-card.client";
 

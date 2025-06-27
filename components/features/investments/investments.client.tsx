@@ -36,7 +36,7 @@ const INVESTMENTS_WINDOW_ID = "investments-window";
  * - Rendering pre-rendered investment cards
  * - Handling empty state
  */
-export function InvestmentsClient({ investments = [] }: InvestmentsClientProps): JSX.Element {
+export function InvestmentsClient({ investments = [] }: InvestmentsClientProps): JSX.Element | null {
   // Register this window instance and get its state/actions
   const {
     windowState,
@@ -64,7 +64,7 @@ export function InvestmentsClient({ investments = [] }: InvestmentsClientProps):
   // the intended behaviour afterwards.
   if (isRegistered && (effectiveState === "closed" || effectiveState === "minimized")) {
     console.log(`InvestmentsClient (${INVESTMENTS_WINDOW_ID}): Rendering null (state: ${effectiveState})`);
-    return <></>;
+    return null;
   }
 
   // Now we can proceed with rendering normally. `effectiveState` collapses the

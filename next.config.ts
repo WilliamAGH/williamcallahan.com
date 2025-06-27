@@ -56,6 +56,14 @@ process.env.NEXT_PUBLIC_APP_VERSION = appVersion;
 
 const nextConfig = {
   /**
+   * Include data directory in standalone build output
+   * This ensures static data files are available in production
+   */
+  outputFileTracingIncludes: {
+    "/": ["./data/**/*"],
+  },
+
+  /**
    * Turbopack configuration (moved from experimental.turbo)
    * Turbopack is now stable in Next.js 15
    * Valid options: root, rules, resolveAlias, resolveExtensions
@@ -625,7 +633,6 @@ const nextConfig = {
       { protocol: "https", hostname: "www.google.com" },
       { protocol: "https", hostname: "external-content.duckduckgo.com" },
       // Logo services
-      { protocol: "https", hostname: "logo.clearbit.com" },
       // Analytics and internal hosting platforms
       { protocol: "https", hostname: "umami.iocloudhost.net" },
       { protocol: "https", hostname: "plausible.iocloudhost.net" },

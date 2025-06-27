@@ -38,11 +38,10 @@ export interface WindowTab {
 
 export interface MacOSWindowExtendedProps extends MacOSWindowProps {
   contentClassName?: string;
-  hideTrafficLights?: boolean;
   tabs?: WindowTab[];
   activeTabId?: string;
   onTabClick?: (id: string) => void;
-  /** To control traffic light appearance more granularly if needed later */
+  /** To control traffic light appearance */
   showTrafficLights?: boolean;
   /** Whether window is maximized */
   isMaximized?: boolean;

@@ -13,6 +13,7 @@ import type { LogoFetchResult } from "@/types/cache";
 import logger from "@/lib/utils/logger";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 
 /**
  * GET handler for logo fetching
@@ -72,22 +73,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    // Always redirect to CDN if available
+    // Redirect to CDN if available
     if (logoMeta.cdnUrl) {
       logger.debug(`[Logo API] Redirecting logo for ${domain} to CDN: ${logoMeta.cdnUrl}`);
       return NextResponse.redirect(logoMeta.cdnUrl, 301);
     }
 
-    // Fallback if no buffer and no CDN URL
-    logger.error(`[Logo API] No buffer or CDN URL for domain: ${domain}`);
-    return new NextResponse(null, {
-      status: 404,
-      headers: {
-        "Cache-Control": "public, max-age=300",
-        "x-logo-error": "No content available for logo",
-        "x-logo-domain": domain,
-      },
-    });
+    // If a valid S3 key exists but cdnUrl is missing, construct a URL directly.
+    if (logoMeta.s3Key) {
+      try {
+        const cdnUrl = buildCdnUrl(logoMeta.s3Key, getCdnConfigFromEnv());
+        logger.debug(`[Logo API] Reconstructing CDN/S3 URL for ${domain}: ${cdnUrl}`);
+        return NextResponse.redirect(cdnUrl, 301);
+      } catch (e) {
+        logger.warn(`[Logo API] Failed to build CDN URL for ${domain}:`, e);
+      }
+    }
+
+    // Final fallback – return placeholder rather than 404 to avoid broken icons
+    logger.error(`[Logo API] No content available for logo of domain: ${domain}`);
+    return NextResponse.redirect("/images/opengraph-placeholder.png", 302);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("[Logo API] Unexpected error:", errorMessage);

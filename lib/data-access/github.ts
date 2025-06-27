@@ -1,63 +1,88 @@
 /**
  * GitHub Data Access Module
  *
- * Handles fetching, processing, and caching of GitHub activity data
- * Includes contributions, repository statistics, commit history, and lines of code metrics
- * Access pattern: In-memory Cache → S3 Storage → GitHub API (GraphQL and REST)
+ * Orchestrates GitHub activity data operations using specialized modules:
+ * - github-api.ts: Direct GitHub API interactions
+ * - github-storage.ts: S3 storage operations
+ * - github-processing.ts: Data processing and aggregation
  *
  * @module data-access/github
  */
 
-import {
-  getS3ObjectMetadata,
-  readBinaryS3,
-  readJsonS3,
-  listS3Objects as s3UtilsListS3Objects,
-  writeBinaryS3,
-  writeJsonS3,
-} from "@/lib/s3-utils";
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { debug } from "@/lib/utils/debug";
 import type {
-  AggregatedWeeklyActivity,
   ContributionDay,
   GitHubActivityApiResponse,
   GitHubActivitySegment,
   GitHubActivitySummary,
-  GitHubGraphQLContributionResponse,
-  GithubContributorStatsEntry,
-  GraphQLUserContributionsResponse,
-  RepoRawWeeklyStat,
-  RepoWeeklyStatCache,
   StoredGithubActivityS3,
-  UserActivityView,
   GithubRepoNode,
+  RepoWeeklyStatCache,
 } from "@/types/github";
-import { graphql } from "@octokit/graphql";
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
-import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
+import { ContributorStatsResponseSchema, CommitResponseSchema } from "@/types/github";
+import { formatPacificDateTime, getTrailingYearDate, startOfDay, endOfDay, unixToDate } from "@/lib/utils/date-format";
+import { waitForPermit } from "@/lib/rate-limiter";
+import { generateGitHubStatsCSV, parseGitHubStatsCSV } from "@/lib/utils/csv";
+import { writeBinaryS3, readBinaryS3 } from "@/lib/s3-utils";
+import type { RepoRawWeeklyStat } from "@/types/github";
+import { BatchProcessor } from "@/lib/batch-processing";
+import { retryWithDomainConfig, delay } from "@/lib/utils/retry";
+import { createCategorizedError } from "@/lib/utils/error-utils";
 
-// --- Configuration & Constants ---
-/**
- * GitHub username for fetching activity data across all contributed repositories.
- * Defaults to 'WilliamAGH' if GITHUB_REPO_OWNER is not set
- */
-const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || "WilliamAGH";
-// Support multiple env var names for the GitHub token to avoid accidental mis-configurations.
-// Preferred (new) name: GITHUB_ACCESS_TOKEN_COMMIT_GRAPH – falls back to common alternatives.
+// Import from specialized modules
+import {
+  fetchContributedRepositories,
+  fetchContributionCalendar,
+  fetchRepositoryCommitCount,
+  fetchContributorStats,
+  GitHubContributorStatsPendingError,
+  GitHubContributorStatsRateLimitError,
+  isGitHubApiConfigured,
+  getGitHubUsername,
+  githubHttpClient,
+} from "./github-api";
+
+import { writeGitHubActivityToS3, writeGitHubSummaryToS3 } from "./github-storage";
+import {
+  ALL_TIME_SUMMARY_S3_KEY_FILE,
+  REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
+  GITHUB_ACTIVITY_S3_KEY_FILE,
+} from "./github-constants";
+
+import {
+  flattenContributionCalendar,
+  categorizeRepository,
+  calculateAndStoreAggregatedWeeklyActivity,
+  filterContributorStats,
+  repairCsvData,
+} from "./github-processing";
+
+// Re-export S3 paths for backward compatibility
+export {
+  GITHUB_ACTIVITY_S3_KEY_DIR,
+  GITHUB_ACTIVITY_S3_KEY_FILE,
+  GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK,
+  GITHUB_STATS_SUMMARY_S3_KEY_FILE,
+  ALL_TIME_SUMMARY_S3_KEY_FILE,
+  REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
+  AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE,
+} from "./github-constants";
+
+// Re-export public API functions from github-public-api.ts
+export {
+  getGithubActivity,
+  getGithubActivityCached,
+  invalidateGitHubCache,
+  invalidateGitHubActivityCache,
+} from "./github-public-api";
+
+// Re-export processing functions
+export { calculateAndStoreAggregatedWeeklyActivity } from "./github-processing";
+
+// Configuration
+const GITHUB_REPO_OWNER = getGitHubUsername();
 const GITHUB_API_TOKEN =
   process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH || process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN;
-
-import { GITHUB_ACTIVITY_S3_PATHS } from "@/lib/constants";
-
-// Re-export from constants for backward compatibility
-export const GITHUB_ACTIVITY_S3_KEY_DIR: string = GITHUB_ACTIVITY_S3_PATHS.DIR;
-export const GITHUB_ACTIVITY_S3_KEY_FILE: string = GITHUB_ACTIVITY_S3_PATHS.ACTIVITY_DATA;
-export const GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK: string = GITHUB_ACTIVITY_S3_PATHS.ACTIVITY_DATA_PROD_FALLBACK; // Production key without suffix
-export const GITHUB_STATS_SUMMARY_S3_KEY_FILE: string = GITHUB_ACTIVITY_S3_PATHS.STATS_SUMMARY;
-export const ALL_TIME_SUMMARY_S3_KEY_FILE: string = GITHUB_ACTIVITY_S3_PATHS.ALL_TIME_SUMMARY;
-export const REPO_RAW_WEEKLY_STATS_S3_KEY_DIR: string = GITHUB_ACTIVITY_S3_PATHS.REPO_RAW_WEEKLY_STATS_DIR;
-export const AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE: string = GITHUB_ACTIVITY_S3_PATHS.AGGREGATED_WEEKLY;
 
 const CONCURRENT_REPO_LIMIT = 5; // Limit for concurrent repository processing
 
@@ -89,132 +114,11 @@ function wrapGithubActivity(
   };
 }
 
-/**
- * Converts a GitHub GraphQL contribution level string to its numeric equivalent.
- *
- * @param graphQLLevel - The contribution level string from the GitHub GraphQL API.
- * @returns A numeric value from 0 (none) to 4 (fourth quartile) representing the contribution level
- *
- * @remark Returns 0 if {@link graphQLLevel} is unrecognized
- */
-function mapGraphQLContributionLevelToNumeric(graphQLLevel: string): 0 | 1 | 2 | 3 | 4 {
-  switch (graphQLLevel) {
-    case "NONE":
-      return 0;
-    case "FIRST_QUARTILE":
-      return 1;
-    case "SECOND_QUARTILE":
-      return 2;
-    case "THIRD_QUARTILE":
-      return 3;
-    case "FOURTH_QUARTILE":
-      return 4;
-    default:
-      return 0; // Default to 0 for any unexpected values
-  }
-}
-
-/**
- * Fetches a URL with retries for network errors and GitHub API 202 (Accepted) responses using exponential backoff with jitter
- *
- * Handles both network-level errors and application-level retries for 202 status
- * Implements exponential backoff with jitter to prevent thundering herd problems
- *
- * @param url - The URL to fetch
- * @param options - Fetch request options
- * @param maxRetries - Maximum number of retries before giving up. Defaults to 5
- * @returns The final Response object, which may still have a 202 status if all retries are exhausted
- * @throws {Error} If all retries fail without receiving any response, or if max retries are exhausted
- */
-async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 5): Promise<Response> {
-  let lastResponse: Response | null = null;
-  let retryCount = 0;
-  let baseDelay = 1000; // Initial delay in ms
-
-  const getJitteredDelay = () => {
-    const jitter = Math.random() * 1 - 0.5; // ±50% jitter
-    const delay = baseDelay * (1 + jitter);
-    return Math.min(delay, 30000); // Cap at 30 seconds
-  };
-
-  while (retryCount < maxRetries) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000); // 30s hard timeout
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      // Success case - return immediately for non-202 responses
-      if (response.status !== 202) {
-        return response;
-      }
-
-      // Handle 202 Accepted with retry
-      const retryAfter = response.headers.get("Retry-After");
-      const delay = retryAfter ? Number.parseInt(retryAfter, 10) * 1000 : getJitteredDelay();
-
-      console.log(
-        `[DataAccess/GitHub] GitHub API returned 202 for ${url}, waiting ${delay}ms before retry ${retryCount + 1}/${maxRetries}`,
-      );
-      lastResponse = response;
-
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      baseDelay *= 2; // Exponential backoff for next retry
-      retryCount++;
-    } catch (error: unknown) {
-      clearTimeout(timeout);
-
-      // Handle network errors (DNS, connection refused, etc.)
-      if (retryCount === maxRetries - 1) {
-        console.error(
-          `[DataAccess/GitHub] Network error on final retry (${retryCount + 1}/${maxRetries}) for ${url}:`,
-          error instanceof Error ? error.message : String(error),
-        );
-        throw error; // Re-throw on final retry
-      }
-
-      const delay = getJitteredDelay();
-      console.warn(
-        `[DataAccess/GitHub] Network error on attempt ${retryCount + 1}/${maxRetries} for ${url}, retrying in ${delay}ms:`,
-        error instanceof Error ? error.message : String(error),
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      baseDelay *= 2; // Exponential backoff for next retry
-      retryCount++;
-    }
-  }
-
-  // This should only be reached if we exhausted all retries on 202s
-  if (!lastResponse) {
-    // This case should be unreachable due to the error handling above
-    throw new Error(`All ${maxRetries} retries failed for ${url} without a valid response.`);
-  }
-
-  // If we got here, we have a lastResponse (from 202s) to return
-  // The caller is expected to handle this (e.g., by treating it as data still pending)
-  return lastResponse;
-}
-
-/**
- * Determines if the given object matches the old flat StoredGithubActivityS3 format
- *
- * @param obj - The object to evaluate
- * @returns True if obj has a data array and numeric totalContributions property, indicating the old flat format; otherwise, false
- */
-
-function isOldFlatStoredGithubActivityS3Format(obj: unknown): obj is StoredGithubActivityS3 {
-  if (typeof obj !== "object" || obj === null) {
-    return false;
-  }
-  // Check for key properties of StoredGithubActivityS3 that are not in GitHubActivityApiResponse
-  const record = obj as Record<string, unknown>;
-  return Array.isArray(record.data) && typeof record.totalContributions === "number";
+// Helper function to check if status indicates error or pending state
+function isErrorOrPendingStatus(
+  status: RepoWeeklyStatCache["status"],
+): status is "fetch_error" | "pending_202_from_api" | "pending_rate_limit" {
+  return status === "fetch_error" || status === "pending_202_from_api" || status === "pending_rate_limit";
 }
 
 // --- GitHub Activity Data Refresh ---
@@ -239,7 +143,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   allTimeData: StoredGithubActivityS3;
 } | null> {
   console.log("[DataAccess/GitHub:refreshGitHubActivity] Attempting to refresh GitHub activity data from API...");
-  if (!GITHUB_API_TOKEN) {
+  if (!isGitHubApiConfigured()) {
     console.error(
       "[DataAccess/GitHub] CRITICAL: GitHub API token is missing. Cannot fetch GitHub activity. " +
         "Please ensure GITHUB_ACCESS_TOKEN_COMMIT_GRAPH is set in your environment variables.",
@@ -264,42 +168,15 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     console.log(
       `[DataAccess/GitHub] Fetching list of contributed repositories and user ID for ${GITHUB_REPO_OWNER} via GraphQL API...`,
     );
-    const { user } = await graphql<GitHubGraphQLContributionResponse>(
-      `
-      query($username: String!) {
-        user(login: $username) {
-          id # <-- ADDED USER ID FETCH
-          repositoriesContributedTo(
-            first: 100,
-            contributionTypes: [COMMIT],
-            includeUserRepositories: true,
-            orderBy: { field: PUSHED_AT, direction: DESC }
-          ) {
-            nodes { id name owner { login } nameWithOwner isFork isPrivate }
-          }
-        }
-      }
-    `,
-      { username: GITHUB_REPO_OWNER, headers: { authorization: `bearer ${GITHUB_API_TOKEN}` } },
-    );
 
-    githubUserId = user?.id;
-    if (!githubUserId) {
-      // Early return if user ID is missing - this is critical for using GraphQL to count commits
-      // Without a user ID, we can't use the more efficient GraphQL commit counting method
-      // and would need to fall back to REST API pagination which can hit rate limits
-      console.error(
-        "[DataAccess/GitHub] CRITICAL: Failed to fetch user ID for GITHUB_REPO_OWNER. Cannot proceed with accurate commit counting.",
-      );
-      return null;
-    }
-
-    const contributedRepoNodes = user?.repositoriesContributedTo?.nodes || [];
-    uniqueRepoArray = contributedRepoNodes.filter((repo): repo is GithubRepoNode => !!(repo && !repo.isFork));
+    const { userId, repositories } = await fetchContributedRepositories(GITHUB_REPO_OWNER);
+    githubUserId = userId;
+    uniqueRepoArray = repositories;
   } catch (gqlError: unknown) {
+    const categorizedError = createCategorizedError(gqlError, "github");
     console.error(
       "[DataAccess/GitHub] CRITICAL: Failed to fetch repository list via GraphQL:",
-      gqlError instanceof Error ? gqlError.message : String(gqlError),
+      categorizedError.message,
     );
     return null;
   }
@@ -316,20 +193,14 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       allTimeTotalContributions: 0,
     };
     const result = { trailingYearData: emptyRawResponse, allTimeData: emptyRawResponse };
-    await writeJsonS3(GITHUB_ACTIVITY_S3_KEY_FILE, wrapGithubActivity(result));
+    await writeGitHubActivityToS3(wrapGithubActivity(result) as GitHubActivityApiResponse);
     return result;
   }
 
   console.log("[DataAccess/GitHub] Calculating trailing year stats...");
-  const trailingYearFromDate = new Date(now);
-  trailingYearFromDate.setDate(now.getDate() - 365);
-  // Ensure 'from' date is set to the beginning of the day for GraphQL query
-  const gqlFromDate = new Date(trailingYearFromDate);
-  gqlFromDate.setUTCHours(0, 0, 0, 0);
-
-  // Ensure 'to' date for GraphQL is set to the end of 'now' day to include all of today's contributions
-  const gqlToDate = new Date(now);
-  gqlToDate.setUTCHours(23, 59, 59, 999);
+  const trailingYearFromDate = getTrailingYearDate(now);
+  const gqlFromDate = startOfDay(trailingYearFromDate);
+  const gqlToDate = endOfDay(now);
 
   let yearLinesAdded = 0;
   let yearLinesRemoved = 0;
@@ -345,6 +216,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   let allTimeLinesRemoved = 0;
   let allTimeTotalCommits = 0;
   let allTimeOverallDataComplete = true; // Assume complete until proven otherwise
+  let yearOverallDataComplete = true; // Track if all repositories were processed successfully for the trailing year
   const allTimeCategoryStats: GitHubActivitySummary["linesOfCodeByCategory"] = {
     frontend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
     backend: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
@@ -352,9 +224,13 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     other: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
   };
 
-  for (let i = 0; i < uniqueRepoArray.length; i += CONCURRENT_REPO_LIMIT) {
-    const batch = uniqueRepoArray.slice(i, i + CONCURRENT_REPO_LIMIT);
-    const batchPromises = batch.map(async (repo) => {
+  // Use batch processor for repository processing
+  const repoProcessor = new BatchProcessor<
+    GithubRepoNode,
+    { linesAdded: number; linesRemoved: number; categoryKey: string; dataComplete: boolean }
+  >(
+    "github-repo-stats",
+    async (repo) => {
       const repoOwnerLogin = repo.owner.login;
       const repoName = repo.name;
       const repoStatS3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwnerLogin}_${repoName}.csv`;
@@ -368,56 +244,26 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       let apiStatus: RepoWeeklyStatCache["status"] = "fetch_error";
       let finalStatsToSaveForRepo: RepoRawWeeklyStat[] = [];
       try {
-        const statsResponse = await fetchWithRetry(
-          `https://api.github.com/repos/${repoOwnerLogin}/${repoName}/stats/contributors`,
-          {
-            headers: {
-              Authorization: `Bearer ${GITHUB_API_TOKEN}`,
-              Accept: "application/vnd.github.v3+json",
-            },
-          },
-        );
+        const contributors = await fetchContributorStats(repoOwnerLogin, repoName);
+        const ownerStats = filterContributorStats(contributors, GITHUB_REPO_OWNER);
         let userWeeklyStatsFromApi: RepoRawWeeklyStat[] = [];
-        if (statsResponse.status === 202) {
-          apiStatus = "pending_202_from_api";
-          repoDataCompleteForYear = false;
-          debug(
-            `[DataAccess/GitHub] Trailing Year: GitHub API returned 202 (pending) for ${repoOwnerLogin}/${repoName}.`,
-          );
-        } else if (statsResponse.ok) {
-          const contributors = (await statsResponse.json()) as GithubContributorStatsEntry[];
-          const ownerLoginLower = GITHUB_REPO_OWNER.toLowerCase();
-          const ownerStats = contributors
-            ? contributors.find(
-                (c) =>
-                  c?.author &&
-                  typeof c.author === "object" &&
-                  "login" in c.author &&
-                  c.author.login.toLowerCase() === ownerLoginLower,
-              )
-            : null;
 
-          if (ownerStats) {
-            if (ownerStats.weeks && Array.isArray(ownerStats.weeks)) {
-              userWeeklyStatsFromApi = ownerStats.weeks.map((w: RepoRawWeeklyStat) => ({
-                w: w.w,
-                a: w.a,
-                d: w.d,
-                c: w.c,
-              }));
-              apiStatus = userWeeklyStatsFromApi.length > 0 ? "complete" : "empty_no_user_contribs";
-            } else {
-              apiStatus = "empty_no_user_contribs";
-            }
+        if (ownerStats) {
+          if (ownerStats.weeks && Array.isArray(ownerStats.weeks)) {
+            userWeeklyStatsFromApi = ownerStats.weeks.map((w: RepoRawWeeklyStat) => ({
+              w: w.w,
+              a: w.a,
+              d: w.d,
+              c: w.c,
+            }));
+            apiStatus = userWeeklyStatsFromApi.length > 0 ? "complete" : "empty_no_user_contribs";
           } else {
             apiStatus = "empty_no_user_contribs";
           }
         } else {
-          repoDataCompleteForYear = false;
-          debug(
-            `[DataAccess/GitHub] Trailing Year: Error fetching stats for ${repoOwnerLogin}/${repoName}. Status: ${statsResponse.status}.`,
-          );
+          apiStatus = "empty_no_user_contribs";
         }
+
         if (apiStatus === "complete" && userWeeklyStatsFromApi.length > 0) {
           finalStatsToSaveForRepo = userWeeklyStatsFromApi.sort((a, b) => a.w - b.w);
         } else {
@@ -435,62 +281,73 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
               );
               finalStatsToSaveForRepo = [];
             } else {
-              finalStatsToSaveForRepo = csvString
-                .split("\n")
-                .filter(Boolean)
-                .slice(0, 1000) // Limit to 1000 lines max
-                .map((line) => {
-                  const [w, a, d, c] = line.split(",");
-                  return { w: Number(w), a: Number(a), d: Number(d), c: Number(c) };
-                });
+              // Use the CSV parser utility
+              finalStatsToSaveForRepo = parseGitHubStatsCSV(csvString).slice(0, 1000); // Limit to 1000 lines max
             }
           } else {
-            if (apiStatus === "pending_202_from_api" || apiStatus === "fetch_error") {
+            // No existing S3 data and API didn't provide complete data
+            if (apiStatus === "empty_no_user_contribs") {
+              // This is fine - confirmed no contributions
+              repoDataCompleteForYear = true;
+            } else {
+              // API fetch failed or is incomplete
               repoDataCompleteForYear = false;
-
               if (!repoDataCompleteForYear) {
                 allTimeOverallDataComplete = false;
               }
             }
           }
         }
+
         if (
           finalStatsToSaveForRepo.length > 0 &&
-          (apiStatus === "complete" ||
-            apiStatus === "empty_no_user_contribs" ||
-            (apiStatus !== "fetch_error" && apiStatus !== "pending_202_from_api" && finalStatsToSaveForRepo.length > 0))
+          (apiStatus === "complete" || apiStatus === "empty_no_user_contribs" || isErrorOrPendingStatus(apiStatus))
         ) {
-          await writeBinaryS3(
-            repoStatS3Key,
-            Buffer.from(finalStatsToSaveForRepo.map((w) => `${w.w},${w.a},${w.d},${w.c}`).join("\n")),
-            "text/csv",
-          );
+          await writeBinaryS3(repoStatS3Key, Buffer.from(generateGitHubStatsCSV(finalStatsToSaveForRepo)), "text/csv");
           debug(
             `[DataAccess/GitHub-S3] Trailing Year: CSV for ${repoOwnerLogin}/${repoName} updated/written. Weeks: ${finalStatsToSaveForRepo.length}. API Status: ${apiStatus}`,
           );
-        } else if (
-          finalStatsToSaveForRepo.length === 0 &&
-          (apiStatus === "pending_202_from_api" || apiStatus === "fetch_error")
-        ) {
+        } else if (finalStatsToSaveForRepo.length === 0 && isErrorOrPendingStatus(apiStatus)) {
           console.warn(
-            `[DataAccess/GitHub-S3] Trailing Year: No stats data to save for ${repoOwnerLogin}/${repoName} (API status: ${apiStatus}, no usable existing S3 data). CSV not written.`,
+            `[DataAccess/GitHub-S3] Trailing Year: No stats data to save for ${repoOwnerLogin}/${repoName} (API status: ${String(apiStatus)}, no usable existing S3 data). CSV not written.`,
           );
           repoDataCompleteForYear = false;
         }
+
         for (const week of finalStatsToSaveForRepo) {
-          const weekDate = new Date(week.w * 1000);
+          const weekDate = unixToDate(week.w);
           if (weekDate >= trailingYearFromDate && weekDate <= now) {
             currentRepoLinesAdded365 += week.a || 0;
             currentRepoLinesRemoved365 += week.d || 0;
           }
         }
       } catch (repoError: unknown) {
-        console.warn(
-          `[DataAccess/GitHub] Trailing Year: Critical error processing stats for ${repoOwnerLogin}/${repoName}:`,
-          repoError instanceof Error ? repoError.message : String(repoError),
-        );
-        repoDataCompleteForYear = false;
-        allTimeOverallDataComplete = false; // If trailing year fails for a repo, all-time is also affected for this source
+        if (repoError instanceof GitHubContributorStatsPendingError) {
+          // Mark as pending so downstream logic can fall back to existing CSV or mark data incomplete without treating as hard failure.
+          apiStatus = "pending_202_from_api";
+          repoDataCompleteForYear = false;
+          // pending still affects completeness but is a softer state than fetch_error
+          allTimeOverallDataComplete = false;
+          console.warn(
+            `[DataAccess/GitHub] Trailing Year: Stats still generating for ${repoOwnerLogin}/${repoName} – marked pending.`,
+          );
+        } else if (repoError instanceof GitHubContributorStatsRateLimitError) {
+          apiStatus = "pending_rate_limit";
+          repoDataCompleteForYear = false;
+          allTimeOverallDataComplete = false;
+          console.warn(
+            `[DataAccess/GitHub] Trailing Year: Rate limit hit for ${repoOwnerLogin}/${repoName} – deferring to next refresh.`,
+          );
+        } else {
+          const categorizedError = createCategorizedError(repoError, "github");
+          console.warn(
+            `[DataAccess/GitHub] Trailing Year: Critical error processing stats for ${repoOwnerLogin}/${repoName}:`,
+            categorizedError.message,
+          );
+          apiStatus = "fetch_error";
+          repoDataCompleteForYear = false;
+          allTimeOverallDataComplete = false; // If trailing year fails for a repo, all-time is also affected for this source
+        }
       }
       yearLinesAdded += currentRepoLinesAdded365;
       yearLinesRemoved += currentRepoLinesRemoved365;
@@ -502,7 +359,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
           currentRepoAllTimeLinesAdded += week.a || 0;
           currentRepoAllTimeLinesRemoved += week.d || 0;
         }
-      } else if (apiStatus === "fetch_error" || apiStatus === "pending_202_from_api") {
+      } else if (isErrorOrPendingStatus(apiStatus)) {
         // If fetching failed or is pending, and there was no S3 fallback with data,
         // then all-time data for this repo is incomplete.
         allTimeOverallDataComplete = false;
@@ -514,11 +371,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       allTimeLinesRemoved += currentRepoAllTimeLinesRemoved;
       // allTimeTotalCommits is now calculated later using a more accurate method
 
-      const repoNameLower = repo.name.toLowerCase();
-      let categoryKey: keyof typeof yearCategoryStats = "other"; // Same key for year and all-time categories
-      if (repoNameLower.includes("front")) categoryKey = "frontend";
-      else if (repoNameLower.includes("back")) categoryKey = "backend";
-      else if (repoNameLower.includes("data") || repoNameLower.includes("scraping")) categoryKey = "dataEngineer";
+      const categoryKey = categorizeRepository(repo.name);
 
       if (currentRepoLinesAdded365 > 0 || currentRepoLinesRemoved365 > 0 || repoDataCompleteForYear) {
         yearCategoryStats[categoryKey].linesAdded += currentRepoLinesAdded365;
@@ -547,8 +400,43 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
         // We need a distinct list of repos for allTimeCategoryStats.repoCount, which can be derived later when creating the summary.
         // For now, just sum lines.
       }
-    });
-    await Promise.all(batchPromises);
+      return {
+        linesAdded: currentRepoLinesAdded365,
+        linesRemoved: currentRepoLinesRemoved365,
+        categoryKey,
+        dataComplete: repoDataCompleteForYear,
+      };
+    },
+    {
+      batchSize: CONCURRENT_REPO_LIMIT,
+      timeout: 60000,
+      onProgress: (current, total, failed) => {
+        console.log(`[DataAccess/GitHub] Processing repositories: ${current}/${total} (${failed} failed)`);
+      },
+    },
+  );
+
+  const repoResults = await repoProcessor.processBatch(uniqueRepoArray);
+
+  // Process successful results
+  for (const [, result] of repoResults.successful) {
+    yearLinesAdded += result.linesAdded;
+    yearLinesRemoved += result.linesRemoved;
+
+    const categoryKey = result.categoryKey as keyof typeof yearCategoryStats;
+    if (result.linesAdded > 0 || result.linesRemoved > 0 || result.dataComplete) {
+      yearCategoryStats[categoryKey].linesAdded += result.linesAdded;
+      yearCategoryStats[categoryKey].linesRemoved += result.linesRemoved;
+      yearCategoryStats[categoryKey].repoCount += 1;
+      yearCategoryStats[categoryKey].netChange =
+        (yearCategoryStats[categoryKey].netChange || 0) + (result.linesAdded - result.linesRemoved);
+    }
+  }
+
+  // Handle failed repositories
+  if (repoResults.failed.size > 0) {
+    console.warn(`[DataAccess/GitHub] Failed to process ${repoResults.failed.size} repositories`);
+    yearOverallDataComplete = false;
   }
 
   console.log("[DataAccess/GitHub] All-Time: Calculating all-time commit counts from /commits API...");
@@ -569,39 +457,17 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
         );
         throw new Error("GitHub User ID not available for GraphQL commit count.");
       }
-      const commitCountQuery = `
-        query($owner: String!, $name: String!, $authorId: ID!) {
-          repository(owner: $owner, name: $name) {
-            object(expression: "HEAD") {
-              ... on Commit {
-                history(author: {id: $authorId}) {
-                  totalCount
-                }
-              }
-            }
-          }
-        }
-      `;
 
-      const response = await graphql<{
-        repository?: { object?: { history?: { totalCount?: number } } };
-      }>(commitCountQuery, {
-        owner,
-        name,
-        authorId: githubUserId,
-        headers: { authorization: `bearer ${GITHUB_API_TOKEN}` },
-      });
-
-      const totalCount = response?.repository?.object?.history?.totalCount || 0;
-      repoCommitCount = totalCount;
+      repoCommitCount = await fetchRepositoryCommitCount(owner, name, githubUserId);
 
       debug(
         `[DataAccess/GitHub] All-Time: Found ${repoCommitCount} commits for ${owner}/${name} via GraphQL API (using ID).`,
       );
     } catch (error: unknown) {
+      const categorizedError = createCategorizedError(error, "github");
       console.warn(
         `[DataAccess/GitHub] All-Time: Error fetching commit count for ${owner}/${name} via GraphQL:`,
-        error instanceof Error ? error.message : String(error),
+        categorizedError.message,
       );
 
       // Fall back to traditional REST API if GraphQL fails
@@ -609,43 +475,68 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       while (true) {
         const commitsUrl = `https://api.github.com/repos/${owner}/${name}/commits?author=${GITHUB_REPO_OWNER}&per_page=100&page=${page}`;
 
-        const res = await fetch(commitsUrl, {
-          headers: {
-            Authorization: `Bearer ${GITHUB_API_TOKEN}`,
-            Accept: "application/vnd.github.v3+json",
-          },
-        });
+        try {
+          // Use retry logic for each page request to handle transient failures
+          const res = await retryWithDomainConfig(async () => {
+            await waitForPermit("github-rest", "github-api-call", {
+              maxRequests: 5000,
+              windowMs: 60 * 60 * 1000,
+            });
 
-        if (!res.ok) {
+            return await githubHttpClient(commitsUrl, {
+              headers: {
+                Authorization: `Bearer ${GITHUB_API_TOKEN}`,
+                Accept: "application/vnd.github.v3+json",
+              },
+              timeout: 30000,
+            });
+          }, "GITHUB_API");
+
+          if (!res?.ok) {
+            const categorizedError = createCategorizedError(
+              new Error(`HTTP ${res?.status || "unknown"} response`),
+              "github",
+            );
+            console.warn(
+              `[DataAccess/GitHub] All-Time: Error fetching commits for ${owner}/${name} (page ${page}):`,
+              categorizedError.message,
+            );
+            break;
+          }
+
+          const commitsData: unknown = await res.json();
+          const commitsResult = CommitResponseSchema.safeParse(commitsData);
+          if (!commitsResult.success) {
+            console.warn(
+              `[DataAccess/GitHub] All-Time: Invalid commit data for ${owner}/${name} (page ${page}). Stopping count for this repo.`,
+            );
+            break;
+          }
+
+          const commits = commitsResult.data;
+          if (commits.length === 0) break;
+
+          repoCommitCount += commits.length;
+
+          if (commits.length < 100) break;
+          page++;
+
+          // Safety break for very deep pagination
+          if (page > 20) {
+            debug(
+              `[DataAccess/GitHub] All-Time: Reached ${page} pages for ${owner}/${name}, check for unexpected depth or error in pagination break.`,
+            );
+          }
+
+          await delay(100); // Small delay between pages to be kind to the API
+        } catch (pageError: unknown) {
+          const categorizedError = createCategorizedError(pageError, "github");
           console.warn(
-            `[DataAccess/GitHub] All-Time: Error fetching commits for ${owner}/${name} (page ${page}): ${res.status}. Stopping count for this repo.`,
+            `[DataAccess/GitHub] All-Time: Failed to fetch commits page ${page} for ${owner}/${name} after retries:`,
+            categorizedError.message,
           );
-          // Consider if this should impact allTimeOverallDataComplete for lines/additions,
-          // or if a separate flag for commit count completeness is needed.
-          // For now, this primarily affects the accuracy of allTimeTotalCommits.
           break;
         }
-        const commits = (await res.json()) as Array<{ sha: string }>;
-        if (!Array.isArray(commits)) {
-          console.warn(
-            `[DataAccess/GitHub] All-Time: Invalid commit data for ${owner}/${name} (page ${page}). Stopping count for this repo.`,
-          );
-          break;
-        }
-        if (commits.length === 0) break;
-
-        repoCommitCount += commits.length;
-
-        if (commits.length < 100) break;
-        page++;
-        // Safety break for very deep pagination, e.g. if a repo has > 2000 commits by the user.
-        // Adjust limit if necessary, or remove if confident in all repo sizes.
-        if (page > 20) {
-          debug(
-            `[DataAccess/GitHub] All-Time: Reached ${page} pages for ${owner}/${name}, check for unexpected depth or error in pagination break.`,
-          );
-        }
-        await new Promise((r) => setTimeout(r, 100)); // Small delay between pages to be kind to the API
       }
     }
 
@@ -659,47 +550,21 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
 
   try {
     console.log(`[DataAccess/GitHub] Fetching contribution calendar for ${GITHUB_REPO_OWNER} via GraphQL API...`);
-    const gqlResponse = await graphql<GraphQLUserContributionsResponse>(
-      `
-        query($username: String!, $from: DateTime!, $to: DateTime!) {
-          user(login: $username) {
-            contributionsCollection(from: $from, to: $to) {
-              contributionCalendar {
-                totalContributions
-                weeks {
-                  contributionDays {
-                    contributionCount
-                    contributionLevel
-                    date
-                  }
-                }
-              }
-            }
-          }
-        }
-      `,
-      {
-        username: GITHUB_REPO_OWNER,
-        from: gqlFromDate.toISOString(),
-        to: gqlToDate.toISOString(),
-        headers: { authorization: `bearer ${GITHUB_API_TOKEN}` },
-      },
+
+    const gqlResponse = await fetchContributionCalendar(
+      GITHUB_REPO_OWNER,
+      gqlFromDate.toISOString(),
+      gqlToDate.toISOString(),
     );
 
     if (gqlResponse?.user?.contributionsCollection?.contributionCalendar) {
       const calendar = gqlResponse.user.contributionsCollection.contributionCalendar;
       yearTotalCommits = calendar.totalContributions;
 
-      // Flatten the weeks and contributionDays into the ContributionDay[] format
-      for (const week of calendar.weeks) {
-        for (const day of week.contributionDays) {
-          trailingYearContributionsCalendar.push({
-            date: day.date, // Already YYYY-MM-DD
-            count: day.contributionCount,
-            level: mapGraphQLContributionLevelToNumeric(day.contributionLevel),
-          });
-        }
-      }
+      // Use the processing module to flatten the calendar
+      const contributionDays = flattenContributionCalendar(calendar);
+      trailingYearContributionsCalendar.push(...contributionDays);
+
       // Sort by date just in case, though GraphQL usually returns it ordered
       trailingYearContributionsCalendar.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       console.log(
@@ -712,16 +577,17 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       // Keep yearTotalCommits as 0 and trailingYearContributionsCalendar as empty
     }
   } catch (gqlError: unknown) {
+    const categorizedError = createCategorizedError(gqlError, "github");
     console.error(
       "[DataAccess/GitHub] CRITICAL: Error fetching GraphQL contribution calendar:",
-      gqlError instanceof Error ? gqlError.message : String(gqlError),
+      categorizedError.message,
     );
     // Keep yearTotalCommits as 0 and trailingYearContributionsCalendar as empty in case of error
   }
 
   // Track if all repositories were processed successfully for the trailing year
   // By default, assume data is complete unless we find a repository that failed
-  let yearOverallDataComplete = true;
+  yearOverallDataComplete = true;
 
   // If we have no repositories, the data is considered complete (edge case)
   if (uniqueRepoArray.length === 0) {
@@ -743,20 +609,9 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   };
 
   try {
-    const summaryS3Key = GITHUB_STATS_SUMMARY_S3_KEY_FILE;
     const netYearLoc = (trailingYearData.linesAdded || 0) - (trailingYearData.linesRemoved || 0);
     const yearSummaryData: GitHubActivitySummary = {
-      lastUpdatedAtPacific: new Date().toLocaleString("en-US", {
-        timeZone: "America/Los_Angeles",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-        timeZoneName: "short",
-      }),
+      lastUpdatedAtPacific: formatPacificDateTime(),
       totalContributions: trailingYearData.totalContributions,
       totalLinesAdded: trailingYearData.linesAdded || 0,
       totalLinesRemoved: trailingYearData.linesRemoved || 0,
@@ -765,13 +620,11 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       totalRepositoriesContributedTo: uniqueRepoArray.length,
       linesOfCodeByCategory: yearCategoryStats,
     };
-    await writeJsonS3(summaryS3Key, yearSummaryData);
-    debug(`[DataAccess/GitHub-S3] Trailing year GitHub summary saved to ${summaryS3Key}`);
+    await writeGitHubSummaryToS3(yearSummaryData);
+    debug("[DataAccess/GitHub-S3] Trailing year GitHub summary saved");
   } catch (summaryError: unknown) {
-    console.error(
-      "[DataAccess/GitHub-S3] Failed to write trailing year GitHub summary:",
-      summaryError instanceof Error ? summaryError.message : String(summaryError),
-    );
+    const categorizedError = createCategorizedError(summaryError, "github");
+    console.error("[DataAccess/GitHub-S3] Failed to write trailing year GitHub summary:", categorizedError.message);
   }
 
   console.log(
@@ -824,11 +677,6 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       other: { linesAdded: 0, linesRemoved: 0, netChange: 0, repoCount: 0 },
     };
 
-    // The loop below was empty and repoStatS3Key was unused.
-    // for (const repo of uniqueRepoArray) {
-    //     const repoStatS3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repo.owner.login}_${repo.name}.csv`; // Unused
-    // }
-
     // For a more accurate allTimeCategoryStats.repoCount, we would need to know which repos contributed to which category over all time.
     // The current `allTimeCategoryStats` has summed lines correctly.
     // Setting repoCount to uniqueRepoArray.length for each category that has non-zero lines is an approximation.
@@ -849,17 +697,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
 
     const netAllTimeLoc = (allTimeData.linesAdded || 0) - (allTimeData.linesRemoved || 0);
     const allTimeSummaryData: GitHubActivitySummary = {
-      lastUpdatedAtPacific: new Date().toLocaleString("en-US", {
-        timeZone: "America/Los_Angeles",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-        timeZoneName: "short",
-      }),
+      lastUpdatedAtPacific: formatPacificDateTime(),
       totalContributions: allTimeData.totalContributions,
       totalLinesAdded: allTimeData.linesAdded || 0,
       totalLinesRemoved: allTimeData.linesRemoved || 0,
@@ -868,13 +706,11 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       totalRepositoriesContributedTo: uniqueRepoArray.length, // Total unique repos processed
       linesOfCodeByCategory: finalAllTimeCategoryStats, // Use the refined or approximated category stats
     };
-    await writeJsonS3(ALL_TIME_SUMMARY_S3_KEY_FILE, allTimeSummaryData);
+    await writeGitHubSummaryToS3(allTimeSummaryData);
     debug(`[DataAccess/GitHub-S3] All-time GitHub summary saved to ${ALL_TIME_SUMMARY_S3_KEY_FILE}`);
   } catch (summaryError: unknown) {
-    console.error(
-      "[DataAccess/GitHub-S3] Failed to write all-time GitHub summary:",
-      summaryError instanceof Error ? summaryError.message : String(summaryError),
-    );
+    const categorizedError = createCategorizedError(summaryError, "github");
+    console.error("[DataAccess/GitHub-S3] Failed to write all-time GitHub summary:", categorizedError.message);
   }
 
   await calculateAndStoreAggregatedWeeklyActivity();
@@ -906,222 +742,18 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   };
 
   try {
-    await writeJsonS3<GitHubActivityApiResponse>(GITHUB_ACTIVITY_S3_KEY_FILE, combinedActivityDataForS3);
+    await writeGitHubActivityToS3(combinedActivityDataForS3);
     debug(
       `[DataAccess/GitHub-S3] Combined GitHub activity data (ApiResponse structure) saved to ${GITHUB_ACTIVITY_S3_KEY_FILE}`,
     );
   } catch (error: unknown) {
+    const categorizedError = createCategorizedError(error, "github");
     console.error(
       "[DataAccess/GitHub-S3] Failed to write combined GitHub activity data to S3:",
-      error instanceof Error ? error.message : String(error),
+      categorizedError.message,
     );
   }
   return { trailingYearData, allTimeData };
-}
-
-// Default empty state for UserActivityView
-const defaultUserActivityView: UserActivityView = {
-  source: "empty",
-  trailingYearData: {
-    data: [] as ContributionDay[],
-    totalContributions: 0,
-    dataComplete: false,
-  },
-  allTimeStats: {
-    totalContributions: 0,
-    linesAdded: 0,
-    linesRemoved: 0,
-  },
-};
-
-/**
- * Retrieves the user's GitHub activity data, using in-memory cache if available, otherwise reading from S3 storage, and falls back to default or partial data if necessary.
- *
- * If valid nested activity data is found in S3, returns a complete {@link UserActivityView}. If legacy or malformed data is detected, attempts partial recovery and returns an error view. If no data is available, returns a default error view.
- *
- * @returns A promise resolving to a {@link UserActivityView} containing trailing year and all-time GitHub activity statistics
- */
-export async function getGithubActivity(): Promise<UserActivityView> {
-  const cacheKey = "githubActivity";
-  const cachedData = ServerCacheInstance.get<UserActivityView>(cacheKey);
-  if (cachedData) {
-    debug("[DataAccess/GitHub:getGithubActivity] Returning GitHub activity from in-memory cache.");
-    return cachedData;
-  }
-
-  debug(
-    `[DataAccess/GitHub:getGithubActivity] Attempting to read GitHub activity from S3: ${GITHUB_ACTIVITY_S3_KEY_FILE}`,
-  );
-  let s3ActivityData = await readJsonS3<GitHubActivityApiResponse>(GITHUB_ACTIVITY_S3_KEY_FILE);
-  let metadataKey = GITHUB_ACTIVITY_S3_KEY_FILE;
-
-  // Fallback: In local development or testing, the environment-specific file (e.g., with "-dev" suffix)
-  // may not exist in S3. Gracefully fall back to the production key so UI does not break.
-  const isNonProduction = process.env.NODE_ENV !== "production" && process.env.NODE_ENV;
-  if (!s3ActivityData && isNonProduction) {
-    console.log(
-      `[DataAccess/GitHub:getGithubActivity] Primary key not found (${GITHUB_ACTIVITY_S3_KEY_FILE}). ` +
-        `NODE_ENV: '${process.env.NODE_ENV}'. ` +
-        `Falling back to production key: ${GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK}`,
-    );
-    metadataKey = GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK;
-    s3ActivityData = await readJsonS3<GitHubActivityApiResponse>(metadataKey);
-
-    if (!s3ActivityData) {
-      console.error(
-        `[DataAccess/GitHub:getGithubActivity] CRITICAL: No data found in S3 for either ${GITHUB_ACTIVITY_S3_KEY_FILE} or ${GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK}. This likely means the GitHub activity data has never been successfully fetched and stored.`,
-      );
-    }
-  }
-
-  const s3Metadata = await getS3ObjectMetadata(metadataKey);
-  const usedFallback = metadataKey === GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK;
-
-  if (s3ActivityData?.trailingYearData && s3ActivityData.cumulativeAllTimeData) {
-    debug(
-      "[DataAccess/GitHub:getGithubActivity] Successfully read and parsed GitHub activity from S3 (expected nested structure).",
-    );
-
-    const trailingYearContributions = s3ActivityData.trailingYearData.totalContributions || 0;
-    const allTimeContributions = s3ActivityData.cumulativeAllTimeData.totalContributions || 0;
-
-    if (allTimeContributions < trailingYearContributions) {
-      console.warn(
-        `[DataAccess/GitHub:getGithubActivity] Data inconsistency: All-time contributions (${allTimeContributions}) < trailing year (${trailingYearContributions}). Displaying S3-derived all-time count; trailing year count from API is higher.`,
-      );
-    }
-
-    const s3TrailingYearDataDays: ContributionDay[] = s3ActivityData.trailingYearData.data || ([] as ContributionDay[]);
-
-    const userView: UserActivityView = {
-      source: usedFallback ? "s3-store-fallback" : "s3-store",
-      trailingYearData: {
-        data: s3TrailingYearDataDays,
-        totalContributions: trailingYearContributions,
-        linesAdded: s3ActivityData.trailingYearData.linesAdded,
-        linesRemoved: s3ActivityData.trailingYearData.linesRemoved,
-        dataComplete: s3ActivityData.trailingYearData.dataComplete ?? false,
-      },
-      allTimeStats: {
-        totalContributions: allTimeContributions,
-        linesAdded: Math.max(
-          s3ActivityData.cumulativeAllTimeData.linesAdded || 0,
-          s3ActivityData.trailingYearData.linesAdded || 0,
-        ),
-        linesRemoved: Math.max(
-          s3ActivityData.cumulativeAllTimeData.linesRemoved || 0,
-          s3ActivityData.trailingYearData.linesRemoved || 0,
-        ),
-      },
-      lastRefreshed: s3Metadata?.LastModified?.toISOString(),
-    };
-    ServerCacheInstance.set(cacheKey, userView);
-    return userView;
-  }
-
-  let errorView: UserActivityView;
-  if (isOldFlatStoredGithubActivityS3Format(s3ActivityData)) {
-    console.warn(
-      "[DataAccess/GitHub:getGithubActivity] Detected outdated flat structure in S3. Attempting partial data recovery.",
-    );
-    const totalContributions = s3ActivityData.totalContributions || 0;
-    const linesAdded = s3ActivityData.linesAdded || 0;
-    const linesRemoved = s3ActivityData.linesRemoved || 0;
-    errorView = {
-      source: "error",
-      error: "Outdated data format detected. Some data may be incomplete. A refresh is recommended.",
-      trailingYearData: {
-        data: s3ActivityData.data || ([] as ContributionDay[]),
-        totalContributions: totalContributions,
-        dataComplete: s3ActivityData.dataComplete ?? false,
-      },
-      allTimeStats: {
-        totalContributions: s3ActivityData.allTimeTotalContributions || totalContributions,
-        linesAdded: linesAdded,
-        linesRemoved: linesRemoved,
-      },
-      lastRefreshed: s3Metadata?.LastModified?.toISOString(),
-    };
-  } else if (s3ActivityData) {
-    console.warn(
-      "[DataAccess/GitHub:getGithubActivity] S3 data has invalid structure. Attempting partial data recovery.",
-    );
-    let trailingYearData: UserActivityView["trailingYearData"] = {
-      data: [] as ContributionDay[],
-      totalContributions: 0,
-      dataComplete: false,
-      // linesAdded and linesRemoved are optional and can be initially undefined
-    };
-    if (s3ActivityData.trailingYearData) {
-      trailingYearData = {
-        data: s3ActivityData.trailingYearData.data || ([] as ContributionDay[]),
-        totalContributions: s3ActivityData.trailingYearData.totalContributions || 0,
-        linesAdded: s3ActivityData.trailingYearData.linesAdded ?? undefined,
-        linesRemoved: s3ActivityData.trailingYearData.linesRemoved ?? undefined,
-        dataComplete: s3ActivityData.trailingYearData.dataComplete ?? false,
-      };
-    }
-    let allTimeStats = { totalContributions: 0, linesAdded: 0, linesRemoved: 0 };
-    if (s3ActivityData.cumulativeAllTimeData) {
-      allTimeStats = {
-        totalContributions: s3ActivityData.cumulativeAllTimeData.totalContributions || 0,
-        linesAdded: s3ActivityData.cumulativeAllTimeData.linesAdded || 0,
-        linesRemoved: s3ActivityData.cumulativeAllTimeData.linesRemoved || 0,
-      };
-    }
-    if (allTimeStats.totalContributions < trailingYearData.totalContributions) {
-      allTimeStats.totalContributions = trailingYearData.totalContributions;
-    }
-    errorView = {
-      source: "error",
-      error: "Incomplete data structure detected. Some data was recovered but may be partial.",
-      trailingYearData: trailingYearData,
-      allTimeStats: allTimeStats,
-      lastRefreshed: s3Metadata?.LastModified?.toISOString(),
-    };
-  } else {
-    console.warn(
-      "[DataAccess/GitHub:getGithubActivity] Failed to read GitHub activity from S3. Returning default values.",
-    );
-    errorView = {
-      ...defaultUserActivityView,
-      source: "error",
-      error: "Failed to load GitHub activity data. Please try refreshing.",
-      lastRefreshed: s3Metadata?.LastModified?.toISOString(),
-    };
-  }
-  ServerCacheInstance.set(cacheKey, errorView);
-  return errorView;
-}
-
-// Internal direct S3 read function for GitHub activity (always available)
-async function getGithubActivityDirect(): Promise<UserActivityView> {
-  return getGithubActivity();
-}
-
-// Cached version using 'use cache' directive
-async function getCachedGithubActivity(): Promise<UserActivityView> {
-  'use cache';
-  
-  cacheLife('days'); // 24 hour cache for GitHub data
-  cacheTag('github');
-  cacheTag('github-activity');
-  
-  return getGithubActivityDirect();
-}
-
-// Updated export to use caching when enabled
-export async function getGithubActivityCached(): Promise<UserActivityView> {
-  // If caching is enabled, try to use it with fallback to direct
-  if (USE_NEXTJS_CACHE) {
-    return withCacheFallback(
-      () => getCachedGithubActivity(),
-      () => getGithubActivityDirect()
-    );
-  }
-  
-  // Default: Always use direct read
-  return getGithubActivityDirect();
 }
 
 /**
@@ -1138,39 +770,20 @@ async function detectAndRepairCsvFiles(): Promise<{
 }> {
   console.log("[DataAccess/GitHub] Running CSV integrity check and repair...");
 
-  if (!GITHUB_API_TOKEN) {
+  if (!isGitHubApiConfigured()) {
     console.warn("[DataAccess/GitHub] GitHub API token is missing. Cannot perform CSV repair.");
     return { scannedRepos: 0, repairedRepos: 0, failedRepairs: 0 };
   }
 
-  let repoList: Array<{ owner: { login: string }; name: string }> = [];
+  let repoList: GithubRepoNode[] = [];
   try {
     console.log("[DataAccess/GitHub] Fetching repository list for CSV integrity check...");
-    const { user } = await graphql<GitHubGraphQLContributionResponse>(
-      `
-      query($username: String!) {
-        user(login: $username) {
-          repositoriesContributedTo(
-            first: 100,
-            contributionTypes: [COMMIT],
-            includeUserRepositories: true,
-            orderBy: { field: PUSHED_AT, direction: DESC }
-          ) {
-            nodes { name owner { login } }
-          }
-        }
-      }
-    `,
-      { username: GITHUB_REPO_OWNER, headers: { authorization: `bearer ${GITHUB_API_TOKEN}` } },
-    );
 
-    const nodes = user?.repositoriesContributedTo?.nodes || [];
-    repoList = nodes.filter((n) => n !== null) as Array<{ owner: { login: string }; name: string }>;
+    const { repositories } = await fetchContributedRepositories(GITHUB_REPO_OWNER);
+    repoList = repositories;
   } catch (error: unknown) {
-    console.error(
-      "[DataAccess/GitHub] Failed to fetch repository list for CSV repair:",
-      error instanceof Error ? error.message : String(error),
-    );
+    const categorizedError = createCategorizedError(error, "github");
+    console.error("[DataAccess/GitHub] Failed to fetch repository list for CSV repair:", categorizedError.message);
     return { scannedRepos: 0, repairedRepos: 0, failedRepairs: 0 };
   }
 
@@ -1182,101 +795,112 @@ async function detectAndRepairCsvFiles(): Promise<{
     const repoOwner = repo.owner.login;
     const repoName = repo.name;
     const repoStatS3Key = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwner}_${repoName}.csv`;
+
     try {
-      const csvBuffer = await readBinaryS3(repoStatS3Key);
-      let needsRepair = false;
-      if (!csvBuffer || csvBuffer.length === 0) {
-        console.log(`[DataAccess/GitHub] CSV repair: Missing or empty CSV for ${repoOwner}/${repoName}`);
-        needsRepair = true;
-      } else {
-        // Limit CSV processing to prevent memory exhaustion
-        const csvString = csvBuffer.toString();
-        if (csvString.length > 10 * 1024 * 1024) {
-          // 10MB limit
-          console.warn(
-            `[DataAccess/GitHub] CSV repair: CSV too large (${Math.round(csvString.length / 1024 / 1024)}MB) for ${repoOwner}/${repoName}, skipping repair`,
-          );
-          continue;
-        }
-        const lines = csvString.split("\n").filter(Boolean).slice(0, 1000); // Limit lines
-        if (lines.length === 0) {
-          console.log(`[DataAccess/GitHub] CSV repair: Empty CSV (after filtering) for ${repoOwner}/${repoName}`);
-          needsRepair = true;
+      // Try to repair the CSV file - check if it exists and needs repair
+      const csvContent = await readBinaryS3(repoStatS3Key);
+      let repairSuccessful = false;
+
+      if (csvContent) {
+        const csvString = csvContent.toString("utf-8");
+        const repairedCsv = repairCsvData(csvString);
+
+        if (repairedCsv === csvString) {
+          // CSV doesn't need repair
+          repairSuccessful = true;
         } else {
-          const hasInvalidLines = lines.some((line) => {
-            const parts = line.split(",");
-            return parts.length !== 4 || parts.some((part) => Number.isNaN(Number(part)));
-          });
-          if (hasInvalidLines) {
-            console.log(`[DataAccess/GitHub] CSV repair: Invalid data format in CSV for ${repoOwner}/${repoName}`);
-            needsRepair = true;
-          }
+          // CSV needs repair - write the repaired version
+          await writeBinaryS3(repoStatS3Key, Buffer.from(repairedCsv), "text/csv");
+          repairSuccessful = true;
         }
       }
 
-      if (needsRepair) {
+      if (repairSuccessful) {
+        repairedCount++;
+      } else {
         console.log(`[DataAccess/GitHub] CSV repair: Attempting to repair data for ${repoOwner}/${repoName}`);
-        const statsResponse = await fetchWithRetry(
-          `https://api.github.com/repos/${repoOwner}/${repoName}/stats/contributors`,
-          {
+
+        // Use retry logic for CSV repair API calls
+        const statsResponse = await retryWithDomainConfig(async () => {
+          await waitForPermit("github-rest", "github-api-call", {
+            maxRequests: 5000,
+            windowMs: 60 * 60 * 1000,
+          });
+
+          return await githubHttpClient(`https://api.github.com/repos/${repoOwner}/${repoName}/stats/contributors`, {
             headers: {
               Authorization: `Bearer ${GITHUB_API_TOKEN}`,
               Accept: "application/vnd.github.v3+json",
             },
-          },
-        );
-        if (statsResponse.ok) {
-          const contributors = (await statsResponse.json()) as GithubContributorStatsEntry[];
-          const ownerLoginLower = GITHUB_REPO_OWNER.toLowerCase();
-          const userStatsEntry = contributors.find(
-            (c) =>
-              c?.author &&
-              typeof c.author === "object" &&
-              "login" in c.author &&
-              c.author.login.toLowerCase() === ownerLoginLower,
-          );
-          if (userStatsEntry?.weeks && Array.isArray(userStatsEntry.weeks)) {
-            const weeklyStats = userStatsEntry.weeks
-              .map((w) => ({
-                w: w.w,
-                a: w.a,
-                d: w.d,
-                c: w.c,
-              }))
-              .sort((a, b) => a.w - b.w);
-            if (weeklyStats.length > 0) {
-              await writeBinaryS3(
-                repoStatS3Key,
-                Buffer.from(weeklyStats.map((w) => `${w.w},${w.a},${w.d},${w.c}`).join("\n")),
-                "text/csv",
-              );
-              console.log(
-                `[DataAccess/GitHub] CSV repair: Successfully repaired ${repoOwner}/${repoName} with ${weeklyStats.length} weeks of data`,
-              );
-              repairedCount++;
-            } else {
-              console.warn(
-                `[DataAccess/GitHub] CSV repair: No weekly stats found for ${repoOwner}/${repoName} from API to repair.`,
-              );
-              failedCount++; // Or consider if this is a success if the API says no data
-            }
-          } else {
+            timeout: 30000,
+            handle202Retry: true,
+          });
+        }, "GITHUB_API");
+
+        if (statsResponse?.ok) {
+          const contributorsData: unknown = await statsResponse.json();
+          const contributorsResult = ContributorStatsResponseSchema.safeParse(contributorsData);
+          if (!contributorsResult.success) {
             console.warn(
-              `[DataAccess/GitHub] CSV repair: No user-specific stats found for ${repoOwner}/${repoName} from API.`,
+              `[DataAccess/GitHub] Invalid contributor stats for ${repoOwner}/${repoName}:`,
+              contributorsResult.error.flatten(),
             );
             failedCount++;
+          } else {
+            const contributors = contributorsResult.data;
+            const ownerStats = filterContributorStats(contributors, GITHUB_REPO_OWNER);
+
+            if (ownerStats?.weeks && Array.isArray(ownerStats.weeks)) {
+              const weeklyStats = ownerStats.weeks
+                .map((w) => ({
+                  w: w.w,
+                  a: w.a,
+                  d: w.d,
+                  c: w.c,
+                }))
+                .sort((a, b) => a.w - b.w);
+              if (weeklyStats.length > 0) {
+                await writeBinaryS3(repoStatS3Key, Buffer.from(generateGitHubStatsCSV(weeklyStats)), "text/csv");
+                console.log(
+                  `[DataAccess/GitHub] CSV repair: Successfully repaired ${repoOwner}/${repoName} with ${weeklyStats.length} weeks of data`,
+                );
+                repairedCount++;
+              } else {
+                console.warn(
+                  `[DataAccess/GitHub] CSV repair: No weekly stats found for ${repoOwner}/${repoName} from API to repair.`,
+                );
+                failedCount++;
+              }
+            } else {
+              console.warn(
+                `[DataAccess/GitHub] CSV repair: No user-specific stats found for ${repoOwner}/${repoName} from API.`,
+              );
+              failedCount++;
+            }
           }
+        } else if (statsResponse?.status === 202) {
+          // Pending generation – skip, will repair later
+          console.info(
+            `[DataAccess/GitHub] CSV repair: Stats still generating for ${repoOwner}/${repoName} – will retry on next run`,
+          );
+          failedCount++;
+        } else if (statsResponse?.status === 403) {
+          console.info(
+            `[DataAccess/GitHub] CSV repair: Rate limited for ${repoOwner}/${repoName} – will retry on next run`,
+          );
+          failedCount++;
         } else {
           console.warn(
-            `[DataAccess/GitHub] CSV repair: Failed to fetch stats for ${repoOwner}/${repoName}, status ${statsResponse.status}`,
+            `[DataAccess/GitHub] CSV repair: Failed to fetch stats for ${repoOwner}/${repoName}. HTTP ${statsResponse?.status}`,
           );
           failedCount++;
         }
       }
     } catch (error: unknown) {
+      const categorizedError = createCategorizedError(error, "github");
       console.error(
         `[DataAccess/GitHub] CSV repair: Error processing ${repoOwner}/${repoName}:`,
-        error instanceof Error ? error.message : String(error),
+        categorizedError.message,
       );
       failedCount++;
     }
@@ -1289,121 +913,4 @@ async function detectAndRepairCsvFiles(): Promise<{
     repairedRepos: repairedCount,
     failedRepairs: failedCount,
   };
-}
-
-/**
- * Aggregates weekly lines added and removed across all repository CSV files in S3 and stores the result as a single JSON file.
- *
- * @returns A promise that resolves to an object containing the aggregated weekly activity array and a flag indicating whether all data was processed successfully, or null if in DRY_RUN mode.
- *
- * @remark If any repository CSV is missing or unreadable, the `overallDataComplete` flag will be set to `false`.
- */
-export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
-  aggregatedActivity: AggregatedWeeklyActivity[];
-  overallDataComplete: boolean;
-} | null> {
-  if (process.env.DRY_RUN === "true") {
-    debug("[DataAccess/GitHub-S3] DRY RUN mode: skipping aggregated weekly activity calculation.");
-    return null;
-  }
-  const overrideCalc = (
-    globalThis as {
-      calculateAndStoreAggregatedWeeklyActivity?: typeof calculateAndStoreAggregatedWeeklyActivity;
-    }
-  ).calculateAndStoreAggregatedWeeklyActivity;
-  if (typeof overrideCalc === "function" && overrideCalc !== calculateAndStoreAggregatedWeeklyActivity) {
-    return overrideCalc();
-  }
-  console.log("[DataAccess/GitHub-S3] Calculating aggregated weekly activity...");
-  let overallDataComplete = true;
-  const weeklyTotals: Record<string, { added: number; removed: number }> = {};
-  const today = new Date();
-  let s3StatFileKeys: string[] = [];
-  try {
-    console.log(`[DataAccess/GitHub-S3] Listing objects in S3 with prefix: ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/`);
-    s3StatFileKeys = await s3UtilsListS3Objects(REPO_RAW_WEEKLY_STATS_S3_KEY_DIR);
-    debug(`[DataAccess/GitHub-S3] Found ${s3StatFileKeys.length} potential stat files in S3.`);
-  } catch (listError: unknown) {
-    const message = listError instanceof Error ? listError.message : String(listError);
-    console.error(
-      `[DataAccess/GitHub-S3] Aggregation: Error listing S3 objects in ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/:`,
-      message,
-    );
-    await writeJsonS3(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, []); // Write empty if listing fails
-    return { aggregatedActivity: [], overallDataComplete: false };
-  }
-  s3StatFileKeys = s3StatFileKeys.filter((key) => key.endsWith(".csv"));
-  if (s3StatFileKeys.length === 0) {
-    debug(
-      `[DataAccess/GitHub-S3] Aggregation: No raw weekly stat files found in S3 path ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/. Nothing to aggregate.`,
-    );
-    await writeJsonS3(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, []);
-    return { aggregatedActivity: [], overallDataComplete: true }; // No files means data is "complete" in terms of processing what's there
-  }
-  for (const repoStatS3Key of s3StatFileKeys) {
-    try {
-      const buf = await readBinaryS3(repoStatS3Key);
-      if (!buf) {
-        debug(`[DataAccess/GitHub-S3] Aggregation: No data in ${repoStatS3Key}, skipping.`);
-        overallDataComplete = false; // Missing data for a repo means overall is not complete
-        continue;
-      }
-      const lines = buf.toString("utf-8").split("\n").filter(Boolean);
-      for (const line of lines) {
-        const [w, a, d] = line.split(",");
-        const weekDate = new Date(Number(w) * 1000);
-        if (weekDate > today) continue; // Ignore future weeks if any
-        const weekKey = weekDate.toISOString().split("T")[0];
-        if (weekKey) {
-          if (!weeklyTotals[weekKey]) {
-            weeklyTotals[weekKey] = { added: 0, removed: 0 };
-          }
-          const totals = weeklyTotals[weekKey];
-          if (totals) {
-            totals.added += Number(a) || 0;
-            totals.removed += Number(d) || 0;
-          }
-        }
-      }
-    } catch (err: unknown) {
-      debug(
-        `[DataAccess/GitHub-S3] Aggregation: Error reading ${repoStatS3Key}, skipping.`,
-        err instanceof Error ? err.message : String(err),
-      );
-      overallDataComplete = false; // Error reading a file means overall is not complete
-    }
-  }
-  debug(
-    `[DataAccess/GitHub-S3] Aggregation: Processed ${s3StatFileKeys.length} S3 stat files from ${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}.`,
-  );
-  const aggregatedActivity: AggregatedWeeklyActivity[] = Object.entries(weeklyTotals)
-    .map(([weekStartDate, totals]) => ({
-      weekStartDate,
-      linesAdded: totals.added,
-      linesRemoved: totals.removed,
-    }))
-    .sort((a, b) => new Date(a.weekStartDate).getTime() - new Date(b.weekStartDate).getTime());
-  await writeJsonS3(AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, aggregatedActivity);
-  console.log(
-    `[DataAccess/GitHub-S3] Aggregated weekly activity calculated and stored to ${AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE}. Total weeks aggregated: ${aggregatedActivity.length}. Overall data complete: ${overallDataComplete}`,
-  );
-  return { aggregatedActivity, overallDataComplete };
-}
-
-// Cache invalidation functions for GitHub data
-export function invalidateGitHubCache(): void {
-  if (USE_NEXTJS_CACHE) {
-    // Invalidate all GitHub cache tags
-    revalidateTag('github');
-    revalidateTag('github-activity');
-    console.log('[GitHub] Cache invalidated for all GitHub data');
-  }
-}
-
-// Invalidate specific GitHub data cache
-export function invalidateGitHubActivityCache(): void {
-  if (USE_NEXTJS_CACHE) {
-    revalidateTag('github-activity');
-    console.log('[GitHub] Cache invalidated for GitHub activity');
-  }
 }

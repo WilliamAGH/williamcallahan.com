@@ -142,4 +142,62 @@ export interface ErrorWithStatusCode {
   statusCode: number;
 }
 
+// =============================================================================
+// ERROR CATEGORIZATION TYPES
+// =============================================================================
+
+export enum ErrorCategory {
+  NETWORK = "network",
+  HTTP = "http",
+  S3 = "s3",
+  GITHUB_API = "github_api",
+  RATE_LIMIT = "rate_limit",
+  MEMORY_PRESSURE = "memory_pressure",
+  TIMEOUT = "timeout",
+  VALIDATION = "validation",
+  SYSTEM = "system",
+  UNKNOWN = "unknown",
+}
+
+export enum ErrorSeverity {
+  LOW = "low",
+  MEDIUM = "medium",
+  HIGH = "high",
+  CRITICAL = "critical",
+}
+
+export interface CategorizedError extends Error {
+  category: ErrorCategory;
+  severity: ErrorSeverity;
+  isRetryable: boolean;
+  context?: Record<string, unknown>;
+  originalError?: unknown;
+  statusCode?: number;
+}
+
+// =============================================================================
+// ERROR COMPONENT & PAGE TYPES
+// =============================================================================
+
+/**
+ * Props for global error handlers
+ */
+export interface GlobalErrorProps {
+  /** The error that occurred with optional digest */
+  error: Error & { digest?: string };
+}
+
+/**
+ * Props for error boundaries that handle component-level errors
+ */
+export interface ErrorBoundaryComponentProps {
+  /** The error that occurred */
+  error: Error;
+  /** Function to reset the error boundary */
+  reset: () => void;
+}
+
+// Re-export UI boundary types for convenience
+export type { ErrorBoundaryProps, ErrorBoundaryState, LocalErrorBoundaryProps } from "@/types/ui/boundaries";
+
 // Generic error/response interfaces removed - use specific response types from API modules

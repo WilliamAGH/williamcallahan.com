@@ -9,7 +9,7 @@
 
 import { Upload, type Progress } from "@aws-sdk/lib-storage";
 import { Readable, Transform } from "node:stream";
-import type { StreamToS3Options, StreamingResult } from "@/types/s3";
+import type { StreamToS3Options, StreamingResult } from "@/types/s3-cdn";
 
 /**
  * Stream monitor transform - tracks bytes without modifying stream

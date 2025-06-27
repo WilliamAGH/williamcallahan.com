@@ -15,7 +15,7 @@
  */
 
 import { listS3Objects as awsListS3Objects, deleteFromS3, readFromS3, writeJsonS3, writeToS3 } from "@/lib/s3-utils";
-import type { S3ClientWrapper } from "@/types/s3";
+import type { S3ClientWrapper } from "@/types/s3-cdn";
 import { S3Client as AwsS3Client } from "@aws-sdk/client-s3";
 
 // Environment variables for S3 configuration
