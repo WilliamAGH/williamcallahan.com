@@ -94,8 +94,6 @@ export function SocialWindow({ data, title = "Contact", onClose }: SocialWindowC
       onMinimize={minimizeWindow}
       onMaximize={maximizeWindow}
       hasMounted={hasMounted}
-    >
-      <span className="sr-only">empty</span>
-    </SocialWindowContent>
+    />
   );
 }
