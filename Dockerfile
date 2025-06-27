@@ -77,9 +77,9 @@ COPY . .
 
 # Pre-build checks disabled to avoid network hang during build
 
-# Now build the app using npm (Node.js) to avoid OOM issues
+# Now build the app using bun (Bun) to avoid OOM issues
 RUN --mount=type=cache,target=/app/.next/cache \
-    echo "📦 Building the application..." && npm run build && \
+    echo "📦 Building the application..." && bun run build && \
     # Prune optimiser cache older than 5 days to keep layer small
     find /app/.next/cache -type f -mtime +5 -delete || true
 
@@ -177,3 +177,6 @@ CMD ["node", "server.js"]
 
 ARG BUILDKIT_INLINE_CACHE=1
 LABEL org.opencontainers.image.build=true
+
+# Install Node.js for running Next.js build within Bun scripts
+RUN apk add --no-cache nodejs npm
