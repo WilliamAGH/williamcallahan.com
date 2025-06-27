@@ -27,16 +27,14 @@ export function MacOSWindow({
   onTabClick,
   // Default to showing traffic lights if not explicitly hidden
   showTrafficLights = true,
-  // Retain hideTrafficLights for backward compatibility if used, but prefer showTrafficLights
-  hideTrafficLights,
   // Destructure new props
   onClose,
   onMinimize,
   onMaximize,
   isMaximized, // Already used by InstructionMacOSFrameTabs
 }: MacOSWindowProps) {
-  // Determine if traffic lights should be shown
-  const displayTrafficLights = hideTrafficLights === undefined ? showTrafficLights : !hideTrafficLights;
+  // Use showTrafficLights prop directly
+  const displayTrafficLights = showTrafficLights;
 
   return (
     <div
@@ -112,7 +110,6 @@ export function MacOSCodeWindow({
   activeTabId,
   onTabClick,
   showTrafficLights = true,
-  hideTrafficLights,
 }: {
   children: ReactNode;
   language?: string;
@@ -123,10 +120,9 @@ export function MacOSCodeWindow({
   activeTabId?: string;
   onTabClick?: (id: string) => void;
   showTrafficLights?: boolean;
-  hideTrafficLights?: boolean;
 }) {
-  // Determine if traffic lights should be shown
-  const displayTrafficLights = hideTrafficLights === undefined ? showTrafficLights : !hideTrafficLights;
+  // Use showTrafficLights prop directly
+  const displayTrafficLights = showTrafficLights;
 
   return (
     <MacOSWindow

@@ -113,20 +113,26 @@ export function InstructionMacOSFrameTabs({
 
   // Effect for handling Escape key to un-maximize and click outside to un-maximize.
   useEffect(() => {
+    // Only attach listeners when maximized
+    if (!isMaximized) return;
+
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && isMaximized) {
+      if (event.key === "Escape") {
         handleMaximize();
       }
     };
+
     const handleClickOutside = (event: MouseEvent) => {
-      if (isMaximized && windowRef.current && !windowRef.current.contains(event.target as Node)) {
+      if (windowRef.current && !windowRef.current.contains(event.target as Node)) {
         handleMaximize();
       }
     };
-    if (isMaximized) {
-      document.addEventListener("keydown", handleKeyDown);
-      document.addEventListener("mousedown", handleClickOutside);
-    }
+
+    // Add event listeners
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
+
+    // Cleanup function ensures listeners are always removed
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("mousedown", handleClickOutside);
@@ -221,10 +227,11 @@ export function InstructionMacOSFrameTabs({
           aria-label="Show content"
         >
           <WindowControls
-            onClose={handleClose} // These will affect the isVisible state of InstructionMacOSFrameTabs
-            onMinimize={handleMinimize} // Minimize might not make sense here, but keep for consistency or future use
-            onMaximize={handleMaximize} // Maximize might not make sense here
-            isMaximized={isMaximized} // Pass the state
+            onClose={handleClose}
+            // Disable minimize and maximize when window is hidden
+            onMinimize={undefined}
+            onMaximize={undefined}
+            isMaximized={false}
             size="md"
           />
           <span className="ml-2 text-xs text-gray-300 dark:text-gray-400">Content hidden (click to show)</span>
