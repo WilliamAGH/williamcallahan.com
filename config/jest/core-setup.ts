@@ -1,57 +1,21 @@
 /**
- * @file Jest core setup - Essential polyfills and environment setup
- * @description Provides critical polyfills for Node.js environment in Jest tests
+ * @file Jest core setup - Test environment configuration
+ * @description Provides test environment setup and browser API mocks
  *
  * 🚨 WARNING: Only loaded via npm/bun run scripts!
  * Direct `bun test` usage bypasses this file and causes environment failures.
  *
  * Use: bun run test (loads this setup)
  * NOT: bun test (skips this setup)
+ *
+ * ✅ Bun 1.2.17 provides all Web APIs natively - no polyfills needed
  */
-import { TextDecoder, TextEncoder } from "node:util";
 import "@testing-library/jest-dom";
 import { cleanup } from "@testing-library/react";
 
-// Polyfill for TextEncoder and TextDecoder
-global.TextEncoder = TextEncoder;
-global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+// Note: Bun 1.2.17 provides ReadableStream natively, no polyfill needed
 
-// Polyfill Web APIs for JSDOM
-if (typeof globalThis.ReadableStream === "undefined") {
-  Object.defineProperty(globalThis, "ReadableStream", {
-    value: class ReadableStream {
-      // Basic mock implementation - no constructor needed
-    },
-    writable: true,
-    configurable: true,
-  });
-}
-
-if (typeof globalThis.MessagePort === "undefined") {
-  Object.defineProperty(globalThis, "MessagePort", {
-    value: class MessagePort {
-      postMessage = jest.fn();
-      close = jest.fn();
-      start = jest.fn();
-      addEventListener = jest.fn();
-      removeEventListener = jest.fn();
-      dispatchEvent = jest.fn();
-    },
-    writable: true,
-    configurable: true,
-  });
-}
-
-if (typeof globalThis.MessageChannel === "undefined") {
-  Object.defineProperty(globalThis, "MessageChannel", {
-    value: class MessageChannel {
-      port1 = new (globalThis as { MessagePort: typeof MessagePort }).MessagePort();
-      port2 = new (globalThis as { MessagePort: typeof MessagePort }).MessagePort();
-    },
-    writable: true,
-    configurable: true,
-  });
-}
+// Note: Bun 1.2.17 provides MessagePort and MessageChannel natively, no polyfill needed
 
 import React from "react";
 
