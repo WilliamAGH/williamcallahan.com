@@ -10,6 +10,27 @@ export {
   initializeBookmarksDataAccess,
   cleanupBookmarksDataAccess,
 } from "@/lib/bookmarks/bookmarks-data-access.server";
-export * from "./logos";
-export * from "./investments";
-export * from "./github";
+
+// ---- GitHub Data Access (explicit public surface) ----
+export {
+  getGithubActivity,
+  refreshGitHubActivityDataFromApi,
+  calculateAndStoreAggregatedWeeklyActivity,
+  invalidateGitHubCache,
+  invalidateGitHubActivityCache,
+} from "./github";
+
+// ---- Logo Data Access (explicit public surface) ----
+export {
+  resetLogoSessionTracking,
+  invalidateLogoS3Cache,
+  getLogo,
+  invalidateLogoCache,
+  getLogoValidation,
+  setLogoValidation,
+  getLogoAnalysis,
+  setLogoAnalysis,
+} from "./logos";
+
+// ---- Investments Data Access ----
+export { getInvestmentDomainsAndIds } from "./investments";
