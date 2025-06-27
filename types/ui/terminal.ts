@@ -69,6 +69,8 @@ export interface SelectionViewProps {
   }>;
   onSelectAction: (item: { id: string; label: string; description: string; path: string }) => void;
   onExitAction: () => void;
+  /** Ref to the scrollable container that should be kept in sync */
+  scrollContainerRef?: React.RefObject<HTMLElement | null>;
 }
 
 export interface HistoryProps {

@@ -17,20 +17,43 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useLayoutEffect } from "react";
 import type { SelectionViewProps } from "@/types/ui/terminal";
 
-export function SelectionView({ items, onSelectAction, onExitAction }: SelectionViewProps) {
+function ensureRowVisible(row: HTMLElement, container: HTMLElement) {
+  // Leave a small breathing room so the highlighted row never sits flush
+  const OFFSET = 6; // px
+  const rowTop = row.offsetTop;
+  const rowBottom = rowTop + row.offsetHeight;
+  const viewTop = container.scrollTop;
+  const viewBottom = viewTop + container.clientHeight;
+
+  if (rowTop < viewTop + OFFSET) {
+    container.scrollTop = Math.max(rowTop - OFFSET, 0);
+  } else if (rowBottom > viewBottom - OFFSET) {
+    container.scrollTop = rowBottom - container.clientHeight + OFFSET;
+  }
+}
+
+export function SelectionView({ items, onSelectAction, onExitAction, scrollContainerRef }: SelectionViewProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [page, setPage] = useState(0);
   const ITEMS_PER_PAGE = 24;
   const prevItemsRef = useRef(items);
 
-  // Reset page when items change
+  // Ref that always points at the currently highlighted element so we can
+  // ensure it stays in view when the user navigates with the keyboard. We
+  // intentionally use a mutable ref to avoid unnecessary re-renders.
+  const selectedRef = useRef<HTMLButtonElement | null>(null);
+
+  // Reset to the last page & last item when items change
   useEffect(() => {
     if (prevItemsRef.current !== items) {
-      setPage(0);
-      setSelectedIndex(0);
+      const total = Array.isArray(items) ? items.length : 0;
+      const lastPage = Math.max(Math.floor((total - 1) / ITEMS_PER_PAGE), 0);
+      const lastIndexOnPage = (total - 1) % ITEMS_PER_PAGE;
+      setPage(lastPage);
+      setSelectedIndex(lastIndexOnPage);
       prevItemsRef.current = items;
     }
   }, [items]);
@@ -42,13 +65,21 @@ export function SelectionView({ items, onSelectAction, onExitAction }: Selection
   const visibleItems = validItems.slice(startIdx, endIdx);
   const hasMoreResults = endIdx < validItems.length;
 
+  // Keep the currently highlighted row within the scroll viewport. We use
+  // useLayoutEffect so the scroll happens before the browser paints the
+  // next frame, preventing a visible "jump".
+  useLayoutEffect(() => {
+    if (selectedRef.current && scrollContainerRef?.current) {
+      ensureRowVisible(selectedRef.current, scrollContainerRef.current);
+    }
+  }, [selectedIndex, scrollContainerRef]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
         case "ArrowUp": {
           e.preventDefault();
           const hasPrev = page > 0;
-          const totalBtns = visibleItems.length + (hasPrev ? 1 : 0) + (hasMoreResults ? 1 : 0);
 
           if (selectedIndex > visibleItems.length) {
             // On a button, move to previous button or last item
@@ -56,12 +87,25 @@ export function SelectionView({ items, onSelectAction, onExitAction }: Selection
           } else if (selectedIndex === visibleItems.length && hasPrev) {
             // On previous button, move to last item
             setSelectedIndex(visibleItems.length - 1);
-          } else if (selectedIndex > 0 && selectedIndex <= visibleItems.length) {
-            // Moving within items
+          } else if (selectedIndex > 0) {
+            // Moving within items (normal case)
             setSelectedIndex((i) => i - 1);
+          } else if (hasPrev) {
+            // At first item with previous page available - go to previous page
+            setPage((p) => {
+              const newPage = p - 1;
+              const newStartIdx = newPage * ITEMS_PER_PAGE;
+              const newEndIdx = Math.min(newStartIdx + ITEMS_PER_PAGE, validItems.length);
+              const newVisibleCount = newEndIdx - newStartIdx;
+              setSelectedIndex(newVisibleCount - 1); // Select actual last item of previous page
+              return newPage;
+            });
+          } else if (hasMoreResults) {
+            // At first item, no previous page - wrap to next button
+            setSelectedIndex(visibleItems.length);
           } else {
-            // At first item, wrap to last button
-            setSelectedIndex(totalBtns - 1);
+            // No pagination, wrap to last visible item
+            setSelectedIndex(visibleItems.length - 1);
           }
           break;
         }
@@ -118,10 +162,10 @@ export function SelectionView({ items, onSelectAction, onExitAction }: Selection
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [visibleItems, selectedIndex, onSelectAction, onExitAction, hasMoreResults, page]);
+  }, [visibleItems, selectedIndex, onSelectAction, onExitAction, hasMoreResults, page, validItems.length]);
 
   return (
-    <div className="mt-1">
+    <div className="mt-1" data-testid="selection-view">
       <div className="text-gray-400 text-xs mb-1">
         Use ↑↓ to navigate, Enter to select, Esc to cancel
         {validItems.length > ITEMS_PER_PAGE && (
@@ -133,7 +177,8 @@ export function SelectionView({ items, onSelectAction, onExitAction }: Selection
       </div>
       {visibleItems.map((item, index) => (
         <button
-          key={item.id} // Use item.id for a stable key
+          key={item.id} // stable key
+          ref={index === selectedIndex ? selectedRef : undefined}
           type="button"
           /*
            * Styling rules:
@@ -154,6 +199,7 @@ export function SelectionView({ items, onSelectAction, onExitAction }: Selection
         {page > 0 ? (
           <button
             type="button"
+            ref={selectedIndex === visibleItems.length ? selectedRef : undefined}
             className={`px-2 py-1 rounded cursor-pointer ${
               selectedIndex === visibleItems.length ? "bg-blue-500/20 text-blue-300" : "hover:bg-gray-800"
             }`}
@@ -172,6 +218,7 @@ export function SelectionView({ items, onSelectAction, onExitAction }: Selection
         {hasMoreResults && (
           <button
             type="button"
+            ref={selectedIndex === visibleItems.length + (page > 0 ? 1 : 0) ? selectedRef : undefined}
             className={`px-2 py-1 rounded cursor-pointer ${
               selectedIndex === visibleItems.length + (page > 0 ? 1 : 0)
                 ? "bg-blue-500/20 text-blue-300"

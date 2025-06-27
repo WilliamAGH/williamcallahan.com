@@ -57,9 +57,9 @@ export function Terminal() {
     inputRef,
     focusInput,
   } = useTerminal();
+  const { isSelecting } = useTerminal(); // whether a selection list is active
 
   // Effect to scroll to bottom when history changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: terminalHistory.length is a valid proxy for history changes
   useEffect(() => {
     // Scroll to bottom when terminalHistory.length changes, affecting scrollHeight
     if (scrollContainerRef.current) {
@@ -82,6 +82,12 @@ export function Terminal() {
 
       // Use MutationObserver to detect when content changes and scroll again
       const observer = new MutationObserver(() => {
+        // Don't auto-scroll to bottom if SelectionView is active - let it handle its own navigation
+        // Check if SelectionView is actually rendered in the DOM (more reliable than closure state)
+        if (scrollContainerRef.current?.querySelector('[data-testid="selection-view"]')) {
+          return; // Let SelectionView control scrolling during navigation
+        }
+        
         if (scrollContainerRef.current) {
           scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
         }
@@ -106,7 +112,7 @@ export function Terminal() {
         clearTimeout(timer);
       };
     }
-  }, [isMaximized, inputRef]);
+  }, [isMaximized, isSelecting]);
 
   // Add effect to register/unregister click outside handler
   useEffect(() => {
@@ -228,7 +234,12 @@ export function Terminal() {
           <div className="whitespace-pre-wrap break-words select-text">
             <History history={terminalHistory} />
             {selection ? (
-              <SelectionView items={selection} onSelectAction={handleSelection} onExitAction={cancelSelection} />
+              <SelectionView
+                items={selection}
+                onSelectAction={handleSelection}
+                onExitAction={cancelSelection}
+                scrollContainerRef={scrollContainerRef}
+              />
             ) : (
               <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={handleSubmit} />
             )}
