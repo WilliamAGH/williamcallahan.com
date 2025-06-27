@@ -22,21 +22,14 @@ import type { JSX } from "react";
  * - Clicky: Auto-tracks pageviews
  */
 export function Analytics(): JSX.Element | null {
-  // Skip analytics on localhost during development
-  if (
-    typeof window !== "undefined" &&
-    window.location.hostname === "localhost" &&
-    process.env.NODE_ENV === "development"
-  ) {
-    console.info("[Analytics] Skipping analytics on localhost");
+  // Skip analytics in development environments completely
+  // This prevents 400 errors from network blockers and keeps logs clean
+  if (process.env.NODE_ENV === "development") {
     return null;
   }
 
   // Ensure required environment variables exist
   if (!process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || !process.env.NEXT_PUBLIC_SITE_URL) {
-    if (process.env.NODE_ENV === "development") {
-      console.warn("[Analytics] Missing required environment variables");
-    }
     return null;
   }
 
