@@ -89,12 +89,9 @@
       "linter": {
         "rules": {
           "correctness": {
-            "useExhaustiveDependencies": "off"
+            "useExhaustiveDependencies": "warn"
           }
         }
-      },
-      "formatter": {
-        "enabled": false
       }
     },
     {
