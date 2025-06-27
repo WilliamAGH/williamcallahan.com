@@ -605,6 +605,7 @@ export class UnifiedImageService {
         { name: "google", urlFn: LOGO_SOURCES.google.hd, size: "hd" },
         { name: "google", urlFn: LOGO_SOURCES.google.md, size: "md" },
         { name: "duckduckgo", urlFn: LOGO_SOURCES.duckduckgo.hd, size: "hd" },
+        { name: "clearbit", urlFn: (d: string) => `https://logo.clearbit.com/${d}`, size: "hd" },
       ];
       for (const { name, urlFn, size } of sources) {
         const result = await this.tryFetchLogo(testDomain, name, urlFn, size, domain);
