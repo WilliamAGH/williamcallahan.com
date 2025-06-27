@@ -9,9 +9,11 @@
 
 import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 import { hashUrl, normalizeUrl, validateOgUrl } from "@/lib/utils/opengraph-utils";
-import { OPENGRAPH_METADATA_S3_DIR, OPENGRAPH_CACHE_DURATION } from "@/lib/constants";
+import { OPENGRAPH_CACHE_DURATION } from "@/lib/constants";
 import { fetchExternalOpenGraphWithRetry } from "@/lib/opengraph/fetch";
 import { createFallbackResult } from "@/lib/opengraph/fallback";
+import { generateS3Key } from "@/lib/utils/s3-key-generator";
+import { BatchProcessor, BatchProgressReporter } from "@/lib/batch-processing";
 import type { OgResult } from "@/types";
 import { isOgResult } from "@/types/opengraph";
 import type { KarakeepImageFallback } from "@/types/seo/opengraph";
@@ -28,7 +30,11 @@ export async function getOpenGraphDataBatch(
 ): Promise<OgResult> {
   const normalizedUrl = normalizeUrl(url);
   const urlHash = hashUrl(normalizedUrl);
-  const s3Key = `${OPENGRAPH_METADATA_S3_DIR}/${urlHash}.json`;
+  const s3Key = generateS3Key({
+    type: 'opengraph',
+    url: normalizedUrl,
+    hash: urlHash,
+  });
 
   // Validate URL
   if (!validateOgUrl(normalizedUrl)) {
@@ -86,35 +92,67 @@ export async function processOpenGraphBatch(
   options: {
     forceRefresh?: boolean;
     onProgress?: (current: number, total: number) => void;
+    batchSize?: number;
   } = {}
 ): Promise<Map<string, OgResult>> {
-  const results = new Map<string, OgResult>();
-  const total = urls.length;
+  // Create progress reporter
+  const progressReporter = new BatchProgressReporter('OpenGraph Batch', 10000); // Report every 10 seconds
   
-  for (let i = 0; i < urls.length; i++) {
-    const item = urls[i];
-    if (!item) continue;
-    
-    const { url, fallback } = item;
-    
-    try {
-      const result = await getOpenGraphDataBatch(url, fallback, options.forceRefresh);
-      results.set(url, result);
-    } catch {
-      console.error(`[OpenGraph Batch] Failed to process ${url}`);
-      results.set(url, createFallbackResult(url, "Processing failed", fallback));
+  // Create batch processor with lower concurrency for OpenGraph (to be polite to external sites)
+  const processor = new BatchProcessor<{ url: string; fallback?: KarakeepImageFallback | null }, OgResult>(
+    'opengraph-batch',
+    async (item) => getOpenGraphDataBatch(item.url, item.fallback, options.forceRefresh),
+    {
+      batchSize: options.batchSize || 5, // Lower concurrency for external sites
+      batchDelay: 100, // Small delay between batches
+      memoryThreshold: 0.85,
+      timeout: 30000,
+      onProgress: (current, total, failed) => {
+        if (options.onProgress) {
+          options.onProgress(current, total);
+        } else {
+          progressReporter.createProgressHandler()(current, total, failed);
+        }
+      },
+      debug: true,
     }
-    
-    // Report progress
-    if (options.onProgress && (i + 1) % 10 === 0) {
-      options.onProgress(i + 1, total);
-    }
-    
-    // Small delay to avoid rate limiting
-    if (i < urls.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
+  );
+  
+  // Process the batch
+  const result = await processor.processBatch(urls);
+  
+  // Convert result format
+  const ogResults = new Map<string, OgResult>();
+  
+  // Add successful results
+  for (const [item, ogResult] of result.successful) {
+    ogResults.set(item.url, ogResult);
   }
   
-  return results;
+  // Add failed results
+  for (const [item, error] of result.failed) {
+    ogResults.set(item.url, createFallbackResult(
+      item.url,
+      error.message || "Processing failed",
+      item.fallback
+    ));
+  }
+  
+  // Add skipped results (due to memory pressure)
+  for (const item of result.skipped) {
+    ogResults.set(item.url, createFallbackResult(
+      item.url,
+      "Skipped due to memory pressure",
+      item.fallback
+    ));
+  }
+  
+  // Log summary
+  console.log(`[OpenGraph Batch] Completed in ${result.totalTime}ms`);
+  console.log(`[OpenGraph Batch] Success: ${result.successful.size}, Failed: ${result.failed.size}, Skipped: ${result.skipped.length}`);
+  if (result.memoryPressureEvents > 0) {
+    console.log(`[OpenGraph Batch] Memory pressure events: ${result.memoryPressureEvents}`);
+  }
+  
+  return ogResults;
 }

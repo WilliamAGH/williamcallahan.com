@@ -8,7 +8,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, writeBinaryS3 } from "@/lib/s3-utils";
-import { getExtensionFromContentType } from "@/lib/utils/content-type-utils";
+import { getExtensionFromContentType } from "@/lib/utils/content-type";
 import { IMAGE_S3_PATHS } from "@/lib/constants";
 
 /**
