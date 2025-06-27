@@ -9,7 +9,9 @@
 import type { Metadata } from "next";
 import { Experience } from "../../components/features";
 import { JsonLdScript } from "../../components/seo/json-ld";
-import { ExperienceCard } from "../../components/ui/experience-card";
+import { getLogo } from "@/lib/data-access/logos";
+import { normalizeDomain } from "@/lib/utils/domain-utils";
+import { getCompanyPlaceholder } from "@/lib/data-access/default-images";
 import { experiences } from "../../data/experience";
 import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
 import { getStaticPageMetadata } from "../../lib/seo/metadata";
@@ -30,11 +32,30 @@ export default async function ExperiencePage() {
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 
-  const experienceCardsData = await Promise.all(
-    experiences.map(async (exp: ExperienceType) => ({
-      id: exp.id,
-      card: await ExperienceCard(exp),
-    })),
+  const experienceData = await Promise.all(
+    experiences.map(async (exp: ExperienceType) => {
+      try {
+        const domain = exp.website ? normalizeDomain(exp.website) : normalizeDomain(exp.company);
+        const logoResult = await getLogo(domain);
+
+        return {
+          ...exp,
+          logoData: {
+            url: logoResult?.cdnUrl ?? logoResult?.url ?? getCompanyPlaceholder(),
+            source: logoResult?.source ?? null,
+          },
+        };
+      } catch (error) {
+        console.error("[ExperiencePage] Failed to resolve logo:", error);
+        return {
+          ...exp,
+          logoData: {
+            url: getCompanyPlaceholder(),
+            source: null,
+          },
+        };
+      }
+    }),
   );
 
   return (
@@ -73,7 +94,7 @@ export default async function ExperiencePage() {
           },
         }}
       />
-      <Experience experienceCards={experienceCardsData} />
+      <Experience data={experienceData} />
     </>
   );
 }

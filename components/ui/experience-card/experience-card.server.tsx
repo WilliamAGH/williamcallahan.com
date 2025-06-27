@@ -6,14 +6,13 @@
  * Uses direct logo fetching to work during build time.
  */
 
-import { fetchLogo, normalizeDomain } from "@/lib/logo.server";
+import { getLogo } from "@/lib/data-access/logos";
+import { normalizeDomain } from "@/lib/utils/domain-utils";
+import { getCompanyPlaceholder } from "@/lib/data-access/default-images";
 import type { Experience } from "../../../types/experience";
 import { ExperienceCardClient } from "./experience-card.client";
 
 import type { JSX } from "react";
-
-// Define the path to the static placeholder image
-const PLACEHOLDER_IMAGE_URL = "/images/company-placeholder.svg";
 
 /**
  * Experience Card Server Component
@@ -24,55 +23,32 @@ export async function ExperienceCard(props: Experience): Promise<JSX.Element> {
   const { website, company, logo } = props;
 
   try {
-    // If logo is provided directly, use it
+    // If a logo URL is explicitly provided, prefer it.
     if (logo) {
       return <ExperienceCardClient {...props} logoData={{ url: logo, source: null }} />;
     }
 
-    // Get domain from website or company name
+    // Otherwise resolve by domain through UnifiedImageService
     const domain = website ? normalizeDomain(website) : normalizeDomain(company);
 
-    // Fetch logo directly (works during build)
-    const result = await fetchLogo(domain);
+    const logoResult = await getLogo(domain);
 
-    if (result.buffer) {
-      // Convert buffer to data URL for client
-      const base64 = result.buffer.toString("base64");
-      const mimeType = result.buffer[0] === 0x3c ? "image/svg+xml" : "image/png";
-      const dataUrl = `data:${mimeType};base64,${base64}`;
-
+    if (logoResult?.cdnUrl) {
       return (
         <ExperienceCardClient
           {...props}
           logoData={{
-            url: dataUrl,
-            source: result.source,
+            url: logoResult.cdnUrl,
+            source: logoResult.source ?? null,
           }}
         />
       );
     }
 
-    // Use placeholder for failed fetches
-    return (
-      <ExperienceCardClient
-        {...props}
-        logoData={{
-          url: PLACEHOLDER_IMAGE_URL, // Use the static path
-          source: null,
-        }}
-      />
-    );
+    // Fallback to placeholder when UnifiedImageService cannot provide one
+    return <ExperienceCardClient {...props} logoData={{ url: getCompanyPlaceholder(), source: null }} />;
   } catch (error) {
-    console.error("Error in ExperienceCard:", error);
-    // Return placeholder on any error
-    return (
-      <ExperienceCardClient
-        {...props}
-        logoData={{
-          url: PLACEHOLDER_IMAGE_URL, // Use the static path
-          source: null,
-        }}
-      />
-    );
+    console.error("[ExperienceCard] Failed to resolve logo:", error);
+    return <ExperienceCardClient {...props} logoData={{ url: getCompanyPlaceholder(), source: null }} />;
   }
 }

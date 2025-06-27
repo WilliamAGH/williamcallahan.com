@@ -8,7 +8,7 @@
 
 import type { SelectionItem } from "@/types/terminal";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { handleCommand } from "./commands.client";
 import { useTerminalContext } from "./terminal-context.client";
 
@@ -24,6 +24,7 @@ export function useTerminal() {
   const [selection, setSelection] = useState<SelectionItem[] | null>(null);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   const focusInput = useCallback((event?: React.MouseEvent<HTMLDivElement>) => {
     // Only focus if the click target is not a button or inside a button
@@ -90,16 +91,35 @@ export function useTerminal() {
       if (item.path) {
         router.push(item.path);
 
-        // For paths with hash fragments (like /bookmarks#id), scroll to the element
-        setTimeout(() => {
-          const id = item.path.split("#")[1];
-          if (id) {
+        // For paths with hash fragments (like /bookmarks#id)
+        const id = item.path.split("#")[1];
+        if (id) {
+          // Cancel any existing animation frame
+          if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+            animationFrameRef.current = null;
+          }
+          
+          let attempts = 0;
+          const MAX_ATTEMPTS = 20; // ~333ms at 60fps
+          
+          const checkElement = () => {
             const element = document.getElementById(id);
             if (element) {
               element.scrollIntoView({ behavior: "smooth" });
+              animationFrameRef.current = null;
+            } else if (attempts < MAX_ATTEMPTS) {
+              attempts++;
+              animationFrameRef.current = requestAnimationFrame(checkElement);
+            } else {
+              // Max attempts reached, cleanup
+              animationFrameRef.current = null;
             }
-          }
-        }, 100);
+          };
+          
+          // Start checking after navigation
+          animationFrameRef.current = requestAnimationFrame(checkElement);
+        }
       }
     },
     [router],
@@ -107,6 +127,15 @@ export function useTerminal() {
 
   const cancelSelection = useCallback(() => {
     setSelection(null);
+  }, []);
+
+  // Cleanup animation frame on unmount
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
   }, []);
 
   return {

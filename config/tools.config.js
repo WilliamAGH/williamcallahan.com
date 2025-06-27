@@ -5,13 +5,8 @@
  * This reduces config file proliferation and provides a single source of truth.
  */
 
-// Shared constants
-const SUPPORTED_BROWSERS = ["> 1%", "last 2 versions", "not ie <= 8"];
-
-const TAILWIND_AT_RULES = ["tailwind", "apply", "variants", "responsive", "screen", "layer"];
-
 const PROJECT_GLOBALS = {
-  // Shared globals that might be used across tools
+  // Build environments
   NODE_ENV: process.env.NODE_ENV || "development",
   IS_PRODUCTION: process.env.NODE_ENV === "production",
   TARGET_ES: "es2022",
@@ -25,29 +20,8 @@ export const masterConfig = {
     environment: PROJECT_GLOBALS.NODE_ENV,
   },
 
-  // Stylelint configuration
-  stylelint: {
-    // Enable automatic fixes for fixable rules
-    fix: true,
-    extends: ["stylelint-config-recommended", "stylelint-config-tailwindcss"],
-    rules: {
-      "declaration-no-important": true,
-      "selector-max-specificity": "1,5,0",
-      "selector-max-compound-selectors": 4,
-      "comment-no-empty": true,
-      "property-no-vendor-prefix": null,
-      "at-rule-no-unknown": [
-        true,
-        {
-          ignoreAtRules: TAILWIND_AT_RULES,
-        },
-      ],
-      "selector-class-pattern": null, // Allow Tailwind classes
-    },
-  },
-
   // Browserslist configuration
-  browserslist: SUPPORTED_BROWSERS,
+  browserslist: ["> 1%", "last 2 versions", "not ie <= 8"],
 
   // Build configuration shared across tools
   build: {
@@ -76,7 +50,7 @@ export const masterConfig = {
 };
 
 // Export individual configs for tools that need them
-export const { stylelint, browserslist, build, patterns, ignores } = masterConfig;
+export const { browserslist, build, patterns, ignores } = masterConfig;
 
 // Default export for tools that import the whole config
 export default masterConfig;

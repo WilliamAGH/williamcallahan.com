@@ -6,6 +6,24 @@
 
 To provide centralized configuration management for the application, including environment variables, build tools, linting, formatting, and framework-specific settings. This ensures consistent behavior across development, testing, and production environments.
 
+## 🚨 MODERN DEPENDENCY MANDATE (2025)
+
+**This project FORBIDS polyfills** and enforces modern tooling practices:
+
+### ❌ BANNED DEPENDENCIES
+
+- `core-js`, `@babel/polyfill`, `react-app-polyfill`, `polyfill.io`
+- `whatwg-fetch`, `isomorphic-fetch`, `cross-fetch`, `node-fetch`
+- Any package that patches global objects or provides legacy browser support
+- Any "kitchen-sink" polyfills for outdated runtimes
+
+### ✅ REQUIRED MODERN STACK
+
+- **Runtime**: Node 22 LTS (provides native `fetch`, `URL`, `TextEncoder`, etc.)
+- **Framework**: Next.js 15 (uses native APIs and modern transpilation)
+- **Package Manager**: Bun (for optimal performance and modern module resolution)
+- **Documentation**: Always verify current patterns via Context7/DeepWiki MCPs
+
 ## Key Files and Responsibilities
 
 ### Environment Configuration
@@ -26,6 +44,7 @@ To provide centralized configuration management for the application, including e
 See [`linting-formatting.md`](./linting-formatting.md) for comprehensive documentation on:
 
 - **`eslint.config.ts`**: ESLint linting rules and plugins
+- **`stylelint.config.js`**: Stylelint configuration for CSS. Enforces consistent CSS coding style and prevents common errors.
 - **`biome.json`**: Biome linter and formatter configuration
 - **`types/eslint-custom-types.d.ts`**: TypeScript definitions for ESLint
 
@@ -52,6 +71,8 @@ See [`testing-config.md`](./testing-config.md) for comprehensive testing configu
 ### Package Management
 
 - **`package.json`**: Dependencies and npm scripts (marked as `deps` functionality)
+  - **CRITICAL**: Must never include polyfill packages - use modern alternatives only
+  - **AUDIT**: Regular dependency review to remove legacy packages
 - **`bun.lock`**: Bun package manager lockfile (marked as `deps` functionality)
 
 ## Configuration Hierarchy

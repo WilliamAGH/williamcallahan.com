@@ -16,9 +16,13 @@ import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getInvestmentDomainsAndIds } from "@/lib/data-access/investments";
 import { KNOWN_DOMAINS } from "@/lib/constants";
 import { getLogo } from "@/lib/data-access/logos";
+import { processLogoBatch } from "@/lib/data-access/logos-batch";
 import { refreshBookmarks } from "@/lib/bookmarks/service.server";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
+import { SEARCH_S3_PATHS, IMAGE_MANIFEST_S3_PATHS, IMAGE_S3_PATHS } from "@/lib/constants";
+import { writeJsonS3, listS3Objects } from "@/lib/s3-utils";
+import type { LogoManifest } from "@/types/image";
 
 import {
   calculateAndStoreAggregatedWeeklyActivity,
@@ -66,6 +70,15 @@ export class DataFetchManager {
 
     if (config.logos) {
       results.push(await this.fetchLogos(config));
+    }
+
+    if (config.searchIndexes) {
+      results.push(await this.buildSearchIndexes(config));
+    }
+
+    // Always build image manifests after logo fetching
+    if (config.logos || config.forceRefresh) {
+      results.push(await this.buildImageManifests(config));
     }
 
     return results;
@@ -188,23 +201,51 @@ export class DataFetchManager {
       const domains = await this.collectAllDomains(config.testLimit);
       logger.info(`[DataFetchManager] Processing logos for ${domains.size} unique domains`);
 
-      // Process logos in batches
-      const { successCount, failureCount } = await this.processLogoBatch(
-        Array.from(domains),
-        this.LOGO_BATCH_CONFIGS.REGULAR,
-        "bulk logo update",
-      );
+      // Use batch mode for logo processing
+      const isBatchMode = process.env.IS_DATA_UPDATER === "true";
+      
+      if (isBatchMode) {
+        // Use simplified batch processing
+        const results = await processLogoBatch(Array.from(domains), {
+          onProgress: (current, total) => {
+            if (current % 50 === 0) {
+              logger.info(`[DataFetchManager] Logo batch progress: ${current}/${total}`);
+            }
+          }
+        });
+        
+        const successCount = Array.from(results.values()).filter(r => !r.error).length;
+        const failureCount = results.size - successCount;
+        
+        const duration = (Date.now() - startTime) / 1000;
+        logger.info(
+          `[DataFetchManager] Logo batch complete. Success: ${successCount}, Failures: ${failureCount}`,
+        );
+        return {
+          success: true,
+          operation: "logos",
+          itemsProcessed: successCount,
+          duration,
+        };
+      } else {
+        // Use existing runtime processing
+        const { successCount, failureCount } = await this.processLogoBatch(
+          Array.from(domains),
+          this.LOGO_BATCH_CONFIGS.REGULAR,
+          "bulk logo update",
+        );
 
-      const duration = (Date.now() - startTime) / 1000;
-      logger.info(
-        `[DataFetchManager] ${"bulk logo update"} batches complete. Success: ${successCount}, Failures: ${failureCount}`,
-      );
-      return {
-        success: true,
-        operation: "logos",
-        itemsProcessed: successCount,
-        duration,
-      };
+        const duration = (Date.now() - startTime) / 1000;
+        logger.info(
+          `[DataFetchManager] ${"bulk logo update"} batches complete. Success: ${successCount}, Failures: ${failureCount}`,
+        );
+        return {
+          success: true,
+          operation: "logos",
+          itemsProcessed: successCount,
+          duration,
+        };
+      }
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
       logger.error("[DataFetchManager] Logos fetch failed:", error);
@@ -268,6 +309,35 @@ export class DataFetchManager {
       const investmentData = await getInvestmentDomainsAndIds();
       for (const [domain] of investmentData) {
         domains.add(domain);
+      }
+
+      // Get experience domains
+      const { experiences } = await import("@/data/experience");
+      for (const exp of experiences) {
+        if (exp.website) {
+          try {
+            const url = new URL(exp.website);
+            const domain = url.hostname.replace(/^www\./, "");
+            domains.add(domain);
+          } catch {
+            logger.warn(`[DataFetchManager] Could not parse domain from experience URL: ${exp.website}`);
+          }
+        }
+      }
+
+      // Get education domains
+      const { education, certifications, recentCourses } = await import("@/data/education");
+      const allEducation = [...education, ...certifications, ...recentCourses];
+      for (const edu of allEducation) {
+        if (edu.website) {
+          try {
+            const url = new URL(edu.website);
+            const domain = url.hostname.replace(/^www\./, "");
+            domains.add(domain);
+          } catch {
+            logger.warn(`[DataFetchManager] Could not parse domain from education URL: ${edu.website}`);
+          }
+        }
       }
 
       // Get bookmark domains
@@ -366,6 +436,56 @@ export class DataFetchManager {
   }
 
   /**
+   * Build and upload search indexes to S3
+   * @param _config - Configuration (acknowledged but unused)
+   * @returns Promise resolving to operation summary
+   */
+  private async buildSearchIndexes(_config: DataFetchConfig): Promise<DataFetchOperationSummary> {
+    const startTime = Date.now();
+    void _config;
+    logger.info("[DataFetchManager] Starting search index build...");
+
+    try {
+      // Dynamically import to avoid loading heavy dependencies unless needed
+      const { buildAllSearchIndexes } = await import("@/lib/search/index-builder");
+      
+      // Build all search indexes
+      const indexes = await buildAllSearchIndexes();
+      
+      // Upload each index to S3
+      const uploadPromises = [
+        writeJsonS3(SEARCH_S3_PATHS.POSTS_INDEX, indexes.posts),
+        writeJsonS3(SEARCH_S3_PATHS.INVESTMENTS_INDEX, indexes.investments),
+        writeJsonS3(SEARCH_S3_PATHS.EXPERIENCE_INDEX, indexes.experience),
+        writeJsonS3(SEARCH_S3_PATHS.EDUCATION_INDEX, indexes.education),
+        writeJsonS3(SEARCH_S3_PATHS.BOOKMARKS_INDEX, indexes.bookmarks),
+        writeJsonS3(SEARCH_S3_PATHS.BUILD_METADATA, indexes.buildMetadata),
+      ];
+      
+      await Promise.all(uploadPromises);
+      
+      logger.info("[DataFetchManager] Search indexes built and uploaded successfully");
+      
+      const duration = (Date.now() - startTime) / 1000;
+      return {
+        success: true,
+        operation: "searchIndexes",
+        itemsProcessed: 6, // Number of indexes uploaded
+        duration,
+      };
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error(String(e));
+      logger.error("[DataFetchManager] Search index build failed:", error);
+      return {
+        success: false,
+        operation: "searchIndexes",
+        error: error.message,
+        duration: (Date.now() - startTime) / 1000,
+      };
+    }
+  }
+
+  /**
    * Prefetches essential data for the build process.
    * @returns Promise resolving to array of operation summaries
    */
@@ -375,10 +495,107 @@ export class DataFetchManager {
       bookmarks: true,
       githubActivity: true,
       logos: false, // Logos are not pre-fetched for build
+      searchIndexes: true, // Build search indexes at build time
       immediate: false,
     });
     logger.info("[DataFetchManager] Prefetch for build completed.");
     return results;
+  }
+
+  /**
+   * Build image manifests by listing available images in S3
+   * @param _config - Configuration (acknowledged but unused)
+   * @returns Promise resolving to operation summary
+   */
+  private async buildImageManifests(_config: DataFetchConfig): Promise<DataFetchOperationSummary> {
+    const startTime = Date.now();
+    void _config;
+    logger.info("[DataFetchManager] Starting image manifest build...");
+
+    try {
+      // List all images in each directory
+      const [logos, opengraph, blog] = await Promise.all([
+        listS3Objects(IMAGE_S3_PATHS.LOGOS_DIR),
+        listS3Objects(IMAGE_S3_PATHS.OPENGRAPH_DIR),
+        listS3Objects(IMAGE_S3_PATHS.BLOG_DIR),
+      ]);
+
+      // Create manifests with extracted domain/identifier from filenames
+      const manifests = {
+        logos: this.createLogoManifest(logos),
+        opengraph: this.createImageManifest(opengraph),
+        blog: this.createImageManifest(blog),
+      };
+
+      // Upload manifests to S3
+      const uploadPromises = [
+        writeJsonS3(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST, manifests.logos),
+        writeJsonS3(IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST, manifests.opengraph),
+        writeJsonS3(IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST, manifests.blog),
+      ];
+
+      await Promise.all(uploadPromises);
+
+      const totalImages = logos.length + opengraph.length + blog.length;
+      logger.info(`[DataFetchManager] Image manifests built successfully. Total images: ${totalImages}`);
+
+      const duration = (Date.now() - startTime) / 1000;
+      return {
+        success: true,
+        operation: "imageManifests",
+        itemsProcessed: totalImages,
+        duration,
+      };
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error(String(e));
+      logger.error("[DataFetchManager] Image manifest build failed:", error);
+      return {
+        success: false,
+        operation: "imageManifests",
+        error: error.message,
+        duration: (Date.now() - startTime) / 1000,
+      };
+    }
+  }
+
+  /**
+   * Create logo manifest from S3 keys
+   * @param s3Keys - Array of S3 keys for logos
+   * @returns Manifest object mapping domains to logo info
+   */
+  private createLogoManifest(s3Keys: string[]): LogoManifest {
+    const manifest: LogoManifest = {};
+    const cdnBase = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+
+    for (const key of s3Keys) {
+      // Extract domain and source from logo filename
+      // Format: images/logos/domain.com_source_hash.ext
+      const filename = key.split("/").pop();
+      if (!filename) continue;
+
+      // Parse filename: domain_source_hash.extension
+      const match = filename.match(/^(.+?)_([^_]+)_[a-f0-9]+\.[^.]+$/);
+      if (match?.[1] && match[2]) {
+        const domain = match[1];
+        const source = match[2]; // google, duckduckgo, clearbit, etc.
+        manifest[domain] = {
+          cdnUrl: `${cdnBase}/${key}`,
+          originalSource: source,
+        };
+      }
+    }
+
+    return manifest;
+  }
+
+  /**
+   * Create generic image manifest from S3 keys
+   * @param s3Keys - Array of S3 keys
+   * @returns Array of CDN URLs
+   */
+  private createImageManifest(s3Keys: string[]): string[] {
+    const cdnBase = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+    return s3Keys.map(key => `${cdnBase}/${key}`);
   }
 }
 
@@ -386,18 +603,19 @@ if (require.main === module) {
   const args = process.argv.slice(2);
   const manager = new DataFetchManager();
 
-  const config: {
-    fetchLogos?: boolean;
-    fetchGithub?: boolean;
-    forceRefresh?: boolean;
-    testLimit?: number;
-  } = {};
+  const config: DataFetchConfig = {};
 
+  if (args.includes("--bookmarks")) {
+    config.bookmarks = true;
+  }
   if (args.includes("--logos")) {
-    config.fetchLogos = true;
+    config.logos = true;
   }
   if (args.includes("--github")) {
-    config.fetchGithub = true;
+    config.githubActivity = true;
+  }
+  if (args.includes("--search-indexes")) {
+    config.searchIndexes = true;
   }
   if (args.includes("--force")) {
     config.forceRefresh = true;
@@ -415,10 +633,12 @@ if (require.main === module) {
     }
   }
 
+  console.log(`[DataFetchManagerCLI] Config:`, JSON.stringify(config, null, 2));
+  
   manager
     .fetchData(config)
     .then((results) => {
-      logger.info("[DataFetchManagerCLI] All tasks complete.");
+      logger.info(`[DataFetchManagerCLI] All tasks complete. Results count: ${results.length}`);
       results.forEach((result) => {
         if (result.success) {
           logger.info(`  - ${result.operation}: Success (${result.itemsProcessed} items)`);

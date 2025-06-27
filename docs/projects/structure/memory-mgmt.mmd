@@ -7,7 +7,7 @@ graph TB
     end
 
     subgraph "Memory Management Core"
-        IMM["ImageMemoryManager<br/>512MB Budget<br/>LRU Cache"]
+        IMM["ImageMemoryManager<br/>Deprecated<br/>No Caching"]
         MHM["MemoryHealthMonitor<br/>RSS Monitoring<br/>State Management"]
         MG["mem-guard.ts<br/>30s Check<br/>Emergency Flush"]
         AOM["AsyncOperationsMonitor<br/>30s Timeouts<br/>Operation Tracking"]

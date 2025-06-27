@@ -5,11 +5,15 @@
  * This acts as a governor to prevent excessive external fetches, even if
  * other caching and circuit breaker layers would otherwise permit it.
  *
+ * NOTE: This uses ServerCache for mutable rate limiting state. Next.js cache
+ * is not suitable for rate limiting as it's designed for immutable data.
+ * Consider using external rate limiting service (Redis, Upstash) in production.
+ *
  * @module server-cache/jina-fetch-limiter
  */
 
 import { debug, debugWarn } from "@/lib/utils/debug";
-import { JINA_FETCH_CONFIG } from "@/lib/opengraph/constants";
+import { JINA_FETCH_CONFIG } from "@/lib/constants";
 import type { JinaLimiterState } from "@/types/jina";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { isJinaLimiterState } from "@/types/jina";
@@ -28,7 +32,7 @@ export function isJinaFetchAllowed(): boolean {
     const now = Date.now();
 
     // Reset if the window has expired or state is invalid
-    if (!isJinaLimiterState(state) || now - state.windowStartTimestamp > JINA_FETCH_CONFIG.WINDOW_MS) {
+    if (!isJinaLimiterState(state) || now - state.windowStartTimestamp > JINA_FETCH_CONFIG.windowMs) {
       debug("[JinaLimiter] Resetting Jina fetch limit window.");
       const newState: JinaLimiterState = {
         count: 1,
@@ -36,14 +40,14 @@ export function isJinaFetchAllowed(): boolean {
       };
       ServerCacheInstance.set(JINA_LIMITER_CACHE_KEY, newState);
       debug(
-        `[JinaLimiter] Jina AI fetch permitted. Count is now ${newState.count}/${JINA_FETCH_CONFIG.MAX_FETCHES_PER_WINDOW}.`,
+        `[JinaLimiter] Jina AI fetch permitted. Count is now ${newState.count}/${JINA_FETCH_CONFIG.maxRequests}.`,
       );
       return true;
     }
 
-    if (state.count >= JINA_FETCH_CONFIG.MAX_FETCHES_PER_WINDOW) {
+    if (state.count >= JINA_FETCH_CONFIG.maxRequests) {
       debugWarn(
-        `[JinaLimiter] Jina AI fetch limit exceeded (${state.count}/${JINA_FETCH_CONFIG.MAX_FETCHES_PER_WINDOW}). Fetch blocked.`,
+        `[JinaLimiter] Jina AI fetch limit exceeded (${state.count}/${JINA_FETCH_CONFIG.maxRequests}). Fetch blocked.`,
       );
       return false;
     }
@@ -55,7 +59,7 @@ export function isJinaFetchAllowed(): boolean {
     };
     ServerCacheInstance.set(JINA_LIMITER_CACHE_KEY, newState);
     debug(
-      `[JinaLimiter] Jina AI fetch permitted. Count is now ${newState.count}/${JINA_FETCH_CONFIG.MAX_FETCHES_PER_WINDOW}.`,
+      `[JinaLimiter] Jina AI fetch permitted. Count is now ${newState.count}/${JINA_FETCH_CONFIG.maxRequests}.`,
     );
 
     return true;

@@ -8,7 +8,7 @@ To provide robust, multi-layered memory management that prevents leaks, ensures 
 
 ## Key Files
 
-- **`lib/image-memory-manager.ts`**: The cornerstone of image memory management. This is a size-aware LRU cache specifically for `Buffer` objects. It enforces a total memory budget, sets per-image size limits, and uses request coalescing to prevent redundant fetches. It emits events on memory pressure changes, which are consumed by the `MemoryHealthMonitor`.
+- **`lib/image-memory-manager.ts`**: Deprecated component that previously handled image memory management. Now returns false for all set operations and null for all get operations. Maintains request coalescing functionality for preventing redundant fetches. Emits events on memory pressure changes, which are consumed by the `MemoryHealthMonitor`.
 - **`lib/health/memory-health-monitor.ts`**: The central nervous system for memory health. It monitors RSS usage against warning and critical thresholds, maintains a history of memory metrics, and coordinates system-wide responses to memory pressure, such as triggering emergency cleanups.
 - **`lib/middleware/memory-pressure.ts`**: The application's first line of defense. This middleware runs on all incoming requests and, if memory usage is critical, immediately returns a `503 Service Unavailable` response to shed load. It exempts health check endpoints to ensure the system remains observable.
 - **`lib/server/mem-guard.ts`**: A simple, periodic RSS watchdog. It acts as a last-resort safety net, flushing all caches if memory usage unexpectedly spikes beyond the critical threshold.
@@ -28,7 +28,7 @@ The system now operates on **coordinated proactive management** rather than inde
 
 2. **Proactive Coordination Cascade**:
     - **70% RSS**: ImageMemoryManager triggers `memory-coordination-trigger` event
-      - Starts proactive LRU eviction in ImageMemoryManager (60% target)
+      - Starts proactive eviction in ImageMemoryManager (60% target)
       - ServerCache listens and clears 25% of oldest entries
       - All systems begin memory-aware request handling
     - **80% RSS**: Memory pressure mode activated
@@ -70,27 +70,32 @@ See `memory-mgmt.mmd` for a visual diagram of the memory management flow and saf
 ## Recent Optimizations (2025-06-20)
 
 ### Sharp Memory Configuration
+
 - **Sharp cache fully disabled**: Uses `sharp.cache({ files: 0, items: 0, memory: 0 })` to prevent libvips internal cache retention
 - **Concurrency limited**: Set to 1 to reduce memory spikes during concurrent processing
 - **Result**: Prevents ~50MB of hidden memory retention per Sharp operation
 
 ### Size-Aware Cache Eviction
-- **ServerCache**: Now uses LRU cache with `maxSize` budget (256MB) and byte-accurate size calculation
+
+- **ServerCache**: Now uses Map-based cache with `maxSize` budget (256MB) and byte-accurate size calculation
 - **S3 Existence Cache**: Added 8MB size limit to prevent unbounded growth of 50k keys
 - **Result**: Caches now respect memory budgets and evict based on actual byte usage
 
 ### Next.js 15 Optimizations
+
 - **Webpack memory optimizations**: Enabled via `experimental.webpackMemoryOptimizations`
 - **Source maps disabled**: Both client and server source maps disabled in production
 - **Build worker enabled**: `experimental.webpackBuildWorker` for build-time memory isolation
 - **Route preloading disabled**: Prevents 300-500MB initial RSS spike
 
 ### Monitoring Enhancements
+
 - **New endpoint**: `/api/metrics/cache` provides detailed cache statistics for Grafana
 - **Prometheus support**: Can return metrics in Prometheus format via `METRICS_FORMAT=prometheus`
 - **Comprehensive metrics**: Tracks buffer cache, metadata cache, operations, and hit rates
 
 ### Search Standardization
+
 - **Bookmarks search**: Now uses MiniSearch like all other content types
 - **Unified caching**: All search indexes cached with proper TTLs
 - **Result**: Eliminates API-based bookmark search and standardizes fuzzy search
@@ -140,7 +145,7 @@ See `memory-mgmt.mmd` for a visual diagram of the memory management flow and saf
 
 - **Previous Issue**: No limits on total memory usage for images
 - **Solutions**:
-  - Created `ImageMemoryManager` with LRU cache and size budget
+  - Created `ImageMemoryManager` with memory cache and size budget
   - Implemented memory pressure detection and automatic cleanup
   - Added health monitoring with graceful degradation
 - **Impact**: Memory usage now capped and monitored
@@ -149,12 +154,12 @@ See `memory-mgmt.mmd` for a visual diagram of the memory management flow and saf
 
 ### 1. ImageMemoryManager (`lib/image-memory-manager.ts`)
 
-Central controller for all image buffer storage with:
+Deprecated component that previously handled image buffer storage. Now:
 
-- **LRU Cache**: Size-aware eviction (default 512MB budget)
-- **Request Coalescing**: Prevents duplicate fetches
-- **Memory Pressure Detection**: Multi-level thresholds
-- **Buffer Copying**: Ensures no slice() retention
+- **No Caching**: Returns false for set(), null for get()
+- **Request Coalescing**: Still prevents duplicate fetches
+- **Memory Pressure Detection**: Still emits pressure events
+- **No Buffer Storage**: All image operations use S3/CDN directly
 
 ### 2. UnifiedImageService (`lib/services/unified-image-service.ts`)
 
@@ -286,7 +291,7 @@ The system now uses **three separate memory budgets**:
    - Prevents false positives on normal Node.js memory usage
 
 2. **Image Cache Budget** (`IMAGE_RAM_BUDGET_BYTES`):
-   - Used by `ImageMemoryManager` for LRU cache sizing
+   - Used by `ImageMemoryManager` for memory cache sizing (deprecated)
    - Default: 512MB for image buffers only
    - Consider lowering to 256MB to achieve 600-900MB RSS target
    - Prevents image processing from consuming too much memory

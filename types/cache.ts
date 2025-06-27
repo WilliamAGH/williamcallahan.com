@@ -6,7 +6,6 @@
  * such as the structure for cached image entries.
  */
 
-import type { LRUCache } from "lru-cache";
 import type { GitHubActivityApiResponse } from "./github";
 import type { LogoResult } from "./logo";
 import type { ImageDataWithBuffer, ImageSource } from "./image";
@@ -108,19 +107,10 @@ export interface CacheStats {
   utilizationPercent?: number;
 }
 
-/**
- * Type for LRU cache storing buffers
- */
-export type BufferCache = LRUCache<string, Buffer, unknown>;
 
 /**
- * Type for LRU cache storing metadata
- */
-export type MetadataCache = LRUCache<string, Omit<ImageCacheEntry, "buffer">, unknown>;
-
-/**
- * Types that can be safely stored in LRUCache (excludes null/undefined)
- * These satisfy LRUCache's constraint that values must extend {}
+ * Types that can be safely stored in cache (excludes null/undefined)
+ * These satisfy the constraint that values must extend {}
  * Using 'object' instead of Record<string, unknown> to allow any object type
  */
 export type StorableCacheValue = string | number | boolean | object | Buffer;
@@ -130,3 +120,14 @@ export type StorableCacheValue = string | number | boolean | object | Buffer;
  * null values are handled by not storing them (returning undefined instead)
  */
 export type CacheValue = StorableCacheValue | null;
+
+
+/**
+ * Internal cache entry structure for ServerCache
+ * Used for the Map-based implementation
+ */
+export interface ServerCacheMapEntry<T = StorableCacheValue> {
+  value: T;
+  expiresAt: number;
+  size: number;
+}

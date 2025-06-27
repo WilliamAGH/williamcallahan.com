@@ -46,9 +46,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
       await fs.access(postsDir);
       dirExists = true;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (_error) {
-      // Directory doesn't exist, error variable not used
+    } catch {
+      // Directory doesn't exist
       console.warn(`Posts directory not found at ${postsDir}`);
     }
 
@@ -192,10 +191,7 @@ function findDuplicateSlugs(posts: { slug: string }[]): string[] {
     counts[slug] = (counts[slug] || 0) + 1;
   }
 
-  return (
-    Object.entries(counts)
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      .filter(([_, count]) => count > 1)
-      .map(([slug]) => slug)
-  );
+  return Object.entries(counts)
+    .filter(([, count]) => count > 1)
+    .map(([slug]) => slug);
 }

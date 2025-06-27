@@ -20,8 +20,15 @@ export const dynamic = "force-dynamic";
  * @description Returns detailed health and performance metrics for the application.
  * @returns {NextResponse}
  */
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: Request): Promise<NextResponse> {
   try {
+    // Check authorization using existing env variable
+    const authHeader = request.headers.get("authorization");
+    const expectedToken = process.env.GITHUB_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
+    
+    if (!expectedToken || authHeader !== `Bearer ${expectedToken}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const monitor = getMemoryHealthMonitor();
     const healthStatus = monitor.getHealthStatus();
     const systemMetrics = await getSystemMetrics();
@@ -29,12 +36,13 @@ export async function GET(): Promise<NextResponse> {
     // Get process memory usage
     const memUsage = process.memoryUsage();
 
-    // Import ServerCache and ImageMemoryManager for detailed stats
+    // Import ServerCache for detailed stats
     const { ServerCacheInstance } = await import("@/lib/server-cache");
-    const { ImageMemoryManagerInstance } = await import("@/lib/image-memory-manager");
 
     const serverCacheStats = ServerCacheInstance.getStats();
-    const imageMemoryStats = ImageMemoryManagerInstance.getMetrics();
+
+    // Get allocator diagnostics for deeper analysis
+    const allocatorDiagnostics = monitor.getAllocatorDiagnostics();
 
     const response: HealthMetrics = {
       status: healthStatus.status,
@@ -62,12 +70,12 @@ export async function GET(): Promise<NextResponse> {
           utilizationPercent: serverCacheStats.utilizationPercent || 0,
         },
         imageMemory: {
-          cacheSize: imageMemoryStats.cacheSize,
-          cacheBytes: Math.round(imageMemoryStats.cacheBytes / 1024 / 1024), // MB
-          rss: imageMemoryStats.rss,
-          heapUsed: imageMemoryStats.heapUsed,
-          external: imageMemoryStats.external,
-          memoryPressure: imageMemoryStats.memoryPressure,
+          cacheSize: 0,
+          cacheBytes: 0,
+          rss: memUsage.rss,
+          heapUsed: memUsage.heapUsed,
+          external: memUsage.external,
+          memoryPressure: false,
         },
       },
       health: {
@@ -75,6 +83,7 @@ export async function GET(): Promise<NextResponse> {
         message: healthStatus.message,
       },
       system: systemMetrics,
+      allocator: allocatorDiagnostics,
     };
 
     // Validate the final response against the Zod schema to ensure type safety

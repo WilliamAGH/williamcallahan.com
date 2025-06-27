@@ -70,20 +70,3 @@ export type MockedWindowEntry = {
   icon: React.ForwardRefExoticComponent<React.SVGProps<SVGSVGElement> & React.RefAttributes<SVGSVGElement>>;
   title: string;
 };
-
-export type MockedSharp = {
-  [K in keyof import("sharp").Sharp]: import("sharp").Sharp[K] extends (...args: infer P) => import("sharp").Sharp
-    ? jest.Mock<(...args: P) => MockedSharp>
-    : import("sharp").Sharp[K] extends (...args: infer P) => Promise<infer R>
-      ? jest.Mock<(...args: P) => Promise<R>>
-      : import("sharp").Sharp[K];
-};
-
-export type SharpInstance = {
-  metadata: () => Promise<import("sharp").Metadata>;
-  toBuffer: () => Promise<Buffer>;
-  png: () => SharpInstance;
-  grayscale: () => SharpInstance;
-  raw: () => SharpInstance;
-  resize: (width: number, height: number, options: import("sharp").ResizeOptions) => SharpInstance;
-};

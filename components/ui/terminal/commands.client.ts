@@ -7,6 +7,21 @@
 "use client";
 
 import type { CommandResult, TerminalSearchResult } from "@/types/terminal";
+import type { SearchResult } from "@/types/search";
+import { searchResultsSchema } from "@/types/search";
+
+// Transform SearchResult from API to TerminalSearchResult format
+function transformSearchResultToSelectionItem(result: SearchResult): TerminalSearchResult {
+  if (!result.id) {
+    console.warn("Search result is missing a stable ID. This may cause rendering issues.", result);
+  }
+  return {
+    id: result.id ? `${result.type}-${result.id}` : crypto.randomUUID(),
+    label: result.title,
+    description: result.description || "",
+    path: result.url,
+  };
+}
 
 // Lazy-loaded search function - only loads when first search is performed
 let searchByScopeImpl: ((scope: string, query: string) => Promise<TerminalSearchResult[]>) | null = null;
@@ -22,14 +37,9 @@ async function searchByScope(scope: string, query: string): Promise<TerminalSear
           throw new Error(`API request failed with status ${response.status}`);
         }
         const data: unknown = await response.json();
-        if (Array.isArray(data)) {
-          return data as TerminalSearchResult[];
-        }
-        if (data && typeof data === "object" && "results" in data) {
-          const results = (data as { results?: unknown }).results;
-          return Array.isArray(results) ? (results as TerminalSearchResult[]) : [];
-        }
-        return [];
+        // Parse as SearchResult array and transform to TerminalSearchResult
+        const searchResults = searchResultsSchema.parse(data);
+        return searchResults.map(transformSearchResultToSelectionItem);
       } catch (error: unknown) {
         console.error(
           `Search API call failed for scope ${scope}:`,
@@ -57,7 +67,9 @@ async function performSiteWideSearch(query: string): Promise<TerminalSearchResul
           throw new Error(`API request failed with status ${response.status}`);
         }
         const data: unknown = await response.json();
-        return Array.isArray(data) ? (data as TerminalSearchResult[]) : [];
+        // Parse as SearchResult array and transform to TerminalSearchResult
+        const searchResults = searchResultsSchema.parse(data);
+        return searchResults.map(transformSearchResultToSelectionItem);
       } catch (error: unknown) {
         console.error(
           "Search API call failed for site-wide search:",
@@ -86,14 +98,9 @@ export function preloadSearch() {
           throw new Error(`API request failed with status ${response.status}`);
         }
         const data: unknown = await response.json();
-        if (Array.isArray(data)) {
-          return data as TerminalSearchResult[];
-        }
-        if (data && typeof data === "object" && "results" in data) {
-          const results = (data as { results?: unknown }).results;
-          return Array.isArray(results) ? (results as TerminalSearchResult[]) : [];
-        }
-        return [];
+        // Parse as SearchResult array and transform to TerminalSearchResult
+        const searchResults = searchResultsSchema.parse(data);
+        return searchResults.map(transformSearchResultToSelectionItem);
       } catch (error: unknown) {
         console.error(
           `Search API call failed for scope ${scope}:`,
@@ -111,7 +118,8 @@ export function preloadSearch() {
         throw new Error(`API request failed with status ${response.status}`);
       }
       const data: unknown = await response.json();
-      return Array.isArray(data) ? (data as TerminalSearchResult[]) : [];
+      const searchResults = searchResultsSchema.parse(data);
+      return searchResults.map(transformSearchResultToSelectionItem);
     };
   }
 }

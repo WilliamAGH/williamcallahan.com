@@ -456,24 +456,24 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
             {filteredBookmarks.map((bookmark) => {
-              // Generate share URL once per bookmark to avoid per-card API calls
-              const shareUrl = `/bookmarks/${generateUniqueSlug(
+              // Generate internal href once per bookmark to avoid per-card API calls
+              const internalHref = `/bookmarks/${generateUniqueSlug(
                 bookmark.url,
                 bookmarks.map((b) => ({ id: b.id, url: b.url })),
                 bookmark.id,
               )}`;
               // Debug: Log bookmark data for CLI bookmark
-              if (bookmark.id === 'yz7g8v8vzprsd2bm1w1cjc4y') {
-                console.log('[BookmarksWithOptions] CLI bookmark data:', {
+              if (bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
+                console.log("[BookmarksWithOptions] CLI bookmark data:", {
                   id: bookmark.id,
                   hasContent: !!bookmark.content,
                   hasImageAssetId: !!bookmark.content?.imageAssetId,
                   hasImageUrl: !!bookmark.content?.imageUrl,
                   hasScreenshotAssetId: !!bookmark.content?.screenshotAssetId,
-                  content: bookmark.content
+                  content: bookmark.content,
                 });
               }
-              return <BookmarkCardClient key={bookmark.id} {...bookmark} shareUrl={shareUrl} />;
+              return <BookmarkCardClient key={bookmark.id} {...bookmark} internalHref={internalHref} />;
             })}
           </div>
         )

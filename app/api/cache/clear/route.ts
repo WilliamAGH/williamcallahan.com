@@ -9,8 +9,12 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { ServerCacheInstance } from "@/lib/server-cache";
-import { ImageMemoryManagerInstance } from "@/lib/image-memory-manager";
+import { invalidateBlogCache } from "@/lib/blog/mdx";
+import { invalidateGitHubCache } from "@/lib/data-access/github";
+import { invalidateOpenGraphCache } from "@/lib/data-access/opengraph";
+import { invalidateLogoCache } from "@/lib/data-access/logos";
+import { invalidateSearchCache } from "@/lib/search";
+import { revalidateTag } from "next/cache";
 
 /**
  * Validates API key for cache operations
@@ -27,136 +31,91 @@ function validateApiKey(request: NextRequest): boolean {
 }
 
 /**
- * Detects and reports cache corruption issues
+ * @deprecated Cache corruption detection is no longer needed with Next.js cache
+ * Next.js cache handles data integrity automatically
  */
 function detectCacheCorruption() {
-  const stats = {
+  return {
     totalEntries: 0,
     corruptedEntries: 0,
     emptyEntries: 0,
     invalidOpenGraphEntries: 0,
     oversizedEntries: 0,
     repaired: false,
+    message: "Cache corruption detection is deprecated. Next.js cache handles data integrity."
   };
-
-  try {
-    const keys = ServerCacheInstance.keys();
-    stats.totalEntries = keys.length;
-
-    for (const key of keys) {
-      const value = ServerCacheInstance.get(key);
-
-      // Check for empty or null values
-      if (value === null || value === undefined) {
-        stats.emptyEntries++;
-        ServerCacheInstance.del(key);
-        continue;
-      }
-
-      // Check OpenGraph entries for corruption
-      if (key.startsWith("og-data:")) {
-        const ogData = value as Record<string, unknown>;
-        if (!ogData.url || !ogData.title || (ogData.error && typeof ogData.error !== "string")) {
-          console.warn(`[Cache Health] Corrupted OpenGraph entry detected: ${key}`);
-          stats.invalidOpenGraphEntries++;
-          ServerCacheInstance.del(key);
-          continue;
-        }
-      }
-
-      // Check for oversized entries (>10MB)
-      if (Buffer.isBuffer(value) && value.byteLength > 10 * 1024 * 1024) {
-        console.warn(`[Cache Health] Oversized buffer detected: ${key} (${value.byteLength} bytes)`);
-        stats.oversizedEntries++;
-        ServerCacheInstance.del(key);
-        continue;
-      }
-
-      // Check for obviously corrupted objects
-      if (typeof value === "object" && value !== null) {
-        try {
-          const objStr = JSON.stringify(value);
-          if (objStr.includes("undefined") || objStr.includes("[object Object]")) {
-            stats.corruptedEntries++;
-            ServerCacheInstance.del(key);
-          }
-        } catch {
-          // If JSON.stringify fails, it's definitely corrupted
-          stats.corruptedEntries++;
-          ServerCacheInstance.del(key);
-        }
-      }
-    }
-
-    if (stats.emptyEntries || stats.invalidOpenGraphEntries || stats.oversizedEntries || stats.corruptedEntries) {
-      stats.repaired = true;
-      console.log(`[Cache Health] Repaired cache corruption: ${JSON.stringify(stats)}`);
-    }
-  } catch (error) {
-    console.error("[Cache Health] Error during corruption detection:", error);
-  }
-
-  return stats;
 }
 
 /**
- * GET - Check cache health and detect corruption
+ * GET - Cache health check (deprecated functionality)
+ * @deprecated Cache health checks are no longer applicable with Next.js cache
  */
 export function GET(request: NextRequest): NextResponse {
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const corruptionStats = detectCacheCorruption();
-    const cacheStats = ServerCacheInstance.getStats();
-    const imageStats = ImageMemoryManagerInstance.getMetrics();
-
-    return NextResponse.json({
-      status: "success",
-      message: "Cache health check completed",
-      data: {
-        cache: cacheStats,
-        imageMemory: imageStats,
-        corruption: corruptionStats,
-        recommendations: corruptionStats.repaired
-          ? ["Cache corruption was detected and automatically repaired"]
-          : ["Cache appears healthy"],
+  return NextResponse.json({
+    status: "success",
+    message: "Cache health check endpoint is deprecated",
+    data: {
+      cache: {
+        message: "Next.js cache manages its own health and integrity"
       },
-    });
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Failed to check cache health:", errorMessage);
-    return NextResponse.json(
-      {
-        status: "error",
-        message: "Failed to check cache health",
-        error: errorMessage,
+      imageMemory: {
+        message: "Image memory caching has been removed - images served directly from S3/CDN"
       },
-      { status: 500 },
-    );
-  }
+      corruption: detectCacheCorruption(),
+      recommendations: [
+        "This endpoint is deprecated",
+        "Next.js cache handles data integrity automatically",
+        "Images are served directly from S3/CDN without caching"
+      ],
+    },
+  });
 }
 
 /**
- * POST - Clear all caches and image memory
+ * POST - Clear all Next.js caches
  */
-export function POST(request: NextRequest): NextResponse {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!validateApiKey(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    // Run corruption detection first
-    const corruptionStats = detectCacheCorruption();
-
-    // Clear all caches
-    const beforeStats = ServerCacheInstance.getStats();
-    ServerCacheInstance.clearAllCaches();
-
-    // Clear image memory manager
-    const beforeImageStats = ImageMemoryManagerInstance.getMetrics();
-    ImageMemoryManagerInstance.clear();
+    // Invalidate all Next.js caches
+    console.log("[Cache Clear] Starting Next.js cache invalidation...");
+    
+    // Clear specific cache tags
+    const cacheTags = [
+      "blog",
+      "github",
+      "opengraph",
+      "logos", 
+      "search",
+      "bookmarks",
+      "education",
+      "experience",
+      "investments"
+    ];
+    
+    // Invalidate each cache tag
+    for (const tag of cacheTags) {
+      revalidateTag(tag);
+      console.log(`[Cache Clear] Invalidated cache tag: ${tag}`);
+    }
+    
+    // Call specific invalidation functions
+    await Promise.all([
+      invalidateBlogCache(),
+      invalidateGitHubCache(),
+      invalidateOpenGraphCache(),
+      invalidateLogoCache(),
+      invalidateSearchCache()
+    ]);
+    
+    console.log("[Cache Clear] All Next.js caches invalidated successfully");
 
     // Force garbage collection if available
     if (global.gc) {
@@ -165,26 +124,24 @@ export function POST(request: NextRequest): NextResponse {
 
     return NextResponse.json({
       status: "success",
-      message: "All caches cleared successfully",
+      message: "All Next.js caches cleared successfully",
       data: {
-        before: {
-          cache: beforeStats,
-          imageMemory: beforeImageStats,
-          corruption: corruptionStats,
-        },
-        after: {
-          cache: ServerCacheInstance.getStats(),
-          imageMemory: ImageMemoryManagerInstance.getMetrics(),
-        },
+        invalidatedTags: cacheTags,
+        timestamp: new Date().toISOString(),
+        notes: [
+          "Next.js caches have been invalidated",
+          "Image caching has been removed - images served directly from S3/CDN",
+          "ServerCache is deprecated and will be removed"
+        ]
       },
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Failed to clear caches:", errorMessage);
+    console.error("[Cache Clear] Failed to clear caches:", errorMessage);
     return NextResponse.json(
       {
         status: "error",
-        message: "Failed to clear caches",
+        message: "Failed to clear Next.js caches",
         error: errorMessage,
       },
       { status: 500 },

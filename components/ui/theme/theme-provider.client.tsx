@@ -7,11 +7,9 @@
 
 "use client";
 
-import { THEME_TIMESTAMP_KEY } from "@/lib/constants";
+import { THEME_TIMESTAMP_KEY, TIME_CONSTANTS } from "@/lib/constants";
 import { ThemeProvider as NextThemesProvider, type ThemeProviderProps, useTheme } from "next-themes";
 import * as React from "react";
-
-const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
@@ -40,7 +38,7 @@ function ThemeExpiryHandler({ storageKey }: { storageKey?: string }) {
             );
           }
         }
-        if (Number.isFinite(timestamp) && Date.now() - timestamp > TWENTY_FOUR_HOURS_MS) {
+        if (Number.isFinite(timestamp) && Date.now() - timestamp > TIME_CONSTANTS.TWENTY_FOUR_HOURS_MS) {
           if (isDevelopment) {
             if (process.env.NODE_ENV === "development") {
               console.log("[ThemeDev] ThemeExpiryHandler: Explicit theme has EXPIRED (older than 24 hours).");

@@ -18,6 +18,9 @@
  * - GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY: Service Account private key for Google APIs
  *
  * Usage:
+ *   Per-URL submission is gated by the env var `ENABLE_GOOGLE_URL_INDEXING`.
+ *   If that variable is **not** set to "true" the script will skip Indexing-API
+ *   calls and only ping the sitemap endpoints.
  * - `bun scripts/submit-sitemap.ts` - Run both sitemap and individual URL submissions
  * - `bun scripts/submit-sitemap.ts --sitemaps-only` - Run only sitemap submissions
  * - `bun scripts/submit-sitemap.ts --individual-only` - Run only individual URL submissions
@@ -27,19 +30,13 @@
 import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
 loadEnvironmentWithMultilineSupport();
 
-import type { GaxiosError, GaxiosResponse } from "gaxios";
-import { google } from "googleapis";
+import { JWT } from "google-auth-library";
+import { GaxiosError } from "gaxios";
 import type { GoogleIndexingUrlNotificationMetadata } from "@/types/lib";
+import type { UrlNotification, IndexingApiResponse } from "@/types/api";
 import sitemap from "../app/sitemap.ts";
-
-/**
- * Type guard to check if an object is a GaxiosError.
- * @param error The error object to check.
- * @returns True if the object is a GaxiosError, false otherwise.
- */
-function isGaxiosError(error: unknown): error is GaxiosError {
-  return typeof error === "object" && error !== null && "response" in error;
-}
+import { loadRateLimitStoreFromS3, incrementAndPersist, persistRateLimitStoreToS3 } from "@/lib/rate-limiter";
+import { INDEXING_RATE_LIMIT_PATH } from "@/lib/constants";
 
 /**
  * Processes the Google Cloud private key from an environment variable.
@@ -56,88 +53,151 @@ function processGooglePrivateKey(key?: string): string {
   return key.replace(/\\n/g, "\n");
 }
 
+// Instantiate the client once outside the function for efficiency
+const authClient = new JWT({
+  email: process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL,
+  key: processGooglePrivateKey(process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY),
+  scopes: ["https://www.googleapis.com/auth/indexing"],
+  subject: process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL,
+});
+
 async function notifyGoogle(
   url: string,
   type: "URL_UPDATED" | "URL_DELETED",
 ): Promise<GoogleIndexingUrlNotificationMetadata | null> {
-  const privateKey = processGooglePrivateKey(process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY);
-  const clientEmail = process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL;
-
-  if (!clientEmail) {
-    throw new Error("Google Cloud client email is not defined in environment variables.");
-  }
-
-  const client = new google.auth.JWT(clientEmail, undefined, privateKey, ["https://www.googleapis.com/auth/indexing"]);
-
   const endpoint = "https://indexing.googleapis.com/v3/urlNotifications:publish";
   try {
-    const response: GaxiosResponse = await client.request({
+    const payload: UrlNotification = {
+      url,
+      type,
+    };
+
+    const response = await authClient.request<IndexingApiResponse>({
       url: endpoint,
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      data: {
-        url,
-        type,
-      },
+      data: payload,
     });
-    return response.data as GoogleIndexingUrlNotificationMetadata;
+
+    if (response.data?.urlNotificationMetadata) {
+      return response.data.urlNotificationMetadata as GoogleIndexingUrlNotificationMetadata;
+    } else {
+      console.error(`[Google] Unexpected response format for ${url}:`, response.data);
+      return null;
+    }
   } catch (err: unknown) {
-    if (isGaxiosError(err)) {
+    if (err instanceof GaxiosError) {
       console.error(`[Google] Error submitting ${url}: ${err.response?.status} ${err.response?.statusText}`);
+      console.error(`[Google] Error details:`, err.response?.data);
+    } else {
+      console.error(`[Google] Unexpected error for ${url}:`, err);
     }
     return null;
   }
 }
 
+const DAILY_GOOGLE_LIMIT_CONFIG = { maxRequests: 50, windowMs: 24 * 60 * 60 * 1000 } as const;
+const GOOGLE_STORE = "googleIndexing";
+const GOOGLE_CONTEXT = "daily";
+
+// ---------------------------------------------------------------------------
+// Feature-flag: enable per-URL Google Indexing-API submission only when the
+// environment variable is explicitly set to "true".
+// ---------------------------------------------------------------------------
+const URL_INDEXING_ENABLED = process.env.ENABLE_GOOGLE_URL_INDEXING === "true";
+
+// ---------------------------------------------------------------------------
+// CLI flags
+// ---------------------------------------------------------------------------
+const DEBUG_MODE = process.argv.includes("--debug");
+
 const main = async (): Promise<void> => {
-  const allUrls = sitemap().map((url) => url.url);
-  const totalUrls = allUrls.length;
+  if (URL_INDEXING_ENABLED) {
+    // ---------------------------------------------------------------------
+    // Per-URL submission path (Indexing API) – gated by env flag.
+    // ---------------------------------------------------------------------
 
-  console.info(`Found ${totalUrls} URLs to process.`);
+    // Initialise persistent rate-limit store
+    await loadRateLimitStoreFromS3(GOOGLE_STORE, INDEXING_RATE_LIMIT_PATH);
 
-  // For Google, we can batch URLs.
-  // The API has a limit of 100 URLs per batch and a max of 200 URLs per day.
-  const googleBatchSize = 100;
-  const googleUrls = allUrls.slice(0, 200); // Limit to 200 for Google
+    const allUrls = sitemap().map((u) => u.url);
+    const totalUrls = allUrls.length;
+    console.info(`Found ${totalUrls} URLs to process.`);
 
-  for (let i = 0; i < googleUrls.length; i += googleBatchSize) {
-    const batch = googleUrls.slice(i, i + googleBatchSize);
-    console.info(
-      `[Google] Processing batch ${Math.floor(i / googleBatchSize) + 1} of ${Math.ceil(
-        googleUrls.length / googleBatchSize,
-      )}`,
-    );
+    // Filter URLs based on remaining quota (cheap pre-check)
+    const allowedUrls: string[] = [];
+    for (const url of allUrls) {
+      if (incrementAndPersist(GOOGLE_STORE, GOOGLE_CONTEXT, DAILY_GOOGLE_LIMIT_CONFIG, INDEXING_RATE_LIMIT_PATH)) {
+        allowedUrls.push(url);
+      } else {
+        console.warn(`[Google] Daily limit reached – skipping remaining URLs.`);
+        break;
+      }
+    }
 
-    await Promise.all(
-      batch.map(async (url) => {
-        try {
+    if (allowedUrls.length) {
+      const batchSize = 50; // Google allows 100; our quota is 50
+      for (let i = 0; i < allowedUrls.length; i += batchSize) {
+        const batch = allowedUrls.slice(i, i + batchSize);
+        console.info(`[Google] Submitting batch ${i / batchSize + 1}`);
+
+        for (const url of batch) {
           const result = await notifyGoogle(url, "URL_UPDATED");
           if (result) {
-            console.info(`[Google] Successfully submitted URL ${url}`);
-          }
-        } catch (err) {
-          if (isGaxiosError(err)) {
-            console.error(`[Google] Failed to submit URL ${url}: ${err.response?.status} ${err.response?.statusText} - ${err.message}`);
-          } else {
-            const errorMessage = err instanceof Error ? err.message : "Unknown error";
-            console.error(`[Google] Failed to submit URL ${url}: ${errorMessage}`);
+            console.info(`[Google] Successfully submitted ${url}`);
+            await persistRateLimitStoreToS3(GOOGLE_STORE, INDEXING_RATE_LIMIT_PATH);
           }
         }
-      }),
-    );
 
-    // Add delay between batches to avoid rate limiting
-    if (i + googleBatchSize < googleUrls.length) {
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
+        if (i + batchSize < allowedUrls.length) {
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
+      console.info("[Google] URL-level submission complete");
+    } else {
+      console.info("No quota available for URL submissions – skipping");
     }
+  } else if (DEBUG_MODE) {
+    console.info("[Google] Per-URL Indexing-API submission disabled – sitemap ping only");
   }
 
-  console.info("[Google] URL submission process completed.");
+  // ---------------------------------------------------------------------
+  // Sitemap pings
+  // ---------------------------------------------------------------------
 
-  // For Bing, we submit the main sitemap URL.
-  const sitemapUrl = "https://williamcallahan.com/sitemap.xml";
+  const BASE_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://williamcallahan.com";
+  const sitemapUrl = `${BASE_SITE_URL.replace(/\/$/, "")}/sitemap.xml`;
+
+  // Verify sitemap is reachable before pinging search engines
+  let sitemapReachable = true;
+  try {
+    const headRes = await fetch(sitemapUrl, { method: "HEAD" });
+    sitemapReachable = headRes.ok;
+    if (!sitemapReachable) {
+      console.error(`[Local] Sitemap not reachable at ${sitemapUrl}. Status: ${headRes.status}`);
+    }
+  } catch {
+    sitemapReachable = false;
+    console.error(`[Local] Failed to fetch sitemap at ${sitemapUrl}`);
+  }
+
+  if (sitemapReachable) {
+    // Google anonymous ping
+    try {
+      const googlePingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
+      const res = await fetch(googlePingUrl);
+      if (res.ok) {
+        console.info("[Google] Sitemap ping successful.");
+      } else {
+        console.error(`[Google] Sitemap ping failed. Status: ${res.status}`);
+      }
+    } catch (err) {
+      console.error("[Google] Error during sitemap ping:", err);
+    }
+  } else if (DEBUG_MODE) {
+    console.info("[Google] Skipping ping because sitemap not reachable (dev environment?)");
+  }
+
+  // Bing IndexNow ping
   const bingSubmissionUrl = `https://www.bing.com/webmaster/ping.aspx?siteMap=${sitemapUrl}`;
 
   try {

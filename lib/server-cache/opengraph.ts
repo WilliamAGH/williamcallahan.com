@@ -8,10 +8,11 @@ import type { ICache } from "@/types/cache";
 import type { OgResult, OgCacheEntry } from "@/types/opengraph";
 import { ogResultSchema } from "@/types/seo/opengraph";
 import { OPENGRAPH_CACHE_DURATION } from "@/lib/constants";
+import { TIME_CONSTANTS } from "@/lib/constants";
 
 const OPENGRAPH_PREFIX = "og-data:";
 const REFRESH_TRACKING_PREFIX = "og-refresh-attempt:";
-const REFRESH_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes between refresh attempts
+const REFRESH_COOLDOWN_MS = TIME_CONSTANTS.FIVE_MINUTES_MS; // 5 minutes between refresh attempts
 
 export function getOpenGraphData(this: ICache, url: string): OgCacheEntry | undefined {
   const key = OPENGRAPH_PREFIX + url;

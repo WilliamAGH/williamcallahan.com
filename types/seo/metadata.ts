@@ -10,8 +10,8 @@
 import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
 import { z } from "zod";
 
-// Import ExtendedMetadata from main SEO types to avoid duplication
-import type { ExtendedMetadata } from "../seo";
+// Import ExtendedMetadata from base to avoid circular dependencies
+import type { ExtendedMetadata } from "./base";
 export type { ExtendedMetadata };
 
 // Import ArticleSchema from main SEO types to avoid duplication

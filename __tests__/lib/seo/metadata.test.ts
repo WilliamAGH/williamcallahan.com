@@ -4,7 +4,7 @@
  */
 
 import { createArticleMetadata, getStaticPageMetadata } from "@/lib/seo/metadata";
-import { SEO_DATE_FIELDS } from "@/lib/seo/constants";
+import { SEO_DATE_FIELDS } from "@/lib/constants";
 // Remove unused imports - commented out rather than deleted to maintain line numbers
 // import { metadata as siteMetadata, SITE_NAME, PAGE_METADATA } from '../../../../data/metadata';
 import { isPacificDateString, type ArticleOpenGraph, type ProfileOpenGraph } from "@/types/seo";

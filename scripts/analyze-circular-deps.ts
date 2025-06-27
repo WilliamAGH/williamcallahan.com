@@ -65,8 +65,14 @@ class CircularDependencyAnalyzer {
 
     try {
       const content = readFileSync(fullPath, "utf-8");
-      const imports = this.extractImports(content, relativePath);
-      const exports = this.extractExports(content);
+
+      // Strip comments to avoid false positives from import-like statements in comments
+      const cleanContent = content
+        .replace(/\/\*[\s\S]*?\*\//g, "") // Remove block comments
+        .replace(/\/\/.*/g, ""); // Remove line comments
+
+      const imports = this.extractImports(cleanContent, relativePath);
+      const exports = this.extractExports(cleanContent);
 
       this.nodes.set(relativePath, {
         file: relativePath,
@@ -80,9 +86,13 @@ class CircularDependencyAnalyzer {
 
   private extractImports(content: string, fromFile: string): string[] {
     const imports: string[] = [];
-    const importRegex = /^import\s+(?:(?:type\s+)?{[^}]*}|[^{]*)\s+from\s+['"]([^'"]+)['"];?/gm;
 
-    for (const match of content.matchAll(importRegex)) {
+    // More precise regex that handles all import types
+    // Matches: import { ... } from '...', import type { ... } from '...', import * as ... from '...', etc.
+    const allImportRegex =
+      /^\s*import\s+(?:type\s+)?(?:{[^}]*}|\*\s+as\s+\w+|\w+|['"][^'"]+['"])\s+from\s+['"]([^'"]+)['"];?/gm;
+
+    for (const match of content.matchAll(allImportRegex)) {
       const importPath = match[1];
 
       if (importPath && (importPath.startsWith("@/") || importPath.startsWith("./") || importPath.startsWith("../"))) {
@@ -134,12 +144,30 @@ class CircularDependencyAnalyzer {
       return null;
     }
 
-    // Try common extensions
-    const extensions = ["", ".ts", ".tsx", "/index.ts", "/index.tsx"];
+    // Strategy 1: Check if path already has an extension
+    if (resolvedPath.endsWith(".ts") || resolvedPath.endsWith(".tsx")) {
+      const fullPath = resolve(this.projectRoot, resolvedPath);
+      if (existsSync(fullPath)) {
+        return resolvedPath;
+      }
+    }
 
-    for (const ext of extensions) {
+    // Strategy 2: Try adding extensions to the path
+    const fileExtensions = [".ts", ".tsx"];
+    for (const ext of fileExtensions) {
       const candidate = resolvedPath + ext;
-      if (this.nodes.has(candidate) || existsSync(resolve(this.projectRoot, candidate))) {
+      const fullPath = resolve(this.projectRoot, candidate);
+      if (existsSync(fullPath)) {
+        return candidate;
+      }
+    }
+
+    // Strategy 3: Check if it's a directory with index file
+    const indexExtensions = ["/index.ts", "/index.tsx"];
+    for (const ext of indexExtensions) {
+      const candidate = resolvedPath + ext;
+      const fullPath = resolve(this.projectRoot, candidate);
+      if (existsSync(fullPath)) {
         return candidate;
       }
     }
@@ -208,11 +236,16 @@ class CircularDependencyAnalyzer {
   }
 
   private assessSeverity(chain: string[]): "high" | "medium" | "low" {
-    const hasTypesLib = chain.some(
-      (file) =>
-        (file.includes("types/") && chain.some((f) => f.includes("lib/"))) ||
-        (file.includes("lib/") && chain.some((f) => f.includes("types/"))),
-    );
+    // Check for actual bidirectional cycles between types and lib
+    const hasTypesLib = chain.some((file, idx) => {
+      if (file.includes("types/")) {
+        // Check if any lib file later in the chain imports back to types
+        return (
+          chain.slice(idx + 1).some((f) => f.includes("lib/")) && chain.slice(idx + 1).some((f) => f.includes("types/"))
+        );
+      }
+      return false;
+    });
 
     const hasComponents = chain.some((file) => file.includes("components/"));
 
@@ -246,15 +279,48 @@ class CircularDependencyAnalyzer {
     return impact;
   }
 
-  printAnalysis(cycles: CircularChain[]): void {
+  printAnalysis(cycles: CircularChain[], showFull = false): void {
     if (cycles.length === 0) {
       console.log("✅ No circular dependencies found!");
       return;
     }
 
+    // Filter cycles based on --full flag
+    const filteredCycles = showFull
+      ? cycles
+      : cycles.filter((cycle) => {
+          // Exclude cycles that only go through scripts, app files, or UI components
+          // These don't impact type safety or runtime behavior
+          const isOnlyUIOrScripts = cycle.chain.every(
+            (f) =>
+              f.includes("scripts/") ||
+              f.includes("app/") ||
+              f.includes("components/") ||
+              f.includes("hooks/") ||
+              f.includes("data/blog/posts"), // Empty file
+          );
+
+          if (isOnlyUIOrScripts) return false;
+
+          // Include cycles that have actual runtime impact
+          const hasLibDependency = cycle.chain.some((f) => f.includes("lib/"));
+          const hasTypesDependency = cycle.chain.some((f) => f.includes("types/"));
+          const hasHighImpact = cycle.impactEstimate >= 70;
+
+          return hasLibDependency || hasTypesDependency || hasHighImpact;
+        });
+
+    if (filteredCycles.length === 0 && !showFull) {
+      console.log("✅ No critical circular dependencies found!");
+      if (cycles.length > 0) {
+        console.log(`ℹ️  ${cycles.length} non-critical cycles hidden. Use --full to see all.`);
+      }
+      return;
+    }
+
     console.log("\n🔴 CIRCULAR DEPENDENCIES DETECTED:\n");
 
-    cycles.forEach((cycle, index) => {
+    filteredCycles.forEach((cycle, index) => {
       const severityIcon = {
         high: "🔴",
         medium: "🟡",
@@ -264,8 +330,24 @@ class CircularDependencyAnalyzer {
       console.log(`${index + 1}. ${severityIcon} ${cycle.severity.toUpperCase()} (Impact: ${cycle.impactEstimate})`);
       console.log(`   ${cycle.description}`);
       console.log(`   Chain: ${cycle.chain.join(" → ")}`);
+
+      // Show full chain for blog → cache issues
+      if (cycle.description.includes("blog → cache")) {
+        console.log(`   🔍 FULL CHAIN DETAILS:`);
+        cycle.chain.forEach((file, i) => {
+          console.log(`      ${i + 1}. ${file}`);
+        });
+      }
+
       console.log(`   Fix: ${this.suggestFix(cycle.chain)}\n`);
     });
+
+    if (!showFull && cycles.length > filteredCycles.length) {
+      console.log(
+        `\nℹ️  Showing ${filteredCycles.length} critical cycles. ${cycles.length - filteredCycles.length} non-critical cycles hidden.`,
+      );
+      console.log("   Use --full to see all circular dependencies.\n");
+    }
 
     console.log("💡 RECOMMENDED ACTIONS:");
     console.log("1. Fix high severity cycles first (types ↔ lib dependencies)");
@@ -301,9 +383,32 @@ async function main() {
   const projectRoot = resolve(dirname(new URL(import.meta.url).pathname), "..");
   const analyzer = new CircularDependencyAnalyzer(projectRoot);
 
+  // Check for --full flag
+  const showFull = process.argv.includes("--full");
+
   try {
     const cycles = await analyzer.analyze();
-    analyzer.printAnalysis(cycles);
+    analyzer.printAnalysis(cycles, showFull);
+
+    // Only exit with non-zero status if there are critical cycles
+    // (non-critical cycles don't impact type safety or runtime behavior)
+    const criticalCycles = cycles.filter((cycle) => {
+      const hasTypesLibCycle =
+        cycle.chain.some((f) => f.includes("types/")) && cycle.chain.some((f) => f.includes("lib/"));
+      const isHighSeverity = cycle.severity === "high";
+      const hasHighImpact = cycle.impactEstimate >= 70;
+
+      const isOnlyUIOrScripts = cycle.chain.every(
+        (f) =>
+          f.includes("scripts/") || f.includes("app/") || f.includes("components/") || f.includes("data/blog/posts"),
+      );
+
+      return (hasTypesLibCycle || isHighSeverity || hasHighImpact) && !isOnlyUIOrScripts;
+    });
+
+    if (criticalCycles.length > 0) {
+      process.exit(1);
+    }
   } catch (error) {
     console.error("❌ An error occurred during analysis:", error);
     process.exit(1);

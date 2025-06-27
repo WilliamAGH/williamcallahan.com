@@ -436,7 +436,7 @@ File/Path                                       Functionality                   
 - [x] `fix-fetch-mock.ts`                       `testing-config`        - Script to fix fetch mocks
 - [x] `fix-test-imports.sh`                     `testing-config`        - Script to fix test imports
 - [x] `force-refresh-repo-stats.ts`             `batch-fetch-update`    - Script to force-refresh GitHub repo stats
-- [x] `populate-volumes.ts`                     `build`                 - Script to populate Docker volumes with data
+- [x] `populate-volumes.ts`                     `deprecated`            - DEPRECATED: Use data-updater.ts instead
 - [x] `pre-build-checks.sh`                     `build`                 - Pre-build check script
 - [x] `data-updater.ts`                         `batch-fetch-update`    - Unified CLI for all data operations
 - [x] `refresh-opengraph-images.ts`             `opengraph`             - Script to refresh OpenGraph images and metadata

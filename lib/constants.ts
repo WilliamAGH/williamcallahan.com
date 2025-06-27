@@ -1,88 +1,132 @@
 /**
  * Application Constants
- * @module lib/constants
- * @description
  * Central location for all application constants.
- * These values are used across the application to maintain consistency
- * and make configuration changes easier.
  */
 
-/**
- * Cache duration for client-side storage (localStorage)
- * @constant
- * @type {number}
- * @default 30 days in milliseconds
- */
-export const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000;
+import type { BookmarksS3Paths, RateLimiterConfig } from "@/types/lib";
 
-/**
- * Cache duration for server-side storage (LRUCache)
- * @constant
- * @type {number}
- * @default 3 days in seconds
- */
-export const SERVER_CACHE_DURATION = 3 * 24 * 60 * 60;
+// Time helpers (all return milliseconds)
+const hours = (h: number) => h * 60 * 60 * 1000;
+const days = (d: number) => d * 24 * hours(1);
+const minutes = (m: number) => m * 60 * 1000;
+const seconds = (s: number) => s * 1000;
 
-/**
- * Cache duration for logo fetching
- * @constant
- * @type {Object}
- */
-export const LOGO_CACHE_DURATION = {
-  /** Success cache duration (30 days in seconds) */
-  SUCCESS: 30 * 24 * 60 * 60,
-  /** Failed attempt cache duration (1 day in seconds) */
-  FAILURE: 24 * 60 * 60,
-} as const;
+/** Client-side cache duration: 30 days (milliseconds) */
+export const CACHE_DURATION = days(30);
 
-/**
- * Type definition for S3 storage paths for bookmarks.
- * Explicitly defines the literal string types for each property.
- */
-import type { BookmarksS3Paths } from "@/types/lib";
+/** Server-side cache duration: 3 days (seconds) */
+export const SERVER_CACHE_DURATION = days(3) / 1000;
 
-/**
- * S3 storage paths for bookmarks (environment-aware).
- *
- * Production  → bookmarks/bookmarks.json & bookmarks/refresh-lock.json
- * Development → bookmarks/bookmarks-dev.json & bookmarks/refresh-lock-dev.json
- * Test        → bookmarks/bookmarks-test.json & bookmarks/refresh-lock-test.json
- *
- * This isolates each runtime so dev / tests can never overwrite production data.
- *
- * NOTE: All callers import this constant, so we compute the value once at module
- *       load based on `process.env.NODE_ENV`.
- */
-const envSuffix = ((): string => {
+// Unified cache configuration factory (seconds) with overloads
+function createCacheConfig(success: number, failure: number): { SUCCESS: number; FAILURE: number };
+function createCacheConfig(
+  success: number,
+  failure: number,
+  revalidation: number,
+): { SUCCESS: number; FAILURE: number; REVALIDATION: number };
+function createCacheConfig(success: number, failure: number, revalidation?: number) {
+  if (revalidation !== undefined) {
+    return {
+      SUCCESS: success,
+      FAILURE: failure,
+      REVALIDATION: revalidation,
+    };
+  }
+  return {
+    SUCCESS: success,
+    FAILURE: failure,
+  };
+}
+
+/** Logo cache: 30 days success, 1 day failure */
+export const LOGO_CACHE_DURATION = createCacheConfig(days(30) / 1000, days(1) / 1000);
+
+// Environment suffix helper
+const envSuffix = (() => {
   const env = process.env.NODE_ENV;
-  if (env === "production" || !env) return ""; // default / prod keeps original name
-  if (env === "test") return "-test";
-  return "-dev"; // treat everything else as development-like
+  if (env === "production" || !env) return "";
+  return env === "test" ? "-test" : "-dev";
 })();
 
+// S3 path builders
+const s3Path = (dir: string, file: string) => `${dir}/${file}${envSuffix}.json`;
+const s3Dir = (dir: string) => `${dir}${envSuffix}`;
+
 export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
-  DIR: "bookmarks",
-  FILE: `bookmarks/bookmarks${envSuffix}.json`, // Legacy - full file
-  LOCK: `bookmarks/refresh-lock${envSuffix}.json`,
-  INDEX: `bookmarks/index${envSuffix}.json`, // Lightweight index
-  PAGE_PREFIX: `bookmarks/pages${envSuffix}/page-`, // page-1.json, page-2.json, etc.
-  TAG_PREFIX: `bookmarks/tags${envSuffix}/`, // tags/react/page-1.json, etc.
-  TAG_INDEX_PREFIX: `bookmarks/tags${envSuffix}/`, // tags/react/index.json
+  DIR: "json/bookmarks",
+  FILE: s3Path("json/bookmarks", "bookmarks"),
+  LOCK: s3Path("json/bookmarks", "refresh-lock"),
+  INDEX: s3Path("json/bookmarks", "index"),
+  PAGE_PREFIX: `json/bookmarks/pages${envSuffix}/page-`,
+  TAG_PREFIX: s3Dir("json/bookmarks/tags") + "/",
+  TAG_INDEX_PREFIX: s3Dir("json/bookmarks/tags") + "/",
+} as const;
+
+export const LOGO_BLOCKLIST_S3_PATH = s3Path("json/image-data/logos", "domain-blocklist");
+
+/** S3 paths for search indexes (environment-aware) */
+export const SEARCH_S3_PATHS = {
+  DIR: "json/search",
+  POSTS_INDEX: s3Path("json/search", "posts-index"),
+  BOOKMARKS_INDEX: s3Path("json/search", "bookmarks-index"),
+  INVESTMENTS_INDEX: s3Path("json/search", "investments-index"),
+  EXPERIENCE_INDEX: s3Path("json/search", "experience-index"),
+  EDUCATION_INDEX: s3Path("json/search", "education-index"),
+  BUILD_METADATA: s3Path("json/search", "build-metadata"),
+} as const;
+
+/** S3 paths for GitHub activity data (environment-aware) */
+export const GITHUB_ACTIVITY_S3_PATHS = {
+  DIR: "json/github-activity",
+  ACTIVITY_DATA: s3Path("json/github-activity", "activity_data"),
+  STATS_SUMMARY: s3Path("json/github-activity", "github_stats_summary"),
+  ALL_TIME_SUMMARY: s3Path("json/github-activity", "github_stats_summary_all_time"),
+  AGGREGATED_WEEKLY: s3Path("json/github-activity", "aggregated_weekly_activity"),
+  ACTIVITY_DATA_PROD_FALLBACK: "json/github-activity/activity_data.json",
+  REPO_RAW_WEEKLY_STATS_DIR: s3Dir("json/github-activity/repo_raw_weekly_stats"),
+} as const;
+
+/** S3 paths for image manifests (environment-aware) */
+export const IMAGE_MANIFEST_S3_PATHS = {
+  DIR: "json/image-data",
+  LOGOS_MANIFEST: s3Path("json/image-data", "logos/manifest"),
+  OPENGRAPH_MANIFEST: s3Path("json/image-data", "opengraph/manifest"),
+  BLOG_IMAGES_MANIFEST: s3Path("json/image-data", "blog/manifest"),
+  EDUCATION_IMAGES_MANIFEST: s3Path("json/image-data", "education/manifest"),
+  EXPERIENCE_IMAGES_MANIFEST: s3Path("json/image-data", "experience/manifest"),
+  INVESTMENTS_IMAGES_MANIFEST: s3Path("json/image-data", "investments/manifest"),
+  PROJECTS_IMAGES_MANIFEST: s3Path("json/image-data", "projects/manifest"),
 } as const;
 
 /**
- * Cache duration for bookmarks fetching
- * @constant
- * @type {Object}
+ * S3 storage paths for OpenGraph JSON data (environment-aware).
+ *
+ * Stores OpenGraph metadata and manifests in JSON format.
+ * NOT for image files - those go in IMAGE_S3_PATHS.OPENGRAPH_DIR
+ *
+ * Production  → json/opengraph/
+ * Development → json/opengraph/
+ * Test        → json/opengraph/
  */
-export const BOOKMARKS_CACHE_DURATION = {
-  /** Success cache duration (7 days in seconds) */
-  SUCCESS: 7 * 24 * 60 * 60,
-  /** Failed attempt cache duration (1 hour in seconds) */
-  FAILURE: 60 * 60,
-  /** Revalidation interval (1 hour in seconds) - how often to check for new data */
-  REVALIDATION: 1 * 60 * 60,
+export const OPENGRAPH_JSON_S3_PATHS = {
+  DIR: "json/opengraph",
 } as const;
+
+/**
+ * S3 storage paths for actual image files (PNG, JPG, etc).
+ *
+ * Images are stored by type for better organization and CDN caching.
+ * These are binary image files, NOT JSON metadata.
+ */
+export const IMAGE_S3_PATHS = {
+  LOGOS_DIR: "images/logos",
+  OPENGRAPH_DIR: "images/opengraph", // OpenGraph preview images (.png, .jpg, etc)
+  BLOG_DIR: "images/blog",
+  OTHER_DIR: "images/other",
+} as const;
+
+/** Bookmarks cache: 7 days success, 1 hour failure/revalidation */
+export const BOOKMARKS_CACHE_DURATION = createCacheConfig(days(7) / 1000, hours(1) / 1000, hours(1) / 1000);
 
 /**
  * Bookmarks API configuration
@@ -112,120 +156,39 @@ export const BOOKMARKS_API_CONFIG = {
  */
 export const BOOKMARKS_PER_PAGE = 24;
 
-/**
- * Cache duration for GitHub activity fetching
- * @constant
- * @type {Object}
- */
-export const GITHUB_ACTIVITY_CACHE_DURATION = {
-  /** Success cache duration (24 hours in seconds) */
-  SUCCESS: 24 * 60 * 60,
-  /** Failed attempt or incomplete data cache duration (1 hour in seconds) */
-  FAILURE: 60 * 60,
-  /** Revalidation interval (6 hours in seconds) - how often to check for new data */
-  REVALIDATION: 6 * 60 * 60,
-} as const;
+/** GitHub activity cache: 24 hours success, 1 hour failure, 6 hours revalidation */
+export const GITHUB_ACTIVITY_CACHE_DURATION = createCacheConfig(days(1) / 1000, hours(1) / 1000, hours(6) / 1000);
 
-/**
- * Cache duration for OpenGraph data fetching
- * @constant
- * @type {Object}
- */
-export const OPENGRAPH_CACHE_DURATION = {
-  /** Success cache duration (3 days in seconds) */
-  SUCCESS: 3 * 24 * 60 * 60,
-  /** Failed attempt cache duration (2 hours in seconds) */
-  FAILURE: 2 * 60 * 60,
-  /** Revalidation interval (30 days in seconds) - how often to consider data stale */
-  REVALIDATION: 30 * 24 * 60 * 60,
-} as const;
+/** Search cache: 15 minutes success, 1 minute failure, 10 minutes revalidation */
+export const SEARCH_CACHE_DURATION = createCacheConfig(minutes(15) / 1000, 60, minutes(10) / 1000);
 
-/**
- * Cache durations for search results (in seconds)
- * @constant
- * @type {Object}
- */
-export const SEARCH_CACHE_DURATION = {
-  /** Success cache duration (15 minutes in seconds) */
-  SUCCESS: 15 * 60,
-  /** Failed attempt cache duration (1 minute in seconds) */
-  FAILURE: 60,
-  /** Revalidation interval (10 minutes in seconds) - how often to consider data stale */
-  REVALIDATION: 10 * 60,
-} as const;
-
-/**
- * Configuration for OpenGraph fetching operations
- * @constant
- * @type {Object}
- */
-export const OPENGRAPH_FETCH_CONFIG = {
-  /** Request timeout in milliseconds */
-  TIMEOUT: 30000,
-  /** Maximum number of retry attempts */
-  MAX_RETRIES: 3,
-  /** Base delay for exponential backoff in milliseconds */
-  BACKOFF_BASE: 1000,
-  /** Maximum delay between retries in milliseconds */
-  MAX_BACKOFF: 30000,
-  /** Maximum concurrent OpenGraph requests - reduced to prevent memory leaks */
-  MAX_CONCURRENT: 3,
-} as const;
-
-/**
- * Base URL for the website
- * @constant
- * @type {string}
- * @remarks
- * In production, this defaults to the main domain.
- * In development, it uses localhost.
- */
+/** Base URLs */
 export const NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
-
-/**
- * Base URL for API endpoints
- * @constant
- * @type {string}
- * @remarks
- * In production, this defaults to the main domain.
- * In development, it uses localhost.
- */
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || NEXT_PUBLIC_SITE_URL;
 
-/**
- * API endpoints for the application
- * @constant
- * @type {Object}
- * @property {string} validateLogo - Endpoint for logo validation
- * @property {string} logo - Endpoint for logo fetching
- */
+/** API endpoints */
 export const ENDPOINTS = {
   validateLogo: `${API_BASE_URL}/api/validate-logo`,
   logo: `${API_BASE_URL}/api/logo`,
 } as const;
 
-/**
- * Logo source URLs
- * @constant
- * @type {Object}
- * @property {Function} google - Functions to generate Google favicon URLs
- * @property {Function} clearbit - Functions to generate Clearbit logo URLs
- * @property {Function} duckduckgo - Functions to generate DuckDuckGo favicon URLs
- */
+/** Logo source URL generators */
+const logoUrl = (base: string, domain: string, size?: number) =>
+  size ? `${base}${domain}&sz=${size}` : `${base}${domain}`;
+
 export const LOGO_SOURCES = {
   google: {
-    // Updated to use the www.google.com/s2/favicons endpoint
-    hd: (domain: string) => `https://www.google.com/s2/favicons?domain=${domain}&sz=256`,
-    md: (domain: string) => `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
-    sm: (domain: string) => `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+    hd: (d: string) => logoUrl("https://www.google.com/s2/favicons?domain=", d, 256),
+    md: (d: string) => logoUrl("https://www.google.com/s2/favicons?domain=", d, 128),
+    sm: (d: string) => logoUrl("https://www.google.com/s2/favicons?domain=", d, 64),
   },
   clearbit: {
-    hd: (domain: string) => `https://logo.clearbit.com/${domain}?size=256&format=png`,
-    md: (domain: string) => `https://logo.clearbit.com/${domain}?size=128&format=png`,
+    hd: (d: string) => `https://logo.clearbit.com/${d}?size=256&format=png`,
+    md: (d: string) => `https://logo.clearbit.com/${d}?size=128&format=png`,
   },
   duckduckgo: {
-    hd: (domain: string) => `https://icons.duckduckgo.com/ip3/${domain}.ico`,
-    md: (domain: string) => `https://external-content.duckduckgo.com/ip3/${domain}.ico`,
+    hd: (d: string) => `https://icons.duckduckgo.com/ip3/${d}.ico`,
+    md: (d: string) => `https://external-content.duckduckgo.com/ip3/${d}.ico`,
   },
 } as const;
 
@@ -382,51 +345,20 @@ export const CSP_DIRECTIVES = {
   formAction: ["'self'"],
 };
 
-/**
- * Memory usage thresholds for health monitoring and load shedding.
- * All values are in bytes.
- *
- * - `TOTAL_PROCESS_MEMORY_BUDGET_BYTES`: Total memory budget for the entire process (default 2GB)
- * - `IMAGE_RAM_BUDGET_BYTES`: Memory allocated specifically for the image cache (default 512MB)
- * - `MEMORY_WARNING_THRESHOLD`: RSS memory usage that triggers a "warning" state (default 70% of total budget)
- * - `MEMORY_CRITICAL_THRESHOLD`: RSS memory usage that triggers a "critical" state and load shedding (default 90% of total budget)
- * - `IMAGE_STREAM_THRESHOLD_BYTES`: Images larger than this are streamed to S3 (default 5MB)
- */
-
-/**
- * Resolve the total memory budget once so dependent thresholds can reference it
- * without circular/hoisting issues.  Operators can still override via the
- * `TOTAL_PROCESS_MEMORY_BUDGET_BYTES` environment variable.
- */
-// In development/CI the dev server and webpack often exceed 2 GB on first compile.
-// Raise the default safety ceiling outside production, while still allowing
-// operators to override via the env variable. Production keeps the tighter 3 GB.
-const DEFAULT_TOTAL_MEMORY_BUDGET_BYTES =
-  process.env.NODE_ENV === "production" ? 3 * 1024 * 1024 * 1024 : 8 * 1024 * 1024 * 1024;
-
-const TOTAL_MEMORY_BUDGET = Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? DEFAULT_TOTAL_MEMORY_BUDGET_BYTES);
+/** Memory thresholds (bytes) */
+const GB = 1024 * 1024 * 1024;
+const MB = 1024 * 1024;
+// Modern Next.js dev builds can exceed 3 GB RSS; use 4 GB default in dev to avoid false alarms.
+const defaultBudget = process.env.NODE_ENV === "production" ? 3.75 * GB : 4 * GB;
+const totalBudget = Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? defaultBudget);
 
 export const MEMORY_THRESHOLDS = {
-  // Total process memory budget (used by mem-guard for RSS monitoring)
-  TOTAL_PROCESS_MEMORY_BUDGET_BYTES: TOTAL_MEMORY_BUDGET, // 3GB prod / 8GB dev default (enter pressure before container limit)
-
-  // Image cache-specific budget (used by ImageMemoryManager)
-  // Increased to 1GB to handle more concurrent image processing
-  IMAGE_RAM_BUDGET_BYTES: Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? 1024 * 1024 * 1024), // 1GB default
-
-  // Server cache budget (used by ServerCache for general data)
-  SERVER_CACHE_BUDGET_BYTES: Number(process.env.SERVER_CACHE_BUDGET_BYTES ?? 512 * 1024 * 1024), // 512MB default
-
-  // Derive warning / critical thresholds *directly* from the resolved total
-  // process budget so they remain in sync even when the default budget is
-  // changed (e.g. lowered to keep RSS well below container limits).  The
-  // environment variables continue to override when provided so operators can
-  // fine-tune without code changes.
-  MEMORY_WARNING_THRESHOLD: Number(process.env.MEMORY_WARNING_THRESHOLD ?? TOTAL_MEMORY_BUDGET * 0.7),
-
-  MEMORY_CRITICAL_THRESHOLD: Number(process.env.MEMORY_CRITICAL_THRESHOLD ?? TOTAL_MEMORY_BUDGET * 0.9),
-
-  IMAGE_STREAM_THRESHOLD_BYTES: Number(process.env.IMAGE_STREAM_THRESHOLD_BYTES ?? 5 * 1024 * 1024), // 5MB default
+  TOTAL_PROCESS_MEMORY_BUDGET_BYTES: totalBudget,
+  IMAGE_RAM_BUDGET_BYTES: Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15)),
+  SERVER_CACHE_BUDGET_BYTES: Number(process.env.SERVER_CACHE_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15)),
+  MEMORY_WARNING_THRESHOLD: Number(process.env.MEMORY_WARNING_THRESHOLD ?? totalBudget * 0.7),
+  MEMORY_CRITICAL_THRESHOLD: Number(process.env.MEMORY_CRITICAL_THRESHOLD ?? totalBudget * 0.9),
+  IMAGE_STREAM_THRESHOLD_BYTES: Number(process.env.IMAGE_STREAM_THRESHOLD_BYTES ?? 5 * MB),
 } as const;
 
 /**
@@ -438,3 +370,118 @@ export const MEMORY_THRESHOLDS = {
  * case gracefully.
  */
 export const S3_BUCKET: string | undefined = process.env.S3_BUCKET;
+
+/** Time constants (milliseconds) */
+export const TIME_CONSTANTS = {
+  ONE_HOUR_MS: hours(1),
+  TWENTY_FOUR_HOURS_MS: days(1),
+  FIVE_MINUTES_MS: minutes(5),
+  TWO_MINUTES_MS: minutes(2),
+  DEFAULT_JITTER_MS: minutes(5),
+  RATE_LIMIT_WINDOW_MS: hours(1),
+  LOCK_TTL_MS: minutes(5),
+  LOGO_RETRY_COOLDOWN_MS: days(1),
+  BOOKMARKS_PRELOAD_INTERVAL_MS: hours(2),
+} as const;
+
+/**
+ * Default image paths used as fallbacks
+ * @constant
+ * @type {Object}
+ */
+export const DEFAULT_IMAGES = {
+  /** Default OpenGraph logo for the site owner */
+  OPENGRAPH_LOGO: "/images/william-callahan-san-francisco.png",
+  /** Placeholder image for companies without logos */
+  COMPANY_PLACEHOLDER: "/images/company-placeholder.svg",
+} as const;
+
+/** OpenGraph S3 directories */
+export const OPENGRAPH_S3_KEY_DIR = OPENGRAPH_JSON_S3_PATHS.DIR;
+export const OPENGRAPH_METADATA_S3_DIR = `${OPENGRAPH_JSON_S3_PATHS.DIR}/metadata`;
+export const OPENGRAPH_IMAGES_S3_DIR = IMAGE_S3_PATHS.OPENGRAPH_DIR;
+export const OPENGRAPH_JINA_HTML_S3_DIR = `${OPENGRAPH_JSON_S3_PATHS.DIR}/jina-html`;
+export const OPENGRAPH_OVERRIDES_S3_DIR = `${OPENGRAPH_JSON_S3_PATHS.DIR}/overrides`;
+
+/**
+ * OpenGraph Fetch Configuration with environment variable overrides
+ * @constant
+ * @type {Object}
+ */
+export const OPENGRAPH_FETCH_CONFIG = {
+  TIMEOUT: Number(process.env.OG_FETCH_TIMEOUT_MS) || 7000, // 7 seconds default (reduced from 10s)
+  MAX_RETRIES: Number(process.env.OG_MAX_RETRIES) || 2, // 2 retries default (reduced from 3)
+  BACKOFF_BASE: Number(process.env.OG_RETRY_DELAY_MS) || 1000, // 1 second
+  MAX_BACKOFF: 5000, // 5 seconds
+  MAX_HTML_SIZE_BYTES: 5 * 1024 * 1024, // 5MB
+  PARTIAL_HTML_SIZE: 512 * 1024, // 512KB for partial parsing
+} as const;
+
+/** OpenGraph cache: 24 hours success, 1 hour failure */
+export const OPENGRAPH_CACHE_DURATION = createCacheConfig(days(1) / 1000, hours(1) / 1000);
+
+/** Jina AI fetch limiter: 10 fetches per 24 hours */
+export const JINA_FETCH_CONFIG: RateLimiterConfig = {
+  maxRequests: 10,
+  windowMs: days(1),
+};
+
+/** Rate limiter factory */
+const createRateLimiter = (maxRequests: number, windowMs: number): RateLimiterConfig => ({ maxRequests, windowMs });
+
+/** Default API endpoint rate limit: 5 requests per minute */
+export const DEFAULT_API_ENDPOINT_LIMIT_CONFIG = createRateLimiter(5, minutes(1));
+export const API_ENDPOINT_STORE_NAME = "apiEndpoints";
+
+/** OpenGraph fetch rate limit: 10 requests per second */
+export const DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG = createRateLimiter(10, seconds(1));
+
+export const OPENGRAPH_FETCH_STORE_NAME = "outgoingOpenGraph";
+export const OPENGRAPH_FETCH_CONTEXT_ID = "global";
+
+/** SEO date field constants */
+export const SEO_DATE_FIELDS = {
+  openGraph: {
+    published: "article:published_time",
+    modified: "article:modified_time",
+  },
+  meta: {
+    published: "date",
+    modified: "last-modified",
+  },
+  jsonLd: {
+    context: "https://schema.org",
+    dateFields: {
+      created: "dateCreated",
+      published: "datePublished",
+      modified: "dateModified",
+    },
+    types: {
+      profile: "ProfilePage",
+      article: "Article",
+      person: "Person",
+      collection: "CollectionPage",
+    },
+  },
+  dublinCore: {
+    created: "DC.date.created",
+    modified: "DC.date.modified",
+    issued: "DC.date.issued",
+  },
+} as const;
+
+export const INDEXING_RATE_LIMIT_PATH = s3Path("json/search", "indexing-rate-limit");
+
+// Cache TTL constants (in seconds) - moved from lib/cache.ts to break circular dependency
+export const CACHE_TTL = {
+  DEFAULT: 30 * 24 * 60 * 60, // 30 days
+  DAILY: 24 * 60 * 60, // 24 hours
+  HOURLY: 60 * 60, // 1 hour
+} as const;
+
+// Migration helpers for Next.js 15 'use cache' directive
+export const USE_NEXTJS_CACHE = process.env.USE_NEXTJS_CACHE === "true";
+
+export const JINA_FETCH_STORE_NAME = "jinaFetch" as const;
+export const JINA_FETCH_CONTEXT_ID = "global" as const;
+export const JINA_FETCH_RATE_LIMIT_S3_PATH = s3Path("json/rate-limit", "jina-fetch-limiter");

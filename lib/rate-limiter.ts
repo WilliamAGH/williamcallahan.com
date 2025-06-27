@@ -7,6 +7,7 @@
  */
 
 import type { RateLimiterConfig, RateLimitRecord } from "@/types/lib";
+import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 
 /**
  * In-memory store for rate limit records.
@@ -131,29 +132,46 @@ export async function waitForPermit(
   }
 }
 
-// --- Pre-configured limiters for common use cases (optional, or configure at usage site) ---
+/**
+ * Loads a rate limit store from S3 and hydrates the in-memory map.
+ * Missing files are treated as an empty store.
+ */
+export async function loadRateLimitStoreFromS3(storeName: string, s3Path: string): Promise<void> {
+  try {
+    const remoteData = (await readJsonS3<Record<string, RateLimitRecord>>(s3Path)) ?? {};
+    rateLimitStores[storeName] = remoteData;
+  } catch (error: unknown) {
+    // If file does not exist or parse error, start with empty store but log once
+    console.warn(`RateLimiter: unable to load store ${storeName} from ${s3Path}:`, error);
+    rateLimitStores[storeName] = {};
+  }
+}
 
 /**
- * Default configuration for API endpoint rate limiting (e.g., per IP).
- * Original values from app/api/bookmarks/refresh/route.ts were 5 requests per 60 seconds.
+ * Persists a specific rate limit store to S3.
  */
-export const DEFAULT_API_ENDPOINT_LIMIT_CONFIG: RateLimiterConfig = {
-  maxRequests: 5,
-  windowMs: 60 * 1000, // 1 minute
-};
-export const API_ENDPOINT_STORE_NAME = "apiEndpoints";
+export async function persistRateLimitStoreToS3(storeName: string, s3Path: string): Promise<void> {
+  try {
+    const store = rateLimitStores[storeName] ?? {};
+    await writeJsonS3(s3Path, store);
+  } catch (error: unknown) {
+    console.error(`RateLimiter: failed to persist store ${storeName} to ${s3Path}:`, error);
+  }
+}
 
 /**
- * Default configuration for outgoing OpenGraph fetch requests.
- * Aiming for approximately 10 requests per second.
+ * Convenience helper: updates in-memory counter (via isOperationAllowed) **and** persists.
  */
-export const DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG: RateLimiterConfig = {
-  maxRequests: 10,
-  windowMs: 1000, // per 1 second
-};
-export const OPENGRAPH_FETCH_STORE_NAME = "outgoingOpenGraph";
-/**
- * Context ID for a global limit on all OpenGraph fetches.
- * If per-domain limiting is desired later, this could be dynamic.
- */
-export const OPENGRAPH_FETCH_CONTEXT_ID = "global";
+export function incrementAndPersist(
+  storeName: string,
+  contextId: string,
+  config: RateLimiterConfig,
+  s3Path: string,
+): boolean {
+  const allowed = isOperationAllowed(storeName, contextId, config);
+  if (allowed) {
+    // Fire-and-forget persist; do not block critical path.
+    void persistRateLimitStoreToS3(storeName, s3Path);
+  }
+  return allowed;
+}

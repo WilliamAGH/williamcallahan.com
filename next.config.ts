@@ -56,17 +56,20 @@ process.env.NEXT_PUBLIC_APP_VERSION = appVersion;
 
 const nextConfig = {
   /**
-   * Turbopack configuration (when using --turbo flag)
-   * Note: This is used instead of webpack config when running with Turbopack
+   * Turbopack configuration (moved from experimental.turbo)
+   * Turbopack is now stable in Next.js 15
+   * Valid options: root, rules, resolveAlias, resolveExtensions
    */
   turbopack: {
-    // Custom loaders for Turbopack
+    // Configure SVG handling for Turbopack (equivalent to webpack config)
     rules: {
       "*.svg": {
         loaders: ["@svgr/webpack"],
         as: "*.js",
       },
     },
+    // Configure module resolution extensions
+    resolveExtensions: [".mdx", ".tsx", ".ts", ".jsx", ".js", ".mjs", ".json"],
   },
 
   /**
@@ -139,7 +142,6 @@ const nextConfig = {
     }
     if (Array.isArray(config.externals)) {
       config.externals.push({
-        sharp: "commonjs sharp",
         "node:child_process": "commonjs child_process",
         "node:crypto": "commonjs crypto",
         "node:fs": "commonjs fs",
@@ -153,6 +155,82 @@ const nextConfig = {
       });
     }
 
+    // Mark server-only packages as external to prevent client-side bundling
+    config.externals = config.externals || [];
+    if (Array.isArray(config.externals)) {
+      config.externals.push("googleapis"); // 114MB package only used in server scripts
+    }
+
+    // **NEXT.JS 15 WEBPACK COMPILATION MEMORY OPTIMIZATIONS**
+    // These target the specific webpack memory growth issue (109MB -> 1200MB+)
+
+    // 1. Aggressive module concatenation limits for memory efficiency
+    if (!config.optimization) {
+      config.optimization = {};
+    }
+    config.optimization.concatenateModules = process.env.NODE_ENV !== "development";
+
+    // 2. Limit webpack's internal memory usage during compilation
+    config.optimization.minimize = process.env.NODE_ENV === "production";
+    config.optimization.removeAvailableModules = true;
+    config.optimization.removeEmptyChunks = true;
+    config.optimization.mergeDuplicateChunks = true;
+    config.optimization.flagIncludedChunks = process.env.NODE_ENV === "production";
+
+    // 3. Configure module resolution to reduce memory pressure
+    if (!config.resolve.modules) {
+      config.resolve.modules = [];
+    }
+    config.resolve.modules = ["node_modules"];
+    config.resolve.symlinks = false; // Disable symlink resolution to save memory
+
+    // Add alias to fix swr import issue with react-tweet
+    if (!config.resolve.alias || Array.isArray(config.resolve.alias)) {
+      config.resolve.alias = {};
+    }
+
+    // Fix SWR module resolution for Next.js 15 canary
+    // This handles the subpath exports issue with webpack
+    config.resolve.alias = config.resolve.alias || {};
+
+    // Direct module resolution for SWR subpaths
+    const path = require("node:path");
+    try {
+      // Force webpack to use the CommonJS build of SWR that has default export
+      config.resolve.alias.swr$ = path.resolve(__dirname, "node_modules/swr/dist/index/index.js");
+      config.resolve.alias["swr/infinite"] = require.resolve("swr/infinite");
+      config.resolve.alias["swr/_internal"] = require.resolve("swr/_internal");
+
+      // Fix hoist-non-react-statics for Sentry
+      config.resolve.alias["hoist-non-react-statics$"] = path.resolve(
+        __dirname,
+        "node_modules/hoist-non-react-statics/dist/hoist-non-react-statics.cjs.js",
+      );
+    } catch (e) {
+      void e; // Mark as intentionally unused
+      console.warn("[Next Config] Could not resolve SWR submodules, using fallback paths");
+    }
+
+    // Fix for Sentry/OpenTelemetry compatibility issue in Edge runtime
+    // DiagLogLevel was removed in OpenTelemetry API 1.9.0
+    // Create a webpack plugin to handle the missing export
+    const webpack = require("webpack");
+    config.plugins = config.plugins || [];
+    config.plugins.push(
+      new webpack.NormalModuleReplacementPlugin(/@opentelemetry\/api/, (resource) => {
+        // Only apply fix for Edge runtime builds
+        if (resource.context.includes("@sentry/vercel-edge")) {
+          resource.request = path.resolve(__dirname, "lib/edge-polyfills/opentelemetry.ts");
+        }
+      }),
+    );
+
+    // 4. Limit concurrent module processing
+    config.parallelism = 1; // Already set but ensuring it's applied
+
+    // 5. Configure webpack stats to reduce memory overhead
+    config.stats = process.env.NODE_ENV === "development" ? "minimal" : "errors-warnings";
+
     // Optimize webpack cache for memory efficiency
     if (process.env.NODE_ENV === "development") {
       // Use filesystem cache in development to dramatically reduce memory usage.
@@ -165,28 +243,165 @@ const nextConfig = {
         hashAlgorithm: "xxhash64",
         name: `dev-cache-${compilerName}`,
         version: appVersion,
+        // **ENHANCED MEMORY LIMITS FOR NEXT.JS 15**
+        maxMemoryGenerations: 1, // Limit memory generations
+        memoryCacheUnaffected: false, // Don't keep unaffected modules in memory
+        maxAge: 1000 * 60 * 60 * 24, // 24 hours max age
+        // Aggressive cache memory management
+        store: "pack", // Use pack store for better memory efficiency
+        profile: false, // Disable profiling to save memory
       };
 
       // Disable source maps in development to save ~30% memory
       config.devtool = false;
 
-      // Limit parallelism to reduce concurrent memory usage
-      config.parallelism = 1;
-
-      // Optimize module resolution
-      config.optimization = {
-        ...config.optimization,
-        removeAvailableModules: true,
-        removeEmptyChunks: true,
-        sideEffects: false,
+      // **NEXT.JS 15 SPECIFIC OPTIMIZATIONS**
+      // Enhanced split chunks configuration for memory efficiency
+      config.optimization.splitChunks = {
+        chunks: "all",
+        minSize: 20000,
+        maxSize: 244000, // Limit chunk size to prevent large modules in memory
+        minChunks: 1,
+        maxAsyncRequests: 30,
+        maxInitialRequests: 30,
+        automaticNameDelimiter: "~",
+        cacheGroups: {
+          // Prevent large vendor bundles in memory during development
+          default: {
+            minChunks: 2,
+            priority: -20,
+            reuseExistingChunk: true,
+            enforce: false,
+          },
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: "vendors",
+            priority: -10,
+            chunks: "all",
+            enforce: false,
+            maxSize: 244000, // Limit vendor chunk size
+          },
+          // Separate large libraries to prevent memory spikes
+          sentry: {
+            test: /[\\/]node_modules[\\/]@sentry[\\/]/,
+            name: "sentry",
+            priority: 10,
+            chunks: "all",
+            enforce: true,
+          },
+          react: {
+            test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+            name: "react",
+            priority: 20,
+            chunks: "all",
+            enforce: true,
+          },
+        },
       };
+
+      // Limit TypeScript checker memory usage
+      if (!config.plugins) {
+        config.plugins = [];
+      }
+
+      // **ENHANCED MEMORY MONITORING FOR NEXT.JS 15**
+      // Keep a small state to throttle logs
+      const memoryProgressState = { lastPct: -0.2, lastTime: 0 } as {
+        lastPct: number;
+        lastTime: number;
+      };
+
+      config.plugins.push(
+        new webpack.ProgressPlugin({
+          handler: (percentage: number, message?: string) => {
+            const now = Date.now();
+            // Only log when:
+            //   • start or end
+            //   • moved at least 10% since last log OR 3 s elapsed
+            const pctMoved = Math.abs(percentage - memoryProgressState.lastPct);
+            const timeElapsed = now - memoryProgressState.lastTime;
+
+            if (!(percentage === 0 || percentage === 1 || pctMoved >= 0.1 || timeElapsed >= 3000)) {
+              return; // Skip overly-chatty updates
+            }
+
+            memoryProgressState.lastPct = percentage;
+            memoryProgressState.lastTime = now;
+
+            const used = process.memoryUsage();
+            const rss = Math.round(used.rss / 1024 / 1024);
+            const heap = Math.round(used.heapUsed / 1024 / 1024);
+            const external = Math.round(used.external / 1024 / 1024);
+
+            // Calculate memory pressure as percentage of available memory
+            const totalMemory = require("node:os").totalmem() / 1024 / 1024;
+            const memoryPressure = (rss / totalMemory) * 100;
+
+            console.log(
+              `[Webpack Memory] ${Math.round(percentage * 100)}% | ` +
+                `RSS: ${rss}MB, Heap: ${heap}MB, External: ${external}MB | ` +
+                `Pressure: ${memoryPressure.toFixed(1)}% | ` +
+                `Phase: ${message || "unknown"}`,
+            );
+
+            // Next.js 15 appropriate memory thresholds
+            if (rss > 6000) {
+              // Critical: 6GB indicates severe memory issues
+              console.error(`🚨 [Webpack Memory CRITICAL] RSS exceeded 6GB: ${rss}MB - OOM risk!`);
+            } else if (rss > 4000) {
+              // Alert: 4GB indicates potential memory issues
+              console.warn(`⚠️  [Webpack Memory Alert] RSS exceeded 4GB: ${rss}MB`);
+            } else if (rss > 2000) {
+              // Warning: 2GB is typical but worth monitoring
+              console.log(`📊 [Webpack Memory Warning] RSS exceeded 2GB: ${rss}MB`);
+            }
+
+            // Also warn on high memory pressure
+            if (memoryPressure > 80) {
+              console.warn(`⚠️  [Webpack Memory Pressure] Using ${memoryPressure.toFixed(1)}% of system memory`);
+            }
+          },
+        }),
+      );
     } else {
-      // Keep memory cache in production for performance
+      // **PRODUCTION MEMORY OPTIMIZATIONS FOR NEXT.JS 15**
+      // Keep memory cache in production but with strict limits
       config.cache = {
         type: "memory",
         maxGenerations: 1,
         cacheUnaffected: false,
+        // Add memory limits for production builds
       };
+
+      // Production-specific optimizations
+      config.optimization.sideEffects = false;
+      config.optimization.usedExports = true;
+      config.optimization.providedExports = true;
+    }
+
+    // **NEXT.JS 15 RESOLVER OPTIMIZATIONS**
+    // Configure resolver to be more memory efficient
+    if (config.resolve) {
+      config.resolve.cacheWithContext = false; // Disable context-sensitive caching
+      config.resolve.unsafeCache = true; // Enable unsafe cache for better performance
+      config.resolve.preferRelative = true; // Prefer relative paths to reduce resolution overhead
+    }
+
+    // Special handling for Edge runtime
+    if (config.name === "edge-server") {
+      // Prevent OpenTelemetry from being bundled in edge runtime
+      if (!config.resolve) {
+        config.resolve = {};
+      }
+      if (!config.resolve.alias) {
+        config.resolve.alias = {};
+      }
+
+      // Use polyfill for OpenTelemetry modules in edge runtime
+      const openTelemetryPolyfill = path.resolve(__dirname, "lib/edge-polyfills/opentelemetry.ts");
+      config.resolve.alias["@opentelemetry/api"] = openTelemetryPolyfill;
+      config.resolve.alias["@opentelemetry/instrumentation"] = openTelemetryPolyfill;
+      config.resolve.alias["@sentry/opentelemetry"] = openTelemetryPolyfill;
     }
 
     // Suppress warnings for Sentry and OpenTelemetry dynamic requires
@@ -205,6 +420,11 @@ const nextConfig = {
       /autoprefixer.*Autoplacement does not work without grid-template/,
       // Suppress react-tweet CSS warnings
       { module: /node_modules\/react-tweet.*\.css$/ },
+      // **NEXT.JS 15 SPECIFIC WARNINGS**
+      // Suppress memory-related webpack warnings
+      /exceeded the recommended size limit/,
+      /asset size limit/,
+      /entrypoint size limit/,
     ];
 
     // We no longer need to externalize require-in-the-middle since we've added it as a dependency
@@ -303,16 +523,32 @@ const nextConfig = {
   productionBrowserSourceMaps: false, // Disable to save memory during builds
   // Nextjs 15 uses SWC by default; swcMinify option is no longer needed
   // Add transpilePackages to handle ESM packages - removed Sentry/OpenTelemetry to reduce watchers
-  transpilePackages: ["next-mdx-remote"],
+  transpilePackages: ["next-mdx-remote", "swr"],
   experimental: {
     taint: true,
-    serverMinification: true,
-    webpackBuildWorker: true,
-    webpackMemoryOptimizations: true, // Enable webpack memory optimizations
+    serverMinification: false,
+    webpackBuildWorker: false, // DISABLED - worker threads can accumulate memory
+    webpackMemoryOptimizations: false, // DISABLED - might be buggy in canary
     preloadEntriesOnStart: false, // Don't preload all pages on server start
     serverSourceMaps: false, // Disable server source maps to save memory
-    // Note: Next.js ≥14 replaced `isrMemoryCacheSize` with `cacheMaxMemorySize` at the root level.
-    // Keep experimental section focused on actual experimental flags only.
+    // Reduce memory usage in development
+    optimizePackageImports: ["lucide-react", "@sentry/nextjs", "swr"],
+    // Enable 'use cache' directive for Next.js 15 caching
+    // ⚠️ NEVER DISABLE THIS - This is part of the memory SOLUTION, not the problem
+    // This feature helps reduce memory usage by proper caching, disabling it makes memory worse
+    useCache: true,
+    // DISABLED EXPERIMENTAL FEATURES THAT COULD CAUSE MEMORY ISSUES:
+    // webpackLayers: true, // DISABLED - experimental layer system
+    // webpackPersistentCache: true, // DISABLED - experimental caching that could leak
+    // optimizeModuleResolution: true, // DISABLED - experimental resolver
+
+    // **KEEP ONLY STABLE MEMORY-RELATED FEATURES**
+    // Optimize CSS handling to reduce memory usage
+    optimizeCss: true,
+    // Reduce memory usage during static generation
+    staticGenerationMaxConcurrency: 1,
+    // Enable experimental memory-efficient image optimization
+    optimizeServerReact: true,
   },
   /**
    * Image optimization configuration
@@ -399,6 +635,7 @@ const nextConfig = {
       { protocol: "https", hostname: "*.popos-sf2.com" },
       { protocol: "https", hostname: "*.popos-sf3.com" },
       { protocol: "https", hostname: "*.digitaloceanspaces.com" }, // DigitalOcean Spaces CDN
+      { protocol: "https", hostname: "s3-storage.callahan.cloud" }, // S3 Storage CDN
       { protocol: "https", hostname: "*.callahan.cloud" }, // DigitalOcean Spaces CDN
 
       /**
@@ -454,18 +691,27 @@ const sentryWebpackPluginOptions = {
       env: process.env.NODE_ENV || "production",
     },
   },
-  // For all available options, see:
-  // https://github.com/getsentry/sentry-webpack-plugin#options
-  widenClientFileUpload: true, // Uploads more sourcemaps for client-side code
-  // Transpile the Sentry client SDK for wider browser support (option previously in nextConfig.sentry)
-  transpileClientSDK: true,
-  // Additional options to improve source map coverage
-  sourcemaps: {
-    assets: ["**/*.js", "**/*.map"],
-    ignore: ["node_modules/**"],
-  },
-  // Disable telemetry if desired
-  telemetry: false,
+  // **ROOT CAUSE FIX: DISABLE SOURCE MAP MEMORY BOMB IN DEVELOPMENT**
+  // This was causing gigabyte-scale memory usage during webpack compilation
+  // Based on Sentry GitHub issue #13836 and official troubleshooting docs
+  dryRun: process.env.NODE_ENV === "development", // Skip actual uploads in dev
+  uploadSourceMaps: process.env.NODE_ENV === "production", // Only upload in production
+  widenClientFileUpload: process.env.NODE_ENV === "production", // Only in production
+  // Disable source map processing entirely in development
+  ...(process.env.NODE_ENV === "development"
+    ? {
+        // In development, completely skip source map processing to prevent memory accumulation
+        sourcemaps: {
+          disable: true, // Disable all source map processing
+        },
+      }
+    : {
+        // In production, use optimized source map settings
+        sourcemaps: {
+          assets: ["**/*.js", "**/*.map"],
+          ignore: ["node_modules/**"],
+        },
+      }),
 };
 
 // Configure Content Security Policy

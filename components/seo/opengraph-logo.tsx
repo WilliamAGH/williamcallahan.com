@@ -12,12 +12,7 @@
  */
 
 import { metadata } from "@/data/metadata";
-
-/**
- * Default logo path - uses the same image as the profile image
- */
-const DEFAULT_LOGO_PATH = "/images/william-callahan-san-francisco.png";
-
+import { DEFAULT_IMAGES } from "@/lib/constants";
 import type { OpenGraphLogoProps } from "@/types";
 
 /**
@@ -30,7 +25,7 @@ import type { OpenGraphLogoProps } from "@/types";
 export function OpenGraphLogo({ logoUrl }: OpenGraphLogoProps = {}) {
   // Ensure absolute URL
   const baseUrl = metadata.site.url;
-  const logo = logoUrl || DEFAULT_LOGO_PATH;
+  const logo = logoUrl || DEFAULT_IMAGES.OPENGRAPH_LOGO;
   const absoluteLogoUrl = logo?.startsWith("http") ? logo : `${baseUrl}${logo}`;
 
   return <meta property="og:logo" content={absoluteLogoUrl} />;

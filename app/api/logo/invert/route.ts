@@ -10,11 +10,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import type { UnifiedImageService } from "@/lib/services/unified-image-service";
-import { ImageMemoryManagerInstance } from "@/lib/image-memory-manager";
-import type { ImageMemoryManager } from "@/lib/image-memory-manager";
 import type { LogoFetchResult } from "@/types/cache";
-import { ServerCacheInstance } from "@/lib/server-cache";
-import { analyzeImage } from "@/lib/image-handling/image-analysis";
 
 /**
  * Safely parse and validate URL
@@ -54,7 +50,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     const imageService: UnifiedImageService = getUnifiedImageService();
-    const imageManager: ImageMemoryManager = ImageMemoryManagerInstance;
 
     const logoMeta: LogoFetchResult = await imageService.getLogo(domain, {
       invertColors: true,
@@ -69,19 +64,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    if (logoMeta.s3Key) {
-      const bufferEntry = await imageManager.get(logoMeta.s3Key);
-      if (bufferEntry?.buffer) {
-        return new NextResponse(bufferEntry.buffer, {
-          status: 200,
-          headers: {
-            "Content-Type": logoMeta.contentType || "image/png",
-            "Cache-Control": "public, max-age=31536000, immutable",
-          },
-        });
-      }
-    }
-
+    // Always redirect to CDN if available
     if (logoMeta.cdnUrl) {
       return NextResponse.redirect(logoMeta.cdnUrl, 301);
     }
@@ -106,7 +89,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  * @returns {Promise<NextResponse>} API response with inversion status
  */
 export async function HEAD(request: NextRequest): Promise<NextResponse> {
-  const serverCache = ServerCacheInstance;
   const searchParams = request.nextUrl.searchParams;
   const urlParam = searchParams.get("url");
   const isDarkTheme = searchParams.get("theme") === "dark";
@@ -123,40 +105,18 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
   try {
     const url = validateUrl(urlParam);
 
-    // Check cache first
-    const cacheKey = `${url}-analysis`;
-    const cached = serverCache.getLogoAnalysis(cacheKey);
-    if (cached) {
-      const needsInv = isDarkTheme ? cached.needsDarkInversion : cached.needsLightInversion;
+    // Use UnifiedImageService for analysis with caching
+    const imageService = getUnifiedImageService();
+    const analysis = await imageService.getLogoAnalysisByUrl(url);
+    
+    if (!analysis) {
       return new NextResponse(null, {
-        headers: {
-          "X-Needs-Inversion": needsInv.toString(),
-          "X-Has-Transparency": cached.hasTransparency.toString(),
-          "X-Brightness": cached.brightness.toString(),
-          "Cache-Control": "public, max-age=31536000",
-        },
-      });
-    }
-
-    // Fetch and analyze image
-    const response = await fetch(url, {
-      next: { revalidate: 3600 }, // Cache for 1 hour
-    });
-
-    if (!response.ok) {
-      return new NextResponse(null, {
-        status: response.status,
+        status: 404,
         headers: {
           "Cache-Control": "no-store",
         },
       });
     }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const analysis = await analyzeImage(buffer);
-
-    // Cache the analysis
-    serverCache.setLogoAnalysis(cacheKey, analysis);
 
     return new NextResponse(null, {
       headers: {

@@ -21,27 +21,8 @@
  * ```
  */
 
-import sharp from "sharp";
-import { VALID_IMAGE_FORMATS } from "@/lib/constants";
+import { extractBasicImageMeta } from "./image-metadata";
 import type { LogoInversion, LogoBrightnessAnalysis } from "@/types";
-
-/**
- * Configuration constants for image analysis
- * @internal
- */
-const CONFIG = {
-  /** Brightness threshold (0-255) that distinguishes light from dark colors */
-  BRIGHTNESS_THRESHOLD: 128,
-
-  /** Maximum dimensions for analysis to maintain performance */
-  MAX_ANALYSIS_DIMENSION: 512,
-
-  /** Default format for processed images */
-  DEFAULT_FORMAT: "png" as const,
-
-  /** Valid image formats */
-  FORMATS: VALID_IMAGE_FORMATS,
-} as const;
 
 /**
  * Custom error class for image analysis errors
@@ -55,195 +36,228 @@ export class ImageAnalysisError extends Error {
 }
 
 /**
- * Validates image format and dimensions
- * @param {sharp.Metadata} metadata - Image metadata from Sharp
- * @returns {void}
- * @throws {ImageAnalysisError} If image format or dimensions are invalid
- * @internal
- *
- * @example
- * ```typescript
- * const metadata = await sharp(buffer).metadata();
- * validateImage(metadata); // Throws if invalid
- * ```
- */
-function validateImage(metadata: sharp.Metadata): void {
-  const formatStr = metadata.format as string;
-  if (!formatStr || !CONFIG.FORMATS.includes(formatStr as "png" | "jpeg" | "webp" | "gif" | "svg" | "ico")) {
-    throw new ImageAnalysisError(
-      `Invalid image format: ${metadata.format}. Must be one of: ${CONFIG.FORMATS.join(", ")}`,
-    );
-  }
-
-  if (!metadata.width || !metadata.height || metadata.width < 1 || metadata.height < 1) {
-    throw new ImageAnalysisError(
-      `Invalid image dimensions: ${metadata.width}x${metadata.height}. Must be positive numbers.`,
-    );
-  }
-}
-
-/**
- * Analyzes a logo's brightness and characteristics to determine if it needs inversion
- * @param {Buffer} buffer - Logo image buffer to analyze
- * @returns {Promise<LogoBrightnessAnalysis>} Comprehensive analysis results
- * @throws {ImageAnalysisError} If the image is invalid or analysis fails
- *
- * @example
- * ```typescript
- * const buffer = await fs.readFile('logo.png');
- * const analysis = await analyzeLogo(buffer);
- *
- * if (analysis.isLightColored) {
- *   console.log('Light logo detected');
- * }
- *
- * if (analysis.hasTransparency) {
- *   console.log('Logo contains transparency');
- * }
- * ```
+ * Lightweight logo analysis with entropy and pattern detection
  */
 export async function analyzeLogo(buffer: Buffer): Promise<LogoBrightnessAnalysis> {
-  const image = sharp(buffer, { pages: 1 }); // Handle multi-page ICO files
-  const metadata = await image.metadata();
-
-  // Validate format and dimensions
-  validateImage(metadata);
-
-  const width = metadata.width || CONFIG.MAX_ANALYSIS_DIMENSION;
-  const height = metadata.height || CONFIG.MAX_ANALYSIS_DIMENSION;
-
-  // Resize for consistent analysis
-  const resized = image
-    .resize(Math.min(width, CONFIG.MAX_ANALYSIS_DIMENSION), Math.min(height, CONFIG.MAX_ANALYSIS_DIMENSION), {
-      fit: "inside",
-      withoutEnlargement: true,
-    })
-    .raw()
-    .grayscale();
-
-  const { data, info } = await resized.toBuffer({ resolveWithObject: true });
-  const pixels = new Uint8Array(data.buffer);
-
-  // Calculate average brightness
-  let totalBrightness = 0;
-  let totalPixels = 0;
-  let hasTransparency = false;
-
-  for (let i = 0; i < pixels.length; i += info.channels) {
-    const brightness = pixels[i];
-    const alpha = info.channels === 4 ? pixels[i + 3] : 255;
-
-    if (alpha !== undefined && alpha < 255) {
-      hasTransparency = true;
-    }
-
-    if (alpha !== undefined && alpha > 0) {
-      totalBrightness += brightness !== undefined ? brightness : 0;
-      totalPixels++;
-    }
-  }
-
-  const averageBrightness = totalPixels > 0 ? totalBrightness / totalPixels : 0;
-  const isLightColored = averageBrightness >= CONFIG.BRIGHTNESS_THRESHOLD;
-
+  const meta = await extractBasicImageMeta(buffer);
+  const analysis = analyzeImagePatterns(buffer);
+  
+  // Use entropy and compression to estimate brightness
+  // Low entropy often indicates solid colors (likely white/light)
+  const estimatedBrightness = analysis.entropy < 0.2 ? 240 : 
+                             analysis.entropy < 0.4 ? 200 : 128;
+  
+  const isLightColored = estimatedBrightness > 200;
+  
   return {
-    averageBrightness,
+    averageBrightness: estimatedBrightness,
     isLightColored,
-    // For a light logo:
-    // - Light theme: needs inversion (dark background needed for visibility)
-    // - Dark theme: no inversion (already visible against dark background)
-    // For a dark logo:
-    // - Light theme: no inversion (already visible against light background)
-    // - Dark theme: needs inversion (light background needed for visibility)
-    needsInversionInLightTheme: isLightColored,
-    needsInversionInDarkTheme: !isLightColored,
-    hasTransparency: hasTransparency || metadata.hasAlpha === true,
-    format: metadata.format || CONFIG.DEFAULT_FORMAT,
-    dimensions: {
-      width: metadata.width || CONFIG.MAX_ANALYSIS_DIMENSION,
-      height: metadata.height || CONFIG.MAX_ANALYSIS_DIMENSION,
-    },
+    needsInversionInLightTheme: false, // Can't determine without pixel data
+    needsInversionInDarkTheme: isLightColored,
+    hasTransparency: meta.format === "png", // PNG likely has transparency
+    format: meta.format ?? "unknown",
+    dimensions: { width: meta.width ?? 0, height: meta.height ?? 0 },
   };
 }
 
 /**
- * Inverts a logo's colors while optionally preserving transparency
- * @param {Buffer} buffer - Logo image buffer to invert
- * @param {boolean} [preserveTransparency=true] - Whether to preserve transparency
- * @returns {Promise<Buffer>} Inverted logo buffer in PNG format
- * @throws {ImageAnalysisError} If the image is invalid or inversion fails
- *
- * @example
- * ```typescript
- * // Invert colors and preserve transparency
- * const inverted = await invertLogo(buffer);
- *
- * // Invert colors without preserving transparency
- * const solid = await invertLogo(buffer, false);
- * ```
+ * Analyze image patterns to detect blank/empty/globe icons
  */
-export async function invertLogo(buffer: Buffer, preserveTransparency = true): Promise<Buffer> {
-  const image = sharp(buffer, { pages: 1 }); // Handle multi-page ICO files
-  const metadata = await image.metadata();
-
-  // Validate format
-  validateImage(metadata);
-
-  if (preserveTransparency && metadata.hasAlpha) {
-    // Extract alpha channel
-    const alpha = image.clone().extractChannel(3);
-
-    // Invert colors and recombine with original alpha
-    return image
-      .negate({ alpha: false })
-      .joinChannel(await alpha.toBuffer())
-      .png()
-      .toBuffer();
-  }
-
-  // Simple inversion for non-transparent images
-  return image.negate().png().toBuffer();
-}
-
-/**
- * Determines if a logo needs color inversion based on the current theme
- * @param {Buffer} buffer - Logo image buffer to check
- * @param {boolean} isDarkTheme - Whether the current theme is dark mode
- * @returns {Promise<boolean>} Whether the logo needs inversion for optimal contrast
- * @throws {ImageAnalysisError} If the image is invalid or analysis fails
- *
- * @example
- * ```typescript
- * // Check if logo needs inversion in dark mode
- * const needsInversion = await doesLogoNeedInversion(buffer, true);
- *
- * // Check if logo needs inversion in light mode
- * const needsInversion = await doesLogoNeedInversion(buffer, false);
- * ```
- */
-export async function doesLogoNeedInversion(buffer: Buffer, isDarkTheme: boolean): Promise<boolean> {
-  const analysis = await analyzeLogo(buffer);
-  return isDarkTheme ? analysis.needsInversionInDarkTheme : analysis.needsInversionInLightTheme;
-}
-
-/**
- * Legacy exports for backwards compatibility
- * @deprecated Use the new function names instead
- */
-export async function analyzeImage(buffer: Buffer): Promise<LogoInversion> {
-  const analysis = await analyzeLogo(buffer);
+export function analyzeImagePatterns(buffer: Buffer): {
+  entropy: number;
+  isLikelyBlank: boolean;
+  isLikelyGlobe: boolean;
+  compressionRatio: number;
+  colorUniformity: number;
+} {
+  // Calculate entropy
+  const entropy = calculateEntropy(buffer.slice(0, 2048));
+  
+  // Analyze byte patterns
+  const patterns = analyzeBytePatterns(buffer);
+  
+  // Very low entropy suggests solid color
+  const isLikelyBlank = entropy < 0.1 || patterns.uniformity > 0.9;
+  
+  // Globe icons tend to have specific patterns
+  const isLikelyGlobe = detectGlobePattern(buffer, patterns);
+  
   return {
-    brightness: analysis.averageBrightness,
-    needsDarkInversion: analysis.needsInversionInDarkTheme,
-    needsLightInversion: analysis.needsInversionInLightTheme,
-    hasTransparency: analysis.hasTransparency,
-    format: analysis.format,
-    dimensions: analysis.dimensions,
+    entropy,
+    isLikelyBlank,
+    isLikelyGlobe,
+    compressionRatio: patterns.compressionEstimate,
+    colorUniformity: patterns.uniformity
   };
 }
 
-/** @deprecated Use invertLogo instead */
-export const invertImage = invertLogo;
+/**
+ * Calculate Shannon entropy of data
+ */
+function calculateEntropy(data: Buffer): number {
+  const counts = new Array(256).fill(0);
+  for (const byte of data) {
+    counts[byte]++;
+  }
+  
+  let entropy = 0;
+  const len = data.length;
+  for (const count of counts) {
+    if (count > 0) {
+      const p = count / len;
+      entropy -= p * Math.log2(p);
+    }
+  }
+  
+  return entropy / 8; // Normalize to 0-1
+}
 
-/** @deprecated Use doesLogoNeedInversion instead */
+/**
+ * Analyze byte patterns for uniformity and structure
+ */
+function analyzeBytePatterns(buffer: Buffer): {
+  uniformity: number;
+  compressionEstimate: number;
+  dominantByte: number;
+} {
+  const sample = buffer.slice(0, Math.min(4096, buffer.length));
+  const byteCounts: number[] = new Array(256).fill(0) as number[];
+  
+  for (const byte of sample) {
+    if (byte !== undefined && byte >= 0 && byte < 256) {
+      const currentCount = byteCounts[byte] ?? 0;
+      byteCounts[byte] = currentCount + 1;
+    }
+  }
+  
+  // Find dominant byte
+  let maxCount = 0;
+  let dominantByte = 0;
+  for (let i = 0; i < 256; i++) {
+    const count = byteCounts[i];
+    if (count !== undefined && count > maxCount) {
+      maxCount = count;
+      dominantByte = i;
+    }
+  }
+  
+  // Calculate uniformity (how much one byte dominates)
+  const uniformity = maxCount / sample.length;
+  
+  // Estimate compression (more uniform = better compression)
+  const compressionEstimate = 1 - calculateEntropy(sample);
+  
+  return { uniformity, compressionEstimate, dominantByte };
+}
+
+/**
+ * Detect common globe icon patterns
+ */
+function detectGlobePattern(buffer: Buffer, patterns: {
+  uniformity: number;
+  compressionEstimate: number;
+  dominantByte: number;
+}): boolean {
+  // Globe icons often have:
+  // 1. High blue/gray content (bytes in certain ranges)
+  // 2. Circular patterns (hard to detect without decoding)
+  // 3. Small size with good compression
+  
+  const likelyBlue = patterns.dominantByte > 100 && patterns.dominantByte < 150;
+  const goodCompression = patterns.compressionEstimate > 0.7;
+  
+  // Check for common globe icon file sizes
+  const typicalGlobeSizes = [1024, 2048, 3072, 4096].some(
+    size => Math.abs(buffer.length - size) < 512
+  );
+  
+  return (likelyBlue || goodCompression) && typicalGlobeSizes;
+}
+
+/** No-op inversion – returns original buffer. */
+export async function invertLogo(buffer: Buffer): Promise<Buffer> {
+  await Promise.resolve();
+  return buffer;
+}
+
+export async function doesLogoNeedInversion(buffer: Buffer, isDarkTheme: boolean): Promise<boolean> {
+  await Promise.resolve();
+  void buffer; // Mark as used
+  void isDarkTheme; // Mark as used
+  return false;
+}
+
+/** Legacy alias used elsewhere in the code-base. */
+export async function analyzeImage(buffer: Buffer): Promise<LogoInversion> {
+  const meta = await extractBasicImageMeta(buffer);
+  return {
+    brightness: 0.5,
+    needsDarkInversion: false,
+    needsLightInversion: false,
+    hasTransparency: false,
+    format: meta.format ?? "unknown",
+    dimensions: { width: meta.width ?? 0, height: meta.height ?? 0 },
+  };
+}
+
+export const invertImage = invertLogo;
 export const needsInversion = doesLogoNeedInversion;
+
+/**
+ * Check if an image is likely blank or a placeholder
+ */
+export async function isBlankOrPlaceholder(buffer: Buffer): Promise<{
+  isBlank: boolean;
+  isGlobe: boolean;
+  confidence: number;
+  reason?: string;
+}> {
+  const patterns = analyzeImagePatterns(buffer);
+  const meta = await extractBasicImageMeta(buffer);
+  
+  // Check various indicators
+  if (patterns.isLikelyBlank) {
+    return { 
+      isBlank: true, 
+      isGlobe: false, 
+      confidence: 0.95,
+      reason: 'low_entropy_solid_color' 
+    };
+  }
+  
+  if (patterns.isLikelyGlobe) {
+    return { 
+      isBlank: false, 
+      isGlobe: true, 
+      confidence: 0.8,
+      reason: 'globe_pattern_detected' 
+    };
+  }
+  
+  // Check compression ratio
+  if (meta.width && meta.height) {
+    const pixelCount = meta.width * meta.height;
+    const bytesPerPixel = buffer.length / pixelCount;
+    
+    if (bytesPerPixel < 0.1) {
+      return { 
+        isBlank: true, 
+        isGlobe: false, 
+        confidence: 0.7,
+        reason: 'extreme_compression' 
+      };
+    }
+  }
+  
+  // Small square images are often placeholders
+  if (meta.width === meta.height && meta.width && meta.width <= 32) {
+    return { 
+      isBlank: false, 
+      isGlobe: true, 
+      confidence: 0.6,
+      reason: 'small_square_icon' 
+    };
+  }
+  
+  return { isBlank: false, isGlobe: false, confidence: 0.1 };
+}

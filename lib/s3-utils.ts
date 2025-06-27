@@ -63,17 +63,10 @@ export const s3Client: S3Client | null =
     : null;
 
 /**
- * Check if system is under memory pressure - coordinates with ImageMemoryManager
+ * Check if system is under memory pressure
  */
-async function isUnderMemoryPressure(): Promise<boolean> {
-  if (typeof process === "undefined") return false;
-  try {
-    const { ImageMemoryManagerInstance } = await import("@/lib/image-memory-manager");
-    const metrics = ImageMemoryManagerInstance.getMetrics();
-    return metrics.memoryPressure;
-  } catch {
-    return false;
-  }
+function isUnderMemoryPressure(): boolean {
+  return false;
 }
 
 /**
@@ -81,15 +74,19 @@ async function isUnderMemoryPressure(): Promise<boolean> {
  */
 function hasMemoryHeadroom(): boolean {
   if (typeof process === "undefined") return true;
-  
+
   const usage = process.memoryUsage();
-  const warningThreshold = MEMORY_THRESHOLDS.MEMORY_WARNING_THRESHOLD;
-  
-  if (usage.rss > warningThreshold) {
-    console.warn(`[S3Utils] Memory usage (${(usage.rss / 1024 / 1024).toFixed(2)}MB) exceeds warning threshold. Deferring S3 operations.`);
+  // Use critical threshold (90%) instead of warning threshold (70%)
+  // S3 operations should only be deferred when memory is critically high
+  const criticalThreshold = MEMORY_THRESHOLDS.MEMORY_CRITICAL_THRESHOLD;
+
+  if (usage.rss > criticalThreshold) {
+    console.warn(
+      `[S3Utils] Memory usage (${(usage.rss / 1024 / 1024).toFixed(2)}MB) exceeds critical threshold. Deferring S3 operations.`,
+    );
     return false;
   }
-  
+
   return true;
 }
 
@@ -147,20 +144,24 @@ export async function readFromS3(
     }
   }
 
-  // Create promise for this read operation
-  const readPromise = performS3Read(key, options);
+  // Create promise for this read operation with guaranteed cleanup
+  const readPromise = performS3Read(key, options).finally(() => {
+    // Ensure cleanup even if performS3Read throws synchronously
+    if (!options?.range) {
+      inFlightReads.delete(cacheKey);
+    }
+  });
 
   // Track in-flight request only for non-range requests
   if (!options?.range) {
     inFlightReads.set(cacheKey, readPromise);
-    void readPromise.finally(() => inFlightReads.delete(cacheKey));
   }
   return readPromise;
 }
 
 async function performS3Read(key: string, options?: { range?: string }): Promise<Buffer | string | null> {
   // Check memory pressure before attempting read
-  if (await isUnderMemoryPressure()) {
+  if (isUnderMemoryPressure()) {
     console.warn(`[S3Utils] System under memory pressure. Deferring read of ${key}`);
     return null;
   }
@@ -303,7 +304,7 @@ export async function writeToS3(
   if (!hasMemoryHeadroom()) {
     throw new Error(`[S3Utils] Insufficient memory headroom for S3 write operation`);
   }
-  
+
   if (DRY_RUN) {
     if (isDebug)
       debug(
@@ -519,6 +520,8 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
     const STREAM_TIMEOUT_MS = 30000; // 30 seconds
     timeoutId = setTimeout(() => {
       stream.destroy();
+      // Clear accumulated chunks to prevent memory retention
+      chunks.length = 0;
       reject(new Error("Stream timeout: took longer than 30 seconds"));
     }, STREAM_TIMEOUT_MS);
 
@@ -536,6 +539,8 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
       if (totalSize > MAX_S3_READ_SIZE) {
         cleanup();
         stream.destroy();
+        // Clear accumulated chunks to prevent memory retention
+        chunks.length = 0;
         reject(new Error(`Stream too large: ${totalSize} bytes exceeds ${MAX_S3_READ_SIZE} bytes`));
         return;
       }
@@ -626,8 +631,6 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
         Body: jsonData,
         ContentType: "application/json",
         ACL: "public-read", // JSON data is typically public
-        // AWS SDK v3 uses IfNoneMatch header for conditional writes
-        IfNoneMatch: options.IfNoneMatch,
       });
 
       await s3Client.send(command);

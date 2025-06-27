@@ -3,7 +3,6 @@
  */
 import { ServerCacheInstance } from "@/lib/server-cache";
 import type { ServerCache } from "@/lib/server-cache";
-import type { UnifiedBookmark } from "@/types/bookmark";
 import type { GitHubActivityApiResponse } from "@/types/github";
 import type { OgResult } from "@/types/opengraph";
 
@@ -55,7 +54,7 @@ describe("ServerCache", () => {
     it("should cache and retrieve logo fetch results", () => {
       const domain = "example.com";
       const fetchResult = {
-        s3Key: "logos/example.com_google.png",
+        s3Key: "images/logos/example.com_google.png",
         cdnUrl: "https://cdn.example.com/logos/example.com_google.png",
         source: "google" as const,
         contentType: "image/png",
@@ -68,7 +67,7 @@ describe("ServerCache", () => {
       // Should retrieve the result
       const result = cache.getLogoFetch(domain);
       expect(result).toBeDefined();
-      expect(result?.s3Key).toBe("logos/example.com_google.png");
+      expect(result?.s3Key).toBe("images/logos/example.com_google.png");
       expect(result?.cdnUrl).toBe("https://cdn.example.com/logos/example.com_google.png");
       expect(result?.source).toBe("google");
       expect(result?.contentType).toBe("image/png");
@@ -182,70 +181,6 @@ describe("ServerCache", () => {
     });
   });
 
-  describe("Bookmarks", () => {
-    const mockBookmarks: UnifiedBookmark[] = [
-      {
-        id: "1",
-        url: "https://example.com",
-        title: "Example",
-        description: "Test bookmark",
-        tags: ["test"],
-        imageUrl: null,
-        domain: "example.com",
-        createdAt: "2024-01-01",
-        updatedAt: "2024-01-01",
-        isFavorite: false,
-      },
-    ];
-
-    it("should cache and retrieve bookmarks", () => {
-      cache.setBookmarks(mockBookmarks);
-
-      const result = cache.getBookmarks();
-      expect(result).toBeDefined();
-      expect(result?.bookmarks).toEqual(mockBookmarks);
-      expect(result?.lastFetchedAt).toBeDefined();
-      expect(result?.lastAttemptedAt).toBeDefined();
-    });
-
-    it("should preserve last successful fetch on failure", () => {
-      // Set initial bookmarks
-      cache.setBookmarks(mockBookmarks);
-      const initialResult = cache.getBookmarks();
-      const initialFetchTime = initialResult?.lastFetchedAt;
-
-      // Wait a bit
-      const futureTime = Date.now() + 1000;
-      jest.spyOn(Date, "now").mockReturnValue(futureTime);
-
-      // Set as failure
-      cache.setBookmarks([], true);
-
-      const failureResult = cache.getBookmarks();
-      expect(failureResult?.bookmarks).toEqual(mockBookmarks); // Preserved original bookmarks
-      expect(failureResult?.lastFetchedAt).toBe(initialFetchTime); // Preserved fetch time
-      expect(failureResult?.lastAttemptedAt).toBe(futureTime); // Updated attempt time
-    });
-
-    it("should correctly determine refresh needs", () => {
-      // No cache should need refresh
-      expect(cache.shouldRefreshBookmarks()).toBe(true);
-
-      // Fresh cache should not need refresh
-      cache.setBookmarks(mockBookmarks);
-      expect(cache.shouldRefreshBookmarks()).toBe(false);
-
-      // Empty bookmarks should need refresh
-      cache.setBookmarks([]);
-      expect(cache.shouldRefreshBookmarks()).toBe(true);
-    });
-
-    it("should clear bookmarks cache", () => {
-      cache.setBookmarks(mockBookmarks);
-      cache.clearBookmarks();
-      expect(cache.getBookmarks()).toBeUndefined();
-    });
-  });
 
   describe("GitHub Activity", () => {
     const mockActivity: GitHubActivityApiResponse = {

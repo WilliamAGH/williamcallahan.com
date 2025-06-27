@@ -7,10 +7,17 @@ graph TD
     end
 
     subgraph "Caching Layers" 
-        L1["ServerCacheInstance<br/>Metadata Only"]
-        L2["ImageMemoryManager<br/>512MB Buffers"]
+        L1["ServerCacheInstance<br/>Metadata Only<br/>(Map-based Cache)"]
+        L1B["Next.js 15 'use cache'<br/>Native Caching<br/>(NEW)"]
+        L2["ImageMemoryManager<br/>Deprecated<br/>(No caching)"]
         L3["S3 Storage<br/>~50ms"]
         L4["External APIs<br/>100ms-5s"]
+    end
+    
+    subgraph "Migration Status"
+        M1["✅ MIGRATED (5 files)<br/>• lib/search.ts<br/>• lib/bookmarks/bookmarks-data-access.server.ts<br/>• lib/data-access/github.ts<br/>• lib/blog/mdx.ts<br/>• lib/data-access/images.server.ts"]
+        M2["❌ LEGACY (20+ files)<br/>• lib/data-access/opengraph.ts<br/>• lib/data-access/logos.ts<br/>• lib/bookmarks/bookmarks.ts<br/>• API routes<br/>• Health endpoints"]
+        M3["🔧 MAP-BASED CACHE (3 files)<br/>• lib/server-cache.ts<br/>• lib/image-memory-manager.ts<br/>• lib/blog/mdx.ts (cleanup needed)"]
     end
     
     subgraph "Advanced Patterns"

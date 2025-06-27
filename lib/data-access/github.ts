@@ -34,6 +34,8 @@ import type {
   GithubRepoNode,
 } from "@/types/github";
 import { graphql } from "@octokit/graphql";
+import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
+import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 
 // --- Configuration & Constants ---
 /**
@@ -46,25 +48,16 @@ const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || "WilliamAGH";
 const GITHUB_API_TOKEN =
   process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH || process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN;
 
-// Volume paths / S3 Object Keys for GitHub data (environment-aware)
-export const GITHUB_ACTIVITY_S3_KEY_DIR = "github-activity";
+import { GITHUB_ACTIVITY_S3_PATHS } from "@/lib/constants";
 
-// Determine suffix based on runtime env so dev/test never overwrite prod data
-const ghEnvSuffix = (() => {
-  const env = process.env.NODE_ENV;
-  if (env === "production" || !env) return ""; // prod keeps canonical names
-  if (env === "test") return "-test";
-  return "-dev"; // treat everything else as development-like
-})();
-
-export const GITHUB_ACTIVITY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/activity_data${ghEnvSuffix}.json`;
-export const GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK = `${GITHUB_ACTIVITY_S3_KEY_DIR}/activity_data.json`; // Production key without suffix
-export const GITHUB_STATS_SUMMARY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/github_stats_summary${ghEnvSuffix}.json`;
-export const ALL_TIME_SUMMARY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/github_stats_summary_all_time${ghEnvSuffix}.json`;
-
-// GitHub Activity Data Paths / S3 Object Keys
-export const REPO_RAW_WEEKLY_STATS_S3_KEY_DIR = `${GITHUB_ACTIVITY_S3_KEY_DIR}/repo_raw_weekly_stats${ghEnvSuffix}`;
-export const AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE = `${GITHUB_ACTIVITY_S3_KEY_DIR}/aggregated_weekly_activity${ghEnvSuffix}.json`;
+// Re-export from constants for backward compatibility
+export const GITHUB_ACTIVITY_S3_KEY_DIR: string = GITHUB_ACTIVITY_S3_PATHS.DIR;
+export const GITHUB_ACTIVITY_S3_KEY_FILE: string = GITHUB_ACTIVITY_S3_PATHS.ACTIVITY_DATA;
+export const GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK: string = GITHUB_ACTIVITY_S3_PATHS.ACTIVITY_DATA_PROD_FALLBACK; // Production key without suffix
+export const GITHUB_STATS_SUMMARY_S3_KEY_FILE: string = GITHUB_ACTIVITY_S3_PATHS.STATS_SUMMARY;
+export const ALL_TIME_SUMMARY_S3_KEY_FILE: string = GITHUB_ACTIVITY_S3_PATHS.ALL_TIME_SUMMARY;
+export const REPO_RAW_WEEKLY_STATS_S3_KEY_DIR: string = GITHUB_ACTIVITY_S3_PATHS.REPO_RAW_WEEKLY_STATS_DIR;
+export const AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE: string = GITHUB_ACTIVITY_S3_PATHS.AGGREGATED_WEEKLY;
 
 const CONCURRENT_REPO_LIMIT = 5; // Limit for concurrent repository processing
 
@@ -605,7 +598,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
       debug(
         `[DataAccess/GitHub] All-Time: Found ${repoCommitCount} commits for ${owner}/${name} via GraphQL API (using ID).`,
       );
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn(
         `[DataAccess/GitHub] All-Time: Error fetching commit count for ${owner}/${name} via GraphQL:`,
         error instanceof Error ? error.message : String(error),
@@ -964,10 +957,11 @@ export async function getGithubActivity(): Promise<UserActivityView> {
 
   // Fallback: In local development or testing, the environment-specific file (e.g., with "-dev" suffix)
   // may not exist in S3. Gracefully fall back to the production key so UI does not break.
-  if (!s3ActivityData && ghEnvSuffix) {
+  const isNonProduction = process.env.NODE_ENV !== "production" && process.env.NODE_ENV;
+  if (!s3ActivityData && isNonProduction) {
     console.log(
       `[DataAccess/GitHub:getGithubActivity] Primary key not found (${GITHUB_ACTIVITY_S3_KEY_FILE}). ` +
-        `Environment suffix: '${ghEnvSuffix}', NODE_ENV: '${process.env.NODE_ENV}'. ` +
+        `NODE_ENV: '${process.env.NODE_ENV}'. ` +
         `Falling back to production key: ${GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK}`,
     );
     metadataKey = GITHUB_ACTIVITY_S3_KEY_FILE_FALLBACK;
@@ -1098,6 +1092,36 @@ export async function getGithubActivity(): Promise<UserActivityView> {
   }
   ServerCacheInstance.set(cacheKey, errorView);
   return errorView;
+}
+
+// Internal direct S3 read function for GitHub activity (always available)
+async function getGithubActivityDirect(): Promise<UserActivityView> {
+  return getGithubActivity();
+}
+
+// Cached version using 'use cache' directive
+async function getCachedGithubActivity(): Promise<UserActivityView> {
+  'use cache';
+  
+  cacheLife('days'); // 24 hour cache for GitHub data
+  cacheTag('github');
+  cacheTag('github-activity');
+  
+  return getGithubActivityDirect();
+}
+
+// Updated export to use caching when enabled
+export async function getGithubActivityCached(): Promise<UserActivityView> {
+  // If caching is enabled, try to use it with fallback to direct
+  if (USE_NEXTJS_CACHE) {
+    return withCacheFallback(
+      () => getCachedGithubActivity(),
+      () => getGithubActivityDirect()
+    );
+  }
+  
+  // Default: Always use direct read
+  return getGithubActivityDirect();
 }
 
 /**
@@ -1364,4 +1388,22 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
     `[DataAccess/GitHub-S3] Aggregated weekly activity calculated and stored to ${AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE}. Total weeks aggregated: ${aggregatedActivity.length}. Overall data complete: ${overallDataComplete}`,
   );
   return { aggregatedActivity, overallDataComplete };
+}
+
+// Cache invalidation functions for GitHub data
+export function invalidateGitHubCache(): void {
+  if (USE_NEXTJS_CACHE) {
+    // Invalidate all GitHub cache tags
+    revalidateTag('github');
+    revalidateTag('github-activity');
+    console.log('[GitHub] Cache invalidated for all GitHub data');
+  }
+}
+
+// Invalidate specific GitHub data cache
+export function invalidateGitHubActivityCache(): void {
+  if (USE_NEXTJS_CACHE) {
+    revalidateTag('github-activity');
+    console.log('[GitHub] Cache invalidated for GitHub activity');
+  }
 }

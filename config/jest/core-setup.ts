@@ -1,47 +1,23 @@
-import { TextDecoder, TextEncoder } from "node:util";
+/**
+ * @file Jest core setup - Test environment configuration
+ * @description Provides test environment setup and browser API mocks
+ *
+ * 🚨 WARNING: Only loaded via npm/bun run scripts!
+ * Direct `bun test` usage bypasses this file and causes environment failures.
+ *
+ * Use: bun run test (loads this setup)
+ * NOT: bun test (skips this setup)
+ *
+ * ✅ Bun 1.2.17 provides all Web APIs natively - no polyfills needed
+ */
 import "@testing-library/jest-dom";
 import { cleanup } from "@testing-library/react";
 
-// Polyfill for TextEncoder and TextDecoder
-global.TextEncoder = TextEncoder;
-global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+// Note: Bun 1.2.17 provides ReadableStream natively, no polyfill needed
 
-// Polyfill Web APIs for JSDOM
-if (typeof globalThis.ReadableStream === "undefined") {
-  Object.defineProperty(globalThis, "ReadableStream", {
-    value: class ReadableStream {
-      // Basic mock implementation - no constructor needed
-    },
-    writable: true,
-    configurable: true,
-  });
-}
-
-if (typeof globalThis.MessagePort === "undefined") {
-  Object.defineProperty(globalThis, "MessagePort", {
-    value: class MessagePort {
-      postMessage() {}
-      close() {}
-    },
-    writable: true,
-    configurable: true,
-  });
-}
-
-if (typeof globalThis.MessageChannel === "undefined") {
-  Object.defineProperty(globalThis, "MessageChannel", {
-    value: class MessageChannel {
-      port1 = new (globalThis as { MessagePort: typeof MessagePort }).MessagePort();
-      port2 = new (globalThis as { MessagePort: typeof MessagePort }).MessagePort();
-    },
-    writable: true,
-    configurable: true,
-  });
-}
+// Note: Bun 1.2.17 provides MessagePort and MessageChannel natively, no polyfill needed
 
 import React from "react";
-
-// React is already imported and available for tests
 
 // Ensure React.act is available
 if (typeof React.act === "undefined") {
@@ -49,41 +25,6 @@ if (typeof React.act === "undefined") {
   const { act } = require("react");
   React.act = act;
 }
-
-// Mock next/navigation
-jest.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    prefetch: jest.fn(),
-    back: jest.fn(),
-    forward: jest.fn(),
-    refresh: jest.fn(),
-  }),
-  useSearchParams: () => ({
-    get: jest.fn(),
-  }),
-  usePathname: () => "/",
-}));
-
-// Mock next/image
-jest.mock("next/image", () => ({
-  __esModule: true,
-  default: (props: { src: string; alt: string; [key: string]: unknown }) => {
-    const { src, alt, ...rest } = props;
-    return React.createElement("img", { src, alt, ...rest });
-  },
-}));
-
-// Mock next-themes
-jest.mock("next-themes", () => ({
-  useTheme: () => ({
-    theme: "light",
-    setTheme: jest.fn(),
-    resolvedTheme: "light",
-  }),
-  ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
-}));
 
 // Setup clipboard API mock
 Object.defineProperty(navigator, "clipboard", {

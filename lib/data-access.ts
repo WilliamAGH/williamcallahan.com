@@ -7,10 +7,7 @@
  * @module lib/data-access
  */
 
-export * from "./bookmarks/bookmarks-data-access.server";
-export * from "./data-access/logos";
-export * from "./data-access/investments";
-export * from "./data-access/github";
+export * from "./data-access/index";
 
 // Note: Original shared S3 helper functions (writeJsonFile, readBinaryFile, etc.)
 // that were present in this file have been removed.

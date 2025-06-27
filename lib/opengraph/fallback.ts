@@ -10,8 +10,6 @@
 // debug import removed - using console.log for fallback logging
 import { getDomainType, isValidImageUrl } from "@/lib/utils/opengraph-utils";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
-import { scheduleImagePersistence } from "./persistence";
-import { OPENGRAPH_IMAGES_S3_DIR } from "./constants";
 import type { OgResult, KarakeepImageFallback } from "@/types";
 import { karakeepImageFallbackSchema } from "@/types/seo/opengraph";
 import { SOCIAL_PLATFORMS } from "@/types/social";
@@ -53,8 +51,7 @@ export function createFallbackResult(
       imageUrl = validatedFallbackData.imageUrl;
       console.log(`[OG-Priority-5] ✅ Using Karakeep imageUrl: ${imageUrl}`);
 
-      // Schedule S3 persistence for Karakeep image
-      scheduleImagePersistence(imageUrl, OPENGRAPH_IMAGES_S3_DIR, "Karakeep-Fallback", undefined, url);
+      // No persistence during runtime - only during data-updater runs
     } else {
       console.log(`[OG-Priority-5] ❌ Karakeep imageUrl not valid or not found`);
     }
@@ -71,14 +68,7 @@ export function createFallbackResult(
             imageUrl = assetUrl;
             console.log(`[OG-Priority-6] ✅ Using Karakeep imageAssetId, constructed URL: ${imageUrl}`);
 
-            // Schedule S3 persistence for Karakeep asset
-            scheduleImagePersistence(
-              imageUrl,
-              OPENGRAPH_IMAGES_S3_DIR,
-              "Karakeep-Asset-Fallback",
-              validatedFallbackData.imageAssetId,
-              url,
-            );
+            // No persistence during runtime - only during data-updater runs
           }
         }
       } catch (error) {
@@ -100,14 +90,7 @@ export function createFallbackResult(
             imageUrl = screenshotUrl;
             console.log(`[OG-Priority-7] ✅ Using Karakeep screenshot, constructed URL: ${imageUrl}`);
 
-            // Schedule S3 persistence for Karakeep screenshot
-            scheduleImagePersistence(
-              imageUrl,
-              OPENGRAPH_IMAGES_S3_DIR,
-              "Karakeep-Screenshot-Fallback",
-              validatedFallbackData.screenshotAssetId,
-              url,
-            );
+            // No persistence during runtime - only during data-updater runs
           }
         }
       } catch (error) {
