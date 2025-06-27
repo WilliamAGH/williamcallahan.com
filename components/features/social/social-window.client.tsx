@@ -15,7 +15,6 @@ import type { SocialWindowClientProps } from "@/types/features/social";
 import { Users } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-
 // Define a unique ID for this window instance
 const SOCIAL_WINDOW_ID = "social-contact-window";
 
@@ -23,9 +22,20 @@ const SOCIAL_WINDOW_ID = "social-contact-window";
  * Dynamic import of the window content component to prevent server-side rendering
  * This ensures any layout effects or DOM manipulations only run on the client
  */
-const SocialWindowContent = dynamic(() => import("./social-window-content.client").then((m) => m.SocialWindowContent), {
-  ssr: false,
-});
+const SocialWindowContent = dynamic<import("@/types/features/social").SocialWindowContentProps>(
+  () => import("./social-window-content.client").then((m) => m.SocialWindowContent),
+  { ssr: false },
+);
+
+// Local typed wrapper around dynamically imported component to avoid type incompatibilities
+function SocialWindowContentWrapper(props: import("@/types/features/social").SocialWindowContentProps) {
+  const { children, ...rest } = props;
+  return (
+    <SocialWindowContent {...(rest as unknown as import("@/types/features/social").SocialWindowContentProps)}>
+      {children}
+    </SocialWindowContent>
+  );
+}
 
 /**
  * SocialWindow Client Component
@@ -37,7 +47,8 @@ const SocialWindowContent = dynamic(() => import("./social-window-content.client
  * @returns {JSX.Element | null} The rendered window or null if minimized/closed
  */
 export function SocialWindow({ data, title = "Contact", onClose }: SocialWindowClientProps) {
-  const socialLinks = data?.socialLinks || [];
+  void data; // param currently unused but kept for future use
+
   const {
     windowState,
     close: closeWindow,
@@ -87,35 +98,12 @@ export function SocialWindow({ data, title = "Contact", onClose }: SocialWindowC
   }
 
   return (
-    <SocialWindowContent
+    <SocialWindowContentWrapper
       windowState={windowState}
       onClose={handleClose}
       onMinimize={minimizeWindow}
       onMaximize={maximizeWindow}
       hasMounted={hasMounted}
-    >
-      {/* Render social links here or as children */}
-      {socialLinks.length > 0 && (
-        <div className="p-6">
-          <h2 className="text-xl font-mono mb-4">Social Links</h2>
-          <div className="grid gap-3">
-            {socialLinks.map((link) => (
-              <a
-                key={link.platform}
-                href={link.href}
-                className={`flex items-center gap-3 p-3 rounded border hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                  link.emphasized ? "border-blue-200 dark:border-blue-800" : ""
-                }`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <link.icon className="w-5 h-5" />
-                <span className="font-medium">{link.label}</span>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
-    </SocialWindowContent>
+    ></SocialWindowContentWrapper>
   );
 }
