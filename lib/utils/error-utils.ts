@@ -379,13 +379,17 @@ function isRetryableGitHubError(error: unknown): boolean {
  */
 export function normalizeError(error: unknown, context?: Record<string, unknown>): Error {
   if (error instanceof Error) {
+    if (context) {
+      (error as Error & { context?: Record<string, unknown> }).context = context;
+    }
     return error;
   }
 
   if (typeof error === "string") {
     const err = new Error(error);
     if (context) {
-(err as Error & { context?: Record<string, unknown> }).context = context;    }
+      (err as Error & { context?: Record<string, unknown> }).context = context;
+    }
     return err;
   }
 
@@ -393,9 +397,7 @@ export function normalizeError(error: unknown, context?: Record<string, unknown>
     const message = "message" in error ? String(error.message) : "Unknown error";
     const err = new Error(message);
     if (context) {
-      (err as Error & {
-  context?: Record<string, unknown>;
-}).context = { ...context, originalError: error };
+      (err as Error & { context?: Record<string, unknown> }).context = { ...context, originalError: error };
     }
     return err;
   }
