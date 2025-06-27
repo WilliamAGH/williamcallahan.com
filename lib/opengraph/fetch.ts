@@ -47,7 +47,7 @@ export async function fetchExternalOpenGraphWithRetry(
 ): Promise<OgResult | { networkFailure: true; lastError: Error | null } | null> {
   const originalUrl = new URL(url);
   const isTwitter = originalUrl.hostname.endsWith("twitter.com") || originalUrl.hostname.endsWith("x.com");
-  const proxies = isTwitter ? ["fxtwitter.com", "vxtwitter.com"] : [null];
+  const proxies = isTwitter ? ["vxtwitter.com"] : [null];
 
   let lastError: Error | null = null;
 
