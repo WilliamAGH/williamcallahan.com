@@ -8,8 +8,9 @@
  */
 
 import { debug, debugWarn } from "@/lib/utils/debug";
-import { getUnifiedImageService, UnifiedImageService } from "@/lib/services/unified-image-service";
+import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { getCachedJinaHtml, persistJinaHtmlInBackground } from "@/lib/opengraph/persistence";
+import { getBrowserHeaders } from "@/lib/utils/http-client";
 import { incrementAndPersist } from "@/lib/rate-limiter";
 import {
   JINA_FETCH_CONFIG,
@@ -59,7 +60,7 @@ export async function fetchExternalOpenGraphWithRetry(
       debug(`[DataAccess/OpenGraph] Using proxy for Twitter URL: ${effectiveUrl}`);
     }
 
-    let headers = UnifiedImageService.getBrowserHeaders();
+    let headers = getBrowserHeaders();
 
     for (let attempt = 0; attempt < OPENGRAPH_FETCH_CONFIG.MAX_RETRIES; attempt++) {
       try {
@@ -229,7 +230,7 @@ async function fetchExternalOpenGraph(
 
     try {
       await waitForPermit(OPENGRAPH_FETCH_STORE_NAME, OPENGRAPH_FETCH_CONTEXT_ID, DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG);
-      const requestHeaders = headers || UnifiedImageService.getBrowserHeaders();
+      const requestHeaders = headers || getBrowserHeaders();
       const response = await fetch(url, {
         method: "GET",
         headers: requestHeaders,

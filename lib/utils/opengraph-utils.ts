@@ -9,7 +9,7 @@
  * @module utils/opengraph-utils
  */
 
-import crypto from "node:crypto";
+import { generateHash, getBufferHash } from "./hash-utils";
 import type { OgMetadata } from "@/types";
 
 /**
@@ -56,7 +56,7 @@ export function normalizeUrl(url: string): string {
  * @returns The hashed URL
  */
 export function hashUrl(url: string): string {
-  return crypto.createHash("sha256").update(url).digest("hex");
+  return generateHash(url);
 }
 
 /**
@@ -66,7 +66,7 @@ export function hashUrl(url: string): string {
  * @returns A SHA256 hash of the image content
  */
 export function hashImageContent(buffer: Buffer): string {
-  return crypto.createHash("sha256").update(buffer).digest("hex");
+  return getBufferHash(buffer);
 }
 
 /**

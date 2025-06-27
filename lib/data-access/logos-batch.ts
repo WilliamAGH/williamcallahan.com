@@ -8,120 +8,24 @@
  */
 
 import type { LogoResult, LogoSource } from "@/types/logo";
-import { writeBinaryS3, checkIfS3ObjectExists, readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import { writeBinaryS3, checkIfS3ObjectExists } from "@/lib/s3-utils";
 import { getDomainVariants, normalizeDomain } from "@/lib/utils/domain-utils";
-import { createHash } from "node:crypto";
-import { LOGO_SOURCES, LOGO_BLOCKLIST_S3_PATH, IMAGE_S3_PATHS } from "@/lib/constants";
+import { LOGO_SOURCES, LOGO_BLOCKLIST_S3_PATH } from "@/lib/constants";
+import { FailureTracker } from "@/lib/utils/failure-tracker";
+import { generateS3Key, getFileExtension } from "@/lib/utils/s3-key-generator";
+import { fetchBinary } from "@/lib/utils/http-client";
+import { BatchProcessor, BatchProgressReporter } from "@/lib/batch-processing";
 
-// In-memory cache for current session
-const sessionFailedDomains = new Map<string, {
-  domain: string;
-  attempts: number;
-  lastAttempt: number;
-  permanentFailure?: boolean;
-}>();
-const FAILED_DOMAINS_S3_PATH = LOGO_BLOCKLIST_S3_PATH;
-const MAX_RETRY_ATTEMPTS = 3;
-const RETRY_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
-let failedDomainsLoaded = false;
-
-/**
- * Load failed domains list from S3
- */
-async function loadFailedDomains(): Promise<void> {
-  if (failedDomainsLoaded) return;
-  
-  try {
-    const data = await readJsonS3<Record<string, {
-      domain: string;
-      attempts: number;
-      lastAttempt: number;
-      permanentFailure?: boolean;
-    }>>(FAILED_DOMAINS_S3_PATH);
-    if (data && typeof data === 'object') {
-      Object.entries(data).forEach(([domain, entry]) => {
-        sessionFailedDomains.set(domain, entry);
-      });
-    }
-    failedDomainsLoaded = true;
-  } catch {
-    // File doesn't exist yet, that's fine
-    failedDomainsLoaded = true;
+// Initialize failure tracker for domains
+const domainFailureTracker = new FailureTracker<string>(
+  (domain) => domain,
+  {
+    s3Path: LOGO_BLOCKLIST_S3_PATH,
+    maxRetries: 3,
+    cooldownMs: 24 * 60 * 60 * 1000, // 24 hours
+    name: 'LogoDomainTracker',
   }
-}
-
-/**
- * Save failed domains list to S3
- */
-async function saveFailedDomains(): Promise<void> {
-  try {
-    const data: Record<string, {
-      domain: string;
-      attempts: number;
-      lastAttempt: number;
-      permanentFailure?: boolean;
-    }> = {};
-    sessionFailedDomains.forEach((entry, domain) => {
-      data[domain] = entry;
-    });
-    await writeJsonS3(FAILED_DOMAINS_S3_PATH, data);
-  } catch (error) {
-    console.error("[Logo Batch] Failed to save failed domains list:", error);
-  }
-}
-
-/**
- * Check if domain should be skipped due to previous failures
- */
-async function shouldSkipDomain(domain: string): Promise<boolean> {
-  await loadFailedDomains();
-  
-  const entry = sessionFailedDomains.get(domain);
-  if (!entry) return false;
-  
-  // Skip permanently failed domains
-  if (entry.permanentFailure) return true;
-  
-  // Skip if max attempts reached and still in cooldown period
-  if (entry.attempts >= MAX_RETRY_ATTEMPTS) {
-    const timeSinceLastAttempt = Date.now() - entry.lastAttempt;
-    if (timeSinceLastAttempt < RETRY_COOLDOWN_MS) {
-      return true;
-    }
-  }
-  
-  return false;
-}
-
-/**
- * Record a failed domain attempt
- */
-async function recordFailedDomain(domain: string): Promise<void> {
-  await loadFailedDomains();
-  
-  const existing = sessionFailedDomains.get(domain);
-  const entry = existing ? {
-    ...existing,
-    attempts: existing.attempts + 1,
-    lastAttempt: Date.now(),
-  } : {
-    domain,
-    attempts: 1,
-    lastAttempt: Date.now(),
-  };
-  
-  // Mark as permanent failure after too many attempts
-  if (entry.attempts >= MAX_RETRY_ATTEMPTS * 2) {
-    entry.permanentFailure = true;
-  }
-  
-  sessionFailedDomains.set(domain, entry);
-  
-  // Save to S3 periodically (every 10 failed domains)
-  if (sessionFailedDomains.size % 10 === 0) {
-    await saveFailedDomains();
-  }
-}
+);
 
 /**
  * Batch-optimized logo fetching
@@ -129,11 +33,10 @@ async function recordFailedDomain(domain: string): Promise<void> {
  */
 export async function getLogoBatch(domain: string): Promise<LogoResult> {
   const normalizedDomain = normalizeDomain(domain);
-  const domainHash = createHash("sha256").update(normalizedDomain).digest("hex").substring(0, 8);
   const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || '';
   
   // Check if domain should be skipped due to previous failures
-  if (await shouldSkipDomain(normalizedDomain)) {
+  if (await domainFailureTracker.shouldSkip(normalizedDomain)) {
     return {
       url: null,
       source: null,
@@ -147,15 +50,20 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
   
   // Check for existing logos in S3
   for (const variant of variants) {
-    for (const source of ['google', 'duckduckgo']) {
+    for (const source of ['google', 'duckduckgo'] as LogoSource[]) {
       // Check common image formats
       for (const ext of ['png', 'jpg', 'jpeg', 'svg', 'webp']) {
-        const s3Key = `${IMAGE_S3_PATHS.LOGOS_DIR}/${variant}_${source}_${domainHash}.${ext}`;
+        const s3Key = generateS3Key({
+          type: 'logo',
+          domain: variant,
+          source,
+          extension: ext,
+        });
         const exists = await checkIfS3ObjectExists(s3Key);
         if (exists) {
           return {
             url: `${cdnUrl}/${s3Key}`,
-            source: source as LogoSource,
+            source,
             error: undefined,
             contentType: ext === 'svg' ? 'image/svg+xml' : `image/${ext}`,
           };
@@ -173,29 +81,31 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
     
     for (const { name, url } of sources) {
       try {
-        const response = await fetch(url, {
-          signal: AbortSignal.timeout(5000),
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-          },
+        const { buffer, contentType } = await fetchBinary(url, {
+          timeout: 5000,
+          userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         });
         
-        if (response.ok) {
-          const buffer = Buffer.from(await response.arrayBuffer());
-          const contentType = response.headers.get('content-type') || 'image/png';
-          const ext = contentType.split('/')[1] || 'png';
-          
-          // Store to S3
-          const s3Key = `${IMAGE_S3_PATHS.LOGOS_DIR}/${normalizedDomain}_${name}_${domainHash}.${ext}`;
-          await writeBinaryS3(s3Key, buffer, contentType);
-          
-          return {
-            url: `${cdnUrl}/${s3Key}`,
-            source: name,
-            error: undefined,
-            contentType,
-          };
-        }
+        const ext = getFileExtension(url, contentType);
+        
+        // Store to S3
+        const s3Key = generateS3Key({
+          type: 'logo',
+          domain: normalizedDomain,
+          source: name,
+          extension: ext,
+        });
+        await writeBinaryS3(s3Key, buffer, contentType);
+        
+        // Success - remove from failure tracker if it was there
+        domainFailureTracker.removeFailure(normalizedDomain);
+        
+        return {
+          url: `${cdnUrl}/${s3Key}`,
+          source: name,
+          error: undefined,
+          contentType,
+        };
       } catch (error) {
         // Handle timeout gracefully
         if (error instanceof Error && error.name === 'AbortError') {
@@ -207,7 +117,7 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
   }
   
   // No logo found - record the failure
-  await recordFailedDomain(normalizedDomain);
+  await domainFailureTracker.recordFailure(normalizedDomain, "No logo found from any source");
   
   return {
     url: null,
@@ -227,56 +137,63 @@ export async function processLogoBatch(
     batchSize?: number;
   } = {}
 ): Promise<Map<string, LogoResult>> {
-  const results = new Map<string, LogoResult>();
-  const total = domains.length;
-  const batchSize = options.batchSize || 10;
+  // Create progress reporter
+  const progressReporter = new BatchProgressReporter('Logo Batch');
   
-  // Process in batches
-  for (let i = 0; i < domains.length; i += batchSize) {
-    const batch = domains.slice(i, i + batchSize);
-    
-    // Process batch concurrently
-    const batchPromises = batch.map(async (domain) => {
-      try {
-        const result = await getLogoBatch(domain);
-        results.set(domain, result);
-      } catch (error) {
-        // Extract just the error message to avoid trace dumps
-        const errorMessage = error instanceof Error ? error.message : "Processing failed";
-        
-        // Only log non-timeout errors or use simplified message for timeouts
-        if (errorMessage.includes("timed out")) {
-          console.warn(`[Logo Batch] Timeout processing ${domain}`);
-        } else {
-          console.error(`[Logo Batch] Failed to process ${domain}: ${errorMessage}`);
-        }
-        
-        results.set(domain, {
-          url: null,
-          source: null,
-          error: errorMessage,
-          contentType: "image/png",
-        });
-      }
-    });
-    
-    await Promise.all(batchPromises);
-    
-    // Report progress
-    const processed = Math.min(i + batchSize, total);
-    if (options.onProgress) {
-      options.onProgress(processed, total);
+  // Create batch processor
+  const processor = new BatchProcessor<string, LogoResult>(
+    'logo-batch',
+    async (domain) => getLogoBatch(domain),
+    {
+      batchSize: options.batchSize || 10,
+      batchDelay: 500, // Rate limit protection
+      memoryThreshold: 0.8,
+      timeout: 30000,
+      onProgress: options.onProgress || progressReporter.createProgressHandler(),
+      debug: true,
     }
-    console.log(`[Logo Batch] Progress: ${processed}/${total} domains processed`);
-    
-    // Small delay between batches to avoid rate limiting
-    if (i + batchSize < domains.length) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
+  );
+  
+  // Process the batch
+  const result = await processor.processBatch(domains);
+  
+  // Convert result format
+  const logoResults = new Map<string, LogoResult>();
+  
+  // Add successful results
+  for (const [domain, logoResult] of result.successful) {
+    logoResults.set(domain, logoResult);
   }
   
-  // Save failed domains at the end of batch processing
-  await saveFailedDomains();
+  // Add failed results
+  for (const [domain, error] of result.failed) {
+    logoResults.set(domain, {
+      url: null,
+      source: null,
+      error: error.message,
+      contentType: "image/png",
+    });
+  }
   
-  return results;
+  // Add skipped results (due to memory pressure)
+  for (const domain of result.skipped) {
+    logoResults.set(domain, {
+      url: null,
+      source: null,
+      error: "Skipped due to memory pressure",
+      contentType: "image/png",
+    });
+  }
+  
+  // Save failed domains at the end
+  await domainFailureTracker.save();
+  
+  // Log summary
+  console.log(`[Logo Batch] Completed in ${result.totalTime}ms`);
+  console.log(`[Logo Batch] Success: ${result.successful.size}, Failed: ${result.failed.size}, Skipped: ${result.skipped.length}`);
+  if (result.memoryPressureEvents > 0) {
+    console.log(`[Logo Batch] Memory pressure events: ${result.memoryPressureEvents}`);
+  }
+  
+  return logoResults;
 }
