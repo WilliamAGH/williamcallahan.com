@@ -20,8 +20,30 @@ COPY .husky ./.husky
 # Install dependencies with Bun, allowing necessary lifecycle scripts
 RUN --mount=type=cache,target=/root/.bun/install bun install --frozen-lockfile
 
-# Rebuild the source code only when needed
-# CRITICAL: Use Node.js for building to avoid OOM issues with Bun + Next.js 15
+# --------------------------------------------------
+# PRE-CHECKS STAGE (lint + type-check, cached)
+# --------------------------------------------------
+FROM node:22-alpine AS checks
+RUN apk add --no-cache libc6-compat bash
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV HUSKY=0
+
+# Copy installed deps from previous deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy source for analysis only (does not affect later build layers)
+COPY . .
+
+# Run linter and type checker with persistent cache mounts so they
+#   do not re-run on every incremental build.
+RUN --mount=type=cache,target=/app/.eslintcache \
+    --mount=type=cache,target=/app/.tsbuildinfo \
+    npm run lint && npm run type-check
+
+# --------------------------------------------------
+# BUILD STAGE (production build)
+# --------------------------------------------------
 FROM node:22-alpine AS builder
 # Install dependencies for the build
 RUN apk add --no-cache libc6-compat curl bash
@@ -56,7 +78,9 @@ COPY . .
 
 # Now build the app using npm (Node.js) to avoid OOM issues
 RUN --mount=type=cache,target=/app/.next/cache \
-    echo "📦 Building the application..." && npm run build
+    echo "📦 Building the application..." && npm run build && \
+    # Prune optimiser cache older than 5 days to keep layer small
+    find /app/.next/cache -type f -mtime +5 -delete || true
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -149,3 +173,6 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
 # with Next.js 15's standalone output, even though Bun is available in the runner
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["node", "server.js"]
+
+ARG BUILDKIT_INLINE_CACHE=1
+LABEL org.opencontainers.image.build=true
