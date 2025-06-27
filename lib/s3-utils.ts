@@ -171,10 +171,13 @@ export async function readFromS3(
 }
 
 async function performS3Read(key: string, options?: { range?: string }): Promise<Buffer | string | null> {
-  // Allow lightweight JSON reads even under pressure – they are inexpensive and prevent costly refresh cycles
   if (isUnderMemoryPressure() && isBinaryKey(key)) {
-    console.warn(`[S3Utils] System under memory pressure. Deferring binary read of ${key}`);
-    return null;
+    // Allow small binaries (e.g., logos) under pressure, but block anything exceeding MAX_S3_READ_SIZE.
+    const canProceed = await validateContentSize(key);
+    if (!canProceed) {
+      console.warn(`[S3Utils] System under memory pressure. Deferring binary read of ${key}`);
+      return null;
+    }
   }
 
   // Validate content size before reading (skip for range requests)
