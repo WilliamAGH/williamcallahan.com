@@ -36,6 +36,7 @@ import {
   fetchRepositoryCommitCount,
   fetchContributorStats,
   GitHubContributorStatsPendingError,
+  GitHubContributorStatsRateLimitError,
   isGitHubApiConfigured,
   getGitHubUsername,
   githubHttpClient,
@@ -116,8 +117,8 @@ function wrapGithubActivity(
 // Helper function to check if status indicates error or pending state
 function isErrorOrPendingStatus(
   status: RepoWeeklyStatCache["status"],
-): status is "fetch_error" | "pending_202_from_api" {
-  return status === "fetch_error" || status === "pending_202_from_api";
+): status is "fetch_error" | "pending_202_from_api" | "pending_rate_limit" {
+  return status === "fetch_error" || status === "pending_202_from_api" || status === "pending_rate_limit";
 }
 
 // --- GitHub Activity Data Refresh ---
@@ -329,6 +330,13 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
           allTimeOverallDataComplete = false;
           console.warn(
             `[DataAccess/GitHub] Trailing Year: Stats still generating for ${repoOwnerLogin}/${repoName} – marked pending.`,
+          );
+        } else if (repoError instanceof GitHubContributorStatsRateLimitError) {
+          apiStatus = "pending_rate_limit";
+          repoDataCompleteForYear = false;
+          allTimeOverallDataComplete = false;
+          console.warn(
+            `[DataAccess/GitHub] Trailing Year: Rate limit hit for ${repoOwnerLogin}/${repoName} – deferring to next refresh.`,
           );
         } else {
           const categorizedError = createCategorizedError(repoError, "github");
@@ -870,9 +878,20 @@ async function detectAndRepairCsvFiles(): Promise<{
               failedCount++;
             }
           }
+        } else if (statsResponse?.status === 202) {
+          // Pending generation – skip, will repair later
+          console.info(
+            `[DataAccess/GitHub] CSV repair: Stats still generating for ${repoOwner}/${repoName} – will retry on next run`,
+          );
+          failedCount++;
+        } else if (statsResponse?.status === 403) {
+          console.info(
+            `[DataAccess/GitHub] CSV repair: Rate limited for ${repoOwner}/${repoName} – will retry on next run`,
+          );
+          failedCount++;
         } else {
           console.warn(
-            `[DataAccess/GitHub] CSV repair: Failed to fetch stats for ${repoOwner}/${repoName}, status ${statsResponse?.status || "unknown"}`,
+            `[DataAccess/GitHub] CSV repair: Failed to fetch stats for ${repoOwner}/${repoName}. HTTP ${statsResponse?.status}`,
           );
           failedCount++;
         }

@@ -99,12 +99,14 @@ export type GraphQLRepoNode = z.infer<typeof GraphQLRepoNodeSchema>;
  * Schema for GitHub GraphQL contribution response
  */
 export const GitHubGraphQLContributionResponseSchema = z.object({
-  user: z.object({
-    id: z.string().optional(), // User's Node ID
-    repositoriesContributedTo: z.object({
-      nodes: z.array(GraphQLRepoNodeSchema),
-    }),
-  }).nullable(),
+  user: z
+    .object({
+      id: z.string().optional(), // User's Node ID
+      repositoriesContributedTo: z.object({
+        nodes: z.array(GraphQLRepoNodeSchema),
+      }),
+    })
+    .nullable(),
 });
 
 export type GitHubGraphQLContributionResponse = z.infer<typeof GitHubGraphQLContributionResponseSchema>;
@@ -114,13 +116,19 @@ export type GithubRepoNode = GraphQLRepoNode;
 
 // Schema for GraphQL commit history response
 export const GraphQLCommitHistoryResponseSchema = z.object({
-  repository: z.object({
-    object: z.object({
-      history: z.object({
-        totalCount: z.number(),
-      }).optional(),
-    }).nullable(),
-  }).nullable(),
+  repository: z
+    .object({
+      object: z
+        .object({
+          history: z
+            .object({
+              totalCount: z.number(),
+            })
+            .optional(),
+        })
+        .nullable(),
+    })
+    .nullable(),
 });
 
 export type GraphQLCommitHistoryResponse = z.infer<typeof GraphQLCommitHistoryResponseSchema>;
@@ -128,14 +136,16 @@ export type GraphQLCommitHistoryResponse = z.infer<typeof GraphQLCommitHistoryRe
 // Schema for REST API commit response
 export const CommitSchema = z.object({
   sha: z.string(),
-  commit: z.object({
-    author: z.object({
-      name: z.string(),
-      email: z.string(),
-      date: z.string(),
-    }),
-    message: z.string(),
-  }).optional(),
+  commit: z
+    .object({
+      author: z.object({
+        name: z.string(),
+        email: z.string(),
+        date: z.string(),
+      }),
+      message: z.string(),
+    })
+    .optional(),
 });
 
 export const CommitResponseSchema = z.array(CommitSchema);
@@ -148,7 +158,7 @@ export interface RepoWeeklyStatCache {
   repoOwnerLogin: string;
   repoName: string;
   lastFetched: string; // ISO string
-  status: "complete" | "pending_202_from_api" | "fetch_error" | "empty_no_user_contribs";
+  status: "complete" | "pending_202_from_api" | "pending_rate_limit" | "fetch_error" | "empty_no_user_contribs";
   stats: RepoRawWeeklyStat[];
 }
 
@@ -249,9 +259,11 @@ export const GraphQLContributionsCollectionSchema = z.object({
 export type GraphQLContributionsCollection = z.infer<typeof GraphQLContributionsCollectionSchema>;
 
 export const GraphQLUserContributionsResponseSchema = z.object({
-  user: z.object({
-    contributionsCollection: GraphQLContributionsCollectionSchema,
-  }).nullable(),
+  user: z
+    .object({
+      contributionsCollection: GraphQLContributionsCollectionSchema,
+    })
+    .nullable(),
 });
 
 export type GraphQLUserContributionsResponse = z.infer<typeof GraphQLUserContributionsResponseSchema>;

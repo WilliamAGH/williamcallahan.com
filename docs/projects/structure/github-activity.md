@@ -208,3 +208,40 @@ curl -X POST -H "x-refresh-secret: $GITHUB_REFRESH_SECRET" localhost:3000/api/gi
 # Inspect stored data in S3
 aws s3 ls s3://$S3_BUCKET/github/
 ```
+
+## Handling GitHub 202 "stats still generating" responses (2024-06 patch)
+
+GitHub's `/stats/contributors` endpoint often returns **HTTP 202** for several minutes while it prepares a repository's statistics.  
+Our pipeline now recognises this explicitly:
+
+- `fetchContributorStats` performs a configurable retry loop (env vars `GITHUB_STATS_PENDING_MAX_ATTEMPTS`, `GITHUB_STATS_PENDING_DELAY_MS`).  
+  - If the endpoint keeps returning 202 after the configured attempts it throws `GitHubContributorStatsPendingError`.
+- The repo-processing batch marks the repository status as `pending_202_from_api` (instead of `fetch_error`).  
+  - This allows the refresh job to fall back to any existing CSV and keep partial data flowing.
+- `detectAndRepairCsvFiles` treats 202 as informational and defers repair until the next run.
+
+This guarantees that a temporary 202 cannot derail the entire refresh while still ensuring that new data is picked up automatically on subsequent cycles.
+
+```env
+# Optional tuning (defaults shown)
+GITHUB_STATS_PENDING_MAX_ATTEMPTS=4
+GITHUB_STATS_PENDING_DELAY_MS=10000  # 10s starting delay, doubles each retry
+```
+
+### Handling GitHub 403 rate-limit responses (2024-06 patch)
+
+If the `/stats/contributors` endpoint returns **HTTP 403** due to secondary rate limiting:
+
+- `fetchContributorStats` throws `GitHubContributorStatsRateLimitError` immediately (no retries to avoid hammering).
+- The repo processor marks the repo as `pending_rate_limit`.
+- The refresh job exits gracefully; the repo will be retried on the next scheduled run.
+
+This prevents a single rate-limited repo from failing the entire refresh.
+
+```env
+# Optionally tune global delay/retry with the same envs used for 202 handling
+GITHUB_STATS_PENDING_MAX_ATTEMPTS=4
+GITHUB_STATS_PENDING_DELAY_MS=10000
+```
+
+---
