@@ -15,6 +15,7 @@ import Image from "next/image";
 import type React from "react";
 import { type JSX, useCallback, useEffect, useState } from "react";
 import type { SocialCardProps, OgImageApiResponse } from "@/types/features/social";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
  * Client-side component for rendering a social media profile card.
@@ -69,22 +70,30 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
    */
   const getProfileFallbackImage = useCallback((networkLabel: string): string => {
     try {
-      if (networkLabel.includes("GitHub")) return "https://avatars.githubusercontent.com/u/99231285?v=4";
-      if (networkLabel.includes("X") || networkLabel.includes("Twitter")) return "/images/social-pics/x.jpg";
-      if (networkLabel.includes("LinkedIn")) return "/images/social-pics/linkedin.jpg";
-      if (networkLabel.includes("Bluesky"))
-        return "https://cdn.bsky.app/img/avatar/plain/did:plc:6y3lzhinepgneechfrv3w55d/bafkreicuryva5uglksh2tqrc5tu66kwvnjwnpd2fdb6epsa6fjhhdehhyy@jpeg";
-      if (networkLabel.includes("Discord")) return "/images/social-pics/discord.jpg";
+      // Use dedicated GitHub avatar endpoint for S3 persistence
+      if (networkLabel.includes("GitHub")) {
+        // Extract username from the label if possible, otherwise use default
+        const usernameMatch = networkLabel.match(/@(\w+)/);
+        const username = usernameMatch?.[1] || "williamcallahan";
+        return `/api/github-avatar/${username}`;
+      }
+      if (networkLabel.includes("X") || networkLabel.includes("Twitter")) return getStaticImageUrl("/images/social-pics/x.jpg");
+      if (networkLabel.includes("LinkedIn")) return getStaticImageUrl("/images/social-pics/linkedin.jpg");
+      if (networkLabel.includes("Bluesky")) {
+        const blueskyAvatarUrl = "https://cdn.bsky.app/img/avatar/plain/did:plc:6y3lzhinepgneechfrv3w55d/bafkreicuryva5uglksh2tqrc5tu66kwvnjwnpd2fdb6epsa6fjhhdehhyy@jpeg";
+        return `/api/og-image?url=${encodeURIComponent(blueskyAvatarUrl)}&assetId=bluesky-avatar-william`;
+      }
+      if (networkLabel.includes("Discord")) return getStaticImageUrl("/images/social-pics/discord.jpg");
     } catch (_error) {
       // Changed error to _error
       console.error(`Error getting profile image for ${networkLabel}:`, _error);
-      if (networkLabel.includes("GitHub")) return "/images/social-pics/github.jpg";
-      if (networkLabel.includes("X") || networkLabel.includes("Twitter")) return "/images/social-pics/x.jpg";
-      if (networkLabel.includes("LinkedIn")) return "/images/social-pics/linkedin.jpg";
-      if (networkLabel.includes("Bluesky")) return "/images/social-pics/bluesky.jpg";
-      if (networkLabel.includes("Discord")) return "/images/social-pics/discord.jpg";
+      if (networkLabel.includes("GitHub")) return getStaticImageUrl("/images/social-pics/github.jpg");
+      if (networkLabel.includes("X") || networkLabel.includes("Twitter")) return getStaticImageUrl("/images/social-pics/x.jpg");
+      if (networkLabel.includes("LinkedIn")) return getStaticImageUrl("/images/social-pics/linkedin.jpg");
+      if (networkLabel.includes("Bluesky")) return getStaticImageUrl("/images/social-pics/bluesky.jpg");
+      if (networkLabel.includes("Discord")) return getStaticImageUrl("/images/social-pics/discord.jpg");
     }
-    return "/images/william.jpeg";
+    return getStaticImageUrl("/images/william.jpeg");
   }, []);
 
   /**
@@ -93,12 +102,12 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
    * @returns {string} The URL of the fallback domain/banner image.
    */
   const getDomainFallbackImage = useCallback((networkLabel: string): string => {
-    if (networkLabel.includes("GitHub")) return "/images/social-banners/github.svg";
-    if (networkLabel.includes("X") || networkLabel.includes("Twitter")) return "/images/social-banners/twitter-x.svg";
-    if (networkLabel.includes("LinkedIn")) return "/images/social-banners/linkedin.svg";
-    if (networkLabel.includes("Discord")) return "/images/social-banners/discord.svg";
-    if (networkLabel.includes("Bluesky")) return "/images/social-banners/bluesky.png";
-    return "/images/company-placeholder.svg";
+    if (networkLabel.includes("GitHub")) return getStaticImageUrl("/images/social-banners/github.svg");
+    if (networkLabel.includes("X") || networkLabel.includes("Twitter")) return getStaticImageUrl("/images/social-banners/twitter-x.svg");
+    if (networkLabel.includes("LinkedIn")) return getStaticImageUrl("/images/social-banners/linkedin.svg");
+    if (networkLabel.includes("Discord")) return getStaticImageUrl("/images/social-banners/discord.svg");
+    if (networkLabel.includes("Bluesky")) return getStaticImageUrl("/images/social-banners/bluesky.png");
+    return getStaticImageUrl("/images/company-placeholder.svg");
   }, []);
 
   /**
@@ -119,12 +128,16 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
         setImageError(false);
         setDomainImageUrl(getDomainFallbackImage(label)); // Set local banner immediately
 
-        const apiUrl = `/api/og-image?url=${encodeURIComponent(url)}&fetchDomain=false`;
+        const apiUrl = `/api/og-data?url=${encodeURIComponent(url)}`;
         const response = await fetch(apiUrl);
 
         if (response.ok) {
           const data = (await response.json()) as OgImageApiResponse;
           setProfileImageUrl(data.profileImageUrl || getProfileFallbackImage(label));
+          // Also update domain image if provided
+          if (data.domainImageUrl) {
+            setDomainImageUrl(data.domainImageUrl);
+          }
         } else {
           setProfileImageUrl(getProfileFallbackImage(label));
         }

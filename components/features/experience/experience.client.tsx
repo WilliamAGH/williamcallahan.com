@@ -9,12 +9,13 @@
 
 "use client";
 
+import React, { useEffect } from "react";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils"; // Import cn utility
 import { Briefcase } from "lucide-react"; // Import specific icon
-import { type JSX, useEffect } from "react"; // Import hooks (useState might not be needed)
 import type { ExperienceProps } from "@/types/features/experience";
-import { WindowControls } from "../../ui/navigation/window-controls";
+import { WindowControls } from "@/components/ui/navigation/window-controls";
+import { ExperienceCardClient } from "@/components/ui/experience-card/experience-card.client";
 // ReactElement type is no longer explicitly imported if JSX.Element is used directly
 
 /**
@@ -35,7 +36,7 @@ const EXPERIENCE_WINDOW_ID = "experience-window";
  * @param {ExperienceProps} props - The props for the component.
  * @returns {JSX.Element} The rendered experience section within a window, or an empty fragment if closed or minimized.
  */
-export function Experience({ experienceCards }: ExperienceProps): JSX.Element {
+export function Experience({ data }: ExperienceProps): React.JSX.Element {
   // Register this window instance and get its state/actions
   const {
     windowState,
@@ -99,9 +100,8 @@ export function Experience({ experienceCards }: ExperienceProps): JSX.Element {
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-6">Experience</h2>
           <div className="space-y-6">
-            {experienceCards.map((item) => (
-              // Use item.id which was passed along from the server component
-              <div key={item.id}>{item.card}</div>
+            {data.map((item) => (
+              <ExperienceCardClient key={item.id} {...item} />
             ))}
           </div>
         </div>

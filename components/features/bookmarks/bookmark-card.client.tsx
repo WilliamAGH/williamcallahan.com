@@ -32,6 +32,7 @@ import { ExternalLink } from "../../ui/external-link.client";
 import { LogoImage } from "../../ui/logo-image.client";
 import { ShareButton } from "./share-button.client";
 import { getAssetUrl } from "@/lib/bookmarks/bookmark-helpers";
+import { usePathname } from "next/navigation";
 
 import type { BookmarkCardClientProps } from "@/types";
 
@@ -50,10 +51,21 @@ import type { BookmarkCardClientProps } from "@/types";
  */
 
 export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element {
-  const { id, url, title, description, tags, ogImage, content, dateBookmarked, shareUrl: initialShareUrl } = props;
+  const { id, url, title, description, tags, ogImage, content, dateBookmarked, internalHref } = props;
+  const pathname = usePathname();
+
+  /**
+   * Determine the correct link target for the image & title
+   *
+   * Rationale:
+   * - On list/grid views we want to link to the internal bookmark detail page (`internalHref`)
+   * - When the same component is rendered **inside** that detail page the internal link would be
+   *   self-referential; in that context we instead fall back to the external `url` so users can still
+   *   navigate to the original source
+   */
+  const effectiveInternalHref = internalHref && pathname !== internalHref ? internalHref : undefined;
   const [mounted, setMounted] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const shareUrl = initialShareUrl;
 
   // Effects for handling client-side initialization
   useEffect(() => {
@@ -79,46 +91,54 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   const formattedPublishDate = mounted && displayPublishDate ? formatDate(displayPublishDate) : null;
 
   // Handle image sources with multiple fallbacks
-  // Priority: Karakeep imageAssetId > S3 CDN URLs > imageUrl > ogImage > screenshots > favicon
-  // Use direct URLs when possible, only fall back to /api/og-image for external fetching
+  // CRITICAL: Always prefer direct S3 CDN URLs to avoid proxy overhead
+  // Only use proxy routes (/api/assets/, /api/og-image) as absolute last resort
   const getDisplayImageUrl = () => {
-    // PRIORITY 1: Karakeep imageAssetId (banner) - Use getAssetUrl helper for proper path handling
+    const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+
+    // PRIORITY 1: Enriched ogImage field (already persisted to S3)
+    // This is the MOST IMPORTANT - it contains the S3 URL from enrichment
+    if (ogImage?.includes(s3CdnUrl)) {
+      console.log(`[BookmarkCard] ✅ Using DIRECT S3 CDN from ogImage: ${ogImage}`);
+      return ogImage;
+    }
+
+    // PRIORITY 2: Direct S3 CDN URLs in content.imageUrl
+    if (content?.imageUrl?.includes(s3CdnUrl)) {
+      console.log(`[BookmarkCard] ✅ Using DIRECT S3 CDN from imageUrl: ${content.imageUrl}`);
+      return content.imageUrl;
+    }
+
+    // PRIORITY 3: Check if ogImage is a direct HTTP URL (not a proxy)
+    if (ogImage?.startsWith("http")) {
+      // If it's already a direct URL, use it (might be from older enrichments)
+      console.log(`[BookmarkCard] Using direct HTTP ogImage: ${ogImage}`);
+      return ogImage;
+    }
+
+    // PRIORITY 4: Direct HTTP URLs in content.imageUrl
+    if (content?.imageUrl?.startsWith("http")) {
+      console.log(`[BookmarkCard] Using direct HTTP imageUrl: ${content.imageUrl}`);
+      return content.imageUrl;
+    }
+
+    // === PROXY FALLBACKS (only if no direct URLs available) ===
+
+    // PRIORITY 5: Karakeep imageAssetId - unfortunately requires proxy
     if (content?.imageAssetId) {
-      console.log(`[BookmarkCard] 🎯 USING DIRECT KARAKEEP BANNER: ${content.imageAssetId} for bookmark: ${id}`);
+      console.log(`[BookmarkCard] ⚠️ FALLBACK to proxy for Karakeep asset: ${content.imageAssetId}`);
       return getAssetUrl(content.imageAssetId);
     }
 
-    // Debug: Log what we have for this bookmark
-    console.log(`[BookmarkCard] DEBUG for ${id}:`, {
-      hasImageAssetId: !!content?.imageAssetId,
-      hasImageUrl: !!content?.imageUrl,
-      hasOgImage: !!ogImage,
-      hasScreenshot: !!content?.screenshotAssetId,
-      content,
-    });
-
-    // PRIORITY 2: Direct S3 CDN URLs for stored images
-    if (content?.imageUrl?.includes(process.env.NEXT_PUBLIC_S3_CDN_URL || "")) {
-      console.log(`[BookmarkCard] Using DIRECT S3 CDN URL: ${content.imageUrl}`);
-      return content.imageUrl;
-    }
-
-    // PRIORITY 3: Karakeep direct imageUrl (if not already S3)
-    if (content?.imageUrl?.startsWith("http")) {
-      console.log(`[BookmarkCard] Using direct Karakeep imageUrl: ${content.imageUrl}`);
-      return content.imageUrl;
-    }
-
-    // PRIORITY 4: OpenGraph image - always use og-image API for proper fallback handling
-    if (ogImage) {
-      // The og-image API handles all the logic for S3 checks, Karakeep fallbacks, etc.
-      console.log(`[BookmarkCard] Using og-image API for OpenGraph: ${ogImage}`);
+    // PRIORITY 6: OpenGraph proxy - only for truly external images
+    if (ogImage && !ogImage.startsWith("/")) {
+      console.log(`[BookmarkCard] ⚠️ FALLBACK to og-image proxy: ${ogImage}`);
       return `/api/og-image?url=${encodeURIComponent(ogImage)}&bookmarkId=${encodeURIComponent(id)}`;
     }
 
-    // PRIORITY 5: Screenshot fallback - Use getAssetUrl helper for proper path handling
+    // PRIORITY 7: Screenshot fallback - requires proxy
     if (content?.screenshotAssetId) {
-      console.log(`[BookmarkCard] Using DIRECT screenshot: ${content.screenshotAssetId}`);
+      console.log(`[BookmarkCard] ⚠️ FALLBACK to proxy for screenshot: ${content.screenshotAssetId}`);
       return getAssetUrl(content.screenshotAssetId);
     }
 
@@ -158,61 +178,61 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       )}
     >
       {/* Image Section with domain overlay */}
-      <ExternalLink
-        href={url}
-        title={title}
-        showIcon={false}
-        className="relative w-full aspect-video overflow-hidden rounded-t-3xl bg-gray-100 dark:bg-gray-800 block"
-      >
-        <div className="relative w-full h-full">
-          {/* Try unified OG image API first, but fall back to logo if image fails to load */}
-          {displayImageUrl && !imageError ? (
-            // biome-ignore lint/performance/noImgElement: its a fallback
-            <img
-              src={displayImageUrl}
-              alt={title}
-              loading="lazy"
-              className="w-full h-full object-cover"
-              onError={() => {
-                console.warn(`[BookmarkCard] Image failed to load: ${displayImageUrl}`);
-                setImageError(true); // Show fallback UI when image fails to load
-              }}
-            />
-          ) : (
-            /* Show logo fallback when no image sources are available OR when image loading failed */
-            <div className="flex items-center justify-center w-full h-full">
-              {domain ? (
-                <LogoImage
-                  src={`/api/logo?website=${encodeURIComponent(domain)}`}
-                  width={130}
-                  height={80}
-                  alt={title}
-                  className="object-contain max-w-[60%] max-h-[60%]"
-                />
-              ) : (
-                <div className="text-gray-500">No Logo</div>
-              )}
-            </div>
-          )}
-          {/* Clickable domain overlay */}
-          <div className="absolute bottom-3 left-3 bg-white/80 dark:bg-gray-800/80 px-3 py-1 flex items-center space-x-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-            <LucideExternalLinkIcon className="w-4 h-4 text-gray-700 dark:text-gray-200" />
-            <span className="text-sm text-gray-700 dark:text-gray-200">{domainWithoutWWW}</span>
+      <div className="relative w-full aspect-video overflow-hidden rounded-t-3xl bg-gray-100 dark:bg-gray-800">
+        {/* Image background - clickable to internal page */}
+        <Link href={effectiveInternalHref || url} title={title} className="absolute inset-0 block">
+          <div className="relative w-full h-full">
+            {/* Try unified OG image API first, but fall back to logo if image fails to load */}
+            {displayImageUrl && !imageError ? (
+              <img
+                src={displayImageUrl}
+                alt={title}
+                loading="lazy"
+                className="w-full h-full object-cover"
+                onError={() => {
+                  console.warn(`[BookmarkCard] Image failed to load: ${displayImageUrl}`);
+                  setImageError(true); // Show fallback UI when image fails to load
+                }}
+              />
+            ) : (
+              /* Show logo fallback when no image sources are available OR when image loading failed */
+              <div className="flex items-center justify-center w-full h-full">
+                {domain ? (
+                  <LogoImage
+                    src={`/api/logo?website=${encodeURIComponent(domain)}`}
+                    width={130}
+                    height={80}
+                    alt={title}
+                    className="object-contain max-w-[60%] max-h-[60%]"
+                  />
+                ) : (
+                  <div className="text-gray-500">No Logo</div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      </ExternalLink>
+        </Link>
+        {/* Clickable domain overlay - links to external URL */}
+        <ExternalLink
+          href={url}
+          title={`Visit ${domainWithoutWWW}`}
+          showIcon={false}
+          className="absolute bottom-3 left-3 bg-white/80 dark:bg-gray-800/80 px-3 py-1 flex items-center space-x-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10"
+        >
+          <LucideExternalLinkIcon className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+          <span className="text-sm text-gray-700 dark:text-gray-200">{domainWithoutWWW}</span>
+        </ExternalLink>
+      </div>
       {/* Content Section */}
       <div className="flex-1 p-6 flex flex-col gap-3.5">
         {/* Title */}
-        <ExternalLink
-          href={url}
-          rawTitle
+        <Link
+          href={effectiveInternalHref || url}
           title={displayTitle}
-          showIcon={false}
           className="text-2xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
         >
           {displayTitle}
-        </ExternalLink>
+        </Link>
 
         {/* Description */}
         <p className="flex-1 text-gray-700 dark:text-gray-300 text-base line-clamp-4-resilient">{description}</p>
@@ -234,8 +254,8 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
               )}
             </div>
 
-            {/* Share button right-aligned - only show when we have a share URL */}
-            {shareUrl && <ShareButton bookmark={{ id, url }} shareUrl={shareUrl} />}
+            {/* Share button right-aligned - only show when we have an internal href */}
+            {effectiveInternalHref && <ShareButton bookmark={{ id, url }} shareUrl={effectiveInternalHref} />}
           </div>
         </div>
 

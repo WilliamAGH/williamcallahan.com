@@ -18,12 +18,12 @@ import type { InvestmentWithCard, InvestmentsProps } from "@/types";
  * @returns A JSX element containing the client-side investments component wrapped in a global window registry provider.
  */
 export async function Investments({ investments = [] }: InvestmentsProps): Promise<JSX.Element> {
-  const investmentsWithCards = (await Promise.all(
-    investments.map(async (investment) => ({
-      ...investment,
-      card: await InvestmentCardServer(investment),
-    })),
-  )) as InvestmentWithCard[];
+  const investmentCardPromises = investments.map(async (investment) => ({
+    ...investment,
+    card: await InvestmentCardServer(investment),
+  }));
+  
+  const investmentsWithCards = await Promise.all(investmentCardPromises) as InvestmentWithCard[];
 
   return (
     <GlobalWindowRegistryProvider>

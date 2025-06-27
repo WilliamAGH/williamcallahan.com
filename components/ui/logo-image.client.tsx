@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 /**
  * LogoImage Component
  *
@@ -12,8 +11,25 @@
 "use client";
 
 import Image from "next/image";
-import { type JSX, useState, useCallback } from "react";
+import { type JSX, useState, useCallback, useRef } from "react";
 import type { LogoImageProps } from "@/types";
+
+/**
+ * Extract domain from a logo src so we can hit the on-demand logo API.
+ * Handles both explicit `domain=` query param and CDN paths like `/logos/example.com.png`.
+ */
+function extractDomainFromSrc(url: string): string | null {
+  try {
+    const parsed = new URL(url, typeof window !== "undefined" ? window.location.origin : undefined);
+    const qp = parsed.searchParams.get("domain");
+    if (qp) return qp;
+
+    const match = parsed.pathname.match(/logos\/(.+?)\./);
+    return match?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export function LogoImage({
   src,
@@ -24,10 +40,34 @@ export function LogoImage({
   priority = false,
 }: LogoImageProps): JSX.Element {
   const [imageError, setImageError] = useState(false);
+  const [reloadKey, setReloadKey] = useState<number | null>(null);
+  const retryInitiated = useRef(false);
 
   const handleError = useCallback(() => {
-    console.warn(`[LogoImage] Failed to load logo: ${src}`);
-    setImageError(true);
+    if (retryInitiated.current) {
+      // We already retried once – fallback permanently to placeholder
+      setImageError(true);
+      return;
+    }
+
+    retryInitiated.current = true;
+
+    const domain = src ? extractDomainFromSrc(src) : null;
+    if (domain) {
+      // Fire and forget – trigger server fetch/upload
+      void fetch(`/api/logo?domain=${encodeURIComponent(domain)}`).catch(() => {
+        /* silent */
+      });
+    }
+
+    // Wait 3 s then retry the CDN URL with cache-buster
+    setTimeout(() => {
+      if (!src) {
+        setImageError(true);
+        return;
+      }
+      setReloadKey(Date.now());
+    }, 3000);
   }, [src]);
 
   if (!src) {
@@ -35,28 +75,17 @@ export function LogoImage({
     return <div style={{ width, height }} className="bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />;
   }
 
-  // If Next.js Image optimization fails, fall back to regular img tag
+  // After an unrecoverable error, show placeholder
   if (imageError) {
-    return (
-      // biome-ignore lint/performance/noImgElement: This is only a fallback
-      <img
-        src={src}
-        alt={alt}
-        width={width}
-        height={height}
-        className={`${className} object-contain`}
-        onError={() => {
-          // If even the regular img fails, show placeholder
-          console.error(`[LogoImage] Logo completely failed to load: ${src}`);
-        }}
-      />
-    );
+    return <div style={{ width, height }} className="bg-gray-200 dark:bg-gray-700 rounded" />;
   }
+
+  const displaySrc = reloadKey ? `${src}${src.includes("?") ? "&" : "?"}cb=${reloadKey}` : src;
 
   // Use next/image for optimization when possible
   return (
     <Image
-      src={src}
+      src={displaySrc}
       alt={alt}
       width={width}
       height={height}
