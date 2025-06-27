@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.0.5/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
   "files": {
     "includes": [
       "**/*",
@@ -33,8 +33,7 @@
       "a11y": {
         "useAltText": "off"
       },
-      "security": {
-      },
+      "security": {},
       "style": {
         "useImportType": "off",
         "useTemplate": "off"
