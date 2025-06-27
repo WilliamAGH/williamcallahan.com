@@ -5,6 +5,8 @@
  * extracting domains, and analyzing URL patterns
  */
 
+import { IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
+
 /**
  * Check if URL likely points to a logo or favicon
  */
@@ -24,21 +26,21 @@ export function isLogoUrl(url: string): boolean {
  */
 export function isImageUrl(url: string): boolean {
   const pathname = extractPathname(url).toLowerCase();
-  const imageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".bmp"];
 
-  // Check file extension
-  if (imageExtensions.some((ext) => pathname.endsWith(ext))) {
-    return true;
-  }
-
-  // Check common image path patterns
-  return (
+  // Quick path-pattern check first (covers most CDN URLs)
+  if (
     pathname.includes("/images/") ||
     pathname.includes("/img/") ||
     pathname.includes("/media/") ||
     pathname.includes("/assets/") ||
     pathname.includes("/static/")
-  );
+  ) {
+    return true;
+  }
+
+  // Fallback to extension-based check using central list
+  const ext = pathname.split(".").pop() ?? "";
+  return IMAGE_EXTENSIONS.includes(ext);
 }
 
 /**
