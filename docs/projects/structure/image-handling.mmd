@@ -8,10 +8,11 @@ graph TD
     end
 
     subgraph "Memory Management Layer"
-        MM1["ImageMemoryManager<br/>512MB LRU Cache<br/>50MB per image"]
-        MM2["UnifiedImageService<br/>Request Router<br/>Stream >5MB"]
+        MM1["ImageMemoryManager<br/>Deprecated<br/>No caching"]
+        MM2["UnifiedImageService<br/>Request Router<br/>Stream >5MB<br/>Domain Session Manager"]
         MM3["MemoryHealthMonitor<br/>Progressive Thresholds"]
         MM4["mem-guard.ts<br/>30s RSS Check"]
+        MM5["Domain Session<br/>30min duration<br/>3 retry limit"]
     end
 
     subgraph "Image Pipeline"
@@ -22,7 +23,7 @@ graph TD
     end
     
     subgraph "Storage Tiers"
-        I["Memory Cache<br/>~1ms"]
+        I["ServerCache<br/>Metadata Only<br/>~1ms"]
         J["S3 Storage<br/>~50ms"]
         K["CDN Delivery"]
     end
@@ -47,14 +48,21 @@ graph TD
     J -->|MISS| F
     
     %% Fetching pipeline
-    F --> L
-    F --> M
+    F --> MM5
+    MM5 -->|"Check Domain"| L
+    MM5 -->|"Check Domain"| M
+    MM5 -->|"Blocked"| K
     L --> G
+    M --> G
     G -->|Valid| H
-    G -->|Invalid| K
+    G -->|Invalid| MM5
     H -->|">5MB"| ST
     H -->|"<5MB"| MM1
     ST --> J
+    
+    %% Domain session management
+    MM2 --> MM5
+    MM5 -->|"Track Failures"| MM2
     
     %% Background persistence
     MM1 -.->|Background| J

@@ -13,7 +13,7 @@ The bookmarks system orchestrates fetching, processing, enriching, and serving b
 ```
 External API → Fetch & Transform → Enrich with OpenGraph → Persist to S3 → Serve to Client
                                                               ↓
-                                                     Memory Cache (LRU)
+                                                     Memory Cache (Map-based)
 ```
 
 ### Key Components
