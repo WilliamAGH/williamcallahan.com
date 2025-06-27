@@ -138,7 +138,10 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
           setProfileImageUrl(data.profileImageUrl || getProfileFallbackImage(label));
           // Only override domain banner when not in list that prefers static branding
           const prefersBrandBanner =
-            label.includes("GitHub") || label.includes("X") || label.includes("Twitter") || label.includes("Bluesky");
+            /github|git\.io/i.test(domain) ||
+            /(?:^|\.)x\.com|twitter/i.test(domain) ||
+            /bsky|bluesky/i.test(domain) ||
+            /(GitHub|X|Twitter|Bluesky)/.test(label);
 
           if (data.domainImageUrl && !prefersBrandBanner) {
             setDomainImageUrl(data.domainImageUrl);
@@ -154,7 +157,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
         setIsLoading(false);
       }
     },
-    [label, getProfileFallbackImage, getDomainFallbackImage],
+    [label, getProfileFallbackImage, getDomainFallbackImage, domain],
   );
 
   useEffect(() => {
