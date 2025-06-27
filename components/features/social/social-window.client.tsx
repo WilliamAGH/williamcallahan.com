@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * @file Social Window Client Component
  * @module components/features/social/social-window.client
@@ -9,6 +7,8 @@
  * This component handles window state (normal, minimized, maximized, closed)
  * and renders social content within a window-like UI.
  */
+
+"use client";
 
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import type { SocialWindowClientProps } from "@/types/features/social";
