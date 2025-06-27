@@ -72,3 +72,10 @@ export function isPlaceholderImage(imagePath: string): boolean {
 
   return placeholderPaths.some((placeholder) => typeof placeholder === "string" && imagePath.includes(placeholder));
 }
+
+/**
+ * Get the company placeholder image URL
+ */
+export function getCompanyPlaceholder(): string {
+  return getPlaceholderImageUrl(PLACEHOLDER_IMAGES.COMPANY_PLACEHOLDER);
+}
