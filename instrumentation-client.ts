@@ -79,3 +79,22 @@ if (process.env.NODE_ENV === "production") {
  */
 export const onRouterTransitionStart =
   process.env.NODE_ENV === "production" ? Sentry.captureRouterTransitionStart : () => {};
+
+/**
+ * Dev-only console noise filter
+ * Suppress React-server warning: "Single item size exceeds maxSize" which is
+ * harmless and triggered when serialized RSC payload > 16 KB. This keeps the
+ * developer console readable without affecting production builds.
+ */
+if (process.env.NODE_ENV !== "production") {
+  const ORIGINAL_WARN = console.warn.bind(console);
+
+  console.warn = (...args: unknown[]): void => {
+    const firstArg = args[0];
+    if (typeof firstArg === "string" && firstArg.includes("Single item size exceeds maxSize")) {
+      // Silently ignore this dev-only warning
+      return;
+    }
+    ORIGINAL_WARN(...args);
+  };
+}
