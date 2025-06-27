@@ -116,6 +116,8 @@ export const karakeepImageFallbackSchema = z.object({
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
   alt: z.string().nullable().optional(),
+  /** Unique key for idempotent storage (e.g., bookmark ID) */
+  idempotencyKey: z.string().optional(),
 });
 
 /**

@@ -10,6 +10,7 @@ import type { SocialPlatform } from "./social";
 export interface OgFetchResult {
   imageUrl: string | null;
   bannerImageUrl?: string | null;
+  profileImageUrl?: string | null;
   ogMetadata?: Record<string, string | undefined | null>;
   error?: string;
 }
@@ -97,4 +98,12 @@ export function isOgResult(data: unknown): data is OgResult {
   }
   const d = data as OgResult;
   return typeof d.url === "string" && typeof d.timestamp === "number";
+}
+
+/**
+ * Result of persisting an image to S3
+ */
+export interface PersistImageResult {
+  s3Url: string | null;
+  wasNewlyPersisted: boolean;
 }

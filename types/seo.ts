@@ -10,7 +10,6 @@
  * @see {@link "../lib/seo/opengraph.ts"} - OpenGraph implementation
  */
 
-import type { Metadata } from "next";
 import type { ArticleMetadata, CollectionPageMetadata, ProfilePageMetadata } from "./seo/metadata";
 import type { ProfileOpenGraph } from "./seo/opengraph";
 
@@ -118,16 +117,9 @@ export interface ScriptMetadata {
  * Complete article metadata structure
  * Combines all metadata types into a single interface
  */
-/**
- * Next.js metadata with script support
- * Extends the base Metadata type to include script field
- */
-export interface ExtendedMetadata extends Metadata {
-  script?: Array<{
-    type: string;
-    text: string;
-  }>;
-}
+// Import ExtendedMetadata from base to avoid circular dependencies
+import type { ExtendedMetadata } from "./seo/base";
+export type { ExtendedMetadata };
 
 // MOVED to types/seo/metadata.ts
 

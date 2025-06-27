@@ -15,7 +15,6 @@
  */
 
 import type { Experience } from "../experience";
-import type { JSX } from "react";
 
 /**
  * Experience collection component props
@@ -79,12 +78,12 @@ export interface ExperienceCardExtendedProps extends Experience {
 // --- END: Experience Card Component Props ---
 
 /**
- * Props for the Experience client component.
+ * Props for the Experience feature client wrapper. We now send the *raw* data for
+ * each experience item (including resolved `logoData`) instead of a pre-rendered
+ * JSX card.  This keeps the serialised RSC payload small and avoids the
+ * "Single item size exceeds maxSize" warning in development.
  */
 export interface ExperienceProps {
-  /**
-   * An array of experience card objects. Each object should contain an `id`
-   * and a pre-rendered `card` (JSX.Element) representing an experience item.
-   */
-  experienceCards: Array<{ id: string; card: JSX.Element }>;
+  /** Array of experience entries with logo info that the client renders */
+  data: ExperienceCardExtendedProps[];
 }

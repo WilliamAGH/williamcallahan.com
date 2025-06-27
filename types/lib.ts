@@ -405,6 +405,7 @@ export interface DataFetchConfig {
   bookmarks?: boolean;
   githubActivity?: boolean;
   logos?: boolean;
+  searchIndexes?: boolean;
   forceRefresh?: boolean;
   testLimit?: number;
   immediate?: boolean; // For new bookmark logo processing

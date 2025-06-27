@@ -19,7 +19,22 @@ import type { BaseComponentProps, BaseFilterableProps, BasePaginatedProps } from
  * Bookmark card client props - USED in bookmark-card.client.tsx
  */
 export type BookmarkCardClientProps = UnifiedBookmark & {
-  shareUrl?: string;
+  /**
+   * Internal route to this bookmark detail page (e.g. "/bookmarks/github-com-google-gemini-gemini-cli").
+   *
+   * Behaviour contract:
+   * 1. On list/grid views (bookmarks root, paginated pages, tag pages) **MUST** be supplied so that the
+   *    bookmark image & title link to the internal page instead of the external URL.
+   * 2. On the bookmark **detail** page itself the component still receives this value, however the
+   *    component detects that `usePathname()` already equals this path and intentionally disables the
+   *    internal link, making the image & title fall back to the original external `url`.
+   *
+   * This dual-behaviour ensures we never confuse the two link targets while allowing one reusable
+   * component to cover both contexts without prop explosions.
+   *
+   * NEVER pass an external URL here – it must always start with "/bookmarks/".
+   */
+  internalHref?: string;
   showDetails?: boolean;
   isInteractive?: boolean;
   onClick?: (bookmark: UnifiedBookmark) => void;

@@ -99,3 +99,75 @@ export interface ExternalFetchResult {
   /** Optional URL where the image was fetched from */
   url?: string;
 }
+
+/**
+ * Result of processing an image buffer
+ * Used by shared image processing utilities
+ */
+export interface ProcessedImageResult {
+  /** Processed image buffer */
+  processedBuffer: Buffer;
+  /** MIME content type after processing */
+  contentType: string;
+  /** Whether the image is SVG format */
+  isSvg: boolean;
+}
+
+/**
+ * Logo manifest entry with CDN URL and original source
+ */
+export interface LogoManifestEntry {
+  /** CDN URL where the logo is stored */
+  cdnUrl: string;
+  /** Original source service (google, duckduckgo, clearbit, etc.) */
+  originalSource: string;
+}
+
+/**
+ * Logo manifest mapping domains to logo info
+ */
+export type LogoManifest = Record<string, LogoManifestEntry>;
+
+/**
+ * Generic image manifest as array of CDN URLs
+ */
+export type ImageManifest = string[];
+
+/**
+ * Mapping of static image local paths to CDN URLs
+ */
+export interface StaticImageMapping {
+  [localPath: string]: string; // local path -> CDN URL
+}
+
+/**
+ * Lightweight metadata extracted without `sharp` (via edge-compatible image header parser).
+ * If you later re-introduce WASM-based processing you can extend this type.
+ *
+ * TODO(wasm-image): add alpha / ICC / EXIF when a WASM library is wired in.
+ */
+export interface BasicImageMeta {
+  /** Detected format e.g. 'png', 'jpeg', 'webp', 'gif', 'svg', ... */
+  format: string | undefined;
+  /** Pixel width (may be undefined for some SVGs) */
+  width: number | undefined;
+  /** Pixel height */
+  height: number | undefined;
+  /** Best-guess whether an alpha channel exists – edge-compatible parser cannot detect this */
+  hasAlpha: boolean;
+  /** Whether multiple frames/pages were detected (i.e. animation) */
+  animated: boolean;
+}
+
+/**
+ * Image signature containing multiple comparison metrics
+ */
+export interface ImageSignature {
+  exactHash: string;
+  structuralHash: string;
+  colorSignature: number[];
+  fileSize: number;
+  dimensions: { width: number; height: number };
+  format: string;
+  entropy: number;
+}

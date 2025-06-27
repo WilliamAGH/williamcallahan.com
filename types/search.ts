@@ -35,6 +35,28 @@ export interface BookmarkIndexItem {
   publisher: string;
 }
 
+export interface SerializedIndex {
+  index: string | Record<string, unknown>; // MiniSearch serialized JSON format
+  metadata: {
+    itemCount: number;
+    buildTime: string;
+    version: string;
+  };
+}
+
+export interface AllSerializedIndexes {
+  posts: SerializedIndex;
+  investments: SerializedIndex;
+  experience: SerializedIndex;
+  education: SerializedIndex;
+  bookmarks: SerializedIndex;
+  buildMetadata: {
+    buildTime: string;
+    version: string;
+    environment: string;
+  };
+}
+
 // Zod schemas moved from lib/schemas/search.ts
 export const searchResultItemSchema = z.object({
   id: z.string().min(1, "Search result ID cannot be empty"),

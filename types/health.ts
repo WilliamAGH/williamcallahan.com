@@ -207,6 +207,7 @@ export const HealthMetricsResponseSchema = z.object({
     message: z.string(),
   }),
   system: SystemMetricsSchema.or(z.object({ error: z.string(), details: z.string() })),
+  allocator: z.record(z.unknown()).optional(),
 });
 
 /** TypeScript type inferred from HealthMetricsResponseSchema for type-safe health metrics */
