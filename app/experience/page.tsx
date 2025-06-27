@@ -12,6 +12,7 @@ import { JsonLdScript } from "../../components/seo/json-ld";
 import { getLogo } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
+import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { experiences } from "../../data/experience";
 import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
 import { getStaticPageMetadata } from "../../lib/seo/metadata";
@@ -58,14 +59,29 @@ export default async function ExperiencePage() {
             ? normalizeDomain(exp.website)
             : normalizeDomain(exp.company);
 
+        /**
+         * 1️⃣ Manifest lookup (fast, avoids external calls if logo already cached)
+         */
+        const manifestEntry = await getLogoFromManifestAsync(domain);
+        if (manifestEntry?.cdnUrl) {
+          const manifestLogo: LogoData = { url: manifestEntry.cdnUrl, source: manifestEntry.originalSource };
+          return { ...exp, logoData: manifestLogo };
+        }
+
+        /**
+         * 2️⃣ Fallback to live fetch via UnifiedImageService
+         */
         const logoResult = await getLogo(domain);
 
-        const remoteLogoData: LogoData = {
-          url: logoResult?.cdnUrl ?? logoResult?.url ?? getCompanyPlaceholder(),
-          source: logoResult?.source ?? null,
+        const remoteOrStaticUrl =
+          logoResult?.cdnUrl ?? logoResult?.url ?? (exp.logo ? exp.logo : getCompanyPlaceholder());
+
+        const resolvedLogoData: LogoData = {
+          url: remoteOrStaticUrl,
+          source: logoResult?.source ?? (exp.logo ? "static" : null),
         };
 
-        return { ...exp, logoData: remoteLogoData };
+        return { ...exp, logoData: resolvedLogoData };
       } catch (error) {
         console.error("[ExperiencePage] Failed to resolve logo:", error);
         return {
