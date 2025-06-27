@@ -23,12 +23,16 @@ export function getAssetUrl(assetId: string | undefined | null): string | undefi
 /**
  * Selects the best available image for a bookmark based on priority order
  *
- * Priority order (configurable):
- * 1. OpenGraph image (if available and preferOpenGraph is true)
- * 2. Karakeep imageUrl from content
- * 3. Karakeep imageAssetId (converted to URL)
- * 4. Karakeep screenshotAssetId (if includeScreenshots is true)
- * 5. null/undefined (based on returnUndefined option)
+ * CRITICAL: This function now prioritizes S3 CDN URLs to avoid proxy overhead
+ * 
+ * Priority order:
+ * 1. S3 CDN URLs (from ogImage or content.imageUrl) - ALWAYS PREFERRED
+ * 2. Direct HTTP URLs (already hosted externally)
+ * 3. OpenGraph image (if preferOpenGraph is true and not already checked)
+ * 4. Karakeep imageUrl from content (if not already checked)
+ * 5. Karakeep imageAssetId (converted to proxy URL - LAST RESORT)
+ * 6. Karakeep screenshotAssetId (if includeScreenshots is true - LAST RESORT)
+ * 7. null/undefined (based on returnUndefined option)
  *
  * @param bookmark The bookmark to select an image for
  * @param options Configuration options for image selection
@@ -36,10 +40,10 @@ export function getAssetUrl(assetId: string | undefined | null): string | undefi
  *
  * @example
  * ```typescript
- * // Default behavior - prefer OpenGraph
+ * // Default behavior - prefer S3 URLs, then OpenGraph
  * const imageUrl = selectBestImage(bookmark);
  *
- * // Prefer Karakeep images over OpenGraph
+ * // Prefer Karakeep images over OpenGraph (but S3 still wins)
  * const imageUrl = selectBestImage(bookmark, { preferOpenGraph: false });
  *
  * // Exclude screenshots from fallback
@@ -54,29 +58,48 @@ export function selectBestImage(
 
   const { content } = bookmark;
   const noImageResult = returnUndefined ? undefined : null;
+  const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
 
-  // Build prioritized image list based on options
+  // Build prioritized image list based on S3 CDN preference
   const candidates: (string | undefined)[] = [];
 
-  if (preferOpenGraph && bookmark.ogImage) {
+  // PRIORITY 1: Always check for S3 CDN URLs first (best performance)
+  if (bookmark.ogImage?.includes(s3CdnUrl)) {
     candidates.push(bookmark.ogImage);
   }
-
-  if (content?.imageUrl) {
+  if (content?.imageUrl?.includes(s3CdnUrl)) {
     candidates.push(content.imageUrl);
   }
 
+  // PRIORITY 2: Direct HTTP URLs (no proxy needed)
+  if (bookmark.ogImage?.startsWith("http") && !bookmark.ogImage.includes(s3CdnUrl)) {
+    candidates.push(bookmark.ogImage);
+  }
+  if (content?.imageUrl?.startsWith("http") && !content.imageUrl.includes(s3CdnUrl)) {
+    candidates.push(content.imageUrl);
+  }
+
+  // PRIORITY 3: Add remaining based on preference (these might need proxy)
+  if (preferOpenGraph && bookmark.ogImage && !bookmark.ogImage.startsWith("http")) {
+    candidates.push(bookmark.ogImage);
+  }
+
+  if (content?.imageUrl && !content.imageUrl.startsWith("http")) {
+    candidates.push(content.imageUrl);
+  }
+
+  // PRIORITY 4: Asset IDs (requires proxy - avoid if possible)
   if (content?.imageAssetId) {
-    // Convert asset ID to full URL
+    // Only use if we have no better options
     candidates.push(getAssetUrl(content.imageAssetId));
   }
 
   // Add OpenGraph after Karakeep if not preferred
-  if (!preferOpenGraph && bookmark.ogImage) {
+  if (!preferOpenGraph && bookmark.ogImage && !bookmark.ogImage.startsWith("http")) {
     candidates.push(bookmark.ogImage);
   }
 
-  // Add screenshot as last resort
+  // PRIORITY 5: Screenshot as last resort (requires proxy)
   if (includeScreenshots && content?.screenshotAssetId) {
     candidates.push(getAssetUrl(content.screenshotAssetId));
   }
@@ -96,11 +119,15 @@ export function selectBestImage(
  *
  * @param content The bookmark content object
  * @param baseUrl The Karakeep API base URL
+ * @param idempotencyKey Optional unique key for idempotent storage (e.g., bookmark ID)
  * @returns KarakeepImageFallback object for OpenGraph fallback
  */
-export function createKarakeepFallback(content: BookmarkContent | undefined, baseUrl = ""): KarakeepImageFallback {
+export function createKarakeepFallback(content: BookmarkContent | undefined, baseUrl = "", idempotencyKey?: string): KarakeepImageFallback {
   if (!content) {
-    return { karakeepBaseUrl: baseUrl };
+    return { 
+      karakeepBaseUrl: baseUrl,
+      idempotencyKey: idempotencyKey || undefined
+    };
   }
 
   return {
@@ -108,5 +135,6 @@ export function createKarakeepFallback(content: BookmarkContent | undefined, bas
     imageAssetId: typeof content.imageAssetId === "string" ? content.imageAssetId : null,
     screenshotAssetId: typeof content.screenshotAssetId === "string" ? content.screenshotAssetId : null,
     karakeepBaseUrl: baseUrl,
+    idempotencyKey: idempotencyKey || undefined
   };
 }

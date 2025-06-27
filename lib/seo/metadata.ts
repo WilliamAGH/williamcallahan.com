@@ -26,7 +26,7 @@ import {
   metadata as siteMetadata,
 } from "../../data/metadata";
 import type { ArticleMetadata, ExtendedMetadata, ArticleParams, SoftwareAppParams } from "../../types/seo";
-import { SEO_DATE_FIELDS } from "./constants";
+import { SEO_DATE_FIELDS } from "@/lib/constants";
 import type { ExtendedOpenGraph } from "../../types/seo/opengraph";
 import type { SchemaParams } from "../../types/seo/schema";
 import { createArticleOgMetadata } from "./opengraph";

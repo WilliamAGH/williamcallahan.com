@@ -121,7 +121,8 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
 
     // Second pass: enrich with OpenGraph data using batched processing
     const isDev = process.env.NODE_ENV === "development";
-    const enrichedBookmarks = await processBookmarksInBatches(bookmarksToProcess, isDev);
+    const isBatchMode = process.env.IS_DATA_UPDATER === "true";
+    const enrichedBookmarks = await processBookmarksInBatches(bookmarksToProcess, isDev, isBatchMode);
 
     console.log(`[refreshBookmarksData] OpenGraph enrichment completed for ${enrichedBookmarks.length} bookmarks.`);
 

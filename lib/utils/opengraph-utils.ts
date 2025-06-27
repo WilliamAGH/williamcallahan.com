@@ -92,18 +92,25 @@ export function getOgImageS3Key(
     try {
       const domain = new URL(pageUrl).hostname.replace(/^www\./, "");
       const sanitizedDomain = domain.replace(/\./g, "-");
-      baseKey = `${sanitizedDomain}-${idempotencyKey}`;
+      // Generate short hash from idempotency key for uniqueness
+      const shortHash = hashImageContent(Buffer.from(idempotencyKey)).substring(0, 8);
+      // Format: domain-tld-bookmark-shorthash (e.g., github-com-bookmark-a1b2c3d4)
+      baseKey = `${sanitizedDomain}-bookmark-${shortHash}`;
     } catch {
       // Fallback if pageUrl is invalid
-      baseKey = idempotencyKey;
+      const shortHash = hashImageContent(Buffer.from(idempotencyKey)).substring(0, 8);
+      baseKey = `bookmark-${shortHash}`;
     }
   } else if (idempotencyKey) {
     // Fallback if pageUrl is not provided for some reason
-    baseKey = idempotencyKey;
+    const shortHash = hashImageContent(Buffer.from(idempotencyKey)).substring(0, 8);
+    baseKey = `bookmark-${shortHash}`;
   } else if (fallbackHash) {
-    baseKey = fallbackHash;
+    // Use first 8 chars of provided hash
+    baseKey = fallbackHash.substring(0, 8);
   } else {
-    baseKey = hashImageContent(Buffer.from(imageUrl));
+    // Generate hash from image URL
+    baseKey = hashImageContent(Buffer.from(imageUrl)).substring(0, 8);
   }
 
   return `${s3Directory}/${baseKey}.${extension}`;

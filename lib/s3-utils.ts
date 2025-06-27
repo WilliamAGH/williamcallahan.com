@@ -63,17 +63,10 @@ export const s3Client: S3Client | null =
     : null;
 
 /**
- * Check if system is under memory pressure - coordinates with ImageMemoryManager
+ * Check if system is under memory pressure
  */
-async function isUnderMemoryPressure(): Promise<boolean> {
-  if (typeof process === "undefined") return false;
-  try {
-    const { ImageMemoryManagerInstance } = await import("@/lib/image-memory-manager");
-    const metrics = ImageMemoryManagerInstance.getMetrics();
-    return metrics.memoryPressure;
-  } catch {
-    return false;
-  }
+function isUnderMemoryPressure(): boolean {
+  return false;
 }
 
 /**
@@ -81,17 +74,19 @@ async function isUnderMemoryPressure(): Promise<boolean> {
  */
 function hasMemoryHeadroom(): boolean {
   if (typeof process === "undefined") return true;
-  
+
   const usage = process.memoryUsage();
   // Use critical threshold (90%) instead of warning threshold (70%)
   // S3 operations should only be deferred when memory is critically high
   const criticalThreshold = MEMORY_THRESHOLDS.MEMORY_CRITICAL_THRESHOLD;
-  
+
   if (usage.rss > criticalThreshold) {
-    console.warn(`[S3Utils] Memory usage (${(usage.rss / 1024 / 1024).toFixed(2)}MB) exceeds critical threshold. Deferring S3 operations.`);
+    console.warn(
+      `[S3Utils] Memory usage (${(usage.rss / 1024 / 1024).toFixed(2)}MB) exceeds critical threshold. Deferring S3 operations.`,
+    );
     return false;
   }
-  
+
   return true;
 }
 
@@ -166,7 +161,7 @@ export async function readFromS3(
 
 async function performS3Read(key: string, options?: { range?: string }): Promise<Buffer | string | null> {
   // Check memory pressure before attempting read
-  if (await isUnderMemoryPressure()) {
+  if (isUnderMemoryPressure()) {
     console.warn(`[S3Utils] System under memory pressure. Deferring read of ${key}`);
     return null;
   }
@@ -309,7 +304,7 @@ export async function writeToS3(
   if (!hasMemoryHeadroom()) {
     throw new Error(`[S3Utils] Insufficient memory headroom for S3 write operation`);
   }
-  
+
   if (DRY_RUN) {
     if (isDebug)
       debug(
@@ -636,8 +631,6 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
         Body: jsonData,
         ContentType: "application/json",
         ACL: "public-read", // JSON data is typically public
-        // AWS SDK v3 uses IfNoneMatch header for conditional writes
-        IfNoneMatch: options.IfNoneMatch,
       });
 
       await s3Client.send(command);

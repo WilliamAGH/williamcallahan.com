@@ -5,13 +5,13 @@
  * Central module for generating SEO metadata across the site.
  * Handles metadata generation for static pages, blog posts, and images.
  *
- * @see {@link "./constants.ts"} - SEO constants and field names
+ * @see {@link "@/lib/constants"} - SEO constants and field names
  * @see {@link "./metadata.ts"} - Metadata generation
  * @see {@link "./opengraph.ts"} - OpenGraph implementation
  */
 
-// Re-export all SEO utilities and types
-export * from "./constants";
+// Re-export SEO constants from main constants file
+export { SEO_DATE_FIELDS } from "@/lib/constants";
 export * from "./metadata";
 export * from "./opengraph";
 export * from "./schema";
@@ -27,26 +27,11 @@ export {
   metadata,
 } from "../../data/metadata";
 
-// Re-export validation utilities from types
-export {
-  // Validation functions
-  validatePageMetadata,
-  validateMetadata,
-  safeValidateMetadata,
-  // Validation schemas
-  metadataSchema,
-  basePageMetadataSchema,
-  profilePageMetadataSchema,
-  collectionPageMetadataSchema,
-  imageMetadataSchema,
-  openGraphSchema,
-  pageMetadataSchemas,
-  // Constants
-  SEO_LIMITS,
-  // Types
-  type MetadataConfig,
-  type ProfilePageMetadata as ValidatedProfilePageMetadata,
-  type CollectionPageMetadata as ValidatedCollectionPageMetadata,
+// Re-export types only - no runtime values to avoid circular dependencies
+export type {
+  MetadataConfig,
+  ProfilePageMetadata as ValidatedProfilePageMetadata,
+  CollectionPageMetadata as ValidatedCollectionPageMetadata,
 } from "../../types/seo/metadata";
 
 import type { Metadata as NextMetadata } from "next";

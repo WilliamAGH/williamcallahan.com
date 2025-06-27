@@ -8,7 +8,6 @@
  */
 
 import * as Sentry from "@sentry/nextjs";
-import { ImageMemoryManagerInstance } from "@/lib/image-memory-manager";
 import { monitoredAsync } from "../async-operations-monitor";
 
 // Flags to prevent redundant work across calls within the same process
@@ -28,11 +27,6 @@ export async function preloadBookmarksIfNeeded(): Promise<void> {
 
   preloadPromise = (async () => {
     try {
-      // Check memory pressure before starting
-      if (ImageMemoryManagerInstance.getMetrics().memoryPressure) {
-        console.warn("[BookmarkPreloader] Skipping preload due to memory pressure.");
-        return; // Exit early
-      }
 
       // Ensure the server is fully ready before we spike outbound bandwidth
       await new Promise((r) => setTimeout(r, 1_000));
@@ -42,14 +36,9 @@ export async function preloadBookmarksIfNeeded(): Promise<void> {
 
       console.log("Preloading bookmarks into server cache...");
 
-      // Determine whether to hit external APIs based on current memory
-      // conditions and the operator override.  External OpenGraph fetches
-      // can easily allocate >300 MB in aggregate, so we avoid them when
-      // the process is already under strain (or when explicitly disabled
-      // via BOOKMARKS_SKIP_EXTERNAL_FETCH=true).
-
-      const metrics = ImageMemoryManagerInstance.getMetrics();
-      const skipExternalFetch: boolean = metrics.memoryPressure || process.env.BOOKMARKS_SKIP_EXTERNAL_FETCH === "true";
+      // Determine whether to hit external APIs based on the operator override.
+      // External OpenGraph fetches can easily allocate >300 MB in aggregate.
+      const skipExternalFetch: boolean = process.env.BOOKMARKS_SKIP_EXTERNAL_FETCH === "true";
 
       await monitoredAsync(
         null, // Let monitor generate ID
@@ -78,6 +67,9 @@ export async function preloadBookmarksIfNeeded(): Promise<void> {
   return preloadPromise;
 }
 
+// Store interval reference for cleanup
+let preloadIntervalId: NodeJS.Timeout | null = null;
+
 /**
  * Schedule bookmark warm-up in the background.
  *
@@ -98,14 +90,30 @@ export function scheduleBackgroundBookmarkPreload(): void {
   const initialDelayMs = Number(process.env.BOOKMARKS_PRELOAD_DELAY_MS ?? "5000");
   const intervalMs = Number(process.env.BOOKMARKS_PRELOAD_INTERVAL_MS ?? "7200000");
 
-  setTimeout(() => {
+  const timeoutId = setTimeout(() => {
     void preloadBookmarksIfNeeded();
 
     // Keep data warm.
-    setInterval(() => {
+    preloadIntervalId = setInterval(() => {
       void preloadBookmarksIfNeeded();
-    }, intervalMs)
-      // Allow Node to exit gracefully if nothing else is keeping it alive
-      .unref();
-  }, initialDelayMs).unref();
+    }, intervalMs);
+    // Allow Node to exit gracefully if nothing else is keeping it alive
+    preloadIntervalId.unref();
+  }, initialDelayMs);
+  timeoutId.unref();
+
+  // Proper cleanup on process termination
+  if (process.env.NODE_ENV !== "test") {
+    const cleanup = () => {
+      if (preloadIntervalId) {
+        clearInterval(preloadIntervalId);
+        preloadIntervalId = null;
+      }
+      clearTimeout(timeoutId);
+    };
+    
+    process.on("SIGTERM", cleanup);
+    process.on("SIGINT", cleanup);
+    process.on("beforeExit", cleanup);
+  }
 }

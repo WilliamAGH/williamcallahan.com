@@ -58,9 +58,21 @@ function isMemoryPressureWarning(): boolean {
  */
 async function checkMemoryViaHealthEndpoint(): Promise<{ critical: boolean; warning: boolean }> {
   try {
-    // Only check if we have a health endpoint available
-    const { getBaseUrl } = await import("@/lib/utils/get-base-url");
-    const healthUrl = new URL("/api/health", getBaseUrl());
+    // Determine base URL for Edge Runtime compatibility
+    const isProduction = process.env.NODE_ENV === "production";
+    const publicSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    
+    let baseUrl: string;
+    if (isProduction && publicSiteUrl && !publicSiteUrl.includes("localhost")) {
+      baseUrl = publicSiteUrl.replace(/\/$/, "");
+    } else if (isProduction) {
+      baseUrl = "https://williamcallahan.com";
+    } else {
+      const port = process.env.PORT || 3000;
+      baseUrl = `http://localhost:${port}`;
+    }
+    
+    const healthUrl = new URL("/api/health", baseUrl);
 
     // Quick fetch with short timeout to avoid blocking
     const controller = new AbortController();

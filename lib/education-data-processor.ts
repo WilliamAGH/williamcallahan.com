@@ -4,61 +4,18 @@
  */
 import "server-only"; // Ensure this module is never bundled for the client
 
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fetchLogo, normalizeDomain } from "@/lib/logo.server";
+import { getLogo } from "@/lib/data-access/logos";
+import { normalizeDomain } from "@/lib/utils/domain-utils";
 import type { Certification, Class, Education, EducationLogoData } from "../types/education";
 import { assertServerOnly } from "./utils/ensure-server-only"; // Import the assertion utility
 
-// Cache for placeholder SVG data URL
-let placeholderSvgDataUrl: string | null = null;
-
 /**
- * Gets the placeholder SVG content as a base64 data URL.
- * Reads from the filesystem and caches the result.
- * @returns {Promise<string>} Placeholder SVG data URL.
+ * Gets the placeholder SVG URL.
+ * @returns {string} Placeholder SVG URL.
  */
-async function getPlaceholderSvgDataUrl(): Promise<string> {
-  assertServerOnly(); // Assert server context
-  if (!placeholderSvgDataUrl) {
-    try {
-      // Try multiple possible paths for Docker environment compatibility
-      const possiblePaths = [
-        path.join(process.cwd(), "public/images/company-placeholder.svg"),
-        path.join(process.cwd(), "/public/images/company-placeholder.svg"),
-        path.join(process.cwd(), "../public/images/company-placeholder.svg"),
-        "/app/public/images/company-placeholder.svg", // Direct Docker container path
-      ];
-
-      let buffer: Buffer | null = null;
-      let loadedPath = "";
-
-      // Try each path until we find one that works
-      for (const p of possiblePaths) {
-        try {
-          buffer = await fs.readFile(p);
-          loadedPath = p;
-          break;
-        } catch {
-          // Continue to next path
-        }
-      }
-
-      if (buffer) {
-        console.info(`Successfully loaded placeholder SVG from: ${loadedPath}`);
-        const base64 = buffer.toString("base64");
-        placeholderSvgDataUrl = `data:image/svg+xml;base64,${base64}`;
-      } else {
-        throw new Error("Could not read placeholder SVG from any known path");
-      }
-    } catch (error) {
-      console.error("Failed to read placeholder SVG:", error);
-      // Fallback to a minimal inline SVG to avoid complete failure
-      placeholderSvgDataUrl =
-        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f0f0f0'/%3E%3Cpath d='M50,30 L70,50 L50,70 L30,50 Z' fill='%23aaa'/%3E%3C/svg%3E";
-    }
-  }
-  return placeholderSvgDataUrl;
+function getPlaceholderSvgUrl(): string {
+  // Use static URL for placeholder - served directly by Next.js
+  return "/images/company-placeholder.svg";
 }
 
 /**
@@ -78,19 +35,18 @@ export async function processEducationItem<T extends Education>(item: T): Promis
     } else {
       // Otherwise, fetch by domain
       const domain = website ? normalizeDomain(website) : normalizeDomain(institution);
-      const result = await fetchLogo(domain);
+      const logoResult = await getLogo(domain);
 
-      if (result.buffer) {
-        const mime = result.contentType ?? "image/png";
-        const base64Data = result.buffer.toString("base64");
-        logoData = { url: `data:${mime};base64,${base64Data}`, source: result.source };
+      if (logoResult?.cdnUrl) {
+        // Use CDN URL directly from S3
+        logoData = { url: logoResult.cdnUrl, source: logoResult.source };
       } else {
-        logoData = { url: await getPlaceholderSvgDataUrl(), source: "placeholder" };
+        logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
       }
     }
   } catch (error) {
     console.error(`Error processing logo for education item "${institution}":`, error);
-    logoData = { url: await getPlaceholderSvgDataUrl(), source: "placeholder-error" };
+    logoData = { url: getPlaceholderSvgUrl(), source: "placeholder-error" };
   }
 
   return { ...item, logoData };
@@ -113,19 +69,18 @@ export async function processCertificationItem<T extends Certification | Class>(
       logoData = { url: logo, source: null };
     } else {
       const domain = website ? normalizeDomain(website) : normalizeDomain(name);
-      const result = await fetchLogo(domain);
+      const logoResult = await getLogo(domain);
 
-      if (result.buffer) {
-        const mime = result.contentType ?? "image/png";
-        const base64Data = result.buffer.toString("base64");
-        logoData = { url: `data:${mime};base64,${base64Data}`, source: result.source };
+      if (logoResult?.cdnUrl) {
+        // Use CDN URL directly from S3
+        logoData = { url: logoResult.cdnUrl, source: logoResult.source };
       } else {
-        logoData = { url: await getPlaceholderSvgDataUrl(), source: "placeholder" };
+        logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
       }
     }
   } catch (error) {
     console.error(`Error processing logo for certification item "${name}":`, error);
-    logoData = { url: await getPlaceholderSvgDataUrl(), source: "placeholder-error" };
+    logoData = { url: getPlaceholderSvgUrl(), source: "placeholder-error" };
   }
 
   return { ...item, logoData };

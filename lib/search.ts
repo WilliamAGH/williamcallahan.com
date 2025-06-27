@@ -13,7 +13,38 @@ import { ServerCacheInstance } from "./server-cache";
 import { sanitizeSearchQuery } from "./validators/search";
 import { prepareDocumentsForIndexing } from "./utils/search-helpers";
 import { USE_NEXTJS_CACHE, withCacheFallback } from "./cache";
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "next/cache";
+import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
+import { SEARCH_S3_PATHS } from "./constants";
+import { readJsonS3 } from "./s3-utils";
+import type { SerializedIndex } from "@/types/search";
+import { loadIndexFromJSON } from "./search/index-builder";
+
+// Type-safe wrappers for cache functions to fix ESLint unsafe call errors
+const safeCacheLife = (
+  profile:
+    | "minutes"
+    | "default"
+    | "seconds"
+    | "hours"
+    | "days"
+    | "weeks"
+    | "max"
+    | { stale?: number | undefined; revalidate?: number | undefined; expire?: number | undefined },
+): void => {
+  if (typeof cacheLife === "function") {
+    cacheLife(profile);
+  }
+};
+const safeCacheTag = (tag: string): void => {
+  if (typeof cacheTag === "function") {
+    cacheTag(tag);
+  }
+};
+const safeRevalidateTag = (tag: string): void => {
+  if (typeof revalidateTag === "function") {
+    revalidateTag(tag);
+  }
+};
 
 // --- MiniSearch Index Management ---
 
@@ -29,6 +60,58 @@ const SEARCH_INDEX_KEYS = {
 // TTL for search indexes (1 hour for static, 5 minutes for dynamic)
 const STATIC_INDEX_TTL = 60 * 60; // 1 hour in seconds
 const BOOKMARK_INDEX_TTL = 5 * 60; // 5 minutes in seconds
+
+// Flag to control whether to load indexes from S3 or build in-memory
+const USE_S3_INDEXES = process.env.USE_S3_SEARCH_INDEXES === "true";
+
+/**
+ * Loads a search index from S3 if available, falls back to building in-memory
+ * @param s3Path - S3 path to the serialized index
+ * @param cacheKey - Cache key for storing the loaded index
+ * @param buildFn - Function to build the index if S3 load fails
+ * @param ttl - Cache TTL for the index
+ * @returns The MiniSearch index
+ */
+async function loadOrBuildIndex<T>(
+  s3Path: string,
+  cacheKey: string,
+  buildFn: () => MiniSearch<T>,
+  ttl: number,
+): Promise<MiniSearch<T>> {
+  // Try to get from cache first
+  const cached = ServerCacheInstance.get<MiniSearch<T>>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  let index: MiniSearch<T>;
+
+  if (USE_S3_INDEXES) {
+    try {
+      // Try to load from S3
+      const serializedIndex = await readJsonS3<SerializedIndex>(s3Path);
+      if (serializedIndex?.index && serializedIndex.metadata) {
+        index = loadIndexFromJSON<T>(serializedIndex);
+        console.log(`[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`);
+      } else {
+        // Fall back to building in-memory
+        console.warn(`[Search] Failed to load ${cacheKey} from S3, building in-memory`);
+        index = buildFn();
+      }
+    } catch (error) {
+      console.error(`[Search] Error loading ${cacheKey} from S3:`, error);
+      // Fall back to building in-memory
+      index = buildFn();
+    }
+  } else {
+    // Build in-memory
+    index = buildFn();
+  }
+
+  // Cache the index
+  ServerCacheInstance.set(cacheKey, index, ttl);
+  return index;
+}
 
 /**
  * Generic search function that filters items based on a query.
@@ -103,13 +186,7 @@ function searchContent<T>(
 
 // --- Helper functions to create MiniSearch indexes ---
 
-function getPostsIndex(): MiniSearch<BlogPost> {
-  // Try to get from cache first
-  const cached = ServerCacheInstance.get<MiniSearch<BlogPost>>(SEARCH_INDEX_KEYS.POSTS);
-  if (cached) {
-    return cached;
-  }
-
+function buildPostsIndex(): MiniSearch<BlogPost> {
   // Create new index
   const postsIndex = new MiniSearch<BlogPost>({
     fields: ["title", "excerpt", "tags", "authorName"], // Fields to index
@@ -141,54 +218,47 @@ function getPostsIndex(): MiniSearch<BlogPost> {
   // Add posts directly - virtual fields are handled by extractField
   postsIndex.addAll(dedupedPosts);
 
-  // Cache the index
-  ServerCacheInstance.set(SEARCH_INDEX_KEYS.POSTS, postsIndex, STATIC_INDEX_TTL);
-
   return postsIndex;
 }
 
+async function getPostsIndex(): Promise<MiniSearch<BlogPost>> {
+  return loadOrBuildIndex(SEARCH_S3_PATHS.POSTS_INDEX, SEARCH_INDEX_KEYS.POSTS, buildPostsIndex, STATIC_INDEX_TTL);
+}
+
 // Direct search function (always available)
-function searchPostsDirect(query: string): BlogPost[] {
+async function searchPostsDirect(query: string): Promise<BlogPost[]> {
+  const index = await getPostsIndex();
   const results = searchContent(
     posts,
     query,
     (post) => [post.title || "", post.excerpt || "", ...(post.tags || []), post.author?.name || ""],
     (post) => post.title,
-    getPostsIndex(),
+    index,
   );
 
   return results.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 }
 
-
 // Cached version using 'use cache' directive
 async function searchPostsCached(query: string): Promise<BlogPost[]> {
   "use cache";
 
-  cacheLife("minutes"); // 15 minute cache for search results
-  cacheTag("search");
-  cacheTag("posts-search");
-  cacheTag(`search-posts-${query.slice(0, 20)}`); // Limit tag length
+  safeCacheLife("minutes"); // 15 minute cache for search results
+  safeCacheTag("search");
+  safeCacheTag("posts-search");
+  safeCacheTag(`search-posts-${query.slice(0, 20)}`); // Limit tag length
 
-  // Wrap in Promise to satisfy async requirement
-  return await Promise.resolve(searchPostsDirect(query));
+  return searchPostsDirect(query);
 }
 
-export function searchPosts(query: string): BlogPost[] {
-  // If caching is enabled and we can use async, use cached version
-  if (USE_NEXTJS_CACHE) {
-    // For now, return direct search as this is a sync function
-    // The async cached version can be used by consumers that support async
-    return searchPostsDirect(query);
-  }
-
+export async function searchPosts(query: string): Promise<BlogPost[]> {
   // Check legacy cache first
   const cached = ServerCacheInstance.getSearchResults<BlogPost>("posts", query);
   if (cached && !ServerCacheInstance.shouldRefreshSearch("posts", query)) {
     return cached.results;
   }
 
-  const results = searchPostsDirect(query);
+  const results = await searchPostsDirect(query);
 
   // Cache the results in legacy cache
   ServerCacheInstance.setSearchResults("posts", query, results);
@@ -201,21 +271,15 @@ export async function searchPostsAsync(query: string): Promise<BlogPost[]> {
   if (USE_NEXTJS_CACHE) {
     return withCacheFallback(
       () => searchPostsCached(query),
-      () => Promise.resolve(searchPostsDirect(query)),
+      () => searchPostsDirect(query),
     );
   }
 
-  // Fall back to sync version wrapped in Promise
-  return Promise.resolve(searchPosts(query));
+  // Fall back to regular search
+  return searchPosts(query);
 }
 
-function getInvestmentsIndex(): MiniSearch<(typeof investments)[0]> {
-  // Try to get from cache first
-  const cached = ServerCacheInstance.get<MiniSearch<(typeof investments)[0]>>(SEARCH_INDEX_KEYS.INVESTMENTS);
-  if (cached) {
-    return cached;
-  }
-
+function buildInvestmentsIndex(): MiniSearch<(typeof investments)[0]> {
   // Create new index
   const investmentsIndex = new MiniSearch<(typeof investments)[0]>({
     fields: [
@@ -241,19 +305,26 @@ function getInvestmentsIndex(): MiniSearch<(typeof investments)[0]> {
   const dedupedInvestments = prepareDocumentsForIndexing(investments, "Investments");
   investmentsIndex.addAll(dedupedInvestments);
 
-  // Cache the index
-  ServerCacheInstance.set(SEARCH_INDEX_KEYS.INVESTMENTS, investmentsIndex, STATIC_INDEX_TTL);
-
   return investmentsIndex;
 }
 
-export function searchInvestments(query: string): SearchResult[] {
+async function getInvestmentsIndex(): Promise<MiniSearch<(typeof investments)[0]>> {
+  return loadOrBuildIndex(
+    SEARCH_S3_PATHS.INVESTMENTS_INDEX,
+    SEARCH_INDEX_KEYS.INVESTMENTS,
+    buildInvestmentsIndex,
+    STATIC_INDEX_TTL,
+  );
+}
+
+export async function searchInvestments(query: string): Promise<SearchResult[]> {
   // Check cache first
   const cached = ServerCacheInstance.getSearchResults<SearchResult>("investments", query);
   if (cached && !ServerCacheInstance.shouldRefreshSearch("investments", query)) {
     return cached.results;
   }
 
+  const index = await getInvestmentsIndex();
   const results = searchContent(
     investments,
     query,
@@ -268,7 +339,7 @@ export function searchInvestments(query: string): SearchResult[] {
       inv.shutdown_year,
     ],
     (inv) => inv.name,
-    getInvestmentsIndex(),
+    index,
   );
 
   const searchResults: SearchResult[] = results.map((inv) => ({
@@ -286,13 +357,7 @@ export function searchInvestments(query: string): SearchResult[] {
   return searchResults;
 }
 
-function getExperienceIndex(): MiniSearch<(typeof experiences)[0]> {
-  // Try to get from cache first
-  const cached = ServerCacheInstance.get<MiniSearch<(typeof experiences)[0]>>(SEARCH_INDEX_KEYS.EXPERIENCE);
-  if (cached) {
-    return cached;
-  }
-
+function buildExperienceIndex(): MiniSearch<(typeof experiences)[0]> {
   // Create new index
   const experienceIndex = new MiniSearch<(typeof experiences)[0]>({
     fields: ["company", "role", "period"],
@@ -309,25 +374,32 @@ function getExperienceIndex(): MiniSearch<(typeof experiences)[0]> {
   const dedupedExperiences = prepareDocumentsForIndexing(experiences, "Experience");
   experienceIndex.addAll(dedupedExperiences);
 
-  // Cache the index
-  ServerCacheInstance.set(SEARCH_INDEX_KEYS.EXPERIENCE, experienceIndex, STATIC_INDEX_TTL);
-
   return experienceIndex;
 }
 
-export function searchExperience(query: string): SearchResult[] {
+async function getExperienceIndex(): Promise<MiniSearch<(typeof experiences)[0]>> {
+  return loadOrBuildIndex(
+    SEARCH_S3_PATHS.EXPERIENCE_INDEX,
+    SEARCH_INDEX_KEYS.EXPERIENCE,
+    buildExperienceIndex,
+    STATIC_INDEX_TTL,
+  );
+}
+
+export async function searchExperience(query: string): Promise<SearchResult[]> {
   // Check cache first
   const cached = ServerCacheInstance.getSearchResults<SearchResult>("experience", query);
   if (cached && !ServerCacheInstance.shouldRefreshSearch("experience", query)) {
     return cached.results;
   }
 
+  const index = await getExperienceIndex();
   const results = searchContent(
     experiences,
     query,
     (exp) => [exp.company, exp.role, exp.period],
     (exp) => exp.company,
-    getExperienceIndex(),
+    index,
   );
 
   const searchResults: SearchResult[] = results.map((exp) => ({
@@ -345,13 +417,7 @@ export function searchExperience(query: string): SearchResult[] {
   return searchResults;
 }
 
-function getEducationIndex(): MiniSearch<EducationItem> {
-  // Try to get from cache first
-  const cached = ServerCacheInstance.get<MiniSearch<EducationItem>>(SEARCH_INDEX_KEYS.EDUCATION);
-  if (cached) {
-    return cached;
-  }
-
+function buildEducationIndex(): MiniSearch<EducationItem> {
   // Create new index
   const educationIndex = new MiniSearch<EducationItem>({
     fields: ["label", "description"],
@@ -384,19 +450,26 @@ function getEducationIndex(): MiniSearch<EducationItem> {
   const dedupedEducationItems = prepareDocumentsForIndexing(allEducationItems, "Education");
   educationIndex.addAll(dedupedEducationItems);
 
-  // Cache the index
-  ServerCacheInstance.set(SEARCH_INDEX_KEYS.EDUCATION, educationIndex, STATIC_INDEX_TTL);
-
   return educationIndex;
 }
 
-export function searchEducation(query: string): SearchResult[] {
+async function getEducationIndex(): Promise<MiniSearch<EducationItem>> {
+  return loadOrBuildIndex(
+    SEARCH_S3_PATHS.EDUCATION_INDEX,
+    SEARCH_INDEX_KEYS.EDUCATION,
+    buildEducationIndex,
+    STATIC_INDEX_TTL,
+  );
+}
+
+export async function searchEducation(query: string): Promise<SearchResult[]> {
   // Check cache first
   const cached = ServerCacheInstance.getSearchResults<SearchResult>("education", query);
   if (cached && !ServerCacheInstance.shouldRefreshSearch("education", query)) {
     return cached.results;
   }
 
+  const index = await getEducationIndex();
   const allItems = [
     ...education.map((edu) => ({
       id: edu.id,
@@ -419,7 +492,7 @@ export function searchEducation(query: string): SearchResult[] {
     query,
     (item) => item.searchableText,
     (item) => item.label, // Exact match on institution
-    getEducationIndex(),
+    index,
   );
 
   // Remove the temporary searchableText field
@@ -452,6 +525,9 @@ async function getBookmarksIndex(): Promise<{
   if (cached) {
     return cached;
   }
+
+  // For bookmarks, we always need the data for slug generation
+  // So we can't just load the index from S3, we need to build it
 
   // Fetch bookmark data via the API
   const { getBaseUrl } = await import("@/lib/utils/get-base-url");
@@ -497,6 +573,58 @@ async function getBookmarksIndex(): Promise<{
   // Generate slugs
   const { generateUniqueSlug } = await import("@/lib/utils/domain-utils");
 
+  // Try to load index from S3 if available
+  let bookmarksIndex: MiniSearch<BookmarkIndexItem>;
+
+  if (USE_S3_INDEXES) {
+    try {
+      const serializedIndex = await readJsonS3<SerializedIndex>(SEARCH_S3_PATHS.BOOKMARKS_INDEX);
+      if (serializedIndex?.index && serializedIndex.metadata) {
+        bookmarksIndex = loadIndexFromJSON<BookmarkIndexItem>(serializedIndex);
+        console.log(`[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`);
+      } else {
+        // Build in-memory as fallback
+        bookmarksIndex = buildBookmarksIndex(bookmarks);
+      }
+    } catch (error) {
+      console.error(`[Search] Error loading ${cacheKey} from S3:`, error);
+      // Build in-memory as fallback
+      bookmarksIndex = buildBookmarksIndex(bookmarks);
+    }
+  } else {
+    // Build in-memory
+    bookmarksIndex = buildBookmarksIndex(bookmarks);
+  }
+
+  // Transform bookmarks for result mapping
+  const bookmarksForIndex: Array<BookmarkIndexItem & { slug: string }> = bookmarks.map((b) => ({
+    id: b.id,
+    title: b.title || b.url,
+    description: b.description || "",
+    tags: Array.isArray(b.tags) ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
+    url: b.url,
+    author: b.content?.author || "",
+    publisher: b.content?.publisher || "",
+    slug: generateUniqueSlug(b.url, bookmarks, b.id),
+  }));
+
+  // Cache the index and bookmarks
+  const result = { index: bookmarksIndex, bookmarks: bookmarksForIndex };
+  ServerCacheInstance.set(cacheKey, result, BOOKMARK_INDEX_TTL);
+
+  return result;
+}
+
+function buildBookmarksIndex(
+  bookmarks: Array<{
+    id: string;
+    url: string;
+    title: string;
+    description: string;
+    tags?: Array<string | { name?: string }>;
+    content?: { author?: string | null; publisher?: string | null };
+  }>,
+): MiniSearch<BookmarkIndexItem> {
   // Create MiniSearch index
   const bookmarksIndex = new MiniSearch<BookmarkIndexItem>({
     fields: ["title", "description", "tags", "author", "publisher", "url"],
@@ -510,7 +638,7 @@ async function getBookmarksIndex(): Promise<{
   });
 
   // Transform bookmarks for indexing
-  const bookmarksForIndex: Array<BookmarkIndexItem & { slug: string }> = bookmarks.map((b) => ({
+  const bookmarksForIndex: BookmarkIndexItem[] = bookmarks.map((b) => ({
     id: b.id,
     title: b.title || b.url,
     description: b.description || "",
@@ -518,17 +646,12 @@ async function getBookmarksIndex(): Promise<{
     url: b.url,
     author: b.content?.author || "",
     publisher: b.content?.publisher || "",
-    slug: generateUniqueSlug(b.url, bookmarks, b.id),
   }));
 
   // Add to index
   bookmarksIndex.addAll(bookmarksForIndex);
 
-  // Cache the index and bookmarks
-  const result = { index: bookmarksIndex, bookmarks: bookmarksForIndex };
-  ServerCacheInstance.set(cacheKey, result, BOOKMARK_INDEX_TTL);
-
-  return result;
+  return bookmarksIndex;
 }
 
 export async function searchBookmarks(query: string): Promise<SearchResult[]> {
@@ -593,5 +716,24 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     // Return cached results if available on error
     const cached = ServerCacheInstance.getSearchResults<SearchResult>("bookmarks", query);
     return cached?.results || [];
+  }
+}
+
+// Cache invalidation functions for search
+export function invalidateSearchCache(): void {
+  if (USE_NEXTJS_CACHE) {
+    // Invalidate all search cache tags
+    safeRevalidateTag("search");
+    safeRevalidateTag("posts-search");
+    console.log("[Search] Cache invalidated for all search results");
+  }
+}
+
+// Invalidate search cache for a specific query
+export function invalidateSearchQueryCache(query: string): void {
+  if (USE_NEXTJS_CACHE) {
+    const truncatedQuery = query.slice(0, 20);
+    safeRevalidateTag(`search-posts-${truncatedQuery}`);
+    console.log(`[Search] Cache invalidated for query: ${truncatedQuery}`);
   }
 }
