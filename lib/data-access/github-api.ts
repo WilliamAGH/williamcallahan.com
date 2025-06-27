@@ -12,6 +12,7 @@ import { createRetryingFetch } from "@/lib/utils/http-client";
 import { waitForPermit } from "@/lib/rate-limiter";
 import { debugLog } from "@/lib/utils/debug";
 import { retryWithOptions, RETRY_CONFIGS } from "@/lib/utils/retry";
+import { delay } from "@/lib/utils/retry";
 import {
   GitHubGraphQLContributionResponseSchema,
   GraphQLUserContributionsResponseSchema,
@@ -54,6 +55,14 @@ export class GitHubContributorStatsPendingError extends Error {
   constructor(message: string = "GitHub contributor stats are still being generated (HTTP 202)") {
     super(message);
     this.name = "GitHubContributorStatsPendingError";
+  }
+}
+
+// Custom error for GitHub rate limiting
+export class GitHubContributorStatsRateLimitError extends Error {
+  constructor(message: string = "GitHub API rate limit hit (HTTP 403)") {
+    super(message);
+    this.name = "GitHubContributorStatsRateLimitError";
   }
 }
 
@@ -177,43 +186,72 @@ export async function fetchRepositoryCommitCount(owner: string, name: string, au
  * Fetch contributor stats from REST API
  */
 export async function fetchContributorStats(owner: string, name: string): Promise<GithubContributorStatsEntry[]> {
-  await waitForPermit("github-rest", "contributor-stats", {
-    maxRequests: 5000,
-    windowMs: 60 * 60 * 1000,
-  });
+  const maxAttempts = Number(process.env.GITHUB_STATS_PENDING_MAX_ATTEMPTS ?? "4");
+  const initialDelayMs = Number(process.env.GITHUB_STATS_PENDING_DELAY_MS ?? "10000"); // 10s default
 
-  const url = `https://api.github.com/repos/${owner}/${name}/stats/contributors`;
-  const response = await githubHttpClient(url, {
-    headers: {
-      Authorization: `token ${GITHUB_API_TOKEN}`,
-      Accept: "application/vnd.github.v3+json",
-    },
-  });
+  let attempt = 0;
+  let currentDelay = initialDelayMs;
 
-  // Explicitly detect HTTP 202 – GitHub is preparing the statistics.
-  if (response.status === 202) {
-    // Throw a specialised error so upstream logic can mark "pending_202_from_api".
-    throw new GitHubContributorStatsPendingError(
-      `Contributor stats for ${owner}/${name} are still generating on GitHub (HTTP 202).`,
-    );
-  }
-
-  if (!response.ok) {
-    throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
-  }
-
-  const contributorsData: unknown = await response.json();
-  const result = ContributorStatsResponseSchema.safeParse(contributorsData);
-
-  if (!result.success) {
-    debugLog("Failed to parse contributor stats", "error", {
-      error: result.error,
-      data: contributorsData,
+  while (attempt < maxAttempts) {
+    attempt++;
+    await waitForPermit("github-rest", "contributor-stats", {
+      maxRequests: 5000,
+      windowMs: 60 * 60 * 1000,
     });
-    throw new Error("Invalid contributor stats response from GitHub API");
-  }
 
-  return result.data;
+    const url = `https://api.github.com/repos/${owner}/${name}/stats/contributors`;
+    const response = await githubHttpClient(url, {
+      headers: {
+        Authorization: `token ${GITHUB_API_TOKEN}`,
+        Accept: "application/vnd.github.v3+json",
+      },
+    });
+
+    // Explicitly detect HTTP 202 – GitHub is preparing the statistics.
+    if (response.status === 202) {
+      // If we have more attempts remaining, wait and retry; otherwise propagate pending error.
+      if (attempt < maxAttempts) {
+        debugLog(
+          `GitHub contributor stats still pending for ${owner}/${name} (attempt ${attempt}/${maxAttempts}). Retrying in ${currentDelay}ms`,
+          "info",
+        );
+        await delay(currentDelay);
+        currentDelay *= 2; // exponential back-off
+        continue;
+      }
+      throw new GitHubContributorStatsPendingError(
+        `Contributor stats for ${owner}/${name} are still generating on GitHub (HTTP 202) after ${maxAttempts} attempts.`,
+      );
+    }
+
+    if (response.status === 403) {
+      // Immediately throw rate limit error so caller can mark pending_rate_limit
+      throw new GitHubContributorStatsRateLimitError(
+        `GitHub rate limit encountered fetching contributor stats for ${owner}/${name}.`,
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+    }
+
+    const contributorsData: unknown = await response.json();
+    const result = ContributorStatsResponseSchema.safeParse(contributorsData);
+
+    if (!result.success) {
+      debugLog("Failed to parse contributor stats", "error", {
+        error: result.error,
+        data: contributorsData,
+      });
+      throw new Error("Invalid contributor stats response from GitHub API");
+    }
+
+    return result.data;
+  }
+  // If loop exits unexpectedly without return, throw pending error
+  throw new GitHubContributorStatsPendingError(
+    `Contributor stats for ${owner}/${name} did not become available after ${maxAttempts} attempts.`,
+  );
 }
 
 /**
