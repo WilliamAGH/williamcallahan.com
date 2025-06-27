@@ -35,6 +35,7 @@ import {
   fetchContributionCalendar,
   fetchRepositoryCommitCount,
   fetchContributorStats,
+  GitHubContributorStatsPendingError,
   isGitHubApiConfigured,
   getGitHubUsername,
   githubHttpClient,
@@ -320,14 +321,25 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
           }
         }
       } catch (repoError: unknown) {
-        const categorizedError = createCategorizedError(repoError, "github");
-        console.warn(
-          `[DataAccess/GitHub] Trailing Year: Critical error processing stats for ${repoOwnerLogin}/${repoName}:`,
-          categorizedError.message,
-        );
-        apiStatus = "fetch_error";
-        repoDataCompleteForYear = false;
-        allTimeOverallDataComplete = false; // If trailing year fails for a repo, all-time is also affected for this source
+        if (repoError instanceof GitHubContributorStatsPendingError) {
+          // Mark as pending so downstream logic can fall back to existing CSV or mark data incomplete without treating as hard failure.
+          apiStatus = "pending_202_from_api";
+          repoDataCompleteForYear = false;
+          // pending still affects completeness but is a softer state than fetch_error
+          allTimeOverallDataComplete = false;
+          console.warn(
+            `[DataAccess/GitHub] Trailing Year: Stats still generating for ${repoOwnerLogin}/${repoName} – marked pending.`,
+          );
+        } else {
+          const categorizedError = createCategorizedError(repoError, "github");
+          console.warn(
+            `[DataAccess/GitHub] Trailing Year: Critical error processing stats for ${repoOwnerLogin}/${repoName}:`,
+            categorizedError.message,
+          );
+          apiStatus = "fetch_error";
+          repoDataCompleteForYear = false;
+          allTimeOverallDataComplete = false; // If trailing year fails for a repo, all-time is also affected for this source
+        }
       }
       yearLinesAdded += currentRepoLinesAdded365;
       yearLinesRemoved += currentRepoLinesRemoved365;

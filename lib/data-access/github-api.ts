@@ -19,7 +19,6 @@ import {
   ContributorStatsResponseSchema,
 } from "@/types/github";
 import type { GithubRepoNode, GraphQLUserContributionsResponse, GithubContributorStatsEntry } from "@/types/github";
-
 // GitHub API configuration
 const GITHUB_API_TOKEN =
   process.env.GITHUB_ACCESS_TOKEN_COMMIT_GRAPH || process.env.GITHUB_API_TOKEN || process.env.GITHUB_TOKEN;
@@ -46,6 +45,16 @@ function getGitHubGraphQLClient() {
     });
   }
   return graphQLClient;
+}
+
+// NEW: Custom error to indicate that the GitHub /stats/contributors endpoint
+// has returned HTTP 202 (stats are being generated). This allows callers to
+// distinguish an expected pending state from an actual fetch/parsing failure.
+export class GitHubContributorStatsPendingError extends Error {
+  constructor(message: string = "GitHub contributor stats are still being generated (HTTP 202)") {
+    super(message);
+    this.name = "GitHubContributorStatsPendingError";
+  }
 }
 
 /**
@@ -180,6 +189,14 @@ export async function fetchContributorStats(owner: string, name: string): Promis
       Accept: "application/vnd.github.v3+json",
     },
   });
+
+  // Explicitly detect HTTP 202 – GitHub is preparing the statistics.
+  if (response.status === 202) {
+    // Throw a specialised error so upstream logic can mark "pending_202_from_api".
+    throw new GitHubContributorStatsPendingError(
+      `Contributor stats for ${owner}/${name} are still generating on GitHub (HTTP 202).`,
+    );
+  }
 
   if (!response.ok) {
     throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
