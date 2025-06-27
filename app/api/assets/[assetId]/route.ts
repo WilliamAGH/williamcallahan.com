@@ -1,14 +1,15 @@
 /**
  * Asset Proxy API Route with S3 Write-Through Cache
  *
- * Proxies asset requests to the external bookmarks service
- * and caches them in S3 with proper file extensions for improved performance
+ * Proxies asset requests to the external bookmarks service (Karakeep/Hoarder)
+ * and caches OpenGraph images in S3 with proper file extensions for improved performance
  */
 
 import { type NextRequest, NextResponse } from "next/server";
 import { HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, writeBinaryS3 } from "@/lib/s3-utils";
 import { getExtensionFromContentType } from "@/lib/utils/content-type-utils";
+import { IMAGE_S3_PATHS } from "@/lib/constants";
 
 /**
  * Extracts the base URL from a bookmarks API URL more robustly
@@ -42,7 +43,7 @@ async function findAssetInS3(assetId: string): Promise<{ key: string; contentTyp
   const extensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"];
 
   for (const ext of extensions) {
-    const key = `images/karakeep/${assetId}${ext}`;
+    const key = `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${assetId}${ext}`;
     try {
       const command = new HeadObjectCommand({
         Bucket: process.env.S3_BUCKET,
@@ -104,7 +105,7 @@ async function saveAssetToS3(assetId: string, buffer: Buffer, contentType: strin
   }
 
   const extension = getExtensionFromContentType(contentType);
-  const key = `images/karakeep/${assetId}${extension}`;
+  const key = `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${assetId}${extension}`;
 
   console.log(`[Assets API] Saving asset to S3: ${key} (${buffer.length} bytes, ${contentType})`);
 

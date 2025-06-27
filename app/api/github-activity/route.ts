@@ -11,7 +11,7 @@
  *   - force-cache=true: Effectively ignored as data-access layer handles caching
  */
 
-import { getGithubActivity } from "@/lib/data-access/github";
+import { getGithubActivityCached } from "@/lib/data-access/github";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const activityData = await getGithubActivity();
+    const activityData = await getGithubActivityCached();
 
     // The getGithubActivity function is designed to always return a UserActivityView object,
     // even in error or empty states (indicated by activityData.source and activityData.error fields).

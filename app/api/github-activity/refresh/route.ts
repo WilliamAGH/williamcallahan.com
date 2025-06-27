@@ -9,7 +9,8 @@
  * updates the application's data store, and returns statistics about the fetched data.
  */
 
-import { refreshGitHubActivityDataFromApi } from "@/lib/data-access/github";
+import { refreshGitHubActivityDataFromApi, invalidateGitHubCache } from "@/lib/data-access/github";
+import { TIME_CONSTANTS } from "@/lib/constants";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -21,7 +22,7 @@ export const dynamic = "force-dynamic";
 
 // Simple in-memory rate limiting
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
+const RATE_LIMIT_WINDOW = TIME_CONSTANTS.RATE_LIMIT_WINDOW_MS;
 const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per hour per IP
 
 // Clean up expired entries every 5 minutes – unref so it doesn't hold the Node event-loop open in tests
@@ -37,6 +38,18 @@ const cleanupInterval = setInterval(
   5 * 60 * 1000,
 );
 cleanupInterval.unref();
+
+// Proper cleanup on process termination
+if (process.env.NODE_ENV !== "test") {
+  const cleanup = () => {
+    clearInterval(cleanupInterval);
+    rateLimitMap.clear();
+  };
+  
+  process.on("SIGTERM", cleanup);
+  process.on("SIGINT", cleanup);
+  process.on("beforeExit", cleanup);
+}
 
 /**
  * Handles POST requests to refresh GitHub activity data.
@@ -169,6 +182,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (result) {
       console.log("[API Refresh] GitHub activity data refresh completed successfully");
+
+      // Invalidate Next.js cache for GitHub data
+      invalidateGitHubCache();
 
       const responseData = {
         message: `GitHub activity data refresh completed successfully${isCronJob ? " (triggered by cron job)" : ""}.`,

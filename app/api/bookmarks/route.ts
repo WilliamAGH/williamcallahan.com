@@ -9,6 +9,7 @@ import type { BookmarksIndex } from "@/types/bookmark";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
 import { type NextRequest, NextResponse } from "next/server";
+import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 
 // This route can leverage the caching within getBookmarks
 export const dynamic = "force-dynamic";
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (!tagFilter && page > 0) {
       const { getBookmarksPage } = await import("@/lib/bookmarks/bookmarks-data-access.server");
       const rawIndex: unknown = await import("@/lib/s3-utils").then((m) =>
-        m.readJsonS3<BookmarksIndex>(`bookmarks/index${process.env.NODE_ENV === "production" ? "" : "-dev"}.json`),
+        m.readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX),
       );
 
       const indexResult = BookmarksIndexSchema.safeParse(rawIndex);
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     let lastFetchedAt = Date.now();
     try {
       const rawIndex: unknown = await import("@/lib/s3-utils").then((m) =>
-        m.readJsonS3<BookmarksIndex>(`bookmarks/index${process.env.NODE_ENV === "production" ? "" : "-dev"}.json`),
+        m.readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX),
       );
       const indexResult = BookmarksIndexSchema.safeParse(rawIndex);
       if (indexResult.success) {

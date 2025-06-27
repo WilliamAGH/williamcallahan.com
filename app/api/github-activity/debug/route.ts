@@ -1,19 +1,19 @@
 /**
  * Debug endpoint for GitHub activity data
  *
- * This endpoint provides diagnostic information about the GitHub activity system
- * without triggering any data refreshes or modifications.
+ * @deprecated This endpoint's cache debugging functionality has been removed.
+ * GitHub activity now uses Next.js cache which doesn't expose debug info.
+ * Consider fetching activity data directly using the main API endpoint.
  */
 
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { NextResponse } from "next/server";
-import type { CacheStats } from "@/types/cache";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/github-activity/debug
- * @description In development, returns the current cached GitHub activity data and stats.
+ * @description Returns deprecation notice. Cache debug info is no longer available.
+ * @deprecated Use the main /api/github-activity endpoint instead
  * @returns {NextResponse}
  */
 export function GET(): NextResponse {
@@ -21,17 +21,15 @@ export function GET(): NextResponse {
     return NextResponse.json({ error: "This endpoint is only available in development mode." }, { status: 403 });
   }
 
-  const activity = ServerCacheInstance.getGithubActivity();
-  const stats: CacheStats = ServerCacheInstance.getStats();
-  const shouldRefresh = ServerCacheInstance.shouldRefreshGithubActivity();
-
   return NextResponse.json({
-    message: "GitHub activity cache debug info.",
+    message: "GitHub activity cache debug endpoint is deprecated.",
     cache: {
-      hasData: !!activity,
-      isStale: shouldRefresh,
-      data: activity,
-      stats: stats,
+      message: "Cache debug info is no longer available with Next.js cache",
+      notes: [
+        "GitHub activity now uses Next.js cache directives",
+        "ServerCache has been deprecated", 
+        "Use /api/github-activity endpoint to fetch current data"
+      ]
     },
   });
 }

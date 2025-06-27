@@ -64,30 +64,36 @@ export async function GET(request: Request, { params }: { params: { scope: strin
         results = await searchBlogPostsServerSide(query);
         break;
       case "investments":
-        results = searchInvestments(query);
+        results = await searchInvestments(query);
         break;
       case "experience":
-        results = searchExperience(query);
+        results = await searchExperience(query);
         break;
       case "education":
-        results = searchEducation(query);
+        results = await searchEducation(query);
         break;
       case "bookmarks":
         results = await searchBookmarks(query);
         break;
       case "all": {
         // Search across all scopes and aggregate results
-        const [blogResults, investmentResults, experienceResults, educationResults, bookmarkResults] = await Promise.all([
-          searchBlogPostsServerSide(query),
-          Promise.resolve(searchInvestments(query)),
-          Promise.resolve(searchExperience(query)),
-          Promise.resolve(searchEducation(query)),
-          searchBookmarks(query),
-        ]);
-        
+        const [blogResults, investmentResults, experienceResults, educationResults, bookmarkResults] =
+          await Promise.all([
+            searchBlogPostsServerSide(query),
+            searchInvestments(query),
+            searchExperience(query),
+            searchEducation(query),
+            searchBookmarks(query),
+          ]);
+
         // Combine all results and sort by score (highest first)
-        results = [...blogResults, ...investmentResults, ...experienceResults, ...educationResults, ...bookmarkResults]
-          .sort((a, b) => b.score - a.score);
+        results = [
+          ...blogResults,
+          ...investmentResults,
+          ...experienceResults,
+          ...educationResults,
+          ...bookmarkResults,
+        ].sort((a, b) => b.score - a.score);
         break;
       }
     }

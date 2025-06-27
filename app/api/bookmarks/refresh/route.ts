@@ -7,10 +7,10 @@
 import "server-only";
 
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
-import { API_ENDPOINT_STORE_NAME, DEFAULT_API_ENDPOINT_LIMIT_CONFIG, isOperationAllowed } from "@/lib/rate-limiter";
-import { ServerCacheInstance } from "@/lib/server-cache";
+import { isOperationAllowed } from "@/lib/rate-limiter";
+import { API_ENDPOINT_STORE_NAME, DEFAULT_API_ENDPOINT_LIMIT_CONFIG } from "@/lib/constants";
 import { readJsonS3 } from "@/lib/s3-utils";
-import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
+import { BOOKMARKS_S3_PATHS, BOOKMARKS_CACHE_DURATION } from "@/lib/constants";
 import logger from "@/lib/utils/logger";
 import { NextResponse } from "next/server";
 import type { BookmarksIndex } from "@/types/bookmark";
@@ -52,20 +52,27 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   try {
     // For cron jobs, always refresh. For others, check if refresh is needed.
-    if (!isCronJob && !ServerCacheInstance.shouldRefreshBookmarks()) {
-      // Read current count from S3 index
+    if (!isCronJob) {
+      // Read current index from S3 to check timing
       const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
 
-      logger.info("[API Bookmarks Refresh] Regular request: Bookmarks are already up to date.");
-      return NextResponse.json({
-        status: "success",
-        message: "Bookmarks are already up to date",
-        data: {
-          refreshed: false,
-          bookmarksCount: index?.count || 0,
-          lastFetchedAt: index?.lastFetchedAt ? new Date(index.lastFetchedAt).toISOString() : null,
-        },
-      });
+      if (index?.lastFetchedAt) {
+        const timeSinceLastFetch = Date.now() - new Date(index.lastFetchedAt).getTime();
+        const revalidationThreshold = BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
+
+        if (timeSinceLastFetch <= revalidationThreshold) {
+          logger.info("[API Bookmarks Refresh] Regular request: Bookmarks are already up to date.");
+          return NextResponse.json({
+            status: "success",
+            message: "Bookmarks are already up to date",
+            data: {
+              refreshed: false,
+              bookmarksCount: index?.count || 0,
+              lastFetchedAt: index?.lastFetchedAt ? new Date(index.lastFetchedAt).toISOString() : null,
+            },
+          });
+        }
+      }
     }
 
     if (isCronJob) {
@@ -89,14 +96,14 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     // Use DataFetchManager for centralized data fetching
     const manager = new DataFetchManager();
-    
+
     // Start refresh in background (non-blocking)
     const refreshPromise = manager.fetchData({
       bookmarks: true,
       forceRefresh: true,
       immediate: false, // Don't process logos immediately to reduce memory pressure
     });
-    
+
     // Handle errors in background without blocking response
     refreshPromise
       .then((results) => {
@@ -110,14 +117,14 @@ export async function POST(request: Request): Promise<NextResponse> {
       .catch((error) => {
         logger.error(`[API Bookmarks Refresh] Background refresh error:`, error);
         // Check if memory related
-        if ((error as Error).message?.includes('memory')) {
+        if ((error as Error).message?.includes("memory")) {
           logger.error(`[API Bookmarks Refresh] Memory exhaustion detected. Container restart may be needed.`);
         }
       });
-    
+
     // Return immediately without waiting
     logger.info(`[API Bookmarks Refresh] Started background refresh process`);
-    
+
     return NextResponse.json({
       status: "success",
       message: `Bookmark refresh started in background${isCronJob ? " (triggered by cron job)" : ""}`,
@@ -147,7 +154,13 @@ export async function GET(): Promise<NextResponse> {
     // Read from S3 index
     const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
 
-    const needsRefresh = ServerCacheInstance.shouldRefreshBookmarks();
+    // Check if refresh is needed based on timing
+    let needsRefresh = true;
+    if (index?.lastFetchedAt) {
+      const timeSinceLastFetch = Date.now() - new Date(index.lastFetchedAt).getTime();
+      const revalidationThreshold = BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
+      needsRefresh = timeSinceLastFetch > revalidationThreshold;
+    }
 
     return NextResponse.json({
       status: "success",

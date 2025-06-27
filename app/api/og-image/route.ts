@@ -10,12 +10,10 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { HeadObjectCommand } from "@aws-sdk/client-s3";
-import { LRUCache } from "lru-cache";
 import { s3Client } from "@/lib/s3-utils";
 import { getDomainType } from "@/lib/utils/opengraph-utils";
 import { getDomainFallbackImage, getContextualFallbackImage } from "@/lib/opengraph/fallback";
-import { scheduleImagePersistence } from "@/lib/opengraph/persistence";
-import { OPENGRAPH_IMAGES_S3_DIR } from "@/lib/opengraph/constants";
+import { OPENGRAPH_IMAGES_S3_DIR } from "@/lib/constants";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
 import type { UnifiedBookmark } from "@/types";
 
@@ -192,24 +190,8 @@ export async function GET(request: NextRequest) {
 
     // If we've reached here, proceed with OpenGraph image fetching
     const domain = getDomainType(url);
-    const cacheKey = `og-image:${url}`;
 
-    // Check memory cache first
-    const cachedEntry = imageCache.get(cacheKey);
-    if (cachedEntry) {
-      const { imageUrl: cachedUrl, timestamp } = cachedEntry;
-      const age = Date.now() - timestamp;
-
-      if (age < CACHE_DURATION) {
-        console.log(`[OG-Image] Cache hit for ${url} (age: ${Math.round(age / 1000)}s)`);
-        return NextResponse.redirect(cachedUrl, {
-          status: 302,
-          headers: {
-            "Cache-Control": "public, max-age=86400",
-          },
-        });
-      }
-    }
+    // Note: Memory cache removed - relying on HTTP cache headers and S3/CDN
 
     // Check if S3 image exists
     let s3ImageUrl: string | null = null;
@@ -232,11 +214,7 @@ export async function GET(request: NextRequest) {
       s3ImageUrl = `${process.env.NEXT_PUBLIC_S3_CDN_URL}/${s3Key}`;
       console.log(`[OG-Image] S3 image found: ${s3ImageUrl}`);
 
-      // Update cache
-      imageCache.set(cacheKey, {
-        imageUrl: s3ImageUrl,
-        timestamp: Date.now(),
-      });
+      // S3 image found, no need for memory cache
 
       return NextResponse.redirect(s3ImageUrl, {
         status: 302,
@@ -289,8 +267,21 @@ export async function GET(request: NextRequest) {
         throw new Error(`Invalid content type: ${contentType}`);
       }
 
-      // Schedule async persistence
-      scheduleImagePersistence(url, OPENGRAPH_IMAGES_S3_DIR, `OG-Image-${domain}`);
+      // Schedule background persistence for the image
+      const { scheduleImagePersistence } = await import("@/lib/opengraph/persistence");
+      
+      // Generate idempotency key from URL
+      const urlHash = url.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const idempotencyKey = `og-image-${urlHash}`;
+      
+      console.log(`[OG-Image] 📋 Scheduling background image persistence for: ${url}`);
+      scheduleImagePersistence(
+        url,
+        OPENGRAPH_IMAGES_S3_DIR,
+        "OG-Image-API",
+        idempotencyKey,
+        url
+      );
 
       // For immediate response, return the original URL
       // This avoids blocking the user while image is being processed
@@ -352,14 +343,6 @@ export async function GET(request: NextRequest) {
     });
   }
 }
-
-// Memory cache for recently fetched images
-const imageCache = new LRUCache<string, { imageUrl: string; timestamp: number }>({
-  max: 1000,
-  ttl: 1000 * 60 * 60, // 1 hour
-});
-
-const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
 
 // Domain fallback functions are now imported from lib/opengraph/fallback.ts
 

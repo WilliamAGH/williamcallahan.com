@@ -9,7 +9,6 @@
  */
 
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
-import { ImageMemoryManagerInstance } from "@/lib/image-memory-manager";
 import type { LogoFetchResult } from "@/types/cache";
 import logger from "@/lib/utils/logger";
 import { NextResponse } from "next/server";
@@ -57,7 +56,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     const logoSvc = getUnifiedImageService();
-    const imageManager = ImageMemoryManagerInstance;
 
     const logoMeta: LogoFetchResult = await logoSvc.getLogo(domain, { forceRefresh });
 
@@ -74,24 +72,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    // Try to get from memory manager first
-    if (logoMeta.s3Key) {
-      const bufferEntry = await imageManager.get(logoMeta.s3Key);
-      if (bufferEntry?.buffer) {
-        logger.debug(`[Logo API] Serving logo for ${domain} from memory cache`);
-        return new NextResponse(bufferEntry.buffer, {
-          status: 200,
-          headers: {
-            "Content-Type": logoMeta.contentType || "image/png",
-            "Cache-Control": "public, max-age=31536000, immutable",
-            "x-logo-source": "memory",
-            "x-logo-domain": domain,
-          },
-        });
-      }
-    }
-
-    // If not in memory, redirect to CDN
+    // Always redirect to CDN if available
     if (logoMeta.cdnUrl) {
       logger.debug(`[Logo API] Redirecting logo for ${domain} to CDN: ${logoMeta.cdnUrl}`);
       return NextResponse.redirect(logoMeta.cdnUrl, 301);

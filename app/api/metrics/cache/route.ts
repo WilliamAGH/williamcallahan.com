@@ -1,29 +1,25 @@
 /**
  * Cache Metrics Endpoint
  *
- * Provides detailed cache statistics for monitoring systems like Grafana.
- * Returns metrics from both ImageMemoryManager and ServerCache instances.
+ * @deprecated Next.js cache doesn't expose detailed metrics like traditional cache implementations.
+ * This endpoint now returns process memory metrics only.
+ * Image caching has been removed - images are served directly from S3/CDN.
  *
  * @module app/api/metrics/cache
  */
 
 import { NextResponse } from "next/server";
-import { ImageMemoryManagerInstance } from "@/lib/image-memory-manager";
-import { ServerCacheInstance } from "@/lib/server-cache";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/metrics/cache
- * @description Returns detailed cache metrics for monitoring and observability.
- * @returns {NextResponse} JSON response with cache statistics
+ * @description Returns process memory metrics. Cache-specific metrics are no longer available.
+ * @deprecated This endpoint's cache metrics functionality has been removed.
+ * @returns {NextResponse} JSON response with process memory statistics
  */
 export function GET(): NextResponse {
   try {
-    // Get metrics from both cache systems
-    const imageMemoryMetrics = ImageMemoryManagerInstance.getMetrics();
-    const serverCacheStats = ServerCacheInstance.getStats();
-    
     // Get process memory for context
     const memUsage = process.memoryUsage();
     
@@ -36,43 +32,13 @@ export function GET(): NextResponse {
         external: Math.round(memUsage.external / 1024 / 1024), // MB
       },
       caches: {
-        imageMemory: {
-          // Buffer cache metrics
-          bufferCache: {
-            size: imageMemoryMetrics.cacheSize,
-            bytes: imageMemoryMetrics.cacheBytes,
-            bytesInMB: Math.round(imageMemoryMetrics.cacheBytes / 1024 / 1024),
-            memoryPressure: imageMemoryMetrics.memoryPressure,
-          },
-          // Process memory metrics
-          memory: {
-            rss: Math.round(imageMemoryMetrics.rss / 1024 / 1024), // MB
-            heapUsed: Math.round(imageMemoryMetrics.heapUsed / 1024 / 1024), // MB
-            external: Math.round(imageMemoryMetrics.external / 1024 / 1024), // MB
-          },
-        },
-        serverCache: {
-          keys: serverCacheStats.keys,
-          hits: serverCacheStats.hits,
-          misses: serverCacheStats.misses,
-          hitRate: serverCacheStats.hits + serverCacheStats.misses > 0
-            ? (serverCacheStats.hits / (serverCacheStats.hits + serverCacheStats.misses)) * 100
-            : 0,
-          sizeBytes: serverCacheStats.sizeBytes || 0,
-          sizeInMB: Math.round((serverCacheStats.sizeBytes || 0) / 1024 / 1024),
-          maxSizeBytes: serverCacheStats.maxSizeBytes || 0,
-          maxSizeInMB: Math.round((serverCacheStats.maxSizeBytes || 0) / 1024 / 1024),
-          utilizationPercent: serverCacheStats.utilizationPercent || 0,
-        },
-      },
-      // Total memory usage by caches
-      totalCacheMemory: {
-        bytes: imageMemoryMetrics.cacheBytes + (serverCacheStats.sizeBytes || 0),
-        inMB: Math.round((imageMemoryMetrics.cacheBytes + (serverCacheStats.sizeBytes || 0)) / 1024 / 1024),
-        percentOfHeap: memUsage.heapUsed > 0 
-          ? ((imageMemoryMetrics.cacheBytes + (serverCacheStats.sizeBytes || 0)) / memUsage.heapUsed) * 100
-          : 0,
-      },
+        message: "Cache metrics are no longer available",
+        notes: [
+          "Next.js cache doesn't expose metrics like traditional cache implementations",
+          "Image caching has been removed - images served directly from S3/CDN",
+          "ServerCache uses simple Map-based implementation with TTL and size-aware eviction"
+        ]
+      }
     };
 
     // Add Prometheus-style metrics as plain text if requested
@@ -82,18 +48,15 @@ export function GET(): NextResponse {
         `# HELP process_memory_rss_bytes Resident set size in bytes`,
         `# TYPE process_memory_rss_bytes gauge`,
         `process_memory_rss_bytes ${memUsage.rss}`,
-        `# HELP image_cache_size Number of items in image cache`,
-        `# TYPE image_cache_size gauge`,
-        `image_cache_size ${imageMemoryMetrics.cacheSize}`,
-        `# HELP image_cache_bytes Total bytes in image cache`,
-        `# TYPE image_cache_bytes gauge`,
-        `image_cache_bytes ${imageMemoryMetrics.cacheBytes}`,
-        `# HELP server_cache_keys Number of keys in server cache`,
-        `# TYPE server_cache_keys gauge`,
-        `server_cache_keys ${serverCacheStats.keys}`,
-        `# HELP server_cache_hit_rate Cache hit rate percentage`,
-        `# TYPE server_cache_hit_rate gauge`,
-        `server_cache_hit_rate ${response.caches.serverCache.hitRate}`,
+        `# HELP process_memory_heap_used_bytes Heap used in bytes`,
+        `# TYPE process_memory_heap_used_bytes gauge`,
+        `process_memory_heap_used_bytes ${memUsage.heapUsed}`,
+        `# HELP process_memory_heap_total_bytes Heap total in bytes`,
+        `# TYPE process_memory_heap_total_bytes gauge`,
+        `process_memory_heap_total_bytes ${memUsage.heapTotal}`,
+        `# HELP process_memory_external_bytes External memory in bytes`,
+        `# TYPE process_memory_external_bytes gauge`,
+        `process_memory_external_bytes ${memUsage.external}`,
       ].join("\n");
 
       return new NextResponse(metrics, {
@@ -103,7 +66,7 @@ export function GET(): NextResponse {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error("Error retrieving cache metrics:", error);
-    return NextResponse.json({ error: "Failed to retrieve cache metrics" }, { status: 500 });
+    console.error("Error retrieving metrics:", error);
+    return NextResponse.json({ error: "Failed to retrieve metrics" }, { status: 500 });
   }
 }
