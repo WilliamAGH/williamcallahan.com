@@ -147,8 +147,22 @@ export default async function middleware(request: NextRequest): Promise<NextResp
         response.headers.set("Accept-CH", "DPR, Width, Viewport-Width");
       }
     } else if (url === "/" || !url.includes(".")) {
-      // Ensure HTML pages are freshly served so analytics scripts always update
-      response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      // HTML (SSR / SSG) pages – absolutely never cache at CDN level.
+      // This guarantees that when we deploy a new version, Cloudflare will
+      // always fetch the fresh HTML which references the new hashed assets.
+      const noStoreValue = "no-store, no-cache, must-revalidate, proxy-revalidate";
+      response.headers.set("Cache-Control", noStoreValue);
+      // Explicitly instruct Cloudflare (and any CDN that understands the same
+      // header) to respect the no-store directive.
+      response.headers.set("CDN-Cache-Control", noStoreValue);
+      response.headers.set("Cloudflare-CDN-Cache-Control", noStoreValue);
+
+      // Tag the response with the current build version so we can purge by tag
+      // via Cloudflare API after each deployment. This avoids full-site purges
+      // while still ensuring old HTML is never served once a version is
+      // invalidated.
+      const buildTag = process.env.NEXT_PUBLIC_APP_VERSION ?? "dev";
+      response.headers.set("Cache-Tag", `html-${buildTag}`);
     }
   } else {
     response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
