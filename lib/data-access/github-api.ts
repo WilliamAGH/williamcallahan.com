@@ -239,11 +239,11 @@ export async function fetchContributorStats(owner: string, name: string): Promis
     const result = ContributorStatsResponseSchema.safeParse(contributorsData);
 
     if (!result.success) {
-      debugLog("Failed to parse contributor stats", "error", {
-        error: result.error,
-        data: contributorsData,
-      });
-      throw new Error("Invalid contributor stats response from GitHub API");
+      // If the data isn't an array yet, GitHub may still be generating stats.
+      // Treat this the same as 202 pending so callers can retry later.
+      throw new GitHubContributorStatsPendingError(
+        `GitHub returned unparseable contributor stats for ${owner}/${name}; stats may still be generating.`,
+      );
     }
 
     return result.data;
