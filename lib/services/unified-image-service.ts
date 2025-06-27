@@ -154,6 +154,42 @@ export class UnifiedImageService {
           };
         }
 
+        // 1️⃣  Pre-flight S3 check – another process may already have uploaded this logo.
+        const possibleSources: LogoSource[] = ["google", "duckduckgo", "clearbit"] as const;
+        const possibleExts = ["png", "jpg", "jpeg", "svg", "webp", "ico"] as const;
+
+        for (const src of possibleSources) {
+          for (const ext of possibleExts) {
+            const preflightKey = this.generateS3Key(domain, {
+              type: "logos",
+              source: src,
+              domain,
+              invertColors: options.invertColors,
+            });
+
+            // Only continue if key ends with the extension we're testing
+            if (!preflightKey.endsWith(`.${ext}`)) continue;
+
+            if (await this.checkS3WithCache(preflightKey)) {
+              const ct = ext === "svg" ? "image/svg+xml" : `image/${ext === "ico" ? "x-icon" : ext}`;
+              const cachedResult: LogoFetchResult = {
+                domain,
+                s3Key: preflightKey,
+                cdnUrl: this.getCdnUrl(preflightKey),
+                url: undefined,
+                source: src,
+                contentType: ct,
+                timestamp: Date.now(),
+                isValid: true,
+              } as LogoFetchResult;
+
+              // Prime in-memory cache for subsequent requests
+              ServerCacheInstance.setLogoFetch(domain, cachedResult);
+              return cachedResult;
+            }
+          }
+        }
+
         try {
           const logoData = await this.fetchExternalLogo(domain);
           if (!logoData?.buffer) throw new Error("No logo found");
