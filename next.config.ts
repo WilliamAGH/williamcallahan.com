@@ -60,7 +60,7 @@ const nextConfig = {
    * This ensures static data files are available in production
    */
   outputFileTracingIncludes: {
-    '/': ['./data/**/*'],
+    "/": ["./data/**/*"],
   },
 
   /**
