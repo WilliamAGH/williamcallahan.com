@@ -27,16 +27,6 @@ const SocialWindowContent = dynamic<import("@/types/features/social").SocialWind
   { ssr: false },
 );
 
-// Local typed wrapper around dynamically imported component to avoid type incompatibilities
-function SocialWindowContentWrapper(props: import("@/types/features/social").SocialWindowContentProps) {
-  const { children, ...rest } = props;
-  return (
-    <SocialWindowContent {...(rest as unknown as import("@/types/features/social").SocialWindowContentProps)}>
-      {children}
-    </SocialWindowContent>
-  );
-}
-
 /**
  * SocialWindow Client Component
  *
@@ -98,12 +88,14 @@ export function SocialWindow({ data, title = "Contact", onClose }: SocialWindowC
   }
 
   return (
-    <SocialWindowContentWrapper
+    <SocialWindowContent
       windowState={windowState}
       onClose={handleClose}
       onMinimize={minimizeWindow}
       onMaximize={maximizeWindow}
       hasMounted={hasMounted}
-    ></SocialWindowContentWrapper>
+    >
+      <span className="sr-only">empty</span>
+    </SocialWindowContent>
   );
 }
