@@ -18,6 +18,7 @@ import { getStaticPageMetadata } from "../../lib/seo/metadata";
 import { formatSeoDate } from "../../lib/seo/utils";
 import type { ProfilePageMetadata } from "../../types/seo/metadata";
 import type { Experience as ExperienceType } from "../../types";
+import type { LogoData } from "../../types/logo";
 
 /**
  * Generate metadata for the experience page
@@ -36,26 +37,35 @@ export default async function ExperiencePage() {
     experiences.map(async (exp: ExperienceType) => {
       try {
         /**
-         * Resolve domain used for logo look-ups.
-         * Order of precedence:
-         * 1. `logoOnlyDomain` – explicit field used *only* for matching assets, never rendered.
-         * 2. `website` – strip scheme / www.
-         * 3. Fallback to company name (normalized).
+         * Resolution strategy:
+         * 1. If `logoOnlyDomain` is provided → ALWAYS attempt remote lookup using that domain.
+         *    This guarantees we don't fall back to outdated/invalid static paths that may have
+         *    been carried over inadvertently.
+         * 2. If no `logoOnlyDomain` but a static `logo` path exists → use the static asset.
+         * 3. Otherwise derive a domain from `website` → remote lookup → final fallback placeholder.
          */
-        const domain = exp.logoOnlyDomain
-          ? normalizeDomain(exp.logoOnlyDomain)
+
+        const hasOverrideDomain = Boolean(exp.logoOnlyDomain);
+
+        if (!hasOverrideDomain && exp.logo) {
+          const staticLogoData: LogoData = { url: exp.logo, source: "static" };
+          return { ...exp, logoData: staticLogoData };
+        }
+
+        const domain = hasOverrideDomain
+          ? normalizeDomain(exp.logoOnlyDomain as string)
           : exp.website
             ? normalizeDomain(exp.website)
             : normalizeDomain(exp.company);
+
         const logoResult = await getLogo(domain);
 
-        return {
-          ...exp,
-          logoData: {
-            url: logoResult?.cdnUrl ?? logoResult?.url ?? getCompanyPlaceholder(),
-            source: logoResult?.source ?? null,
-          },
+        const remoteLogoData: LogoData = {
+          url: logoResult?.cdnUrl ?? logoResult?.url ?? getCompanyPlaceholder(),
+          source: logoResult?.source ?? null,
         };
+
+        return { ...exp, logoData: remoteLogoData };
       } catch (error) {
         console.error("[ExperiencePage] Failed to resolve logo:", error);
         return {
