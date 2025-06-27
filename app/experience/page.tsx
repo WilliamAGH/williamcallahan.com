@@ -11,7 +11,7 @@ import { Experience } from "../../components/features";
 import { JsonLdScript } from "../../components/seo/json-ld";
 import { getLogo } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
-import { getCompanyPlaceholder } from "@/lib/data-access/default-images";
+import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import { experiences } from "../../data/experience";
 import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
 import { getStaticPageMetadata } from "../../lib/seo/metadata";
