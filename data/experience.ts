@@ -62,7 +62,8 @@ export const experiences: Experience[] = [
     endDate: "2022-02-01",
     role: "Founded and led an SEC-registered investment advisor - Provided comprehensive financial planning and investment advisory services, including proprietary cloud software for managing complex and nuanced data sets in such relationships. Managed $225 million in assets on acquisition.",
     logo: getStaticImageUrl("/images/callahan_planning_logo.png"),
-    website: "https://callahanplanning.com",
+    logoOnlyDomain: "callahanplanning.com",
+    website: "https://tsbank.com",
     location: "Omaha, Nebraska / San Francisco, California",
   },
   {

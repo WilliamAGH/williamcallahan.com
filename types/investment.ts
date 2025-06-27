@@ -53,6 +53,12 @@ export interface Investment {
   website?: string | null;
   /** aVenture URL for Company */
   aventure_url?: string | null;
+  /**
+   * Domain to be used solely for logo and data-matching operations.
+   * Never rendered to users. When present this overrides `website` when
+   * resolving logos or domain-based assets.
+   */
+  logoOnlyDomain?: string | null;
   /** Location (city, state) */
   location?: string;
   /** Investment metrics */

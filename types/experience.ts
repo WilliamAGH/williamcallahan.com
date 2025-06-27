@@ -33,6 +33,14 @@ export interface Experience {
   accelerator?: Accelerator;
   /** Company location */
   location?: string;
+  /**
+   * Domain to be used solely for logo and data-matching operations.
+   * This is never rendered to end-users. If present it overrides
+   * both `website` and fallback company-name logic when fetching
+   * logos or other domain-based assets.
+   * Example: "callahanplanning.com"
+   */
+  logoOnlyDomain?: string;
 }
 
 /**
