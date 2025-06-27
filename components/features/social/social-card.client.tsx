@@ -70,20 +70,18 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
    */
   const getProfileFallbackImage = useCallback((networkLabel: string): string => {
     try {
-      // Use dedicated GitHub avatar endpoint for S3 persistence
       if (networkLabel.includes("GitHub")) {
-        // Extract username from the label if possible, otherwise use default
         const usernameMatch = networkLabel.match(/@(\w+)/);
-        const username = usernameMatch?.[1] || "williamcallahan";
-        return `/api/github-avatar/${username}`;
+        const username = usernameMatch?.[1] || "WilliamAGH";
+        // 1️⃣ direct avatar (fast, cached by GitHub)
+        return `https://avatars.githubusercontent.com/${username}?s=256&v=4`;
       }
       if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
         return getStaticImageUrl("/images/social-pics/x.jpg");
       if (networkLabel.includes("LinkedIn")) return getStaticImageUrl("/images/social-pics/linkedin.jpg");
       if (networkLabel.includes("Bluesky")) {
-        const blueskyAvatarUrl =
-          "https://cdn.bsky.app/img/avatar/plain/did:plc:6y3lzhinepgneechfrv3w55d/bafkreicuryva5uglksh2tqrc5tu66kwvnjwnpd2fdb6epsa6fjhhdehhyy@jpeg";
-        return `/api/og-image?url=${encodeURIComponent(blueskyAvatarUrl)}&assetId=bluesky-avatar-william`;
+        // 1️⃣ direct CDN avatar
+        return "https://cdn.bsky.app/img/avatar/plain/did:plc:6y3lzhinepgneechfrv3w55d/bafkreicuryva5uglksh2tqrc5tu66kwvnjwnpd2fdb6epsa6fjhhdehhyy@jpeg";
       }
       if (networkLabel.includes("Discord")) return getStaticImageUrl("/images/social-pics/discord.jpg");
     } catch (_error) {

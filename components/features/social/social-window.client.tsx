@@ -13,7 +13,7 @@
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import type { SocialWindowClientProps } from "@/types/features/social";
 import { Users } from "lucide-react";
-import dynamic from "next/dynamic";
+import { SocialWindowContent } from "./social-window-content.client";
 import { useEffect, useState } from "react";
 // Define a unique ID for this window instance
 const SOCIAL_WINDOW_ID = "social-contact-window";
@@ -22,10 +22,6 @@ const SOCIAL_WINDOW_ID = "social-contact-window";
  * Dynamic import of the window content component to prevent server-side rendering
  * This ensures any layout effects or DOM manipulations only run on the client
  */
-const SocialWindowContent = dynamic<import("@/types/features/social").SocialWindowContentProps>(
-  () => import("./social-window-content.client").then((m) => m.SocialWindowContent),
-  { ssr: false },
-);
 
 /**
  * SocialWindow Client Component
