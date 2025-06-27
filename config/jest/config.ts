@@ -105,6 +105,7 @@ const config: Config = {
   testEnvironmentOptions: {
     url: "http://localhost:3000",
   },
+
 };
 
 export default createJestConfig(config);

@@ -109,11 +109,6 @@ if (typeof window !== "undefined") {
 
   // Mock global fetch for tests that need it (Node 22 native)
   if (!global.fetch) {
-    // Create a properly typed fetch mock that includes Node 22's preconnect method
-    interface MockFetch extends jest.Mock {
-      preconnect: jest.Mock;
-    }
-
     const fetchMock = jest.fn(() =>
       Promise.resolve({
         ok: true,
@@ -123,12 +118,13 @@ if (typeof window !== "undefined") {
         headers: new Headers(),
         statusText: "OK",
       }),
-    ) as MockFetch;
+    );
 
-    // Add preconnect method to match Node 22's fetch API
-    fetchMock.preconnect = jest.fn();
+    // Add preconnect method to match Node 22's fetch API using Jest v30 pattern
+    const typedFetchMock = jest.mocked(fetchMock);
+    Object.assign(typedFetchMock, { preconnect: jest.fn() });
 
-    global.fetch = fetchMock as unknown as typeof fetch;
+    global.fetch = typedFetchMock as unknown as typeof fetch;
   }
 }
 
