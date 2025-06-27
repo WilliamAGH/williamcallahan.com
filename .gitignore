@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 .next
 node_modules
+.jest-pre-compiled
 dist
 dist-ssr
 *.local

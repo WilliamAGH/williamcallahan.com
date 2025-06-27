@@ -91,6 +91,7 @@ const config = tseslint.config(
       ".next/",
       ".husky/",
       "out/",
+      ".jest-pre-compiled/",
       "components/ui/code-block/prism-syntax-highlighting/prism.js",
       "config/.remarkrc.mjs",
       "config/",
@@ -107,6 +108,8 @@ const config = tseslint.config(
       parserOptions: {
         project: ["./tsconfig.json"],
         tsconfigRootDir: import.meta.dirname,
+        ecmaVersion: "latest",
+        sourceType: "module",
       },
     },
   },
