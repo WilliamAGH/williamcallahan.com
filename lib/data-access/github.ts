@@ -47,7 +47,7 @@ import {
   ALL_TIME_SUMMARY_S3_KEY_FILE,
   REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
   GITHUB_ACTIVITY_S3_KEY_FILE,
-} from "./github-constants";
+} from "@/lib/constants";
 
 import {
   flattenContributionCalendar,
@@ -66,7 +66,7 @@ export {
   ALL_TIME_SUMMARY_S3_KEY_FILE,
   REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
   AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE,
-} from "./github-constants";
+} from "@/lib/constants";
 
 // Re-export public API functions from github-public-api.ts
 export {
