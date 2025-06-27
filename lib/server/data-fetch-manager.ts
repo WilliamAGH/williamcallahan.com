@@ -95,7 +95,7 @@ export class DataFetchManager {
 
     try {
       // Get current cached bookmarks to compare for new additions
-      const previousBookmarks = await getBookmarks({ skipExternalFetch: false }) as UnifiedBookmark[];
+      const previousBookmarks = (await getBookmarks({ skipExternalFetch: false })) as UnifiedBookmark[];
       const previousCount = previousBookmarks.length;
       const previousBookmarkIds = new Set(previousBookmarks.map((b: UnifiedBookmark) => b.id));
 
@@ -203,7 +203,7 @@ export class DataFetchManager {
 
       // Use batch mode for logo processing
       const isBatchMode = process.env.IS_DATA_UPDATER === "true";
-      
+
       if (isBatchMode) {
         // Use simplified batch processing
         const results = await processLogoBatch(Array.from(domains), {
@@ -211,16 +211,14 @@ export class DataFetchManager {
             if (current % 50 === 0) {
               logger.info(`[DataFetchManager] Logo batch progress: ${current}/${total}`);
             }
-          }
+          },
         });
-        
-        const successCount = Array.from(results.values()).filter(r => !r.error).length;
+
+        const successCount = Array.from(results.values()).filter((r) => !r.error).length;
         const failureCount = results.size - successCount;
-        
+
         const duration = (Date.now() - startTime) / 1000;
-        logger.info(
-          `[DataFetchManager] Logo batch complete. Success: ${successCount}, Failures: ${failureCount}`,
-        );
+        logger.info(`[DataFetchManager] Logo batch complete. Success: ${successCount}, Failures: ${failureCount}`);
         return {
           success: true,
           operation: "logos",
@@ -340,8 +338,11 @@ export class DataFetchManager {
         }
       }
 
-      // Get bookmark domains
-      const bookmarks = await getBookmarks({ skipExternalFetch: false }) as UnifiedBookmark[];
+      // Get bookmark domains – we only need the URL/domain, not heavy image blobs.
+      const bookmarks = (await getBookmarks({
+        skipExternalFetch: false,
+        includeImageData: false,
+      })) as UnifiedBookmark[];
       const bookmarkDomains = this.extractDomainsFromBookmarks(bookmarks);
       for (const domain of bookmarkDomains) {
         if (domain) {
@@ -448,10 +449,10 @@ export class DataFetchManager {
     try {
       // Dynamically import to avoid loading heavy dependencies unless needed
       const { buildAllSearchIndexes } = await import("@/lib/search/index-builder");
-      
+
       // Build all search indexes
       const indexes = await buildAllSearchIndexes();
-      
+
       // Upload each index to S3
       const uploadPromises = [
         writeJsonS3(SEARCH_S3_PATHS.POSTS_INDEX, indexes.posts),
@@ -461,11 +462,11 @@ export class DataFetchManager {
         writeJsonS3(SEARCH_S3_PATHS.BOOKMARKS_INDEX, indexes.bookmarks),
         writeJsonS3(SEARCH_S3_PATHS.BUILD_METADATA, indexes.buildMetadata),
       ];
-      
+
       await Promise.all(uploadPromises);
-      
+
       logger.info("[DataFetchManager] Search indexes built and uploaded successfully");
-      
+
       const duration = (Date.now() - startTime) / 1000;
       return {
         success: true,
@@ -595,7 +596,7 @@ export class DataFetchManager {
    */
   private createImageManifest(s3Keys: string[]): string[] {
     const cdnBase = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
-    return s3Keys.map(key => `${cdnBase}/${key}`);
+    return s3Keys.map((key) => `${cdnBase}/${key}`);
   }
 }
 
@@ -634,7 +635,7 @@ if (require.main === module) {
   }
 
   console.log(`[DataFetchManagerCLI] Config:`, JSON.stringify(config, null, 2));
-  
+
   manager
     .fetchData(config)
     .then((results) => {

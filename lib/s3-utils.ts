@@ -310,18 +310,30 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
  */
 export async function writeToS3(
   key: string,
-  data: Buffer | string,
+  data: Buffer | string | Readable,
   contentType?: string,
   acl: "private" | "public-read" | "public-read-write" | "authenticated-read" = "private",
 ): Promise<void> {
-  // Calculate payload size (bytes) for smarter headroom decisions
-  const dataSize = typeof data === "string" ? Buffer.byteLength(data, "utf-8") : data.length;
   const SMALL_PAYLOAD_THRESHOLD = 512 * 1024; // 512 KB
+  const dataSize =
+    typeof data === "string"
+      ? Buffer.byteLength(data, "utf-8")
+      : Buffer.isBuffer(data)
+        ? data.length
+        : SMALL_PAYLOAD_THRESHOLD; // Unknown stream size – treat as small for head-room check
 
   if (isBinaryKey(key)) {
-    // Enforce strict headroom for potentially large binary writes
-    if (!hasMemoryHeadroom()) {
-      throw new Error(`[S3Utils] Insufficient memory headroom for binary S3 write operation`);
+    // For binary payloads, only block when (a) the process is under
+    // memory pressure *and* (b) the payload is larger than the
+    // conservative SMALL_PAYLOAD_THRESHOLD (512&nbsp;KB). This prevents
+    // harmless favicon-sized writes (usually <10&nbsp;KB) from failing
+    // when the process is close to the RSS limit while still protecting
+    // against large image uploads that could exacerbate memory issues.
+
+    if (dataSize > SMALL_PAYLOAD_THRESHOLD && !hasMemoryHeadroom()) {
+      throw new Error(
+        `[S3Utils] Insufficient memory headroom for binary S3 write operation (>${SMALL_PAYLOAD_THRESHOLD} bytes)`,
+      );
     }
   } else if (!hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
     // For non-binary (JSON/string) data, still guard very large writes
@@ -331,7 +343,9 @@ export async function writeToS3(
   if (DRY_RUN) {
     if (isDebug)
       debug(
-        `[S3Utils][DRY RUN] Would write to S3 key ${key}. ContentType: ${contentType ?? "unknown"}, ACL: ${acl}, Data size: ${data.length}`,
+        `[S3Utils][DRY RUN] Would write to S3 key ${key}. ContentType: ${contentType ?? "unknown"}, ACL: ${acl}, Data size: ${
+          typeof data === "string" ? dataSize : Buffer.isBuffer(data) ? data.length : "stream"
+        }`,
       );
     return;
   }
@@ -354,7 +368,9 @@ export async function writeToS3(
   try {
     if (isDebug)
       debug(
-        `[S3Utils] Attempting to write to S3 key ${key}. ContentType: ${contentType ?? "unknown"}, Data size: ${data.length}`,
+        `[S3Utils] Attempting to write to S3 key ${key}. ContentType: ${contentType ?? "unknown"}, Data size: ${
+          typeof data === "string" ? dataSize : Buffer.isBuffer(data) ? data.length : "stream"
+        }`,
       );
     await s3Client.send(command);
     if (isDebug) debug(`[S3Utils] Successfully wrote to S3 key ${key}`);
@@ -726,11 +742,13 @@ export async function readBinaryS3(s3Key: string): Promise<Buffer | null> {
  * @param data Buffer to write
  * @param contentType MIME type of the content
  */
-export async function writeBinaryS3(s3Key: string, data: Buffer, contentType: string): Promise<void> {
+export async function writeBinaryS3(s3Key: string, data: Buffer | Readable, contentType: string): Promise<void> {
   if (DRY_RUN) {
     if (isDebug)
       debug(
-        `[S3Utils][DRY RUN] Would write binary file to S3 key: ${s3Key}. ContentType: ${contentType}, Size: ${data.length}`,
+        `[S3Utils][DRY RUN] Would write binary file to S3 key: ${s3Key}. ContentType: ${contentType}, Size: ${
+          Buffer.isBuffer(data) ? data.length : "stream"
+        }`,
       );
     return;
   }
