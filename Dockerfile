@@ -106,6 +106,10 @@ COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/types ./types
 COPY --from=builder /app/config ./config
 
+# Ensure the sitemap generator used by runtime scripts is available.
+# Only the specific file is copied to minimize image size and avoid unnecessary source files.
+COPY --from=builder /app/app/sitemap.ts ./app/sitemap.ts
+
 # REMOVED: Copying initial data from builder stage - data now lives in S3
 # COPY --from=builder --chown=nextjs:nodejs /app/data/images/logos /app/.initial-logos
 # COPY --from=builder --chown=nextjs:nodejs /app/data/github-activity /app/.initial-github-activity
