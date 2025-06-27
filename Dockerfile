@@ -90,6 +90,9 @@ COPY --from=builder /app/package.json ./package.json
 # Copy public directory (run as root, so no chown needed)
 COPY --from=builder /app/public ./public
 
+# Copy data directory with all static data files
+COPY --from=builder /app/data ./data
+
 # Ensure TypeScript path-mapping files are available at runtime so that Bun can
 # resolve "@/*" import aliases used by our standalone scripts (e.g. update-s3).
 # We copy any root-level tsconfig variants that might contain the "paths" map.
