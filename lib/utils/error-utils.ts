@@ -317,7 +317,7 @@ function isRetryableHttpStatus(error: unknown): boolean {
   if (message.includes("429")) return true; // Too Many Requests
   if (message.includes("408")) return true; // Request Timeout
 
-  // GitHub specific: 202 is retryable (data generation in progress)
+  // 202 Accepted can indicate async processing in progress (commonly used by GitHub and other APIs)
   if (message.includes("202")) return true;
 
   return false;
