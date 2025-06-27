@@ -22,6 +22,8 @@ export function useTerminal() {
   } = useTerminalContext();
   const [input, setInput] = useState("");
   const [selection, setSelection] = useState<SelectionItem[] | null>(null);
+  // Flag to indicate whether a selection list is currently active
+  const isSelecting = selection !== null;
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -149,5 +151,6 @@ export function useTerminal() {
     clearHistory, // Return clearHistory from context
     inputRef,
     focusInput,
+    isSelecting,
   };
 }
