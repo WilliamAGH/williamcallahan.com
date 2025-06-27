@@ -20,7 +20,7 @@ import type {
 import { debug } from "@/lib/utils/debug";
 import { readBinaryS3 } from "@/lib/s3-utils";
 import { listRepoStatsFiles, writeAggregatedWeeklyActivityToS3 } from "./github-storage";
-import { AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "./github-constants";
+import { AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "@/lib/constants";
 
 // Type-safe global override declarations
 declare global {
