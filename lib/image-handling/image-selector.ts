@@ -8,7 +8,7 @@
  */
 
 import { debug, debugWarn } from "@/lib/utils/debug";
-import { isValidImageUrl } from "@/lib/utils/opengraph-utils";
+import { isValidImageUrl, getDomainType } from "@/lib/utils/opengraph-utils";
 
 /**
  * Selects the best available image from extracted metadata based on priority order
@@ -26,9 +26,14 @@ import { isValidImageUrl } from "@/lib/utils/opengraph-utils";
  * 10. Standard favicon/icon (last resort)
  *
  * @param metadata - Sanitized metadata object
+ * @param url - Optional URL for domain type detection
  * @returns The best available image URL or null
  */
-export function selectBestOpenGraphImage(metadata: Record<string, unknown>): string | null {
+export function selectBestOpenGraphImage(metadata: Record<string, unknown>, url?: string): string | null {
+  // Determine if this is a social media platform
+  const domainType = url ? getDomainType(url) : "Website";
+  const isSocialPlatform = ["GitHub", "X", "LinkedIn", "Bluesky"].includes(domainType);
+
   // Define priority order
   const imagePriority = [
     "profileImage", // Platform-specific (GitHub, Twitter, LinkedIn profile pics)
@@ -49,6 +54,13 @@ export function selectBestOpenGraphImage(metadata: Record<string, unknown>): str
   for (const imageKey of imagePriority) {
     const imageUrl = metadata[imageKey];
     const imageUrlString = typeof imageUrl === "string" ? imageUrl : "not found";
+    
+    // Special handling for profileImage on non-social sites
+    if (imageKey === "profileImage" && !isSocialPlatform) {
+      debug(`[OG-Priority-4.${imageKey}] Skipping profileImage check for non-social site (${domainType})`);
+      continue;
+    }
+    
     console.log(`[OG-Priority-4.${imageKey}] 🔍 Checking ${imageKey}: ${imageUrlString}`);
 
     // Skip if undefined, null, or not a valid string
