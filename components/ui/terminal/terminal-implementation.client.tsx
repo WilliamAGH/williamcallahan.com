@@ -57,7 +57,6 @@ export function Terminal() {
     inputRef,
     focusInput,
   } = useTerminal();
-  const { isSelecting } = useTerminal(); // whether a selection list is active
 
   // Effect to scroll to bottom when history changes
   useEffect(() => {
@@ -65,7 +64,7 @@ export function Terminal() {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
-  }, [terminalHistory.length]); // Dependency on history from context
+  }, []); // Dependency on history from context
 
   // Determine maximized state - moved up before hooks that depend on it
   const isMaximized = windowState === "maximized";
@@ -87,7 +86,7 @@ export function Terminal() {
         if (scrollContainerRef.current?.querySelector('[data-testid="selection-view"]')) {
           return; // Let SelectionView control scrolling during navigation
         }
-        
+
         if (scrollContainerRef.current) {
           scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
         }
@@ -112,7 +111,7 @@ export function Terminal() {
         clearTimeout(timer);
       };
     }
-  }, [isMaximized, isSelecting]);
+  }, [isMaximized, inputRef]);
 
   // Add effect to register/unregister click outside handler
   useEffect(() => {

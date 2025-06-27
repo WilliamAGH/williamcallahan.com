@@ -72,7 +72,7 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
     if (selectedRef.current && scrollContainerRef?.current) {
       ensureRowVisible(selectedRef.current, scrollContainerRef.current);
     }
-  }, [selectedIndex, scrollContainerRef]);
+  }, [scrollContainerRef]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -100,11 +100,8 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
               setSelectedIndex(newVisibleCount - 1); // Select actual last item of previous page
               return newPage;
             });
-          } else if (hasMoreResults) {
-            // At first item, no previous page - wrap to next button
-            setSelectedIndex(visibleItems.length);
           } else {
-            // No pagination, wrap to last visible item
+            // Wrap to last visible item (no jumping to button)
             setSelectedIndex(visibleItems.length - 1);
           }
           break;
