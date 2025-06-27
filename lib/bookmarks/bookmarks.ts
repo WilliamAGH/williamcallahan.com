@@ -108,12 +108,22 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
 
     // Apply test limit if set
     const isNonProd = process.env.NODE_ENV !== "production";
-    const testLimit = isNonProd && process.env.S3_TEST_LIMIT ? Number.parseInt(process.env.S3_TEST_LIMIT, 10) : 0;
+    let testLimit = 0;
+    if (isNonProd) {
+      // Honour explicit developer override first
+      if (process.env.S3_TEST_LIMIT) {
+        testLimit = Number.parseInt(process.env.S3_TEST_LIMIT, 10) || 0;
+      } else {
+        // Implicit safe-guard in dev: cap to 20 items to avoid OOM during local development
+        testLimit = 20;
+      }
+    }
+
     let bookmarksToProcess = normalizedBookmarks;
     if (testLimit > 0) {
       bookmarksToProcess = normalizedBookmarks.slice(0, testLimit);
       console.log(
-        `[refreshBookmarksData] Test mode active: limiting processing from ${normalizedBookmarks.length} to ${bookmarksToProcess.length} bookmark(s).`,
+        `[refreshBookmarksData] Dev mode limit: processing ${bookmarksToProcess.length} of ${normalizedBookmarks.length} bookmarks to prevent high memory usage.`,
       );
     }
 
