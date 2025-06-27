@@ -201,7 +201,6 @@ export async function listRepoStatsFiles(): Promise<string[]> {
  */
 export async function getGitHubActivityMetadata(key: string = GITHUB_ACTIVITY_S3_KEY_FILE): Promise<{
   lastModified?: Date;
-  size?: number;
 } | null> {
   try {
     const metadata = await getS3ObjectMetadata(key);
