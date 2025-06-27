@@ -20,6 +20,8 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
+import { getContentTypeFromExtension, isImageContentType } from "@/lib/utils/content-type";
 
 // Environment variables for S3 configuration
 const S3_BUCKET = process.env.S3_BUCKET;
@@ -40,6 +42,17 @@ const MAX_S3_READ_SIZE = 50 * 1024 * 1024; // 50MB max read size to prevent memo
 
 // Request coalescing for duplicate S3 reads
 const inFlightReads = new Map<string, Promise<Buffer | string | null>>();
+
+// Utility: determine if an S3 key represents a potentially large binary (image) payload
+function isBinaryKey(key: string): boolean {
+  // Fast-path: any key stored under images/ directory is binary
+  if (key.startsWith("images/")) return true;
+
+  // Otherwise infer from file extension using centralised helpers
+  const ext = key.split(".").pop()?.toLowerCase() ?? "";
+  const contentType = getContentTypeFromExtension(ext);
+  return isImageContentType(contentType);
+}
 
 if (!S3_BUCKET || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
   console.warn(
@@ -67,15 +80,8 @@ export const s3Client: S3Client | null =
  * Check if system is under memory pressure
  */
 function isUnderMemoryPressure(): boolean {
-  if (typeof process === "undefined") return false;
-
-  const { rss, heapUsed, heapTotal } = process.memoryUsage();
-  const rssCritical = MEMORY_THRESHOLDS.MEMORY_CRITICAL_THRESHOLD;
-  // Consider the V8 heap under pressure if ≥ 90% utilised
-  const HEAP_UTIL_THRESHOLD = 0.9;
-  const heapUtilisation = heapTotal > 0 ? heapUsed / heapTotal : 0;
-
-  return rss > rssCritical || heapUtilisation >= HEAP_UTIL_THRESHOLD;
+  const monitor = getMemoryHealthMonitor();
+  return !monitor.shouldAcceptNewRequests();
 }
 
 /**
@@ -84,21 +90,15 @@ function isUnderMemoryPressure(): boolean {
 function hasMemoryHeadroom(): boolean {
   if (typeof process === "undefined") return true;
 
+  const monitor = getMemoryHealthMonitor();
+  if (!monitor.shouldAcceptNewRequests()) return false;
+
   const { rss, heapUsed, heapTotal } = process.memoryUsage();
   const rssCritical = MEMORY_THRESHOLDS.MEMORY_CRITICAL_THRESHOLD;
   const HEAP_UTIL_THRESHOLD = 0.9;
   const heapUtilisation = heapTotal > 0 ? heapUsed / heapTotal : 0;
 
-  if (rss > rssCritical || heapUtilisation >= HEAP_UTIL_THRESHOLD) {
-    console.warn(
-      `[S3Utils] Memory pressure detected. rss=${(rss / 1024 / 1024).toFixed(2)}MB, heapUtil=${(
-        heapUtilisation * 100
-      ).toFixed(1)}%. Deferring S3 write operation.`,
-    );
-    return false;
-  }
-
-  return true;
+  return rss <= rssCritical && heapUtilisation < HEAP_UTIL_THRESHOLD;
 }
 
 /**
@@ -171,9 +171,9 @@ export async function readFromS3(
 }
 
 async function performS3Read(key: string, options?: { range?: string }): Promise<Buffer | string | null> {
-  // Check memory pressure before attempting read
-  if (isUnderMemoryPressure()) {
-    console.warn(`[S3Utils] System under memory pressure. Deferring read of ${key}`);
+  // Allow lightweight JSON reads even under pressure – they are inexpensive and prevent costly refresh cycles
+  if (isUnderMemoryPressure() && isBinaryKey(key)) {
+    console.warn(`[S3Utils] System under memory pressure. Deferring binary read of ${key}`);
     return null;
   }
 
@@ -311,9 +311,18 @@ export async function writeToS3(
   contentType?: string,
   acl: "private" | "public-read" | "public-read-write" | "authenticated-read" = "private",
 ): Promise<void> {
-  // Add memory check before write
-  if (!hasMemoryHeadroom()) {
-    throw new Error(`[S3Utils] Insufficient memory headroom for S3 write operation`);
+  // Calculate payload size (bytes) for smarter headroom decisions
+  const dataSize = typeof data === "string" ? Buffer.byteLength(data, "utf-8") : data.length;
+  const SMALL_PAYLOAD_THRESHOLD = 512 * 1024; // 512 KB
+
+  if (isBinaryKey(key)) {
+    // Enforce strict headroom for potentially large binary writes
+    if (!hasMemoryHeadroom()) {
+      throw new Error(`[S3Utils] Insufficient memory headroom for binary S3 write operation`);
+    }
+  } else if (!hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
+    // For non-binary (JSON/string) data, still guard very large writes
+    throw new Error(`[S3Utils] Insufficient memory headroom for large S3 write operation`);
   }
 
   if (DRY_RUN) {
@@ -623,17 +632,22 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
   }
 
   // Add memory check before JSON stringify
-  if (!hasMemoryHeadroom()) {
-    console.warn(`[S3Utils] Skipping S3 write for ${s3Key} due to memory pressure`);
+  const jsonData = safeJsonStringify(data, 2);
+  if (!jsonData) {
+    throw new Error("Failed to stringify JSON data");
+  }
+
+  const dataSize = Buffer.byteLength(jsonData, "utf-8");
+  const SMALL_PAYLOAD_THRESHOLD = 512 * 1024; // 512 KB
+
+  if (!hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
+    console.warn(
+      `[S3Utils] Skipping S3 write for ${s3Key} (${(dataSize / 1024).toFixed(1)} KB) due to memory pressure`,
+    );
     return;
   }
 
   try {
-    const jsonData = safeJsonStringify(data, 2);
-    if (!jsonData) {
-      throw new Error("Failed to stringify JSON data");
-    }
-
     // If conditional write options are provided, use direct S3 command
     if (options?.IfNoneMatch) {
       if (!S3_BUCKET || !s3Client) {
