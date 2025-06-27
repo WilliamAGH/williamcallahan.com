@@ -113,9 +113,13 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
       // Honour explicit developer override first
       if (process.env.S3_TEST_LIMIT) {
         testLimit = Number.parseInt(process.env.S3_TEST_LIMIT, 10) || 0;
-      } else {
-        // Implicit safe-guard in dev: cap to 20 items to avoid OOM during local development
+      } else if (process.env.IS_DATA_UPDATER !== "true") {
+        // Implicit safe-guard in dev REPL / Next.js server but *not* in the dedicated
+        // data-updater process, because that process is expected to handle the full
+        // dataset.
         testLimit = 20;
+      } else {
+        testLimit = 0;
       }
     }
 
