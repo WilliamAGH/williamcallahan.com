@@ -109,7 +109,13 @@ async function saveAssetToS3(assetId: string, buffer: Buffer, contentType: strin
 
   console.log(`[Assets API] Saving asset to S3: ${key} (${buffer.length} bytes, ${contentType})`);
 
-  await writeBinaryS3(key, buffer, contentType);
+  // Skip costly S3 write when we're not the data-updater or when
+  // memory is already tight – avoids throwing OOM from writeBinaryS3.
+  if (process.env.IS_DATA_UPDATER === "true") {
+    await writeBinaryS3(key, buffer, contentType).catch((error) => {
+      console.error(`[Assets API] Failed to save asset ${assetId} to S3:`, error);
+    });
+  }
 
   return key;
 }
@@ -237,10 +243,12 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
           try {
             const { done, value } = await Promise.race([readPromise, timeoutPromise]);
             if (done) break;
-            chunks.push(value);
+            if (value) chunks.push(value);
           } catch (error) {
             // Ensure the reader is promptly cancelled to free resources
-            await reader.cancel();
+            if (typeof reader.cancel === "function") {
+              await reader.cancel();
+            }
             throw error;
           }
         }
