@@ -1,328 +1,110 @@
 /**
- * Client-side component for loading and managing third-party analytics scripts.
- * Includes Plausible, Umami, Simple Analytics, and Clicky.
+ * Modern Analytics Implementation for Next.js 15
+ * Following official documentation from each provider
+ * 
+ * Key insights:
+ * 1. These scripts handle SPAs automatically - no custom queue needed
+ * 2. They track pageviews on load and route changes internally
+ * 3. afterInteractive ensures they load at the right time
  */
 
 "use client";
 
 import Image from "next/image";
-import { usePathname } from "next/navigation";
 import Script from "next/script";
-import type React from "react";
-import { Component, type ErrorInfo, type JSX, useCallback, useEffect, useState } from "react";
-
-import type { BaseAnalyticsEvent, UmamiEvent } from "@/types/analytics";
+import type { JSX } from "react";
 
 /**
- * Error Boundary component to prevent analytics errors from affecting the main app
+ * Analytics component following official provider documentation
+ * - Umami: Auto-tracks pageviews via data attributes
+ * - Plausible: Auto-tracks pageviews when loaded
+ * - Simple Analytics: Auto-tracks pageviews
+ * - Clicky: Auto-tracks pageviews
  */
-class AnalyticsErrorBoundary extends Component<{ children: React.ReactNode }> {
-  state = { hasError: false };
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error but don't crash the app
-    // Use a more defensive approach that won't trigger Next.js error handling
-    if (process.env.NODE_ENV !== "production") {
-      // Only log in development, silently fail in production
-      // This prevents the error from being shown in the console
-
-      console.warn("[Analytics] Error boundary caught:", {
-        error: error.message,
-        componentStack: errorInfo.componentStack,
-      });
-    }
-  }
-
-  render() {
-    if (this.state.hasError) {
-      // Silent failure - don't show any UI for analytics errors
-      return null;
-    }
-
-    return this.props.children;
-  }
-}
-
-/**
- * Creates base analytics event data
- * @returns Base analytics event data
- */
-function createBaseEventData(): BaseAnalyticsEvent {
-  if (typeof window === "undefined") {
-    return { path: "", url: "", referrer: "" };
-  }
-
-  try {
-    return {
-      path: window.location.pathname,
-      url: window.location.href,
-      referrer: document.referrer,
-    };
-  } catch {
-    // Fallback if there's any issue accessing window/document
-    return { path: "", url: "", referrer: "" };
-  }
-}
-
-/**
- * Safely tracks a pageview in Plausible
- * @param path - The normalized page path
- */
-function trackPlausible(path: string): void {
-  if (typeof window === "undefined") return;
-
-  try {
-    if (typeof window.plausible === "function") {
-      const eventData = {
-        ...createBaseEventData(),
-        path,
-      };
-      window.plausible("pageview", { props: eventData });
-    }
-  } catch {
-    // Silent failure in production, log in development
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[Analytics] Plausible tracking error - silent failure");
-    }
-  }
-}
-
-/**
- * Safely tracks a pageview in Umami
- * @param path - The normalized page path
- */
-export function trackUmami(path: string): void {
-  if (typeof window === "undefined") return;
-
-  try {
-    if (window.umami?.track && typeof window.umami.track === "function") {
-      const eventData: UmamiEvent = {
-        ...createBaseEventData(),
-        path,
-        hostname: window.location.hostname,
-        website: process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID,
-      };
-      window.umami.track("pageview", eventData);
-    }
-  } catch {
-    // Silent failure in production, log in development
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[Analytics] Umami tracking error - silent failure");
-    }
-  }
-}
-
-/**
- * Analytics scripts with error handling to prevent app crashes
- */
-function AnalyticsScripts() {
-  // All hooks must be called unconditionally at the top level
-  const pathname = usePathname();
-  const [scriptsLoaded, setScriptsLoaded] = useState({
-    umami: false,
-    plausible: false,
-    simpleAnalytics: false,
-    clicky: false,
-  });
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  const trackPageview = useCallback(
-    (path: string) => {
-      if (!path) return;
-
-      const normalizedPath = path.replace(/\?.+$/, "");
-
-      try {
-        if (scriptsLoaded.umami) {
-          trackUmami(normalizedPath);
-        }
-
-        if (scriptsLoaded.plausible) {
-          trackPlausible(normalizedPath);
-        }
-      } catch {
-        // Silent error handling to prevent app crashes
-        return;
-      }
-    },
-    [scriptsLoaded],
-  );
-
-  // Track page views on route changes
-  useEffect(() => {
-    if (!pathname) return;
-
-    // Don't continue if scripts aren't loaded
-    if (!scriptsLoaded.umami && !scriptsLoaded.plausible && !scriptsLoaded.clicky) return;
-
-    try {
-      const normalizedPath = pathname.replace(/\/blog\/[^/]+/, "/blog/:slug").replace(/\?.+$/, "");
-
-      // Add a longer delay to ensure scripts are fully initialized
-      const trackingTimeout = setTimeout(() => {
-        trackPageview(normalizedPath);
-        // Use the now typed window.clicky
-        if (window.clicky) {
-          window.clicky.pageview(normalizedPath);
-        }
-      }, 500); // Increased from 100ms to 500ms
-
-      return () => clearTimeout(trackingTimeout);
-    } catch {
-      // Silent failure
-      return undefined;
-    }
-  }, [pathname, trackPageview, scriptsLoaded]);
-
-  // Prevent loading analytics scripts only on localhost during development, or if env vars are missing
+export function Analytics(): JSX.Element | null {
+  // Skip analytics on localhost during development
   if (
-    (typeof window !== "undefined" &&
-      window.location.hostname === "localhost" &&
-      process.env.NODE_ENV === "development") ||
-    typeof window === "undefined" ||
-    !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ||
-    !process.env.NEXT_PUBLIC_SITE_URL
+    typeof window !== "undefined" &&
+    window.location.hostname === "localhost" &&
+    process.env.NODE_ENV === "development"
   ) {
-    if (
-      process.env.NODE_ENV === "development" &&
-      typeof window !== "undefined" &&
-      window.location.hostname === "localhost"
-    ) {
-      console.info("[Analytics] Skipping analytics script loading on localhost.");
+    console.info("[Analytics] Skipping analytics on localhost");
+    return null;
+  }
+
+  // Ensure required environment variables exist
+  if (!process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || !process.env.NEXT_PUBLIC_SITE_URL) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[Analytics] Missing required environment variables");
     }
     return null;
   }
 
-  let domain: string;
-  try {
-    if (!process.env.NEXT_PUBLIC_SITE_URL) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[Analytics] NEXT_PUBLIC_SITE_URL is not defined. Falling back to default domain.");
-      }
-      throw new Error("NEXT_PUBLIC_SITE_URL is not defined");
+  const domain = (() => {
+    try {
+      return new URL(process.env.NEXT_PUBLIC_SITE_URL).hostname;
+    } catch {
+      return "williamcallahan.com";
     }
-    domain = new URL(process.env.NEXT_PUBLIC_SITE_URL).hostname;
-  } catch {
-    // Fallback if URL parsing fails or env var is missing
-    domain = "williamcallahan.com";
-  }
+  })();
 
-  // Safe error handlers that won't propagate errors
-  const safeScriptErrorHandler = (source: string) => () => {
-    // Always warn on script load errors
-    console.warn(`[Analytics] Failed to load ${source} script - continuing without analytics`);
-  };
-
-  /*
-   * IMPORTANT: The `id` attributes for these third-party scripts MUST be static.
-   * Services like Umami and Plausible require specific, predictable IDs to function.
-   * Using dynamic IDs (e.g., from React.useId) will break analytics.
-   * The `lint/nursery/useUniqueElementIds` rule is disabled for this file in biome.json
-   * to allow for these required static IDs.
-   */
   return (
     <>
-      {process.env.NODE_ENV === "production" && (
-        <Script
-          id="umami"
-          strategy="lazyOnload"
-          src={`https://umami.iocloudhost.net/script.js?t=${Date.now()}`}
-          data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
-          data-cache="false"
-          onLoad={() => {
-            try {
-              setScriptsLoaded((prev) => ({ ...prev, umami: true }));
-            } catch {
-              // Silent failure
-            }
-          }}
-          onError={() => setScriptsLoaded((prev) => ({ ...prev, umami: false }))}
-        />
-      )}
+      {/* Umami Analytics - Official docs: https://umami.is/docs/install */}
+      <Script
+        id="umami"
+        strategy="afterInteractive"
+        src="https://umami.iocloudhost.net/script.js"
+        data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+        data-auto-track="true"
+        data-do-not-track="true"
+        data-cache="false"
+      />
+
+      {/* Plausible Analytics - Official docs: https://plausible.io/docs/script-extensions */}
       <Script
         id="plausible"
-        strategy="lazyOnload"
-        src={`https://plausible.iocloudhost.net/js/script.js?t=${Date.now()}`}
+        strategy="afterInteractive"
+        src="https://plausible.iocloudhost.net/js/script.js"
         data-domain={domain}
         data-api="https://plausible.iocloudhost.net/api/event"
-        onLoad={() => {
-          try {
-            setScriptsLoaded((prev) => ({ ...prev, plausible: true }));
-            if (pathname) {
-              trackPageview(pathname);
-            }
-          } catch {
-            // Silent failure
-          }
-        }}
-        onError={() => setScriptsLoaded((prev) => ({ ...prev, plausible: false }))}
       />
-      {/* Simple Analytics */}
+
+      {/* Simple Analytics - Official docs: https://docs.simpleanalytics.com/script */}
       <Script
         id="simple-analytics"
-        strategy="lazyOnload"
+        strategy="afterInteractive"
         src="https://scripts.simpleanalyticscdn.com/latest.js"
         data-collect-dnt="true"
-        onLoad={() => setScriptsLoaded((prev) => ({ ...prev, simpleAnalytics: true }))}
-        onError={() => setScriptsLoaded((prev) => ({ ...prev, simpleAnalytics: false }))}
+        async
       />
-      {isMounted && (
-        <noscript>
-          <Image
-            src="https://queue.simpleanalyticscdn.com/noscript.gif?collect-dnt=true"
-            alt=""
-            referrerPolicy="no-referrer-when-downgrade"
-            width={1}
-            height={1}
-          />
-        </noscript>
-      )}
+      <noscript>
+        <Image
+          src="https://queue.simpleanalyticscdn.com/noscript.gif?collect-dnt=true"
+          alt=""
+          referrerPolicy="no-referrer-when-downgrade"
+          width={1}
+          height={1}
+        />
+      </noscript>
 
-      {/* Clicky Analytics */}
-      {/* Using Next/Script component, equivalent to <script async src="..."> */}
+      {/* Clicky Analytics - Official docs: https://clicky.com/help/custom */}
       <Script
-        id="clicky-analytics"
-        strategy="afterInteractive" // Use afterInteractive to mimic 'async' behavior
-        src="https://static.getclicky.com/101484018.js" // Use https protocol
-        onLoad={() => {
-          if (process.env.NODE_ENV === "development") {
-            console.log("[Analytics] Clicky script loaded.");
-          }
-          setScriptsLoaded((prev) => ({ ...prev, clicky: true }));
-        }}
-        onError={safeScriptErrorHandler("Clicky")}
+        id="clicky"
+        strategy="afterInteractive"
+        src="https://static.getclicky.com/101484018.js"
+        async
       />
-      {isMounted && (
-        <noscript>
-          {/* Standard Clicky noscript tag */}
-          <p>
-            <Image alt="Clicky" width="1" height="1" src="https://in.getclicky.com/101484018ns.gif" />
-          </p>{" "}
-          {/* Use https protocol */}
-        </noscript>
-      )}
+      <noscript>
+        <p>
+          <Image 
+            alt="Clicky" 
+            width={1} 
+            height={1} 
+            src="https://in.getclicky.com/101484018ns.gif" 
+          />
+        </p>
+      </noscript>
     </>
-  );
-}
-
-/**
- * Analytics component that handles pageview tracking
- * Supports Plausible, Umami, Simple Analytics, and Clicky
- * @returns JSX.Element | null
- */
-export function Analytics(): JSX.Element | null {
-  // Wrap in error boundary to prevent analytics issues from crashing the app
-  return (
-    <AnalyticsErrorBoundary>
-      <AnalyticsScripts />
-    </AnalyticsErrorBoundary>
   );
 }
