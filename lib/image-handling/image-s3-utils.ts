@@ -7,11 +7,12 @@
  * @module utils/image-s3-utils
  */
 
-import { processImageBuffer } from "@/lib/data-access/logos/image-processing";
 import { readBinaryS3, writeBinaryS3 } from "@/lib/s3-utils";
-import { debug, isDebug } from "@/lib/utils/debug"; // Imported isDebug
+import { debug, isDebug } from "@/lib/utils/debug";
 import { getOgImageS3Key, hashImageContent } from "@/lib/utils/opengraph-utils";
 import { listS3Objects } from "../s3-utils";
+import { processImageBufferSimple } from "./shared-image-processing";
+import { isS3ReadOnly } from "@/lib/utils/s3-read-only";
 
 /**
  * Generic function to persist an image to S3 storage
@@ -30,10 +31,22 @@ export async function persistImageToS3(
   idempotencyKey?: string,
   pageUrl?: string,
 ): Promise<string | null> {
+  // Check if we're in read-only mode using shared utility
+  if (isS3ReadOnly()) {
+    const displayUrl = imageUrl.startsWith('data:') 
+      ? `${imageUrl.substring(0, 50)}...[base64 data truncated]`
+      : imageUrl;
+    console.log(`[${logContext}] Read-only mode: Skipping S3 persistence for ${displayUrl}`);
+    return null;
+  }
+  
   try {
     if (isDebug) {
+      const displayUrl = imageUrl.startsWith('data:') 
+        ? `${imageUrl.substring(0, 50)}...[base64 data truncated]`
+        : imageUrl;
       debug(
-        `[${logContext}] Attempting to persist image. Original URL: ${imageUrl}, IdempotencyKey: ${idempotencyKey}, PageURL: ${pageUrl}`,
+        `[${logContext}] Attempting to persist image. Original URL: ${displayUrl}, IdempotencyKey: ${idempotencyKey}, PageURL: ${pageUrl}`,
       );
     }
 
@@ -82,7 +95,10 @@ export async function persistImageToS3(
 
     // Process the image (handles SVG detection, PNG conversion, etc.)
     if (isDebug) debug(`[${logContext}] Processing image buffer for: ${imageUrl}`);
-    const { processedBuffer, contentType } = await processImageBuffer(rawBuffer);
+    
+    // Use shared image processing utility
+    const { processedBuffer, contentType } = await processImageBufferSimple(rawBuffer, logContext);
+    
     if (isDebug)
       debug(
         `[${logContext}] Image processed for ${imageUrl}. New size: ${processedBuffer.length} bytes, ContentType: ${contentType}`,
@@ -96,18 +112,40 @@ export async function persistImageToS3(
     console.log(`[OpenGraph S3] 📤 Uploading processed image to S3: ${s3Key} (${processedBuffer.length} bytes)`);
     await writeBinaryS3(s3Key, processedBuffer, contentType);
 
+    const displayUrl = imageUrl.startsWith('data:') 
+      ? `${imageUrl.substring(0, 50)}...[base64 data truncated]`
+      : imageUrl;
     console.log(
-      `[OpenGraph S3] ✅ Successfully persisted image to S3: ${s3Key} (${processedBuffer.length} bytes) from ${imageUrl}`,
+      `[OpenGraph S3] ✅ Successfully persisted image to S3: ${s3Key} (${processedBuffer.length} bytes) from ${displayUrl}`,
     );
     return s3Key;
   } catch (error) {
     // Ensure error is an instance of Error for consistent message property access
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`[${logContext}] Failed to persist image ${imageUrl}:`, errorMessage);
-    // Optionally, log the full error object if more details are needed in development
-    // if (process.env.NODE_ENV === 'development') {
-    //   console.error(`[${logContext}] Full error object for ${imageUrl}:`, error);
-    // }
+    const displayUrl = imageUrl.startsWith('data:') 
+      ? `${imageUrl.substring(0, 50)}...[base64 data truncated]`
+      : imageUrl;
+    console.error(`[${logContext}] ❌ FAILED to persist image from URL: ${displayUrl}`);
+    console.error(`[${logContext}] ❌ Error: ${errorMessage}`);
+    console.error(`[${logContext}] ❌ S3 Directory: ${s3Directory}`);
+    console.error(`[${logContext}] ❌ Page URL: ${pageUrl || 'N/A'}`);
+    console.error(`[${logContext}] ❌ Idempotency Key: ${idempotencyKey || 'N/A'}`);
+    
+    // Log specific error types
+    if (errorMessage.includes('fetch failed') || errorMessage.includes('ENOTFOUND')) {
+      console.error(`[${logContext}] ❌ Network error: Unable to fetch image from source`);
+    } else if (errorMessage.includes('404')) {
+      console.error(`[${logContext}] ❌ Image not found (404) at source URL`);
+    } else if (errorMessage.includes('403')) {
+      console.error(`[${logContext}] ❌ Access forbidden (403) to image URL`);
+    } else if (errorMessage.includes('timeout')) {
+      console.error(`[${logContext}] ❌ Timeout: Image fetch took too long`);
+    } else if (errorMessage.includes('content-type')) {
+      console.error(`[${logContext}] ❌ Invalid content type: Not an image`);
+    } else if (errorMessage.includes('S3')) {
+      console.error(`[${logContext}] ❌ S3 error: Failed to upload to S3`);
+    }
+    
     return null;
   }
 }
@@ -118,7 +156,7 @@ export async function persistImageToS3(
  */
 async function handleStaleImageUrl(imageUrl: string, pageUrl: string, logContext: string): Promise<void> {
   try {
-    const { ServerCacheInstance } = await import("@/lib/server-cache");
+    const { invalidateOpenGraphCacheForUrl } = await import("@/lib/data-access/opengraph");
 
     const isKarakeepUrl = /^https?:\/\/(?:[^/]+\.)?(karakeep\.app|hoarder\.io)\/.+/i.test(imageUrl);
 
@@ -126,19 +164,27 @@ async function handleStaleImageUrl(imageUrl: string, pageUrl: string, logContext
     // disappear (like a site's own og-image.png) should *not* force an immediate refetch cycle – we
     // will fall back to the cached CDN copy we already have in S3 instead of hammering the origin.
     if (!isKarakeepUrl) {
-      if (isDebug)
+      if (isDebug) {
+        const displayUrl = imageUrl.startsWith('data:') 
+          ? `${imageUrl.substring(0, 50)}...[base64 data truncated]`
+          : imageUrl;
         debug(
-          `[${logContext}] Stale image URL returned 404 but is NOT a Karakeep asset – skipping auto-recrawl: ${imageUrl}`,
+          `[${logContext}] Stale image URL returned 404 but is NOT a Karakeep asset – skipping auto-recrawl: ${displayUrl}`,
         );
+      }
       return;
     }
 
-    const reason = `Image URL returned 404: ${imageUrl} (Karakeep asset)`;
-    const invalidated = ServerCacheInstance.invalidateStaleOpenGraphData(pageUrl, reason);
+    // Use Next.js cache invalidation
+    invalidateOpenGraphCacheForUrl(pageUrl);
+    const invalidated = true; // Next.js cache invalidation doesn't return a value
 
     if (!invalidated) return;
 
-    console.warn(`[${logContext}] 🚨 Karakeep asset URL is invalid: ${imageUrl}`);
+    const displayUrl = imageUrl.startsWith('data:') 
+      ? `${imageUrl.substring(0, 50)}...[base64 data truncated]`
+      : imageUrl;
+    console.warn(`[${logContext}] 🚨 Karakeep asset URL is invalid: ${displayUrl}`);
     console.warn(`[${logContext}] 🔄 Automatic recovery initiated for ${pageUrl}`);
 
     // Trigger background refresh to get fresh OpenGraph data with updated image URLs
