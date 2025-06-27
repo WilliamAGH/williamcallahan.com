@@ -803,15 +803,47 @@ async function detectAndRepairCsvFiles(): Promise<{
 
       if (csvContent) {
         const csvString = csvContent.toString("utf-8");
+
+        // ------- incremental skip logic --------
+        try {
+          const { createHash } = await import("node:crypto");
+          const { readJsonS3 } = await import("@/lib/s3-utils");
+          const checksumKey = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwner}_${repoName}_raw_checksum.json`;
+
+          const latest = await readJsonS3<{ checksum: string }>(checksumKey);
+          if (latest?.checksum) {
+            const currentChecksum = createHash("sha256").update(csvString).digest("hex");
+            if (currentChecksum === latest.checksum) {
+              console.log(
+                `[DataAccess/GitHub] CSV unchanged for ${repoOwner}/${repoName} (checksum ${currentChecksum}), skipping repair`,
+              );
+              repairedCount++; // treat as success
+              continue; // next repo
+            }
+          }
+        } catch {
+          /* ignore checksum skip errors */
+        }
+
         const repairedCsv = repairCsvData(csvString);
 
         if (repairedCsv === csvString) {
-          // CSV doesn't need repair
           repairSuccessful = true;
         } else {
-          // CSV needs repair - write the repaired version
           await writeBinaryS3(repoStatS3Key, Buffer.from(repairedCsv), "text/csv");
           repairSuccessful = true;
+        }
+
+        // After potential repair, store new checksum pointer (best-effort)
+        try {
+          const { createHash } = await import("node:crypto");
+          const { writeJsonS3 } = await import("@/lib/s3-utils");
+          const csvForChecksum = typeof repairedCsv === "string" ? repairedCsv : csvString;
+          const newChecksum = createHash("sha256").update(csvForChecksum).digest("hex");
+          const checksumKey = `${REPO_RAW_WEEKLY_STATS_S3_KEY_DIR}/${repoOwner}_${repoName}_raw_checksum.json`;
+          await writeJsonS3(checksumKey, { checksum: newChecksum });
+        } catch {
+          /* ignore checksum write errors */
         }
       }
 
