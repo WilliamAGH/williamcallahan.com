@@ -147,7 +147,7 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
   
   // Check for existing logos in S3
   for (const variant of variants) {
-    for (const source of ['google', 'duckduckgo', 'clearbit']) {
+    for (const source of ['google', 'duckduckgo']) {
       // Check common image formats
       for (const ext of ['png', 'jpg', 'jpeg', 'svg', 'webp']) {
         const s3Key = `${IMAGE_S3_PATHS.LOGOS_DIR}/${variant}_${source}_${domainHash}.${ext}`;
@@ -168,7 +168,6 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
   for (const variant of variants) {
     const sources: Array<{ name: LogoSource; url: string }> = [
       { name: "google", url: LOGO_SOURCES.google.hd(variant) },
-      { name: "clearbit", url: LOGO_SOURCES.clearbit.hd(variant) },
       { name: "duckduckgo", url: LOGO_SOURCES.duckduckgo.hd(variant) },
     ];
     

@@ -12,7 +12,7 @@ export type ImageSource =
   | "placeholder"
   | "google"
   | "duckduckgo"
-  | "clearbit"
+
   | "unknown"
   | "api";
 

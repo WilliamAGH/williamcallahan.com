@@ -182,10 +182,6 @@ export const LOGO_SOURCES = {
     md: (d: string) => logoUrl("https://www.google.com/s2/favicons?domain=", d, 128),
     sm: (d: string) => logoUrl("https://www.google.com/s2/favicons?domain=", d, 64),
   },
-  clearbit: {
-    hd: (d: string) => `https://logo.clearbit.com/${d}?size=256&format=png`,
-    md: (d: string) => `https://logo.clearbit.com/${d}?size=128&format=png`,
-  },
   duckduckgo: {
     hd: (d: string) => `https://icons.duckduckgo.com/ip3/${d}.ico`,
     md: (d: string) => `https://external-content.duckduckgo.com/ip3/${d}.ico`,

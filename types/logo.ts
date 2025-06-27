@@ -28,7 +28,7 @@ export interface LogoData {
 }
 
 /** Identifies the source service used to fetch a company logo. */
-export type LogoSource = "google" | "duckduckgo" | "clearbit" | "unknown" | null;
+export type LogoSource = "google" | "duckduckgo" | "unknown" | null;
 
 /**
  * Contains analysis results determining if a logo needs color inversion

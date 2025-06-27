@@ -625,7 +625,6 @@ const nextConfig = {
       { protocol: "https", hostname: "www.google.com" },
       { protocol: "https", hostname: "external-content.duckduckgo.com" },
       // Logo services
-      { protocol: "https", hostname: "logo.clearbit.com" },
       // Analytics and internal hosting platforms
       { protocol: "https", hostname: "umami.iocloudhost.net" },
       { protocol: "https", hostname: "plausible.iocloudhost.net" },
