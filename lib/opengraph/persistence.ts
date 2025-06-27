@@ -229,6 +229,16 @@ export async function persistImageAndGetS3UrlWithStatus(
   idempotencyKey?: string,
   pageUrl?: string,
 ): Promise<PersistImageResult> {
+  // When running in the web runtime (IS_DATA_UPDATER != "true") we schedule
+  // the persistence in the background instead of performing a blocking S3
+  // upload that allocates large buffers. This keeps memory usage low both in
+  // dev and production edge runtimes. The cron/data-updater container sets
+  // IS_DATA_UPDATER="true" and still performs synchronous uploads.
+
+  if (process.env.IS_DATA_UPDATER !== "true") {
+    scheduleImagePersistence(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
+    return { s3Url: imageUrl, wasNewlyPersisted: false };
+  }
   // Truncate base64 data for logging
   const displayUrl = imageUrl.startsWith("data:") ? `${imageUrl.substring(0, 50)}...[base64 data truncated]` : imageUrl;
   console.log(`[OpenGraph S3] 🔄 Checking and persisting image: ${displayUrl}`);

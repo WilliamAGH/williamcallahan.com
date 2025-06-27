@@ -8,7 +8,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, writeBinaryS3 } from "@/lib/s3-utils";
-import { getExtensionFromContentType } from "@/lib/utils/content-type";
+import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
 import { IMAGE_S3_PATHS } from "@/lib/constants";
 
 /**
@@ -39,8 +39,8 @@ async function findAssetInS3(assetId: string): Promise<{ key: string; contentTyp
     return null;
   }
 
-  // Common extensions to check
-  const extensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"];
+  // Build list once from central IMAGE_EXTENSIONS
+  const extensions = IMAGE_EXTENSIONS.map((e) => `.${e}`);
 
   for (const ext of extensions) {
     const key = `${IMAGE_S3_PATHS.OPENGRAPH_DIR}/${assetId}${ext}`;
