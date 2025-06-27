@@ -12,6 +12,7 @@ import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-lo
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import type { LogoData } from "../../../types/logo";
 import type { ReactElement } from "react";
+import { getLogo } from "@/lib/data-access/logos";
 
 /**
  * Investment Card Server Component
@@ -49,10 +50,30 @@ export async function InvestmentCard(props: Investment): Promise<ReactElement> {
         };
 
         return <InvestmentCardClient {...props} logoData={logoData} />;
+      } else {
+        console.info(`[InvestmentCard] Manifest miss for domain ${effectiveDomain}, falling back to live fetch`);
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn(`Failed to get logo for ${name} (${effectiveDomain}):`, errorMessage);
+      console.warn(`Manifest lookup error for ${name} (${effectiveDomain}):`, errorMessage);
+    }
+
+    // Fallback: live logo fetch via UnifiedImageService
+    try {
+      const liveLogo = await getLogo(effectiveDomain);
+      const resolvedUrl = liveLogo?.cdnUrl ?? liveLogo?.url;
+      if (liveLogo && resolvedUrl) {
+        const logoData: LogoData = {
+          url: resolvedUrl,
+          source: liveLogo.source,
+        };
+        console.info(`[InvestmentCard] Live logo fetched for ${effectiveDomain} via ${liveLogo.source ?? "api"}`);
+        return <InvestmentCardClient {...props} logoData={logoData} />;
+      }
+      console.warn(`[InvestmentCard] Live logo fetch returned empty for ${effectiveDomain}`);
+    } catch (fetchErr) {
+      const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+      console.error(`[InvestmentCard] Live logo fetch failed for ${effectiveDomain}:`, msg);
     }
   }
 

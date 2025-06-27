@@ -46,6 +46,7 @@ export function LogoImage({
   const handleError = useCallback(() => {
     if (retryInitiated.current) {
       // We already retried once – fallback permanently to placeholder
+      console.error(`[LogoImage] Final failure loading logo src: ${src}`);
       setImageError(true);
       return;
     }
@@ -66,6 +67,7 @@ export function LogoImage({
         setImageError(true);
         return;
       }
+      console.warn(`[LogoImage] Retrying logo load with cache-buster: ${src}`);
       setReloadKey(Date.now());
     }, 3000);
   }, [src]);
