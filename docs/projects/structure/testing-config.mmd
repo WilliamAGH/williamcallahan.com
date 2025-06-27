@@ -1,104 +1,80 @@
 graph TD
-    subgraph "Test Strategy"
-        UNIT[Unit Tests<br/>Functions & Utilities]
-        COMP[Component Tests<br/>React Testing Library]
-        INT[Integration Tests<br/>Module Interactions]
-        E2E[E2E Smoke Tests<br/>User Flows]
+    subgraph "I. Test Runner Philosophy"
+        direction LR
+        A1(bun run test) --> A2(✅ Jest Runner)
+        A3(bun test) --> A4(❌ Bypasses Config)
+        A2 --> A5(Vitest<br/><i>Emergency Alternative</i>)
     end
 
-    subgraph "Test Runners"
-        JEST[Jest<br/>Primary Runner]
-        BUN[Bun<br/>Server-side Tests]
+    subgraph "II. Modern Testing Context"
+        B1[Jest v28-30<br/>- jest.mocked()<br/>- ESM Support]
+        B2[React 18-19<br/>- Auto Batching<br/>- use() Hook & Actions]
+        B3[Next.js 14-15<br/>- next/navigation mocks<br/>- Server Action tests]
     end
 
-    subgraph "Configuration Files"
-        JESTCFG[jest.config.ts<br/>Main Config]
-        JESTPOLY[jest.polyfills.js<br/>Browser API Polyfills]
-        JESTSETUP[jest.setup.ts<br/>Global Setup]
-        BUNSETUP[bun-setup.ts<br/>Bun Environment]
-        TSJEST[tsconfig.jest.json<br/>TS Config for Tests]
+    subgraph "III. Jest Configuration"
+        C1[config/jest/config.ts<br/><b>Primary Config</b>]
+        C2[config/jest/setup.ts<br/>Global Setup]
+        C3[__tests__/__mocks__/<br/>Manual Mocks]
+        C4[__tests__/tsconfig.jest.json<br/>Test TSConfig]
     end
 
-    subgraph "Type Definitions"
-        BUNTYPE[bun-test-globals.d.ts<br/>Bun Globals]
-        MATCHERS[matchers.d.ts<br/>Custom Matchers]
-        JESTDOM[jest-dom.jest.d.ts<br/>DOM Matchers]
-        JESTEXT[jest-extended.d.ts<br/>Extended Matchers]
+    subgraph "IV. Test Strategy & Types"
+        D1[Unit Tests]
+        D2[Component Tests]
+        D3[Integration Tests]
+        D4[E2E Smoke Tests]
+    end
+    
+    subgraph "V. Knowledge & Troubleshooting"
+        E1[<a href='https://nextjs.org/docs/pages/guides/testing/jest'>Next.js Docs</a>]
+        E2[<a href='https://jestjs.io/docs/tutorial-react'>Jest Docs</a>]
+        E3[Context7 MCP<br/>Deeper Docs Search]
+        E4[Troubleshooting Guide]
     end
 
-    subgraph "Mock System"
-        FILEMOCK[file-mock.js<br/>Static Assets]
-        STYLEMOCK[style-mock.js<br/>CSS Imports]
-        FETCHMOCK[fix-fetch-mock.ts<br/>Fetch Polyfill]
+    subgraph "VI. CI/CD & Validation"
+        F1[bun run validate]
+        F2[Test Results]
+        F3[Coverage Reports]
+        F4[GitHub Actions]
     end
 
-    subgraph "Test Scripts"
-        WRAPPER[bun-test-wrapper.sh<br/>Command Interceptor]
-        RUNTESTS[run-tests.sh<br/>Main Runner]
-        RUNBUN[run-bun-tests.sh<br/>Bun Executor]
-        ALIAS[setup-test-alias.sh<br/>Shell Aliases]
-    end
+    A1 --> C1
+    C1 --> B1
+    C1 --> B2
+    C1 --> B3
+    
+    A2 --> D1
+    A2 --> D2
+    A2 --> D3
+    A2 --> D4
+    
+    D1 --> F2
+    D2 --> F2
+    D3 --> F2
+    D4 --> F2
 
-    subgraph "Support Scripts"
-        NAMING[check-file-naming.ts<br/>Convention Validator]
-        FIXIMPORT[fix-test-imports.sh<br/>Import Fixer]
-        TESTLIB[testing-library.ts<br/>RTL Setup]
-    end
+    F2 --> F3
+    F2 --> F4
+    F1 --> F4
+    
+    A4 --> E4
+    B1 --> E4
+    B2 --> E4
+    B3 --> E4
+    
+    classDef runner fill:#cde4f2,stroke:#004085
+    class A1,A2,A3,A5 runner
 
-    subgraph "Test Output"
-        COVERAGE[Coverage Reports]
-        RESULTS[Test Results]
-        CI[CI/CD Pipeline]
-    end
+    classDef context fill:#d4edda,stroke:#155724
+    class B1,B2,B3 context
 
-    %% Test Flow
-    UNIT --> JEST
-    COMP --> JEST
-    INT --> JEST
-    INT --> BUN
-    E2E --> JEST
+    classDef config fill:#f8d7da,stroke:#721c24
+    class C1,C2,C3,C4 config
+    
+    classDef links fill:#fff3cd,stroke:#856404
+    class E1,E2,E3,E4 links
 
-    %% Jest Configuration
-    JEST --> JESTCFG
-    JESTCFG --> JESTPOLY
-    JESTCFG --> JESTSETUP
-    JESTCFG --> TSJEST
-    JESTSETUP --> TESTLIB
-
-    %% Bun Configuration
-    BUN --> BUNSETUP
-    BUNSETUP --> BUNTYPE
-
-    %% Type System
-    JEST --> JESTDOM
-    JEST --> JESTEXT
-    JEST --> MATCHERS
-    BUN --> MATCHERS
-
-    %% Mock System
-    JESTCFG --> FILEMOCK
-    JESTCFG --> STYLEMOCK
-    JESTSETUP --> FETCHMOCK
-
-    %% Script Flow
-    WRAPPER --> RUNTESTS
-    RUNTESTS --> BUN
-    ALIAS --> WRAPPER
-    RUNBUN --> BUN
-
-    %% Support Flow
-    CI --> NAMING
-    RUNTESTS --> FIXIMPORT
-
-    %% Output
-    JEST --> COVERAGE
-    JEST --> RESULTS
-    BUN --> RESULTS
-    RESULTS --> CI
-
-    %% Styling
-    style JEST fill:#d4edda,stroke:#155724
-    style BUN fill:#d4edda,stroke:#155724
-    style CI fill:#d1ecf1,stroke:#0c5460
-    style WRAPPER fill:#fff3cd,stroke:#856404
-    style NAMING fill:#fff3cd,stroke:#856404
+    classDef ci fill:#d1ecf1,stroke:#0c5460
+    class F1,F2,F3,F4 ci

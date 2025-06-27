@@ -170,17 +170,17 @@ If significant changes are made to the underlying data fetching or processing lo
 
 To force a refresh of all persisted GitHub activity data, ensuring accuracy and bypassing any local development skip intervals:
 
-1.  **Run the Volume Population Script with the `--force-refresh-github` flag:**
-    This command will instruct the script to first delete any existing persisted GitHub activity files and then re-fetch and re-process all GitHub data from scratch.
+1.  **Run the Data Updater Script with the `--github` flag:**
+    This command will fetch and update GitHub activity data in S3.
 
     ```bash
-    # If you use bun
-    bun run scripts/populate-volumes.ts --force-refresh-github
+    # Update GitHub data
+    bun run update-s3 -- --github
 
-    # Or, if you use ts-node directly
-    # npx ts-node ./scripts/populate-volumes.ts --force-refresh-github
+    # Or update all data types
+    bun run update-s3 -- --bookmarks --github --logos
     ```
 
-This process ensures that the `data/github-activity/` directory is populated with freshly calculated data based on the latest logic in `lib/data-access.ts`.
-For other data types (bookmarks, logos), the script will follow its normal caching and fetching logic.
+This process ensures that the GitHub activity data is updated in S3 based on the latest logic.
+For other data types (bookmarks, logos), use the appropriate flags or run without flags to update all data types.
 

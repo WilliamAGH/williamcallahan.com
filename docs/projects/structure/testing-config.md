@@ -1,285 +1,734 @@
-# Testing Configuration
+# Testing Configuration & Modernization Guide
 
 **Functionality:** `testing-config`
 
-## Core Objective
+**Last Updated:** June 26, 2025
 
-Configure and setup the testing environment for both Jest and Bun test runners, providing type definitions, polyfills, mock implementations, and a comprehensive testing strategy for consistent test execution across the application.
+This document outlines the testing architecture, configurations, and critical best practices for this project. It incorporates recent advancements in Jest, React, and Next.js to ensure a robust, maintainable, and type-safe testing strategy.
 
-## Testing Strategy
+## 🚨 CRITICAL: ANTI-POLYFILL MANDATE (2025)
 
-The project uses **Jest** as the primary test runner with a multi-layered testing strategy:
+**This codebase FORBIDS polyfills.** Next.js 15 + Node 22 LTS provides all necessary APIs natively.
 
-- **Unit Tests**: Focus on isolating and testing individual functions, utilities, and hooks. Essential for verifying business logic correctness in controlled environments.
-- **Component Tests**: Using React Testing Library, these verify that React components render correctly and behave as expected in response to user interactions.
-- **Integration Tests**: Verify interactions between different components and modules (e.g., testing form components with data-fetching services).
-- **End-to-End (E2E) Smoke Tests**: High-level tests simulating basic user flows and validating key pages render without errors. Act as sanity checks for the integrated application.
+### ❌ BANNED PACKAGES & PATTERNS
 
-## Why Jest?
+- `core-js`, `@babel/polyfill`, `react-app-polyfill`, `polyfill.io`
+- `whatwg-fetch`, `isomorphic-fetch`, `cross-fetch`
+- Any package that patches `globalThis`, `window`, or `global`
+- Any "kitchen-sink" polyfills for legacy browser support
 
-Jest provides comprehensive testing framework support for:
+### ✅ MODERN ALTERNATIVES ONLY
 
-- React component testing with React Testing Library
-- JSDOM environment for DOM manipulation outside browsers
-- Advanced mocking capabilities for functions, modules, and timers
+- **Native APIs**: Use Node 22's built-in `fetch`, `URL`, `TextEncoder`, `ReadableStream`
+- **Ponyfills**: Import-only modules that don't mutate globals
+- **Feature Detection**: Dynamic imports with runtime capability checks
+- **Server-First**: Move processing to Server Components/Edge Functions
+- **Current Documentation**: Always verify patterns via Context7/DeepWiki MCPs
 
-## Test Directory Structure
+## 1. 🚨 Core Principle: We Use Jest, Not Bun's Native Runner
 
-All test-related files are located in the `__tests__` directory at the project root:
+This project exclusively uses **Jest** as its test runner, executed via `bun run` scripts. This is a non-negotiable standard.
 
+### 1.1. Why We Use Jest
+
+- **Comprehensive Ecosystem:** Robust support for React Testing Library, JSDOM, and advanced mocking.
+- **Stability:** Mature and battle-tested for large-scale applications.
+- **`next/jest` Integration:** Official Next.js plugin that automatically handles SWC transformation, module mocking, and path aliasing.
+
+### 1.2. The Dangers of `bun test`
+
+Using `bun test` directly **is a critical violation** that bypasses our entire Jest configuration (`config/jest/config.ts`). This leads to immediate and catastrophic test failures, including:
+
+- `jest.mock is not defined`
+- Module resolution failures (path aliases, etc.)
+- Missing JSDOM environment (`document is not defined`)
+- Failure to load mocks and test environment setup
+
+### 1.3. ✅ Mandatory Test Execution Commands
+
+**ALWAYS** use these `bun run` scripts. They are the only valid way to run tests.
+
+```bash
+# ✅ Run all tests with proper Jest configuration
+bun run test
+
+# ✅ Run tests in watch mode
+bun run test:watch
+
+# ✅ Generate a coverage report
+bun run test:coverage
+
+# ✅ Run tests in a CI environment
+bun run test:ci
+
+# ✅ Run a specific test file or directory
+bun run test -- __tests__/components/ui/code-block.test.tsx
 ```
-__tests__/
-├── __mocks__/       # Manual mocks for modules
-├── components/      # Tests for React components
-├── lib/             # Tests for library/utility functions
-└── ...              # Other test files, organized by feature
-```
 
-### File Naming Convention
+### 1.4. The Vitest Alternative
 
-Test files should be named with `.test.ts` or `.test.tsx` suffix (e.g., `utils.test.ts`, `Header.test.tsx`).
+While Jest is our standard, we acknowledge that the modern JavaScript ecosystem evolves rapidly. If intractable issues arise with Jest, particularly with ESM compatibility or complex `next/jest` behavior, **Vitest** is our designated alternative. A migration to Vitest would be a significant undertaking and should only be considered if:
 
-## Architecture & Key Components
+1. A Jest-related problem blocks critical development.
+2. A comprehensive migration plan is approved.
+3. The issue has been thoroughly investigated and documented.
 
-### Type Definitions
+For now, all efforts must focus on maintaining a healthy test suite with Jest.
 
-#### `types/global/bun-test-globals.d.ts`
+## 2. Modern Testing Context: Jest, React, & Next.js Updates
 
-- Global type definitions for Bun test environment
-- Declares global test functions and matchers specific to Bun
+The following sections summarize key changes and their implications for our testing practices.
 
-#### `types/global/matchers.d.ts`
+### 2.1. Jest Updates (v28-v30)
 
-- Custom matcher type definitions
-- Extends Jest/Bun matcher interfaces with project-specific assertions
+- **Native ESM Support:** Jest's support for ES Modules is much improved but can still be complex with TypeScript and `next/jest`. Our configuration handles this, but be mindful of `import` vs. `require` issues in mock files.
+- **`jest.mocked()` Helper:** The `jest.mocked()` helper is now the standard for typing mocked functions and modules. The old second argument (`true`) is deprecated.
+  ```typescript
+  import { myFunction } from '../my-function';
+  jest.mock('../my-function');
 
-#### `types/jest-dom.jest.d.ts`
+  // New standard: provides deep mock types
+  const mockedMyFunction = jest.mocked(myFunction);
+  mockedMyFunction.mockReturnValue('new value');
 
-- Jest DOM matcher type augmentation
-- Extends `@jest/expect` with Testing Library matchers
-- Integrates `@testing-library/jest-dom` types
+  // For shallow mocks (rarely needed)
+  const shallowMock = jest.mocked(myFunction, { shallow: true });
+  ```
+- **Snapshot Format Changes:** Snapshots generated by newer Jest versions may have minor formatting differences. If a snapshot fails after an upgrade, it's often safe to update it with `u` after verifying the changes are benign.
+- **Stricter Types:** Jest's internal types are now stricter. This is a benefit, as it helps enforce our own type safety rules.
 
-#### `types/jest-extended.d.ts`
+### 2.2. React 18 & 19 Testing Context
 
-- Custom Jest matcher types
-- Declares `jest-extended` module
-- Adds `toBeString()` matcher to global Jest namespace
+- **Automatic Batching:** State updates inside tests are now automatically batched. This can simplify tests, but requires using `act` or `waitFor` to ensure the component has fully updated before making assertions.
+- **React 19 `use` Hook:** The new `use` hook simplifies handling promises in components. When testing components that use it, you'll need to mock the promise-based functions it consumes.
+  ```typescript
+  // Example: Testing a component with use(fetchData())
+  import { fetchData } from '../data';
+  jest.mock('../data');
 
-### Jest Configuration
+  it('renders data correctly', async () => {
+    jest.mocked(fetchData).mockResolvedValue('Mocked Data');
+    const { findByText } = render(<MyComponent />);
+    expect(await findByText('Mocked Data')).toBeInTheDocument();
+  });
+  ```
+- **Actions & `useActionState`:** Testing components with Actions requires dispatching form actions or invoking the action function directly within your test, then using `waitFor` to assert the resulting state changes.
+- **Server Components:** Jest tests run in a Node.js environment, so they can't render Server Components directly in a browser-like tree. We test them by:
+    1. **Treating them as pure functions:** For Server Components that primarily fetch data and pass it to Client Components, we test the data-fetching logic separately and then test the child Client Components with mocked props.
+    2. **Using `next/jest`:** The `next/jest` plugin provides the necessary transforms to handle Server Component syntax in a test environment.
 
-#### `jest.config.ts`
+### 2.3. Next.js 14 & 15 Testing Context
 
-- Main Jest configuration file
-- Configures test environment, module resolution, and transformations
-- Sets up module name mappings for path aliases
-- Specifies test file patterns and coverage settings
+- **App Router & `next/navigation`:** When testing components that use hooks like `useRouter`, `usePathname`, or `useSearchParams`, you **must** mock the `next/navigation` module.
+  ```typescript
+  // in __tests__/__mocks__/next/navigation.js
+  module.exports = {
+    ...jest.requireActual('next/navigation'),
+    useRouter: () => ({ push: jest.fn() }),
+    usePathname: () => '/',
+    useSearchParams: () => new URLSearchParams(),
+  };
+  ```
+- **Server Actions:** Test Server Actions as if they were regular async functions. You can import them directly into your test file, call them with test data, and assert their return value.
+- **Caching (`unstable_cache`, `React.cache`):** Next.js and React caching functions can interfere with tests by returning stale data.
+  - **Best Practice:** Structure your code to allow injection of cached functions as dependencies, so you can provide un-cached versions in tests.
+  - **Alternative:** Use `jest.requireActual` to bypass mocks for specific tests where you need to test the caching behavior itself.
 
-#### `jest.polyfills.js`
+## 3. Testing Strategy & Best Practices
 
-- Provides polyfills for Jest test environment
-- Implements browser APIs not available in Node.js
-- Ensures consistent test environment across different platforms
+### 3.1. Multi-Layered Strategy
 
-#### `jest.setup.ts`
+- **Unit Tests**: Isolate and test individual functions, utilities, and hooks.
+- **Component Tests**: Use React Testing Library to verify component rendering and behavior.
+- **Integration Tests**: Verify interactions between different modules (e.g., a form component and a data-fetching service).
+- **E2E Smoke Tests**: High-level tests to simulate basic user flows and validate key pages render without errors.
 
-- Jest setup file run before each test suite
-- Configures global test utilities and matchers
-- Sets up Testing Library and DOM environment
+### 3.2. Best Practices
 
-### Test Environment Setup
+1. **ALWAYS** use `bun run test` scripts, never `bun test` directly.
+2. Keep tests focused on a single concern.
+3. Assign tests to their specific functionality; avoid generic "testing" names.
+4. Ensure all test data is fully and strictly typed.
+5. Keep test configurations minimal and document custom matchers and utilities.
+6. Validate file naming conventions and type safety in the CI pipeline.
 
-#### `__tests__/setup/testing-library.ts`
+## 4. Configuration & Architecture
 
-- Configures React Testing Library
-- Sets up custom render functions
-- Provides test utilities and helpers
+The testing setup is highly configured to enforce our standards. All test-related files are located in the `__tests__` directory.
 
-#### `__tests__/setup/bun-setup.ts`
+### 4.1. Key Configuration Files
 
-- Bun-specific test environment configuration
-- Sets up globals and utilities for Bun tests
-- Configures mock implementations
+- **`config/jest/config.ts`**: The single source of truth for Jest configuration.
+- **`config/jest/setup.ts`**: Global setup file. Imports `@testing-library/jest-dom` and other initializers.
+- **`config/jest/polyfills.js`**: ⚠️ **LEGACY FILE**: Contains browser API shims for older Node versions. **Will be removed** as Node 22 provides these natively.
+- **`__tests__/tsconfig.jest.json`**: A separate TypeScript configuration for the test environment.
 
-#### `__tests__/tsconfig.jest.json`
+### 4.2. Mocking System
 
-- TypeScript configuration specifically for Jest tests
-- Extends base tsconfig with test-specific settings
-- Configures module resolution for test files
+- **`__tests__/__mocks__`**: Contains manual mocks for critical modules like `next/navigation`, `next/font`, and static assets (`file-mock.js`, `style-mock.js`).
 
-### Mock Files
+### 4.3. VSCode Integration
 
-#### `__tests__/__mocks__/lib/file-mock.js`
+With the [Jest extension for VSCode](https://marketplace.visualstudio.com/items?itemName=Orta.vscode-jest), you can run and debug tests directly from your editor. The extension should automatically detect and use our Jest configuration.
 
-- Mock implementation for static file imports
-- Returns stub values for images, fonts, and other assets
-- Prevents errors when importing non-JS files in tests
+## 5. Security & Performance Issues
 
-#### `__tests__/__mocks__/lib/style-mock.js`
-
-- Mock for CSS and style imports
-- Returns empty objects for style modules
-- Allows component tests to run without CSS processing
-
-### Utility Scripts
-
-#### `scripts/fix-fetch-mock.ts`
-
-- Script to fix or update fetch mock implementations
-- Ensures compatibility between different test environments
-- Handles fetch polyfill configuration
-
-### Test Runner Scripts
-
-#### `scripts/bun-test-wrapper.sh`
-
-- Wrapper to prevent direct `bun test` usage
-- Intercepts `bun test` commands without arguments
-- Directs users to use proper npm scripts
-- Passes through other bun commands unchanged
-
-#### `scripts/run-tests.sh`
-
-- Main test runner script
-- Runs tests with HappyDOM and Testing Library setup
-- Mocks NodeCache for server-side cache testing
-- Uses Bun test runner under the hood
-
-#### `scripts/run-bun-tests.sh`
-
-- Simple Bun test executor
-- Delegates to `bun run test` using root configuration
-
-#### `scripts/setup-test-alias.sh`
-
-- Shell alias installer
-- Detects shell type (zsh/bash)
-- Creates `_bun_wrapper` function to intercept test commands
-- Prevents accidental direct test execution
-
-### Test Support Scripts
-
-#### `scripts/check-file-naming.ts`
-
-- React component naming convention validator
-- Validates `.client.tsx` files have `'use client'` directive
-- Validates `.server.tsx` files lack `'use client'` directive
-- Enforces kebab-case file naming
-- Detects browser API usage in server components
-- Returns error codes for CI integration
-
-#### `scripts/fix-test-imports.sh`
-
-- Import path fixer
-- Uses `sed` to fix relative import paths in test files
-- Handles both Jest and Bun test file imports
-- Corrects over-corrected paths from previous fixes
-
-### Missing Test Scripts
-
-#### `scripts/test-github-api.ts`
-
-- Referenced but doesn't exist
-- Intended for testing GitHub API integration
-
-#### `scripts/test-terminal.ts`
-
-- Referenced but doesn't exist
-- Intended for testing terminal functionality
-
-## Configuration Flow
-
-1. **Test Runner Selection**
-   - Jest for React component tests
-   - Bun for server-side and integration tests
-
-2. **Environment Setup**
-   - Test runner loads respective config (jest.config.ts or bun-setup.ts)
-   - Polyfills and global utilities are initialized
-   - Type definitions augment test interfaces
-
-3. **Module Resolution**
-   - Path aliases are resolved according to tsconfig
-   - Static assets and styles are mocked
-   - Custom matchers are registered
-
-4. **Test Execution**
-   - Tests run in configured environment
-   - Mocks intercept external dependencies
-   - Results are collected and reported
-
-## Integration Points
-
-- **CI/CD Pipeline**: Configurations ensure consistent test behavior
-- **Development**: Type definitions provide IDE support
-- **Build Process**: Mock files prevent asset loading errors
-- **Coverage Reports**: Jest config defines coverage thresholds
-
-## Security & Performance Issues
+This section is retained from previous documentation for awareness.
 
 ### 🟡 MEDIUM Priority Issues
 
-1. **Shell Injection Risk** (`scripts/setup-test-alias.sh`)
-   - Uses unescaped shell expansion with `cat >> "$SHELL_RC"`
-   - Could be exploited if `$HOME` contains special characters
-   - **Fix**: Use proper quoting or alternative methods
+1. **Shell Injection Risk** (`scripts/setup-test-alias.sh`): Uses unescaped shell expansion. **Fix**: Use proper quoting or safer methods if this script is ever modified.
+2. **Synchronous File Operations** (`scripts/check-file-naming.ts`): Uses sync file system calls. **Fix**: Refactor to use async `fs.promises` if performance becomes an issue.
 
-2. **Synchronous File Operations** (`scripts/check-file-naming.ts:102-107`)
-   - Uses `fs.readdirSync` and `fs.statSync` in loops
-   - Blocks Node.js event loop during directory traversal
-   - **Fix**: Use async `fs.promises` API throughout
+## 6. Documentation & Further Learning
 
-### 🟢 LOW Priority Issues
+Staying current is critical. Use these resources to find the latest information.
 
-1. **Hardcoded Test Paths** (`scripts/fix-test-imports.sh`)
-   - Contains hardcoded file paths and sed commands
-   - Brittle and requires manual updates for new tests
-   - **Fix**: Generate dynamically or use AST-based approach
+- **Official Next.js Testing Docs:** [https://nextjs.org/docs/pages/guides/testing/jest](https://nextjs.org/docs/pages/guides/testing/jest)
+- **Official Jest Docs:** [https://jestjs.io/docs/tutorial-react](https://jestjs.io/docs/tutorial-react)
 
-2. **Missing Error Handling** (`scripts/run-bun-tests.sh`)
-   - No error handling for missing bun executable
-   - No validation of passed arguments
-   - **Fix**: Add existence checks and argument validation
+You are encouraged to use **Context7 MCP** for deep, version-specific documentation searches.
 
-## Running Tests
+- **Example Workflow:** First, find the exact library version from `package.json`. Then, construct the query dynamically: `@mcp_context7 get-library-docs --context7CompatibleLibraryID='/[org]/[project]/[retrieved-version]' --topic='[topic]'`
 
-The following scripts are available to run tests:
+## 7. Troubleshooting Guide
 
-```bash
-# Run all tests
-npm test
+**Problem:** `ReferenceError: jest is not defined`
+**Cause:** You ran `bun test` directly.
+**Solution:** **ALWAYS** use `bun run test`.
 
-# Run all tests in watch mode
-npm run test:watch
+**Problem:** `Cannot find module '@/components/...'`
+**Cause:** Path alias resolution failed because you ran `bun test` directly.
+**Solution:** **ALWAYS** use `bun run test`.
 
-# Generate a test coverage report
-npm run test:coverage
+**Problem:** `ReferenceError: document is not defined`
+**Cause:** The JSDOM environment wasn't loaded because you ran `bun test` directly.
+**Solution:** **ALWAYS** use `bun run test`.
 
-# Run tests in a CI environment
-npm run test:ci
+**Problem:** A Server Component test fails with unexpected rendering.
+**Cause:** You are trying to render it like a Client Component.
+**Solution:** Test its data-fetching logic as a function and test its child Client Components separately with mock props.
 
-# Run only the high-level smoke tests
-npm run test:smoke
+## 8. Advanced Topics & Modern Patterns
 
-# Run a specific test file
-npm test -- __tests__/components/Header.test.tsx
+This section provides deeper insight into complex topics that are critical for maintaining a robust test suite in a modern Next.js environment.
+
+### 8.1. Navigating a 100% ESM Codebase with Jest
+
+While we write our code using ES Modules (`import`/`export`), it's crucial to understand what happens under the hood. Jest traditionally worked in a CommonJS (`require`) environment. **`next/jest` bridges this gap by using the SWC compiler to transpile our ESM code into a format Jest can understand.**
+
+This has several implications:
+
+- **Write Modern Code:** You should always use ESM syntax in your application and test files. `next/jest` will handle the transformation.
+- **Mocking Nuances:** When mocking modules, especially those that might be CommonJS under the hood, you may encounter complexities. The standard `jest.mock('./my-module')` works for ESM, but if you're providing a manual factory function, you might need to handle the `__esModule` property to correctly mock default exports.
+    ```typescript
+    // When mocking a module with a default export
+    jest.mock('../my-module', () => ({
+      __esModule: true, // Indicates this is an ES module mock
+      default: jest.fn(), // Mock the default export
+      namedExport: jest.fn(), // Mock a named export
+    }));
+    ```
+- **Jest 30+ ESM Enhancements:** Jest now natively recognizes `.mts` and `.cts` files, and its internal modules are bundled as ESM. This improves performance but means any unsupported "deep imports" into Jest's internals will break. **Rule: Only use Jest's public, documented APIs.**
+
+### 8.2. Using `node_modules` as a Source of Truth
+
+In a ZERO TEMPERATURE environment, external documentation can be outdated. The code in `node_modules` is the ultimate source of truth.
+
+**Mandatory Verification Workflow:**
+
+1. **Check `package.json` for Entry Points:**
+    ```bash
+    # See how the package exposes its modules
+    cat node_modules/some-library/package.json | jq .exports
+    ```
+    The `exports` field tells you exactly which files are public API.
+
+2. **Read the `README.md` and `CHANGELOG.md`:**
+    ```bash
+    # For usage and breaking changes
+    cat node_modules/some-library/README.md
+    cat node_modules/some-library/CHANGELOG.md
+    ```
+
+3. **Inspect Type Definitions (`.d.ts`):** For absolute clarity on types, read the declaration files directly. This is non-negotiable for ensuring type safety.
+    ```bash
+    # Find and read the type declaration files
+    find node_modules/some-library -name "*.d.ts" | xargs cat
+    ```
+
+### 8.3. Modern Test Environment: Native APIs & Strategic Mocks
+
+**Node 22 LTS Provides Native Browser APIs**: Our test environment now has built-in `fetch`, `URL`, `TextEncoder`, `ReadableStream`, and other Web APIs. **No polyfills needed.**
+
+- **Legacy Polyfills (`config/jest/polyfills.js`):** ⚠️ **SCHEDULED FOR REMOVAL**. Node 22 makes this file obsolete. Any remaining browser API gaps should be handled with targeted mocks, not polyfills.
+
+- **Manual Mocks (`__tests__/__mocks__/`):** This directory is essential for controlling the test environment.
+  - **`next/navigation`**: **The most important mock.** Required for any component using App Router hooks like `useRouter`, `usePathname`, etc. We provide a mock implementation that returns default values and mock functions.
+  - **`next/font`**: Next.js font optimization functions would error in Jest. This mock returns dummy class names to allow components to render.
+  - **`file-mock.js` & `style-mock.js`**: Jest cannot process static assets like images or CSS files. These mocks tell Jest to replace any import of these files with a simple string or an empty object, preventing errors.
+  - **`server-only`**: This package throws an error if imported on the client. Our mock makes it a no-op in the test environment, allowing us to test components that use it without crashing.
+
+## 9. Native `fetch` & Advanced Next.js 15 Testing Patterns
+
+This section details how to confidently use the modern, native `fetch` API and test the latest Next.js 15 features, ensuring our test suite remains robust and up-to-date.
+
+### 9.1. Confidently Using Native `fetch` in Node.js 22
+
+As of Node.js v21, the `fetch` API is stable and built-in, powered by the high-performance `undici` client, as noted in the [official Node.js documentation](https://nodejs.org/en/learn/getting-started/fetch) and confirmed by performance benchmarks. For our project on Node 22, this means:
+
+- **ZERO POLYFILLS NEEDED:** Node 22 provides native `fetch`, `URL`, `TextEncoder`, `ReadableStream`, and other Web APIs
+- **Legacy Package Removal:** Any `node-fetch`, `whatwg-fetch`, or similar packages should be removed from dependencies
+- **Native Code Mandate:** All application and test code MUST use the global, native `fetch` API
+- **Next.js 15 Integration:** Next.js 15 uses this native `fetch` and extends it with its own caching and revalidation semantics
+- **No Import Required:** Never `import fetch` - it's globally available like in browsers
+
+### 9.2. The Canonical Pattern for Mocking `fetch` in Jest Tests
+
+To achieve 100% confidence and immediate test-passing, we **must** mock the global `fetch` function. This gives us full control over the testing environment, removes network latency, and isolates our code from the Next.js caching layer.
+
+**The Standard Mock Implementation:**
+
+This should be your default approach in any test file that triggers a `fetch` call.
+
+```typescript
+// In your test file: my-component.test.ts
+
+// Mock global.fetch before all tests
+beforeEach(() => {
+  global.fetch = jest.fn(() =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ data: 'mocked response' }),
+    })
+  ) as jest.Mock;
+});
+
+// Clear mocks after each test
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+it('should render data fetched from an API', async () => {
+  // You can override the global mock for a specific test case
+  jest.spyOn(global, 'fetch').mockImplementationOnce(() =>
+    Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ user: { name: 'William' } }),
+    })
+  );
+
+  render(<MyComponent />);
+
+  // Assert that the component renders the mocked data
+  expect(await screen.findByText('William')).toBeInTheDocument();
+  // Verify that fetch was called
+  expect(global.fetch).toHaveBeenCalledWith('/api/user', expect.anything());
+});
 ```
 
-## VSCode Integration
+### 9.3. Testing Next.js 14 & 15 Features
 
-With the [Jest extension for VSCode](https://marketplace.visualstudio.com/items?itemName=Orta.vscode-jest), you can run and debug tests directly from your editor. The configuration should work automatically.
+#### Experimental Features (`experiments` in `next.config.js`)
 
-## Best Practices
+You've correctly identified that we have several experimental features enabled. Here is how to approach testing them:
 
-1. Keep test configurations minimal and focused
-2. Use environment-specific configs only when necessary
-3. Maintain parity between Jest and Bun environments
-4. Document custom matchers and utilities
-5. Version lock test dependencies for consistency
-6. Use npm scripts instead of direct test runner commands
-7. Validate file naming conventions in CI pipeline
-8. **Assign tests to their specific functionality** - Never use generic "testing" functionality names
+1. **`useCache`**:
+    - **Concept:** This hook wraps a data-fetching function to provide React-level caching (deduplication) for requests within a single render pass.
+    - **Testing Strategy:** Do not test `useCache` itself. Test the function that you *pass into* `useCache`. Your test should mock the underlying data-fetching function (`getUser`, `getArticles`, etc.) and verify that your component renders correctly with the mocked data. The caching behavior is an implementation detail of the framework.
 
-## Troubleshooting
+2. **`taint` (`experimental_taintObjectReference`)**:
+    - **Concept:** A security feature to prevent server-only data or objects from being passed to the client.
+    - **Testing Strategy:** This requires a specific integration test. You must create a test case that simulates a Server Component attempting to pass a "tainted" object as a prop to a Client Component. The test should assert that this action **throws an error**, proving the taint mechanism is working as expected.
 
-- **`ReferenceError: document is not defined`**: This can happen if the test environment is not correctly set to `jsdom`. The project's `jest.config.cjs` should handle this, but if you encounter it, ensure the test file is being correctly picked up by Jest.
-- **Mocking Issues**: For complex cases, you might need manual mocks. Place these in a `__mocks__` directory adjacent to the module being mocked or in the top-level `__tests__/__mocks__/` directory.
+3. **`webpackBuildWorker`**:
+    - **Concept:** A build-time performance optimization.
+    - **Testing Strategy:** This feature has **no impact** on our application logic or unit/integration tests. It can be safely ignored during test writing.
+
+#### New Stable & Unstable Features
+
+- **Partial Prerendering (PPR):**
+  - **Concept:** Next.js serves a static shell of a page, with dynamic "holes" that are streamed in.
+  - **Testing Strategy:** This is primarily an E2E testing concern. For our Jest tests, we test the components in isolation:
+        1. Test the static shell component (`layout.tsx`, `page.tsx`) with mock props.
+        2. Test the dynamic components that fill the "holes" (e.g., `<Suspense fallback={...}>`) as individual components.
+
+- **`after()` API:**
+  - **Concept:** Allows you to run code *after* a response has finished streaming to the user.
+  - **Testing Strategy:** This is for side-effects (e.g., logging, analytics). Your test should mock the route handler, call it, and then assert that the side-effect function (which you should also mock) was called.
+
+- **Server Actions:**
+  - **Testing Strategy:** As documented, treat them as standalone asynchronous functions. Import the action into your test, call it with mock data, and `await` the result to make assertions. Ensure you test both success and error states.
+
+### 9.4. Advanced Type-Level Testing with TypeScript 5.8
+
+Beyond testing the runtime behavior of our code, it's critical to test the *types themselves*. This is especially important for generic utilities, hooks, and complex type definitions to ensure they behave as expected for developers consuming them. As [Matt Pocock highlights](https://www.totaltypescript.com/how-to-test-your-types), this is a key practice for any high-quality library or shared codebase.
+
+These "type tests" are not executed by Jest. Instead, they are validated by the TypeScript compiler (`tsc`) during our `bun run validate` step. A failed type test will result in a standard TypeScript error, failing the build.
+
+#### The Canonical Pattern: `Expect` and `Equal`
+
+We will adopt a lightweight, powerful pattern for asserting type equality. Add the following utility types to a central testing types file (e.g., `types/testing.d.ts`):
+
+```typescript
+// types/testing.d.ts
+
+/**
+ * Asserts that a type is 'true'. Used with 'Equal'.
+ * @example type test = Expect<Equal<string, string>> // passes
+ */
+export type Expect<T extends true> = T;
+
+/**
+ * Checks if two types are exactly the same.
+ * @example type test = Equal<string, string> // true
+ * @example type test = Equal<string, number> // false
+ */
+export type Equal<X, Y> = (<T>() => T extends X ? 1 : 2) extends <
+  T
+>() => T extends Y ? 1 : 2
+  ? true
+  : false;
+```
+
+**Usage in a Test File:**
+
+You can use these helpers within any `.test.ts` file to create compile-time assertions.
+
+```typescript
+import type { Expect, Equal } from '@/types/testing';
+
+const someGenericFunc = <T>(arg: T): { value: T } => ({ value: arg });
+
+it('should correctly infer the return type', () => {
+  const result = someGenericFunc('hello');
+
+  // This line is a compile-time test.
+  // If typeof result is not exactly { value: 'hello' }, `tsc` will error.
+  type test = Expect<Equal<typeof result, { value: 'hello' }>>;
+
+  // This is the runtime test.
+  expect(result.value).toBe('hello');
+});
+```
+
+#### Asserting Expected Errors with `@ts-expect-error`
+
+To verify that our types correctly prevent invalid usage, we use the `@ts-expect-error` comment. This special comment tells TypeScript to expect an error on the very next line. The build will fail if there *isn't* an error, proving that our types are correctly restrictive.
+
+```typescript
+const requiresString = <T extends string>(arg: T) => {};
+
+it('should not accept a number', () => {
+  // This test passes if `tsc` reports an error on the next line.
+  // It fails if myFunc(123) is somehow valid.
+  // @ts-expect-error
+  requiresString(123);
+});
+
+it('should accept a string', () => {
+  // No error is expected here.
+  requiresString('hello');
+});
+```
+
+#### TypeScript 5.8 Considerations: Import Attributes
+
+While not a testing feature, a key change in TypeScript 5.8 that can affect tests is the stabilization of **Import Attributes**. The old `assert { type: 'json' }` syntax for importing JSON is now deprecated in favor of `with { type: 'json' }`.
+
+```typescript
+// Old way (will error in TS 5.8 with modern module settings)
+// import data from './data.json' assert { type: 'json' };
+
+// New, correct way
+import data from './data.json' with { type: 'json' };
+```
+
+Our `bun run validate` command will fail if the old syntax is used, so all developers and tools must use the `with` keyword for such imports to ensure our tests and codebase remain compliant.
+
+## 10. Async Testing Patterns: Critical Do's and Don'ts
+
+This section addresses the most common async testing mistakes that lead to flaky, unreliable tests. These patterns are based on [proven testing library best practices](https://dev.to/tipsy_dev/testing-library-writing-better-async-tests-c67) and Next.js-specific async behaviors.
+
+### 10.1. 🚨 CRITICAL VIOLATION: Awaiting Synchronous Methods
+
+**❌ WRONG - Awaiting `render()`:**
+```typescript
+// This creates false positives and timing-dependent failures
+it('should display user data', async () => {
+  await render(<UserProfile userId="123" />); // ❌ render() is synchronous!
+  expect(screen.getByText('John Doe')).toBeInTheDocument(); // May fail due to timing
+});
+```
+
+**✅ CORRECT - Using Async Queries:**
+```typescript
+it('should display user data', async () => {
+  render(<UserProfile userId="123" />); // ✅ No await on render
+  expect(await screen.findByText('John Doe')).toBeInTheDocument(); // ✅ Await the async query
+});
+```
+
+**Why This Matters:**
+
+- `render()` is synchronous but returns a value that JavaScript converts to a resolved Promise when awaited
+- This creates a race condition where your assertion might run before async operations complete
+- In Next.js 15, Server Components and `use()` hooks make this timing even more critical
+
+### 10.2. 🚨 CRITICAL VIOLATION: Missing `await` on Async Methods
+
+**❌ WRONG - Missing `await` on `waitFor`:**
+```typescript
+// This test will always pass, even when it should fail
+it('should handle loading state', async () => {
+  render(<AsyncComponent />);
+  
+  // ❌ Missing await - test completes before assertion runs
+  waitFor(() => {
+    expect(screen.getByText('Loading complete')).toBeInTheDocument();
+  });
+  
+  // Test exits here, assertion never validates
+});
+```
+
+**✅ CORRECT - Proper `await` Usage:**
+```typescript
+it('should handle loading state', async () => {
+  render(<AsyncComponent />);
+  
+  // ✅ Properly awaited - test waits for assertion
+  await waitFor(() => {
+    expect(screen.getByText('Loading complete')).toBeInTheDocument();
+  });
+});
+```
+
+### 10.3. 🚨 CRITICAL VIOLATION: Side Effects in `waitFor`
+
+**❌ WRONG - Triggering Events Inside `waitFor`:**
+```typescript
+// This creates infinite loops and unpredictable behavior
+it('should show transaction details', async () => {
+  render(<TransactionList />);
+  
+  await waitFor(() => {
+    fireEvent.click(screen.getByText('Transaction #1')); // ❌ Side effect in waitFor
+    expect(screen.getByText('Details: Coffee purchase')).toBeInTheDocument();
+  });
+});
+```
+
+**✅ CORRECT - Side Effects Outside `waitFor`:**
+```typescript
+it('should show transaction details', async () => {
+  render(<TransactionList />);
+  
+  // ✅ Wait for element to appear, then interact
+  const transaction = await screen.findByText('Transaction #1');
+  fireEvent.click(transaction);
+  
+  // ✅ Then wait for the result
+  await waitFor(() => {
+    expect(screen.getByText('Details: Coffee purchase')).toBeInTheDocument();
+  });
+});
+```
+
+### 10.4. Next.js-Specific Async Patterns
+
+#### Server Actions Testing
+
+**✅ CORRECT - Testing Server Actions as Functions:**
+```typescript
+import { updateUserProfile } from '@/app/actions';
+
+// Mock any dependencies
+jest.mock('@/lib/database', () => ({
+  updateUser: jest.fn().mockResolvedValue({ id: '123', name: 'Updated Name' })
+}));
+
+it('should update user profile', async () => {
+  const formData = new FormData();
+  formData.append('name', 'New Name');
+  formData.append('userId', '123');
+  
+  // ✅ Test the Server Action directly
+  const result = await updateUserProfile(formData);
+  
+  expect(result).toEqual({ id: '123', name: 'Updated Name' });
+});
+```
+
+#### Components Using Server Actions
+
+**✅ CORRECT - Testing Form Components with Actions:**
+```typescript
+import { updateUserProfile } from '@/app/actions';
+jest.mock('@/app/actions');
+
+it('should submit form and show success', async () => {
+  jest.mocked(updateUserProfile).mockResolvedValue({ success: true });
+  
+  render(<UserProfileForm />);
+  
+  // Fill form
+  await user.type(screen.getByLabelText('Name'), 'New Name');
+  
+  // Submit form
+  await user.click(screen.getByRole('button', { name: 'Save' }));
+  
+  // Wait for success message
+  expect(await screen.findByText('Profile updated successfully')).toBeInTheDocument();
+});
+```
+
+#### Testing `use()` Hook Components (React 19)
+
+**✅ CORRECT - Mocking Promise-Based Data:**
+```typescript
+import { fetchUserData } from '@/lib/api';
+jest.mock('@/lib/api');
+
+it('should render user data with use() hook', async () => {
+  // ✅ Mock the promise that use() will consume
+  jest.mocked(fetchUserData).mockResolvedValue({
+    name: 'William',
+    email: 'william@example.com'
+  });
+  
+  render(<UserProfileWithUse userId="123" />);
+  
+  // ✅ Wait for the promise to resolve and component to render
+  expect(await screen.findByText('William')).toBeInTheDocument();
+  expect(screen.getByText('william@example.com')).toBeInTheDocument();
+});
+```
+
+### 10.5. Native `fetch` Testing Patterns for Node.js 22
+
+**✅ CORRECT - Comprehensive `fetch` Mocking (No Polyfills):**
+```typescript
+// ✅ MODERN: Global setup for native fetch mocking (Node 22 LTS)
+beforeEach(() => {
+  global.fetch = jest.fn();
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+it('should handle successful API response', async () => {
+  // ✅ Mock successful response using native fetch types
+  jest.mocked(global.fetch).mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    json: async () => ({ data: 'success' }),
+    headers: new Headers(),
+    statusText: 'OK',
+  } as Response);
+  
+  render(<DataComponent />);
+  
+  expect(await screen.findByText('success')).toBeInTheDocument();
+  expect(global.fetch).toHaveBeenCalledWith('/api/data', expect.any(Object));
+});
+
+it('should handle API errors gracefully', async () => {
+  // ✅ Mock error response using native Response constructor
+  jest.mocked(global.fetch).mockResolvedValueOnce({
+    ok: false,
+    status: 500,
+    json: async () => ({ error: 'Server error' }),
+    headers: new Headers(),
+    statusText: 'Internal Server Error',
+  } as Response);
+  
+  render(<DataComponent />);
+  
+  expect(await screen.findByText('Error loading data')).toBeInTheDocument();
+});
+
+// ❌ NEVER DO THIS: Import fetch polyfills
+// import fetch from 'node-fetch'; // BANNED
+// import 'whatwg-fetch'; // BANNED
+```
+
+### 10.6. TypeScript 5 Async Type Safety
+
+**✅ CORRECT - Type-Safe Async Testing:**
+```typescript
+// Define expected response types
+interface UserResponse {
+  id: string;
+  name: string;
+  email: string;
+}
+
+it('should maintain type safety in async operations', async () => {
+  const mockResponse: UserResponse = {
+    id: '123',
+    name: 'William',
+    email: 'william@example.com'
+  };
+  
+  // ✅ TypeScript ensures mock matches expected interface
+  jest.mocked(global.fetch).mockResolvedValueOnce({
+    ok: true,
+    json: async (): Promise<UserResponse> => mockResponse,
+  } as Response);
+  
+  render(<TypedUserComponent />);
+  
+  expect(await screen.findByText('William')).toBeInTheDocument();
+});
+```
+
+### 10.7. ESLint Rules for Async Testing
+
+These ESLint rules from `eslint-plugin-testing-library` prevent the above mistakes:
+
+```json
+{
+  "rules": {
+    "testing-library/await-async-utils": "error",
+    "testing-library/await-async-query": "error", 
+    "testing-library/no-wait-for-side-effects": "error",
+    "testing-library/no-unnecessary-act": "error"
+  }
+}
+```
+
+### 10.8. Quick Reference: Async Testing Checklist
+
+**✅ DO:**
+
+- Use `await` with `findBy*`, `waitFor`, `waitForElementToBeRemoved`
+- Trigger side effects (clicks, inputs) outside of `waitFor`
+- Mock `global.fetch` using native Node 22 LTS APIs (no imports needed)
+- Test Server Actions as standalone async functions
+- Use proper TypeScript types for all mock responses
+- Verify current patterns via Context7/DeepWiki MCPs before implementing
+
+**❌ NEVER:**
+
+- `await render()` or other synchronous functions
+- Put `fireEvent` or `user` interactions inside `waitFor`
+- Forget `await` on async testing utilities
+- Mix synchronous assertions with async operations
+- Test without mocking external dependencies
+- **Import any fetch polyfills** (`node-fetch`, `whatwg-fetch`, etc.)
+- **Add polyfills for modern Node 22 APIs** (they're native)
+
+**⚠️ IMMEDIATE ACTION REQUIRED:**
+
+If you find ANY of these imports in test files, remove them immediately:
+```typescript
+// ❌ DELETE THESE LINES
+import fetch from 'node-fetch';
+import 'whatwg-fetch';
+import 'isomorphic-fetch';
+// ✅ Use global.fetch instead (native in Node 22)
+```
+
+This guidance ensures reliable, maintainable tests that accurately reflect user behavior while leveraging modern runtime capabilities.
