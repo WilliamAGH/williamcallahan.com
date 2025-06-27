@@ -25,7 +25,7 @@ The application uses a cron-based scheduler (`scripts/scheduler.ts`) that runs c
 
 - **Previous Issue**: `scripts/prefetch-data.ts` fetched 200+ logos during build, causing 10+ minute build times
 - **Solution**: Created `scripts/prefetch-data-optimized.ts` that skips logo prefetching
-- **Impact**: 
+- **Impact**:
   - Build times reduced from 10+ minutes to < 30 seconds
   - Logos now fetched on-demand at runtime with multi-tier caching
   - No user-facing performance impact due to caching
@@ -147,12 +147,14 @@ bun scripts/data-updater.ts --force --bookmarks
 **Key Components:**
 
 ### Core Orchestrator
+
 - **lib/server/data-fetch-manager.ts**: Centralized data fetching orchestrator
   - Handles bookmarks, GitHub activity, and logo fetching
   - Provides unified interface for all data operations
   - Manages batch processing, rate limiting, and retries
 
 ### Script Layer
+
 - **lib/server/scheduler.ts**: Long-running process using node-cron
 - **scripts/data-updater.ts**: Unified CLI for all data operations
   - `--bookmarks`: Update bookmarks only
@@ -167,18 +169,22 @@ bun scripts/data-updater.ts --force --bookmarks
 ### Build-Time vs Runtime Data Strategy (2025-06-18)
 
 **Build-Time Prefetch (via `prefetch-data-optimized.ts`):**
+
 - ✅ Bookmarks JSON from S3
 - ✅ GitHub activity data from S3
 - ❌ Logos (skipped for faster builds)
 
-**Runtime Fetching:**
+**Runtime Fetching (2025-07 update – streaming uploads):**
+
 - Logos fetched on-demand when first requested
 - Multi-tier caching ensures good performance:
   - Memory cache: ~1ms (ServerCacheInstance)
   - S3 cache: ~10-50ms (30-day TTL)
   - External API: 100ms-5s (only on cache miss)
+  - **New:** logo downloads are now streamed directly from the source URL to S3. Memory footprint per logo is constant (~65 KB) because we no longer buffer the entire image in RAM before upload.
 
 **Background Updates (via scheduler):**
+
 - Bookmarks: Every 2 hours
 - GitHub: Daily at midnight
 - Logos: Weekly on Sundays (keeps S3 cache warm)
