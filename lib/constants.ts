@@ -5,97 +5,66 @@
 
 import type { BookmarksS3Paths, RateLimiterConfig } from "@/types/lib";
 
-// Time helpers (all return milliseconds)
-const hours = (h: number) => h * 60 * 60 * 1000;
-const days = (d: number) => d * 24 * hours(1);
-const minutes = (m: number) => m * 60 * 1000;
-const seconds = (s: number) => s * 1000;
-
 /** Client-side cache duration: 30 days (milliseconds) */
-export const CACHE_DURATION = days(30);
+export const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000;
 
 /** Server-side cache duration: 3 days (seconds) */
-export const SERVER_CACHE_DURATION = days(3) / 1000;
-
-// Unified cache configuration factory (seconds) with overloads
-function createCacheConfig(success: number, failure: number): { SUCCESS: number; FAILURE: number };
-function createCacheConfig(
-  success: number,
-  failure: number,
-  revalidation: number,
-): { SUCCESS: number; FAILURE: number; REVALIDATION: number };
-function createCacheConfig(success: number, failure: number, revalidation?: number) {
-  if (revalidation !== undefined) {
-    return {
-      SUCCESS: success,
-      FAILURE: failure,
-      REVALIDATION: revalidation,
-    };
-  }
-  return {
-    SUCCESS: success,
-    FAILURE: failure,
-  };
-}
+export const SERVER_CACHE_DURATION = 3 * 24 * 60 * 60;
 
 /** Logo cache: 30 days success, 1 day failure */
-export const LOGO_CACHE_DURATION = createCacheConfig(days(30) / 1000, days(1) / 1000);
+export const LOGO_CACHE_DURATION = {
+  SUCCESS: 30 * 24 * 60 * 60,
+  FAILURE: 24 * 60 * 60,
+};
 
-// Environment suffix helper
-const envSuffix = (() => {
-  const env = process.env.NODE_ENV;
-  if (env === "production" || !env) return "";
-  return env === "test" ? "-test" : "-dev";
-})();
-
-// S3 path builders
-const s3Path = (dir: string, file: string) => `${dir}/${file}${envSuffix}.json`;
-const s3Dir = (dir: string) => `${dir}${envSuffix}`;
+// Environment suffix determination
+const env = process.env.NODE_ENV;
+const envSuffix = env === "production" || !env ? "" : env === "test" ? "-test" : "-dev";
 
 export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
   DIR: "json/bookmarks",
-  FILE: s3Path("json/bookmarks", "bookmarks"),
-  LOCK: s3Path("json/bookmarks", "refresh-lock"),
-  INDEX: s3Path("json/bookmarks", "index"),
+  FILE: `json/bookmarks/bookmarks${envSuffix}.json`,
+  LOCK: `json/bookmarks/refresh-lock${envSuffix}.json`,
+  INDEX: `json/bookmarks/index${envSuffix}.json`,
   PAGE_PREFIX: `json/bookmarks/pages${envSuffix}/page-`,
-  TAG_PREFIX: s3Dir("json/bookmarks/tags") + "/",
-  TAG_INDEX_PREFIX: s3Dir("json/bookmarks/tags") + "/",
+  TAG_PREFIX: `json/bookmarks/tags${envSuffix}/`,
+  TAG_INDEX_PREFIX: `json/bookmarks/tags${envSuffix}/`,
 } as const;
 
-export const LOGO_BLOCKLIST_S3_PATH = s3Path("json/image-data/logos", "domain-blocklist");
+export const LOGO_BLOCKLIST_S3_PATH = `json/image-data/logos/domain-blocklist${envSuffix}.json`;
 
 /** S3 paths for search indexes (environment-aware) */
 export const SEARCH_S3_PATHS = {
   DIR: "json/search",
-  POSTS_INDEX: s3Path("json/search", "posts-index"),
-  BOOKMARKS_INDEX: s3Path("json/search", "bookmarks-index"),
-  INVESTMENTS_INDEX: s3Path("json/search", "investments-index"),
-  EXPERIENCE_INDEX: s3Path("json/search", "experience-index"),
-  EDUCATION_INDEX: s3Path("json/search", "education-index"),
-  BUILD_METADATA: s3Path("json/search", "build-metadata"),
+  POSTS_INDEX: `json/search/posts-index${envSuffix}.json`,
+  BOOKMARKS_INDEX: `json/search/bookmarks-index${envSuffix}.json`,
+  INVESTMENTS_INDEX: `json/search/investments-index${envSuffix}.json`,
+  EXPERIENCE_INDEX: `json/search/experience-index${envSuffix}.json`,
+  EDUCATION_INDEX: `json/search/education-index${envSuffix}.json`,
+  BUILD_METADATA: `json/search/build-metadata${envSuffix}.json`,
 } as const;
 
 /** S3 paths for GitHub activity data (environment-aware) */
 export const GITHUB_ACTIVITY_S3_PATHS = {
   DIR: "json/github-activity",
-  ACTIVITY_DATA: s3Path("json/github-activity", "activity_data"),
-  STATS_SUMMARY: s3Path("json/github-activity", "github_stats_summary"),
-  ALL_TIME_SUMMARY: s3Path("json/github-activity", "github_stats_summary_all_time"),
-  AGGREGATED_WEEKLY: s3Path("json/github-activity", "aggregated_weekly_activity"),
+  ACTIVITY_DATA: `json/github-activity/activity_data${envSuffix}.json`,
+  STATS_SUMMARY: `json/github-activity/github_stats_summary${envSuffix}.json`,
+  ALL_TIME_SUMMARY: `json/github-activity/github_stats_summary_all_time${envSuffix}.json`,
+  AGGREGATED_WEEKLY: `json/github-activity/aggregated_weekly_activity${envSuffix}.json`,
   ACTIVITY_DATA_PROD_FALLBACK: "json/github-activity/activity_data.json",
-  REPO_RAW_WEEKLY_STATS_DIR: s3Dir("json/github-activity/repo_raw_weekly_stats"),
+  REPO_RAW_WEEKLY_STATS_DIR: `json/github-activity/repo_raw_weekly_stats${envSuffix}`,
 } as const;
 
 /** S3 paths for image manifests (environment-aware) */
 export const IMAGE_MANIFEST_S3_PATHS = {
   DIR: "json/image-data",
-  LOGOS_MANIFEST: s3Path("json/image-data", "logos/manifest"),
-  OPENGRAPH_MANIFEST: s3Path("json/image-data", "opengraph/manifest"),
-  BLOG_IMAGES_MANIFEST: s3Path("json/image-data", "blog/manifest"),
-  EDUCATION_IMAGES_MANIFEST: s3Path("json/image-data", "education/manifest"),
-  EXPERIENCE_IMAGES_MANIFEST: s3Path("json/image-data", "experience/manifest"),
-  INVESTMENTS_IMAGES_MANIFEST: s3Path("json/image-data", "investments/manifest"),
-  PROJECTS_IMAGES_MANIFEST: s3Path("json/image-data", "projects/manifest"),
+  LOGOS_MANIFEST: `json/image-data/logos/manifest${envSuffix}.json`,
+  OPENGRAPH_MANIFEST: `json/image-data/opengraph/manifest${envSuffix}.json`,
+  BLOG_IMAGES_MANIFEST: `json/image-data/blog/manifest${envSuffix}.json`,
+  EDUCATION_IMAGES_MANIFEST: `json/image-data/education/manifest${envSuffix}.json`,
+  EXPERIENCE_IMAGES_MANIFEST: `json/image-data/experience/manifest${envSuffix}.json`,
+  INVESTMENTS_IMAGES_MANIFEST: `json/image-data/investments/manifest${envSuffix}.json`,
+  PROJECTS_IMAGES_MANIFEST: `json/image-data/projects/manifest${envSuffix}.json`,
 } as const;
 
 /**
@@ -126,7 +95,11 @@ export const IMAGE_S3_PATHS = {
 } as const;
 
 /** Bookmarks cache: 7 days success, 1 hour failure/revalidation */
-export const BOOKMARKS_CACHE_DURATION = createCacheConfig(days(7) / 1000, hours(1) / 1000, hours(1) / 1000);
+export const BOOKMARKS_CACHE_DURATION = {
+  SUCCESS: 7 * 24 * 60 * 60,
+  FAILURE: 60 * 60,
+  REVALIDATION: 60 * 60,
+};
 
 /**
  * Bookmarks API configuration
@@ -157,10 +130,18 @@ export const BOOKMARKS_API_CONFIG = {
 export const BOOKMARKS_PER_PAGE = 24;
 
 /** GitHub activity cache: 24 hours success, 1 hour failure, 6 hours revalidation */
-export const GITHUB_ACTIVITY_CACHE_DURATION = createCacheConfig(days(1) / 1000, hours(1) / 1000, hours(6) / 1000);
+export const GITHUB_ACTIVITY_CACHE_DURATION = {
+  SUCCESS: 24 * 60 * 60,
+  FAILURE: 60 * 60,
+  REVALIDATION: 6 * 60 * 60,
+};
 
 /** Search cache: 15 minutes success, 1 minute failure, 10 minutes revalidation */
-export const SEARCH_CACHE_DURATION = createCacheConfig(minutes(15) / 1000, 60, minutes(10) / 1000);
+export const SEARCH_CACHE_DURATION = {
+  SUCCESS: 15 * 60,
+  FAILURE: 60,
+  REVALIDATION: 10 * 60,
+};
 
 /** Base URLs */
 export const NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
@@ -173,14 +154,11 @@ export const ENDPOINTS = {
 } as const;
 
 /** Logo source URL generators */
-const logoUrl = (base: string, domain: string, size?: number) =>
-  size ? `${base}${domain}&sz=${size}` : `${base}${domain}`;
-
 export const LOGO_SOURCES = {
   google: {
-    hd: (d: string) => logoUrl("https://www.google.com/s2/favicons?domain=", d, 256),
-    md: (d: string) => logoUrl("https://www.google.com/s2/favicons?domain=", d, 128),
-    sm: (d: string) => logoUrl("https://www.google.com/s2/favicons?domain=", d, 64),
+    hd: (d: string) => `https://www.google.com/s2/favicons?domain=${d}&sz=256`,
+    md: (d: string) => `https://www.google.com/s2/favicons?domain=${d}&sz=128`,
+    sm: (d: string) => `https://www.google.com/s2/favicons?domain=${d}&sz=64`,
   },
   duckduckgo: {
     hd: (d: string) => `https://icons.duckduckgo.com/ip3/${d}.ico`,
@@ -369,15 +347,15 @@ export const S3_BUCKET: string | undefined = process.env.S3_BUCKET;
 
 /** Time constants (milliseconds) */
 export const TIME_CONSTANTS = {
-  ONE_HOUR_MS: hours(1),
-  TWENTY_FOUR_HOURS_MS: days(1),
-  FIVE_MINUTES_MS: minutes(5),
-  TWO_MINUTES_MS: minutes(2),
-  DEFAULT_JITTER_MS: minutes(5),
-  RATE_LIMIT_WINDOW_MS: hours(1),
-  LOCK_TTL_MS: minutes(5),
-  LOGO_RETRY_COOLDOWN_MS: days(1),
-  BOOKMARKS_PRELOAD_INTERVAL_MS: hours(2),
+  ONE_HOUR_MS: 60 * 60 * 1000,
+  TWENTY_FOUR_HOURS_MS: 24 * 60 * 60 * 1000,
+  FIVE_MINUTES_MS: 5 * 60 * 1000,
+  TWO_MINUTES_MS: 2 * 60 * 1000,
+  DEFAULT_JITTER_MS: 5 * 60 * 1000,
+  RATE_LIMIT_WINDOW_MS: 60 * 60 * 1000,
+  LOCK_TTL_MS: 5 * 60 * 1000,
+  LOGO_RETRY_COOLDOWN_MS: 24 * 60 * 60 * 1000,
+  BOOKMARKS_PRELOAD_INTERVAL_MS: 2 * 60 * 60 * 1000,
 } as const;
 
 /**
@@ -414,23 +392,29 @@ export const OPENGRAPH_FETCH_CONFIG = {
 } as const;
 
 /** OpenGraph cache: 24 hours success, 1 hour failure */
-export const OPENGRAPH_CACHE_DURATION = createCacheConfig(days(1) / 1000, hours(1) / 1000);
+export const OPENGRAPH_CACHE_DURATION = {
+  SUCCESS: 24 * 60 * 60,
+  FAILURE: 60 * 60,
+};
 
 /** Jina AI fetch limiter: 10 fetches per 24 hours */
 export const JINA_FETCH_CONFIG: RateLimiterConfig = {
   maxRequests: 10,
-  windowMs: days(1),
+  windowMs: 24 * 60 * 60 * 1000,
 };
 
-/** Rate limiter factory */
-const createRateLimiter = (maxRequests: number, windowMs: number): RateLimiterConfig => ({ maxRequests, windowMs });
-
 /** Default API endpoint rate limit: 5 requests per minute */
-export const DEFAULT_API_ENDPOINT_LIMIT_CONFIG = createRateLimiter(5, minutes(1));
+export const DEFAULT_API_ENDPOINT_LIMIT_CONFIG: RateLimiterConfig = {
+  maxRequests: 5,
+  windowMs: 60 * 1000,
+};
 export const API_ENDPOINT_STORE_NAME = "apiEndpoints";
 
 /** OpenGraph fetch rate limit: 10 requests per second */
-export const DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG = createRateLimiter(10, seconds(1));
+export const DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG: RateLimiterConfig = {
+  maxRequests: 10,
+  windowMs: 1000,
+};
 
 export const OPENGRAPH_FETCH_STORE_NAME = "outgoingOpenGraph";
 export const OPENGRAPH_FETCH_CONTEXT_ID = "global";
@@ -466,7 +450,7 @@ export const SEO_DATE_FIELDS = {
   },
 } as const;
 
-export const INDEXING_RATE_LIMIT_PATH = s3Path("json/search", "indexing-rate-limit");
+export const INDEXING_RATE_LIMIT_PATH = `json/search/indexing-rate-limit${envSuffix}.json`;
 
 // Cache TTL constants (in seconds) - moved from lib/cache.ts to break circular dependency
 export const CACHE_TTL = {
@@ -480,7 +464,7 @@ export const USE_NEXTJS_CACHE = process.env.USE_NEXTJS_CACHE === "true";
 
 export const JINA_FETCH_STORE_NAME = "jinaFetch" as const;
 export const JINA_FETCH_CONTEXT_ID = "global" as const;
-export const JINA_FETCH_RATE_LIMIT_S3_PATH = s3Path("json/rate-limit", "jina-fetch-limiter");
+export const JINA_FETCH_RATE_LIMIT_S3_PATH = `json/rate-limit/jina-fetch-limiter${envSuffix}.json`;
 
 // GitHub activity re-exports for data access layer
 export const GITHUB_ACTIVITY_S3_KEY_DIR = GITHUB_ACTIVITY_S3_PATHS.DIR;
