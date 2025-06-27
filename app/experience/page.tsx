@@ -35,7 +35,18 @@ export default async function ExperiencePage() {
   const experienceData = await Promise.all(
     experiences.map(async (exp: ExperienceType) => {
       try {
-        const domain = exp.website ? normalizeDomain(exp.website) : normalizeDomain(exp.company);
+        /**
+         * Resolve domain used for logo look-ups.
+         * Order of precedence:
+         * 1. `logoOnlyDomain` – explicit field used *only* for matching assets, never rendered.
+         * 2. `website` – strip scheme / www.
+         * 3. Fallback to company name (normalized).
+         */
+        const domain = exp.logoOnlyDomain
+          ? normalizeDomain(exp.logoOnlyDomain)
+          : exp.website
+            ? normalizeDomain(exp.website)
+            : normalizeDomain(exp.company);
         const logoResult = await getLogo(domain);
 
         return {

@@ -9,6 +9,7 @@
 import type { Investment } from "../../../types/investment";
 import { InvestmentCardClient } from "./investment-card.client";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
+import { normalizeDomain } from "@/lib/utils/domain-utils";
 import type { LogoData } from "../../../types/logo";
 import type { ReactElement } from "react";
 
@@ -18,7 +19,17 @@ import type { ReactElement } from "react";
  * @returns {Promise<ReactElement>} Pre-rendered investment card with fetched logo
  */
 export async function InvestmentCard(props: Investment): Promise<ReactElement> {
-  const { logo, name, website } = props;
+  const { logo, name, website, logoOnlyDomain } = props as Investment & { logoOnlyDomain?: string | null };
+
+  /**
+   * Determine domain for logo lookup
+   * Priority: `logoOnlyDomain` (logo-specific), then `website` host, otherwise fallback to company name.
+   */
+  const effectiveDomain = logoOnlyDomain
+    ? normalizeDomain(logoOnlyDomain)
+    : website
+      ? normalizeDomain(website)
+      : normalizeDomain(name);
 
   // If logo is provided directly (static file path), use it
   if (logo) {
@@ -26,18 +37,12 @@ export async function InvestmentCard(props: Investment): Promise<ReactElement> {
     return <InvestmentCardClient {...props} logoData={{ url: logo, source: "static" }} />;
   }
 
-  // For investments without a logo property, try to get from manifest
-  if (website) {
+  // Attempt manifest lookup using effectiveDomain
+  if (effectiveDomain) {
     try {
-      // Extract domain from website URL
-      const url = new URL(website);
-      const domain = url.hostname.replace(/^www\./, "");
-
-      // Get logo from manifest with lazy loading
-      const logoEntry = await getLogoFromManifestAsync(domain);
+      const logoEntry = await getLogoFromManifestAsync(effectiveDomain);
 
       if (logoEntry) {
-        // Use CDN URL from manifest, preserve original source
         const logoData: LogoData = {
           url: logoEntry.cdnUrl,
           source: logoEntry.originalSource,
@@ -47,8 +52,7 @@ export async function InvestmentCard(props: Investment): Promise<ReactElement> {
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn(`Failed to get logo for ${name} (${website}):`, errorMessage);
-      // Fall through to placeholder return below
+      console.warn(`Failed to get logo for ${name} (${effectiveDomain}):`, errorMessage);
     }
   }
 

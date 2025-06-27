@@ -27,6 +27,17 @@ export const metadata: Metadata = getStaticPageMetadata("/investments", "investm
 export const dynamic = "force-dynamic";
 
 /**
+ * NOTE ON LOGO RESOLUTION
+ * ----------------------------------------------
+ * Investment entries now support an optional `logoOnlyDomain` field.
+ * This domain is used *exclusively* for logo & data-matching when the
+ * public-facing `website` has changed or is no longer active.  UI components
+ * never render `logoOnlyDomain`; links come from `website`, and logo lookup
+ * logic (in `investment-card.server.tsx`) prioritises `logoOnlyDomain` →
+ * `website` → company name.
+ */
+
+/**
  * Investments page component
  */
 export default function InvestmentsPage() {
