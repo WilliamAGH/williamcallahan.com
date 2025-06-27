@@ -180,7 +180,7 @@ export default async function middleware(request: NextRequest): Promise<NextResp
  * Includes image optimization routes and excludes other static files from middleware processing
  */
 export const config = {
-  runtime: "edge",
+  runtime: "experimental-edge",
   matcher: [
     /*
      * Match all request paths except for the ones starting with:

@@ -113,3 +113,77 @@ export async function register(): Promise<void> {
 // Call register() immediately when this module is imported
 // This ensures Node.js instrumentation runs when imported from instrumentation.ts
 void register();
+
+/**
+ * onRequestError hook – invoked by the Sentry SDK (Next.js ≥15.4)
+ * to capture errors originating from nested React Server Components.
+ *
+ * The function signature is dictated by the Sentry SDK:
+ *   (error: unknown) => void
+ *
+ * It must synchronously call `Sentry.captureRequestError` so that the
+ * SDK can link the error to the current request context.
+ *
+ * @see https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/#errors-from-nested-react-server-components
+ */
+export function onRequestError(
+  error: unknown,
+  request:
+    | RequestInfo
+    | Request
+    | { path: string; method: string; headers: Record<string, string | string[] | undefined> },
+  errorContext: Record<string, unknown>,
+): void {
+  // Lazily import to avoid increasing cold-start time when Sentry is disabled
+  if (!process.env.SENTRY_DSN) return;
+
+  // eslint-disable-next-line @typescript-eslint/no-floating-promises -- fire-and-forget instrumentation
+  import("@sentry/nextjs").then((Sentry) => {
+    const normalizeRequest = (
+      req: typeof request,
+    ): { path: string; method: string; headers: Record<string, string | string[] | undefined> } => {
+      if (typeof req === "string") {
+        return { path: req, method: "GET", headers: {} };
+      }
+      if (req instanceof Request) {
+        return {
+          path: new URL(req.url).pathname,
+          method: req.method,
+          headers: Object.fromEntries(req.headers.entries()),
+        };
+      }
+      return req;
+    };
+
+    const safeRequest = normalizeRequest(request);
+    if (typeof Sentry.captureRequestError === "function") {
+      // Forward all required parameters per SDK typing
+      if (
+        errorContext &&
+        typeof errorContext === "object" &&
+        "routerKind" in errorContext &&
+        "routePath" in errorContext &&
+        "routeType" in errorContext &&
+        typeof (errorContext as { routerKind: unknown }).routerKind === "string" &&
+        typeof (errorContext as { routePath: unknown }).routePath === "string" &&
+        typeof (errorContext as { routeType: unknown }).routeType === "string"
+      ) {
+        Sentry.captureRequestError(
+          error,
+          safeRequest,
+          errorContext as {
+            routerKind: string;
+            routePath: string;
+            routeType: string;
+          },
+        );
+      } else {
+        // Fallback: still capture error without context
+        Sentry.captureException?.(error);
+      }
+    } else {
+      // Fallback to the generic captureException for older SDKs
+      Sentry.captureException?.(error);
+    }
+  });
+}
