@@ -6,10 +6,8 @@
  */
 
 import { NextResponse } from "next/server";
-import { ServerCacheInstance } from "@/lib/server-cache";
 import { readJsonS3 } from "@/lib/s3-utils";
-import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
-import type { CacheStats } from "@/types/cache";
+import { BOOKMARKS_S3_PATHS, BOOKMARKS_CACHE_DURATION } from "@/lib/constants";
 import type { BookmarksIndex } from "@/types/bookmark";
 
 export const dynamic = "force-dynamic";
@@ -30,8 +28,13 @@ export async function GET(): Promise<NextResponse> {
     // Read from S3 index for actual data
     const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
 
-    const stats: CacheStats | undefined = ServerCacheInstance.getStats ? ServerCacheInstance.getStats() : undefined;
-    const needsRefresh = ServerCacheInstance.shouldRefreshBookmarks();
+    // Check if refresh is needed based on timing
+    let needsRefresh = true;
+    if (index?.lastFetchedAt) {
+      const timeSinceLastFetch = Date.now() - new Date(index.lastFetchedAt).getTime();
+      const revalidationThreshold = BOOKMARKS_CACHE_DURATION.REVALIDATION * 1000;
+      needsRefresh = timeSinceLastFetch > revalidationThreshold;
+    }
 
     const response = {
       // S3 storage info
@@ -46,7 +49,7 @@ export async function GET(): Promise<NextResponse> {
       // Cache metadata
       cache: {
         needsRefresh,
-        stats,
+        message: "Cache statistics are no longer available with Next.js cache",
       },
       // System info
       system: {
@@ -69,7 +72,7 @@ export async function GET(): Promise<NextResponse> {
       },
       cache: {
         needsRefresh: true,
-        stats: ServerCacheInstance.getStats ? ServerCacheInstance.getStats() : undefined,
+        message: "Cache statistics are no longer available with Next.js cache",
       },
       system: {
         environment: process.env.NODE_ENV,

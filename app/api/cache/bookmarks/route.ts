@@ -13,6 +13,7 @@ import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { DataFetchOperationSummary } from "@/types/lib";
 import { NextResponse } from "next/server";
 import type { BookmarksIndex } from "@/types/bookmark";
+import { invalidateBookmarksCache } from "@/lib/bookmarks/bookmarks-data-access.server";
 
 // Ensure this route is not statically cached
 export const dynamic = "force-dynamic";
@@ -99,6 +100,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       throw new Error(bookmarkResult?.error ?? "Bookmark refresh failed");
     }
 
+    // Invalidate Next.js cache for bookmarks
+    invalidateBookmarksCache();
+
     // Read updated index from S3
     const index = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
 
@@ -134,6 +138,9 @@ export function DELETE(request: Request): NextResponse {
   try {
     // Clear cache metadata
     ServerCacheInstance.clearBookmarks();
+
+    // Invalidate Next.js cache for bookmarks
+    invalidateBookmarksCache();
 
     return NextResponse.json({
       status: "success",
