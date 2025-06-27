@@ -190,7 +190,7 @@ export function repairCsvData(csvContent: string, defaultValues = { w: 0, a: 0, 
 
   // Check if repair is needed
   const needsRepair = stats.some((stat) =>
-    Object.values(stat).some((val) => val === undefined || val === null || val === 0),
+    Object.values(stat).some((val) => val === undefined || val === null),
   );
 
   if (!needsRepair) {
