@@ -26,26 +26,43 @@ a) **Technology Documentation via MCPs**:
 
    CRITICAL: Framework best practices change - always verify current patterns!
 
-b) **Web Search for Solutions**:
+b) **Anti-Polyfill Mandate (2025)**:
+   **FORBIDDEN**: Never add polyfills to this modern Next.js 15 + Node 22 LTS codebase:
+
+- ❌ BANNED: `core-js`, `@babel/polyfill`, `react-app-polyfill`, `polyfill.io`
+- ❌ BANNED: `whatwg-fetch`, `isomorphic-fetch`, `cross-fetch` (use native `fetch`)
+- ❌ BANNED: Any "kitchen-sink" polyfills or legacy browser support packages
+- ❌ BANNED: Any polyfill that patches `globalThis`, `window`, or `global` objects
+
+   **MODERN ALTERNATIVES ONLY**:
+- ✅ NATIVE: Use built-in Node 22 LTS APIs (`fetch`, `URL`, `TextEncoder`, etc.)
+- ✅ PONYFILLS: Import-only modules that don't mutate globals
+- ✅ FEATURE-DETECT: Dynamic imports with runtime capability detection
+- ✅ SERVER-FIRST: Move heavy processing to Server Components/Edge Functions
+
+c) **Web Search for Solutions**:
    Use @mcp__brave-search__brave_web_search for:
 
 - Specific ESLint rule explanations and fixes
 - TypeScript error codes with framework context
 - Migration guides for deprecated patterns
 - Community-approved type patterns
+- **Modern alternatives to any polyfills found in codebase**
 
-c) **Architecture Alignment**:
+d) **Architecture Alignment**:
 
 - Read docs/projects/structure/linting-formatting.md for project standards
 - Check docs/projects/structure/00-architecture-entrypoint.md
 - Ensure fixes align with documented patterns
+- **Verify no polyfills introduced that violate modern practices**
 
-d) **Deep Analysis**:
+e) **Deep Analysis**:
    Use @mcp__zen__thinkdeep with model="pro" and thinking_mode="high" including:
 
 - All error context
 - Documentation findings
 - Project architecture requirements
+- **Analysis of any polyfill dependencies for removal strategy**
 
 STEP 3: **Type Error Resolution Priority**:
 
@@ -143,6 +160,14 @@ STEP 6: **Final Verification**:
 3. Leverage `noUncheckedIndexedAccess` for safer arrays/objects
 4. All type names must be globally unique
 5. Prefer `unknown` over `any` for type narrowing
+6. **CRITICAL**: Never add polyfills - use native Node 22 LTS APIs and modern alternatives
+
+**Modern Dependency Guidelines (2025)**:
+
+- **Native APIs**: Always use Node 22's built-in `fetch`, `URL`, `TextEncoder`, etc.
+- **Current Documentation**: Use MCPs (Context7, DeepWiki) for latest framework patterns
+- **No Legacy Support**: This codebase targets evergreen browsers (Baseline 2023+)
+- **Bundle Hygiene**: Any polyfill detected in `node_modules` should be investigated for removal
 
 **Common Patterns**:
 ```typescript
