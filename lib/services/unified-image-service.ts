@@ -161,14 +161,19 @@ export class UnifiedImageService {
 
         for (const src of possibleSources) {
           for (const ext of possibleExts) {
-            const preflightKey = this.generateS3Key(domain, {
+            // Use a synthetic URL that ends with the candidate extension so that
+            // getFileExtension() inside generateS3Key resolves to the correct
+            // extension instead of "com" (which caused pre-flight misses).
+            const syntheticUrl = `${domain}.${ext}`;
+            const preflightKey = this.generateS3Key(syntheticUrl, {
               type: "logos",
               source: src,
               domain,
               invertColors: options.invertColors,
             });
 
-            // Only continue if key ends with the extension we're testing
+            // The synthetic URL ensures extension alignment, but double-check in
+            // case generateS3Key logic changes.
             if (!preflightKey.endsWith(`.${ext}`)) continue;
 
             if (await this.checkS3WithCache(preflightKey)) {
