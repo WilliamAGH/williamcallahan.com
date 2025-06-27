@@ -44,7 +44,8 @@ RUN --mount=type=cache,target=/app/.eslintcache \
 # --------------------------------------------------
 # BUILD STAGE (production build)
 # --------------------------------------------------
-FROM node:22-alpine AS builder
+# Use Bun image for build stage so `bun` commands are available
+FROM base AS builder
 # Install dependencies for the build
 RUN apk add --no-cache libc6-compat curl bash
 WORKDIR /app
