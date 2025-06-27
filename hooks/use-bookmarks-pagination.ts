@@ -1,3 +1,9 @@
+/**
+ * React hook for paginated bookmark data fetching with infinite scroll support using SWR.
+ */
+
+"use client";
+
 import { useCallback, useMemo, useState } from "react";
 import useSWRInfinite from "swr/infinite";
 import type { BookmarksResponse, UnifiedBookmark } from "@/types/bookmark";
