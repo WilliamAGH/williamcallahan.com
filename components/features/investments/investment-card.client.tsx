@@ -17,6 +17,7 @@
  */
 
 import { LogoImage } from "@/components/ui";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import { ExternalLink } from "@/components/ui/external-link.client";
 import { ExternalLink as ExternalLinkIcon } from "lucide-react";
 import type { InvestmentCardExtendedProps } from "@/types/features/investments";
@@ -156,7 +157,7 @@ export function InvestmentCardClient({
                 className="flex items-center bg-slate-100 dark:bg-transparent hover:bg-slate-200 dark:hover:bg-gray-700/50 px-3 py-2 rounded-full transition-colors"
               >
                 <Image
-                  src="/images/aVenture Favicon.png"
+                  src={getStaticImageUrl("/images/aVenture Favicon.png")}
                   alt="aVenture"
                   width={24}
                   height={24}

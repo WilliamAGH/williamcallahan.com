@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * @file Bookmarks Window Client Component
  * @module components/features/bookmarks/bookmarks-window.client
@@ -12,12 +10,14 @@
  * @clientComponent - This component uses client-side APIs and must be rendered on the client.
  */
 
+"use client";
+
+import React, { Suspense, useEffect, useMemo } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
 import { Bookmark } from "lucide-react";
 import dynamic from "next/dynamic";
-import { Suspense, useEffect, useMemo } from "react";
 import type { LucideIcon } from "lucide-react";
 import type { RegisteredWindowState, BookmarksWindowContentProps } from "@/types";
 
@@ -49,64 +49,58 @@ const SkeletonLoader = () => {
 import type { BookmarksWindowClientPropsExtended as BookmarksWindowClientProps } from "@/types";
 
 /**
- * Dynamic import of the window content component to prevent server-side rendering
- * This ensures any layout effects or DOM manipulations only run on the client
+ * Inner content component wrapper for dynamic()
  */
+function BookmarksWindowContentInner({
+  children,
+  windowState,
+  onClose,
+  onMinimize,
+  onMaximize,
+  titleSlug,
+  windowTitle,
+}: {
+  children: React.ReactNode;
+  windowState: string;
+  onClose: () => void;
+  onMinimize: () => void;
+  onMaximize: () => void;
+  titleSlug?: string;
+  windowTitle?: string;
+}): React.JSX.Element {
+  const isMaximized = windowState === "maximized";
+
+  // Format the title slug for display
+  const formattedTitle = windowTitle ? windowTitle : titleSlug ? `~/${titleSlug}/bookmarks` : "~/bookmarks";
+
+  return (
+    <div
+      className={cn(
+        "bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden",
+        "transition-all duration-300 ease-in-out",
+        // Maximize: Use fixed positioning, take full screen except header/footer space
+        isMaximized
+          ? "fixed inset-0 top-16 bottom-16 md:bottom-4 max-w-none m-0 z-40"
+          : // Normal: Default flow with full width on larger screens
+            "relative mx-auto mt-8 w-full max-w-[95%] xl:max-w-[1400px] 2xl:max-w-[1800px]",
+      )}
+    >
+      <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 sticky top-0 z-10">
+        <div className="flex items-center">
+          <WindowControls onClose={onClose} onMinimize={onMinimize} onMaximize={onMaximize} />
+          <h1 className="text-xl font-mono ml-4">{formattedTitle}</h1>
+        </div>
+      </div>
+
+      <div className={cn("h-full", isMaximized ? "overflow-y-auto" : "")}>
+        <Suspense fallback={<SkeletonLoader />}>{children}</Suspense>
+      </div>
+    </div>
+  );
+}
+
 const BookmarksWindowContent = dynamic<BookmarksWindowContentProps>(
-  () =>
-    Promise.resolve(
-      ({
-        children,
-        windowState,
-        onClose,
-        onMinimize,
-        onMaximize,
-        titleSlug,
-        windowTitle,
-      }: {
-        children: React.ReactNode;
-        windowState: string;
-        onClose: () => void;
-        onMinimize: () => void;
-        onMaximize: () => void;
-        titleSlug?: string;
-        windowTitle?: string;
-      }) => {
-        const isMaximized = windowState === "maximized";
-
-        // Format the title slug for display
-        const formattedTitle = windowTitle
-          ? windowTitle // Use explicit window title if provided
-          : titleSlug
-            ? `~/${titleSlug}/bookmarks`
-            : "~/bookmarks";
-
-        return (
-          <div
-            className={cn(
-              "bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden",
-              "transition-all duration-300 ease-in-out",
-              // Maximize: Use fixed positioning, take full screen except header/footer space
-              isMaximized
-                ? "fixed inset-0 top-16 bottom-16 md:bottom-4 max-w-none m-0 z-40"
-                : // Normal: Default flow with full width on larger screens
-                  "relative mx-auto mt-8 w-full max-w-[95%] xl:max-w-[1400px] 2xl:max-w-[1800px]",
-            )}
-          >
-            <div className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50 p-4 sticky top-0 z-10">
-              <div className="flex items-center">
-                <WindowControls onClose={onClose} onMinimize={onMinimize} onMaximize={onMaximize} />
-                <h1 className="text-xl font-mono ml-4">{formattedTitle}</h1>
-              </div>
-            </div>
-
-            <div className={cn("h-full", isMaximized ? "overflow-y-auto" : "")}>
-              <Suspense fallback={<SkeletonLoader />}>{children}</Suspense>
-            </div>
-          </div>
-        );
-      },
-    ),
+  () => Promise.resolve({ default: BookmarksWindowContentInner }),
   { ssr: false },
 );
 

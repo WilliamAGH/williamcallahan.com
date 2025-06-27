@@ -1,7 +1,18 @@
 /**
- * Selection View Component
+ * Terminal-style **Selection View** (TUI) Component
+ * -------------------------------------------------
+ * Renders an interactive, command-palette style list inside our faux-terminal UI.
  *
- * Displays a list of selectable items with keyboard navigation
+ * Key characteristics to remember (DO **NOT** conflate with standard dropdowns/menus):
+ * 1. **One item per line** – implemented with `block w-full` so the look mimics CLI output.
+ * 2. **Single-line truncation with ellipsis** – prevents label wrapping which would break the
+ *    terminal illusion.
+ * 3. **Keyboard navigation first-class** – ↑/↓ to move, Enter to select, Esc to cancel.
+ * 4. **Pagination support** – shows ±24 results per "page" with explicit prev/next buttons that are
+ *    part of the same list and navigable via keyboard.
+ *
+ * This component is ONLY intended for the search/command palette terminal UI. If you need a generic
+ * list or dropdown, create a new component – do **not** reuse this one.
  */
 
 "use client";
@@ -124,7 +135,13 @@ export function SelectionView({ items, onSelectAction, onExitAction }: Selection
         <button
           key={item.id} // Use item.id for a stable key
           type="button"
-          className={`px-2 py-1 rounded cursor-pointer ${
+          /*
+           * Styling rules:
+           * 1. `block w-full text-left` → each result is forced onto its own line occupying full width.
+           * 2. `truncate whitespace-nowrap overflow-hidden` → long labels are clipped with an ellipsis
+           *    instead of wrapping to a second line, keeping the list compact and readable.
+           */
+          className={`block w-full text-left px-2 py-1 rounded cursor-pointer truncate whitespace-nowrap overflow-hidden ${
             index === selectedIndex ? "bg-blue-500/20 text-blue-300" : "hover:bg-gray-800"
           }`}
           onClick={() => onSelectAction(item)}

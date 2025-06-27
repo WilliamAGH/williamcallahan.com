@@ -137,10 +137,10 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         }
 
         const json: unknown = await response.json();
-        
+
         // The API returns { data: [...], meta: {...} } format
         const apiResponse = json as { data: UnifiedBookmark[]; meta: unknown };
-        
+
         // API already returns UnifiedBookmark objects, no validation needed
         const allBookmarks: UnifiedBookmark[] = apiResponse.data;
 
@@ -384,11 +384,11 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     return filteredBookmarks;
   }, [searchResults, filteredBookmarks]);
 
-  const shareUrls = useMemo(() => {
-    const urls = new Map<string, string>();
+  const internalHrefs = useMemo(() => {
+    const hrefs = new Map<string, string>();
     if (Array.isArray(displayBookmarks)) {
       displayBookmarks.forEach((bookmark: UnifiedBookmark) => {
-        urls.set(
+        hrefs.set(
           bookmark.id,
           `/bookmarks/${generateUniqueSlug(
             bookmark.url,
@@ -398,7 +398,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         );
       });
     }
-    return urls;
+    return hrefs;
   }, [displayBookmarks, bookmarks]);
 
   return (
@@ -571,17 +571,23 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
                   .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                   .map((bookmark: UnifiedBookmark) => {
                     // Debug: Log bookmark data for CLI bookmark
-                    if (bookmark.id === 'yz7g8v8vzprsd2bm1w1cjc4y') {
-                      console.log('[BookmarksWithPagination] CLI bookmark data:', {
+                    if (bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
+                      console.log("[BookmarksWithPagination] CLI bookmark data:", {
                         id: bookmark.id,
                         hasContent: !!bookmark.content,
                         hasImageAssetId: !!bookmark.content?.imageAssetId,
                         hasImageUrl: !!bookmark.content?.imageUrl,
                         hasScreenshotAssetId: !!bookmark.content?.screenshotAssetId,
-                        content: bookmark.content
+                        content: bookmark.content,
                       });
                     }
-                    return <BookmarkCardClient key={bookmark.id} {...bookmark} shareUrl={shareUrls.get(bookmark.id)} />;
+                    return (
+                      <BookmarkCardClient
+                        key={bookmark.id}
+                        {...bookmark}
+                        internalHref={internalHrefs.get(bookmark.id)}
+                      />
+                    );
                   })}
             </div>
 

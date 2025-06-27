@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils"; // Import cn utility
 import { ChevronDown, ChevronUp, GraduationCap, Search } from "lucide-react"; // Import additional icons
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { WindowControls } from "../../../components/ui/navigation/window-controls";
+import { WindowControls } from "@/components/ui/navigation/window-controls";
 import { EducationCardClient } from "./education-card.client";
 
 // Define a unique ID for this window instance

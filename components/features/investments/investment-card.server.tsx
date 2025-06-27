@@ -8,7 +8,7 @@
 
 import type { Investment } from "../../../types/investment";
 import { InvestmentCardClient } from "./investment-card.client";
-import { getLogo } from "@/lib/data-access/logos";
+import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import type { LogoData } from "../../../types/logo";
 import type { ReactElement } from "react";
 
@@ -26,31 +26,28 @@ export async function InvestmentCard(props: Investment): Promise<ReactElement> {
     return <InvestmentCardClient {...props} logoData={{ url: logo, source: "static" }} />;
   }
 
-  // For investments without a logo property, try to fetch dynamically
+  // For investments without a logo property, try to get from manifest
   if (website) {
     try {
       // Extract domain from website URL
       const url = new URL(website);
       const domain = url.hostname.replace(/^www\./, "");
 
-      // Fetch logo using the unified logo system
-      const logoResult = await getLogo(domain);
+      // Get logo from manifest with lazy loading
+      const logoEntry = await getLogoFromManifestAsync(domain);
 
-      if (logoResult?.buffer && Buffer.isBuffer(logoResult.buffer) && logoResult.buffer.length > 0) {
-        // Convert buffer to base64 data URL
-        const base64 = logoResult.buffer.toString("base64");
-        const dataUrl = `data:${logoResult.contentType || "image/png"};base64,${base64}`;
-
+      if (logoEntry) {
+        // Use CDN URL from manifest, preserve original source
         const logoData: LogoData = {
-          url: dataUrl,
-          source: logoResult.source || "unknown",
+          url: logoEntry.cdnUrl,
+          source: logoEntry.originalSource,
         };
 
         return <InvestmentCardClient {...props} logoData={logoData} />;
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn(`Failed to fetch logo for ${name} (${website}):`, errorMessage);
+      console.warn(`Failed to get logo for ${name} (${website}):`, errorMessage);
       // Fall through to placeholder return below
     }
   }

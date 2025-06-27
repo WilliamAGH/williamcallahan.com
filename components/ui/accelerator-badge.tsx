@@ -3,6 +3,7 @@
  */
 
 import type { Accelerator } from "@/types/accelerator";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 import Image from "next/image";
 
 export function AcceleratorBadge({ accelerator }: { accelerator: Accelerator }) {
@@ -21,7 +22,7 @@ export function AcceleratorBadge({ accelerator }: { accelerator: Accelerator }) 
       <div className="flex items-center gap-3 min-w-0 px-1">
         <div className="relative w-4 h-4 flex-none">
           <Image
-            src={`/images/${program}-logo.svg`}
+            src={getStaticImageUrl(`/images/${program}-logo.svg`)}
             alt={programName}
             width={16}
             height={16}
