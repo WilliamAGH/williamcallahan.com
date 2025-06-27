@@ -8,15 +8,27 @@
  */
 
 import { debug, debugWarn } from "@/lib/utils/debug";
-import { getBrowserHeaders } from "@/lib/data-access/logos/external-fetch";
-import { hasDomainFailedTooManyTimes, markDomainAsFailed } from "@/lib/data-access/logos/session";
-import { isJinaFetchAllowed } from "@/lib/server-cache/jina-fetch-limiter";
-import { getCachedJinaHtml, persistJinaHtmlInBackground } from "./persistence";
-import { DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG, waitForPermit } from "@/lib/rate-limiter";
+import { getUnifiedImageService, UnifiedImageService } from "@/lib/services/unified-image-service";
+import { getCachedJinaHtml, persistJinaHtmlInBackground } from "@/lib/opengraph/persistence";
+import { incrementAndPersist } from "@/lib/rate-limiter";
+import {
+  JINA_FETCH_CONFIG,
+  JINA_FETCH_STORE_NAME,
+  JINA_FETCH_CONTEXT_ID,
+  JINA_FETCH_RATE_LIMIT_S3_PATH,
+} from "@/lib/constants";
+import { scheduleImagePersistence, persistImageAndGetS3Url } from "@/lib/opengraph/persistence";
+import { waitForPermit } from "@/lib/rate-limiter";
 import { calculateBackoffDelay, getDomainType, shouldRetryUrl } from "@/lib/utils/opengraph-utils";
 import { sanitizeOgMetadata } from "@/lib/utils/opengraph-utils";
 import { ogMetadataSchema, type ValidatedOgMetadata } from "@/types/seo/opengraph";
-import { OPENGRAPH_FETCH_CONFIG, OPENGRAPH_FETCH_CONTEXT_ID, OPENGRAPH_FETCH_STORE_NAME } from "./constants";
+import {
+  OPENGRAPH_FETCH_CONFIG,
+  OPENGRAPH_FETCH_CONTEXT_ID,
+  OPENGRAPH_FETCH_STORE_NAME,
+  DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG,
+  OPENGRAPH_IMAGES_S3_DIR,
+} from "@/lib/constants";
 import { extractOpenGraphTags } from "./parser";
 import { selectBestOpenGraphImage } from "@/lib/image-handling/image-selector";
 import type { OgResult, KarakeepImageFallback } from "@/types";
@@ -47,7 +59,7 @@ export async function fetchExternalOpenGraphWithRetry(
       debug(`[DataAccess/OpenGraph] Using proxy for Twitter URL: ${effectiveUrl}`);
     }
 
-    let headers = getBrowserHeaders();
+    let headers = UnifiedImageService.getBrowserHeaders();
 
     for (let attempt = 0; attempt < OPENGRAPH_FETCH_CONFIG.MAX_RETRIES; attempt++) {
       try {
@@ -159,7 +171,8 @@ async function fetchExternalOpenGraph(
   headers?: Record<string, string>,
 ): Promise<OgResult | { permanentFailure: true; status: number } | { blocked: true; status: number } | null> {
   const domain = getDomainType(url);
-  if (hasDomainFailedTooManyTimes(domain)) {
+  const imageService = getUnifiedImageService();
+  if (imageService.hasDomainFailedTooManyTimes(domain)) {
     debugWarn(`[DataAccess/OpenGraph] Skipping ${url} - domain ${domain} has failed too many times`);
     return null;
   }
@@ -173,7 +186,14 @@ async function fetchExternalOpenGraph(
     html = cachedHtml;
   } else {
     // 2. If not cached, attempt to use Jina AI Reader if allowed
-    if (isJinaFetchAllowed()) {
+    if (
+      incrementAndPersist(
+        JINA_FETCH_STORE_NAME,
+        JINA_FETCH_CONTEXT_ID,
+        JINA_FETCH_CONFIG,
+        JINA_FETCH_RATE_LIMIT_S3_PATH,
+      )
+    ) {
       try {
         debug(`[DataAccess/OpenGraph] Attempting to fetch with Jina AI Reader: ${url}`);
         const jinaResponse = await global.fetch(`https://r.jina.ai/${url}`, {
@@ -196,7 +216,7 @@ async function fetchExternalOpenGraph(
         // Fall through to direct fetch
       }
     } else {
-      debugWarn(`[DataAccess/OpenGraph] Jina AI fetch skipped due to rate limit for ${url}`);
+      debugWarn(`[DataAccess/OpenGraph] Jina AI fetch skipped due to global rate limit for ${url}`);
     }
   }
 
@@ -209,7 +229,7 @@ async function fetchExternalOpenGraph(
 
     try {
       await waitForPermit(OPENGRAPH_FETCH_STORE_NAME, OPENGRAPH_FETCH_CONTEXT_ID, DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG);
-      const requestHeaders = headers || getBrowserHeaders();
+      const requestHeaders = headers || UnifiedImageService.getBrowserHeaders();
       const response = await fetch(url, {
         method: "GET",
         headers: requestHeaders,
@@ -236,7 +256,7 @@ async function fetchExternalOpenGraph(
         debugWarn(`[DataAccess/OpenGraph] ${timeoutMessage} for ${url}`);
         throw new Error(timeoutMessage);
       }
-      markDomainAsFailed(domain);
+      imageService.markDomainAsFailed(domain);
       throw fetchError;
     } finally {
       clearTimeout(timeoutId);
@@ -262,15 +282,157 @@ async function fetchExternalOpenGraph(
         siteName: null,
       };
 
-  const bestImageUrl = selectBestOpenGraphImage(validatedMetadata);
+  const bestImageUrl = selectBestOpenGraphImage(validatedMetadata, url);
+
+  // Log what we found
+  console.log(`[DataAccess/OpenGraph] Image selection for ${url}:`);
+  console.log(`[DataAccess/OpenGraph]   Best image URL: ${bestImageUrl || "NONE FOUND"}`);
+  console.log(`[DataAccess/OpenGraph]   Fallback data provided: ${fallbackImageData ? "YES" : "NO"}`);
+  console.log(`[DataAccess/OpenGraph]   Idempotency key: ${fallbackImageData?.idempotencyKey || "NONE"}`);
+
+  // Handle image persistence
+  let finalImageUrl = bestImageUrl;
+  let finalProfileImageUrl = validatedMetadata.profileImage || undefined;
+  let finalBannerImageUrl = validatedMetadata.bannerImage || undefined;
+
+  // Check if we're in batch mode (data updater)
+  const isBatchMode = process.env.IS_DATA_UPDATER === "true";
+
+  // Persist main OpenGraph image
+  if (bestImageUrl && fallbackImageData?.idempotencyKey) {
+    if (isBatchMode) {
+      // In batch mode, persist synchronously and get S3 URL
+      console.log(`[DataAccess/OpenGraph] 🔄 Batch mode: Persisting image synchronously for: ${bestImageUrl}`);
+      const s3Url = await persistImageAndGetS3Url(
+        bestImageUrl,
+        OPENGRAPH_IMAGES_S3_DIR,
+        "OpenGraph",
+        fallbackImageData.idempotencyKey,
+        url,
+      );
+
+      if (s3Url) {
+        finalImageUrl = s3Url;
+        console.log(`[DataAccess/OpenGraph] ✅ Image persisted to S3, using S3 URL: ${s3Url}`);
+      } else {
+        console.error(`[DataAccess/OpenGraph] ❌ Failed to persist image to S3, keeping original URL: ${bestImageUrl}`);
+      }
+    } else {
+      // In runtime mode, schedule background persistence
+      console.log(
+        `[DataAccess/OpenGraph] 📋 Runtime mode: Scheduling background image persistence for: ${bestImageUrl}`,
+      );
+      scheduleImagePersistence(
+        bestImageUrl,
+        OPENGRAPH_IMAGES_S3_DIR,
+        "OpenGraph",
+        fallbackImageData.idempotencyKey,
+        url,
+      );
+    }
+  } else {
+    if (!bestImageUrl) {
+      console.warn(`[DataAccess/OpenGraph] ⚠️ No image found to persist for ${url}`);
+    } else if (!fallbackImageData?.idempotencyKey) {
+      console.warn(`[DataAccess/OpenGraph] ⚠️ No idempotencyKey provided, cannot persist image: ${bestImageUrl}`);
+    }
+  }
+
+  // Persist profile image if available
+  if (validatedMetadata.profileImage && fallbackImageData?.idempotencyKey) {
+    const profileImageUrl = validatedMetadata.profileImage;
+    console.log(`[DataAccess/OpenGraph] 👤 Found profile image: ${profileImageUrl}`);
+
+    // Determine platform-specific directory for better organization
+    const domain = getDomainType(url);
+    let profileImageDirectory = "social-avatars";
+    if (domain === "github.com") {
+      profileImageDirectory = "social-avatars/github";
+    } else if (domain === "twitter.com" || domain === "x.com") {
+      profileImageDirectory = "social-avatars/twitter";
+    } else if (domain === "linkedin.com") {
+      profileImageDirectory = "social-avatars/linkedin";
+    } else if (domain === "bsky.app") {
+      profileImageDirectory = "social-avatars/bluesky";
+    } else if (domain === "discord.com") {
+      profileImageDirectory = "social-avatars/discord";
+    }
+
+    if (isBatchMode) {
+      console.log(
+        `[DataAccess/OpenGraph] 🔄 Batch mode: Persisting profile image synchronously to ${profileImageDirectory}`,
+      );
+      const s3ProfileUrl = await persistImageAndGetS3Url(
+        profileImageUrl,
+        profileImageDirectory,
+        "ProfileImage",
+        `profile-${fallbackImageData.idempotencyKey}`,
+        url,
+      );
+
+      if (s3ProfileUrl) {
+        finalProfileImageUrl = s3ProfileUrl;
+        console.log(`[DataAccess/OpenGraph] ✅ Profile image persisted to S3: ${s3ProfileUrl}`);
+      } else {
+        console.error(
+          `[DataAccess/OpenGraph] ❌ Failed to persist profile image, keeping original: ${profileImageUrl}`,
+        );
+      }
+    } else {
+      console.log(
+        `[DataAccess/OpenGraph] 📋 Runtime mode: Scheduling profile image persistence to ${profileImageDirectory}`,
+      );
+      scheduleImagePersistence(
+        profileImageUrl,
+        profileImageDirectory,
+        "ProfileImage",
+        `profile-${fallbackImageData.idempotencyKey}`,
+        url,
+      );
+    }
+  }
+
+  // Persist banner image if available
+  if (validatedMetadata.bannerImage && fallbackImageData?.idempotencyKey) {
+    const bannerImageUrl = validatedMetadata.bannerImage;
+    console.log(`[DataAccess/OpenGraph] 🎨 Found banner image: ${bannerImageUrl}`);
+
+    if (isBatchMode) {
+      console.log(`[DataAccess/OpenGraph] 🔄 Batch mode: Persisting banner image synchronously`);
+      const s3BannerUrl = await persistImageAndGetS3Url(
+        bannerImageUrl,
+        "social-banners",
+        "BannerImage",
+        `banner-${fallbackImageData.idempotencyKey}`,
+        url,
+      );
+
+      if (s3BannerUrl) {
+        finalBannerImageUrl = s3BannerUrl;
+        console.log(`[DataAccess/OpenGraph] ✅ Banner image persisted to S3: ${s3BannerUrl}`);
+      } else {
+        console.error(`[DataAccess/OpenGraph] ❌ Failed to persist banner image, keeping original: ${bannerImageUrl}`);
+      }
+    } else {
+      console.log(`[DataAccess/OpenGraph] 📋 Runtime mode: Scheduling banner image persistence`);
+      scheduleImagePersistence(
+        bannerImageUrl,
+        "social-banners",
+        "BannerImage",
+        `banner-${fallbackImageData.idempotencyKey}`,
+        url,
+      );
+    }
+  }
 
   const result: OgResult = {
     url: finalUrl,
     finalUrl: finalUrl !== url ? finalUrl : undefined,
     title: validatedMetadata.title || undefined,
     description: validatedMetadata.description || undefined,
-    imageUrl: bestImageUrl,
-    bannerImageUrl: validatedMetadata.bannerImage || null,
+    imageUrl: finalImageUrl,
+    bannerImageUrl: finalBannerImageUrl || null,
+    profileImageUrl: finalProfileImageUrl || null,
     siteName: validatedMetadata.siteName || undefined,
     timestamp: Date.now(),
     source: "external",
@@ -280,6 +442,7 @@ async function fetchExternalOpenGraph(
     title: validatedMetadata.title,
     imageUrl: result.imageUrl,
     bannerImageUrl: result.bannerImageUrl,
+    profileImageUrl: result.profileImageUrl,
   });
 
   return result;

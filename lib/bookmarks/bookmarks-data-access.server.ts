@@ -15,7 +15,12 @@ import type { BookmarksIndex, BookmarkLoadOptions, LightweightBookmark } from "@
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 import { tagToSlug } from "@/lib/utils/tag-utils";
 import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "next/cache";
+import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
+
+// Type assertions for cache functions to fix ESLint unsafe call errors
+const safeCacheLife = cacheLife as (profile: string) => void;
+const safeCacheTag = cacheTag as (tag: string) => void;
+const safeRevalidateTag = revalidateTag as (tag: string) => void;
 
 // Helper function to convert UnifiedBookmark to LightweightBookmark
 function stripImageData(bookmark: UnifiedBookmark): LightweightBookmark {
@@ -487,12 +492,12 @@ async function getBookmarksPageDirect(pageNumber: number): Promise<UnifiedBookma
 
 // Cached version using 'use cache' directive (wraps the direct function)
 async function getCachedBookmarksPage(pageNumber: number): Promise<UnifiedBookmark[]> {
-  'use cache';
-  
-  cacheLife('hours'); // 1 hour cache
-  cacheTag('bookmarks');
-  cacheTag(`bookmarks-page-${pageNumber}`);
-  
+  "use cache";
+
+  safeCacheLife("hours"); // 1 hour cache
+  safeCacheTag("bookmarks");
+  safeCacheTag(`bookmarks-page-${pageNumber}`);
+
   return getBookmarksPageDirect(pageNumber);
 }
 
@@ -502,10 +507,10 @@ export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookm
   if (USE_NEXTJS_CACHE) {
     return withCacheFallback(
       () => getCachedBookmarksPage(pageNumber),
-      () => getBookmarksPageDirect(pageNumber)
+      () => getBookmarksPageDirect(pageNumber),
     );
   }
-  
+
   // Default: Always use direct S3 read
   return getBookmarksPageDirect(pageNumber);
 }
@@ -529,13 +534,13 @@ async function getTagBookmarksPageDirect(tagSlug: string, pageNumber: number): P
 
 // Cached version using 'use cache' directive for tag pages
 async function getCachedTagBookmarksPage(tagSlug: string, pageNumber: number): Promise<UnifiedBookmark[]> {
-  'use cache';
-  
-  cacheLife('hours'); // 1 hour cache
-  cacheTag('bookmarks');
-  cacheTag(`bookmarks-tag-${tagSlug}`);
-  cacheTag(`bookmarks-tag-${tagSlug}-page-${pageNumber}`);
-  
+  "use cache";
+
+  safeCacheLife("hours"); // 1 hour cache
+  safeCacheTag("bookmarks");
+  safeCacheTag(`bookmarks-tag-${tagSlug}`);
+  safeCacheTag(`bookmarks-tag-${tagSlug}-page-${pageNumber}`);
+
   return getTagBookmarksPageDirect(tagSlug, pageNumber);
 }
 
@@ -545,10 +550,10 @@ export async function getTagBookmarksPage(tagSlug: string, pageNumber: number): 
   if (USE_NEXTJS_CACHE) {
     return withCacheFallback(
       () => getCachedTagBookmarksPage(tagSlug, pageNumber),
-      () => getTagBookmarksPageDirect(tagSlug, pageNumber)
+      () => getTagBookmarksPageDirect(tagSlug, pageNumber),
     );
   }
-  
+
   // Default: Always use direct S3 read
   return getTagBookmarksPageDirect(tagSlug, pageNumber);
 }
@@ -572,13 +577,13 @@ async function getTagBookmarksIndexDirect(tagSlug: string): Promise<BookmarksInd
 
 // Cached version using 'use cache' directive for tag index
 async function getCachedTagBookmarksIndex(tagSlug: string): Promise<BookmarksIndex | null> {
-  'use cache';
-  
-  cacheLife('hours'); // 1 hour cache
-  cacheTag('bookmarks');
-  cacheTag(`bookmarks-tag-${tagSlug}`);
-  cacheTag(`bookmarks-tag-${tagSlug}-index`);
-  
+  "use cache";
+
+  safeCacheLife("hours"); // 1 hour cache
+  safeCacheTag("bookmarks");
+  safeCacheTag(`bookmarks-tag-${tagSlug}`);
+  safeCacheTag(`bookmarks-tag-${tagSlug}-index`);
+
   return getTagBookmarksIndexDirect(tagSlug);
 }
 
@@ -588,10 +593,10 @@ export async function getTagBookmarksIndex(tagSlug: string): Promise<BookmarksIn
   if (USE_NEXTJS_CACHE) {
     return withCacheFallback(
       () => getCachedTagBookmarksIndex(tagSlug),
-      () => getTagBookmarksIndexDirect(tagSlug)
+      () => getTagBookmarksIndexDirect(tagSlug),
     );
   }
-  
+
   // Default: Always use direct S3 read
   return getTagBookmarksIndexDirect(tagSlug);
 }
@@ -672,24 +677,38 @@ export async function getBookmarksByTag(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Test environment compatibility: when tests mock "@/lib/bookmarks" they
-// expect the mocked `getBookmarks` to also be returned from this module path.
-// We detect that scenario and, if possible, re-export the mocked version so
-// that both import paths resolve to the same (mocked) implementation.
-// ---------------------------------------------------------------------------
-if (process.env.NODE_ENV === "test") {
-  try {
-    // Dynamically require to avoid circular ES import issues in non-test envs
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-require-imports
-    const bookmarksIndex = require("./index");
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (bookmarksIndex?.getBookmarks && typeof bookmarksIndex.getBookmarks === "function") {
-      // Re-assign CommonJS exports so jest picks up the mocked fn
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-      module.exports.getBookmarks = bookmarksIndex.getBookmarks;
-    }
-  } catch {
-    /* noop */
+// Cache invalidation function for bookmarks
+export function invalidateBookmarksCache(): void {
+  if (USE_NEXTJS_CACHE) {
+    // Invalidate all bookmarks cache tags
+    safeRevalidateTag("bookmarks");
+    console.log("[Bookmarks] Cache invalidated for tag: bookmarks");
+  }
+}
+
+// Invalidate specific bookmark page cache
+export function invalidateBookmarksPageCache(pageNumber: number): void {
+  if (USE_NEXTJS_CACHE) {
+    safeRevalidateTag(`bookmarks-page-${pageNumber}`);
+    console.log(`[Bookmarks] Cache invalidated for page: ${pageNumber}`);
+  }
+}
+
+// Invalidate tag-specific bookmark cache
+export function invalidateBookmarksTagCache(tagSlug: string): void {
+  if (USE_NEXTJS_CACHE) {
+    safeRevalidateTag(`bookmarks-tag-${tagSlug}`);
+    console.log(`[Bookmarks] Cache invalidated for tag: ${tagSlug}`);
+  }
+}
+
+// Alias for expected function name
+export const invalidateTagCache = invalidateBookmarksTagCache;
+
+// Invalidate specific bookmark cache
+export function invalidateBookmarkCache(bookmarkId: string): void {
+  if (USE_NEXTJS_CACHE) {
+    safeRevalidateTag(`bookmark-${bookmarkId}`);
+    console.log(`[Bookmarks] Cache invalidated for bookmark: ${bookmarkId}`);
   }
 }

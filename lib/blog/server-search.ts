@@ -10,17 +10,18 @@ import { assertServerOnly } from "../utils/ensure-server-only";
 assertServerOnly(); // Ensure this module runs only on the server
 
 import type { SearchResult } from "@/types/search";
-import { getAllMDXPosts } from "./mdx";
+import { getAllMDXPostsForSearch } from "./mdx";
 
 /**
  * Server-side function to filter blog posts based on a query.
- * Searches title, excerpt, tags, author name, and raw content.
+ * Searches title, excerpt, tags, and author name (raw content excluded for memory efficiency).
  *
  * @param query - The search query string.
  * @returns A promise that resolves to an array of matching SearchResult objects.
  */
 export async function searchBlogPostsServerSide(query: string): Promise<SearchResult[]> {
-  const allPosts = await getAllMDXPosts();
+  // Use lightweight posts without rawContent to reduce memory usage
+  const allPosts = await getAllMDXPostsForSearch();
 
   if (!query) {
     return []; // Return empty if no query provided for a search
@@ -36,12 +37,13 @@ export async function searchBlogPostsServerSide(query: string): Promise<SearchRe
     }
 
     // Combine all searchable fields into one long string for better matching
+    // NOTE: rawContent excluded to reduce memory usage during search
     const allContentText = [
       post.title || "",
       post.excerpt || "",
       ...(post.tags || []),
       post.author?.name || "",
-      post.rawContent || "", // Include raw content
+      // rawContent excluded - was causing memory explosion
     ]
       .filter((field) => typeof field === "string" && field.length > 0)
       .join(" ")

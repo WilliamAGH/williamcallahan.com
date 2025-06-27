@@ -4,7 +4,7 @@
 
 import { posts as staticPosts } from "@/data/blog/posts";
 import type { BlogPost } from "@/types/blog";
-import { getAllMDXPosts } from "./blog/mdx";
+import { getAllMDXPostsCached } from "./blog/mdx";
 import { BlogPostDataError } from "./errors";
 
 /**
@@ -15,7 +15,7 @@ import { BlogPostDataError } from "./errors";
 export async function getAllPosts(): Promise<BlogPost[]> {
   try {
     // Get posts from both sources
-    const mdxPosts = await getAllMDXPosts();
+    const mdxPosts = await getAllMDXPostsCached();
 
     // Check for empty static posts (unlikely but defensive)
     if (!staticPosts || !Array.isArray(staticPosts)) {

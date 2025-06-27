@@ -48,13 +48,8 @@ import type { BlogPost } from "../../types/blog";
 /** Directory containing MDX blog posts */
 const POSTS_DIRECTORY = path.join(process.cwd(), "data/blog/posts");
 
-import { LRUCache } from "lru-cache";
-
-// Cache for processed MDX posts - limit to 10 entries to prevent memory growth
-const postCache = new LRUCache<string, { post: BlogPost | null; lastModified: string }>({
-  max: 10, // Max 10 posts cached
-  ttl: 60 * 60 * 1000, // 1 hour TTL
-});
+import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
+import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 
 /**
  * Converts a date string or Date object to a Pacific Time ISO string
@@ -104,8 +99,6 @@ export async function getMDXPost(
   filePathForPost: string,
   fileContentOverride?: string,
 ): Promise<BlogPost | null> {
-  const cacheKey = frontmatterSlug; // Use the frontmatter slug for caching
-
   try {
     let fileContents: string;
     let stats: import("fs").Stats;
@@ -136,14 +129,6 @@ export async function getMDXPost(
         return null;
       }
       fileContents = await fs.readFile(filePathForPost, "utf8");
-    }
-
-    const lastModified = stats.mtime.toISOString();
-
-    // Check cache using the identifier (frontmatter slug)
-    const cached = postCache.get(cacheKey);
-    if (cached && cached.lastModified === lastModified && !fileContentOverride) {
-      return cached.post;
     }
 
     // Parse frontmatter
@@ -238,9 +223,6 @@ export async function getMDXPost(
       filePath: filePathForPost,
     };
 
-    // Update cache using the frontmatter slug as key
-    postCache.set(cacheKey, { post, lastModified });
-
     return post;
   } catch (e) {
     const error = e as Error; // Type assertion for error object
@@ -251,6 +233,50 @@ export async function getMDXPost(
     );
     return null;
   }
+}
+
+// Internal direct read function for MDX posts (always available)
+async function getMDXPostDirect(
+  frontmatterSlug: string,
+  filePathForPost: string,
+  fileContentOverride?: string,
+): Promise<BlogPost | null> {
+  return getMDXPost(frontmatterSlug, filePathForPost, fileContentOverride);
+}
+
+// Cached version using 'use cache' directive
+async function getCachedMDXPost(frontmatterSlug: string, filePathForPost: string): Promise<BlogPost | null> {
+  "use cache";
+
+  cacheLife("weeks"); // Blog posts are relatively static
+  cacheTag("blog");
+  cacheTag("mdx");
+  cacheTag(`blog-post-${frontmatterSlug}`);
+
+  return getMDXPostDirect(frontmatterSlug, filePathForPost);
+}
+
+// Updated export to use caching when enabled
+export async function getMDXPostCached(
+  frontmatterSlug: string,
+  filePathForPost: string,
+  fileContentOverride?: string,
+): Promise<BlogPost | null> {
+  // Don't use cache if content override is provided
+  if (fileContentOverride) {
+    return getMDXPostDirect(frontmatterSlug, filePathForPost, fileContentOverride);
+  }
+
+  // If caching is enabled, try to use it with fallback to direct
+  if (USE_NEXTJS_CACHE) {
+    return withCacheFallback(
+      () => getCachedMDXPost(frontmatterSlug, filePathForPost),
+      () => getMDXPostDirect(frontmatterSlug, filePathForPost),
+    );
+  }
+
+  // Default: Always use direct read
+  return getMDXPostDirect(frontmatterSlug, filePathForPost);
 }
 
 /**
@@ -324,5 +350,72 @@ export async function getAllMDXPosts(): Promise<BlogPost[]> {
     // Catch errors from fs.readdir itself
     console.error("Error reading posts directory:", error);
     return [];
+  }
+}
+
+// Internal direct read function for all MDX posts (always available)
+async function getAllMDXPostsDirect(): Promise<BlogPost[]> {
+  return getAllMDXPosts();
+}
+
+// Cached version using 'use cache' directive
+async function getCachedAllMDXPosts(): Promise<BlogPost[]> {
+  "use cache";
+
+  cacheLife("weeks"); // Blog posts are relatively static
+  cacheTag("blog");
+  cacheTag("mdx");
+  cacheTag("blog-posts-all");
+
+  return getAllMDXPostsDirect();
+}
+
+// Updated export to use caching when enabled
+export async function getAllMDXPostsCached(): Promise<BlogPost[]> {
+  // If caching is enabled, try to use it with fallback to direct
+  if (USE_NEXTJS_CACHE) {
+    return withCacheFallback(
+      () => getCachedAllMDXPosts(),
+      () => getAllMDXPostsDirect(),
+    );
+  }
+
+  // Default: Always use direct read
+  return getAllMDXPostsDirect();
+}
+
+/**
+ * Lightweight version of getAllMDXPosts that excludes rawContent for search operations.
+ * This significantly reduces memory usage during search.
+ *
+ * @returns {Promise<BlogPost[]>} Array of blog posts without rawContent
+ */
+export async function getAllMDXPostsForSearch(): Promise<BlogPost[]> {
+  const posts = await getAllMDXPosts();
+  // Return posts without rawContent to save memory
+  return posts.map((post) => {
+    // Destructure to exclude rawContent - intentionally unused to save memory
+    const { rawContent, ...lightweightPost } = post;
+    void rawContent; // Explicitly mark as intentionally unused
+    return lightweightPost as BlogPost;
+  });
+}
+
+// Cache invalidation functions for blog/MDX
+export function invalidateBlogCache(): void {
+  if (USE_NEXTJS_CACHE) {
+    // Invalidate all blog cache tags
+    revalidateTag("blog");
+    revalidateTag("mdx");
+    revalidateTag("blog-posts-all");
+    console.log("[Blog] Cache invalidated for all blog posts");
+  }
+}
+
+// Invalidate specific blog post cache
+export function invalidateBlogPostCache(slug: string): void {
+  if (USE_NEXTJS_CACHE) {
+    revalidateTag(`blog-post-${slug}`);
+    console.log(`[Blog] Cache invalidated for post: ${slug}`);
   }
 }

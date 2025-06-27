@@ -9,7 +9,6 @@
 
 import { Upload, type Progress } from "@aws-sdk/lib-storage";
 import { Readable, Transform } from "node:stream";
-import type { Response } from "node-fetch";
 import type { StreamToS3Options, StreamingResult } from "@/types/s3";
 
 /**

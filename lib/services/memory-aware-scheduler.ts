@@ -13,7 +13,6 @@
 
 import { EventEmitter } from "node:events";
 import { getMemoryHealthMonitor } from "@/lib/health/memory-health-monitor";
-import { ImageMemoryManagerInstance } from "@/lib/image-memory-manager";
 import { MEMORY_THRESHOLDS } from "@/lib/constants";
 import type { ScheduledRequest, SchedulerMetrics } from "@/types/services";
 import { RequestPriority } from "@/types/services";
@@ -295,23 +294,6 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
       }
     };
     this.memoryHealthMonitor.on("status-changed", this.statusChangedHandler);
-
-    // Listen to ImageMemoryManager signals
-    this.memoryPressureHandler = (data) => {
-      this.memoryPressureActivations++;
-      this.emit("memory-pressure-throttle", { source: "ImageMemoryManager", ...data });
-    };
-    ImageMemoryManagerInstance.on("memory-pressure-detected", this.memoryPressureHandler);
-
-    // Cancel low-priority requests on critical memory events
-    this.memoryCriticalHandler = () => {
-      this.emit("critical-memory-cancellation", {
-        source: "ImageMemoryManager",
-        cancelledCount: this.requestQueue.filter((req) => req.priority >= RequestPriority.NORMAL).length,
-      });
-      this.cancelLowPriorityRequests();
-    };
-    ImageMemoryManagerInstance.on("memory-critical", this.memoryCriticalHandler);
   }
 
   /**
@@ -356,14 +338,6 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
     if (this.statusChangedHandler) {
       this.memoryHealthMonitor.off("status-changed", this.statusChangedHandler);
       this.statusChangedHandler = undefined;
-    }
-    if (this.memoryPressureHandler) {
-      ImageMemoryManagerInstance.off("memory-pressure-detected", this.memoryPressureHandler);
-      this.memoryPressureHandler = undefined;
-    }
-    if (this.memoryCriticalHandler) {
-      ImageMemoryManagerInstance.off("memory-critical", this.memoryCriticalHandler);
-      this.memoryCriticalHandler = undefined;
     }
 
     // Reject all pending requests
