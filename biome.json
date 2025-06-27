@@ -85,6 +85,19 @@
       }
     },
     {
+      "includes": ["**/*.client.{ts,tsx}"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useExhaustiveDependencies": "off"
+          }
+        }
+      },
+      "formatter": {
+        "enabled": false
+      }
+    },
+    {
       "includes": ["**/__tests__/**/*", "**/*.{test,spec}.{js,ts,jsx,tsx}"],
       "linter": {
         "rules": {
