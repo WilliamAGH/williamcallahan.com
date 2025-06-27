@@ -77,10 +77,12 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
         const username = usernameMatch?.[1] || "williamcallahan";
         return `/api/github-avatar/${username}`;
       }
-      if (networkLabel.includes("X") || networkLabel.includes("Twitter")) return getStaticImageUrl("/images/social-pics/x.jpg");
+      if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
+        return getStaticImageUrl("/images/social-pics/x.jpg");
       if (networkLabel.includes("LinkedIn")) return getStaticImageUrl("/images/social-pics/linkedin.jpg");
       if (networkLabel.includes("Bluesky")) {
-        const blueskyAvatarUrl = "https://cdn.bsky.app/img/avatar/plain/did:plc:6y3lzhinepgneechfrv3w55d/bafkreicuryva5uglksh2tqrc5tu66kwvnjwnpd2fdb6epsa6fjhhdehhyy@jpeg";
+        const blueskyAvatarUrl =
+          "https://cdn.bsky.app/img/avatar/plain/did:plc:6y3lzhinepgneechfrv3w55d/bafkreicuryva5uglksh2tqrc5tu66kwvnjwnpd2fdb6epsa6fjhhdehhyy@jpeg";
         return `/api/og-image?url=${encodeURIComponent(blueskyAvatarUrl)}&assetId=bluesky-avatar-william`;
       }
       if (networkLabel.includes("Discord")) return getStaticImageUrl("/images/social-pics/discord.jpg");
@@ -88,7 +90,8 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
       // Changed error to _error
       console.error(`Error getting profile image for ${networkLabel}:`, _error);
       if (networkLabel.includes("GitHub")) return getStaticImageUrl("/images/social-pics/github.jpg");
-      if (networkLabel.includes("X") || networkLabel.includes("Twitter")) return getStaticImageUrl("/images/social-pics/x.jpg");
+      if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
+        return getStaticImageUrl("/images/social-pics/x.jpg");
       if (networkLabel.includes("LinkedIn")) return getStaticImageUrl("/images/social-pics/linkedin.jpg");
       if (networkLabel.includes("Bluesky")) return getStaticImageUrl("/images/social-pics/bluesky.jpg");
       if (networkLabel.includes("Discord")) return getStaticImageUrl("/images/social-pics/discord.jpg");
@@ -103,7 +106,8 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
    */
   const getDomainFallbackImage = useCallback((networkLabel: string): string => {
     if (networkLabel.includes("GitHub")) return getStaticImageUrl("/images/social-banners/github.svg");
-    if (networkLabel.includes("X") || networkLabel.includes("Twitter")) return getStaticImageUrl("/images/social-banners/twitter-x.svg");
+    if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
+      return getStaticImageUrl("/images/social-banners/twitter-x.svg");
     if (networkLabel.includes("LinkedIn")) return getStaticImageUrl("/images/social-banners/linkedin.svg");
     if (networkLabel.includes("Discord")) return getStaticImageUrl("/images/social-banners/discord.svg");
     if (networkLabel.includes("Bluesky")) return getStaticImageUrl("/images/social-banners/bluesky.png");
@@ -134,8 +138,11 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
         if (response.ok) {
           const data = (await response.json()) as OgImageApiResponse;
           setProfileImageUrl(data.profileImageUrl || getProfileFallbackImage(label));
-          // Also update domain image if provided
-          if (data.domainImageUrl) {
+          // Only override domain banner when not in list that prefers static branding
+          const prefersBrandBanner =
+            label.includes("GitHub") || label.includes("X") || label.includes("Twitter") || label.includes("Bluesky");
+
+          if (data.domainImageUrl && !prefersBrandBanner) {
             setDomainImageUrl(data.domainImageUrl);
           }
         } else {
