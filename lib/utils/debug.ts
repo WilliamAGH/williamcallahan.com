@@ -41,3 +41,24 @@ export function debugError(...args: unknown[]): void {
     console.error(...args);
   }
 }
+
+/**
+ * Unified debug logger with leveled output.
+ */
+export function debugLog(
+  message: string,
+  level: "info" | "warn" | "error" = "info",
+  meta?: unknown,
+): void {
+  const payload = meta ? [message, meta] : [message];
+  switch (level) {
+    case "warn":
+      debugWarn(...payload);
+      break;
+    case "error":
+      debugError(...payload);
+      break;
+    default:
+      debug(...payload);
+  }
+}
