@@ -22,6 +22,14 @@ import { readBinaryS3 } from "@/lib/s3-utils";
 import { listRepoStatsFiles, writeAggregatedWeeklyActivityToS3 } from "./github-storage";
 import { AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "./github-constants";
 
+// Type-safe global override declarations
+declare global {
+  var calculateAndStoreAggregatedWeeklyActivityOverride: (() => Promise<{
+    aggregatedActivity: AggregatedWeeklyActivity[];
+    overallDataComplete: boolean;
+  } | null>) | undefined;
+}
+
 // Contribution level mapping
 const CONTRIBUTION_LEVELS: Record<string, 0 | 1 | 2 | 3 | 4> = {
   NONE: 0,
@@ -285,12 +293,8 @@ export async function calculateAndStoreAggregatedWeeklyActivity(): Promise<{
     debug("[DataAccess/GitHub-S3] DRY RUN mode: skipping aggregated weekly activity calculation.");
     return null;
   }
-  const overrideCalc = (
-    globalThis as {
-      calculateAndStoreAggregatedWeeklyActivity?: typeof calculateAndStoreAggregatedWeeklyActivity;
-    }
-  ).calculateAndStoreAggregatedWeeklyActivity;
-  if (typeof overrideCalc === "function" && overrideCalc !== calculateAndStoreAggregatedWeeklyActivity) {
+  const overrideCalc = globalThis.calculateAndStoreAggregatedWeeklyActivityOverride;
+  if (typeof overrideCalc === "function") {
     return overrideCalc();
   }
   console.log("[DataAccess/GitHub-S3] Calculating aggregated weekly activity...");
