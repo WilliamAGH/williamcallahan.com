@@ -578,9 +578,7 @@ export class UnifiedImageService {
     for (const testDomain of domainVariants) {
       const sources: Array<{ name: LogoSource; urlFn: (d: string) => string; size: string }> = [
         { name: "google", urlFn: LOGO_SOURCES.google.hd, size: "hd" },
-        { name: "clearbit", urlFn: LOGO_SOURCES.clearbit.hd, size: "hd" },
         { name: "google", urlFn: LOGO_SOURCES.google.md, size: "md" },
-        { name: "clearbit", urlFn: LOGO_SOURCES.clearbit.md, size: "md" },
         { name: "duckduckgo", urlFn: LOGO_SOURCES.duckduckgo.hd, size: "hd" },
       ];
       for (const { name, urlFn, size } of sources) {
