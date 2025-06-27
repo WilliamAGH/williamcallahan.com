@@ -105,6 +105,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
         <link rel="dns-prefetch" href="https://williamcallahan.com" />
         <link rel="dns-prefetch" href="https://icons.duckduckgo.com" />
+        {/* Preconnect to CDN that serves all logos/images */}
+        {process.env.NEXT_PUBLIC_S3_CDN_URL && (
+          <>
+            <link rel="preconnect" href={process.env.NEXT_PUBLIC_S3_CDN_URL} crossOrigin="" />
+            <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_S3_CDN_URL} />
+          </>
+        )}
         {/* Next.js automatically handles font preloading */}
         {/* 
           Add meta tag to signal native theme handling.
