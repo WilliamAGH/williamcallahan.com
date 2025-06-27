@@ -155,6 +155,7 @@ export class UnifiedImageService {
         }
 
         // 1️⃣  Pre-flight S3 check – another process may already have uploaded this logo.
+        // Note: "clearbit" is included for legacy S3 lookups (historical data) but is no longer used for active fetching
         const possibleSources: LogoSource[] = ["google", "duckduckgo", "clearbit"] as const;
         const possibleExts = ["png", "jpg", "jpeg", "svg", "webp", "ico"] as const;
 
