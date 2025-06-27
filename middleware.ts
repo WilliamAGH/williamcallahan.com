@@ -7,8 +7,8 @@
  *
  */
 
-// Force Edge Runtime for middleware (experimental in Next.js 15)
-export const runtime = 'experimental-edge';
+// Edge Runtime for middleware
+export const runtime = 'edge';
 
 import { CSP_DIRECTIVES } from "./lib/constants";
 import { NextResponse } from "next/server";
