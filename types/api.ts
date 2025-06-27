@@ -22,6 +22,16 @@ export interface TwitterImageContext {
 }
 
 /**
+ * Context for GitHub avatar API routes ([username])
+ * @usage - API route handlers for GitHub avatar fetching
+ * @route - /api/github-avatar/[username]/route.ts
+ * @note - Params are Promise due to Next.js instrumentation
+ */
+export interface GitHubAvatarRouteParams {
+  params: Promise<{ username: string }>;
+}
+
+/**
  * Context for individual bookmark page routes ([slug])
  * @usage - Page components for single bookmark display
  * @route - /bookmarks/[slug]/page.tsx
@@ -107,6 +117,34 @@ export interface ErrorResponse {
 export interface RefreshResult {
   status: string;
   message?: string;
+}
+
+/**
+ * Google Indexing API URL notification payload
+ * @usage - Request payload for Google Indexing API submissions
+ */
+export interface UrlNotification {
+  url: string;
+  type: "URL_UPDATED" | "URL_DELETED";
+}
+
+/**
+ * Google Indexing API response structure
+ * @usage - Response from Google Indexing API endpoint
+ */
+export interface IndexingApiResponse {
+  urlNotificationMetadata?: {
+    url: string;
+    latestUpdate: {
+      type: "URL_UPDATED" | "URL_DELETED";
+      notifyTime: string;
+    };
+  };
+  error?: {
+    code: number;
+    message: string;
+    status: string;
+  };
 }
 
 // Cache clear API is now simplified to only support cache clearing operations

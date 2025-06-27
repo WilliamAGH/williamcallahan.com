@@ -108,6 +108,9 @@ export interface LogoCacheEntry extends LogoResult {
 // Simple record type
 export type LogoCache = Record<string, LogoCacheEntry>;
 
+/** Logo metadata without buffer - used for caching metadata separately from image data */
+export type LogoMetadata = Omit<LogoResult, "buffer">;
+
 /** Structure for the raw API response when fetching logos. */
 export interface LogoApiResponse {
   url?: string | null;
@@ -144,3 +147,13 @@ export interface ValidateLogoProps {
  * Represents the data structure for a company, including its logos
  */
 // export type CompanyData = z.infer<typeof CompanyDataSchema>;
+
+/**
+ * Domain blocklist entry for persistently failed logo fetches
+ */
+export interface BlockedDomain {
+  domain: string;
+  failureCount: number;
+  lastAttempt: number;
+  reason?: string;
+}
