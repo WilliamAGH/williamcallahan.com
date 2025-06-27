@@ -36,7 +36,7 @@ const EXPERIENCE_WINDOW_ID = "experience-window";
  * @param {ExperienceProps} props - The props for the component.
  * @returns {JSX.Element} The rendered experience section within a window, or an empty fragment if closed or minimized.
  */
-export function Experience({ data }: ExperienceProps): React.JSX.Element {
+export function Experience({ data }: ExperienceProps): React.JSX.Element | null {
   // Register this window instance and get its state/actions
   const {
     windowState,
@@ -57,18 +57,18 @@ export function Experience({ data }: ExperienceProps): React.JSX.Element {
   // Render nothing until ready
   if (!isRegistered) {
     // Check isRegistered
-    return <></>; // Or a suitable skeleton/placeholder
+    return null;
   }
 
   // Handle closed state
   if (windowState === "closed") {
-    return <></>;
+    return null;
   }
 
   // Handle minimized state
   // This is now handled by the FloatingRestoreButtons component
   if (windowState === "minimized") {
-    return <></>;
+    return null;
   }
 
   // Render normal or maximized view

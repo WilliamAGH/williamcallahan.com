@@ -50,7 +50,11 @@ const SortIndicator = ({
  * @param {EducationClientProps} props - Component properties
  * @returns {JSX.Element} Rendered education section with client-side cards and window controls
  */
-export function EducationClient({ education, recentCourses, recentCertifications }: EducationClientProps) {
+export function EducationClient({
+  education,
+  recentCourses,
+  recentCertifications,
+}: EducationClientProps): React.JSX.Element | null {
   // Register this window instance and get its state/actions
   const {
     windowState,
@@ -129,18 +133,18 @@ export function EducationClient({ education, recentCourses, recentCertifications
 
   // Render nothing until ready
   if (!isRegistered) {
-    return <></>; // Or a suitable skeleton/placeholder
+    return null;
   }
 
   // Handle closed state
   if (windowState === "closed") {
-    return <></>;
+    return null;
   }
 
   // Handle minimized state
   // This is now handled by the FloatingRestoreButtons component
   if (windowState === "minimized") {
-    return <></>;
+    return null;
   }
 
   // Render normal or maximized view
