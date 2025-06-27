@@ -10,6 +10,8 @@ import { BOOKMARKS_S3_PATHS, BOOKMARKS_API_CONFIG } from "@/lib/constants";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { normalizeBookmarks } from "./normalize";
 import { processBookmarksInBatches } from "./enrich-opengraph";
+import { createHash } from "node:crypto";
+import { writeJsonS3 } from "@/lib/s3-utils";
 
 import type { UnifiedBookmark, RawApiBookmark, BookmarksApiResponse as ApiResponse } from "@/types/bookmark";
 
@@ -101,6 +103,31 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
       `[refreshBookmarksData] Total raw bookmarks fetched across ${pageCount} pages: ${allRawBookmarks.length}`,
     );
 
+    // -------------------------------------------------------------
+    // Incremental short-circuit: if raw data checksum unchanged
+    // -------------------------------------------------------------
+    const rawJsonString = JSON.stringify(allRawBookmarks);
+    const rawChecksum = createHash("sha256").update(rawJsonString).digest("hex");
+    const RAW_CACHE_PREFIX = "json/bookmarks/raw";
+    const latestKey = `${RAW_CACHE_PREFIX}/LATEST.json`;
+
+    try {
+      const latest = await readJsonS3<{ checksum: string; key: string }>(latestKey);
+      if (latest?.checksum === rawChecksum) {
+        console.log(
+          `[refreshBookmarksData] Raw bookmark checksum unchanged (${rawChecksum}). Skipping normalization & enrichment.`,
+        );
+        const cached = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+        if (cached && cached.length > 0) {
+          return cached;
+        }
+        // Fallthrough if cached missing – proceed to full flow.
+      }
+    } catch (err) {
+      // Non-fatal – proceed to full refresh.
+      console.warn("[refreshBookmarksData] Could not read raw LATEST checksum:", String(err));
+    }
+
     // First pass: normalize bookmarks without OpenGraph data
     const normalizedBookmarks = normalizeBookmarks(allRawBookmarks);
 
@@ -139,6 +166,16 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
     const enrichedBookmarks = await processBookmarksInBatches(bookmarksToProcess, isDev, isBatchMode);
 
     console.log(`[refreshBookmarksData] OpenGraph enrichment completed for ${enrichedBookmarks.length} bookmarks.`);
+
+    // Save raw JSON & update checksum pointer (best-effort)
+    try {
+      const rawDataKey = `${RAW_CACHE_PREFIX}/${rawChecksum}.json`;
+      await writeJsonS3(rawDataKey, allRawBookmarks);
+      await writeJsonS3(latestKey, { checksum: rawChecksum, key: rawDataKey });
+      console.log(`[refreshBookmarksData] Raw bookmark snapshot saved (${rawChecksum}).`);
+    } catch (err) {
+      console.warn("[refreshBookmarksData] Failed to persist raw snapshot:", String(err));
+    }
 
     console.log("[refreshBookmarksData] Refresh cycle completed successfully.");
     return enrichedBookmarks;
