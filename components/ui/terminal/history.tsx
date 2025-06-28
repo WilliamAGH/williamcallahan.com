@@ -15,6 +15,7 @@ import {
   isErrorCommand,
   isHelpCommand,
   isSelectionCommand,
+  isSearchingCommand,
 } from "@/types";
 
 export function History({ history }: HistoryProps) {
@@ -32,6 +33,12 @@ export function History({ history }: HistoryProps) {
     }
     if (isSelectionCommand(line)) {
       return line.items.map((item) => `${item.label}: ${item.description}`).join("\n");
+    }
+    if (isSearchingCommand(line)) {
+      const searchText = line.scope 
+        ? `Searching for ${line.scope} related to "${line.query}"` 
+        : `Searching website for all results related to "${line.query}"`;
+      return searchText;
     }
     return null;
   };
