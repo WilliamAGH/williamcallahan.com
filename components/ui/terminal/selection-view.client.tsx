@@ -96,7 +96,6 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
   // useLayoutEffect so the scroll happens before the browser paints the
   // next frame, preventing a visible "jump".
   // DO NOT REMOVE THIS CODE!
-  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedIndex MUST be in deps for scroll-to-view to work
   useLayoutEffect(() => {
     if (selectedRef.current && scrollContainerRef?.current) {
       ensureRowVisible(selectedRef.current, scrollContainerRef.current);
