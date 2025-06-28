@@ -11,7 +11,22 @@ import type { Metadata } from "next";
 import { ProjectsClient } from "@/components/features/projects/projects.client";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = getStaticPageMetadata("/projects", "projects");
+export function generateMetadata({ searchParams }: { searchParams: { tag?: string } }): Metadata {
+  const selectedTag = searchParams.tag || "All";
+
+  if (selectedTag === "All") {
+    return getStaticPageMetadata("/projects", "projects");
+  }
+
+  return {
+    title: `Projects tagged "${selectedTag}" – William Callahan`,
+    description: `All of William's projects related to ${selectedTag}.`,
+    openGraph: {
+      title: `Projects tagged "${selectedTag}" – William Callahan`,
+      description: `All of William's projects related to ${selectedTag}.`,
+    },
+  };
+}
 
 /**
  * Enable ISR for projects page with hourly revalidation
