@@ -56,7 +56,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   // Determine if refresh button should be shown
   const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
   const targetUrl = "https://williamcallahan.com";
-  let showRefreshButton = true; // Default to true
+  let showRefreshButton = isDevelopment; // Only in dev environment
   if (coolifyUrl) {
     const normalizedCoolifyUrl = coolifyUrl.endsWith("/") ? coolifyUrl.slice(0, -1) : coolifyUrl;
     const normalizedTargetUrl = targetUrl.endsWith("/") ? targetUrl.slice(0, -1) : targetUrl;

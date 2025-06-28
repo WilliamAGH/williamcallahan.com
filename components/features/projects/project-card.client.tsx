@@ -3,7 +3,8 @@
 import { ExternalLink } from "@/components/ui/external-link.client";
 import type { ProjectCardProps } from "@/types/features/projects";
 import Image from "next/image";
-import { type JSX } from "react";
+import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { type JSX, useState, useEffect } from "react";
 
 // Placeholder for centered top image with gradient
 function PlaceholderImageTop() {
@@ -34,8 +35,26 @@ function PlaceholderImageTop() {
   );
 }
 
-export function ProjectCard({ project }: ProjectCardProps): JSX.Element {
-  const { name, description, url, image, tags } = project;
+export function ProjectCard({ project, isPriority = false }: ProjectCardProps): JSX.Element {
+  const { name, description, url, imageKey, tags } = project;
+  const initialImageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
+
+  const [imageUrl, setImageUrl] = useState(initialImageUrl);
+  const [hasError, setHasError] = useState(false);
+
+  const placeholderUrl = "/images/opengraph-placeholder.png";
+
+  useEffect(() => {
+    setImageUrl(initialImageUrl);
+    setHasError(false);
+  }, [initialImageUrl]);
+
+  const handleImageError = () => {
+    if (imageUrl !== placeholderUrl) {
+      setHasError(true);
+      setImageUrl(placeholderUrl);
+    }
+  };
 
   return (
     // Redesigned card for horizontal layout on medium screens and up
@@ -53,18 +72,19 @@ export function ProjectCard({ project }: ProjectCardProps): JSX.Element {
           showIcon={false}
           className="block w-full h-full" // Removed relative from here
         >
-          {image ? (
+          {imageUrl ? (
             <div className="relative w-full h-full">
               <Image
-                src={image}
+                src={imageUrl || placeholderUrl}
                 alt={`${name} screenshot`}
                 fill
-                quality={80}
-                sizes="(max-width: 767px) 100vw, (min-width: 768px) 50vw" // Adjusted sizes for both mobile and desktop
+                quality={hasError ? 70 : 80}
+                priority={isPriority}
+                sizes="(max-width: 767px) 100vw, (min-width: 768px) 50vw"
                 placeholder="blur"
-                blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFdwI2QJIiBQAAAABJRU5ErkJggg=="
-                // Subtle zoom on hover
-                className="object-cover w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105" // Ensure object-cover for aspect ratio
+                blurDataURL="/images/opengraph-placeholder.png"
+                onError={handleImageError}
+                className="object-cover w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105"
               />
             </div>
           ) : (

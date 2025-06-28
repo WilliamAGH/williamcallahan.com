@@ -17,20 +17,43 @@
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useLayoutEffect, useCallback } from "react";
 import type { SelectionViewProps } from "@/types/ui/terminal";
 
-export function SelectionView({ items, onSelectAction, onExitAction }: SelectionViewProps) {
+function ensureRowVisible(row: HTMLElement, container: HTMLElement) {
+  // Leave a small breathing room so the highlighted row never sits flush
+  const OFFSET = 6; // px
+  const rowTop = row.offsetTop;
+  const rowBottom = rowTop + row.offsetHeight;
+  const viewTop = container.scrollTop;
+  const viewBottom = viewTop + container.clientHeight;
+
+  if (rowTop < viewTop + OFFSET) {
+    container.scrollTop = Math.max(rowTop - OFFSET, 0);
+  } else if (rowBottom > viewBottom - OFFSET) {
+    container.scrollTop = rowBottom - container.clientHeight + OFFSET;
+  }
+}
+
+export function SelectionView({ items, onSelectAction, onExitAction, scrollContainerRef }: SelectionViewProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [page, setPage] = useState(0);
   const ITEMS_PER_PAGE = 24;
   const prevItemsRef = useRef(items);
 
-  // Reset page when items change
+  // Ref that always points at the currently highlighted element so we can
+  // ensure it stays in view when the user navigates with the keyboard. We
+  // intentionally use a mutable ref to avoid unnecessary re-renders.
+  const selectedRef = useRef<HTMLButtonElement | null>(null);
+
+  // Reset to the last page & last item when items change
   useEffect(() => {
     if (prevItemsRef.current !== items) {
-      setPage(0);
-      setSelectedIndex(0);
+      const total = Array.isArray(items) ? items.length : 0;
+      const lastPage = Math.max(Math.floor((total - 1) / ITEMS_PER_PAGE), 0);
+      const lastIndexOnPage = (total - 1) % ITEMS_PER_PAGE;
+      setPage(lastPage);
+      setSelectedIndex(lastIndexOnPage);
       prevItemsRef.current = items;
     }
   }, [items]);
@@ -42,66 +65,78 @@ export function SelectionView({ items, onSelectAction, onExitAction }: Selection
   const visibleItems = validItems.slice(startIdx, endIdx);
   const hasMoreResults = endIdx < validItems.length;
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+  // Keep the currently highlighted row within the scroll viewport. We use
+  // useLayoutEffect so the scroll happens before the browser paints the
+  // next frame, preventing a visible "jump".
+  // DO NOT REMOVE THIS CODE!
+  // biome-ignore lint/correctness/useExhaustiveDependencies: This is an incorrect lint, removing this code would break our terminal GUI's ability to scroll up and down with the keyboard!
+  useLayoutEffect(() => {
+    if (selectedRef.current && scrollContainerRef?.current) {
+      ensureRowVisible(selectedRef.current, scrollContainerRef.current);
+    }
+  }, [scrollContainerRef, selectedIndex]);
+
+  // --- Keyboard navigation (element-scoped) ---
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      // Only prevent default for keys we're handling
+      if (["ArrowUp", "ArrowDown", "Enter", "Escape"].includes(e.key)) {
+        e.preventDefault();
+      }
+
       switch (e.key) {
         case "ArrowUp": {
-          e.preventDefault();
           const hasPrev = page > 0;
-          const totalBtns = visibleItems.length + (hasPrev ? 1 : 0) + (hasMoreResults ? 1 : 0);
 
-          if (selectedIndex > visibleItems.length) {
-            // On a button, move to previous button or last item
+          if (selectedIndex >= visibleItems.length) {
             setSelectedIndex((i) => i - 1);
           } else if (selectedIndex === visibleItems.length && hasPrev) {
-            // On previous button, move to last item
             setSelectedIndex(visibleItems.length - 1);
-          } else if (selectedIndex > 0 && selectedIndex <= visibleItems.length) {
-            // Moving within items
+          } else if (selectedIndex > 0) {
             setSelectedIndex((i) => i - 1);
+          } else if (hasPrev) {
+            setPage((p) => {
+              const newPage = p - 1;
+              const newStartIdx = newPage * ITEMS_PER_PAGE;
+              const newEndIdx = Math.min(newStartIdx + ITEMS_PER_PAGE, validItems.length);
+              const newVisibleCount = newEndIdx - newStartIdx;
+              setSelectedIndex(newVisibleCount - 1);
+              return newPage;
+            });
           } else {
-            // At first item, wrap to last button
-            setSelectedIndex(totalBtns - 1);
+            setSelectedIndex(visibleItems.length - 1);
           }
           break;
         }
         case "ArrowDown": {
-          e.preventDefault();
           const hasPrevious = page > 0;
           const totalButtons = visibleItems.length + (hasPrevious ? 1 : 0) + (hasMoreResults ? 1 : 0);
 
           if (selectedIndex < visibleItems.length - 1) {
-            // Moving within visible items
             setSelectedIndex((i) => i + 1);
           } else if (selectedIndex === visibleItems.length - 1) {
-            // At last item, move to first button
             if (hasPrevious) {
-              setSelectedIndex(visibleItems.length); // Previous button
+              setSelectedIndex(visibleItems.length);
             } else if (hasMoreResults) {
-              setSelectedIndex(visibleItems.length); // Next button
+              setSelectedIndex(visibleItems.length);
             } else {
-              setSelectedIndex(0); // Wrap to top
+              setSelectedIndex(0);
             }
           } else if (selectedIndex < totalButtons - 1) {
-            // Moving between buttons
             setSelectedIndex((i) => i + 1);
           } else {
-            // At last button, wrap to top
             setSelectedIndex(0);
           }
           break;
         }
         case "Enter": {
-          e.preventDefault();
           const isPrevButton = page > 0 && selectedIndex === visibleItems.length;
           const isNextButton = hasMoreResults && selectedIndex === visibleItems.length + (page > 0 ? 1 : 0);
 
           if (isPrevButton) {
-            // Show previous page
             setPage((p) => p - 1);
             setSelectedIndex(0);
           } else if (isNextButton) {
-            // Show next page
             setPage((p) => p + 1);
             setSelectedIndex(0);
           } else if (selectedIndex < visibleItems.length && visibleItems[selectedIndex]) {
@@ -109,19 +144,34 @@ export function SelectionView({ items, onSelectAction, onExitAction }: Selection
           }
           break;
         }
-        case "Escape":
-          e.preventDefault();
+        case "Escape": {
           onExitAction();
           break;
+        }
       }
-    };
+    },
+    [page, selectedIndex, visibleItems, hasMoreResults, onSelectAction, onExitAction, validItems.length],
+  );
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [visibleItems, selectedIndex, onSelectAction, onExitAction, hasMoreResults, page]);
+  // Auto-focus the listbox on mount so keyboard navigation works immediately
+  const listboxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    listboxRef.current?.focus();
+  }, []);
 
   return (
-    <div className="mt-1">
+    <div
+      className="mt-1 outline-none"
+      data-testid="selection-view"
+      onKeyDown={handleKeyDown}
+      ref={listboxRef}
+      role="listbox"
+      aria-label="Search results"
+      aria-activedescendant={
+        selectedIndex >= 0 && visibleItems[selectedIndex] ? `option-${visibleItems[selectedIndex].id}` : undefined
+      }
+      tabIndex={0}
+    >
       <div className="text-gray-400 text-xs mb-1">
         Use ↑↓ to navigate, Enter to select, Esc to cancel
         {validItems.length > ITEMS_PER_PAGE && (
@@ -132,28 +182,34 @@ export function SelectionView({ items, onSelectAction, onExitAction }: Selection
         )}
       </div>
       {visibleItems.map((item, index) => (
-        <button
-          key={item.id} // Use item.id for a stable key
-          type="button"
-          /*
-           * Styling rules:
-           * 1. `block w-full text-left` → each result is forced onto its own line occupying full width.
-           * 2. `truncate whitespace-nowrap overflow-hidden` → long labels are clipped with an ellipsis
-           *    instead of wrapping to a second line, keeping the list compact and readable.
-           */
-          className={`block w-full text-left px-2 py-1 rounded cursor-pointer truncate whitespace-nowrap overflow-hidden ${
-            index === selectedIndex ? "bg-blue-500/20 text-blue-300" : "hover:bg-gray-800"
-          }`}
-          onClick={() => onSelectAction(item)}
-          onMouseEnter={() => setSelectedIndex(index)}
-        >
-          {item.label}
-        </button>
+        <div key={item.id}>
+          <button
+            id={`option-${item.id}`}
+            ref={index === selectedIndex ? selectedRef : undefined}
+            type="button"
+            role="option"
+            aria-selected={index === selectedIndex}
+            /*
+             * Styling rules:
+             * 1. `block w-full text-left` → each result is forced onto its own line occupying full width.
+             * 2. `truncate whitespace-nowrap overflow-hidden` → long labels are clipped with an ellipsis
+             *    instead of wrapping to a second line, keeping the list compact and readable.
+             */
+            className={`block w-full text-left px-2 py-1 rounded cursor-pointer truncate whitespace-nowrap overflow-hidden ${
+              index === selectedIndex ? "bg-blue-500/20 text-blue-300" : "hover:bg-gray-800"
+            }`}
+            onClick={() => onSelectAction(item)}
+            onMouseEnter={() => setSelectedIndex(index)}
+          >
+            {item.label}
+          </button>
+        </div>
       ))}
       <div className="flex justify-between mt-2">
         {page > 0 ? (
           <button
             type="button"
+            ref={selectedIndex === visibleItems.length ? selectedRef : undefined}
             className={`px-2 py-1 rounded cursor-pointer ${
               selectedIndex === visibleItems.length ? "bg-blue-500/20 text-blue-300" : "hover:bg-gray-800"
             }`}
@@ -167,11 +223,12 @@ export function SelectionView({ items, onSelectAction, onExitAction }: Selection
             ← Show previous {ITEMS_PER_PAGE} results
           </button>
         ) : (
-          <div /> // Spacer for alignment
+          <span /> // Spacer for alignment
         )}
         {hasMoreResults && (
           <button
             type="button"
+            ref={selectedIndex === visibleItems.length + (page > 0 ? 1 : 0) ? selectedRef : undefined}
             className={`px-2 py-1 rounded cursor-pointer ${
               selectedIndex === visibleItems.length + (page > 0 ? 1 : 0)
                 ? "bg-blue-500/20 text-blue-300"

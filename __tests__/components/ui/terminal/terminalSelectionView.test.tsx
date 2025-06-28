@@ -14,18 +14,21 @@ import type { SelectionItem } from "@/types/terminal";
 describe("SelectionView Component", () => {
   const mockItems: SelectionItem[] = [
     {
+      id: "option1",
       label: "Option 1",
       value: "option1",
       action: "navigate",
       path: "/option1",
     },
     {
+      id: "option2",
       label: "Option 2",
       value: "option2",
       action: "execute",
       command: "command2",
     },
     {
+      id: "option3",
       label: "Option 3",
       value: "option3",
       action: "navigate",
@@ -54,16 +57,16 @@ describe("SelectionView Component", () => {
     // Check instructions
     expect(screen.getByText(/Use ↑↓ to navigate/)).toBeInTheDocument();
 
-    // Check buttons
-    const buttons = screen.getAllByRole("button");
-    expect(buttons).toHaveLength(mockItems.length);
+    // Check options (they have role="option" now for accessibility)
+    const options = screen.getAllByRole("option");
+    expect(options).toHaveLength(mockItems.length);
 
-    // Check first button has selected styling
-    expect(buttons[0]).toHaveClass("bg-blue-500/20", "text-blue-300");
+    // Check first option has selected styling
+    expect(options[0]).toHaveClass("bg-blue-500/20", "text-blue-300");
 
-    // Check other buttons don't have selected styling
-    expect(buttons[1]).not.toHaveClass("bg-blue-500/20");
-    expect(buttons[2]).not.toHaveClass("bg-blue-500/20");
+    // Check other options don't have selected styling
+    expect(options[1]).not.toHaveClass("bg-blue-500/20");
+    expect(options[2]).not.toHaveClass("bg-blue-500/20");
   });
 
   it("handles keyboard navigation", () => {
@@ -75,31 +78,32 @@ describe("SelectionView Component", () => {
       />,
     );
 
-    const buttons = screen.getAllByRole("button");
+    const options = screen.getAllByRole("option");
+    const selectionView = screen.getByTestId("selection-view");
 
-    // Initial state - first button selected
-    expect(buttons[0]).toHaveClass("bg-blue-500/20");
+    // Initial state - first option selected
+    expect(options[0]).toHaveClass("bg-blue-500/20");
 
     // Navigate down
     act(() => {
-      fireEvent.keyDown(window, { key: "ArrowDown" });
+      fireEvent.keyDown(selectionView, { key: "ArrowDown" });
     });
-    expect(buttons[1]).toHaveClass("bg-blue-500/20");
-    expect(buttons[0]).not.toHaveClass("bg-blue-500/20");
+    expect(options[1]).toHaveClass("bg-blue-500/20");
+    expect(options[0]).not.toHaveClass("bg-blue-500/20");
 
     // Navigate down again
     act(() => {
-      fireEvent.keyDown(window, { key: "ArrowDown" });
+      fireEvent.keyDown(selectionView, { key: "ArrowDown" });
     });
-    expect(buttons[2]).toHaveClass("bg-blue-500/20");
-    expect(buttons[1]).not.toHaveClass("bg-blue-500/20");
+    expect(options[2]).toHaveClass("bg-blue-500/20");
+    expect(options[1]).not.toHaveClass("bg-blue-500/20");
 
     // Navigate up
     act(() => {
-      fireEvent.keyDown(window, { key: "ArrowUp" });
+      fireEvent.keyDown(selectionView, { key: "ArrowUp" });
     });
-    expect(buttons[1]).toHaveClass("bg-blue-500/20");
-    expect(buttons[2]).not.toHaveClass("bg-blue-500/20");
+    expect(options[1]).toHaveClass("bg-blue-500/20");
+    expect(options[2]).not.toHaveClass("bg-blue-500/20");
   });
 
   it("wraps around when navigating beyond bounds", () => {
@@ -111,19 +115,20 @@ describe("SelectionView Component", () => {
       />,
     );
 
-    const buttons = screen.getAllByRole("button");
+    const options = screen.getAllByRole("option");
+    const selectionView = screen.getByTestId("selection-view");
 
     // Try to navigate up from first option - should wrap to last
     act(() => {
-      fireEvent.keyDown(window, { key: "ArrowUp" });
+      fireEvent.keyDown(selectionView, { key: "ArrowUp" });
     });
-    expect(buttons[2]).toHaveClass("bg-blue-500/20");
+    expect(options[2]).toHaveClass("bg-blue-500/20");
 
     // Navigate down from last option - should wrap to first
     act(() => {
-      fireEvent.keyDown(window, { key: "ArrowDown" });
+      fireEvent.keyDown(selectionView, { key: "ArrowDown" });
     });
-    expect(buttons[0]).toHaveClass("bg-blue-500/20");
+    expect(options[0]).toHaveClass("bg-blue-500/20");
   });
 
   it("handles selection with Enter key", () => {
@@ -135,14 +140,16 @@ describe("SelectionView Component", () => {
       />,
     );
 
+    const selectionView = screen.getByTestId("selection-view");
+
     // Navigate to second option
     act(() => {
-      fireEvent.keyDown(window, { key: "ArrowDown" });
+      fireEvent.keyDown(selectionView, { key: "ArrowDown" });
     });
 
     // Select option
     act(() => {
-      fireEvent.keyDown(window, { key: "Enter" });
+      fireEvent.keyDown(selectionView, { key: "Enter" });
     });
 
     expect(mockHandlers.onSelectAction).toHaveBeenCalledWith(mockItems[1]);
@@ -157,8 +164,10 @@ describe("SelectionView Component", () => {
       />,
     );
 
+    const selectionView = screen.getByTestId("selection-view");
+
     act(() => {
-      fireEvent.keyDown(window, { key: "Escape" });
+      fireEvent.keyDown(selectionView, { key: "Escape" });
     });
 
     expect(mockHandlers.onExitAction).toHaveBeenCalled();
@@ -173,11 +182,11 @@ describe("SelectionView Component", () => {
       />,
     );
 
-    const buttons = screen.getAllByRole("button");
+    const options = screen.getAllByRole("option");
 
     // Click second option
     act(() => {
-      fireEvent.click(buttons[1]);
+      fireEvent.click(options[1]);
     });
 
     expect(mockHandlers.onSelectAction).toHaveBeenCalledWith(mockItems[1]);
@@ -192,15 +201,15 @@ describe("SelectionView Component", () => {
       />,
     );
 
-    const buttons = screen.getAllByRole("button");
+    const options = screen.getAllByRole("option");
 
-    // Hover over second button
+    // Hover over second option
     act(() => {
-      fireEvent.mouseEnter(buttons[1]);
+      fireEvent.mouseEnter(options[1]);
     });
 
-    expect(buttons[1]).toHaveClass("bg-blue-500/20");
-    expect(buttons[0]).not.toHaveClass("bg-blue-500/20");
+    expect(options[1]).toHaveClass("bg-blue-500/20");
+    expect(options[0]).not.toHaveClass("bg-blue-500/20");
   });
 
   it("shows keyboard navigation instructions", () => {
@@ -230,7 +239,7 @@ describe("SelectionView Component", () => {
     // Should still show instructions
     expect(screen.getByText(/Use ↑↓ to navigate/)).toBeInTheDocument();
 
-    // But no buttons
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    // But no options
+    expect(screen.queryAllByRole("option")).toHaveLength(0);
   });
 });

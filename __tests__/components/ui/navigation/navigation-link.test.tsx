@@ -106,4 +106,64 @@ describe("NavigationLink", () => {
     // Expecting the click not to throw an error when calling clearHistory
     expect(() => fireEvent.click(link)).not.toThrow();
   });
+
+  describe("prefix matching for routes with child pages", () => {
+    it("applies active styles to bookmarks tab when on child route", () => {
+      render(<NavigationLink path="/bookmarks" name="Bookmarks" currentPath="/bookmarks/textualize-io" />);
+
+      const link = screen.getByRole("link");
+      expect(link).toHaveAttribute("aria-current", "page");
+      expect(link).toHaveClass("bg-white");
+    });
+
+    it("applies active styles to blog tab when on child route", () => {
+      render(<NavigationLink path="/blog" name="Blog" currentPath="/blog/my-post" />);
+
+      const link = screen.getByRole("link");
+      expect(link).toHaveAttribute("aria-current", "page");
+      expect(link).toHaveClass("bg-white");
+    });
+
+    it("applies active styles to projects tab when on child route", () => {
+      render(<NavigationLink path="/projects" name="Projects" currentPath="/projects/my-project" />);
+
+      const link = screen.getByRole("link");
+      expect(link).toHaveAttribute("aria-current", "page");
+      expect(link).toHaveClass("bg-white");
+    });
+
+    it("applies active styles to bookmarks tab when on nested tag route", () => {
+      render(<NavigationLink path="/bookmarks" name="Bookmarks" currentPath="/bookmarks/tags/javascript" />);
+
+      const link = screen.getByRole("link");
+      expect(link).toHaveAttribute("aria-current", "page");
+      expect(link).toHaveClass("bg-white");
+    });
+
+    it("does not apply active styles to other tabs when on bookmarks route", () => {
+      render(<NavigationLink path="/blog" name="Blog" currentPath="/bookmarks/some-bookmark" />);
+
+      const link = screen.getByRole("link");
+      expect(link).not.toHaveAttribute("aria-current");
+      expect(link).not.toHaveClass("bg-white");
+    });
+
+    it("uses exact matching for routes without child pages", () => {
+      // Home should not be active on /homeother
+      render(<NavigationLink path="/" name="Home" currentPath="/homeother" />);
+
+      const link = screen.getByRole("link");
+      expect(link).not.toHaveAttribute("aria-current");
+      expect(link).not.toHaveClass("bg-white");
+    });
+
+    it("uses exact matching for contact route", () => {
+      // Contact should not be active on /contact-us
+      render(<NavigationLink path="/contact" name="Contact" currentPath="/contact-us" />);
+
+      const link = screen.getByRole("link");
+      expect(link).not.toHaveAttribute("aria-current");
+      expect(link).not.toHaveClass("bg-white");
+    });
+  });
 });

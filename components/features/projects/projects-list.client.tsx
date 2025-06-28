@@ -1,32 +1,31 @@
-"use client";
-
 /**
- * @file Projects List Client Component
+ * @file Projects List Server Component (was client)
  * @module components/features/projects/projects-list.client
  *
  * @description
- * Client component that renders projects list for use inside client components.
- * This component handles client-side filtering of projects.
+ * Server component that renders the full list of projects.  By executing on the
+ * server, the <Image> markup for each project card is included in the initial
+ * HTML so the browser can start downloading screenshots immediately (improves
+ * LCP).
  *
- * @clientComponent - This component uses client-side APIs and must be rendered on the client.
+ * Tag-based filtering remains a client concern (handled by ProjectTagsClient).
+ * We still render every card here; the client layer simply hides those that are
+ * not currently selected.  This avoids search-param coupling while giving us
+ * server-rendered images.
  */
 
 import GitHubActivity from "@/components/features/github/github-activity.client";
 import { projects } from "@/data/projects";
-import { useSearchParams } from "next/navigation";
 import { ProjectCard } from "./project-card.client";
 
-/**
- * ProjectsList Client Component
- *
- * This component renders projects list and handles client-side filtering
- */
-export function ProjectsListClient() {
-  const searchParams = useSearchParams();
-  const selectedTag = searchParams?.get("tag") || "All";
+// Re-export under a clearer name
+export const ProjectsListServer = ProjectsList;
 
-  // Filter projects based on tag
-  const filteredProjects = selectedTag === "All" ? projects : projects.filter((p) => p.tags?.includes(selectedTag));
+/**
+ * Server-rendered list of projects.
+ */
+function ProjectsList() {
+  // Render all projects – filtering is handled client-side by toggling CSS.
 
   return (
     <div className="p-6 sm:p-4">
@@ -38,13 +37,17 @@ export function ProjectsListClient() {
       </div>
 
       {/* GitHub Activity */}
+      {/* This component is still client-side and will hydrate normally */}
       <GitHubActivity />
 
       {/* Projects List */}
       <div className="space-y-8 mt-8">
-        {filteredProjects.map((project) => (
-          <div key={project.name}>
-            <ProjectCard project={project} />
+        {projects.map((project, index) => (
+          <div
+            key={project.name}
+            data-project-tags={project.tags?.join("|||") ?? ""} // custom delimiter preserves spaces
+          >
+            <ProjectCard project={project} isPriority={index === 0} />
           </div>
         ))}
       </div>

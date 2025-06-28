@@ -85,6 +85,16 @@
       }
     },
     {
+      "includes": ["**/*.client.{ts,tsx}"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useExhaustiveDependencies": "warn"
+          }
+        }
+      }
+    },
+    {
       "includes": ["**/__tests__/**/*", "**/*.{test,spec}.{js,ts,jsx,tsx}"],
       "linter": {
         "rules": {
@@ -107,6 +117,16 @@
         "rules": {
           "nursery": {
             "useUniqueElementIds": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["components/ui/terminal/selection-view.client.tsx"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off"
           }
         }
       }

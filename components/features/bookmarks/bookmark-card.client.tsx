@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 /**
  * Bookmark Card Client Component
  * @module components/features/bookmarks/bookmark-card.client
@@ -29,10 +28,10 @@ import Link from "next/link";
 import { type JSX, useEffect, useState } from "react";
 import { normalizeDomain } from "../../../lib/utils/domain-utils";
 import { ExternalLink } from "../../ui/external-link.client";
-import { LogoImage } from "../../ui/logo-image.client";
 import { ShareButton } from "./share-button.client";
 import { getAssetUrl } from "@/lib/bookmarks/bookmark-helpers";
 import { usePathname } from "next/navigation";
+import { OptimizedCardImage } from "@/components/ui/logo-image.client";
 
 import type { BookmarkCardClientProps } from "@/types";
 
@@ -65,7 +64,6 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
    */
   const effectiveInternalHref = internalHref && pathname !== internalHref ? internalHref : undefined;
   const [mounted, setMounted] = useState(false);
-  const [imageError, setImageError] = useState(false);
 
   // Effects for handling client-side initialization
   useEffect(() => {
@@ -147,13 +145,6 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
 
   const displayImageUrl = getDisplayImageUrl();
 
-  // Reset image error when displayImageUrl changes (happens on prop updates)
-  const [prevDisplayImageUrl, setPrevDisplayImageUrl] = useState(displayImageUrl);
-  if (displayImageUrl !== prevDisplayImageUrl) {
-    setPrevDisplayImageUrl(displayImageUrl);
-    setImageError(false);
-  }
-
   const domain = normalizeDomain(url);
   const domainWithoutWWW = domain.replace(/^www\./, "");
 
@@ -183,33 +174,7 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
         <Link href={effectiveInternalHref || url} title={title} className="absolute inset-0 block">
           <div className="relative w-full h-full">
             {/* Try unified OG image API first, but fall back to logo if image fails to load */}
-            {displayImageUrl && !imageError ? (
-              <img
-                src={displayImageUrl}
-                alt={title}
-                loading="lazy"
-                className="w-full h-full object-cover"
-                onError={() => {
-                  console.warn(`[BookmarkCard] Image failed to load: ${displayImageUrl}`);
-                  setImageError(true); // Show fallback UI when image fails to load
-                }}
-              />
-            ) : (
-              /* Show logo fallback when no image sources are available OR when image loading failed */
-              <div className="flex items-center justify-center w-full h-full">
-                {domain ? (
-                  <LogoImage
-                    src={`/api/logo?website=${encodeURIComponent(domain)}`}
-                    width={130}
-                    height={80}
-                    alt={title}
-                    className="object-contain max-w-[60%] max-h-[60%]"
-                  />
-                ) : (
-                  <div className="text-gray-500">No Logo</div>
-                )}
-              </div>
-            )}
+            <OptimizedCardImage src={displayImageUrl ?? null} alt={title} logoDomain={domain} />
           </div>
         </Link>
         {/* Clickable domain overlay - links to external URL */}

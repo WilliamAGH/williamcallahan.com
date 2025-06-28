@@ -11,8 +11,9 @@
 "use client";
 
 import Image from "next/image";
-import { type JSX, useState, useCallback, useRef } from "react";
-import type { LogoImageProps } from "@/types";
+import type React from "react";
+import { useState, useCallback, useRef } from "react";
+import type { LogoImageProps, OptimizedCardImageProps } from "@/types/ui/image";
 
 /**
  * Extract domain from a logo src so we can hit the on-demand logo API.
@@ -38,7 +39,7 @@ export function LogoImage({
   alt = "Company Logo",
   className = "",
   priority = false,
-}: LogoImageProps): JSX.Element {
+}: LogoImageProps): React.JSX.Element {
   const [imageError, setImageError] = useState(false);
   const [reloadKey, setReloadKey] = useState<number | null>(null);
   const retryInitiated = useRef(false);
@@ -97,7 +98,61 @@ export function LogoImage({
       {...(priority ? { priority } : {})}
       onError={handleError}
       // Allow external images from the logo API
-      unoptimized={src.includes("/api/logo")}
+      unoptimized={!!src.includes("/api/logo")}
+    />
+  );
+}
+
+// ------------------------------------------------------------------
+// OptimizedCardImage – shared helper for cards (projects, bookmarks, blog)
+// ------------------------------------------------------------------
+
+import Placeholder from "@/public/images/opengraph-placeholder.png";
+
+export function OptimizedCardImage({
+  src,
+  alt,
+  className = "",
+  noLogoFallback = false,
+  logoDomain,
+}: OptimizedCardImageProps): React.JSX.Element {
+  const [loaded, setLoaded] = useState(false);
+  const [errored, setErrored] = useState(false);
+
+  // When src is null, we immediately fall back
+  const shouldShowReal = src && !errored;
+
+  if (!shouldShowReal && noLogoFallback) {
+    // Plain placeholder (already imported static) fills
+    return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
+  }
+
+  if (!shouldShowReal && logoDomain) {
+    return (
+      <LogoImage
+        src={`/api/logo?website=${encodeURIComponent(logoDomain)}`}
+        width={130}
+        height={80}
+        alt={alt}
+        className="object-contain max-w-[60%] max-h-[60%]"
+      />
+    );
+  }
+
+  // Real image case with placeholder first
+  return (
+    <Image
+      src={shouldShowReal && src ? src : Placeholder}
+      alt={alt}
+      fill
+      sizes="(max-width:768px) 100vw, 50vw"
+      quality={80}
+      unoptimized={!!shouldShowReal} // placeholder is local, real may be CDN
+      placeholder="empty"
+      className={`object-cover transition-opacity duration-200 ${className}`}
+      style={{ opacity: loaded ? 1 : 0.2 }}
+      onLoadingComplete={() => setLoaded(true)}
+      onError={() => setErrored(true)}
     />
   );
 }

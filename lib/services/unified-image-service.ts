@@ -36,6 +36,7 @@ import { monitoredAsync } from "../async-operations-monitor";
 import type { LogoFetchResult, LogoValidationResult } from "../../types/cache";
 import type { LogoInversion } from "../../types/logo";
 import type { ImageServiceOptions, ImageResult } from "../../types/image";
+import { IMAGE_S3_PATHS } from "@/lib/constants";
 
 export class UnifiedImageService {
   private readonly cdnBaseUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
@@ -48,6 +49,7 @@ export class UnifiedImageService {
   private sessionFailedDomains = new Set<string>();
   private domainRetryCount = new Map<string, number>();
   private sessionStartTime = Date.now();
+  private lastCleanupTime = Date.now();
   private readonly CONFIG = {
     SESSION_MAX_DURATION: 30 * 60 * 1000,
     MAX_RETRIES_PER_SESSION: 3,
@@ -60,9 +62,11 @@ export class UnifiedImageService {
     MIN_LOGO_SIZE: 16,
     ASPECT_RATIO_TOLERANCE: 2,
     // Memory safety bounds
-    MAX_SESSION_DOMAINS: 1000, // Limit processed domains per session
-    MAX_RETRY_QUEUE_SIZE: 100, // Limit retry queue size
+    MAX_SESSION_DOMAINS: 500, // Reduced from 1000
+    MAX_RETRY_QUEUE_SIZE: 50, // Reduced from 100
     MAX_BLOCKLIST_SIZE: 5000, // Limit blocklist size
+    CLEANUP_INTERVAL: 5 * 60 * 1000, // Cleanup every 5 minutes
+    MEMORY_CHECK_INTERVAL: 1000, // Check memory every second during operations
   };
   private uploadRetryQueue = new Map<
     string,
@@ -93,6 +97,7 @@ export class UnifiedImageService {
     }
     console.log(`[UnifiedImageService] Initialized in ${this.isReadOnly ? "READ-ONLY" : "READ-WRITE"} mode`);
     this.startRetryProcessing();
+    this.startPeriodicCleanup();
     void this.domainFailureTracker.load();
   }
 
@@ -106,6 +111,12 @@ export class UnifiedImageService {
 
   /** Fetch image with caching (memory → S3 → origin) */
   async getImage(url: string, options: ImageServiceOptions = {}): Promise<ImageResult> {
+    // Check memory before starting
+    const memoryMonitor = getMemoryHealthMonitor();
+    if (!memoryMonitor.shouldAcceptNewRequests()) {
+      throw new Error("Insufficient memory to process image request");
+    }
+
     return monitoredAsync(
       null,
       `get-image-${url}`,
@@ -115,16 +126,25 @@ export class UnifiedImageService {
           return { contentType: this.inferContentType(url), source: "s3", cdnUrl: this.getCdnUrl(s3Key) };
         }
         if (this.isReadOnly) throw new Error(`Image not available in read-only mode: ${url}`);
-        const result = await this.fetchAndProcess(url, options);
-        if (!result.streamedToS3 && !this.isReadOnly) {
-          await this.uploadToS3(s3Key, result.buffer, result.contentType);
+
+        let result: { buffer: Buffer; contentType: string; streamedToS3?: boolean } | null = null;
+        try {
+          result = await this.fetchAndProcess(url, options);
+          if (!result.streamedToS3 && !this.isReadOnly) {
+            await this.uploadToS3(s3Key, result.buffer, result.contentType);
+          }
+          return {
+            buffer: result.buffer,
+            contentType: result.contentType,
+            source: "origin",
+            cdnUrl: this.getCdnUrl(s3Key),
+          };
+        } finally {
+          // Clear buffer reference to help GC
+          if (result?.buffer) {
+            result.buffer = Buffer.alloc(0);
+          }
         }
-        return {
-          buffer: result.buffer,
-          contentType: result.contentType,
-          source: "origin",
-          cdnUrl: this.getCdnUrl(s3Key),
-        };
       },
       { timeoutMs: this.CONFIG.FETCH_TIMEOUT, metadata: { url, options } },
     );
@@ -132,6 +152,19 @@ export class UnifiedImageService {
 
   /** Get logo with validation, optional inversion */
   async getLogo(domain: string, options: ImageServiceOptions = {}): Promise<LogoFetchResult> {
+    // Check memory before starting
+    const memoryMonitor = getMemoryHealthMonitor();
+    if (!memoryMonitor.shouldAcceptNewRequests()) {
+      return {
+        domain,
+        source: null,
+        contentType: "image/png",
+        error: "Insufficient memory to process logo request",
+        timestamp: Date.now(),
+        isValid: false,
+      };
+    }
+
     return monitoredAsync(
       null,
       `get-logo-${domain}`,
@@ -156,37 +189,39 @@ export class UnifiedImageService {
 
         // 1️⃣  Pre-flight S3 check – another process may already have uploaded this logo.
         // Note: "clearbit" is included for legacy S3 lookups (historical data) but is no longer used for active fetching
-        const possibleSources: LogoSource[] = ["google", "duckduckgo", "clearbit"] as const;
+        const possibleSources: LogoSource[] = ["google", "duckduckgo"] as const;
         const possibleExts = ["png", "jpg", "jpeg", "svg", "webp", "ico"] as const;
+
+        const getHashCandidates = async (d: string): Promise<string[]> => {
+          // Modern SHA-256 (current) + legacy MD5 8-char hash used by historical uploads
+          const sha256 = (await import("@/lib/utils/hash-utils")).generateHash(d).substring(0, 8);
+          const md5 = (await import("node:crypto")).createHash("md5").update(d).digest("hex").substring(0, 8);
+          return [sha256, md5];
+        };
 
         for (const src of possibleSources) {
           for (const ext of possibleExts) {
-            const preflightKey = this.generateS3Key(domain, {
-              type: "logos",
-              source: src,
-              domain,
-              invertColors: options.invertColors,
-            });
+            for (const hash of await getHashCandidates(domain)) {
+              // Manually compose the S3 key to match *any* historical scheme
+              const filename = `${domain}_${src === "duckduckgo" ? "ddg" : src}_${hash}.${ext}`;
+              const preflightKey = `${IMAGE_S3_PATHS.LOGOS_DIR}/${filename}`;
 
-            // Only continue if key ends with the extension we're testing
-            if (!preflightKey.endsWith(`.${ext}`)) continue;
+              if (await this.checkS3WithCache(preflightKey)) {
+                const ct = ext === "svg" ? "image/svg+xml" : `image/${ext === "ico" ? "x-icon" : ext}`;
+                const cachedResult: LogoFetchResult = {
+                  domain,
+                  s3Key: preflightKey,
+                  cdnUrl: this.getCdnUrl(preflightKey),
+                  url: undefined,
+                  source: src,
+                  contentType: ct,
+                  timestamp: Date.now(),
+                  isValid: true,
+                } as LogoFetchResult;
 
-            if (await this.checkS3WithCache(preflightKey)) {
-              const ct = ext === "svg" ? "image/svg+xml" : `image/${ext === "ico" ? "x-icon" : ext}`;
-              const cachedResult: LogoFetchResult = {
-                domain,
-                s3Key: preflightKey,
-                cdnUrl: this.getCdnUrl(preflightKey),
-                url: undefined,
-                source: src,
-                contentType: ct,
-                timestamp: Date.now(),
-                isValid: true,
-              } as LogoFetchResult;
-
-              // Prime in-memory cache for subsequent requests
-              ServerCacheInstance.setLogoFetch(domain, cachedResult);
-              return cachedResult;
+                ServerCacheInstance.setLogoFetch(domain, cachedResult);
+                return cachedResult;
+              }
             }
           }
         }
@@ -287,11 +322,23 @@ export class UnifiedImageService {
     url: string,
     options: ImageServiceOptions,
   ): Promise<{ buffer: Buffer; contentType: string; streamedToS3?: boolean }> {
+    // Check memory before fetching
+    const memoryMonitor = getMemoryHealthMonitor();
+    if (!memoryMonitor.shouldAcceptNewRequests()) {
+      throw new Error("Insufficient memory to fetch image");
+    }
+
     if (this.isLogoUrl(url)) {
       const logoResult = await this.fetchExternalLogo(this.extractDomain(url));
       if (!logoResult?.buffer) throw new Error("Failed to fetch logo");
-      return { buffer: logoResult.buffer, contentType: logoResult.contentType || "image/png" };
+      const result = { buffer: logoResult.buffer, contentType: logoResult.contentType || "image/png" };
+
+      // Clear the source buffer after copying
+      logoResult.buffer = Buffer.alloc(0);
+
+      return result;
     }
+
     const response = await fetchWithTimeout(url, {
       headers: DEFAULT_IMAGE_HEADERS,
       timeout: this.CONFIG.FETCH_TIMEOUT,
@@ -299,6 +346,7 @@ export class UnifiedImageService {
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const contentType = response.headers.get("content-type");
     if (!contentType?.startsWith("image/")) throw new Error("Response is not an image");
+
     try {
       const contentLength = response.headers.get("content-length");
       const { shouldStreamImage, streamToS3, getContentTypeFromResponse } = await import("./image-streaming");
@@ -321,12 +369,28 @@ export class UnifiedImageService {
           console.warn(`[UnifiedImageService] Stream to S3 failed, falling back to memory loading`);
         }
       }
-      const buffer = Buffer.from(await response.arrayBuffer());
-      if (options.width || options.format || options.quality) {
-        const processed = await this.processImageBuffer(buffer);
-        return { buffer: processed.processedBuffer, contentType: processed.contentType };
+
+      // Check memory again before loading into buffer
+      if (!memoryMonitor.shouldAcceptNewRequests()) {
+        throw new Error("Insufficient memory to load image into buffer");
       }
-      return { buffer, contentType: contentType || "application/octet-stream" };
+
+      const arrayBuffer = await response.arrayBuffer();
+      let buffer = Buffer.from(arrayBuffer);
+
+      try {
+        if (options.width || options.format || options.quality) {
+          const processed = await this.processImageBuffer(buffer);
+          // Clear original buffer after processing
+          buffer = Buffer.alloc(0);
+          return { buffer: processed.processedBuffer, contentType: processed.contentType };
+        }
+        return { buffer, contentType: contentType || "application/octet-stream" };
+      } catch (error) {
+        // Clear buffer on error
+        buffer = Buffer.alloc(0);
+        throw error;
+      }
     } catch (error) {
       throw error instanceof Error ? error : new Error("Failed to fetch image");
     }
@@ -743,6 +807,56 @@ export class UnifiedImageService {
   private checkAndResetSession(): void {
     if (Date.now() - this.sessionStartTime > this.CONFIG.SESSION_MAX_DURATION) this.resetDomainSessionTracking();
   }
+
+  private startPeriodicCleanup(): void {
+    // Run cleanup every 5 minutes
+    setInterval(() => {
+      this.performMemoryCleanup();
+    }, this.CONFIG.CLEANUP_INTERVAL);
+  }
+
+  private performMemoryCleanup(): void {
+    const now = Date.now();
+
+    // Clean up old retry queue entries
+    for (const [key, retry] of this.uploadRetryQueue.entries()) {
+      // Remove entries older than 1 hour
+      if (now - retry.lastAttempt > 60 * 60 * 1000) {
+        this.uploadRetryQueue.delete(key);
+      }
+    }
+
+    // Clean up session tracking if needed
+    if (now - this.lastCleanupTime > this.CONFIG.CLEANUP_INTERVAL) {
+      // Limit session domains size
+      if (this.sessionProcessedDomains.size > this.CONFIG.MAX_SESSION_DOMAINS) {
+        this.sessionProcessedDomains.clear();
+      }
+      if (this.sessionFailedDomains.size > this.CONFIG.MAX_SESSION_DOMAINS) {
+        this.sessionFailedDomains.clear();
+      }
+
+      // Clear old retry counts
+      if (this.domainRetryCount.size > this.CONFIG.MAX_SESSION_DOMAINS) {
+        // Keep only recent entries
+        const entries = Array.from(this.domainRetryCount.entries());
+        this.domainRetryCount.clear();
+        // Keep last 50% of entries
+        entries.slice(-Math.floor(this.CONFIG.MAX_SESSION_DOMAINS / 2)).forEach(([k, v]) => {
+          this.domainRetryCount.set(k, v);
+        });
+      }
+
+      this.lastCleanupTime = now;
+
+      // Force garbage collection if available
+      if (global.gc) {
+        global.gc();
+        console.log("[UnifiedImageService] Forced garbage collection after cleanup");
+      }
+    }
+  }
+
   hasDomainFailedTooManyTimes(domain: string): boolean {
     this.checkAndResetSession();
     return (this.domainRetryCount.get(domain) || 0) >= this.CONFIG.MAX_RETRIES_PER_SESSION;

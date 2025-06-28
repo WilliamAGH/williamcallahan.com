@@ -3,19 +3,18 @@
  * @description Tests that verify the 0.0.0.0 URL fix works correctly in Docker environments
  */
 
-import { describe, it, expect, jest, beforeEach, afterEach } from "@jest/globals";
+import { describe, it, expect, beforeEach, afterEach } from "@jest/globals";
 
 // Mock environment variables and dependencies before importing the route
 const originalEnv = process.env;
 
 beforeEach(() => {
   // Clear the module cache (only if available - not supported in Bun)
-  if (typeof jest.resetModules === "function") {
-    jest.resetModules();
-  }
+  // if (typeof jest.resetModules === "function") {
+  //   jest.resetModules();
+  // }
   process.env = {
     ...originalEnv,
-    NODE_ENV: "production",
     NEXT_PUBLIC_SITE_URL: "https://williamcallahan.com",
     S3_BUCKET: "test-bucket",
   };
@@ -120,9 +119,9 @@ describe("OG-Image API Route: 0.0.0.0 URL Fix Tests", () => {
       delete process.env.API_BASE_URL;
 
       // Re-import after env change (only if available - not supported in Bun)
-      if (typeof jest.resetModules === "function") {
-        jest.resetModules();
-      }
+      // if (typeof jest.resetModules === "function") {
+      //   jest.resetModules();
+      // }
       const routeModule = await import("@/app/api/og-image/route");
       const testGET = routeModule.GET;
 
@@ -158,9 +157,9 @@ describe("Production URL Validation", () => {
     };
 
     // Clear module cache (only if available - not supported in Bun)
-    if (typeof jest.resetModules === "function") {
-      jest.resetModules();
-    }
+    // if (typeof jest.resetModules === "function") {
+    //   jest.resetModules();
+    // }
     const { getBaseUrl } = await import("@/lib/utils/get-base-url");
 
     const baseUrl = getBaseUrl();

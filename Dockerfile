@@ -18,12 +18,36 @@ COPY bun.lockb* ./
 COPY .husky ./.husky
 
 # Install dependencies with Bun, allowing necessary lifecycle scripts
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.bun/install bun install --frozen-lockfile
 
-# Rebuild the source code only when needed
+# --------------------------------------------------
+# PRE-CHECKS STAGE (lint + type-check, cached)
+# --------------------------------------------------
+FROM node:22-alpine AS checks
+RUN apk add --no-cache libc6-compat bash
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV HUSKY=0
+
+# Copy installed deps from previous deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy source for analysis only (does not affect later build layers)
+COPY . .
+
+# Run linter and type checker with persistent cache mounts so they
+#   do not re-run on every incremental build.
+RUN --mount=type=cache,target=/app/.eslintcache \
+    --mount=type=cache,target=/app/.tsbuildinfo \
+    npm run lint && npm run type-check
+
+# --------------------------------------------------
+# BUILD STAGE (production build)
+# --------------------------------------------------
+# Use Bun image for build stage so `bun` commands are available
 FROM base AS builder
-# Install curl and bash for scripts and diagnostic pings
-RUN apk add --no-cache curl bash
+# Install dependencies for the build
+RUN apk add --no-cache libc6-compat curl bash
 WORKDIR /app
 
 # Set environment variables for build
@@ -53,17 +77,20 @@ COPY . .
 
 # Pre-build checks disabled to avoid network hang during build
 
-# Now build the app
-RUN echo "📦 Building the application..." && bun run build
+# Now build the app using bun (Bun) to avoid OOM issues
+RUN --mount=type=cache,target=/app/.next/cache \
+    echo "📦 Building the application..." && bun run build && \
+    # Prune optimiser cache older than 5 days to keep layer small
+    find /app/.next/cache -type f -mtime +5 -delete || true
 
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
 
-# Install runtime dependencies (like Sharp), curl for healthchecks, AND BASH
-# Trying to use just 'vips' instead of 'vips-dev' and remove 'build-base' to reduce size
-# This assumes Sharp successfully installed its pre-compiled binaries in the 'deps' stage
-RUN apk add --no-cache vips curl bash su-exec
+# Install runtime dependencies including Node.js for Next.js standalone compatibility
+# Note: We need Node.js to run the Next.js standalone server even though Bun is available
+# Also installing vips for Sharp image processing, curl for healthchecks, and bash for scripts
+RUN apk add --no-cache nodejs npm vips curl bash su-exec
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -143,5 +170,13 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
   CMD curl --silent --show-error --fail http://127.0.0.1:3000/api/health || exit 1
 
 # Use entrypoint to seed logos, then start server
+# Note: We use Node.js to run the standalone server as it's more compatible
+# with Next.js 15's standalone output, even though Bun is available in the runner
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["node", "server.js"]
+
+ARG BUILDKIT_INLINE_CACHE=1
+LABEL org.opencontainers.image.build=true
+
+# Install Node.js for running Next.js build within Bun scripts
+RUN apk add --no-cache nodejs npm

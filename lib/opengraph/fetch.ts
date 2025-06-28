@@ -10,8 +10,9 @@
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import { getCachedJinaHtml, persistJinaHtmlInBackground } from "@/lib/opengraph/persistence";
-import { getBrowserHeaders } from "@/lib/utils/http-client";
-import { incrementAndPersist } from "@/lib/rate-limiter";
+import { fetchWithTimeout, getBrowserHeaders } from "@/lib/utils/http-client";
+import { incrementAndPersist, waitForPermit } from "@/lib/rate-limiter";
+import { retryWithThrow, RETRY_CONFIGS } from "@/lib/utils/retry";
 import {
   JINA_FETCH_CONFIG,
   JINA_FETCH_STORE_NAME,
@@ -19,8 +20,7 @@ import {
   JINA_FETCH_RATE_LIMIT_S3_PATH,
 } from "@/lib/constants";
 import { scheduleImagePersistence, persistImageAndGetS3Url } from "@/lib/opengraph/persistence";
-import { waitForPermit } from "@/lib/rate-limiter";
-import { calculateBackoffDelay, getDomainType, shouldRetryUrl } from "@/lib/utils/opengraph-utils";
+import { getDomainType } from "@/lib/utils/opengraph-utils";
 import { sanitizeOgMetadata } from "@/lib/utils/opengraph-utils";
 import { ogMetadataSchema, type ValidatedOgMetadata } from "@/types/seo/opengraph";
 import {
@@ -47,114 +47,101 @@ export async function fetchExternalOpenGraphWithRetry(
 ): Promise<OgResult | { networkFailure: true; lastError: Error | null } | null> {
   const originalUrl = new URL(url);
   const isTwitter = originalUrl.hostname.endsWith("twitter.com") || originalUrl.hostname.endsWith("x.com");
-  const proxies = isTwitter ? ["fxtwitter.com", "vxtwitter.com"] : [null];
+  // Only use vxtwitter.com - fxtwitter.com returns empty metadata for profiles as of 2025
+  const proxies = isTwitter ? ["vxtwitter.com"] : [];
 
-  let lastError: Error | null = null;
+  try {
+    // Use the shared retry utility with custom logic for OpenGraph
+    const result = await retryWithThrow(
+      async () => {
+        let lastAttemptError: Error | null = null;
+        
+        // Try direct fetch first, then proxies
+        const urlsToTry = [url, ...proxies.map(proxy => {
+          const proxyUrl = new URL(url);
+          proxyUrl.hostname = proxy;
+          return proxyUrl.toString();
+        })];
 
-  for (const proxy of proxies) {
-    let effectiveUrl = url;
-    if (proxy) {
-      const proxyUrl = new URL(url);
-      proxyUrl.hostname = proxy;
-      effectiveUrl = proxyUrl.toString();
-      debug(`[DataAccess/OpenGraph] Using proxy for Twitter URL: ${effectiveUrl}`);
-    }
-
-    let headers = getBrowserHeaders();
-
-    for (let attempt = 0; attempt < OPENGRAPH_FETCH_CONFIG.MAX_RETRIES; attempt++) {
-      try {
-        if (attempt > 0) {
-          const delay = calculateBackoffDelay(
-            attempt - 1,
-            OPENGRAPH_FETCH_CONFIG.BACKOFF_BASE,
-            OPENGRAPH_FETCH_CONFIG.MAX_BACKOFF,
-          );
-          debug(`[DataAccess/OpenGraph] Retry attempt ${attempt} for ${effectiveUrl} after ${delay}ms delay`);
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
-
-        const result = await fetchExternalOpenGraph(effectiveUrl, fallbackImageData, headers);
-
-        if (result && typeof result === "object" && "permanentFailure" in result) {
-          console.log(
-            `[OpenGraph Crawl] ❌ Permanent failure (${result.status}) for ${effectiveUrl}, stopping retries`,
-          );
-          // Break inner loop and try next proxy if available
-          break;
-        }
-
-        if (result && typeof result === "object" && "blocked" in result) {
-          if (attempt === 0) {
-            console.log(`[OpenGraph Crawl] 🚫 Access blocked for ${effectiveUrl}, retrying with Googlebot UA`);
-            headers = {
-              ...headers,
-              "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-            };
-            // This continue is for the inner loop, which should be fine.
-            continue;
+        for (const effectiveUrl of urlsToTry) {
+          const isProxy = effectiveUrl !== url;
+          if (isProxy) {
+            console.log(`[OpenGraph Proxy] Trying ${new URL(effectiveUrl).hostname} for ${url.includes('/status/') ? 'tweet' : 'profile'}: ${effectiveUrl}`);
+          } else {
+            console.log(`[OpenGraph Direct] Attempting direct fetch for: ${url}`);
           }
-          console.log(
-            `[OpenGraph Crawl] 🚫 Still blocked after Googlebot retry for ${effectiveUrl}, treating as permanent failure`,
-          );
-          // Break inner loop and try next proxy
-          break;
+
+          try {
+            const result = await fetchExternalOpenGraph(effectiveUrl, fallbackImageData);
+
+            if (result && typeof result === "object" && "permanentFailure" in result) {
+              console.log(
+                `[OpenGraph Crawl] ❌ Permanent failure (${result.status}) for ${effectiveUrl}, trying next option`,
+              );
+              continue;
+            }
+
+            if (result && typeof result === "object" && "blocked" in result) {
+              console.log(
+                `[OpenGraph Crawl] 🚫 Access blocked for ${effectiveUrl}, trying next option`,
+              );
+              continue;
+            }
+
+            if (result && !("permanentFailure" in result) && !("blocked" in result)) {
+              // Check if we actually got meaningful data
+              const hasValidData = result.title || result.description || result.imageUrl;
+              
+              if (hasValidData) {
+                console.log(`[OpenGraph Crawl] ✅ Successfully crawled ${url}`);
+                console.log(
+                  `[OpenGraph Crawl] 📊 Extracted data: title="${result.title}", description="${result.description?.substring(0, 100)}...", imageUrl="${result.imageUrl}"`,
+                );
+                return result; // Success!
+              } else {
+                console.log(
+                  `[OpenGraph Crawl] ⚠️ Empty metadata from ${isProxy ? 'proxy' : 'direct fetch'} for ${url}, trying next option`,
+                );
+              }
+            }
+          } catch (error: unknown) {
+            lastAttemptError = error instanceof Error ? error : new Error(String(error));
+            debugWarn(`[DataAccess/OpenGraph] Failed to fetch ${effectiveUrl}:`, lastAttemptError.message);
+          }
         }
 
-        if (result && !("permanentFailure" in result) && !("blocked" in result)) {
-          console.log(`[OpenGraph Crawl] ✅ Successfully crawled ${url} on attempt ${attempt + 1}`);
-          console.log(
-            `[OpenGraph Crawl] 📊 Extracted data: title="${result.title}", description="${result.description?.substring(0, 100)}...", imageUrl="${result.imageUrl}"`,
-          );
-          return result; // Success!
-        }
-      } catch (error: unknown) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        debugWarn(`[DataAccess/OpenGraph] Attempt ${attempt + 1} failed for ${effectiveUrl}:`, lastError.message);
+        // All attempts failed
+        throw lastAttemptError || new Error("All OpenGraph fetch attempts failed");
+      },
+      {
+        ...RETRY_CONFIGS.OPENGRAPH_FETCH,
+        onRetry: (error: unknown, attempt: number) => {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          debug(`[OpenGraph Retry] Attempt ${attempt} after error: ${errorMessage}`);
+        },
+      },
+    );
 
-        if (!shouldRetryUrl(lastError)) {
-          debug(`[DataAccess/OpenGraph] Non-retryable error, stopping attempts for ${effectiveUrl}`);
-          // Break inner loop and try next proxy
-          break;
-        }
-
-        // If we get a network error on the first attempt, try again with Googlebot UA
-        if (
-          attempt === 0 &&
-          (lastError.message.includes("fetch failed") ||
-            lastError.message.includes("ENOTFOUND") ||
-            lastError.message.includes("timeout") ||
-            lastError.message.includes("ECONNREFUSED"))
-        ) {
-          debug(`[DataAccess/OpenGraph] Network error for ${effectiveUrl}, retrying with Googlebot UA`);
-          headers = {
-            ...headers,
-            "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-          };
-        }
-      }
-    } // End of retry loop
-
-    // If we are here, it means all retries for the current proxy failed.
-    // The outer loop will now proceed to the next proxy, if any.
-  } // End of proxy loop
-
-  // If we've exhausted all proxies and retries, return a failure.
-  if (lastError) {
+    return result;
+  } catch (finalError: unknown) {
+    // retryWithOptions failed - handle the error
+    const error = finalError instanceof Error ? finalError : new Error(String(finalError));
+    const errorMessage = error.message;
+    
     const isNetworkError =
-      lastError.message.includes("fetch failed") ||
-      lastError.message.includes("ENOTFOUND") ||
-      lastError.message.includes("timeout") ||
-      lastError.message.includes("ECONNREFUSED");
+      errorMessage.includes("fetch failed") ||
+      errorMessage.includes("ENOTFOUND") ||
+      errorMessage.includes("timeout") ||
+      errorMessage.includes("ECONNREFUSED");
 
     if (isNetworkError) {
-      debug(`[DataAccess/OpenGraph] Final network connectivity issue for ${url}: ${lastError.message}`);
+      debug(`[DataAccess/OpenGraph] Final network connectivity issue for ${url}: ${errorMessage}`);
     } else {
-      console.error(`[DataAccess/OpenGraph] Final unexpected error for ${url}:`, lastError.message || "Unknown error");
+      console.error(`[DataAccess/OpenGraph] Final unexpected error for ${url}:`, errorMessage);
     }
-  }
 
-  return { networkFailure: true, lastError };
+    return { networkFailure: true, lastError: error };
+  }
 }
 
 /**
@@ -169,7 +156,6 @@ export async function fetchExternalOpenGraphWithRetry(
 async function fetchExternalOpenGraph(
   url: string,
   fallbackImageData?: KarakeepImageFallback,
-  headers?: Record<string, string>,
 ): Promise<OgResult | { permanentFailure: true; status: number } | { blocked: true; status: number } | null> {
   const domain = getDomainType(url);
   const imageService = getUnifiedImageService();
@@ -225,17 +211,20 @@ async function fetchExternalOpenGraph(
   if (!html) {
     debug(`[DataAccess/OpenGraph] Falling back to direct fetch for ${url}`);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), OPENGRAPH_FETCH_CONFIG.TIMEOUT);
-
     try {
       await waitForPermit(OPENGRAPH_FETCH_STORE_NAME, OPENGRAPH_FETCH_CONTEXT_ID, DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG);
-      const requestHeaders = headers || getBrowserHeaders();
-      const response = await fetch(url, {
-        method: "GET",
-        headers: requestHeaders,
-        signal: controller.signal,
-        redirect: "follow",
+      
+      // Use shared fetch utility with timeout and browser headers
+      const headers = getBrowserHeaders();
+      const response = await fetchWithTimeout(url, {
+        timeout: OPENGRAPH_FETCH_CONFIG.TIMEOUT,
+        headers: {
+          ...headers,
+          // Try Googlebot UA if we've had issues before
+          ...(imageService.hasDomainFailedTooManyTimes(domain)
+            ? { "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)" }
+            : {}),
+        },
       });
 
       if (response.status === 404 || response.status === 410) {
@@ -252,15 +241,8 @@ async function fetchExternalOpenGraph(
       finalUrl = response.url;
       debug(`[DataAccess/OpenGraph] Successfully fetched HTML via direct fetch (${html.length} bytes) from: ${url}`);
     } catch (fetchError) {
-      if (fetchError instanceof Error && fetchError.name === "AbortError") {
-        const timeoutMessage = `Request timeout after ${OPENGRAPH_FETCH_CONFIG.TIMEOUT}ms`;
-        debugWarn(`[DataAccess/OpenGraph] ${timeoutMessage} for ${url}`);
-        throw new Error(timeoutMessage);
-      }
       imageService.markDomainAsFailed(domain);
       throw fetchError;
-    } finally {
-      clearTimeout(timeoutId);
     }
   }
 

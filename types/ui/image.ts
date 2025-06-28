@@ -21,6 +21,16 @@ export interface LogoImageProps {
   priority?: boolean;
 }
 
+export interface OptimizedCardImageProps {
+  src: string | null;
+  alt: string;
+  className?: string;
+  /** when true the placeholder is a neutral bg rather than logo-fallback */
+  noLogoFallback?: boolean;
+  /** logo domain for fallback when src fails */
+  logoDomain?: string | null;
+}
+
 export interface ImgProxyProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> {
   /** The original source URL of the image or a Blob */
   src?: string | Blob;

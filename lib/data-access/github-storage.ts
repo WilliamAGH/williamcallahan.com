@@ -18,7 +18,7 @@ import {
   ALL_TIME_SUMMARY_S3_KEY_FILE,
   REPO_RAW_WEEKLY_STATS_S3_KEY_DIR,
   AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE,
-} from "./github-constants";
+} from "@/lib/constants";
 import type {
   StoredGithubActivityS3,
   GitHubActivityApiResponse,
