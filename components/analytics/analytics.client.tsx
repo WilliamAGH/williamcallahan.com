@@ -50,8 +50,6 @@ export function Analytics(): JSX.Element | null {
         src="https://umami.iocloudhost.net/script.js"
         data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
         data-auto-track="true"
-        data-do-not-track="true"
-        data-cache="false"
       />
 
       {/* Plausible Analytics - Official docs: https://plausible.io/docs/script-extensions */}
