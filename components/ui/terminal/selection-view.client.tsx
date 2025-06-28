@@ -169,28 +169,40 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
     listboxRef.current?.focus();
   }, []);
   
-  // Exit keyboard mode only when mouse enters a selectable item
-  // This ensures intentional mode switching, not accidental
+  
+  // No longer exit keyboard mode on mouse move - too aggressive
+  
+  // Handle mouse entering an item
   const handleItemMouseEnter = (index: number) => {
+    // In keyboard mode, don't change selection on hover
+    if (isKeyboardMode) {
+      return;
+    }
+    // In mouse mode, update selection
+    setSelectedIndex(index);
+  };
+  
+  // Handle mouse click on an item - this should exit keyboard mode
+  const handleItemClick = (item: { id: string; label: string; description: string; path: string }) => {
     if (isKeyboardMode) {
       setIsKeyboardMode(false);
     }
-    setSelectedIndex(index);
+    onSelectAction(item);
   };
 
   return (
     <div
-      className="mt-1 outline-none"
-      data-testid="selection-view"
-      onKeyDown={handleKeyDown}
-      ref={listboxRef}
-      role="listbox"
-      aria-label="Search results"
-      aria-activedescendant={
-        selectedIndex >= 0 && visibleItems[selectedIndex] ? `option-${visibleItems[selectedIndex].id}` : undefined
-      }
-      tabIndex={0}
-    >
+        className="mt-1 outline-none"
+        data-testid="selection-view"
+        onKeyDown={handleKeyDown}
+        ref={listboxRef}
+        role="listbox"
+        aria-label="Search results"
+        aria-activedescendant={
+          selectedIndex >= 0 && visibleItems[selectedIndex] ? `option-${visibleItems[selectedIndex].id}` : undefined
+        }
+        tabIndex={0}
+      >
       <div className="text-gray-400 text-xs mb-1">
         Use ↑↓ to navigate, Enter to select, Esc to cancel
         {isKeyboardMode && <span className="ml-2 text-blue-400">[Keyboard Mode]</span>}
@@ -201,30 +213,36 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
           </>
         )}
       </div>
-      {visibleItems.map((item, index) => (
-        <div key={item.id}>
-          <button
-            id={`option-${item.id}`}
-            ref={index === selectedIndex ? selectedRef : undefined}
-            type="button"
-            role="option"
-            aria-selected={index === selectedIndex}
-            /*
-             * Styling rules:
-             * 1. `block w-full text-left` → each result is forced onto its own line occupying full width.
-             * 2. `truncate whitespace-nowrap overflow-hidden` → long labels are clipped with an ellipsis
-             *    instead of wrapping to a second line, keeping the list compact and readable.
-             */
-            className={`block w-full text-left px-2 py-1 rounded cursor-pointer truncate whitespace-nowrap overflow-hidden ${
-              index === selectedIndex ? "bg-blue-500/20 text-blue-300" : isKeyboardMode ? "" : "hover:bg-gray-800"
-            }`}
-            onClick={() => onSelectAction(item)}
-            onMouseEnter={() => handleItemMouseEnter(index)}
-          >
-            {item.label}
-          </button>
-        </div>
-      ))}
+      <div className="group" data-keyboard-mode={isKeyboardMode}>
+        {visibleItems.map((item, index) => (
+          <div key={item.id}>
+            <button
+              id={`option-${item.id}`}
+              ref={index === selectedIndex ? selectedRef : undefined}
+              type="button"
+              role="option"
+              aria-selected={index === selectedIndex}
+              /*
+               * Styling rules:
+               * 1. `block w-full text-left` → each result is forced onto its own line occupying full width.
+               * 2. `truncate whitespace-nowrap overflow-hidden` → long labels are clipped with an ellipsis
+               *    instead of wrapping to a second line, keeping the list compact and readable.
+               * 3. `aria-selected:*` → styles apply when this item is keyboard-selected
+               * 4. `group-data-[keyboard-mode=false]:*` → hover only applies when NOT in keyboard mode
+               */
+              className="
+                block w-full text-left px-2 py-1 rounded cursor-pointer truncate whitespace-nowrap overflow-hidden
+                aria-selected:bg-blue-500/20 aria-selected:text-blue-300
+                group-data-[keyboard-mode=false]:aria-[selected=false]:hover:bg-gray-800
+              "
+              onClick={() => handleItemClick(item)}
+              onMouseEnter={() => handleItemMouseEnter(index)}
+            >
+              {item.label}
+            </button>
+          </div>
+        ))}
+      </div>
       <div className="flex justify-between mt-2 text-gray-500 text-xs">
         {page > 0 ? (
           <button

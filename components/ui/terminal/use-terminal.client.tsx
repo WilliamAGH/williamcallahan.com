@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { handleCommand } from "./commands.client";
 import { useTerminalContext } from "./terminal-context.client";
+import { sections } from "./sections";
 
 export function useTerminal() {
   // Get only history functions from TerminalContext
@@ -23,11 +24,13 @@ export function useTerminal() {
   } = useTerminalContext();
   const [input, setInput] = useState("");
   const [selection, setSelection] = useState<SelectionItem[] | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // Flag to indicate whether a selection list is currently active
   const isSelecting = selection !== null;
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const activeCommandController = useRef<AbortController | null>(null);
 
   const focusInput = useCallback((event?: React.MouseEvent<HTMLDivElement>) => {
     // Only focus if the click target is not a button or inside a button
@@ -40,7 +43,18 @@ export function useTerminal() {
   }, []);
 
   const handleSubmit = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isSubmitting) return;
+
+    // Abort any previous command still in progress
+    if (activeCommandController.current) {
+      activeCommandController.current.abort();
+    }
+
+    // Create new controller for this command
+    const controller = new AbortController();
+    activeCommandController.current = controller;
+    
+    setIsSubmitting(true);
 
     const commandInput = input.trim();
     const trimmedInput = commandInput.toLowerCase().trim();
@@ -48,8 +62,7 @@ export function useTerminal() {
     const command = parts[0] || "";
     const args = parts.slice(1);
 
-    // Import sections for validation
-    const { sections } = await import("./sections");
+    // Use imported sections for validation
     const isValidSection = (section: string): boolean => section in sections;
 
     // Check if this is a search command
@@ -79,7 +92,7 @@ export function useTerminal() {
     }
 
     try {
-      const result = await handleCommand(commandInput);
+      const result = await handleCommand(commandInput, controller.signal);
 
       if (result.clear) {
         clearHistory();
@@ -113,6 +126,16 @@ export function useTerminal() {
         }
       }
     } catch (error: unknown) {
+      // Handle abort specifically
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        console.log('Command execution was aborted.');
+        // Remove the temporary searching message if we added one
+        if (isSearchCommand) {
+          removeFromHistory(commandId);
+        }
+        return; // Exit early without setting error message
+      }
+      
       console.error("Command execution error:", error instanceof Error ? error.message : "Unknown error");
       
       // Remove the temporary searching message if we added one
@@ -128,9 +151,14 @@ export function useTerminal() {
         error: "An unexpected error occurred. Please try again.",
         timestamp: Date.now(),
       });
+    } finally {
+      // Clear the controller ref if this is the command that finished
+      if (activeCommandController.current === controller) {
+        activeCommandController.current = null;
+      }
+      setIsSubmitting(false);
+      setInput("");
     }
-
-    setInput("");
   };
 
   const handleSelection = useCallback(
@@ -177,11 +205,14 @@ export function useTerminal() {
     setSelection(null);
   }, []);
 
-  // Cleanup animation frame on unmount
+  // Cleanup animation frame and abort controller on unmount
   useEffect(() => {
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (activeCommandController.current) {
+        activeCommandController.current.abort();
       }
     };
   }, []);
@@ -198,5 +229,6 @@ export function useTerminal() {
     inputRef,
     focusInput,
     isSelecting,
+    isSubmitting,
   };
 }
