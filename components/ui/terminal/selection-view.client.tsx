@@ -68,101 +68,107 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
   // Keep the currently highlighted row within the scroll viewport. We use
   // useLayoutEffect so the scroll happens before the browser paints the
   // next frame, preventing a visible "jump".
+  // DO NOT REMOVE THIS CODE!
+  // biome-ignore lint/correctness/useExhaustiveDependencies: This is an incorrect lint, removing this code would break our terminal GUI's ability to scroll up and down with the keyboard!
   useLayoutEffect(() => {
     if (selectedRef.current && scrollContainerRef?.current) {
       ensureRowVisible(selectedRef.current, scrollContainerRef.current);
     }
-  }, [scrollContainerRef]);
+  }, [scrollContainerRef, selectedIndex]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case "ArrowUp": {
-          e.preventDefault();
-          const hasPrev = page > 0;
+  // --- Keyboard navigation (element-scoped) ---
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Only prevent default for keys we're handling
+    if (["ArrowUp", "ArrowDown", "Enter", "Escape"].includes(e.key)) {
+      e.preventDefault();
+    }
+    switch (e.key) {
+      case "ArrowUp": {
+        const hasPrev = page > 0;
 
-          if (selectedIndex > visibleItems.length) {
-            // On a button, move to previous button or last item
-            setSelectedIndex((i) => i - 1);
-          } else if (selectedIndex === visibleItems.length && hasPrev) {
-            // On previous button, move to last item
-            setSelectedIndex(visibleItems.length - 1);
-          } else if (selectedIndex > 0) {
-            // Moving within items (normal case)
-            setSelectedIndex((i) => i - 1);
-          } else if (hasPrev) {
-            // At first item with previous page available - go to previous page
-            setPage((p) => {
-              const newPage = p - 1;
-              const newStartIdx = newPage * ITEMS_PER_PAGE;
-              const newEndIdx = Math.min(newStartIdx + ITEMS_PER_PAGE, validItems.length);
-              const newVisibleCount = newEndIdx - newStartIdx;
-              setSelectedIndex(newVisibleCount - 1); // Select actual last item of previous page
-              return newPage;
-            });
-          } else {
-            // Wrap to last visible item (no jumping to button)
-            setSelectedIndex(visibleItems.length - 1);
-          }
-          break;
+        if (selectedIndex >= visibleItems.length) {
+          setSelectedIndex((i) => i - 1);
+        } else if (selectedIndex === visibleItems.length && hasPrev) {
+          setSelectedIndex(visibleItems.length - 1);
+        } else if (selectedIndex > 0) {
+          setSelectedIndex((i) => i - 1);
+        } else if (hasPrev) {
+          setPage((p) => {
+            const newPage = p - 1;
+            const newStartIdx = newPage * ITEMS_PER_PAGE;
+            const newEndIdx = Math.min(newStartIdx + ITEMS_PER_PAGE, validItems.length);
+            const newVisibleCount = newEndIdx - newStartIdx;
+            setSelectedIndex(newVisibleCount - 1);
+            return newPage;
+          });
+        } else {
+          setSelectedIndex(visibleItems.length - 1);
         }
-        case "ArrowDown": {
-          e.preventDefault();
-          const hasPrevious = page > 0;
-          const totalButtons = visibleItems.length + (hasPrevious ? 1 : 0) + (hasMoreResults ? 1 : 0);
-
-          if (selectedIndex < visibleItems.length - 1) {
-            // Moving within visible items
-            setSelectedIndex((i) => i + 1);
-          } else if (selectedIndex === visibleItems.length - 1) {
-            // At last item, move to first button
-            if (hasPrevious) {
-              setSelectedIndex(visibleItems.length); // Previous button
-            } else if (hasMoreResults) {
-              setSelectedIndex(visibleItems.length); // Next button
-            } else {
-              setSelectedIndex(0); // Wrap to top
-            }
-          } else if (selectedIndex < totalButtons - 1) {
-            // Moving between buttons
-            setSelectedIndex((i) => i + 1);
-          } else {
-            // At last button, wrap to top
-            setSelectedIndex(0);
-          }
-          break;
-        }
-        case "Enter": {
-          e.preventDefault();
-          const isPrevButton = page > 0 && selectedIndex === visibleItems.length;
-          const isNextButton = hasMoreResults && selectedIndex === visibleItems.length + (page > 0 ? 1 : 0);
-
-          if (isPrevButton) {
-            // Show previous page
-            setPage((p) => p - 1);
-            setSelectedIndex(0);
-          } else if (isNextButton) {
-            // Show next page
-            setPage((p) => p + 1);
-            setSelectedIndex(0);
-          } else if (selectedIndex < visibleItems.length && visibleItems[selectedIndex]) {
-            onSelectAction(visibleItems[selectedIndex]);
-          }
-          break;
-        }
-        case "Escape":
-          e.preventDefault();
-          onExitAction();
-          break;
+        break;
       }
-    };
+      case "ArrowDown": {
+        const hasPrevious = page > 0;
+        const totalButtons = visibleItems.length + (hasPrevious ? 1 : 0) + (hasMoreResults ? 1 : 0);
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [visibleItems, selectedIndex, onSelectAction, onExitAction, hasMoreResults, page, validItems.length]);
+        if (selectedIndex < visibleItems.length - 1) {
+          setSelectedIndex((i) => i + 1);
+        } else if (selectedIndex === visibleItems.length - 1) {
+          if (hasPrevious) {
+            setSelectedIndex(visibleItems.length);
+          } else if (hasMoreResults) {
+            setSelectedIndex(visibleItems.length);
+          } else {
+            setSelectedIndex(0);
+          }
+        } else if (selectedIndex < totalButtons - 1) {
+          setSelectedIndex((i) => i + 1);
+        } else {
+          setSelectedIndex(0);
+        }
+        break;
+      }
+      case "Enter": {
+        const isPrevButton = page > 0 && selectedIndex === visibleItems.length;
+        const isNextButton = hasMoreResults && selectedIndex === visibleItems.length + (page > 0 ? 1 : 0);
+
+        if (isPrevButton) {
+          setPage((p) => p - 1);
+          setSelectedIndex(0);
+        } else if (isNextButton) {
+          setPage((p) => p + 1);
+          setSelectedIndex(0);
+        } else if (selectedIndex < visibleItems.length && visibleItems[selectedIndex]) {
+          onSelectAction(visibleItems[selectedIndex]);
+        }
+        break;
+      }
+      case "Escape": {
+        onExitAction();
+        break;
+      }
+    }
+  };
+
+  // Auto-focus the listbox on mount so keyboard navigation works immediately
+  const listboxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    listboxRef.current?.focus();
+  }, []);
 
   return (
-    <div className="mt-1" data-testid="selection-view">
+    <div 
+      className="mt-1 outline-none" 
+      data-testid="selection-view"
+      onKeyDown={handleKeyDown}
+      ref={listboxRef}
+      // biome-ignore lint/a11y/useSemanticElements: This is a custom terminal UI component, not a standard HTML select
+      role="listbox"
+      aria-label="Search results"
+      aria-activedescendant={
+        selectedIndex >= 0 && visibleItems[selectedIndex] ? `option-${visibleItems[selectedIndex].id}` : undefined
+      }
+      tabIndex={0}
+    >
       <div className="text-gray-400 text-xs mb-1">
         Use ↑↓ to navigate, Enter to select, Esc to cancel
         {validItems.length > ITEMS_PER_PAGE && (
@@ -173,24 +179,28 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
         )}
       </div>
       {visibleItems.map((item, index) => (
-        <button
-          key={item.id} // stable key
-          ref={index === selectedIndex ? selectedRef : undefined}
-          type="button"
-          /*
-           * Styling rules:
-           * 1. `block w-full text-left` → each result is forced onto its own line occupying full width.
-           * 2. `truncate whitespace-nowrap overflow-hidden` → long labels are clipped with an ellipsis
-           *    instead of wrapping to a second line, keeping the list compact and readable.
-           */
-          className={`block w-full text-left px-2 py-1 rounded cursor-pointer truncate whitespace-nowrap overflow-hidden ${
-            index === selectedIndex ? "bg-blue-500/20 text-blue-300" : "hover:bg-gray-800"
-          }`}
-          onClick={() => onSelectAction(item)}
-          onMouseEnter={() => setSelectedIndex(index)}
-        >
-          {item.label}
-        </button>
+        <div key={item.id}>
+          <button
+            id={`option-${item.id}`}
+            ref={index === selectedIndex ? selectedRef : undefined}
+            type="button"
+            role="option" // biome-ignore lint/a11y/useSemanticElements: This is a custom terminal UI component, not a standard HTML option
+            aria-selected={index === selectedIndex}
+            /*
+             * Styling rules:
+             * 1. `block w-full text-left` → each result is forced onto its own line occupying full width.
+             * 2. `truncate whitespace-nowrap overflow-hidden` → long labels are clipped with an ellipsis
+             *    instead of wrapping to a second line, keeping the list compact and readable.
+             */
+            className={`block w-full text-left px-2 py-1 rounded cursor-pointer truncate whitespace-nowrap overflow-hidden ${
+              index === selectedIndex ? "bg-blue-500/20 text-blue-300" : "hover:bg-gray-800"
+            }`}
+            onClick={() => onSelectAction(item)}
+            onMouseEnter={() => setSelectedIndex(index)}
+          >
+            {item.label}
+          </button>
+        </div>
       ))}
       <div className="flex justify-between mt-2">
         {page > 0 ? (
