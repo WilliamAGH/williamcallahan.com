@@ -2,6 +2,23 @@
 
 > **🚨 CRITICAL**: This project operates under **ZERO TEMPERATURE** standards. Every decision must be explicitly verified. No assumptions permitted. Type safety is absolute.
 
+## 🎯 COMMUNICATION STANDARDS - TRUTH THROUGH VERIFICATION
+
+### Avoid Empty Platitudes & Premature Agreement
+
+**FORBIDDEN responses before investigation:**
+
+- ❌ "You're right!" / "That makes sense!" / "Good point!"
+- ❌ Agreement or disagreement without code verification
+- ❌ Filler phrases that add no value
+
+**REQUIRED approach:**
+
+- ✅ Investigate first, respond with evidence
+- ✅ Reference specific code locations
+- ✅ Acknowledge when investigation is needed
+- ✅ Be respectful but prioritize accuracy
+
 ## 🎯 Quick Start - Essential Knowledge
 
 ### 1. Architecture Navigation (MANDATORY)

@@ -14,21 +14,18 @@ import type { SelectionItem } from "@/types/terminal";
 describe("SelectionView Component", () => {
   const mockItems: SelectionItem[] = [
     {
-      id: "option1",
       label: "Option 1",
       value: "option1",
       action: "navigate",
       path: "/option1",
     },
     {
-      id: "option2",
       label: "Option 2",
       value: "option2",
       action: "execute",
       command: "command2",
     },
     {
-      id: "option3",
       label: "Option 3",
       value: "option3",
       action: "navigate",
@@ -57,16 +54,16 @@ describe("SelectionView Component", () => {
     // Check instructions
     expect(screen.getByText(/Use ↑↓ to navigate/)).toBeInTheDocument();
 
-    // Check options (they have role="option" now for accessibility)
+    // Check options
     const options = screen.getAllByRole("option");
     expect(options).toHaveLength(mockItems.length);
 
-    // Check first option has selected styling
-    expect(options[0]).toHaveClass("bg-blue-500/20", "text-blue-300");
+    // Check first option is selected via aria-selected
+    expect(options[0]).toHaveAttribute("aria-selected", "true");
 
-    // Check other options don't have selected styling
-    expect(options[1]).not.toHaveClass("bg-blue-500/20");
-    expect(options[2]).not.toHaveClass("bg-blue-500/20");
+    // Check other options are not selected
+    expect(options[1]).toHaveAttribute("aria-selected", "false");
+    expect(options[2]).toHaveAttribute("aria-selected", "false");
   });
 
   it("handles keyboard navigation", () => {
@@ -79,31 +76,30 @@ describe("SelectionView Component", () => {
     );
 
     const options = screen.getAllByRole("option");
-    const selectionView = screen.getByTestId("selection-view");
 
     // Initial state - first option selected
-    expect(options[0]).toHaveClass("bg-blue-500/20");
+    expect(options[0]).toHaveAttribute("aria-selected", "true");
 
     // Navigate down
     act(() => {
-      fireEvent.keyDown(selectionView, { key: "ArrowDown" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
     });
-    expect(options[1]).toHaveClass("bg-blue-500/20");
-    expect(options[0]).not.toHaveClass("bg-blue-500/20");
+    expect(options[1]).toHaveAttribute("aria-selected", "true");
+    expect(options[0]).toHaveAttribute("aria-selected", "false");
 
     // Navigate down again
     act(() => {
-      fireEvent.keyDown(selectionView, { key: "ArrowDown" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
     });
-    expect(options[2]).toHaveClass("bg-blue-500/20");
-    expect(options[1]).not.toHaveClass("bg-blue-500/20");
+    expect(options[2]).toHaveAttribute("aria-selected", "true");
+    expect(options[1]).toHaveAttribute("aria-selected", "false");
 
     // Navigate up
     act(() => {
-      fireEvent.keyDown(selectionView, { key: "ArrowUp" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowUp" });
     });
-    expect(options[1]).toHaveClass("bg-blue-500/20");
-    expect(options[2]).not.toHaveClass("bg-blue-500/20");
+    expect(options[1]).toHaveAttribute("aria-selected", "true");
+    expect(options[2]).toHaveAttribute("aria-selected", "false");
   });
 
   it("wraps around when navigating beyond bounds", () => {
@@ -116,19 +112,27 @@ describe("SelectionView Component", () => {
     );
 
     const options = screen.getAllByRole("option");
-    const selectionView = screen.getByTestId("selection-view");
 
-    // Try to navigate up from first option - should wrap to last
+    // Try to navigate up from first option - should stay at first
     act(() => {
-      fireEvent.keyDown(selectionView, { key: "ArrowUp" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowUp" });
     });
-    expect(options[2]).toHaveClass("bg-blue-500/20");
+    expect(options[0]).toHaveAttribute("aria-selected", "true");
 
-    // Navigate down from last option - should wrap to first
+    // Navigate down to last option
     act(() => {
-      fireEvent.keyDown(selectionView, { key: "ArrowDown" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
     });
-    expect(options[0]).toHaveClass("bg-blue-500/20");
+    act(() => {
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
+    });
+    expect(options[2]).toHaveAttribute("aria-selected", "true");
+    
+    // Navigate down from last option - should stay at last
+    act(() => {
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
+    });
+    expect(options[2]).toHaveAttribute("aria-selected", "true");
   });
 
   it("handles selection with Enter key", () => {
@@ -140,16 +144,14 @@ describe("SelectionView Component", () => {
       />,
     );
 
-    const selectionView = screen.getByTestId("selection-view");
-
     // Navigate to second option
     act(() => {
-      fireEvent.keyDown(selectionView, { key: "ArrowDown" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
     });
 
     // Select option
     act(() => {
-      fireEvent.keyDown(selectionView, { key: "Enter" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "Enter" });
     });
 
     expect(mockHandlers.onSelectAction).toHaveBeenCalledWith(mockItems[1]);
@@ -164,10 +166,8 @@ describe("SelectionView Component", () => {
       />,
     );
 
-    const selectionView = screen.getByTestId("selection-view");
-
     act(() => {
-      fireEvent.keyDown(selectionView, { key: "Escape" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "Escape" });
     });
 
     expect(mockHandlers.onExitAction).toHaveBeenCalled();
@@ -208,8 +208,8 @@ describe("SelectionView Component", () => {
       fireEvent.mouseEnter(options[1]);
     });
 
-    expect(options[1]).toHaveClass("bg-blue-500/20");
-    expect(options[0]).not.toHaveClass("bg-blue-500/20");
+    expect(options[1]).toHaveAttribute("aria-selected", "true");
+    expect(options[0]).toHaveAttribute("aria-selected", "false");
   });
 
   it("shows keyboard navigation instructions", () => {

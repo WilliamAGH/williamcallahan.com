@@ -12,7 +12,7 @@ import { preloadSearch } from "./commands.client";
 import type { CommandInputProps } from "@/types";
 
 export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(function CommandInput(
-  { value, onChange, onSubmit },
+  { value, onChange, onSubmit, disabled = false },
   ref,
 ) {
   // Generate unique ID for accessibility
@@ -44,7 +44,9 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit(value);
+        if (!disabled) {
+          onSubmit(value);
+        }
       }}
       className="w-full table"
     >
@@ -61,14 +63,15 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
             value={value}
             onChange={(e) => handleChange(e.target.value)}
             className="bg-transparent w-full focus:outline-none text-gray-300 caret-gray-300
-                text-[16px] transform-gpu scale-[0.875] origin-left"
+                text-[16px] transform-gpu scale-[0.875] origin-left disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               /* Offset the larger font size to maintain layout */
               margin: "-0.125rem 0",
             }}
             aria-label="Terminal command input"
-            placeholder="Enter a command"
+            placeholder={disabled ? "Processing..." : "Enter a command"}
             title="Terminal command input"
+            disabled={disabled}
           />
         </div>
       </div>

@@ -21,6 +21,7 @@ const defaultContext: TerminalContextType = {
   addCommand: () => {},
   currentInput: "",
   setCurrentInput: () => {},
+  removeFromHistory: () => {},
 };
 
 export const TerminalContext = createContext<TerminalContextType>(defaultContext);
@@ -111,6 +112,31 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
   // Add command to history with size limit
   const addToHistory = useCallback((command: TerminalCommand): void => {
     setHistory((prev: TerminalCommand[]): TerminalCommand[] => {
+      // Check if this exact command already exists (by ID to prevent duplicates)
+      if (prev.some(cmd => cmd.id === command.id)) {
+        return prev; // Don't add duplicate
+      }
+      
+      // Special handling for search result messages
+      if (command.type === 'text' && command.output && 
+          (command.output.startsWith('Found ') && command.output.includes(' results for'))) {
+        // Remove any existing "Found X results for" messages from history
+        const filteredHistory = prev.filter(cmd => 
+          !(cmd.type === 'text' && cmd.output && 
+            cmd.output.startsWith('Found ') && cmd.output.includes(' results for'))
+        );
+        const newHistory = [...filteredHistory, command];
+        
+        // Apply size limit after filtering
+        if (newHistory.length > MAX_HISTORY_SIZE) {
+          const welcomeMsg = newHistory.find(cmd => cmd.id === INITIAL_WELCOME_MESSAGE.id);
+          const otherCommands = newHistory.filter(cmd => cmd.id !== INITIAL_WELCOME_MESSAGE.id);
+          const trimmedCommands = otherCommands.slice(-(MAX_HISTORY_SIZE - 1));
+          return welcomeMsg ? [welcomeMsg, ...trimmedCommands] : trimmedCommands;
+        }
+        return newHistory;
+      }
+      
       const newHistory = [...prev, command];
       // Keep only the most recent MAX_HISTORY_SIZE items
       if (newHistory.length > MAX_HISTORY_SIZE) {
@@ -132,6 +158,13 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
     [addToHistory],
   );
 
+  // Remove a specific command from history by ID
+  const removeFromHistory = useCallback((commandId: string): void => {
+    setHistory((prev: TerminalCommand[]): TerminalCommand[] => {
+      return prev.filter(cmd => cmd.id !== commandId);
+    });
+  }, []);
+
   // Memoize context value for performance
   const contextValue = useMemo(
     () => ({
@@ -142,8 +175,9 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
       addCommand,
       currentInput,
       setCurrentInput,
+      removeFromHistory,
     }),
-    [clearHistory, resetTerminal, history, addToHistory, addCommand, currentInput],
+    [clearHistory, resetTerminal, history, addToHistory, addCommand, currentInput, removeFromHistory],
   );
 
   return <TerminalContext.Provider value={contextValue}>{children}</TerminalContext.Provider>;

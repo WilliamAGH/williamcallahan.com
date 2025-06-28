@@ -50,6 +50,9 @@ export class UnifiedImageService {
   private domainRetryCount = new Map<string, number>();
   private sessionStartTime = Date.now();
   private lastCleanupTime = Date.now();
+  
+  // Request deduplication for concurrent logo fetches
+  private inFlightLogoRequests = new Map<string, Promise<LogoFetchResult>>();
   private readonly CONFIG = {
     SESSION_MAX_DURATION: 30 * 60 * 1000,
     MAX_RETRIES_PER_SESSION: 3,
@@ -165,7 +168,15 @@ export class UnifiedImageService {
       };
     }
 
-    return monitoredAsync(
+    // Check if there's already an in-flight request for this domain
+    const existingRequest = this.inFlightLogoRequests.get(domain);
+    if (existingRequest && !options.forceRefresh) {
+      console.log(`[UnifiedImageService] Reusing in-flight request for domain: ${domain}`);
+      return existingRequest;
+    }
+
+    // Create new request promise
+    const requestPromise = monitoredAsync(
       null,
       `get-logo-${domain}`,
       async () => {
@@ -303,6 +314,18 @@ export class UnifiedImageService {
       },
       { timeoutMs: this.CONFIG.FETCH_TIMEOUT, metadata: { domain, options } },
     );
+    
+    // Store the in-flight request
+    this.inFlightLogoRequests.set(domain, requestPromise);
+    
+    // Clean up after completion (success or failure)
+    requestPromise.finally(() => {
+      this.inFlightLogoRequests.delete(domain);
+    }).catch(() => {
+      // Silently catch to prevent unhandled rejection
+    });
+    
+    return requestPromise;
   }
 
   private async invertLogo(buffer: Buffer, domain: string): Promise<{ buffer?: Buffer; analysis?: LogoInversion }> {
@@ -824,6 +847,12 @@ export class UnifiedImageService {
       if (now - retry.lastAttempt > 60 * 60 * 1000) {
         this.uploadRetryQueue.delete(key);
       }
+    }
+    
+    // Clean up stale in-flight requests
+    if (this.inFlightLogoRequests.size > 100) {
+      this.inFlightLogoRequests.clear();
+      console.warn("[UnifiedImageService] Cleared excessive in-flight requests");
     }
 
     // Clean up session tracking if needed
