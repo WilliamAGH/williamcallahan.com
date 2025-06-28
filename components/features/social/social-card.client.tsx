@@ -91,10 +91,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
       if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
         return getStaticImageUrl("/images/social-pics/x.jpg");
       if (networkLabel.includes("LinkedIn")) return getStaticImageUrl("/images/social-pics/linkedin.jpg");
-      if (networkLabel.includes("Bluesky")) {
-        // Fallback to Bluesky's CDN avatar if personal image fails
-        return "https://cdn.bsky.app/img/avatar/plain/did:plc:6y3lzhinepgneechfrv3w55d/bafkreicuryva5uglksh2tqrc5tu66kwvnjwnpd2fdb6epsa6fjhhdehhyy@jpeg";
-      }
+      if (networkLabel.includes("Bluesky")) return getStaticImageUrl("/images/social-pics/bluesky.jpg");
       if (networkLabel.includes("Discord")) return getStaticImageUrl("/images/social-pics/discord.jpg");
     }
     return getStaticImageUrl("/images/william.jpeg");
