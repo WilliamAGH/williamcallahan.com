@@ -120,6 +120,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["components/ui/terminal/selection-view.client.tsx"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off"
+          }
+        }
+      }
     }
   ]
 }
