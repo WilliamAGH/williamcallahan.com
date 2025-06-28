@@ -95,11 +95,38 @@ export function useTerminal() {
       const result = await handleCommand(commandInput, controller.signal);
 
       if (result.clear) {
+        // Store current focus state before clearing
+        const wasInputFocused = document.activeElement === inputRef.current;
+        const terminalContainer = inputRef.current?.closest('[data-testid="terminal-container"]');
+        const wasTerminalActive = terminalContainer && (
+          terminalContainer.contains(document.activeElement) || 
+          document.activeElement === terminalContainer
+        );
+        
         clearHistory();
+        
         // Refocus input after clearing to maintain keyboard interaction
-        requestAnimationFrame(() => {
+        // Use multiple techniques to ensure focus is restored
+        if (wasInputFocused || wasTerminalActive) {
+          // First, try immediate focus
           inputRef.current?.focus();
-        });
+          
+          // Then use requestAnimationFrame for after the next paint
+          requestAnimationFrame(() => {
+            if (inputRef.current && document.activeElement !== inputRef.current) {
+              inputRef.current.focus();
+            }
+          });
+          
+          // Finally, use setTimeout as a fallback
+          setTimeout(() => {
+            if (inputRef.current && document.activeElement !== inputRef.current) {
+              inputRef.current.focus();
+              // Dispatch a focus event to ensure the terminal knows it's focused
+              inputRef.current.dispatchEvent(new FocusEvent('focus', { bubbles: true }));
+            }
+          }, 50);
+        }
       } else {
         // Remove the temporary searching message if we added one
         if (isSearchCommand) {
