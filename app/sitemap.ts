@@ -25,7 +25,7 @@ import { updatedAt as experienceUpdatedAt } from "../data/experience";
 import { updatedAt as investmentsUpdatedAt } from "../data/investments";
 // Assuming metadata.ts might have its own overall update timestamp, or we use specific PAGE_METADATA dates
 import { PAGE_METADATA, metadata as siteMetadata } from "../data/metadata";
-import { updatedAt as projectsUpdatedAt } from "../data/projects";
+import { updatedAt as projectsUpdatedAt, projects } from "../data/projects";
 
 // Helper function to safely parse a date string (including simple YYYY-MM-DD)
 const getSafeDate = (dateInput: string | Date | number | undefined | null): Date | undefined => {
@@ -296,9 +296,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }),
   );
 
+  // --- 2.5 Process Project Tags (query variant URLs) ---
+  const uniqueProjectTags = Array.from(new Set(projects.flatMap((p) => p.tags || [])));
+  const projectTagEntries: MetadataRoute.Sitemap = uniqueProjectTags.map((tag) => {
+    const tagParam = encodeURIComponent(tag.replace(/ /g, "+"));
+    return {
+      url: `${siteUrl}/projects?tag=${tagParam}`,
+      lastModified: getSafeDate(projectsUpdatedAt),
+      changeFrequency: "weekly",
+      priority: 0.6,
+    } as MetadataRoute.Sitemap[number];
+  });
+
   // --- 4. Combine and Return ---
   return [
     ...staticEntries,
+    ...projectTagEntries,
     ...blogPostEntries,
     ...blogTagEntries,
     ...bookmarkEntries,
