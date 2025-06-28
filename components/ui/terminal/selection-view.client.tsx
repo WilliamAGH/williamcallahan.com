@@ -21,23 +21,41 @@ import { useEffect, useRef, useState, useLayoutEffect } from "react";
 import type { SelectionViewProps } from "@/types/ui/terminal";
 
 function ensureRowVisible(row: HTMLElement, container: HTMLElement) {
-  // Leave a small breathing room so the highlighted row never sits flush
-  const OFFSET = 6; // px
-  
-  // The row is a button inside a div, so we need the div's position
+  // Buffer zone: keep 3 items visible above/below the current item for smooth scrolling
+  const BUFFER_ITEMS = 3;
+  const EDGE_OFFSET = 6; // px - small offset from container edges
+
+  // Get the row's parent (the actual list item container)
   const rowContainer = row.parentElement;
   if (!rowContainer) return;
-  
-  const rowTop = rowContainer.offsetTop;
-  const rowBottom = rowTop + rowContainer.offsetHeight;
-  const viewTop = container.scrollTop;
-  const viewBottom = viewTop + container.clientHeight;
 
-  if (rowTop < viewTop + OFFSET) {
-    container.scrollTop = Math.max(rowTop - OFFSET, 0);
-  } else if (rowBottom > viewBottom - OFFSET) {
-    container.scrollTop = rowBottom - container.clientHeight + OFFSET;
+  // Calculate item height from the row container
+  const itemHeight = rowContainer.offsetHeight;
+  const bufferPixels = BUFFER_ITEMS * itemHeight;
+
+  // Use getBoundingClientRect for accurate positioning
+  const rect = rowContainer.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+
+  // Calculate relative positions
+  const relativeTop = rect.top - containerRect.top;
+  const relativeBottom = rect.bottom - containerRect.top;
+
+  // Define the "safe zone" where no scrolling is needed
+  const safeZoneTop = bufferPixels;
+  const safeZoneBottom = containerRect.height - bufferPixels;
+
+  // Scroll to maintain buffer zone
+  if (relativeTop < safeZoneTop) {
+    // Item is too close to top - scroll up to restore buffer
+    const scrollAmount = relativeTop - safeZoneTop - EDGE_OFFSET;
+    container.scrollTop = Math.max(0, container.scrollTop + scrollAmount);
+  } else if (relativeBottom > safeZoneBottom) {
+    // Item is too close to bottom - scroll down to restore buffer
+    const scrollAmount = relativeBottom - safeZoneBottom + EDGE_OFFSET;
+    container.scrollTop += scrollAmount;
   }
+  // If item is within the safe zone, don't scroll at all
 }
 
 export function SelectionView({ items, onSelectAction, onExitAction, scrollContainerRef }: SelectionViewProps) {
@@ -45,6 +63,10 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
   const [page, setPage] = useState(0);
   const ITEMS_PER_PAGE = 24;
   const prevItemsRef = useRef(items);
+  
+  // Track whether user is using keyboard navigation
+  // When true, mouse hover won't change selection
+  const [isKeyboardMode, setIsKeyboardMode] = useState(false);
 
   // Ref that always points at the currently highlighted element so we can
   // ensure it stays in view when the user navigates with the keyboard. We
@@ -86,66 +108,50 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
     // Only prevent default for keys we're handling
     if (["ArrowUp", "ArrowDown", "Enter", "Escape"].includes(e.key)) {
       e.preventDefault();
+      
+      // Enter keyboard mode when arrow keys are used
+      if (["ArrowUp", "ArrowDown"].includes(e.key)) {
+        setIsKeyboardMode(true);
+      }
     }
     switch (e.key) {
       case "ArrowUp": {
         const hasPrev = page > 0;
 
-        if (selectedIndex >= visibleItems.length) {
-          setSelectedIndex((i) => i - 1);
-        } else if (selectedIndex === visibleItems.length && hasPrev) {
-          setSelectedIndex(visibleItems.length - 1);
-        } else if (selectedIndex > 0) {
+        // Skip pagination buttons - only navigate through actual items
+        if (selectedIndex > 0) {
           setSelectedIndex((i) => i - 1);
         } else if (hasPrev) {
-          setPage((p) => {
-            const newPage = p - 1;
-            const newStartIdx = newPage * ITEMS_PER_PAGE;
-            const newEndIdx = Math.min(newStartIdx + ITEMS_PER_PAGE, validItems.length);
-            const newVisibleCount = newEndIdx - newStartIdx;
-            setSelectedIndex(newVisibleCount - 1);
-            return newPage;
-          });
+          // Seamlessly load previous page and position cursor at last item
+          setPage((p) => p - 1);
+          // Calculate the last item index on the previous page
+          const prevPageStartIdx = (page - 1) * ITEMS_PER_PAGE;
+          const prevPageEndIdx = Math.min(prevPageStartIdx + ITEMS_PER_PAGE, validItems.length);
+          const lastItemIndex = prevPageEndIdx - prevPageStartIdx - 1;
+          setSelectedIndex(lastItemIndex);
         } else {
-          // Stay at first item - don't wrap
+          // At the very first item - stay there
           setSelectedIndex(0);
         }
         break;
       }
       case "ArrowDown": {
-        const hasPrevious = page > 0;
-        const totalButtons = visibleItems.length + (hasPrevious ? 1 : 0) + (hasMoreResults ? 1 : 0);
-
+        // Skip pagination buttons - only navigate through actual items
         if (selectedIndex < visibleItems.length - 1) {
           setSelectedIndex((i) => i + 1);
-        } else if (selectedIndex === visibleItems.length - 1) {
-          if (hasPrevious) {
-            setSelectedIndex(visibleItems.length);
-          } else if (hasMoreResults) {
-            setSelectedIndex(visibleItems.length);
-          } else {
-            // Stay at last item - don't wrap
-            setSelectedIndex(visibleItems.length - 1);
-          }
-        } else if (selectedIndex < totalButtons - 1) {
-          setSelectedIndex((i) => i + 1);
+        } else if (hasMoreResults) {
+          // Seamlessly load next page and position cursor at first item
+          setPage((p) => p + 1);
+          setSelectedIndex(0);
         } else {
-          // Stay at last button - don't wrap
-          // selectedIndex stays the same
+          // At the very last item - stay there
+          setSelectedIndex(visibleItems.length - 1);
         }
         break;
       }
       case "Enter": {
-        const isPrevButton = page > 0 && selectedIndex === visibleItems.length;
-        const isNextButton = hasMoreResults && selectedIndex === visibleItems.length + (page > 0 ? 1 : 0);
-
-        if (isPrevButton) {
-          setPage((p) => p - 1);
-          setSelectedIndex(0);
-        } else if (isNextButton) {
-          setPage((p) => p + 1);
-          setSelectedIndex(0);
-        } else if (selectedIndex < visibleItems.length && visibleItems[selectedIndex]) {
+        // Only handle actual item selection, not pagination
+        if (selectedIndex < visibleItems.length && visibleItems[selectedIndex]) {
           onSelectAction(visibleItems[selectedIndex]);
         }
         break;
@@ -162,14 +168,22 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
   useEffect(() => {
     listboxRef.current?.focus();
   }, []);
+  
+  // Exit keyboard mode only when mouse enters a selectable item
+  // This ensures intentional mode switching, not accidental
+  const handleItemMouseEnter = (index: number) => {
+    if (isKeyboardMode) {
+      setIsKeyboardMode(false);
+    }
+    setSelectedIndex(index);
+  };
 
   return (
-    <div 
-      className="mt-1 outline-none" 
+    <div
+      className="mt-1 outline-none"
       data-testid="selection-view"
       onKeyDown={handleKeyDown}
       ref={listboxRef}
-      // biome-ignore lint/a11y/useSemanticElements: This is a custom terminal UI component, not a standard HTML select
       role="listbox"
       aria-label="Search results"
       aria-activedescendant={
@@ -179,6 +193,7 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
     >
       <div className="text-gray-400 text-xs mb-1">
         Use ↑↓ to navigate, Enter to select, Esc to cancel
+        {isKeyboardMode && <span className="ml-2 text-blue-400">[Keyboard Mode]</span>}
         {validItems.length > ITEMS_PER_PAGE && (
           <>
             {" • "}Page {page + 1} of {Math.ceil(validItems.length / ITEMS_PER_PAGE)}
@@ -192,7 +207,7 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
             id={`option-${item.id}`}
             ref={index === selectedIndex ? selectedRef : undefined}
             type="button"
-            role="option" // biome-ignore lint/a11y/useSemanticElements: This is a custom terminal UI component, not a standard HTML option
+            role="option"
             aria-selected={index === selectedIndex}
             /*
              * Styling rules:
@@ -201,28 +216,27 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
              *    instead of wrapping to a second line, keeping the list compact and readable.
              */
             className={`block w-full text-left px-2 py-1 rounded cursor-pointer truncate whitespace-nowrap overflow-hidden ${
-              index === selectedIndex ? "bg-blue-500/20 text-blue-300" : "hover:bg-gray-800"
+              index === selectedIndex ? "bg-blue-500/20 text-blue-300" : isKeyboardMode ? "" : "hover:bg-gray-800"
             }`}
             onClick={() => onSelectAction(item)}
-            onMouseEnter={() => setSelectedIndex(index)}
+            onMouseEnter={() => handleItemMouseEnter(index)}
           >
             {item.label}
           </button>
         </div>
       ))}
-      <div className="flex justify-between mt-2">
+      <div className="flex justify-between mt-2 text-gray-500 text-xs">
         {page > 0 ? (
           <button
             type="button"
-            ref={selectedIndex === visibleItems.length ? selectedRef : undefined}
-            className={`px-2 py-1 rounded cursor-pointer ${
-              selectedIndex === visibleItems.length ? "bg-blue-500/20 text-blue-300" : "hover:bg-gray-800"
-            }`}
+            className="px-2 py-1 rounded cursor-pointer hover:bg-gray-800 hover:text-gray-400"
             onClick={() => {
               setPage((p) => p - 1);
-              setSelectedIndex(0);
+              // Keep cursor at last item of previous page
+              const prevPageStartIdx = (page - 1) * ITEMS_PER_PAGE;
+              const prevPageEndIdx = Math.min(prevPageStartIdx + ITEMS_PER_PAGE, validItems.length);
+              setSelectedIndex(prevPageEndIdx - prevPageStartIdx - 1);
             }}
-            onMouseEnter={() => setSelectedIndex(visibleItems.length)}
             aria-label={`Show previous ${ITEMS_PER_PAGE} results`}
           >
             ← Show previous {ITEMS_PER_PAGE} results
@@ -233,17 +247,11 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
         {hasMoreResults && (
           <button
             type="button"
-            ref={selectedIndex === visibleItems.length + (page > 0 ? 1 : 0) ? selectedRef : undefined}
-            className={`px-2 py-1 rounded cursor-pointer ${
-              selectedIndex === visibleItems.length + (page > 0 ? 1 : 0)
-                ? "bg-blue-500/20 text-blue-300"
-                : "hover:bg-gray-800"
-            }`}
+            className="px-2 py-1 rounded cursor-pointer hover:bg-gray-800 hover:text-gray-400"
             onClick={() => {
               setPage((p) => p + 1);
               setSelectedIndex(0);
             }}
-            onMouseEnter={() => setSelectedIndex(visibleItems.length + (page > 0 ? 1 : 0))}
             aria-label={`Show next ${Math.min(ITEMS_PER_PAGE, validItems.length - endIdx)} results`}
           >
             → Show next {Math.min(ITEMS_PER_PAGE, validItems.length - endIdx)} results

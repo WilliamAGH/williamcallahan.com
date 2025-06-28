@@ -65,6 +65,12 @@ export interface HelpCommand extends BaseTerminalCommand {
   }>;
 }
 
+export interface SearchingCommand extends BaseTerminalCommand {
+  type: "searching";
+  query: string;
+  scope?: string;
+}
+
 /**
  * Discriminated union for all terminal command types
  */
@@ -74,7 +80,8 @@ export type TerminalCommand =
   | NavigationCommand
   | ErrorCommand
   | ClearCommand
-  | HelpCommand;
+  | HelpCommand
+  | SearchingCommand;
 
 /**
  * Legacy terminal command interface for backward compatibility
@@ -120,6 +127,10 @@ export function isHelpCommand(command: TerminalCommand): command is HelpCommand 
   return command.type === "help";
 }
 
+export function isSearchingCommand(command: TerminalCommand): command is SearchingCommand {
+  return command.type === "searching";
+}
+
 export function isTerminalCommand(item: unknown): item is TerminalCommand {
   if (typeof item !== "object" || item === null) return false;
 
@@ -149,6 +160,8 @@ export function isTerminalCommand(item: unknown): item is TerminalCommand {
       return isClearCommand(cmd);
     case "help":
       return isHelpCommand(cmd);
+    case "searching":
+      return isSearchingCommand(cmd);
     default:
       return false;
   }

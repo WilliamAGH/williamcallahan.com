@@ -43,6 +43,7 @@ export interface TerminalContextValue {
 export interface TerminalContextType extends TerminalContextValue {
   resetTerminal: () => void;
   addToHistory: (command: TerminalCommand) => void;
+  removeFromHistory: (commandId: string) => void;
 }
 
 export interface TerminalHeaderProps {
