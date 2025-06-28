@@ -126,7 +126,7 @@ export class UnifiedImageService {
           return { contentType: this.inferContentType(url), source: "s3", cdnUrl: this.getCdnUrl(s3Key) };
         }
         if (this.isReadOnly) throw new Error(`Image not available in read-only mode: ${url}`);
-        
+
         let result: { buffer: Buffer; contentType: string; streamedToS3?: boolean } | null = null;
         try {
           result = await this.fetchAndProcess(url, options);
@@ -332,13 +332,13 @@ export class UnifiedImageService {
       const logoResult = await this.fetchExternalLogo(this.extractDomain(url));
       if (!logoResult?.buffer) throw new Error("Failed to fetch logo");
       const result = { buffer: logoResult.buffer, contentType: logoResult.contentType || "image/png" };
-      
+
       // Clear the source buffer after copying
       logoResult.buffer = Buffer.alloc(0);
-      
+
       return result;
     }
-    
+
     const response = await fetchWithTimeout(url, {
       headers: DEFAULT_IMAGE_HEADERS,
       timeout: this.CONFIG.FETCH_TIMEOUT,
@@ -346,7 +346,7 @@ export class UnifiedImageService {
     if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     const contentType = response.headers.get("content-type");
     if (!contentType?.startsWith("image/")) throw new Error("Response is not an image");
-    
+
     try {
       const contentLength = response.headers.get("content-length");
       const { shouldStreamImage, streamToS3, getContentTypeFromResponse } = await import("./image-streaming");
@@ -369,7 +369,7 @@ export class UnifiedImageService {
           console.warn(`[UnifiedImageService] Stream to S3 failed, falling back to memory loading`);
         }
       }
-      
+
       // Check memory again before loading into buffer
       if (!memoryMonitor.shouldAcceptNewRequests()) {
         throw new Error("Insufficient memory to load image into buffer");
@@ -377,7 +377,7 @@ export class UnifiedImageService {
 
       const arrayBuffer = await response.arrayBuffer();
       let buffer = Buffer.from(arrayBuffer);
-      
+
       try {
         if (options.width || options.format || options.quality) {
           const processed = await this.processImageBuffer(buffer);
@@ -807,7 +807,7 @@ export class UnifiedImageService {
   private checkAndResetSession(): void {
     if (Date.now() - this.sessionStartTime > this.CONFIG.SESSION_MAX_DURATION) this.resetDomainSessionTracking();
   }
-  
+
   private startPeriodicCleanup(): void {
     // Run cleanup every 5 minutes
     setInterval(() => {
@@ -817,7 +817,7 @@ export class UnifiedImageService {
 
   private performMemoryCleanup(): void {
     const now = Date.now();
-    
+
     // Clean up old retry queue entries
     for (const [key, retry] of this.uploadRetryQueue.entries()) {
       // Remove entries older than 1 hour
@@ -825,7 +825,7 @@ export class UnifiedImageService {
         this.uploadRetryQueue.delete(key);
       }
     }
-    
+
     // Clean up session tracking if needed
     if (now - this.lastCleanupTime > this.CONFIG.CLEANUP_INTERVAL) {
       // Limit session domains size
@@ -835,7 +835,7 @@ export class UnifiedImageService {
       if (this.sessionFailedDomains.size > this.CONFIG.MAX_SESSION_DOMAINS) {
         this.sessionFailedDomains.clear();
       }
-      
+
       // Clear old retry counts
       if (this.domainRetryCount.size > this.CONFIG.MAX_SESSION_DOMAINS) {
         // Keep only recent entries
@@ -846,9 +846,9 @@ export class UnifiedImageService {
           this.domainRetryCount.set(k, v);
         });
       }
-      
+
       this.lastCleanupTime = now;
-      
+
       // Force garbage collection if available
       if (global.gc) {
         global.gc();
