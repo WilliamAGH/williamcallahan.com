@@ -18,7 +18,14 @@ const NAVIGATION_COOLDOWN = 300; // ms
 export function NavigationLink({ path, name, responsive, currentPath, className = "", onClick }: NavigationLinkProps) {
   // Use the original hook name
   const { clearHistory } = useTerminalContext();
-  const isActive = currentPath === path;
+  
+  // Routes that should use prefix matching (have child routes)
+  const prefixMatchRoutes = ["/bookmarks", "/blog", "/projects"];
+  
+  // Determine if this link should be active
+  const isActive = prefixMatchRoutes.includes(path)
+    ? currentPath.startsWith(path)
+    : currentPath === path;
   // Use useRef to store the last navigation timestamp reliably across renders and tests
   const lastNavigationTimeRef = useRef(0);
 
