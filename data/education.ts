@@ -3,7 +3,7 @@
  */
 
 // Remember to update this date whenever the education data or the Education page design changes
-export const updatedAt = "2025-05-01";
+export const updatedAt = "2025-06-28";
 
 import type { Certification, Class, Education } from "@/types/education";
 
@@ -15,16 +15,16 @@ export const recentCourses: Class[] = [
     logo: "/images/uc_berkeley_logo.png",
     website: "https://www.berkeley.edu",
     location: "Berkeley, California",
-    year: 2023,
+    year: 2025,
   },
   {
-    id: "san-mateo-object-oriented",
+    id: "san-mateo-object-oriented-java",
     institution: "College of San Mateo",
-    name: "Object-Oriented Programming",
+    name: "Object-Oriented Programming - Java",
     logo: "/images/college_of_san_mateo_logo.png",
     website: "https://collegeofsanmateo.edu",
     location: "San Mateo, California",
-    year: 2023,
+    year: 2025,
   },
   {
     id: "san-mateo-college-python",
@@ -33,7 +33,7 @@ export const recentCourses: Class[] = [
     logo: "/images/college_of_san_mateo_logo.png",
     website: "https://collegeofsanmateo.edu",
     location: "San Mateo, California",
-    year: 2023,
+    year: 2025,
   },
   {
     id: "san-mateo-college-unix-linux",
@@ -42,7 +42,7 @@ export const recentCourses: Class[] = [
     logo: "/images/college_of_san_mateo_logo.png",
     website: "https://collegeofsanmateo.edu",
     location: "San Mateo, California",
-    year: 2023,
+    year: 2025,
   },
   {
     id: "berkeley-front-end-development",
@@ -51,7 +51,7 @@ export const recentCourses: Class[] = [
     logo: "/images/uc_berkeley_logo.png",
     website: "https://www.berkeley.edu",
     location: "Berkeley, California",
-    year: 2022,
+    year: 2025,
   },
   {
     id: "stanford-ml",
@@ -131,7 +131,7 @@ export const certifications: Certification[] = [
     institution: "CFA Institute",
     name: "Chartered Financial Analyst (CFA) Charterholder",
     logo: "/images/cfa_institute_logo.png",
-    year: 2012,
+    year: 2016,
     website: "https://www.cfainstitute.org",
     location: "Charlottesville, Virginia",
   },
