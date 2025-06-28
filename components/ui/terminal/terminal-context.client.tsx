@@ -21,6 +21,7 @@ const defaultContext: TerminalContextType = {
   addCommand: () => {},
   currentInput: "",
   setCurrentInput: () => {},
+  removeFromHistory: () => {},
 };
 
 export const TerminalContext = createContext<TerminalContextType>(defaultContext);
@@ -132,6 +133,13 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
     [addToHistory],
   );
 
+  // Remove a specific command from history by ID
+  const removeFromHistory = useCallback((commandId: string): void => {
+    setHistory((prev: TerminalCommand[]): TerminalCommand[] => {
+      return prev.filter(cmd => cmd.id !== commandId);
+    });
+  }, []);
+
   // Memoize context value for performance
   const contextValue = useMemo(
     () => ({
@@ -142,8 +150,9 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
       addCommand,
       currentInput,
       setCurrentInput,
+      removeFromHistory,
     }),
-    [clearHistory, resetTerminal, history, addToHistory, addCommand, currentInput],
+    [clearHistory, resetTerminal, history, addToHistory, addCommand, currentInput, removeFromHistory],
   );
 
   return <TerminalContext.Provider value={contextValue}>{children}</TerminalContext.Provider>;

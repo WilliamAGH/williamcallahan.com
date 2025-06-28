@@ -18,6 +18,7 @@ export function useTerminal() {
     history,
     addToHistory,
     clearHistory,
+    removeFromHistory,
     // isReady is no longer part of this context
   } = useTerminalContext();
   const [input, setInput] = useState("");
@@ -42,6 +43,40 @@ export function useTerminal() {
     if (!input.trim()) return;
 
     const commandInput = input.trim();
+    const trimmedInput = commandInput.toLowerCase().trim();
+    const parts = trimmedInput.split(" ");
+    const command = parts[0] || "";
+    const args = parts.slice(1);
+
+    // Import sections for validation
+    const { sections } = await import("./sections");
+    const isValidSection = (section: string): boolean => section in sections;
+
+    // Check if this is a search command
+    const isSearchCommand = 
+      (command && isValidSection(command) && args.length > 0) || // Section search
+      (command && !["help", "clear", "schema.org"].includes(command) && !isValidSection(command)); // Site-wide search
+
+    // Generate a unique ID for this command/search
+    const commandId = crypto.randomUUID();
+
+    // Add temporary "Searching..." message for search commands
+    if (isSearchCommand) {
+      const searchTerms = isValidSection(command) && args.length > 0 
+        ? args.join(" ") 
+        : trimmedInput;
+      
+      const scope = isValidSection(command) && args.length > 0 ? command : undefined;
+      
+      addToHistory({
+        type: "searching",
+        id: commandId,
+        input: commandInput,
+        query: searchTerms,
+        scope,
+        timestamp: Date.now(),
+      });
+    }
 
     try {
       const result = await handleCommand(commandInput);
@@ -49,6 +84,11 @@ export function useTerminal() {
       if (result.clear) {
         clearHistory();
       } else {
+        // Remove the temporary searching message if we added one
+        if (isSearchCommand) {
+          removeFromHistory(commandId);
+        }
+
         if (result.selectionItems) {
           setSelection(result.selectionItems);
         }
@@ -74,6 +114,12 @@ export function useTerminal() {
       }
     } catch (error: unknown) {
       console.error("Command execution error:", error instanceof Error ? error.message : "Unknown error");
+      
+      // Remove the temporary searching message if we added one
+      if (isSearchCommand) {
+        removeFromHistory(commandId);
+      }
+      
       // Add a generic error to history for unexpected failures
       addToHistory({
         type: "error",
