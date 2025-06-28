@@ -9,13 +9,10 @@ import type { ContributionDay, UserActivityView } from "@/types/github";
 import { formatDistanceToNow } from "date-fns";
 import { Code, RefreshCw } from "lucide-react";
 import { useTheme } from "next-themes";
-import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ActivityCalendarComponent, { type ThemeInput as ReactActivityCalendarThemeInput } from "react-activity-calendar";
 import CumulativeGitHubStatsCards from "./cumulative-github-stats-cards";
 import type { ApiError } from "@/types/features/github";
-
-const GITHUB_PROFILE_URL = "https://github.com/WilliamAGH/";
 
 // Define the custom theme for the calendar
 const calendarCustomTheme: ReactActivityCalendarThemeInput = {
@@ -70,13 +67,6 @@ const GitHubActivity = () => {
   }
 
   const fetchInitiatedRef = useRef(false); // Ref to track if the initial fetch has been initiated
-
-  /**
-   * Navigates to the user's GitHub profile in a new tab.
-   */
-  const navigateToGitHub = () => {
-    window.open(GITHUB_PROFILE_URL, "_blank", "noopener");
-  };
 
   /**
    * Resets all component state related to fetched data.
@@ -233,36 +223,8 @@ const GitHubActivity = () => {
     void fetchData();
   }, [fetchData]); // Add fetchData to dependency array
 
-  const handleCardClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    // Check if the clicked element or its parent is a button
-    const target = e.target as HTMLElement;
-    const isButton = target.tagName === "BUTTON" || target.closest("button");
-
-    if (!isButton) {
-      navigateToGitHub();
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (e.key === "Enter" || e.key === " ") {
-      // Check if the focused element or its parent is a button
-      const target = e.target as HTMLElement;
-      const isButton = target.tagName === "BUTTON" || target.closest("button");
-
-      if (!isButton) {
-        e.preventDefault();
-        navigateToGitHub();
-      }
-    }
-  };
-
   return (
-    <button
-      type="button"
-      className="bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-card cursor-pointer hover:shadow-card-hover transition-all duration-300 transform hover:-translate-y-1 group text-left w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-      onClick={handleCardClick}
-      onKeyDown={handleKeyDown}
-    >
+    <div className="bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-card hover:shadow-card-hover transition-all duration-300 transform hover:-translate-y-1 group text-left w-full">
       <div className="flex justify-between items-center mb-3">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
           <a
@@ -370,7 +332,7 @@ const GitHubActivity = () => {
           )}
         </>
       )}
-    </button>
+    </div>
   );
 };
 
