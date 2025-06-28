@@ -11,7 +11,7 @@
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
 import { TerminalSquare } from "lucide-react"; // Import specific icon
-import { useEffect, useRef } from "react"; // Assuming useCallback was here and removed
+import { useEffect, useRef, useState } from "react";
 import { CommandInput } from "./command-input.client";
 import { History } from "./history";
 import { SelectionView } from "./selection-view.client";
@@ -26,6 +26,8 @@ const TERMINAL_WINDOW_ID = "main-terminal";
 export function Terminal() {
   // Ref for the scrollable content area
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  // Track if terminal is focused
+  const [isTerminalFocused, setIsTerminalFocused] = useState(false);
 
   // --- Get State from Hooks ---
   // History state from TerminalContext
@@ -150,6 +152,109 @@ export function Terminal() {
     };
   }, [isMaximized, maximizeWindow]); // Dependencies: run when isMaximized or maximizeWindow changes
 
+  // Effect to prevent page scrolling when terminal has focus or is being interacted with
+  useEffect(() => {
+    let terminalContainer: Element | null = null;
+    
+    // We need to wait for the ref to be available
+    const checkAndSetup = () => {
+      terminalContainer = scrollContainerRef.current?.closest('[data-testid="terminal-container"]') || null;
+    };
+    
+    // Check immediately and after a short delay
+    checkAndSetup();
+    const setupTimer = setTimeout(checkAndSetup, 100);
+    
+    const handleWindowKeyDown = (e: KeyboardEvent) => {
+      // Re-check in case the ref wasn't available initially
+      if (!terminalContainer) {
+        checkAndSetup();
+      }
+      
+      // If the terminal is focused or contains the active element, prevent arrow key scrolling
+      const isTerminalActive = terminalContainer && (
+        terminalContainer.contains(document.activeElement) || 
+        document.activeElement === terminalContainer ||
+        isTerminalFocused
+      );
+      
+      if (isTerminalActive) {
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(e.key)) {
+          // Only prevent default to stop page scrolling, but let the event propagate
+          e.preventDefault();
+        }
+      }
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      // Prevent page scrolling when mouse is over terminal
+      if (!terminalContainer) {
+        checkAndSetup();
+      }
+      
+      if (terminalContainer && e.target instanceof Node && terminalContainer.contains(e.target)) {
+        const scrollContainer = scrollContainerRef.current;
+        if (scrollContainer) {
+          const canScrollUp = scrollContainer.scrollTop > 0;
+          const canScrollDown = scrollContainer.scrollTop < scrollContainer.scrollHeight - scrollContainer.clientHeight;
+          
+          // Only prevent page scrolling if terminal can't scroll in that direction
+          if ((e.deltaY < 0 && !canScrollUp) || (e.deltaY > 0 && !canScrollDown)) {
+            e.preventDefault();
+          }
+        }
+      }
+    };
+
+    // Add listeners in capture phase with highest priority
+    window.addEventListener('keydown', handleWindowKeyDown, { capture: true, passive: false });
+    document.addEventListener('keydown', handleWindowKeyDown, { capture: true, passive: false });
+    window.addEventListener('wheel', handleWheel, { capture: true, passive: false });
+    
+    return () => {
+      clearTimeout(setupTimer);
+      window.removeEventListener('keydown', handleWindowKeyDown, { capture: true });
+      document.removeEventListener('keydown', handleWindowKeyDown, { capture: true });
+      window.removeEventListener('wheel', handleWheel, { capture: true });
+    };
+  }, [isTerminalFocused]);
+
+  // Effect for forwarding keyboard events to SelectionView when it's active
+  useEffect(() => {
+    if (selection && scrollContainerRef.current) {
+      const handleContainerKeyDown = (e: KeyboardEvent) => {
+        // Forward navigation keys to SelectionView when it's active
+        if (['ArrowUp', 'ArrowDown', 'Enter', 'Escape'].includes(e.key)) {
+          const selectionView = scrollContainerRef.current?.querySelector('[data-testid="selection-view"]');
+          if (selectionView && document.activeElement !== selectionView) {
+            // Create and dispatch a synthetic keyboard event to the SelectionView
+            const syntheticEvent = new KeyboardEvent('keydown', {
+              key: e.key,
+              code: e.code,
+              keyCode: e.keyCode,
+              which: e.which,
+              shiftKey: e.shiftKey,
+              ctrlKey: e.ctrlKey,
+              altKey: e.altKey,
+              metaKey: e.metaKey,
+              bubbles: true,
+              cancelable: true,
+            });
+            selectionView.dispatchEvent(syntheticEvent);
+          }
+        }
+      };
+
+      // Use capture phase to intercept events before they reach other elements
+      const container = scrollContainerRef.current;
+      container.addEventListener('keydown', handleContainerKeyDown, { capture: true });
+      
+      return () => {
+        container.removeEventListener('keydown', handleContainerKeyDown, { capture: true });
+      };
+    }
+  }, [selection]);
+
   // --- Conditional Rendering ---
 
   // If not yet ready (mounted and registered in context), render nothing.
@@ -200,9 +305,17 @@ export function Terminal() {
       )}
 
       {/* Terminal Container - conditionally styled for maximized/normal state */}
-      <div
+      <section
         data-testid="terminal-container"
         className={cn(commonTerminalClasses, isMaximized ? maximizedTerminalClasses : normalTerminalClasses)}
+        aria-label="Terminal"
+        onFocus={() => setIsTerminalFocused(true)}
+        onBlur={(e) => {
+          // Only blur if focus is leaving the terminal entirely
+          if (!e.currentTarget.contains(e.relatedTarget)) {
+            setIsTerminalFocused(false);
+          }
+        }}
       >
         {/* Header */}
         <div className="flex-shrink-0">
@@ -218,7 +331,12 @@ export function Terminal() {
         <section
           className={cn(commonScrollClasses, isMaximized ? maximizedScrollClasses : normalScrollClasses)}
           ref={scrollContainerRef}
-          onClick={() => focusInput()}
+          onClick={() => {
+            // Only focus input if SelectionView is not active
+            if (!selection) {
+              focusInput();
+            }
+          }}
           onKeyDown={(e) => {
             // Only prevent space key default behavior if the input is not focused
             // This allows typing spaces in the input while preventing scroll when clicking elsewhere
@@ -244,7 +362,7 @@ export function Terminal() {
             )}
           </div>
         </section>
-      </div>
+      </section>
     </>
   );
 }
