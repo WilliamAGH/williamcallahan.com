@@ -14,7 +14,7 @@ import { ExternalLink as LucideExternalLinkIcon } from "lucide-react";
 import Image from "next/image";
 import type React from "react";
 import { type JSX, useCallback, useEffect, useState } from "react";
-import type { SocialCardProps, OgImageApiResponse } from "@/types/features/social";
+import type { SocialCardProps } from "@/types/features/social";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
@@ -80,8 +80,8 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
         return getStaticImageUrl("/images/social-pics/x.jpg");
       if (networkLabel.includes("LinkedIn")) return getStaticImageUrl("/images/social-pics/linkedin.jpg");
       if (networkLabel.includes("Bluesky")) {
-        // 1️⃣ direct CDN avatar
-        return "https://cdn.bsky.app/img/avatar/plain/did:plc:6y3lzhinepgneechfrv3w55d/bafkreicuryva5uglksh2tqrc5tu66kwvnjwnpd2fdb6epsa6fjhhdehhyy@jpeg";
+        // Use personal avatar from CDN, fallback handled in catch block
+        return getStaticImageUrl("/images/william.jpeg");
       }
       if (networkLabel.includes("Discord")) return getStaticImageUrl("/images/social-pics/discord.jpg");
     } catch (_error) {
@@ -114,59 +114,25 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
 
   /**
    * Fetches social media OpenGraph (OG) images.
-   * @param {string} url - The URL of the social media profile.
    */
   const fetchSocialImages = useCallback(
-    async (url: string) => {
-      if (label.includes("LinkedIn")) {
-        setProfileImageUrl(getProfileFallbackImage(label));
-        setDomainImageUrl(getDomainFallbackImage(label));
-        setIsLoading(false);
-        setImageError(false);
-        return;
-      }
-      try {
-        setIsLoading(true);
-        setImageError(false);
-        setDomainImageUrl(getDomainFallbackImage(label)); // Set local banner immediately
-
-        const apiUrl = `/api/og-data?url=${encodeURIComponent(url)}`;
-        const response = await fetch(apiUrl);
-
-        if (response.ok) {
-          const data = (await response.json()) as OgImageApiResponse;
-          setProfileImageUrl(data.profileImageUrl || getProfileFallbackImage(label));
-          // Only override domain banner when not in list that prefers static branding
-          const prefersBrandBanner =
-            /github|git\.io/i.test(domain) ||
-            /(?:^|\.)x\.com|twitter/i.test(domain) ||
-            /bsky|bluesky/i.test(domain) ||
-            /(GitHub|X|Twitter|Bluesky)/.test(label);
-
-          if (data.domainImageUrl && !prefersBrandBanner) {
-            setDomainImageUrl(data.domainImageUrl);
-          }
-        } else {
-          setProfileImageUrl(getProfileFallbackImage(label));
-        }
-      } catch {
-        // Changed error to _error
-        setProfileImageUrl(getProfileFallbackImage(label));
-        setDomainImageUrl(getDomainFallbackImage(label)); // Ensure banner is set on error too
-      } finally {
-        setIsLoading(false);
-      }
+    () => {
+      // Skip API calls entirely - use static images for all social profiles
+      setProfileImageUrl(getProfileFallbackImage(label));
+      setDomainImageUrl(getDomainFallbackImage(label));
+      setIsLoading(false);
+      setImageError(false);
     },
-    [label, getProfileFallbackImage, getDomainFallbackImage, domain],
+    [label, getProfileFallbackImage, getDomainFallbackImage],
   );
 
   useEffect(() => {
     if (mounted) {
       setImageError(false);
       setDomainImageUrl(getDomainFallbackImage(label));
-      void fetchSocialImages(href);
+      fetchSocialImages();
     }
-  }, [href, label, mounted, fetchSocialImages, getDomainFallbackImage]);
+  }, [label, mounted, fetchSocialImages, getDomainFallbackImage]);
 
   if (!mounted) {
     return (
