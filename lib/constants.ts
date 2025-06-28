@@ -460,7 +460,8 @@ export const CACHE_TTL = {
 } as const;
 
 // Migration helpers for Next.js 15 'use cache' directive
-export const USE_NEXTJS_CACHE = process.env.USE_NEXTJS_CACHE === "true";
+// Default to true - use cache unless explicitly disabled
+export const USE_NEXTJS_CACHE = process.env.USE_NEXTJS_CACHE !== "false";
 
 export const JINA_FETCH_STORE_NAME = "jinaFetch" as const;
 export const JINA_FETCH_CONTEXT_ID = "global" as const;
