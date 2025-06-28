@@ -184,7 +184,7 @@ This step marks the confirmation phase. After iteratively fixing individual test
 
 a) Run: `bun run test` (confirm 100% pass rate and clean output).
 b) Run: `bun run validate` (must show 0 errors/warnings).
-c) Run: `bun run build` (ensure no build issues).
+c) Run: `bun run build:only` (ensure no build issues - uses cached data without fetching).
 
 ### **STEP 6: Test Coverage Improvement**
 
