@@ -14,7 +14,7 @@ import { ExternalLink as LucideExternalLinkIcon } from "lucide-react";
 import Image from "next/image";
 import type React from "react";
 import { type JSX, useCallback, useEffect, useState } from "react";
-import type { SocialCardProps, OgImageApiResponse } from "@/types/features/social";
+import type { SocialCardProps } from "@/types/features/social";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
@@ -120,47 +120,15 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
    * @param {string} url - The URL of the social media profile.
    */
   const fetchSocialImages = useCallback(
-    async (url: string) => {
-      if (label.includes("LinkedIn")) {
-        setProfileImageUrl(getProfileFallbackImage(label));
-        setDomainImageUrl(getDomainFallbackImage(label));
-        setIsLoading(false);
-        setImageError(false);
-        return;
-      }
-      try {
-        setIsLoading(true);
-        setImageError(false);
-        setDomainImageUrl(getDomainFallbackImage(label)); // Set local banner immediately
-
-        const apiUrl = `/api/og-data?url=${encodeURIComponent(url)}`;
-        const response = await fetch(apiUrl);
-
-        if (response.ok) {
-          const data = (await response.json()) as OgImageApiResponse;
-          setProfileImageUrl(data.profileImageUrl || getProfileFallbackImage(label));
-          // Only override domain banner when not in list that prefers static branding
-          const prefersBrandBanner =
-            /github|git\.io/i.test(domain) ||
-            /(?:^|\.)x\.com|twitter/i.test(domain) ||
-            /bsky|bluesky/i.test(domain) ||
-            /(GitHub|X|Twitter|Bluesky)/.test(label);
-
-          if (data.domainImageUrl && !prefersBrandBanner) {
-            setDomainImageUrl(data.domainImageUrl);
-          }
-        } else {
-          setProfileImageUrl(getProfileFallbackImage(label));
-        }
-      } catch {
-        // Changed error to _error
-        setProfileImageUrl(getProfileFallbackImage(label));
-        setDomainImageUrl(getDomainFallbackImage(label)); // Ensure banner is set on error too
-      } finally {
-        setIsLoading(false);
-      }
+    (url: string) => {
+      void url; // Explicitly mark as unused
+      // Skip API calls entirely - use static images for all social profiles
+      setProfileImageUrl(getProfileFallbackImage(label));
+      setDomainImageUrl(getDomainFallbackImage(label));
+      setIsLoading(false);
+      setImageError(false);
     },
-    [label, getProfileFallbackImage, getDomainFallbackImage, domain],
+    [label, getProfileFallbackImage, getDomainFallbackImage],
   );
 
   useEffect(() => {
