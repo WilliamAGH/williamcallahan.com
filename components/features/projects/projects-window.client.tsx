@@ -19,7 +19,8 @@ import { cn } from "@/lib/utils";
 import type { ProjectsWindowClientProps } from "@/types/features/projects";
 import { FolderKanban } from "lucide-react";
 import dynamic from "next/dynamic";
-import { ProjectsListClient } from "./projects-list.client";
+import { ProjectsListServer } from "./projects-list.client";
+import { useSearchParams } from "next/navigation";
 
 // Define a unique ID for this window instance
 const PROJECTS_WINDOW_ID = "projects-window";
@@ -138,7 +139,33 @@ export function ProjectsWindow({ title = "Projects", onClose, onMinimize, onMaxi
       onMaximize={handleMaximize}
       title={title}
     >
-      <ProjectsListClient />
+      {/* Server-rendered list */}
+      <ProjectsListServer />
+      {/* Client-side filter to toggle visibility based on ?tag= */}
+      <TagVisibilityController />
     </ProjectsWindowContent>
   );
+}
+
+/**
+ * Client component that toggles visibility of project elements rendered by
+ * ProjectsListServer.  Each element has `data-project-tags` set to a space-
+ * separated list.  No DOM is mutated beyond display style, so hydration stays
+ * consistent.
+ */
+function TagVisibilityController() {
+  const params = useSearchParams();
+  const rawTag = params?.get("tag");
+  const selectedTag = rawTag ? rawTag.replace(/\+/g, " ") : "All";
+
+  React.useEffect(() => {
+    const projectNodes = document.querySelectorAll<HTMLElement>("[data-project-tags]");
+    projectNodes.forEach((node) => {
+      const tags = node.getAttribute("data-project-tags")?.split("|||") ?? [];
+      const shouldShow = selectedTag === "All" || tags.includes(selectedTag);
+      node.style.display = shouldShow ? "" : "none";
+    });
+  }, [selectedTag]);
+
+  return null; // renders nothing
 }
