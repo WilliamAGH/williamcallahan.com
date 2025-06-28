@@ -37,9 +37,10 @@ COPY . .
 
 # Run linter and type checker with persistent cache mounts so they
 #   do not re-run on every incremental build.
+# Set memory limit for Node.js operations during checks
 RUN --mount=type=cache,target=/app/.eslintcache \
     --mount=type=cache,target=/app/.tsbuildinfo \
-    npm run lint && npm run type-check
+    NODE_OPTIONS='--max-old-space-size=4096' npm run lint && NODE_OPTIONS='--max-old-space-size=4096' npm run type-check
 
 # --------------------------------------------------
 # BUILD STAGE (production build)
@@ -78,6 +79,8 @@ COPY . .
 # Pre-build checks disabled to avoid network hang during build
 
 # Now build the app using bun (Bun) to avoid OOM issues
+# Note: Bun uses JavaScriptCore which auto-manages memory, no --max-old-space-size support
+# The build script in package.json sets NODE_OPTIONS for the Next.js build step
 RUN --mount=type=cache,target=/app/.next/cache \
     echo "📦 Building the application..." && bun run build && \
     # Prune optimiser cache older than 5 days to keep layer small
@@ -164,6 +167,9 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+# Memory configuration for Node.js (used by Next.js server)
+# Bun doesn't support this flag but Node.js respects it
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 # Add healthcheck to ensure the container is properly running
 HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
@@ -173,6 +179,7 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
 # Note: We use Node.js to run the standalone server as it's more compatible
 # with Next.js 15's standalone output, even though Bun is available in the runner
 ENTRYPOINT ["/app/entrypoint.sh"]
+# Node.js will respect NODE_OPTIONS env var for memory limit
 CMD ["node", "server.js"]
 
 ARG BUILDKIT_INLINE_CACHE=1
