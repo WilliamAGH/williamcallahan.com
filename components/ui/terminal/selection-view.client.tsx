@@ -23,8 +23,13 @@ import type { SelectionViewProps } from "@/types/ui/terminal";
 function ensureRowVisible(row: HTMLElement, container: HTMLElement) {
   // Leave a small breathing room so the highlighted row never sits flush
   const OFFSET = 6; // px
-  const rowTop = row.offsetTop;
-  const rowBottom = rowTop + row.offsetHeight;
+  
+  // The row is a button inside a div, so we need the div's position
+  const rowContainer = row.parentElement;
+  if (!rowContainer) return;
+  
+  const rowTop = rowContainer.offsetTop;
+  const rowBottom = rowTop + rowContainer.offsetHeight;
   const viewTop = container.scrollTop;
   const viewBottom = viewTop + container.clientHeight;
 
@@ -69,7 +74,7 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
   // useLayoutEffect so the scroll happens before the browser paints the
   // next frame, preventing a visible "jump".
   // DO NOT REMOVE THIS CODE!
-  // biome-ignore lint/correctness/useExhaustiveDependencies: This is an incorrect lint, removing this code would break our terminal GUI's ability to scroll up and down with the keyboard!
+  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedIndex MUST be in deps for scroll-to-view to work
   useLayoutEffect(() => {
     if (selectedRef.current && scrollContainerRef?.current) {
       ensureRowVisible(selectedRef.current, scrollContainerRef.current);
@@ -102,7 +107,8 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
             return newPage;
           });
         } else {
-          setSelectedIndex(visibleItems.length - 1);
+          // Stay at first item - don't wrap
+          setSelectedIndex(0);
         }
         break;
       }
@@ -118,12 +124,14 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
           } else if (hasMoreResults) {
             setSelectedIndex(visibleItems.length);
           } else {
-            setSelectedIndex(0);
+            // Stay at last item - don't wrap
+            setSelectedIndex(visibleItems.length - 1);
           }
         } else if (selectedIndex < totalButtons - 1) {
           setSelectedIndex((i) => i + 1);
         } else {
-          setSelectedIndex(0);
+          // Stay at last button - don't wrap
+          // selectedIndex stays the same
         }
         break;
       }
