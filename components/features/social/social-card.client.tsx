@@ -114,11 +114,9 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
 
   /**
    * Fetches social media OpenGraph (OG) images.
-   * @param {string} url - The URL of the social media profile.
    */
   const fetchSocialImages = useCallback(
-    (url: string) => {
-      void url; // Explicitly mark as unused
+    () => {
       // Skip API calls entirely - use static images for all social profiles
       setProfileImageUrl(getProfileFallbackImage(label));
       setDomainImageUrl(getDomainFallbackImage(label));
@@ -132,9 +130,9 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
     if (mounted) {
       setImageError(false);
       setDomainImageUrl(getDomainFallbackImage(label));
-      void fetchSocialImages(href);
+      fetchSocialImages();
     }
-  }, [href, label, mounted, fetchSocialImages, getDomainFallbackImage]);
+  }, [label, mounted, fetchSocialImages, getDomainFallbackImage]);
 
   if (!mounted) {
     return (
