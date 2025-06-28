@@ -95,7 +95,10 @@ describe("Terminal Commands", () => {
 
       const result = await handleCommand("blog test query");
 
-      expect(fetch).toHaveBeenCalledWith("/api/search/blog?q=test%20query");
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/search/blog?q=test%20query",
+        expect.objectContaining({ signal: undefined })
+      );
       expect(result.selectionItems).toHaveLength(1);
       expect(result.results?.[0]?.output).toContain("Found 1 results in Blog");
     });
@@ -105,7 +108,7 @@ describe("Terminal Commands", () => {
 
       const result = await handleCommand("blog test query");
 
-      expect(result.results?.[0]?.output).toContain("Error searching blog");
+      expect(result.results?.[0]?.output).toContain("No results found in Blog for \"test query\"");
     });
 
     it("should handle blog search with non-200 response", async () => {
@@ -117,7 +120,7 @@ describe("Terminal Commands", () => {
 
       const result = await handleCommand("blog test query");
 
-      expect(result.results?.[0]?.output).toContain("Error searching blog");
+      expect(result.results?.[0]?.output).toContain("No results found in Blog for \"test query\"");
     });
 
     it("should handle no search results", async () => {
@@ -173,7 +176,10 @@ describe("Terminal Commands", () => {
 
       const result = await handleCommand("unknown command");
 
-      expect(fetch).toHaveBeenCalledWith("/api/search/all?q=unknown%20command");
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/search/all?q=unknown%20command",
+        expect.objectContaining({ signal: undefined })
+      );
       expect(result.selectionItems).toHaveLength(2);
       expect(result.results?.[0]?.output).toContain("Found 2 site-wide results");
     });
@@ -187,7 +193,10 @@ describe("Terminal Commands", () => {
 
       const result = await handleCommand("unknown command");
 
-      expect(fetch).toHaveBeenCalledWith("/api/search/all?q=unknown%20command");
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/search/all?q=unknown%20command",
+        expect.objectContaining({ signal: undefined })
+      );
       expect(result.results?.[0]?.output).toContain("Command not recognized");
       expect(result.selectionItems).toBeUndefined();
     });
@@ -197,7 +206,7 @@ describe("Terminal Commands", () => {
 
       const result = await handleCommand("unknown command");
 
-      expect(result.results?.[0]?.output).toContain("Error during site-wide search");
+      expect(result.results?.[0]?.output).toContain("Command not recognized");
     });
 
     it("should handle unknown errors in site-wide search", async () => {
@@ -205,7 +214,85 @@ describe("Terminal Commands", () => {
 
       const result = await handleCommand("unknown command");
 
-      expect(result.results?.[0]?.output).toContain("An unknown error occurred during the search");
+      expect(result.results?.[0]?.output).toContain("Command not recognized");
+    });
+  });
+
+  describe("AbortController Support", () => {
+    it("should accept and use AbortSignal for blog search", async () => {
+      const controller = new AbortController();
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue([]),
+      };
+      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      await handleCommand("blog test", controller.signal);
+
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/search/blog?q=test",
+        expect.objectContaining({ signal: controller.signal })
+      );
+    });
+
+    it("should accept and use AbortSignal for site-wide search", async () => {
+      const controller = new AbortController();
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue([]),
+      };
+      (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      await handleCommand("unknown command", controller.signal);
+
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/search/all?q=unknown%20command",
+        expect.objectContaining({ signal: controller.signal })
+      );
+    });
+
+    it("should handle aborted requests gracefully", async () => {
+      const controller = new AbortController();
+      const abortError = new DOMException("Aborted", "AbortError");
+      
+      (fetch as unknown as jest.Mock).mockRejectedValueOnce(abortError);
+      
+      // Abort immediately
+      controller.abort();
+
+      const result = await handleCommand("blog test", controller.signal);
+      
+      // When aborted, handleCommand returns empty results
+      expect(result.results?.[0]?.output).toContain("No results found in Blog for \"test\"");
+    });
+
+    it("should propagate AbortSignal through all search paths", async () => {
+      const controller = new AbortController();
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue([{
+          id: "test-1",
+          type: "blog-post",
+          title: "Test",
+          description: "Test",
+          url: "/test",
+          score: 1.0,
+        }]),
+      };
+      
+      // Test different search sections
+      const sections = ["blog", "experience", "education", "investments", "bookmarks"];
+      
+      for (const section of sections) {
+        (fetch as unknown as jest.Mock).mockResolvedValueOnce(mockResponse);
+        
+        await handleCommand(`${section} test`, controller.signal);
+        
+        expect(fetch).toHaveBeenLastCalledWith(
+          `/api/search/${section}?q=test`,
+          expect.objectContaining({ signal: controller.signal })
+        );
+      }
     });
   });
 });

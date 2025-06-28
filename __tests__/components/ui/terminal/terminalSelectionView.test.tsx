@@ -54,16 +54,16 @@ describe("SelectionView Component", () => {
     // Check instructions
     expect(screen.getByText(/Use ↑↓ to navigate/)).toBeInTheDocument();
 
-    // Check buttons
-    const buttons = screen.getAllByRole("button");
-    expect(buttons).toHaveLength(mockItems.length);
+    // Check options
+    const options = screen.getAllByRole("option");
+    expect(options).toHaveLength(mockItems.length);
 
-    // Check first button has selected styling
-    expect(buttons[0]).toHaveClass("bg-blue-500/20", "text-blue-300");
+    // Check first option is selected via aria-selected
+    expect(options[0]).toHaveAttribute("aria-selected", "true");
 
-    // Check other buttons don't have selected styling
-    expect(buttons[1]).not.toHaveClass("bg-blue-500/20");
-    expect(buttons[2]).not.toHaveClass("bg-blue-500/20");
+    // Check other options are not selected
+    expect(options[1]).toHaveAttribute("aria-selected", "false");
+    expect(options[2]).toHaveAttribute("aria-selected", "false");
   });
 
   it("handles keyboard navigation", () => {
@@ -75,31 +75,31 @@ describe("SelectionView Component", () => {
       />,
     );
 
-    const buttons = screen.getAllByRole("button");
+    const options = screen.getAllByRole("option");
 
-    // Initial state - first button selected
-    expect(buttons[0]).toHaveClass("bg-blue-500/20");
+    // Initial state - first option selected
+    expect(options[0]).toHaveAttribute("aria-selected", "true");
 
     // Navigate down
     act(() => {
-      fireEvent.keyDown(window, { key: "ArrowDown" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
     });
-    expect(buttons[1]).toHaveClass("bg-blue-500/20");
-    expect(buttons[0]).not.toHaveClass("bg-blue-500/20");
+    expect(options[1]).toHaveAttribute("aria-selected", "true");
+    expect(options[0]).toHaveAttribute("aria-selected", "false");
 
     // Navigate down again
     act(() => {
-      fireEvent.keyDown(window, { key: "ArrowDown" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
     });
-    expect(buttons[2]).toHaveClass("bg-blue-500/20");
-    expect(buttons[1]).not.toHaveClass("bg-blue-500/20");
+    expect(options[2]).toHaveAttribute("aria-selected", "true");
+    expect(options[1]).toHaveAttribute("aria-selected", "false");
 
     // Navigate up
     act(() => {
-      fireEvent.keyDown(window, { key: "ArrowUp" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowUp" });
     });
-    expect(buttons[1]).toHaveClass("bg-blue-500/20");
-    expect(buttons[2]).not.toHaveClass("bg-blue-500/20");
+    expect(options[1]).toHaveAttribute("aria-selected", "true");
+    expect(options[2]).toHaveAttribute("aria-selected", "false");
   });
 
   it("wraps around when navigating beyond bounds", () => {
@@ -111,19 +111,28 @@ describe("SelectionView Component", () => {
       />,
     );
 
-    const buttons = screen.getAllByRole("button");
+    const options = screen.getAllByRole("option");
 
-    // Try to navigate up from first option - should wrap to last
+    // Try to navigate up from first option - should stay at first
     act(() => {
-      fireEvent.keyDown(window, { key: "ArrowUp" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowUp" });
     });
-    expect(buttons[2]).toHaveClass("bg-blue-500/20");
+    expect(options[0]).toHaveAttribute("aria-selected", "true");
 
-    // Navigate down from last option - should wrap to first
+    // Navigate down to last option
     act(() => {
-      fireEvent.keyDown(window, { key: "ArrowDown" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
     });
-    expect(buttons[0]).toHaveClass("bg-blue-500/20");
+    act(() => {
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
+    });
+    expect(options[2]).toHaveAttribute("aria-selected", "true");
+    
+    // Navigate down from last option - should stay at last
+    act(() => {
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
+    });
+    expect(options[2]).toHaveAttribute("aria-selected", "true");
   });
 
   it("handles selection with Enter key", () => {
@@ -137,12 +146,12 @@ describe("SelectionView Component", () => {
 
     // Navigate to second option
     act(() => {
-      fireEvent.keyDown(window, { key: "ArrowDown" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
     });
 
     // Select option
     act(() => {
-      fireEvent.keyDown(window, { key: "Enter" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "Enter" });
     });
 
     expect(mockHandlers.onSelectAction).toHaveBeenCalledWith(mockItems[1]);
@@ -158,7 +167,7 @@ describe("SelectionView Component", () => {
     );
 
     act(() => {
-      fireEvent.keyDown(window, { key: "Escape" });
+      fireEvent.keyDown(screen.getByRole("listbox"), { key: "Escape" });
     });
 
     expect(mockHandlers.onExitAction).toHaveBeenCalled();
@@ -173,11 +182,11 @@ describe("SelectionView Component", () => {
       />,
     );
 
-    const buttons = screen.getAllByRole("button");
+    const options = screen.getAllByRole("option");
 
     // Click second option
     act(() => {
-      fireEvent.click(buttons[1]);
+      fireEvent.click(options[1]);
     });
 
     expect(mockHandlers.onSelectAction).toHaveBeenCalledWith(mockItems[1]);
@@ -192,15 +201,15 @@ describe("SelectionView Component", () => {
       />,
     );
 
-    const buttons = screen.getAllByRole("button");
+    const options = screen.getAllByRole("option");
 
-    // Hover over second button
+    // Hover over second option
     act(() => {
-      fireEvent.mouseEnter(buttons[1]);
+      fireEvent.mouseEnter(options[1]);
     });
 
-    expect(buttons[1]).toHaveClass("bg-blue-500/20");
-    expect(buttons[0]).not.toHaveClass("bg-blue-500/20");
+    expect(options[1]).toHaveAttribute("aria-selected", "true");
+    expect(options[0]).toHaveAttribute("aria-selected", "false");
   });
 
   it("shows keyboard navigation instructions", () => {
@@ -230,7 +239,7 @@ describe("SelectionView Component", () => {
     // Should still show instructions
     expect(screen.getByText(/Use ↑↓ to navigate/)).toBeInTheDocument();
 
-    // But no buttons
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    // But no options
+    expect(screen.queryAllByRole("option")).toHaveLength(0);
   });
 });
