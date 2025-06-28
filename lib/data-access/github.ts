@@ -418,20 +418,8 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
 
   const repoResults = await repoProcessor.processBatch(uniqueRepoArray);
 
-  // Process successful results
-  for (const [, result] of repoResults.successful) {
-    yearLinesAdded += result.linesAdded;
-    yearLinesRemoved += result.linesRemoved;
-
-    const categoryKey = result.categoryKey as keyof typeof yearCategoryStats;
-    if (result.linesAdded > 0 || result.linesRemoved > 0 || result.dataComplete) {
-      yearCategoryStats[categoryKey].linesAdded += result.linesAdded;
-      yearCategoryStats[categoryKey].linesRemoved += result.linesRemoved;
-      yearCategoryStats[categoryKey].repoCount += 1;
-      yearCategoryStats[categoryKey].netChange =
-        (yearCategoryStats[categoryKey].netChange || 0) + (result.linesAdded - result.linesRemoved);
-    }
-  }
+  // The per-repository worker already aggregated yearLinesAdded/Removed and category stats.
+  // Avoid double-counting by skipping redundant aggregation here.
 
   // Handle failed repositories
   if (repoResults.failed.size > 0) {
