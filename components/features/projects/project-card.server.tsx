@@ -2,6 +2,7 @@ import { ExternalLink } from "@/components/ui/external-link.client";
 import type { ProjectCardServerProps } from "@/types/features/projects";
 import Image from "next/image";
 import { type JSX } from "react";
+import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 
 // Placeholder for centered top image with gradient
 function PlaceholderImageTop() {
@@ -33,7 +34,8 @@ function PlaceholderImageTop() {
 }
 
 export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Element {
-  const { name, description, url, image, tags } = project;
+  const { name, description, url, imageKey, tags } = project;
+  const imageUrl = imageKey ? buildCdnUrl(imageKey, getCdnConfigFromEnv()) : undefined;
 
   return (
     // Redesigned card for horizontal layout on medium screens and up
@@ -51,9 +53,9 @@ export function ProjectCardServer({ project }: ProjectCardServerProps): JSX.Elem
           showIcon={false}
           className="block w-full h-full" // Ensure link covers the area
         >
-          {image ? (
+          {imageUrl ? (
             <Image
-              src={image}
+              src={imageUrl}
               alt={`${name} screenshot`}
               fill
               quality={80}

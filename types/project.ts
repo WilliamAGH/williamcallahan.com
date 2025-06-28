@@ -1,10 +1,12 @@
-import type { ImageProps } from "next/image";
-
 export interface Project {
   name: string;
   description: string;
   shortSummary: string; // Short summary for concise display
   url: string;
-  image?: ImageProps["src"]; // Optional image source
+  /**
+   * S3 object key for the project screenshot, e.g.
+   * "images/projects/book-finder-findmybook-net.png"
+   */
+  imageKey: string;
   tags?: string[]; // Optional tags
 }
