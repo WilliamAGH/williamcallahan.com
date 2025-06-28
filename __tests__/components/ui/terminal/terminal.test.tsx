@@ -428,4 +428,130 @@ describe.skip("Terminal Component", () => {
       expect(screen.queryByText(/Welcome!/i)).not.toBeInTheDocument();
     });
   });
+
+  describe("Concurrent Command Prevention", () => {
+    it("disables input during command processing", async () => {
+      // Mock a slow search response
+      jest.useFakeTimers();
+      
+      renderTerminal();
+      const input = screen.getByRole("textbox");
+
+      // Submit a search command
+      fireEvent.change(input, { target: { value: "blog test" } });
+      fireEvent.submit(input);
+
+      // Input should be disabled immediately
+      expect(input).toBeDisabled();
+      expect(input.placeholder).toBe("Processing...");
+
+      // Fast-forward time to complete the search
+      jest.runAllTimers();
+
+      await waitFor(() => {
+        expect(input).not.toBeDisabled();
+        expect(input.placeholder).toBe("Enter a command");
+      });
+
+      jest.useRealTimers();
+    });
+
+    it("prevents multiple concurrent submissions", async () => {
+      renderTerminal();
+      const input = screen.getByRole("textbox");
+
+      // Mock fetch to count calls
+      const fetchSpy = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([]),
+      });
+      global.fetch = fetchSpy;
+
+      // Submit first command
+      fireEvent.change(input, { target: { value: "blog first" } });
+      fireEvent.submit(input);
+
+      // Try to submit second command immediately (should be prevented)
+      fireEvent.change(input, { target: { value: "blog second" } });
+      fireEvent.submit(input);
+
+      await waitFor(() => {
+        // Only one fetch call should have been made
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        expect(fetchSpy).toHaveBeenCalledWith(
+          expect.stringContaining("blog"),
+          expect.objectContaining({ signal: expect.any(AbortSignal) })
+        );
+      });
+    });
+  });
+
+  describe("AbortController Cleanup", () => {
+    it("aborts in-flight requests when component unmounts", () => {
+      const abortSpy = jest.fn();
+      const originalAbortController = global.AbortController;
+      
+      // Mock AbortController to track abort calls
+      global.AbortController = jest.fn().mockImplementation(() => ({
+        signal: {},
+        abort: abortSpy,
+      }));
+
+      const { unmount } = renderTerminal();
+      const input = screen.getByRole("textbox");
+
+      // Submit a search command
+      fireEvent.change(input, { target: { value: "blog test" } });
+      fireEvent.submit(input);
+
+      // Unmount component (should abort the request)
+      unmount();
+
+      expect(abortSpy).toHaveBeenCalled();
+
+      // Restore original AbortController
+      global.AbortController = originalAbortController;
+    });
+
+    it("aborts previous search when new search is initiated", async () => {
+      const abortSpy = jest.fn();
+      const originalAbortController = global.AbortController;
+      let controllerCount = 0;
+      
+      // Mock AbortController to track abort calls
+      global.AbortController = jest.fn().mockImplementation(() => {
+        const controller = {
+          signal: { id: ++controllerCount },
+          abort: abortSpy,
+        };
+        return controller;
+      });
+
+      renderTerminal();
+      const input = screen.getByRole("textbox");
+
+      // Mock slow fetch
+      global.fetch = jest.fn().mockImplementation(() => 
+        new Promise(resolve => setTimeout(resolve, 1000))
+      );
+
+      // Submit first search
+      fireEvent.change(input, { target: { value: "blog first" } });
+      fireEvent.submit(input);
+
+      // Wait for input to be re-enabled
+      await waitFor(() => {
+        expect(input).not.toBeDisabled();
+      });
+
+      // Submit second search (should abort the first)
+      fireEvent.change(input, { target: { value: "blog second" } });
+      fireEvent.submit(input);
+
+      expect(abortSpy).toHaveBeenCalledTimes(1);
+
+      // Restore original AbortController
+      global.AbortController = originalAbortController;
+    });
+  });
 });
