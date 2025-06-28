@@ -19,7 +19,6 @@
 import { projects } from "@/data/projects";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import Head from "next/head";
 
 const TAG_LIMIT = 10; // Number of tags to show initially
 
@@ -81,37 +80,6 @@ export function ProjectTagsClient(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-3 mb-8 px-6 sm:px-4 pt-6">
-      <Head>
-        <title>
-          {selectedTag === "All"
-            ? "Projects – William Callahan"
-            : `Projects tagged “${selectedTag}” – William Callahan`}
-        </title>
-        <meta
-          name="description"
-          content={
-            selectedTag === "All"
-              ? "William's personal coding projects, experiments, and playground."
-              : `All of William's projects related to ${selectedTag}.`
-          }
-        />
-        <meta
-          property="og:title"
-          content={
-            selectedTag === "All"
-              ? "Projects – William Callahan"
-              : `Projects tagged “${selectedTag}” – William Callahan`
-          }
-        />
-        <meta
-          property="og:description"
-          content={
-            selectedTag === "All"
-              ? "William's personal coding projects, experiments, and playground."
-              : `All of William's projects related to ${selectedTag}.`
-          }
-        />
-      </Head>
       <div className="flex flex-wrap gap-2 items-center">
         {allTags.map((tag, index) => (
           <button
