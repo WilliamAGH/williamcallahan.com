@@ -8,8 +8,14 @@
  */
 
 import { readJsonS3 } from "@/lib/s3-utils";
-import { IMAGE_MANIFEST_S3_PATHS } from "@/lib/constants";
+import { IMAGE_MANIFEST_S3_PATHS, USE_NEXTJS_CACHE } from "@/lib/constants";
+import { withCacheFallback } from "@/lib/cache";
+import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "next/cache";
 import type { LogoManifest, ImageManifest, LogoManifestEntry } from "@/types/image";
+
+// Type assertions for cache functions
+const safeCacheLife = cacheLife as (profile: string) => void;
+const safeCacheTag = cacheTag as (tag: string) => void;
 
 // In-memory cache for manifests
 let logoManifest: LogoManifest | null = null;
@@ -21,16 +27,64 @@ let isLoading = false;
 let loadingPromise: Promise<void> | null = null;
 
 /**
+ * Cached manifest loading with Next.js 15 'use cache' directive
+ */
+async function getCachedManifests(): Promise<{
+  logos: LogoManifest;
+  opengraph: ImageManifest;
+  blog: ImageManifest;
+}> {
+  "use cache";
+  
+  safeCacheLife("days"); // Cache for 24 hours - manifests rarely change
+  safeCacheTag("image-manifests");
+  
+  const [logos, opengraph, blog] = await Promise.all([
+    readJsonS3<LogoManifest>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST),
+    readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST),
+    readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST),
+  ]);
+  
+  return {
+    logos: logos || {},
+    opengraph: opengraph || [],
+    blog: blog || [],
+  };
+}
+
+/**
+ * Direct manifest loading (no cache)
+ */
+async function getManifestsDirect(): Promise<{
+  logos: LogoManifest;
+  opengraph: ImageManifest;
+  blog: ImageManifest;
+}> {
+  const [logos, opengraph, blog] = await Promise.all([
+    readJsonS3<LogoManifest>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST),
+    readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST),
+    readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST),
+  ]);
+  
+  return {
+    logos: logos || {},
+    opengraph: opengraph || [],
+    blog: blog || [],
+  };
+}
+
+/**
  * Load all image manifests from S3
  * Called once during instrumentation/startup
  */
 export async function loadImageManifests(): Promise<void> {
   // In low-memory situations (local dev or constrained containers) we avoid
   // the upfront 150-200 MB cost of loading three large manifest JSON files.
-  // If the caller really needs them at boot they can set
-  // `LOAD_IMAGE_MANIFESTS_AT_BOOT=true` in the environment.
+  // By default manifests are loaded at boot. To disable, set
+  // `LOAD_IMAGE_MANIFESTS_AT_BOOT=false` in the environment.
 
-  if (!process.env.LOAD_IMAGE_MANIFESTS_AT_BOOT) {
+  // Default to loading manifests unless explicitly disabled
+  if (process.env.LOAD_IMAGE_MANIFESTS_AT_BOOT === "false") {
     logoManifest = {};
     opengraphManifest = [];
     blogManifest = [];
@@ -40,17 +94,26 @@ export async function loadImageManifests(): Promise<void> {
   console.log("[ImageManifestLoader] Loading image manifests from S3...");
 
   try {
-    // Load manifests in parallel
-    const [logos, opengraph, blog] = await Promise.all([
-      readJsonS3<LogoManifest>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST),
-      readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST),
-      readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST),
-    ]);
+    let manifests: {
+      logos: LogoManifest;
+      opengraph: ImageManifest;
+      blog: ImageManifest;
+    };
+    
+    // Use Next.js caching if enabled
+    if (USE_NEXTJS_CACHE) {
+      manifests = await withCacheFallback(
+        getCachedManifests,
+        getManifestsDirect,
+      );
+    } else {
+      manifests = await getManifestsDirect();
+    }
 
     // Cache manifests
-    logoManifest = logos || {};
-    opengraphManifest = opengraph || [];
-    blogManifest = blog || [];
+    logoManifest = manifests.logos;
+    opengraphManifest = manifests.opengraph;
+    blogManifest = manifests.blog;
 
     const logoCount = Object.keys(logoManifest).length;
     const totalImages = logoCount + (opengraphManifest?.length || 0) + (blogManifest?.length || 0);
@@ -91,6 +154,20 @@ async function ensureManifestsLoaded(): Promise<void> {
 }
 
 /**
+ * Cached version of getLogoFromManifestAsync using Next.js 15 caching
+ */
+async function getCachedLogoFromManifest(domain: string): Promise<LogoManifestEntry | null> {
+  "use cache";
+  
+  safeCacheLife("days"); // Cache for 24 hours
+  safeCacheTag("logo-manifest");
+  safeCacheTag(`logo-${domain}`);
+  
+  await ensureManifestsLoaded();
+  return getLogoFromManifest(domain);
+}
+
+/**
  * Get logo info from manifest
  * @param domain - Domain to lookup
  * @returns Logo manifest entry if found, null otherwise
@@ -119,6 +196,16 @@ export function getLogoFromManifest(domain: string): LogoManifestEntry | null {
  * @returns Promise that resolves to logo manifest entry if found, null otherwise
  */
 export async function getLogoFromManifestAsync(domain: string): Promise<LogoManifestEntry | null> {
+  if (USE_NEXTJS_CACHE) {
+    return withCacheFallback(
+      () => getCachedLogoFromManifest(domain),
+      async () => {
+        await ensureManifestsLoaded();
+        return getLogoFromManifest(domain);
+      },
+    );
+  }
+  
   await ensureManifestsLoaded();
   return getLogoFromManifest(domain);
 }
