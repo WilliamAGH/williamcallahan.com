@@ -63,7 +63,7 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
   const [page, setPage] = useState(0);
   const ITEMS_PER_PAGE = 24;
   const prevItemsRef = useRef(items);
-  
+
   // Track whether user is using keyboard navigation
   // When true, mouse hover won't change selection
   const [isKeyboardMode, setIsKeyboardMode] = useState(false);
@@ -108,7 +108,7 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
     // Only prevent default for keys we're handling
     if (["ArrowUp", "ArrowDown", "Enter", "Escape"].includes(e.key)) {
       e.preventDefault();
-      
+
       // Enter keyboard mode when arrow keys are used
       if (["ArrowUp", "ArrowDown"].includes(e.key)) {
         setIsKeyboardMode(true);
@@ -168,10 +168,9 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
   useEffect(() => {
     listboxRef.current?.focus();
   }, []);
-  
-  
+
   // No longer exit keyboard mode on mouse move - too aggressive
-  
+
   // Handle mouse entering an item
   const handleItemMouseEnter = (index: number) => {
     // In keyboard mode, don't change selection on hover
@@ -181,7 +180,7 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
     // In mouse mode, update selection
     setSelectedIndex(index);
   };
-  
+
   // Handle mouse click on an item - this should exit keyboard mode
   const handleItemClick = (item: { id: string; label: string; description: string; path: string }) => {
     if (isKeyboardMode) {
@@ -192,17 +191,17 @@ export function SelectionView({ items, onSelectAction, onExitAction, scrollConta
 
   return (
     <div
-        className="mt-1 outline-none"
-        data-testid="selection-view"
-        onKeyDown={handleKeyDown}
-        ref={listboxRef}
-        role="listbox"
-        aria-label="Search results"
-        aria-activedescendant={
-          selectedIndex >= 0 && visibleItems[selectedIndex] ? `option-${visibleItems[selectedIndex].id}` : undefined
-        }
-        tabIndex={0}
-      >
+      className="mt-1 outline-none"
+      data-testid="selection-view"
+      onKeyDown={handleKeyDown}
+      ref={listboxRef}
+      role="listbox"
+      aria-label="Search results"
+      aria-activedescendant={
+        selectedIndex >= 0 && visibleItems[selectedIndex] ? `option-${visibleItems[selectedIndex].id}` : undefined
+      }
+      tabIndex={0}
+    >
       <div className="text-gray-400 text-xs mb-1">
         Use ↑↓ to navigate, Enter to select, Esc to cancel
         {isKeyboardMode && <span className="ml-2 text-blue-400">[Keyboard Mode]</span>}
