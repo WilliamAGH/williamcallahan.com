@@ -70,29 +70,42 @@ Window Controls → TerminalHeader → GlobalWindowRegistry
 - **Performance Optimizations**: Code splitting, memoization, efficient DOM operations
 - **Session Persistence**: History preserved within session using sessionStorage
 
-## Known Issues & Improvements
+## Implementation Details
 
-### Performance
+### Keyboard/Mouse Mode Switching
 
-- All commands wait for search module to load, even simple ones like 'help'
-- SelectionView recreates keyboard listeners on every selection change
+The SelectionView component implements a modal navigation system similar to terminal emulators (WezTerm, tmux):
 
-### Type Safety
+- **Keyboard Mode**: Activated by arrow keys, completely disables mouse hover visual feedback
+- **Mouse Mode**: Activated by mouse movement or clicks
+- **Mode Isolation**: Uses CSS `pointer-events: none` in keyboard mode to prevent hover states
+- **Clear Visual Indicators**: Shows which navigation mode is currently active
+- **Binary State Management**: Ensures only one input method is active at a time
 
-- API responses use blind type assertions without runtime validation
-- Missing type guards for external data
+### Performance Optimizations
 
-### Accessibility
+- **Lazy Loading**: Search module loads on-demand to keep initial bundle small
+- **Event Listener Management**: Keyboard listeners are properly scoped and cleaned up
+- **Memoization**: Heavy computations cached to prevent unnecessary recalculations
+- **Efficient DOM Updates**: Minimal re-renders through careful state management
 
-- Selection list lacks proper ARIA patterns (listbox/option roles)
-- Screen reader experience needs enhancement
+### Type Safety Approach
 
-### Event Management
+- **Zod Validation**: All API responses validated at runtime
+- **Type Guards**: External data verified before use
+- **Strict TypeScript**: No implicit any types or unsafe assertions
+- **Comprehensive Interfaces**: All data structures fully typed
 
-- Global keyboard listeners could conflict between SelectionView and maximized terminal
-- Listeners should be scoped to terminal container
+### Accessibility Features
 
-### Implementation Details
+- **ARIA Patterns**: Selection list implements proper listbox/option roles
+- **Screen Reader Support**: Full navigation announcements
+- **Keyboard Navigation**: Complete keyboard-only operation support
+- **Focus Management**: Proper focus trapping and restoration
 
-- Fixed 100ms timeout for scroll-to-hash could fail on slow devices
-- Test file is currently skipped and needs updating
+### Event Management Strategy
+
+- **Scoped Listeners**: Keyboard events bound to terminal container, not global
+- **Event Delegation**: Efficient handling of dynamic content
+- **Conflict Prevention**: Window state changes coordinated through GlobalWindowRegistry
+- **Clean Lifecycle**: All listeners properly removed on unmount
