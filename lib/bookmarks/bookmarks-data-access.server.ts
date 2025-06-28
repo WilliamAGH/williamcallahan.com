@@ -633,12 +633,8 @@ export async function getBookmarksByTag(
   console.log(`${LOG_PREFIX} getBookmarksByTag called with tagSlug: "${tagSlug}", pageNumber: ${pageNumber}`);
 
   // 1. Try cache first (if enabled and tag is cached)
-  const pageKey = `${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${pageNumber}.json`;
-  console.log(`${LOG_PREFIX} Attempting to read cached tag page from: ${pageKey}`);
-
   const cachedPage = await getTagBookmarksPage(tagSlug, pageNumber);
-  console.log(`${LOG_PREFIX} Cached page result: ${cachedPage.length} bookmarks found`);
-
+  
   if (cachedPage.length > 0) {
     const index = await getTagBookmarksIndex(tagSlug);
     console.log(`${LOG_PREFIX} Using cached data for tag "${tagSlug}"`);
@@ -650,24 +646,62 @@ export async function getBookmarksByTag(
     };
   }
 
-  // 2. Cache miss - filter from all bookmarks (always get lightweight for tag filtering)
-  const allBookmarks = (await getBookmarks({ includeImageData: false })) as UnifiedBookmark[];
-  const tagQuery = tagSlug.replace(/-/g, " ");
+  // 2. Cache miss - use paginated approach to avoid loading all bookmarks
+  console.log(`${LOG_PREFIX} Cache miss for tag "${tagSlug}". Using paginated filtering approach`);
+  
+  // Get the index to know total pages
+  const indexKey = BOOKMARKS_S3_PATHS.INDEX;
+  const index = await readJsonS3<BookmarksIndex>(indexKey);
+  if (!index) {
+    return { bookmarks: [], totalCount: 0, totalPages: 0, fromCache: false };
+  }
 
-  // Filter bookmarks that have this tag
-  const filtered = allBookmarks.filter((b) => {
-    const tags = Array.isArray(b.tags) ? b.tags : [];
-    return tags.some((t) => {
-      const tagName = typeof t === "string" ? t : (t as { name: string }).name;
-      return tagName.toLowerCase() === tagQuery.toLowerCase();
+  // Collect bookmarks page by page until we have enough for the requested page
+  const matchingBookmarks: UnifiedBookmark[] = [];
+  const targetCount = pageNumber * BOOKMARKS_PER_PAGE;
+  let currentPage = 1;
+  let totalMatches = 0;
+
+  // Process pages until we have enough matching bookmarks
+  while (matchingBookmarks.length < targetCount && currentPage <= index.totalPages) {
+    const pageBookmarks = await getBookmarksPage(currentPage);
+    
+    // Filter bookmarks on this page that have the tag
+    const pageFiltered = pageBookmarks.filter((b) => {
+      const tags = Array.isArray(b.tags) ? b.tags : [];
+      return tags.some((t) => {
+        const tagName = typeof t === "string" ? t : (t as { name: string }).name;
+        return tagToSlug(tagName) === tagSlug;
+      });
     });
-  });
 
-  // 3. Paginate the filtered results
-  const totalCount = filtered.length;
+    matchingBookmarks.push(...pageFiltered);
+    currentPage++;
+
+    // Stop if we've processed enough pages to be sure we won't find more
+    // (optimization: if we've seen 10 pages with no matches, stop)
+    if (currentPage > 10 && matchingBookmarks.length === totalMatches) {
+      break;
+    }
+    totalMatches = matchingBookmarks.length;
+  }
+
+  // Count total by checking remaining pages (lightweight operation)
+  let totalCount = matchingBookmarks.length;
+  
+  // If we haven't checked all pages, estimate the total
+  if (currentPage <= index.totalPages) {
+    // Estimate based on current match rate
+    const pagesChecked = currentPage - 1;
+    const avgMatchesPerPage = totalCount / pagesChecked;
+    totalCount = Math.ceil(avgMatchesPerPage * index.totalPages);
+  }
+
   const totalPages = Math.ceil(totalCount / BOOKMARKS_PER_PAGE);
   const start = (pageNumber - 1) * BOOKMARKS_PER_PAGE;
-  const paginated = filtered.slice(start, start + BOOKMARKS_PER_PAGE);
+  const paginated = matchingBookmarks.slice(start, start + BOOKMARKS_PER_PAGE);
+
+  console.log(`${LOG_PREFIX} Found ${paginated.length} bookmarks for page ${pageNumber} of tag "${tagSlug}"`);
 
   return {
     bookmarks: paginated,
