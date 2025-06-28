@@ -59,7 +59,8 @@ const GitHubActivity = () => {
   // Determine if refresh buttons should be shown based on environment
   const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
   const targetUrl = "https://williamcallahan.com";
-  let showRefreshButtons = true;
+  const isDev = process.env.NODE_ENV === "development";
+  let showRefreshButtons = isDev; // Show only in development by default
   if (coolifyUrl) {
     const normalizedCoolifyUrl = coolifyUrl.endsWith("/") ? coolifyUrl.slice(0, -1) : coolifyUrl;
     const normalizedTargetUrl = targetUrl.endsWith("/") ? targetUrl.slice(0, -1) : targetUrl;
@@ -223,17 +224,6 @@ const GitHubActivity = () => {
   };
 
   /**
-   * Handles the click event for the force cache/incomplete data refresh button.
-   * Stops event propagation and triggers a data fetch with refresh.
-   * @param {React.MouseEvent} e - The mouse event.
-   */
-  const handleForceCache = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click
-    console.log("[Client] Force cache button clicked, triggering a refresh");
-    void fetchData(true); // Same as refresh
-  };
-
-  /**
    * Effect to fetch initial data on component mount.
    * Uses a ref to ensure fetchData is called only once.
    */
@@ -243,11 +233,6 @@ const GitHubActivity = () => {
     void fetchData();
   }, [fetchData]); // Add fetchData to dependency array
 
-  /**
-   * Handles click events on the main card div for navigation.
-   * Only navigates if the click target is not a button (to avoid conflicts with refresh buttons).
-   * @param {React.MouseEvent<HTMLButtonElement>} e - The mouse event.
-   */
   const handleCardClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     // Check if the clicked element or its parent is a button
     const target = e.target as HTMLElement;
@@ -258,9 +243,6 @@ const GitHubActivity = () => {
     }
   };
 
-  /**
-   * Handles keyboard events for accessibility compliance.
-   */
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
     if (e.key === "Enter" || e.key === " ") {
       // Check if the focused element or its parent is a button
@@ -280,37 +262,29 @@ const GitHubActivity = () => {
       className="bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-card cursor-pointer hover:shadow-card-hover transition-all duration-300 transform hover:-translate-y-1 group text-left w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
       onClick={handleCardClick}
       onKeyDown={handleKeyDown}
-      aria-label="View GitHub Profile and Activity"
     >
       <div className="flex justify-between items-center mb-3">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-          <Code size={20} className="mr-2 text-blue-500 group-hover:scale-110 transition-transform" />
-          GitHub Activity
+          <a
+            href="https://github.com/WilliamAGH/"
+            target="_blank"
+            rel="noopener"
+            className="flex items-center gap-2 hover:underline"
+          >
+            <Code size={20} className="text-blue-500 group-hover:scale-110 transition-transform" />
+            GitHub Activity
+          </a>
         </h3>
         {showRefreshButtons && (
-          <div className="flex space-x-2">
-            {!dataComplete && !isRefreshing && !isLoading && (
-              <button
-                type="button"
-                onClick={handleForceCache}
-                className="p-1.5 rounded-full bg-yellow-100 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:hover:bg-yellow-900/50 transition-colors text-yellow-600 dark:text-yellow-500 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                title="Data incomplete. Click to attempt refresh."
-                aria-label="Refresh incomplete data"
-              >
-                <RefreshCw size={16} />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={isRefreshing || isLoading}
-              className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-              title="Refresh GitHub data"
-              aria-label="Refresh GitHub data"
-            >
-              <RefreshCw size={16} className={`${isRefreshing ? "animate-spin text-blue-500" : "text-gray-500"}`} />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing || isLoading}
+            className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            title="Refresh GitHub data"
+          >
+            <RefreshCw size={16} className={`${isRefreshing ? "animate-spin text-blue-500" : "text-gray-500"}`} />
+          </button>
         )}
       </div>
 
