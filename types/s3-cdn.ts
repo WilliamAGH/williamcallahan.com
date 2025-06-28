@@ -126,3 +126,13 @@ export interface ParsedS3Key {
 
 // Alias for backward compatibility (if needed)
 export type S3KeyMetadata = ParsedS3Key;
+
+/**
+ * Content type categories for automatic ACL determination
+ */
+export enum ContentCategory {
+  PublicAsset = "public-asset",    // Images, CSS, JS - always public
+  PublicData = "public-data",       // JSON data meant for public consumption
+  PrivateData = "private-data",     // Sensitive data - always private
+  Html = "html",                    // HTML content - configurable
+}

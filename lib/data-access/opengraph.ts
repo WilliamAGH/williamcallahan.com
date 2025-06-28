@@ -12,7 +12,7 @@ import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalid
 import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { debug } from "@/lib/utils/debug";
-import { getS3Override } from "@/lib/opengraph/persistence";
+import { getS3Override } from "@/lib/persistence/s3-persistence";
 import { serveImageFromS3 } from "@/lib/image-handling/image-s3-utils";
 import { getDomainType, hashUrl, normalizeUrl, validateOgUrl } from "@/lib/utils/opengraph-utils";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";

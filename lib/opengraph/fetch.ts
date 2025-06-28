@@ -9,7 +9,7 @@
 
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
-import { getCachedJinaHtml, persistJinaHtmlInBackground } from "@/lib/opengraph/persistence";
+import { getCachedJinaHtml, persistJinaHtmlInBackground, scheduleImagePersistence, persistImageAndGetS3Url } from "@/lib/persistence/s3-persistence";
 import { fetchWithTimeout, getBrowserHeaders } from "@/lib/utils/http-client";
 import { incrementAndPersist, waitForPermit } from "@/lib/rate-limiter";
 import { retryWithThrow, RETRY_CONFIGS } from "@/lib/utils/retry";
@@ -19,7 +19,6 @@ import {
   JINA_FETCH_CONTEXT_ID,
   JINA_FETCH_RATE_LIMIT_S3_PATH,
 } from "@/lib/constants";
-import { scheduleImagePersistence, persistImageAndGetS3Url } from "@/lib/opengraph/persistence";
 import { getDomainType } from "@/lib/utils/opengraph-utils";
 import { sanitizeOgMetadata } from "@/lib/utils/opengraph-utils";
 import { ogMetadataSchema, type ValidatedOgMetadata } from "@/types/seo/opengraph";

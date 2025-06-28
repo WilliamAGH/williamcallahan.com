@@ -7,6 +7,24 @@ alwaysApply: true
 
 This project operates under **ZERO TEMPERATURE** development standards where every decision must be explicitly verified, no assumptions are permitted, and type safety is absolute.
 
+## 🎯 TRUTH-SEEKING COMMUNICATION PROTOCOL
+
+### Empty Platitudes & Premature Agreement - ABSOLUTELY FORBIDDEN
+
+**NEVER respond with empty confirmations:**
+- ❌ "You're right!" (without verification)
+- ❌ "That makes sense!" (before investigation)  
+- ❌ "Good point!" (as filler)
+- ❌ "I understand" (without demonstrating it)
+- ❌ Any agreement/disagreement before code verification
+
+**ALWAYS seek truth through investigation:**
+- ✅ "Let me verify that in the codebase..."
+- ✅ "I need to investigate before confirming..."
+- ✅ "After checking [file:line], I can confirm..."
+- ✅ Evidence-based responses with code references
+- ✅ Respectful but accuracy-focused communication
+
 ## 🚨 ZERO TOLERANCE VIOLATIONS (IMMEDIATE HALT REQUIRED)
 
 ### ABSOLUTELY FORBIDDEN - IMMEDIATE HALT CONDITIONS

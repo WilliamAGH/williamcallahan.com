@@ -93,7 +93,7 @@ export async function processBookmarksInBatches(
         } else {
           // It's an external URL from Karakeep, persist it to S3
           if (useBatchMode) {
-            const { persistImageAndGetS3UrlWithStatus } = await import("@/lib/opengraph/persistence");
+            const { persistImageAndGetS3UrlWithStatus } = await import("@/lib/persistence/s3-persistence");
             const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
             const result = await persistImageAndGetS3UrlWithStatus(
               karakeepImage,
@@ -172,7 +172,7 @@ export async function processBookmarksInBatches(
               const imageSource = ogData.imageUrl ? "OpenGraph" : (metadata.image ? "OpenGraphMetadata" : "Karakeep");
               
               if (useBatchMode) {
-                const { persistImageAndGetS3UrlWithStatus } = await import("@/lib/opengraph/persistence");
+                const { persistImageAndGetS3UrlWithStatus } = await import("@/lib/persistence/s3-persistence");
                 const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
                 const result = await persistImageAndGetS3UrlWithStatus(
                   finalImage,
@@ -260,7 +260,7 @@ export async function processBookmarksInBatches(
                       const imageBuffer = Buffer.from(await assetResponse.arrayBuffer());
                       
                       // Import S3 persistence utilities
-                      const { persistImageAndGetS3UrlWithStatus } = await import("@/lib/opengraph/persistence");
+                      const { persistImageAndGetS3UrlWithStatus } = await import("@/lib/persistence/s3-persistence");
                       const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
                       
                       // Create a data URL for persistence
@@ -365,7 +365,7 @@ export async function processBookmarksInBatches(
             } else {
               // Persist external Karakeep URL to S3
               if (useBatchMode) {
-                const { persistImageAndGetS3UrlWithStatus } = await import("@/lib/opengraph/persistence");
+                const { persistImageAndGetS3UrlWithStatus } = await import("@/lib/persistence/s3-persistence");
                 const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
                 const result = await persistImageAndGetS3UrlWithStatus(
                   karakeepImage,
@@ -448,7 +448,7 @@ export async function processBookmarksInBatches(
                     const imageBuffer = Buffer.from(await assetResponse.arrayBuffer());
                     
                     // Import S3 persistence utilities
-                    const { persistImageAndGetS3UrlWithStatus } = await import("@/lib/opengraph/persistence");
+                    const { persistImageAndGetS3UrlWithStatus } = await import("@/lib/persistence/s3-persistence");
                     const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
                     
                     // Create a data URL for persistence

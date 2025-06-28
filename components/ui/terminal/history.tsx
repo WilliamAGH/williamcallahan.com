@@ -15,6 +15,7 @@ import {
   isErrorCommand,
   isHelpCommand,
   isSelectionCommand,
+  isSearchingCommand,
 } from "@/types";
 
 export function History({ history }: HistoryProps) {
@@ -33,6 +34,12 @@ export function History({ history }: HistoryProps) {
     if (isSelectionCommand(line)) {
       return line.items.map((item) => `${item.label}: ${item.description}`).join("\n");
     }
+    if (isSearchingCommand(line)) {
+      const searchText = line.scope 
+        ? `⏳ Searching for ${line.scope} related to "${line.query}"...` 
+        : `⏳ Searching website for all results related to "${line.query}"...`;
+      return searchText;
+    }
     return null;
   };
 
@@ -43,7 +50,7 @@ export function History({ history }: HistoryProps) {
           const outputContent = getOutputContent(line);
           return (
             <div key={`${line.input}-${line.id}-${i}`}>
-              {line.input && (
+              {line.input && !isSearchingCommand(line) && (
                 <div className="flex items-start">
                   <span className="text-[#7aa2f7] select-none mr-2 shrink-0">$</span>
                   <span className="text-gray-300 break-words">{line.input}</span>

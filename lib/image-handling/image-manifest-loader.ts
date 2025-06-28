@@ -8,8 +8,9 @@
  */
 
 import { readJsonS3 } from "@/lib/s3-utils";
-import { IMAGE_MANIFEST_S3_PATHS } from "@/lib/constants";
+import { IMAGE_MANIFEST_S3_PATHS, USE_NEXTJS_CACHE } from "@/lib/constants";
 import type { LogoManifest, ImageManifest, LogoManifestEntry } from "@/types/image";
+import { loadLogoManifestWithCache } from "./cached-manifest-loader";
 
 // In-memory cache for manifests
 let logoManifest: LogoManifest | null = null;
@@ -20,6 +21,28 @@ let blogManifest: ImageManifest | null = null;
 let isLoading = false;
 let loadingPromise: Promise<void> | null = null;
 
+
+/**
+ * Direct manifest loading (no cache)
+ */
+async function getManifestsDirect(): Promise<{
+  logos: LogoManifest;
+  opengraph: ImageManifest;
+  blog: ImageManifest;
+}> {
+  const [logos, opengraph, blog] = await Promise.all([
+    readJsonS3<LogoManifest>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST),
+    readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST),
+    readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST),
+  ]);
+  
+  return {
+    logos: logos || {},
+    opengraph: opengraph || [],
+    blog: blog || [],
+  };
+}
+
 /**
  * Load all image manifests from S3
  * Called once during instrumentation/startup
@@ -27,10 +50,11 @@ let loadingPromise: Promise<void> | null = null;
 export async function loadImageManifests(): Promise<void> {
   // In low-memory situations (local dev or constrained containers) we avoid
   // the upfront 150-200 MB cost of loading three large manifest JSON files.
-  // If the caller really needs them at boot they can set
-  // `LOAD_IMAGE_MANIFESTS_AT_BOOT=true` in the environment.
+  // By default manifests are loaded at boot. To disable, set
+  // `LOAD_IMAGE_MANIFESTS_AT_BOOT=false` in the environment.
 
-  if (!process.env.LOAD_IMAGE_MANIFESTS_AT_BOOT) {
+  // Default to loading manifests unless explicitly disabled
+  if (process.env.LOAD_IMAGE_MANIFESTS_AT_BOOT === "false") {
     logoManifest = {};
     opengraphManifest = [];
     blogManifest = [];
@@ -40,17 +64,14 @@ export async function loadImageManifests(): Promise<void> {
   console.log("[ImageManifestLoader] Loading image manifests from S3...");
 
   try {
-    // Load manifests in parallel
-    const [logos, opengraph, blog] = await Promise.all([
-      readJsonS3<LogoManifest>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST),
-      readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST),
-      readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST),
-    ]);
+    // During instrumentation/startup, we can't use "use cache" functions
+    // Always use direct loading here - the cache functions are for runtime use
+    const manifests = await getManifestsDirect();
 
     // Cache manifests
-    logoManifest = logos || {};
-    opengraphManifest = opengraph || [];
-    blogManifest = blog || [];
+    logoManifest = manifests.logos;
+    opengraphManifest = manifests.opengraph;
+    blogManifest = manifests.blog;
 
     const logoCount = Object.keys(logoManifest).length;
     const totalImages = logoCount + (opengraphManifest?.length || 0) + (blogManifest?.length || 0);
@@ -90,6 +111,7 @@ async function ensureManifestsLoaded(): Promise<void> {
   return loadingPromise;
 }
 
+
 /**
  * Get logo info from manifest
  * @param domain - Domain to lookup
@@ -119,6 +141,19 @@ export function getLogoFromManifest(domain: string): LogoManifestEntry | null {
  * @returns Promise that resolves to logo manifest entry if found, null otherwise
  */
 export async function getLogoFromManifestAsync(domain: string): Promise<LogoManifestEntry | null> {
+  if (USE_NEXTJS_CACHE) {
+    try {
+      // Use the cached manifest loader
+      const manifest = await loadLogoManifestWithCache();
+      logoManifest = manifest; // Update in-memory cache
+      return manifest[domain] || null;
+    } catch (error) {
+      console.warn("[ImageManifestLoader] Cache function failed for logo lookup, using direct load:", error);
+      await ensureManifestsLoaded();
+      return getLogoFromManifest(domain);
+    }
+  }
+  
   await ensureManifestsLoaded();
   return getLogoFromManifest(domain);
 }

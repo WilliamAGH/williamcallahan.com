@@ -58,6 +58,7 @@ export function Terminal() {
     cancelSelection,
     inputRef,
     focusInput,
+    isSubmitting,
   } = useTerminal();
 
   // Effect to scroll to bottom when history changes
@@ -358,7 +359,7 @@ export function Terminal() {
                 scrollContainerRef={scrollContainerRef}
               />
             ) : (
-              <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={handleSubmit} />
+              <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={handleSubmit} disabled={isSubmitting} />
             )}
           </div>
         </section>
