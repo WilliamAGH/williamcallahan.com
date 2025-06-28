@@ -37,7 +37,7 @@ export function generateMetadata({ searchParams }: { searchParams: { tag?: strin
       title: `Projects tagged "${selectedTag}" – William Callahan`,
       description: `All of William's projects related to ${selectedTag}.`,
       type: "website",
-      url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/projects`,
+      url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/projects?tag=${encodeURIComponent(selectedTag)}`,
       siteName: "William Callahan",
     },
   };
