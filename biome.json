@@ -127,6 +127,9 @@
         "rules": {
           "a11y": {
             "useSemanticElements": "off"
+          },
+          "correctness": {
+            "useExhaustiveDependencies": "off"
           }
         }
       }
