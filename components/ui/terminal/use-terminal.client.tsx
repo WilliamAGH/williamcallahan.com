@@ -96,6 +96,10 @@ export function useTerminal() {
 
       if (result.clear) {
         clearHistory();
+        // Refocus input after clearing to maintain keyboard interaction
+        requestAnimationFrame(() => {
+          inputRef.current?.focus();
+        });
       } else {
         // Remove the temporary searching message if we added one
         if (isSearchCommand) {

@@ -9,13 +9,8 @@
 
 import { readJsonS3 } from "@/lib/s3-utils";
 import { IMAGE_MANIFEST_S3_PATHS, USE_NEXTJS_CACHE } from "@/lib/constants";
-import { withCacheFallback } from "@/lib/cache";
-import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "next/cache";
 import type { LogoManifest, ImageManifest, LogoManifestEntry } from "@/types/image";
-
-// Type assertions for cache functions
-const safeCacheLife = cacheLife as (profile: string) => void;
-const safeCacheTag = cacheTag as (tag: string) => void;
+import { loadLogoManifestWithCache } from "./cached-manifest-loader";
 
 // In-memory cache for manifests
 let logoManifest: LogoManifest | null = null;
@@ -26,31 +21,6 @@ let blogManifest: ImageManifest | null = null;
 let isLoading = false;
 let loadingPromise: Promise<void> | null = null;
 
-/**
- * Cached manifest loading with Next.js 15 'use cache' directive
- */
-async function getCachedManifests(): Promise<{
-  logos: LogoManifest;
-  opengraph: ImageManifest;
-  blog: ImageManifest;
-}> {
-  "use cache";
-  
-  safeCacheLife("days"); // Cache for 24 hours - manifests rarely change
-  safeCacheTag("image-manifests");
-  
-  const [logos, opengraph, blog] = await Promise.all([
-    readJsonS3<LogoManifest>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST),
-    readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST),
-    readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST),
-  ]);
-  
-  return {
-    logos: logos || {},
-    opengraph: opengraph || [],
-    blog: blog || [],
-  };
-}
 
 /**
  * Direct manifest loading (no cache)
@@ -94,21 +64,9 @@ export async function loadImageManifests(): Promise<void> {
   console.log("[ImageManifestLoader] Loading image manifests from S3...");
 
   try {
-    let manifests: {
-      logos: LogoManifest;
-      opengraph: ImageManifest;
-      blog: ImageManifest;
-    };
-    
-    // Use Next.js caching if enabled
-    if (USE_NEXTJS_CACHE) {
-      manifests = await withCacheFallback(
-        getCachedManifests,
-        getManifestsDirect,
-      );
-    } else {
-      manifests = await getManifestsDirect();
-    }
+    // During instrumentation/startup, we can't use "use cache" functions
+    // Always use direct loading here - the cache functions are for runtime use
+    const manifests = await getManifestsDirect();
 
     // Cache manifests
     logoManifest = manifests.logos;
@@ -153,19 +111,6 @@ async function ensureManifestsLoaded(): Promise<void> {
   return loadingPromise;
 }
 
-/**
- * Cached version of getLogoFromManifestAsync using Next.js 15 caching
- */
-async function getCachedLogoFromManifest(domain: string): Promise<LogoManifestEntry | null> {
-  "use cache";
-  
-  safeCacheLife("days"); // Cache for 24 hours
-  safeCacheTag("logo-manifest");
-  safeCacheTag(`logo-${domain}`);
-  
-  await ensureManifestsLoaded();
-  return getLogoFromManifest(domain);
-}
 
 /**
  * Get logo info from manifest
@@ -197,13 +142,16 @@ export function getLogoFromManifest(domain: string): LogoManifestEntry | null {
  */
 export async function getLogoFromManifestAsync(domain: string): Promise<LogoManifestEntry | null> {
   if (USE_NEXTJS_CACHE) {
-    return withCacheFallback(
-      () => getCachedLogoFromManifest(domain),
-      async () => {
-        await ensureManifestsLoaded();
-        return getLogoFromManifest(domain);
-      },
-    );
+    try {
+      // Use the cached manifest loader
+      const manifest = await loadLogoManifestWithCache();
+      logoManifest = manifest; // Update in-memory cache
+      return manifest[domain] || null;
+    } catch (error) {
+      console.warn("[ImageManifestLoader] Cache function failed for logo lookup, using direct load:", error);
+      await ensureManifestsLoaded();
+      return getLogoFromManifest(domain);
+    }
   }
   
   await ensureManifestsLoaded();
