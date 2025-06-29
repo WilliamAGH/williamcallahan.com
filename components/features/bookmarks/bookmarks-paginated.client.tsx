@@ -58,7 +58,7 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
     <BookmarksWithOptions
       bookmarks={bookmarks}
       showFilterBar={showFilterBar}
-      searchAllBookmarks={false} // Disable client fetch when pagination is disabled
+      searchAllBookmarks={searchAllBookmarks}
       initialTag={initialTag}
     />
   );
