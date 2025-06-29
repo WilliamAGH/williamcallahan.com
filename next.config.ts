@@ -81,6 +81,23 @@ const nextConfig = {
   },
 
   /**
+   * Proxy Umami tracker and API through the same origin to avoid ad-blockers and CORS issues.
+   * Docs: https://stasdeep.com/articles/umami-analytics
+   */
+  async rewrites() {
+    return [
+      {
+        source: "/stats/:path*",
+        destination: "https://umami.iocloudhost.net/:path*",
+      },
+      {
+        source: "/api/send",
+        destination: "https://umami.iocloudhost.net/api/send",
+      },
+    ];
+  },
+
+  /**
    * Custom webpack configuration
    * @param {import('webpack').Configuration} config - Webpack config object
    * @returns {import('webpack').Configuration} Modified webpack config
