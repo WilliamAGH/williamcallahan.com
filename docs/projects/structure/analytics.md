@@ -72,3 +72,38 @@ The analytics system is responsible for loading and managing third-party trackin
 * **`Window` Augmentation**: The `global.d.ts` file extends the standard `Window` interface to include the analytics library objects, enabling static type checking.
 
 This architecture ensures that analytics are a non-critical, resilient feature that can be safely disabled or fail without impacting the core user experience.
+
+## 2025-06 Hardening Update
+
+### Same-origin proxy (`/stats/**`, `/api/send`)
+
+All Umami traffic is now routed through the site's own domain.  The rewrite lives in `next.config.ts`:
+
+```ts
+async rewrites() {
+  return [
+    { source: "/stats/:path*", destination: "https://umami.iocloudhost.net/:path*" },
+    { source: "/api/send",    destination: "https://umami.iocloudhost.net/api/send" },
+  ];
+}
+```
+
+Tracker tag (inside `Analytics` component):
+
+```tsx
+<Script
+  src="/stats/script.js"
+  data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+  data-host-url={process.env.NEXT_PUBLIC_SITE_URL}
+  strategy="afterInteractive"
+  data-auto-track="true"
+/>
+```
+
+### Automatic Plausible tracking
+
+Plausible's script already tracks page-views automatically. No manual fallback hook is required.
+
+### `safeTrack` helper
+
+`components/analytics/analytics.client.tsx` now exports `safeTrack(name, data)` which truncates event names to 50 characters (Umami's server-side limit) and no-ops when the API is unavailable.  Use this instead of calling `window.umami.track` directly.
