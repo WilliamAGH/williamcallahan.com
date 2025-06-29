@@ -46,6 +46,20 @@ export function useTerminal() {
   const handleSubmit = async () => {
     if (!input.trim() || isSubmitting) return;
 
+    const commandInput = input.trim();
+    const trimmedInput = commandInput.toLowerCase().trim();
+    
+    // Handle synchronous 'clear' command separately for atomic update
+    if (trimmedInput === 'clear') {
+      flushSync(() => {
+        clearHistory();
+        setInput('');
+      });
+      // After the synchronous update, the DOM is stable. We can safely focus.
+      inputRef.current?.focus();
+      return;
+    }
+
     // Abort any previous command still in progress
     if (activeCommandController.current) {
       activeCommandController.current.abort();
@@ -57,8 +71,6 @@ export function useTerminal() {
     
     setIsSubmitting(true);
 
-    const commandInput = input.trim();
-    const trimmedInput = commandInput.toLowerCase().trim();
     const parts = trimmedInput.split(" ");
     const command = parts[0] || "";
     const args = parts.slice(1);
@@ -93,47 +105,39 @@ export function useTerminal() {
     }
 
     try {
+      // Clear input immediately to provide instant feedback
+      flushSync(() => {
+        setInput("");
+      });
+      
       const result = await handleCommand(commandInput, controller.signal);
 
-      if (result.clear) {
-        // Use flushSync to ensure synchronous DOM updates before focus restoration
-        flushSync(() => {
-          clearHistory();
+      // Remove the temporary searching message if we added one
+      if (isSearchCommand) {
+        removeFromHistory(commandId);
+      }
+
+      if (result.selectionItems) {
+        setSelection(result.selectionItems);
+      }
+
+      if (result.results && result.results.length > 0) {
+        for (const res of result.results) {
+          addToHistory(res);
+        }
+      } else if (!result.selectionItems) {
+        // If handleCommand returns no results and no selection, still add the input
+        addToHistory({
+          type: "text",
+          id: crypto.randomUUID(),
+          input: commandInput,
+          output: "",
+          timestamp: Date.now(),
         });
-        
-        // After flushSync, the DOM is guaranteed to be updated
-        // Now we can safely restore focus
-        if (inputRef.current) {
-          inputRef.current.focus();
-        }
-      } else {
-        // Remove the temporary searching message if we added one
-        if (isSearchCommand) {
-          removeFromHistory(commandId);
-        }
+      }
 
-        if (result.selectionItems) {
-          setSelection(result.selectionItems);
-        }
-
-        if (result.results && result.results.length > 0) {
-          for (const res of result.results) {
-            addToHistory(res);
-          }
-        } else if (!result.selectionItems) {
-          // If handleCommand returns no results and no selection, still add the input
-          addToHistory({
-            type: "text",
-            id: crypto.randomUUID(),
-            input: commandInput,
-            output: "",
-            timestamp: Date.now(),
-          });
-        }
-
-        if (result.navigation) {
-          router.push(result.navigation);
-        }
+      if (result.navigation) {
+        router.push(result.navigation);
       }
     } catch (error: unknown) {
       // Handle abort specifically
@@ -167,7 +171,11 @@ export function useTerminal() {
         activeCommandController.current = null;
       }
       setIsSubmitting(false);
-      setInput("");
+      
+      // Ensure focus is maintained after async operations complete
+      if (inputRef.current && document.activeElement !== inputRef.current) {
+        inputRef.current.focus();
+      }
     }
   };
 

@@ -40,16 +40,18 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
     [onChange],
   );
 
-  return (
-    <form
-      onSubmit={(e) => {
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter' && !disabled) {
         e.preventDefault();
-        if (!disabled) {
-          onSubmit(value);
-        }
-      }}
-      className="w-full table"
-    >
+        onSubmit(value);
+      }
+    },
+    [value, onSubmit, disabled],
+  );
+
+  return (
+    <div className="w-full table">
       <div className="flex items-center w-full">
         <span className="text-[#7aa2f7] select-none mr-2">$</span>
         <div className="relative flex-1 transform-gpu">
@@ -62,6 +64,7 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
             type="text"
             value={value}
             onChange={(e) => handleChange(e.target.value)}
+            onKeyDown={handleKeyDown}
             className="bg-transparent w-full focus:outline-none text-gray-300 caret-gray-300
                 text-[16px] transform-gpu scale-[0.875] origin-left disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
@@ -75,6 +78,6 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
           />
         </div>
       </div>
-    </form>
+    </div>
   );
 });
