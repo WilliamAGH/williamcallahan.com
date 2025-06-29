@@ -68,6 +68,16 @@ ARG NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_UMAMI_WEBSITE_ID=$NEXT_PUBLIC_UMAMI_WEBSITE_ID
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
+# --- S3 configuration (build-time and runtime -- CI/CD can pass these) -------------------------------
+ARG S3_BUCKET
+ARG S3_SERVER_URL
+ARG S3_ACCESS_KEY_ID
+ARG S3_SECRET_ACCESS_KEY
+ENV S3_BUCKET=$S3_BUCKET \
+    S3_SERVER_URL=$S3_SERVER_URL \
+    S3_ACCESS_KEY_ID=$S3_ACCESS_KEY_ID \
+    S3_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY
+
 # Copy dependencies and source code
 COPY --from=deps /app/node_modules ./node_modules
 
@@ -101,9 +111,17 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV RUNNING_IN_DOCKER=true
 ENV CONTAINER=true
 
-# REMOVED: User/group creation for non-root user
-# RUN addgroup --system --gid 1001 nodejs
-# RUN adduser --system --uid 1001 nextjs
+# Re-declare the build args so we can forward them (ARG values are scoped per stage)
+ARG S3_BUCKET
+ARG S3_SERVER_URL
+ARG S3_ACCESS_KEY_ID
+ARG S3_SECRET_ACCESS_KEY
+
+# Make sure they are present at runtime (can still be overridden with `docker run -e`)
+ENV S3_BUCKET=$S3_BUCKET \
+    S3_SERVER_URL=$S3_SERVER_URL \
+    S3_ACCESS_KEY_ID=$S3_ACCESS_KEY_ID \
+    S3_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY
 
 # Copy standalone output and required assets (run as root, so no chown needed)
 COPY --from=builder /app/.next/standalone ./
