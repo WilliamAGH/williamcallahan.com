@@ -134,7 +134,7 @@ async function submitGoogleSitemap(sitemapUrl: string, siteUrl: string): Promise
       method: "PUT",
     });
 
-    if (res.status === 200 || res.status === 204) {
+    if (res.status === 204) {
       console.info(`[Google] Sitemap submitted successfully via Search Console API → ${sitemapUrl}`);
     } else {
       console.error(`[Google] Sitemap submission failed. Status: ${res.status}`);
