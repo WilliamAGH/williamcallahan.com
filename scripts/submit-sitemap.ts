@@ -219,6 +219,8 @@ const main = async (): Promise<void> => {
     if (DEBUG_MODE) {
       console.warn("[IndexNow] Skipping – INDEXNOW_KEY env var not set.");
     }
+  } else if (!/^[a-f0-9-]{32,}$/i.test(INDEXNOW_KEY)) {
+    console.error("[IndexNow] Invalid INDEXNOW_KEY format – must be a valid UUID or similar identifier.");
   } else {
     try {
       // Prepare payload following IndexNow JSON specification
