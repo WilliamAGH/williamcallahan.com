@@ -48,12 +48,12 @@ export function useTerminal() {
 
     const commandInput = input.trim();
     const trimmedInput = commandInput.toLowerCase().trim();
-    
+
     // Handle synchronous 'clear' command separately for atomic update
-    if (trimmedInput === 'clear') {
+    if (trimmedInput === "clear") {
       flushSync(() => {
         clearHistory();
-        setInput('');
+        setInput("");
       });
       // After the synchronous update, the DOM is stable. We can safely focus.
       inputRef.current?.focus();
@@ -68,7 +68,7 @@ export function useTerminal() {
     // Create new controller for this command
     const controller = new AbortController();
     activeCommandController.current = controller;
-    
+
     setIsSubmitting(true);
 
     const parts = trimmedInput.split(" ");
@@ -79,21 +79,19 @@ export function useTerminal() {
     const isValidSection = (section: string): boolean => section in sections;
 
     // Check if this is a search command
-    const isSearchCommand = 
+    const isSearchCommand =
       (command && isValidSection(command) && args.length > 0) || // Section search
-      (command && !["help", "clear", "schema.org"].includes(command) && !isValidSection(command)); // Site-wide search
+      (command && !["help", "clear", "schema", "schema.org"].includes(command) && !isValidSection(command)); // Site-wide search
 
     // Generate a unique ID for this command/search
     const commandId = crypto.randomUUID();
 
     // Add temporary "Searching..." message for search commands
     if (isSearchCommand) {
-      const searchTerms = isValidSection(command) && args.length > 0 
-        ? args.join(" ") 
-        : trimmedInput;
-      
+      const searchTerms = isValidSection(command) && args.length > 0 ? args.join(" ") : trimmedInput;
+
       const scope = isValidSection(command) && args.length > 0 ? command : undefined;
-      
+
       addToHistory({
         type: "searching",
         id: commandId,
@@ -109,7 +107,7 @@ export function useTerminal() {
       flushSync(() => {
         setInput("");
       });
-      
+
       const result = await handleCommand(commandInput, controller.signal);
 
       // Remove the temporary searching message if we added one
@@ -141,22 +139,22 @@ export function useTerminal() {
       }
     } catch (error: unknown) {
       // Handle abort specifically
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        console.log('Command execution was aborted.');
+      if (error instanceof DOMException && error.name === "AbortError") {
+        console.log("Command execution was aborted.");
         // Remove the temporary searching message if we added one
         if (isSearchCommand) {
           removeFromHistory(commandId);
         }
         return; // Exit early without setting error message
       }
-      
+
       console.error("Command execution error:", error instanceof Error ? error.message : "Unknown error");
-      
+
       // Remove the temporary searching message if we added one
       if (isSearchCommand) {
         removeFromHistory(commandId);
       }
-      
+
       // Add a generic error to history for unexpected failures
       addToHistory({
         type: "error",
@@ -171,7 +169,7 @@ export function useTerminal() {
         activeCommandController.current = null;
       }
       setIsSubmitting(false);
-      
+
       // Ensure focus is maintained after async operations complete
       if (inputRef.current && document.activeElement !== inputRef.current) {
         inputRef.current.focus();
@@ -193,10 +191,10 @@ export function useTerminal() {
             cancelAnimationFrame(animationFrameRef.current);
             animationFrameRef.current = null;
           }
-          
+
           let attempts = 0;
           const MAX_ATTEMPTS = 20; // ~333ms at 60fps
-          
+
           const checkElement = () => {
             const element = document.getElementById(id);
             if (element) {
@@ -210,7 +208,7 @@ export function useTerminal() {
               animationFrameRef.current = null;
             }
           };
-          
+
           // Start checking after navigation
           animationFrameRef.current = requestAnimationFrame(checkElement);
         }
