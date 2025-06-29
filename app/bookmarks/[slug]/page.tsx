@@ -87,7 +87,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       title: customTitle,
       description: customDescription,
       type: "article",
-      url: `https://williamcallahan.com/bookmarks/${slug}`,
+      url: ensureAbsoluteUrl(`/bookmarks/${slug}`),
       ...(imageUrl && {
         images: [
           {
@@ -114,7 +114,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       }),
     },
     alternates: {
-      canonical: `https://williamcallahan.com/bookmarks/${slug}`,
+      canonical: ensureAbsoluteUrl(`/bookmarks/${slug}`),
     },
   };
 }
