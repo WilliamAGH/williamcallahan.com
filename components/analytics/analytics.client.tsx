@@ -22,14 +22,13 @@ import type { JSX } from "react";
  * - Clicky: Auto-tracks pageviews
  */
 export function Analytics(): JSX.Element | null {
-  // Skip analytics in development environments completely
-  // This prevents 400 errors from network blockers and keeps logs clean
-  if (process.env.NODE_ENV === "development") {
-    return null;
-  }
+  // Determine if analytics should run for this render
+  const shouldSkip =
+    process.env.NODE_ENV === "development" ||
+    !process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ||
+    !process.env.NEXT_PUBLIC_SITE_URL;
 
-  // Ensure required environment variables exist
-  if (!process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || !process.env.NEXT_PUBLIC_SITE_URL) {
+  if (shouldSkip) {
     return null;
   }
 
@@ -47,8 +46,9 @@ export function Analytics(): JSX.Element | null {
       <Script
         id="umami"
         strategy="afterInteractive"
-        src="https://umami.iocloudhost.net/script.js"
+        src="/stats/script.js"
         data-website-id={process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID}
+        data-host-url={process.env.NEXT_PUBLIC_SITE_URL}
         data-auto-track="true"
       />
 
@@ -88,4 +88,25 @@ export function Analytics(): JSX.Element | null {
       </noscript>
     </>
   );
+}
+
+/**
+ * safeTrack — defensive wrapper around window.umami.track
+ *   • Truncates event names > 50 chars (Umami hard limit, see GH issue #2986)
+ *   • Silently no-ops if Umami is unavailable (script blocked or disabled)
+ */
+export function safeTrack(name: string, data: Record<string, unknown> = {}): void {
+  if (name.length > 50) {
+    console.warn(`[analytics] Event name truncated to 50 chars: ${name}`);
+    name = name.slice(0, 50);
+  }
+  try {
+    window.umami?.track?.(name, data);
+  } catch (error: unknown) {
+    // Log error details in debug mode for better diagnosis
+    if (process.env.NODE_ENV === "development" || process.env.DEBUG === "true") {
+      console.error("[analytics] Failed to track event:", { name, data, error });
+    }
+    // Otherwise swallow to keep UI resilient
+  }
 }
