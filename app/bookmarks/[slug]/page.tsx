@@ -16,20 +16,21 @@ import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 
 // No static params generation for dynamic pages
 
 // Helper function to find bookmark by slug
 async function findBookmarkBySlug(slug: string) {
-  const allBookmarks = await getBookmarks({ includeImageData: true }) as import("@/types").UnifiedBookmark[];
-  
+  const allBookmarks = (await getBookmarks({ includeImageData: true })) as import("@/types").UnifiedBookmark[];
+
   // Pre-generate all slugs once to avoid O(n²) complexity
-  const bookmarkWithSlugs = allBookmarks.map(bookmark => ({
+  const bookmarkWithSlugs = allBookmarks.map((bookmark) => ({
     bookmark,
-    slug: generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id)
+    slug: generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id),
   }));
-  
-  const found = bookmarkWithSlugs.find(item => item.slug === slug);
+
+  const found = bookmarkWithSlugs.find((item) => item.slug === slug);
   return found?.bookmark || null;
 }
 
@@ -70,10 +71,12 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
   // Create image URL if available using the proper helper
   const { selectBestImage } = await import("@/lib/bookmarks/bookmark-helpers");
-  const imageUrl = selectBestImage(foundBookmark, { 
-    preferOpenGraph: true,
-    includeScreenshots: true 
-  }) || undefined;
+  const rawImageUrl =
+    selectBestImage(foundBookmark, {
+      preferOpenGraph: true,
+      includeScreenshots: true,
+    }) || undefined;
+  const imageUrl = rawImageUrl ? ensureAbsoluteUrl(rawImageUrl) : undefined;
 
   return {
     ...baseMetadata,
@@ -84,7 +87,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       title: customTitle,
       description: customDescription,
       type: "article",
-      url: `https://williamcallahan.com/bookmarks/${slug}`,
+      url: ensureAbsoluteUrl(`/bookmarks/${slug}`),
       ...(imageUrl && {
         images: [
           {
@@ -98,6 +101,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     },
     twitter: {
       ...baseMetadata.twitter,
+      card: "summary_large_image",
       title: customTitle,
       description: customDescription,
       ...(imageUrl && {
@@ -110,7 +114,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       }),
     },
     alternates: {
-      canonical: `https://williamcallahan.com/bookmarks/${slug}`,
+      canonical: ensureAbsoluteUrl(`/bookmarks/${slug}`),
     },
   };
 }
