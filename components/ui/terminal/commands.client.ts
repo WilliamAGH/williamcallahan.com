@@ -23,6 +23,43 @@ function transformSearchResultToSelectionItem(result: SearchResult): TerminalSea
   };
 }
 
+// Factory function to create searchByScopeImpl
+function createSearchByScopeImpl() {
+  return async (scope: string, query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> => {
+    try {
+      const response = await fetch(`/api/search/${scope}?q=${encodeURIComponent(query)}`, { signal });
+      if (!response.ok) {
+        console.error(`Search API returned ${response.status} for scope ${scope}`);
+        // Return empty array instead of throwing to prevent terminal from breaking
+        return [];
+      }
+      const data: unknown = await response.json();
+      
+      // Handle the different response format from scoped search API
+      // The API returns { results: SearchResult[], meta: {...} }
+      let searchResults: SearchResult[];
+      if (data && typeof data === 'object' && 'results' in data) {
+        // Type guard for scoped search response
+        const typedData = data as { results: unknown; meta?: unknown };
+        // Parse the results array from the response object
+        searchResults = searchResultsSchema.parse(typedData.results);
+      } else {
+        // Fallback: try parsing the data directly as an array
+        searchResults = searchResultsSchema.parse(data);
+      }
+      
+      return searchResults.map(transformSearchResultToSelectionItem);
+    } catch (error: unknown) {
+      console.error(
+        `Search API call failed for scope ${scope}:`,
+        error instanceof Error ? error.message : "Unknown error",
+      );
+      // Return empty array instead of throwing
+      return [];
+    }
+  };
+}
+
 // Lazy-loaded search function - only loads when first search is performed
 let searchByScopeImpl: ((scope: string, query: string, signal?: AbortSignal) => Promise<TerminalSearchResult[]>) | null = null;
 
@@ -30,42 +67,35 @@ let searchByScopeImpl: ((scope: string, query: string, signal?: AbortSignal) => 
 async function searchByScope(scope: string, query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> {
   // Lazy load the implementation on first use
   if (!searchByScopeImpl) {
-    searchByScopeImpl = async (scope: string, query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> => {
-      try {
-        const response = await fetch(`/api/search/${scope}?q=${encodeURIComponent(query)}`, { signal });
-        if (!response.ok) {
-          console.error(`Search API returned ${response.status} for scope ${scope}`);
-          // Return empty array instead of throwing to prevent terminal from breaking
-          return [];
-        }
-        const data: unknown = await response.json();
-        
-        // Handle the different response format from scoped search API
-        // The API returns { results: SearchResult[], meta: {...} }
-        let searchResults: SearchResult[];
-        if (data && typeof data === 'object' && 'results' in data) {
-          // Type guard for scoped search response
-          const typedData = data as { results: unknown; meta?: unknown };
-          // Parse the results array from the response object
-          searchResults = searchResultsSchema.parse(typedData.results);
-        } else {
-          // Fallback: try parsing the data directly as an array
-          searchResults = searchResultsSchema.parse(data);
-        }
-        
-        return searchResults.map(transformSearchResultToSelectionItem);
-      } catch (error: unknown) {
-        console.error(
-          `Search API call failed for scope ${scope}:`,
-          error instanceof Error ? error.message : "Unknown error",
-        );
-        // Return empty array instead of throwing
-        return [];
-      }
-    };
+    searchByScopeImpl = createSearchByScopeImpl();
   }
 
   return searchByScopeImpl(scope, query, signal);
+}
+
+// Factory function to create performSiteWideSearchImpl
+function createPerformSiteWideSearchImpl() {
+  return async (query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> => {
+    try {
+      const response = await fetch(`/api/search/all?q=${encodeURIComponent(query)}`, { signal });
+      if (!response.ok) {
+        console.error(`Site-wide search API returned ${response.status}`);
+        // Return empty array instead of throwing to prevent terminal from breaking
+        return [];
+      }
+      const data: unknown = await response.json();
+      // Parse as SearchResult array and transform to TerminalSearchResult
+      const searchResults: SearchResult[] = searchResultsSchema.parse(data);
+      return searchResults.map(transformSearchResultToSelectionItem);
+    } catch (error: unknown) {
+      console.error(
+        "Search API call failed for site-wide search:",
+        error instanceof Error ? error.message : "Unknown error",
+      );
+      // Return empty array instead of throwing
+      return [];
+    }
+  };
 }
 
 // Lazy-loaded site-wide search function
@@ -75,27 +105,7 @@ let performSiteWideSearchImpl: ((query: string, signal?: AbortSignal) => Promise
 async function performSiteWideSearch(query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> {
   // Lazy load the implementation on first use
   if (!performSiteWideSearchImpl) {
-    performSiteWideSearchImpl = async (query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> => {
-      try {
-        const response = await fetch(`/api/search/all?q=${encodeURIComponent(query)}`, { signal });
-        if (!response.ok) {
-          console.error(`Site-wide search API returned ${response.status}`);
-          // Return empty array instead of throwing to prevent terminal from breaking
-          return [];
-        }
-        const data: unknown = await response.json();
-        // Parse as SearchResult array and transform to TerminalSearchResult
-        const searchResults: SearchResult[] = searchResultsSchema.parse(data);
-        return searchResults.map(transformSearchResultToSelectionItem);
-      } catch (error: unknown) {
-        console.error(
-          "Search API call failed for site-wide search:",
-          error instanceof Error ? error.message : "Unknown error",
-        );
-        // Return empty array instead of throwing
-        return [];
-      }
-    };
+    performSiteWideSearchImpl = createPerformSiteWideSearchImpl();
   }
 
   return performSiteWideSearchImpl(query, signal);
@@ -110,63 +120,11 @@ export function preloadSearch() {
   // It doesn't actually execute search, just ensures the functions are ready
   // Simply set the implementation references to trigger lazy loading
   if (!searchByScopeImpl) {
-    searchByScopeImpl = async (scope: string, query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> => {
-      try {
-        const response = await fetch(`/api/search/${scope}?q=${encodeURIComponent(query)}`, { signal });
-        if (!response.ok) {
-          console.error(`Search API returned ${response.status} for scope ${scope}`);
-          // Return empty array instead of throwing to prevent terminal from breaking
-          return [];
-        }
-        const data: unknown = await response.json();
-        
-        // Handle the different response format from scoped search API
-        // The API returns { results: SearchResult[], meta: {...} }
-        let searchResults: SearchResult[];
-        if (data && typeof data === 'object' && 'results' in data) {
-          // Type guard for scoped search response
-          const typedData = data as { results: unknown; meta?: unknown };
-          // Parse the results array from the response object
-          searchResults = searchResultsSchema.parse(typedData.results);
-        } else {
-          // Fallback: try parsing the data directly as an array
-          searchResults = searchResultsSchema.parse(data);
-        }
-        
-        return searchResults.map(transformSearchResultToSelectionItem);
-      } catch (error: unknown) {
-        console.error(
-          `Search API call failed for scope ${scope}:`,
-          error instanceof Error ? error.message : "Unknown error",
-        );
-        // Return empty array instead of throwing
-        return [];
-      }
-    };
+    searchByScopeImpl = createSearchByScopeImpl();
   }
 
   if (!performSiteWideSearchImpl) {
-    performSiteWideSearchImpl = async (query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> => {
-      try {
-        const response = await fetch(`/api/search/all?q=${encodeURIComponent(query)}`, { signal });
-        if (!response.ok) {
-          console.error(`Site-wide search API returned ${response.status}`);
-          // Return empty array instead of throwing to prevent terminal from breaking
-          return [];
-        }
-        const data: unknown = await response.json();
-        // Parse as SearchResult array and transform to TerminalSearchResult
-        const searchResults: SearchResult[] = searchResultsSchema.parse(data);
-        return searchResults.map(transformSearchResultToSelectionItem);
-      } catch (error: unknown) {
-        console.error(
-          "Search API call failed for site-wide search:",
-          error instanceof Error ? error.message : "Unknown error",
-        );
-        // Return empty array instead of throwing
-        return [];
-      }
-    };
+    performSiteWideSearchImpl = createPerformSiteWideSearchImpl();
   }
 }
 
