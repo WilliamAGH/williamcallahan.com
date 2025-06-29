@@ -91,10 +91,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
       if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
         return getStaticImageUrl("/images/social-pics/x.jpg");
       if (networkLabel.includes("LinkedIn")) return getStaticImageUrl("/images/social-pics/linkedin.jpg");
-      if (networkLabel.includes("Bluesky")) {
-        // Fallback to Bluesky's CDN avatar if personal image fails
-        return "https://cdn.bsky.app/img/avatar/plain/did:plc:6y3lzhinepgneechfrv3w55d/bafkreicuryva5uglksh2tqrc5tu66kwvnjwnpd2fdb6epsa6fjhhdehhyy@jpeg";
-      }
+      if (networkLabel.includes("Bluesky")) return getStaticImageUrl("/images/social-pics/bluesky.jpg");
       if (networkLabel.includes("Discord")) return getStaticImageUrl("/images/social-pics/discord.jpg");
     }
     return getStaticImageUrl("/images/william.jpeg");
@@ -117,11 +114,9 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
 
   /**
    * Fetches social media OpenGraph (OG) images.
-   * @param {string} url - The URL of the social media profile.
    */
   const fetchSocialImages = useCallback(
-    (url: string) => {
-      void url; // Explicitly mark as unused
+    () => {
       // Skip API calls entirely - use static images for all social profiles
       setProfileImageUrl(getProfileFallbackImage(label));
       setDomainImageUrl(getDomainFallbackImage(label));
@@ -135,9 +130,9 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
     if (mounted) {
       setImageError(false);
       setDomainImageUrl(getDomainFallbackImage(label));
-      void fetchSocialImages(href);
+      fetchSocialImages();
     }
-  }, [href, label, mounted, fetchSocialImages, getDomainFallbackImage]);
+  }, [label, mounted, fetchSocialImages, getDomainFallbackImage]);
 
   if (!mounted) {
     return (

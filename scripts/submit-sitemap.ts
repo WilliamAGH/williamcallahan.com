@@ -53,11 +53,16 @@ function processGooglePrivateKey(key?: string): string {
   return key.replace(/\\n/g, "\n");
 }
 
-// Instantiate the client once outside the function for efficiency
+// The same service-account credential is re-used for both the Indexing API and
+// the Search Console API (sitemaps.submit) endpoints.  We therefore request
+// both scopes up-front so we don't need two separate JWT instances.
 const authClient = new JWT({
   email: process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL,
   key: processGooglePrivateKey(process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY),
-  scopes: ["https://www.googleapis.com/auth/indexing"],
+  scopes: [
+    "https://www.googleapis.com/auth/indexing",
+    "https://www.googleapis.com/auth/webmasters", // required for Search Console sitemap submission
+  ],
   subject: process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL,
 });
 
@@ -100,15 +105,44 @@ const GOOGLE_STORE = "googleIndexing";
 const GOOGLE_CONTEXT = "daily";
 
 // ---------------------------------------------------------------------------
-// Feature-flag: enable per-URL Google Indexing-API submission only when the
-// environment variable is explicitly set to "true".
+// Google deprecated generic per-URL Indexing API submissions for standard web
+// content (except verticals such as JobPosting, BroadcastEvent, etc.).  We now
+// rely solely on sitemap submissions for Google.  Force-disable the direct
+// URL submission path.
 // ---------------------------------------------------------------------------
-const URL_INDEXING_ENABLED = process.env.ENABLE_GOOGLE_URL_INDEXING === "true";
+const URL_INDEXING_ENABLED = false;
 
 // ---------------------------------------------------------------------------
 // CLI flags
 // ---------------------------------------------------------------------------
 const DEBUG_MODE = process.argv.includes("--debug");
+
+// ---------------------------------------------------------------------------
+// Google Search Console – Sitemap submission (2025 method)
+// Reference: https://developers.google.com/webmaster-tools/v1/sitemaps/submit
+// ---------------------------------------------------------------------------
+
+async function submitGoogleSitemap(sitemapUrl: string, siteUrl: string): Promise<void> {
+  try {
+    const encodedSite = encodeURIComponent(siteUrl);
+    const encodedSitemap = encodeURIComponent(sitemapUrl);
+
+    const endpoint = `https://www.googleapis.com/webmasters/v3/sites/${encodedSite}/sitemaps/${encodedSitemap}`;
+
+    const res = await authClient.request({
+      url: endpoint,
+      method: "PUT",
+    });
+
+    if (res.status === 200 || res.status === 204) {
+      console.info(`[Google] Sitemap submitted successfully via Search Console API → ${sitemapUrl}`);
+    } else {
+      console.error(`[Google] Sitemap submission failed. Status: ${res.status}`);
+    }
+  } catch (err: unknown) {
+    console.error("[Google] Error while submitting sitemap:", err);
+  }
+}
 
 const main = async (): Promise<void> => {
   if (URL_INDEXING_ENABLED) {
@@ -160,55 +194,59 @@ const main = async (): Promise<void> => {
     console.info("[Google] Per-URL Indexing-API submission disabled – sitemap ping only");
   }
 
-  // ---------------------------------------------------------------------
-  // Sitemap pings
-  // ---------------------------------------------------------------------
+  // -------------------------------------------------------------------
+  // Modern endpoints
+  //   • Google: already handled above via Indexing API when
+  //     URL_INDEXING_ENABLED === true.
+  //   • Bing (+ Yandex, Naver, Seznam, Yep): use IndexNow protocol.
+  // -------------------------------------------------------------------
 
+  // Always attempt Search Console sitemap submission if credentials are present.
   const BASE_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://williamcallahan.com";
-  const sitemapUrl = `${BASE_SITE_URL.replace(/\/$/, "")}/sitemap.xml`;
+  const siteUrlCanonical = BASE_SITE_URL.endsWith("/") ? BASE_SITE_URL : `${BASE_SITE_URL}/`;
+  const sitemapUrl = `${siteUrlCanonical}sitemap.xml`;
 
-  // Verify sitemap is reachable before pinging search engines
-  let sitemapReachable = true;
-  try {
-    const headRes = await fetch(sitemapUrl, { method: "HEAD" });
-    sitemapReachable = headRes.ok;
-    if (!sitemapReachable) {
-      console.error(`[Local] Sitemap not reachable at ${sitemapUrl}. Status: ${headRes.status}`);
-    }
-  } catch {
-    sitemapReachable = false;
-    console.error(`[Local] Failed to fetch sitemap at ${sitemapUrl}`);
+  if (process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL && process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY) {
+    await submitGoogleSitemap(sitemapUrl, siteUrlCanonical);
+  } else if (DEBUG_MODE) {
+    console.warn("[Google] Skipping sitemap submission – Google service-account env vars are missing.");
   }
 
-  if (sitemapReachable) {
-    // Google anonymous ping
+  // Submit an IndexNow payload if the key is available.
+  const INDEXNOW_KEY = process.env.INDEXNOW_KEY;
+
+  if (!INDEXNOW_KEY) {
+    if (DEBUG_MODE) {
+      console.warn("[IndexNow] Skipping – INDEXNOW_KEY env var not set.");
+    }
+  } else if (!/^[a-f0-9-]{32,}$/i.test(INDEXNOW_KEY)) {
+    console.error("[IndexNow] Invalid INDEXNOW_KEY format – must be a valid UUID or similar identifier.");
+  } else {
     try {
-      const googlePingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
-      const res = await fetch(googlePingUrl);
+      // Prepare payload following IndexNow JSON specification
+      const payload = {
+        host: new URL(BASE_SITE_URL).host,
+        key: INDEXNOW_KEY,
+        keyLocation: `${siteUrlCanonical}${INDEXNOW_KEY}.txt`,
+        urlList: sitemap().map((u) => u.url),
+      } as const;
+
+      const res = await fetch("https://api.indexnow.org/indexnow", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+        },
+        body: JSON.stringify(payload),
+      });
+
       if (res.ok) {
-        console.info("[Google] Sitemap ping successful.");
+        console.info("[IndexNow] Payload accepted. Submitted", payload.urlList.length, "URLs");
       } else {
-        console.error(`[Google] Sitemap ping failed. Status: ${res.status}`);
+        console.error(`[IndexNow] Submission failed. Status: ${res.status}`);
       }
     } catch (err) {
-      console.error("[Google] Error during sitemap ping:", err);
+      console.error("[IndexNow] Error while submitting payload:", err);
     }
-  } else if (DEBUG_MODE) {
-    console.info("[Google] Skipping ping because sitemap not reachable (dev environment?)");
-  }
-
-  // Bing IndexNow ping
-  const bingSubmissionUrl = `https://www.bing.com/webmaster/ping.aspx?siteMap=${sitemapUrl}`;
-
-  try {
-    const response = await fetch(bingSubmissionUrl);
-    if (response.ok) {
-      console.info("[Bing] Sitemap submitted successfully.");
-    } else {
-      console.error(`[Bing] Failed to submit sitemap. Status: ${response.status}`);
-    }
-  } catch (err) {
-    console.error("[Bing] An error occurred during sitemap submission:", err);
   }
 };
 

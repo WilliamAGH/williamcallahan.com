@@ -62,8 +62,10 @@ export async function BookmarksServer({
   } else {
     // Fetch bookmarks. If getBookmarks() throws, it will propagate up.
     const getBookmarksFunc = await getBookmarks();
-    bookmarks = await getBookmarksFunc({ includeImageData }) as UnifiedBookmark[];
-    console.log(`[BookmarksServer] Fetched via getBookmarks, count: ${bookmarks.length}, includeImageData: ${includeImageData}`);
+    bookmarks = (await getBookmarksFunc({ includeImageData })) as UnifiedBookmark[];
+    console.log(
+      `[BookmarksServer] Fetched via getBookmarks, count: ${bookmarks.length}, includeImageData: ${includeImageData}`,
+    );
     if (bookmarks.length > 0 && bookmarks[0]) {
       console.log("[BookmarksServer] First bookmark title:", bookmarks[0].title);
     } else {
@@ -99,14 +101,15 @@ export async function BookmarksServer({
     dateUpdated: bookmark.dateUpdated,
     // Only include heavy image data if explicitly requested
     content: includeImageData ? bookmark.content : undefined,
-    logoData: includeImageData && bookmark.logoData
-      ? {
-          url: bookmark.logoData.url,
-          alt: bookmark.logoData.alt || "Logo",
-          width: bookmark.logoData.width,
-          height: bookmark.logoData.height,
-        }
-      : null,
+    logoData:
+      includeImageData && bookmark.logoData
+        ? {
+            url: bookmark.logoData.url,
+            alt: bookmark.logoData.alt || "Logo",
+            width: bookmark.logoData.width,
+            height: bookmark.logoData.height,
+          }
+        : null,
     isPrivate: bookmark.isPrivate || false,
     isFavorite: bookmark.isFavorite || false,
     readingTime: bookmark.readingTime,
@@ -123,7 +126,7 @@ export async function BookmarksServer({
       bookmarks={serializableBookmarks}
       title={title}
       description={description}
-      searchAllBookmarks={!propsBookmarks}
+      searchAllBookmarks
       showFilterBar={showFilterBar}
       titleSlug={titleSlug}
       initialPage={initialPage}
