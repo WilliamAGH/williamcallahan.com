@@ -102,7 +102,11 @@ export function safeTrack(name: string, data: Record<string, unknown> = {}): voi
   }
   try {
     window.umami?.track?.(name, data);
-  } catch {
-    // Swallow to keep UI resilient
+  } catch (error: unknown) {
+    // Log error details in debug mode for better diagnosis
+    if (process.env.NODE_ENV === "development" || process.env.DEBUG === "true") {
+      console.error("[analytics] Failed to track event:", { name, data, error });
+    }
+    // Otherwise swallow to keep UI resilient
   }
 }
