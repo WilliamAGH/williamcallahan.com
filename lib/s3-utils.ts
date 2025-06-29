@@ -43,6 +43,20 @@ const MAX_S3_READ_SIZE = 50 * 1024 * 1024; // 50MB max read size to prevent memo
 // Request coalescing for duplicate S3 reads
 const inFlightReads = new Map<string, Promise<Buffer | string | null>>();
 
+// Helper: log a single warning when S3 configuration is missing, then downgrade subsequent messages to debug level
+const isS3FullyConfigured = Boolean(S3_BUCKET && S3_ENDPOINT_URL && S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY);
+
+let hasLoggedMissingS3Config = false;
+function logMissingS3ConfigOnce(context: string): void {
+  if (!hasLoggedMissingS3Config) {
+    console.warn(
+      "[S3Utils] Missing S3 configuration (S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). All S3 operations will be skipped.",
+    );
+    hasLoggedMissingS3Config = true;
+  }
+  if (isDebug) debug(`[S3Utils] Skipping ${context} because S3 is not configured.`);
+}
+
 // Utility: determine if an S3 key represents a potentially large binary (image) payload
 function isBinaryKey(key: string): boolean {
   // Fast-path: any key stored under images/ directory is binary
@@ -241,12 +255,8 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
       debug(`[S3Utils][DRY RUN] Would read from S3 key ${key}${options?.range ? ` with range ${options.range}` : ""}`);
     return null;
   }
-  if (!S3_BUCKET) {
-    console.error("[S3Utils] S3_BUCKET is not configured. Cannot read from S3.");
-    return null;
-  }
-  if (!s3Client) {
-    console.error("[S3Utils] S3 client is not initialized. Cannot read from S3.");
+  if (!isS3FullyConfigured || !s3Client) {
+    logMissingS3ConfigOnce("readFromS3");
     return null;
   }
 
@@ -349,12 +359,8 @@ export async function writeToS3(
       );
     return;
   }
-  if (!S3_BUCKET) {
-    console.error("[S3Utils] S3_BUCKET is not configured. Cannot write to S3.");
-    return;
-  }
-  if (!s3Client) {
-    console.error("[S3Utils] S3 client is not initialized. Cannot write to S3.");
+  if (!isS3FullyConfigured || !s3Client) {
+    logMissingS3ConfigOnce("writeToS3");
     return;
   }
   const command = new PutObjectCommand({
@@ -392,12 +398,8 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
     if (isDebug) debug(`[S3Utils][DRY RUN] Would check existence of S3 key ${key}`);
     return false;
   }
-  if (!S3_BUCKET) {
-    console.error("[S3Utils] S3_BUCKET is not configured. Cannot check S3 object existence.");
-    return false;
-  }
-  if (!s3Client) {
-    console.error("[S3Utils] S3 client is not initialized. Cannot check S3 object existence.");
+  if (!isS3FullyConfigured || !s3Client) {
+    logMissingS3ConfigOnce("checkIfS3ObjectExists");
     return false;
   }
   const command = new HeadObjectCommand({
@@ -432,12 +434,8 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
     if (isDebug) debug(`[S3Utils][DRY RUN] Would get metadata for S3 key ${key}`);
     return null;
   }
-  if (!S3_BUCKET) {
-    console.error("[S3Utils] S3_BUCKET is not configured. Cannot get S3 object metadata.");
-    return null;
-  }
-  if (!s3Client) {
-    console.error("[S3Utils] S3 client is not initialized. Cannot get S3 object metadata.");
+  if (!isS3FullyConfigured || !s3Client) {
+    logMissingS3ConfigOnce("getS3ObjectMetadata");
     return null;
   }
   const command = new HeadObjectCommand({
@@ -478,12 +476,8 @@ export async function listS3Objects(prefix: string): Promise<string[]> {
     if (isDebug) debug(`[S3Utils][DRY RUN] Would list S3 objects with prefix ${prefix}`);
     return [];
   }
-  if (!S3_BUCKET) {
-    console.error("[S3Utils] S3_BUCKET is not configured. Cannot list S3 objects.");
-    return [];
-  }
-  if (!s3Client) {
-    console.error("[S3Utils] S3 client is not initialized. Cannot list S3 objects.");
+  if (!isS3FullyConfigured || !s3Client) {
+    logMissingS3ConfigOnce("listS3Objects");
     return [];
   }
   const keys: string[] = [];
@@ -525,12 +519,8 @@ export async function deleteFromS3(key: string): Promise<void> {
     if (isDebug) debug(`[S3Utils][DRY RUN] Would delete S3 object: ${key}`);
     return;
   }
-  if (!S3_BUCKET) {
-    console.error("[S3Utils] S3_BUCKET is not configured. Cannot delete from S3.");
-    return;
-  }
-  if (!s3Client) {
-    console.error("[S3Utils] S3 client is not initialized. Cannot delete from S3.");
+  if (!isS3FullyConfigured || !s3Client) {
+    logMissingS3ConfigOnce("deleteFromS3");
     return;
   }
   const command = new DeleteObjectCommand({
