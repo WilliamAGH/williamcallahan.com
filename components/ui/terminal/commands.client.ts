@@ -34,11 +34,11 @@ function createSearchByScopeImpl() {
         return [];
       }
       const data: unknown = await response.json();
-      
+
       // Handle the different response format from scoped search API
       // The API returns { results: SearchResult[], meta: {...} }
       let searchResults: SearchResult[];
-      if (data && typeof data === 'object' && 'results' in data) {
+      if (data && typeof data === "object" && "results" in data) {
         // Type guard for scoped search response
         const typedData = data as { results: unknown; meta?: unknown };
         // Parse the results array from the response object
@@ -47,7 +47,7 @@ function createSearchByScopeImpl() {
         // Fallback: try parsing the data directly as an array
         searchResults = searchResultsSchema.parse(data);
       }
-      
+
       return searchResults.map(transformSearchResultToSelectionItem);
     } catch (error: unknown) {
       console.error(
@@ -61,7 +61,9 @@ function createSearchByScopeImpl() {
 }
 
 // Lazy-loaded search function - only loads when first search is performed
-let searchByScopeImpl: ((scope: string, query: string, signal?: AbortSignal) => Promise<TerminalSearchResult[]>) | null = null;
+let searchByScopeImpl:
+  | ((scope: string, query: string, signal?: AbortSignal) => Promise<TerminalSearchResult[]>)
+  | null = null;
 
 // Helper function to call the consolidated search API with lazy loading
 async function searchByScope(scope: string, query: string, signal?: AbortSignal): Promise<TerminalSearchResult[]> {
@@ -183,15 +185,25 @@ function getSchemaOrgData(): string {
 
     // Collect all JSON-LD data from scripts
     const schemas: unknown[] = Array.from(scripts).map((script) => {
-      // Typed schemas as unknown[]
       try {
-        return JSON.parse(script.textContent || "{}") as unknown; // Explicitly cast to unknown
+        return JSON.parse(script.textContent ?? "{}") as unknown; // Explicitly cast to unknown
       } catch (err: unknown) {
-        // Renamed err to _err and used it
         return {
           error: "Invalid JSON in schema",
           details: err instanceof Error ? err.message : String(err),
         };
+      }
+    });
+
+    // Collect OpenGraph metadata (e.g., <meta property="og:title" content="..." />)
+    const ogMetaElements = document.querySelectorAll<HTMLMetaElement>('meta[property^="og:"], meta[name^="og:"]');
+
+    const ogMetadata: Record<string, string> = {};
+    ogMetaElements.forEach((meta) => {
+      const key = meta.getAttribute("property") ?? meta.getAttribute("name");
+      const value = meta.getAttribute("content") ?? "";
+      if (key && value) {
+        ogMetadata[key] = value;
       }
     });
 
@@ -204,6 +216,7 @@ function getSchemaOrgData(): string {
       url: window.location.href,
       timestamp: new Date().toISOString(),
       schemas,
+      opengraph: ogMetadata,
     };
 
     // Return formatted JSON
@@ -239,8 +252,8 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
 
   // 1. First check for direct commands that take precedence
 
-  // Schema.org easter egg command
-  if (command === "schema.org") {
+  // Support both "schema" and "schema.org" for the schema diagnostics command
+  if (command === "schema" || command === "schema.org") {
     return {
       results: [
         {
