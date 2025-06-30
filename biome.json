@@ -133,6 +133,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["components/ui/terminal/terminal-loader.client.tsx"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off"
+          }
+        }
+      }
     }
   ]
 }
