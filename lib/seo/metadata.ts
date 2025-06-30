@@ -20,6 +20,9 @@
 import type { Metadata } from "next";
 import {
   PAGE_METADATA,
+  PAGE_OG_ASPECT,
+  OG_IMAGE_DIMENSIONS,
+  LOCAL_OG_ASSETS,
   SITE_DESCRIPTION_SHORT,
   SITE_NAME,
   SITE_TITLE,
@@ -220,7 +223,14 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
           { path, name: pageMetadata.title },
         ];
 
-  // Start with global default image but allow reassignment to page-specific images.
+  // Decide aspect ratio for this page key
+  const aspectKey = PAGE_OG_ASPECT[pageKey] ?? "legacy";
+
+  // Track image dimensions separately so we can override per-page when needed
+  let ogWidth: number = OG_IMAGE_DIMENSIONS[aspectKey].width;
+  let ogHeight: number = OG_IMAGE_DIMENSIONS[aspectKey].height;
+
+  // Default OG image path (can be overridden below)
   let ogImagePath: string = siteMetadata.defaultImage.url;
 
   if (pageKey === "bookmarks") {
@@ -231,10 +241,19 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
     ogImagePath = SEO_IMAGES.ogBlogIndex;
   }
 
+  // Type assertion is safe here because LOCAL_OG_ASSETS keys are the compile-time
+  // image paths defined in data/metadata.ts. If the path exists, we can rely on
+  // Next.js-provided width/height for perfect accuracy.
+  const maybeLocal = (LOCAL_OG_ASSETS as Record<string, { width: number; height: number }>)[ogImagePath];
+  if (maybeLocal) {
+    ogWidth = maybeLocal.width;
+    ogHeight = maybeLocal.height;
+  }
+
   const defaultOgImage = {
     url: ensureAbsoluteUrl(ogImagePath),
-    width: siteMetadata.defaultImage.width,
-    height: siteMetadata.defaultImage.height,
+    width: ogWidth,
+    height: ogHeight,
     alt: siteMetadata.defaultImage.alt,
     type: siteMetadata.defaultImage.type,
   };
