@@ -22,3 +22,6 @@ export { SelectionView } from "./selection-view.client";
 export type { TerminalCommand, SelectionItem } from "@/types/terminal";
 // Remove export of TerminalMode as it's no longer defined here
 // If WindowState is needed externally, it should be imported from '@/lib/hooks/use-window-state'
+
+// Export the lazy-loaded terminal loader
+export { TerminalLoader } from "./terminal-loader.client";
