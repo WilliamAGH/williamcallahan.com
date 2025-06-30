@@ -35,7 +35,7 @@ import { SvgTransformFixer } from "../components/utils/svg-transform-fixer.clien
 import { cn } from "../lib/utils";
 
 // Import the client-side terminal loader
-import { TerminalLoader } from "@/components/ui/terminal/terminal-loader.client";
+import { TerminalLoader } from "@/components/ui/terminal";
 
 /** Load Inter font with Latin subset and display swap */
 const inter = Inter({
