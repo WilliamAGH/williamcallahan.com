@@ -147,19 +147,19 @@ export function gradientTruncate(
     method = 'hard';
   } else if (overageRatio < 0.3) {
     // Light truncation (0-30% over)
-    truncated = lightTruncate(safeString, options) ?? 
-                hardTruncate(safeString, hardLimit, options);
-    method = truncated === hardTruncate(safeString, hardLimit, options) ? 'hard' : 'filler-word';
+    const hardTruncatedResult = hardTruncate(safeString, hardLimit, options);
+    truncated = lightTruncate(safeString, options) ?? hardTruncatedResult;
+    method = truncated === hardTruncatedResult ? 'hard' : 'filler-word';
   } else if (overageRatio < 0.7) {
     // Medium truncation (30-70% over)
-    truncated = mediumTruncate(safeString, options) ?? 
-                hardTruncate(safeString, hardLimit, options);
-    method = truncated === hardTruncate(safeString, hardLimit, options) ? 'hard' : 'parenthetical';
+    const hardTruncatedResult = hardTruncate(safeString, hardLimit, options);
+    truncated = mediumTruncate(safeString, options) ?? hardTruncatedResult;
+    method = truncated === hardTruncatedResult ? 'hard' : 'parenthetical';
   } else {
     // Heavy truncation (70-100% over)
-    truncated = heavyTruncate(safeString, options) ?? 
-                hardTruncate(safeString, hardLimit, options);
-    method = truncated === hardTruncate(safeString, hardLimit, options) ? 'hard' : 'keyword';
+    const hardTruncatedResult = hardTruncate(safeString, hardLimit, options);
+    truncated = heavyTruncate(safeString, options) ?? hardTruncatedResult;
+    method = truncated === hardTruncatedResult ? 'hard' : 'keyword';
   }
   
   return createResult(
