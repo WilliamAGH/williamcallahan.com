@@ -25,7 +25,7 @@ import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-regist
 // Re-add direct imports
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
 // Terminal is now dynamically imported for lazy loading
-import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, metadata as siteMetadata } from "../data/metadata";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, metadata as siteMetadata, SEO_IMAGES } from "../data/metadata";
 import { Providers } from "./providers.client";
 
 import { Analytics } from "@/components/analytics/analytics.client";
@@ -80,6 +80,14 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: siteMetadata.social.twitter,
     creator: siteMetadata.social.twitter,
+  },
+  icons: {
+    icon: SEO_IMAGES.faviconIco,
+    shortcut: "/favicon.ico", // keep root fallback for legacy browsers
+    apple: SEO_IMAGES.appleTouch,
+    other: [
+      { rel: "manifest", url: "/favicons/site.webmanifest" }, // if added
+    ],
   },
   alternates: {
     ...(process.env.NODE_ENV === "production" && {

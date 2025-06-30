@@ -117,7 +117,7 @@ export function gradientTruncate(
   
   // Handle empty/null input
   if (!text || typeof text !== 'string') {
-    return createResult('', String(text ?? ''), false, 'none', 0, 0, startTime);
+    return createResult('', String(text ?? ''), false, 'none', 0, 0, startTime, true, 0, 0);
   }
   
   // Normalize and create safe string
@@ -128,14 +128,15 @@ export function gradientTruncate(
   if (safeString.length <= options.softLimit) {
     return createResult(
       normalized, normalized, false, 'none',
-      safeString.length, 0, startTime, safeString.isUnicodeAware
+      safeString.length, 0, startTime, safeString.isUnicodeAware,
+      options.softLimit, options.hardLimit ?? options.softLimit + 20
     );
   }
   
   // Calculate overage
   const overage = safeString.length - options.softLimit;
   const hardLimit = options.hardLimit ?? options.softLimit + 20;
-  const overageRatio = Math.min(overage / (hardLimit - options.softLimit), 1);
+  const overageRatio = Math.min(overage / Math.max(hardLimit - options.softLimit, 1e-6), 1);
   
   let truncated: string;
   let method: TruncationResult['strategy'];
@@ -147,24 +148,25 @@ export function gradientTruncate(
     method = 'hard';
   } else if (overageRatio < 0.3) {
     // Light truncation (0-30% over)
-    truncated = lightTruncate(safeString, options) ?? 
-                hardTruncate(safeString, hardLimit, options);
-    method = truncated === hardTruncate(safeString, hardLimit, options) ? 'hard' : 'filler-word';
+    const hardTruncatedResult = hardTruncate(safeString, hardLimit, options);
+    truncated = lightTruncate(safeString, options) ?? hardTruncatedResult;
+    method = truncated === hardTruncatedResult ? 'hard' : 'filler-word';
   } else if (overageRatio < 0.7) {
     // Medium truncation (30-70% over)
-    truncated = mediumTruncate(safeString, options) ?? 
-                hardTruncate(safeString, hardLimit, options);
-    method = truncated === hardTruncate(safeString, hardLimit, options) ? 'hard' : 'parenthetical';
+    const hardTruncatedResult = hardTruncate(safeString, hardLimit, options);
+    truncated = mediumTruncate(safeString, options) ?? hardTruncatedResult;
+    method = truncated === hardTruncatedResult ? 'hard' : 'parenthetical';
   } else {
     // Heavy truncation (70-100% over)
-    truncated = heavyTruncate(safeString, options) ?? 
-                hardTruncate(safeString, hardLimit, options);
-    method = truncated === hardTruncate(safeString, hardLimit, options) ? 'hard' : 'keyword';
+    const hardTruncatedResult = hardTruncate(safeString, hardLimit, options);
+    truncated = heavyTruncate(safeString, options) ?? hardTruncatedResult;
+    method = truncated === hardTruncatedResult ? 'hard' : 'keyword';
   }
   
   return createResult(
     normalized, truncated, true, method,
-    safeString.length, overage, startTime, safeString.isUnicodeAware
+    safeString.length, overage, startTime, safeString.isUnicodeAware,
+    options.softLimit, hardLimit
   );
 }
 
@@ -275,13 +277,17 @@ function createResult(
   originalLength: number,
   overage: number,
   startTime: number,
-  unicodeAware = true
+  unicodeAware = true,
+  softLimit?: number,
+  hardLimit?: number
 ): TruncationResult {
   const metrics: TruncationMetrics = {
     originalLength,
     finalLength: new SafeString(text).length,
     overage,
-    overageRatio: overage > 0 ? overage / 20 : 0, // Based on 20 char allowance
+    overageRatio: overage > 0 && softLimit && hardLimit && hardLimit !== softLimit 
+      ? overage / Math.max(hardLimit - softLimit, 1e-6) 
+      : 0,
     processingTime: performance.now() - startTime,
     unicodeAware
   };

@@ -142,7 +142,7 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   const pageBookmarks = bookmarks.slice(startIdx, startIdx + PAGE_SIZE);
 
   const itemList = pageBookmarks.map((bookmark, idx) => {
-    const slug = generateUniqueSlug(bookmark.url, pageBookmarks, bookmark.id);
+    const slug = generateUniqueSlug(bookmark.url, bookmarks, bookmark.id);
     return {
       url: ensureAbsoluteUrl(`/bookmarks/${slug}`),
       position: idx + 1,
