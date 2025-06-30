@@ -203,8 +203,8 @@ export const metadata = {
   /** Default image used for social sharing */
   defaultImage: {
     url: SEO_IMAGES.ogDefault,
-    width: 1200,
-    height: 630,
+    width: 1440,
+    height: 900,
     alt: `${SITE_NAME} on Finance, Startups, & Engineering in San Francisco`,
     type: "image/png",
   },
@@ -218,8 +218,8 @@ export const metadata = {
     images: [
       {
         url: SEO_IMAGES.ogDefault,
-        width: 1200,
-        height: 630,
+        width: 1440,
+        height: 900,
         alt: `${SITE_NAME} – default social image`,
         type: "image/png",
       },
