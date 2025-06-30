@@ -18,6 +18,7 @@ import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { OG_IMAGE_DIMENSIONS } from "@/data/metadata";
 
 // No static params generation for dynamic pages
 
@@ -93,8 +94,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
         images: [
           {
             url: imageUrl,
-            width: 1200,
-            height: 630,
+            width: OG_IMAGE_DIMENSIONS.legacy.width,
+            height: OG_IMAGE_DIMENSIONS.legacy.height,
             alt: customTitle,
           },
         ],
@@ -176,8 +177,8 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     image: imageUrl
       ? {
           url: imageUrl,
-          width: 1200,
-          height: 630,
+          width: OG_IMAGE_DIMENSIONS.legacy.width,
+          height: OG_IMAGE_DIMENSIONS.legacy.height,
           caption: seoTitle,
         }
       : undefined,
