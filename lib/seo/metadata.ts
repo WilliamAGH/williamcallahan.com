@@ -219,6 +219,15 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
           { path, name: pageMetadata.title },
         ];
 
+  // Build absolute default image once to reuse
+  const defaultOgImage = {
+    url: ensureAbsoluteUrl(siteMetadata.defaultImage.url),
+    width: siteMetadata.defaultImage.width,
+    height: siteMetadata.defaultImage.height,
+    alt: siteMetadata.defaultImage.alt,
+    type: siteMetadata.defaultImage.type,
+  };
+
   // Generate schema graph
   const schemaParams: SchemaParams = {
     path,
@@ -263,7 +272,7 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
         description: pageMetadata.description,
         type: "profile",
         url: ensureAbsoluteUrl(path),
-        images: [siteMetadata.defaultImage],
+        images: [defaultOgImage],
         siteName: SITE_NAME,
         locale: "en_US",
         firstName: SITE_NAME.split(" ")[0],
@@ -276,7 +285,7 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
           description: pageMetadata.description,
           type: "article",
           url: ensureAbsoluteUrl(path),
-          images: [siteMetadata.defaultImage],
+          images: [defaultOgImage],
           siteName: SITE_NAME,
           locale: "en_US",
           article: {
@@ -293,7 +302,7 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
             description: pageMetadata.description,
             type: "website",
             url: ensureAbsoluteUrl(path),
-            images: [siteMetadata.defaultImage],
+            images: [defaultOgImage],
             siteName: SITE_NAME,
             locale: "en_US",
           }
@@ -302,7 +311,7 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
             description: pageMetadata.description,
             type: "article",
             url: ensureAbsoluteUrl(path),
-            images: [siteMetadata.defaultImage],
+            images: [defaultOgImage],
             siteName: SITE_NAME,
             locale: "en_US",
             article: {
@@ -329,10 +338,10 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
     ],
     openGraph,
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title: pageMetadata.title,
       description: pageMetadata.description,
-      images: [siteMetadata.defaultImage],
+      images: [ensureAbsoluteUrl(siteMetadata.defaultImage.url)],
       creator: siteMetadata.social.twitter,
     },
     other: {

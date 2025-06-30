@@ -3,6 +3,7 @@ graph TB
     
     subgraph "Metadata Configuration"
         METADATA[data/metadata.ts<br/>Site constants & defaults]
+        SEO_IMAGES[data/metadata.ts<br/>SEO_IMAGES registry]
         TYPES[types/seo/*<br/>Type definitions & validation]
     end
     
@@ -44,6 +45,7 @@ graph TB
     
     %% Data Flow - Metadata Generation
     METADATA --> INDEX
+    SEO_IMAGES --> INDEX
     TYPES --> INDEX
     INDEX --> META
     META --> SCHEMA

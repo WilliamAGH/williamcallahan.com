@@ -17,6 +17,28 @@ The "seo" functionality manages search engine optimization by generating metadat
 - **`lib/seo/metadata.ts`**: Generates the main metadata structure for different content types (articles, static pages, software), including titles, descriptions, and Twitter cards. It also integrates the schema graph from `schema.ts` and OpenGraph data from `opengraph.ts`.
 - **`data/metadata.ts`**: Acts as the single source of truth for all base metadata values, such as site title, author, and social media handles.
 
+## Shared Image Registry
+
+All social-sharing and favicon assets are defined **once** in `data/metadata.ts` via the exported `SEO_IMAGES` constant:
+
+| Constant | Purpose | Path |
+|----------|---------|------|
+| `SEO_IMAGES.ogDefault` | Site-wide default OpenGraph & Twitter card (1200×630 PNG) | `/images/og/default-og.png` |
+| `SEO_IMAGES.ogLogo` | Optional logo-only card | `/images/og/logo-og.png` |
+| `SEO_IMAGES.ogBookmarks` | Bookmarks collection card | `/images/og/bookmarks-og.png` |
+| `SEO_IMAGES.ogProjects` | Projects collection card | `/images/og/projects-og.png` |
+| `SEO_IMAGES.ogBlogIndex` | Blog index card | `/images/og/blog-og.png` |
+| `SEO_IMAGES.ogDynamicFallback` | Fallback returned by `/api/og-image` | `/images/og/dynamic-fallback.png` |
+| `SEO_IMAGES.faviconIco` | Favicon (ICO multi-size) | `/favicon.ico` |
+| `SEO_IMAGES.faviconSvg` | Favicon SVG (hi-DPI) | `/favicon.svg` |
+| `SEO_IMAGES.appleTouch` | Apple touch icon 180×180 | `/apple-touch-icon.png` |
+| `SEO_IMAGES.android192` | Android/manifest 192×192 | `/android-chrome-192x192.png` |
+| `SEO_IMAGES.android512` | Android/manifest 512×512 | `/android-chrome-512x512.png` |
+
+> Any missing file is annotated with `// TODO` in `data/metadata.ts` so build scripts surface it immediately.
+
+`lib/seo/metadata.ts` converts each relative path to an absolute HTTPS URL via `ensureAbsoluteUrl()` at the point it is inserted into meta tags, guaranteeing crawlers always see valid images.
+
 ## Sub-Modules
 
 ### Structured Data (JSON-LD)
