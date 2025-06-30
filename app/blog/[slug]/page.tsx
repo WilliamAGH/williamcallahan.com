@@ -187,7 +187,9 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     // Build JSON-LD schema graph (Next.js metadata script tag not reliable for bots)
     const isSoftwarePost = SOFTWARE_POSTS.includes(slug);
 
-    const pageType: "software" | "newsarticle" = isSoftwarePost ? "software" : "newsarticle";
+    const pageType: "software" | "article" = isSoftwarePost ? "software" : "article";
+
+    const absoluteImageUrl = post.coverImage ? ensureAbsoluteUrl(post.coverImage) : undefined;
 
     const schemaParams = {
       path: `/blog/${post.slug}`,
@@ -198,13 +200,14 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       type: pageType,
       articleBody: post.rawContent ?? post.excerpt,
       keywords: post.tags,
-      image: post.coverImage
+      image: absoluteImageUrl
         ? {
-            url: post.coverImage,
+            url: absoluteImageUrl,
             width: 1200,
             height: 630,
           }
         : undefined,
+      images: absoluteImageUrl ? [absoluteImageUrl] : undefined,
       breadcrumbs: [
         { path: "/", name: "Home" },
         { path: "/blog", name: "Blog" },
