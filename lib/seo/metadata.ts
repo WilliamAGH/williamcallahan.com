@@ -23,6 +23,7 @@ import {
   SITE_DESCRIPTION_SHORT,
   SITE_NAME,
   SITE_TITLE,
+  SEO_IMAGES,
   metadata as siteMetadata,
 } from "../../data/metadata";
 import type { ArticleMetadata, ExtendedMetadata, ArticleParams, SoftwareAppParams } from "../../types/seo";
@@ -219,9 +220,19 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
           { path, name: pageMetadata.title },
         ];
 
-  // Build absolute default image once to reuse
+  // Start with global default image but allow reassignment to page-specific images.
+  let ogImagePath: string = siteMetadata.defaultImage.url;
+
+  if (pageKey === "bookmarks") {
+    ogImagePath = SEO_IMAGES.ogBookmarks;
+  } else if (pageKey === "projects") {
+    ogImagePath = SEO_IMAGES.ogProjects;
+  } else if (pageKey === "blog") {
+    ogImagePath = SEO_IMAGES.ogBlogIndex;
+  }
+
   const defaultOgImage = {
-    url: ensureAbsoluteUrl(siteMetadata.defaultImage.url),
+    url: ensureAbsoluteUrl(ogImagePath),
     width: siteMetadata.defaultImage.width,
     height: siteMetadata.defaultImage.height,
     alt: siteMetadata.defaultImage.alt,
@@ -341,7 +352,7 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
       card: "summary_large_image",
       title: pageMetadata.title,
       description: pageMetadata.description,
-      images: [ensureAbsoluteUrl(siteMetadata.defaultImage.url)],
+      images: [ensureAbsoluteUrl(ogImagePath)],
       creator: siteMetadata.social.twitter,
     },
     other: {
