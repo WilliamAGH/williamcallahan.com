@@ -369,10 +369,11 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
     openGraph,
     twitter: {
       card: "summary_large_image",
+      site: siteMetadata.social.twitter,
+      creator: siteMetadata.social.twitter,
       title: pageMetadata.title,
       description: pageMetadata.description,
       images: [ensureAbsoluteUrl(ogImagePath)],
-      creator: siteMetadata.social.twitter,
     },
     other: {
       // Standard HTML meta dates
