@@ -280,13 +280,16 @@ async function submitToIndexNow(siteUrlCanonical: string): Promise<void> {
       console.info(`${LOG_PREFIX.indexNow} Submitting with payload:`, JSON.stringify(payload, null, 2));
     }
 
-    const aggregatorEndpoint = "https://api.indexnow.org/indexnow";
-    const bingEndpoint = "https://www.bing.com/indexnow";
+    const aggregatorEndpoint = "https://api.indexnow.org/IndexNow";
+    const bingEndpoint = "https://www.bing.com/IndexNow";
 
     const attemptSubmit = async (endpoint: string): Promise<Response> => {
       return fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json; charset=utf-8" },
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "User-Agent": "williamcallahan.com-sitemap-script/1.0",
+        },
         body: JSON.stringify(payload),
       });
     };
