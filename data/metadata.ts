@@ -63,6 +63,24 @@ import type { ProfilePageMetadata, CollectionPageMetadata } from "@/types/seo";
  * @see {@link "https://schema.org/dateModified"} - Update dateModified whenever page content changes
  * @see {@link "https://schema.org/dateCreated"} - The date each page was first published
  */
+export const SEO_IMAGES = {
+  /** Site-wide default OpenGraph/Twitter image (1200×630 PNG) */
+  ogDefault: "/images/og/default-og.png",
+  /** Stand-alone logo card (optional) */
+  ogLogo: "/images/og/android-chrome-512x512.png",
+  /** Collection pages */
+  ogBookmarks: "/images/og/bookmarks-og.png",
+  ogProjects: "/images/og/projects-og.png",
+  ogBlogIndex: "/images/og/blog-og.png",
+  /** Fallback for dynamic /api/og-image route */
+  ogDynamicFallback: "/images/og/default-og.png", // alias of ogDefault for dynamic route fallback
+  /** Favicons & touch icons */
+  faviconIco: "/images/favicons/favicon.ico",
+  appleTouch: "/images/favicons/apple-180x180-touch-icon.png",
+  android192: "/images/favicons/android-chrome-192x192.png",
+  android512: "/images/favicons/android-chrome-512x512.png",
+} as const;
+
 export const PAGE_METADATA = {
   home: {
     title: SITE_TITLE,
@@ -184,11 +202,11 @@ export const metadata = {
 
   /** Default image used for social sharing */
   defaultImage: {
-    url: "/images/posts/npm_terminal.svg",
-    width: 800,
-    height: 400,
+    url: SEO_IMAGES.ogDefault,
+    width: 1200,
+    height: 630,
     alt: `${SITE_NAME} on Finance, Startups, & Engineering in San Francisco`,
-    type: "image/svg+xml",
+    type: "image/png",
   },
 
   /** OpenGraph-specific metadata */
@@ -199,11 +217,11 @@ export const metadata = {
     siteName: SITE_NAME,
     images: [
       {
-        url: "/images/posts/npm_terminal.svg",
-        width: 800,
-        height: 400,
+        url: SEO_IMAGES.ogDefault,
+        width: 1200,
+        height: 630,
         alt: `${SITE_NAME} – default social image`,
-        type: "image/svg+xml",
+        type: "image/png",
       },
     ],
   },
