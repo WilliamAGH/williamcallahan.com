@@ -25,7 +25,7 @@ export interface PersonSchema extends SchemaBase {
   description: string;
   url: string;
   sameAs: string[];
-  image?: { "@id": string };
+  image?: string | { "@id": string };
 }
 
 /**
@@ -83,7 +83,7 @@ export interface ArticleSchema extends SchemaBase {
   articleSection: string;
   inLanguage: string;
   articleBody: string;
-  keywords: string[];
+  keywords?: string | string[];
 }
 
 /**
@@ -278,7 +278,16 @@ export interface SchemaParams {
     url?: string;
   }>;
   mainEntityOfPage?: { "@id": string };
-  type?: "article" | "profile" | "collection" | "dataset" | "newsarticle" | "software";
+  type?:
+    | "article"
+    | "profile"
+    | "collection"
+    | "dataset"
+    | "newsarticle"
+    | "software"
+    | "bookmark-item"
+    | "bookmark-collection";
+  itemList?: Array<{ url: string; position: number }>;
   profileMetadata?: {
     bio?: string;
     alternateName?: string;

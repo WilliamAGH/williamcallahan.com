@@ -17,8 +17,12 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
+import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
+import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { sanitizeUnicode } from "@/lib/utils/tag-utils";
 import type { PaginatedTagBookmarkContext } from "@/types";
 import { PageNumberSchema } from "@/types/lib";
@@ -91,13 +95,15 @@ export async function generateMetadata({ params }: PaginatedTagBookmarkContext):
 
   const customTitle =
     pageNum === 1
-      ? `${displayTag} Bookmarks | William Callahan`
-      : `${displayTag} Bookmarks - Page ${pageNum} | William Callahan`;
+      ? generateDynamicTitle(`${displayTag} Bookmarks`, "bookmarks", { isTag: true })
+      : generateDynamicTitle(`${displayTag} Bookmarks`, "bookmarks", {
+          isTag: true,
+          isPaginated: true,
+          pageNumber: pageNum,
+        });
 
-  const customDescription =
-    pageNum === 1
-      ? `A collection of articles, websites, and resources I've saved about ${displayTag.toLowerCase()} for future reference.`
-      : `A collection of articles, websites, and resources I've saved about ${displayTag.toLowerCase()} for future reference. Page ${pageNum} of ${totalPages}.`;
+  const baseDescription = generateTagDescription(displayTag, "bookmarks");
+  const customDescription = pageNum === 1 ? baseDescription : `${baseDescription} Page ${pageNum} of ${totalPages}.`;
 
   const metadata: Metadata = {
     ...baseMetadata,
@@ -106,8 +112,8 @@ export async function generateMetadata({ params }: PaginatedTagBookmarkContext):
     alternates: {
       canonical:
         pageNum === 1
-          ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}`
-          : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`,
+          ? ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`)
+          : ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`),
     },
     openGraph: baseMetadata.openGraph
       ? {
@@ -116,8 +122,8 @@ export async function generateMetadata({ params }: PaginatedTagBookmarkContext):
           description: customDescription,
           url:
             pageNum === 1
-              ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}`
-              : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`,
+              ? ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`)
+              : ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`),
         }
       : undefined,
     twitter: {
@@ -142,15 +148,15 @@ export async function generateMetadata({ params }: PaginatedTagBookmarkContext):
       rel: "prev",
       url:
         pageNum === 2
-          ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}`
-          : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum - 1}`,
+          ? ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`)
+          : ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum - 1}`),
     });
   }
 
   if (pageNum < totalPages) {
     paginationLinks.push({
       rel: "next",
-      url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum + 1}`,
+      url: ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum + 1}`),
     });
   }
 
@@ -213,21 +219,14 @@ export default async function PaginatedTagBookmarksPage({ params }: PaginatedTag
   }
 
   // Find display name for the tag
-  let displayTag = tagQuery;
+  let displayTag = formatTagDisplay(tagQuery);
   if (taggedBookmarks.length > 0) {
     for (const bookmark of taggedBookmarks) {
       const bookmarkTags = Array.isArray(bookmark.tags) ? bookmark.tags : [];
       for (const t of bookmarkTags) {
         const tagName = typeof t === "string" ? t : t.name;
         if (tagName.toLowerCase() === tagQuery.toLowerCase()) {
-          if (/[A-Z]/.test(tagName.slice(1))) {
-            displayTag = tagName;
-          } else {
-            displayTag = tagQuery
-              .split(/[\s-]+/)
-              .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-              .join(" ");
-          }
+          displayTag = formatTagDisplay(tagName);
           break;
         }
       }
@@ -235,22 +234,32 @@ export default async function PaginatedTagBookmarksPage({ params }: PaginatedTag
   }
 
   const pageTitle = `${displayTag} Bookmarks`;
-  const pageDescription = `A collection of articles, websites, and resources I've saved about ${displayTag.toLowerCase()} for future reference. Page ${pageNum} of ${totalPages}.`;
+  const pageDescription = `${generateTagDescription(displayTag, "bookmarks")} Page ${pageNum} of ${totalPages}.`;
 
-  // JSON-LD data for paginated collection
-  const jsonLdData = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: `${pageTitle} - Page ${pageNum}`,
+  // Build itemList using pre-filtered taggedBookmarks slice for this page
+  const PAGE_SIZE = 24;
+  const startIdx = (pageNum - 1) * PAGE_SIZE;
+  const pageBookmarks = taggedBookmarks.slice(startIdx, startIdx + PAGE_SIZE);
+
+  const itemList = pageBookmarks.map((bookmark, idx) => {
+    const slug = generateUniqueSlug(bookmark.url, pageBookmarks, bookmark.id);
+    return {
+      url: ensureAbsoluteUrl(`/bookmarks/${slug}`),
+      position: idx + 1,
+    } as const;
+  });
+
+  const nowIso = new Date().toISOString();
+
+  const jsonLdData = generateSchemaGraph({
+    path: `/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`,
+    title: `${pageTitle} - Page ${pageNum}`,
     description: pageDescription,
-    url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`,
-    isPartOf: {
-      "@type": "Collection",
-      name: pageTitle,
-      url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}`,
-    },
-    position: pageNum,
-  };
+    datePublished: nowIso,
+    dateModified: nowIso,
+    type: "bookmark-collection",
+    itemList,
+  });
 
   return (
     <>

@@ -151,6 +151,8 @@ export enum ErrorCategory {
   HTTP = "http",
   S3 = "s3",
   GITHUB_API = "github_api",
+  AI_PROVIDER = "ai_provider",
+  SEARCH_PROVIDER = "search_provider",
   RATE_LIMIT = "rate_limit",
   MEMORY_PRESSURE = "memory_pressure",
   TIMEOUT = "timeout",

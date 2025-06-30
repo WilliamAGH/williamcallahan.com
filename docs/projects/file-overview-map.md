@@ -164,6 +164,23 @@ File/Path                                       Functionality                   
 
 ## Lib Directory
 
+- [ ] **ai/**                                   `ai-shared-services`    - Unified AI provider and web search services
+  - [ ] **providers/**
+    - [ ] `openai.ts`                          `ai-shared-services`    - OpenAI provider implementation
+    - [ ] `openrouter.ts`                      `ai-shared-services`    - OpenRouter provider implementation
+    - [ ] `perplexity.ts`                      `ai-shared-services`    - Perplexity provider implementation
+    - [ ] `groq.ts`                            `ai-shared-services`    - Groq provider implementation
+    - [ ] `local-models.ts`                    `ai-shared-services`    - Base class for OpenAI-compatible local providers
+    - [ ] `ollama.ts`                          `ai-shared-services`    - Ollama provider (exports from local-models.ts)
+    - [ ] `lmstudio.ts`                        `ai-shared-services`    - LM Studio provider (exports from local-models.ts)
+  - [ ] **search/**
+    - [ ] `brave.ts`                           `ai-shared-services`    - Brave Search implementation
+    - [ ] `perplexity.ts`                      `ai-shared-services`    - Perplexity Search implementation
+    - [ ] `serper.ts`                          `ai-shared-services`    - Serper API implementation
+    - [ ] `duckduckgo.ts`                      `ai-shared-services`    - DuckDuckGo Search implementation
+  - [ ] `unified-ai-service.ts`                `ai-shared-services`    - Main AI service singleton
+  - [ ] `unified-search-service.ts`            `ai-shared-services`    - Main search service singleton
+  - [ ] `types.ts`                             `ai-shared-services`    - Shared type definitions
 - [x] `async-job-queue.ts`                      `bookmarks`             - Asynchronous job queue implementation
 - [ ] `async-operations-monitor.ts`             `instrumentation-monitoring` - Global async operations tracker & timeout guard
 - [x] `blog.ts`                                 `blog`                  - Blog data helper functions

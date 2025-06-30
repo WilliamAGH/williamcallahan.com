@@ -27,6 +27,7 @@ This guide is the **single source of truth** for code quality and covers:
 | Functionality | Core Objective | Documentation | Diagram |
 |---------------|----------------|---------------|---------|
 | `accessibility` | Provide reusable components and utilities to enhance accessibility and ensure WCAG compliance. | [accessibility.md](./accessibility.md) | [Diagram](./accessibility.mmd) |
+| `ai-shared-services` | Unified AI provider integration (OpenAI, OpenRouter, Perplexity, Groq) and web search APIs with streaming, tool calling, and modern features. | [ai-shared-services.md](./ai-shared-services.md) | |
 | `analytics` | Load and manage third-party tracking scripts (Plausible, Umami, Clicky) in a safe, non-blocking, and privacy-conscious manner. | [analytics.md](./analytics.md) | |
 | `app-layout` | Provide the root layout wrapper with global styles, providers, and a consistent UI structure for all pages. | [app-layout.md](./app-layout.md) | [Diagram](./app-layout.mmd) |
 | `batch-fetch-update` | Outline the automated background refresh schedule and batch processing architecture for production data. | [batch-fetch-update.md](./batch-fetch-update.md) | |
