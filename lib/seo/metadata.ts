@@ -234,14 +234,16 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
   let ogImagePath: string = siteMetadata.defaultImage.url;
 
   if (pageKey === "bookmarks") {
-    ogImagePath = SEO_IMAGES.ogBookmarks; // actual asset 1440×900 but close to legacy
+    ogImagePath = SEO_IMAGES.ogBookmarks;
   } else if (pageKey === "projects") {
     ogImagePath = SEO_IMAGES.ogProjects;
   } else if (pageKey === "blog") {
     ogImagePath = SEO_IMAGES.ogBlogIndex;
   }
 
-  // If this OG image exists in LOCAL_OG_ASSETS, override width/height with exact build-time values.
+  // Type assertion is safe here because LOCAL_OG_ASSETS keys are the compile-time
+  // image paths defined in data/metadata.ts. If the path exists, we can rely on
+  // Next.js-provided width/height for perfect accuracy.
   const maybeLocal = (LOCAL_OG_ASSETS as Record<string, { width: number; height: number }>)[ogImagePath];
   if (maybeLocal) {
     ogWidth = maybeLocal.width;
