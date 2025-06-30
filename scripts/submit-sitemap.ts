@@ -39,23 +39,52 @@ import { loadRateLimitStoreFromS3, incrementAndPersist, persistRateLimitStoreToS
 import { INDEXING_RATE_LIMIT_PATH } from "@/lib/constants";
 
 /**
- * Processes the Google Cloud private key from an environment variable.
- * The key is expected to be a single-line string with escaped newlines.
- * This function replaces the escaped newlines with actual newline characters.
+ * Normalizes the service-account private key coming from environment variables
  *
- * @param key The private key string from the environment variable.
- * @returns The processed private key with actual newlines.
+ * Google keys can arrive in three shapes:
+ *   1. One-line string where newline characters are escaped ("\n") – typical when
+ *      the JSON key is copied into an env file
+ *   2. Base-64-encoded PEM block – common when secrets managers strip newlines
+ *   3. Multiline PEM string already containing real newlines (Kubernetes / Cloud-run secrets)
+ *
+ * This script supports all three - the output is always a valid PEM string
+ * starting with "-----BEGIN PRIVATE KEY-----" and containing *real* newlines
  */
 function processGooglePrivateKey(key?: string): string {
   if (!key) {
-    throw new Error("Google Cloud private key is not defined in environment variables.");
+    throw new Error("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY env var is missing.");
   }
-  return key.replace(/\\n/g, "\n");
+
+  let processed = key;
+
+  // Case 1: escaped newlines – replace with real newlines
+  if (processed.includes("\\n")) {
+    processed = processed.replace(/\\n/g, "\n");
+  }
+
+  // Case 2: base64 – try to decode and see if we get a PEM header
+  if (!processed.startsWith("-----BEGIN")) {
+    try {
+      const decoded = Buffer.from(processed, "base64").toString("utf-8");
+      if (decoded.startsWith("-----BEGIN")) {
+        processed = decoded;
+      }
+    } catch {
+      // fall through – decoding failed, we'll validate later
+    }
+  }
+
+  // Final validation – must contain PEM header
+  if (!processed.startsWith("-----BEGIN PRIVATE KEY-----")) {
+    throw new Error("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY does not appear to be a valid PEM formatted private key.");
+  }
+
+  return processed;
 }
 
 // The same service-account credential is re-used for both the Indexing API and
-// the Search Console API (sitemaps.submit) endpoints.  We therefore request
-// both scopes up-front so we don't need two separate JWT instances.
+// the Search Console API (sitemaps.submit) endpoint - this requests both scopes
+// up-front so it doesn't need two separate JWT instances
 const authClient = new JWT({
   email: process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL,
   key: processGooglePrivateKey(process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY),
