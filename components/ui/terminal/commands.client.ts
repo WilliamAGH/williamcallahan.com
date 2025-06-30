@@ -148,6 +148,8 @@ const HELP_MESSAGE = `
 Available commands:
   help                Show this help message
   clear              Clear terminal history
+  schema[.org]       Show metadata for current page
+                     Add --debug for diagnostic info
 
 Navigation:
   home               Go to home page
@@ -167,14 +169,17 @@ Examples:
   investments fintech
   experience 2020
   bookmarks AI
+  schema
+  schema --debug
   clear
 `.trim();
 
 /**
  * Get the Schema.org data for the current page
+ * @param includeDebug - Whether to include debug information (path, URL, timestamp)
  * @returns Schema.org JSON-LD data as a formatted string
  */
-function getSchemaOrgData(): string {
+function getSchemaOrgData(includeDebug = false): string {
   try {
     // Find all script tags with type application/ld+json
     const scripts = document.querySelectorAll('script[type="application/ld+json"]');
@@ -207,11 +212,18 @@ function getSchemaOrgData(): string {
       }
     });
 
-    // Get the current path to include in the diagnostics
-    const path = window.location.pathname;
+    // For non-debug mode, just return the clean output
+    if (!includeDebug) {
+      const output = {
+        schemas,
+        opengraph: ogMetadata,
+      };
+      return JSON.stringify(output, null, 2);
+    }
 
-    // Format the diagnostics output
-    const output = {
+    // Debug mode includes additional information
+    const path = window.location.pathname;
+    const debugOutput = {
       path,
       url: window.location.href,
       timestamp: new Date().toISOString(),
@@ -219,8 +231,8 @@ function getSchemaOrgData(): string {
       opengraph: ogMetadata,
     };
 
-    // Return formatted JSON
-    return `Schema.org Diagnostics for ${path}:\n\n${JSON.stringify(output, null, 2)}`;
+    // Return formatted JSON with debug header
+    return `Schema.org Diagnostics for ${path}:\n\n${JSON.stringify(debugOutput, null, 2)}`;
   } catch (error: unknown) {
     console.error("Error retrieving schema data:", error instanceof Error ? error.message : "Unknown error");
     return "Error retrieving Schema.org data. Check the console for details.";
@@ -254,13 +266,16 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
 
   // Support both "schema" and "schema.org" for the schema diagnostics command
   if (command === "schema" || command === "schema.org") {
+    // Check if --debug flag was passed
+    const includeDebug = args.includes("--debug");
+    
     return {
       results: [
         {
           type: "text",
           id: crypto.randomUUID(),
           input: "",
-          output: getSchemaOrgData(),
+          output: getSchemaOrgData(includeDebug),
           timestamp: Date.now(),
         },
       ],

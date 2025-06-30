@@ -21,20 +21,12 @@ import { notFound, redirect } from "next/navigation";
 import { BookmarksServer } from "../../../../components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "../../../../components/seo/json-ld";
 import { getStaticPageMetadata } from "../../../../lib/seo/metadata";
+import { generateDynamicTitle } from "../../../../lib/seo/dynamic-metadata";
+import { ensureAbsoluteUrl } from "../../../../lib/seo/utils";
 import { getBookmarks } from "../../../../lib/bookmarks/service.server";
 import type { PaginatedBookmarkContext, UnifiedBookmark } from "@/types";
 import { PageNumberSchema } from "@/types/lib";
 
-/**
- * Page Metadata for paginated bookmarks
- */
-const PAGE_METADATA = {
-  bookmarks: {
-    title: "Bookmarks",
-    description: "A collection of articles, websites, and resources I've bookmarked for future reference.",
-    path: "/bookmarks",
-  },
-};
 
 /**
  * Generate metadata for the paginated Bookmarks page
@@ -57,28 +49,34 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
   const baseMetadata = getStaticPageMetadata("/bookmarks", "bookmarks") as Metadata;
 
   // Add pagination-specific metadata
+  const baseTitle = typeof baseMetadata.title === 'string' 
+    ? baseMetadata.title 
+    : "Bookmarks";
+    
+  const title = pageNum === 1 
+    ? baseTitle
+    : generateDynamicTitle("Bookmarks", "default", { isPaginated: true, pageNumber: pageNum });
+  
   const metadata: Metadata = {
     ...baseMetadata,
-    title: pageNum === 1 ? baseMetadata.title : `${PAGE_METADATA.bookmarks.title} - Page ${pageNum}`,
+    title,
     description:
       pageNum === 1
         ? baseMetadata.description
-        : `${PAGE_METADATA.bookmarks.description} Page ${pageNum} of ${totalPages}.`,
+        : `${baseMetadata.description} Page ${pageNum} of ${totalPages}.`,
     alternates: {
       ...baseMetadata.alternates,
-      canonical:
-        pageNum === 1
-          ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks`
-          : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum}`,
+      canonical: pageNum === 1
+        ? ensureAbsoluteUrl("/bookmarks")
+        : ensureAbsoluteUrl(`/bookmarks/page/${pageNum}`),
     },
     openGraph: baseMetadata.openGraph
       ? {
           ...baseMetadata.openGraph,
-          title: pageNum === 1 ? PAGE_METADATA.bookmarks.title : `${PAGE_METADATA.bookmarks.title} - Page ${pageNum}`,
-          url:
-            pageNum === 1
-              ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks`
-              : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum}`,
+          title,
+          url: pageNum === 1
+            ? ensureAbsoluteUrl("/bookmarks")
+            : ensureAbsoluteUrl(`/bookmarks/page/${pageNum}`),
         }
       : undefined,
     robots: {
@@ -96,17 +94,16 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
   if (pageNum > 1) {
     paginationLinks.push({
       rel: "prev",
-      url:
-        pageNum === 2
-          ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks`
-          : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum - 1}`,
+      url: pageNum === 2
+        ? ensureAbsoluteUrl("/bookmarks")
+        : ensureAbsoluteUrl(`/bookmarks/page/${pageNum - 1}`),
     });
   }
 
   if (pageNum < totalPages) {
     paginationLinks.push({
       rel: "next",
-      url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum + 1}`,
+      url: ensureAbsoluteUrl(`/bookmarks/page/${pageNum + 1}`),
     });
   }
 
@@ -144,19 +141,20 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
     notFound();
   }
 
-  const pageMetadata = PAGE_METADATA.bookmarks;
+  const pageTitle = "Bookmarks";
+  const pageDescription = "A collection of articles, websites, and resources I've bookmarked for future reference.";
 
   // JSON-LD for paginated collection
   const jsonLdData = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    name: `${pageMetadata.title} - Page ${pageNum}`,
-    description: `${pageMetadata.description} Page ${pageNum} of ${totalPages}.`,
-    url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/page/${pageNum}`,
+    name: `${pageTitle} - Page ${pageNum}`,
+    description: `${pageDescription} Page ${pageNum} of ${totalPages}.`,
+    url: ensureAbsoluteUrl(`/bookmarks/page/${pageNum}`),
     isPartOf: {
       "@type": "Collection",
-      name: pageMetadata.title,
-      url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks`,
+      name: pageTitle,
+      url: ensureAbsoluteUrl("/bookmarks"),
     },
     position: pageNum,
   };
@@ -166,8 +164,8 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-5xl mx-auto">
         <BookmarksServer
-          title={pageMetadata.title}
-          description={pageMetadata.description}
+          title={pageTitle}
+          description={pageDescription}
           initialPage={pageNum}
           includeImageData={false}
         />

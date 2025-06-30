@@ -459,6 +459,25 @@ export const CACHE_TTL = {
   HOURLY: 60 * 60, // 1 hour
 } as const;
 
+/** SEO Title Suffixes for dynamic pages */
+export const SEO_TITLE_SUFFIXES = {
+  BLOG: "William Callahan's Blog",
+  BOOKMARKS: "William Callahan's Bookmarks",
+  DEFAULT: "William Callahan's Homepage - San Francisco",
+} as const;
+
+/** Common redundant prefixes to remove from titles to save space */
+export const SEO_TITLE_REDUNDANT_PREFIXES = [
+  "GitHub - ",
+  "GitHub",
+  "GitLab - ",
+  "GitLab",
+  "npm - ",
+  "npm",
+  "PyPI - ",
+  "PyPI",
+] as const;
+
 // Migration helpers for Next.js 15 'use cache' directive
 // Default to true - use cache unless explicitly disabled
 export const USE_NEXTJS_CACHE = process.env.USE_NEXTJS_CACHE !== "false";
