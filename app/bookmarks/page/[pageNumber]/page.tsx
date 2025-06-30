@@ -26,7 +26,8 @@ import { ensureAbsoluteUrl } from "../../../../lib/seo/utils";
 import { getBookmarks } from "../../../../lib/bookmarks/service.server";
 import type { PaginatedBookmarkContext, UnifiedBookmark } from "@/types";
 import { PageNumberSchema } from "@/types/lib";
-
+import { generateSchemaGraph } from "../../../../lib/seo/schema";
+import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 
 /**
  * Generate metadata for the paginated Bookmarks page
@@ -49,34 +50,27 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
   const baseMetadata = getStaticPageMetadata("/bookmarks", "bookmarks") as Metadata;
 
   // Add pagination-specific metadata
-  const baseTitle = typeof baseMetadata.title === 'string' 
-    ? baseMetadata.title 
-    : "Bookmarks";
-    
-  const title = pageNum === 1 
-    ? baseTitle
-    : generateDynamicTitle("Bookmarks", "default", { isPaginated: true, pageNumber: pageNum });
-  
+  const baseTitle = typeof baseMetadata.title === "string" ? baseMetadata.title : "Bookmarks";
+
+  const title =
+    pageNum === 1
+      ? baseTitle
+      : generateDynamicTitle("Bookmarks", "default", { isPaginated: true, pageNumber: pageNum });
+
   const metadata: Metadata = {
     ...baseMetadata,
     title,
     description:
-      pageNum === 1
-        ? baseMetadata.description
-        : `${baseMetadata.description} Page ${pageNum} of ${totalPages}.`,
+      pageNum === 1 ? baseMetadata.description : `${baseMetadata.description} Page ${pageNum} of ${totalPages}.`,
     alternates: {
       ...baseMetadata.alternates,
-      canonical: pageNum === 1
-        ? ensureAbsoluteUrl("/bookmarks")
-        : ensureAbsoluteUrl(`/bookmarks/page/${pageNum}`),
+      canonical: pageNum === 1 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${pageNum}`),
     },
     openGraph: baseMetadata.openGraph
       ? {
           ...baseMetadata.openGraph,
           title,
-          url: pageNum === 1
-            ? ensureAbsoluteUrl("/bookmarks")
-            : ensureAbsoluteUrl(`/bookmarks/page/${pageNum}`),
+          url: pageNum === 1 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${pageNum}`),
         }
       : undefined,
     robots: {
@@ -94,9 +88,7 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
   if (pageNum > 1) {
     paginationLinks.push({
       rel: "prev",
-      url: pageNum === 2
-        ? ensureAbsoluteUrl("/bookmarks")
-        : ensureAbsoluteUrl(`/bookmarks/page/${pageNum - 1}`),
+      url: pageNum === 2 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${pageNum - 1}`),
     });
   }
 
@@ -144,20 +136,30 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   const pageTitle = "Bookmarks";
   const pageDescription = "A collection of articles, websites, and resources I've bookmarked for future reference.";
 
-  // JSON-LD for paginated collection
-  const jsonLdData = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: `${pageTitle} - Page ${pageNum}`,
+  // Build itemList for this page (24 per page)
+  const PAGE_SIZE = 24;
+  const startIdx = (pageNum - 1) * PAGE_SIZE;
+  const pageBookmarks = bookmarks.slice(startIdx, startIdx + PAGE_SIZE);
+
+  const itemList = pageBookmarks.map((bookmark, idx) => {
+    const slug = generateUniqueSlug(bookmark.url, pageBookmarks, bookmark.id);
+    return {
+      url: ensureAbsoluteUrl(`/bookmarks/${slug}`),
+      position: idx + 1,
+    } as const;
+  });
+
+  const nowIso = new Date().toISOString();
+
+  const jsonLdData = generateSchemaGraph({
+    path: `/bookmarks/page/${pageNum}`,
+    title: `${pageTitle} - Page ${pageNum}`,
     description: `${pageDescription} Page ${pageNum} of ${totalPages}.`,
-    url: ensureAbsoluteUrl(`/bookmarks/page/${pageNum}`),
-    isPartOf: {
-      "@type": "Collection",
-      name: pageTitle,
-      url: ensureAbsoluteUrl("/bookmarks"),
-    },
-    position: pageNum,
-  };
+    datePublished: nowIso,
+    dateModified: nowIso,
+    type: "bookmark-collection",
+    itemList,
+  });
 
   return (
     <>

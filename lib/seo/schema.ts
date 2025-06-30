@@ -43,9 +43,7 @@ function createPersonEntity(): PersonSchema {
     description: metadata.shortDescription,
     url: ensureAbsoluteUrl("/"),
     sameAs: metadata.social.profiles,
-    image: {
-      "@id": createIdUrl("/", "personlogo"),
-    },
+    image: ensureAbsoluteUrl("/images/william-callahan-san-francisco.png"),
   };
 }
 
@@ -160,7 +158,9 @@ function createArticleEntity(params: SchemaParams): ArticleSchema {
     articleSection: metadata.article.section,
     inLanguage: "en-US",
     articleBody: params.articleBody,
-    keywords: params.keywords || [],
+    ...(params.keywords && {
+      keywords: Array.isArray(params.keywords) ? params.keywords.join(", ") : params.keywords,
+    }),
   };
 }
 
@@ -396,6 +396,46 @@ function createSoftwareApplicationEntity(params: SchemaParams): SoftwareApplicat
 }
 
 /**
+ * Creates a minimal SoftwareApplication / CreativeWork entity for a bookmark detail page.
+ * If params.softwareMetadata is provided we treat the bookmark as software; otherwise we fall back
+ * to an Article (CreativeWork) to satisfy Google rich-result requirements.
+ */
+function createBookmarkItemEntity(params: SchemaParams): ArticleSchema | SoftwareApplicationSchema {
+  if (params.softwareMetadata) {
+    return createSoftwareApplicationEntity(params);
+  }
+
+  return {
+    "@type": "Article",
+    "@id": createIdUrl(params.path, "bookmark"),
+    isPartOf: { "@id": createIdUrl(params.path) },
+    author: { "@id": createIdUrl("/", "person") },
+    headline: params.title,
+    datePublished: params.datePublished,
+    dateModified: params.dateModified,
+    mainEntityOfPage: { "@id": createIdUrl(params.path) },
+    publisher: { "@id": createIdUrl("/", "person") },
+    ...(params.image && { image: { "@id": createIdUrl(params.path, "primaryimage") } }),
+    articleSection: "Bookmarks",
+    inLanguage: "en-US",
+    articleBody: params.description,
+    ...(params.keywords && {
+      keywords: Array.isArray(params.keywords) ? params.keywords.join(", ") : params.keywords,
+    }),
+  };
+}
+
+/**
+ * Creates a CollectionPage entity for bookmark listing pages (root, tag, paginated etc.)
+ */
+function createBookmarkCollectionEntity(
+  params: SchemaParams,
+  items: Array<{ url: string; position: number }>,
+): CollectionPageSchema {
+  return createCollectionPageEntity(params, items);
+}
+
+/**
  * Generates complete schema graph for a page
  */
 export function generateSchemaGraph(params: SchemaParams): SchemaGraph {
@@ -403,6 +443,17 @@ export function generateSchemaGraph(params: SchemaParams): SchemaGraph {
     "@context": "https://schema.org",
     "@graph": [createWebPageEntity(params), createPersonEntity(), createWebSiteEntity()],
   };
+
+  // Add the Person logo image entity referenced by Person.image
+  graph["@graph"].push({
+    "@type": "ImageObject",
+    "@id": ensureAbsoluteUrl("/images/william-callahan-san-francisco.png"),
+    url: ensureAbsoluteUrl("/images/william-callahan-san-francisco.png"),
+    contentUrl: ensureAbsoluteUrl("/images/william-callahan-san-francisco.png"),
+    caption: `${SITE_NAME} portrait`,
+    width: 512,
+    height: 512,
+  });
 
   // Add breadcrumbs if provided
   if (params.breadcrumbs) {
@@ -447,6 +498,14 @@ export function generateSchemaGraph(params: SchemaParams): SchemaGraph {
         ),
       );
       break;
+    case "bookmark-item": {
+      graph["@graph"].push(createBookmarkItemEntity(params));
+      break;
+    }
+    case "bookmark-collection": {
+      graph["@graph"].push(createBookmarkCollectionEntity(params, params.itemList || []));
+      break;
+    }
   }
 
   return graph;

@@ -17,6 +17,8 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
@@ -91,32 +93,37 @@ export async function generateMetadata({ params }: PaginatedTagBookmarkContext):
   const path = `/bookmarks/tags/${paramsResolved.tagSlug}`;
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
-  const customTitle = pageNum === 1
-    ? generateDynamicTitle(`${displayTag} Bookmarks`, "bookmarks", { isTag: true })
-    : generateDynamicTitle(`${displayTag} Bookmarks`, "bookmarks", { isTag: true, isPaginated: true, pageNumber: pageNum });
+  const customTitle =
+    pageNum === 1
+      ? generateDynamicTitle(`${displayTag} Bookmarks`, "bookmarks", { isTag: true })
+      : generateDynamicTitle(`${displayTag} Bookmarks`, "bookmarks", {
+          isTag: true,
+          isPaginated: true,
+          pageNumber: pageNum,
+        });
 
   const baseDescription = generateTagDescription(displayTag, "bookmarks");
-  const customDescription = pageNum === 1
-    ? baseDescription
-    : `${baseDescription} Page ${pageNum} of ${totalPages}.`;
+  const customDescription = pageNum === 1 ? baseDescription : `${baseDescription} Page ${pageNum} of ${totalPages}.`;
 
   const metadata: Metadata = {
     ...baseMetadata,
     title: customTitle,
     description: customDescription,
     alternates: {
-      canonical: pageNum === 1
-        ? ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`)
-        : ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`),
+      canonical:
+        pageNum === 1
+          ? ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`)
+          : ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`),
     },
     openGraph: baseMetadata.openGraph
       ? {
           ...baseMetadata.openGraph,
           title: customTitle,
           description: customDescription,
-          url: pageNum === 1
-            ? ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`)
-            : ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`),
+          url:
+            pageNum === 1
+              ? ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`)
+              : ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`),
         }
       : undefined,
     twitter: {
@@ -139,9 +146,10 @@ export async function generateMetadata({ params }: PaginatedTagBookmarkContext):
   if (pageNum > 1) {
     paginationLinks.push({
       rel: "prev",
-      url: pageNum === 2
-        ? ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`)
-        : ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum - 1}`),
+      url:
+        pageNum === 2
+          ? ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`)
+          : ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum - 1}`),
     });
   }
 
@@ -228,20 +236,30 @@ export default async function PaginatedTagBookmarksPage({ params }: PaginatedTag
   const pageTitle = `${displayTag} Bookmarks`;
   const pageDescription = `${generateTagDescription(displayTag, "bookmarks")} Page ${pageNum} of ${totalPages}.`;
 
-  // JSON-LD data for paginated collection
-  const jsonLdData = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: `${pageTitle} - Page ${pageNum}`,
+  // Build itemList using pre-filtered taggedBookmarks slice for this page
+  const PAGE_SIZE = 24;
+  const startIdx = (pageNum - 1) * PAGE_SIZE;
+  const pageBookmarks = taggedBookmarks.slice(startIdx, startIdx + PAGE_SIZE);
+
+  const itemList = pageBookmarks.map((bookmark, idx) => {
+    const slug = generateUniqueSlug(bookmark.url, pageBookmarks, bookmark.id);
+    return {
+      url: ensureAbsoluteUrl(`/bookmarks/${slug}`),
+      position: idx + 1,
+    } as const;
+  });
+
+  const nowIso = new Date().toISOString();
+
+  const jsonLdData = generateSchemaGraph({
+    path: `/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`,
+    title: `${pageTitle} - Page ${pageNum}`,
     description: pageDescription,
-    url: ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`),
-    isPartOf: {
-      "@type": "Collection",
-      name: pageTitle,
-      url: ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`),
-    },
-    position: pageNum,
-  };
+    datePublished: nowIso,
+    dateModified: nowIso,
+    type: "bookmark-collection",
+    itemList,
+  });
 
   return (
     <>

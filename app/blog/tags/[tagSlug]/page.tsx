@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { BlogList } from "@/components/features/blog/blog-list";
 import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
 import { metadata } from "@/data/metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
@@ -151,24 +152,27 @@ export default async function TagPage({ params }: { params: { tagSlug: string } 
   const title = generateDynamicTitle(`${tagName} Posts`, "blog", { isTag: true });
   const description = generateTagDescription(tagName, "blog");
 
-  // Create JSON-LD structured data for better SEO
-  const jsonLdData = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: title,
-    description: description,
-    url: ensureAbsoluteUrl(`/blog/tags/${tagSlug}`),
-    mainEntity: {
-      "@type": "ItemList",
-      numberOfItems: filteredPosts.length,
-      itemListElement: filteredPosts.map((post, index) => ({
-        "@type": "ListItem",
-        position: index + 1,
-        url: ensureAbsoluteUrl(`/blog/${post.slug}`),
-        name: post.title,
-      })),
-    },
-  };
+  const itemList = filteredPosts.map((post, idx) => ({
+    url: ensureAbsoluteUrl(`/blog/${post.slug}`),
+    position: idx + 1,
+  }));
+
+  const nowIso = new Date().toISOString();
+
+  const jsonLdData = generateSchemaGraph({
+    path: `/blog/tags/${tagSlug}`,
+    title,
+    description,
+    datePublished: nowIso,
+    dateModified: nowIso,
+    type: "collection",
+    itemList,
+    breadcrumbs: [
+      { path: "/", name: "Home" },
+      { path: "/blog", name: "Blog" },
+      { path: `/blog/tags/${tagSlug}`, name: `${tagName} Posts` },
+    ],
+  });
 
   return (
     <>

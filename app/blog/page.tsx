@@ -10,12 +10,14 @@ import type { Metadata } from "next";
 import { BlogListServer } from "../../components/features/blog/blog-list/blog-list.server";
 import { Blog } from "../../components/features/blog/blog.client";
 import { JsonLdScript } from "../../components/seo/json-ld";
+import { generateSchemaGraph } from "../../lib/seo/schema";
 import { PAGE_METADATA } from "../../data/metadata";
 import { getAllPosts } from "../../lib/blog";
 import { getStaticPageMetadata } from "../../lib/seo/metadata";
 import { formatSeoDate } from "../../lib/seo/utils";
 import type { CollectionPageMetadata } from "../../types/seo/metadata";
 import type { BlogPost } from "../../types/blog";
+import { ensureAbsoluteUrl } from "../../lib/seo/utils";
 
 /**
  * Generate metadata for the blog index page
@@ -49,17 +51,28 @@ export default async function BlogPage() {
   // Pre-render the server component here
   const blogListContent = await Promise.resolve(<BlogListServer posts={posts} />);
 
+  const itemList = posts.map((post, idx) => ({
+    url: ensureAbsoluteUrl(`/blog/${post.slug}`),
+    position: idx + 1,
+  }));
+
+  const jsonLdData = generateSchemaGraph({
+    path: "/blog",
+    title: pageMetadata.title,
+    description: pageMetadata.description,
+    datePublished: formattedCreated,
+    dateModified: formattedModified,
+    type: "collection",
+    itemList,
+    breadcrumbs: [
+      { path: "/", name: "Home" },
+      { path: "/blog", name: "Blog" },
+    ],
+  });
+
   return (
     <>
-      <JsonLdScript
-        data={{
-          "@context": "https://schema.org",
-          "@type": "CollectionPage",
-          datePublished: formattedCreated,
-          dateModified: formattedModified,
-        }}
-      />
-      {/* Pass the pre-rendered content to the client component */}
+      <JsonLdScript data={jsonLdData} />
       <Blog>{blogListContent}</Blog>
     </>
   );

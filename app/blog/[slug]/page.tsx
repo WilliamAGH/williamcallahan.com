@@ -10,10 +10,12 @@ import type { BlogPostPageProps } from "@/types/blog";
 // Import getPostBySlug and getAllPosts from the main blog library
 import { getAllPosts, getPostBySlug } from "@/lib/blog.ts";
 import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/seo/metadata.ts";
-import { ensureAbsoluteUrl } from "@/lib/seo/utils.ts";
+import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import type { ExtendedMetadata } from "@/types/seo";
 import { notFound } from "next/navigation";
 import { BlogArticle } from "../../../components/features/blog";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
 
 /**
  * Generate static paths for all blog posts at build time
@@ -182,9 +184,59 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       notFound();
     }
 
-    // Create blog article component without redundant schema
-    // The schema is already handled by generateMetadata above
-    return <BlogArticle post={post} />;
+    // Build JSON-LD schema graph (Next.js metadata script tag not reliable for bots)
+    const isSoftwarePost = SOFTWARE_POSTS.includes(slug);
+
+    const pageType: "software" | "newsarticle" = isSoftwarePost ? "software" : "newsarticle";
+
+    const schemaParams = {
+      path: `/blog/${post.slug}`,
+      title: post.title,
+      description: post.excerpt,
+      datePublished: new Date(post.publishedAt).toISOString(),
+      dateModified: new Date(post.updatedAt ?? post.publishedAt).toISOString(),
+      type: pageType,
+      articleBody: post.rawContent ?? post.excerpt,
+      keywords: post.tags,
+      image: post.coverImage
+        ? {
+            url: post.coverImage,
+            width: 1200,
+            height: 630,
+          }
+        : undefined,
+      breadcrumbs: [
+        { path: "/", name: "Home" },
+        { path: "/blog", name: "Blog" },
+        { path: `/blog/${post.slug}`, name: post.title },
+      ],
+      authors: [
+        {
+          name: post.author.name,
+          url: post.author.url || ensureAbsoluteUrl("/about"),
+        },
+      ],
+      ...(isSoftwarePost && {
+        softwareMetadata: {
+          name: SOFTWARE_DETAILS[slug]?.name ?? post.title,
+          operatingSystem: SOFTWARE_DETAILS[slug]?.operatingSystem ?? "Windows, macOS, Linux",
+          applicationCategory: SOFTWARE_DETAILS[slug]?.applicationCategory ?? "DeveloperApplication",
+          downloadUrl: SOFTWARE_DETAILS[slug]?.downloadUrl,
+          softwareVersion: SOFTWARE_DETAILS[slug]?.softwareVersion,
+          screenshot: SOFTWARE_DETAILS[slug]?.screenshot,
+          isFree: true,
+        },
+      }),
+    };
+
+    const jsonLdData = generateSchemaGraph(schemaParams);
+
+    return (
+      <>
+        <JsonLdScript data={jsonLdData} />
+        <BlogArticle post={post} />
+      </>
+    );
   } catch (error) {
     // Log the error with details
     console.error(`Error rendering blog post ${slug}:`, error);
