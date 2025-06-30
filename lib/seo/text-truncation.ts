@@ -136,7 +136,7 @@ export function gradientTruncate(
   // Calculate overage
   const overage = safeString.length - options.softLimit;
   const hardLimit = options.hardLimit ?? options.softLimit + 20;
-  const overageRatio = Math.min(overage / (hardLimit - options.softLimit), 1);
+  const overageRatio = Math.min(overage / Math.max(hardLimit - options.softLimit, 1e-6), 1);
   
   let truncated: string;
   let method: TruncationResult['strategy'];
@@ -285,7 +285,9 @@ function createResult(
     originalLength,
     finalLength: new SafeString(text).length,
     overage,
-    overageRatio: overage > 0 && softLimit && hardLimit ? overage / (hardLimit - softLimit) : 0,
+    overageRatio: overage > 0 && softLimit && hardLimit && hardLimit !== softLimit 
+      ? overage / Math.max(hardLimit - softLimit, 1e-6) 
+      : 0,
     processingTime: performance.now() - startTime,
     unicodeAware
   };
