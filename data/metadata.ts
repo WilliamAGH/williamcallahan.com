@@ -58,22 +58,39 @@ export const SITE_DESCRIPTION_SHORT =
  */
 import type { ProfilePageMetadata, CollectionPageMetadata } from "@/types/seo";
 
+// -------- Auto-sized static OG assets (import exposes src/width/height) --------
+import ogDefaultImage from "@/public/images/og/default-og.png";
+import ogBookmarksImage from "@/public/images/og/bookmarks-og.png";
+import ogProjectsImage from "@/public/images/og/projects-og.png";
+import ogBlogIndexImage from "@/public/images/og/blog-og.png";
+
+/**
+ * Record of local OG assets keyed by their src path. Allows downstream code to pick up
+ * accurate width/height info without hard-coding literals.
+ */
+export const LOCAL_OG_ASSETS = {
+  [ogDefaultImage.src]: ogDefaultImage,
+  [ogBookmarksImage.src]: ogBookmarksImage,
+  [ogProjectsImage.src]: ogProjectsImage,
+  [ogBlogIndexImage.src]: ogBlogIndexImage,
+} as const;
+
 /**
  * Page-specific metadata configurations
  * @see {@link "https://schema.org/dateModified"} - Update dateModified whenever page content changes
  * @see {@link "https://schema.org/dateCreated"} - The date each page was first published
  */
 export const SEO_IMAGES = {
-  /** Site-wide default OpenGraph/Twitter image (1200×630 PNG) */
-  ogDefault: "/images/og/default-og.png",
+  /** Site-wide default OpenGraph/Twitter image */
+  ogDefault: ogDefaultImage.src,
   /** Stand-alone logo card (optional) */
   ogLogo: "/images/favicons/android-chrome-512x512.png",
   /** Collection pages */
-  ogBookmarks: "/images/og/bookmarks-og.png",
-  ogProjects: "/images/og/projects-og.png",
-  ogBlogIndex: "/images/og/blog-og.png",
+  ogBookmarks: ogBookmarksImage.src,
+  ogProjects: ogProjectsImage.src,
+  ogBlogIndex: ogBlogIndexImage.src,
   /** Fallback for dynamic /api/og-image route */
-  ogDynamicFallback: "/images/og/default-og.png", // alias of ogDefault for dynamic route fallback
+  ogDynamicFallback: ogDefaultImage.src,
   /** Favicons & touch icons */
   faviconIco: "/images/favicons/favicon.ico",
   appleTouch: "/images/favicons/apple-180x180-touch-icon.png",
@@ -235,8 +252,8 @@ export const metadata = {
   /** Default image used for social sharing */
   defaultImage: {
     url: SEO_IMAGES.ogDefault,
-    width: OG_IMAGE_DIMENSIONS.legacy.width,
-    height: OG_IMAGE_DIMENSIONS.legacy.height,
+    width: ogDefaultImage.width,
+    height: ogDefaultImage.height,
     alt: `${SITE_NAME} on Finance, Startups, & Engineering in San Francisco`,
     type: "image/png",
   },
