@@ -32,6 +32,7 @@ import type { SchemaParams } from "../../types/seo/schema";
 import { createArticleOgMetadata } from "./opengraph";
 import { generateSchemaGraph } from "./schema";
 import { ensureAbsoluteUrl, formatSeoDate } from "./utils";
+import { generateDynamicTitle } from "./dynamic-metadata";
 
 /**
  * Base metadata configuration for all pages
@@ -92,7 +93,7 @@ export function createArticleMetadata({
   const formattedPublished = formatSeoDate(datePublished);
   const formattedModified = formatSeoDate(dateModified);
 
-  const browserTitle = `${title} - ${SITE_NAME}'s Blog`;
+  const browserTitle = generateDynamicTitle(title, "blog");
 
   // Create image variations for NewsArticle schema
   let imageVariations: string[] | undefined;
@@ -110,7 +111,7 @@ export function createArticleMetadata({
   // Generate schema graph
   const schemaParams: SchemaParams = {
     path: new URL(url).pathname,
-    title,
+    title: browserTitle, // Use truncated title for schema
     description,
     datePublished: formattedPublished,
     dateModified: formattedModified,
@@ -129,7 +130,7 @@ export function createArticleMetadata({
     breadcrumbs: [
       { path: "/", name: "Home" },
       { path: "/blog", name: "Blog" },
-      { path: new URL(url).pathname, name: title },
+      { path: new URL(url).pathname, name: browserTitle }, // Use truncated title for breadcrumb
     ],
   };
 
@@ -148,7 +149,7 @@ export function createArticleMetadata({
       },
     ],
     openGraph: createArticleOgMetadata({
-      title,
+      title: browserTitle, // Use truncated title for OpenGraph
       description,
       url,
       image,
@@ -160,7 +161,7 @@ export function createArticleMetadata({
       card: "summary_large_image",
       site: siteMetadata.social.twitter,
       creator: siteMetadata.social.twitter,
-      title,
+      title: browserTitle, // Use truncated title for Twitter
       description,
       images: image
         ? [{ url: ensureAbsoluteUrl(image) }]
@@ -392,12 +393,12 @@ export function createSoftwareApplicationMetadata({
   const formattedPublished = formatSeoDate(datePublished);
   const formattedModified = formatSeoDate(dateModified);
 
-  const browserTitle = `${title} - ${SITE_NAME}'s Blog`;
+  const browserTitle = generateDynamicTitle(title, "blog");
 
   // Generate schema graph
   const schemaParams: SchemaParams = {
     path: new URL(url).pathname,
-    title,
+    title: browserTitle, // Use truncated title for schema
     description,
     datePublished: formattedPublished,
     dateModified: formattedModified,
@@ -415,7 +416,7 @@ export function createSoftwareApplicationMetadata({
     breadcrumbs: [
       { path: "/", name: "Home" },
       { path: "/blog", name: "Blog" },
-      { path: new URL(url).pathname, name: title },
+      { path: new URL(url).pathname, name: browserTitle }, // Use truncated title for breadcrumb
     ],
     // Add software-specific metadata
     softwareMetadata: {
@@ -448,7 +449,7 @@ export function createSoftwareApplicationMetadata({
       },
     ],
     openGraph: createArticleOgMetadata({
-      title,
+      title: browserTitle, // Use truncated title for OpenGraph
       description,
       url,
       image,
@@ -460,7 +461,7 @@ export function createSoftwareApplicationMetadata({
       card: "summary_large_image",
       site: siteMetadata.social.twitter,
       creator: siteMetadata.social.twitter,
-      title,
+      title: browserTitle, // Use truncated title for Twitter
       description,
       images: image
         ? [{ url: ensureAbsoluteUrl(image) }]

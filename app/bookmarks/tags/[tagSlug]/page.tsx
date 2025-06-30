@@ -19,6 +19,8 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
+import { generateDynamicTitle, generateTagDescription } from "@/lib/seo/dynamic-metadata";
+import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { tagToSlug, sanitizeUnicode } from "@/lib/utils/tag-utils";
 import type { Metadata } from "next";
 import type { TagBookmarkContext } from "@/types";
@@ -76,8 +78,8 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
   // Override title and description with tag-specific values
-  const customTitle = `${displayTag} Bookmarks | William Callahan`;
-  const customDescription = `A collection of articles, websites, and resources I've saved about ${displayTag.toLowerCase()} for future reference.`;
+  const customTitle = generateDynamicTitle(`${displayTag} Bookmarks`, "bookmarks", { isTag: true });
+  const customDescription = generateTagDescription(displayTag, "bookmarks");
 
   return {
     ...baseMetadata,
@@ -88,7 +90,7 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
       title: customTitle,
       description: customDescription,
       type: "website",
-      url: `https://williamcallahan.com/bookmarks/tags/${paramsResolved.tagSlug}`,
+      url: ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`),
     },
     twitter: {
       ...baseMetadata.twitter,
@@ -96,7 +98,7 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
       description: customDescription,
     },
     alternates: {
-      canonical: `https://williamcallahan.com/bookmarks/tags/${paramsResolved.tagSlug}`,
+      canonical: ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`),
     },
   };
 }
@@ -140,7 +142,7 @@ export default async function TagPage({ params }: TagBookmarkContext) {
 
   // Custom title and description for the tag page
   const pageTitle = `${displayTag} Bookmarks`;
-  const pageDescription = `A collection of articles, websites, and resources I've saved about ${displayTag.toLowerCase()} for future reference.`;
+  const pageDescription = generateTagDescription(displayTag, "bookmarks");
 
   // Update JSON-LD data with tag-specific information
   const jsonLdData = {

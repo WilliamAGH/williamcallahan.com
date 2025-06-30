@@ -33,6 +33,12 @@ jest.mock("next/navigation", () => ({
   redirect: jest.fn(),
 }));
 
+// Mock constants to ensure proper site URL
+jest.mock("@/lib/constants", () => ({
+  ...jest.requireActual("@/lib/constants"),
+  NEXT_PUBLIC_SITE_URL: "https://williamcallahan.com",
+}));
+
 describe("Metadata Integration Tests", () => {
   const mockGetBookmarks = getBookmarks;
 
@@ -256,8 +262,8 @@ describe("Metadata HTML Output Verification", () => {
     expect(htmlTags).toContain('<link rel="prev" href="https://williamcallahan.com/bookmarks">');
     expect(htmlTags).toContain('<link rel="next" href="https://williamcallahan.com/bookmarks/page/3">');
 
-    // Verify other important tags
-    expect(htmlTags.some((tag) => tag.includes("<title>Bookmarks - Page 2</title>"))).toBe(true);
+    // Verify other important tags - title includes suffix from generateDynamicTitle
+    expect(htmlTags.some((tag) => tag.includes("<title>Bookmarks - Page 2 | William Callahan</title>"))).toBe(true);
     expect(htmlTags.some((tag) => tag.includes('rel="canonical"'))).toBe(true);
   });
 });

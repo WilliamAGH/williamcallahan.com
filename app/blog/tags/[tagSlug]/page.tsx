@@ -1,7 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { BlogList } from "@/components/features/blog/blog-list";
+import { JsonLdScript } from "@/components/seo/json-ld";
 import { metadata } from "@/data/metadata";
+import { ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
 import { deslugify, kebabCase } from "@/lib/utils/formatters";
 import type { Author, BlogPost, BlogPageFrontmatter } from "@/types/blog";
 import matter from "gray-matter";
@@ -101,10 +104,10 @@ export async function generateStaticParams(): Promise<{ tagSlug: string }[]> {
  */
 export async function generateMetadata({ params }: { params: { tagSlug: string } }): Promise<Metadata> {
   // Use Promise.resolve to satisfy require-await rule
-  const tagName = await Promise.resolve(deslugify(params.tagSlug));
-  const title = `Posts tagged "${tagName}"`;
-  const description = `Blog posts related to ${tagName} on ${metadata.site.name}.`;
-  const url = `${metadata.site.url}/blog/tags/${params.tagSlug}`;
+  const tagName = await Promise.resolve(formatTagDisplay(deslugify(params.tagSlug)));
+  const title = generateDynamicTitle(`${tagName} Posts`, "blog", { isTag: true });
+  const description = generateTagDescription(tagName, "blog");
+  const url = ensureAbsoluteUrl(`/blog/tags/${params.tagSlug}`);
 
   return {
     title: title,
@@ -144,14 +147,38 @@ export default async function TagPage({ params }: { params: { tagSlug: string } 
   const filteredPosts = allPosts.filter((post) => post.tags.map((tag: string) => kebabCase(tag)).includes(tagSlug));
 
   // Wrap in Promise.resolve to satisfy linter's await-thenable rule
-  const tagName = await Promise.resolve(deslugify(tagSlug));
+  const tagName = await Promise.resolve(formatTagDisplay(deslugify(tagSlug)));
+  const title = generateDynamicTitle(`${tagName} Posts`, "blog", { isTag: true });
+  const description = generateTagDescription(tagName, "blog");
+
+  // Create JSON-LD structured data for better SEO
+  const jsonLdData = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: title,
+    description: description,
+    url: ensureAbsoluteUrl(`/blog/tags/${tagSlug}`),
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: filteredPosts.length,
+      itemListElement: filteredPosts.map((post, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        url: ensureAbsoluteUrl(`/blog/${post.slug}`),
+        name: post.title,
+      })),
+    },
+  };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="mb-8 text-3xl font-bold leading-tight tracking-tighter text-primary md:text-5xl">
-        <span className="capitalize">{tagName}</span> Posts
-      </h1>
-      {filteredPosts.length > 0 ? <BlogList posts={filteredPosts} /> : <p>No posts found for this tag.</p>}
-    </div>
+    <>
+      <JsonLdScript data={jsonLdData} />
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="mb-8 text-3xl font-bold leading-tight tracking-tighter text-primary md:text-5xl">
+          <span className="capitalize">{tagName}</span> Posts
+        </h1>
+        {filteredPosts.length > 0 ? <BlogList posts={filteredPosts} /> : <p>No posts found for this tag.</p>}
+      </div>
+    </>
   );
 }

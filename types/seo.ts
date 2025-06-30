@@ -202,3 +202,78 @@ export interface SoftwareAppParams {
 
 export * from "./seo/opengraph";
 export * from "./seo/schema";
+
+/**
+ * Text Truncation Types
+ * @description Types for gradient truncation system that intelligently
+ * truncates text between soft and hard limits while preserving readability.
+ */
+
+/**
+ * Options for configuring text truncation behavior
+ */
+export interface TruncationOptions {
+  /** Target length for truncation (60 for titles, 160 for descriptions) */
+  softLimit: number;
+  
+  /** Absolute maximum length before hard truncation (default: softLimit + 20) */
+  hardLimit?: number;
+  
+  /** String to append when text is truncated (default: '...') */
+  ellipsis?: string;
+  
+  /** Separator to preserve in output (e.g., ' | ' for titles) */
+  preserveSeparator?: string;
+  
+  /** Keywords that should be preserved if possible */
+  importantKeywords?: string[];
+  
+  /** Content type hint for strategy selection */
+  contentType?: 'title' | 'description' | 'generic';
+  
+  /** Locale for internationalization support (default: 'en') */
+  locale?: string;
+}
+
+/**
+ * Result of a truncation operation
+ */
+export interface TruncationResult {
+  /** The final truncated text */
+  text: string;
+  
+  /** The original input text */
+  original: string;
+  
+  /** Whether truncation was applied */
+  wasTruncated: boolean;
+  
+  /** The strategy used for truncation */
+  strategy: 'none' | 'filler-word' | 'parenthetical' | 'keyword' | 'smart-end' | 'hard';
+  
+  /** Metrics about the truncation operation */
+  metrics: TruncationMetrics;
+}
+
+/**
+ * Detailed metrics about a truncation operation
+ */
+export interface TruncationMetrics {
+  /** Length of the original text (Unicode-aware) */
+  originalLength: number;
+  
+  /** Length of the final text (Unicode-aware) */
+  finalLength: number;
+  
+  /** Number of characters over the soft limit */
+  overage: number;
+  
+  /** Ratio of overage to allowed overage (0-1 scale) */
+  overageRatio: number;
+  
+  /** Time taken to perform truncation (milliseconds) */
+  processingTime: number;
+  
+  /** Whether Unicode-aware processing was used */
+  unicodeAware: boolean;
+}

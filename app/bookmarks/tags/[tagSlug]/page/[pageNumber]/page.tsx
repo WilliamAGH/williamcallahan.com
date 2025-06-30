@@ -19,6 +19,8 @@ import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.serve
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
+import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
+import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { sanitizeUnicode } from "@/lib/utils/tag-utils";
 import type { PaginatedTagBookmarkContext } from "@/types";
 import { PageNumberSchema } from "@/types/lib";
@@ -89,35 +91,32 @@ export async function generateMetadata({ params }: PaginatedTagBookmarkContext):
   const path = `/bookmarks/tags/${paramsResolved.tagSlug}`;
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
-  const customTitle =
-    pageNum === 1
-      ? `${displayTag} Bookmarks | William Callahan`
-      : `${displayTag} Bookmarks - Page ${pageNum} | William Callahan`;
+  const customTitle = pageNum === 1
+    ? generateDynamicTitle(`${displayTag} Bookmarks`, "bookmarks", { isTag: true })
+    : generateDynamicTitle(`${displayTag} Bookmarks`, "bookmarks", { isTag: true, isPaginated: true, pageNumber: pageNum });
 
-  const customDescription =
-    pageNum === 1
-      ? `A collection of articles, websites, and resources I've saved about ${displayTag.toLowerCase()} for future reference.`
-      : `A collection of articles, websites, and resources I've saved about ${displayTag.toLowerCase()} for future reference. Page ${pageNum} of ${totalPages}.`;
+  const baseDescription = generateTagDescription(displayTag, "bookmarks");
+  const customDescription = pageNum === 1
+    ? baseDescription
+    : `${baseDescription} Page ${pageNum} of ${totalPages}.`;
 
   const metadata: Metadata = {
     ...baseMetadata,
     title: customTitle,
     description: customDescription,
     alternates: {
-      canonical:
-        pageNum === 1
-          ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}`
-          : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`,
+      canonical: pageNum === 1
+        ? ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`)
+        : ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`),
     },
     openGraph: baseMetadata.openGraph
       ? {
           ...baseMetadata.openGraph,
           title: customTitle,
           description: customDescription,
-          url:
-            pageNum === 1
-              ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}`
-              : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`,
+          url: pageNum === 1
+            ? ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`)
+            : ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`),
         }
       : undefined,
     twitter: {
@@ -140,17 +139,16 @@ export async function generateMetadata({ params }: PaginatedTagBookmarkContext):
   if (pageNum > 1) {
     paginationLinks.push({
       rel: "prev",
-      url:
-        pageNum === 2
-          ? `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}`
-          : `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum - 1}`,
+      url: pageNum === 2
+        ? ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`)
+        : ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum - 1}`),
     });
   }
 
   if (pageNum < totalPages) {
     paginationLinks.push({
       rel: "next",
-      url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum + 1}`,
+      url: ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum + 1}`),
     });
   }
 
@@ -213,21 +211,14 @@ export default async function PaginatedTagBookmarksPage({ params }: PaginatedTag
   }
 
   // Find display name for the tag
-  let displayTag = tagQuery;
+  let displayTag = formatTagDisplay(tagQuery);
   if (taggedBookmarks.length > 0) {
     for (const bookmark of taggedBookmarks) {
       const bookmarkTags = Array.isArray(bookmark.tags) ? bookmark.tags : [];
       for (const t of bookmarkTags) {
         const tagName = typeof t === "string" ? t : t.name;
         if (tagName.toLowerCase() === tagQuery.toLowerCase()) {
-          if (/[A-Z]/.test(tagName.slice(1))) {
-            displayTag = tagName;
-          } else {
-            displayTag = tagQuery
-              .split(/[\s-]+/)
-              .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-              .join(" ");
-          }
+          displayTag = formatTagDisplay(tagName);
           break;
         }
       }
@@ -235,7 +226,7 @@ export default async function PaginatedTagBookmarksPage({ params }: PaginatedTag
   }
 
   const pageTitle = `${displayTag} Bookmarks`;
-  const pageDescription = `A collection of articles, websites, and resources I've saved about ${displayTag.toLowerCase()} for future reference. Page ${pageNum} of ${totalPages}.`;
+  const pageDescription = `${generateTagDescription(displayTag, "bookmarks")} Page ${pageNum} of ${totalPages}.`;
 
   // JSON-LD data for paginated collection
   const jsonLdData = {
@@ -243,11 +234,11 @@ export default async function PaginatedTagBookmarksPage({ params }: PaginatedTag
     "@type": "CollectionPage",
     name: `${pageTitle} - Page ${pageNum}`,
     description: pageDescription,
-    url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`,
+    url: ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}/page/${pageNum}`),
     isPartOf: {
       "@type": "Collection",
       name: pageTitle,
-      url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com"}/bookmarks/tags/${paramsResolved.tagSlug}`,
+      url: ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`),
     },
     position: pageNum,
   };
