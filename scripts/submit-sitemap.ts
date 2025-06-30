@@ -280,8 +280,8 @@ async function submitToIndexNow(siteUrlCanonical: string): Promise<void> {
       console.info(`${LOG_PREFIX.indexNow} Submitting with payload:`, JSON.stringify(payload, null, 2));
     }
 
-    const aggregatorEndpoint = "https://api.indexnow.org/IndexNow";
-    const bingEndpoint = "https://www.bing.com/IndexNow";
+    const aggregatorEndpoint = "https://api.indexnow.org/indexnow";
+    const bingEndpoint = "https://www.bing.com/indexnow";
 
     const attemptSubmit = async (endpoint: string): Promise<Response> => {
       return fetch(endpoint, {
