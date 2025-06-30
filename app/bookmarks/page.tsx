@@ -20,6 +20,7 @@ import type { Metadata } from "next";
 import { BookmarksServer } from "../../components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "../../components/seo/json-ld";
 import { getStaticPageMetadata } from "../../lib/seo/metadata";
+import { generateSchemaGraph } from "../../lib/seo/schema";
 
 /**
  * Page Metadata
@@ -33,15 +34,19 @@ const PAGE_METADATA = {
   },
 };
 
+const nowIso = new Date().toISOString();
+
 /**
- * JSON-LD Data for the page
+ * JSON-LD Data built via centralized generator
  */
-const jsonLdData = {
-  "@context": "https://schema.org",
-  "@type": "CollectionPage",
-  name: PAGE_METADATA.bookmarks.title,
+const jsonLdData = generateSchemaGraph({
+  path: "/bookmarks",
+  title: PAGE_METADATA.bookmarks.title,
   description: PAGE_METADATA.bookmarks.description,
-};
+  datePublished: nowIso,
+  dateModified: nowIso,
+  type: "bookmark-collection",
+});
 
 /**
  * Generate metadata for the Bookmarks page

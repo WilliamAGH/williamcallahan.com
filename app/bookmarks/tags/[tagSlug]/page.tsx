@@ -16,6 +16,8 @@ export const fetchCache = "default-no-store";
 
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { getStaticPageMetadata } from "@/lib/seo/metadata";
@@ -144,13 +146,26 @@ export default async function TagPage({ params }: TagBookmarkContext) {
   const pageTitle = `${displayTag} Bookmarks`;
   const pageDescription = generateTagDescription(displayTag, "bookmarks");
 
-  // Update JSON-LD data with tag-specific information
-  const jsonLdData = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: pageTitle,
+  // Build itemList for first page (filtered list)
+  const itemList = filtered.map((bookmark, idx) => {
+    const slug = generateUniqueSlug(bookmark.url, filtered, bookmark.id);
+    return {
+      url: ensureAbsoluteUrl(`/bookmarks/${slug}`),
+      position: idx + 1,
+    };
+  });
+
+  const nowIso = new Date().toISOString();
+
+  const jsonLdData = generateSchemaGraph({
+    path: `/bookmarks/tags/${tagSlug}`,
+    title: pageTitle,
     description: pageDescription,
-  };
+    datePublished: nowIso,
+    dateModified: nowIso,
+    type: "bookmark-collection",
+    itemList,
+  });
 
   return (
     <>

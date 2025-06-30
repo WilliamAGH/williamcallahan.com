@@ -145,31 +145,44 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
   // Generate truncated title for SEO
   const seoTitle = generateDynamicTitle(foundBookmark.title || "Bookmark", "bookmarks");
 
-  // Create enhanced JSON-LD data for better SEO
-  const jsonLdData = {
-    "@context": "https://schema.org",
-    "@type": "WebPage",
-    name: seoTitle,
-    description: foundBookmark.description || `A bookmark from ${domainName}`,
-    url: ensureAbsoluteUrl(`/bookmarks/${slug}`),
-    mainEntity: {
-      "@type": "WebPage",
-      name: seoTitle, // Use truncated title with proper SEO formatting
-      url: foundBookmark.url,
-      description: foundBookmark.description,
-      publisher: {
-        "@type": "Organization",
-        name: domainName,
-        url: `https://${domainName}`,
-      },
-    },
-    author: {
-      "@type": "Person",
-      name: "William Callahan",
-      url: ensureAbsoluteUrl("/"),
-    },
-    datePublished: foundBookmark.dateBookmarked || new Date().toISOString(),
+  // Determine best image for JSON-LD if available
+  const { selectBestImage } = await import("@/lib/bookmarks/bookmark-helpers");
+  const rawImageUrl =
+    selectBestImage(foundBookmark, {
+      preferOpenGraph: true,
+      includeScreenshots: true,
+    }) || undefined;
+  const imageUrl = rawImageUrl ? ensureAbsoluteUrl(rawImageUrl) : undefined;
+
+  // Build Schema.org graph using central builder
+  const { generateSchemaGraph } = await import("@/lib/seo/schema");
+
+  const toIso = (value: string | Date | undefined): string => {
+    if (typeof value === "string") return value;
+    if (value instanceof Date) return value.toISOString();
+    return new Date().toISOString();
   };
+
+  const rawTags: Array<string | { name: string }> = Array.isArray(foundBookmark.tags) ? foundBookmark.tags : [];
+  const keywords = rawTags.map((t) => (typeof t === "string" ? t : t.name));
+
+  const jsonLdData = generateSchemaGraph({
+    path: `/bookmarks/${slug}`,
+    title: seoTitle,
+    description: foundBookmark.description || `A bookmark from ${domainName}`,
+    datePublished: toIso(foundBookmark.dateBookmarked),
+    dateModified: toIso(foundBookmark.modifiedAt ?? foundBookmark.dateBookmarked),
+    type: "bookmark-item",
+    image: imageUrl
+      ? {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          caption: seoTitle,
+        }
+      : undefined,
+    keywords,
+  });
 
   return (
     <>
