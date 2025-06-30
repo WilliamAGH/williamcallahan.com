@@ -22,6 +22,7 @@ import {
   PAGE_METADATA,
   PAGE_OG_ASPECT,
   OG_IMAGE_DIMENSIONS,
+  LOCAL_OG_ASSETS,
   SITE_DESCRIPTION_SHORT,
   SITE_NAME,
   SITE_TITLE,
@@ -226,8 +227,8 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
   const aspectKey = PAGE_OG_ASPECT[pageKey] ?? "legacy";
 
   // Track image dimensions separately so we can override per-page when needed
-  const ogWidth: number = OG_IMAGE_DIMENSIONS[aspectKey].width;
-  const ogHeight: number = OG_IMAGE_DIMENSIONS[aspectKey].height;
+  let ogWidth: number = OG_IMAGE_DIMENSIONS[aspectKey].width;
+  let ogHeight: number = OG_IMAGE_DIMENSIONS[aspectKey].height;
 
   // Default OG image path (can be overridden below)
   let ogImagePath: string = siteMetadata.defaultImage.url;
@@ -238,6 +239,13 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
     ogImagePath = SEO_IMAGES.ogProjects;
   } else if (pageKey === "blog") {
     ogImagePath = SEO_IMAGES.ogBlogIndex;
+  }
+
+  // If this OG image exists in LOCAL_OG_ASSETS, override width/height with exact build-time values.
+  const maybeLocal = (LOCAL_OG_ASSETS as Record<string, { width: number; height: number }>)[ogImagePath];
+  if (maybeLocal) {
+    ogWidth = maybeLocal.width;
+    ogHeight = maybeLocal.height;
   }
 
   const defaultOgImage = {
