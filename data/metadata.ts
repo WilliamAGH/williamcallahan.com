@@ -67,7 +67,7 @@ export const SEO_IMAGES = {
   /** Site-wide default OpenGraph/Twitter image (1200×630 PNG) */
   ogDefault: "/images/og/default-og.png",
   /** Stand-alone logo card (optional) */
-  ogLogo: "/images/og/android-chrome-512x512.png",
+  ogLogo: "/images/favicons/android-chrome-512x512.png",
   /** Collection pages */
   ogBookmarks: "/images/og/bookmarks-og.png",
   ogProjects: "/images/og/projects-og.png",
