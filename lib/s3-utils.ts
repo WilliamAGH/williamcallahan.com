@@ -30,7 +30,7 @@ const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
 const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 const S3_REGION = process.env.S3_REGION || process.env.AWS_REGION || "us-east-1"; // Default region for S3 operations (override with S3_REGION)
 const DRY_RUN = process.env.DRY_RUN === "true";
-const S3_PUBLIC_CDN_URL = process.env.S3_PUBLIC_CDN_URL ?? process.env.S3_CDN_URL; // Public CDN endpoint (supports S3_PUBLIC_CDN_URL or legacy S3_CDN_URL)
+const S3_PUBLIC_CDN_URL = process.env.NEXT_PUBLIC_S3_CDN_URL ?? process.env.S3_CDN_URL; // Public CDN endpoint
 
 // Constants for S3 read retries
 const MAX_S3_READ_RETRIES = 3; // Actually do 3 retry attempts
@@ -360,6 +360,11 @@ export async function writeToS3(
     return;
   }
   if (!isS3FullyConfigured || !s3Client) {
+    // During build phase without credentials, silently skip writes instead of logging warnings
+    if (process.env.NEXT_PHASE === "phase-production-build") {
+      if (isDebug) debug(`[S3Utils] Skipping S3 write during build (no credentials) for key: ${key}`);
+      return;
+    }
     logMissingS3ConfigOnce("writeToS3");
     return;
   }
