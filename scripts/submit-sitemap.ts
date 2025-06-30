@@ -39,23 +39,52 @@ import { loadRateLimitStoreFromS3, incrementAndPersist, persistRateLimitStoreToS
 import { INDEXING_RATE_LIMIT_PATH } from "@/lib/constants";
 
 /**
- * Processes the Google Cloud private key from an environment variable.
- * The key is expected to be a single-line string with escaped newlines.
- * This function replaces the escaped newlines with actual newline characters.
+ * Normalizes the service-account private key coming from environment variables
  *
- * @param key The private key string from the environment variable.
- * @returns The processed private key with actual newlines.
+ * Google keys can arrive in three shapes:
+ *   1. One-line string where newline characters are escaped ("\n") – typical when
+ *      the JSON key is copied into an env file
+ *   2. Base-64-encoded PEM block – common when secrets managers strip newlines
+ *   3. Multiline PEM string already containing real newlines (Kubernetes / Cloud-run secrets)
+ *
+ * This script supports all three - the output is always a valid PEM string
+ * starting with "-----BEGIN PRIVATE KEY-----" and containing *real* newlines
  */
 function processGooglePrivateKey(key?: string): string {
   if (!key) {
-    throw new Error("Google Cloud private key is not defined in environment variables.");
+    throw new Error("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY env var is missing.");
   }
-  return key.replace(/\\n/g, "\n");
+
+  let processed = key;
+
+  // Case 1: escaped newlines – replace with real newlines
+  if (processed.includes("\\n")) {
+    processed = processed.replace(/\\n/g, "\n");
+  }
+
+  // Case 2: base64 – try to decode and see if we get a PEM header
+  if (!processed.startsWith("-----BEGIN")) {
+    try {
+      const decoded = Buffer.from(processed, "base64").toString("utf-8");
+      if (decoded.startsWith("-----BEGIN")) {
+        processed = decoded;
+      }
+    } catch {
+      // fall through – decoding failed, we'll validate later
+    }
+  }
+
+  // Final validation – must contain PEM header
+  if (!processed.startsWith("-----BEGIN PRIVATE KEY-----")) {
+    throw new Error("GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY does not appear to be a valid PEM formatted private key.");
+  }
+
+  return processed;
 }
 
 // The same service-account credential is re-used for both the Indexing API and
-// the Search Console API (sitemaps.submit) endpoints.  We therefore request
-// both scopes up-front so we don't need two separate JWT instances.
+// the Search Console API (sitemaps.submit) endpoint - this requests both scopes
+// up-front so it doesn't need two separate JWT instances
 const authClient = new JWT({
   email: process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL,
   key: processGooglePrivateKey(process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY),
@@ -116,6 +145,20 @@ const URL_INDEXING_ENABLED = false;
 // CLI flags
 // ---------------------------------------------------------------------------
 const DEBUG_MODE = process.argv.includes("--debug");
+
+// Fine-grained control so devs can choose which destination(s) to hit
+const GOOGLE_ONLY = process.argv.includes("--google-only");
+const INDEXNOW_ONLY = process.argv.includes("--indexnow-only");
+const _SKIP_GOOGLE = process.argv.includes("--skip-google") || INDEXNOW_ONLY;
+const _SKIP_INDEXNOW = process.argv.includes("--skip-indexnow") || GOOGLE_ONLY;
+
+// Public-facing constants used later in the script
+const SKIP_GOOGLE = _SKIP_GOOGLE;
+const SKIP_INDEXNOW = _SKIP_INDEXNOW;
+
+if (GOOGLE_ONLY && INDEXNOW_ONLY) {
+  console.warn("Both --google-only and --indexnow-only supplied – defaulting to sending to both.");
+}
 
 // ---------------------------------------------------------------------------
 // Google Search Console – Sitemap submission (2025 method)
@@ -201,31 +244,92 @@ const main = async (): Promise<void> => {
   //   • Bing (+ Yandex, Naver, Seznam, Yep): use IndexNow protocol.
   // -------------------------------------------------------------------
 
-  // Always attempt Search Console sitemap submission if credentials are present.
-  const BASE_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://williamcallahan.com";
-  const siteUrlCanonical = BASE_SITE_URL.endsWith("/") ? BASE_SITE_URL : `${BASE_SITE_URL}/`;
-  const sitemapUrl = `${siteUrlCanonical}sitemap.xml`;
+  // Skip external submissions in non-production or localhost environments unless explicitly forced.
+  const FORCE_SUBMIT = process.env.FORCE_SITEMAP_SUBMIT === "true";
 
-  if (process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL && process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY) {
-    await submitGoogleSitemap(sitemapUrl, siteUrlCanonical);
-  } else if (DEBUG_MODE) {
-    console.warn("[Google] Skipping sitemap submission – Google service-account env vars are missing.");
+  const CANONICAL_SITE_URL = "https://williamcallahan.com";
+  const BASE_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? CANONICAL_SITE_URL;
+
+  const isLocalhost = /localhost|127\.|\.local/.test(BASE_SITE_URL);
+
+  // Use canonical domain for all outbound submissions when running on localhost.
+  const submissionSiteUrl = isLocalhost ? CANONICAL_SITE_URL : BASE_SITE_URL;
+
+  // If the resolved submission domain is *not* the canonical production domain,
+  // abort unless the developer explicitly forces it.
+  if (submissionSiteUrl !== CANONICAL_SITE_URL && !FORCE_SUBMIT) {
+    if (DEBUG_MODE) {
+      console.warn(
+        `[Sitemap Submit] Skipping – submissions are only allowed for ${CANONICAL_SITE_URL}. Current domain: ${submissionSiteUrl}. Set FORCE_SITEMAP_SUBMIT=true to override.`,
+      );
+    }
+    return;
   }
 
-  // Submit an IndexNow payload if the key is available.
-  const INDEXNOW_KEY = process.env.INDEXNOW_KEY;
+  const siteUrlCanonical = submissionSiteUrl.endsWith("/") ? submissionSiteUrl : `${submissionSiteUrl}/`;
+  const sitemapUrl = `${siteUrlCanonical}sitemap.xml`;
 
-  if (!INDEXNOW_KEY) {
-    if (DEBUG_MODE) {
-      console.warn("[IndexNow] Skipping – INDEXNOW_KEY env var not set.");
+  // Allow explicit override for domain-type property IDs (e.g., "sc-domain:example.com")
+  const searchConsoleProperty = process.env.GOOGLE_SEARCH_CONSOLE_PROPERTY ?? siteUrlCanonical;
+
+  if (!SKIP_GOOGLE) {
+    if (process.env.GOOGLE_SEARCH_INDEXING_SA_EMAIL && process.env.GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY) {
+      await submitGoogleSitemap(sitemapUrl, searchConsoleProperty);
+    } else if (DEBUG_MODE) {
+      console.warn("[Google] Skipping sitemap submission – Google service-account env vars are missing.");
     }
-  } else if (!/^[a-f0-9-]{32,}$/i.test(INDEXNOW_KEY)) {
-    console.error("[IndexNow] Invalid INDEXNOW_KEY format – must be a valid UUID or similar identifier.");
+  } else if (DEBUG_MODE) {
+    console.info("[Google] Skipped due to CLI flag.");
+  }
+
+  if (SKIP_INDEXNOW) {
+    if (DEBUG_MODE) {
+      console.info("[IndexNow] Skipped due to CLI flag.");
+    }
   } else {
+    // Submit an IndexNow payload if the key is available.
+    const INDEXNOW_KEY = process.env.INDEXNOW_KEY;
+
+    if (!INDEXNOW_KEY) {
+      if (DEBUG_MODE) {
+        console.warn("[IndexNow] Skipping – INDEXNOW_KEY env var not set.");
+      }
+      return;
+    }
+
+    if (!/^[a-f0-9-]{32,}$/i.test(INDEXNOW_KEY)) {
+      console.error("[IndexNow] Invalid INDEXNOW_KEY format – must be a valid UUID or similar identifier.");
+      return;
+    }
+
     try {
+      // --- Preflight: verify key file only when not running from localhost ---
+      const keyLocationUrl = `${siteUrlCanonical}${INDEXNOW_KEY}.txt`;
+      if (!isLocalhost) {
+        try {
+          const keyRes = await fetch(keyLocationUrl, { method: "GET" });
+          const body = await keyRes.text();
+          if (!keyRes.ok) {
+            console.error(
+              `[IndexNow] keyLocation ${keyLocationUrl} returned HTTP ${keyRes.status}. Aborting submission.`,
+            );
+            return;
+          }
+          if (body.trim() !== INDEXNOW_KEY) {
+            console.error(
+              `[IndexNow] keyLocation file content mismatch. Expected '${INDEXNOW_KEY}', got '${body.trim()}'. Aborting submission.`,
+            );
+            return;
+          }
+        } catch (verifyErr) {
+          console.error(`[IndexNow] Failed to verify keyLocation (${keyLocationUrl}):`, verifyErr);
+          return;
+        }
+      }
+
       // Prepare payload following IndexNow JSON specification
       const payload = {
-        host: new URL(BASE_SITE_URL).host,
+        host: new URL(submissionSiteUrl).host,
         key: INDEXNOW_KEY,
         keyLocation: `${siteUrlCanonical}${INDEXNOW_KEY}.txt`,
         urlList: sitemap().map((u) => u.url),

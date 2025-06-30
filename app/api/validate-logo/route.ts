@@ -125,15 +125,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Enhanced validation with pattern detection
     const blankCheck = await isBlankOrPlaceholder(buffer);
-    
+
     if (blankCheck.isBlank || blankCheck.isGlobe) {
       // Update cache with detection result
       setLogoValidation(bufferHash, true);
       return NextResponse.json(
-        { 
+        {
           isGlobeIcon: true,
           reason: blankCheck.reason,
-          confidence: blankCheck.confidence
+          confidence: blankCheck.confidence,
         },
         {
           headers: {
@@ -142,26 +142,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         },
       );
     }
-    
+
     // Also check similarity with reference globe icon if available
     if (!isGlobeIcon && GLOBE_ICON_BUFFER) {
       try {
         const [bufferSig, globeSig] = await Promise.all([
           generateImageSignature(buffer),
-          generateImageSignature(GLOBE_ICON_BUFFER)
+          generateImageSignature(GLOBE_ICON_BUFFER),
         ]);
-        
+
         const similarity = compareSignatures(bufferSig, globeSig);
-        
+
         // Consider it a globe icon if similarity > 0.7
         if (similarity > 0.7) {
           setLogoValidation(bufferHash, true);
           return NextResponse.json(
-            { 
+            {
               isGlobeIcon: true,
-              reason: 'similar_to_reference',
+              reason: "similar_to_reference",
               similarity,
-              confidence: similarity
+              confidence: similarity,
             },
             {
               headers: {
@@ -199,7 +199,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
 /**
  * Fast SHA-256 hash of the raw buffer. Unlike `getImageHash` this does **not**
- * normalise or decode the image, so it is extremely cheap and
+ * normalize or decode the image, so it is extremely cheap and
  * avoids allocating large intermediate buffers. We use it purely for cache
  * look-ups so that identical logo uploads/URLs skip the costly validation
  * pipeline on subsequent requests.
@@ -207,7 +207,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 function getBufferSha(buffer: Buffer): string {
   return createHash("sha256").update(buffer).digest("hex");
 }
-
 
 /**
  * Load reference globe icon
