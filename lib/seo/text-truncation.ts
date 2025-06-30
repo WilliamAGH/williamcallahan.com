@@ -117,7 +117,7 @@ export function gradientTruncate(
   
   // Handle empty/null input
   if (!text || typeof text !== 'string') {
-    return createResult('', String(text ?? ''), false, 'none', 0, 0, startTime);
+    return createResult('', String(text ?? ''), false, 'none', 0, 0, startTime, true, 0, 0);
   }
   
   // Normalize and create safe string
@@ -128,7 +128,8 @@ export function gradientTruncate(
   if (safeString.length <= options.softLimit) {
     return createResult(
       normalized, normalized, false, 'none',
-      safeString.length, 0, startTime, safeString.isUnicodeAware
+      safeString.length, 0, startTime, safeString.isUnicodeAware,
+      options.softLimit, options.hardLimit ?? options.softLimit + 20
     );
   }
   
@@ -164,7 +165,8 @@ export function gradientTruncate(
   
   return createResult(
     normalized, truncated, true, method,
-    safeString.length, overage, startTime, safeString.isUnicodeAware
+    safeString.length, overage, startTime, safeString.isUnicodeAware,
+    options.softLimit, hardLimit
   );
 }
 
@@ -275,13 +277,15 @@ function createResult(
   originalLength: number,
   overage: number,
   startTime: number,
-  unicodeAware = true
+  unicodeAware = true,
+  softLimit?: number,
+  hardLimit?: number
 ): TruncationResult {
   const metrics: TruncationMetrics = {
     originalLength,
     finalLength: new SafeString(text).length,
     overage,
-    overageRatio: overage > 0 ? overage / 20 : 0, // Based on 20 char allowance
+    overageRatio: overage > 0 && softLimit && hardLimit ? overage / (hardLimit - softLimit) : 0,
     processingTime: performance.now() - startTime,
     unicodeAware
   };
