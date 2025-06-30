@@ -29,7 +29,7 @@ export type BookmarkCardClientProps = UnifiedBookmark & {
    *    component detects that `usePathname()` already equals this path and intentionally disables the
    *    internal link, making the image & title fall back to the original external `url`.
    *
-   * This dual-behaviour ensures we never confuse the two link targets while allowing one reusable
+   * This dual-behavior ensures we never confuse the two link targets while allowing one reusable
    * component to cover both contexts without prop explosions.
    *
    * NEVER pass an external URL here – it must always start with "/bookmarks/".
