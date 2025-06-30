@@ -20,6 +20,8 @@
 import type { Metadata } from "next";
 import {
   PAGE_METADATA,
+  PAGE_OG_ASPECT,
+  OG_IMAGE_DIMENSIONS,
   SITE_DESCRIPTION_SHORT,
   SITE_NAME,
   SITE_TITLE,
@@ -220,11 +222,18 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
           { path, name: pageMetadata.title },
         ];
 
-  // Start with global default image but allow reassignment to page-specific images.
+  // Decide aspect ratio for this page key
+  const aspectKey = PAGE_OG_ASPECT[pageKey] ?? "legacy";
+
+  // Track image dimensions separately so we can override per-page when needed
+  const ogWidth: number = OG_IMAGE_DIMENSIONS[aspectKey].width;
+  const ogHeight: number = OG_IMAGE_DIMENSIONS[aspectKey].height;
+
+  // Default OG image path (can be overridden below)
   let ogImagePath: string = siteMetadata.defaultImage.url;
 
   if (pageKey === "bookmarks") {
-    ogImagePath = SEO_IMAGES.ogBookmarks;
+    ogImagePath = SEO_IMAGES.ogBookmarks; // actual asset 1440×900 but close to legacy
   } else if (pageKey === "projects") {
     ogImagePath = SEO_IMAGES.ogProjects;
   } else if (pageKey === "blog") {
@@ -233,8 +242,8 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
 
   const defaultOgImage = {
     url: ensureAbsoluteUrl(ogImagePath),
-    width: siteMetadata.defaultImage.width,
-    height: siteMetadata.defaultImage.height,
+    width: ogWidth,
+    height: ogHeight,
     alt: siteMetadata.defaultImage.alt,
     type: siteMetadata.defaultImage.type,
   };

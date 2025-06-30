@@ -155,6 +155,38 @@ export const PAGE_METADATA = {
   } as CollectionPageMetadata,
 } as const;
 
+/**
+ * Shared OpenGraph image dimensions
+ * legacy → 1.91:1 ratio (1440×756) used by historical images & dynamic routes
+ * modern → Larger 2100×1100 image used going forward when intentionally generated
+ */
+export const OG_IMAGE_DIMENSIONS = {
+  legacy: {
+    width: 1440 as const,
+    height: 756 as const,
+  },
+  modern: {
+    width: 2100 as const,
+    height: 1100 as const,
+  },
+} as const;
+
+/**
+ * Map each static page key to the OG image aspect it should use.
+ * This ensures a single place to change sizing decisions without scattering
+ * magic numbers throughout the codebase.
+ */
+export const PAGE_OG_ASPECT: Record<keyof typeof PAGE_METADATA, keyof typeof OG_IMAGE_DIMENSIONS> = {
+  home: "legacy",
+  experience: "legacy",
+  investments: "modern",
+  education: "legacy",
+  bookmarks: "legacy", // collection page keeps legacy (1440×900 asset fits 1.91:1)
+  blog: "legacy",
+  projects: "modern",
+  contact: "legacy",
+} as const;
+
 export const metadata = {
   title: SITE_TITLE,
   description: SITE_DESCRIPTION,
@@ -203,8 +235,8 @@ export const metadata = {
   /** Default image used for social sharing */
   defaultImage: {
     url: SEO_IMAGES.ogDefault,
-    width: 1440,
-    height: 900,
+    width: OG_IMAGE_DIMENSIONS.legacy.width,
+    height: OG_IMAGE_DIMENSIONS.legacy.height,
     alt: `${SITE_NAME} on Finance, Startups, & Engineering in San Francisco`,
     type: "image/png",
   },
@@ -219,7 +251,7 @@ export const metadata = {
       {
         url: SEO_IMAGES.ogDefault,
         width: 1440,
-        height: 900,
+        height: 756,
         alt: `${SITE_NAME} – default social image`,
         type: "image/png",
       },
