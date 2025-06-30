@@ -222,7 +222,7 @@ graph TD
 4. **Rate Limiting**: 1-second delay between API calls
 5. **Submission**:
    - Google: POST to Webmasters API with sitemap URL
-   - Bing: GET request to IndexNow with encoded parameters
+   - Bing: POST request to IndexNow with JSON payload
 6. **Error Handling**: Retry with exponential backoff on failure
 
 ## Operations & Maintenance

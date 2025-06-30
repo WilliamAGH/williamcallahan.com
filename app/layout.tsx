@@ -24,7 +24,7 @@ import { BodyClassManager } from "@/components/utils/body-class-manager.client";
 import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-registry-context.client";
 // Re-add direct imports
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
-import { ClientTerminal } from "../components/ui/terminal/terminal.client";
+// Terminal is now dynamically imported for lazy loading
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, metadata as siteMetadata } from "../data/metadata";
 import { Providers } from "./providers.client";
 
@@ -33,6 +33,9 @@ import { ErrorBoundary } from "@/components/ui/error-boundary.client";
 import { OpenGraphLogo } from "@/components/seo";
 import { SvgTransformFixer } from "../components/utils/svg-transform-fixer.client";
 import { cn } from "../lib/utils";
+
+// Import the client-side terminal loader
+import { TerminalLoader } from "@/components/ui/terminal";
 
 /** Load Inter font with Latin subset and display swap */
 const inter = Inter({
@@ -102,9 +105,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Resource hints for faster initial page load */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://images.unsplash.com" />
-        <link rel="dns-prefetch" href="https://williamcallahan.com" />
-        <link rel="dns-prefetch" href="https://icons.duckduckgo.com" />
         {/* Preconnect to CDN that serves all logos/images */}
         {process.env.NEXT_PUBLIC_S3_CDN_URL && (
           <>
@@ -170,7 +170,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
               <main className="pb-16 px-4 motion-safe:transition-opacity motion-safe:duration-200">
                 <ErrorBoundary>
-                  <ClientTerminal />
+                  <TerminalLoader />
                 </ErrorBoundary>
                 <ErrorBoundary>{children}</ErrorBoundary>
               </main>
