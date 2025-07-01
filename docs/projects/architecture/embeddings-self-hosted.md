@@ -134,7 +134,26 @@ app = FastAPI(title="Self-Hosted Embeddings API")
 security = HTTPBearer()
 
 # Security: API key validation
-VALID_API_KEYS = set(os.getenv('API_KEYS', '').split(',')) if os.getenv('API_KEYS') else {secrets.token_urlsafe(32)}
+api_keys_env = os.getenv('API_KEYS')
+is_production = os.getenv('APP_ENV', 'development').lower() == 'production'
+
+if not api_keys_env:
+    if is_production:
+        raise RuntimeError(
+            "API_KEYS environment variable must be set in production. "
+            "Configure with comma-separated API keys."
+        )
+    else:
+        # Development only: generate temporary key with warning
+        temp_key = f"dev_{secrets.token_urlsafe(32)}"
+        logger.warning(
+            f"SECURITY WARNING: API_KEYS not set. Using temporary key: {temp_key[:12]}... "
+            "This is only acceptable in development environments."
+        )
+        VALID_API_KEYS = {temp_key}
+else:
+    VALID_API_KEYS = set(api_keys_env.split(','))
+
 INJECTION_PATTERNS = re.compile(r'(\bignore\s+previous\b|\bsystem\s+prompt\b|\bdisregard\s+instructions\b)', re.IGNORECASE)
 
 # Metrics
