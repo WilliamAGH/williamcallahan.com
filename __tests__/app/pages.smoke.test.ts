@@ -11,6 +11,7 @@ const staticPageRoutes = [
   { name: "Experience", path: "@/app/experience/page", skipRender: true, needsProvider: true }, // Needs provider
   { name: "Investments", path: "@/app/investments/page", skipRender: true }, // Uses async components
   { name: "Projects", path: "@/app/projects/page", needsProvider: true },
+  { name: "Bookmarks", path: "@/app/bookmarks/page", skipRender: true }, // Has server data fetching
 ];
 
 let originalFetch: typeof global.fetch;
