@@ -29,7 +29,7 @@ export async function getImageFromS3StorageForCache(key: string): Promise<Buffer
   safeCacheTag(`image-key-${key}`);
 
   const command = new GetObjectCommand({
-    Bucket: env.S3_BUCKET_NAME,
+    Bucket: env.S3_BUCKET,
     Key: key,
   });
 
