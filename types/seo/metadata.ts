@@ -14,27 +14,12 @@ import { z } from "zod";
 import type { ExtendedMetadata } from "./base";
 export type { ExtendedMetadata };
 
-// Import ArticleSchema from main SEO types to avoid duplication
-import type { ArticleSchema } from "./schema";
-export type { ArticleSchema };
-
-// BaseSchema removed - was only used by ProfileSchema and CollectionSchema
-// which are now imported from main SEO types
-
-// Import ProfileSchema from main SEO types to avoid duplication
-import type { ProfilePageSchema as ProfileSchema } from "./schema";
-export type { ProfileSchema };
-
-// Import CollectionSchema from main SEO types to avoid duplication
-import type { CollectionPageSchema as CollectionSchema } from "./schema";
-export type { CollectionSchema };
+// Import and re-export schema types from main SEO types to avoid duplication
+export type { ArticleSchema, ProfilePageSchema, CollectionPageSchema } from "./schema";
 
 // Extend if needed for backward compatibility
 export interface ArticleMetadata extends Omit<ExtendedMetadata, "openGraph"> {
   openGraph?: OpenGraph;
-  other: {
-    [key: string]: string | number | (string | number)[];
-  };
 }
 
 // ============================================================================
