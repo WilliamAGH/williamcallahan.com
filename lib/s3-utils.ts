@@ -5,6 +5,11 @@
  * JSON handling, metadata access, object listing, and binary file management
  * Implements error handling and retry logic for improved reliability
  *
+ * Build-time behavior:
+ * - S3 READS: Always allowed (if credentials are provided)
+ * - S3 WRITES: Blocked during build phase via isS3ReadOnly() check
+ * - Missing credentials during build will show warnings but won't break the build
+ *
  * @module lib/s3-utils
  */
 
@@ -68,10 +73,14 @@ function isBinaryKey(key: string): boolean {
   return isImageContentType(contentType);
 }
 
+// Only warn about missing S3 config if we're not in build phase
+// During build, S3 write operations are intentionally disabled so missing config is expected
 if (!S3_BUCKET || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
-  console.warn(
-    "[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3 operations may fail.",
-  );
+  if (process.env.NEXT_PHASE !== "phase-production-build") {
+    console.warn(
+      "[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3 operations may fail.",
+    );
+  }
 }
 
 export const s3Client: S3Client | null =
@@ -146,6 +155,9 @@ async function validateContentSize(key: string): Promise<boolean> {
 
 /**
  * Retrieves an object from S3 by key, optionally using a byte range.
+ *
+ * Note: This function is NOT blocked during build time - reads are always allowed
+ * if S3 credentials are available.
  *
  * Returns the object content as a UTF-8 string for text or JSON types, or as a Buffer for other content types. If the object is not found or an error occurs, returns null.
  *
@@ -313,6 +325,10 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
 
 /**
  * Writes an object to S3.
+ * 
+ * Note: This is a low-level function that does NOT check isS3ReadOnly().
+ * Use writeJsonS3() or writeBinaryS3() which properly handle build-time blocking.
+ * 
  * @param key The S3 object key
  * @param data The data to write (string or Buffer)
  * @param contentType The MIME type of the content
@@ -603,6 +619,10 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
 
 /**
  * Reads data from an S3 JSON object
+ *
+ * Note: This function is NOT blocked during build time - reads are always allowed
+ * if S3 credentials are available.
+ *
  * @param s3Key S3 object key
  * @returns Parsed JSON data or null if an error occurs
  */
@@ -635,6 +655,10 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
 
 /**
  * Writes data to an S3 JSON object with optional conditional write support
+ * 
+ * Note: This function is BLOCKED during build time via isS3ReadOnly() check.
+ * During build phase (NEXT_PHASE=phase-production-build), writes are skipped.
+ * 
  * @param s3Key S3 object key
  * @param data Data to write
  * @param options Optional parameters including IfNoneMatch for conditional writes
@@ -644,7 +668,7 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
     if (isDebug) debug(`[S3Utils][DRY RUN] Would write JSON to S3 key: ${s3Key}`);
     return;
   }
-  
+
   // Check if S3 writes are disabled (e.g., during build time)
   const { isS3ReadOnly } = await import("./utils/s3-read-only");
   if (isS3ReadOnly()) {
@@ -710,6 +734,10 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
 
 /**
  * Reads a binary file (e.g., an image) from S3
+ * 
+ * Note: This function is NOT blocked during build time - reads are always allowed
+ * if S3 credentials are available.
+ * 
  * @param s3Key S3 object key
  * @returns Buffer or null
  */
@@ -740,6 +768,10 @@ export async function readBinaryS3(s3Key: string): Promise<Buffer | null> {
 
 /**
  * Writes a binary file (e.g., an image) to S3.
+ * 
+ * Note: This function is BLOCKED during build time via isS3ReadOnly() check.
+ * During build phase (NEXT_PHASE=phase-production-build), writes are skipped.
+ * 
  * @param s3Key S3 object key
  * @param data Buffer to write
  * @param contentType MIME type of the content
@@ -754,7 +786,7 @@ export async function writeBinaryS3(s3Key: string, data: Buffer | Readable, cont
       );
     return;
   }
-  
+
   // Check if S3 writes are disabled (e.g., during build time)
   const { isS3ReadOnly } = await import("./utils/s3-read-only");
   if (isS3ReadOnly()) {
