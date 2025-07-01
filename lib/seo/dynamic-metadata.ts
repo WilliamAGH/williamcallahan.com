@@ -9,6 +9,7 @@
 import { SEO_TITLE_SUFFIXES, SEO_TITLE_REDUNDANT_PREFIXES } from "@/lib/constants";
 import { gradientTruncate } from "./text-truncation";
 import type { TruncationOptions } from "@/types/seo";
+import { formatTagDisplay as utilFormatTagDisplay } from "@/lib/utils/tag-utils";
 
 /**
  * Generates consistent title formatting for dynamic pages
@@ -51,15 +52,15 @@ export function generateDynamicTitle(
 
   // Calculate suffix length including separator
   const suffixWithSeparator = `${separator}${suffix}`;
-  
+
   // Check if we can fit both content and suffix within 70 chars
   const combinedLength = cleanedContent.length + suffixWithSeparator.length;
-  
+
   if (combinedLength <= maxTotalLength) {
     // Everything fits! Return with suffix
     return `${cleanedContent}${suffixWithSeparator}`;
   }
-  
+
   // Content + suffix would exceed 70 chars
   // Check if content alone fits within 70 chars
   if (cleanedContent.length <= maxContentLength) {
@@ -67,7 +68,7 @@ export function generateDynamicTitle(
     // Return content without suffix
     return cleanedContent;
   }
-  
+
   // Content alone exceeds 70 chars, need to truncate
   const importantKeywords: string[] | undefined = (() => {
     if (options?.isTag) {
@@ -199,22 +200,5 @@ export function generateDynamicDescription(
   return result;
 }
 
-/**
- * Formats tag names for display with proper capitalization
- * Preserves mixed-case tags (e.g., iPhone, JavaScript) while title-casing others
- * @param tag - The tag to format
- * @returns Properly formatted tag name
- */
-export function formatTagDisplay(tag: string): string {
-  // Preserve mixed-case tags like iPhone, aVenture, JavaScript
-  // Check if the tag has uppercase letters after the first character
-  if (/[A-Z]/.test(tag.slice(1))) {
-    return tag;
-  }
-
-  // Title case for regular tags
-  return tag
-    .split(/[\s-]+/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-}
+// Re-export shared tag formatter from utils to avoid logic duplication
+export const formatTagDisplay = utilFormatTagDisplay;
