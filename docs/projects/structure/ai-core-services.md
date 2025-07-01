@@ -359,6 +359,7 @@ if (!allowed) {
 ## Conclusion
 
 This core implementation provides a working AI service with:
+
 - ✅ OpenAI compatibility
 - ✅ Local model support (Ollama)
 - ✅ Streaming and non-streaming
