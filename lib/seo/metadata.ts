@@ -313,20 +313,50 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
 
   const schema = generateSchemaGraph(schemaParams);
 
-  const openGraph: ExtendedOpenGraph = {
-    title: pageMetadata.title,
-    description: pageMetadata.description,
-    url: ensureAbsoluteUrl(path),
-    images: [socialImage],
-    siteName: SITE_NAME,
-    locale: "en_US",
-    type: isProfilePage ? "profile" : "website", // Keep it simple: 'profile' or 'website'
-    ...(isProfilePage && {
+  // Create type-safe OpenGraph object based on page type
+  let openGraph: ExtendedOpenGraph;
+
+  if (isProfilePage) {
+    openGraph = {
+      title: pageMetadata.title,
+      description: pageMetadata.description,
+      url: ensureAbsoluteUrl(path),
+      images: [socialImage],
+      siteName: SITE_NAME,
+      locale: "en_US",
+      type: "profile",
       firstName: SITE_NAME.split(" ")[0],
       lastName: SITE_NAME.split(" ")[1],
       username: siteMetadata.social.twitter.replace("@", ""),
-    }),
-  };
+    };
+  } else if (isCollectionPage) {
+    openGraph = {
+      title: pageMetadata.title,
+      description: pageMetadata.description,
+      url: ensureAbsoluteUrl(path),
+      images: [socialImage],
+      siteName: SITE_NAME,
+      locale: "en_US",
+      type: "article",
+      article: {
+        publishedTime: formattedCreated,
+        modifiedTime: formattedModified,
+        section: pageMetadata.title,
+        tags: [],
+        authors: [siteMetadata.author],
+      },
+    };
+  } else {
+    openGraph = {
+      title: pageMetadata.title,
+      description: pageMetadata.description,
+      url: ensureAbsoluteUrl(path),
+      images: [socialImage],
+      siteName: SITE_NAME,
+      locale: "en_US",
+      type: "website",
+    };
+  }
 
   // Validate OpenGraph metadata in development
   if (process.env.NODE_ENV === "development") {

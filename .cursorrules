@@ -12,6 +12,7 @@ This project operates under **ZERO TEMPERATURE** development standards where eve
 ### Empty Platitudes & Premature Agreement - ABSOLUTELY FORBIDDEN
 
 **NEVER respond with empty confirmations:**
+
 - ❌ "You're right!" (without verification)
 - ❌ "That makes sense!" (before investigation)  
 - ❌ "Good point!" (as filler)
@@ -19,6 +20,7 @@ This project operates under **ZERO TEMPERATURE** development standards where eve
 - ❌ Any agreement/disagreement before code verification
 
 **ALWAYS seek truth through investigation:**
+
 - ✅ "Let me verify that in the codebase..."
 - ✅ "I need to investigate before confirming..."
 - ✅ "After checking [file:line], I can confirm..."

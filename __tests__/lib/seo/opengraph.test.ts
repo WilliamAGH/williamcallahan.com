@@ -26,6 +26,7 @@ describe("OpenGraph Metadata", () => {
       const images = BASE_OG_METADATA.images as OpenGraphImage[];
       const defaultImage = images?.[0];
       expect(defaultImage).toBeDefined();
+      // BASE_OG_METADATA doesn't use prepareOGImageUrl, so no cache-busting
       expect(defaultImage?.url).toBe(ensureAbsoluteUrl(siteMetadata.defaultImage.url));
       expect(defaultImage?.width).toBe(siteMetadata.defaultImage.width);
       expect(defaultImage?.height).toBe(siteMetadata.defaultImage.height);
@@ -90,7 +91,9 @@ describe("OpenGraph Metadata", () => {
       const image = images?.[0];
 
       expect(image).toBeDefined();
-      expect(image?.url).toBe(ensureAbsoluteUrl("/images/custom-image.jpg"));
+      // URL should contain the image path and have cache-busting parameter
+      expect(image?.url).toContain("/images/custom-image.jpg");
+      expect(image?.url).toMatch(/\?v=\d+$/);
       expect(image?.alt).toBe(articleWithImage.title);
       expect(typeof image?.url).toBe("string");
       expect(typeof image?.alt).toBe("string");
@@ -102,7 +105,9 @@ describe("OpenGraph Metadata", () => {
       const image = images?.[0];
 
       expect(image).toBeDefined();
-      expect(image?.url).toBe(ensureAbsoluteUrl(siteMetadata.defaultImage.url));
+      // URL should contain the default image path and have cache-busting parameter
+      expect(image?.url).toContain(siteMetadata.defaultImage.url);
+      expect(image?.url).toMatch(/\?v=\d+$/);
       expect(image?.width).toBe(siteMetadata.defaultImage.width);
       expect(image?.height).toBe(siteMetadata.defaultImage.height);
       expect(image?.type).toBe(siteMetadata.defaultImage.type);

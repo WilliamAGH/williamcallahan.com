@@ -49,7 +49,74 @@ All social-sharing and favicon assets are defined **once** in `data/metadata.ts`
 ### OpenGraph
 
 - **`lib/seo/opengraph.ts`**: Creates OpenGraph-specific metadata objects, ensuring correct formatting for social media previews, particularly for articles.
+- **`lib/seo/og-validation.ts`**: Validates OpenGraph metadata and images according to social media platform requirements, with cache-busting URL generation for consistent social media crawler behavior.
 - **`types/seo/opengraph.ts`**: Defines TypeScript types for different OpenGraph object types (`ArticleOpenGraph`, `ProfileOpenGraph`).
+- **`types/seo/validation.ts`**: Provides validation types and adapter functions for converting Next.js OpenGraph metadata to validation-compatible formats.
+
+### OpenGraph Validation & Cache Management
+
+#### Validation System
+
+The OpenGraph validation system ensures all social media metadata meets platform requirements and provides consistent previews across Twitter, Facebook, LinkedIn, and other social platforms.
+
+**Core Features:**
+
+- **Image Validation**: Checks dimensions (minimum 144x144px, recommended 1200x630px), format compatibility, and URL accessibility
+- **Metadata Validation**: Verifies required tags (`og:title`, `og:description`, `og:image`, `og:url`) and character limits
+- **Cache Busting**: Generates cache-busted URLs to force social media crawlers to refresh content
+- **Platform Compliance**: Follows Twitter Cards and OpenGraph protocol specifications
+
+#### Testing & Continuous Validation
+
+**Automated Testing:**
+
+- **`__tests__/lib/seo/og-validation.test.ts`**: Comprehensive test suite that runs in CI/CD
+  - Validates all page metadata for consistency
+  - Tests image URL processing and cache busting
+  - Verifies asset consistency and fallback dimensions
+  - Warns about missing image files without failing builds
+
+**Manual Cache Clearing:**
+
+- **`scripts/validate-opengraph-clear-cache.ts`**: Utility for forcing Twitter cache refresh
+  - Validates OpenGraph metadata for key pages
+  - Submits cache clearing requests to Twitter's Card Validator API
+  - Handles rate limiting and API response errors gracefully
+  - Takes 5-10 minutes for changes to propagate across Twitter's CDN
+
+#### Usage Examples
+
+```bash
+# Run OpenGraph validation tests
+bun run test __tests__/lib/seo/og-validation.test.ts
+
+# Manual cache clearing after metadata updates
+bun run scripts/validate-opengraph-clear-cache.ts
+
+# Add to package.json for convenience
+{
+  "scripts": {
+    "validate-opengraph": "bun run scripts/validate-opengraph-clear-cache.ts"
+  }
+}
+```
+
+#### Integration with Metadata Generation
+
+The validation system integrates seamlessly with the existing metadata pipeline:
+
+```typescript
+// Automatic validation in development
+import { validateOpenGraphMetadata } from '@/lib/seo/og-validation';
+
+// In lib/seo/opengraph.ts - validation runs automatically in development
+if (process.env.NODE_ENV === 'development') {
+  const validation = validateOpenGraphMetadata(ogMetadata);
+  if (!validation.isValid) {
+    console.error('OpenGraph validation errors:', validation.errors);
+  }
+}
+```
 
 ### Site Indexing & Submission
 
@@ -302,6 +369,9 @@ The `tagToSlug` function handles special characters in tags to generate SEO-frie
 
 - The SEO functionality is critical for improving the application's discoverability and user engagement through search engines and social media platforms
 - The modular structure allows for easy updates to metadata standards and integration with various parts of the application
+- **OpenGraph validation system** ensures consistent social media previews and provides cache-busting capabilities for immediate updates
+- **Continuous testing** via automated test suite prevents regressions in social media metadata functionality
+- **Manual cache clearing utility** allows immediate resolution of social media preview issues without waiting for natural cache expiration
 - Validation ensures metadata adheres to SEO best practices, preventing common mistakes
 - The barrel export pattern in `lib/seo/index.ts` provides a clean API for consuming SEO functionality
 - Automated submission runs only in production to prevent accidental submissions during development
