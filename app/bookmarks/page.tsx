@@ -50,6 +50,10 @@ export default function BookmarksPage() {
       width: 2100,
       height: 1100,
     },
+    breadcrumbs: [
+      { path: "/", name: "Home" },
+      { path: "/bookmarks", name: "Bookmarks" },
+    ],
   };
 
   const jsonLdData = generateSchemaGraph(schemaParams);

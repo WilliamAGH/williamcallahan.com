@@ -25,15 +25,23 @@ import type { BookmarkTag } from "@/types";
 export function formatTagDisplay(tag: string): string {
   if (!tag) return "";
 
-  // Preserve if mixed-case beyond first char (e.g. iPhone, aVenture)
+  // Preserve mixed-case proper nouns that already include uppercase beyond the first character
   if (/[A-Z]/.test(tag.slice(1))) {
     return tag;
   }
 
-  // Otherwise convert to title case
   return tag
     .split(/[\s-]+/)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .map((word) => {
+      // Preserve all-caps for short acronyms such as "AI", "ML", "VR", etc.
+      const isPotentialAcronym = word.length <= 2 && word === word.toLowerCase();
+      if (isPotentialAcronym) {
+        return word.toUpperCase();
+      }
+
+      // Default title-case transformation
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
     .join(" ");
 }
 
