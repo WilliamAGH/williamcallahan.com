@@ -5,7 +5,8 @@ alwaysApply: false
 
 # Step 5: AI Web Search & Grounding
 
-**Prerequisites**: 
+**Prerequisites**:
+
 - [Step 1: Convex Database Foundation](./convex-database.md) - For rate limiting
 - [Step 2: Core AI Services](./ai-core-services.md) - For AI summarization
 - [Step 3: Advanced AI Features](./ai-shared-services.md) - Optional, for enhanced AI integration
@@ -23,6 +24,7 @@ Same as [Step 2](./ai-core-services.md#critical-implementation-rules), plus:
 ## Overview
 
 Step 5 adds:
+
 - **Search Providers**: Brave, Serper, DuckDuckGo, Perplexity search
 - **Unified Interface**: Single API for all search providers
 - **AI Integration**: Search + summarization patterns
@@ -48,6 +50,7 @@ lib/
 **CRITICAL**: Always fetch current docs before implementing:
 
 ### Search Providers
+
 - **Brave Search**: <https://brave.com/search/api/>
 - **Serper**: <https://serper.dev/docs>
 - **DuckDuckGo**: <https://duckduckgo.com/api>
@@ -102,8 +105,11 @@ export abstract class BaseSearchProvider implements SearchProvider {
   constructor(providerName: string, envKey: string, baseUrl: string) {
     this.providerName = providerName;
     this.baseUrl = baseUrl;
-    this.apiKey = process.env[envKey]!;
-    if (!this.apiKey) throw new Error(`${envKey} is required`);
+    this.apiKey = process.env[envKey] || '';
+    // Skip validation for providers that don't need API keys
+    if (envKey !== 'DUMMY_KEY' && !this.apiKey) {
+      throw new Error(`${envKey} is required`);
+    }
   }
 
   protected async fetchWithRetry<T>(
@@ -657,6 +663,7 @@ perplexitySearchRequests: { kind: "fixed window", rate: 50, period: MINUTE },
 ## 🔗 Next Steps
 
 Consider implementing:
+
 - Search result caching with Redis
 - Custom ranking algorithms
 - Domain-specific search filters
@@ -665,6 +672,7 @@ Consider implementing:
 ## Implementation Checklist
 
 ### Search Providers
+
 - [ ] Implement Brave Search
 - [ ] Implement Serper API
 - [ ] Implement DuckDuckGo
@@ -672,12 +680,14 @@ Consider implementing:
 - [ ] Test multi-provider search
 
 ### Integration Features
+
 - [ ] Search + AI summarization
 - [ ] Fact checking system
 - [ ] Grounded Q&A
 - [ ] Result deduplication
 
 ### Production Features
+
 - [ ] Rate limiting per provider
 - [ ] Search result caching
 - [ ] Error handling
