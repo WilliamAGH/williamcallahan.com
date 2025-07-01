@@ -186,5 +186,8 @@
     "@swc/core",
     "unrs-resolver"
   ],
+  "resolutions": {
+    "import-in-the-middle": "1.14.2"
+  },
   "packageManager": "bun@1.2.17"
 }
