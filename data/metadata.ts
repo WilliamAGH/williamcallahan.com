@@ -59,16 +59,25 @@ export const SITE_DESCRIPTION_SHORT =
 import type { ProfilePageMetadata, CollectionPageMetadata } from "@/types/seo";
 
 // -------- Auto-sized static OG assets (import exposes src/width/height) --------
+// We still import the files to obtain their intrinsic dimensions, but we will expose
+// *stable* public URLs ("/images/og/*.png") in SEO metadata to avoid hashed paths
+// that third-party scrapers (Twitter, Facebook) refuse to fetch.
+
 import ogDefaultImage from "@/public/images/og/default-og.png";
 import ogBookmarksImage from "@/public/images/og/bookmarks-og.png";
 import ogProjectsImage from "@/public/images/og/projects-og.png";
 import ogBlogIndexImage from "@/public/images/og/blog-og.png";
 
-/**
- * Record of local OG assets keyed by their src path. Allows downstream code to pick up
- * accurate width/height info without hard-coding literals.
- */
+// Map *both* hashed build paths (ogXImage.src) and the stable public paths so that
+// width/height look-ups work regardless of which path the caller provides.
+
 export const LOCAL_OG_ASSETS = {
+  // Stable public paths
+  "/images/og/default-og.png": ogDefaultImage,
+  "/images/og/bookmarks-og.png": ogBookmarksImage,
+  "/images/og/projects-og.png": ogProjectsImage,
+  "/images/og/blog-og.png": ogBlogIndexImage,
+  // Next.js hashed paths (retained for internal use)
   [ogDefaultImage.src]: ogDefaultImage,
   [ogBookmarksImage.src]: ogBookmarksImage,
   [ogProjectsImage.src]: ogProjectsImage,
@@ -82,15 +91,15 @@ export const LOCAL_OG_ASSETS = {
  */
 export const SEO_IMAGES = {
   /** Site-wide default OpenGraph/Twitter image */
-  ogDefault: ogDefaultImage.src,
+  ogDefault: "/images/og/default-og.png",
   /** Stand-alone logo card (optional) */
   ogLogo: "/images/favicons/android-chrome-512x512.png",
   /** Collection pages */
-  ogBookmarks: ogBookmarksImage.src,
-  ogProjects: ogProjectsImage.src,
-  ogBlogIndex: ogBlogIndexImage.src,
+  ogBookmarks: "/images/og/bookmarks-og.png",
+  ogProjects: "/images/og/projects-og.png",
+  ogBlogIndex: "/images/og/blog-og.png",
   /** Fallback for dynamic /api/og-image route */
-  ogDynamicFallback: ogDefaultImage.src,
+  ogDynamicFallback: "/images/og/default-og.png",
   /** Favicons & touch icons */
   faviconIco: "/images/favicons/favicon.ico",
   appleTouch: "/images/favicons/apple-180x180-touch-icon.png",
