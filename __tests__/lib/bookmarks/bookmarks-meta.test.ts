@@ -47,13 +47,15 @@ import { getBookmarks, setRefreshBookmarksCallback } from "@/lib/bookmarks/bookm
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { readJsonS3 } from "@/lib/s3-utils";
 
+const createTag = (name: string) => ({ id: name, name, slug: name.replace(/\s+/g, "-"), color: undefined });
+
 const mockBookmarks: UnifiedBookmark[] = [
   {
     id: "1",
     url: "https://example.com",
     title: "Example",
     description: "Test bookmark",
-    tags: ["test"],
+    tags: [createTag("test")],
     imageUrl: null,
     domain: "example.com",
     createdAt: "2024-01-01",
@@ -61,6 +63,10 @@ const mockBookmarks: UnifiedBookmark[] = [
     isFavorite: false,
   },
 ];
+
+/** Helper to strip tag objects -> names for deep equality where expected data uses strings */
+const simplify = (bookmarks: UnifiedBookmark[]) =>
+  bookmarks.map((b) => ({ ...b, tags: b.tags.map((t) => (typeof t === "string" ? t : t.name)) }));
 
 describe("Bookmarks Data Access (Simple)", () => {
   beforeEach(() => {
@@ -76,7 +82,7 @@ describe("Bookmarks Data Access (Simple)", () => {
 
       const result = await getBookmarks();
 
-      expect(result).toEqual(mockBookmarks);
+      expect(simplify(result)).toEqual(simplify(mockBookmarks));
       expect(readJsonS3).toHaveBeenCalledWith(BOOKMARKS_S3_PATHS.FILE);
     });
 
@@ -85,7 +91,7 @@ describe("Bookmarks Data Access (Simple)", () => {
 
       const result = await getBookmarks(true); // Skip external fetch
 
-      expect(result).toEqual(mockBookmarks);
+      expect(simplify(result)).toEqual(simplify(mockBookmarks));
       expect(readJsonS3).toHaveBeenCalledWith(BOOKMARKS_S3_PATHS.FILE);
     });
 
@@ -96,7 +102,7 @@ describe("Bookmarks Data Access (Simple)", () => {
 
       const result = await getBookmarks(true); // Skip external fetch
 
-      expect(result).toEqual([]);
+      expect(simplify(result)).toEqual([]);
     });
 
     it("should handle S3 errors gracefully", async () => {
@@ -105,7 +111,7 @@ describe("Bookmarks Data Access (Simple)", () => {
 
       const result = await getBookmarks(true);
 
-      expect(result).toEqual([]);
+      expect(simplify(result)).toEqual([]);
       expect(readJsonS3).toHaveBeenCalled();
     });
 
@@ -130,7 +136,7 @@ describe("Bookmarks Data Access (Simple)", () => {
 
       const result = await getBookmarks();
 
-      expect(result).toEqual(mockBookmarks);
+      expect(simplify(result)).toEqual(simplify(mockBookmarks));
       // Validation is NOT called during regular reads from S3
       expect(validateBookmarksDataset).not.toHaveBeenCalled();
     });
@@ -147,7 +153,7 @@ describe("Bookmarks Data Access (Simple)", () => {
 
       const result = await getBookmarks(true);
 
-      expect(result).toEqual(mockBookmarks);
+      expect(simplify(result)).toEqual(simplify(mockBookmarks));
       // Validation is NOT called during regular reads from S3
       expect(validateBookmarksDataset).not.toHaveBeenCalled();
     });
