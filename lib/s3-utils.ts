@@ -325,10 +325,10 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
 
 /**
  * Writes an object to S3.
- * 
+ *
  * Note: This is a low-level function that does NOT check isS3ReadOnly().
  * Use writeJsonS3() or writeBinaryS3() which properly handle build-time blocking.
- * 
+ *
  * @param key The S3 object key
  * @param data The data to write (string or Buffer)
  * @param contentType The MIME type of the content
@@ -655,10 +655,10 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
 
 /**
  * Writes data to an S3 JSON object with optional conditional write support
- * 
+ *
  * Note: This function is BLOCKED during build time via isS3ReadOnly() check.
  * During build phase (NEXT_PHASE=phase-production-build), writes are skipped.
- * 
+ *
  * @param s3Key S3 object key
  * @param data Data to write
  * @param options Optional parameters including IfNoneMatch for conditional writes
@@ -734,10 +734,10 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
 
 /**
  * Reads a binary file (e.g., an image) from S3
- * 
+ *
  * Note: This function is NOT blocked during build time - reads are always allowed
  * if S3 credentials are available.
- * 
+ *
  * @param s3Key S3 object key
  * @returns Buffer or null
  */
@@ -768,10 +768,10 @@ export async function readBinaryS3(s3Key: string): Promise<Buffer | null> {
 
 /**
  * Writes a binary file (e.g., an image) to S3.
- * 
+ *
  * Note: This function is BLOCKED during build time via isS3ReadOnly() check.
  * During build phase (NEXT_PHASE=phase-production-build), writes are skipped.
- * 
+ *
  * @param s3Key S3 object key
  * @param data Buffer to write
  * @param contentType MIME type of the content
