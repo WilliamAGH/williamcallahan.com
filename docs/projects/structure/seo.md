@@ -670,10 +670,7 @@ NODE_ENV=production bun run scripts/submit-sitemap.ts --all
 
 ### Code Quality
 
-8. **British English** - `lib/opengraph/fallback.ts:156`
-   - "unrecognised" → "unrecognized"
-
-9. **Missing Image Assets** - `data/metadata.ts`
+8. **Missing Image Assets** - `data/metadata.ts`
    - `/images/og/dynamic-fallback.png` (line 89)
    - `/favicon.svg` (line 94)
 
