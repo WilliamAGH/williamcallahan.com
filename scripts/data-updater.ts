@@ -87,6 +87,15 @@ Environment Variables:
 
 logger.info(`[DataFetchManager] CLI execution started. Args: ${args.join(" ")}`);
 
+// Safety check: Prevent S3 writes during build phase
+if (process.env.NEXT_PHASE === "phase-production-build" && !args.includes("--allow-build-writes")) {
+  console.warn("⚠️  WARNING: data-updater called during Next.js build phase");
+  console.warn("⚠️  S3 writes during build are now disabled to prevent build-time mutations");
+  console.warn("⚠️  Data updates should happen via runtime scheduler or manual execution");
+  console.warn("⚠️  Use --allow-build-writes flag to force (not recommended)");
+  process.exit(0);
+}
+
 // Handle dry-run mode
 if (process.env.DRY_RUN === "true") {
   console.log("DRY RUN mode - skipping all update processes");
