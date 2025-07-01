@@ -1,61 +1,108 @@
-graph LR
-    %% Entry Points
-    A["Storage Request"] --> B{Operation}
+graph TB
+    %% Main Request Flow
+    A["Application Request"] --> B{Request Type}
     
-    %% Read Path
-    B -->|Read| C{Content Type?}
-    C -->|JSON| D["🚫 Direct S3<br/>(bypass CDN)"]
-    C -->|Images| E["🚀 CDN First<br/>~50ms"]
+    %% Service Layer
+    B -->|Images| C["UnifiedImageService<br/>Memory-safe orchestration"]
+    B -->|Data| D["Domain Services<br/>(Bookmarks, GitHub, etc)"]
+    B -->|Static| E["Static Asset Service"]
     
-    E --> F{CDN Hit?}
-    F -->|Yes| G["Return Data"]
-    F -->|No| H["S3 Fallback<br/>~100-200ms"]
+    %% Persistence Layer
+    C --> F["S3 Persistence Layer<br/>ACL & Category Management"]
+    D --> F
+    E --> F
     
-    D --> I[S3Client.GetObject]
-    H --> I
-    I --> J["Return Data"]
+    %% Client Wrapper
+    F --> G["S3 Client Wrapper<br/>Bun Compatibility"]
     
-    %% Write Path
-    B -->|Write| K[Process Data]
-    K --> L[S3Client.PutObject]
-    L --> M["Configure ACL"]
-    M --> N["Upload Complete<br/>~200-500ms"]
+    %% Core S3 Utils
+    G --> H["S3 Utils<br/>AWS SDK v3"]
     
-    %% Memory Integration
+    %% Read/Write Paths
+    H --> I{Operation}
+    I -->|Read| J{Content Type?}
+    I -->|Write| K["Memory Check"]
+    
+    %% Read Flow
+    J -->|JSON| L["🚫 Direct S3<br/>Bypass CDN"]
+    J -->|Images| M["🚀 CDN First<br/>~50ms"]
+    
+    M --> N{CDN Hit?}
+    N -->|Yes| O["Return Data"]
+    N -->|No| P["S3 Fallback<br/>~100-200ms"]
+    
+    L --> Q["Request Coalescing<br/>Dedup concurrent reads"]
+    P --> Q
+    Q --> R["S3 GetObject<br/>3 retries, 100ms delay"]
+    R --> S["Validate Size<br/>Max 50MB"]
+    S --> T["Stream/Buffer<br/>30s timeout"]
+    T --> O
+    
+    %% Write Flow
+    K --> U{Memory OK?}
+    U -->|No| V["Reject Request<br/>Insufficient headroom"]
+    U -->|Yes| W["Process Data"]
+    W --> X["S3 PutObject<br/>5 retries"]
+    X --> Y["Set ACL<br/>public-read default"]
+    Y --> Z["Upload Complete<br/>~200-500ms"]
+    
+    %% S3/CDN Backend
+    R --> AA["S3/Spaces Backend"]
+    X --> AA
+    AA --> AB["CDN Distribution"]
+    
+    %% Memory Safety Controls
     subgraph "Memory Safety"
-        MI1["Images → S3 immediately"]
-        MI2["CDN URLs prevent loading"]
-        MI3["Stream >5MB images"]
-        MI4["Only metadata cached"]
+        MS1["50MB read limit"]
+        MS2["Pressure detection"]
+        MS3["Stream large files"]
+        MS4["Request coalescing"]
+        MS5["Session cleanup"]
     end
     
     %% Storage Organization
-    subgraph "S3 Structure"
-        S1["images/ - logos, general"]
-        S2["opengraph/ - OG images"]
-        S3["bookmarks/ - JSON data"]
-        S4["github/ - activity data"]
+    subgraph "S3 Bucket Structure"
+        ST1["json/<br/>├── search/<br/>├── bookmarks/<br/>├── github-activity/<br/>└── image-data/"]
+        ST2["images/<br/>├── logos/<br/>├── opengraph/<br/>├── social-avatars/<br/>└── social-banners/"]
     end
     
-    %% Critical Issues
-    subgraph "Issues"
-        X1["⚠️ Full directory scans"]
-        X2["⚠️ Race conditions"]
-        X3["✅ ACL explicit (fixed)"]
-        X4["✅ Retry logic (fixed)"]
+    %% Known Issues
+    subgraph "🐛 Critical Issues"
+        IS1["⚠️ Missing Zod validation"]
+        IS2["⚠️ Full directory scans O(n)"]
+        IS3["⚠️ Unbounded session sets"]
+        IS4["⚠️ Duplicate S3 clients"]
+    end
+    
+    %% Performance Metrics
+    subgraph "⚡ Performance"
+        PF1["CDN: ~50ms"]
+        PF2["S3: ~100-200ms"]
+        PF3["Upload: ~200-500ms"]
+        PF4["Dir scan: O(n)"]
     end
     
     %% Connect memory safety
-    N --> MI1
-    G --> MI2
-    K --> MI3
+    S -.-> MS1
+    K -.-> MS2
+    T -.-> MS3
+    Q -.-> MS4
+    C -.-> MS5
+    
+    %% Connect storage
+    AA --> ST1
+    AA --> ST2
     
     %% Styling
     style A fill:#e1f5fe
-    style G fill:#e8f5e9
-    style J fill:#fff3e0
-    style N fill:#fce4ec
-    style X1 fill:#ffebee
-    style X2 fill:#ffebee
-    style X3 fill:#c8e6c9
-    style X4 fill:#c8e6c9
+    style O fill:#e8f5e9
+    style V fill:#ffcdd2
+    style Z fill:#c8e6c9
+    style IS1 fill:#ffebee
+    style IS2 fill:#ffebee
+    style IS3 fill:#ffebee
+    style IS4 fill:#ffebee
+    style PF1 fill:#e8f5e9
+    style PF2 fill:#fff3e0
+    style PF3 fill:#fff3e0
+    style PF4 fill:#ffebee

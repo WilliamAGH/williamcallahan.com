@@ -252,10 +252,13 @@ File/Path                                       Functionality                   
   - [x] `index.ts`                              `s3-object-storage`     - Barrel file for S3 utilities
 - [x] **seo/**
   - [x] `constants.ts`                          `seo`                   - SEO constants
+  - [x] `dynamic-metadata.ts`                   `seo`                   - Dynamic title generation with length limits
   - [x] `index.ts`                              `seo`                   - Barrel export and core orchestration for SEO utilities
   - [x] `metadata.ts`                           `seo`                   - Metadata generation helpers
+  - [x] `og-validation.ts`                      `seo`                   - OpenGraph validation and cache-busting
   - [x] `opengraph.ts`                          `seo`                   - OpenGraph metadata helpers
   - [x] `schema.ts`                             `seo`                   - Schema.org generation helpers
+  - [x] `text-truncation.ts`                    `seo`                   - Smart text truncation utilities
   - [x] `utils.ts`                              `seo`                   - SEO utility functions
 - [x] **server/**
   - [x] `bookmarks-preloader.ts`                `bookmarks`             - Server-side bookmark preloading orchestrator
@@ -312,10 +315,12 @@ File/Path                                       Functionality                   
   - [x] `matchers.d.ts`                         `testing-config`        - Custom matcher type definitions
   - [x] `window.d.ts`                           `state-theme-window-providers` - Augmentations for the global `Window` object
 - [x] **seo/**
+  - [x] `base.ts`                               `seo`                   - Base SEO type definitions
   - [x] `metadata.ts`                           `seo`                   - Types and Zod validation schemas for SEO metadata
   - [x] `opengraph.ts`                          `seo`                   - OpenGraph metadata helpers
   - [x] `schema.ts`                             `seo`                   - Types for Schema.org
   - [x] `shared.ts`                             `seo`                   - Shared SEO type definitions
+  - [x] `validation.ts`                         `seo`                   - OpenGraph validation types
 - [x] **ui/**
   - [x] `async.ts`                          `ui-framework`          - Types for async UI components (e.g., infinite scroll)
   - [x] `boundaries.ts`                     `log-error-debug-handling`- Types for UI boundary components (e.g., ErrorBoundary)
@@ -461,6 +466,7 @@ File/Path                                       Functionality                   
 - [x] `run-tests.sh`                            `testing-config`        - Script to run all tests
 - [x] `setup-test-alias.sh`                     `testing-config`        - Script to set up test aliases
 - [x] `submit-sitemap.ts`                       `seo`                   - Script to submit sitemap to search engines
+- [x] `validate-opengraph-clear-cache.ts`       `seo`                   - Script to validate and clear social media caches
 
 ## Styles Directory
 

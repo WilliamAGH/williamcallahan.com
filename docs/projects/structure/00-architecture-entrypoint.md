@@ -59,9 +59,10 @@ This guide is the **single source of truth** for code quality and covers:
 | `overview` | Provide a high-level architectural overview of the repository, focusing on core application structure and patterns. | [overview.md](./overview.md) | [Diagram](./overview.mmd) |
 | `projects` | Display a filterable list of projects using a hybrid server-client approach for fast initial loads and interactive filtering. | [projects.md](./projects.md) | [Diagram](./projects.mmd) |
 | `rate-limit-and-sanitize` | Encompass utilities for API rate limiting to prevent abuse and input/output sanitization for security. | [rate-limit-and-sanitize.md](./rate-limit-and-sanitize.md) | [Diagram](./rate-limit-and-sanitize.mmd) |
+| `react-server-client` | Provide comprehensive guidance for React 19 Server Components, Next.js 15 server/client boundaries, streaming patterns, and environment variable security. | [react-server-client.md](./react-server-client.md) | |
 | `s3-object-storage` | Provide centralized, S3-compatible object storage with layered abstraction and CDN optimization. | [s3-object-storage.md](./s3-object-storage.md) | [Diagram](./s3-object-storage.mmd) |
 | `search` | Provide site-wide and section-specific search capabilities with fuzzy matching, caching, and security features. | [search.md](./search.md) | [Diagram](./search.mmd) |
-| `seo` | Manage search engine optimization by generating metadata, structured data (JSON-LD), `robots.txt`, and `sitemap.xml`. | [seo.md](./seo.md) | [Diagram](./seo.mmd) |
+| `seo` | Comprehensive SEO system with metadata generation, JSON-LD, sitemaps, and universal OpenGraph image API with idempotent persistence and X.com/Twitter fallback handling. | [seo.md](./seo.md) | [Diagram](./seo.mmd) |
 | `social-links` | Outline the architecture of the Social Contact feature, which displays social media profiles and links. | [social-links.md](./social-links.md) | |
 | `state-theme-window-providers` | Provide centralized provider composition for application-wide state, including theme, terminal, and window management. | [state-theme-window-providers.md](./state-theme-window-providers.md) | [Diagram](./state-theme-window-providers.mmd) |
 | `string-manipulation` | Contain generic utilities for formatting and converting strings (e.g., `kebabCase`). | [string-manipulation.md](./string-manipulation.md) | |
