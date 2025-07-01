@@ -20,13 +20,12 @@
 import type { Metadata } from "next";
 import {
   PAGE_METADATA,
-  PAGE_OG_ASPECT,
-  OG_IMAGE_DIMENSIONS,
   LOCAL_OG_ASSETS,
   SITE_DESCRIPTION_SHORT,
   SITE_NAME,
   SITE_TITLE,
   SEO_IMAGES,
+  OG_IMAGE_FALLBACK_DIMENSIONS,
   metadata as siteMetadata,
 } from "../../data/metadata";
 import type { ArticleMetadata, ExtendedMetadata, ArticleParams, SoftwareAppParams } from "../../types/seo";
@@ -37,6 +36,8 @@ import { createArticleOgMetadata } from "./opengraph";
 import { generateSchemaGraph } from "./schema";
 import { ensureAbsoluteUrl, formatSeoDate } from "./utils";
 import { generateDynamicTitle } from "./dynamic-metadata";
+import { prepareOGImageUrl, validateOpenGraphMetadata } from "./og-validation";
+import { adaptNextOpenGraphToOGMetadata } from "../../types/seo/validation";
 
 /**
  * Base metadata configuration for all pages
@@ -69,6 +70,22 @@ export const BASE_METADATA: Metadata = {
     address: false,
     email: true,
   },
+};
+
+/**
+ * A map connecting page keys to their specific OpenGraph image assets.
+ * This provides a single, clear source of truth for social sharing images
+ * and avoids brittle if/else chains in metadata generation logic.
+ */
+const PAGE_OG_IMAGE_MAP: Record<keyof typeof PAGE_METADATA, keyof typeof SEO_IMAGES> = {
+  home: "ogDefault",
+  blog: "ogBlogIndex",
+  bookmarks: "ogBookmarks",
+  projects: "ogProjects",
+  experience: "ogExperience",
+  education: "ogEducation",
+  investments: "ogInvestments",
+  contact: "ogContact",
 };
 
 /**
@@ -212,7 +229,7 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
 
   // Determine page type and breadcrumbs
   const isProfilePage = ["home", "experience", "education"].includes(pageKey);
-  const isCollectionPage = ["blog", "investments", "bookmarks"].includes(pageKey);
+  const isCollectionPage = ["blog", "investments", "bookmarks", "projects", "contact"].includes(pageKey);
   const isDatasetPage = pageKey === "investments";
 
   const breadcrumbs =
@@ -223,43 +240,39 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
           { path, name: pageMetadata.title },
         ];
 
-  // Decide aspect ratio for this page key
-  const aspectKey = PAGE_OG_ASPECT[pageKey] ?? "legacy";
+  // Look up the OG image key and path from our map. Fallback to default if not found.
+  const ogImageKey = PAGE_OG_IMAGE_MAP[pageKey] || "ogDefault";
+  const ogImagePath = SEO_IMAGES[ogImageKey] || SEO_IMAGES.ogDefault;
 
   // Track image dimensions separately so we can override per-page when needed
-  let ogWidth: number = OG_IMAGE_DIMENSIONS[aspectKey].width;
-  let ogHeight: number = OG_IMAGE_DIMENSIONS[aspectKey].height;
-
-  // Default OG image path (can be overridden below)
-  let ogImagePath: string = siteMetadata.defaultImage.url;
-
-  if (pageKey === "bookmarks") {
-    ogImagePath = SEO_IMAGES.ogBookmarks;
-  } else if (pageKey === "projects") {
-    ogImagePath = SEO_IMAGES.ogProjects;
-  } else if (pageKey === "blog") {
-    ogImagePath = SEO_IMAGES.ogBlogIndex;
-  }
-
-  // FORCE CACHE BUSTING: Append a version query string to bust social media cache.
-  // This version number can be manually incremented whenever you want to force a refresh.
-  const cacheBustingUrl = `${ogImagePath}?v=2`;
+  let ogWidth: number = siteMetadata.defaultImage.width;
+  let ogHeight: number = siteMetadata.defaultImage.height;
 
   // Type assertion is safe here because LOCAL_OG_ASSETS keys are the compile-time
   // image paths defined in data/metadata.ts. If the path exists, we can rely on
   // Next.js-provided width/height for perfect accuracy.
   const maybeLocal = (LOCAL_OG_ASSETS as Record<string, { width: number; height: number }>)[ogImagePath];
-  if (maybeLocal) {
+  if (maybeLocal?.width && maybeLocal.height) {
     ogWidth = maybeLocal.width;
     ogHeight = maybeLocal.height;
+  } else {
+    // Fallback to predefined dimensions if Next.js import doesn't provide them
+    const fallbackDimensions = OG_IMAGE_FALLBACK_DIMENSIONS[ogImagePath as keyof typeof OG_IMAGE_FALLBACK_DIMENSIONS];
+    if (fallbackDimensions) {
+      ogWidth = fallbackDimensions.width;
+      ogHeight = fallbackDimensions.height;
+    }
   }
 
-  const defaultOgImage = {
-    url: ensureAbsoluteUrl(cacheBustingUrl),
+  // Use validation and preparation function for OG image URL
+  const processedImageUrl = prepareOGImageUrl(ogImagePath, ogWidth, ogHeight);
+
+  const socialImage = {
+    url: processedImageUrl,
     width: ogWidth,
     height: ogHeight,
-    alt: siteMetadata.defaultImage.alt,
-    type: siteMetadata.defaultImage.type,
+    alt: pageMetadata.description, // Use page description for alt text
+    type: "image/png", // Assuming all OG images are PNGs
   };
 
   // Generate schema graph
@@ -300,62 +313,34 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
 
   const schema = generateSchemaGraph(schemaParams);
 
-  const openGraph: ExtendedOpenGraph = isProfilePage
-    ? {
-        title: pageMetadata.title,
-        description: pageMetadata.description,
-        type: "profile",
-        url: ensureAbsoluteUrl(path),
-        images: [defaultOgImage],
-        siteName: SITE_NAME,
-        locale: "en_US",
-        firstName: SITE_NAME.split(" ")[0],
-        lastName: SITE_NAME.split(" ")[1],
-        username: siteMetadata.social.twitter.replace("@", ""),
+  const openGraph: ExtendedOpenGraph = {
+    title: pageMetadata.title,
+    description: pageMetadata.description,
+    url: ensureAbsoluteUrl(path),
+    images: [socialImage],
+    siteName: SITE_NAME,
+    locale: "en_US",
+    type: isProfilePage ? "profile" : "website", // Keep it simple: 'profile' or 'website'
+    ...(isProfilePage && {
+      firstName: SITE_NAME.split(" ")[0],
+      lastName: SITE_NAME.split(" ")[1],
+      username: siteMetadata.social.twitter.replace("@", ""),
+    }),
+  };
+
+  // Validate OpenGraph metadata in development
+  if (process.env.NODE_ENV === "development") {
+    const ogMetadata = adaptNextOpenGraphToOGMetadata(openGraph);
+    if (ogMetadata) {
+      const validation = validateOpenGraphMetadata(ogMetadata);
+      if (!validation.isValid) {
+        console.error(`[OG Validation] Errors for ${path}:`, validation.errors);
       }
-    : pageKey === "blog"
-      ? {
-          title: pageMetadata.title,
-          description: pageMetadata.description,
-          type: "article",
-          url: ensureAbsoluteUrl(path),
-          images: [defaultOgImage],
-          siteName: SITE_NAME,
-          locale: "en_US",
-          article: {
-            publishedTime: formattedCreated,
-            modifiedTime: formattedModified,
-            authors: [siteMetadata.author],
-            section: siteMetadata.article.section,
-            tags: [],
-          },
-        }
-      : isCollectionPage
-        ? {
-            title: pageMetadata.title,
-            description: pageMetadata.description,
-            type: "website",
-            url: ensureAbsoluteUrl(path),
-            images: [defaultOgImage],
-            siteName: SITE_NAME,
-            locale: "en_US",
-          }
-        : {
-            title: pageMetadata.title,
-            description: pageMetadata.description,
-            type: "article",
-            url: ensureAbsoluteUrl(path),
-            images: [defaultOgImage],
-            siteName: SITE_NAME,
-            locale: "en_US",
-            article: {
-              publishedTime: formattedCreated,
-              modifiedTime: formattedModified,
-              authors: [siteMetadata.author],
-              section: siteMetadata.article.section,
-              tags: [],
-            },
-          };
+      if (validation.warnings.length > 0) {
+        console.warn(`[OG Validation] Warnings for ${path}:`, validation.warnings);
+      }
+    }
+  }
 
   return {
     ...BASE_METADATA,
@@ -377,7 +362,7 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
       creator: siteMetadata.social.twitter,
       title: pageMetadata.title,
       description: pageMetadata.description,
-      images: [ensureAbsoluteUrl(cacheBustingUrl)],
+      images: [socialImage], // Use the same consistent image object
     },
     other: {
       // Standard HTML meta dates

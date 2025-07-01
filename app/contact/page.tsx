@@ -5,11 +5,11 @@
  * similar to the bookmark cards
  */
 
-import { SocialContactClient } from "@/components/features/social/contact.client";
-import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import type { Metadata } from "next";
+import { SocialContactClient } from "@/components/features/social/contact.client";
+import { getStaticPageMetadata } from "@/lib/seo";
 
-// Create metadata for the contact page
+export const dynamic = "force-static";
 export const metadata: Metadata = getStaticPageMetadata("/contact", "contact");
 
 /**

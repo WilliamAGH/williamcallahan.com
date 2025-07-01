@@ -10,12 +10,8 @@
  */
 
 import type { Metadata } from "next";
-import { Home } from "../components/features";
-import { JsonLdScript } from "../components/seo/json-ld";
-import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../data/metadata";
-import { getStaticPageMetadata } from "../lib/seo/metadata";
-import { formatSeoDate } from "../lib/seo/utils";
-import type { ProfilePageMetadata } from "../types/seo/metadata";
+import { Home } from "@/components/features";
+import { getStaticPageMetadata } from "@/lib/seo";
 
 /**
  * Generate metadata for the home page using Next.js 14 Metadata API
@@ -28,52 +24,11 @@ export const metadata: Metadata = getStaticPageMetadata("/", "home");
  * Remove force-dynamic to allow static generation where possible
  */
 export const revalidate = 3600; // Revalidate every hour
-// export const prefetch = true; // Removed: Not a valid Next.js route segment config option
 
 /**
  * Home page component
- * Renders the main landing page with JSON-LD structured data
+ * Renders the main landing page
  */
 export default function HomePage() {
-  const pageMetadata: ProfilePageMetadata = PAGE_METADATA.home;
-  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
-  const formattedModified = formatSeoDate(pageMetadata.dateModified);
-
-  return (
-    <>
-      <JsonLdScript
-        data={{
-          "@context": "https://schema.org",
-          "@type": "ProfilePage",
-          dateCreated: formattedCreated,
-          dateModified: formattedModified,
-          mainEntity: {
-            "@type": "Person",
-            name: SITE_NAME,
-            description: pageMetadata.bio,
-            image: "/images/profile.jpg",
-            sameAs: siteMetadata.social.profiles,
-            interactionStatistic: [
-              {
-                "@type": "InteractionCounter",
-                interactionType: "https://schema.org/FollowAction",
-                userInteractionCount: 500,
-              },
-              {
-                "@type": "InteractionCounter",
-                interactionType: "https://schema.org/LikeAction",
-                userInteractionCount: 1200,
-              },
-            ],
-            agentInteractionStatistic: {
-              "@type": "InteractionCounter",
-              interactionType: "https://schema.org/WriteAction",
-              userInteractionCount: 85,
-            },
-          },
-        }}
-      />
-      <Home />
-    </>
-  );
+  return <Home />;
 }
