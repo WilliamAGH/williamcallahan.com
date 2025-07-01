@@ -28,14 +28,16 @@ export function isS3ReadOnly(): boolean {
   if (readOnlyFlag === "false") return false;
   if (readOnlyFlag === "true") return true;
 
-  // Allow writes during data-updater runs
+  // 🚫 2. Build phase (image assembly) must never write to S3, even if
+  //    scripts set IS_DATA_UPDATER=true.  This guarantees read-only builds.
+  if (process.env.NEXT_PHASE === "phase-production-build") return true;
+
+  // Allow writes during data-updater runs that happen **outside** the image build
+  // (e.g. runtime scheduler, manual CLI).  When we are inside the build the
+  // previous guard has already returned.
   if (process.env.IS_DATA_UPDATER === "true") return false;
 
-  // Allow writes during Next.js build phase
-  if (process.env.NEXT_PHASE === "phase-production-build") return false;
-
-  // 🔄 Default: WRITE-ENABLED (false). This ensures the app can self-heal missing assets
-  // in development and production unless an explicit read-only flag is provided.
+  // In all other cases, WRITE-ENABLED (false) to allow runtime self-healing
   return false;
 }
 
@@ -49,6 +51,6 @@ export function hasS3WriteCredentials(): boolean {
   const bucket = process.env.S3_BUCKET;
   const accessKeyId = process.env.S3_ACCESS_KEY_ID;
   const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
-  
+
   return !!(bucket && accessKeyId && secretAccessKey);
 }

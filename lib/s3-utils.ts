@@ -644,6 +644,13 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
     if (isDebug) debug(`[S3Utils][DRY RUN] Would write JSON to S3 key: ${s3Key}`);
     return;
   }
+  
+  // Check if S3 writes are disabled (e.g., during build time)
+  const { isS3ReadOnly } = await import("./utils/s3-read-only");
+  if (isS3ReadOnly()) {
+    if (isDebug) debug(`[S3Utils][READ-ONLY] Skipping S3 write for key: ${s3Key}`);
+    return;
+  }
 
   // Add memory check before JSON stringify
   const jsonData = safeJsonStringify(data, 2);
@@ -745,6 +752,13 @@ export async function writeBinaryS3(s3Key: string, data: Buffer | Readable, cont
           Buffer.isBuffer(data) ? data.length : "stream"
         }`,
       );
+    return;
+  }
+  
+  // Check if S3 writes are disabled (e.g., during build time)
+  const { isS3ReadOnly } = await import("./utils/s3-read-only");
+  if (isS3ReadOnly()) {
+    if (isDebug) debug(`[S3Utils][READ-ONLY] Skipping S3 binary write for key: ${s3Key}`);
     return;
   }
 
