@@ -59,7 +59,8 @@ export function validateOGImage(imageUrl: string, width?: number, height?: numbe
 
   // Check file extension
   const supportedFormats = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
-  const hasValidExtension = supportedFormats.some((ext) => imageUrl.toLowerCase().includes(ext));
+  const urlPath = imageUrl.split('?')[0]?.split('#')[0] ?? imageUrl;
+  const hasValidExtension = supportedFormats.some((ext) => urlPath.toLowerCase().endsWith(ext));
 
   if (!hasValidExtension) {
     warnings.push("Image format may not be supported - use JPG, PNG, GIF, or WebP");
