@@ -26,21 +26,19 @@ jest.mock("@/lib/s3-utils", () => {
       .fn<() => Promise<{ count: number; lastRefresh: string }>>()
       .mockResolvedValue({ count: 0, lastRefresh: new Date().toISOString() }),
     writeJsonS3: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-  } as typeof import("@/lib/s3-utils");
+  }
 });
 
 // Mock bookmark data access
 jest.mock("@/lib/bookmarks/bookmarks-data-access.server", () => {
   return {
-    invalidateBookmarksCache: jest
-      .fn<() => Promise<{ success: boolean; bookmarks: unknown[]; count: number; lastRefresh: string }>>()
-      .mockResolvedValue({
+    invalidateBookmarksCache: jest.fn().mockReturnValue({
         success: true,
         bookmarks: [],
         count: 0,
         lastRefresh: new Date().toISOString(),
       }),
-  } as typeof import("@/lib/bookmarks/bookmarks-data-access.server");
+  }
 });
 
 // Mock refresh function
@@ -56,7 +54,7 @@ jest.mock("@/lib/bookmarks", () => {
           finalOutcome: { status: "PRIMARY_SUCCESS", bookmarksServed: 10 },
         },
       }),
-  } as typeof import("@/lib/bookmarks");
+  }
 });
 
 // Mock DataFetchManager
@@ -66,7 +64,7 @@ jest.mock("@/lib/server/data-fetch-manager", () => {
       { operation: "bookmarks", success: true, dataCount: 10 },
     ]);
   }
-  return { DataFetchManager: MockDataFetchManager } as typeof import("@/lib/server/data-fetch-manager");
+  return { DataFetchManager: MockDataFetchManager }
 });
 
 describe("Cache Invalidation via API Routes", () => {
