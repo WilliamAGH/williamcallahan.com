@@ -30,7 +30,7 @@ describe("Tag Utility Functions", () => {
     it("should handle multi-word tags", () => {
       expect(formatTagDisplay("react native")).toBe("React Native");
       expect(formatTagDisplay("machine learning")).toBe("Machine Learning");
-      expect(formatTagDisplay("ai tools")).toBe("Ai Tools");
+      expect(formatTagDisplay("ai tools")).toBe("AI Tools");
     });
 
     it("should handle edge cases", () => {
