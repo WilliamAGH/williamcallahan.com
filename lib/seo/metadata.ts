@@ -330,20 +330,33 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
       username: siteMetadata.social.twitter.replace("@", ""),
     };
   } else if (isCollectionPage) {
-    // Use "website" type for collection/listing pages (Twitter & LinkedIn
-    // silently drop images when og:type="article" is provided **without**
-    // a valid article:published_time.  Static collection pages don't possess
-    // a meaningful publication timestamp, so we switch to website to keep
-    // previews consistent across platforms.
-    openGraph = {
-      title: pageMetadata.title,
-      description: pageMetadata.description,
-      url: ensureAbsoluteUrl(path),
-      images: [socialImage],
-      siteName: SITE_NAME,
-      locale: "en_US",
-      type: "website",
-    };
+    if (pageKey === "blog") {
+      // Treat the main blog index as an article so platforms generate rich previews.
+      openGraph = {
+        title: pageMetadata.title,
+        description: pageMetadata.description,
+        url: ensureAbsoluteUrl(path),
+        images: [socialImage],
+        siteName: SITE_NAME,
+        locale: "en_US",
+        type: "article",
+        article: {
+          publishedTime: formattedCreated,
+          modifiedTime: formattedModified,
+        },
+      } as ExtendedOpenGraph;
+    } else {
+      // Default: use "website" for other collection/listing pages.
+      openGraph = {
+        title: pageMetadata.title,
+        description: pageMetadata.description,
+        url: ensureAbsoluteUrl(path),
+        images: [socialImage],
+        siteName: SITE_NAME,
+        locale: "en_US",
+        type: "website",
+      };
+    }
   } else {
     openGraph = {
       title: pageMetadata.title,

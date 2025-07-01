@@ -318,7 +318,7 @@ const config = tseslint.config(
         ...globals.jest,
       },
       parserOptions: {
-        project: ["./__tests__/tsconfig.jest.json"],
+        project: ["./__tests__/tsconfig.json"],
         tsconfigRootDir: import.meta.dirname,
       },
     },

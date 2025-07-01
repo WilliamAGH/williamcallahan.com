@@ -161,7 +161,7 @@ The testing setup is highly configured to enforce our standards. All test-relate
 - **`config/jest/config.ts`**: The single source of truth for Jest configuration.
 - **`config/jest/setup.ts`**: Global setup file. Imports `@testing-library/jest-dom` and other initializers.
 - **`config/jest/polyfills.js`**: ⚠️ **LEGACY FILE**: Contains browser API shims for older Node versions. **Will be removed** as Node 22 provides these natively.
-- **`__tests__/tsconfig.jest.json`**: A separate TypeScript configuration for the test environment.
+- **`__tests__/tsconfig.json`**: A separate TypeScript configuration for the test environment.
 
 ### 4.2. Mocking System
 

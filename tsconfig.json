@@ -58,6 +58,7 @@
     "instrumentation.ts",
     "middleware.ts"
   ],
+
   "exclude": [
     "node_modules",
     ".next",

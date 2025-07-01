@@ -9,8 +9,17 @@ jest.mock("@/lib/data-access/opengraph", () => ({
 }));
 
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
+import type { OgResult } from "@/types/opengraph";
 
-const mockGetOpenGraphData = getOpenGraphData;
+// Helper supplying mandatory OgResult fields so we don’t repeat ourselves
+const baseOg = (): Pick<OgResult, "timestamp" | "source" | "imageUrl"> => ({
+  timestamp: Date.now(),
+  source: "external",
+  imageUrl: undefined,
+});
+
+// Cast to Jest mocked function for proper typing
+const mockGetOpenGraphData = getOpenGraphData as jest.MockedFunction<typeof getOpenGraphData>;
 
 describe("lib/data-access/opengraph.ts functionality", () => {
   beforeEach(() => {
@@ -32,37 +41,41 @@ describe("lib/data-access/opengraph.ts functionality", () => {
       const mockOpenGraphData = {
         title: "Railway - Deploy code with zero configuration",
         description: "Railway makes it easy to deploy and scale applications",
-        image: "https://railway.app/og-image.png",
+        imageUrl: "https://railway.app/og-image.png",
         url: "https://railway.app",
-        type: "website",
-        site_name: "Railway",
+        
+        siteName: "Railway",
       };
 
-      mockGetOpenGraphData.mockResolvedValue(mockOpenGraphData);
+      mockGetOpenGraphData.mockResolvedValue(mockOpenGraphData as any);
 
       const result = await getOpenGraphData("https://railway.app");
 
       expect(result).toEqual(mockOpenGraphData);
       expect(result?.title).toBe("Railway - Deploy code with zero configuration");
       expect(result?.description).toBe("Railway makes it easy to deploy and scale applications");
-      expect(result?.image).toBe("https://railway.app/og-image.png");
+      expect(result?.imageUrl).toBe("https://railway.app/og-image.png");
       expect(result?.url).toBe("https://railway.app");
-      expect(result?.type).toBe("website");
-      expect(result?.site_name).toBe("Railway");
+      
+      expect(result?.siteName).toBe("Railway");
     });
 
     it("should handle failed OpenGraph extraction", async () => {
-      mockGetOpenGraphData.mockResolvedValue(null);
+      mockGetOpenGraphData.mockResolvedValue(null as unknown as OgResult);
 
       const result = await getOpenGraphData("https://example.com/non-existent");
       expect(result).toBeNull();
     });
 
     it("should handle partial OpenGraph data", async () => {
-      const partialData = {
+      const partialData: OgResult = {
+        url: "https://example.com",
+        timestamp: Date.now(),
+        source: "external",
+        imageUrl: undefined,
         title: "Some Title",
         description: "Some Description",
-        // Missing image, url, type, site_name
+        // Missing image, url, type, siteName
       };
 
       mockGetOpenGraphData.mockResolvedValue(partialData);
@@ -71,7 +84,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
       expect(result).toEqual(partialData);
       expect(result?.title).toBe("Some Title");
       expect(result?.description).toBe("Some Description");
-      expect(result?.image).toBeUndefined();
+      expect(result?.imageUrl).toBeUndefined();
     });
 
     it("should handle network errors", async () => {
@@ -135,15 +148,16 @@ describe("lib/data-access/opengraph.ts functionality", () => {
 
   describe("OpenGraph data structure validation", () => {
     it("should validate standard OpenGraph properties", () => {
-      const standardProperties = ["title", "description", "image", "url", "type", "site_name"];
+      const standardProperties = ["title", "description", "imageUrl", "url", "siteName"];
 
-      const mockData = {
+      const mockData: OgResult = {
+         url: "https://example.com",
+         timestamp: Date.now(),
+         source: "external",
         title: "Test Title",
-        description: "Test Description",
-        image: "https://example.com/image.jpg",
-        url: "https://example.com",
-        type: "website",
-        site_name: "Example Site",
+         description: "Test Description",
+         imageUrl: "https://example.com/image.jpg",
+         siteName: "Example Site",
       };
 
       for (const property of standardProperties) {
@@ -153,30 +167,28 @@ describe("lib/data-access/opengraph.ts functionality", () => {
     });
 
     it("should handle optional OpenGraph properties", () => {
-      const optionalData = {
-        title: "Test Title",
-        // description is optional
-        // image is optional
-        url: "https://example.com",
-        type: "article",
-        site_name: "Test Site",
+      const optionalData: OgResult = {
+         url: "https://example.com",
+         timestamp: Date.now(),
+         source: "external",
+         imageUrl: undefined,
+         title: "Test Title",
+         siteName: "Test Site",
         // Additional optional properties
         locale: "en_US",
-        updated_time: "2024-01-01T00:00:00Z",
       };
 
       expect(optionalData.title).toBe("Test Title");
-      expect(optionalData.url).toBe("https://example.com");
-      expect(optionalData.type).toBe("article");
+      expect(optionalData.siteName).toBe("Test Site");
       expect(optionalData.locale).toBe("en_US");
       expect(optionalData.description).toBeUndefined();
-      expect(optionalData.image).toBeUndefined();
+      expect(optionalData.imageUrl).toBeUndefined();
     });
   });
 
   describe("Error handling and edge cases", () => {
     it("should handle empty responses", async () => {
-      mockGetOpenGraphData.mockResolvedValue({});
+      mockGetOpenGraphData.mockResolvedValue({ url: "", timestamp: Date.now(), source: "external", imageUrl: undefined } as OgResult);
 
       const result = await getOpenGraphData("https://example.com");
       expect(result).toEqual({});
@@ -184,21 +196,23 @@ describe("lib/data-access/opengraph.ts functionality", () => {
     });
 
     it("should handle malformed data", async () => {
-      const malformedData = {
+      const malformedData: OgResult = {
+         url: "https://example.com",
+         timestamp: Date.now(),
+         source: "external",
         title: "", // Empty title
         description: null, // Null description
-        image: "not-a-valid-url", // Invalid image URL
-        url: "https://example.com", // Valid URL
+        imageUrl: "not-a-valid-url", // Invalid image URL
       };
 
       mockGetOpenGraphData.mockResolvedValue(malformedData);
 
       const result = await getOpenGraphData("https://example.com");
+
       expect(result).toEqual(malformedData);
       expect(result?.title).toBe("");
       expect(result?.description).toBeNull();
-      expect(result?.image).toBe("not-a-valid-url");
-      expect(result?.url).toBe("https://example.com");
+      expect(result?.imageUrl).toBe("not-a-valid-url");
     });
 
     it("should handle timeout scenarios", async () => {
@@ -215,7 +229,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
     });
 
     it("should handle HTTP error responses", async () => {
-      mockGetOpenGraphData.mockResolvedValue(null);
+      mockGetOpenGraphData.mockResolvedValue(null as OgResult);
 
       // Test various error scenarios
       const errorUrls = [
@@ -242,10 +256,14 @@ describe("lib/data-access/opengraph.ts functionality", () => {
 
       for (const test of testFlow) {
         if (test.shouldSucceed) {
-          const mockSuccessData = {
+          const mockSuccessData: OgResult = {
+            url: test.url,
+            timestamp: Date.now(),
+            source: "external",
+            imageUrl: undefined,
             title: `Title for ${test.url}`,
             description: `Description for ${test.url}`,
-            url: test.url,
+            siteName: `Site for ${test.url}`,
           };
           mockGetOpenGraphData.mockResolvedValueOnce(mockSuccessData);
 
@@ -261,17 +279,18 @@ describe("lib/data-access/opengraph.ts functionality", () => {
     });
 
     it("should validate extracted data quality", async () => {
-      const highQualityData = {
+      const highQualityData: OgResult = {
+         url: "https://railway.app",
+         timestamp: Date.now(),
+         source: "external",
         title: "Railway - Deploy code with zero configuration",
         description:
           "Railway makes it easy to deploy and scale applications without the platform complexity. Deploy from GitHub in seconds.",
-        image: "https://railway.app/og-image.png",
-        url: "https://railway.app",
-        type: "website",
-        site_name: "Railway",
+        imageUrl: "https://railway.app/og-image.png",
+         siteName: "Railway",
       };
 
-      mockGetOpenGraphData.mockResolvedValue(highQualityData);
+      mockGetOpenGraphData.mockResolvedValueOnce(highQualityData);
 
       const result = await getOpenGraphData("https://railway.app");
 
@@ -280,7 +299,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
       expect(result?.title?.length).toBeGreaterThan(5);
       expect(result?.description).toBeTruthy();
       expect(result?.description?.length).toBeGreaterThan(10);
-      expect(result?.image).toMatch(/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)$/i);
+      expect(result?.imageUrl).toMatch(/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)$/i);
       expect(result?.url).toMatch(/^https?:\/\/.+/);
     });
   });
@@ -291,9 +310,10 @@ describe("lib/data-access/opengraph.ts functionality", () => {
 
       // Mock responses for each URL
       urls.forEach((url, index) => {
-        const mockData = {
+        const mockData: OgResult = {
+          ...baseOg(),
+          url,
           title: `Title ${index + 1}`,
-          url: url,
         };
         mockGetOpenGraphData.mockResolvedValueOnce(mockData);
       });
