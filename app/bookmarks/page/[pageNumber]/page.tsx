@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
   const title =
     pageNum === 1
       ? baseTitle
-      : generateDynamicTitle("Bookmarks", "default", { isPaginated: true, pageNumber: pageNum });
+      : generateDynamicTitle("Bookmarks", "bookmarks", { isPaginated: true, pageNumber: pageNum });
 
   const metadata: Metadata = {
     ...baseMetadata,

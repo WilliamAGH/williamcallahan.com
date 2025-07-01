@@ -1,0 +1,46 @@
+services:
+  web:
+    image: 'ghcr.io/karakeep-app/karakeep:release'
+    restart: unless-stopped
+    volumes:
+      - 'hoarder-data:/data'
+    ports:
+      - '3000:3000'
+    environment:
+      - SERVICE_FQDN_HOARDER
+      - 'NEXTAUTH_SECRET=${SERVICE_PASSWORD_HOARDERNEXTAUTH}'
+      - 'MEILI_MASTER_KEY=${SERVICE_PASSWORD_MEILI}'
+      - 'NEXTAUTH_URL=${SERVICE_FQDN_HOARDER}'
+      - 'MEILI_ADDR=http://meilisearch:7700'
+      - 'BROWSER_WEB_URL=http://chrome:9222'
+      - 'OPENAI_API_KEY=${OPENAI_API_KEY}'
+      - "OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.perplexity.ai}"
+      - 'DISABLE_SIGNUPS=${SERVICE_DISABLE_SIGNUPS}'
+      - 'INFERENCE_ENABLE_AUTO_SUMMARIZATION=false'
+      - 'INFERENCE_OUTPUT_SCHEMA=plain'
+      - 'INFERENCE_TEXT_MODEL=sonar-pro'
+      - 'INFERENCE_CONTEXT_LENGTH=4096'
+      - DATA_DIR=/data
+  chrome:
+    image: 'gcr.io/zenika-hub/alpine-chrome:123'
+    restart: unless-stopped
+    command:
+      - '--no-sandbox'
+      - '--disable-gpu'
+      - '--disable-dev-shm-usage'
+      - '--remote-debugging-address=0.0.0.0'
+      - '--remote-debugging-port=9222'
+      - '--hide-scrollbars'
+  meilisearch:
+    image: 'getmeili/meilisearch:v1.6'
+    restart: unless-stopped
+    environment:
+      - 'MEILI_NO_ANALYTICS=${MEILI_NO_ANALYTICS:-true}'
+      - 'NEXTAUTH_SECRET=${SERVICE_PASSWORD_HOARDERNEXTAUTH}'
+      - 'MEILI_MASTER_KEY=${SERVICE_PASSWORD_MEILI}'
+      - 'NEXTAUTH_URL=${SERVICE_FQDN_HOARDER}'
+    volumes:
+      - 'hoarder-meilisearch:/meili_data'
+volumes:
+  hoarder-data: null
+  hoarder-meilisearch: null
