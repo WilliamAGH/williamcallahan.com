@@ -33,6 +33,11 @@ export const SITE_NAME = "William Callahan";
 export const SITE_TITLE = "William Callahan - Finance, Startups, & Engineering - San Francisco";
 
 /**
+ * Shorter title optimized for OpenGraph (under 60 characters)
+ */
+export const SITE_TITLE_SHORT = "William Callahan - Finance, Startups & Engineering";
+
+/**
  * Primary site description
  * @recommended Keep under 160 characters for search results
  */
@@ -46,6 +51,12 @@ export const SITE_DESCRIPTION =
  */
 export const SITE_DESCRIPTION_SHORT =
   "William Callahan's personal website - startup investor, Techstars founder, and software engineer writing about technology and startups.";
+
+/**
+ * OpenGraph-optimized description (under 160 characters)
+ */
+export const SITE_DESCRIPTION_OG =
+  "Startup investor & Techstars founder sharing insights on technology, programming, Y Combinator, accelerators, and investment portfolio.";
 
 /**
  * Core site metadata
@@ -67,6 +78,11 @@ import ogDefaultImage from "@/public/images/og/default-og.png";
 import ogBookmarksImage from "@/public/images/og/bookmarks-og.png";
 import ogProjectsImage from "@/public/images/og/projects-og.png";
 import ogBlogIndexImage from "@/public/images/og/blog-og.png";
+import ogExperienceImage from "@/public/images/og/experience-og.png";
+import ogEducationImage from "@/public/images/og/education-og.png";
+import ogInvestmentsImage from "@/public/images/og/investments-og.png";
+import ogContactImage from "@/public/images/og/contact-og.png";
+import androidLogo512Image from "@/public/images/favicons/android-chrome-512x512.png";
 
 // Map *both* hashed build paths (ogXImage.src) and the stable public paths so that
 // width/height look-ups work regardless of which path the caller provides.
@@ -77,11 +93,21 @@ export const LOCAL_OG_ASSETS = {
   "/images/og/bookmarks-og.png": ogBookmarksImage,
   "/images/og/projects-og.png": ogProjectsImage,
   "/images/og/blog-og.png": ogBlogIndexImage,
+  "/images/og/experience-og.png": ogExperienceImage,
+  "/images/og/education-og.png": ogEducationImage,
+  "/images/og/investments-og.png": ogInvestmentsImage,
+  "/images/og/contact-og.png": ogContactImage,
+  "/images/favicons/android-chrome-512x512.png": androidLogo512Image,
   // Next.js hashed paths (retained for internal use)
   [ogDefaultImage.src]: ogDefaultImage,
   [ogBookmarksImage.src]: ogBookmarksImage,
   [ogProjectsImage.src]: ogProjectsImage,
   [ogBlogIndexImage.src]: ogBlogIndexImage,
+  [ogExperienceImage.src]: ogExperienceImage,
+  [ogEducationImage.src]: ogEducationImage,
+  [ogInvestmentsImage.src]: ogInvestmentsImage,
+  [ogContactImage.src]: ogContactImage,
+  [androidLogo512Image.src]: androidLogo512Image,
 } as const;
 
 /**
@@ -98,6 +124,11 @@ export const SEO_IMAGES = {
   ogBookmarks: "/images/og/bookmarks-og.png",
   ogProjects: "/images/og/projects-og.png",
   ogBlogIndex: "/images/og/blog-og.png",
+  /** Static pages */
+  ogExperience: "/images/og/experience-og.png",
+  ogEducation: "/images/og/education-og.png",
+  ogInvestments: "/images/og/investments-og.png",
+  ogContact: "/images/og/contact-og.png",
   /** Fallback for dynamic /api/og-image route */
   ogDynamicFallback: "/images/og/default-og.png",
   /** Favicons & touch icons */
@@ -109,8 +140,8 @@ export const SEO_IMAGES = {
 
 export const PAGE_METADATA = {
   home: {
-    title: SITE_TITLE,
-    description: SITE_DESCRIPTION,
+    title: SITE_TITLE_SHORT,
+    description: SITE_DESCRIPTION_OG,
     dateCreated: "2025-02-10T12:42:00",
     dateModified: "2025-02-10T12:42:00",
     bio: SITE_DESCRIPTION_SHORT,
@@ -213,6 +244,22 @@ export const PAGE_OG_ASPECT: Record<keyof typeof PAGE_METADATA, keyof typeof OG_
   contact: "legacy",
 } as const;
 
+/**
+ * Fallback dimensions for OpenGraph images when Next.js imports don't provide them
+ * Maps image URLs to their actual dimensions
+ */
+export const OG_IMAGE_FALLBACK_DIMENSIONS = {
+  "/images/og/default-og.png": { width: 2100, height: 1100 },
+  "/images/og/bookmarks-og.png": { width: 2100, height: 1100 },
+  "/images/og/projects-og.png": { width: 2100, height: 1100 },
+  "/images/og/blog-og.png": { width: 2100, height: 1100 },
+  "/images/og/experience-og.png": { width: 2100, height: 1100 },
+  "/images/og/education-og.png": { width: 2100, height: 1100 },
+  "/images/og/investments-og.png": { width: 2100, height: 1100 },
+  "/images/og/contact-og.png": { width: 2100, height: 1100 },
+  "/images/favicons/android-chrome-512x512.png": { width: 512, height: 512 },
+} as const;
+
 export const metadata = {
   title: SITE_TITLE,
   description: SITE_DESCRIPTION,
@@ -261,8 +308,8 @@ export const metadata = {
   /** Default image used for social sharing */
   defaultImage: {
     url: SEO_IMAGES.ogDefault,
-    width: ogDefaultImage.width,
-    height: ogDefaultImage.height,
+    width: OG_IMAGE_FALLBACK_DIMENSIONS[SEO_IMAGES.ogDefault].width,
+    height: OG_IMAGE_FALLBACK_DIMENSIONS[SEO_IMAGES.ogDefault].height,
     alt: `${SITE_NAME} on Finance, Startups, & Engineering in San Francisco`,
     type: "image/png",
   },
@@ -276,8 +323,8 @@ export const metadata = {
     images: [
       {
         url: SEO_IMAGES.ogDefault,
-        width: 1440,
-        height: 756,
+        width: 2100,
+        height: 1100,
         alt: `${SITE_NAME} – default social image`,
         type: "image/png",
       },

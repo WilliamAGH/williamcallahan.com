@@ -14,17 +14,13 @@ export const revalidate = 1800;
 // Force dynamic rendering and disable Next.js Data Cache for heavy tag list pages (we use our own cache via lib/image-memory-manager.ts)
 export const fetchCache = "default-no-store";
 
+import type { Metadata } from "next";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
-import { JsonLdScript } from "@/components/seo/json-ld";
-import { generateSchemaGraph } from "@/lib/seo/schema";
-import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
-import { getBookmarks } from "@/lib/bookmarks/service.server";
-import { getStaticPageMetadata } from "@/lib/seo/metadata";
-import { generateDynamicTitle, generateTagDescription } from "@/lib/seo/dynamic-metadata";
+import { getStaticPageMetadata } from "@/lib/seo";
+import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { tagToSlug, sanitizeUnicode } from "@/lib/utils/tag-utils";
-import type { Metadata } from "next";
 import type { TagBookmarkContext } from "@/types";
 
 /**
@@ -48,40 +44,26 @@ export function generateStaticParams() {
  * Generate metadata for this tag page
  */
 export async function generateMetadata({ params }: TagBookmarkContext): Promise<Metadata> {
-  // Make sure to await the params object
-  const paramsResolved = await Promise.resolve(params);
-  // Use sanitizeUnicode utility for consistency
-  const tagSlug = sanitizeUnicode(paramsResolved.tagSlug);
-  const tagQuery = tagSlug.replace(/-/g, " ");
+  const { tagSlug } = await Promise.resolve(params);
+  const sanitizedSlug = sanitizeUnicode(tagSlug);
+  const path = `/bookmarks/tags/${sanitizedSlug}`;
 
-  // Try to find the original tag capitalization (lightweight data)
-  const allBookmarks = (await getBookmarks({ includeImageData: false })) as import("@/types").UnifiedBookmark[];
-  let displayTag = tagQuery
-    .split(" ")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
+  const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
+  const { bookmarks } = await getBookmarksByTag(sanitizedSlug);
 
-  // Look for the exact tag in bookmarks to get proper capitalization
-  for (const bookmark of allBookmarks) {
-    const bookmarkTags = Array.isArray(bookmark.tags) ? bookmark.tags : [];
-    for (const t of bookmarkTags) {
-      const tagName = typeof t === "string" ? t : t.name;
-      if (tagName.toLowerCase() === tagQuery.toLowerCase()) {
-        if (/[A-Z]/.test(tagName.slice(1))) {
-          displayTag = tagName; // Keep original mixed case (like iPhone)
-        }
-        break;
-      }
-    }
+  if (bookmarks.length === 0) {
+    return {
+      ...getStaticPageMetadata(path, "bookmarks"),
+      title: "No Bookmarks Found For This Tag",
+    };
   }
 
-  // Base metadata with custom title
-  const path = `/bookmarks/tags/${paramsResolved.tagSlug}`;
-  const baseMetadata = getStaticPageMetadata(path, "bookmarks");
-
-  // Override title and description with tag-specific values
-  const customTitle = generateDynamicTitle(`${displayTag} Bookmarks`, "bookmarks", { isTag: true });
+  const displayTag = formatTagDisplay(sanitizedSlug.replace(/-/g, " "));
+  const customTitle = generateDynamicTitle(`${displayTag} Bookmarks`, "bookmarks", {
+    isTag: true,
+  });
   const customDescription = generateTagDescription(displayTag, "bookmarks");
+  const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
   return {
     ...baseMetadata,
@@ -91,8 +73,7 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
       ...baseMetadata.openGraph,
       title: customTitle,
       description: customDescription,
-      type: "website",
-      url: ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`),
+      url: ensureAbsoluteUrl(path),
     },
     twitter: {
       ...baseMetadata.twitter,
@@ -100,89 +81,34 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
       description: customDescription,
     },
     alternates: {
-      canonical: ensureAbsoluteUrl(`/bookmarks/tags/${paramsResolved.tagSlug}`),
+      canonical: ensureAbsoluteUrl(path),
     },
   };
 }
 
 export default async function TagPage({ params }: TagBookmarkContext) {
-  // Make sure to await the params object
-  const paramsResolved = await Promise.resolve(params);
-  // Use sanitizeUnicode utility for consistency
-  const tagSlug = sanitizeUnicode(paramsResolved.tagSlug);
-  const tagQuery = tagSlug.replace(/-/g, " ");
-
-  // Use unified function that handles caching transparently
+  const { tagSlug } = await Promise.resolve(params);
+  const sanitizedSlug = sanitizeUnicode(tagSlug);
   const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
-  const result = await getBookmarksByTag(tagSlug, 1);
-  const filtered = result.bookmarks;
+  const result = await getBookmarksByTag(sanitizedSlug, 1);
 
-  // Find the original tag with proper capitalization
-  let displayTag = tagQuery;
-  if (filtered.length > 0) {
-    // Loop through filtered bookmarks to find the original tag format
-    for (const bookmark of filtered) {
-      const bookmarkTags = Array.isArray(bookmark.tags) ? bookmark.tags : [];
-      for (const t of bookmarkTags) {
-        const tagName = typeof t === "string" ? t : t.name;
-        if (tagName.toLowerCase() === tagQuery.toLowerCase()) {
-          // Format the tag: preserve if mixed-case (like aVenture or iPhone)
-          if (/[A-Z]/.test(tagName.slice(1))) {
-            displayTag = tagName;
-          } else {
-            // Title case otherwise
-            displayTag = tagQuery
-              .split(/[\s-]+/)
-              .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-              .join(" ");
-          }
-          break;
-        }
-      }
-    }
-  }
-
-  // Custom title and description for the tag page
+  const displayTag = formatTagDisplay(sanitizedSlug.replace(/-/g, " "));
   const pageTitle = `${displayTag} Bookmarks`;
   const pageDescription = generateTagDescription(displayTag, "bookmarks");
 
-  // Build itemList for first page (filtered list)
-  const itemList = filtered.map((bookmark, idx) => {
-    const slug = generateUniqueSlug(bookmark.url, filtered, bookmark.id);
-    return {
-      url: ensureAbsoluteUrl(`/bookmarks/${slug}`),
-      position: idx + 1,
-    };
-  });
-
-  const nowIso = new Date().toISOString();
-
-  const jsonLdData = generateSchemaGraph({
-    path: `/bookmarks/tags/${tagSlug}`,
-    title: pageTitle,
-    description: pageDescription,
-    datePublished: nowIso,
-    dateModified: nowIso,
-    type: "bookmark-collection",
-    itemList,
-  });
-
   return (
-    <>
-      <JsonLdScript data={jsonLdData} />
-      <div className="max-w-5xl mx-auto">
-        <BookmarksServer
-          title={pageTitle}
-          description={pageDescription}
-          bookmarks={filtered} // Pass the pre-filtered bookmarks
-          tag={tagSlug} // Pass slug format for API compatibility
-          showFilterBar={true}
-          titleSlug={tagSlug}
-          initialPage={1}
-          baseUrl={`/bookmarks/tags/${tagSlug}`}
-          initialTag={displayTag}
-        />
-      </div>
-    </>
+    <div className="max-w-5xl mx-auto">
+      <BookmarksServer
+        title={pageTitle}
+        description={pageDescription}
+        bookmarks={result.bookmarks}
+        tag={sanitizedSlug}
+        showFilterBar={true}
+        titleSlug={sanitizedSlug}
+        initialPage={1}
+        baseUrl={`/bookmarks/tags/${sanitizedSlug}`}
+        initialTag={displayTag}
+      />
+    </div>
   );
 }
