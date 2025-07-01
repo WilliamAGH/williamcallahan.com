@@ -18,6 +18,10 @@ import type { Metadata } from "next";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { PAGE_METADATA } from "@/data/metadata";
+import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { tagToSlug, sanitizeUnicode } from "@/lib/utils/tag-utils";
@@ -96,19 +100,40 @@ export default async function TagPage({ params }: TagBookmarkContext) {
   const pageTitle = `${displayTag} Bookmarks`;
   const pageDescription = generateTagDescription(displayTag, "bookmarks");
 
+  // Generate schema for this tagged bookmarks page
+  const path = `/bookmarks/tags/${sanitizedSlug}`;
+  const pageMetadata = PAGE_METADATA.bookmarks;
+  const schemaParams = {
+    path,
+    title: pageTitle,
+    description: pageDescription,
+    datePublished: formatSeoDate(pageMetadata.dateCreated),
+    dateModified: formatSeoDate(pageMetadata.dateModified),
+    type: "collection" as const,
+    breadcrumbs: [
+      { path: "/", name: "Home" },
+      { path: "/bookmarks", name: "Bookmarks" },
+      { path, name: displayTag },
+    ],
+  };
+  const jsonLdData = generateSchemaGraph(schemaParams);
+
   return (
-    <div className="max-w-5xl mx-auto">
-      <BookmarksServer
-        title={pageTitle}
-        description={pageDescription}
-        bookmarks={result.bookmarks}
-        tag={sanitizedSlug}
-        showFilterBar={true}
-        titleSlug={sanitizedSlug}
-        initialPage={1}
-        baseUrl={`/bookmarks/tags/${sanitizedSlug}`}
-        initialTag={displayTag}
-      />
-    </div>
+    <>
+      <JsonLdScript data={jsonLdData} />
+      <div className="max-w-5xl mx-auto">
+        <BookmarksServer
+          title={pageTitle}
+          description={pageDescription}
+          bookmarks={result.bookmarks}
+          tag={sanitizedSlug}
+          showFilterBar={true}
+          titleSlug={sanitizedSlug}
+          initialPage={1}
+          baseUrl={`/bookmarks/tags/${sanitizedSlug}`}
+          initialTag={displayTag}
+        />
+      </div>
+    </>
   );
 }

@@ -12,6 +12,10 @@ export const dynamic = "force-dynamic";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { getStaticPageMetadata } from "@/lib/seo";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { PAGE_METADATA } from "@/data/metadata";
+import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { Metadata } from "next";
@@ -127,19 +131,41 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
     domainName = "website";
   }
 
+  const pageTitle = "Bookmark";
+  const pageDescription = domainName
+    ? `This is a bookmark from ${domainName} I saved and found useful.`
+    : "This is a bookmark I saved and found useful.";
+
+  // Generate schema for this individual bookmark page
+  const path = `/bookmarks/${slug}`;
+  const pageMetadata = PAGE_METADATA.bookmarks;
+  const schemaParams = {
+    path,
+    title: foundBookmark.title || pageTitle,
+    description: foundBookmark.description || pageDescription,
+    datePublished: formatSeoDate(pageMetadata.dateCreated),
+    dateModified: formatSeoDate(pageMetadata.dateModified),
+    type: "collection" as const,
+    breadcrumbs: [
+      { path: "/", name: "Home" },
+      { path: "/bookmarks", name: "Bookmarks" },
+      { path, name: foundBookmark.title || pageTitle },
+    ],
+  };
+  const jsonLdData = generateSchemaGraph(schemaParams);
+
   return (
-    <div className="max-w-5xl mx-auto">
-      <BookmarksServer
-        title="Bookmark"
-        description={
-          domainName
-            ? `This is a bookmark from ${domainName} I saved and found useful.`
-            : "This is a bookmark I saved and found useful."
-        }
-        bookmarks={[foundBookmark]}
-        showFilterBar={false}
-        usePagination={false}
-      />
-    </div>
+    <>
+      <JsonLdScript data={jsonLdData} />
+      <div className="max-w-5xl mx-auto">
+        <BookmarksServer
+          title={pageTitle}
+          description={pageDescription}
+          bookmarks={[foundBookmark]}
+          showFilterBar={false}
+          usePagination={false}
+        />
+      </div>
+    </>
   );
 }

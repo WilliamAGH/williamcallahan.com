@@ -9,6 +9,10 @@
 import type { Metadata } from "next";
 import { Experience } from "@/components/features";
 import { getStaticPageMetadata } from "@/lib/seo";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { PAGE_METADATA } from "@/data/metadata";
+import { formatSeoDate } from "@/lib/seo/utils";
 import { experiences } from "@/data/experience";
 import { getLogo } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
@@ -24,9 +28,36 @@ export const dynamic = "force-static";
 export const metadata: Metadata = getStaticPageMetadata("/experience", "experience");
 
 /**
- * Experience page component
+ * Experience page component with JSON-LD schema
  */
 export default async function ExperiencePage() {
+  // Generate JSON-LD schema for the experience page
+  const pageMetadata = PAGE_METADATA.experience;
+  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
+  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+
+  const schemaParams = {
+    path: "/experience",
+    title: pageMetadata.title,
+    description: pageMetadata.description,
+    datePublished: formattedCreated,
+    dateModified: formattedModified,
+    type: "profile" as const,
+    image: {
+      url: "/images/og/experience-og.png",
+      width: 2100,
+      height: 1100,
+    },
+    profileMetadata: {
+      bio: pageMetadata.bio,
+      alternateName: pageMetadata.alternateName,
+      profileImage: pageMetadata.profileImage,
+      interactionStats: pageMetadata.interactionStats,
+    },
+  };
+
+  const jsonLdData = generateSchemaGraph(schemaParams);
+
   const experienceData = await Promise.all(
     experiences.map(async (exp: ExperienceType) => {
       try {
@@ -75,5 +106,11 @@ export default async function ExperiencePage() {
       }
     }),
   );
-  return <Experience data={experienceData} />;
+
+  return (
+    <>
+      <JsonLdScript data={jsonLdData} />
+      <Experience data={experienceData} />
+    </>
+  );
 }

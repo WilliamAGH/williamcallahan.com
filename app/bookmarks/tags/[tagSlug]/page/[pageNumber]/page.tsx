@@ -17,6 +17,10 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { PAGE_METADATA } from "@/data/metadata";
+import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { sanitizeUnicode } from "@/lib/utils/tag-utils";
@@ -144,19 +148,41 @@ export default async function PaginatedTagBookmarksPage({ params }: PaginatedTag
   const pageTitle = `${displayTag} Bookmarks`;
   const pageDescription = `${generateTagDescription(displayTag, "bookmarks")} Page ${pageNum} of ${totalPages}.`;
 
+  // Generate schema for this paginated tagged bookmarks page
+  const path = `/bookmarks/tags/${tagSlug}/page/${pageNum}`;
+  const pageMetadata = PAGE_METADATA.bookmarks;
+  const schemaParams = {
+    path,
+    title: pageTitle,
+    description: pageDescription,
+    datePublished: formatSeoDate(pageMetadata.dateCreated),
+    dateModified: formatSeoDate(pageMetadata.dateModified),
+    type: "collection" as const,
+    breadcrumbs: [
+      { path: "/", name: "Home" },
+      { path: "/bookmarks", name: "Bookmarks" },
+      { path: `/bookmarks/tags/${tagSlug}`, name: displayTag },
+      { path, name: `Page ${pageNum}` },
+    ],
+  };
+  const jsonLdData = generateSchemaGraph(schemaParams);
+
   return (
-    <div className="max-w-5xl mx-auto">
-      <BookmarksServer
-        title={pageTitle}
-        description={pageDescription}
-        bookmarks={taggedBookmarks}
-        tag={displayTag}
-        showFilterBar={true}
-        titleSlug={tagSlug}
-        initialPage={pageNum}
-        baseUrl={`/bookmarks/tags/${tagSlug}`}
-        initialTag={displayTag}
-      />
-    </div>
+    <>
+      <JsonLdScript data={jsonLdData} />
+      <div className="max-w-5xl mx-auto">
+        <BookmarksServer
+          title={pageTitle}
+          description={pageDescription}
+          bookmarks={taggedBookmarks}
+          tag={displayTag}
+          showFilterBar={true}
+          titleSlug={tagSlug}
+          initialPage={pageNum}
+          baseUrl={`/bookmarks/tags/${tagSlug}`}
+          initialTag={displayTag}
+        />
+      </div>
+    </>
   );
 }
