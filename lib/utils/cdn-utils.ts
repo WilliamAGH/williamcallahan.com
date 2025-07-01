@@ -38,6 +38,12 @@ export function buildCdnUrl(s3Key: string, config: CdnConfig): string {
 
   // Fall back to S3 direct URL
   if (!s3BucketName) {
+    // In client-side environment, if neither CDN URL nor bucket is available,
+    // return a relative path as a fallback to avoid breaking the entire page
+    if (typeof globalThis.window !== 'undefined') {
+      console.warn(`CDN configuration missing for S3 key: ${s3Key}. Using relative path as fallback.`);
+      return `/${s3Key}`;
+    }
     throw new Error("Either cdnBaseUrl or s3BucketName must be provided");
   }
 
@@ -97,8 +103,23 @@ export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
 
 /**
  * Get CDN config from environment variables
+ * Handles both server and client environments appropriately
  */
 export function getCdnConfigFromEnv(): CdnConfig {
+  // In client-side environment, only NEXT_PUBLIC_* variables are available
+  const isClient = typeof globalThis.window !== 'undefined';
+  
+  if (isClient) {
+    // Client-side: only NEXT_PUBLIC_S3_CDN_URL is available
+    return {
+      cdnBaseUrl: process.env.NEXT_PUBLIC_S3_CDN_URL,
+      // These are not available client-side, but buildCdnUrl should use cdnBaseUrl when available
+      s3BucketName: undefined,
+      s3ServerUrl: undefined,
+    };
+  }
+  
+  // Server-side: all environment variables are available
   return {
     cdnBaseUrl: process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL,
     s3BucketName: process.env.S3_BUCKET,
