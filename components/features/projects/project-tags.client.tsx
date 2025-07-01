@@ -79,7 +79,7 @@ export function ProjectTagsClient(): React.JSX.Element {
   };
 
   return (
-    <div className="flex flex-col gap-3 mb-8 px-6 sm:px-4 pt-6">
+    <div className="max-w-5xl mx-auto flex flex-col gap-3 mb-8 px-4 pt-6">
       <div className="flex flex-wrap gap-2 items-center">
         {allTags.map((tag, index) => (
           <button

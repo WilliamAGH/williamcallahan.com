@@ -68,11 +68,11 @@ export function BookmarksClientWithWindow({
 }: BookmarksClientWithWindowProps) {
   const unifiedBookmarks = convertSerializableBookmarksToUnified(bookmarks);
 
+  // Title is currently unused in this component, acknowledge to satisfy linter rules (no underscore prefixes allowed)
+  void title;
+
   return (
-    <BookmarksWindow
-      titleSlug={titleSlug}
-      windowTitle={title} // Pass the title to be used as window title
-    >
+    <BookmarksWindow titleSlug={titleSlug}>
       <div className="w-full mx-auto py-8">
         {/* Only show description if provided */}
         {description && (
