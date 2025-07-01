@@ -1,6 +1,15 @@
-# Self-Hosted Embeddings Generation Architecture
+---
+description: "Step 4: Self-Hosted Embeddings - GPU-accelerated embeddings generation with OpenAI-compatible API, Docker deployment, and complete data sovereignty"
+alwaysApply: false
+---
 
-## Overview
+# Step 4: Self-Hosted Embeddings
+
+**Prerequisites**:
+
+- [Step 1: Convex Database Foundation](../structure/convex-database.md) - For rate limiting and analytics
+- [Step 2: Core AI Services](../structure/ai-core-services.md) - For unified AI service patterns
+- [Step 3: Advanced AI Features](../structure/ai-shared-services.md) - Optional, for integration patterns
 
 This document outlines the architecture for self-hosted embeddings generation using GPU-accelerated Docker containers deployed via Coolify and similar platforms. The system provides OpenAI-compatible API endpoints while maintaining complete control over data privacy and processing costs.
 
@@ -50,11 +59,16 @@ model_selection:
 # Dockerfile.embeddings
 FROM nvidia/cuda:12.2.0-runtime-ubuntu22.04
 
+# Security: Create non-root user
+RUN groupadd -g 1000 appuser && \
+    useradd -r -u 1000 -g appuser appuser
+
 # Install Python and dependencies
 RUN apt-get update && apt-get install -y \
     python3.11 \
     python3-pip \
     git \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install ML dependencies
@@ -75,7 +89,15 @@ VOLUME /models
 
 # Copy application
 WORKDIR /app
-COPY . /app
+COPY --chown=appuser:appuser . /app
+
+# Security: Set ownership and permissions
+RUN chown -R appuser:appuser /models /app && \
+    chmod -R 755 /app && \
+    chmod -R 700 /models
+
+# Switch to non-root user
+USER appuser
 
 # OpenAI-compatible API port
 EXPOSE 8080
@@ -90,9 +112,10 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
 #### API Implementation
 
 ```python
-# main.py - OpenAI-compatible embeddings API
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+# main.py - OpenAI-compatible embeddings API with Security
+from fastapi import FastAPI, HTTPException, Depends, Header, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, validator
 from typing import List, Optional, Union
 import torch
 from sentence_transformers import SentenceTransformer
@@ -100,8 +123,19 @@ import numpy as np
 from prometheus_client import Counter, Histogram, generate_latest
 import asyncio
 import time
+import os
+import secrets
+import hashlib
+import json
+from datetime import datetime, timedelta
+import re
 
 app = FastAPI(title="Self-Hosted Embeddings API")
+security = HTTPBearer()
+
+# Security: API key validation
+VALID_API_KEYS = set(os.getenv('API_KEYS', '').split(',')) if os.getenv('API_KEYS') else {secrets.token_urlsafe(32)}
+INJECTION_PATTERNS = re.compile(r'(\bignore\s+previous\b|\bsystem\s+prompt\b|\bdisregard\s+instructions\b)', re.IGNORECASE)
 
 # Metrics
 embeddings_counter = Counter('embeddings_requests_total', 'Total embedding requests')
@@ -112,17 +146,79 @@ batch_size_histogram = Histogram('embeddings_batch_size', 'Batch size distributi
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = None
 
+# Convex client for rate limiting (self-hosted)
+from convex import ConvexClient
+convex_client = ConvexClient(os.getenv('CONVEX_URL', 'http://localhost:3210'))
+
+# Request tracking for analytics
+request_tracker = []
+
 class EmbeddingRequest(BaseModel):
     input: Union[str, List[str]]
     model: str = "text-embedding-ada-002"  # OpenAI compatibility
     encoding_format: Optional[str] = "float"
     user: Optional[str] = None
+    
+    @validator('input')
+    def validate_input(cls, v):
+        """Security: Validate input against injection attacks"""
+        texts = v if isinstance(v, list) else [v]
+        for text in texts:
+            if len(text) > 8192:
+                raise ValueError("Text exceeds maximum length of 8192 characters")
+            if INJECTION_PATTERNS.search(text):
+                raise ValueError("Input contains potential injection patterns")
+        return v
 
 class EmbeddingResponse(BaseModel):
     object: str = "list"
     data: List[dict]
     model: str
     usage: dict
+
+async def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Security: Verify API key authentication with rate limiting"""
+    token = credentials.credentials
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    
+    # Check against valid keys
+    if token not in VALID_API_KEYS:
+        # Log failed auth attempt to Convex
+        await log_auth_failure(token_hash)
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    
+    # Check rate limits for this API key
+    rate_limit_ok = await check_api_key_rate_limit(token_hash)
+    if not rate_limit_ok:
+        raise HTTPException(
+            status_code=429, 
+            detail="API key rate limit exceeded",
+            headers={"Retry-After": "60"}
+        )
+    
+    return token
+
+async def log_auth_failure(key_hash: str):
+    """Log failed authentication attempts for bot detection"""
+    try:
+        await convex_client.mutation("embeddings:logAuthFailure", {
+            "keyHash": key_hash,
+            "timestamp": time.time()
+        })
+    except Exception as e:
+        print(f"Failed to log auth failure: {e}")
+
+async def check_api_key_rate_limit(key_hash: str) -> bool:
+    """Check rate limits using Convex"""
+    try:
+        result = await convex_client.query("embeddings:checkRateLimit", {
+            "keyHash": key_hash,
+            "window": 3600  # 1 hour
+        })
+        return result.get("allowed", True)
+    except Exception:
+        # Fail open if Convex is unavailable
+        return True
 
 @app.on_event("startup")
 async def load_model():
@@ -131,13 +227,21 @@ async def load_model():
     model = SentenceTransformer(model_name, device=device)
     model.eval()
     
+    # Security: Log startup with model info
+    print(f"Model loaded: {model_name} on {device}")
+    print(f"API Keys configured: {len(VALID_API_KEYS)}")
+    
     # Warm up GPU
     with torch.no_grad():
         _ = model.encode(["warmup"], convert_to_tensor=True)
 
 @app.post("/v1/embeddings")
 @app.post("/embeddings")  # Compatibility
-async def create_embeddings(request: EmbeddingRequest):
+async def create_embeddings(
+    request: EmbeddingRequest,
+    api_key: str = Depends(verify_api_key),
+    x_request_id: Optional[str] = Header(None)
+):
     embeddings_counter.inc()
     start_time = time.time()
     
@@ -182,6 +286,24 @@ async def create_embeddings(request: EmbeddingRequest):
         
         embeddings_histogram.observe(time.time() - start_time)
         
+        # Security: Audit logging to Convex
+        if x_request_id:
+            await log_embedding_request({
+                "requestId": x_request_id,
+                "apiKeyHash": hashlib.sha256(api_key.encode()).hexdigest(),
+                "batchSize": len(texts),
+                "latencyMs": int((time.time() - start_time) * 1000),
+                "tokensUsed": int(total_tokens),
+                "success": True
+            })
+
+async def log_embedding_request(data: dict):
+    """Log embedding requests for analytics"""
+    try:
+        await convex_client.mutation("embeddings:logRequest", data)
+    except Exception as e:
+        print(f"Failed to log request: {e}")
+        
         return EmbeddingResponse(
             data=response_data,
             model=request.model,
@@ -191,8 +313,13 @@ async def create_embeddings(request: EmbeddingRequest):
             }
         )
     
+    except ValueError as e:
+        # Security validation errors
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Log error securely (no sensitive data)
+        print(f"Error processing request: {type(e).__name__}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/health")
 async def health_check():
@@ -238,11 +365,20 @@ services:
       - PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
       - HF_HOME=/models
       - MODEL_CACHE_DIR=/models
+      # Security: API keys should be in secrets, not env vars
+      - API_KEYS_FILE=/run/secrets/api_keys
+    secrets:
+      - api_keys
     volumes:
-      - embeddings-models:/models
+      - embeddings-models:/models:ro  # Read-only
       - embeddings-cache:/app/.cache
     ports:
       - "8080:8080"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true  # Read-only root filesystem
+    tmpfs:
+      - /tmp:noexec,nosuid,size=1G
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -264,6 +400,10 @@ services:
     networks:
       - embeddings-net
 
+secrets:
+  api_keys:
+    external: true  # Managed by Docker/Kubernetes secrets
+
 volumes:
   embeddings-models:
     driver: local
@@ -273,6 +413,9 @@ volumes:
 networks:
   embeddings-net:
     driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: embeddings0
+      com.docker.network.driver.mtu: 1450  # For cloud environments
 ```
 
 #### NGINX Load Balancer Configuration
@@ -290,17 +433,64 @@ http {
         keepalive 32;
     }
 
+    # Security headers
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # Enhanced rate limiting with multiple zones
+    limit_req_zone $binary_remote_addr zone=embeddings_limit:10m rate=10r/s;
+    limit_req_zone $http_authorization zone=embeddings_auth_limit:10m rate=100r/s;
+    limit_req_zone $request_uri zone=embeddings_uri_limit:10m rate=50r/s;
+    limit_req_status 429;
+    
+    # Bot detection maps
+    map $http_user_agent $is_bot {
+        default 0;
+        ~*bot 1;
+        ~*crawler 1;
+        ~*spider 1;
+        ~*scraper 1;
+        ~*(GPTBot|Claude-Web|ChatGPT|CCBot|anthropic-ai|PerplexityBot) 1;
+    }
+
     server {
         listen 80;
         server_name embeddings.yourdomain.com;
+        return 301 https://$server_name$request_uri;  # Force HTTPS
+    }
+
+    server {
+        listen 443 ssl http2;
+        server_name embeddings.yourdomain.com;
+
+        # SSL configuration (managed by Certbot/Let's Encrypt)
+        ssl_certificate /etc/letsencrypt/live/embeddings.yourdomain.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/embeddings.yourdomain.com/privkey.pem;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5;
 
         location / {
+            # Multi-layer rate limiting
+            limit_req zone=embeddings_limit burst=20 nodelay;
+            limit_req zone=embeddings_auth_limit burst=50 nodelay;
+            
+            # Block detected bots
+            if ($is_bot) {
+                return 403 "Bot detected";
+            }
+            
+            # Security: Request size limit
+            client_max_body_size 1M;
+            
             proxy_pass http://embeddings_backend;
             proxy_http_version 1.1;
             proxy_set_header Connection "";
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Request-ID $request_id;
             proxy_connect_timeout 60s;
             proxy_send_timeout 60s;
             proxy_read_timeout 60s;
@@ -315,295 +505,53 @@ http {
 }
 ```
 
-### 4. Integration with Existing AI Services
+### 4. Database Integration
 
-#### Updated UnifiedAIService Integration
+> **📊 Complete Documentation**: Database schemas, rate limiting, and analytics functions are documented in [Step 1: Convex Database Foundation](../structure/convex-database.md#embeddings-service-tables).
 
-```typescript
-// lib/ai/providers/self-hosted-embeddings.ts
-import { assertServerOnly } from '@/lib/utils/server-only';
-import { waitForPermit } from '@/lib/rate-limiter';
-import { retryWithDomainConfig } from '@/lib/utils/retry';
-import { createCategorizedError } from '@/lib/utils/error-utils';
+The embeddings service uses the same Convex infrastructure from Step 1:
 
-export interface EmbeddingProvider {
-  embed(texts: string[]): Promise<number[][]>;
-  embedSingle(text: string): Promise<number[]>;
-}
+- **Tables**: `embeddingApiKeys`, `embeddingRequests`, `embeddingAuthFailures`
+- **Rate Limiting**: Shared rate limiter with AI services
+- **Analytics**: Unified logging and monitoring
 
-export class SelfHostedEmbeddingProvider implements EmbeddingProvider {
-  private baseUrl: string;
-  private apiKey?: string;
-  
-  constructor() {
-    assertServerOnly();
-    this.baseUrl = process.env.SELF_HOSTED_EMBEDDINGS_URL || 'http://embeddings:8080';
-    this.apiKey = process.env.SELF_HOSTED_EMBEDDINGS_KEY;
-  }
+### 5. Integration with AI Services
 
-  async embed(texts: string[]): Promise<number[][]> {
-    await waitForPermit('self-hosted-embeddings');
-    
-    return retryWithDomainConfig(
-      async () => {
-        const response = await fetch(`${this.baseUrl}/v1/embeddings`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(this.apiKey && { 'Authorization': `Bearer ${this.apiKey}` }),
-          },
-          body: JSON.stringify({
-            input: texts,
-            model: 'text-embedding-ada-002', // OpenAI compatibility
-          }),
-        });
+The embeddings service integrates seamlessly with the AI services from Steps 2-3:
 
-        if (!response.ok) {
-          throw createCategorizedError(
-            new Error(`Embeddings API error: ${response.status}`),
-            'ai',
-            { status: response.status }
-          );
-        }
+1. **Unified Provider Interface**: Same pattern as `AIProvider` from [Step 2](../structure/ai-core-services.md)
+2. **OpenAI Compatibility**: Drop-in replacement using `/v1/embeddings` endpoint
+3. **Shared Infrastructure**: Rate limiting, retry logic, and error handling from Step 1
+4. **Fallback Support**: Easy migration path with OpenAI provider fallback
 
-        const data = await response.json();
-        return data.data.map((item: any) => item.embedding);
-      },
-      'AI_PROVIDERS'
-    ) || Promise.reject(new Error('Embeddings generation failed'));
-  }
+### 5. Performance Optimization
 
-  async embedSingle(text: string): Promise<number[]> {
-    const results = await this.embed([text]);
-    return results[0];
-  }
-}
+#### GPU Optimization Strategies
 
-// Fallback to OpenAI for comparison/migration
-export class OpenAIEmbeddingProvider implements EmbeddingProvider {
-  private client: OpenAI;
-  
-  constructor() {
-    assertServerOnly();
-    this.client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  }
+1. **Memory-Efficient Attention**: Enable Flash Attention and memory-efficient SDP
+2. **Automatic Batching**: Process texts in batches of 32 for optimal GPU utilization
+3. **Mixed Precision**: Use FP16 inference for 2x memory reduction
+4. **Torch Compilation**: 20-30% speedup with `torch.compile(mode="reduce-overhead")`
+5. **Periodic Cache Clearing**: Prevent GPU memory fragmentation
 
-  async embed(texts: string[]): Promise<number[][]> {
-    await waitForPermit('openai');
-    
-    const response = await this.client.embeddings.create({
-      model: 'text-embedding-3-small',
-      input: texts,
-    });
-    
-    return response.data.map(item => item.embedding);
-  }
+#### Caching Strategy
 
-  async embedSingle(text: string): Promise<number[]> {
-    const results = await this.embed([text]);
-    return results[0];
-  }
-}
-```
-
-### 5. Performance Optimization Strategies
-
-#### GPU Memory Management
-
-```python
-# gpu_optimization.py
-import torch
-from typing import List, Optional
-import gc
-
-class OptimizedEmbeddingModel:
-    def __init__(self, model_name: str, max_batch_size: int = 32):
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model = SentenceTransformer(model_name, device=self.device)
-        self.model.eval()
-        self.max_batch_size = max_batch_size
-        
-        # Enable memory efficient attention if available
-        if hasattr(torch.nn.functional, 'scaled_dot_product_attention'):
-            torch.backends.cuda.enable_flash_sdp(True)
-            torch.backends.cuda.enable_mem_efficient_sdp(True)
-    
-    @torch.no_grad()
-    def encode_batch(self, texts: List[str]) -> torch.Tensor:
-        """Encode texts with automatic batching for GPU efficiency"""
-        embeddings = []
-        
-        for i in range(0, len(texts), self.max_batch_size):
-            batch = texts[i:i + self.max_batch_size]
-            batch_embeddings = self.model.encode(
-                batch,
-                convert_to_tensor=True,
-                device=self.device,
-                show_progress_bar=False
-            )
-            embeddings.append(batch_embeddings)
-            
-            # Clear GPU cache periodically
-            if i % (self.max_batch_size * 10) == 0:
-                torch.cuda.empty_cache()
-        
-        return torch.cat(embeddings, dim=0)
-    
-    def optimize_for_inference(self):
-        """Apply inference optimizations"""
-        # Compile model with torch.compile for 20-30% speedup
-        if hasattr(torch, 'compile'):
-            self.model = torch.compile(self.model, mode="reduce-overhead")
-        
-        # Enable mixed precision for memory efficiency
-        self.model.half()  # FP16 inference
-```
-
-#### Caching Layer
-
-```typescript
-// lib/ai/embeddings-cache.ts
-import { ServerCache } from '@/lib/cache';
-import { createHash } from 'crypto';
-
-export class EmbeddingsCache {
-  private cache: ServerCache;
-  private ttl = 30 * 24 * 60 * 60; // 30 days
-  
-  constructor() {
-    this.cache = new ServerCache({
-      prefix: 'embeddings:',
-      defaultTtl: this.ttl,
-    });
-  }
-  
-  private getCacheKey(text: string): string {
-    return createHash('sha256').update(text).digest('hex').substring(0, 16);
-  }
-  
-  async getOrGenerate(
-    text: string,
-    generator: () => Promise<number[]>
-  ): Promise<number[]> {
-    const key = this.getCacheKey(text);
-    
-    const cached = await this.cache.get<number[]>(key);
-    if (cached) return cached;
-    
-    const embedding = await generator();
-    await this.cache.set(key, embedding, this.ttl);
-    
-    return embedding;
-  }
-  
-  async getBatch(
-    texts: string[],
-    generator: (uncached: string[]) => Promise<number[][]>
-  ): Promise<number[][]> {
-    const keys = texts.map(t => this.getCacheKey(t));
-    const cached = await Promise.all(
-      keys.map(k => this.cache.get<number[]>(k))
-    );
-    
-    const uncachedIndices: number[] = [];
-    const uncachedTexts: string[] = [];
-    
-    cached.forEach((result, i) => {
-      if (!result) {
-        uncachedIndices.push(i);
-        uncachedTexts.push(texts[i]);
-      }
-    });
-    
-    if (uncachedTexts.length === 0) {
-      return cached as number[][];
-    }
-    
-    const newEmbeddings = await generator(uncachedTexts);
-    
-    // Cache new embeddings
-    await Promise.all(
-      uncachedIndices.map((originalIndex, i) =>
-        this.cache.set(
-          keys[originalIndex],
-          newEmbeddings[i],
-          this.ttl
-        )
-      )
-    );
-    
-    // Merge results
-    const results = [...cached];
-    uncachedIndices.forEach((originalIndex, i) => {
-      results[originalIndex] = newEmbeddings[i];
-    });
-    
-    return results as number[][];
-  }
-}
-```
+- **30-day TTL**: Long-lived cache for stable embeddings
+- **SHA-256 Keys**: 16-char hash keys for efficient storage
+- **Batch Support**: Process cached and uncached texts separately
+- **Automatic Merging**: Seamlessly combine cached and fresh embeddings
 
 ### 6. Monitoring and Observability
 
-#### Prometheus Metrics Configuration
+#### Key Metrics
 
-```yaml
-# prometheus.yml
-global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
+- **Requests per Second**: `rate(embeddings_requests_total[1m])`
+- **P95 Latency**: `histogram_quantile(0.95, rate(embeddings_duration_seconds_bucket[5m]))`
+- **Batch Size**: Average texts per request
+- **GPU Memory**: `nvidia_smi_memory_used_bytes / nvidia_smi_memory_total_bytes`
+- **Cache Hit Rate**: Monitor embedding cache efficiency
 
-scrape_configs:
-  - job_name: 'embeddings-api'
-    static_configs:
-      - targets: ['embeddings-api:8080']
-    metrics_path: '/metrics'
-    scrape_interval: 5s
-```
-
-#### Grafana Dashboard Configuration
-
-```json
-{
-  "dashboard": {
-    "title": "Self-Hosted Embeddings Monitor",
-    "panels": [
-      {
-        "title": "Requests per Second",
-        "targets": [
-          {
-            "expr": "rate(embeddings_requests_total[1m])"
-          }
-        ]
-      },
-      {
-        "title": "P95 Latency",
-        "targets": [
-          {
-            "expr": "histogram_quantile(0.95, rate(embeddings_duration_seconds_bucket[5m]))"
-          }
-        ]
-      },
-      {
-        "title": "Batch Size Distribution",
-        "targets": [
-          {
-            "expr": "histogram_quantile(0.5, rate(embeddings_batch_size_bucket[5m]))"
-          }
-        ]
-      },
-      {
-        "title": "GPU Memory Usage",
-        "targets": [
-          {
-            "expr": "nvidia_smi_memory_used_bytes / nvidia_smi_memory_total_bytes * 100"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+Prometheus scrapes metrics every 5s from `embeddings-api:8080/metrics`.
 
 ### 7. Cost Analysis and Scaling
 
@@ -618,87 +566,64 @@ scrape_configs:
 
 #### Scaling Strategy
 
-```yaml
-# kubernetes-deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: embeddings-api
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: embeddings-api
-  template:
-    spec:
-      containers:
-      - name: embeddings-api
-        image: your-registry/embeddings-api:latest
-        resources:
-          limits:
-            nvidia.com/gpu: 1
-            memory: "8Gi"
-            cpu: "4"
-          requests:
-            nvidia.com/gpu: 1
-            memory: "6Gi"
-            cpu: "2"
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          periodSeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          periodSeconds: 30
----
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: embeddings-api-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: embeddings-api
-  minReplicas: 2
-  maxReplicas: 10
-  metrics:
-  - type: Pods
-    pods:
-      metric:
-        name: embeddings_requests_per_second
-      target:
-        type: AverageValue
-        averageValue: "100"
-```
+**Kubernetes HPA Configuration:**
+
+- **Min Replicas**: 2 (high availability)
+- **Max Replicas**: 10 (based on load)
+- **Scale Metric**: 100 requests/second per pod
+- **GPU Assignment**: 1 GPU per pod
+- **Memory**: 6-8GB per pod
+- **Health Checks**: Readiness (10s), Liveness (30s)
 
 ### 8. Migration Path
 
 #### Phase 1: Parallel Operation
+
 - Deploy self-hosted alongside OpenAI
 - Route 10% traffic to self-hosted
 - Monitor quality and performance
 
 #### Phase 2: Gradual Migration
+
 - Increase self-hosted traffic to 50%
 - A/B test embedding quality
 - Optimize model selection
 
 #### Phase 3: Full Migration
+
 - Route 100% traffic to self-hosted
 - Keep OpenAI as fallback
 - Document cost savings
 
 ### 9. Security Considerations
 
-1. **API Authentication**: Optional bearer token support
-2. **Network Isolation**: Container network segregation
-3. **TLS Termination**: NGINX handles HTTPS
-4. **Model Access**: Read-only model volume
-5. **Input Validation**: Pydantic models for API requests
+#### Critical Security Requirements
+
+1. **Mandatory Authentication** (CRITICAL - Must implement before deployment)
+   - Bearer token authentication with rotating keys
+   - Rate limiting per API key
+   - Request signing for inter-service communication
+
+2. **Container Security**
+   - Run as non-root user (uid: 1000)
+   - Drop all capabilities except compute
+   - Read-only root filesystem
+   - Security scanning in CI/CD
+
+3. **Network Security**
+   - mTLS for service-to-service communication
+   - Network policies restricting egress
+   - WAF rules for injection protection
+
+4. **Secrets Management**
+   - API keys in AWS Secrets Manager/HashiCorp Vault
+   - Automatic rotation every 30 days
+   - Never in environment variables or config files
+
+5. **Input Validation**
+   - Maximum text length: 8192 characters
+   - Sanitization for prompt injection attempts
+   - Request size limits: 1MB max
 
 ### 10. Future Enhancements
 
@@ -724,3 +649,30 @@ spec:
 ## Conclusion
 
 This architecture provides a production-ready, cost-effective solution for self-hosted embeddings generation with full OpenAI API compatibility. The system can reduce embedding costs by 95%+ while providing better latency and complete data privacy.
+
+## 🔄 Integration with Steps 1-3
+
+This embeddings service builds on the foundation from previous steps:
+
+### From Step 1 (Convex Database)
+
+- **Rate Limiting**: Uses `selfHostedEmbeddings` rate limit configuration
+- **Analytics Tables**: `embeddingApiKeys`, `embeddingRequests`, `embeddingAuthFailures`
+- **Monitoring**: Same Convex dashboard and analytics queries
+
+### From Step 2 (Core AI Services)
+
+- **Type Definitions**: Extends types from `@/lib/ai/types.ts`
+- **HTTP Patterns**: Same streaming and error handling patterns
+- **API Design**: OpenAI-compatible endpoints
+
+### From Step 3 (Advanced Features)
+
+- **Provider Pattern**: Can be added as an `EmbeddingProvider`
+- **Circuit Breaker**: Same fault tolerance patterns
+- **Secrets Management**: Compatible with AWS Secrets Manager approach
+
+### Integration with Step 5 (Web Search)
+
+- **Embedding Search Results**: Can embed search results for semantic search
+- **RAG Pipeline**: Combine embeddings with real-time search for grounded responses
