@@ -47,16 +47,6 @@ export function normalizeBookmarkTag(tag: string | BookmarkTag): {
   slug: string;
   color?: string;
 } {
-  // Handle null/undefined tags
-  if (!tag) {
-    return {
-      id: "",
-      name: "",
-      slug: "",
-      color: undefined,
-    };
-  }
-  
   if (typeof tag === "string") {
     // Check if tag matches any forced uppercase acronym
     const upperTag = tag.toUpperCase();

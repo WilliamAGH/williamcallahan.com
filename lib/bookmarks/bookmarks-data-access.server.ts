@@ -25,13 +25,14 @@ const safeRevalidateTag = revalidateTag as (tag: string) => void;
 
 // Helper function to convert UnifiedBookmark to LightweightBookmark
 function stripImageData(bookmark: UnifiedBookmark): LightweightBookmark {
-  // Create a new object with only the properties we want to keep
   return {
     id: bookmark.id,
     url: bookmark.url,
     title: bookmark.title,
     description: bookmark.description,
-    tags: (bookmark.tags || []).filter(Boolean).map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
+    tags: (bookmark.tags || [])
+      .filter((tag) => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
+      .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
     dateBookmarked: bookmark.dateBookmarked,
     datePublished: bookmark.datePublished,
     dateCreated: bookmark.dateCreated,
@@ -450,7 +451,9 @@ async function fetchAndCacheBookmarks(
       // Normalize tags for full bookmarks
       return bookmarks.map((bookmark) => ({
         ...bookmark,
-        tags: (bookmark.tags || []).filter(Boolean).map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
+        tags: (bookmark.tags || [])
+          .filter((tag) => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
+          .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
       }));
     }
   } catch (e: unknown) {
@@ -478,7 +481,9 @@ async function fetchAndCacheBookmarks(
   // Normalize tags for full bookmarks
   return refreshedBookmarks.map((bookmark) => ({
     ...bookmark,
-    tags: (bookmark.tags || []).filter(Boolean).map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
+    tags: (bookmark.tags || [])
+      .filter((tag) => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
+      .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
   }));
 }
 
@@ -491,7 +496,9 @@ async function getBookmarksPageDirect(pageNumber: number): Promise<UnifiedBookma
     // Normalize tags for each bookmark
     return pageData.map((bookmark) => ({
       ...bookmark,
-      tags: (bookmark.tags || []).filter(Boolean).map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
+      tags: (bookmark.tags || [])
+        .filter((tag) => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
+        .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
     }));
   } catch (error) {
     if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) {
@@ -536,9 +543,11 @@ async function getTagBookmarksPageDirect(tagSlug: string, pageNumber: number): P
     const pageData = await readJsonS3<UnifiedBookmark[]>(pageKey);
     if (!pageData) return [];
     // Normalize tags for each bookmark
-    return pageData.map(bookmark => ({
+    return pageData.map((bookmark) => ({
       ...bookmark,
-      tags: (bookmark.tags || []).filter(Boolean).map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag))
+      tags: (bookmark.tags || [])
+        .filter((tag) => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
+        .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
     }));
   } catch (error) {
     if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) {
