@@ -10,8 +10,7 @@
 
 import type { RepoToUpdate } from "@/types/lib";
 
-import dotenv from "dotenv";
-dotenv.config(); // Load .env variables
+import "dotenv/config"; // Load .env variables
 
 import type { GithubContributorStatsEntry, RepoRawWeeklyStat } from "@/types"; // Adjust path as needed
 import { REPO_RAW_WEEKLY_STATS_S3_KEY_DIR } from "../lib/data-access/github"; // Adjust path as needed
