@@ -31,7 +31,7 @@ function stripImageData(bookmark: UnifiedBookmark): LightweightBookmark {
     url: bookmark.url,
     title: bookmark.title,
     description: bookmark.description,
-    tags: bookmark.tags.map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
+    tags: (bookmark.tags || []).filter(Boolean).map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
     dateBookmarked: bookmark.dateBookmarked,
     datePublished: bookmark.datePublished,
     dateCreated: bookmark.dateCreated,
@@ -450,7 +450,7 @@ async function fetchAndCacheBookmarks(
       // Normalize tags for full bookmarks
       return bookmarks.map((bookmark) => ({
         ...bookmark,
-        tags: bookmark.tags.map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
+        tags: (bookmark.tags || []).filter(Boolean).map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
       }));
     }
   } catch (e: unknown) {
@@ -478,7 +478,7 @@ async function fetchAndCacheBookmarks(
   // Normalize tags for full bookmarks
   return refreshedBookmarks.map((bookmark) => ({
     ...bookmark,
-    tags: bookmark.tags.map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
+    tags: (bookmark.tags || []).filter(Boolean).map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
   }));
 }
 
@@ -491,7 +491,7 @@ async function getBookmarksPageDirect(pageNumber: number): Promise<UnifiedBookma
     // Normalize tags for each bookmark
     return pageData.map((bookmark) => ({
       ...bookmark,
-      tags: bookmark.tags.map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
+      tags: (bookmark.tags || []).filter(Boolean).map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
     }));
   } catch (error) {
     if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) {
@@ -538,7 +538,7 @@ async function getTagBookmarksPageDirect(tagSlug: string, pageNumber: number): P
     // Normalize tags for each bookmark
     return pageData.map(bookmark => ({
       ...bookmark,
-      tags: bookmark.tags.map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag))
+      tags: (bookmark.tags || []).filter(Boolean).map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag))
     }));
   } catch (error) {
     if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) {
