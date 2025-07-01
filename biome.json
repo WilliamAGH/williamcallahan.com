@@ -44,7 +44,8 @@
       "suspicious": {
         "noAssignInExpressions": "off",
         "noShadowRestrictedNames": "off"
-      }
+      },
+      "correctness": {}
     }
   },
   "assist": {

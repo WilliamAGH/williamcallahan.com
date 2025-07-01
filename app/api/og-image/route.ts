@@ -15,7 +15,6 @@ import { getDomainType } from "@/lib/utils/opengraph-utils";
 import { getDomainFallbackImage, getContextualFallbackImage } from "@/lib/opengraph/fallback";
 import { OPENGRAPH_IMAGES_S3_DIR } from "@/lib/constants";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
-import type { UnifiedBookmark } from "@/types";
 
 /**
  * Main handler for OpenGraph image requests
@@ -155,10 +154,17 @@ export async function GET(request: NextRequest) {
         try {
           const { readJsonS3 } = await import("@/lib/s3-utils");
           const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
+          const { unifiedBookmarkSchema } = await import("@/types/bookmark");
 
-          const bookmarksData = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+          const bookmarksData = await readJsonS3<unknown>(BOOKMARKS_S3_PATHS.FILE);
           if (bookmarksData && Array.isArray(bookmarksData)) {
-            const bookmark = bookmarksData.find((b) => b.id === bookmarkId);
+            // Validate the data with Zod
+            const validatedBookmarks = unifiedBookmarkSchema.array().safeParse(bookmarksData);
+            if (!validatedBookmarks.success) {
+              console.error("[OG-Image] Invalid bookmark data:", validatedBookmarks.error);
+              throw new Error("Invalid bookmark data format");
+            }
+            const bookmark = validatedBookmarks.data.find((b) => b.id === bookmarkId);
 
             if (bookmark) {
               // PRIORITY: Karakeep bannerImage (imageAssetId) takes precedence over OpenGraph

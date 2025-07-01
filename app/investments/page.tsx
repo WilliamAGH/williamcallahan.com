@@ -10,13 +10,13 @@
  */
 
 import type { Metadata } from "next";
-import { Investments } from "../../components/features";
-import { JsonLdScript } from "../../components/seo/json-ld";
-import { investments } from "../../data/investments";
-import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
-import { getStaticPageMetadata } from "../../lib/seo/metadata";
-import { formatSeoDate } from "../../lib/seo/utils";
-import type { CollectionPageMetadata } from "../../types/seo/metadata";
+import { Investments } from "@/components/features";
+import { getStaticPageMetadata } from "@/lib/seo";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { PAGE_METADATA } from "@/data/metadata";
+import { formatSeoDate } from "@/lib/seo/utils";
+import { investments } from "@/data/investments";
 
 /**
  * Generate metadata for the investments page
@@ -38,51 +38,33 @@ export const dynamic = "force-dynamic";
  */
 
 /**
- * Investments page component
+ * Investments page component with JSON-LD schema
  */
 export default function InvestmentsPage() {
-  const pageMetadata: CollectionPageMetadata = PAGE_METADATA.investments;
+  // Generate JSON-LD schema for the investments page
+  const pageMetadata = PAGE_METADATA.investments;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 
-  // Get active investments for dataset
-  const activeInvestments = investments;
+  const schemaParams = {
+    path: "/investments",
+    title: pageMetadata.title,
+    description: pageMetadata.description,
+    datePublished: formattedCreated,
+    dateModified: formattedModified,
+    type: "dataset" as const,
+    image: {
+      url: "/images/og/investments-og.png",
+      width: 2100,
+      height: 1100,
+    },
+  };
+
+  const jsonLdData = generateSchemaGraph(schemaParams);
 
   return (
     <>
-      <JsonLdScript
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Dataset",
-          name: `${SITE_NAME}'s Investment Portfolio`,
-          description: pageMetadata.description,
-          datePublished: formattedCreated,
-          dateModified: formattedModified,
-          creator: {
-            "@type": "Person",
-            name: SITE_NAME,
-            description: siteMetadata.shortDescription,
-            sameAs: siteMetadata.social.profiles,
-          },
-          license: "https://creativecommons.org/licenses/by/4.0/",
-          isAccessibleForFree: true,
-          includedInDataCatalog: {
-            "@type": "DataCatalog",
-            name: `${SITE_NAME}'s Public Investment Records`,
-          },
-          distribution: {
-            "@type": "DataDownload",
-            contentUrl: "https://williamcallahan.com/investments",
-            encodingFormat: "text/html",
-          },
-          keywords: [
-            "startups",
-            "venture capital",
-            "angel investing",
-            ...Array.from(new Set(activeInvestments.map((inv) => inv.category))),
-          ],
-        }}
-      />
+      <JsonLdScript data={jsonLdData} />
       <Investments investments={investments} />
     </>
   );

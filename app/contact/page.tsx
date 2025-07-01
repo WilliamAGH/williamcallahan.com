@@ -5,11 +5,15 @@
  * similar to the bookmark cards
  */
 
-import { SocialContactClient } from "@/components/features/social/contact.client";
-import { getStaticPageMetadata } from "@/lib/seo/metadata";
 import type { Metadata } from "next";
+import { SocialContactClient } from "@/components/features/social/contact.client";
+import { getStaticPageMetadata } from "@/lib/seo";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { PAGE_METADATA } from "@/data/metadata";
+import { formatSeoDate } from "@/lib/seo/utils";
 
-// Create metadata for the contact page
+export const dynamic = "force-static";
 export const metadata: Metadata = getStaticPageMetadata("/contact", "contact");
 
 /**
@@ -19,5 +23,35 @@ export const metadata: Metadata = getStaticPageMetadata("/contact", "contact");
 export const revalidate = 3600; // Revalidate every hour
 
 export default function ContactPage() {
-  return <SocialContactClient />;
+  // Generate JSON-LD schema for the contact page
+  const pageMetadata = PAGE_METADATA.contact;
+  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
+  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+
+  const schemaParams = {
+    path: "/contact",
+    title: pageMetadata.title,
+    description: pageMetadata.description,
+    datePublished: formattedCreated,
+    dateModified: formattedModified,
+    type: "collection" as const,
+    image: {
+      url: "/images/og/contact-og.png",
+      width: 2100,
+      height: 1100,
+    },
+    breadcrumbs: [
+      { path: "/", name: "Home" },
+      { path: "/contact", name: "Contact" },
+    ],
+  };
+
+  const jsonLdData = generateSchemaGraph(schemaParams);
+
+  return (
+    <>
+      <JsonLdScript data={jsonLdData} />
+      <SocialContactClient />
+    </>
+  );
 }

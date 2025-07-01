@@ -1,4 +1,11 @@
 import type { Metadata } from "next";
+import { Education } from "@/components/features/education/education.server";
+import { getStaticPageMetadata } from "@/lib/seo";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { PAGE_METADATA } from "@/data/metadata";
+import { formatSeoDate } from "@/lib/seo/utils";
+
 /**
  * Education Page
  * @module app/education/page
@@ -9,12 +16,6 @@ import type { Metadata } from "next";
  * @see {@link "https://nextjs.org/docs/app/api-reference/functions/generate-metadata"} - Next.js Metadata API
  * @see {@link "https://schema.org/ProfilePage"} - Schema.org ProfilePage specification
  */
-import { Education } from "../../components/features/education/education.server";
-import { JsonLdScript } from "../../components/seo/json-ld";
-import { PAGE_METADATA, SITE_NAME, metadata as siteMetadata } from "../../data/metadata";
-import { getStaticPageMetadata } from "../../lib/seo/metadata";
-import { formatSeoDate } from "../../lib/seo/utils";
-import type { ProfilePageMetadata } from "../../types/seo/metadata";
 
 /**
  * Generate metadata for the education page
@@ -22,44 +23,39 @@ import type { ProfilePageMetadata } from "../../types/seo/metadata";
 export const metadata: Metadata = getStaticPageMetadata("/education", "education");
 
 /**
- * Education page component
+ * Education page component with JSON-LD schema
  */
 export default function EducationPage() {
-  const pageMetadata: ProfilePageMetadata = PAGE_METADATA.education;
+  // Generate JSON-LD schema for the education page
+  const pageMetadata = PAGE_METADATA.education;
   const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
   const formattedModified = formatSeoDate(pageMetadata.dateModified);
 
+  const schemaParams = {
+    path: "/education",
+    title: pageMetadata.title,
+    description: pageMetadata.description,
+    datePublished: formattedCreated,
+    dateModified: formattedModified,
+    type: "profile" as const,
+    image: {
+      url: "/images/og/education-og.png",
+      width: 2100,
+      height: 1100,
+    },
+    profileMetadata: {
+      bio: pageMetadata.bio,
+      alternateName: pageMetadata.alternateName,
+      profileImage: pageMetadata.profileImage,
+      interactionStats: pageMetadata.interactionStats,
+    },
+  };
+
+  const jsonLdData = generateSchemaGraph(schemaParams);
+
   return (
     <>
-      <JsonLdScript
-        data={{
-          "@context": "https://schema.org",
-          "@type": "ProfilePage",
-          name: `${SITE_NAME} - Education`,
-          description: pageMetadata.description,
-          datePublished: formattedCreated,
-          dateModified: formattedModified,
-          mainEntity: {
-            "@type": "Person",
-            name: SITE_NAME,
-            description: pageMetadata.bio,
-            sameAs: siteMetadata.social.profiles,
-            image: siteMetadata.defaultImage.url,
-            interactionStatistic: [
-              {
-                "@type": "InteractionCounter",
-                interactionType: "https://schema.org/FollowAction",
-                userInteractionCount: 150,
-              },
-            ],
-            agentInteractionStatistic: {
-              "@type": "InteractionCounter",
-              interactionType: "https://schema.org/WriteAction",
-              userInteractionCount: 15,
-            },
-          },
-        }}
-      />
+      <JsonLdScript data={jsonLdData} />
       <Education />
     </>
   );

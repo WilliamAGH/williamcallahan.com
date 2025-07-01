@@ -3,6 +3,7 @@
  *
  * Handles external HTML fetching with retry logic and circuit breaking
  * Responsible for all networking operations
+ * Includes request deduplication to prevent duplicate concurrent fetches
  *
  * @module opengraph/fetch
  */
@@ -34,13 +35,48 @@ import { selectBestOpenGraphImage } from "@/lib/image-handling/image-selector";
 import type { OgResult, KarakeepImageFallback } from "@/types";
 
 /**
- * Fetches OpenGraph data from external source with retry logic
+ * In-memory map to track ongoing OpenGraph fetch requests
+ * Used for request deduplication to prevent duplicate fetches
+ */
+const ongoingRequests = new Map<string, Promise<OgResult | { networkFailure: true; lastError: Error | null } | null>>();
+
+/**
+ * Fetches OpenGraph data from external source with retry logic and request deduplication
  *
  * @param url - URL to fetch
  * @param fallbackImageData - Optional Karakeep fallback data
  * @returns Promise resolving to OpenGraph result or null if failed
  */
 export async function fetchExternalOpenGraphWithRetry(
+  url: string,
+  fallbackImageData?: KarakeepImageFallback,
+): Promise<OgResult | { networkFailure: true; lastError: Error | null } | null> {
+  // Check if there's already an ongoing request for this URL
+  const cacheKey = `${url}:${fallbackImageData?.idempotencyKey || 'default'}`;
+  const existingRequest = ongoingRequests.get(cacheKey);
+  if (existingRequest) {
+    debug(`[OpenGraph Dedup] Returning existing request for URL: ${url}`);
+    return existingRequest;
+  }
+
+  // Create new request promise and store it
+  const requestPromise = performFetchWithRetry(url, fallbackImageData);
+  ongoingRequests.set(cacheKey, requestPromise);
+
+  // Clean up the map entry when request completes
+  void requestPromise.finally(() => {
+    ongoingRequests.delete(cacheKey);
+    debug(`[OpenGraph Dedup] Cleaned up request for URL: ${url}`);
+  });
+
+  return requestPromise;
+}
+
+/**
+ * Internal function that performs the actual fetch with retry logic
+ * Separated to support request deduplication
+ */
+async function performFetchWithRetry(
   url: string,
   fallbackImageData?: KarakeepImageFallback,
 ): Promise<OgResult | { networkFailure: true; lastError: Error | null } | null> {

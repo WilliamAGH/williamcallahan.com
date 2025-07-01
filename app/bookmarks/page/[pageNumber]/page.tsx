@@ -18,16 +18,17 @@ export const revalidate = 1800; // 30 minutes (60 * 30)
 
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { BookmarksServer } from "../../../../components/features/bookmarks/bookmarks.server";
-import { JsonLdScript } from "../../../../components/seo/json-ld";
-import { getStaticPageMetadata } from "../../../../lib/seo/metadata";
-import { generateDynamicTitle } from "../../../../lib/seo/dynamic-metadata";
-import { ensureAbsoluteUrl } from "../../../../lib/seo/utils";
-import { getBookmarks } from "../../../../lib/bookmarks/service.server";
+import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
+import { getStaticPageMetadata } from "@/lib/seo";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { PAGE_METADATA } from "@/data/metadata";
+import { formatSeoDate } from "@/lib/seo/utils";
+import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
+import { ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { getBookmarks } from "@/lib/bookmarks/service.server";
 import type { PaginatedBookmarkContext, UnifiedBookmark } from "@/types";
 import { PageNumberSchema } from "@/types/lib";
-import { generateSchemaGraph } from "../../../../lib/seo/schema";
-import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 
 /**
  * Generate metadata for the paginated Bookmarks page
@@ -55,7 +56,7 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
   const title =
     pageNum === 1
       ? baseTitle
-      : generateDynamicTitle("Bookmarks", "default", { isPaginated: true, pageNumber: pageNum });
+      : generateDynamicTitle("Bookmarks", "bookmarks", { isPaginated: true, pageNumber: pageNum });
 
   const metadata: Metadata = {
     ...baseMetadata,
@@ -66,13 +67,11 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
       ...baseMetadata.alternates,
       canonical: pageNum === 1 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${pageNum}`),
     },
-    openGraph: baseMetadata.openGraph
-      ? {
-          ...baseMetadata.openGraph,
-          title,
-          url: pageNum === 1 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${pageNum}`),
-        }
-      : undefined,
+    openGraph: {
+      ...baseMetadata.openGraph,
+      title,
+      url: pageNum === 1 ? ensureAbsoluteUrl("/bookmarks") : ensureAbsoluteUrl(`/bookmarks/page/${pageNum}`),
+    },
     robots: {
       index: true,
       follow: true,
@@ -136,30 +135,23 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   const pageTitle = "Bookmarks";
   const pageDescription = "A collection of articles, websites, and resources I've bookmarked for future reference.";
 
-  // Build itemList for this page (24 per page)
-  const PAGE_SIZE = 24;
-  const startIdx = (pageNum - 1) * PAGE_SIZE;
-  const pageBookmarks = bookmarks.slice(startIdx, startIdx + PAGE_SIZE);
-
-  const itemList = pageBookmarks.map((bookmark, idx) => {
-    const slug = generateUniqueSlug(bookmark.url, bookmarks, bookmark.id);
-    return {
-      url: ensureAbsoluteUrl(`/bookmarks/${slug}`),
-      position: idx + 1,
-    } as const;
-  });
-
-  const nowIso = new Date().toISOString();
-
-  const jsonLdData = generateSchemaGraph({
-    path: `/bookmarks/page/${pageNum}`,
-    title: `${pageTitle} - Page ${pageNum}`,
-    description: `${pageDescription} Page ${pageNum} of ${totalPages}.`,
-    datePublished: nowIso,
-    dateModified: nowIso,
-    type: "bookmark-collection",
-    itemList,
-  });
+  // Generate schema for this paginated bookmarks page
+  const path = `/bookmarks/page/${pageNum}`;
+  const pageMetadata = PAGE_METADATA.bookmarks;
+  const schemaParams = {
+    path,
+    title: pageTitle,
+    description: pageDescription,
+    datePublished: formatSeoDate(pageMetadata.dateCreated),
+    dateModified: formatSeoDate(pageMetadata.dateModified),
+    type: "collection" as const,
+    breadcrumbs: [
+      { path: "/", name: "Home" },
+      { path: "/bookmarks", name: "Bookmarks" },
+      { path, name: `Page ${pageNum}` },
+    ],
+  };
+  const jsonLdData = generateSchemaGraph(schemaParams);
 
   return (
     <>

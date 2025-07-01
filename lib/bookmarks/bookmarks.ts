@@ -40,14 +40,20 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
   const bookmarksListId = BOOKMARKS_API_CONFIG.LIST_ID;
   if (!bookmarksListId) {
     console.error("[refreshBookmarksData] CRITICAL_CONFIG: BOOKMARKS_LIST_ID environment variable is not set.");
-    throw new Error("BOOKMARKS_LIST_ID environment variable must be set to your list ID");
+    console.warn(
+      "[refreshBookmarksData] Returning empty array due to missing BOOKMARKS_LIST_ID. Check deployment environment variables.",
+    );
+    return [];
   }
   const apiUrl = `${BOOKMARKS_API_CONFIG.API_URL}/lists/${bookmarksListId}/bookmarks`;
 
   const bearerToken = BOOKMARKS_API_CONFIG.BEARER_TOKEN;
   if (!bearerToken) {
     console.error("[refreshBookmarksData] CRITICAL_CONFIG: BOOKMARK_BEARER_TOKEN environment variable is not set.");
-    throw new Error("BOOKMARK_BEARER_TOKEN environment variable is not set. Cannot fetch bookmarks.");
+    console.warn(
+      "[refreshBookmarksData] Returning empty array due to missing BOOKMARK_BEARER_TOKEN. Check deployment environment variables.",
+    );
+    return [];
   }
 
   const requestHeaders = {
@@ -196,10 +202,8 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
         console.log(
           `[refreshBookmarksData] S3_FALLBACK_SUCCESS: Successfully loaded ${s3Backup.length} bookmarks from S3 as fallback.`,
         );
-        // Even if S3 fallback works, the cron job's primary task (fresh refresh) failed.
-        // So, we re-throw the original primaryFetchError to signal this to the cron runner.
-        // Other direct callers of this function might handle the returned s3Backup differently if no error is thrown.
-        // For the cron path, failure means failure.
+        // Return the S3 fallback data instead of throwing error
+        return s3Backup;
       } else {
         console.warn(
           "[refreshBookmarksData] S3_FALLBACK_NODATA: S3 fallback attempted but no data was found or data was empty.",
@@ -209,7 +213,8 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
       console.error("[refreshBookmarksData] S3_FALLBACK_FAILURE: Error reading fallback S3 data:", s3ReadError);
     }
 
-    // Always re-throw the primary fetch error so the cron job knows the refresh didn't complete as intended.
-    throw primaryFetchError;
+    // If we can't get S3 fallback data, return empty array instead of throwing
+    console.warn("[refreshBookmarksData] All fallback attempts failed. Returning empty array to prevent hard failure.");
+    return [];
   }
 }

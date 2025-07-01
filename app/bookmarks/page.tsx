@@ -17,36 +17,12 @@ export const fetchCache = "default-no-store";
 export const revalidate = 1800; // 30 minutes (60 * 30)
 
 import type { Metadata } from "next";
-import { BookmarksServer } from "../../components/features/bookmarks/bookmarks.server";
-import { JsonLdScript } from "../../components/seo/json-ld";
-import { getStaticPageMetadata } from "../../lib/seo/metadata";
-import { generateSchemaGraph } from "../../lib/seo/schema";
-
-/**
- * Page Metadata
- * Used for SEO and JSON-LD data
- */
-const PAGE_METADATA = {
-  bookmarks: {
-    title: "Bookmarks",
-    description: "A collection of articles, websites, and resources I've bookmarked for future reference.",
-    path: "/bookmarks",
-  },
-};
-
-const nowIso = new Date().toISOString();
-
-/**
- * JSON-LD Data built via centralized generator
- */
-const jsonLdData = generateSchemaGraph({
-  path: "/bookmarks",
-  title: PAGE_METADATA.bookmarks.title,
-  description: PAGE_METADATA.bookmarks.description,
-  datePublished: nowIso,
-  dateModified: nowIso,
-  type: "bookmark-collection",
-});
+import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
+import { getStaticPageMetadata } from "@/lib/seo";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { PAGE_METADATA } from "@/data/metadata";
+import { formatSeoDate } from "@/lib/seo/utils";
 
 /**
  * Generate metadata for the Bookmarks page
@@ -57,6 +33,30 @@ export function generateMetadata(): Metadata {
 
 export default function BookmarksPage() {
   const pageMetadata = PAGE_METADATA.bookmarks;
+
+  // Generate JSON-LD schema for the bookmarks page
+  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
+  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+
+  const schemaParams = {
+    path: "/bookmarks",
+    title: pageMetadata.title,
+    description: pageMetadata.description,
+    datePublished: formattedCreated,
+    dateModified: formattedModified,
+    type: "collection" as const,
+    image: {
+      url: "/images/og/bookmarks-og.png",
+      width: 2100,
+      height: 1100,
+    },
+    breadcrumbs: [
+      { path: "/", name: "Home" },
+      { path: "/bookmarks", name: "Bookmarks" },
+    ],
+  };
+
+  const jsonLdData = generateSchemaGraph(schemaParams);
 
   return (
     <>

@@ -35,37 +35,11 @@ export type {
 } from "../../types/seo/metadata";
 
 import type { Metadata as NextMetadata } from "next";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, metadata } from "../../data/metadata";
+import { SITE_NAME, metadata } from "../../data/metadata";
 import type { BlogPost } from "../../types/blog";
 import type { ImageSEOMetadata, OpenGraphImage } from "../../types/seo";
 import { createArticleOgMetadata } from "./opengraph";
 import { ensureAbsoluteUrl } from "./utils";
-
-/**
- * Default metadata for all pages
- * @see {@link "../../data/metadata.ts"} - Source of metadata values
- */
-export const DEFAULT_METADATA: NextMetadata = {
-  title: SITE_TITLE,
-  description: SITE_DESCRIPTION,
-  openGraph: metadata.openGraph,
-};
-
-/**
- * Static page metadata mapping
- * Provides pre-configured metadata for known static pages
- */
-export const STATIC_PAGE_METADATA: Record<string, NextMetadata> = {
-  "/": DEFAULT_METADATA,
-  "/blog": {
-    ...DEFAULT_METADATA,
-    title: `Blog - ${SITE_TITLE}`,
-  },
-  "/experience": {
-    ...DEFAULT_METADATA,
-    title: `Experience - ${SITE_TITLE}`,
-  },
-};
 
 /**
  * Get the canonical URL for a given path
@@ -74,27 +48,6 @@ export const STATIC_PAGE_METADATA: Record<string, NextMetadata> = {
  */
 export function getCanonicalUrl(path: string): string {
   return `https://williamcallahan.com${path}`;
-}
-
-/**
- * Get metadata for a static page
- * @param path - The page path
- * @returns Metadata object for the page
- */
-export function getStaticPageMetadata(path: string): NextMetadata {
-  const url = getCanonicalUrl(path);
-  const pageMetadata = STATIC_PAGE_METADATA[path] || DEFAULT_METADATA;
-
-  return {
-    ...pageMetadata,
-    alternates: {
-      canonical: url,
-    },
-    openGraph: pageMetadata.openGraph && {
-      ...pageMetadata.openGraph,
-      url,
-    },
-  };
 }
 
 /**

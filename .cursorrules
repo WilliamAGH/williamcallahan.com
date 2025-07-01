@@ -12,6 +12,7 @@ This project operates under **ZERO TEMPERATURE** development standards where eve
 ### Empty Platitudes & Premature Agreement - ABSOLUTELY FORBIDDEN
 
 **NEVER respond with empty confirmations:**
+
 - ❌ "You're right!" (without verification)
 - ❌ "That makes sense!" (before investigation)  
 - ❌ "Good point!" (as filler)
@@ -19,6 +20,7 @@ This project operates under **ZERO TEMPERATURE** development standards where eve
 - ❌ Any agreement/disagreement before code verification
 
 **ALWAYS seek truth through investigation:**
+
 - ✅ "Let me verify that in the codebase..."
 - ✅ "I need to investigate before confirming..."
 - ✅ "After checking [file:line], I can confirm..."
@@ -39,6 +41,16 @@ This project operates under **ZERO TEMPERATURE** development standards where eve
 - Copy-paste code from documentation examples
 - Assumptions about API behavior, type definitions, or existing functionality
 - Creating new files without explicit repeated clear affirmative consent
+
+### Environment Variable Policy - ABSOLUTELY FORBIDDEN
+
+- **Introducing new required environment variables** (`.env`, `.env-example`, CI/CD secrets) **without explicit, repeated, affirmative consent from the user**.
+- Any change that forces updates to deployment secrets/pipelines without prior approval.
+
+**If an env-var change is truly necessary:**
+
+1. Propose the exact variable name, purpose, and fallback behavior.
+2. Wait for the user to reply **"yes"** before merging any code that references it.
 
 **VIOLATION PROTOCOL:**
 
@@ -168,6 +180,12 @@ find types/ -name "*.ts" | xargs grep -l "[domain]"
 1. Update `docs/projects/structure/00-architecture-entrypoint.md`
 2. Update `docs/projects/file-overview-map.md`
 3. Update specific functionality document: `docs/projects/structure/[functionality].md`
+
+### Language Consistency – AMERICAN ENGLISH ONLY
+
+- All code, comments, documentation, and commit messages **MUST** use American English spelling (e.g., `color`, `analyze`).
+- British spellings such as `colour`, `analyse`, `behaviour`, etc., are **prohibited**.
+- If British English is found anywhere in the repository, it must be corrected immediately as part of the task at hand.
 
 ---
 

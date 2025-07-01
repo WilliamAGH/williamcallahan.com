@@ -13,6 +13,11 @@ jest.mock("@/lib/s3-utils");
 
 const mockReadJsonS3 = jest.mocked(readJsonS3);
 
+const createTag = (name: string) => ({ id: name, name, slug: name.replace(/\s+/g, "-"), color: undefined });
+
+const simplify = (bookmarks: UnifiedBookmark[]) =>
+  bookmarks.map((b) => ({ ...b, tags: b.tags.map((t) => (typeof t === "string" ? t : t.name)) }));
+
 describe("Tag Route Functionality", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -25,7 +30,7 @@ describe("Tag Route Functionality", () => {
         url: "https://example.com",
         title: "Example 1",
         description: "Test bookmark 1",
-        tags: ["web development", "react"],
+        tags: [createTag("web development"), createTag("react")],
         dateBookmarked: "2025-01-01",
       } as UnifiedBookmark,
       {
@@ -33,7 +38,7 @@ describe("Tag Route Functionality", () => {
         url: "https://example2.com",
         title: "Example 2",
         description: "Test bookmark 2",
-        tags: ["web development", "typescript"],
+        tags: [createTag("web development"), createTag("typescript")],
         dateBookmarked: "2025-01-02",
       } as UnifiedBookmark,
       {
@@ -41,7 +46,7 @@ describe("Tag Route Functionality", () => {
         url: "https://example3.com",
         title: "Example 3",
         description: "Test bookmark 3",
-        tags: ["design", "ui"],
+        tags: [createTag("design"), createTag("ui")],
         dateBookmarked: "2025-01-03",
       } as UnifiedBookmark,
     ];
@@ -65,8 +70,8 @@ describe("Tag Route Functionality", () => {
 
       const result = await getBookmarksByTag("web-development", 1);
 
-      expect(result).toEqual({
-        bookmarks: cachedPage,
+      expect({ ...result, bookmarks: simplify(result.bookmarks) }).toEqual({
+        bookmarks: simplify(cachedPage),
         totalCount: 2,
         totalPages: 1,
         fromCache: true,
@@ -93,8 +98,8 @@ describe("Tag Route Functionality", () => {
 
       const result = await getBookmarksByTag("web-development", 1);
 
-      expect(result).toEqual({
-        bookmarks: [mockBookmarks[0], mockBookmarks[1]],
+      expect({ ...result, bookmarks: simplify(result.bookmarks) }).toEqual({
+        bookmarks: simplify([mockBookmarks[0], mockBookmarks[1]]),
         totalCount: 2,
         totalPages: 1,
         fromCache: false,
@@ -175,11 +180,13 @@ describe("Tag Route Functionality", () => {
           url: "https://example2.com",
           title: "Object tags",
           description: "Has object tags",
-          tags: [{ 
-            id: "2-tag",
-            name: "software development tools",
-            slug: "software-development-tools"
-          }],
+          tags: [
+            {
+              id: "2-tag",
+              name: "software development tools",
+              slug: "software-development-tools",
+            },
+          ],
           dateBookmarked: "2025-01-02",
         } as UnifiedBookmark,
       ];
@@ -214,8 +221,8 @@ describe("Tag Route Functionality", () => {
 
       const result = await getBookmarksByTag("non-existent-tag", 1);
 
-      expect(result).toEqual({
-        bookmarks: [],
+      expect({ ...result, bookmarks: simplify(result.bookmarks) }).toEqual({
+        bookmarks: simplify([]),
         totalCount: 0,
         totalPages: 0,
         fromCache: false,
@@ -230,8 +237,8 @@ describe("Tag Route Functionality", () => {
         if (callCount === 1) {
           // First call fails with S3 error
           const error = Object.assign(new Error("Not Found"), {
-            $metadata: { httpStatusCode: 404 }
-          } satisfies Pick<AWSError, '$metadata'>);
+            $metadata: { httpStatusCode: 404 },
+          } satisfies Pick<AWSError, "$metadata">);
           return Promise.reject(error);
         }
         if (path.includes("/tags-test/")) {
@@ -317,8 +324,8 @@ describe("Tag Route Functionality", () => {
 
       const reactResult = await getBookmarksByTag("react", 1);
 
-      expect(reactResult).toEqual({
-        bookmarks: cachedReactBookmarks,
+      expect({ ...reactResult, bookmarks: simplify(reactResult.bookmarks) }).toEqual({
+        bookmarks: simplify(cachedReactBookmarks),
         totalCount: 20,
         totalPages: 1,
         fromCache: true,
@@ -334,7 +341,7 @@ describe("Tag Route Functionality", () => {
       // CRITICAL: Verify that top-10 tags ARE served from S3 object storage
       // The mock was called and returned data from S3 storage
       expect(mockReadJsonS3).toHaveBeenCalled();
-      expect(reactResult.bookmarks).toEqual(cachedReactBookmarks); // Data came from S3
+      expect(simplify(reactResult.bookmarks)).toEqual(simplify(cachedReactBookmarks));
       expect(reactResult.fromCache).toBe(true); // Indicates it came from S3 cache files
 
       // Reset mocks for next test
@@ -354,8 +361,8 @@ describe("Tag Route Functionality", () => {
 
       const obscureResult = await getBookmarksByTag("obscure-framework", 1);
 
-      expect(obscureResult).toEqual({
-        bookmarks: [
+      expect({ ...obscureResult, bookmarks: simplify(obscureResult.bookmarks) }).toEqual({
+        bookmarks: simplify([
           {
             id: "obscure-1",
             url: "https://obscure-framework.com",
@@ -364,7 +371,7 @@ describe("Tag Route Functionality", () => {
             tags: ["obscure framework", "niche"],
             dateBookmarked: "2025-01-03",
           },
-        ],
+        ]),
         totalCount: 1,
         totalPages: 1,
         fromCache: false,
@@ -375,7 +382,7 @@ describe("Tag Route Functionality", () => {
 
       // Verify it read the full bookmarks file from S3 for non-cached tag
       expect(mockReadJsonS3).toHaveBeenCalledWith(BOOKMARKS_S3_PATHS.FILE);
-      
+
       // CRITICAL: Verify that non-top-10 tags ALSO use S3 object storage
       // Just from a different file (the full bookmarks file)
       expect(mockReadJsonS3).toHaveBeenCalled();
@@ -387,18 +394,23 @@ describe("Tag Route Functionality", () => {
       // This test verifies that even popular tags (top 10) are fetched from S3
       // when not in any in-memory cache - proving they are CAPABLE of being
       // served from S3 object storage
-      
-      const popularBookmarks = Array(30).fill(null).map((_, i) => ({
-        id: `popular-${i}`,
-        url: `https://popular${i}.com`,
-        title: `Popular Resource ${i}`,
-        description: `Popular bookmark ${i}`,
-        tags: ["popular tag", "trending"],
-        dateBookmarked: "2025-01-01",
-      } as UnifiedBookmark));
+
+      const popularBookmarks = Array(30)
+        .fill(null)
+        .map(
+          (_, i) =>
+            ({
+              id: `popular-${i}`,
+              url: `https://popular${i}.com`,
+              title: `Popular Resource ${i}`,
+              description: `Popular bookmark ${i}`,
+              tags: ["popular tag", "trending"],
+              dateBookmarked: "2025-01-01",
+            }) as UnifiedBookmark,
+        );
 
       const cachedPopularPage = popularBookmarks.slice(0, 24); // First page
-      
+
       const popularIndex: BookmarksIndex = {
         count: 30,
         totalPages: 2,
@@ -424,25 +436,22 @@ describe("Tag Route Functionality", () => {
       const result = await getBookmarksByTag("popular-tag", 1);
 
       // Verify the result
-      expect(result).toEqual({
-        bookmarks: cachedPopularPage,
+      expect({ ...result, bookmarks: simplify(result.bookmarks) }).toEqual({
+        bookmarks: simplify(cachedPopularPage),
         totalCount: 30,
         totalPages: 2,
         fromCache: true,
       });
 
       // CRITICAL VERIFICATION: Top-10 tags ARE served from S3 object storage
-      expect(mockReadJsonS3).toHaveBeenCalledWith(
-        `${BOOKMARKS_S3_PATHS.TAG_PREFIX}popular-tag/page-1.json`
-      );
-      expect(mockReadJsonS3).toHaveBeenCalledWith(
-        `${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}popular-tag/index.json`
-      );
-      
+      expect(mockReadJsonS3).toHaveBeenCalledWith(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}popular-tag/page-1.json`);
+      expect(mockReadJsonS3).toHaveBeenCalledWith(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}popular-tag/index.json`);
+
       // Verify data was successfully retrieved from S3
       expect(result.bookmarks).toHaveLength(24);
-      expect(result.bookmarks[0].tags).toContain("popular tag");
-      
+      const firstTags = result.bookmarks[0].tags.map((t) => (typeof t === "string" ? t : t.name));
+      expect(firstTags).toContain("popular tag");
+
       // Verify ONLY S3 tag cache was used, not the full bookmarks file
       expect(mockReadJsonS3).not.toHaveBeenCalledWith(BOOKMARKS_S3_PATHS.FILE);
       expect(mockReadJsonS3).toHaveBeenCalledTimes(2);

@@ -28,6 +28,15 @@ jest.mock("@/lib/seo/metadata", () => ({
   })),
 }));
 
+jest.mock("@/lib/seo/dynamic-metadata", () => ({
+  generateDynamicTitle: jest.fn((content, _type, options) => {
+    if (options?.isPaginated && options?.pageNumber) {
+      return `${content} - Page ${options.pageNumber}`;
+    }
+    return content;
+  }),
+}));
+
 jest.mock("next/navigation", () => ({
   notFound: jest.fn(),
   redirect: jest.fn(),
@@ -262,8 +271,8 @@ describe("Metadata HTML Output Verification", () => {
     expect(htmlTags).toContain('<link rel="prev" href="https://williamcallahan.com/bookmarks">');
     expect(htmlTags).toContain('<link rel="next" href="https://williamcallahan.com/bookmarks/page/3">');
 
-    // Verify other important tags - title includes suffix from generateDynamicTitle
-    expect(htmlTags.some((tag) => tag.includes("<title>Bookmarks - Page 2 | William Callahan</title>"))).toBe(true);
+    // Verify other important tags - title without suffix due to length constraints
+    expect(htmlTags.some((tag) => tag.includes("<title>Bookmarks - Page 2</title>"))).toBe(true);
     expect(htmlTags.some((tag) => tag.includes('rel="canonical"'))).toBe(true);
   });
 });

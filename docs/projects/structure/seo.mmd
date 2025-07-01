@@ -1,46 +1,67 @@
 graph TB
-    %% SEO Architecture Overview
+    %% SEO Architecture with Complete Data Flow
     
-    subgraph "Metadata Configuration"
-        METADATA[data/metadata.ts<br/>Site constants & defaults]
-        SEO_IMAGES[data/metadata.ts<br/>SEO_IMAGES registry]
-        TYPES[types/seo/*<br/>Type definitions & validation]
+    subgraph "Configuration Layer"
+        METADATA["data/metadata.ts<br/>213 lines<br/>Site constants & image registry"]
+        SEO_IMAGES["SEO_IMAGES constant<br/>⚠️ 2 TODOs: favicon.svg, dynamic-fallback.png"]
+        TYPES["types/seo/*<br/>Zod schemas & interfaces<br/>🐛 Type duplication issues"]
     end
     
-    subgraph "Core SEO Library (lib/seo/)"
-        INDEX[index.ts<br/>Barrel exports & core functions]
-        META[metadata.ts<br/>Metadata generation]
-        SCHEMA[schema.ts<br/>JSON-LD generation]
-        OG[opengraph.ts<br/>OpenGraph metadata]
-        UTILS[utils.ts<br/>Date formatting & URLs]
-        CONST[constants.ts<br/>Field name constants]
+    subgraph "Core SEO Library"
+        INDEX["lib/seo/index.ts<br/>387 lines<br/>Orchestration & barrel exports"]
+        META["lib/seo/metadata.ts<br/>293 lines<br/>Platform-specific generation"]
+        SCHEMA["lib/seo/schema.ts<br/>456 lines<br/>JSON-LD @graph builder"]
+        OG["lib/seo/opengraph.ts<br/>178 lines<br/>OG metadata builder"]
+        OGVAL["lib/seo/og-validation.ts<br/>289 lines<br/>Validation & cache-busting"]
+        UTILS["lib/seo/utils.ts<br/>Date/URL helpers"]
+        CONST["lib/seo/constants.ts<br/>Field constants"]
+    end
+    
+    subgraph "OpenGraph Image System"
+        OGAPI["app/api/og-image/route.ts<br/>🐛 Missing Zod validation<br/>Universal OG Image API"]
+        OGFETCH["lib/opengraph/fetch.ts<br/>🐛 No request deduplication<br/>External OG fetching"]
+        OGPERSIST["lib/opengraph/persistence.ts<br/>Idempotent S3 persistence"]
+        OGFALLBACK["lib/opengraph/fallback.ts<br/>Domain fallbacks"]
     end
     
     subgraph "Page Implementation"
-        PAGES[app/**/page.tsx<br/>Page components]
-        JSONLD[components/seo/json-ld.tsx<br/>JSON-LD renderer]
-        OGLOGO[components/seo/opengraph-logo.tsx<br/>OG logo meta tag]
+        PAGES["app/**/page.tsx<br/>Server components only<br/>✅ No hydration issues"]
+        JSONLD["components/seo/json-ld.tsx<br/>Safe JSON-LD rendering"]
+        OGLOGO["components/seo/opengraph-logo.tsx<br/>Logo meta tags"]
     end
     
-    subgraph "Site Indexing"
-        ROBOTS[app/robots.ts<br/>Dynamic robots.txt]
-        SITEMAP[app/sitemap.ts<br/>Dynamic sitemap.xml]
+    subgraph "Site Indexing & Discovery"
+        ROBOTS["app/robots.ts<br/>Dynamic robots.txt<br/>Production-aware blocking"]
+        SITEMAP["app/sitemap.ts<br/>Dynamic sitemap.xml<br/>~100-200ms for 1000+ URLs"]
     end
     
     subgraph "Content Sources"
-        BLOG[data/blog/posts.ts]
-        BOOKMARKS[Bookmarks API/Cache]
-        STATIC[Static Routes]
+        BLOG["data/blog/posts.ts<br/>Frontmatter dates"]
+        BOOKMARKS["Bookmarks API/Cache<br/>🐛 Needs UnifiedBookmarkSchema.parse()"]
+        STATIC["Static Routes<br/>Fixed priorities"]
+        KARAKEEP["Karakeep/Hoarder API<br/>Asset fallback"]
     end
     
-    subgraph "Automated Submission"
-        SCHEDULER[scripts/scheduler.ts<br/>Cron orchestrator]
-        SUBMIT[scripts/submit-sitemap.ts<br/>Search engine submission]
+    subgraph "Automated Operations"
+        SCHEDULER["scripts/scheduler.ts<br/>node-cron 4.2.0<br/>2hr bookmark refresh"]
+        SUBMIT["scripts/submit-sitemap.ts<br/>Google & Bing submission<br/>Production only"]
+        VALCACHE["scripts/validate-opengraph-clear-cache.ts<br/>Twitter cache clearing<br/>5-10 min propagation"]
     end
     
-    subgraph "External Services"
-        GOOGLE[Google Search Console API]
-        BING[Bing IndexNow API]
+    subgraph "External Services & APIs"
+        GOOGLE["Google Search Console API<br/>google-auth-library 10.1.0<br/>Service Account auth"]
+        BING["Bing IndexNow API<br/>Simple key auth"]
+        TWITTER["X.com/Twitter<br/>❌ Direct fetch blocked"]
+        VXTWITTER["vxtwitter.com<br/>✅ Proxy fallback working"]
+        FB["Facebook Debugger<br/>Manual validation"]
+        LINKEDIN["LinkedIn Inspector<br/>Manual validation"]
+        JINA["Jina AI Reader<br/>HTML extraction API"]
+    end
+    
+    subgraph "Storage & Performance"
+        S3["S3 Bucket (AWS SDK 3.840.0)<br/>OG images & metadata<br/>Idempotent writes"]
+        CDN["CloudFront CDN<br/>~50-200ms hit<br/>HTTP cache headers"]
+        PERF["Performance<br/>Metadata: <5ms<br/>OG API: 50-500ms<br/>No memory cache"]
     end
     
     %% Data Flow - Metadata Generation
@@ -50,12 +71,40 @@ graph TB
     INDEX --> META
     META --> SCHEMA
     META --> OG
+    META --> OGVAL
     UTILS --> META
     CONST --> META
     PAGES --> INDEX
     INDEX --> PAGES
     JSONLD --> PAGES
     OGLOGO --> PAGES
+    
+    %% OpenGraph Image Flow with Fallbacks
+    PAGES -->|Image URL| OGAPI
+    OGAPI -->|1. Check S3| S3
+    S3 -->|Hit| CDN
+    S3 -->|Miss| OGAPI
+    OGAPI -->|2. External fetch| OGFETCH
+    OGFETCH -->|Direct| TWITTER
+    TWITTER -->|❌ Blocked/Failed| OGFETCH
+    OGFETCH -->|Fallback| VXTWITTER
+    VXTWITTER -->|✅ Success| OGAPI
+    OGAPI -->|3. Karakeep| KARAKEEP
+    KARAKEEP -->|Assets| OGAPI
+    OGAPI -->|4. Domain fallback| OGFALLBACK
+    OGFALLBACK -->|Static image| SEO_IMAGES
+    
+    %% Persistence Flow with Environment Awareness
+    OGAPI -->|Web runtime: async| OGPERSIST
+    OGAPI -->|IS_DATA_UPDATER=true: sync| OGPERSIST
+    OGPERSIST -->|Hash-based keys| S3
+    OGFETCH -->|Rate limited| JINA
+    JINA -->|HTML| OGFETCH
+    
+    %% Cache Clearing Flow
+    VALCACHE --> FB
+    VALCACHE --> TWITTER
+    VALCACHE --> LINKEDIN
     
     %% Data Flow - Sitemap Generation
     BLOG --> SITEMAP
@@ -64,7 +113,7 @@ graph TB
     METADATA --> SITEMAP
     
     %% Data Flow - Submission
-    SCHEDULER -->|Every 2 hours| LOCK[refresh-lock.json (Distributed Lock)]
+    SCHEDULER -->|Every 2 hours| LOCK[refresh-lock.json<br/>Distributed Lock]
     LOCK -->|Acquired| BOOKMARKS
     LOCK -->|Held by another process| WAIT[Skip – already refreshing]
     BOOKMARKS -->|On success| SUBMIT
@@ -72,7 +121,12 @@ graph TB
     SUBMIT --> GOOGLE
     SUBMIT --> BING
     
-    %% Styling
+    %% Connect performance metrics
+    CDN --> PERF
+    OGAPI --> PERF
+    META --> PERF
+    
+    %% Styling with issue indicators
     classDef config fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     classDef lib fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
     classDef page fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
@@ -80,12 +134,25 @@ graph TB
     classDef data fill:#fce4ec,stroke:#880e4f,stroke-width:2px
     classDef auto fill:#f1f8e9,stroke:#33691e,stroke-width:2px
     classDef external fill:#ffebee,stroke:#b71c1c,stroke-width:2px
+    classDef api fill:#e8eaf6,stroke:#283593,stroke-width:2px
+    classDef storage fill:#f5f5f5,stroke:#424242,stroke-width:2px
+    classDef unreliable fill:#ffcdd2,stroke:#c62828,stroke-width:3px,stroke-dasharray: 5 5
+    classDef reliable fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
+    classDef issue fill:#ffebee,stroke:#d32f2f,stroke-width:3px
+    classDef warning fill:#fff3e0,stroke:#f57c00,stroke-width:2px
     
     class METADATA,TYPES config
-    class INDEX,META,SCHEMA,OG,UTILS,CONST lib
+    class SEO_IMAGES warning
+    class INDEX,META,SCHEMA,OG,OGVAL,UTILS,CONST lib
+    class OGAPI,OGFETCH issue
+    class OGPERSIST,OGFALLBACK api
     class PAGES,JSONLD,OGLOGO page
     class ROBOTS,SITEMAP index
-    class BLOG,BOOKMARKS,STATIC data
-    class SCHEDULER,SUBMIT auto
-    class GOOGLE,BING external
+    class BLOG,STATIC,KARAKEEP data
+    class BOOKMARKS issue
+    class SCHEDULER,SUBMIT,VALCACHE auto
+    class GOOGLE,BING,FB,LINKEDIN,JINA external
+    class TWITTER unreliable
+    class VXTWITTER reliable
+    class S3,CDN,PERF storage
     class LOCK,WAIT auto

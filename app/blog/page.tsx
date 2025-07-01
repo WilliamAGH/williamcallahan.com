@@ -7,39 +7,28 @@
  */
 
 import type { Metadata } from "next";
-import { BlogListServer } from "../../components/features/blog/blog-list/blog-list.server";
-import { Blog } from "../../components/features/blog/blog.client";
-import { JsonLdScript } from "../../components/seo/json-ld";
-import { generateSchemaGraph } from "../../lib/seo/schema";
-import { PAGE_METADATA } from "../../data/metadata";
-import { getAllPosts } from "../../lib/blog";
-import { getStaticPageMetadata } from "../../lib/seo/metadata";
-import { formatSeoDate } from "../../lib/seo/utils";
-import type { CollectionPageMetadata } from "../../types/seo/metadata";
-import type { BlogPost } from "../../types/blog";
-import { ensureAbsoluteUrl } from "../../lib/seo/utils";
+import { Blog } from "@/components/features/blog/blog.client";
+import { BlogListServer } from "@/components/features/blog/blog-list/blog-list.server";
+import { getAllPosts } from "@/lib/blog";
+import { getStaticPageMetadata } from "@/lib/seo";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { PAGE_METADATA } from "@/data/metadata";
+import { formatSeoDate } from "@/lib/seo/utils";
+import type { BlogPost } from "@/types/blog";
 
-/**
- * Generate metadata for the blog index page
- */
 export const metadata: Metadata = getStaticPageMetadata("/blog", "blog");
 
 /**
  * Enable static generation with revalidation
  * This generates static HTML at build time and revalidates periodically
  */
-// Using ISR instead of force-static to allow revalidation
-// Removed conflicting 'dynamic = force-static' directive per GitHub issue #112
 export const revalidate = 3600; // Revalidate every hour
 
 /**
- * Blog index page component
+ * Blog index page component with JSON-LD schema
  */
 export default async function BlogPage() {
-  const pageMetadata: CollectionPageMetadata = PAGE_METADATA.blog;
-  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
-  const formattedModified = formatSeoDate(pageMetadata.dateModified);
-
   let posts: BlogPost[] = [];
   try {
     posts = await getAllPosts();
@@ -48,27 +37,33 @@ export default async function BlogPage() {
     // Could also set an error state to display to the user
   }
 
-  // Pre-render the server component here
-  const blogListContent = await Promise.resolve(<BlogListServer posts={posts} />);
+  // Generate JSON-LD schema for the blog page
+  const pageMetadata = PAGE_METADATA.blog;
+  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
+  const formattedModified = formatSeoDate(pageMetadata.dateModified);
 
-  const itemList = posts.map((post, idx) => ({
-    url: ensureAbsoluteUrl(`/blog/${post.slug}`),
-    position: idx + 1,
-  }));
-
-  const jsonLdData = generateSchemaGraph({
+  const schemaParams = {
     path: "/blog",
     title: pageMetadata.title,
     description: pageMetadata.description,
     datePublished: formattedCreated,
     dateModified: formattedModified,
-    type: "collection",
-    itemList,
+    type: "collection" as const,
     breadcrumbs: [
       { path: "/", name: "Home" },
       { path: "/blog", name: "Blog" },
     ],
-  });
+    image: {
+      url: "/images/og/blog-og.png",
+      width: 2100,
+      height: 1100,
+    },
+  };
+
+  const jsonLdData = generateSchemaGraph(schemaParams);
+
+  // Pre-render the server component here
+  const blogListContent = await Promise.resolve(<BlogListServer posts={posts} />);
 
   return (
     <>

@@ -377,3 +377,19 @@ bun run test
 ---
 
 **REMEMBER: This is a ZERO TEMPERATURE environment. Every decision must be explicitly verified. Assumptions are violations. Type safety is absolute. Efficiency is mandatory. ALWAYS use `bun run test` - NEVER `bun test` directly. NO POLYFILLS - use Node 22 LTS native APIs only.**
+
+### Environment Variable Policy - ABSOLUTELY FORBIDDEN
+
+- **NEVER introduce new required environment variables** (including `NEXT_PUBLIC_*`) without explicit, repeated, affirmative consent from the user.
+- No silent changes to `.env`, `.env-example`, CI/CD secrets, or cloud runtime configs.
+
+**Approval workflow:**
+
+1. Clearly document the rationale and exact variable names.
+2. Await a direct **"yes"** from the user before committing code that depends on them.
+
+### Language Consistency – AMERICAN ENGLISH ONLY
+
+- All code, comments, docs, and commit messages must use American English spelling (`color`, `analyze`, `behavior`).
+- British spellings (`colour`, `analyse`, `behaviour`, etc.) are forbidden.
+- If any British English spelling is detected, it must be corrected immediately.

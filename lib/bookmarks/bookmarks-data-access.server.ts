@@ -14,6 +14,7 @@ import type { UnifiedBookmark, DistributedLockEntry, RefreshBookmarksCallback } 
 import type { BookmarksIndex, BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 import { tagToSlug } from "@/lib/utils/tag-utils";
+import { normalizeBookmarkTag } from "@/lib/bookmarks/utils";
 import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
 
@@ -24,13 +25,14 @@ const safeRevalidateTag = revalidateTag as (tag: string) => void;
 
 // Helper function to convert UnifiedBookmark to LightweightBookmark
 function stripImageData(bookmark: UnifiedBookmark): LightweightBookmark {
-  // Create a new object with only the properties we want to keep
   return {
     id: bookmark.id,
     url: bookmark.url,
     title: bookmark.title,
     description: bookmark.description,
-    tags: bookmark.tags,
+    tags: (bookmark.tags || [])
+      .filter((tag) => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
+      .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
     dateBookmarked: bookmark.dateBookmarked,
     datePublished: bookmark.datePublished,
     dateCreated: bookmark.dateCreated,
@@ -446,7 +448,13 @@ async function fetchAndCacheBookmarks(
         return lightweightBookmarks;
       }
 
-      return bookmarks;
+      // Normalize tags for full bookmarks
+      return bookmarks.map((bookmark) => ({
+        ...bookmark,
+        tags: (bookmark.tags || [])
+          .filter((tag) => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
+          .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
+      }));
     }
   } catch (e: unknown) {
     if (!isS3Error(e) || e.$metadata?.httpStatusCode !== 404) {
@@ -470,7 +478,13 @@ async function fetchAndCacheBookmarks(
     return lightweightBookmarks;
   }
 
-  return refreshedBookmarks;
+  // Normalize tags for full bookmarks
+  return refreshedBookmarks.map((bookmark) => ({
+    ...bookmark,
+    tags: (bookmark.tags || [])
+      .filter((tag) => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
+      .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
+  }));
 }
 
 // Internal direct S3 read function (always available)
@@ -478,7 +492,14 @@ async function getBookmarksPageDirect(pageNumber: number): Promise<UnifiedBookma
   const pageKey = `${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${pageNumber}.json`;
   try {
     const pageData = await readJsonS3<UnifiedBookmark[]>(pageKey);
-    return pageData ?? [];
+    if (!pageData) return [];
+    // Normalize tags for each bookmark
+    return pageData.map((bookmark) => ({
+      ...bookmark,
+      tags: (bookmark.tags || [])
+        .filter((tag) => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
+        .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
+    }));
   } catch (error) {
     if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) {
       // Page doesn't exist - normal for pagination
@@ -520,7 +541,14 @@ async function getTagBookmarksPageDirect(tagSlug: string, pageNumber: number): P
   const pageKey = `${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${pageNumber}.json`;
   try {
     const pageData = await readJsonS3<UnifiedBookmark[]>(pageKey);
-    return pageData ?? [];
+    if (!pageData) return [];
+    // Normalize tags for each bookmark
+    return pageData.map((bookmark) => ({
+      ...bookmark,
+      tags: (bookmark.tags || [])
+        .filter((tag) => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
+        .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
+    }));
   } catch (error) {
     if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) {
       // Page doesn't exist - normal for pagination

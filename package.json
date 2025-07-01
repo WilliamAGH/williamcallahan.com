@@ -56,7 +56,9 @@
     "test:smoke": "NODE_OPTIONS='--max-old-space-size=4096' jest --testPathPatterns=smoke --config=config/jest/config.ts",
     "test:smoke:blog": "bun run test:smoke -- --testPathPatterns=blog",
     "test:smoke:pages": "bun run test:smoke -- --testPathPatterns=pages",
-    "prepare": "node .husky/install.mjs"
+    "prepare": "node .husky/install.mjs",
+    "validate-opengraph": "bun scripts/validate-opengraph-clear-cache.ts",
+    "postdeploy": "bun run validate-opengraph"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.840.0",
@@ -184,5 +186,8 @@
     "@swc/core",
     "unrs-resolver"
   ],
+  "resolutions": {
+    "import-in-the-middle": "1.14.2"
+  },
   "packageManager": "bun@1.2.17"
 }

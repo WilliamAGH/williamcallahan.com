@@ -21,6 +21,8 @@ import type { OpenGraph } from "next/dist/lib/metadata/types/opengraph-types";
 import { SITE_DESCRIPTION, SITE_TITLE, metadata } from "../../data/metadata";
 import type { ArticleOpenGraph, ArticleParams } from "../../types/seo";
 import { ensureAbsoluteUrl, formatSeoDate, getImageTypeFromUrl } from "./utils";
+import { prepareOGImageUrl, validateOpenGraphMetadata } from "./og-validation";
+import { adaptNextOpenGraphToOGMetadata } from "../../types/seo/validation";
 
 /**
  * Base OpenGraph metadata configuration
@@ -72,23 +74,19 @@ export function createArticleOgMetadata({
   const formattedPublished = formatSeoDate(datePublished);
   const formattedModified = formatSeoDate(dateModified);
 
-  const imageDescriptor = image
-    ? {
-        url: ensureAbsoluteUrl(image),
-        width: metadata.defaultImage.width,
-        height: metadata.defaultImage.height,
-        alt: title,
-        type: getImageTypeFromUrl(image),
-      }
-    : {
-        url: ensureAbsoluteUrl(metadata.defaultImage.url),
-        width: metadata.defaultImage.width,
-        height: metadata.defaultImage.height,
-        alt: metadata.defaultImage.alt,
-        type: metadata.defaultImage.type,
-      };
+  // Use validation-aware image preparation for articles too
+  const imageUrl = image || metadata.defaultImage.url;
+  const preparedImageUrl = prepareOGImageUrl(imageUrl, metadata.defaultImage.width, metadata.defaultImage.height);
 
-  return {
+  const imageDescriptor = {
+    url: preparedImageUrl,
+    width: metadata.defaultImage.width,
+    height: metadata.defaultImage.height,
+    alt: image ? title : metadata.defaultImage.alt,
+    type: getImageTypeFromUrl(imageUrl),
+  };
+
+  const ogMetadata: ArticleOpenGraph = {
     ...BASE_OG_METADATA,
     title,
     description,
@@ -106,4 +104,20 @@ export function createArticleOgMetadata({
     publishedTime: formattedPublished,
     modifiedTime: formattedModified,
   };
+
+  // Validate in development
+  if (process.env.NODE_ENV === "development") {
+    const ogValidationData = adaptNextOpenGraphToOGMetadata(ogMetadata);
+    if (ogValidationData) {
+      const validation = validateOpenGraphMetadata(ogValidationData);
+      if (!validation.isValid) {
+        console.error(`[OG Validation] Article ${url} errors:`, validation.errors);
+      }
+      if (validation.warnings.length > 0) {
+        console.warn(`[OG Validation] Article ${url} warnings:`, validation.warnings);
+      }
+    }
+  }
+
+  return ogMetadata;
 }
