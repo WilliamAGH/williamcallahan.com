@@ -74,7 +74,6 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     locale: "en_US",
     type: "website",
-    images: [siteMetadata.defaultImage],
   },
   twitter: {
     card: "summary_large_image",
