@@ -241,6 +241,10 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
     ogImagePath = SEO_IMAGES.ogBlogIndex;
   }
 
+  // FORCE CACHE BUSTING: Append a version query string to bust social media cache.
+  // This version number can be manually incremented whenever you want to force a refresh.
+  const cacheBustingUrl = `${ogImagePath}?v=2`;
+
   // Type assertion is safe here because LOCAL_OG_ASSETS keys are the compile-time
   // image paths defined in data/metadata.ts. If the path exists, we can rely on
   // Next.js-provided width/height for perfect accuracy.
@@ -251,7 +255,7 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
   }
 
   const defaultOgImage = {
-    url: ensureAbsoluteUrl(ogImagePath),
+    url: ensureAbsoluteUrl(cacheBustingUrl),
     width: ogWidth,
     height: ogHeight,
     alt: siteMetadata.defaultImage.alt,
@@ -373,7 +377,7 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
       creator: siteMetadata.social.twitter,
       title: pageMetadata.title,
       description: pageMetadata.description,
-      images: [ensureAbsoluteUrl(ogImagePath)],
+      images: [ensureAbsoluteUrl(cacheBustingUrl)],
     },
     other: {
       // Standard HTML meta dates
