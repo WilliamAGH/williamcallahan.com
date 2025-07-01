@@ -4,6 +4,24 @@
  * @description
  * Generates Schema.org JSON-LD structured data for all page types.
  * Uses the @graph pattern to establish proper entity relationships.
+ * 
+ * Supported types:
+ * - Article (blog posts)
+ * - NewsArticle (news-style posts)
+ * - ProfilePage (personal profiles)
+ * - CollectionPage (listings)
+ * - Dataset (data collections)
+ * - SoftwareApplication (software/tools)
+ * - WebPage/WebSite/Person (base types)
+ * 
+ * Future expansion opportunities:
+ * - Organization (company pages)
+ * - Event (conferences, meetups)
+ * - FAQPage (FAQ sections)
+ * - HowTo (tutorials)
+ * - Review (product reviews)
+ * - VideoObject (video content)
+ * - Course (educational content)
  */
 
 import { SITE_NAME, metadata } from "../../data/metadata";

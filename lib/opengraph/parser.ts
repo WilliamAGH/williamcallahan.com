@@ -3,6 +3,7 @@
  *
  * Handles all HTML parsing and metadata extraction for OpenGraph
  * Contains platform-specific extraction logic
+ * Optimized for large documents by extracting only the <head> section
  *
  * @module opengraph/parser
  */
