@@ -569,7 +569,7 @@ File/Path                                       Functionality                   
     - [x] `update-s3-data.smoke.test.ts`         `batch-fetch-update`    - S3 data update smoke tests
   - [x] **setup/**
     - [x] `bun-setup.ts`                         `testing-config`        - Bun test environment setup
-  - [x] `tsconfig.jest.json`                     `testing-config`        - TypeScript config for Jest tests
+  - [x] `tsconfig.json`                     `testing-config`        - TypeScript config for Jest tests
 
 ## Mocks Directory
 

@@ -8,8 +8,8 @@ import {
 
 describe("useRegisteredWindowState", () => {
   it("registers on mount, unregisters on unmount, and toggles isRegistered", async () => {
-    let registerSpy: jest.SpyInstance;
-    let unregisterSpy: jest.SpyInstance;
+    let registerSpy!: jest.SpyInstance;
+    let unregisterSpy!: jest.SpyInstance;
 
     /**
      * Helper component to expose the context so we can attach spies.

@@ -156,6 +156,7 @@ const SUPPRESSED_PATTERNS = [
   "Site-wide search API call failed:",
   "Search API call failed for scope",
   "Error searching in section",
+  "Search API returned 500",
 ];
 
 // Suppress noisy console.error logs during test runs

@@ -1,0 +1,41 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["../*"],
+      "@/types/*": ["../types/*"],
+      "@/lib/*": ["../lib/*"],
+      "@/components/*": ["../components/*"],
+      "@/app/*": ["../app/*"]
+    },
+    "types": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "jest",
+      "@testing-library/jest-dom"
+    ],
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "noUncheckedIndexedAccess": false,
+    "strict": true,
+    "skipLibCheck": true,
+    "ignoreDeprecations": "5.0"
+  },
+  "include": [
+    "../app/**/*.ts",
+    "../app/**/*.tsx",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx",
+    "../types/**/*.ts",
+    "../types/**/*.tsx"
+  ],
+  "exclude": ["node_modules", ".next", "out", "dist"]
+}

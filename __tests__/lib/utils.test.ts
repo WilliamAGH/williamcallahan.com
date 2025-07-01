@@ -195,10 +195,8 @@ describe("randomString", () => {
     });
 
     it("rejects null and undefined values", () => {
-      // @ts-expect-error: Testing invalid input
-      expect(isValidUrl(null)).toBe(false);
-      // @ts-expect-error: Testing invalid input
-      expect(isValidUrl(undefined)).toBe(false);
+      expect(isValidUrl(null as unknown as string)).toBe(false);
+      expect(isValidUrl(undefined as unknown as string)).toBe(false);
     });
   });
 

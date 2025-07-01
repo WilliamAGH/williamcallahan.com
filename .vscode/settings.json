@@ -15,7 +15,7 @@
   "typescript.suggest.includeAutomaticOptionalChainCompletions": true,
   "typescript.suggest.includeCompletionsForImportStatements": true,
   "typescript.suggest.objectLiteralMethodSnippets.enabled": false,
-  "typescript.preferences.projectConfigPaths": ["tsconfig.json", "__tests__/tsconfig.jest.json"],
+  "typescript.preferences.projectConfigPaths": ["tsconfig.json", "__tests__/tsconfig.json"],
   "files.watcherExclude": {
     "**/.git/**": true,
     "**/.next/**": true,
