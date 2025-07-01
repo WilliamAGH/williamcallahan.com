@@ -197,7 +197,17 @@ export async function GET(request: NextRequest) {
 
     // Check if this is a static image from our own domain
     const siteUrl = metadata.site.url || process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
-    const isOwnDomainImage = url.startsWith(siteUrl) && url.includes("/images/");
+    let isOwnDomainImage = false;
+    
+    try {
+      const parsedUrl = new URL(url, siteUrl); // Handle relative URLs
+      const siteHostname = new URL(siteUrl).hostname;
+      isOwnDomainImage = parsedUrl.hostname === siteHostname && parsedUrl.pathname.startsWith("/images/");
+    } catch (error) {
+      // Invalid URL, treat as not own domain
+      console.warn(`[OG-Image] Invalid URL for own domain check: ${url}`, error);
+      isOwnDomainImage = false;
+    }
     
     if (isOwnDomainImage) {
       console.log(`[OG-Image] Detected static image from own domain: ${url}`);
