@@ -39,7 +39,7 @@ import type { ImageServiceOptions, ImageResult } from "../../types/image";
 import { IMAGE_S3_PATHS } from "@/lib/constants";
 
 export class UnifiedImageService {
-  private readonly cdnBaseUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+  private readonly cdnBaseUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL || "";
   private readonly s3BucketName = process.env.S3_BUCKET || "";
   private readonly s3ServerUrl = process.env.S3_SERVER_URL;
   private readonly isReadOnly = isS3ReadOnly();
@@ -50,7 +50,7 @@ export class UnifiedImageService {
   private domainRetryCount = new Map<string, number>();
   private sessionStartTime = Date.now();
   private lastCleanupTime = Date.now();
-  
+
   // Request deduplication for concurrent logo fetches
   private inFlightLogoRequests = new Map<string, Promise<LogoFetchResult>>();
   private readonly CONFIG = {
@@ -314,17 +314,19 @@ export class UnifiedImageService {
       },
       { timeoutMs: this.CONFIG.FETCH_TIMEOUT, metadata: { domain, options } },
     );
-    
+
     // Store the in-flight request
     this.inFlightLogoRequests.set(domain, requestPromise);
-    
+
     // Clean up after completion (success or failure)
-    requestPromise.finally(() => {
-      this.inFlightLogoRequests.delete(domain);
-    }).catch(() => {
-      // Silently catch to prevent unhandled rejection
-    });
-    
+    requestPromise
+      .finally(() => {
+        this.inFlightLogoRequests.delete(domain);
+      })
+      .catch(() => {
+        // Silently catch to prevent unhandled rejection
+      });
+
     return requestPromise;
   }
 
@@ -848,7 +850,7 @@ export class UnifiedImageService {
         this.uploadRetryQueue.delete(key);
       }
     }
-    
+
     // Clean up stale in-flight requests
     if (this.inFlightLogoRequests.size > 100) {
       this.inFlightLogoRequests.clear();

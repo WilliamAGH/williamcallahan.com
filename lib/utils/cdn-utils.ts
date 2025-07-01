@@ -1,6 +1,6 @@
 /**
  * CDN URL Builder Utilities
- * 
+ *
  * Consistent CDN URL generation across services
  * Handles both CDN and S3 direct URLs
  */
@@ -11,13 +11,13 @@ import type { CdnConfig } from "@/types/s3-cdn";
  * Extract S3 hostname from server URL
  */
 export function getS3Host(s3ServerUrl?: string): string {
-  if (!s3ServerUrl) return 's3.amazonaws.com';
-  
+  if (!s3ServerUrl) return "s3.amazonaws.com";
+
   try {
     const url = new URL(s3ServerUrl);
     return url.hostname;
   } catch {
-    return 's3.amazonaws.com';
+    return "s3.amazonaws.com";
   }
 }
 
@@ -27,20 +27,20 @@ export function getS3Host(s3ServerUrl?: string): string {
  */
 export function buildCdnUrl(s3Key: string, config: CdnConfig): string {
   const { cdnBaseUrl, s3BucketName, s3ServerUrl } = config;
-  
+
   // Prefer CDN URL if available
   if (cdnBaseUrl) {
     // Ensure no double slashes
-    const cleanCdnUrl = cdnBaseUrl.endsWith('/') ? cdnBaseUrl.slice(0, -1) : cdnBaseUrl;
-    const cleanKey = s3Key.startsWith('/') ? s3Key.slice(1) : s3Key;
+    const cleanCdnUrl = cdnBaseUrl.endsWith("/") ? cdnBaseUrl.slice(0, -1) : cdnBaseUrl;
+    const cleanKey = s3Key.startsWith("/") ? s3Key.slice(1) : s3Key;
     return `${cleanCdnUrl}/${cleanKey}`;
   }
-  
+
   // Fall back to S3 direct URL
   if (!s3BucketName) {
-    throw new Error('Either cdnBaseUrl or s3BucketName must be provided');
+    throw new Error("Either cdnBaseUrl or s3BucketName must be provided");
   }
-  
+
   const s3Host = getS3Host(s3ServerUrl);
   return `https://${s3BucketName}.${s3Host}/${s3Key}`;
 }
@@ -50,24 +50,24 @@ export function buildCdnUrl(s3Key: string, config: CdnConfig): string {
  */
 export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | null {
   const { cdnBaseUrl, s3BucketName, s3ServerUrl } = config;
-  
+
   try {
     // Check if it's a CDN URL
     if (cdnBaseUrl && url.startsWith(cdnBaseUrl)) {
       const key = url.slice(cdnBaseUrl.length);
-      return key.startsWith('/') ? key.slice(1) : key;
+      return key.startsWith("/") ? key.slice(1) : key;
     }
-    
+
     // Check if it's an S3 URL
     if (s3BucketName) {
       const s3Host = getS3Host(s3ServerUrl);
       const s3UrlPrefix = `https://${s3BucketName}.${s3Host}/`;
-      
+
       if (url.startsWith(s3UrlPrefix)) {
         return url.slice(s3UrlPrefix.length);
       }
     }
-    
+
     return null;
   } catch {
     return null;
@@ -79,19 +79,19 @@ export function extractS3KeyFromUrl(url: string, config: CdnConfig): string | nu
  */
 export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
   const { cdnBaseUrl, s3BucketName, s3ServerUrl } = config;
-  
+
   // Check CDN URL
   if (cdnBaseUrl && url.startsWith(cdnBaseUrl)) {
     return true;
   }
-  
+
   // Check S3 URL
   if (s3BucketName) {
     const s3Host = getS3Host(s3ServerUrl);
     const s3UrlPrefix = `https://${s3BucketName}.${s3Host}/`;
     return url.startsWith(s3UrlPrefix);
   }
-  
+
   return false;
 }
 
