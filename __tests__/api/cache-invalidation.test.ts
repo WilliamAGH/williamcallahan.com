@@ -14,9 +14,9 @@ jest.mock("@/lib/cache", () => {
   const actual = jest.requireActual<typeof import("@/lib/cache")>("@/lib/cache");
   return {
     ...actual,
-    invalidateBookmarksCache: jest.fn<() => void>(),
-    invalidateAllCaches: jest.fn<() => void>(),
-  } as typeof import("@/lib/cache");
+    invalidateBookmarksCache: jest.fn(),
+    invalidateAllCaches: jest.fn(),
+  };
 });
 
 // Mock S3 utilities
