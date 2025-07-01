@@ -15,6 +15,7 @@ import { getDomainType } from "@/lib/utils/opengraph-utils";
 import { getDomainFallbackImage, getContextualFallbackImage } from "@/lib/opengraph/fallback";
 import { OPENGRAPH_IMAGES_S3_DIR } from "@/lib/constants";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
+import { metadata } from "@/data/metadata";
 
 /**
  * Main handler for OpenGraph image requests
@@ -192,6 +193,22 @@ export async function GET(request: NextRequest) {
           console.error("[OG-Image] Failed to read bookmarks for Karakeep priority check:", s3Error);
         }
       }
+    }
+
+    // Check if this is a static image from our own domain
+    const siteUrl = metadata.site.url || process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
+    const isOwnDomainImage = url.startsWith(siteUrl) && url.includes("/images/");
+    
+    if (isOwnDomainImage) {
+      console.log(`[OG-Image] Detected static image from own domain: ${url}`);
+      // For static images from our own domain, redirect directly without processing
+      // This prevents self-referencing fetches that cause timeouts
+      return NextResponse.redirect(url, {
+        status: 302,
+        headers: {
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
     }
 
     // If we've reached here, proceed with OpenGraph image fetching
