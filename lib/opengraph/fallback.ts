@@ -153,7 +153,7 @@ export function getFallbackImageForDomain(domain: string): string | null {
         process.env.FALLBACK_IMAGE_BLUESKY ||
         "https://cdn.bsky.app/img/avatar/plain/did:plc:o3rar2atqxlmczkaf6npbcqz/bafkreidpq75jyggvzlm5ddgpzhfkm4vprgitpxukqpgkrwr6sqx54b2oka@jpeg"
       );
-    // Generic websites or unrecognised domains should show a generic OpenGraph card placeholder
+    // Generic websites or unrecognized domains should show a generic OpenGraph card placeholder
     // to make it clear the image represents a link preview, not a personal/company avatar.
     default:
       return process.env.FALLBACK_IMAGE_OPENGRAPH || "/images/opengraph-placeholder.png";
