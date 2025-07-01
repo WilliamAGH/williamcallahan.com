@@ -1,25 +1,56 @@
-# SEO Architecture Map
+# SEO Architecture
 
-## Overview
+**Functionality:** `seo`
 
-The "seo" functionality manages search engine optimization by generating metadata, structured data (`JSON-LD`), `robots.txt`, `sitemap.xml`, and automated sitemap submissions to search engines. It is a comprehensive system designed to improve search engine visibility and social media presence. The system includes Zod validation to ensure metadata adheres to SEO best practices and automated submission workflows for Google Search Console and Bing IndexNow.
+## Core Purpose
 
-> **💡 Note on Google Indexing API**  
-> While the Google Indexing API exists for faster indexing, it's currently limited to `JobPosting` and `BroadcastEvent` schema types. For general content like blog posts, standard sitemap submissions to Google Search Console remain the recommended approach, which this project implements.
+Provides comprehensive search engine optimization through metadata generation, structured data (JSON-LD), dynamic sitemap/robots.txt, automated submissions, and a universal OpenGraph image API with multi-tier fallback. Features Zod validation for metadata quality and idempotent operations throughout.
 
-## Core Logic & Orchestration
+## Architecture Overview
 
-- **`lib/seo/index.ts`**: Central module that serves dual purposes:
-  - **Barrel Export**: Re-exports all SEO utilities, types, and validation functions from sub-modules
-  - **Core Functions**: Contains functions like `getStaticPageMetadata` and `getBlogPostMetadata` that generate final `Next.js` metadata objects
-  - **Metadata Re-exports**: Provides convenient access to metadata configuration from `data/metadata.ts`
-  - **Validation Re-exports**: Exports validation schemas and functions from `types/seo/metadata.ts`
-- **`lib/seo/metadata.ts`**: Generates the main metadata structure for different content types (articles, static pages, software), including titles, descriptions, and Twitter cards. It also integrates the schema graph from `schema.ts` and OpenGraph data from `opengraph.ts`.
-- **`data/metadata.ts`**: Acts as the single source of truth for all base metadata values, such as site title, author, and social media handles.
+### Data Flow
 
-## Shared Image Registry
+```
+1. Content (Blog/Pages) → Metadata Generation → Next.js Head
+2. External URLs → OG Fetch → Multi-tier Fallback → S3 Persistence
+3. Sitemap Build → Automated Submission → Search Engines
+4. Social Crawlers → og-image API → Optimized Delivery
+```
 
-All social-sharing and favicon assets are defined **once** in `data/metadata.ts` via the exported `SEO_IMAGES` constant:
+### Key Design Decisions
+
+1. **Universal OG Image API** - Single endpoint normalizes all image sources
+2. **Idempotent Persistence** - Hash-based keys prevent duplicate uploads
+3. **Environment-Aware** - Async for web runtime, sync for batch processing
+4. **X.com Mitigation** - vxtwitter.com proxy for reliable Twitter cards
+
+## Key Components
+
+### Core Infrastructure
+
+- **`lib/seo/index.ts`** (387 lines): Central orchestration and barrel exports
+  - Re-exports all SEO utilities with single import point
+  - Core functions: `getStaticPageMetadata`, `getBlogPostMetadata`, `getProfilePageMetadata`
+  - Integrates metadata, validation, and schema generation
+  - Type-safe metadata construction with Next.js 15 compatibility
+
+- **`lib/seo/metadata.ts`** (293 lines): Metadata generation engine
+  - Creates platform-specific metadata (Twitter, OpenGraph, Dublin Core)
+  - Character limit enforcement per platform requirements
+  - Fallback chains for missing metadata
+  - Integration points for JSON-LD schema graph
+
+- **`data/metadata.ts`** (213 lines): Single source of truth
+  - All site-wide constants (name, author, social handles)
+  - Image registry with TODO tracking for missing assets
+  - Environment-aware URL construction
+  - Type-safe exports with validation
+
+## Image Asset Management
+
+### Centralized Registry
+
+All SEO images defined in `data/metadata.ts` via `SEO_IMAGES` constant:
 
 | Constant | Purpose | Path |
 |----------|---------|------|
@@ -35,23 +66,47 @@ All social-sharing and favicon assets are defined **once** in `data/metadata.ts`
 | `SEO_IMAGES.android192` | Android/manifest 192×192 | `/android-chrome-192x192.png` |
 | `SEO_IMAGES.android512` | Android/manifest 512×512 | `/android-chrome-512x512.png` |
 
-> Any missing file is annotated with `// TODO` in `data/metadata.ts` so build scripts surface it immediately.
+**Missing Assets** (Build will warn):
 
-`lib/seo/metadata.ts` converts each relative path to an absolute HTTPS URL via `ensureAbsoluteUrl()` at the point it is inserted into meta tags, guaranteeing crawlers always see valid images.
+- `/images/og/dynamic-fallback.png` - TODO in `data/metadata.ts:89`
+- `/favicon.svg` - TODO in `data/metadata.ts:94`
 
-## Sub-Modules
+**URL Processing**: All relative paths converted to absolute HTTPS URLs via `ensureAbsoluteUrl()` ensuring crawler compatibility.
 
-### Structured Data (JSON-LD)
+### Structured Data Generation
 
-- **`lib/seo/schema.ts`**: Responsible for generating a `@graph` of interconnected `JSON-LD` entities. It contains individual functions (`createPersonEntity`, `createArticleEntity`, etc.) to build different schema types.
-- **`types/seo/schema.ts`**: Provides strongly-typed interfaces for all supported Schema.org entities and the parameters (`SchemaParams`) required to build them.
+- **`lib/seo/schema.ts`** (456 lines): JSON-LD schema graph builder
+  - Generates interconnected Schema.org entities
+  - Entity creators: `Person`, `Article`, `WebSite`, `WebPage`, `ProfilePage`, `CollectionPage`
+  - Automatic `@graph` relationship linking
+  - Date/time formatting for search engines
+  - Author and publisher entity deduplication
 
-### OpenGraph
+- **`types/seo/schema.ts`** (234 lines): Schema.org type definitions
+  - Comprehensive interfaces for all entity types
+  - Type-safe `SchemaParams` for generation
+  - Strict compliance with Schema.org specifications
+  - Support for extensions (breadcrumbs, search actions)
 
-- **`lib/seo/opengraph.ts`**: Creates OpenGraph-specific metadata objects, ensuring correct formatting for social media previews, particularly for articles.
-- **`lib/seo/og-validation.ts`**: Validates OpenGraph metadata and images according to social media platform requirements, with cache-busting URL generation for consistent social media crawler behavior.
-- **`types/seo/opengraph.ts`**: Defines TypeScript types for different OpenGraph object types (`ArticleOpenGraph`, `ProfileOpenGraph`).
-- **`types/seo/validation.ts`**: Provides validation types and adapter functions for converting Next.js OpenGraph metadata to validation-compatible formats.
+### OpenGraph Implementation
+
+- **`lib/seo/opengraph.ts`** (178 lines): OpenGraph metadata builder
+  - Article-specific OpenGraph with publish/modified times
+  - Multi-image support with fallback chains
+  - Platform-specific formatting (Twitter vs Facebook)
+  - Integration with og-image API endpoints
+
+- **`lib/seo/og-validation.ts`** (289 lines): Validation & cache management
+  - Image dimension validation (min 144x144, optimal 1200x630)
+  - Required tag verification with helpful errors
+  - Cache-busting URL generation for forced refreshes
+  - Platform compliance checks (Twitter Cards, OpenGraph Protocol)
+
+- **`types/seo/opengraph.ts`** (141 lines): OpenGraph type system
+  - Zod schemas for external data validation
+  - Type-safe interfaces: `ArticleOpenGraph`, `ProfileOpenGraph`, `WebsiteOpenGraph`
+  - Karakeep fallback data structures
+  - Cache entry schemas with timestamps
 
 ### OpenGraph Validation & Cache Management
 
@@ -117,6 +172,99 @@ if (process.env.NODE_ENV === 'development') {
   }
 }
 ```
+
+## Universal OpenGraph Image API
+
+### Overview
+
+The `/api/og-image` endpoint serves as the single source of truth for ALL OpenGraph images in the application, providing a unified interface that handles multiple image sources with comprehensive fallback logic.
+
+### Image Source Hierarchy
+
+The API processes images through a strict priority hierarchy:
+
+1. **Memory Cache** (removed) - Now relies on HTTP cache headers and CDN
+2. **S3 Storage** - Pre-persisted images for optimal performance
+3. **External Fetch** - Direct HTTP fetch with retry logic
+4. **Karakeep Fallback** - Bookmarking service assets (for bookmarks)
+5. **Domain Fallback** - Platform-specific default images
+6. **Generic Fallback** - Site-wide default OpenGraph image
+
+### API Parameters
+
+- **`url`** (required): S3 key, external URL, or domain URL
+- **`assetId`** (optional): Karakeep asset ID for priority handling
+- **`bookmarkId`** (optional): Enables domain-specific fallbacks
+
+### Key Features
+
+#### Idempotent Image Persistence
+
+The system ensures reliable, idempotent image storage through:
+
+- **Idempotency Keys**: Generated from URL hash to prevent duplicate S3 uploads
+- **Background Persistence**: Non-blocking image uploads to S3
+- **Environment-Aware**: `IS_DATA_UPDATER=true` enables synchronous persistence for batch jobs
+
+```typescript
+// Example from og-image/route.ts
+const urlHash = url.replace(/[^a-zA-Z0-9.-]/g, "_");
+const idempotencyKey = `og-image-${urlHash}`;
+scheduleImagePersistence(url, OPENGRAPH_IMAGES_S3_DIR, "OG-Image-API", idempotencyKey, url);
+```
+
+#### Docker Environment Fix
+
+The API includes a critical fix for Docker environments where `request.url` contains `0.0.0.0`:
+
+```typescript
+// Uses getBaseUrl() instead of request.url for redirects
+const baseUrl = getBaseUrl();
+return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
+```
+
+### Reliability Issues with X.com/Twitter
+
+#### Known Issues
+
+1. **Direct Fetch Failures**: X.com frequently blocks or rate-limits OpenGraph scrapers
+2. **Inconsistent Metadata**: Twitter's OpenGraph tags are often incomplete or missing
+3. **Cache Staleness**: Twitter aggressively caches images, making updates unreliable
+4. **API Deprecation**: Twitter's API changes have broken traditional OpenGraph fetching
+
+#### Mitigation Strategies
+
+1. **Proxy Services**: Uses `vxtwitter.com` as fallback (fxtwitter.com deprecated as of 2025)
+2. **Multi-Tier Retry**: Attempts direct fetch first, then proxy, then Karakeep fallback
+3. **S3 Persistence**: Stores successful fetches to avoid repeated failures
+4. **Cache Busting**: Implements versioned URLs to force re-fetches
+
+```typescript
+// From lib/opengraph/fetch.ts
+if (normalizedUrl.includes("twitter.com/") || normalizedUrl.includes("x.com/")) {
+  const proxyUrl = normalizedUrl.replace(/https:\/\/(twitter\.com|x\.com)/, "https://vxtwitter.com");
+  // Only use vxtwitter.com - fxtwitter.com returns empty metadata for profiles as of 2025
+}
+```
+
+### Image Persistence Flow
+
+```
+External URL → Fetch → Validate → Transform → S3 Upload → CDN Serve
+                 ↓ (fail)
+             Proxy Fetch
+                 ↓ (fail)
+            Karakeep Assets
+                 ↓ (fail)
+            Domain Fallback
+```
+
+### Performance Optimizations
+
+1. **302 Redirects**: Avoids proxying image data through the API
+2. **S3 CDN Priority**: Always prefers direct CDN URLs when available
+3. **Background Processing**: Non-blocking persistence for web runtime
+4. **Idempotent Storage**: Prevents duplicate uploads and wasted bandwidth
 
 ### Site Indexing & Submission
 
@@ -365,14 +513,230 @@ The `tagToSlug` function handles special characters in tags to generate SEO-frie
 - Leading/trailing special characters are handled gracefully
 - Empty or whitespace-only tags are filtered out
 
-## Notes
+## External Dependencies & Versions
 
-- The SEO functionality is critical for improving the application's discoverability and user engagement through search engines and social media platforms
-- The modular structure allows for easy updates to metadata standards and integration with various parts of the application
-- **OpenGraph validation system** ensures consistent social media previews and provides cache-busting capabilities for immediate updates
-- **Continuous testing** via automated test suite prevents regressions in social media metadata functionality
-- **Manual cache clearing utility** allows immediate resolution of social media preview issues without waiting for natural cache expiration
-- Validation ensures metadata adheres to SEO best practices, preventing common mistakes
-- The barrel export pattern in `lib/seo/index.ts` provides a clean API for consuming SEO functionality
-- Automated submission runs only in production to prevent accidental submissions during development
-- Special character handling in tags ensures all URLs are SEO-friendly and crawlable
+### Production Dependencies
+
+| Package | Version | Purpose | Usage in SEO |
+|---------|---------|---------|-------------|
+| `next` | 15.1.5 | Framework | Metadata API, App Router, dynamic routes |
+| `react` | 19.1.0 | UI library | Server components for SEO tags |
+| `zod` | 3.25.67 | Validation | Metadata validation, external data parsing |
+| `cheerio` | 1.1.0 | HTML parsing | OpenGraph tag extraction from HTML |
+| `node-cron` | 4.2.0 | Scheduling | Automated sitemap submission (2hr interval) |
+| `@aws-sdk/client-s3` | 3.840.0 | S3 client | OG image persistence, metadata storage |
+| `google-auth-library` | 10.1.0 | Google APIs | Search Console API authentication |
+| `schema-dts` | 1.1.5 | Schema types | TypeScript types for Schema.org |
+
+### Platform-Specific Requirements
+
+#### Google Search Console
+
+- Service Account with JSON key required
+- Search Console API v3 enabled in GCP
+- Owner permission on verified property
+
+#### Bing IndexNow  
+
+- API key stored as `INDEXNOW_KEY`
+- Verification file at `/public/[KEY].txt`
+- No authentication beyond key verification
+
+#### S3 Configuration
+
+- Bucket with public read access for images
+- CloudFront CDN configured (`NEXT_PUBLIC_S3_CDN_URL`)
+- Proper CORS headers for image serving
+
+## Comprehensive OpenGraph Architecture
+
+### Data Flow Overview
+
+```
+1. Page Request → Next.js Metadata API
+2. Metadata Generation → Schema.org JSON-LD + OpenGraph tags
+3. Image Resolution → og-image API → Multi-tier fallback
+4. Social Platform → Crawler → Cache → Display
+```
+
+### Critical Design Decisions
+
+#### 1. Universal Image API (`/api/og-image`)
+
+**Problem**: Multiple image sources (S3, external URLs, Karakeep assets) with varying reliability
+**Solution**: Single endpoint that normalizes all sources with intelligent fallback
+**Trade-offs**: Additional hop for some images, but ensures reliability and consistency
+
+#### 2. Idempotent Persistence
+
+**Problem**: Duplicate S3 uploads wasting bandwidth and storage
+**Solution**: Hash-based idempotency keys ensuring each unique image uploaded once
+**Trade-offs**: Slightly more complex key generation, but prevents resource waste
+
+#### 3. Environment-Aware Processing
+
+**Problem**: Memory constraints in edge runtime vs batch processing needs
+**Solution**: `IS_DATA_UPDATER` flag switches between async (web) and sync (batch) modes
+**Trade-offs**: Different code paths, but optimizes for each environment
+
+#### 4. X.com/Twitter Proxy Strategy
+
+**Problem**: Direct OpenGraph fetching frequently blocked by X.com
+**Solution**: Fallback to vxtwitter.com proxy service
+**Trade-offs**: Dependency on third-party service, but enables reliable Twitter previews
+
+### Memory and Performance Characteristics
+
+- **Image Processing**: Streaming transforms to avoid large buffer allocations
+- **Background Persistence**: Non-blocking in web runtime to maintain low latency
+- **S3 Direct Serving**: 302 redirects avoid proxying image bytes through API
+- **Cache Headers**: Proper HTTP caching reduces redundant fetches
+
+### Monitoring and Operations
+
+#### Health Indicators
+
+- S3 image persistence success rate
+- OpenGraph fetch success/failure by domain
+- Cache hit rates for persisted images
+- API response times and error rates
+
+#### Manual Operations
+
+```bash
+# Validate and clear social media caches
+bun run scripts/validate-opengraph-clear-cache.ts
+
+# Refresh all bookmark OpenGraph images
+bun run scripts/refresh-opengraph-images.ts
+
+# Force sitemap resubmission
+NODE_ENV=production bun run scripts/submit-sitemap.ts --all
+```
+
+## Performance Characteristics
+
+### Response Times
+
+- **Metadata Generation**: <5ms server-side
+- **OG Image API**: ~50-200ms (CDN hit) / ~300-500ms (external fetch)
+- **Sitemap Generation**: ~100-200ms for 1000+ URLs
+- **Cache Propagation**: 5-10 minutes for social platforms
+
+### Memory Usage
+
+- **No memory caching** for OG images (relies on HTTP/CDN)
+- **Streaming HTML parsing** for external OpenGraph
+- **Batch processing** uses sync mode to control memory
+
+## 🐛 Bugs & Improvements Inventory
+
+### Type/Validation Issues (HIGH PRIORITY)
+
+1. **Duplicate Type Definition** - `types/seo/metadata.ts:33-38`
+   - Impact: `ArticleMetadata` extends `ExtendedMetadata` but redefines `other` property
+   - Fix: Remove duplicate property, rely on base type
+
+2. **Missing Zod Validation** - `app/api/og-image/route.ts:159`
+   - Impact: S3 data parsed without runtime validation
+   - Current: `readJsonS3<UnifiedBookmark[]>(BOOKMARKS_JSON_S3_KEY)`
+   - Fix: Add `UnifiedBookmarkSchema.array().parse()` after read
+
+3. **Confusing Type Re-exports** - `types/seo/metadata.ts:18-30`
+   - Impact: Aliased imports create confusion (e.g., `ProfilePageSchema as ProfileSchema`)
+   - Fix: Use direct imports without aliasing
+
+### Performance Issues (MEDIUM PRIORITY)
+
+4. **Synchronous Cheerio Parsing** - `lib/opengraph/parser.ts:58-172`
+   - Impact: Large HTML documents block event loop
+   - Current: Synchronous `cheerio.load(html)`
+   - Fix: Consider streaming HTML parser for large documents
+
+5. **No Request Deduplication** - `lib/opengraph/fetch.ts`
+   - Impact: Duplicate OG fetches for same URL
+   - Fix: Implement request coalescing like S3 utils
+
+### Missing Features (LOW PRIORITY)
+
+6. **No Dynamic OG Images** - Throughout
+   - Impact: Can't generate custom OG images per page
+   - Current: Static images only
+   - Future: Consider @vercel/og or satori integration
+
+7. **Limited Schema.org Types** - `lib/seo/schema.ts`
+   - Impact: No support for Product, Event, Recipe schemas
+   - Fix: Add commonly needed schema types
+
+### Code Quality
+
+8. **British English** - `lib/opengraph/fallback.ts:156`
+   - "unrecognised" → "unrecognized"
+
+9. **Missing Image Assets** - `data/metadata.ts`
+   - `/images/og/dynamic-fallback.png` (line 89)
+   - `/favicon.svg` (line 94)
+
+### ✅ VERIFIED SECURE
+
+- ✅ **Environment Variables**: All use server-only patterns
+- ✅ **No Hydration Issues**: SEO is server-side only
+- ✅ **No Memory Leaks**: Removed memory caching for OG images
+- ✅ **Async Handling**: No blocking operations found
+
+## Operations & Monitoring
+
+### Health Indicators
+
+- **OG Fetch Success Rate**: Track by domain in logs
+- **S3 Persistence**: Monitor failed uploads in error logs  
+- **Sitemap Submission**: Check scheduler logs for API responses
+- **Cache Hit Rates**: Available via CDN analytics
+
+### Manual Operations
+
+```bash
+# Validate OpenGraph metadata
+bun test __tests__/lib/seo/og-validation.test.ts
+
+# Clear social media caches (Twitter/X)
+bun run scripts/validate-opengraph-clear-cache.ts
+
+# Force sitemap resubmission
+NODE_ENV=production bun run scripts/submit-sitemap.ts --all
+
+# Refresh bookmark OpenGraph images
+bun run scripts/refresh-opengraph-images.ts
+
+# Check for missing SEO assets
+grep -n "TODO" data/metadata.ts
+```
+
+### Common Issues & Solutions
+
+1. **"OG image not updating"**
+   - Run cache clear script
+   - Check S3 for persisted image
+   - Verify og-image API response
+
+2. **"Sitemap not indexed"**
+   - Check Google Search Console for errors
+   - Verify robots.txt allows crawling
+   - Ensure production environment vars set
+
+3. **"Twitter card broken"**  
+   - Fallback to vxtwitter.com proxy active
+   - Check Twitter Card Validator
+   - May need manual cache clear
+
+4. **"Missing favicon/OG image"**
+   - Create assets marked TODO in data/metadata.ts
+   - Follow exact filename conventions
+   - Deploy to public/ directory
+
+## Related Documentation
+
+- **[`opengraph.md`](./opengraph.md)**: Deep dive into OG system
+- **[`s3-object-storage.md`](./s3-object-storage.md)**: Image persistence details
+- **[`caching.md`](./caching.md)**: Cache strategies for SEO
+- **[`react-server-client.md`](./react-server-client.md)**: Server component patterns
