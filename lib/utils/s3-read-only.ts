@@ -38,3 +38,17 @@ export function isS3ReadOnly(): boolean {
   // in development and production unless an explicit read-only flag is provided.
   return false;
 }
+
+/**
+ * Determines if S3 credentials are available for write operations.
+ * Used to prevent build failures when credentials aren't available.
+ *
+ * @returns true if S3 write credentials are configured
+ */
+export function hasS3WriteCredentials(): boolean {
+  const bucket = process.env.S3_BUCKET;
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+  
+  return !!(bucket && accessKeyId && secretAccessKey);
+}
