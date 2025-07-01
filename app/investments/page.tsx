@@ -12,6 +12,10 @@
 import type { Metadata } from "next";
 import { Investments } from "@/components/features";
 import { getStaticPageMetadata } from "@/lib/seo";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { PAGE_METADATA } from "@/data/metadata";
+import { formatSeoDate } from "@/lib/seo/utils";
 import { investments } from "@/data/investments";
 
 /**
@@ -34,8 +38,34 @@ export const dynamic = "force-dynamic";
  */
 
 /**
- * Investments page component
+ * Investments page component with JSON-LD schema
  */
 export default function InvestmentsPage() {
-  return <Investments investments={investments} />;
+  // Generate JSON-LD schema for the investments page
+  const pageMetadata = PAGE_METADATA.investments;
+  const formattedCreated = formatSeoDate(pageMetadata.dateCreated);
+  const formattedModified = formatSeoDate(pageMetadata.dateModified);
+
+  const schemaParams = {
+    path: "/investments",
+    title: pageMetadata.title,
+    description: pageMetadata.description,
+    datePublished: formattedCreated,
+    dateModified: formattedModified,
+    type: "dataset" as const,
+    image: {
+      url: "/images/og/investments-og.png",
+      width: 2100,
+      height: 1100,
+    },
+  };
+
+  const jsonLdData = generateSchemaGraph(schemaParams);
+
+  return (
+    <>
+      <JsonLdScript data={jsonLdData} />
+      <Investments investments={investments} />
+    </>
+  );
 }

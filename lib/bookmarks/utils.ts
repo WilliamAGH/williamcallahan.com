@@ -38,6 +38,9 @@ export function omitHtmlContent<T extends RawApiBookmarkContent>(content: T): Om
  * @param tag The input tag (string or BookmarkTag object)
  * @returns A normalized tag object with required id field
  */
+// Acronyms that should always be uppercase
+const FORCE_UPPERCASE = ["AI", "API", "CSS", "HTML", "JS", "TS"];
+
 export function normalizeBookmarkTag(tag: string | BookmarkTag): {
   id: string;
   name: string;
@@ -45,16 +48,24 @@ export function normalizeBookmarkTag(tag: string | BookmarkTag): {
   color?: string;
 } {
   if (typeof tag === "string") {
+    // Check if tag matches any forced uppercase acronym
+    const upperTag = tag.toUpperCase();
+    const forceUppercase = FORCE_UPPERCASE.includes(upperTag);
+
     return {
-      id: tag,
-      name: tag,
+      id: forceUppercase ? upperTag : tag,
+      name: forceUppercase ? upperTag : tag,
       slug: tag.toLowerCase().replace(/\s+/g, "-"),
       color: undefined,
     };
   }
 
   // Defensively handle malformed tag objects
-  const name = tag?.name || "";
+  let name = tag?.name || "";
+  const forceUppercase = FORCE_UPPERCASE.includes(name.toUpperCase());
+  if (forceUppercase) {
+    name = name.toUpperCase();
+  }
   return {
     id: tag?.id || name,
     name: name,

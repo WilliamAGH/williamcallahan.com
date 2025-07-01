@@ -20,6 +20,10 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { getStaticPageMetadata } from "@/lib/seo";
+import { JsonLdScript } from "@/components/seo/json-ld";
+import { generateSchemaGraph } from "@/lib/seo/schema";
+import { PAGE_METADATA } from "@/data/metadata";
+import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
@@ -131,9 +135,35 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   const pageTitle = "Bookmarks";
   const pageDescription = "A collection of articles, websites, and resources I've bookmarked for future reference.";
 
+  // Generate schema for this paginated bookmarks page
+  const path = `/bookmarks/page/${pageNum}`;
+  const pageMetadata = PAGE_METADATA.bookmarks;
+  const schemaParams = {
+    path,
+    title: pageTitle,
+    description: pageDescription,
+    datePublished: formatSeoDate(pageMetadata.dateCreated),
+    dateModified: formatSeoDate(pageMetadata.dateModified),
+    type: "collection" as const,
+    breadcrumbs: [
+      { path: "/", name: "Home" },
+      { path: "/bookmarks", name: "Bookmarks" },
+      { path, name: `Page ${pageNum}` },
+    ],
+  };
+  const jsonLdData = generateSchemaGraph(schemaParams);
+
   return (
-    <div className="max-w-5xl mx-auto">
-      <BookmarksServer title={pageTitle} description={pageDescription} initialPage={pageNum} includeImageData={false} />
-    </div>
+    <>
+      <JsonLdScript data={jsonLdData} />
+      <div className="max-w-5xl mx-auto">
+        <BookmarksServer
+          title={pageTitle}
+          description={pageDescription}
+          initialPage={pageNum}
+          includeImageData={false}
+        />
+      </div>
+    </>
   );
 }
