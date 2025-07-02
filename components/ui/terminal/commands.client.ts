@@ -12,14 +12,24 @@ import { searchResultsSchema } from "@/types/search";
 
 // Transform SearchResult from API to TerminalSearchResult format
 function transformSearchResultToSelectionItem(result: SearchResult): TerminalSearchResult {
-  if (!result.id) {
+  // Ensure we have a valid ID - SearchResult.id is required by the interface
+  const id = result.id;
+  if (!id) {
     console.warn("Search result is missing a stable ID. This may cause rendering issues.", result);
+    // Generate a fallback ID if somehow missing
+    return {
+      id: crypto.randomUUID(),
+      label: result.title || "Untitled",
+      description: result.description || "",
+      path: result.url || "#",
+    };
   }
+
   return {
-    id: result.id ? `${result.type}-${result.id}` : crypto.randomUUID(),
-    label: result.title,
+    id: `${result.type}-${id}`,
+    label: result.title || "Untitled",
     description: result.description || "",
-    path: result.url,
+    path: result.url || "#",
   };
 }
 
@@ -268,7 +278,7 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
   if (command === "schema" || command === "schema.org") {
     // Check if --debug flag was passed
     const includeDebug = args.includes("--debug");
-    
+
     return {
       results: [
         {
