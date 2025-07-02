@@ -16,25 +16,25 @@ import type { ApiError } from "@/types/features/github";
 
 // Define the custom theme for the calendar
 const calendarCustomTheme: ReactActivityCalendarThemeInput = {
-  // TODO: Consider moving to a constants file if used elsewhere
+  // GitHub official palette for consistency / cleanliness
   light: [
-    "#E5E7EB", // level 0 (Tailwind gray-200)
-    "#BBF7D0", // level 1 (Tailwind green-200)
-    "#4ADE80", // level 2 (Tailwind green-400)
-    "#16A34A", // level 3 (Tailwind green-600)
-    "#166534", // level 4 (Tailwind green-800)
+    "#ebedf0", // level 0
+    "#9be9a8", // level 1
+    "#40c463", // level 2
+    "#30a14e", // level 3
+    "#216e39", // level 4
   ],
   dark: [
-    "#1F2937", // level 0 (Tailwind gray-800)
-    "#14532D", // level 1 (Tailwind green-900)
-    "#15803D", // level 2 (Tailwind green-700)
-    "#22C55E", // level 3 (Tailwind green-500)
-    "#86EFAC", // level 4 (Tailwind green-300)
+    "#161b22", // level 0
+    "#0e4429", // level 1
+    "#006d32", // level 2
+    "#26a641", // level 3
+    "#39d353", // level 4
   ],
 };
 
 const GitHubActivity = () => {
-  const { theme: currentNextTheme } = useTheme(); // Current theme from next-themes
+  const { resolvedTheme } = useTheme(); // Resolved theme (accounts for system preference)
   const [activityData, setActivityData] = useState<ContributionDay[]>([]); // Activity data for the calendar
   const [isLoading, setIsLoading] = useState(true); // Loading state for initial data fetch
   const [isRefreshing, setIsRefreshing] = useState(false); // Loading state for refresh operation
@@ -223,6 +223,15 @@ const GitHubActivity = () => {
     void fetchData();
   }, [fetchData]); // Add fetchData to dependency array
 
+  useEffect(() => {
+    if (activityData.length === 0) return; // Avoid on first empty render
+    const svg = document.querySelector<SVGSVGElement>(".react-activity-calendar__svg");
+    if (!svg) return;
+    svg.querySelectorAll<SVGRectElement>("rect[data-date]").forEach((rect) => {
+      rect.setAttribute("stroke", "none");
+    });
+  }, [activityData]);
+
   return (
     <div className="bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-card hover:shadow-card-hover transition-all duration-300 transform hover:-translate-y-1 group text-left w-full">
       <div className="flex justify-between items-center mb-3">
@@ -279,13 +288,14 @@ const GitHubActivity = () => {
               )}
             </div>
           ) : (
-            <div className="mt-4 mb-2 p-2 rounded-md bg-neutral-100 dark:bg-neutral-800/50 overflow-x-auto w-full">
+            <div className="mt-4 mb-2 p-2 overflow-x-auto w-full flex justify-center">
               <ActivityCalendarComponent
                 data={activityData}
                 theme={calendarCustomTheme}
-                colorScheme={currentNextTheme === "dark" ? "dark" : "light"}
+                colorScheme={resolvedTheme === "dark" ? "dark" : "light"}
                 blockSize={14}
-                blockMargin={3}
+                blockMargin={2}
+                blockRadius={0}
                 fontSize={14}
                 hideTotalCount
                 showWeekdayLabels
