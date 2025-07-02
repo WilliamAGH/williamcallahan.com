@@ -303,7 +303,22 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
           finalStatsToSaveForRepo.length > 0 &&
           (apiStatus === "complete" || apiStatus === "empty_no_user_contribs" || isErrorOrPendingStatus(apiStatus))
         ) {
-          await writeBinaryS3(repoStatS3Key, Buffer.from(generateGitHubStatsCSV(finalStatsToSaveForRepo)), "text/csv");
+          // Ensure all required properties are present before generating CSV
+          const validStatsForCsv = finalStatsToSaveForRepo.filter(
+            (stat): stat is Required<RepoRawWeeklyStat> =>
+              typeof stat.w === "number" &&
+              typeof stat.a === "number" &&
+              typeof stat.d === "number" &&
+              typeof stat.c === "number",
+          );
+
+          if (validStatsForCsv.length > 0) {
+            await writeBinaryS3(repoStatS3Key, Buffer.from(generateGitHubStatsCSV(validStatsForCsv)), "text/csv");
+          } else {
+            console.warn(
+              `[DataAccess/GitHub-S3] No valid stats data to save for ${repoOwnerLogin}/${repoName} - all entries missing required properties`,
+            );
+          }
           debug(
             `[DataAccess/GitHub-S3] Trailing Year: CSV for ${repoOwnerLogin}/${repoName} updated/written. Weeks: ${finalStatsToSaveForRepo.length}. API Status: ${apiStatus}`,
           );

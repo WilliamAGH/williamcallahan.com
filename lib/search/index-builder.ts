@@ -205,7 +205,13 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
     url: b.url,
     author: b.content?.author || "",
     publisher: b.content?.publisher || "",
-    slug: generateUniqueSlug(b.url, bookmarks, b.id),
+    slug: generateUniqueSlug(
+      b.url || "",
+      bookmarks.filter(
+        (bm): bm is (UnifiedBookmark & { id: string; url: string }) => Boolean(bm.id) && Boolean(bm.url),
+      ),
+      b.id || "",
+    ),
   }));
 
   index.addAll(bookmarksForIndex);
