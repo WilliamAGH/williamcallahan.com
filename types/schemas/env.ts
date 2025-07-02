@@ -15,3 +15,6 @@ export const envSchema = z.object({
   // Add other server-side environment variables here
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
+
+// Export a reusable inferred type for validated env
+export type Env = z.infer<typeof envSchema>;
