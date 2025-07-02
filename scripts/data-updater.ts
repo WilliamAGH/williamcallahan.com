@@ -8,7 +8,7 @@
  */
 
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
-import type { DataFetchConfig } from "@/types/lib";
+import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 import logger from "@/lib/utils/logger";
 import { existsSync, statSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
@@ -21,6 +21,7 @@ const args = process.argv.slice(2);
 
 // 12-hour check for dev environment
 const LAST_RUN_SUCCESS_FILE = join(process.cwd(), ".populate-volumes-last-run-success");
+const LAST_RUN_DETAILS_FILE = join(process.cwd(), ".data-update-details.json");
 const RUN_INTERVAL_HOURS = 12;
 
 async function checkRecentRun(): Promise<boolean> {
@@ -53,10 +54,26 @@ async function checkRecentRun(): Promise<boolean> {
   return false; // Continue with update
 }
 
-async function updateTimestamp(): Promise<void> {
+async function updateTimestamp(results: DataFetchOperationSummary[]): Promise<void> {
   if (process.env.NODE_ENV === "development") {
     try {
+      // Always update the timestamp file to prevent repeated runs
       await writeFile(LAST_RUN_SUCCESS_FILE, new Date().toISOString());
+      
+      // Also write detailed results for debugging
+      const details = {
+        lastRun: new Date().toISOString(),
+        results: results.reduce((acc, result) => {
+          acc[result.operation] = {
+            success: result.success,
+            itemsProcessed: result.itemsProcessed || 0,
+            error: result.error,
+            duration: result.duration
+          };
+          return acc;
+        }, {} as Record<string, unknown>)
+      };
+      await writeFile(LAST_RUN_DETAILS_FILE, JSON.stringify(details, null, 2));
     } catch (error) {
       logger.warn("Error updating timestamp:", error);
     }
@@ -174,19 +191,22 @@ if (testLimitArg) {
     
     logger.info("[DataUpdaterCLI] All tasks complete.");
     
-    let hasSuccess = false;
     results.forEach((result) => {
       if (result.success) {
         logger.info(`  - ${result.operation}: Success (${result.itemsProcessed} items)`);
-        hasSuccess = true;
       } else {
         logger.error(`  - ${result.operation}: Failed (${result.error})`);
       }
     });
 
-    // Update timestamp if any operation succeeded
-    if (hasSuccess) {
-      await updateTimestamp();
+    // Always update timestamp to prevent rate limit spiral
+    // Even if operations fail, we don't want to retry immediately
+    await updateTimestamp(results);
+    
+    // Log warning if GitHub failed due to rate limiting
+    const githubResult = results.find(r => r.operation === 'github-activity');
+    if (githubResult && !githubResult.success && githubResult.error?.includes('rate')) {
+      logger.warn('[DataUpdaterCLI] GitHub activity failed due to rate limiting. Will retry after cooldown period.');
     }
 
     // Explicitly exit to prevent hanging due to active timers/intervals

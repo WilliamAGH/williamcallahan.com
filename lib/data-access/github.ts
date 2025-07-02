@@ -21,7 +21,7 @@ import type {
 } from "@/types/github";
 import { ContributorStatsResponseSchema, CommitResponseSchema } from "@/types/github";
 import { formatPacificDateTime, getTrailingYearDate, startOfDay, endOfDay, unixToDate } from "@/lib/utils/date-format";
-import { waitForPermit } from "@/lib/rate-limiter";
+import { waitForPermit, isOperationAllowed } from "@/lib/rate-limiter";
 import { generateGitHubStatsCSV, parseGitHubStatsCSV } from "@/lib/utils/csv";
 import { writeBinaryS3, readBinaryS3 } from "@/lib/s3-utils";
 import type { RepoRawWeeklyStat } from "@/types/github";
@@ -152,6 +152,13 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
   }
 
   console.log(`[DataAccess/GitHub] Initiating GitHub activity refresh from API for ${GITHUB_REPO_OWNER}...`);
+
+  // Check if we're rate limited before starting expensive operations
+  const rateLimitConfig = { maxRequests: 1000, windowMs: 60 * 60 * 1000 }; // 1000 requests per hour
+  if (!isOperationAllowed('github-api', 'global', rateLimitConfig)) {
+    console.warn('[DataAccess/GitHub] Skipping refresh due to rate limit. Will retry later.');
+    return null;
+  }
 
   if (process.env.AUTO_REPAIR_CSV_FILES !== "false") {
     console.log("[DataAccess/GitHub] Running CSV repair before data refresh to ensure complete data");
@@ -424,7 +431,7 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
     },
     {
       batchSize: CONCURRENT_REPO_LIMIT,
-      timeout: 60000,
+      timeout: 300000, // 5 minutes instead of 1 minute
       onProgress: (current, total, failed) => {
         console.log(`[DataAccess/GitHub] Processing repositories: ${current}/${total} (${failed} failed)`);
       },
