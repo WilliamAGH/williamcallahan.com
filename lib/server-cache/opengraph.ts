@@ -25,7 +25,9 @@ export function setOpenGraphData(this: ICache, url: string, data: OgResult, isFa
   const existing = getOpenGraphData.call(this, url);
 
   const validationResult = ogResultSchema.safeParse(data);
-  const validatedData: OgResult = validationResult.success ? { ...validationResult.data, url: data.url } : data;
+  const validatedData: OgResult = validationResult.success
+    ? { ...validationResult.data, url: data.url }
+    : { ...data, timestamp: data.timestamp || now };
 
   if (!validationResult.success) {
     console.warn(`[ServerCache] OpenGraph data failed strict validation for ${url} – caching anyway.`);

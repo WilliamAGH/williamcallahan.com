@@ -74,15 +74,15 @@ import type { ProfilePageMetadata, CollectionPageMetadata } from "@/types/seo";
 // *stable* public URLs ("/images/og/*.png") in SEO metadata to avoid hashed paths
 // that third-party scrapers (Twitter, Facebook) refuse to fetch.
 
-import ogDefaultImage from "@/public/images/og/default-og.png";
-import ogBookmarksImage from "@/public/images/og/bookmarks-og.png";
-import ogProjectsImage from "@/public/images/og/projects-og.png";
-import ogBlogIndexImage from "@/public/images/og/blog-og.png";
-import ogExperienceImage from "@/public/images/og/experience-og.png";
-import ogEducationImage from "@/public/images/og/education-og.png";
-import ogInvestmentsImage from "@/public/images/og/investments-og.png";
-import ogContactImage from "@/public/images/og/contact-og.png";
-import androidLogo512Image from "@/public/images/favicons/android-chrome-512x512.png";
+import ogDefaultImage from "/images/og/default-og.png";
+import ogBookmarksImage from "/images/og/bookmarks-og.png";
+import ogProjectsImage from "/images/og/projects-og.png";
+import ogBlogIndexImage from "/images/og/blog-og.png";
+import ogExperienceImage from "/images/og/experience-og.png";
+import ogEducationImage from "/images/og/education-og.png";
+import ogInvestmentsImage from "/images/og/investments-og.png";
+import ogContactImage from "/images/og/contact-og.png";
+import androidLogo512Image from "/images/favicons/android-chrome-512x512.png";
 
 // Map *both* hashed build paths (ogXImage.src) and the stable public paths so that
 // width/height look-ups work regardless of which path the caller provides.
