@@ -501,3 +501,8 @@ p.line-clamp-4-resilient {
     text-align-last: left;
   }
 }
+
+/* GitHub Activity Calendar clean grid overrides */
+.react-activity-calendar__svg rect {
+  stroke: transparent;
+}
