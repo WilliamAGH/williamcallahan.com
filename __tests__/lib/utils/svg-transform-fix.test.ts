@@ -94,7 +94,7 @@ describe("SVG Transform Fix Utilities", () => {
         </svg>
       `;
 
-      const result = processSvgTransforms(svgString) as string;
+      const result = processSvgTransforms(svgString);
 
       // Verify each transform individually
       expect(result).toContain('transform="translate(10,20)"');

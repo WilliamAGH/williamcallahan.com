@@ -127,7 +127,7 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
         s3Bookmarks = [];
       }
     } catch (e) {
-      s3Error = e instanceof Error ? e : new Error(String(e));
+      s3Error = e instanceof Error ? e : new Error(JSON.stringify(e));
       console.error("[UnitTest] Error reading from S3:", s3Error);
       s3Bookmarks = []; // Treat as empty on error for quantity comparison
     }
@@ -140,7 +140,7 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
       );
       externalApiBookmarks = await refreshBookmarksData();
     } catch (e) {
-      apiError = e instanceof Error ? e : new Error(String(e));
+      apiError = e instanceof Error ? e : new Error(JSON.stringify(e));
       console.error("[UnitTest] Error fetching from external API:", apiError);
       externalApiBookmarks = []; // Treat as empty on error
     }
@@ -156,7 +156,7 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
         s3Bookmarks = updated;
       }
     } catch (e) {
-      const err = e instanceof Error ? e : new Error(String(e));
+      const err = e instanceof Error ? e : new Error(JSON.stringify(e));
       console.error("[UnitTest] Error re-reading from S3 after refresh:", err);
       s3Bookmarks = s3Bookmarks ?? [];
     }
