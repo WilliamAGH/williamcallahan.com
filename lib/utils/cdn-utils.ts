@@ -38,13 +38,13 @@ export function buildCdnUrl(s3Key: string, config: CdnConfig): string {
 
   // Fall back to S3 direct URL
   if (!s3BucketName) {
-    // In client-side environment, if neither CDN URL nor bucket is available,
-    // return a relative path as a fallback to avoid breaking the entire page
-    if (typeof globalThis.window !== 'undefined') {
-      console.warn(`CDN configuration missing for S3 key: ${s3Key}. Using relative path as fallback.`);
-      return `/${s3Key}`;
-    }
-    throw new Error("Either cdnBaseUrl or s3BucketName must be provided");
+    // Throw error in all environments when CDN configuration is missing
+    // This ensures we catch configuration issues early
+    throw new Error(
+      `CDN configuration missing: Either cdnBaseUrl or s3BucketName must be provided. ` +
+      `S3 key: ${s3Key}. ` +
+      `Please ensure NEXT_PUBLIC_S3_CDN_URL is set in your environment.`
+    );
   }
 
   const s3Host = getS3Host(s3ServerUrl);

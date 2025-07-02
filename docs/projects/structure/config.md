@@ -124,12 +124,49 @@ See [`testing-config.md`](./testing-config.md) for comprehensive testing configu
    - Risk of accidentally exposing secrets
    - **Fix**: Document and enforce naming conventions
 
+## Required Environment Variables
+
+### Critical S3 CDN Configuration
+
+The following environment variables are **REQUIRED** for proper image delivery:
+
+1. **`NEXT_PUBLIC_S3_CDN_URL`** (Required in production)
+   - Type: URL string (e.g., `https://s3-storage.callahan.cloud`)
+   - Purpose: CDN endpoint for serving S3-stored images and assets
+   - Validation: Must be a valid URL format
+   - Used by: `UnifiedImageService`, `cdn-utils`, all image loading functionality
+   - **Critical**: Without this, images will fail to load on the client side
+
+2. **`S3_BUCKET`** (Required for S3 operations)
+   - Type: String
+   - Purpose: S3 bucket name for storing images and assets
+   - Used as fallback when CDN URL is not available (server-side only)
+
+3. **`AWS_ACCESS_KEY_ID`** and **`AWS_SECRET_ACCESS_KEY`** (Required for S3 writes)
+   - Type: String
+   - Purpose: AWS credentials for S3 operations
+   - Only needed if writing to S3 (not needed for read-only mode)
+
+4. **`AWS_REGION`** (Required for S3 operations)
+   - Type: String (e.g., `us-east-1`)
+   - Purpose: AWS region where S3 bucket is located
+
+### Environment Variable Validation
+
+All critical environment variables are validated at startup using Zod schemas:
+- Schema definition: `types/schemas/env.ts`
+- Runtime validation: `lib/env.ts`
+- Type definitions: `types/env.d.ts`
+
+The application will fail fast if required variables are missing in production.
+
 ## Best Practices
 
 1. **Environment Variables**
    - Use `.env.local` for local development
    - Never commit `.env` files with real values
-   - Validate required variables at startup
+   - Validate required variables at startup using Zod schemas
+   - Use `NEXT_PUBLIC_` prefix only for client-accessible variables
 
 2. **Configuration Files**
    - Keep configuration close to code it affects

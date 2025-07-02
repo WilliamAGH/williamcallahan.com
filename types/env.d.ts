@@ -18,6 +18,10 @@ declare global {
       // Analytics Configuration
       /** Umami Analytics website ID for tracking */
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: string;
+      
+      // S3 CDN Configuration
+      /** S3 CDN URL for serving images and assets */
+      NEXT_PUBLIC_S3_CDN_URL: string;
     }
   }
 

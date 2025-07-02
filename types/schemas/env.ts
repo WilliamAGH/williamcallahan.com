@@ -14,6 +14,9 @@ export const envSchema = z.object({
 
   // Add other server-side environment variables here
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  
+  // Public environment variables (available on client-side)
+  NEXT_PUBLIC_S3_CDN_URL: z.string().url().min(1),
 });
 
 // Export a reusable inferred type for validated env

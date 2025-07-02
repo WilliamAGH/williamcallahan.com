@@ -87,16 +87,39 @@ export class UnifiedImageService {
   });
 
   constructor() {
-    if (process.env.NODE_ENV === "production" && !this.cdnBaseUrl) {
-      console.warn(
-        [
-          "##########################################################################################",
-          "# WARNING: NEXT_PUBLIC_S3_CDN_URL is not set in a production environment.                #",
-          "# Image URLs will fall back to the S3 endpoint, which is inefficient and may be incorrect. #",
-          "# Please set this environment variable to your public CDN URL.                           #",
-          "##########################################################################################",
-        ].join("\n"),
-      );
+    // Validate CDN configuration in production
+    if (process.env.NODE_ENV === "production") {
+      if (!this.cdnBaseUrl && !this.s3BucketName) {
+        throw new Error(
+          "UnifiedImageService: Missing critical configuration. " +
+          "Either NEXT_PUBLIC_S3_CDN_URL or S3_BUCKET must be set in production. " +
+          "This is required for proper image delivery."
+        );
+      }
+      
+      if (!this.cdnBaseUrl) {
+        console.warn(
+          [
+            "##########################################################################################",
+            "# WARNING: NEXT_PUBLIC_S3_CDN_URL is not set in a production environment.                #",
+            "# Image URLs will fall back to the S3 endpoint, which is inefficient and may be incorrect. #",
+            "# Please set this environment variable to your public CDN URL.                           #",
+            "##########################################################################################",
+          ].join("\n"),
+        );
+      }
+    }
+    
+    // Validate CDN URL format if provided
+    if (this.cdnBaseUrl) {
+      try {
+        new URL(this.cdnBaseUrl);
+      } catch {
+        throw new Error(
+          `UnifiedImageService: Invalid CDN URL format: "${this.cdnBaseUrl}". ` +
+          "NEXT_PUBLIC_S3_CDN_URL must be a valid URL."
+        );
+      }
     }
     console.log(`[UnifiedImageService] Initialized in ${this.isReadOnly ? "READ-ONLY" : "READ-WRITE"} mode`);
     this.startRetryProcessing();
