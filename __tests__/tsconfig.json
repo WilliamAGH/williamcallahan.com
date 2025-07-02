@@ -8,15 +8,11 @@
       "@/types/*": ["../types/*"],
       "@/lib/*": ["../lib/*"],
       "@/components/*": ["../components/*"],
-      "@/app/*": ["../app/*"]
+      "@/app/*": ["../app/*"],
+      "@/data/*": ["../data/*"],
+      "@/hooks/*": ["../hooks/*"]
     },
-    "types": [
-      "react",
-      "react-dom",
-      "react/jsx-runtime",
-      "jest",
-      "@testing-library/jest-dom"
-    ],
+    "types": ["react", "react-dom", "react/jsx-runtime", "jest", "@testing-library/jest-dom"],
     "jsx": "react-jsx",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -30,6 +26,14 @@
   "include": [
     "../app/**/*.ts",
     "../app/**/*.tsx",
+    "../lib/**/*.ts",
+    "../lib/**/*.tsx",
+    "../components/**/*.ts",
+    "../components/**/*.tsx",
+    "../data/**/*.ts",
+    "../data/**/*.tsx",
+    "../hooks/**/*.ts",
+    "../hooks/**/*.tsx",
     "**/*.ts",
     "**/*.tsx",
     "**/*.js",
