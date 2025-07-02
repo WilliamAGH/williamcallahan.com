@@ -21,14 +21,26 @@ import { envSchema, type Env } from "@/types/schemas/env";
 
 
 
+// Test defaults for environments where some env vars may be missing
+const testDefaults: Env = {
+  AWS_ACCESS_KEY_ID: "test-access-key",
+  AWS_SECRET_ACCESS_KEY: "test-secret-key",
+  S3_BUCKET: "test-bucket",
+  AWS_REGION: "us-east-1",
+  NODE_ENV: "test",
+  NEXT_PUBLIC_S3_CDN_URL: "https://test-cdn.example.com"
+};
+
 function loadEnv(): Env {
   try {
     return envSchema.parse(process.env);
   } catch (error) {
     const isTestLike = process.env.NODE_ENV === "test" || process.env.DRY_RUN === "true";
     if (isTestLike) {
-      // Allow partial schema during tests or dry runs.
-      return envSchema.partial().parse(process.env) as Env;
+      // Allow partial schema during tests or dry runs by merging with safe defaults.
+      // This ensures type safety while allowing tests to override specific values.
+      const partialEnv = envSchema.partial().parse(process.env);
+      return { ...testDefaults, ...partialEnv } as Env;
     }
     throw error;
   }
