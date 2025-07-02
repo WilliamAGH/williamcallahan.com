@@ -39,7 +39,7 @@ export function SocialListClient() {
       </div>
 
       {/* Social Media Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+      <div className="grid auto-rows-[1fr] gap-6 sm:grid-cols-[repeat(auto-fit,minmax(min(330px,100%),1fr))] mt-8">
         {mounted
           ? // Only render actual cards when mounted to prevent hydration mismatch
             socialLinks.map((social) => (

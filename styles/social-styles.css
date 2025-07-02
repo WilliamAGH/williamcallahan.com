@@ -3,158 +3,43 @@
  * Adds subtle, brand-specific styling to social media cards
  */
 
-/*
- * Base white background for all social cards
- * Sets consistent background color, rounded corners, and prepares
- * banner images for the hover animation with transform transition
- */
-.linkedin-card img.linkedin-banner,
-.github-card img.social-banner,
-.twitter-card img.social-banner,
-.bluesky-card img.social-banner,
-.discord-card img.social-banner {
-  background-color: #fff;
-  border-radius: 4px;
-  transition: transform 0.4s ease;
-}
-
-/*
- * Position relative on cards for border effects
- * This establishes the positioning context for absolute elements
- * and sets up transparent borders that will become visible on hover
- */
-.linkedin-card,
-.github-card,
-.twitter-card,
-.bluesky-card,
-.discord-card {
+.social-card {
   position: relative;
   border: 1px solid transparent;
   transition:
     border-color 0.3s ease,
     box-shadow 0.4s ease;
+  /* expose CSS vars fallback */
+  --accent: #3b82f6;
+  --accent-rgb: 59 130 246;
 }
 
-/*
- * Simple glow effect on card hover
- * Each card gets its brand-specific color with reduced opacity for subtle effect
- *  flags ensure these styles override any conflicting styles
- * LinkedIn - Blue (#0A66C2)
- */
-.linkedin-card:hover {
-  border-color: rgb(10 102 194 / 50%);
-  box-shadow: 0 0 15px 0 rgb(10 102 194 / 40%);
+.social-card .social-banner {
+  transition: transform 0.4s ease;
 }
 
-/*
- * GitHub - Purple (#6e5494)
- * Matches GitHub's brand color in their dark theme
- */
-.github-card:hover {
-  border-color: rgb(110 84 148 / 50%);
-  box-shadow: 0 0 15px 0 rgb(110 84 148 / 40%);
+.github-card .social-banner {
+  background-color: #161b22; /* GitHub dark background */
 }
 
-/*
- * Twitter - Light Blue (#1DA1F2)
- * Classic Twitter blue for brand recognition
- */
-.twitter-card:hover {
-  border-color: rgb(29 161 242 / 50%);
-  box-shadow: 0 0 15px 0 rgb(29 161 242 / 40%);
+.twitter-card .social-banner,
+.x-card .social-banner {
+  background-color: #000000; /* X.com black background */
 }
 
-/*
- * BlueSky - Bright Blue (#0099ff)
- * Uses BlueSky's brand color
- */
-.bluesky-card:hover {
-  border-color: rgb(0 153 255 / 50%);
-  box-shadow: 0 0 15px 0 rgb(0 153 255 / 40%);
-}
-
-/*
- * Discord - Blurple (#7289da)
- * Discord's signature purple-blue blend color
- */
-.discord-card:hover {
-  border-color: rgb(114 137 218 / 50%);
-  box-shadow: 0 0 15px 0 rgb(114 137 218 / 40%);
-}
-
-/*
- * Slight scale effect on the banner images
- * Creates a subtle zoom effect (102% of original size) on hover
- * Adds depth and interactivity to the cards
- */
-.linkedin-card:hover img.linkedin-banner,
-.github-card:hover img.social-banner,
-.twitter-card:hover img.social-banner,
-.bluesky-card:hover img.social-banner,
-.discord-card:hover img.social-banner {
+.social-card:hover .social-banner {
   transform: scale(1.02);
 }
 
-/*
- * Adding colored bar at the top of each card
- * Uses ::after pseudo-element to create a decorative top border
- * Initial height is 0 but expands on hover
- * Common setup for all cards with rounded top corners
- */
-.linkedin-card::after,
-.github-card::after,
-.twitter-card::after,
-.bluesky-card::after,
-.discord-card::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 0;
-  transition: height 0.3s ease;
-  border-radius: 24px 24px 0 0;
-  opacity: 0.8;
-}
+@media (prefers-reduced-motion: no-preference) {
+  .social-card:hover {
+    /* gentle elevation only */
+    box-shadow: 0 6px 18px -4px rgb(var(--accent-rgb) / 0.45);
+  }
 
-/*
- * LinkedIn top bar - expands to 4px height with brand color
- */
-.linkedin-card:hover::after {
-  height: 0;
-  background-color: #0a66c2;
-}
-
-/*
- * GitHub top bar - matches purple brand color
- */
-.github-card:hover::after {
-  height: 0;
-  background-color: #6e5494;
-}
-
-/*
- * Twitter top bar - classic blue brand identity
- */
-.twitter-card:hover::after {
-  height: 0;
-  background-color: #1da1f2;
-}
-
-/*
- * BlueSky top bar - bright blue brand color
- */
-.bluesky-card:hover::after {
-  height: 0;
-  background-color: #09f;
-}
-
-/*
- * Discord top bar - blurple brand color
- */
-.discord-card:hover::after {
-  height: 0;
-  background-color: #7289da;
+  .social-card:hover .social-banner {
+    transform: scale(1.04); /* subtle zoom without translate bounce */
+  }
 }
 
 /* Ensure tweet embeds use parent spacing only */
