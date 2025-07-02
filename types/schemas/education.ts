@@ -91,14 +91,34 @@ export const educationTableItemSchema = z.union([
 ]);
 
 /**
+ * Schema for processed education item with logo data and error field
+ */
+export const processedEducationItemSchema = educationSchema.extend({
+  logoData: educationLogoDataSchema,
+  error: z.string().optional(),
+});
+
+/**
+ * Schema for processed class item with logo data and error field
+ */
+export const processedClassItemSchema = classSchema.extend({
+  logoData: educationLogoDataSchema,
+  error: z.string().optional(),
+});
+
+/**
+ * Schema for processed certification item with logo data and error field
+ */
+export const processedCertificationItemSchema = certificationSchema.extend({
+  logoData: educationLogoDataSchema,
+  error: z.string().optional(),
+});
+
+/**
  * Schema for the main education client props
  */
 export const educationClientPropsSchema = z.object({
-  education: z.array(
-    educationSchema.extend({
-      logoData: educationLogoDataSchema,
-    }),
-  ),
+  education: z.array(processedEducationItemSchema),
   recentCourses: z.array(educationTableItemSchema.refine((item) => item.type === "course", "Must be a course item")),
   recentCertifications: z.array(
     educationTableItemSchema.refine((item) => item.type === "certification", "Must be a certification item"),
@@ -131,6 +151,9 @@ export type Class = z.infer<typeof classSchema>;
 export type Certification = z.infer<typeof certificationSchema>;
 export type EducationLogoData = z.infer<typeof educationLogoDataSchema>;
 export type EducationTableItem = z.infer<typeof educationTableItemSchema>;
+export type ProcessedEducationItem = z.infer<typeof processedEducationItemSchema>;
+export type ProcessedClassItem = z.infer<typeof processedClassItemSchema>;
+export type ProcessedCertificationItem = z.infer<typeof processedCertificationItemSchema>;
 export type EducationClientProps = z.infer<typeof educationClientPropsSchema>;
 export type EducationCardClientProps = z.infer<typeof educationCardClientPropsSchema>;
 export type CertificationCardClientProps = z.infer<typeof certificationCardClientPropsSchema>;
