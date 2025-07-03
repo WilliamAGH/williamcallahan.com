@@ -49,3 +49,19 @@ afterEach(() => {
   // Remove any remaining timers (setTimeout/Interval) created during a test so Jest can exit cleanly.
   jest.clearAllTimers();
 });
+
+// ------------------------------------------------------------------
+// Polyfill TextEncoder / TextDecoder for libraries like image-js that
+// expect them to be available in the global scope under Jest's Node env.
+// Node >=18 exposes them globally, but some Jest environments do not.
+// ------------------------------------------------------------------
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { TextEncoder: UtilTextEncoder, TextDecoder: UtilTextDecoder } = require("node:util");
+
+if (typeof global.TextEncoder === "undefined" && UtilTextEncoder) {
+  global.TextEncoder = UtilTextEncoder;
+}
+
+if (typeof global.TextDecoder === "undefined" && UtilTextDecoder) {
+  global.TextDecoder = UtilTextDecoder as unknown as typeof global.TextDecoder;
+}

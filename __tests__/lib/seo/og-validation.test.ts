@@ -119,7 +119,9 @@ describe("OpenGraph Validation", () => {
       Object.entries(SEO_IMAGES).forEach(([key, url]) => {
         if (key.startsWith("og") && url) {
           const processedUrl = prepareOGImageUrl(url);
-          expect(processedUrl).toContain("https://williamcallahan.com");
+          // Images are now served from S3 CDN
+          expect(processedUrl).toMatch(/https:\/\/(s3-storage\.callahan\.cloud|williamcallahan\.com)/);
+          expect(processedUrl).toContain("v="); // Should have cache busting
         }
       });
     });
