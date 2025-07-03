@@ -14,6 +14,7 @@ import Image from "next/image";
 import type React from "react";
 import { useState, useCallback, useRef } from "react";
 import type { LogoImageProps, OptimizedCardImageProps } from "@/types/ui/image";
+import { getCompanyPlaceholder, COMPANY_PLACEHOLDER_BASE64 } from "@/lib/data-access/placeholder-images";
 
 /**
  * Extract domain from a logo src so we can hit the on-demand logo API.
@@ -39,9 +40,11 @@ export function LogoImage({
   alt = "Company Logo",
   className = "",
   priority = false,
-}: LogoImageProps): React.JSX.Element {
+  needsInversion = false,
+}: LogoImageProps & { needsInversion?: boolean }): React.JSX.Element {
   const [imageError, setImageError] = useState(false);
   const [reloadKey, setReloadKey] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const retryInitiated = useRef(false);
 
   const handleError = useCallback(() => {
@@ -49,6 +52,7 @@ export function LogoImage({
       // We already retried once – fallback permanently to placeholder
       console.error(`[LogoImage] Final failure loading logo src: ${src}`);
       setImageError(true);
+      setIsLoading(false);
       return;
     }
 
@@ -56,8 +60,8 @@ export function LogoImage({
 
     const domain = src ? extractDomainFromSrc(src) : null;
     if (domain) {
-      // Fire and forget – trigger server fetch/upload
-      void fetch(`/api/logo?domain=${encodeURIComponent(domain)}`).catch(() => {
+      // Fire and forget – trigger server fetch/upload with correct parameter and force refresh
+      void fetch(`/api/logo?website=${encodeURIComponent(domain)}&forceRefresh=true`).catch(() => {
         /* silent */
       });
     }
@@ -66,6 +70,7 @@ export function LogoImage({
     setTimeout(() => {
       if (!src) {
         setImageError(true);
+        setIsLoading(false);
         return;
       }
       console.warn(`[LogoImage] Retrying logo load with cache-buster: ${src}`);
@@ -74,32 +79,68 @@ export function LogoImage({
   }, [src]);
 
   if (!src) {
-    // Return a placeholder or null if src is not provided
-    return <div style={{ width, height }} className="bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />;
+    // Use company placeholder when no src is provided
+    return (
+      <Image
+        src={getCompanyPlaceholder()}
+        alt={alt}
+        width={width}
+        height={height}
+        className={`${className} object-contain`}
+        priority={priority}
+      />
+    );
   }
 
-  // After an unrecoverable error, show placeholder
+  // After an unrecoverable error, show company placeholder
   if (imageError) {
-    return <div style={{ width, height }} className="bg-gray-200 dark:bg-gray-700 rounded" />;
+    return (
+      <Image
+        src={getCompanyPlaceholder()}
+        alt={alt}
+        width={width}
+        height={height}
+        className={`${className} object-contain`}
+        priority={priority}
+      />
+    );
   }
 
   const displaySrc = reloadKey ? `${src}${src.includes("?") ? "&" : "?"}cb=${reloadKey}` : src;
 
-  // Use next/image for optimization when possible
+  // Use next/image with base64 placeholder to prevent broken image flash
   return (
-    <Image
-      src={displaySrc}
-      alt={alt}
-      width={width}
-      height={height}
-      data-testid="next-image-mock"
-      data-priority={priority ? "true" : "false"}
-      className={`${className} object-contain`}
-      {...(priority ? { priority } : {})}
-      onError={handleError}
-      // Allow external images from the logo API
-      unoptimized={!!src.includes("/api/logo")}
-    />
+    <div style={{ position: "relative", width, height }} className="inline-block">
+      {/* Base64 placeholder shown immediately while loading */}
+      {isLoading && (
+        <Image
+          src={COMPANY_PLACEHOLDER_BASE64}
+          alt={alt}
+          width={width}
+          height={height}
+          className={`${className} object-contain`}
+          style={{ position: "absolute", top: 0, left: 0 }}
+          priority={priority}
+          unoptimized
+        />
+      )}
+      {/* Actual logo image */}
+      <Image
+        src={displaySrc}
+        alt={alt}
+        width={width}
+        height={height}
+        data-testid="next-image-mock"
+        data-priority={priority ? "true" : "false"}
+        className={`${className} object-contain ${needsInversion ? "dark:invert dark:brightness-90" : ""}`}
+        style={{ opacity: isLoading ? 0 : 1, transition: "opacity 0.2s ease-in-out" }}
+        {...(priority ? { priority } : {})}
+        onError={handleError}
+        onLoad={() => setIsLoading(false)}
+        // Allow external images from the logo API
+        unoptimized={!!src.includes("/api/logo")}
+      />
+    </div>
   );
 }
 
