@@ -5,6 +5,7 @@ import type { ProjectCardProps } from "@/types/features/projects";
 import Image from "next/image";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
 import { type JSX, useState, useEffect } from "react";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 // Placeholder for centered top image with gradient
 function PlaceholderImageTop() {
@@ -42,7 +43,7 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
   const [imageUrl, setImageUrl] = useState(initialImageUrl);
   const [hasError, setHasError] = useState(false);
 
-  const placeholderUrl = "/images/opengraph-placeholder.png";
+  const placeholderUrl = getStaticImageUrl("/images/opengraph-placeholder.png");
 
   useEffect(() => {
     setImageUrl(initialImageUrl);
@@ -82,7 +83,7 @@ export function ProjectCard({ project, isPriority = false }: ProjectCardProps): 
                 priority={isPriority}
                 sizes="(max-width: 767px) 100vw, (min-width: 768px) 50vw"
                 placeholder="blur"
-                blurDataURL="/images/opengraph-placeholder.png"
+                blurDataURL={getStaticImageUrl("/images/opengraph-placeholder.png")}
                 onError={handleImageError}
                 className="object-cover w-full h-full transition-transform duration-300 ease-in-out group-hover:scale-105"
               />
