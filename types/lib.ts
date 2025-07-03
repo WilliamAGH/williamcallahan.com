@@ -107,6 +107,18 @@ export interface RetryResult<T> extends OperationResult<T> {
 }
 
 // =============================================================================
+// REQUEST CONTEXT - Infrastructure for request tracking and logging
+// =============================================================================
+
+/** Request context for structured logging and tracing */
+export interface RequestContext {
+  requestId: string;
+  operation?: string;
+  userId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// =============================================================================
 // ASYNC OPERATIONS & JOB QUEUE - Infrastructure for background processing
 // =============================================================================
 
@@ -214,6 +226,23 @@ export interface RateLimitInfo {
   remainingPoints: number;
   msBeforeNext: number;
   isBlocked: boolean;
+}
+
+/** Circuit breaker state for rate limiter */
+export interface CircuitBreakerState {
+  failures: number;
+  lastFailureTime: number;
+  state: "closed" | "open" | "half-open";
+}
+
+/** Circuit breaker configuration */
+export interface CircuitBreakerConfig {
+  /** Number of failures before opening circuit */
+  failureThreshold?: number;
+  /** Time in ms before attempting to close circuit */
+  resetTimeout?: number;
+  /** Number of requests allowed in half-open state */
+  halfOpenRequests?: number;
 }
 
 // =============================================================================

@@ -1,30 +1,21 @@
 /**
  * @file S3 Client Initialization and Utilities
  *
- * Initializes and exports a shared AWS S3 client instance with compatibility layer for Bun S3 API.
- * This client is configured using environment variables:
- * - S3_ACCESS_KEY_ID or AWS_ACCESS_KEY_ID
- * - S3_SECRET_ACCESS_KEY or AWS_SECRET_ACCESS_KEY
- * - S3_REGION or AWS_REGION
- * - S3_ENDPOINT or AWS_ENDPOINT
- * - S3_BUCKET or AWS_BUCKET (this is the default bucket the client will operate on)
- * - S3_SESSION_TOKEN or AWS_SESSION_TOKEN
+ * Initializes and exports a shared AWS S3 client instance with compatibility layer for Bun S3 API
+ * (Session tokens are no longer supported; all credentials come from permanent key & secret)
  *
  * This implementation provides a compatibility layer over AWS SDK to mimic Bun's S3 API,
  * ensuring it works with Next.js in both webpack and Bun environments.
  */
 
-import { listS3Objects as awsListS3Objects, deleteFromS3, readFromS3, writeJsonS3, writeToS3 } from "@/lib/s3-utils";
+import { listS3Objects as awsListS3Objects, deleteFromS3, readFromS3, writeJsonS3, writeToS3, s3Client as s3UtilsClient } from "@/lib/s3-utils";
 import type { S3ClientWrapper } from "@/types/s3-cdn";
-import { S3Client as AwsS3Client } from "@aws-sdk/client-s3";
+import type { S3Client as AwsS3Client } from "@aws-sdk/client-s3";
 
 // Environment variables for S3 configuration
 const bucket = process.env.S3_BUCKET || "";
-const endpoint = process.env.S3_SERVER_URL || "";
-const region = process.env.S3_REGION || process.env.AWS_REGION || "us-east-1";
 const accessKeyId = process.env.S3_ACCESS_KEY_ID || "";
 const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || "";
-const sessionToken = process.env.S3_SESSION_TOKEN || process.env.AWS_SESSION_TOKEN || undefined;
 
 if (!bucket || !accessKeyId || !secretAccessKey) {
   console.warn(
@@ -32,16 +23,19 @@ if (!bucket || !accessKeyId || !secretAccessKey) {
   );
 }
 
-// Export a Bun-compatible S3 client: prefer Bun's native S3Client, fallback to AWS SDK with polyfill
+// Export a Bun-compatible S3 client wrapper using the singleton from s3-utils
 export const s3Client: S3ClientWrapper = (() => {
-  // Use AWS SDK as the primary client
-  const awsClient = new AwsS3Client({
-    region: region || undefined,
-    endpoint: endpoint || undefined,
-    credentials: { accessKeyId, secretAccessKey, sessionToken },
-    forcePathStyle: !!endpoint,
-  });
-  const client = awsClient as AwsS3Client & S3ClientWrapper;
+  // Reuse the existing S3 client from s3-utils instead of creating a new one
+  const client = s3UtilsClient as unknown as AwsS3Client & S3ClientWrapper;
+  
+  if (!client) {
+    console.warn("[lib/s3] S3 client not available from s3-utils");
+    // Return a minimal implementation that throws errors
+    return {
+      file: () => { throw new Error("S3 not configured"); },
+      list: () => Promise.resolve({ contents: [], isTruncated: false }),
+    } as S3ClientWrapper;
+  }
 
   // Polyfill file() method
   client.file = (key: string) => {
