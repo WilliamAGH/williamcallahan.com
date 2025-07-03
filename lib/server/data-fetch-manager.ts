@@ -303,14 +303,28 @@ export class DataFetchManager {
     const domains = new Set<string>();
 
     try {
-      // Get investment domains
-      const investmentData = await getInvestmentDomainsAndIds();
+      // Parallelize data collection for better performance
+      const [
+        investmentData,
+        { experiences },
+        { education, certifications, recentCourses },
+        bookmarks
+      ] = await Promise.all([
+        getInvestmentDomainsAndIds(),
+        import("@/data/experience"),
+        import("@/data/education"),
+        getBookmarks({
+          skipExternalFetch: false,
+          includeImageData: false,
+        }) as Promise<UnifiedBookmark[]>
+      ]);
+
+      // Process investment domains
       for (const [domain] of investmentData) {
         domains.add(domain);
       }
 
-      // Get experience domains
-      const { experiences } = await import("@/data/experience");
+      // Process experience domains
       for (const exp of experiences) {
         if (exp.website) {
           try {
@@ -323,8 +337,7 @@ export class DataFetchManager {
         }
       }
 
-      // Get education domains
-      const { education, certifications, recentCourses } = await import("@/data/education");
+      // Process education domains
       const allEducation = [...education, ...certifications, ...recentCourses];
       for (const edu of allEducation) {
         if (edu.website) {
@@ -338,11 +351,7 @@ export class DataFetchManager {
         }
       }
 
-      // Get bookmark domains – we only need the URL/domain, not heavy image blobs.
-      const bookmarks = (await getBookmarks({
-        skipExternalFetch: false,
-        includeImageData: false,
-      })) as UnifiedBookmark[];
+      // Process bookmark domains
       const bookmarkDomains = this.extractDomainsFromBookmarks(bookmarks);
       for (const domain of bookmarkDomains) {
         if (domain) {
@@ -566,24 +575,53 @@ export class DataFetchManager {
    */
   private createLogoManifest(s3Keys: string[]): LogoManifest {
     const manifest: LogoManifest = {};
-    const cdnBase = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+    const cdnBase = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
 
     for (const key of s3Keys) {
-      // Extract domain and source from logo filename
-      // Format: images/logos/domain.com_source_hash.ext
+      // Detect inverted logos
+      const isInverted = key.includes("/inverted/");
+
       const filename = key.split("/").pop();
       if (!filename) continue;
 
-      // Parse filename: domain_source_hash.extension
-      const match = filename.match(/^(.+?)_([^_]+)_[a-f0-9]+\.[^.]+$/);
-      if (match?.[1] && match[2]) {
-        const domain = match[1];
-        const source = match[2]; // google, duckduckgo, clearbit, etc.
-        manifest[domain] = {
-          cdnUrl: `${cdnBase}/${key}`,
-          originalSource: source,
-        };
+      if (isInverted) {
+        // Expected format: images/logos/inverted/domain.tld.ext
+        const domainMatch = filename.match(/^(.+?)\.[^.]+$/);
+        if (!domainMatch?.[1]) continue;
+        const domain = domainMatch[1];
+
+        if (!manifest[domain]) {
+          manifest[domain] = {
+            cdnUrl: "", // will be filled when normal variant processed
+            originalSource: "unknown",
+            invertedCdnUrl: `${cdnBase}/${key}`,
+          };
+        } else {
+          manifest[domain].invertedCdnUrl = `${cdnBase}/${key}`;
+        }
+        continue;
       }
+
+      // Normal logo path format: images/logos/domain_source_hash.ext
+      const match = filename.match(/^(.+?)_([a-f0-9]{8})\.[^.]+$/);
+      if (!match?.[1]) continue;
+
+      const beforeHash = match[1];
+      const parts = beforeHash.split("_");
+      const source = parts.pop() || "unknown";
+      const domainParts = parts;
+      if (domainParts.length < 2) continue;
+
+      const tld = domainParts[domainParts.length - 1];
+      const name = domainParts.slice(0, -1).join(".");
+      const domain = `${name}.${tld}`;
+
+      const existing = manifest[domain];
+      manifest[domain] = {
+        cdnUrl: `${cdnBase}/${key}`,
+        originalSource: source === "ddg" ? "duckduckgo" : source,
+        invertedCdnUrl: existing?.invertedCdnUrl,
+      };
     }
 
     return manifest;
@@ -595,7 +633,7 @@ export class DataFetchManager {
    * @returns Array of CDN URLs
    */
   private createImageManifest(s3Keys: string[]): string[] {
-    const cdnBase = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+    const cdnBase = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
     return s3Keys.map((key) => `${cdnBase}/${key}`);
   }
 }

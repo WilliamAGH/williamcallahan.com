@@ -6,8 +6,9 @@
  * @module lib/rate-limiter
  */
 
-import type { RateLimiterConfig, RateLimitRecord } from "@/types/lib";
+import type { RateLimiterConfig, RateLimitRecord, CircuitBreakerState, CircuitBreakerConfig } from "@/types/lib";
 import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import { debug, debugWarn } from "@/lib/utils/debug";
 
 /**
  * In-memory store for rate limit records.
@@ -16,6 +17,11 @@ import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
  * The outer key is a 'namespace' or 'storeName' to keep different limiters separate.
  */
 const rateLimitStores: Record<string, Record<string, RateLimitRecord>> = {};
+
+/**
+ * Circuit breaker state for each store/context combination
+ */
+const circuitBreakerStates: Record<string, Record<string, CircuitBreakerState>> = {};
 
 /**
  * Checks if an operation is allowed for a given context and configuration,
@@ -30,7 +36,7 @@ const rateLimitStores: Record<string, Record<string, RateLimitRecord>> = {};
 export function isOperationAllowed(storeName: string, contextId: string, config: RateLimiterConfig): boolean {
   // ---------------------------------------------------------------------------
   // Validate configuration – throw early for clearly invalid settings so that
-  // callers (and tests) can rely on deterministic behaviour.
+  // callers (and tests) can rely on deterministic behavior.
   // ---------------------------------------------------------------------------
   if (config.maxRequests <= 0) {
     throw new Error(`Invalid maxRequests: ${config.maxRequests}. Must be greater than 0.`);
@@ -174,4 +180,119 @@ export function incrementAndPersist(
     void persistRateLimitStoreToS3(storeName, s3Path);
   }
   return allowed;
+}
+
+
+/**
+ * Check if operation is allowed with circuit breaker protection
+ */
+export function isOperationAllowedWithCircuitBreaker(
+  storeName: string,
+  contextId: string,
+  rateLimitConfig: RateLimiterConfig,
+  circuitConfig: CircuitBreakerConfig = {},
+): boolean {
+  const { 
+    failureThreshold = 5, 
+    resetTimeout = 60000 // 1 minute
+  } = circuitConfig;
+
+  // Initialize circuit breaker state if needed
+  if (!circuitBreakerStates[storeName]) {
+    circuitBreakerStates[storeName] = {};
+  }
+  
+  const circuitState = circuitBreakerStates[storeName][contextId] || {
+    failures: 0,
+    lastFailureTime: 0,
+    state: "closed" as const,
+  };
+  
+  // Check circuit state
+  if (circuitState.state === "open") {
+    const timeSinceFailure = Date.now() - circuitState.lastFailureTime;
+    if (timeSinceFailure >= resetTimeout) {
+      // Try half-open state
+      circuitState.state = "half-open";
+      debug(`[RateLimiter] Circuit half-open for ${storeName}/${contextId}`);
+    } else {
+      return false; // Circuit is open, reject request
+    }
+  }
+  
+  // Check rate limit
+  const allowed = isOperationAllowed(storeName, contextId, rateLimitConfig);
+  
+  // Update circuit breaker state based on result
+  if (!allowed) {
+    circuitState.failures++;
+    circuitState.lastFailureTime = Date.now();
+    
+    if (circuitState.failures >= failureThreshold) {
+      circuitState.state = "open";
+      debugWarn(`[RateLimiter] Circuit opened for ${storeName}/${contextId} after ${circuitState.failures} failures`);
+    }
+  } else if (circuitState.state === "half-open") {
+    // Success in half-open state, close the circuit
+    circuitState.state = "closed";
+    circuitState.failures = 0;
+    debug(`[RateLimiter] Circuit closed for ${storeName}/${contextId}`);
+  }
+  
+  // Store updated state
+  circuitBreakerStates[storeName][contextId] = circuitState;
+  
+  return allowed;
+}
+
+/**
+ * Record a failure for circuit breaker tracking
+ * Use this when an operation fails after being allowed
+ */
+export function recordOperationFailure(
+  storeName: string,
+  contextId: string,
+  circuitConfig: CircuitBreakerConfig = {},
+): void {
+  const { failureThreshold = 5 } = circuitConfig;
+  
+  if (!circuitBreakerStates[storeName]) {
+    circuitBreakerStates[storeName] = {};
+  }
+  
+  const circuitState = circuitBreakerStates[storeName][contextId] || {
+    failures: 0,
+    lastFailureTime: 0,
+    state: "closed" as const,
+  };
+  
+  circuitState.failures++;
+  circuitState.lastFailureTime = Date.now();
+  
+  if (circuitState.failures >= failureThreshold && circuitState.state !== "open") {
+    circuitState.state = "open";
+    debugWarn(`[RateLimiter] Circuit opened for ${storeName}/${contextId} after external failure`);
+  }
+  
+  circuitBreakerStates[storeName][contextId] = circuitState;
+}
+
+/**
+ * Reset circuit breaker state for a specific context
+ */
+export function resetCircuitBreaker(storeName: string, contextId: string): void {
+  if (circuitBreakerStates[storeName]) {
+    delete circuitBreakerStates[storeName][contextId];
+    debug(`[RateLimiter] Circuit breaker reset for ${storeName}/${contextId}`);
+  }
+}
+
+/**
+ * Get circuit breaker state for monitoring
+ */
+export function getCircuitBreakerState(
+  storeName: string,
+  contextId: string,
+): CircuitBreakerState | undefined {
+  return circuitBreakerStates[storeName]?.[contextId];
 }
