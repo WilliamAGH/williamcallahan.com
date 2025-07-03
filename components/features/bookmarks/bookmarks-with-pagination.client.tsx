@@ -146,7 +146,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
 
         // Simple client-side filtering (case-insensitive contains across key
         // fields). We reuse the same helper used in the memoized filter below
-        // so behaviour stays consistent.
+        // so behavior stays consistent.
         const terms = searchQuery
           .toLowerCase()
           .split(" ")

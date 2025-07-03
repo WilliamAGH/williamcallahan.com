@@ -22,7 +22,7 @@
 "use client";
 
 import { formatTagDisplay, normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import { cn } from "@/lib/utils";
+import { cn, formatDate as utilFormatDate } from "@/lib/utils";
 import { Calendar, ExternalLink as LucideExternalLinkIcon } from "lucide-react";
 import Link from "next/link";
 import { type JSX, useEffect, useState } from "react";
@@ -74,19 +74,9 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   const displayBookmarkDate = dateBookmarked;
   const displayPublishDate = null;
 
-  // Format dates only after component is mounted to avoid hydration issues
-  const formatDate = (dateString: string): string => {
-    if (!mounted) return "";
-
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const formattedBookmarkDate = mounted && displayBookmarkDate ? formatDate(displayBookmarkDate) : "";
-  const formattedPublishDate = mounted && displayPublishDate ? formatDate(displayPublishDate) : null;
+  // Use stable date formatting to avoid hydration issues
+  const formattedBookmarkDate = displayBookmarkDate ? utilFormatDate(displayBookmarkDate) : "";
+  const formattedPublishDate = displayPublishDate ? utilFormatDate(displayPublishDate) : null;
 
   // Handle image sources with multiple fallbacks
   // CRITICAL: Always prefer direct S3 CDN URLs to avoid proxy overhead
