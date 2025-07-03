@@ -245,8 +245,8 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
   const ogImagePath = SEO_IMAGES[ogImageKey] || SEO_IMAGES.ogDefault;
 
   // Track image dimensions separately so we can override per-page when needed
-  let ogWidth: number = siteMetadata.defaultImage.width;
-  let ogHeight: number = siteMetadata.defaultImage.height;
+  let ogWidth: number = siteMetadata.defaultImage.width ?? 1200;
+  let ogHeight: number = siteMetadata.defaultImage.height ?? 630;
 
   // Type assertion is safe here because LOCAL_OG_ASSETS keys are the compile-time
   // image paths defined in data/metadata.ts. If the path exists, we can rely on

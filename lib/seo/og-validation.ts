@@ -172,8 +172,10 @@ export function createCacheBustingUrl(imageUrl: string, forceRefresh = false): s
  * @returns Processed and validated image URL
  */
 export function prepareOGImageUrl(imageUrl: string, width?: number, height?: number, forceRefresh = false): string {
-  // Make URL absolute if it's relative
+  // Handle URLs - they might already be absolute S3 CDN URLs
   let processedUrl = imageUrl;
+  
+  // Only make relative URLs absolute
   if (imageUrl.startsWith("/")) {
     processedUrl = `${metadata.site.url}${imageUrl}`;
   }
@@ -183,8 +185,9 @@ export function prepareOGImageUrl(imageUrl: string, width?: number, height?: num
 
   if (!validation.isValid) {
     console.warn("OpenGraph image validation failed:", validation.errors);
-    // Fall back to default image
-    processedUrl = `${metadata.site.url}${metadata.defaultImage.url}`;
+    // Fall back to default image - check if it's already an S3 URL
+    const defaultImageUrl = metadata.defaultImage.url;
+    processedUrl = defaultImageUrl.startsWith("http") ? defaultImageUrl : `${metadata.site.url}${defaultImageUrl}`;
   }
 
   // Add cache busting

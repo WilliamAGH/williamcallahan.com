@@ -41,6 +41,7 @@ import type {
   WebSiteSchema,
 } from "../../types/seo/schema";
 import { ensureAbsoluteUrl } from "./utils";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
  * Creates the base URL for schema.org @id references
@@ -61,7 +62,7 @@ function createPersonEntity(): PersonSchema {
     description: metadata.shortDescription,
     url: ensureAbsoluteUrl("/"),
     sameAs: metadata.social.profiles,
-    image: ensureAbsoluteUrl("/images/william-callahan-san-francisco.png"),
+    image: ensureAbsoluteUrl(getStaticImageUrl("/images/william-callahan-san-francisco.png")),
   };
 }
 
@@ -465,9 +466,9 @@ export function generateSchemaGraph(params: SchemaParams): SchemaGraph {
   // Add the Person logo image entity referenced by Person.image
   graph["@graph"].push({
     "@type": "ImageObject",
-    "@id": ensureAbsoluteUrl("/images/william-callahan-san-francisco.png"),
-    url: ensureAbsoluteUrl("/images/william-callahan-san-francisco.png"),
-    contentUrl: ensureAbsoluteUrl("/images/william-callahan-san-francisco.png"),
+    "@id": ensureAbsoluteUrl(getStaticImageUrl("/images/william-callahan-san-francisco.png")),
+    url: ensureAbsoluteUrl(getStaticImageUrl("/images/william-callahan-san-francisco.png")),
+    contentUrl: ensureAbsoluteUrl(getStaticImageUrl("/images/william-callahan-san-francisco.png")),
     caption: `${SITE_NAME} portrait`,
     width: 512,
     height: 512,
