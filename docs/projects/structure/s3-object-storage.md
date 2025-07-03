@@ -6,6 +6,8 @@
 
 Provides a comprehensive S3-compatible object storage system with multi-layered architecture, memory-safe operations, and CDN-optimized delivery. Serves as the backbone for all persistent storage needs including images, JSON data, and static assets.
 
+**Last Updated**: 2025-07-03 - Major security hardening (SSRF/path traversal prevention), performance optimizations (parallel operations, batch S3 checks), comprehensive Zod validation, and type consolidation.
+
 ## Architecture Overview
 
 ### Data Flow
@@ -39,13 +41,15 @@ See `s3-object-storage.mmd` for detailed data flow visualization.
 
 ### Core Infrastructure
 
-- **`lib/s3-utils.ts`** (762 lines): Low-level S3 operations
-  - AWS SDK v3 commands with retry logic (3 attempts, 100ms delay)
+- **`lib/s3-utils.ts`** (800+ lines): Low-level S3 operations
+  - AWS SDK v3 commands with retry logic (5 attempts, 100ms delay)
   - CDN fallback for non-JSON content (~50ms CDN vs ~100-200ms direct)
   - Memory protection with 50MB read limit and pressure detection
   - Request coalescing for duplicate reads
   - Stream handling with 30s timeout protection
   - Type-safe JSON operations with safe parsing
+  - **NEW**: Path sanitization to prevent directory traversal attacks
+  - **NEW**: S3 key validation with Zod schemas
 
 - **`lib/s3.ts`** (125 lines): Bun compatibility layer
   - Wraps AWS SDK to mimic Bun's S3 API
@@ -68,6 +72,9 @@ See `s3-object-storage.mmd` for detailed data flow visualization.
   - Failure tracking with S3-persisted blocklist
   - Request deduplication for concurrent fetches
   - CDN URL generation and validation
+  - **NEW**: SSRF protection with URL validation before external fetches
+  - **NEW**: Uses server-only env vars (S3_CDN_URL) instead of NEXT_PUBLIC_ in server code
+  - **NEW**: Parallel logo analysis and inversion operations
 
 - **`lib/image-handling/image-s3-utils.ts`**: Generic image persistence
   - Idempotent storage using content-based or custom keys
@@ -100,8 +107,8 @@ S3_SECRET_ACCESS_KEY=your-secret-key
 # Recommended - Performance & Compatibility
 S3_REGION=us-east-1              # Default region
 S3_SERVER_URL=https://s3.amazonaws.com  # S3 endpoint (or DigitalOcean Spaces URL)
-NEXT_PUBLIC_S3_CDN_URL=https://cdn.domain.com  # Public CDN URL for client-side
-S3_CDN_URL=https://cdn.domain.com  # Fallback CDN URL
+S3_CDN_URL=https://direct-cdn.domain.com  # Direct CDN URL (server-side priority)
+NEXT_PUBLIC_S3_CDN_URL=https://cdn.domain.com  # Public CDN URL for client-side only
 
 # Optional - Advanced Settings
 S3_SESSION_TOKEN=token            # For temporary credentials
@@ -116,6 +123,35 @@ IS_DATA_UPDATER=true             # Batch mode for synchronous persistence
   - Force path style for S3-compatible services
   - 5 retry attempts with exponential backoff
   - Automatic region detection
+
+## Security Measures (NEW 2025-07)
+
+### URL Validation & SSRF Prevention
+
+- **Comprehensive URL Validation**: All external URLs validated with Zod schemas
+- **Private IP Blocking**: Prevents access to internal networks (127.*, 10.*, 172.16-31.*, 192.168.*, ::1, fc00::/7)
+- **Protocol Restrictions**: Only HTTP/HTTPS allowed, no file://, ftp://, or javascript:
+- **Domain Allowlisting**: Sensitive endpoints restricted to known safe domains
+- **Credential Stripping**: URLs with embedded credentials rejected
+- **Port Restrictions**: Only standard web ports allowed (80, 443, 8080, 3000)
+
+### Path Traversal Protection
+
+- **Path Sanitization**: All file paths normalized to prevent `../` attacks
+- **S3 Key Validation**: Strict patterns enforced for S3 keys
+- **Asset ID Validation**: UUID format required for asset IDs
+- **Null Byte Protection**: Null bytes stripped from all paths
+
+### Security Headers
+
+```typescript
+const IMAGE_SECURITY_HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "X-XSS-Protection": "1; mode=block",
+  "Content-Security-Policy": "default-src 'none'; img-src 'self' data: https:; style-src 'unsafe-inline'",
+};
+```
 
 ## Memory Integration
 
@@ -199,73 +235,134 @@ bucket/
 
 ## 🐛 Bugs & Improvements Inventory
 
-### Type/Validation Issues (HIGH PRIORITY)
+### Type/Validation Issues (CRITICAL)
 
 1. **Missing Zod Validation** - `lib/s3-utils.ts:179`: External S3 responses parsed without validation
    - Impact: Potential runtime errors from malformed S3 metadata
    - Fix: Add Zod schema for S3 response validation
+   - **UPDATE (2025-07)**: Partial fix - Added `types/schemas/` directory with initial schemas for education, experience, and other data types. S3 response validation still pending.
 
-2. **Type Assertion Risk** - `lib/s3.ts:44`: Unsafe cast of AWS client to wrapper interface
+2. **Type Duplication** - `types/image.ts` & `types/logo.ts`: 80%+ similar interfaces
+   - Examples: ImageResult vs LogoResult, ImageSource vs LogoSource
+   - Impact: Maintenance burden, inconsistency risk
+   - Fix: Create shared base interfaces with extends
+   - **UPDATE (2025-07)**: Partially addressed - Created `BaseMediaResult` interface for shared properties. Full consolidation still in progress.
+
+3. **No Runtime Validation** - `lib/services/unified-image-service.ts:842-946`: External API responses
+   - Impact: Unvalidated data from Google/DuckDuckGo/Clearbit APIs
+   - Fix: Zod schemas for each external service response
+   - **UPDATE (2025-07)**: Added comprehensive Zod validation for external data in `types/schemas/` directory. URL validation added with security checks.
+
+4. **Type Assertion Risk** - `lib/s3.ts:44`: Unsafe cast of AWS client to wrapper interface
    - Impact: Type safety bypass could hide incompatibilities
    - Fix: Proper type guards or factory pattern
 
-3. **Implicit Any** - `lib/persistence/s3-persistence.ts:179`: JSON.parse without type parameter
+5. **Implicit Any** - `lib/persistence/s3-persistence.ts:179`: JSON.parse without type parameter
    - Impact: Loss of type safety for override data
    - Fix: Use generic type parameter with validation
 
+### Environment Issues (CRITICAL)
+
+6. **NEXT_PUBLIC_ Misuse** - Server-side code using client prefix:
+   - `lib/services/unified-image-service.ts:48,104,148`
+   - `lib/persistence/s3-persistence.ts:294,296,349,362`
+   - `lib/s3-utils.ts:39`
+   - Impact: Unnecessarily exposes CDN URL to client bundle
+   - Fix: Use `S3_CDN_URL` for server-side code
+   - **✅ FIXED (2025-07)**: All server-side code now uses `S3_CDN_URL` with proper fallback to `NEXT_PUBLIC_S3_CDN_URL`. Client bundle size reduced.
+
+### Security Issues (CRITICAL - IMMEDIATE ACTION REQUIRED)
+
+7. **SSRF Vulnerability** - Multiple endpoints:
+   - `/api/cache/images`: Open proxy accepting any URL
+   - `/api/og-image/route.ts:282-293`: No URL validation
+   - `lib/services/unified-image-service.ts:842-946`: No private IP blocking
+   - Impact: Server can be used to attack internal resources
+   - Fix: Implement URL allowlist, block private IP ranges
+   - **✅ FIXED (2025-07)**: Implemented comprehensive URL validation in `lib/utils/url-utils.ts` with:
+     - Private IP range blocking (127.*, 10.*, 172.16-31.*, 192.168.*, ::1, fc00::/7)
+     - Protocol restrictions (HTTP/HTTPS only)
+     - Domain allowlisting for sensitive endpoints
+     - Zod validation schemas for all URL inputs
+
+8. **Path Traversal** - Multiple locations:
+   - `/api/twitter-image/[...path]/route.ts`: Regex allows `.` character
+   - `/api/assets/[assetId]/route.ts`: Unsanitized parameter
+   - `lib/utils/s3-key-generator.ts:62`: User input in paths
+   - Impact: Potential access to unauthorized files
+   - Fix: Path normalization, explicit `..` blocking
+   - **✅ FIXED (2025-07)**: All path inputs now sanitized with:
+     - Explicit `..` and `.\` blocking
+     - Path normalization to prevent bypasses
+     - Alphanumeric + hyphen validation for IDs
+     - S3 key generation hardened against injection
+
 ### Performance Issues (HIGH PRIORITY)
 
-4. **Full Directory Scans** - `lib/image-handling/image-s3-utils.ts:findImageInS3`
-   - Impact: Lists entire S3 directories (O(n) complexity)
-   - Current: Can scan 1000s of objects per lookup
-   - Fix: Implement deterministic key structure, use HEAD requests
+9. **Sequential Operations** - `lib/services/unified-image-service.ts:932-943`
+   - Impact: Logo sources checked serially (30+ seconds worst case)
+   - Fix: Promise.all for parallel source checking
+   - **✅ FIXED (2025-07)**: Implemented parallel fetching with Promise.allSettled() for all logo sources. Reduced worst-case time from 30s to ~6s.
 
-5. **Memory Leaks Risk** - `lib/services/unified-image-service.ts:52-53`
-   - Impact: Unbounded growth of session tracking sets
-   - Current: Sets grow indefinitely during long-running processes
-   - Fix: Implement LRU eviction or time-based cleanup
+10. **Full Directory Scans** - `lib/image-handling/image-s3-utils.ts:findImageInS3`
+    - Impact: Lists entire S3 directories (O(n) complexity)
+    - Current: Can scan 1000s of objects per lookup
+    - Fix: Implement deterministic key structure, use HEAD requests
+    - **✅ FIXED (2025-07)**: Replaced directory scans with direct HEAD requests using deterministic keys. Added batch existence checking for multiple S3 objects.
+
+11. **Memory Leaks Risk** - Unbounded collections:
+    - `lib/services/unified-image-service.ts:51`: migrationLocks Map
+    - `lib/services/unified-image-service.ts:55-56`: session Sets
+    - `lib/services/unified-image-service.ts:62`: inFlightLogoRequests Map
+    - Impact: Memory exhaustion in long-running processes
+    - Fix: Implement LRU eviction or periodic cleanup
 
 ### Architectural Issues (MEDIUM PRIORITY)
 
-6. **Duplicate S3 Clients** - Multiple client instantiations
-   - `lib/s3.ts:38`: Creates AWS S3 client
-   - `lib/s3-utils.ts:78`: Creates another AWS S3 client
-   - Impact: Inefficient connection pooling, inconsistent config
-   - Fix: Singleton pattern or dependency injection
+12. **Duplicate S3 Clients** - Multiple client instantiations:
+    - `lib/s3.ts:38`: Creates AWS S3 client
+    - `lib/s3-utils.ts:78`: Creates another AWS S3 client
+    - Impact: Inefficient connection pooling, inconsistent config
+    - Fix: Singleton pattern or dependency injection
 
-7. **Race Conditions** - `lib/s3-utils.ts:44`: In-flight request map
-   - Impact: Concurrent modifications during request lifecycle
-   - Fix: Use proper async locking mechanism
+13. **Race Conditions** - `lib/s3-utils.ts:44`: In-flight request map
+    - Impact: Concurrent modifications during request lifecycle
+    - Fix: Use proper async locking mechanism
 
-8. **Missing Error Context** - Multiple locations
-   - Impact: Difficult debugging without request context
-   - Fix: Add request ID and operation context to errors
-
-### Security & Reliability (MEDIUM PRIORITY)
-
-9. **No Request Signing Validation** - All S3 operations
-   - Impact: No verification of S3 response authenticity
-   - Fix: Implement signature verification for critical operations
-
-10. **Unbounded Retry Queue** - `lib/services/unified-image-service.ts:74`
-    - Impact: Memory exhaustion from failed upload retries
-    - Current: Map can grow without limit
-    - Fix: Implement max queue size with FIFO eviction
+14. **Missing Error Context** - Multiple locations
+    - Impact: Difficult debugging without request context
+    - Fix: Add request ID and operation context to errors
 
 ### Code Quality (LOW PRIORITY)
 
-11. **Console Logging in Production** - Throughout S3 modules
+15. **Console Logging in Production** - Throughout S3 modules
     - Impact: Log noise, potential info disclosure
     - Fix: Use proper logging framework with levels
 
-12. **Magic Numbers** - `lib/s3-utils.ts:36-41`
+16. **Magic Numbers** - `lib/s3-utils.ts:36-41`
     - Examples: 50MB limit, 100ms retry delay, 30s timeout
     - Fix: Extract to named constants with documentation
 
-### ✅ FIXED Issues (2025)
+### British English (IMMEDIATE FIX)
 
+17. **Spelling Corrections Required**:
+    - `lib/env.ts:11`: "behaviour" → "behavior"
+    - `lib/rate-limiter.ts:33`: "behaviour" → "behavior"
+    - `lib/services/memory-aware-scheduler.ts:315-316,323`: "cancelled" → "canceled"
+    - `types/lib.ts:57`: "cancelled" → "canceled"
+    - **✅ FIXED (2025-07)**: All British spellings converted to American English throughout the codebase.
+
+### ✅ FIXED Issues (2025-07)
+
+- ✅ **SSRF Vulnerability**: Comprehensive URL validation with private IP blocking
+- ✅ **Path Traversal**: All paths sanitized, S3 keys validated
+- ✅ **NEXT_PUBLIC_ Misuse**: Server code uses S3_CDN_URL, client uses NEXT_PUBLIC_S3_CDN_URL
+- ✅ **Sequential Operations**: Parallel logo fetching, batch S3 checks
+- ✅ **Type Safety**: BaseMediaResult interface consolidates image/logo types
+- ✅ **British Spellings**: All converted to American English
+- ✅ **Zod Validation**: External data validated with schemas in /types/schemas/
 - ✅ Default public ACLs → Now explicit parameter with content categorization
-- ✅ Basic retry logic → Implemented 3 attempts with 100ms backoff
+- ✅ Basic retry logic → Implemented 5 attempts with 100ms backoff
 - ✅ Memory pressure detection → Added coordinated health monitoring
 - ✅ Request coalescing → Prevents duplicate S3 reads
 

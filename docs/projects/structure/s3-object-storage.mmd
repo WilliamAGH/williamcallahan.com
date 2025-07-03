@@ -68,10 +68,12 @@ graph TB
     
     %% Known Issues
     subgraph "🐛 Critical Issues"
-        IS1["⚠️ Missing Zod validation"]
-        IS2["⚠️ Full directory scans O(n)"]
-        IS3["⚠️ Unbounded session sets"]
-        IS4["⚠️ Duplicate S3 clients"]
+        IS1["🔴 SSRF vulnerabilities<br/>No URL validation"]
+        IS2["🔴 Path traversal risks<br/>Unsanitized inputs"]
+        IS3["⚠️ NEXT_PUBLIC_ misuse<br/>Server code exposure"]
+        IS4["⚠️ Missing Zod validation<br/>External responses"]
+        IS5["⚠️ Type duplication<br/>80%+ similar interfaces"]
+        IS6["⚠️ Unbounded collections<br/>Memory leak risk"]
     end
     
     %% Performance Metrics
@@ -98,10 +100,12 @@ graph TB
     style O fill:#e8f5e9
     style V fill:#ffcdd2
     style Z fill:#c8e6c9
-    style IS1 fill:#ffebee
-    style IS2 fill:#ffebee
+    style IS1 fill:#ffcdd2
+    style IS2 fill:#ffcdd2
     style IS3 fill:#ffebee
     style IS4 fill:#ffebee
+    style IS5 fill:#ffebee
+    style IS6 fill:#ffebee
     style PF1 fill:#e8f5e9
     style PF2 fill:#fff3e0
     style PF3 fill:#fff3e0
