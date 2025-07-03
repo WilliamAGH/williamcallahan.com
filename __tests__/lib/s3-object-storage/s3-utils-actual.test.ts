@@ -61,7 +61,7 @@ describe("S3 Utils Actual Export", () => {
 
 // Integration test should follow the same gating convention used by
 // __tests__/scripts/update-s3-data.smoke.test.ts so that we have ONE
-// place to configure live-AWS behaviour during CI runs.
+// place to configure live-AWS behavior during CI runs.
 
 const S3_TEST_MODE = process.env.S3_TEST_MODE || "NORMAL"; // DRY | NORMAL | FULL
 
