@@ -61,7 +61,7 @@ export function InvestmentsClient({ investments = [] }: InvestmentsClientProps):
 
   // Skip rendering only when the registry is ready *and* the window is either
   // closed or minimized. This prevents the initial blank screen while keeping
-  // the intended behaviour afterwards.
+  // the intended behavior afterwards.
   if (isRegistered && (effectiveState === "closed" || effectiveState === "minimized")) {
     console.log(`InvestmentsClient (${INVESTMENTS_WINDOW_ID}): Rendering null (state: ${effectiveState})`);
     return null;
