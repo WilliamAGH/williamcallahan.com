@@ -151,7 +151,7 @@ export function setLogoAnalysis(cacheKey: string, analysis: LogoInversion): void
 
     // Invalidate Next.js cache to trigger re-fetch on next access
     safeRevalidateTag(`logo-analysis-${cacheKey}`);
-    safeRevalidateTag("logo-analyses");
+    safeRevalidateTag("logo-analyzes");
   } else {
     // Legacy: only use ServerCache
     ServerCacheInstance.setLogoAnalysis(cacheKey, analysis);

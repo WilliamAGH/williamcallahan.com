@@ -45,37 +45,75 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
 
   // Check all domain variants for existing logos in S3
   const variants = getDomainVariants(normalizedDomain);
+  const sources = ["google", "duckduckgo"] as LogoSource[];
+  const extensions = ["png", "jpg", "jpeg", "svg", "webp"];
 
-  // Check for existing logos in S3
+  // Generate all possible S3 keys to check
+  const keysToCheck: Array<{
+    key: string;
+    variant: string;
+    source: LogoSource;
+    ext: string;
+  }> = [];
+
   for (const variant of variants) {
-    for (const source of ["google", "duckduckgo"] as LogoSource[]) {
-      // Check common image formats
-      for (const ext of ["png", "jpg", "jpeg", "svg", "webp"]) {
-        const s3Key = generateS3Key({
-          type: "logo",
-          domain: variant,
-          source,
-          extension: ext,
-        });
-        const exists = await checkIfS3ObjectExists(s3Key);
-        if (exists) {
-          return {
-            url: `${cdnUrl}/${s3Key}`,
+    for (const source of sources) {
+      for (const ext of extensions) {
+        keysToCheck.push({
+          key: generateS3Key({
+            type: "logo",
+            domain: variant,
             source,
-            error: undefined,
-            contentType: ext === "svg" ? "image/svg+xml" : `image/${ext}`,
-          };
-        }
+            extension: ext,
+          }),
+          variant,
+          source,
+          ext,
+        });
       }
+    }
+  }
+
+  // Check S3 keys in batches for better performance
+  const batchSize = 10;
+  for (let i = 0; i < keysToCheck.length; i += batchSize) {
+    const batch = keysToCheck.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map(async ({ key, source, ext }) => ({
+        exists: await checkIfS3ObjectExists(key),
+        key,
+        source,
+        ext,
+      }))
+    );
+
+    // Return first found result
+    const found = results.find(r => r.exists);
+    if (found) {
+      return {
+        url: `${cdnUrl}/${found.key}`,
+        source: found.source,
+        error: undefined,
+        contentType: found.ext === "svg" ? "image/svg+xml" : `image/${found.ext}`,
+      };
     }
   }
 
   // Fetch from external sources
   for (const variant of variants) {
-    const sources: Array<{ name: LogoSource; url: string }> = [
-      { name: "google", url: LOGO_SOURCES.google.hd(variant) },
-      { name: "duckduckgo", url: LOGO_SOURCES.duckduckgo.hd(variant) },
-    ];
+    // Type-safe access to LOGO_SOURCES with proper null checks
+    const googleSources = LOGO_SOURCES.google;
+    const duckduckgoSources = LOGO_SOURCES.duckduckgo;
+
+    const sources: Array<{ name: LogoSource; url: string }> = [];
+
+    // Only add sources if they exist
+    if (googleSources?.hd) {
+      sources.push({ name: "google", url: googleSources.hd(variant) });
+    }
+    if (duckduckgoSources?.hd) {
+      sources.push({ name: "duckduckgo", url: duckduckgoSources.hd(variant) });
+    }
 
     for (const { name, url } of sources) {
       try {
