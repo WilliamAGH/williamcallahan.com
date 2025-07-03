@@ -197,7 +197,7 @@ export async function persistImageAndGetS3Url(
     const s3Key = await persistImageToS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
     if (s3Key) {
       // Construct the full S3 URL
-      const s3Url = `${process.env.NEXT_PUBLIC_S3_CDN_URL}/${s3Key}`;
+      const s3Url = `${process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL}/${s3Key}`;
       console.log(`[OpenGraph S3] ✅ Image persisted, S3 URL: ${s3Url}`);
       return s3Url;
     } else {
@@ -249,7 +249,7 @@ export async function persistImageAndGetS3UrlWithStatus(
     const existingKey = await findImageInS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
 
     if (existingKey) {
-      const s3Url = `${process.env.NEXT_PUBLIC_S3_CDN_URL}/${existingKey}`;
+      const s3Url = `${process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL}/${existingKey}`;
       console.log(`[OpenGraph S3] ✅ Image already exists in S3: ${s3Url}`);
       return { s3Url, wasNewlyPersisted: false };
     }
@@ -257,7 +257,7 @@ export async function persistImageAndGetS3UrlWithStatus(
     // Image doesn't exist, persist it
     const s3Key = await persistImageToS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
     if (s3Key) {
-      const s3Url = `${process.env.NEXT_PUBLIC_S3_CDN_URL}/${s3Key}`;
+      const s3Url = `${process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL}/${s3Key}`;
       console.log(`[OpenGraph S3] ✅ Image newly persisted, S3 URL: ${s3Url}`);
       return { s3Url, wasNewlyPersisted: true };
     } else {
