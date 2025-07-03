@@ -41,6 +41,7 @@ export function getShortHash(input: string, length = 8): string {
   return generateHash(input).substring(0, length);
 }
 
+
 /**
  * Generate hash with prefix for easier identification
  * e.g., 'img_a1b2c3d4' or 'cache_e5f6g7h8'

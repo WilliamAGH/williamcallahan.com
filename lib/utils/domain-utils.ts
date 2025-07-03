@@ -27,12 +27,12 @@ export function normalizeDomain(input: string): string {
       const hostname = new URL(url).hostname;
       return hostname.replace(/^www\./, "");
     }
-    // Otherwise, treat as company name
-    return s.toLowerCase().replace(/\s+/g, "");
+    // Otherwise, it's not a valid domain - return empty string
+    // This prevents treating company names like "moves" or "oliverspace" as domains
+    return "";
   } catch {
-    // If URL parsing fails, it's probably a company name with a dot.
-    // Let's fallback to company name normalization.
-    return s.toLowerCase().replace(/\s+/g, "");
+    // If URL parsing fails, it's probably not a valid domain
+    return "";
   }
 }
 
