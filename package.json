@@ -13,6 +13,8 @@
   },
   "scripts": {
     "update-s3": "bun scripts/data-updater.ts",
+    "migrate-static-images": "bun scripts/migrate-static-images-to-s3.ts",
+    "migrate-static-images:upload": "S3_MIGRATION_MODE=true NODE_OPTIONS='--max-old-space-size=8192' S3_READ_ONLY=false bun scripts/migrate-static-images-to-s3.ts",
     "scheduler": "bun lib/server/scheduler.ts",
     "submit-sitemap": "bun scripts/submit-sitemap.ts",
     "analyze": "NODE_OPTIONS='--max-old-space-size=4096' ANALYZE=true next build",
@@ -57,6 +59,8 @@
     "test:smoke": "NODE_OPTIONS='--max-old-space-size=4096' jest --testPathPatterns=smoke --config=config/jest/config.ts",
     "test:smoke:blog": "bun run test:smoke -- --testPathPatterns=blog",
     "test:smoke:pages": "bun run test:smoke -- --testPathPatterns=pages",
+    "fix:s3-acl-public": "bash -c '. ./.env && bash scripts/fix-s3-acl-public.sh'",
+    "fix:s3-acl-public:debug": "bash -c '. ./.env && DEBUG=1 bash scripts/fix-s3-acl-public.sh'",
     "prepare": "node .husky/install.mjs",
     "validate-opengraph": "bun scripts/validate-opengraph-clear-cache.ts",
     "postdeploy": "bun run validate-opengraph"
@@ -74,6 +78,7 @@
     "@sentry/nextjs": "9.33.0",
     "@sentry/opentelemetry": "9.33.0",
     "@tailwindcss/typography": "^0.5.16",
+    "canvas": "^3.1.2",
     "cheerio": "^1.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -85,6 +90,7 @@
     "google-auth-library": "^10.1.0",
     "gray-matter": "^4.0.3",
     "hoist-non-react-statics": "^3.3.2",
+    "image-js": "^0.37.0",
     "import-in-the-middle": "1.14.0",
     "lucide-react": "0.525.0",
     "mdast-util-mdx-jsx": "^3.2.0",
