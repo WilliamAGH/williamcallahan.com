@@ -8,7 +8,7 @@ import { envSchema, type Env } from "@/types/schemas/env";
  * running in `DRY_RUN` mode we want to allow execution to continue even when
  * certain required variables (e.g. `S3_BUCKET`) are not set.  This is
  * necessary for smoke-tests that intentionally clear these variables to
- * validate fallback behaviour.
+ * validate fallback behavior.
  */
 // Note: zod schemas and type aliases live in @/types per repo lint rules.
 

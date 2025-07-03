@@ -177,6 +177,8 @@ const nextConfig = {
         "detect-libc": "commonjs detect-libc",
         // Ignore optional dependencies that cause build warnings
         "osx-temperature-sensor": "commonjs osx-temperature-sensor",
+        // Externalize canvas module for client-side bundles
+        canvas: "commonjs canvas",
       });
     }
 
