@@ -2,16 +2,16 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import type { TwitterImageContext } from "@/types";
+import { sanitizePath, IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 
 export async function GET(request: NextRequest, { params }: TwitterImageContext) {
   try {
     // Reconstruct the Twitter image URL from dynamic params
     const { path: pathSegments } = params;
 
-    // Validate Twitter image path patterns to prevent SSRF attacks
-    const validPathPattern = /^(profile_images|ext_tw_video_thumb|media)\/[\w\-/.]+$/;
-    const fullPath = pathSegments.join("/");
-
+    // Sanitize path to prevent directory traversal
+    const fullPath = sanitizePath(pathSegments.join("/"));
+    
     // Extract embedded query parameters from the fullPath
     let pathOnly = fullPath;
     let embeddedSearch = "";
@@ -21,7 +21,9 @@ export async function GET(request: NextRequest, { params }: TwitterImageContext)
       embeddedSearch = `?${rest.join("?")}`;
     }
 
-    // Validate Twitter image path patterns to prevent SSRF attacks (use pathOnly)
+    // Validate Twitter image path patterns to prevent SSRF attacks
+    // Updated pattern to disallow dots except in file extensions
+    const validPathPattern = /^(profile_images|ext_tw_video_thumb|media)\/[\w\-/]+\.(jpg|jpeg|png|gif|webp)$/i;
     if (!validPathPattern.test(pathOnly)) {
       console.log(`[Twitter Image Proxy] Invalid path rejected: ${fullPath}`);
       return new NextResponse(null, { status: 400 });
@@ -59,6 +61,7 @@ export async function GET(request: NextRequest, { params }: TwitterImageContext)
         "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800, immutable",
         "X-Cache": result.source === "memory" ? "HIT" : "MISS",
         "X-Source": result.source,
+        ...IMAGE_SECURITY_HEADERS,
       });
 
       return new NextResponse(result.buffer, { headers: responseHeaders });
