@@ -23,6 +23,7 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
  * Generate metadata for the Bookmarks page
@@ -46,7 +47,7 @@ export default function BookmarksPage() {
     dateModified: formattedModified,
     type: "collection" as const,
     image: {
-      url: "/images/og/bookmarks-og.png",
+      url: getStaticImageUrl("/images/og/bookmarks-og.png"),
       width: 2100,
       height: 1100,
     },
