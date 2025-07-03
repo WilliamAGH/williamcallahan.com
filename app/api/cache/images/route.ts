@@ -8,22 +8,14 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
+import { openGraphUrlSchema } from "@/types/schemas/url";
+import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 
 // Configure cache duration (1 year in seconds)
 const CACHE_DURATION = 60 * 60 * 24 * 365;
 
 // Valid image formats
 const VALID_IMAGE_FORMATS = ["jpeg", "jpg", "png", "webp", "avif", "gif"];
-
-// Allow any http or https URL for image caching
-function isAllowedUrl(urlString: string): boolean {
-  try {
-    const parsed = new URL(urlString);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
 
 /**
  * GET handler for image caching
@@ -48,9 +40,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const width = searchParams.get("width");
   const format = searchParams.get("format") || "webp";
 
-  // SECURITY: Validate URL against allowed domains
-  if (!isAllowedUrl(url)) {
-    return NextResponse.json({ error: "URL domain not allowed" }, { status: 403 });
+  // SECURITY: Validate URL to prevent SSRF attacks
+  const urlValidation = openGraphUrlSchema.safeParse(url);
+  if (!urlValidation.success) {
+    return NextResponse.json(
+      { error: "Invalid or unsafe URL", details: urlValidation.error.errors[0]?.message },
+      { status: 403 }
+    );
   }
 
   // Validate and sanitize width
@@ -85,6 +81,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           "Cache-Control": `public, max-age=${CACHE_DURATION}, immutable`,
           "X-Cache": result.source === "memory" ? "HIT" : "MISS",
           "X-Source": result.source,
+          ...IMAGE_SECURITY_HEADERS,
         },
       });
     }

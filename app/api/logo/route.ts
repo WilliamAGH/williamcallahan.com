@@ -14,6 +14,7 @@ import logger from "@/lib/utils/logger";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { buildCdnUrl, getCdnConfigFromEnv } from "@/lib/utils/cdn-utils";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
  * GET handler for logo fetching
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Final fallback – return placeholder rather than 404 to avoid broken icons
     logger.error(`[Logo API] No content available for logo of domain: ${domain}`);
-    return NextResponse.redirect("/images/opengraph-placeholder.png", 302);
+    return NextResponse.redirect(getStaticImageUrl("/images/opengraph-placeholder.png"), 302);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error("[Logo API] Unexpected error:", errorMessage);
