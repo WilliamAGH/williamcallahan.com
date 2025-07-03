@@ -16,6 +16,7 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
  * Generate metadata for the home page using Next.js 14 Metadata API
@@ -47,7 +48,7 @@ export default function HomePage() {
     dateModified: formattedModified,
     type: "profile" as const,
     image: {
-      url: "/images/og/default-og.png",
+      url: getStaticImageUrl("/images/og/default-og.png"),
       width: 2100,
       height: 1100,
     },

@@ -19,7 +19,7 @@ export function Home() {
             one-square-mile Iowa exclave, famed for two cases on its location reaching the{" "}
             <a
               href="https://en.wikipedia.org/wiki/Carter_Lake,_Iowa"
-              className="text-blue-600 hover:text-blue-800"
+              className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
               title="Read about Carter Lake, Iowa on Wikipedia"
               target="_blank"
               rel="noopener noreferrer"
@@ -37,7 +37,7 @@ export function Home() {
             Today, my highest professional priority is building{" "}
             <a
               href="https://aventure.vc"
-              className="text-blue-600 hover:text-blue-800"
+              className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
               title="aVenture"
               target="_blank"
               rel="noopener noreferrer"
@@ -49,8 +49,8 @@ export function Home() {
           <p className="text-lg mb-4">
             I also share my experimental projects in an online &apos;sandbox&apos;, all available on my{" "}
             <a
-              href="https://williamcallahan.com/projects"
-              className="text-blue-600 hover:text-blue-800"
+              href="/projects"
+              className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
               title="View my projects"
             >
               projects page
@@ -61,7 +61,7 @@ export function Home() {
             Feel free to connect with me on{" "}
             <a
               href="https://discord.com/users/WilliamDscord"
-              className="text-blue-600 hover:text-blue-800"
+              className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
               title="Connect with me on Discord"
               target="_blank"
               rel="noopener noreferrer"
@@ -71,7 +71,7 @@ export function Home() {
             ,{" "}
             <a
               href="https://x.com/williamcallahan"
-              className="text-blue-600 hover:text-blue-800"
+              className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
               title="Connect with me on X"
               target="_blank"
               rel="noopener noreferrer"
@@ -81,7 +81,7 @@ export function Home() {
             , or{" "}
             <a
               href="https://linkedin.com/in/williamacallahan"
-              className="text-blue-600 hover:text-blue-800"
+              className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
               title="Connect with me on LinkedIn"
               target="_blank"
               rel="noopener noreferrer"
