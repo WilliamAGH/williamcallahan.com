@@ -33,7 +33,7 @@ const S3_BUCKET = process.env.S3_BUCKET;
 const S3_ENDPOINT_URL = process.env.S3_SERVER_URL; // Use S3_SERVER_URL env var for S3 endpoint
 const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
 const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
-const S3_REGION = process.env.S3_REGION || process.env.AWS_REGION || "us-east-1"; // Default region for S3 operations (override with S3_REGION)
+// S3_REGION variable moved into getS3Client function
 const DRY_RUN = process.env.DRY_RUN === "true";
 // Use canonical public CDN env vars only. Legacy S3_PUBLIC_CDN_URL is no longer referenced.
 const CDN_BASE_URL = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || ""; // Public CDN endpoint
@@ -86,6 +86,7 @@ if (!S3_BUCKET || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY
 }
 
 // Lazy initialization of S3 client to ensure environment variables are loaded
+// eslint-disable-next-line @typescript-eslint/naming-convention
 let _s3Client: S3Client | null = null;
 
 export function getS3Client(): S3Client | null {
