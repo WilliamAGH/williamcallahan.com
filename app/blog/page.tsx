@@ -16,6 +16,7 @@ import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import type { BlogPost } from "@/types/blog";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 export const metadata: Metadata = getStaticPageMetadata("/blog", "blog");
 
@@ -54,7 +55,7 @@ export default async function BlogPage() {
       { path: "/blog", name: "Blog" },
     ],
     image: {
-      url: "/images/og/blog-og.png",
+      url: getStaticImageUrl("/images/og/blog-og.png"),
       width: 2100,
       height: 1100,
     },

@@ -10,6 +10,7 @@ import { deslugify, kebabCase } from "@/lib/utils/formatters";
 import type { Author, BlogPost, BlogPageFrontmatter } from "@/types/blog";
 import matter from "gray-matter";
 import type { Metadata } from "next";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 import type { JSX } from "react";
 
@@ -22,7 +23,7 @@ const primaryAuthor: Author = {
   name: metadata.author,
   // Add avatar/bio/url if available in metadata or define statically
   url: metadata.social.profiles.find((p) => p.includes("linkedin")) || metadata.url,
-  avatar: "/images/profile.jpg", // Example static avatar
+  avatar: getStaticImageUrl("/images/william.jpeg"), // Example static avatar
 };
 
 /**
