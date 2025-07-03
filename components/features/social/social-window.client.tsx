@@ -14,7 +14,6 @@ import { useRegisteredWindowState } from "@/lib/context/global-window-registry-c
 import type { SocialWindowClientProps } from "@/types/features/social";
 import { Users } from "lucide-react";
 import { SocialWindowContent } from "./social-window-content.client";
-import { useEffect, useState } from "react";
 // Define a unique ID for this window instance
 const SOCIAL_WINDOW_ID = "social-contact-window";
 
@@ -46,37 +45,8 @@ export function SocialWindow({ data, title = "Contact", onClose }: SocialWindowC
   // Use provided handler or fall back to internal handler
   const handleClose = onClose || closeWindow;
 
-  // Client-side mounting detection for mobile hydration safety
-  const [hasMounted, setHasMounted] = useState(false);
-
-  // Set up mounted state with delay to prevent mobile hydration issues
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setHasMounted(true);
-    }, 20);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Log state changes (optional)
-  useEffect(() => {
-    if (isRegistered && hasMounted) {
-      // console.log(`SocialWindow Render (${SOCIAL_WINDOW_ID}) - Window State:`, windowState);
-      if (process.env.NODE_ENV === "development") {
-        console.log(`SocialWindow Render (${SOCIAL_WINDOW_ID}) - Window State:`, windowState);
-      }
-    }
-  }, [windowState, isRegistered, hasMounted]);
-
-  // Use a consistent skeleton for non-mounted state
-  if (!hasMounted) {
-    return (
-      <div
-        className="relative max-w-5xl mx-auto mt-8 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800 overflow-hidden h-[600px]"
-        suppressHydrationWarning
-      />
-    );
-  }
+  // Assume mounted – React 18 handles hydration; suppress minor mismatches
+  const hasMounted = true;
 
   // Handle registration/state changes only when mounted
   if (!isRegistered || windowState === "closed" || windowState === "minimized") {
