@@ -14,27 +14,32 @@ import ActivityCalendarComponent, { type ThemeInput as ReactActivityCalendarThem
 import CumulativeGitHubStatsCards from "./cumulative-github-stats-cards";
 import type { ApiError } from "@/types/features/github";
 
+// Responsive calculation helpers
+const DEFAULT_COLUMNS = 53; // GitHub contribution calendar weeks (~53)
+const BLOCK_MARGIN_PX = 2; // Keep constant; margin between squares
+
 // Define the custom theme for the calendar
 const calendarCustomTheme: ReactActivityCalendarThemeInput = {
-  // GitHub official palette for consistency / cleanliness
+  // Subtle blue-slate gradient that blends with site palette
   light: [
-    "#ebedf0", // level 0
-    "#9be9a8", // level 1
-    "#40c463", // level 2
-    "#30a14e", // level 3
-    "#216e39", // level 4
+    "#f1f5f9", // light slate – level 0
+    "#cfe8ff", // blue-100 – level 1
+    "#9fd6ff", // blue-200 – level 2
+    "#60b0ff", // blue-300 – level 3
+    "#3b82f6", // blue-500 – level 4 (accent)
   ],
   dark: [
-    "#161b22", // level 0
-    "#0e4429", // level 1
-    "#006d32", // level 2
-    "#26a641", // level 3
-    "#39d353", // level 4
+    "#1e293b", // slate-800 – level 0
+    "#27364d", // slate-700 – level 1 (slight blue tint)
+    "#304560", // slate-600 – level 2
+    "#3b5a7a", // slate-500 blueish – level 3
+    "#60a5fa", // blue-400 – level 4 (brightest)
   ],
 };
 
 const GitHubActivity = () => {
   const { resolvedTheme } = useTheme(); // Resolved theme (accounts for system preference)
+  const [blockSize, setBlockSize] = useState<number>(12); // Dynamically calculated square size
   const [activityData, setActivityData] = useState<ContributionDay[]>([]); // Activity data for the calendar
   const [isLoading, setIsLoading] = useState(true); // Loading state for initial data fetch
   const [isRefreshing, setIsRefreshing] = useState(false); // Loading state for refresh operation
@@ -67,6 +72,32 @@ const GitHubActivity = () => {
   }
 
   const fetchInitiatedRef = useRef(false); // Ref to track if the initial fetch has been initiated
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Native ResizeObserver to keep calendar responsive without extra deps
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateSize = (width: number) => {
+      const columns = Math.ceil(activityData.length / 7) || DEFAULT_COLUMNS;
+      const candidate = Math.floor(width / columns) - BLOCK_MARGIN_PX;
+      if (candidate > 0 && Math.abs(candidate - blockSize) > 1) {
+        setBlockSize(candidate);
+      }
+    };
+
+    // Initial measurement
+    updateSize(el.clientWidth);
+
+    const observer = new ResizeObserver((entries) => {
+      if (!entries[0]) return;
+      updateSize(entries[0].contentRect.width);
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [activityData.length, blockSize]);
 
   /**
    * Resets all component state related to fetched data.
@@ -288,13 +319,13 @@ const GitHubActivity = () => {
               )}
             </div>
           ) : (
-            <div className="mt-4 mb-2 p-2 overflow-x-auto w-full flex justify-center">
+            <div className="mt-4 mb-2 p-2 overflow-x-auto w-full" ref={containerRef}>
               <ActivityCalendarComponent
                 data={activityData}
                 theme={calendarCustomTheme}
                 colorScheme={resolvedTheme === "dark" ? "dark" : "light"}
-                blockSize={14}
-                blockMargin={2}
+                blockSize={blockSize}
+                blockMargin={BLOCK_MARGIN_PX}
                 blockRadius={0}
                 fontSize={14}
                 hideTotalCount

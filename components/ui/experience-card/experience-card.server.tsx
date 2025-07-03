@@ -7,6 +7,7 @@
  */
 
 import { getLogo } from "@/lib/data-access/logos";
+import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import type { Experience } from "../../../types/experience";
@@ -19,8 +20,8 @@ import type { JSX } from "react";
  * @param {Experience} props - Experience entry properties
  * @returns {Promise<JSX.Element>} Pre-rendered experience card with fetched logo
  */
-export async function ExperienceCard(props: Experience): Promise<JSX.Element> {
-  const { website, company, logo } = props;
+export async function ExperienceCard(props: Experience & { isDarkTheme?: boolean }): Promise<JSX.Element> {
+  const { website, company, logo, isDarkTheme } = props;
 
   try {
     // If a logo URL is explicitly provided, prefer it.
@@ -30,6 +31,29 @@ export async function ExperienceCard(props: Experience): Promise<JSX.Element> {
 
     // Otherwise resolve by domain through UnifiedImageService
     const domain = website ? normalizeDomain(website) : normalizeDomain(company);
+
+    // Prefer manifest lookup to leverage possible inverted CDN URL.
+    if (domain) {
+      try {
+        const manifestEntry = await getLogoFromManifestAsync(domain);
+        if (manifestEntry) {
+          const selectedUrl =
+            isDarkTheme && manifestEntry.invertedCdnUrl ? manifestEntry.invertedCdnUrl : manifestEntry.cdnUrl;
+
+          return (
+            <ExperienceCardClient
+              {...props}
+              logoData={{
+                url: selectedUrl,
+                source: manifestEntry.originalSource,
+              }}
+            />
+          );
+        }
+      } catch (e) {
+        console.warn(`[ExperienceCard] Manifest lookup failed for ${domain}:`, e);
+      }
+    }
 
     const logoResult = await getLogo(domain);
 
