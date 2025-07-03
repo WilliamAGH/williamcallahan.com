@@ -10,6 +10,7 @@ import { retryWithOptions, RETRY_CONFIGS } from "./retry";
 import { isRetryableError } from "./error-utils";
 import type { RetryConfig } from "@/types/lib";
 import type { FetchOptions } from "@/types/http";
+import { logoUrlSchema, openGraphUrlSchema } from "@/types/schemas/url";
 
 /**
  * Default browser-like headers for image fetching
@@ -112,13 +113,17 @@ export async function fetchWithTimeout(url: string, options: FetchOptions = {}):
 }
 
 /**
- * Fetch binary data (images) with timeout
+ * Fetch binary data (images) with timeout and URL validation
  */
 export async function fetchBinary(
   url: string,
-  options?: FetchOptions,
+  options?: FetchOptions & { validateAsLogo?: boolean },
 ): Promise<{ buffer: Buffer; contentType: string }> {
-  const response = await fetchWithTimeout(url, options);
+  // Validate URL to prevent SSRF attacks
+  const schema = options?.validateAsLogo ? logoUrlSchema : openGraphUrlSchema;
+  const validatedUrl = schema.parse(url);
+  
+  const response = await fetchWithTimeout(validatedUrl, options);
 
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);

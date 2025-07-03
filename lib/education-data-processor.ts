@@ -8,6 +8,8 @@ import { getLogo } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import type { Certification, Class, Education, EducationLogoData } from "../types/education";
 import { assertServerOnly } from "./utils/ensure-server-only"; // Import the assertion utility
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
+import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
 
 /**
  * Gets the placeholder SVG URL.
@@ -15,7 +17,7 @@ import { assertServerOnly } from "./utils/ensure-server-only"; // Import the ass
  */
 function getPlaceholderSvgUrl(): string {
   // Use static URL for placeholder - served directly by Next.js
-  return "/images/company-placeholder.svg";
+  return getStaticImageUrl("/images/company-placeholder.svg");
 }
 
 /**
@@ -23,33 +25,56 @@ function getPlaceholderSvgUrl(): string {
  * @param {Education} item - The raw education item.
  * @returns {Promise<Education & { logoData: EducationLogoData }>} The item with added logoData.
  */
-export async function processEducationItem<T extends Education>(item: T): Promise<T & { logoData: EducationLogoData }> {
+export async function processEducationItem<T extends Education>(
+  item: T,
+  options: { isDarkTheme?: boolean } = {},
+): Promise<T & { logoData: EducationLogoData; error?: string }> {
   assertServerOnly(); // Assert server context
   const { website, institution, logo } = item;
+  const { isDarkTheme } = options;
   let logoData: EducationLogoData;
+  let error: string | undefined;
 
   try {
     if (logo) {
-      // If a specific logo URL is provided, treat it as definitive
-      logoData = { url: logo, source: null };
+      // If a specific logo path or URL is provided, resolve /images/ paths to CDN via getStaticImageUrl()
+      const resolvedUrl = /^\/images\//.test(logo) ? getStaticImageUrl(logo) : logo;
+      logoData = { url: resolvedUrl, source: null };
     } else {
       // Otherwise, fetch by domain
       const domain = website ? normalizeDomain(website) : normalizeDomain(institution);
-      const logoResult = await getLogo(domain);
 
-      if (logoResult?.cdnUrl) {
-        // Use CDN URL directly from S3
-        logoData = { url: logoResult.cdnUrl, source: logoResult.source };
+      // Prefer manifest lookup for potential inverted URL
+      const manifestEntry = domain ? await getLogoFromManifestAsync(domain) : null;
+
+      if (manifestEntry) {
+        const selectedUrl =
+          isDarkTheme && manifestEntry.invertedCdnUrl ? manifestEntry.invertedCdnUrl : manifestEntry.cdnUrl;
+        logoData = { url: selectedUrl, source: manifestEntry.originalSource };
       } else {
-        logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
+        const logoResult = await getLogo(domain);
+
+        if (logoResult?.error) {
+          // Capture any error from the logo fetch
+          error = `Logo fetch failed: ${logoResult.error}`;
+          logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
+        } else if (logoResult?.cdnUrl) {
+          // Use CDN URL directly from S3
+          logoData = { url: logoResult.cdnUrl, source: logoResult.source };
+        } else {
+          // No logo found, but not an error
+          logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
+        }
       }
     }
-  } catch (error) {
-    console.error(`Error processing logo for education item "${institution}":`, error);
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    console.error(`Error processing logo for education item "${institution}":`, err);
+    error = `Failed to process logo: ${errorMessage}`;
     logoData = { url: getPlaceholderSvgUrl(), source: "placeholder-error" };
   }
 
-  return { ...item, logoData };
+  return error ? { ...item, logoData, error } : { ...item, logoData };
 }
 
 /**
@@ -59,29 +84,50 @@ export async function processEducationItem<T extends Education>(item: T): Promis
  */
 export async function processCertificationItem<T extends Certification | Class>(
   item: T,
-): Promise<T & { logoData: EducationLogoData }> {
+  options: { isDarkTheme?: boolean } = {},
+): Promise<T & { logoData: EducationLogoData; error?: string }> {
   assertServerOnly(); // Assert server context
   const { website, name, logo } = item;
+  const { isDarkTheme } = options;
   let logoData: EducationLogoData;
+  let error: string | undefined;
 
   try {
     if (logo) {
-      logoData = { url: logo, source: null };
+      // If a specific logo path or URL is provided, resolve /images/ paths to CDN via getStaticImageUrl()
+      const resolvedUrl = /^\/images\//.test(logo) ? getStaticImageUrl(logo) : logo;
+      logoData = { url: resolvedUrl, source: null };
     } else {
       const domain = website ? normalizeDomain(website) : normalizeDomain(name);
-      const logoResult = await getLogo(domain);
 
-      if (logoResult?.cdnUrl) {
-        // Use CDN URL directly from S3
-        logoData = { url: logoResult.cdnUrl, source: logoResult.source };
+      const manifestEntry = domain ? await getLogoFromManifestAsync(domain) : null;
+
+      if (manifestEntry) {
+        const selectedUrl =
+          isDarkTheme && manifestEntry.invertedCdnUrl ? manifestEntry.invertedCdnUrl : manifestEntry.cdnUrl;
+        logoData = { url: selectedUrl, source: manifestEntry.originalSource };
       } else {
-        logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
+        const logoResult = await getLogo(domain);
+
+        if (logoResult?.error) {
+          // Capture any error from the logo fetch
+          error = `Logo fetch failed: ${logoResult.error}`;
+          logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
+        } else if (logoResult?.cdnUrl) {
+          // Use CDN URL directly from S3
+          logoData = { url: logoResult.cdnUrl, source: logoResult.source };
+        } else {
+          // No logo found, but not an error
+          logoData = { url: getPlaceholderSvgUrl(), source: "placeholder" };
+        }
       }
     }
-  } catch (error) {
-    console.error(`Error processing logo for certification item "${name}":`, error);
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    console.error(`Error processing logo for certification item "${name}":`, err);
+    error = `Failed to process logo: ${errorMessage}`;
     logoData = { url: getPlaceholderSvgUrl(), source: "placeholder-error" };
   }
 
-  return { ...item, logoData };
+  return error ? { ...item, logoData, error } : { ...item, logoData };
 }

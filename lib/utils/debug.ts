@@ -4,6 +4,8 @@
  * Automatically detects debug mode based on:
  * - NODE_ENV === 'development'
  * - --debug flag in process.argv
+ * 
+ * Integrates with request context for structured logging
  */
 
 // Debug mode is opt-in via either an environment variable or a CLI flag
@@ -16,9 +18,27 @@ export const isDebug = process.env.DEBUG === "true" || hasDebugFlag;
  * Debug logging function - only logs when debug mode is enabled
  * @param args - Arguments to log (same as console.log)
  */
+import { getRequestContext } from "./request-context";
+
+/**
+ * Format message with request context
+ */
+function formatWithContext(args: unknown[]): unknown[] {
+  const context = getRequestContext();
+  if (!context) return args;
+  
+  const prefix = `[${context.requestId}]${context.operation ? ` [${context.operation}]` : ""}`;
+  
+  if (args.length > 0 && typeof args[0] === "string") {
+    return [prefix + " " + args[0], ...args.slice(1)];
+  }
+  
+  return [prefix, ...args];
+}
+
 export function debug(...args: unknown[]): void {
   if (isDebug) {
-    console.log(...args);
+    console.log(...formatWithContext(args));
   }
 }
 
@@ -28,7 +48,7 @@ export function debug(...args: unknown[]): void {
  */
 export function debugWarn(...args: unknown[]): void {
   if (isDebug) {
-    console.warn(...args);
+    console.warn(...formatWithContext(args));
   }
 }
 
@@ -38,7 +58,7 @@ export function debugWarn(...args: unknown[]): void {
  */
 export function debugError(...args: unknown[]): void {
   if (isDebug) {
-    console.error(...args);
+    console.error(...formatWithContext(args));
   }
 }
 

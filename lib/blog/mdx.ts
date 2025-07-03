@@ -62,21 +62,62 @@ function toPacificISOString(date: string | Date | undefined): string {
 
 /**
  * Validates and sanitizes the coverImage value from frontmatter.
+ * Automatically maps local blog post images to S3 CDN URLs if available.
  * @param coverImageValue - The value from frontmatter.
  * @param contextSlug - The slug of the post for logging purposes.
  * @param contextFilePath - The file path of the post for logging purposes.
- * @returns Sanitized cover image string or undefined.
+ * @returns Sanitized cover image string (S3 CDN URL if available) or undefined.
  */
-function sanitizeCoverImage(
+async function sanitizeCoverImage(
   coverImageValue: unknown,
   contextSlug: string,
   contextFilePath: string,
-): string | undefined {
+): Promise<string | undefined> {
   if (!coverImageValue) {
     return undefined;
   }
   if (typeof coverImageValue === "string" && coverImageValue.trim() !== "") {
-    return coverImageValue.trim();
+    const trimmedValue = coverImageValue.trim();
+    
+    // Check if it's a local blog post image path
+    // eslint-disable-next-line s3/no-hardcoded-images -- This is a path prefix check, not a hardcoded image
+    if (trimmedValue.startsWith("/images/posts/")) {
+      // Extract filename without path
+      const filename = trimmedValue.split("/").pop();
+      if (filename) {
+        // Remove extension to create base name for S3 lookup
+        const baseName = filename.replace(/\.[^.]+$/, "");
+        
+        try {
+          // Import S3 utilities dynamically to avoid circular dependencies
+          const { listS3Objects } = await import("@/lib/s3-utils");
+          const { buildCdnUrl, getCdnConfigFromEnv } = await import("@/lib/utils/cdn-utils");
+          
+          // List all objects in the blog posts S3 directory
+          const s3Keys = await listS3Objects("images/other/blog-posts/");
+          
+          // Find matching S3 key (starts with baseName and underscore for hash)
+          const matchingKey = s3Keys.find(key => {
+            const s3Filename = key.split("/").pop();
+            return s3Filename?.startsWith(`${baseName}_`);
+          });
+          
+          if (matchingKey) {
+            // Build and return CDN URL
+            const cdnConfig = getCdnConfigFromEnv();
+            const cdnUrl = buildCdnUrl(matchingKey, cdnConfig);
+            console.log(`[sanitizeCoverImage] Mapped ${trimmedValue} to S3 CDN: ${cdnUrl}`);
+            return cdnUrl;
+          } else {
+            console.log(`[sanitizeCoverImage] No S3 match found for ${trimmedValue}, using local path`);
+          }
+        } catch (error) {
+          console.warn(`[sanitizeCoverImage] Error mapping to S3 for ${trimmedValue}:`, error);
+        }
+      }
+    }
+    
+    return trimmedValue;
   }
   console.warn(
     `[sanitizeCoverImage] Invalid coverImage frontmatter for slug "${contextSlug}" (file: ${contextFilePath}): Not a non-empty string. Received:`,
@@ -203,8 +244,8 @@ export async function getMDXPost(
     const publishedAt = toPacificISOString(frontmatter.publishedAt || fileDates.created);
     const updatedAt = toPacificISOString(frontmatter.updatedAt || frontmatter.modifiedAt || fileDates.modified);
 
-    // Validate coverImage using helper
-    const coverImage = sanitizeCoverImage(frontmatter.coverImage, frontmatterSlug, filePathForPost);
+    // Validate coverImage using helper (now async to support S3 lookup)
+    const coverImage = await sanitizeCoverImage(frontmatter.coverImage, frontmatterSlug, filePathForPost);
 
     // Construct the full blog post object
     const post: BlogPost = {
