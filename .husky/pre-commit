@@ -12,4 +12,6 @@ bun run test:smoke:blog || { echo "❌ Blog smoke tests failed!"; exit 1; }
 echo "📄 Testing pages functionality..."
 bun run test:smoke:pages || { echo "❌ Pages smoke tests failed!"; exit 1; }
 
+# Image path checking removed - script not found
+
 echo "✅ All pre-commit checks passed!"
