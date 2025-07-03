@@ -51,9 +51,15 @@ import { IMAGE_S3_PATHS } from "@/lib/constants";
 import { logoDebugger } from "@/lib/utils/logo-debug";
 
 export class UnifiedImageService {
-  private readonly cdnBaseUrl = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
-  private readonly s3BucketName = process.env.S3_BUCKET || "";
-  private readonly s3ServerUrl = process.env.S3_SERVER_URL;
+  private get cdnBaseUrl(): string {
+    return process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+  }
+  private get s3BucketName(): string {
+    return process.env.S3_BUCKET || "";
+  }
+  private get s3ServerUrl(): string | undefined {
+    return process.env.S3_SERVER_URL;
+  }
   // Migration lock moved to centralized async-lock utility
   private readonly isReadOnly = isS3ReadOnly();
   private readonly isDev = process.env.NODE_ENV !== "production";
@@ -249,7 +255,7 @@ export class UnifiedImageService {
         // 1️⃣  Pre-flight S3 check – Check for logos in both formats
         const hasS3Client = !!s3Client.send; // Check if s3Client proxy can access send method
         if (!hasS3Client || !this.s3BucketName) {
-          console.warn(`[UnifiedImageService] S3 pre-flight check skipped - S3 client not initialized. Check S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY environment variables.`);
+          console.warn(`[UnifiedImageService] S3 pre-flight check skipped for ${domain} - S3 client: ${hasS3Client ? 'initialized' : 'not initialized'}, S3_BUCKET: '${this.s3BucketName}'. Check S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY environment variables.`);
         }
         
         try {
@@ -269,6 +275,7 @@ export class UnifiedImageService {
           // Helper to determine if a filename already contains the domain hash
           const hasHash = (file: string) => file.includes(`_${hash}.`);
 
+          let checkedCount = 0;
           for (const source of sources) {
             for (const ext of extensions) {
               // Convert duckduckgo to ddg in filename
@@ -292,6 +299,7 @@ export class UnifiedImageService {
 
               for (const filename of filenames) {
                 let s3Key = `${IMAGE_S3_PATHS.LOGOS_DIR}/${filename}`;
+                checkedCount++;
 
                 if (await this.checkS3WithCache(s3Key)) {
                   console.log(`[UnifiedImageService] Found logo in S3: ${s3Key}`);
@@ -347,6 +355,8 @@ export class UnifiedImageService {
               }
             }
           }
+          
+          if (isDebug) console.log(`[UnifiedImageService] Checked ${checkedCount} possible S3 keys for ${domain}, none found`);
         } catch (error) {
           console.warn(
             `[UnifiedImageService] Error checking S3 for logo: ${error instanceof Error ? error.message : String(error)}`,
