@@ -17,14 +17,14 @@ import {
  */
 const TEST_DATA = {
   // Enhanced return values from image-analysis.ts with entropy analysis
-  STUB_BRIGHTNESS: 240, // High brightness for low entropy (likely solid color)
-  STUB_IS_LIGHT_COLORED: true, // True since brightness > 200
+  STUB_BRIGHTNESS: 240,
+  STUB_IS_LIGHT_COLORED: true,
   STUB_NEEDS_INVERSION_LIGHT: false,
-  STUB_NEEDS_INVERSION_DARK: true, // True for light colored images
-  STUB_HAS_TRANSPARENCY: false, // Would be true for PNG format
+  STUB_NEEDS_INVERSION_DARK: true,
+  STUB_HAS_TRANSPARENCY: false,
   STUB_FORMAT: "unknown",
   STUB_DIMENSIONS: { width: 0, height: 0 },
-  STUB_LEGACY_BRIGHTNESS: 0.5,
+  STUB_LEGACY_BRIGHTNESS: 240 / 255,
 } as const;
 
 describe("Logo Analysis Module", () => {
@@ -62,13 +62,12 @@ describe("Logo Analysis Module", () => {
   });
 
   describe("doesLogoNeedInversion", () => {
-    it("should always return false (stub implementation)", async () => {
-      // TODO(wasm-image): This always returns false until WASM implementation
+    it("should respect brightness thresholds when deciding inversion", async () => {
       const testBuffer = Buffer.from([0]);
-      const resultLight = await doesLogoNeedInversion(testBuffer, false); // Light theme
-      const resultDark = await doesLogoNeedInversion(testBuffer, true); // Dark theme
+      const resultLight = await doesLogoNeedInversion(testBuffer, false);
+      const resultDark = await doesLogoNeedInversion(testBuffer, true);
 
-      expect(resultLight).toBe(false);
+      expect(resultLight).toBe(true);
       expect(resultDark).toBe(false);
     });
   });
@@ -82,7 +81,7 @@ describe("Logo Analysis Module", () => {
       // Assert the stubbed values from the legacy API
       expect(result.brightness).toBe(TEST_DATA.STUB_LEGACY_BRIGHTNESS);
       expect(result.needsDarkInversion).toBe(false);
-      expect(result.needsLightInversion).toBe(false);
+      expect(result.needsLightInversion).toBe(true);
       expect(result.hasTransparency).toBe(false);
       expect(result.format).toBe(TEST_DATA.STUB_FORMAT);
       expect(result.dimensions).toEqual(TEST_DATA.STUB_DIMENSIONS);
