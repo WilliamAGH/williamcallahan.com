@@ -5,6 +5,7 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
  * Education Page
@@ -39,7 +40,7 @@ export default function EducationPage() {
     dateModified: formattedModified,
     type: "profile" as const,
     image: {
-      url: "/images/og/education-og.png",
+      url: getStaticImageUrl("/images/og/education-og.png"),
       width: 2100,
       height: 1100,
     },

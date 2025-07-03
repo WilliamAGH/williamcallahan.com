@@ -12,6 +12,7 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 export const dynamic = "force-static";
 export const metadata: Metadata = getStaticPageMetadata("/contact", "contact");
@@ -36,7 +37,7 @@ export default function ContactPage() {
     dateModified: formattedModified,
     type: "collection" as const,
     image: {
-      url: "/images/og/contact-og.png",
+      url: getStaticImageUrl("/images/og/contact-og.png"),
       width: 2100,
       height: 1100,
     },
