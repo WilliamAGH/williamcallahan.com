@@ -1,22 +1,27 @@
 # Experience Architecture
 
 ## Core Purpose
+
 The Experience domain displays professional work history with idempotent S3 CDN logo fetching at `app/experience/page.tsx:61-108` ensuring consistent company branding. Uses logoOnlyDomain property at `types/experience.ts:43` for logo resolution override when company domain differs from website.
 
 ## Architecture Overview
+
 Data Flow: Static Data → Page Processing → Manifest Check → S3 CDN Fetch → Client Render
 Components:
+
 - **Data Layer** (`data/experience.ts:1-45`): Static array of work experiences with optional logoOnlyDomain
 - **Page Processing** (`app/experience/page.tsx:61-108`): Complex logo resolution with 3-tier fallback
 - **Logo Manifest** (`lib/image-handling/image-manifest-loader.ts`): Pre-computed logo cache check
 - **Client UI** (`components/features/experience/experience.client.tsx:39-111`): Window-managed display
 
 ## Key Features
+
 - **logoOnlyDomain Override**: `types/experience.ts:37-43` allows separate domain for logo fetching vs website link, which should override the normal domain url (for logo purposes)
 - **3-Tier Logo Resolution**: Manifest → S3 CDN → Static fallback at `page.tsx:77-95`
 - **Idempotent Fetching**: Always returns same CDN URL for given domain via UnifiedImageService
 
 ## Data Structures
+
 ```typescript
 // types/experience.ts:15-44
 export interface Experience {

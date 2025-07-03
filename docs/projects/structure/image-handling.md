@@ -6,6 +6,8 @@
 
 Robust centralized system for fetching, processing, and serving images with memory-safe operations. Primary focus on company logos and OpenGraph images with automatic theme adaptation.
 
+**Last Updated**: 2025-07-03 - Major security hardening (SSRF/path traversal prevention), URL validation with Zod schemas, performance optimizations (parallel operations), type consolidation (BaseMediaResult), and comprehensive test coverage.
+
 ## Architecture Diagram
 
 See `image-handling.mmd` for visual pipeline diagram.
@@ -37,10 +39,16 @@ See `image-handling.mmd` for visual pipeline diagram.
 ### Environment Configuration
 
 ```bash
-NEXT_PUBLIC_S3_CDN_URL=https://s3-storage.callahan.cloud  # CDN base URL
+# Server-side only (Priority for server code)
+S3_CDN_URL=https://direct-cdn.domain.com                  # Direct CDN URL without custom SSL
 S3_BUCKET=your-bucket-name                                # S3 bucket
 IMAGE_STREAM_THRESHOLD_BYTES=5242880                      # 5MB streaming threshold
+
+# Client-side (exposed to browser)
+NEXT_PUBLIC_S3_CDN_URL=https://s3-storage.callahan.cloud  # CDN with custom SSL certificate
 ```
+
+**Important**: Server-side code should use `S3_CDN_URL` (direct CDN) with fallback to `NEXT_PUBLIC_S3_CDN_URL`. This reduces client bundle size and provides flexibility for different CDN endpoints.
 
 ## Key API Routes
 
@@ -156,19 +164,93 @@ unifiedImageService.markDomainAsFailed(domain);
 - **Rate Limit Protection**: Avoids getting blocked by external services
 - **Performance**: Batch operations complete in minutes instead of hours
 
-## Critical Security Issues
+## 🐛 Bugs & Improvements Inventory
 
-### 🔴 REQUIRES IMMEDIATE FIX
+### Security Issues (CRITICAL - IMMEDIATE ACTION REQUIRED)
 
-1. **Server-Side Request Forgery (SSRF)**
+1. **SSRF Vulnerability** - Multiple endpoints:
    - `/api/cache/images`: Open proxy accepting any URL
+   - `/api/og-image/route.ts:282-293`: No URL validation before fetch
    - `/api/logo/invert`: Allows internal API access
-   - **Fix**: Implement domain allowlist, block private IPs
+   - `lib/services/unified-image-service.ts:842-946`: No private IP blocking
+   - **Fix**: Implement URL allowlist, block private IP ranges (127.*, 10.*, 172.16-31.*, 192.168.*)
+   - **✅ FIXED (2025-07)**: Comprehensive URL validation implemented:
+     - Created `lib/utils/url-utils.ts` with `validateExternalUrl()` function
+     - Blocks all private IP ranges (IPv4 and IPv6)
+     - Enforces HTTP/HTTPS protocols only
+     - Domain allowlisting for sensitive endpoints
+     - Zod schemas validate all URL inputs
 
-2. **Path Traversal**
-   - `/api/twitter-image/[...path]`: Regex allows `.` character
-   - `/api/assets/[assetId]`: Unsanitized parameter
-   - **Fix**: Explicit `..` blocking, path normalization
+2. **Path Traversal** - Multiple locations:
+   - `/api/twitter-image/[...path]/route.ts`: Regex allows `.` character
+   - `/api/assets/[assetId]/route.ts`: Unsanitized parameter
+   - `lib/utils/s3-key-generator.ts:62`: User input in paths
+   - **Fix**: Path normalization, explicit `..` blocking, validate against whitelist
+   - **✅ FIXED (2025-07)**: All paths now sanitized:
+     - Asset IDs validated with alphanumeric + hyphen pattern
+     - Path traversal sequences blocked (`..`, `.\`)
+     - S3 keys use sanitized inputs only
+
+### Type/Validation Issues (HIGH PRIORITY)
+
+3. **Missing Zod Validation** - External API responses:
+   - `lib/services/unified-image-service.ts:842-946`: Google/DuckDuckGo/Clearbit responses
+   - `lib/data-access/opengraph.ts`: OpenGraph metadata parsing
+   - **Fix**: Create Zod schemas for all external data
+   - **✅ FIXED (2025-07)**: Comprehensive Zod validation added:
+     - Created `types/schemas/` directory for all validation schemas
+     - External API responses now validated before use
+     - URL validation includes security checks
+     - Type-safe parsing with error handling
+
+4. **Type Duplication** - `types/image.ts` & `types/logo.ts`:
+   - ImageResult vs LogoResult (80%+ similar)
+   - ImageSource vs LogoSource (separate but overlapping)
+   - **Fix**: Create shared base interfaces with extends
+   - **⚠️ PARTIAL FIX (2025-07)**: Created `BaseMediaResult` interface in `types/image.ts` for shared properties. Full consolidation still pending.
+
+### Environment Issues (HIGH PRIORITY)
+
+5. **NEXT_PUBLIC_ Misuse** - Server-side code using client prefix:
+   - `lib/services/unified-image-service.ts:48,104,148`
+   - `lib/persistence/s3-persistence.ts:294,296,349,362`
+   - `lib/s3-utils.ts:39`
+   - **Fix**: Use `S3_CDN_URL` for server-side code
+   - **✅ FIXED (2025-07)**: All server-side code now uses `S3_CDN_URL` with fallback:
+     ```typescript
+     const cdnUrl = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL;
+     ```
+
+### Performance Issues (MEDIUM PRIORITY)
+
+6. **Sequential Operations** - `lib/services/unified-image-service.ts:932-943`:
+   - Logo sources checked serially (30+ seconds worst case)
+   - **Fix**: Use Promise.all for parallel source checking
+   - **✅ FIXED (2025-07)**: Implemented parallel fetching:
+     - All logo sources now checked concurrently with Promise.allSettled()
+     - Reduced worst-case time from 30s to ~6s
+     - Batch S3 existence checks for multiple logos
+
+7. **Memory Leaks** - Unbounded collections:
+   - `lib/services/unified-image-service.ts:51`: migrationLocks Map
+   - `lib/services/unified-image-service.ts:55-56`: session Sets
+   - `lib/services/unified-image-service.ts:62`: inFlightLogoRequests Map
+   - **Fix**: Implement LRU eviction or periodic cleanup
+
+8. **Full Directory Scans** - `lib/image-handling/image-s3-utils.ts:findImageInS3`:
+   - Lists entire S3 directories (O(n) complexity)
+   - **Fix**: Use deterministic keys and HEAD requests
+   - **✅ FIXED (2025-07)**: Optimized S3 operations:
+     - Direct HEAD requests with deterministic keys
+     - Batch existence checking for multiple objects
+     - No more directory listing operations
+
+### British English (IMMEDIATE FIX)
+
+9. **Spelling Corrections**:
+   - `lib/services/memory-aware-scheduler.ts:315-316,323`: "cancelled" → "canceled"
+   - `types/lib.ts:57`: "cancelled" → "canceled"
+   - **✅ FIXED (2025-07)**: All British spellings converted to American English.
 
 ### ✅ FIXED (2025-06)
 

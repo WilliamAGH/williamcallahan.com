@@ -1,22 +1,27 @@
 # Education Architecture
 
 ## Core Purpose
+
 The Education domain manages display of university degrees, courses, and certifications with idempotent S3 CDN logo fetching at `lib/education-data-processor.ts:25-87` for consistent institution branding across all renders.
 
 ## Architecture Overview
+
 Data Flow: Static Data → Server Processing → Logo Fetch → Client Render
 Components:
+
 - **Data Layer** (`data/education.ts:1-85`): Static arrays of education, courses, certifications
 - **Server Processing** (`components/features/education/education.server.tsx:20-40`): Async concurrent logo processing
 - **Logo Processor** (`lib/education-data-processor.ts:26-87`): S3 CDN fetch with fallback logic
 - **Client UI** (`components/features/education/education.client.tsx:53-351`): Interactive table with search/sort
 
 ## Key Features
+
 - **Idempotent Logo Fetching**: Always fetches from S3 CDN via UnifiedImageService at `lib/education-data-processor.ts:38-45`
 - **Concurrent Processing**: Promise.all at `education.server.tsx:22-30` for parallel logo fetches
 - **Client-Side Interactivity**: Search/filter/sort at `education.client.tsx:74-127` without re-fetching logos
 
 ## Data Structures
+
 ```typescript
 // types/education.ts:12-27
 interface EducationBase {
