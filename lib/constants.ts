@@ -4,6 +4,7 @@
  */
 
 import type { BookmarksS3Paths, RateLimiterConfig } from "@/types/lib";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /** Client-side cache duration: 30 days (milliseconds) */
 export const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000;
@@ -31,7 +32,7 @@ export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
   TAG_INDEX_PREFIX: `json/bookmarks/tags${envSuffix}/`,
 } as const;
 
-export const LOGO_BLOCKLIST_S3_PATH = `json/image-data/logos/domain-blocklist${envSuffix}.json`;
+export const LOGO_BLOCKLIST_S3_PATH = `json/rate-limit/logo-failed-domains${envSuffix}.json`;
 
 /** S3 paths for search indexes (environment-aware) */
 export const SEARCH_S3_PATHS = {
@@ -89,7 +90,7 @@ export const OPENGRAPH_JSON_S3_PATHS = {
  */
 export const IMAGE_S3_PATHS = {
   LOGOS_DIR: "images/logos",
-  OPENGRAPH_DIR: "images/opengraph", // OpenGraph preview images (.png, .jpg, etc)
+  OPENGRAPH_DIR: "images/karakeep", // Karakeep bookmarks OpenGraph images
   BLOG_DIR: "images/blog",
   OTHER_DIR: "images/other",
 } as const;
@@ -153,8 +154,10 @@ export const ENDPOINTS = {
   logo: `${API_BASE_URL}/api/logo`,
 } as const;
 
+import type { LogoSourcesConfig } from "@/types/logo";
+
 /** Logo source URL generators */
-export const LOGO_SOURCES = {
+export const LOGO_SOURCES: LogoSourcesConfig = {
   google: {
     hd: (d: string) => `https://www.google.com/s2/favicons?domain=${d}&sz=256`,
     md: (d: string) => `https://www.google.com/s2/favicons?domain=${d}&sz=128`,
@@ -164,7 +167,23 @@ export const LOGO_SOURCES = {
     hd: (d: string) => `https://icons.duckduckgo.com/ip3/${d}.ico`,
     md: (d: string) => `https://external-content.duckduckgo.com/ip3/${d}.ico`,
   },
-} as const;
+  clearbit: {
+    hd: (d: string) => `https://logo.clearbit.com/${d}`,
+  },
+  direct: {
+    favicon: (d: string) => `https://${d}/favicon.ico`,
+    faviconPng: (d: string) => `https://${d}/favicon.png`,
+    faviconSvg: (d: string) => `https://${d}/favicon.svg`,
+    appleTouchIcon: (d: string) => `https://${d}/apple-touch-icon.png`,
+    appleTouchIconPrecomposed: (d: string) => `https://${d}/apple-touch-icon-precomposed.png`,
+    appleTouchIcon180: (d: string) => `https://${d}/apple-touch-icon-180x180.png`,
+    appleTouchIcon152: (d: string) => `https://${d}/apple-touch-icon-152x152.png`,
+    androidChrome192: (d: string) => `https://${d}/android-chrome-192x192.png`,
+    androidChrome512: (d: string) => `https://${d}/android-chrome-512x512.png`,
+    favicon32: (d: string) => `https://${d}/favicon-32x32.png`,
+    favicon16: (d: string) => `https://${d}/favicon-16x16.png`,
+  },
+};
 
 /**
  * Regular expressions to identify generic globe icons
@@ -365,9 +384,9 @@ export const TIME_CONSTANTS = {
  */
 export const DEFAULT_IMAGES = {
   /** Default OpenGraph logo for the site owner */
-  OPENGRAPH_LOGO: "/images/william-callahan-san-francisco.png",
+  OPENGRAPH_LOGO: getStaticImageUrl("/images/william-callahan-san-francisco.png"),
   /** Placeholder image for companies without logos */
-  COMPANY_PLACEHOLDER: "/images/company-placeholder.svg",
+  COMPANY_PLACEHOLDER: getStaticImageUrl("/images/company-placeholder.svg"),
 } as const;
 
 /** OpenGraph S3 directories */
@@ -450,7 +469,7 @@ export const SEO_DATE_FIELDS = {
   },
 } as const;
 
-export const INDEXING_RATE_LIMIT_PATH = `json/search/indexing-rate-limit${envSuffix}.json`;
+export const INDEXING_RATE_LIMIT_PATH = `json/rate-limit/search-indexing-limiter${envSuffix}.json`;
 
 // Cache TTL constants (in seconds) - moved from lib/cache.ts to break circular dependency
 export const CACHE_TTL = {
