@@ -16,6 +16,7 @@ import { OPENGRAPH_JINA_HTML_S3_DIR, OPENGRAPH_OVERRIDES_S3_DIR } from "@/lib/co
 import type { OgResult, PersistImageResult } from "@/types";
 import { OgError, isOgResult } from "@/types/opengraph";
 import { ContentCategory } from "@/types/s3-cdn";
+import { isS3ReadOnly } from "@/lib/utils/s3-read-only";
 
 /**
  * Determine content category based on content type and path
@@ -290,9 +291,9 @@ export async function persistImageAndGetS3Url(
   try {
     const s3Key = await persistImageToS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
     if (s3Key) {
-      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
+      const cdnUrl = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL;
       if (!cdnUrl) {
-        console.error("[OpenGraph S3] ❌ NEXT_PUBLIC_S3_CDN_URL not configured");
+        console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
         return null;
       }
       const s3Url = `${cdnUrl}/${s3Key}`;
@@ -343,9 +344,9 @@ export async function persistImageAndGetS3UrlWithStatus(
     const existingKey = await findImageInS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
 
     if (existingKey) {
-      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
+      const cdnUrl = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL;
       if (!cdnUrl) {
-        console.error("[OpenGraph S3] ❌ NEXT_PUBLIC_S3_CDN_URL not configured");
+        console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
         return { s3Url: null, wasNewlyPersisted: false };
       }
       const s3Url = `${cdnUrl}/${existingKey}`;
@@ -356,9 +357,9 @@ export async function persistImageAndGetS3UrlWithStatus(
     // Image doesn't exist, persist it
     const s3Key = await persistImageToS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
     if (s3Key) {
-      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL;
+      const cdnUrl = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL;
       if (!cdnUrl) {
-        console.error("[OpenGraph S3] ❌ NEXT_PUBLIC_S3_CDN_URL not configured");
+        console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
         return { s3Url: null, wasNewlyPersisted: false };
       }
       const s3Url = `${cdnUrl}/${s3Key}`;
@@ -378,3 +379,83 @@ export async function persistImageAndGetS3UrlWithStatus(
 // Re-export commonly used functions for backward compatibility
 export { persistImageToS3, findImageInS3 } from "@/lib/image-handling/image-s3-utils";
 export { checkIfS3ObjectExists } from "@/lib/s3-utils";
+
+/**
+ * Cleanup and normalize logo filenames in S3
+ * This function can be run periodically to ensure all logos follow the standard naming convention
+ */
+export async function normalizeLogoFilenames(): Promise<void> {
+  if (isS3ReadOnly()) {
+    console.log("[S3 Persistence] Read-only mode, skipping logo normalization");
+    return;
+  }
+
+  try {
+    const { ListObjectsV2Command, CopyObjectCommand, DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+    const { IMAGE_S3_PATHS } = await import("@/lib/constants");
+    const { parseS3Key, generateS3Key } = await import("@/lib/utils/s3-key-generator");
+    const { s3Client } = await import("@/lib/s3-utils");
+    
+    if (!s3Client || !process.env.S3_BUCKET) {
+      console.error("[S3 Persistence] S3 not configured for logo normalization");
+      return;
+    }
+
+    const bucket = process.env.S3_BUCKET;
+    const prefix = IMAGE_S3_PATHS.LOGOS_DIR + "/";
+    
+    // List all logos
+    const listCommand = new ListObjectsV2Command({
+      Bucket: bucket,
+      Prefix: prefix,
+      MaxKeys: 1000,
+    });
+
+    const response = await s3Client.send(listCommand);
+    const objects = response.Contents || [];
+    
+    console.log(`[S3 Persistence] Found ${objects.length} logos to check`);
+    
+    for (const obj of objects) {
+      if (!obj.Key) continue;
+      
+      const parsed = parseS3Key(obj.Key);
+      
+      // Check if it needs normalization
+      if (parsed.type === "logo" && parsed.domain && !parsed.hash) {
+        console.log(`[S3 Persistence] Found logo without hash: ${obj.Key}`);
+        
+        // Generate the proper filename with hash
+        const newKey = generateS3Key({
+          type: "logo",
+          domain: parsed.domain,
+          source: parsed.source as import("@/types/logo").LogoSource,
+          extension: parsed.extension || "png",
+          inverted: parsed.inverted,
+        });
+        
+        console.log(`[S3 Persistence] Renaming to: ${newKey}`);
+        
+        // Copy to new location
+        await s3Client.send(new CopyObjectCommand({
+          Bucket: bucket,
+          CopySource: `${bucket}/${obj.Key}`,
+          Key: newKey,
+          ACL: "public-read",
+        }));
+        
+        // Delete old file
+        await s3Client.send(new DeleteObjectCommand({
+          Bucket: bucket,
+          Key: obj.Key,
+        }));
+        
+        console.log(`[S3 Persistence] Successfully normalized: ${obj.Key} -> ${newKey}`);
+      }
+    }
+    
+    console.log("[S3 Persistence] Logo normalization complete");
+  } catch (error) {
+    console.error("[S3 Persistence] Error normalizing logo filenames:", error);
+  }
+}
