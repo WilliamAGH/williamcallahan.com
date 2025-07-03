@@ -13,6 +13,7 @@ import { getBaseUrl } from "@/lib/utils/get-base-url";
 import type { OgResult, KarakeepImageFallback } from "@/types";
 import { karakeepImageFallbackSchema } from "@/types/seo/opengraph";
 import { SOCIAL_PLATFORMS } from "@/types/social";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
  * Creates a fallback result when OpenGraph data cannot be fetched
@@ -147,7 +148,7 @@ export function getFallbackImageForDomain(domain: string): string | null {
         "https://media.licdn.com/dms/image/C5603AQGjv8C3WhrUfQ/profile-displayphoto-shrink_800_800/0/1651775977276"
       );
     case SOCIAL_PLATFORMS.DISCORD:
-      return process.env.FALLBACK_IMAGE_DISCORD || "/images/william.jpeg";
+      return process.env.FALLBACK_IMAGE_DISCORD || getStaticImageUrl("/images/william.jpeg");
     case SOCIAL_PLATFORMS.BLUESKY:
       return (
         process.env.FALLBACK_IMAGE_BLUESKY ||
@@ -156,7 +157,7 @@ export function getFallbackImageForDomain(domain: string): string | null {
     // Generic websites or unrecognized domains should show a generic OpenGraph card placeholder
     // to make it clear the image represents a link preview, not a personal/company avatar.
     default:
-      return process.env.FALLBACK_IMAGE_OPENGRAPH || "/images/opengraph-placeholder.png";
+      return process.env.FALLBACK_IMAGE_OPENGRAPH || getStaticImageUrl("/images/opengraph-placeholder.png");
   }
 }
 
@@ -167,16 +168,16 @@ export function getFallbackImageForDomain(domain: string): string | null {
 export function getFallbackBannerForDomain(domain: string): string | null {
   switch (domain) {
     case SOCIAL_PLATFORMS.GITHUB:
-      return "/images/social-banners/github.svg";
+      return getStaticImageUrl("/images/social-banners/github.svg");
     case SOCIAL_PLATFORMS.X:
     case SOCIAL_PLATFORMS.TWITTER:
-      return "/images/social-banners/twitter-x.svg";
+      return getStaticImageUrl("/images/social-banners/twitter-x.svg");
     case SOCIAL_PLATFORMS.LINKEDIN:
-      return "/images/social-banners/linkedin.svg";
+      return getStaticImageUrl("/images/social-banners/linkedin.svg");
     case SOCIAL_PLATFORMS.DISCORD:
-      return "/images/social-banners/discord.svg";
+      return getStaticImageUrl("/images/social-banners/discord.svg");
     case SOCIAL_PLATFORMS.BLUESKY:
-      return "/images/social-banners/bluesky.png";
+      return getStaticImageUrl("/images/social-banners/bluesky.png");
     default:
       return null;
   }
@@ -189,18 +190,18 @@ export function getFallbackBannerForDomain(domain: string): string | null {
 export function getDomainFallbackImage(domain: string): string {
   switch (domain) {
     case SOCIAL_PLATFORMS.GITHUB:
-      return "/images/william-github.jpg";
+      return getStaticImageUrl("/images/social-pics/github.jpg");
     case SOCIAL_PLATFORMS.X:
     case SOCIAL_PLATFORMS.TWITTER:
-      return "/images/william-x.jpg";
+      return getStaticImageUrl("/images/social-pics/x.jpg");
     case SOCIAL_PLATFORMS.LINKEDIN:
-      return "/images/william-linkedin.jpg";
+      return getStaticImageUrl("/images/social-pics/linkedin.jpg");
     case SOCIAL_PLATFORMS.DISCORD:
-      return "/images/william.jpeg";
+      return getStaticImageUrl("/images/social-pics/discord.jpg");
     case SOCIAL_PLATFORMS.BLUESKY:
-      return "/images/william-bluesky.jpg";
+      return getStaticImageUrl("/images/social-pics/bluesky.jpg");
     default:
-      return "/images/opengraph-placeholder.png";
+      return getStaticImageUrl("/images/opengraph-placeholder.png");
   }
 }
 
@@ -211,14 +212,14 @@ export function getDomainFallbackImage(domain: string): string {
 export function getContextualFallbackImage(input: string, error?: string): string {
   // For person/profile URLs, use person placeholder
   if (input.includes("/profile") || input.includes("/user") || input.includes("/people")) {
-    return "/images/person-placeholder.png"; // Person placeholder
+    return getStaticImageUrl("/images/person-placeholder.png"); // Person placeholder
   }
 
   // For OpenGraph-specific failures or when we know it's an OG image request
   if (input.includes("og") || input.includes("opengraph") || error?.includes("opengraph")) {
-    return "/images/opengraph-placeholder.png"; // OpenGraph card placeholder
+    return getStaticImageUrl("/images/opengraph-placeholder.png"); // OpenGraph card placeholder
   }
 
   // Default to generic OpenGraph card placeholder
-  return "/images/opengraph-placeholder.png";
+  return getStaticImageUrl("/images/opengraph-placeholder.png");
 }
