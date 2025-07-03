@@ -1,4 +1,23 @@
 /**
+ * Shared base interface for all media results (images and logos)
+ * Contains properties common to both ImageResult and LogoResult
+ */
+export interface BaseMediaResult {
+  /** MIME content type (e.g., 'image/png', 'image/svg+xml') */
+  contentType: string;
+  /** CDN URL if available for serving */
+  cdnUrl?: string;
+  /** Error message if operation failed */
+  error?: string;
+  /** Timestamp of the operation */
+  timestamp?: number;
+  /** Image data buffer when available */
+  buffer?: Buffer;
+  /** S3 storage key where the media is stored */
+  s3Key?: string;
+}
+
+/**
  * Unified source types for image retrieval
  */
 
@@ -12,13 +31,13 @@ export type ImageSource =
   | "placeholder"
   | "google"
   | "duckduckgo"
-
   | "unknown"
   | "api";
 
 /**
  * Base interface for all image data
  * This is the foundation for image-related types across the system
+ * @deprecated Use BaseMediaResult for new code - kept for backward compatibility
  */
 export interface BaseImageData {
   /** MIME content type (e.g., 'image/png', 'image/svg+xml') */
@@ -79,9 +98,10 @@ export interface ImageServiceOptions {
  * Result from image service operations
  * Can contain either buffer or just metadata
  */
-export interface ImageResult extends BaseImageData {
-  buffer?: Buffer;
-  s3Key?: string;
+export interface ImageResult extends BaseMediaResult {
+  /** Where the image was retrieved from */
+  source: ImageSource;
+  /** Direct S3 URL (in addition to CDN URL) */
   s3Url?: string;
 }
 
@@ -121,6 +141,8 @@ export interface LogoManifestEntry {
   cdnUrl: string;
   /** Original source service (google, duckduckgo, clearbit, etc.) */
   originalSource: string;
+  /** CDN URL pointing to pre-inverted (dark-theme) version of the logo, when available */
+  invertedCdnUrl?: string;
 }
 
 /**

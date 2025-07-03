@@ -74,6 +74,7 @@ export const certificationSchema = educationBaseSchema.extend({
 export const educationLogoDataSchema = z.object({
   url: z.string().url("Logo URL must be valid"),
   source: z.string().nullable(),
+  needsInversion: z.boolean().optional(),
 });
 
 /**
