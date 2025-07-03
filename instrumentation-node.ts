@@ -11,7 +11,7 @@ export async function register(): Promise<void> {
   if (isBuildPhase) return;
 
   /** ------------------------------------------------------------------
-   * Configure Node core behaviours & diagnostics
+   * Configure Node core behaviors & diagnostics
    * ------------------------------------------------------------------ */
   try {
     // Dynamically import to keep Edge bundle clean and maintain type safety
@@ -110,9 +110,8 @@ export async function register(): Promise<void> {
   }
 }
 
-// Call register() immediately when this module is imported
-// This ensures Node.js instrumentation runs when imported from instrumentation.ts
-void register();
+// DO NOT call register() immediately - it should only be called by Next.js instrumentation hook
+// The register() function will be called by Next.js when importing this module from instrumentation.ts
 
 /**
  * onRequestError hook – invoked by the Sentry SDK (Next.js ≥15.4)
