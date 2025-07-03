@@ -19,6 +19,8 @@
  * @see {@link "https://developer.twitter.com/en/docs/twitter-for-websites/cards"} - Twitter Cards
  */
 
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
+
 // Core constants - defined ONCE and used everywhere
 /**
  * Site name - used for author attribution and page titles
@@ -89,15 +91,15 @@ import androidLogo512Image from "@/public/images/favicons/android-chrome-512x512
 
 export const LOCAL_OG_ASSETS = {
   // Stable public paths
-  "/images/og/default-og.png": ogDefaultImage,
-  "/images/og/bookmarks-og.png": ogBookmarksImage,
-  "/images/og/projects-og.png": ogProjectsImage,
-  "/images/og/blog-og.png": ogBlogIndexImage,
-  "/images/og/experience-og.png": ogExperienceImage,
-  "/images/og/education-og.png": ogEducationImage,
-  "/images/og/investments-og.png": ogInvestmentsImage,
-  "/images/og/contact-og.png": ogContactImage,
-  "/images/favicons/android-chrome-512x512.png": androidLogo512Image,
+  [getStaticImageUrl("/images/og/default-og.png")]: ogDefaultImage,
+  [getStaticImageUrl("/images/og/bookmarks-og.png")]: ogBookmarksImage,
+  [getStaticImageUrl("/images/og/projects-og.png")]: ogProjectsImage,
+  [getStaticImageUrl("/images/og/blog-og.png")]: ogBlogIndexImage,
+  [getStaticImageUrl("/images/og/experience-og.png")]: ogExperienceImage,
+  [getStaticImageUrl("/images/og/education-og.png")]: ogEducationImage,
+  [getStaticImageUrl("/images/og/investments-og.png")]: ogInvestmentsImage,
+  [getStaticImageUrl("/images/og/contact-og.png")]: ogContactImage,
+  [getStaticImageUrl("/images/favicons/android-chrome-512x512.png")]: androidLogo512Image,
   // Next.js hashed paths (retained for internal use)
   [ogDefaultImage.src]: ogDefaultImage,
   [ogBookmarksImage.src]: ogBookmarksImage,
@@ -117,25 +119,25 @@ export const LOCAL_OG_ASSETS = {
  */
 export const SEO_IMAGES = {
   /** Site-wide default OpenGraph/Twitter image */
-  ogDefault: "/images/og/default-og.png",
+  ogDefault: getStaticImageUrl("/images/og/default-og.png"),
   /** Stand-alone logo card (optional) */
-  ogLogo: "/images/favicons/android-chrome-512x512.png",
+  ogLogo: getStaticImageUrl("/images/favicons/android-chrome-512x512.png"),
   /** Collection pages */
-  ogBookmarks: "/images/og/bookmarks-og.png",
-  ogProjects: "/images/og/projects-og.png",
-  ogBlogIndex: "/images/og/blog-og.png",
+  ogBookmarks: getStaticImageUrl("/images/og/bookmarks-og.png"),
+  ogProjects: getStaticImageUrl("/images/og/projects-og.png"),
+  ogBlogIndex: getStaticImageUrl("/images/og/blog-og.png"),
   /** Static pages */
-  ogExperience: "/images/og/experience-og.png",
-  ogEducation: "/images/og/education-og.png",
-  ogInvestments: "/images/og/investments-og.png",
-  ogContact: "/images/og/contact-og.png",
+  ogExperience: getStaticImageUrl("/images/og/experience-og.png"),
+  ogEducation: getStaticImageUrl("/images/og/education-og.png"),
+  ogInvestments: getStaticImageUrl("/images/og/investments-og.png"),
+  ogContact: getStaticImageUrl("/images/og/contact-og.png"),
   /** Fallback for dynamic /api/og-image route */
-  ogDynamicFallback: "/images/og/default-og.png",
+  ogDynamicFallback: getStaticImageUrl("/images/og/default-og.png"),
   /** Favicons & touch icons */
-  faviconIco: "/images/favicons/favicon.ico",
-  appleTouch: "/images/favicons/apple-180x180-touch-icon.png",
-  android192: "/images/favicons/android-chrome-192x192.png",
-  android512: "/images/favicons/android-chrome-512x512.png",
+  faviconIco: getStaticImageUrl("/images/favicons/favicon.ico"),
+  appleTouch: getStaticImageUrl("/images/favicons/apple-180x180-touch-icon.png"),
+  android192: getStaticImageUrl("/images/favicons/android-chrome-192x192.png"),
+  android512: getStaticImageUrl("/images/favicons/android-chrome-512x512.png"),
 } as const;
 
 export const PAGE_METADATA = {
@@ -151,7 +153,7 @@ export const PAGE_METADATA = {
       posts: 85,
     },
     alternateName: "williamcallahan",
-    profileImage: "/images/william-callahan-san-francisco.png",
+    profileImage: getStaticImageUrl("/images/william-callahan-san-francisco.png"),
   } as ProfilePageMetadata,
   experience: {
     title: `Professional Experience - ${SITE_NAME}`,
@@ -165,7 +167,7 @@ export const PAGE_METADATA = {
       posts: 45,
     },
     alternateName: "williamcallahan",
-    profileImage: "/images/william-callahan-san-francisco.png",
+    profileImage: getStaticImageUrl("/images/william-callahan-san-francisco.png"),
   } as ProfilePageMetadata,
   investments: {
     title: `Investment Portfolio - ${SITE_NAME}`,
@@ -184,7 +186,7 @@ export const PAGE_METADATA = {
       posts: 15,
     },
     alternateName: "williamcallahan",
-    profileImage: "/images/william-callahan-san-francisco.png",
+    profileImage: getStaticImageUrl("/images/william-callahan-san-francisco.png"),
   } as ProfilePageMetadata,
   bookmarks: {
     title: `Bookmarks & Resources - ${SITE_NAME}`,
@@ -249,15 +251,15 @@ export const PAGE_OG_ASPECT: Record<keyof typeof PAGE_METADATA, keyof typeof OG_
  * Maps image URLs to their actual dimensions
  */
 export const OG_IMAGE_FALLBACK_DIMENSIONS = {
-  "/images/og/default-og.png": { width: 2100, height: 1100 },
-  "/images/og/bookmarks-og.png": { width: 2100, height: 1100 },
-  "/images/og/projects-og.png": { width: 2100, height: 1100 },
-  "/images/og/blog-og.png": { width: 2100, height: 1100 },
-  "/images/og/experience-og.png": { width: 2100, height: 1100 },
-  "/images/og/education-og.png": { width: 2100, height: 1100 },
-  "/images/og/investments-og.png": { width: 2100, height: 1100 },
-  "/images/og/contact-og.png": { width: 2100, height: 1100 },
-  "/images/favicons/android-chrome-512x512.png": { width: 512, height: 512 },
+  [getStaticImageUrl("/images/og/default-og.png")]: { width: 2100, height: 1100 },
+  [getStaticImageUrl("/images/og/bookmarks-og.png")]: { width: 2100, height: 1100 },
+  [getStaticImageUrl("/images/og/projects-og.png")]: { width: 2100, height: 1100 },
+  [getStaticImageUrl("/images/og/blog-og.png")]: { width: 2100, height: 1100 },
+  [getStaticImageUrl("/images/og/experience-og.png")]: { width: 2100, height: 1100 },
+  [getStaticImageUrl("/images/og/education-og.png")]: { width: 2100, height: 1100 },
+  [getStaticImageUrl("/images/og/investments-og.png")]: { width: 2100, height: 1100 },
+  [getStaticImageUrl("/images/og/contact-og.png")]: { width: 2100, height: 1100 },
+  [getStaticImageUrl("/images/favicons/android-chrome-512x512.png")]: { width: 512, height: 512 },
 } as const;
 
 export const metadata = {
@@ -308,8 +310,8 @@ export const metadata = {
   /** Default image used for social sharing */
   defaultImage: {
     url: SEO_IMAGES.ogDefault,
-    width: OG_IMAGE_FALLBACK_DIMENSIONS[SEO_IMAGES.ogDefault].width,
-    height: OG_IMAGE_FALLBACK_DIMENSIONS[SEO_IMAGES.ogDefault].height,
+    width: OG_IMAGE_FALLBACK_DIMENSIONS[SEO_IMAGES.ogDefault]?.width,
+    height: OG_IMAGE_FALLBACK_DIMENSIONS[SEO_IMAGES.ogDefault]?.height,
     alt: `${SITE_NAME} on Finance, Startups, & Engineering in San Francisco`,
     type: "image/png",
   },
