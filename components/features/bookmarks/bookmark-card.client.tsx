@@ -197,9 +197,9 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
           <Link
             href={effectiveInternalHref}
             title={displayTitle}
-            className="text-2xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
+            className="text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
           >
-            {displayTitle}
+            <h3 className="text-2xl font-semibold">{displayTitle}</h3>
           </Link>
         ) : (
           // When on individual bookmark page, link to external URL in new tab
@@ -207,9 +207,9 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
             href={url}
             title={displayTitle}
             showIcon={false}
-            className="text-2xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
+            className="text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
           >
-            {displayTitle}
+            <h3 className="text-2xl font-semibold">{displayTitle}</h3>
           </ExternalLink>
         )}
 

@@ -402,6 +402,13 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         )}
       </div>
 
+      {/* Section Header */}
+      {!searchQuery && !selectedTag && (
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white px-4 sm:px-6 lg:px-8">
+          Bookmarks Collection
+        </h2>
+      )}
+
       {/* Results count */}
       <div className="mb-6">
         {mounted ? (
