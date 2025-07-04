@@ -21,10 +21,7 @@ export function generateRequestId(): string {
 /**
  * Run a function with a request context
  */
-export async function withRequestContext<T>(
-  context: RequestContext,
-  fn: () => Promise<T>
-): Promise<T> {
+export async function withRequestContext<T>(context: RequestContext, fn: () => Promise<T>): Promise<T> {
   return asyncLocalStorage.run(context, fn);
 }
 
@@ -39,7 +36,7 @@ export function getRequestContext(): RequestContext | undefined {
  * Add metadata to the current request context
  */
 export function addContextMetadata(metadata: Record<string, unknown>): void {
-  const context = asyncLocalStorage.getStore();
+  const context: RequestContext | undefined = asyncLocalStorage.getStore();
   if (context) {
     context.metadata = { ...context.metadata, ...metadata };
   }
@@ -51,16 +48,16 @@ export function addContextMetadata(metadata: Record<string, unknown>): void {
 export function createLogEntry(
   level: "info" | "warn" | "error",
   message: string,
-  data?: Record<string, unknown>
+  data?: Record<string, unknown>,
 ): Record<string, unknown> {
-  const context = getRequestContext();
+  const context: RequestContext | undefined = getRequestContext();
   const timestamp = new Date().toISOString();
-  
+
   return {
     timestamp,
     level,
     message,
-    ...(context && {
+    ...(context?.requestId && {
       requestId: context.requestId,
       operation: context.operation,
       userId: context.userId,
@@ -76,20 +73,23 @@ export function createLogEntry(
 export function logWithContext(
   level: "info" | "warn" | "error",
   message: string,
-  data?: Record<string, unknown>
+  data?: Record<string, unknown>,
 ): void {
   const entry = createLogEntry(level, message, data);
-  
+
   // Use appropriate console method based on level
   const logMethod = level === "error" ? console.error : level === "warn" ? console.warn : console.log;
-  
+
   if (process.env.NODE_ENV === "production") {
     // In production, log as JSON for better parsing
     logMethod(JSON.stringify(entry));
   } else {
     // In development, log in a more readable format
     const { timestamp, requestId, operation, ...rest } = entry;
-    const prefix = `[${String(timestamp)}]${requestId ? ` [${String(requestId)}]` : ""}${operation ? ` [${String(operation)}]` : ""}`;
+    // Safely coerce potentially unknown values to string to satisfy @typescript-eslint/no-base-to-string
+    const safeRequestId = typeof requestId === "string" ? requestId : undefined;
+    const safeOperation = typeof operation === "string" ? operation : undefined;
+    const prefix = `[${String(timestamp)}]${safeRequestId ? ` [${safeRequestId}]` : ""}${safeOperation ? ` [${safeOperation}]` : ""}`;
     logMethod(`${prefix} ${message}`, rest.data || "");
   }
 }
