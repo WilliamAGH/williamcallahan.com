@@ -43,10 +43,11 @@ export interface EducationLogoData {
 
 ## Design Decisions
 
-1. **S3 CDN Priority**: `lib/education-data-processor.ts:41` always uses CDN URL from getLogo() result
-2. **Domain Normalization**: `lib/education-data-processor.ts:37` normalizes domains for consistent S3 keys
-3. **Server-Only Processing**: `lib/education-data-processor.ts:5` enforces server-side execution for S3 access
-4. **Placeholder Fallback**: `lib/education-data-processor.ts:18` returns `/images/company-placeholder.svg` on errors
+1. **Dynamic Rendering**: Uses `force-dynamic` to resolve logos at request time, preventing build-time API access issues
+2. **S3 CDN Priority**: `lib/education-data-processor.ts:41` always uses CDN URL from getLogo() result
+3. **Domain Normalization**: `lib/education-data-processor.ts:37` normalizes domains for consistent S3 keys
+4. **Server-Only Processing**: `lib/education-data-processor.ts:5` enforces server-side execution for S3 access
+5. **Placeholder Fallback**: `lib/education-data-processor.ts:18` returns `/images/company-placeholder.svg` on errors
 
 ## External Integrations
 
