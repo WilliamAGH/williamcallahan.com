@@ -9,7 +9,12 @@ export const SERVER_CACHE_DURATION = 3 * 24 * 60 * 60;
 /** Logo cache: 30 days success, 1 day failure */
 export const LOGO_CACHE_DURATION = { SUCCESS: 30 * 24 * 60 * 60, FAILURE: 24 * 60 * 60 };
 
-const envSuffix = process.env.NODE_ENV === "production" || !process.env.NODE_ENV ? "" : process.env.NODE_ENV === "test" ? "-test" : "-dev";
+const envSuffix =
+  process.env.NODE_ENV === "production" || !process.env.NODE_ENV
+    ? ""
+    : process.env.NODE_ENV === "test"
+      ? "-test"
+      : "-dev";
 
 const p = (path: string) => `${path}${envSuffix}.json`; // Path helper
 export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
@@ -32,6 +37,7 @@ export const SEARCH_S3_PATHS = {
   INVESTMENTS_INDEX: p("json/search/investments-index"),
   EXPERIENCE_INDEX: p("json/search/experience-index"),
   EDUCATION_INDEX: p("json/search/education-index"),
+  PROJECTS_INDEX: p("json/search/projects-index"),
   BUILD_METADATA: p("json/search/build-metadata"),
 } as const;
 
@@ -93,7 +99,10 @@ export const SEARCH_CACHE_DURATION = { SUCCESS: 15 * 60, FAILURE: 60, REVALIDATI
 export const NEXT_PUBLIC_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || NEXT_PUBLIC_SITE_URL;
 /** API endpoints */
-export const ENDPOINTS = { validateLogo: `${API_BASE_URL}/api/validate-logo`, logo: `${API_BASE_URL}/api/logo` } as const;
+export const ENDPOINTS = {
+  validateLogo: `${API_BASE_URL}/api/validate-logo`,
+  logo: `${API_BASE_URL}/api/logo`,
+} as const;
 
 import type { LogoSourcesConfig } from "@/types/logo";
 
@@ -147,17 +156,60 @@ export const THEME_TIMESTAMP_KEY = "theme-timestamp";
 
 /** Hardcoded domains for logo fetching (key institutional/service domains) */
 export const KNOWN_DOMAINS = [
-  "creighton.edu", "unomaha.edu", "stanford.edu", "columbia.edu", "gsb.columbia.edu",
-  "cfp.net", "seekinvest.com", "tsbank.com", "mutualfirst.com", "morningstar.com",
+  "creighton.edu",
+  "unomaha.edu",
+  "stanford.edu",
+  "columbia.edu",
+  "gsb.columbia.edu",
+  "cfp.net",
+  "seekinvest.com",
+  "tsbank.com",
+  "mutualfirst.com",
+  "morningstar.com",
 ] as const;
 
 /** CSP directives for middleware - minimal to avoid oversized headers */
 export const CSP_DIRECTIVES = {
   defaultSrc: ["'self'"],
-  scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://umami.iocloudhost.net", "https://plausible.iocloudhost.net", "https://static.cloudflareinsights.com", "https://*.sentry.io", "https://scripts.simpleanalyticscdn.com", "https://static.getclicky.com", "https://in.getclicky.com", "https://platform.twitter.com", "https://*.x.com", "blob:"],
-  connectSrc: ["'self'", "https://umami.iocloudhost.net", "https://plausible.iocloudhost.net", "https://static.cloudflareinsights.com", "https://*.sentry.io", "https://*.ingest.sentry.io", "https://queue.simpleanalyticscdn.com", "https://in.getclicky.com", "https://react-tweet.vercel.app", "https://*.twitter.com", "https://twitter.com", "https://platform.twitter.com", "https://*.x.com"],
+  scriptSrc: [
+    "'self'",
+    "'unsafe-inline'",
+    "'unsafe-eval'",
+    "https://umami.iocloudhost.net",
+    "https://plausible.iocloudhost.net",
+    "https://static.cloudflareinsights.com",
+    "https://*.sentry.io",
+    "https://scripts.simpleanalyticscdn.com",
+    "https://static.getclicky.com",
+    "https://in.getclicky.com",
+    "https://platform.twitter.com",
+    "https://*.x.com",
+    "blob:",
+  ],
+  connectSrc: [
+    "'self'",
+    "https://umami.iocloudhost.net",
+    "https://plausible.iocloudhost.net",
+    "https://static.cloudflareinsights.com",
+    "https://*.sentry.io",
+    "https://*.ingest.sentry.io",
+    "https://queue.simpleanalyticscdn.com",
+    "https://in.getclicky.com",
+    "https://react-tweet.vercel.app",
+    "https://*.twitter.com",
+    "https://twitter.com",
+    "https://platform.twitter.com",
+    "https://*.x.com",
+  ],
   workerSrc: ["'self'", "blob:"],
-  imgSrc: ["'self'", "data:", "https://pbs.twimg.com", "https://*.twimg.com", "https://react-tweet.vercel.app", "https:"],
+  imgSrc: [
+    "'self'",
+    "data:",
+    "https://pbs.twimg.com",
+    "https://*.twimg.com",
+    "https://react-tweet.vercel.app",
+    "https:",
+  ],
   styleSrc: ["'self'", "'unsafe-inline'", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com"],
   fontSrc: ["'self'", "data:", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com"],
   frameSrc: ["https://platform.twitter.com", "https://*.x.com"],
@@ -167,8 +219,11 @@ export const CSP_DIRECTIVES = {
 };
 
 /** Memory thresholds (bytes) */
-const GB = 1024 * 1024 * 1024, MB = 1024 * 1024;
-const totalBudget = Number(process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? (process.env.NODE_ENV === "production" ? 3.75 * GB : 4 * GB));
+const GB = 1024 * 1024 * 1024,
+  MB = 1024 * 1024;
+const totalBudget = Number(
+  process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? (process.env.NODE_ENV === "production" ? 3.75 * GB : 4 * GB),
+);
 
 export const MEMORY_THRESHOLDS = {
   TOTAL_PROCESS_MEMORY_BUDGET_BYTES: totalBudget,
@@ -183,7 +238,9 @@ export const MEMORY_THRESHOLDS = {
 export const S3_BUCKET: string | undefined = process.env.S3_BUCKET;
 
 /** Time constants (milliseconds) */
-const MIN = 60 * 1000, HOUR = 60 * MIN, DAY = 24 * HOUR;
+const MIN = 60 * 1000,
+  HOUR = 60 * MIN,
+  DAY = 24 * HOUR;
 export const TIME_CONSTANTS = {
   ONE_HOUR_MS: HOUR,
   TWENTY_FOUR_HOURS_MS: DAY,
@@ -257,7 +314,16 @@ export const SEO_TITLE_SUFFIXES = {
 } as const;
 
 /** Common redundant prefixes to remove from titles to save space */
-export const SEO_TITLE_REDUNDANT_PREFIXES = ["GitHub - ", "GitHub", "GitLab - ", "GitLab", "npm - ", "npm", "PyPI - ", "PyPI"] as const;
+export const SEO_TITLE_REDUNDANT_PREFIXES = [
+  "GitHub - ",
+  "GitHub",
+  "GitLab - ",
+  "GitLab",
+  "npm - ",
+  "npm",
+  "PyPI - ",
+  "PyPI",
+] as const;
 
 // Migration helpers for Next.js 15 'use cache' directive - default to true
 export const USE_NEXTJS_CACHE = process.env.USE_NEXTJS_CACHE !== "false";

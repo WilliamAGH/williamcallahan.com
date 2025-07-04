@@ -6,7 +6,7 @@
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
-import { searchBookmarks, searchExperience, searchEducation, searchInvestments } from "@/lib/search";
+import { searchBookmarks, searchExperience, searchEducation, searchInvestments, searchProjects } from "@/lib/search";
 import { validateSearchQuery } from "@/lib/validators/search";
 import type { SearchResult } from "@/types/search";
 import { type SearchScope, VALID_SCOPES } from "@/types/search";
@@ -75,6 +75,9 @@ export async function GET(request: Request, { params }: { params: { scope: strin
       case "bookmarks":
         results = await searchBookmarks(query);
         break;
+      case "projects":
+        results = await searchProjects(query);
+        break;
       case "all": {
         // Search across all scopes and aggregate results
         const [blogResults, investmentResults, experienceResults, educationResults, bookmarkResults] =
@@ -108,13 +111,15 @@ export async function GET(request: Request, { params }: { params: { scope: strin
         timestamp: new Date().toISOString(),
       },
     });
-  } catch (error) {
-    console.error(`Scoped search API error for scope ${params.scope}:`, error);
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+  } catch (unknownErr) {
+    // Handle unknown errors safely without unsafe assignments/calls
+    const err = unknownErr instanceof Error ? unknownErr : new Error(String(unknownErr));
+    console.error(`Scoped search API error for scope ${params.scope}:`, err);
+
     return NextResponse.json(
       {
         error: "Failed to perform search",
-        details: errorMessage,
+        details: err.message,
         scope: params.scope,
       },
       { status: 500 },

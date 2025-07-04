@@ -49,6 +49,7 @@ export interface AllSerializedIndexes {
   investments: SerializedIndex;
   experience: SerializedIndex;
   education: SerializedIndex;
+  projects: SerializedIndex;
   bookmarks: SerializedIndex;
   buildMetadata: {
     buildTime: string;

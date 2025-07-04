@@ -17,6 +17,8 @@ import type { EducationItem, BookmarkIndexItem, SerializedIndex, AllSerializedIn
 import { investments } from "@/data/investments";
 import { experiences } from "@/data/experience";
 import { education, certifications } from "@/data/education";
+import { projects } from "@/data/projects";
+import type { Project } from "@/types/project";
 import { getAllMDXPostsForSearch } from "@/lib/blog/mdx";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { prepareDocumentsForIndexing } from "@/lib/utils/search-helpers";
@@ -177,6 +179,35 @@ function buildEducationIndex(): SerializedIndex {
 }
 
 /**
+ * Build search index for projects
+ */
+function buildProjectsIndexForBuilder(): SerializedIndex {
+  const index = new MiniSearch<Project>({
+    fields: ["name", "description", "tags"],
+    storeFields: ["name", "description", "url"],
+    idField: "name",
+    searchOptions: { boost: { name: 2 }, fuzzy: 0.2, prefix: true },
+  });
+
+  // Deduplicate by name (assumed unique) - explicitly type for index builder
+  const dedupedProjects: Project[] = prepareDocumentsForIndexing(
+    projects as Array<Project & { id?: string | number }>,
+    "Projects",
+    (p) => p.name,
+  );
+  index.addAll(dedupedProjects);
+
+  return {
+    index: index.toJSON(),
+    metadata: {
+      itemCount: dedupedProjects.length,
+      buildTime: new Date().toISOString(),
+      version: "1.0",
+    },
+  };
+}
+
+/**
  * Build search index for bookmarks
  */
 async function buildBookmarksIndex(): Promise<SerializedIndex> {
@@ -207,9 +238,7 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
     publisher: b.content?.publisher || "",
     slug: generateUniqueSlug(
       b.url || "",
-      bookmarks.filter(
-        (bm): bm is (UnifiedBookmark & { id: string; url: string }) => Boolean(bm.id) && Boolean(bm.url),
-      ),
+      bookmarks.filter((bm): bm is UnifiedBookmark & { id: string; url: string } => Boolean(bm.id) && Boolean(bm.url)),
       b.id || "",
     ),
   }));
@@ -237,6 +266,7 @@ export async function buildAllSearchIndexes(): Promise<AllSerializedIndexes> {
   const investmentsIndex = buildInvestmentsIndex();
   const experienceIndex = buildExperienceIndex();
   const educationIndex = buildEducationIndex();
+  const projectsIndex = buildProjectsIndexForBuilder();
 
   const buildMetadata = {
     buildTime: new Date().toISOString(),
@@ -249,6 +279,7 @@ export async function buildAllSearchIndexes(): Promise<AllSerializedIndexes> {
   console.log(`  - Investments: ${investmentsIndex.metadata.itemCount}`);
   console.log(`  - Experience: ${experienceIndex.metadata.itemCount}`);
   console.log(`  - Education: ${educationIndex.metadata.itemCount}`);
+  console.log(`  - Projects: ${projectsIndex.metadata.itemCount}`);
   console.log(`  - Bookmarks: ${bookmarksIndex.metadata.itemCount}`);
 
   return {
@@ -256,6 +287,7 @@ export async function buildAllSearchIndexes(): Promise<AllSerializedIndexes> {
     investments: investmentsIndex,
     experience: experienceIndex,
     education: educationIndex,
+    projects: projectsIndex,
     bookmarks: bookmarksIndex,
     buildMetadata,
   };

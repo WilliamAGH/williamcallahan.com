@@ -6,7 +6,7 @@
  */
 
 import { searchBlogPostsServerSide } from "@/lib/blog/server-search";
-import { searchBookmarks, searchEducation, searchExperience, searchInvestments } from "@/lib/search";
+import { searchBookmarks, searchEducation, searchExperience, searchInvestments, searchProjects } from "@/lib/search";
 import { validateSearchQuery } from "@/lib/validators/search";
 import { isOperationAllowed } from "@/lib/rate-limiter";
 import type { SearchResult } from "@/types/search";
@@ -150,11 +150,18 @@ export async function GET(request: Request) {
           searchExperience(query),
           searchEducation(query),
           searchBookmarks(query),
+          searchProjects(query),
         ]);
 
-        const [blogResults, investmentResults, experienceResults, educationResults, bookmarkResults] = settled.map(
-          getFulfilled,
-        ) as [SearchResult[], SearchResult[], SearchResult[], SearchResult[], SearchResult[]];
+        const [blogResults, investmentResults, experienceResults, educationResults, bookmarkResults, projectResults] =
+          settled.map(getFulfilled) as [
+            SearchResult[],
+            SearchResult[],
+            SearchResult[],
+            SearchResult[],
+            SearchResult[],
+            SearchResult[],
+          ];
 
         // Add prefixes to non-blog results for clarity in the terminal
         const prefixedInvestmentResults = investmentResults.map((r) => ({
@@ -173,6 +180,10 @@ export async function GET(request: Request) {
           ...r,
           title: `[Bookmark] ${r.title}`,
         }));
+        const prefixedProjectResults = projectResults.map((r) => ({
+          ...r,
+          title: `[Projects] ${r.title}`,
+        }));
 
         // Limit results per category to prevent memory explosion
         const MAX_RESULTS_PER_CATEGORY = 24;
@@ -185,6 +196,7 @@ export async function GET(request: Request) {
           ...prefixedExperienceResults.slice(0, MAX_RESULTS_PER_CATEGORY),
           ...prefixedEducationResults.slice(0, MAX_RESULTS_PER_CATEGORY),
           ...prefixedBookmarkResults.slice(0, MAX_RESULTS_PER_CATEGORY),
+          ...prefixedProjectResults.slice(0, MAX_RESULTS_PER_CATEGORY),
         ].slice(0, MAX_TOTAL_RESULTS);
 
         return combinedResults;
