@@ -89,12 +89,12 @@ export function InvestmentCardClient({
                       href={website}
                       title={`Visit ${name}'s website`}
                       showIcon={false}
-                      className="text-lg font-semibold hover:text-gray-600 dark:hover:text-gray-300"
+                      className="hover:text-gray-600 dark:hover:text-gray-300"
                     >
-                      {name}
+                      <h3 className="text-lg font-semibold">{name}</h3>
                     </ExternalLink>
                   ) : (
-                    <span className="text-lg font-semibold">{name}</span>
+                    <h3 className="text-lg font-semibold">{name}</h3>
                   )}
                   {website && (
                     <ExternalLink

@@ -199,6 +199,7 @@ export function InvestmentsClient({ investments = [] }: InvestmentsClientProps):
                 </ol>
               </details>
             </div>
+            <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Investment Portfolio</h2>
             <div className="space-y-6">
               {investments.map((investment) => (
                 <div key={`${investment.id}-${investment.invested_year}`}>{investment.card}</div>
