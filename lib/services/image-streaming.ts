@@ -10,6 +10,7 @@
 import { Upload, type Progress } from "@aws-sdk/lib-storage";
 import { Readable, Transform } from "node:stream";
 import type { StreamToS3Options, StreamingResult } from "@/types/s3-cdn";
+import { guessImageContentType } from "../utils/content-type";
 
 /**
  * Stream monitor transform - tracks bytes without modifying stream
@@ -152,22 +153,34 @@ export function shouldStreamImage(contentLength: string | null): boolean {
   return !Number.isNaN(bytes) && bytes > streamThreshold;
 }
 
-/**
- * Get content type from response headers with fallback
- */
-export function getContentTypeFromResponse(response: Response): string {
-  const contentType = response.headers.get("content-type");
+// NEW: thin wrapper for services that simply want a boolean return
+// indicating whether the image was streamed. This keeps UnifiedImageService
+// lean – it delegates the decision of whether to stream to this helper and
+// avoids duplicating threshold logic.
+export async function maybeStreamImageToS3(
+  response: Response,
+  options: { bucket: string; key: string; s3Client: import("@aws-sdk/client-s3").S3Client },
+): Promise<boolean> {
+  try {
+    // Only attempt if response has a body and we consider the object big
+    const contentLengthHeader = response.headers.get("content-length");
 
-  // Common image MIME types
-  if (!contentType || contentType === "application/octet-stream") {
-    const url = response.url.toLowerCase();
-    if (url.endsWith(".png")) return "image/png";
-    if (url.endsWith(".jpg") || url.endsWith(".jpeg")) return "image/jpeg";
-    if (url.endsWith(".gif")) return "image/gif";
-    if (url.endsWith(".webp")) return "image/webp";
-    if (url.endsWith(".svg")) return "image/svg+xml";
-    if (url.endsWith(".ico")) return "image/x-icon";
+    if (!shouldStreamImage(contentLengthHeader) || !response.body) {
+      return false; // Not eligible → caller should fall back to Buffer path
+    }
+
+    const contentType = guessImageContentType(response.url, response.headers.get("content-type"));
+    const { success } = await streamToS3(response.body, {
+      bucket: options.bucket,
+      key: options.key,
+      contentType,
+      s3Client: options.s3Client,
+    });
+
+    return success;
+  } catch (err) {
+    // Treat any error as non-fatal → caller will buffer instead
+    console.warn("[ImageStreaming] maybeStreamImageToS3: falling back to buffer path –", err);
+    return false;
   }
-
-  return contentType || "image/png"; // Default fallback
 }
