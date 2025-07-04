@@ -30,6 +30,16 @@ if [[ -f ".env" ]]; then
 fi
 
 : "${S3_BUCKET:?S3_BUCKET is not set}"
+
+# Safety confirmation prompt
+echo "[ACL-Fix] WARNING: This will make ALL objects in bucket '${S3_BUCKET}' publicly readable!"
+echo "[ACL-Fix] This means anyone on the internet can access these files."
+read -p "[ACL-Fix] Are you ABSOLUTELY sure? Type 'yes' to continue: " CONFIRM
+if [[ "${CONFIRM}" != "yes" ]]; then
+  echo "[ACL-Fix] Operation cancelled. Good call, safety first!"
+  exit 0
+fi
+
 # ---------------------------- Region determination ---------------------------
 # DigitalOcean Spaces and most S3-compatible vendors require requests to be
 # signed with **us-east-1**, regardless of the datacenter slug in the endpoint.
