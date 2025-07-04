@@ -1,6 +1,6 @@
 Create a new GitHub issue based on current codebase state.
 
-Repository: https://github.com/WilliamAGH/williamcallahan.com
+Repository: <https://github.com/WilliamAGH/williamcallahan.com>
 Owner: WilliamAGH
 Repo: williamcallahan.com
 
