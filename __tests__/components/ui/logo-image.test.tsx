@@ -13,15 +13,15 @@ jest.mock("next/image", () => ({
   __esModule: true,
   default: ({ src, alt, priority, layout, objectFit, fill, ...restProps }: MockImageProps) => {
     const effectiveLayout = layout ?? (fill ? "fill" : undefined);
-    const priorityAttr = priority ? { "data-priority": "true" } : {};
+    const dataPriority = restProps["data-priority"] || (priority ? "true" : "false");
     return (
       <img
         src={src}
         alt={alt}
-        data-testid="next-image-mock"
         data-layout={effectiveLayout}
         data-object-fit={objectFit}
-        {...priorityAttr}
+        data-fill={fill ? "true" : "false"}
+        data-priority={dataPriority}
         {...restProps}
       />
     );
@@ -49,32 +49,49 @@ describe("LogoImage Conditional Rendering", () => {
   describe("Regular URL Rendering (uses next/image)", () => {
     it("renders next/image mock and wrapper with correct props", () => {
       render(<LogoImage {...regularUrlProps} />);
-      // Check the next/image mock img tag
-      const img = screen.getByTestId("next-image-mock");
-      expect(img).toBeInTheDocument();
+      // Get all images and find the main one (not placeholder)
+      const images = screen.getAllByTestId("next-image-mock");
+      const mainImage = images.find(img => img.getAttribute("src") === regularUrlProps.src);
+      expect(mainImage).toBeTruthy();
+      
+      if (!mainImage) throw new Error("Main image not found");
+      
+      expect(mainImage).toBeInTheDocument();
       // Use basic attribute checks instead of toHaveAttribute
-      expect(img.getAttribute("src")).toBe(regularUrlProps.src);
-      expect(img.getAttribute("alt")).toBe("Company Logo"); // Default alt
+      expect(mainImage.getAttribute("src")).toBe(regularUrlProps.src);
+      expect(mainImage.getAttribute("alt")).toBe("Company Logo"); // Default alt
       // The mock sets data-layout and data-object-fit attributes
-      expect(img.getAttribute("data-object-fit")).toBeNull(); // attribute should be absent
-      expect(img.getAttribute("data-priority")).toBe("false");
+      expect(mainImage.getAttribute("data-object-fit")).toBeNull(); // attribute should be absent
+      expect(mainImage.getAttribute("data-priority")).toBe("false");
 
       // Ensure className is applied to img element itself (no wrapper in component)
-      expect(img.classList.contains("object-contain")).toBe(true);
+      expect(mainImage.classList.contains("object-contain")).toBe(true);
     });
 
     it("passes priority prop to next/image mock", () => {
       render(<LogoImage {...regularUrlProps} priority={true} />);
+      // Get all images and find the main one
+      const images = screen.getAllByTestId("next-image-mock");
+      const mainImage = images.find(img => img.getAttribute("src") === regularUrlProps.src);
+      expect(mainImage).toBeTruthy();
+      
+      if (!mainImage) throw new Error("Main image not found");
+      
       // Use basic attribute check
-      expect(screen.getByTestId("next-image-mock").hasAttribute("data-priority")).toBe(true);
-      expect(screen.getByTestId("next-image-mock").getAttribute("data-priority")).toBe("true");
+      expect(mainImage.hasAttribute("data-priority")).toBe(true);
+      expect(mainImage.getAttribute("data-priority")).toBe("true");
     });
 
     it("applies custom className to the component wrapper", () => {
       render(<LogoImage {...regularUrlProps} className="custom-class" />);
-      const img = screen.getByTestId("next-image-mock");
-      expect(img.classList.contains("custom-class")).toBe(true);
-      expect(img.classList.contains("object-contain")).toBe(true);
+      const images = screen.getAllByTestId("next-image-mock");
+      const mainImage = images.find(img => img.getAttribute("src") === regularUrlProps.src);
+      expect(mainImage).toBeTruthy();
+      
+      if (!mainImage) throw new Error("Main image not found");
+      
+      expect(mainImage.classList.contains("custom-class")).toBe(true);
+      expect(mainImage.classList.contains("object-contain")).toBe(true);
     });
   });
 
@@ -82,32 +99,47 @@ describe("LogoImage Conditional Rendering", () => {
     it("renders next/image for data URLs with correct props", () => {
       render(<LogoImage {...dataUrlProps} />);
       // Check if next/image was rendered for data URL
-      const nextImage = screen.getByTestId("next-image-mock");
-      expect(nextImage).toBeInTheDocument();
+      const images = screen.getAllByTestId("next-image-mock");
+      const mainImage = images.find(img => img.getAttribute("src") === dataUrlProps.src);
+      expect(mainImage).toBeTruthy();
+      
+      if (!mainImage) throw new Error("Main image not found");
+      
+      expect(mainImage).toBeInTheDocument();
 
       // Check props
-      expect(nextImage).toHaveAttribute("src", dataUrlProps.src);
-      expect(nextImage).toHaveAttribute("alt", "Company Logo"); // Default alt
-      expect(nextImage).toHaveAttribute("width", dataUrlProps.width.toString());
-      expect(nextImage).toHaveAttribute("height", dataUrlProps.height.toString());
-      expect(nextImage).toHaveAttribute("data-priority", "false");
+      expect(mainImage).toHaveAttribute("src", dataUrlProps.src);
+      expect(mainImage).toHaveAttribute("alt", "Company Logo"); // Default alt
+      expect(mainImage).toHaveAttribute("width", dataUrlProps.width.toString());
+      expect(mainImage).toHaveAttribute("height", dataUrlProps.height.toString());
+      expect(mainImage).toHaveAttribute("data-priority", "false");
       // Check classes
-      expect(nextImage).toHaveClass("object-contain");
+      expect(mainImage).toHaveClass("object-contain");
     });
 
     it("applies custom className to next/image for data URLs", () => {
       render(<LogoImage {...dataUrlProps} className="custom-img-class" />);
-      const nextImage = screen.getByTestId("next-image-mock");
+      const images = screen.getAllByTestId("next-image-mock");
+      const mainImage = images.find(img => img.getAttribute("src") === dataUrlProps.src);
+      expect(mainImage).toBeTruthy();
+      
+      if (!mainImage) throw new Error("Main image not found");
+      
       // Check classes
-      expect(nextImage).toHaveClass("object-contain");
-      expect(nextImage).toHaveClass("custom-img-class");
+      expect(mainImage).toHaveClass("object-contain");
+      expect(mainImage).toHaveClass("custom-img-class");
     });
 
     it("handles priority prop for data URLs with next/image", () => {
       render(<LogoImage {...dataUrlProps} priority={true} />);
-      const nextImage = screen.getByTestId("next-image-mock");
+      const images = screen.getAllByTestId("next-image-mock");
+      const mainImage = images.find(img => img.getAttribute("src") === dataUrlProps.src);
+      expect(mainImage).toBeTruthy();
+      
+      if (!mainImage) throw new Error("Main image not found");
+      
       // Check priority attribute is set correctly
-      expect(nextImage).toHaveAttribute("data-priority", "true");
+      expect(mainImage).toHaveAttribute("data-priority", "true");
     });
   });
 });
