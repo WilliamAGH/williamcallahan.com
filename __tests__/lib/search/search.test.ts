@@ -1,5 +1,5 @@
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
-import { searchPosts, searchInvestments, searchExperience, searchEducation } from "@/lib/search";
+import { searchPosts, searchInvestments, searchExperience, searchEducation, searchProjects } from "@/lib/search";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { validateSearchQuery } from "@/lib/validators/search";
 
@@ -83,6 +83,29 @@ jest.mock("@/data/education", () => ({
       id: "2",
       institution: "Tech Cert",
       name: "Advanced Programming",
+    },
+  ],
+}));
+
+jest.mock("@/data/projects", () => ({
+  projects: [
+    {
+      id: "Test Project 1",
+      name: "Test Project 1",
+      description: "A React-based web application",
+      shortSummary: "React web app",
+      url: "https://example.com/project1",
+      imageKey: "images/projects/project1.png",
+      tags: ["react", "typescript"],
+    },
+    {
+      id: "Test Project 2",
+      name: "Test Project 2",
+      description: "A Node.js API server",
+      shortSummary: "Node.js API",
+      url: "https://example.com/project2",
+      imageKey: "images/projects/project2.png",
+      tags: ["nodejs", "api"],
     },
   ],
 }));
@@ -334,6 +357,65 @@ describe("search", () => {
     it("should include correct path in results", async () => {
       const results = await searchEducation("Test University");
       expect(results?.[0]?.url).toBe("/education#1");
+    });
+  });
+
+  describe("searchProjects", () => {
+    it("should return all projects when query is empty", async () => {
+      const results = await searchProjects("");
+      expect(results).toHaveLength(2);
+    });
+
+    it("should find projects by name", async () => {
+      const results = await searchProjects("Test Project 1");
+      expect(results.length).toBeGreaterThanOrEqual(1);
+      expect(results.some((r) => r.title === "Test Project 1")).toBe(true);
+    });
+
+    it("should find projects by description", async () => {
+      const results = await searchProjects("React");
+      expect(results.length).toBeGreaterThanOrEqual(1);
+      expect(results.some((r) => r.title === "Test Project 1")).toBe(true);
+    });
+
+    it("should find projects by tags", async () => {
+      const results = await searchProjects("typescript");
+      expect(results.length).toBeGreaterThanOrEqual(1);
+      expect(results.some((r) => r.title === "Test Project 1")).toBe(true);
+    });
+
+    it("should handle special 'projects' query to navigate to projects page", async () => {
+      const results = await searchProjects("projects");
+      expect(results.length).toBeGreaterThanOrEqual(1);
+      // The first result should be the Projects page navigation
+      expect(results[0]?.title).toBe("Projects");
+      expect(results[0]?.url).toBe("/projects");
+      expect(results[0]?.type).toBe("page");
+    });
+
+    it("should include correct URL in results", async () => {
+      const results = await searchProjects("Test Project 1");
+      const project1Result = results.find((r) => r.title === "Test Project 1");
+      expect(project1Result?.url).toBe("https://example.com/project1");
+    });
+
+    it("should use cached results when available", async () => {
+      const cachedResults = [{ id: "cached", title: "Cached Project", url: "/cached" }];
+      (ServerCacheInstance.getSearchResults as jest.Mock).mockReturnValue({
+        results: cachedResults,
+      });
+      (ServerCacheInstance.shouldRefreshSearch as jest.Mock).mockReturnValue(false);
+
+      const results = await searchProjects("test");
+
+      expect(results).toEqual(cachedResults);
+      expect(ServerCacheInstance.setSearchResults).not.toHaveBeenCalled();
+    });
+
+    it("should cache search results", async () => {
+      await searchProjects("react");
+
+      expect(ServerCacheInstance.setSearchResults).toHaveBeenCalledWith("projects", "react", expect.any(Array));
     });
   });
 });
