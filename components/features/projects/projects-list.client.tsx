@@ -29,28 +29,31 @@ function ProjectsList() {
 
   return (
     <div className="p-6 sm:p-4">
-      <div className="prose dark:prose-invert max-w-none mb-8 text-sm sm:text-base">
-        <p>
-          Welcome to my coding lab! Here, I experiment with building things, share works-in-progress, and share my
-          current and past projects.
-        </p>
-      </div>
+      <section>
+        <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Project Showcase</h2>
+        <div className="prose dark:prose-invert max-w-none mb-8 text-sm sm:text-base">
+          <p>
+            Welcome to my coding lab! Here, I experiment with building things, share works-in-progress, and showcase my
+            current and past projects.
+          </p>
+        </div>
 
-      {/* GitHub Activity */}
-      {/* This component is still client-side and will hydrate normally */}
-      <GitHubActivity />
+        {/* GitHub Activity */}
+        {/* This component is still client-side and will hydrate normally */}
+        <GitHubActivity />
 
-      {/* Projects List */}
-      <div className="space-y-8 mt-8">
-        {projects.map((project, index) => (
-          <div
-            key={project.name}
-            data-project-tags={project.tags?.join("|||") ?? ""} // custom delimiter preserves spaces
-          >
-            <ProjectCard project={project} isPriority={index === 0} />
-          </div>
-        ))}
-      </div>
+        {/* Projects List */}
+        <div className="space-y-8 mt-8">
+          {projects.map((project, index) => (
+            <div
+              key={project.name}
+              data-project-tags={project.tags?.join("|||") ?? ""} // custom delimiter preserves spaces
+            >
+              <ProjectCard project={project} isPriority={index === 0} />
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
