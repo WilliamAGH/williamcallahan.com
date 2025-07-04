@@ -1,4 +1,6 @@
 export interface Project {
+  /** Unique identifier for the project (typically same as name) */
+  id?: string;
   name: string;
   description: string;
   shortSummary: string; // Short summary for concise display
