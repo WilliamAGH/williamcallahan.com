@@ -23,12 +23,14 @@ This guide is the **single source of truth** for code quality and covers:
 ### 📝 NEW: Zod Schema Organization (2025-07)
 
 **All Zod schemas MUST be placed in `/types/schemas/` directory**. This is enforced by ESLint rules. The pattern ensures:
+
 - Centralized validation logic
 - Consistent type generation
 - Easy discovery and reuse
 - Clear separation of concerns
 
 Example schemas:
+
 - `/types/schemas/url.ts` - URL validation with SSRF protection
 - `/types/schemas/education.ts` - Education data validation
 - `/types/schemas/experience.ts` - Experience data validation
