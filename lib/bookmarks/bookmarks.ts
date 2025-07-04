@@ -122,14 +122,23 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
     try {
       const latest = await readJsonS3<{ checksum: string; key: string }>(latestKey);
       if (latest?.checksum === rawChecksum) {
-        console.log(
-          `[refreshBookmarksData] Raw bookmark checksum unchanged (${rawChecksum}). Skipping normalization & enrichment.`,
-        );
         const cached = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
-        if (cached && cached.length > 0) {
+
+        // Only short-circuit when the *persisted* manifest length matches the
+        // newly fetched raw count.  This guards against scenarios where a
+        // previous dev-mode run wrote a truncated dataset (e.g., 20 items)
+        // even though the raw API data is unchanged and complete.
+        if (cached && cached.length === allRawBookmarks.length) {
+          console.log(
+            `[refreshBookmarksData] Raw checksum unchanged (${rawChecksum}) and manifest already contains ${cached.length} records – reuse without re-processing.`,
+          );
           return cached;
         }
-        // Fallthrough if cached missing – proceed to full flow.
+
+        console.warn(
+          `[refreshBookmarksData] Raw checksum unchanged but manifest size mismatch (cached: ${cached?.length ?? 0}, expected: ${allRawBookmarks.length}). Proceeding with normalization & enrichment to correct the dataset.`,
+        );
+        // Fallthrough – continue with full pipeline so we rewrite the correct data.
       }
     } catch (err) {
       // Non-fatal – proceed to full refresh.
@@ -141,21 +150,20 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
 
     console.log(`[refreshBookmarksData] Successfully normalized ${normalizedBookmarks.length} bookmarks.`);
 
-    // Apply test limit if set
+    // -------------------------------------------------------------------------
+    // Development-time memory safeguard
+    // -------------------------------------------------------------------------
+    // In local development we previously applied an *implicit* limit of 20
+    // bookmarks to avoid blowing up memory when enriching OpenGraph data.  That
+    // safeguard unintentionally propagated to the S3 artifacts and caused the
+    // live dataset to be truncated, which broke pagination (the UI believed
+    // only 20 bookmarks existed).  We now require **explicit** developer intent
+    // via the `S3_TEST_LIMIT` env var instead of silently capping.
     const isNonProd = process.env.NODE_ENV !== "production";
     let testLimit = 0;
-    if (isNonProd) {
-      // Honour explicit developer override first
-      if (process.env.S3_TEST_LIMIT) {
-        testLimit = Number.parseInt(process.env.S3_TEST_LIMIT, 10) || 0;
-      } else if (process.env.IS_DATA_UPDATER !== "true") {
-        // Implicit safe-guard in dev REPL / Next.js server but *not* in the dedicated
-        // data-updater process, because that process is expected to handle the full
-        // dataset.
-        testLimit = 20;
-      } else {
-        testLimit = 0;
-      }
+    if (isNonProd && process.env.S3_TEST_LIMIT) {
+      const parsed = Number.parseInt(process.env.S3_TEST_LIMIT, 10);
+      testLimit = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
     }
 
     let bookmarksToProcess = normalizedBookmarks;
