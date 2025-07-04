@@ -260,3 +260,30 @@ export async function retryWithThrow<T>(operation: () => Promise<T>, options: Re
 export async function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/**
+ * Compute exponential back-off delay with optional jitter.
+ * Extracted so callers can reuse the exact logic without duplicating it.
+ *
+ * @param attempt       1-based retry attempt (1 = first retry)
+ * @param baseDelay     Initial delay in ms (e.g. 1000)
+ * @param maxDelay      Maximum back-off cap in ms
+ * @param jitterFactor  0–1 range amount of random jitter to add (0.3 = ±30%)
+ */
+export function computeExponentialDelay(
+  attempt: number,
+  baseDelay: number,
+  maxDelay: number,
+  jitterFactor = 0,
+): number {
+  // Exponential growth – attempt 1 => baseDelay, attempt 2 => 2x, etc.
+  let delay = Math.min(baseDelay * 2 ** (attempt - 1), maxDelay);
+
+  if (jitterFactor > 0) {
+    // Jitter between -jitterFactor and +jitterFactor of the delay
+    const jitter = (Math.random() * 2 - 1) * jitterFactor;
+    delay = Math.round(delay * (1 + jitter));
+  }
+
+  return delay;
+}
