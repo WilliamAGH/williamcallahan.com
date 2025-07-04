@@ -2,9 +2,15 @@ graph TD
     subgraph "Client/Server Request"
         A["/api/logo"]
         B["/api/og-image"]
-        C["/api/cache/images"]
+        C["/api/cache/images<br/>🔴 SSRF Risk"]
         D["Investment Cards<br/>(Server Components)"]
         E["Bookmark Cards<br/>(Client Components)"]
+    end
+
+    subgraph "Security & Validation Layer"
+        SEC1["🔴 No URL Validation<br/>Private IPs allowed"]
+        SEC2["🔴 Path Traversal<br/>Unsanitized inputs"]
+        VAL1["⚠️ No Zod Schemas<br/>External APIs unvalidated"]
     end
 
     subgraph "Memory Management Layer"
@@ -12,11 +18,11 @@ graph TD
         MM2["UnifiedImageService<br/>Request Router<br/>Stream >5MB<br/>Domain Session Manager"]
         MM3["MemoryHealthMonitor<br/>Progressive Thresholds"]
         MM4["mem-guard.ts<br/>30s RSS Check"]
-        MM5["Domain Session<br/>30min duration<br/>3 retry limit"]
+        MM5["Domain Session<br/>30min duration<br/>3 retry limit<br/>⚠️ Unbounded Sets"]
     end
 
     subgraph "Image Pipeline"
-        F["Multi-Source<br/>Fetching"]
+        F["Multi-Source<br/>Fetching<br/>⚠️ Sequential"]
         G["Perceptual Hash<br/>Validation"]
         H["Processing<br/>Buffer.from()"]
         ST["Stream to S3<br/>(>5MB)"]
@@ -24,8 +30,8 @@ graph TD
     
     subgraph "Storage Tiers"
         I["ServerCache<br/>Metadata Only<br/>~1ms"]
-        J["S3 Storage<br/>~50ms"]
-        K["CDN Delivery"]
+        J["S3 Storage<br/>~50ms<br/>⚠️ Full Dir Scans"]
+        K["CDN Delivery<br/>⚠️ NEXT_PUBLIC_ misuse"]
     end
     
     subgraph "External Sources"
@@ -33,10 +39,20 @@ graph TD
         M["OpenGraph<br/>Parsing"]
     end
 
+    subgraph "Type Issues"
+        TY1["ImageResult<br/>types/image.ts"]
+        TY2["LogoResult<br/>types/logo.ts"]
+        TY3["⚠️ 80% Duplicate"]
+    end
+
+    %% Security flows
+    A --> SEC1
+    B --> SEC1
+    C --> SEC1
+    SEC1 --> MM2
+    SEC2 --> MM2
+
     %% Request flows
-    A --> MM2
-    B --> MM2
-    C --> MM2
     D --> MM2
     E --> B
 
@@ -46,6 +62,11 @@ graph TD
     MM1 -->|MISS| J
     J -->|HIT| MM1
     J -->|MISS| F
+    
+    %% Validation gaps
+    F --> VAL1
+    VAL1 --> L
+    VAL1 --> M
     
     %% Fetching pipeline
     F --> MM5
@@ -76,6 +97,10 @@ graph TD
     MM3 -->|"100% Clear Images"| MM1
     MM3 -->|"120% Emergency"| MM1 & I
 
+    %% Type duplication
+    TY1 --> TY3
+    TY2 --> TY3
+
     subgraph "Progressive Thresholds"
         T1["75% - Warning logs"]
         T2["80% - Reject large ops"]
@@ -84,15 +109,26 @@ graph TD
         T5["120% - Clear all"]
     end
 
+    subgraph "🐛 Critical Issues"
+        IS1["SSRF: No URL validation"]
+        IS2["Path Traversal: ../.."]
+        IS3["NEXT_PUBLIC_ misuse"]
+        IS4["Type duplication"]
+        IS5["Memory leaks"]
+        IS6["Sequential ops"]
+    end
+
     %% Styling
     classDef memory fill:#e3f2fd,stroke:#1976d2,stroke-width:3px
     classDef fast fill:#e8f5e9,stroke:#2e7d32
     classDef medium fill:#fff3e0,stroke:#ef6c00
     classDef slow fill:#ffebee,stroke:#c62828
-    classDef critical fill:#ffcdd2,stroke:#d32f2f
+    classDef critical fill:#ffcdd2,stroke:#d32f2f,stroke-width:4px
+    classDef warning fill:#fff8e1,stroke:#f57f17,stroke-width:3px
     
     class MM1,MM2,MM3,MM4 memory
     class I fast
     class J medium
     class L,M slow
-    class T3,T4,T5 critical
+    class T3,T4,T5,SEC1,SEC2,C critical
+    class VAL1,MM5,F,K,IS1,IS2,IS3,IS4,IS5,IS6 warning

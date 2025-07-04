@@ -64,7 +64,7 @@ describe("OG-Image API Route: 0.0.0.0 URL Fix Tests", () => {
         locationHeader = response?.headers?.get?.("Location") || null;
       } catch (error) {
         // If there's an error, check it's not related to 0.0.0.0 URL construction
-        const errorMsg = error instanceof Error ? error.message : String(error);
+        const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
 
         // The key test: ensure no 0.0.0.0 URLs are being constructed
         expect(errorMsg).not.toContain("0.0.0.0:3000");
@@ -103,7 +103,7 @@ describe("OG-Image API Route: 0.0.0.0 URL Fix Tests", () => {
           expect(locationHeader).toContain(assetId);
         }
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
+        const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
         expect(errorMsg).not.toContain("0.0.0.0");
       }
     });
@@ -137,7 +137,7 @@ describe("OG-Image API Route: 0.0.0.0 URL Fix Tests", () => {
           expect(locationHeader).not.toContain("0.0.0.0");
         }
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
+        const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
         expect(errorMsg).not.toContain("0.0.0.0");
       }
     });

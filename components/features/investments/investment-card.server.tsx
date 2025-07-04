@@ -13,14 +13,20 @@ import { normalizeDomain } from "@/lib/utils/domain-utils";
 import type { LogoData } from "../../../types/logo";
 import type { ReactElement } from "react";
 import { getLogo } from "@/lib/data-access/logos";
+import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 
 /**
  * Investment Card Server Component
  * @param {Investment} props - Investment entry properties
  * @returns {Promise<ReactElement>} Pre-rendered investment card with fetched logo
  */
-export async function InvestmentCard(props: Investment): Promise<ReactElement> {
-  const { logo, name, website, logoOnlyDomain } = props as Investment & { logoOnlyDomain?: string | null };
+export async function InvestmentCard(
+  props: Investment & { logoOnlyDomain?: string | null; isDarkTheme?: boolean },
+): Promise<ReactElement> {
+  const { logo, name, website, logoOnlyDomain, isDarkTheme } = props as Investment & {
+    logoOnlyDomain?: string | null;
+    isDarkTheme?: boolean;
+  };
 
   /**
    * Determine domain for logo lookup
@@ -44,8 +50,10 @@ export async function InvestmentCard(props: Investment): Promise<ReactElement> {
       const logoEntry = await getLogoFromManifestAsync(effectiveDomain);
 
       if (logoEntry) {
+        const selectedUrl = isDarkTheme && logoEntry.invertedCdnUrl ? logoEntry.invertedCdnUrl : logoEntry.cdnUrl;
+
         const logoData: LogoData = {
-          url: logoEntry.cdnUrl,
+          url: selectedUrl,
           source: logoEntry.originalSource,
         };
 
@@ -58,19 +66,22 @@ export async function InvestmentCard(props: Investment): Promise<ReactElement> {
       console.warn(`Manifest lookup error for ${name} (${effectiveDomain}):`, errorMessage);
     }
 
-    // Fallback: live logo fetch via UnifiedImageService
+    // 🔧 FIX: Instead of fire-and-forget background fetch, actually use the result
     try {
       const liveLogo = await getLogo(effectiveDomain);
-      const resolvedUrl = liveLogo?.cdnUrl ?? liveLogo?.url;
-      if (liveLogo && resolvedUrl) {
+
+      if (liveLogo?.cdnUrl || liveLogo?.url) {
+        console.info(
+          `[InvestmentCard] Live logo fetch succeeded for ${effectiveDomain} via ${liveLogo.source ?? "api"}`,
+        );
+
         const logoData: LogoData = {
-          url: resolvedUrl,
-          source: liveLogo.source,
+          url: liveLogo.cdnUrl || liveLogo.url || getCompanyPlaceholder(),
+          source: liveLogo.source || "api",
         };
-        console.info(`[InvestmentCard] Live logo fetched for ${effectiveDomain} via ${liveLogo.source ?? "api"}`);
+
         return <InvestmentCardClient {...props} logoData={logoData} />;
       }
-      console.warn(`[InvestmentCard] Live logo fetch returned empty for ${effectiveDomain}`);
     } catch (fetchErr) {
       const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
       console.error(`[InvestmentCard] Live logo fetch failed for ${effectiveDomain}:`, msg);
@@ -82,7 +93,7 @@ export async function InvestmentCard(props: Investment): Promise<ReactElement> {
     <InvestmentCardClient
       {...props}
       logoData={{
-        url: "/images/company-placeholder.svg",
+        url: getCompanyPlaceholder(),
         source: null,
       }}
     />

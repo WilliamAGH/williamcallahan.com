@@ -18,9 +18,10 @@ import { getLogo } from "@/lib/data-access/logos";
 import { normalizeDomain } from "@/lib/utils/domain-utils";
 import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-loader";
-import type { Experience as ExperienceType, LogoData } from "@/types";
+import type { Experience as ExperienceType, LogoData, ProcessedExperienceItem } from "@/types";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
 /**
  * Generate metadata for the experience page
@@ -44,7 +45,7 @@ export default async function ExperiencePage() {
     dateModified: formattedModified,
     type: "profile" as const,
     image: {
-      url: "/images/og/experience-og.png",
+      url: getStaticImageUrl("/images/og/experience-og.png"),
       width: 2100,
       height: 1100,
     },
@@ -59,7 +60,9 @@ export default async function ExperiencePage() {
   const jsonLdData = generateSchemaGraph(schemaParams);
 
   const experienceData = await Promise.all(
-    experiences.map(async (exp: ExperienceType) => {
+    experiences.map(async (exp: ExperienceType): Promise<ProcessedExperienceItem> => {
+      let error: string | undefined;
+
       try {
         const hasOverrideDomain = Boolean(exp.logoOnlyDomain);
 
@@ -85,6 +88,10 @@ export default async function ExperiencePage() {
 
         const logoResult = await getLogo(domain);
 
+        if (logoResult?.error) {
+          error = `Logo fetch failed: ${logoResult.error}`;
+        }
+
         const remoteOrStaticUrl =
           logoResult?.cdnUrl ?? logoResult?.url ?? (exp.logo ? exp.logo : getCompanyPlaceholder());
 
@@ -93,15 +100,17 @@ export default async function ExperiencePage() {
           source: logoResult?.source ?? (exp.logo ? "static" : null),
         };
 
-        return { ...exp, logoData: resolvedLogoData };
-      } catch (error) {
-        console.error("[ExperiencePage] Failed to resolve logo:", error);
+        return error ? { ...exp, logoData: resolvedLogoData, error } : { ...exp, logoData: resolvedLogoData };
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Unknown error";
+        console.error("[ExperiencePage] Failed to resolve logo:", err);
         return {
           ...exp,
           logoData: {
             url: getCompanyPlaceholder(),
             source: null,
           },
+          error: `Failed to process logo: ${errorMessage}`,
         };
       }
     }),

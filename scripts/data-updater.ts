@@ -8,10 +8,10 @@
  */
 
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
-import type { DataFetchConfig } from "@/types/lib";
+import type { DataFetchConfig, DataFetchOperationSummary } from "@/types/lib";
 import logger from "@/lib/utils/logger";
-import { existsSync, statSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 // Set flag to indicate this is the data updater process
@@ -21,6 +21,7 @@ const args = process.argv.slice(2);
 
 // 12-hour check for dev environment
 const LAST_RUN_SUCCESS_FILE = join(process.cwd(), ".populate-volumes-last-run-success");
+const LAST_RUN_DETAILS_FILE = join(process.cwd(), ".data-update-details.json");
 const RUN_INTERVAL_HOURS = 12;
 
 async function checkRecentRun(): Promise<boolean> {
@@ -30,7 +31,12 @@ async function checkRecentRun(): Promise<boolean> {
   }
 
   // Skip check if specific operations are requested (not the default all operations)
-  if (args.includes("--bookmarks") || args.includes("--github") || args.includes("--logos") || args.includes("--search-indexes")) {
+  if (
+    args.includes("--bookmarks") ||
+    args.includes("--github") ||
+    args.includes("--logos") ||
+    args.includes("--search-indexes")
+  ) {
     return false; // Continue with update
   }
 
@@ -39,24 +45,47 @@ async function checkRecentRun(): Promise<boolean> {
   }
 
   try {
-    const stats = statSync(LAST_RUN_SUCCESS_FILE);
-    const hoursSinceLastRun = (Date.now() - stats.mtime.getTime()) / (1000 * 60 * 60);
-    
+    // Read the actual timestamp from file content (UTC)
+    const timestampContent = await readFile(LAST_RUN_SUCCESS_FILE, "utf-8");
+    const lastRunTime = new Date(timestampContent.trim()).getTime();
+    const hoursSinceLastRun = (Date.now() - lastRunTime) / (1000 * 60 * 60);
+
     if (hoursSinceLastRun < RUN_INTERVAL_HOURS) {
-      console.log(`✅ Data updated within the last ${RUN_INTERVAL_HOURS} hours (${hoursSinceLastRun.toFixed(2)}h ago). Skipping update.`);
+      console.log(
+        `✅ Data updated within the last ${RUN_INTERVAL_HOURS} hours (${hoursSinceLastRun.toFixed(2)}h ago). Skipping update.`,
+      );
       return true; // Skip update
     }
   } catch (error) {
     logger.warn("Error checking last run timestamp:", error);
   }
-  
+
   return false; // Continue with update
 }
 
-async function updateTimestamp(): Promise<void> {
+async function updateTimestamp(results: DataFetchOperationSummary[]): Promise<void> {
   if (process.env.NODE_ENV === "development") {
     try {
+      // Always update the timestamp file to prevent repeated runs
       await writeFile(LAST_RUN_SUCCESS_FILE, new Date().toISOString());
+
+      // Also write detailed results for debugging
+      const details = {
+        lastRun: new Date().toISOString(),
+        results: results.reduce(
+          (acc, result) => {
+            acc[result.operation] = {
+              success: result.success,
+              itemsProcessed: result.itemsProcessed || 0,
+              error: result.error,
+              duration: result.duration,
+            };
+            return acc;
+          },
+          {} as Record<string, unknown>,
+        ),
+      };
+      await writeFile(LAST_RUN_DETAILS_FILE, JSON.stringify(details, null, 2));
     } catch (error) {
       logger.warn("Error updating timestamp:", error);
     }
@@ -87,6 +116,15 @@ Environment Variables:
 
 logger.info(`[DataFetchManager] CLI execution started. Args: ${args.join(" ")}`);
 
+// Safety check: Prevent S3 writes during build phase
+if (process.env.NEXT_PHASE === "phase-production-build" && !args.includes("--allow-build-writes")) {
+  console.warn("⚠️  WARNING: data-updater called during Next.js build phase");
+  console.warn("⚠️  S3 writes during build are now disabled to prevent build-time mutations");
+  console.warn("⚠️  Data updates should happen via runtime scheduler or manual execution");
+  console.warn("⚠️  Use --allow-build-writes flag to force (not recommended)");
+  process.exit(0);
+}
+
 // Handle dry-run mode
 if (process.env.DRY_RUN === "true") {
   console.log("DRY RUN mode - skipping all update processes");
@@ -105,10 +143,11 @@ const manager = new DataFetchManager();
 const config: DataFetchConfig = {};
 
 // Check if any specific operations were requested
-const hasSpecificOperation = args.includes("--bookmarks") || 
-                           args.includes("--logos") || 
-                           args.includes("--github") || 
-                           args.includes("--search-indexes");
+const hasSpecificOperation =
+  args.includes("--bookmarks") ||
+  args.includes("--logos") ||
+  args.includes("--github") ||
+  args.includes("--search-indexes");
 
 // If no specific operations, run all
 if (!hasSpecificOperation) {
@@ -162,22 +201,25 @@ if (testLimitArg) {
   // Execute data fetch
   try {
     const results = await manager.fetchData(config);
-    
+
     logger.info("[DataUpdaterCLI] All tasks complete.");
-    
-    let hasSuccess = false;
+
     results.forEach((result) => {
       if (result.success) {
         logger.info(`  - ${result.operation}: Success (${result.itemsProcessed} items)`);
-        hasSuccess = true;
       } else {
         logger.error(`  - ${result.operation}: Failed (${result.error})`);
       }
     });
 
-    // Update timestamp if any operation succeeded
-    if (hasSuccess) {
-      await updateTimestamp();
+    // Always update timestamp to prevent rate limit spiral
+    // Even if operations fail, we don't want to retry immediately
+    await updateTimestamp(results);
+
+    // Log warning if GitHub failed due to rate limiting
+    const githubResult = results.find((r) => r.operation === "github-activity");
+    if (githubResult && !githubResult.success && githubResult.error?.includes("rate")) {
+      logger.warn("[DataUpdaterCLI] GitHub activity failed due to rate limiting. Will retry after cooldown period.");
     }
 
     // Explicitly exit to prevent hanging due to active timers/intervals

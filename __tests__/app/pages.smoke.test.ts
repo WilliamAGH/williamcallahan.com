@@ -6,7 +6,7 @@ import type { PageComponentModule } from "@/types/test";
 // The import is correct - we're importing the component, not using it as a type
 
 const staticPageRoutes = [
-  { name: "Contact", path: "@/app/contact/page" },
+  { name: "Contact", path: "@/app/contact/page", needsProvider: true },
   { name: "Education", path: "@/app/education/page", skipRender: true }, // Has server-only imports
   { name: "Experience", path: "@/app/experience/page", skipRender: true, needsProvider: true }, // Needs provider
   { name: "Investments", path: "@/app/investments/page", skipRender: true }, // Uses async components

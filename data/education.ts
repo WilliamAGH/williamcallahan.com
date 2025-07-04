@@ -6,13 +6,13 @@
 export const updatedAt = "2025-06-28";
 
 import type { Certification, Class, Education } from "@/types/education";
+import { validateClassArray, validateEducationArray, validateCertificationArray } from "@/types/education";
 
-export const recentCourses: Class[] = [
+const recentCoursesData: Class[] = [
   {
     id: "uc-berkeley-data-structures",
     institution: "University of California Berkeley",
     name: "Data Abstractions & Structures",
-    logo: "/images/uc_berkeley_logo.png",
     website: "https://www.berkeley.edu",
     location: "Berkeley, California",
     year: 2025,
@@ -21,7 +21,6 @@ export const recentCourses: Class[] = [
     id: "san-mateo-object-oriented-java",
     institution: "College of San Mateo",
     name: "Object-Oriented Programming - Java",
-    logo: "/images/college_of_san_mateo_logo.png",
     website: "https://collegeofsanmateo.edu",
     location: "San Mateo, California",
     year: 2025,
@@ -30,7 +29,6 @@ export const recentCourses: Class[] = [
     id: "san-mateo-college-python",
     institution: "College of San Mateo",
     name: "Python Programming",
-    logo: "/images/college_of_san_mateo_logo.png",
     website: "https://collegeofsanmateo.edu",
     location: "San Mateo, California",
     year: 2025,
@@ -39,7 +37,6 @@ export const recentCourses: Class[] = [
     id: "san-mateo-college-unix-linux",
     institution: "College of San Mateo",
     name: "Unix & Linux Systems",
-    logo: "/images/college_of_san_mateo_logo.png",
     website: "https://collegeofsanmateo.edu",
     location: "San Mateo, California",
     year: 2025,
@@ -48,7 +45,6 @@ export const recentCourses: Class[] = [
     id: "berkeley-front-end-development",
     institution: "University of California Berkeley",
     name: "Front-End Web Development",
-    logo: "/images/uc_berkeley_logo.png",
     website: "https://www.berkeley.edu",
     location: "Berkeley, California",
     year: 2025,
@@ -79,7 +75,9 @@ export const recentCourses: Class[] = [
   },
 ];
 
-export const education: Education[] = [
+export const recentCourses: Class[] = validateClassArray(recentCoursesData);
+
+const educationData: Education[] = [
   {
     id: "creighton-mimfa",
     institution: "Creighton University",
@@ -108,7 +106,9 @@ export const education: Education[] = [
   },
 ];
 
-export const certifications: Certification[] = [
+export const education: Education[] = validateEducationArray(educationData);
+
+const certificationsData: Certification[] = [
   {
     id: "columbia-vc",
     institution: "Columbia Business School",
@@ -121,7 +121,6 @@ export const certifications: Certification[] = [
     id: "berkeley-vc",
     institution: "University of California Berkeley",
     name: "Certification in Startup Law & Venture Capital Investing",
-    logo: "/images/uc_berkeley_logo.png",
     year: 2022,
     website: "https://www.berkeley.edu",
     location: "Berkeley, California",
@@ -130,7 +129,6 @@ export const certifications: Certification[] = [
     id: "cfa",
     institution: "CFA Institute",
     name: "Chartered Financial Analyst (CFA) Charterholder",
-    logo: "/images/cfa_institute_logo.png",
     year: 2016,
     website: "https://www.cfainstitute.org",
     location: "Charlottesville, Virginia",
@@ -144,3 +142,5 @@ export const certifications: Certification[] = [
     location: "Washington, District of Columbia",
   },
 ];
+
+export const certifications: Certification[] = validateCertificationArray(certificationsData);

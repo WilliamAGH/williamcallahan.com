@@ -10,6 +10,8 @@ import { HeadObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, writeBinaryS3 } from "@/lib/s3-utils";
 import { getExtensionFromContentType, IMAGE_EXTENSIONS } from "@/lib/utils/content-type";
 import { IMAGE_S3_PATHS } from "@/lib/constants";
+import { assetIdSchema } from "@/types/schemas/url";
+import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 
 /**
  * Extracts the base URL from a bookmarks API URL more robustly
@@ -92,6 +94,7 @@ async function streamFromS3(key: string, contentType: string): Promise<NextRespo
     headers: {
       "Content-Type": contentType,
       "Cache-Control": "public, max-age=31536000, immutable", // Cache for 1 year
+      ...IMAGE_SECURITY_HEADERS,
     },
   });
 }
@@ -127,6 +130,16 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   if (!assetId) {
     return NextResponse.json({ error: "Asset ID is required" }, { status: 400 });
+  }
+
+  // Validate asset ID to prevent path traversal
+  const assetIdValidation = assetIdSchema.safeParse(assetId);
+  if (!assetIdValidation.success) {
+    console.error(`[Assets API] Invalid asset ID format: ${assetId}`);
+    return NextResponse.json(
+      { error: "Invalid asset ID format", details: assetIdValidation.error.errors[0]?.message },
+      { status: 400 }
+    );
   }
 
   try {
@@ -245,7 +258,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
             if (done) break;
             if (value) chunks.push(value);
           } catch (error) {
-            // Ensure the reader is promptly cancelled to free resources
+            // Ensure the reader is promptly canceled to free resources
             if (typeof reader.cancel === "function") {
               await reader.cancel();
             }
@@ -270,6 +283,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
           headers: {
             "Content-Type": contentType,
             "Cache-Control": "public, max-age=31536000, immutable", // Cache for 1 year
+            ...IMAGE_SECURITY_HEADERS,
           },
         });
       } catch (error) {
@@ -289,6 +303,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         headers: {
           "Content-Type": contentType,
           "Cache-Control": "public, max-age=31536000, immutable", // Cache for 1 year
+          ...IMAGE_SECURITY_HEADERS,
         },
       });
     }

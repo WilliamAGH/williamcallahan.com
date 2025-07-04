@@ -174,30 +174,68 @@ function detectGlobePattern(buffer: Buffer, patterns: {
   return (likelyBlue || goodCompression) && typicalGlobeSizes;
 }
 
-/** No-op inversion – returns original buffer. */
+/** 
+ * Logo inversion is intentionally not implemented at the buffer level.
+ * Instead, we rely on CSS filters for theme-based inversion which is:
+ * 1. More performant (browser-optimized)
+ * 2. Preserves image quality 
+ * 3. Works consistently across all formats
+ * 4. Allows user preference overrides
+ * 
+ * Use the `needsInversion` flag to apply CSS filter: invert(1) in dark mode
+ */
 export async function invertLogo(buffer: Buffer): Promise<Buffer> {
+  // Intentionally return original buffer
+  // Actual inversion should be done via CSS filters
   await Promise.resolve();
   return buffer;
 }
 
 export async function doesLogoNeedInversion(buffer: Buffer, isDarkTheme: boolean): Promise<boolean> {
-  await Promise.resolve();
-  void buffer; // Mark as used
-  void isDarkTheme; // Mark as used
-  return false;
+  try {
+    const analysis = await analyzeLogo(buffer);
+    
+    // In dark theme, invert logos that are predominantly dark
+    if (isDarkTheme) {
+      // If average brightness is low (dark logo), it needs inversion
+      return analysis.averageBrightness < 100;
+    } else {
+      // In light theme, invert logos that are predominantly light
+      // This is less common but handles white logos on transparent backgrounds
+      return analysis.averageBrightness > 200;
+    }
+  } catch (error) {
+    console.error('[doesLogoNeedInversion] Analysis failed:', error);
+    // Default to inverting in dark theme for safety
+    return isDarkTheme;
+  }
 }
 
 /** Legacy alias used elsewhere in the code-base. */
 export async function analyzeImage(buffer: Buffer): Promise<LogoInversion> {
-  const meta = await extractBasicImageMeta(buffer);
-  return {
-    brightness: 0.5,
-    needsDarkInversion: false,
-    needsLightInversion: false,
-    hasTransparency: false,
-    format: meta.format ?? "unknown",
-    dimensions: { width: meta.width ?? 0, height: meta.height ?? 0 },
-  };
+  try {
+    const analysis = await analyzeLogo(buffer);
+    
+    return {
+      brightness: analysis.averageBrightness / 255, // Normalize to 0-1
+      needsDarkInversion: analysis.averageBrightness < 100, // Dark logos need inversion in dark theme
+      needsLightInversion: analysis.averageBrightness > 200, // Light logos need inversion in light theme
+      hasTransparency: analysis.hasTransparency,
+      format: analysis.format,
+      dimensions: analysis.dimensions,
+    };
+  } catch (error) {
+    console.error('[analyzeImage] Failed to analyze:', error);
+    const meta = await extractBasicImageMeta(buffer);
+    return {
+      brightness: 0.5,
+      needsDarkInversion: true, // Default to inverting in dark theme
+      needsLightInversion: false,
+      hasTransparency: meta.format === "png",
+      format: meta.format ?? "unknown",
+      dimensions: { width: meta.width ?? 0, height: meta.height ?? 0 },
+    };
+  }
 }
 
 export const invertImage = invertLogo;

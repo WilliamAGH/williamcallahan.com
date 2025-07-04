@@ -30,11 +30,13 @@ STEP 1: Show git status to see all changes.
 STEP 2: Determine what to stage based on current state and user input:
 
 **Decision tree:**
+
 1. **Files already staged?** → Skip to STEP 3 to review them
 2. **No files staged + specific files in $ARGUMENTS?** → Stage only those specific files
 3. **No files staged + no files in $ARGUMENTS?** → This means user wants to commit ALL changes
 
 **🚨 CRITICAL for scenario #3:**
+
 - NEVER automatically run `git add .`
 - MUST explicitly ask: "No files are staged and you didn't specify any files. Do you want to commit ALL [number] modified files? Please confirm with 'yes' or specify which files."
 - ONLY proceed with `git add .` after receiving explicit "yes" confirmation

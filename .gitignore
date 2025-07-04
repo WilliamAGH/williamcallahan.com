@@ -47,3 +47,6 @@ tsconfig.tsbuildinfo
 .populate-volumes-last-run-success
 
 .early.coverage
+
+# Data update details file
+.data-update-details.json

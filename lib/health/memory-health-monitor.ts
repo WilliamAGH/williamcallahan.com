@@ -10,7 +10,7 @@
 
 import { EventEmitter } from "node:events";
 import { ServerCacheInstance } from "@/lib/server-cache";
-import { MEMORY_THRESHOLDS } from "@/lib/constants"
+import { MEMORY_THRESHOLDS } from "@/lib/constants";
 import {
   type HealthCheckResult,
   type MemoryStatus,
@@ -228,27 +228,26 @@ export class MemoryHealthMonitor extends EventEmitter {
    */
   getAllocatorDiagnostics(): Record<string, unknown> {
     const usage = process.memoryUsage();
-    
+
     // Calculate memory fragmentation
-    const heapFragmentation = usage.heapTotal > 0 ? 
-      ((usage.heapTotal - usage.heapUsed) / usage.heapTotal) * 100 : 0;
-    
+    const heapFragmentation = usage.heapTotal > 0 ? ((usage.heapTotal - usage.heapUsed) / usage.heapTotal) * 100 : 0;
+
     // External memory ratio (buffers, C++ objects)
     const externalRatio = usage.rss > 0 ? (usage.external / usage.rss) * 100 : 0;
-    
+
     // V8 heap statistics if available
     let v8HeapStats: Record<string, unknown> = {};
     try {
       // Check if garbage collection is exposed (requires --expose-gc flag)
       const globalWithGc = global as { gc?: () => void };
-      if (typeof globalWithGc.gc === 'function') {
+      if (typeof globalWithGc.gc === "function") {
         // Force GC if exposed
         globalWithGc.gc();
       }
-      
+
       // Get V8 heap statistics using dynamic import to avoid require
       // This is a runtime check for V8 API availability
-      if (typeof process !== 'undefined' && process.versions && process.versions.v8) {
+      if (typeof process !== "undefined" && process.versions && process.versions.v8) {
         try {
           // Use process.memoryUsage.rss() for basic V8 metrics
           const memoryUsage = process.memoryUsage();
@@ -259,8 +258,7 @@ export class MemoryHealthMonitor extends EventEmitter {
             external: memoryUsage.external,
             arrayBuffers: memoryUsage.arrayBuffers,
             // Calculate derived metrics
-            heapUtilization: memoryUsage.heapTotal > 0 ? 
-              (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100 : 0,
+            heapUtilization: memoryUsage.heapTotal > 0 ? (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100 : 0,
             // V8 version info
             v8Version: process.versions.v8,
           };
@@ -271,7 +269,7 @@ export class MemoryHealthMonitor extends EventEmitter {
     } catch {
       // V8 statistics not available
     }
-    
+
     return {
       process: {
         pid: process.pid,
@@ -290,8 +288,8 @@ export class MemoryHealthMonitor extends EventEmitter {
       allocator: {
         // Memory pressure indicators
         isUnderPressure: usage.rss > this.warningThreshold,
-        pressureLevel: usage.rss > this.criticalThreshold ? 'critical' : 
-                      usage.rss > this.warningThreshold ? 'warning' : 'normal',
+        pressureLevel:
+          usage.rss > this.criticalThreshold ? "critical" : usage.rss > this.warningThreshold ? "warning" : "normal",
         // Memory growth rate (if history available)
         growthRate: this.calculateMemoryGrowthRate(),
       },
@@ -299,8 +297,8 @@ export class MemoryHealthMonitor extends EventEmitter {
         budget: this.memoryBudget,
         warningThreshold: this.warningThreshold,
         criticalThreshold: this.criticalThreshold,
-        warningPercentage: `${(this.warningThreshold / this.memoryBudget * 100).toFixed(0)}%`,
-        criticalPercentage: `${(this.criticalThreshold / this.memoryBudget * 100).toFixed(0)}%`,
+        warningPercentage: `${((this.warningThreshold / this.memoryBudget) * 100).toFixed(0)}%`,
+        criticalPercentage: `${((this.criticalThreshold / this.memoryBudget) * 100).toFixed(0)}%`,
       },
     };
   }
@@ -310,28 +308,28 @@ export class MemoryHealthMonitor extends EventEmitter {
    */
   private calculateMemoryGrowthRate(): string {
     if (this.metricsHistory.length < 2) {
-      return 'N/A';
+      return "N/A";
     }
-    
+
     const oldestMetric = this.metricsHistory[0];
     const newestMetric = this.metricsHistory[this.metricsHistory.length - 1];
-    
+
     if (!oldestMetric || !newestMetric) {
-      return 'N/A';
+      return "N/A";
     }
-    
+
     const timeDiffMs = newestMetric.timestamp - oldestMetric.timestamp;
     const memDiffBytes = newestMetric.rss - oldestMetric.rss;
-    
+
     if (timeDiffMs === 0) {
-      return 'N/A';
+      return "N/A";
     }
-    
+
     // Calculate bytes per second
     const bytesPerSecond = memDiffBytes / (timeDiffMs / 1000);
     const mbPerMinute = (bytesPerSecond * 60) / (1024 * 1024);
-    
-    return `${mbPerMinute >= 0 ? '+' : ''}${mbPerMinute.toFixed(2)} MB/min`;
+
+    return `${mbPerMinute >= 0 ? "+" : ""}${mbPerMinute.toFixed(2)} MB/min`;
   }
 
   /**
@@ -373,10 +371,10 @@ export class MemoryHealthMonitor extends EventEmitter {
       if (process.env.NODE_ENV !== "test" || process.env.ALLOW_MEMORY_TEST_LOGS === "true") {
         console.warn("[MemoryHealthMonitor] Emergency cleanup: disabling cache operations");
       }
-      
+
       // Note: We're NOT clearing caches aggressively anymore
       // The system should continue to function without caches
-      
+
       // Simulate asynchronous cleanup step to satisfy linter (and preserve API)
       await Promise.resolve();
     } catch (err) {
@@ -431,4 +429,19 @@ export function memoryPressureMiddleware(
     error: "Service temporarily unavailable due to memory pressure",
     status: monitor.getCurrentStatus(),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Shared helper: securely wipe (zero-fill) a Buffer to aid GC and prevent
+// accidental retention of sensitive data.  Preferred over ad-hoc buffer.fill
+// calls scattered across services.
+// ---------------------------------------------------------------------------
+
+export function wipeBuffer(buf: Buffer | null | undefined): void {
+  if (!buf || !Buffer.isBuffer(buf) || buf.length === 0) return;
+  try {
+    buf.fill(0);
+  } catch {
+    /* ignore – non-critical */
+  }
 }

@@ -245,8 +245,8 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
   const ogImagePath = SEO_IMAGES[ogImageKey] || SEO_IMAGES.ogDefault;
 
   // Track image dimensions separately so we can override per-page when needed
-  let ogWidth: number = siteMetadata.defaultImage.width;
-  let ogHeight: number = siteMetadata.defaultImage.height;
+  let ogWidth: number = siteMetadata.defaultImage.width ?? 1200;
+  let ogHeight: number = siteMetadata.defaultImage.height ?? 630;
 
   // Type assertion is safe here because LOCAL_OG_ASSETS keys are the compile-time
   // image paths defined in data/metadata.ts. If the path exists, we can rely on
@@ -330,22 +330,33 @@ export function getStaticPageMetadata(path: string, pageKey: keyof typeof PAGE_M
       username: siteMetadata.social.twitter.replace("@", ""),
     };
   } else if (isCollectionPage) {
-    openGraph = {
-      title: pageMetadata.title,
-      description: pageMetadata.description,
-      url: ensureAbsoluteUrl(path),
-      images: [socialImage],
-      siteName: SITE_NAME,
-      locale: "en_US",
-      type: "article",
-      article: {
-        publishedTime: formattedCreated,
-        modifiedTime: formattedModified,
-        section: pageMetadata.title,
-        tags: [],
-        authors: [siteMetadata.author],
-      },
-    };
+    if (pageKey === "blog") {
+      // Treat the main blog index as an article so platforms generate rich previews.
+      openGraph = {
+        title: pageMetadata.title,
+        description: pageMetadata.description,
+        url: ensureAbsoluteUrl(path),
+        images: [socialImage],
+        siteName: SITE_NAME,
+        locale: "en_US",
+        type: "article",
+        article: {
+          publishedTime: formattedCreated,
+          modifiedTime: formattedModified,
+        },
+      } as ExtendedOpenGraph;
+    } else {
+      // Default: use "website" for other collection/listing pages.
+      openGraph = {
+        title: pageMetadata.title,
+        description: pageMetadata.description,
+        url: ensureAbsoluteUrl(path),
+        images: [socialImage],
+        siteName: SITE_NAME,
+        locale: "en_US",
+        type: "website",
+      };
+    }
   } else {
     openGraph = {
       title: pageMetadata.title,

@@ -77,7 +77,12 @@ const config: Config = {
 
   // Transform configuration for ESM
   transform: {
-    "^.+\\.(ts|tsx)$": "ts-jest",
+    "^.+\\.(ts|tsx)$": [
+      "ts-jest",
+      {
+        tsconfig: "<rootDir>/__tests__/tsconfig.json",
+      },
+    ],
   },
   transformIgnorePatterns: ["/node_modules/", "\\.pnpm/."],
 

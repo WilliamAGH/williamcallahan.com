@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/jest-globals";
+
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { navigationLinks } from "@/components/ui/navigation/navigation-links";
 import { Navigation } from "@/components/ui/navigation/navigation.client";
@@ -158,14 +159,18 @@ describe("Navigation", () => {
       const nav = screen.getByRole("navigation");
 
       // Check desktop view
-      const desktopView = nav.querySelector(".sm\\:flex");
-      expect(desktopView).toBeInTheDocument();
-      expect(within(desktopView as HTMLElement).queryByTestId("window-controls")).not.toBeInTheDocument();
+      const desktopView = nav.querySelector<HTMLElement>(".sm\\:flex");
+      expect(desktopView).not.toBeNull();
+      if (desktopView) {
+        expect(within(desktopView).queryByTestId("window-controls")).not.toBeInTheDocument();
+      }
 
       // Check mobile view
-      const mobileView = nav.querySelector(".sm\\:hidden");
-      expect(mobileView).toBeInTheDocument();
-      expect(within(mobileView as HTMLElement).queryByTestId("window-controls")).not.toBeInTheDocument();
+      const mobileView = nav.querySelector<HTMLElement>(".sm\\:hidden");
+      expect(mobileView).not.toBeNull();
+      if (mobileView) {
+        expect(within(mobileView).queryByTestId("window-controls")).not.toBeInTheDocument();
+      }
     });
   });
 
@@ -202,7 +207,7 @@ describe("Navigation", () => {
       fireEvent.click(screen.getByRole("button", { name: "Toggle menu" }));
 
       // Menu should be visible
-      const mobileMenu = nav.querySelector('[data-testid="mobile-menu"]') as HTMLElement;
+      const mobileMenu = screen.getByTestId("mobile-menu");
       expect(mobileMenu).toBeInTheDocument();
 
       // Check all links are present
@@ -225,7 +230,10 @@ describe("Navigation", () => {
       fireEvent.click(screen.getByRole("button", { name: "Toggle menu" }));
 
       // Get mobile menu and click a link
-      const mobileMenu = nav.querySelector('[data-testid="mobile-menu"]') as HTMLElement;
+      const mobileMenu = nav.querySelector<HTMLElement>('[data-testid="mobile-menu"]');
+      // mobileMenu is guaranteed by getByTestId
+
+      if (!mobileMenu) return;
       const blogLink = within(mobileMenu).getByRole("link", { name: "Blog" });
       fireEvent.click(blogLink);
 

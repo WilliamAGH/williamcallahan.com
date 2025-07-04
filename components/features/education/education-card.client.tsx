@@ -18,7 +18,7 @@
 
 "use client";
 
-import { ExternalLink as ExternalLinkIcon } from "lucide-react";
+import { ExternalLink as ExternalLinkIcon, AlertCircle } from "lucide-react";
 
 import { LogoImage } from "@/components/ui/logo-image.client";
 import { cn } from "@/lib/utils";
@@ -36,6 +36,7 @@ import type { EducationCardClientProps } from "@/types/education";
  */
 export function EducationCardClient({ education, className }: EducationCardClientProps): JSX.Element {
   const { degree, institution, year, website, location, logoScale, logoData } = education;
+  const error: string | undefined = "error" in education ? (education as { error?: string }).error : undefined;
 
   const logoSrc = logoData?.url;
 
@@ -57,7 +58,7 @@ export function EducationCardClient({ education, className }: EducationCardClien
               className="block w-full h-full"
             >
               <span
-                className="block w-full h-full"
+                className="block w-full h-full relative"
                 style={{ transform: logoScale ? `scale(${logoScale})` : undefined }}
               >
                 <LogoImage
@@ -67,6 +68,14 @@ export function EducationCardClient({ education, className }: EducationCardClien
                   className="object-contain w-full h-full"
                   alt={institution}
                 />
+                {error && (
+                  <div
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 dark:bg-yellow-600 rounded-full flex items-center justify-center"
+                    title={error}
+                  >
+                    <AlertCircle className="w-3 h-3 text-white" />
+                  </div>
+                )}
               </span>
             </ExternalLink>
           </div>

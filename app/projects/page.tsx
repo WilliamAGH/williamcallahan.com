@@ -12,7 +12,9 @@ import { getStaticPageMetadata } from "@/lib/seo";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
-import { formatSeoDate } from "@/lib/seo/utils";
+import { formatSeoDate, ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { projects } from "@/data/projects";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
  * Enable ISR for projects page with hourly revalidation
@@ -38,7 +40,7 @@ export default function ProjectsPage() {
     dateModified: formattedModified,
     type: "collection" as const,
     image: {
-      url: "/images/og/projects-og.png",
+      url: getStaticImageUrl("/images/og/projects-og.png"),
       width: 2100,
       height: 1100,
     },
@@ -46,9 +48,27 @@ export default function ProjectsPage() {
       { path: "/", name: "Home" },
       { path: "/projects", name: "Projects" },
     ],
+    itemList: projects.map((project, index) => ({
+      url: ensureAbsoluteUrl(project.url),
+      position: index + 1,
+    })),
   };
 
   const jsonLdData = generateSchemaGraph(schemaParams);
+
+  projects.forEach((project) => {
+    jsonLdData["@graph"].push({
+      "@type": "SoftwareApplication",
+      "@id": `${ensureAbsoluteUrl(project.url)}#software`,
+      name: project.name,
+      description: project.shortSummary || project.description,
+      publisher: { "@id": ensureAbsoluteUrl("/#person") },
+      author: { "@id": ensureAbsoluteUrl("/#person") },
+      ...(project.imageKey && {
+        screenshot: ensureAbsoluteUrl(`/${project.imageKey.replace(/^\/+/, "")}`),
+      }),
+    });
+  });
 
   return (
     <>

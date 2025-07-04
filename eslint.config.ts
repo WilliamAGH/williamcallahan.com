@@ -318,7 +318,7 @@ const config = tseslint.config(
         ...globals.jest,
       },
       parserOptions: {
-        project: ["./__tests__/tsconfig.jest.json"],
+        project: ["./__tests__/tsconfig.json"],
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -426,6 +426,127 @@ const config = tseslint.config(
     },
     rules: {
       "project/no-duplicate-types": "error",
+    },
+  },
+
+  // --------------------------------------------------
+  // Prevent hardcoded /images/ paths - enforce S3/CDN usage
+  // --------------------------------------------------
+  {
+    files: ["**/*.{ts,tsx,js,jsx}"],
+    ignores: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "scripts/**/*", "config/**/*"],
+    plugins: {
+      s3: {
+        rules: {
+          "no-hardcoded-images": {
+            meta: {
+              type: "problem",
+              docs: {
+                description: "Disallow hardcoded /images/ paths - use getStaticImageUrl() for S3/CDN delivery",
+              },
+              fixable: "code",
+              schema: [],
+            },
+            create(context: any) {
+              // Import the static mapping at the top of the file
+              let staticMapping: Record<string, string> | null = null;
+              try {
+                // Use require to load the JSON file synchronously
+                staticMapping = require("./lib/data-access/static-image-mapping.json");
+              } catch {
+                // If we can't load the mapping, we'll still report errors but can't check if images exist
+              }
+
+              /**
+               * Walk up the AST from the current node to see if it appears
+               * anywhere inside a getStaticImageUrl(...) call.
+               */
+              function isInsideGetStaticImageUrl(node: any): boolean {
+                let current = node.parent;
+                while (current) {
+                  if (current.type === "CallExpression") {
+                    const { callee } = current;
+                    if (
+                      (callee.type === "Identifier" && callee.name === "getStaticImageUrl") ||
+                      // Handle potential namespace import (e.g. utils.getStaticImageUrl)
+                      (callee.type === "MemberExpression" &&
+                        callee.property.type === "Identifier" &&
+                        callee.property.name === "getStaticImageUrl")
+                    ) {
+                      return true;
+                    }
+                  }
+                  current = current.parent;
+                }
+                return false;
+              }
+
+              /**
+               * Check if the file already imports getStaticImageUrl
+               */
+              function hasGetStaticImageUrlImport(): boolean {
+                const sourceCode = context.getSourceCode();
+                const program = sourceCode.ast;
+
+                for (const node of program.body) {
+                  if (node.type === "ImportDeclaration") {
+                    if (node.source.value === "@/lib/data-access/static-images") {
+                      for (const specifier of node.specifiers) {
+                        if (specifier.type === "ImportSpecifier" && specifier.imported.name === "getStaticImageUrl") {
+                          return true;
+                        }
+                      }
+                    }
+                  }
+                }
+                return false;
+              }
+
+              return {
+                Literal(node: any) {
+                  if (
+                    typeof node.value === "string" &&
+                    node.value.match(/^\/images\//) &&
+                    !context.getFilename().includes("static-image-mapping.json") &&
+                    !context.getFilename().includes("static-images.ts") &&
+                    !context.getFilename().includes("placeholder-images.ts") &&
+                    !context.getFilename().includes("url-utils.ts") &&
+                    !context.getFilename().includes("og-image/route.ts") &&
+                    !context.getFilename().includes("migrate-static-images-to-s3.ts") &&
+                    !context.getFilename().includes("check-new-images.ts")
+                  ) {
+                    // Skip if the string literal ultimately lives inside a getStaticImageUrl(...) call
+                    if (isInsideGetStaticImageUrl(node)) {
+                      return;
+                    }
+
+                    const imagePath = node.value;
+                    const isInS3 = staticMapping?.[imagePath];
+                    const hasImport = hasGetStaticImageUrlImport();
+
+                    context.report({
+                      node,
+                      message: isInS3
+                        ? `Hardcoded image path "${imagePath}" detected. Use getStaticImageUrl("${imagePath}") to ensure S3/CDN delivery.`
+                        : `New image "${imagePath}" is not in S3. Run 'bun run migrate-static-images:upload' to migrate it, then use getStaticImageUrl("${imagePath}").`,
+                      fix:
+                        isInS3 && hasImport
+                          ? function (fixer: any) {
+                              // Simple fix: wrap the string in getStaticImageUrl()
+                              return fixer.replaceText(node, `getStaticImageUrl(${node.raw})`);
+                            }
+                          : null,
+                    });
+                  }
+                },
+              };
+            },
+          },
+        },
+      },
+    },
+    rules: {
+      "s3/no-hardcoded-images": "error", // Changed from "warn" to "error" to fail builds
     },
   },
 );

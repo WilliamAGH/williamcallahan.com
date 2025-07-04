@@ -14,6 +14,7 @@ import { extractBasicImageMeta } from "./image-metadata";
 /**
  * Processes an image buffer to determine format and preserve animated images.
  * This is the shared implementation used across the codebase.
+ * For SVGs, automatically applies transform attribute fixes.
  *
  * @param buffer - Raw image buffer to process
  * @param logContext - Context string for logging (e.g., "UnifiedImageService", "OpenGraph")
@@ -27,8 +28,11 @@ export async function processImageBuffer(buffer: Buffer, logContext = "ImageProc
   const bufferString = buffer.toString("utf-8", 0, Math.min(1024, buffer.length)).trim();
   if (bufferString.startsWith("<svg") && bufferString.includes("</svg>")) {
     if (isDebug) console.log(`[${logContext}] Detected SVG by string content.`);
+
+    // Process SVG with transform fixes
+    const processedSvg = await processSvgWithTransformFixes(buffer, logContext);
     return {
-      processedBuffer: buffer,
+      processedBuffer: processedSvg,
       isSvg: true,
       contentType: "image/svg+xml",
     };
@@ -41,7 +45,10 @@ export async function processImageBuffer(buffer: Buffer, logContext = "ImageProc
 
     if (format === "svg") {
       if (isDebug) console.log(`[${logContext}] Detected SVG via edge-compatible parser.`);
-      return { processedBuffer: buffer, isSvg: true, contentType: "image/svg+xml" };
+
+      // Process SVG with transform fixes
+      const processedSvg = await processSvgWithTransformFixes(buffer, logContext);
+      return { processedBuffer: processedSvg, isSvg: true, contentType: "image/svg+xml" };
     }
 
     // Preserve original for all other formats; content-type guessed
@@ -67,8 +74,11 @@ export async function processImageBuffer(buffer: Buffer, logContext = "ImageProc
     // Fallback: try to detect SVG-like content
     if (bufferString.includes("<svg")) {
       if (isDebug) console.log(`[${logContext}] Fallback: Detected SVG-like content.`);
+
+      // Process SVG with transform fixes
+      const processedSvg = await processSvgWithTransformFixes(buffer, logContext);
       return {
-        processedBuffer: buffer,
+        processedBuffer: processedSvg,
         isSvg: true,
         contentType: "image/svg+xml",
       };
@@ -98,6 +108,30 @@ export async function processImageBuffer(buffer: Buffer, logContext = "ImageProc
       isSvg: false,
       contentType,
     };
+  }
+}
+
+/**
+ * Processes SVG content with automatic transform attribute fixes
+ * Integrates svg-transform-fix utilities for consistent SVG handling
+ */
+async function processSvgWithTransformFixes(buffer: Buffer, logContext: string): Promise<Buffer> {
+  try {
+    const svgContent = buffer.toString("utf-8");
+
+    // Apply transform fixes using the battle-tested utilities
+    const { processSvgTransforms } = await import("./svg-transform-fix");
+    const fixedSvgContent = processSvgTransforms(svgContent);
+
+    if (fixedSvgContent && fixedSvgContent !== svgContent) {
+      if (isDebug) console.log(`[${logContext}] Applied SVG transform fixes`);
+      return Buffer.from(fixedSvgContent, "utf-8");
+    }
+
+    return buffer;
+  } catch (error) {
+    console.warn(`[${logContext}] SVG transform fix failed:`, error);
+    return buffer; // Return original on error
   }
 }
 

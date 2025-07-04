@@ -17,6 +17,7 @@ import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { investments } from "@/data/investments";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
  * Generate metadata for the investments page
@@ -33,7 +34,7 @@ export const dynamic = "force-dynamic";
  * This domain is used *exclusively* for logo & data-matching when the
  * public-facing `website` has changed or is no longer active.  UI components
  * never render `logoOnlyDomain`; links come from `website`, and logo lookup
- * logic (in `investment-card.server.tsx`) prioritises `logoOnlyDomain` →
+ * logic (in `investment-card.server.tsx`) prioritizes `logoOnlyDomain` →
  * `website` → company name.
  */
 
@@ -54,7 +55,7 @@ export default function InvestmentsPage() {
     dateModified: formattedModified,
     type: "dataset" as const,
     image: {
-      url: "/images/og/investments-og.png",
+      url: getStaticImageUrl("/images/og/investments-og.png"),
       width: 2100,
       height: 1100,
     },

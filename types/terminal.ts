@@ -182,12 +182,35 @@ export const TerminalSearchResultSchema = z.object({
   path: z.string(),
 });
 
+// Schema for parsing potentially incomplete data from APIs
+const PartialTerminalSearchResultSchema = z.object({
+  id: z.string().optional(),
+  label: z.string().optional(),
+  description: z.string().optional(),
+  path: z.string().optional(),
+});
+
 export const TerminalSearchApiResponseSchema = z.union([
-  z.array(TerminalSearchResultSchema),
-  z.object({ results: z.array(TerminalSearchResultSchema) }),
+  z.array(PartialTerminalSearchResultSchema),
+  z.object({ results: z.array(PartialTerminalSearchResultSchema) }),
 ]);
 
 export function parseTerminalSearchResponse(data: unknown): TerminalSearchResult[] {
   const parsed = TerminalSearchApiResponseSchema.parse(data);
-  return Array.isArray(parsed) ? parsed : parsed.results;
+  const rawResults = Array.isArray(parsed) ? parsed : parsed.results;
+
+  // Transform partial results to complete SelectionItems with fallbacks
+  return rawResults
+    .filter(
+      (item): item is { id?: string; label?: string; description?: string; path?: string } =>
+        typeof item === "object" && item !== null,
+    )
+    .map(
+      (item): TerminalSearchResult => ({
+        id: item.id || crypto.randomUUID(),
+        label: item.label || "Untitled",
+        description: item.description || "",
+        path: item.path || "#",
+      }),
+    );
 }

@@ -5,6 +5,11 @@
  * JSON handling, metadata access, object listing, and binary file management
  * Implements error handling and retry logic for improved reliability
  *
+ * Build-time behavior:
+ * - S3 READS: Always allowed (if credentials are provided)
+ * - S3 WRITES: Blocked during build phase via isS3ReadOnly() check
+ * - Missing credentials during build will show warnings but won't break the build
+ *
  * @module lib/s3-utils
  */
 
@@ -28,13 +33,15 @@ const S3_BUCKET = process.env.S3_BUCKET;
 const S3_ENDPOINT_URL = process.env.S3_SERVER_URL; // Use S3_SERVER_URL env var for S3 endpoint
 const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
 const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
-const S3_REGION = process.env.S3_REGION || process.env.AWS_REGION || "us-east-1"; // Default region for S3 operations (override with S3_REGION)
+// S3_REGION variable moved into getS3Client function
 const DRY_RUN = process.env.DRY_RUN === "true";
-const S3_PUBLIC_CDN_URL = process.env.NEXT_PUBLIC_S3_CDN_URL ?? process.env.S3_CDN_URL; // Public CDN endpoint
+// Use canonical public CDN env vars only. Legacy S3_PUBLIC_CDN_URL is no longer referenced.
+const CDN_BASE_URL = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL || ""; // Public CDN endpoint
 
-// Constants for S3 read retries
+// Constants for S3 read retries with exponential backoff and jitter
 const MAX_S3_READ_RETRIES = 3; // Actually do 3 retry attempts
-const S3_READ_RETRY_DELAY_MS = 100; // More reasonable delay of 100ms
+const S3_READ_RETRY_BASE_DELAY_MS = 100; // Base delay of 100ms
+const S3_READ_RETRY_MAX_DELAY_MS = 5000; // Max delay of 5 seconds
 
 // Memory protection constants
 const MAX_S3_READ_SIZE = 50 * 1024 * 1024; // 50MB max read size to prevent memory exhaustion
@@ -62,33 +69,72 @@ function isBinaryKey(key: string): boolean {
   // Fast-path: any key stored under images/ directory is binary
   if (key.startsWith("images/")) return true;
 
-  // Otherwise infer from file extension using centralised helpers
+  // Otherwise infer from file extension using centralized helpers
   const ext = key.split(".").pop()?.toLowerCase() ?? "";
   const contentType = getContentTypeFromExtension(ext);
   return isImageContentType(contentType);
 }
 
+// Only warn about missing S3 config if we're not in build phase
+// During build, S3 write operations are intentionally disabled so missing config is expected
 if (!S3_BUCKET || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
-  console.warn(
-    "[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3 operations may fail.",
-  );
+  if (process.env.NEXT_PHASE !== "phase-production-build") {
+    console.warn(
+      "[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3 operations may fail.",
+    );
+  }
 }
 
-export const s3Client: S3Client | null =
-  S3_BUCKET && S3_ENDPOINT_URL && S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY
-    ? new S3Client({
-        endpoint: S3_ENDPOINT_URL,
-        region: S3_REGION,
-        credentials: {
-          accessKeyId: S3_ACCESS_KEY_ID,
-          secretAccessKey: S3_SECRET_ACCESS_KEY,
-        },
-        forcePathStyle: true,
-        // Increase retry attempts for better resilience
-        maxAttempts: 5, // Default is 3, increase to 5
-        retryMode: "standard", // Use standard retry mode with exponential backoff
-      })
-    : null;
+// Lazy initialization of S3 client to ensure environment variables are loaded
+// eslint-disable-next-line @typescript-eslint/naming-convention
+let _s3Client: S3Client | null = null;
+
+export function getS3Client(): S3Client | null {
+  if (_s3Client !== null) {
+    return _s3Client;
+  }
+
+  // Re-read environment variables on each initialization attempt
+  const bucket = process.env.S3_BUCKET;
+  const endpoint = process.env.S3_SERVER_URL;
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+  const region = process.env.S3_REGION || process.env.AWS_REGION || "us-east-1";
+
+  if (bucket && endpoint && accessKeyId && secretAccessKey) {
+    _s3Client = new S3Client({
+      endpoint,
+      region,
+      credentials: {
+        accessKeyId,
+        secretAccessKey,
+      },
+      forcePathStyle: true,
+      // Enhanced retry configuration with adaptive mode
+      maxAttempts: 5, // Default is 3, increase to 5
+      retryMode: "adaptive", // Use adaptive retry mode for better backoff and throttling
+    });
+    if (isDebug) debug("[S3Utils] S3 client initialized successfully");
+  } else {
+    if (isDebug) {
+      debug(`[S3Utils] S3 client not initialized - missing environment variables:
+        S3_BUCKET: ${bucket ? 'set' : 'missing'}
+        S3_SERVER_URL: ${endpoint ? 'set' : 'missing'}
+        S3_ACCESS_KEY_ID: ${accessKeyId ? 'set' : 'missing'}
+        S3_SECRET_ACCESS_KEY: ${secretAccessKey ? 'set' : 'missing'}`);
+    }
+  }
+
+  return _s3Client;
+}
+
+export const s3Client = new Proxy({} as S3Client, {
+  get(_target, prop) {
+    const client = getS3Client();
+    if (!client) return null;
+    return client[prop as keyof S3Client];
+  },
+});
 
 /**
  * Check if system is under memory pressure
@@ -110,23 +156,24 @@ function hasMemoryHeadroom(): boolean {
   const { rss, heapUsed, heapTotal } = process.memoryUsage();
   const rssCritical = MEMORY_THRESHOLDS.MEMORY_CRITICAL_THRESHOLD;
   const HEAP_UTIL_THRESHOLD = 0.9;
-  const heapUtilisation = heapTotal > 0 ? heapUsed / heapTotal : 0;
+  const heapUtilization = heapTotal > 0 ? heapUsed / heapTotal : 0;
 
-  return rss <= rssCritical && heapUtilisation < HEAP_UTIL_THRESHOLD;
+  return rss <= rssCritical && heapUtilization < HEAP_UTIL_THRESHOLD;
 }
 
 /**
  * Validate content size before reading to prevent memory exhaustion
  */
 async function validateContentSize(key: string): Promise<boolean> {
-  if (!s3Client || !S3_BUCKET) return true; // Skip validation if S3 not configured
+  const client = getS3Client();
+  if (!client || !S3_BUCKET) return true; // Skip validation if S3 not configured
 
   try {
     const command = new HeadObjectCommand({
       Bucket: S3_BUCKET,
       Key: key,
     });
-    const response = await s3Client.send(command);
+    const response = await client.send(command);
     const contentLength = response.ContentLength;
 
     if (contentLength && contentLength > MAX_S3_READ_SIZE) {
@@ -146,6 +193,9 @@ async function validateContentSize(key: string): Promise<boolean> {
 
 /**
  * Retrieves an object from S3 by key, optionally using a byte range.
+ *
+ * Note: This function is NOT blocked during build time - reads are always allowed
+ * if S3 credentials are available.
  *
  * Returns the object content as a UTF-8 string for text or JSON types, or as a Buffer for other content types. If the object is not found or an error occurs, returns null.
  *
@@ -201,8 +251,8 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
 
   // Bypass public CDN for JSON files to avoid stale cache; only use CDN for non-JSON
   const isJson = key.endsWith(".json");
-  if (!isJson && S3_PUBLIC_CDN_URL) {
-    const cdnUrl = `${S3_PUBLIC_CDN_URL.replace(/\/+$/, "")}/${key}`;
+  if (!isJson && CDN_BASE_URL) {
+    const cdnUrl = `${CDN_BASE_URL.replace(/\/+$/, "")}/${key}`;
     if (isDebug) debug(`[S3Utils] Attempting to read key ${key} via CDN: ${cdnUrl}`);
 
     // Use AbortController to prevent hanging requests
@@ -255,7 +305,8 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
       debug(`[S3Utils][DRY RUN] Would read from S3 key ${key}${options?.range ? ` with range ${options.range}` : ""}`);
     return null;
   }
-  if (!isS3FullyConfigured || !s3Client) {
+  const client = getS3Client();
+  if (!isS3FullyConfigured || !client) {
     logMissingS3ConfigOnce("readFromS3");
     return null;
   }
@@ -272,7 +323,7 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
     });
 
     try {
-      const { Body, ContentType } = await s3Client.send(command);
+      const { Body, ContentType } = await client.send(command);
       if (Body instanceof Readable) {
         const buffer = await streamToBuffer(Body);
         if (isDebug)
@@ -295,8 +346,13 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
       if (err.name === "NotFound" || err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
         if (isDebug) debug(`[S3Utils] readFromS3: Key ${key} not found (attempt ${attempt}/${MAX_S3_READ_RETRIES}).`);
         if (attempt < MAX_S3_READ_RETRIES) {
-          if (isDebug) debug(`[S3Utils] Retrying read for ${key} in ${S3_READ_RETRY_DELAY_MS}ms...`);
-          await new Promise((resolve) => setTimeout(resolve, S3_READ_RETRY_DELAY_MS));
+          // Calculate exponential backoff with jitter
+          const baseDelay = Math.min(S3_READ_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1), S3_READ_RETRY_MAX_DELAY_MS);
+          const jitter = Math.random() * baseDelay * 0.3; // 30% jitter
+          const delay = Math.round(baseDelay + jitter);
+          
+          if (isDebug) debug(`[S3Utils] Retrying read for ${key} in ${delay}ms (attempt ${attempt}/${MAX_S3_READ_RETRIES})...`);
+          await new Promise((resolve) => setTimeout(resolve, delay));
           continue; // Next attempt
         }
         if (isDebug)
@@ -313,6 +369,10 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
 
 /**
  * Writes an object to S3.
+ *
+ * Note: This is a low-level function that does NOT check isS3ReadOnly().
+ * Use writeJsonS3() or writeBinaryS3() which properly handle build-time blocking.
+ *
  * @param key The S3 object key
  * @param data The data to write (string or Buffer)
  * @param contentType The MIME type of the content
@@ -332,22 +392,27 @@ export async function writeToS3(
         ? data.length
         : SMALL_PAYLOAD_THRESHOLD; // Unknown stream size – treat as small for head-room check
 
-  if (isBinaryKey(key)) {
-    // For binary payloads, only block when (a) the process is under
-    // memory pressure *and* (b) the payload is larger than the
-    // conservative SMALL_PAYLOAD_THRESHOLD (512&nbsp;KB). This prevents
-    // harmless favicon-sized writes (usually <10&nbsp;KB) from failing
-    // when the process is close to the RSS limit while still protecting
-    // against large image uploads that could exacerbate memory issues.
+  // Skip memory checks during explicit dev-only migration builds (disabled in prod)
+  const isDevMigrationRun = false; // Migration mode env flag removed – always false in production
 
-    if (dataSize > SMALL_PAYLOAD_THRESHOLD && !hasMemoryHeadroom()) {
-      throw new Error(
-        `[S3Utils] Insufficient memory headroom for binary S3 write operation (>${SMALL_PAYLOAD_THRESHOLD} bytes)`,
-      );
+  if (!isDevMigrationRun) {
+    if (isBinaryKey(key)) {
+      // For binary payloads, only block when (a) the process is under
+      // memory pressure *and* (b) the payload is larger than the
+      // conservative SMALL_PAYLOAD_THRESHOLD (512&nbsp;KB). This prevents
+      // harmless favicon-sized writes (usually <10&nbsp;KB) from failing
+      // when the process is close to the RSS limit while still protecting
+      // against large image uploads that could exacerbate memory issues.
+
+      if (dataSize > SMALL_PAYLOAD_THRESHOLD && !hasMemoryHeadroom()) {
+        throw new Error(
+          `[S3Utils] Insufficient memory headroom for binary S3 write operation (>${SMALL_PAYLOAD_THRESHOLD} bytes)`,
+        );
+      }
+    } else if (!hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
+      // For non-binary (JSON/string) data, still guard very large writes
+      throw new Error(`[S3Utils] Insufficient memory headroom for large S3 write operation`);
     }
-  } else if (!hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
-    // For non-binary (JSON/string) data, still guard very large writes
-    throw new Error(`[S3Utils] Insufficient memory headroom for large S3 write operation`);
   }
 
   if (DRY_RUN) {
@@ -359,7 +424,8 @@ export async function writeToS3(
       );
     return;
   }
-  if (!isS3FullyConfigured || !s3Client) {
+  const client = getS3Client();
+  if (!isS3FullyConfigured || !client) {
     // During build phase without credentials, silently skip writes instead of logging warnings
     if (process.env.NEXT_PHASE === "phase-production-build") {
       if (isDebug) debug(`[S3Utils] Skipping S3 write during build (no credentials) for key: ${key}`);
@@ -383,7 +449,7 @@ export async function writeToS3(
           typeof data === "string" ? dataSize : Buffer.isBuffer(data) ? data.length : "stream"
         }`,
       );
-    await s3Client.send(command);
+    await client.send(command);
     if (isDebug) debug(`[S3Utils] Successfully wrote to S3 key ${key}`);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
@@ -403,7 +469,8 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
     if (isDebug) debug(`[S3Utils][DRY RUN] Would check existence of S3 key ${key}`);
     return false;
   }
-  if (!isS3FullyConfigured || !s3Client) {
+  const client = getS3Client();
+  if (!isS3FullyConfigured || !client) {
     logMissingS3ConfigOnce("checkIfS3ObjectExists");
     return false;
   }
@@ -414,7 +481,7 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
 
   try {
     if (isDebug) debug(`[S3Utils] Checking existence of S3 key: ${key}`);
-    await s3Client.send(command);
+    await client.send(command);
     if (isDebug) debug(`[S3Utils] S3 key ${key} exists.`);
     return true;
   } catch (error: unknown) {
@@ -439,7 +506,8 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
     if (isDebug) debug(`[S3Utils][DRY RUN] Would get metadata for S3 key ${key}`);
     return null;
   }
-  if (!isS3FullyConfigured || !s3Client) {
+  const client = getS3Client();
+  if (!isS3FullyConfigured || !client) {
     logMissingS3ConfigOnce("getS3ObjectMetadata");
     return null;
   }
@@ -450,7 +518,7 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
 
   try {
     if (isDebug) debug(`[S3Utils] Getting metadata for S3 key: ${key}`);
-    const response = await s3Client.send(command);
+    const response = await client.send(command);
     if (isDebug)
       debug(
         `[S3Utils] Successfully got metadata for S3 key ${key}. ETag: ${response.ETag ?? "undefined"}, LastModified: ${response.LastModified ? response.LastModified.toISOString() : "undefined"}`,
@@ -481,7 +549,8 @@ export async function listS3Objects(prefix: string): Promise<string[]> {
     if (isDebug) debug(`[S3Utils][DRY RUN] Would list S3 objects with prefix ${prefix}`);
     return [];
   }
-  if (!isS3FullyConfigured || !s3Client) {
+  const client = getS3Client();
+  if (!isS3FullyConfigured || !client) {
     logMissingS3ConfigOnce("listS3Objects");
     return [];
   }
@@ -496,7 +565,7 @@ export async function listS3Objects(prefix: string): Promise<string[]> {
         Prefix: prefix,
         ContinuationToken: continuationToken,
       });
-      const response = await s3Client.send(command);
+      const response = await client.send(command);
       if (response.Contents) {
         for (const item of response.Contents) {
           if (item.Key) {
@@ -524,7 +593,8 @@ export async function deleteFromS3(key: string): Promise<void> {
     if (isDebug) debug(`[S3Utils][DRY RUN] Would delete S3 object: ${key}`);
     return;
   }
-  if (!isS3FullyConfigured || !s3Client) {
+  const client = getS3Client();
+  if (!isS3FullyConfigured || !client) {
     logMissingS3ConfigOnce("deleteFromS3");
     return;
   }
@@ -535,7 +605,7 @@ export async function deleteFromS3(key: string): Promise<void> {
 
   try {
     if (isDebug) debug(`[S3Utils] Attempting to delete S3 object: ${key}`);
-    await s3Client.send(command);
+    await client.send(command);
     if (isDebug) debug(`[S3Utils] Successfully deleted S3 object: ${key}`);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
@@ -603,6 +673,10 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
 
 /**
  * Reads data from an S3 JSON object
+ *
+ * Note: This function is NOT blocked during build time - reads are always allowed
+ * if S3 credentials are available.
+ *
  * @param s3Key S3 object key
  * @returns Parsed JSON data or null if an error occurs
  */
@@ -635,6 +709,10 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
 
 /**
  * Writes data to an S3 JSON object with optional conditional write support
+ *
+ * Note: This function is BLOCKED during build time via isS3ReadOnly() check.
+ * During build phase (NEXT_PHASE=phase-production-build), writes are skipped.
+ *
  * @param s3Key S3 object key
  * @param data Data to write
  * @param options Optional parameters including IfNoneMatch for conditional writes
@@ -642,6 +720,13 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
 export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneMatch?: string }): Promise<void> {
   if (DRY_RUN) {
     if (isDebug) debug(`[S3Utils][DRY RUN] Would write JSON to S3 key: ${s3Key}`);
+    return;
+  }
+
+  // Check if S3 writes are disabled (e.g., during build time)
+  const { isS3ReadOnly } = await import("./utils/s3-read-only");
+  if (isS3ReadOnly()) {
+    if (isDebug) debug(`[S3Utils][READ-ONLY] Skipping S3 write for key: ${s3Key}`);
     return;
   }
 
@@ -664,7 +749,8 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
   try {
     // If conditional write options are provided, use direct S3 command
     if (options?.IfNoneMatch) {
-      if (!S3_BUCKET || !s3Client) {
+      const client = getS3Client();
+      if (!S3_BUCKET || !client) {
         throw new Error("[S3Utils] S3 not properly configured for conditional write");
       }
 
@@ -676,7 +762,7 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
         ACL: "public-read", // JSON data is typically public
       });
 
-      await s3Client.send(command);
+      await client.send(command);
       if (isDebug) debug(`[S3Utils] Conditional write successful for ${s3Key}`);
     } else {
       // Use regular writeToS3 for non-conditional writes
@@ -703,6 +789,10 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
 
 /**
  * Reads a binary file (e.g., an image) from S3
+ *
+ * Note: This function is NOT blocked during build time - reads are always allowed
+ * if S3 credentials are available.
+ *
  * @param s3Key S3 object key
  * @returns Buffer or null
  */
@@ -733,6 +823,10 @@ export async function readBinaryS3(s3Key: string): Promise<Buffer | null> {
 
 /**
  * Writes a binary file (e.g., an image) to S3.
+ *
+ * Note: This function is BLOCKED during build time via isS3ReadOnly() check.
+ * During build phase (NEXT_PHASE=phase-production-build), writes are skipped.
+ *
  * @param s3Key S3 object key
  * @param data Buffer to write
  * @param contentType MIME type of the content
@@ -748,10 +842,48 @@ export async function writeBinaryS3(s3Key: string, data: Buffer | Readable, cont
     return;
   }
 
+  // 🔄 Ensure data passed to S3 has a known length. When a Readable stream is
+  // supplied (e.g. from node-fetch), AWS SDK v3 will attempt to infer the
+  // payload size. If the size cannot be derived it sets the internal
+  // `x-amz-decoded-content-length` header to `undefined`, causing the exact
+  // error observed (`Invalid value "undefined" for header "x-amz-decoded-content-length"`).
+  // To avoid this, convert small logo streams to a Buffer first. The typical
+  // favicon-sized images are <50 KB so memory impact is negligible, and we
+  // still honor the existing memory-headroom guard inside writeToS3 for
+  // larger files.
+
+  let payload: Buffer | Readable = data;
+
+  if (!Buffer.isBuffer(payload)) {
+    try {
+      const { Readable } = await import("node:stream");
+      if (payload instanceof Readable) {
+        payload = await streamToBuffer(payload);
+      } else if (typeof payload === 'object' && payload && 'pipe' in payload) {
+        // Handle other stream-like objects that might not be instanceof Readable
+        payload = await streamToBuffer(payload as Readable);
+      }
+    } catch (error) {
+      // Log the specific error and throw a more descriptive error
+      console.error(`[S3Utils] Failed to convert stream to buffer for key ${s3Key}:`, error);
+      throw new Error(
+        `Failed to convert stream to buffer: ${error instanceof Error ? error.message : String(error)}. ` +
+        `This typically occurs when the stream is malformed or the x-amz-decoded-content-length header cannot be determined.`
+      );
+    }
+  }
+
+  // Check if S3 writes are disabled (e.g., during build time)
+  const { isS3ReadOnly } = await import("./utils/s3-read-only");
+  if (isS3ReadOnly()) {
+    if (isDebug) debug(`[S3Utils][READ-ONLY] Skipping S3 binary write for key: ${s3Key}`);
+    return;
+  }
+
   try {
     // writeToS3 handles the actual S3 put and its specific debug logging
     // Binary files (images, etc.) are typically public for CDN serving
-    await writeToS3(s3Key, data, contentType, "public-read");
+    await writeToS3(s3Key, payload, contentType, "public-read");
     // Success is logged by writeToS3.
   } catch (_error: unknown) {
     const message = _error instanceof Error ? _error.message : safeJsonStringify(_error) || "Unknown error";

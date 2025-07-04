@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.16
+
 FROM oven/bun:alpine AS base
 
 # Install dependencies only when needed
@@ -30,7 +32,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HUSKY=0
 
 # Copy installed deps from previous deps stage
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps --link /app/node_modules ./node_modules
 
 # Copy source for analysis only (does not affect later build layers)
 COPY . .
@@ -83,7 +85,7 @@ ENV S3_BUCKET=$S3_BUCKET \
     NEXT_PUBLIC_S3_CDN_URL=$NEXT_PUBLIC_S3_CDN_URL
 
 # Copy dependencies and source code
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps --link /app/node_modules ./node_modules
 
 # Copy entire source code
 COPY . .
@@ -134,7 +136,7 @@ ENV S3_BUCKET=$S3_BUCKET \
 # Copy standalone output and required assets (run as root, so no chown needed)
 COPY --from=builder /app/.next/standalone ./
 # Ensure all node_modules (including those for scripts like scheduler) are available
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps --link /app/node_modules ./node_modules
 COPY --from=builder /app/.next/static ./.next/static
 
 # Copy scripts directory (run as root, so no chown needed)

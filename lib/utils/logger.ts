@@ -10,6 +10,8 @@
 const isDebug = process.env.DEBUG === "true" || process.env.VERBOSE === "true";
 const isVerbose = process.env.VERBOSE === "true";
 
+let isSilent = false;
+
 const logger = {
   /**
    * Logs a debug message. Only visible when `DEBUG` or `VERBOSE` is true.
@@ -28,7 +30,7 @@ const logger = {
    * @param optionalParams - Additional parameters to log.
    */
   info: (message: string, ...optionalParams: unknown[]): void => {
-    console.log(message, ...optionalParams);
+    if (!isSilent) console.log(message, ...optionalParams);
   },
 
   /**
@@ -48,7 +50,7 @@ const logger = {
    * @param optionalParams - Additional parameters to log.
    */
   warn: (message: string, ...optionalParams: unknown[]): void => {
-    console.warn(`[WARN] ${message}`, ...optionalParams);
+    if (!isSilent) console.warn(`[WARN] ${message}`, ...optionalParams);
   },
 
   /**
@@ -57,7 +59,12 @@ const logger = {
    * @param optionalParams - Additional parameters to log.
    */
   error: (message: string, ...optionalParams: unknown[]): void => {
-    console.error(`[ERROR] ${message}`, ...optionalParams);
+    if (!isSilent) console.error(`[ERROR] ${message}`, ...optionalParams);
+  },
+
+  /** Silences warn/error/info/debug output – used in unit tests */
+  setSilent: (silent: boolean): void => {
+    isSilent = silent;
   },
 };
 

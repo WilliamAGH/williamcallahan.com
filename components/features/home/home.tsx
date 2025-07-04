@@ -5,6 +5,7 @@
  * Converted to a server component for faster initial rendering.
  */
 
+import Link from "next/link";
 import { ProfileImage } from "./profile-image";
 
 export function Home() {
@@ -13,28 +14,111 @@ export function Home() {
       <div className="flex flex-col md:flex-row items-start gap-8 mb-8">
         <div className="flex-1">
           <h1 className="text-4xl font-bold mb-6">William Callahan</h1>
-          <p className="text-lg mb-4">Hello &mdash; I&apos;m an entrepreneur that enjoys building.</p>
-          <p className="text-lg mb-4">
-            I have a background that includes finance and technology. I live in San Francisco and work in Silicon
-            Valley, and grew up in a small town near Omaha, Nebraska, in the prairie of the United States.
-          </p>
-          <p className="text-lg mb-4">
-            Today, my highest professional priority is building aVenture, a research and investing platform that seeks
-            to make investing in private startups safer with better data. If you want to get in contact with me, you can
-            connect with me on{" "}
-            <a href="https://discord.com/users/WilliamDscord" className="text-blue-600 hover:text-blue-800">
-              Discord
-            </a>
-            ,{" "}
-            <a href="https://x.com/williamcallahan" className="text-blue-600 hover:text-blue-800">
-              X
-            </a>
-            , or{" "}
-            <a href="https://linkedin.com/in/williamacallahan" className="text-blue-600 hover:text-blue-800">
-              LinkedIn
-            </a>
-            .
-          </p>
+
+          <section className="mb-8">
+            <p className="text-lg mb-4">
+              Hello there -- I&apos;m William. I&apos;m a lifelong builder and entrepreneur who finds meaning in making
+              things better, and in helping others.
+            </p>
+            <p className="text-lg mb-4">
+              My background is in finance and technology. Today I live and work in San Francisco / Silicon Valley. I
+              grew up in the small midwestern US town of Carter Lake—a one-square-mile Iowa exclave, famed for two cases
+              on its location reaching the{" "}
+              <a
+                href="https://en.wikipedia.org/wiki/Carter_Lake,_Iowa"
+                className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                title="Read about Carter Lake, Iowa on Wikipedia"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                US Supreme Court
+              </a>
+              .
+            </p>
+            <p className="text-lg mb-4">
+              (The neighboring sister town of Council Bluffs, Iowa, where I went to school, is now more famously known
+              globally as <code>us-central1</code> for its recent Google Cloud data center additions.)
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Current Work</h2>
+            <p className="text-lg mb-4">
+              I&apos;m currently building{" "}
+              <a
+                href="https://aventure.vc"
+                className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                title="aVenture"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                aVenture
+              </a>
+              , a platform designed to bring greater transparency and data-driven safety to the world of private startup
+              investing.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Projects & Resources</h2>
+            <p className="text-lg mb-4">
+              If you&apos;re curious about what I&apos;m tinkering with these days, my{" "}
+              <Link
+                href="/projects"
+                className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                title="View my projects"
+              >
+                projects page
+              </Link>{" "}
+              serves as a public sandbox for my latest experiments and passion projects. I also regularly bookmark what
+              I&apos;m reading, which you can find on my{" "}
+              <Link
+                href="/bookmarks"
+                className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                title="View my bookmarks"
+              >
+                bookmarks page
+              </Link>
+              .
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Connect</h2>
+            <p className="text-lg mb-4">
+              Feel free to connect with me on{" "}
+              <a
+                href="https://discord.com/users/WilliamDscord"
+                className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                title="Connect with me on Discord"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Discord
+              </a>
+              ,{" "}
+              <a
+                href="https://x.com/williamcallahan"
+                className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                title="Connect with me on X"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                X
+              </a>
+              , or{" "}
+              <a
+                href="https://linkedin.com/in/williamacallahan"
+                className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                title="Connect with me on LinkedIn"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                LinkedIn
+              </a>{" "}
+              to chat.
+            </p>
+          </section>
         </div>
         <ProfileImage />
       </div>

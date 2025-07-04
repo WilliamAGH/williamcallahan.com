@@ -312,15 +312,15 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
 
     for (const request of lowPriorityRequests) {
       if (request) {
-        request.reject(new Error("Request cancelled due to critical memory pressure"));
-        this.emit("request-cancelled", { id: request.id });
+        request.reject(new Error("Request canceled due to critical memory pressure"));
+        this.emit("request-canceled", { id: request.id });
       }
     }
 
     if (lowPriorityRequests.length > 0) {
       this.emit("critical-memory-cancellation", {
         source: "MemoryAwareScheduler",
-        cancelledCount: lowPriorityRequests.length,
+        canceledCount: lowPriorityRequests.length,
       });
     }
   }

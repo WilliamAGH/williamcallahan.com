@@ -80,7 +80,7 @@ export interface ExperienceCardExtendedProps extends Experience {
 /**
  * Props for the Experience feature client wrapper. We now send the *raw* data for
  * each experience item (including resolved `logoData`) instead of a pre-rendered
- * JSX card.  This keeps the serialised RSC payload small and avoids the
+ * JSX card.  This keeps the serialized RSC payload small and avoids the
  * "Single item size exceeds maxSize" warning in development.
  */
 export interface ExperienceProps {

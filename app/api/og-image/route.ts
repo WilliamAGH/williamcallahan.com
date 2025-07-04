@@ -15,6 +15,9 @@ import { getDomainType } from "@/lib/utils/opengraph-utils";
 import { getDomainFallbackImage, getContextualFallbackImage } from "@/lib/opengraph/fallback";
 import { OPENGRAPH_IMAGES_S3_DIR } from "@/lib/constants";
 import { getBaseUrl } from "@/lib/utils/get-base-url";
+import { metadata } from "@/data/metadata";
+import { openGraphUrlSchema } from "@/types/schemas/url";
+import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 
 /**
  * Main handler for OpenGraph image requests
@@ -114,7 +117,7 @@ export async function GET(request: NextRequest) {
         );
 
         // Object exists, redirect to S3 URL
-        const s3Url = `${process.env.NEXT_PUBLIC_S3_CDN_URL}/${OPENGRAPH_IMAGES_S3_DIR}/${s3Key}`;
+        const s3Url = `${process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL}/${OPENGRAPH_IMAGES_S3_DIR}/${s3Key}`;
         return NextResponse.redirect(s3Url, {
           status: 302,
           headers: {
@@ -194,6 +197,32 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Check if this is a static image from our own domain
+    const siteUrl = metadata.site.url || process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
+    let isOwnDomainImage = false;
+
+    try {
+      const parsedUrl = new URL(url, siteUrl); // Handle relative URLs
+      const siteHostname = new URL(siteUrl).hostname;
+      isOwnDomainImage = parsedUrl.hostname === siteHostname && parsedUrl.pathname.startsWith(`/images/`);
+    } catch (error) {
+      // Invalid URL, treat as not own domain
+      console.warn(`[OG-Image] Invalid URL for own domain check: ${url}`, error);
+      isOwnDomainImage = false;
+    }
+
+    if (isOwnDomainImage) {
+      console.log(`[OG-Image] Detected static image from own domain: ${url}`);
+      // For static images from our own domain, redirect directly without processing
+      // This prevents self-referencing fetches that cause timeouts
+      return NextResponse.redirect(url, {
+        status: 302,
+        headers: {
+          "Cache-Control": "public, max-age=86400",
+        },
+      });
+    }
+
     // If we've reached here, proceed with OpenGraph image fetching
     const domain = getDomainType(url);
 
@@ -217,7 +246,7 @@ export async function GET(request: NextRequest) {
         }),
       );
 
-      s3ImageUrl = `${process.env.NEXT_PUBLIC_S3_CDN_URL}/${s3Key}`;
+      s3ImageUrl = `${process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL}/${s3Key}`;
       console.log(`[OG-Image] S3 image found: ${s3ImageUrl}`);
 
       // S3 image found, no need for memory cache
@@ -230,7 +259,7 @@ export async function GET(request: NextRequest) {
       });
     } catch {
       console.log(`[OG-Image] S3 image not found, checking Karakeep fallback before external fetch`);
-      
+
       // Check for Karakeep fallback BEFORE trying external fetch
       if (fallbackImageData) {
         // Try imageUrl first (this is the Karakeep API response image URL)
@@ -238,15 +267,31 @@ export async function GET(request: NextRequest) {
           console.log(`[OG-Image] Using Karakeep imageUrl instead of fetching: ${fallbackImageData.imageUrl}`);
           return NextResponse.redirect(fallbackImageData.imageUrl, { status: 302 });
         }
-        
+
         // Try screenshotAssetId as second option
         if (fallbackImageData.screenshotAssetId) {
-          console.log(`[OG-Image] Using Karakeep screenshot instead of fetching: ${fallbackImageData.screenshotAssetId}`);
+          console.log(
+            `[OG-Image] Using Karakeep screenshot instead of fetching: ${fallbackImageData.screenshotAssetId}`,
+          );
           // Always use API proxy to ensure correct content-type
           const assetUrl = `/api/assets/${fallbackImageData.screenshotAssetId}`;
           return NextResponse.redirect(new URL(assetUrl, baseUrl).toString(), { status: 302 });
         }
       }
+    }
+
+    // Validate URL before fetching to prevent SSRF
+    const urlValidation = openGraphUrlSchema.safeParse(url);
+    if (!urlValidation.success) {
+      console.error(`[OG-Image] Invalid or unsafe URL: ${url}`, urlValidation.error);
+      const fallbackImage = getContextualFallbackImage("company", url);
+      return NextResponse.redirect(new URL(fallbackImage, baseUrl).toString(), {
+        status: 302,
+        headers: {
+          "Cache-Control": "public, max-age=86400",
+          ...IMAGE_SECURITY_HEADERS,
+        },
+      });
     }
 
     // Fetch external image
@@ -255,7 +300,7 @@ export async function GET(request: NextRequest) {
     const timeout = setTimeout(() => controller.abort(), 10000);
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(urlValidation.data, {
         signal: controller.signal,
         headers: {
           "User-Agent": "Mozilla/5.0 (compatible; OpenGraph-Image-Bot/1.0)",
@@ -274,20 +319,14 @@ export async function GET(request: NextRequest) {
       }
 
       // Schedule background persistence for the image
-      const { scheduleImagePersistence } = await import("@/lib/opengraph/persistence");
-      
+      const { scheduleImagePersistence } = await import("@/lib/persistence/s3-persistence");
+
       // Generate idempotency key from URL
       const urlHash = url.replace(/[^a-zA-Z0-9.-]/g, "_");
       const idempotencyKey = `og-image-${urlHash}`;
-      
+
       console.log(`[OG-Image] 📋 Scheduling background image persistence for: ${url}`);
-      scheduleImagePersistence(
-        url,
-        OPENGRAPH_IMAGES_S3_DIR,
-        "OG-Image-API",
-        idempotencyKey,
-        url
-      );
+      scheduleImagePersistence(url, OPENGRAPH_IMAGES_S3_DIR, "OG-Image-API", idempotencyKey, url);
 
       // For immediate response, return the original URL
       // This avoids blocking the user while image is being processed

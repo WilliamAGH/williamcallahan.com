@@ -16,6 +16,7 @@ import { notFound } from "next/navigation";
 import { BlogArticle } from "../../../components/features/blog";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
  * Generate static paths for all blog posts at build time
@@ -63,7 +64,7 @@ const SOFTWARE_DETAILS: Record<
     applicationCategory: "DeveloperApplication",
     downloadUrl: "https://marketplace.visualstudio.com/items?itemName=WilliamCallahan.flag-deprecated-files",
     softwareVersion: "1.0.0",
-    screenshot: "/images/posts/filey-flag-deprecated-files.png",
+    screenshot: getStaticImageUrl("/images/posts/filey-flag-deprecated-files.png"),
   },
 };
 

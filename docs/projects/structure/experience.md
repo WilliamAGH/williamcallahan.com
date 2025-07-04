@@ -1,36 +1,119 @@
 # Experience Architecture
 
-## Overview
+## Core Purpose
 
-The Experience feature showcases professional work history and a categorized list of skills. Following the established pattern in this repository, it uses a server-centric approach to pre-render content for performance. Experience cards, including their logos, are processed on the server at build time and sent to a client component that manages the UI.
+The Experience domain displays professional work history with idempotent S3 CDN logo fetching at `app/experience/page.tsx:61-108` ensuring consistent company branding. Uses logoOnlyDomain property at `types/experience.ts:43` for logo resolution override when company domain differs from website.
 
-## Architecture Diagram
+## Architecture Overview
 
-See [Experience Architecture Diagram](./experience.mmd).
+Data Flow: Static Data → Request-Time Processing → Manifest Check → S3 CDN Fetch → Client Render
+Components:
 
-## Data & Rendering Flow
+- **Data Layer** (`data/experience.ts:1-45`): Static array of work experiences with optional logoOnlyDomain
+- **Page Processing** (`app/experience/page.tsx:61-108`): Complex logo resolution with 3-tier fallback
+- **Logo Manifest** (`lib/image-handling/image-manifest-loader.ts`): Pre-computed logo cache check
+- **Client UI** (`components/features/experience/experience.client.tsx:39-111`): Window-managed display
 
-1. **Data Source**: A static array of `Experience` objects is defined in `data/experience.ts`. The skills are hardcoded directly within the `Skills` component.
-2. **Page-Level Pre-Rendering (e.g., in `app/experience/page.tsx`)**:
-    - The page component reads the `experiences` array from the data file.
-    - It maps over this array and, for each item, renders an `ExperienceCard` server component. This generates an array of pre-rendered JSX elements (the cards).
-3. **Logo Fetching (`ExperienceCard` server component)**:
-    - This component is responsible for fetching the company logo for each experience item.
-    - It uses `lib/logo.server` to find the logo and falls back to a static placeholder image if the logo isn't found.
-    - The fetched logo is converted to a base64 data URL.
-    - It then renders an `ExperienceCardClient` component, passing all the necessary props, including the logo's data URL.
-4. **Client-Side Hydration (`Experience` client component)**:
-    - The main `Experience` client component receives the array of pre-rendered cards as a prop.
-    - Its primary role is to manage the interactive "window" state (minimize, maximize, close).
-    - It then simply renders the array of server-generated cards.
-5. **Skills Component**:
-    - The `Skills` component is a separate, self-contained component that statically renders a list of skills. It does not have any complex data flow.
+## Key Features
 
-## Key Files & Components
+- **logoOnlyDomain Override**: `types/experience.ts:37-43` allows separate domain for logo fetching vs website link, which should override the normal domain url (for logo purposes)
+- **3-Tier Logo Resolution**: Manifest → S3 CDN → Static fallback at `page.tsx:77-95`
+- **Idempotent Fetching**: Always returns same CDN URL for given domain via UnifiedImageService
 
-- **Data Source**: `data/experience.ts`
-- **Main Client Component**: `components/features/experience/experience.client.tsx`
-- **Card Server Component**: `components/ui/experience-card/experience-card.server.tsx`
-- **Card Client Component**: `components/ui/experience-card/experience-card.client.tsx`
-- **Skills Component**: `components/features/experience/skills.tsx`
-- **Types**: `types/experience.ts`
+## Data Structures
+
+```typescript
+// types/experience.ts:15-44
+export interface Experience {
+  id: string;
+  company: string;
+  period: string;
+  startDate: string;
+  endDate?: string;
+  role: string;
+  logo?: string;  // Static logo path
+  website?: string;
+  accelerator?: Accelerator;
+  location?: string;
+  logoOnlyDomain?: string;  // Override domain for logo fetching
+}
+
+// types/index.ts (LogoData)
+export interface LogoData {
+  url: string;  // Always CDN URL when available
+  source: string | null;  // "manifest" | "s3-store" | "static" | null
+}
+```
+
+## Design Decisions
+
+1. **logoOnlyDomain Pattern**: `page.tsx:71-75` prioritizes logoOnlyDomain over website/company for accurate logos
+2. **Manifest-First**: `page.tsx:77-84` checks pre-computed manifest before hitting UnifiedImageService
+3. **Dynamic Rendering**: Uses `force-dynamic` to resolve logos at request time, preventing build-time API access issues
+4. **Server-Side Only**: All logo resolution server-side, no client-side fetching
+5. **Explicit Fallback**: `page.tsx:89` uses getCompanyPlaceholder() for consistent placeholder
+
+## External Integrations
+
+- **UnifiedImageService**: Primary logo fetching via `lib/data-access/logos.ts:42-93`
+- **Image Manifest**: Static manifest at `public/assets/image-manifest.json`
+- **S3 CDN**: Serves all logos from `NEXT_PUBLIC_S3_CDN_URL`
+
+## Performance & Security
+
+- Response times: ~50ms for manifest hits, ~200ms for cached S3, 2-5s for external
+- Memory: Logo buffers cleared immediately after processing
+- Security: No API keys exposed, all logos via public CDN
+
+## Operations & Testing
+
+- Health: No specific endpoints
+- Tests: None found for experience domain
+- Ops: `bun run validate` for type checking
+
+## 🐛 Bugs & Improvements Inventory
+
+### Type/Validation Issues (PRIORITY)
+
+1. **Missing Validation** - `data/experience.ts:1-45`: No Zod schema for experience data
+2. **Type Inconsistency** - `types/features/experience.ts`: ExperienceCardProps uses different property names than Experience type
+3. **No LogoData Validation** - `page.tsx:91-94`: LogoData object created without schema validation
+4. **Any Type Risk** - `page.tsx:99`: Generic error catch without typed error handling
+
+### Environment Issues (CRITICAL)
+
+1. **Missing CDN URL Check** - `lib/utils/cdn-utils.ts:114-119`: Client gets undefined s3BucketName/s3ServerUrl
+2. **No Env Schema** - `types/schemas/env.ts:8-21`: Missing NEXT_PUBLIC_S3_CDN_URL in environment schema
+
+### Hydration Issues
+
+1. **Dynamic Logo Loading** - `experience.client.tsx:104`: ExperienceCardClient receives pre-computed logoData, no hydration risk
+2. **Window State** - `experience.client.tsx:40-47`: useRegisteredWindowState may cause hydration mismatch if SSR
+
+### Performance Issues
+
+1. **Sequential Logo Processing** - `page.tsx:62`: Promise.all used but each logo processed individually in map
+2. **No Streaming** - `page.tsx:110-116`: Could use Suspense for progressive rendering
+3. **Manifest Not Cached** - `lib/image-handling/image-manifest-loader.ts`: Manifest loaded on every request
+
+### Bugs
+
+1. **Silent Failures** - `page.tsx:97-106`: Errors logged but user sees placeholder without notification
+2. **logoOnlyDomain Not Documented** - UI doesn't indicate when logoOnlyDomain differs from website
+
+### Improvements
+
+1. **Batch Logo API** - `page.tsx:61-108`: Single batch request to UnifiedImageService, effort: M
+2. **Manifest Caching** - Cache parsed manifest in memory, effort: S
+3. **Loading Skeleton** - Show skeleton while logos fetch, effort: S
+4. **Type Alignment** - Align ExperienceCardProps with Experience type, effort: M
+
+### British English
+
+None found in experience domain files.
+
+## Related Documentation
+
+- `experience.mmd` - visual flow diagram
+- `s3-object-storage.md` - S3 CDN details
+- `image-handling.md` - logo processing patterns

@@ -10,6 +10,20 @@
  *
  * This is necessary because `bun:test`'s `mock.module` feature mocks the
  * module for the entire test file in which it is called.
+ *
+ * *********************************************************************************************
+ *  ⚠️  LIVE S3 WRITES IN TESTS – READ ME BEFORE EDITING ⚠️
+ *
+ *  • This file is the **ONLY** place in the test-suite permitted to perform _real_ write
+ *    operations against S3, and only when **S3_TEST_MODE !== "DRY"** **and** valid S3
+ *    credentials are present.
+ *  • NEVER add tests here (or anywhere else) that write to production buckets or depend on
+ *    main-line data.  Keys **MUST** be disposable, prefixed under the `test/` namespace, and
+ *    deleted in `afterAll`.
+ *  • Regular unit/integration tests **MUST** rely on mocks.  If you need additional live-wire
+ *    coverage, extend this file rather than sprinkling writes elsewhere.
+ *  • Violations constitute a ZERO TEMPERATURE breach and will immediately halt CI.
+ * *********************************************************************************************
  */
 
 import {
@@ -47,7 +61,7 @@ describe("S3 Utils Actual Export", () => {
 
 // Integration test should follow the same gating convention used by
 // __tests__/scripts/update-s3-data.smoke.test.ts so that we have ONE
-// place to configure live-AWS behaviour during CI runs.
+// place to configure live-AWS behavior during CI runs.
 
 const S3_TEST_MODE = process.env.S3_TEST_MODE || "NORMAL"; // DRY | NORMAL | FULL
 
@@ -56,6 +70,22 @@ const IS_S3_CONFIGURED = Boolean(
 );
 
 const SHOULD_RUN_LIVE_TESTS = S3_TEST_MODE !== "DRY" && IS_S3_CONFIGURED;
+
+// Ensure live tests can perform write operations by disabling read-only mode
+if (SHOULD_RUN_LIVE_TESTS) {
+  // Explicit override respected by isS3ReadOnly (see utils/s3-read-only.ts)
+  const previousReadOnly = process.env.S3_READ_ONLY;
+  process.env.S3_READ_ONLY = "false";
+
+  // Ensure we restore the original value after all tests in this file
+  afterAll(() => {
+    if (previousReadOnly === undefined) {
+      delete process.env.S3_READ_ONLY;
+    } else {
+      process.env.S3_READ_ONLY = previousReadOnly;
+    }
+  });
+}
 
 if (SHOULD_RUN_LIVE_TESTS) {
   describe("S3 Utils Integration – read/write JSON", () => {

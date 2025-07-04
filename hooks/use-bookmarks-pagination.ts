@@ -71,15 +71,22 @@ export function useBookmarksPagination({
   const fallbackData = useMemo((): BookmarksResponse[] | undefined => {
     if (!initialData || initialData.length === 0) return undefined;
 
+    // When server passes all bookmarks, we need to create proper pagination metadata
+    const totalItems = initialData.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    
+    // For the first page response, only include the first page of data
+    const firstPageData = initialData.slice(0, limit);
+
     const response: BookmarksResponse = {
-      data: initialData,
+      data: firstPageData,
       meta: {
         pagination: {
           page: 1,
           limit: limit,
-          total: initialData.length,
-          totalPages: Math.ceil(initialData.length / limit),
-          hasNext: initialData.length > limit,
+          total: totalItems, // This is the full count of ALL bookmarks
+          totalPages: totalPages, // Total pages based on ALL bookmarks
+          hasNext: totalPages > 1,
           hasPrev: false,
         },
       },
@@ -107,14 +114,18 @@ export function useBookmarksPagination({
   );
 
   const paginationMeta = useMemo(() => {
-    if (!data || data.length === 0) {
+    // Check data first, then fallback to fallbackData
+    const dataSource = data || fallbackData;
+    
+    if (!dataSource || dataSource.length === 0) {
       return {
         totalPages: 0,
         totalItems: 0,
         hasMore: false,
       };
     }
-    const lastPage = data.filter(Boolean).pop();
+    
+    const lastPage = dataSource.filter(Boolean).pop();
     if (!lastPage) {
       return {
         totalPages: 0,
@@ -122,12 +133,13 @@ export function useBookmarksPagination({
         hasMore: false,
       };
     }
+    
     return {
       totalPages: lastPage.meta.pagination.totalPages,
       totalItems: lastPage.meta.pagination.total,
       hasMore: lastPage.meta.pagination.hasNext,
     };
-  }, [data]);
+  }, [data, fallbackData]);
 
   const isLoadingInitialData = !data && !error;
   const isLoadingMore =

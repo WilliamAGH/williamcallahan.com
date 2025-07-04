@@ -19,16 +19,52 @@
  * @see types/ui/image.ts for logo component props
  */
 
+import type { BaseMediaResult } from "./image";
+
 // import type { z } from "zod";
 // import type { CompanyDataSchema, LogoConfigSchema } from "@/lib/validators/logo";
+
+/** Logo source function type - takes domain string and returns URL string */
+type LogoSourceFunction = (domain: string) => string;
+
+/** Standard logo source functions with different sizes */
+export interface LogoSourceFunctions {
+  readonly hd?: LogoSourceFunction;
+  readonly md?: LogoSourceFunction;
+  readonly sm?: LogoSourceFunction;
+}
+
+/** Direct logo source functions with specific icon types */
+export interface DirectLogoSourceFunctions {
+  readonly favicon: LogoSourceFunction;
+  readonly faviconPng: LogoSourceFunction;
+  readonly faviconSvg: LogoSourceFunction;
+  readonly appleTouchIcon: LogoSourceFunction;
+  readonly appleTouchIconPrecomposed: LogoSourceFunction;
+  readonly appleTouchIcon180: LogoSourceFunction;
+  readonly appleTouchIcon152: LogoSourceFunction;
+  readonly androidChrome192: LogoSourceFunction;
+  readonly androidChrome512: LogoSourceFunction;
+  readonly favicon32: LogoSourceFunction;
+  readonly favicon16: LogoSourceFunction;
+}
+
+/** Complete logo sources configuration interface */
+export interface LogoSourcesConfig {
+  readonly google: LogoSourceFunctions;
+  readonly duckduckgo: LogoSourceFunctions;
+  readonly clearbit: LogoSourceFunctions;
+  readonly direct: DirectLogoSourceFunctions;
+}
 
 export interface LogoData {
   url: string;
   source: string | null;
+  needsInversion?: boolean;
 }
 
 /** Identifies the source service used to fetch a company logo. */
-export type LogoSource = "google" | "duckduckgo" | "clearbit" | "unknown" | null;
+export type LogoSource = "google" | "duckduckgo" | "clearbit" | "direct" | "unknown" | null;
 
 /**
  * Contains analysis results determining if a logo needs color inversion
@@ -77,27 +113,15 @@ export interface ValidatedLogoMetadata {
  * Contains the fetched logo data along with metadata about the fetch operation.
  * Includes buffer when available for immediate use, otherwise stored separately in ImageMemoryManager
  */
-export interface LogoResult {
-  /** S3 key where the logo is stored */
-  s3Key?: string;
-  /** Public URL for the logo (typically CDN) */
+export interface LogoResult extends BaseMediaResult {
+  /** Public URL for the logo (typically original source URL) */
   url?: string | null;
-  /** CDN URL for the logo */
-  cdnUrl?: string;
   /** Source service that provided the logo */
   source: LogoSource;
   /** Where the logo was retrieved from in this request */
   retrieval?: "mem-cache" | "s3-store" | "external" | "placeholder" | "api";
-  /** Error message if fetch failed */
-  error?: string;
   /** Logo inversion analysis results */
   inversion?: LogoInversion;
-  /** MIME type of the logo */
-  contentType: string;
-  /** Timestamp when fetched */
-  timestamp?: number;
-  /** Image buffer when available */
-  buffer?: Buffer;
 }
 
 // Custom structure for logo cache
@@ -156,4 +180,33 @@ export interface BlockedDomain {
   failureCount: number;
   lastAttempt: number;
   reason?: string;
+}
+
+/**
+ * Logo debug information for troubleshooting fetch operations
+ */
+export interface LogoDebugInfo {
+  domain: string;
+  timestamp: number;
+  attempts: {
+    type: "hash" | "s3-check" | "external-fetch" | "s3-list";
+    details: string;
+    result: "success" | "failed";
+    error?: string;
+  }[];
+  s3Results?: {
+    totalLogos: number;
+    matchingDomains: string[];
+    potentialMatches: Array<{
+      key: string;
+      extractedDomain: string;
+      similarity: number;
+    }>;
+  };
+  finalResult: {
+    found: boolean;
+    source?: string;
+    cdnUrl?: string;
+    error?: string;
+  };
 }

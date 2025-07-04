@@ -130,7 +130,7 @@ describe("Rate Limiter", () => {
 
       // Initially should not be resolved
       let resolved = false;
-      waitPromise.then(() => {
+      void waitPromise.then(() => {
         resolved = true;
       });
 
@@ -194,7 +194,9 @@ describe("Rate Limiter", () => {
 
       // Check that it's using a longer wait time for efficiency
       const calls = setTimeoutSpy.mock.calls;
-      const lastCallWaitTime = calls[calls.length - 1][1];
+      expect(calls.length).toBeGreaterThan(0);
+      const last = calls.at(-1);
+      const lastCallWaitTime = Number(last?.[1] ?? 0);
       expect(lastCallWaitTime).toBeGreaterThan(1000); // Should wait more than 1 second
 
       // Clean up

@@ -13,6 +13,7 @@ import { refreshGitHubActivityDataFromApi, invalidateGitHubCache } from "@/lib/d
 import { TIME_CONSTANTS } from "@/lib/constants";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { incrementAndPersist, loadRateLimitStoreFromS3 } from "@/lib/rate-limiter";
 
 /**
  * @constant {string} dynamic - Ensures the route is dynamically rendered and not cached.
@@ -20,35 +21,24 @@ import type { NextRequest } from "next/server";
  */
 export const dynamic = "force-dynamic";
 
-// Simple in-memory rate limiting
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+// Rate limiting configuration
 const RATE_LIMIT_WINDOW = TIME_CONSTANTS.RATE_LIMIT_WINDOW_MS;
 const RATE_LIMIT_MAX_REQUESTS = 5; // 5 requests per hour per IP
+const RATE_LIMIT_S3_PATH = "json/rate-limits/github-refresh.json";
+const RATE_LIMIT_STORE_NAME = "github-refresh";
 
-// Clean up expired entries every 5 minutes – unref so it doesn't hold the Node event-loop open in tests
-const cleanupInterval = setInterval(
-  () => {
-    const now = Date.now();
-    for (const [key, entry] of rateLimitMap.entries()) {
-      if (entry.resetTime < now) {
-        rateLimitMap.delete(key);
-      }
+// Load rate limits from S3 on startup
+let rateLimitsLoaded = false;
+async function ensureRateLimitsLoaded() {
+  if (!rateLimitsLoaded) {
+    try {
+      await loadRateLimitStoreFromS3(RATE_LIMIT_STORE_NAME, RATE_LIMIT_S3_PATH);
+      rateLimitsLoaded = true;
+    } catch (error) {
+      console.warn("[API Refresh] Failed to load rate limits from S3:", error);
+      // Continue anyway - will start with empty store
     }
-  },
-  5 * 60 * 1000,
-);
-cleanupInterval.unref();
-
-// Proper cleanup on process termination
-if (process.env.NODE_ENV !== "test") {
-  const cleanup = () => {
-    clearInterval(cleanupInterval);
-    rateLimitMap.clear();
-  };
-  
-  process.on("SIGTERM", cleanup);
-  process.on("SIGINT", cleanup);
-  process.on("beforeExit", cleanup);
+  }
 }
 
 /**
@@ -80,6 +70,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ message: "Skipping refresh during build phase", buildPhase: true }, { status: 200 });
   }
 
+  // Ensure rate limits are loaded from S3
+  await ensureRateLimitsLoaded();
+
   // Check for cron job authentication first
   const authorizationHeader = request.headers.get("Authorization");
   const cronRefreshSecret = process.env.GITHUB_CRON_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
@@ -93,8 +86,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  let rateLimitEntry: { count: number; resetTime: number } | undefined;
-
   // Only apply rate limiting if not a cron job
   if (!isCronJob) {
     // Extract IP for rate limiting
@@ -103,27 +94,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const ip = forwarded?.split(",")[0] || realIp || "unknown";
     const rateLimitKey = `github-refresh:${ip}`;
 
-    // Check rate limit
-    const now = Date.now();
-    rateLimitEntry = rateLimitMap.get(rateLimitKey);
+    // Check and increment rate limit using S3-backed persistent storage
+    const allowed = incrementAndPersist(
+      RATE_LIMIT_STORE_NAME,
+      rateLimitKey,
+      { maxRequests: RATE_LIMIT_MAX_REQUESTS, windowMs: RATE_LIMIT_WINDOW },
+      RATE_LIMIT_S3_PATH
+    );
 
-    if (!rateLimitEntry || rateLimitEntry.resetTime < now) {
-      // Create new entry
-      rateLimitEntry = {
-        count: 0,
-        resetTime: now + RATE_LIMIT_WINDOW,
-      };
-      rateLimitMap.set(rateLimitKey, rateLimitEntry);
-    }
-
-    // Increment request count
-    rateLimitEntry.count++;
-
-    // Check if rate limit exceeded
-    if (rateLimitEntry.count > RATE_LIMIT_MAX_REQUESTS) {
-      const resetDate = new Date(rateLimitEntry.resetTime);
+    if (!allowed) {
+      const resetTime = Date.now() + RATE_LIMIT_WINDOW;
+      const resetDate = new Date(resetTime);
       console.warn(
-        `[API Refresh] Rate limit exceeded for IP ${ip}. Count: ${rateLimitEntry.count}, Limit: ${RATE_LIMIT_MAX_REQUESTS}`,
+        `[API Refresh] Rate limit exceeded for IP ${ip}. Limit: ${RATE_LIMIT_MAX_REQUESTS} per hour`,
       );
 
       return NextResponse.json(
@@ -137,8 +120,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           headers: {
             "X-RateLimit-Limit": RATE_LIMIT_MAX_REQUESTS.toString(),
             "X-RateLimit-Remaining": "0",
-            "X-RateLimit-Reset": Math.floor(rateLimitEntry.resetTime / 1000).toString(),
-            "Retry-After": Math.ceil((rateLimitEntry.resetTime - now) / 1000).toString(),
+            "X-RateLimit-Reset": Math.floor(resetTime / 1000).toString(),
+            "Retry-After": Math.ceil(RATE_LIMIT_WINDOW / 1000).toString(),
           },
         },
       );
@@ -193,19 +176,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         allTimeCommits: result.allTimeData.totalContributions,
       };
 
-      // Only add rate limit headers for non-cron requests
-      if (!isCronJob && rateLimitEntry) {
-        const remaining = Math.max(0, RATE_LIMIT_MAX_REQUESTS - rateLimitEntry.count);
-
-        return NextResponse.json(responseData, {
-          status: 200,
-          headers: {
-            "X-RateLimit-Limit": RATE_LIMIT_MAX_REQUESTS.toString(),
-            "X-RateLimit-Remaining": remaining.toString(),
-            "X-RateLimit-Reset": Math.floor(rateLimitEntry.resetTime / 1000).toString(),
-          },
-        });
-      }
+      // For successful non-cron requests, headers are already set by the allowed path
+      // No need to add rate limit headers here as we don't have access to the exact count
 
       return NextResponse.json(responseData, { status: 200 });
     }

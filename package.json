@@ -13,6 +13,8 @@
   },
   "scripts": {
     "update-s3": "bun scripts/data-updater.ts",
+    "migrate-static-images": "bun scripts/migrate-static-images-to-s3.ts",
+    "migrate-static-images:upload": "S3_MIGRATION_MODE=true NODE_OPTIONS='--max-old-space-size=8192' S3_READ_ONLY=false bun scripts/migrate-static-images-to-s3.ts",
     "scheduler": "bun lib/server/scheduler.ts",
     "submit-sitemap": "bun scripts/submit-sitemap.ts",
     "analyze": "NODE_OPTIONS='--max-old-space-size=4096' ANALYZE=true next build",
@@ -25,9 +27,9 @@
     "dev:full": "bun run populate-data && bun run cleanCache && NODE_OPTIONS='--max-old-space-size=4096 --max-semi-space-size=256' NODE_ENV=development next dev",
     "dev:turbo": "bun run cleanCache && NODE_OPTIONS='--max-old-space-size=4096 --max-semi-space-size=256' NODE_ENV=development next dev --turbo",
     "dev:memory-debug": "bun run cleanCache && NODE_OPTIONS='--max-old-space-size=4096 --max-semi-space-size=256 --expose-gc' NODE_ENV=development next dev",
-    "build": "bun run validate && NEXT_PHASE=phase-production-build bun scripts/data-updater.ts --bookmarks --github --logos && NODE_OPTIONS='--max-old-space-size=4096' next build",
+    "build": "bun run validate && NODE_OPTIONS='--max-old-space-size=4096' next build",
     "build:only": "bun run validate && NODE_OPTIONS='--max-old-space-size=4096' next build",
-    "build:full": "bun run validate && NEXT_PHASE=phase-production-build bun scripts/data-updater.ts --bookmarks --github --logos --force && NODE_OPTIONS='--max-old-space-size=4096' next build",
+    "build:full": "bun run validate && NODE_OPTIONS='--max-old-space-size=4096' next build",
     "start": "NODE_OPTIONS='--max-old-space-size=4096' node .next/standalone/server.js",
     "start:plain": "NODE_OPTIONS='--max-old-space-size=4096' next start",
     "docker:build": "docker buildx build --platform=linux/amd64 --build-arg NODE_ENV=production --build-arg NEXT_TELEMETRY_DISABLED=1 --load -t williamcallahan-web:latest .",
@@ -42,6 +44,7 @@
     "biome:format": "biome format --write .",
     "biome:lint": "biome lint .",
     "type-check": "NODE_OPTIONS='--max-old-space-size=4096' tsc --noEmit",
+    "type-check:tests": "NODE_OPTIONS='--max-old-space-size=4096' tsc --noEmit --project __tests__/tsconfig.json",
     "check:file-size": "bash -c 'err=0; for f in $(find . -type f \\( -name \"*.ts\" -o -name \"*.tsx\" \\) ! -name \"*.d.ts\" | grep -v \"node_modules/\" | grep -v \".next/\"); do lines=$(wc -l < \"$f\"); if [ $lines -gt 500 ]; then echo \"$f exceeds $lines lines\"; err=1; fi; done; exit $err'",
     "validate": "bun run lint && bun run type-check && bun run biome:lint && bun scripts/analyze-circular-deps.ts",
     "validate:with-size": "bun run validate && bun run check:file-size",
@@ -56,6 +59,8 @@
     "test:smoke": "NODE_OPTIONS='--max-old-space-size=4096' jest --testPathPatterns=smoke --config=config/jest/config.ts",
     "test:smoke:blog": "bun run test:smoke -- --testPathPatterns=blog",
     "test:smoke:pages": "bun run test:smoke -- --testPathPatterns=pages",
+    "fix:s3-acl-public": "bash -c '. ./.env && bash scripts/fix-s3-acl-public.sh'",
+    "fix:s3-acl-public:debug": "bash -c '. ./.env && DEBUG=1 bash scripts/fix-s3-acl-public.sh'",
     "prepare": "node .husky/install.mjs",
     "validate-opengraph": "bun scripts/validate-opengraph-clear-cache.ts",
     "postdeploy": "bun run validate-opengraph"
@@ -73,6 +78,7 @@
     "@sentry/nextjs": "9.33.0",
     "@sentry/opentelemetry": "9.33.0",
     "@tailwindcss/typography": "^0.5.16",
+    "canvas": "^3.1.2",
     "cheerio": "^1.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -84,7 +90,8 @@
     "google-auth-library": "^10.1.0",
     "gray-matter": "^4.0.3",
     "hoist-non-react-statics": "^3.3.2",
-    "import-in-the-middle": "1.14.2",
+    "image-js": "^0.37.0",
+    "import-in-the-middle": "1.14.0",
     "lucide-react": "0.525.0",
     "mdast-util-mdx-jsx": "^3.2.0",
     "minisearch": "^7.1.2",
@@ -142,7 +149,7 @@
     "eslint-plugin-mdx": "3.5.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
-    "globals": "^16.2.0",
+    "globals": "^16.3.0",
     "husky": "^9.1.7",
     "jest": "30.0.3",
     "jest-environment-jsdom": "30.0.2",
@@ -186,8 +193,8 @@
     "@swc/core",
     "unrs-resolver"
   ],
-  "resolutions": {
-    "import-in-the-middle": "1.14.2"
+  "overrides": {
+    "import-in-the-middle": "1.14.0"
   },
   "packageManager": "bun@1.2.17"
 }

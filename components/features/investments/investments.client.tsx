@@ -61,7 +61,7 @@ export function InvestmentsClient({ investments = [] }: InvestmentsClientProps):
 
   // Skip rendering only when the registry is ready *and* the window is either
   // closed or minimized. This prevents the initial blank screen while keeping
-  // the intended behaviour afterwards.
+  // the intended behavior afterwards.
   if (isRegistered && (effectiveState === "closed" || effectiveState === "minimized")) {
     console.log(`InvestmentsClient (${INVESTMENTS_WINDOW_ID}): Rendering null (state: ${effectiveState})`);
     return null;
@@ -199,6 +199,7 @@ export function InvestmentsClient({ investments = [] }: InvestmentsClientProps):
                 </ol>
               </details>
             </div>
+            <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Investment Portfolio</h2>
             <div className="space-y-6">
               {investments.map((investment) => (
                 <div key={`${investment.id}-${investment.invested_year}`}>{investment.card}</div>

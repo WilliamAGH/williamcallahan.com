@@ -5,6 +5,7 @@ import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
  * Education Page
@@ -16,6 +17,8 @@ import { formatSeoDate } from "@/lib/seo/utils";
  * @see {@link "https://nextjs.org/docs/app/api-reference/functions/generate-metadata"} - Next.js Metadata API
  * @see {@link "https://schema.org/ProfilePage"} - Schema.org ProfilePage specification
  */
+
+export const dynamic = "force-dynamic";
 
 /**
  * Generate metadata for the education page
@@ -39,7 +42,7 @@ export default function EducationPage() {
     dateModified: formattedModified,
     type: "profile" as const,
     image: {
-      url: "/images/og/education-og.png",
+      url: getStaticImageUrl("/images/og/education-og.png"),
       width: 2100,
       height: 1100,
     },

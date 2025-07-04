@@ -4,7 +4,7 @@
  * @description
  * Generates Schema.org JSON-LD structured data for all page types.
  * Uses the @graph pattern to establish proper entity relationships.
- * 
+ *
  * Supported types:
  * - Article (blog posts)
  * - NewsArticle (news-style posts)
@@ -13,7 +13,7 @@
  * - Dataset (data collections)
  * - SoftwareApplication (software/tools)
  * - WebPage/WebSite/Person (base types)
- * 
+ *
  * Future expansion opportunities:
  * - Organization (company pages)
  * - Event (conferences, meetups)
@@ -41,6 +41,7 @@ import type {
   WebSiteSchema,
 } from "../../types/seo/schema";
 import { ensureAbsoluteUrl } from "./utils";
+import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
 /**
  * Creates the base URL for schema.org @id references
@@ -61,7 +62,7 @@ function createPersonEntity(): PersonSchema {
     description: metadata.shortDescription,
     url: ensureAbsoluteUrl("/"),
     sameAs: metadata.social.profiles,
-    image: ensureAbsoluteUrl("/images/william-callahan-san-francisco.png"),
+    image: ensureAbsoluteUrl(getStaticImageUrl("/images/william-callahan-san-francisco.png")),
   };
 }
 
@@ -465,9 +466,9 @@ export function generateSchemaGraph(params: SchemaParams): SchemaGraph {
   // Add the Person logo image entity referenced by Person.image
   graph["@graph"].push({
     "@type": "ImageObject",
-    "@id": ensureAbsoluteUrl("/images/william-callahan-san-francisco.png"),
-    url: ensureAbsoluteUrl("/images/william-callahan-san-francisco.png"),
-    contentUrl: ensureAbsoluteUrl("/images/william-callahan-san-francisco.png"),
+    "@id": ensureAbsoluteUrl(getStaticImageUrl("/images/william-callahan-san-francisco.png")),
+    url: ensureAbsoluteUrl(getStaticImageUrl("/images/william-callahan-san-francisco.png")),
+    contentUrl: ensureAbsoluteUrl(getStaticImageUrl("/images/william-callahan-san-francisco.png")),
     caption: `${SITE_NAME} portrait`,
     width: 512,
     height: 512,
@@ -502,20 +503,21 @@ export function generateSchemaGraph(params: SchemaParams): SchemaGraph {
     case "software":
       graph["@graph"].push(createSoftwareApplicationEntity(params));
       break;
-    case "collection":
-      if (!params.breadcrumbs) {
-        throw new Error("Breadcrumbs are required for collection pages");
+    case "collection": {
+      // Fall back to breadcrumb-derived list when an explicit itemList is not provided.
+      const listItems = params.itemList
+        ? params.itemList
+        : params.breadcrumbs?.map((crumb, i) => ({ url: crumb.path, position: i + 1 })) || [];
+
+      if (listItems.length === 0) {
+        throw new Error(
+          "Collection pages require either params.itemList or breadcrumbs to derive an ItemList for Schema.org",
+        );
       }
-      graph["@graph"].push(
-        createCollectionPageEntity(
-          params,
-          params.breadcrumbs.map((crumb, i) => ({
-            url: crumb.path,
-            position: i + 1,
-          })),
-        ),
-      );
+
+      graph["@graph"].push(createCollectionPageEntity(params, listItems));
       break;
+    }
     case "bookmark-item": {
       graph["@graph"].push(createBookmarkItemEntity(params));
       break;

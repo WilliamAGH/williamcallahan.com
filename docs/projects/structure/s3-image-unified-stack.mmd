@@ -1,0 +1,89 @@
+graph TD
+    %% External Sources
+    subgraph "External Sources"
+        Google[Google S2]
+        DuckDuckGo[DuckDuckGo Icons]
+        Clearbit[Clearbit Logo API]
+        Direct[Direct Website Fetch]
+        Karakeep[Karakeep/Hoarder]
+    end
+
+    %% Application Layer
+    subgraph "Application Layer"
+        API_Logo["/api/logo"]
+        API_OG["/api/og-image"]
+        API_Cache["/api/cache/images"]
+        API_Invert["/api/logo/invert"]
+        DataUpdater["scripts/data-updater.ts"]
+    end
+
+    %% Service Layer
+    subgraph "Service Layer"
+        UIS[UnifiedImageService<br/>- Domain sessions<br/>- Circuit breaker<br/>- Request coalescing]
+        ImageProc[Image Processing<br/>- Format detection<br/>- Animation preserve<br/>- PNG conversion]
+        MemHealth[Memory Health<br/>- Pressure detection<br/>- Stream threshold<br/>- 50MB limit]
+    end
+
+    %% Persistence Layer
+    subgraph "Persistence Layer"
+        S3Persist[S3 Persistence<br/>- ACL management<br/>- Content categorization<br/>- Public/Private control]
+        S3Utils[S3 Utils<br/>- AWS SDK v3<br/>- Retry logic<br/>- CDN fallback]
+        S3KeyGen[S3 Key Generator<br/>- Deterministic keys<br/>- Domain-based naming<br/>- Hash generation]
+    end
+
+    %% Storage Layer
+    subgraph "S3 Storage"
+        Bucket[S3 Bucket<br/>images/<br/>├── logos/<br/>├── opengraph/<br/>├── social-avatars/<br/>└── blog/]
+    end
+
+    %% CDN Layer
+    subgraph "CDN"
+        CloudFront[CloudFront/DO CDN<br/>~50ms global delivery]
+    end
+
+    %% Data Flow - Logo Fetch
+    API_Logo --> UIS
+    UIS --> MemHealth
+    MemHealth -->|Check| UIS
+    UIS -->|Check S3| S3Utils
+    S3Utils -->|EXISTS| CloudFront
+    S3Utils -->|MISS| UIS
+    UIS -->|Fetch| Google
+    UIS -->|Fallback| DuckDuckGo
+    UIS -->|Fallback| Clearbit
+    UIS -->|Fallback| Direct
+    Google --> ImageProc
+    DuckDuckGo --> ImageProc
+    Clearbit --> ImageProc
+    Direct --> ImageProc
+    ImageProc --> S3Persist
+    S3Persist --> S3KeyGen
+    S3KeyGen --> S3Utils
+    S3Utils --> Bucket
+    Bucket --> CloudFront
+    CloudFront -->|301 Redirect| API_Logo
+
+    %% Data Flow - OpenGraph
+    API_OG --> UIS
+    DataUpdater -->|Batch Mode| UIS
+    Karakeep --> DataUpdater
+
+    %% Data Flow - Image Cache
+    API_Cache -->|🔴 SSRF Risk| UIS
+
+    %% Data Flow - Logo Invert
+    API_Invert --> UIS
+    UIS -->|Process| ImageProc
+
+    %% Styling
+    style UIS fill:#e1f5fe
+    style MemHealth fill:#fff3e0
+    style S3Persist fill:#f3e5f5
+    style CloudFront fill:#c8e6c9
+    style API_Cache fill:#ffccbc
+    style Bucket fill:#e8eaf6
+
+    %% Annotations
+    UIS -.->|"Session: 30min<br/>Max retries: 3<br/>Coalescing: Active"| UIS
+    ImageProc -.->|">5MB: Stream<br/>Animated: Preserve<br/>Static: PNG"| ImageProc
+    CloudFront -.->|"JSON: Bypass CDN<br/>Images: Cache 7d"| CloudFront

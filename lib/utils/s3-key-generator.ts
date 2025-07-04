@@ -5,8 +5,9 @@
  */
 
 import { IMAGE_S3_PATHS, OPENGRAPH_METADATA_S3_DIR } from "@/lib/constants";
-import { generateHash } from "./hash-utils";
+import { generateHash, getShortHash } from "./hash-utils";
 import { getExtensionFromContentType } from "./content-type";
+import { extractTld, extractDomain } from "./url-utils";
 import type { S3KeyOptions } from "@/types/s3-cdn";
 
 /**
@@ -19,14 +20,27 @@ export function generateS3Key(options: S3KeyOptions): string {
     case "logo": {
       if (!domain) throw new Error("Domain required for logo S3 key");
 
-      const normalizedDomain = domain.replace(/[^a-zA-Z0-9.-]/g, "_");
-      const sourceAbbrev = source === "duckduckgo" ? "ddg" : source || "unknown";
-      const domainHash = hash || generateHash(domain);
+      // Use the enhanced TLD extraction that handles complex TLDs
+      const { name, tld } = extractTld(domain);
+      if (!tld) {
+        throw new Error(`Invalid domain format: ${domain}`);
+      }
+
+      // Convert dots to underscores in both name and TLD for filename
+      const domainName = name.replace(/\./g, "_");
+      const tldName = tld.replace(/\./g, "_"); // e.g., co.uk -> co_uk
+
+      // Standardize source name (duckduckgo -> ddg)
+      const sourceStr = source === "duckduckgo" ? "ddg" : source || "unknown";
+
+      // Use SHA256 hash (first 8 chars) of full domain
+      const domainHash = hash || generateHash(domain).slice(0, 8);
+
+      // Standard format: domain_tld_source_hash.ext
+      const filename = `${domainName}_${tldName}_${sourceStr}_${domainHash}`;
 
       const parts: string[] = [IMAGE_S3_PATHS.LOGOS_DIR];
       if (inverted) parts.push("inverted");
-
-      const filename = [normalizedDomain, sourceAbbrev, domainHash.slice(0, 8)].join("_");
 
       return `${parts.join("/")}/${filename}.${extension}`;
     }
@@ -92,20 +106,102 @@ export function getFileExtension(url?: string, contentType?: string): string {
  * Parse S3 key to extract metadata
  */
 export function parseS3Key(key: string): import("@/types/s3-cdn").ParsedS3Key {
-  // Logo pattern: logos/[inverted/]domain_source_hash.ext
+  // Logo pattern: logos/[inverted/]domain_tld_source_hash.ext
   if (key.includes("/logos/") || key.includes("/logo/")) {
     const inverted = key.includes("/inverted/");
     const filename = key.split("/").pop()?.split(".")[0];
     if (filename?.includes("_")) {
       const parts = filename.split("_");
-      return {
-        type: "logo",
-        domain: parts[0],
-        source: parts[1] === "ddg" ? "duckduckgo" : parts[1],
-        hash: parts[2],
-        extension: key.split(".").pop(),
-        inverted,
-      };
+
+      // Expected format: domain_tld_source_hash or domain_complex_tld_source_hash
+      // We need at least 4 parts (domain, tld/tld_part, source, hash)
+      if (parts.length >= 4) {
+        // Extract hash and source from the end
+        const hash = parts[parts.length - 1];
+        const source = parts[parts.length - 2];
+
+        // Check if hash looks valid (8 hex chars)
+        const isValidHash = hash ? /^[a-f0-9]{8}$/i.test(hash) : false;
+
+        if (isValidHash) {
+          // Everything before source and hash is the domain + tld
+          const domainAndTldParts = parts.slice(0, -2);
+
+          // Try to reconstruct the domain with complex TLD support
+          // Check if last 2 parts might be a complex TLD like co_uk
+          let domain: string;
+          if (domainAndTldParts.length >= 3) {
+            const secondToLast = domainAndTldParts[domainAndTldParts.length - 2];
+            const last = domainAndTldParts[domainAndTldParts.length - 1];
+            if (!secondToLast || !last) {
+              // Not enough parts
+              const tld = domainAndTldParts[domainAndTldParts.length - 1] || "";
+              const domainName = domainAndTldParts.slice(0, -1).join(".");
+              domain = `${domainName}.${tld}`;
+            } else {
+              const possibleComplexTld = `${secondToLast}.${last}`;
+              // Check if this forms a known complex TLD when dots are restored
+              const { tld: checkTld } = extractTld(`test.${possibleComplexTld}`);
+              if (checkTld === possibleComplexTld) {
+                // It's a complex TLD
+                const domainName = domainAndTldParts.slice(0, -2).join(".");
+                domain = `${domainName}.${possibleComplexTld}`;
+              } else {
+                // Simple TLD
+                const tld = domainAndTldParts[domainAndTldParts.length - 1] || "";
+                const domainName = domainAndTldParts.slice(0, -1).join(".");
+                domain = `${domainName}.${tld}`;
+              }
+            }
+          } else {
+            // Simple case: domain_tld
+            const tld = domainAndTldParts[domainAndTldParts.length - 1] || "";
+            const domainName = domainAndTldParts.slice(0, -1).join(".");
+            domain = `${domainName}.${tld}`;
+          }
+
+          return {
+            type: "logo",
+            domain,
+            source: source === "ddg" ? "duckduckgo" : source,
+            hash,
+            extension: key.split(".").pop(),
+            inverted,
+          };
+        }
+      }
+
+      // Try parsing without hash (legacy or manual files)
+      // Format: domain_tld_source or just domain_tld
+      if (parts.length >= 2) {
+        // Check if last part is a known source
+        const lastPart = parts[parts.length - 1];
+        const knownSources = ["google", "ddg", "duckduckgo", "clearbit", "direct", "unknown"];
+        let source: string = "unknown";
+        let domainAndTldParts = parts;
+
+        if (lastPart && knownSources.includes(lastPart)) {
+          source = lastPart;
+          domainAndTldParts = parts.slice(0, -1);
+        }
+
+        // Try to reconstruct domain
+        if (domainAndTldParts.length >= 2) {
+          const tld = domainAndTldParts[domainAndTldParts.length - 1] || "";
+          const domainName = domainAndTldParts.slice(0, -1).join(".");
+          const domain = `${domainName}.${tld}`;
+
+          const normalizedSource = source === "ddg" ? "duckduckgo" : source;
+          return {
+            type: "logo",
+            domain,
+            source: normalizedSource,
+            hash: undefined, // No hash in filename
+            extension: key.split(".").pop(),
+            inverted,
+          };
+        }
+      }
     }
   }
 
@@ -147,4 +243,45 @@ export function parseS3Key(key: string): import("@/types/s3-cdn").ParsedS3Key {
   }
 
   return { type: "unknown" };
+}
+
+/**
+ * Generate a deterministic key from an arbitrary company/institution name.
+ * Combines a slugified version of the name with a short hash to virtually
+ * eliminate collisions while keeping keys human-readable (e.g. "stanford_university_a1b2c3").
+ */
+export function generateNameKey(name: string, hashLength = 6): string {
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  const shortHash = getShortHash(name, hashLength);
+  return `${slug}_${shortHash}`;
+}
+
+/**
+ * Convenience helper: add a name → domain association to a mapping object.
+ * Ensures key is generated via `generateNameKey` and domain is normalised.
+ */
+export function appendNameKeyDomain(map: Record<string, string>, name?: string, url?: string): void {
+  if (!name || !url) return;
+
+  const domain = extractDomain(url).replace(/^www\./, "");
+  if (!domain) return;
+
+  const key = generateNameKey(name);
+  if (!key) return;
+
+  // Prevent accidental overwrite when key already exists with same domain
+  if (map[key] && map[key] !== domain) {
+    let suffix = 1;
+    let uniqueKey = `${key}_${suffix}`;
+    while (map[uniqueKey] && map[uniqueKey] !== domain) {
+      uniqueKey = `${key}_${++suffix}`;
+    }
+    map[uniqueKey] = domain;
+  } else {
+    map[key] = domain;
+  }
 }

@@ -14,27 +14,32 @@ import ActivityCalendarComponent, { type ThemeInput as ReactActivityCalendarThem
 import CumulativeGitHubStatsCards from "./cumulative-github-stats-cards";
 import type { ApiError } from "@/types/features/github";
 
+// Responsive calculation helpers
+const DEFAULT_COLUMNS = 53; // GitHub contribution calendar weeks (~53)
+const BLOCK_MARGIN_PX = 2; // Keep constant; margin between squares
+
 // Define the custom theme for the calendar
 const calendarCustomTheme: ReactActivityCalendarThemeInput = {
-  // TODO: Consider moving to a constants file if used elsewhere
+  // Subtle blue-slate gradient that blends with site palette
   light: [
-    "#E5E7EB", // level 0 (Tailwind gray-200)
-    "#BBF7D0", // level 1 (Tailwind green-200)
-    "#4ADE80", // level 2 (Tailwind green-400)
-    "#16A34A", // level 3 (Tailwind green-600)
-    "#166534", // level 4 (Tailwind green-800)
+    "#f1f5f9", // light slate – level 0
+    "#cfe8ff", // blue-100 – level 1
+    "#9fd6ff", // blue-200 – level 2
+    "#60b0ff", // blue-300 – level 3
+    "#3b82f6", // blue-500 – level 4 (accent)
   ],
   dark: [
-    "#1F2937", // level 0 (Tailwind gray-800)
-    "#14532D", // level 1 (Tailwind green-900)
-    "#15803D", // level 2 (Tailwind green-700)
-    "#22C55E", // level 3 (Tailwind green-500)
-    "#86EFAC", // level 4 (Tailwind green-300)
+    "#1e293b", // slate-800 – level 0
+    "#27364d", // slate-700 – level 1 (slight blue tint)
+    "#304560", // slate-600 – level 2
+    "#3b5a7a", // slate-500 blueish – level 3
+    "#60a5fa", // blue-400 – level 4 (brightest)
   ],
 };
 
 const GitHubActivity = () => {
-  const { theme: currentNextTheme } = useTheme(); // Current theme from next-themes
+  const { resolvedTheme } = useTheme(); // Resolved theme (accounts for system preference)
+  const [blockSize, setBlockSize] = useState<number>(12); // Dynamically calculated square size
   const [activityData, setActivityData] = useState<ContributionDay[]>([]); // Activity data for the calendar
   const [isLoading, setIsLoading] = useState(true); // Loading state for initial data fetch
   const [isRefreshing, setIsRefreshing] = useState(false); // Loading state for refresh operation
@@ -67,6 +72,32 @@ const GitHubActivity = () => {
   }
 
   const fetchInitiatedRef = useRef(false); // Ref to track if the initial fetch has been initiated
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Native ResizeObserver to keep calendar responsive without extra deps
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateSize = (width: number) => {
+      const columns = Math.ceil(activityData.length / 7) || DEFAULT_COLUMNS;
+      const candidate = Math.floor(width / columns) - BLOCK_MARGIN_PX;
+      if (candidate > 0 && Math.abs(candidate - blockSize) > 1) {
+        setBlockSize(candidate);
+      }
+    };
+
+    // Initial measurement
+    updateSize(el.clientWidth);
+
+    const observer = new ResizeObserver((entries) => {
+      if (!entries[0]) return;
+      updateSize(entries[0].contentRect.width);
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [activityData.length, blockSize]);
 
   /**
    * Resets all component state related to fetched data.
@@ -223,6 +254,15 @@ const GitHubActivity = () => {
     void fetchData();
   }, [fetchData]); // Add fetchData to dependency array
 
+  useEffect(() => {
+    if (activityData.length === 0) return; // Avoid on first empty render
+    const svg = document.querySelector<SVGSVGElement>(".react-activity-calendar__svg");
+    if (!svg) return;
+    svg.querySelectorAll<SVGRectElement>("rect[data-date]").forEach((rect) => {
+      rect.setAttribute("stroke", "none");
+    });
+  }, [activityData]);
+
   return (
     <div className="bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-card hover:shadow-card-hover transition-all duration-300 transform hover:-translate-y-1 group text-left w-full">
       <div className="flex justify-between items-center mb-3">
@@ -279,13 +319,14 @@ const GitHubActivity = () => {
               )}
             </div>
           ) : (
-            <div className="mt-4 mb-2 p-2 rounded-md bg-neutral-100 dark:bg-neutral-800/50 overflow-x-auto w-full">
+            <div className="mt-4 mb-2 p-2 overflow-x-auto w-full" ref={containerRef}>
               <ActivityCalendarComponent
                 data={activityData}
                 theme={calendarCustomTheme}
-                colorScheme={currentNextTheme === "dark" ? "dark" : "light"}
-                blockSize={14}
-                blockMargin={3}
+                colorScheme={resolvedTheme === "dark" ? "dark" : "light"}
+                blockSize={blockSize}
+                blockMargin={BLOCK_MARGIN_PX}
+                blockRadius={0}
                 fontSize={14}
                 hideTotalCount
                 showWeekdayLabels

@@ -22,7 +22,7 @@
 "use client";
 
 import { formatTagDisplay, normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import { cn } from "@/lib/utils";
+import { cn, formatDate as utilFormatDate } from "@/lib/utils";
 import { Calendar, ExternalLink as LucideExternalLinkIcon } from "lucide-react";
 import Link from "next/link";
 import { type JSX, useEffect, useState } from "react";
@@ -74,19 +74,9 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   const displayBookmarkDate = dateBookmarked;
   const displayPublishDate = null;
 
-  // Format dates only after component is mounted to avoid hydration issues
-  const formatDate = (dateString: string): string => {
-    if (!mounted) return "";
-
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const formattedBookmarkDate = mounted && displayBookmarkDate ? formatDate(displayBookmarkDate) : "";
-  const formattedPublishDate = mounted && displayPublishDate ? formatDate(displayPublishDate) : null;
+  // Use stable date formatting to avoid hydration issues
+  const formattedBookmarkDate = displayBookmarkDate ? utilFormatDate(displayBookmarkDate) : "";
+  const formattedPublishDate = displayPublishDate ? utilFormatDate(displayPublishDate) : null;
 
   // Handle image sources with multiple fallbacks
   // CRITICAL: Always prefer direct S3 CDN URLs to avoid proxy overhead
@@ -170,13 +160,24 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
     >
       {/* Image Section with domain overlay */}
       <div className="relative w-full aspect-video overflow-hidden rounded-t-3xl bg-gray-100 dark:bg-gray-800">
-        {/* Image background - clickable to internal page */}
-        <Link href={effectiveInternalHref || url} title={title} className="absolute inset-0 block">
-          <div className="relative w-full h-full">
-            {/* Try unified OG image API first, but fall back to logo if image fails to load */}
-            <OptimizedCardImage src={displayImageUrl ?? null} alt={title} logoDomain={domain} />
-          </div>
-        </Link>
+        {/* Image background - clickable link */}
+        {effectiveInternalHref ? (
+          // When on list/grid views, link to internal bookmark page
+          <Link href={effectiveInternalHref} title={title} className="absolute inset-0 block">
+            <div className="relative w-full h-full">
+              {/* Try unified OG image API first, but fall back to logo if image fails to load */}
+              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} logoDomain={domain} />
+            </div>
+          </Link>
+        ) : (
+          // When on individual bookmark page, link to external URL in new tab
+          <ExternalLink href={url} title={title} showIcon={false} className="absolute inset-0 block">
+            <div className="relative w-full h-full">
+              {/* Try unified OG image API first, but fall back to logo if image fails to load */}
+              <OptimizedCardImage src={displayImageUrl ?? null} alt={title} logoDomain={domain} />
+            </div>
+          </ExternalLink>
+        )}
         {/* Clickable domain overlay - links to external URL */}
         <ExternalLink
           href={url}
@@ -191,13 +192,26 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       {/* Content Section */}
       <div className="flex-1 p-6 flex flex-col gap-3.5">
         {/* Title */}
-        <Link
-          href={effectiveInternalHref || url}
-          title={displayTitle}
-          className="text-2xl font-semibold text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
-        >
-          {displayTitle}
-        </Link>
+        {effectiveInternalHref ? (
+          // When on list/grid views, link to internal bookmark page
+          <Link
+            href={effectiveInternalHref}
+            title={displayTitle}
+            className="text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
+          >
+            <h3 className="text-2xl font-semibold">{displayTitle}</h3>
+          </Link>
+        ) : (
+          // When on individual bookmark page, link to external URL in new tab
+          <ExternalLink
+            href={url}
+            title={displayTitle}
+            showIcon={false}
+            className="text-gray-900 dark:text-white hover:text-blue-600 transition-colors"
+          >
+            <h3 className="text-2xl font-semibold">{displayTitle}</h3>
+          </ExternalLink>
+        )}
 
         {/* Description */}
         <p className="flex-1 text-gray-700 dark:text-gray-300 text-base line-clamp-4-resilient">{description}</p>

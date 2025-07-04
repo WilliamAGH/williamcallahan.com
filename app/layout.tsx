@@ -85,7 +85,7 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico", // keep root fallback for legacy browsers
     apple: SEO_IMAGES.appleTouch,
     other: [
-      { rel: "manifest", url: "/favicons/site.webmanifest" }, // if added
+      { rel: "manifest", url: "/manifest.webmanifest" }, // served via app/manifest.ts
     ],
   },
   alternates: {

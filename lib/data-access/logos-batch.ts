@@ -45,37 +45,108 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
 
   // Check all domain variants for existing logos in S3
   const variants = getDomainVariants(normalizedDomain);
+  const sources = ["google", "duckduckgo"] as LogoSource[];
+  const extensions = ["png", "jpg", "jpeg", "svg", "webp"];
 
-  // Check for existing logos in S3
+  // Generate all possible S3 keys to check
+  const keysToCheck: Array<{
+    key: string;
+    variant: string;
+    source: LogoSource;
+    ext: string;
+  }> = [];
+
   for (const variant of variants) {
-    for (const source of ["google", "duckduckgo"] as LogoSource[]) {
-      // Check common image formats
-      for (const ext of ["png", "jpg", "jpeg", "svg", "webp"]) {
-        const s3Key = generateS3Key({
-          type: "logo",
-          domain: variant,
-          source,
-          extension: ext,
-        });
-        const exists = await checkIfS3ObjectExists(s3Key);
-        if (exists) {
-          return {
-            url: `${cdnUrl}/${s3Key}`,
+    for (const source of sources) {
+      for (const ext of extensions) {
+        keysToCheck.push({
+          key: generateS3Key({
+            type: "logo",
+            domain: variant,
             source,
-            error: undefined,
-            contentType: ext === "svg" ? "image/svg+xml" : `image/${ext}`,
-          };
-        }
+            extension: ext,
+          }),
+          variant,
+          source,
+          ext,
+        });
       }
     }
   }
 
+  // Check S3 keys in batches for better performance
+  const batchSize = 10;
+  for (let i = 0; i < keysToCheck.length; i += batchSize) {
+    const batch = keysToCheck.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map(async ({ key, source, ext }) => ({
+        exists: await checkIfS3ObjectExists(key),
+        key,
+        source,
+        ext,
+      })),
+    );
+
+    // Return first found result
+    const found = results.find((r) => r.exists);
+    if (found) {
+      return {
+        url: `${cdnUrl}/${found.key}`,
+        source: found.source,
+        error: undefined,
+        contentType: found.ext === "svg" ? "image/svg+xml" : `image/${found.ext}`,
+      };
+    }
+  }
+
+  // If no hashed files found, check for legacy files (without hashes) across all variants - same logic as runtime process
+  try {
+    const { findLegacyLogoKey } = await import("@/lib/services/logo-hash-migrator");
+
+    for (const variant of variants) {
+      const legacyKey = await findLegacyLogoKey(variant);
+
+      if (legacyKey) {
+        console.log(`[Logo Batch] Found existing legacy logo for variant ${variant}: ${legacyKey}`);
+
+        // Extract metadata from legacy key
+        const { parseS3Key } = await import("@/lib/utils/s3-key-generator");
+        const parsed = parseS3Key(legacyKey);
+        const source = (parsed.source || "unknown") as LogoSource;
+        const ext = parsed.extension || "png";
+        const contentType = ext === "svg" ? "image/svg+xml" : ext === "ico" ? "image/x-icon" : `image/${ext}`;
+
+        // For batch operations, we return the legacy key as-is without migration
+        // Migration will happen during runtime requests if needed
+        return {
+          url: `${cdnUrl}/${legacyKey}`,
+          source,
+          error: undefined,
+          contentType,
+        };
+      }
+    }
+  } catch (error) {
+    console.log(
+      `[Logo Batch] Error checking for legacy logos: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
   // Fetch from external sources
   for (const variant of variants) {
-    const sources: Array<{ name: LogoSource; url: string }> = [
-      { name: "google", url: LOGO_SOURCES.google.hd(variant) },
-      { name: "duckduckgo", url: LOGO_SOURCES.duckduckgo.hd(variant) },
-    ];
+    // Type-safe access to LOGO_SOURCES with proper null checks
+    const googleSources = LOGO_SOURCES.google;
+    const duckduckgoSources = LOGO_SOURCES.duckduckgo;
+
+    const sources: Array<{ name: LogoSource; url: string }> = [];
+
+    // Only add sources if they exist
+    if (googleSources?.hd) {
+      sources.push({ name: "google", url: googleSources.hd(variant) });
+    }
+    if (duckduckgoSources?.hd) {
+      sources.push({ name: "duckduckgo", url: duckduckgoSources.hd(variant) });
+    }
 
     for (const { name, url } of sources) {
       try {

@@ -35,13 +35,13 @@ describe("Domain Utilities", () => {
       expect(normalizeDomain("www.example.com")).toBe("example.com");
     });
 
-    it("should handle company names by removing spaces", () => {
-      expect(normalizeDomain("Example Company")).toBe("examplecompany");
+    it("should return empty string for non-domain inputs like company names", () => {
+      expect(normalizeDomain("Example Company")).toBe("");
     });
 
-    it("should handle invalid URLs gracefully", () => {
-      expect(normalizeDomain("not a valid url")).toBe("notavalidurl");
-      // Updated to match actual implementation
+    it("should return empty string for clearly invalid domain-like strings", () => {
+      expect(normalizeDomain("not a valid url")).toBe("");
+      // Updated expectation: 'http://invalid' is treated as protocol with a hostname, returns 'invalid'
       expect(normalizeDomain("http://invalid")).toBe("invalid");
     });
   });
