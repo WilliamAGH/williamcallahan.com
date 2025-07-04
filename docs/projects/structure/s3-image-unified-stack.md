@@ -8,12 +8,14 @@ Comprehensive S3-based storage and image handling system with multi-layered arch
 
 Data Flow: External Sources → UnifiedImageService → S3 Persistence → CDN Delivery
 Components:
+
 - **UnifiedImageService** (`lib/services/unified-image-service.ts:1-1046`): Central orchestrator for all image operations
 - **S3 Utils** (`lib/s3-utils.ts:1-762`): Low-level S3 operations with AWS SDK v3
 - **Persistence Layer** (`lib/persistence/s3-persistence.ts:1-380`): Unified write interface with ACL management
 - **Image Processing** (`lib/image-handling/shared-image-processing.ts:1-197`): Format detection and optimization
 
 ## Key Features
+
 - **Memory-Safe Operations**: Stream support for images >5MB, memory pressure detection
 - **CDN-First Delivery**: ~50ms CDN vs ~100-200ms direct S3
 - **Request Coalescing**: Prevents duplicate concurrent operations

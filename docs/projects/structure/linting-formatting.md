@@ -200,6 +200,207 @@ for (const key of imagePriority) {
 }
 ```
 
+## Error Handling & Unsafe Assignment Patterns
+
+### 26. Unsafe Assignment of Error Values (`@typescript-eslint/no-unsafe-assignment`)
+
+**Problem:** TypeScript flags assignments of `unknown` error values as unsafe, even with type checks.
+
+```typescript
+// ❌ DON'T - Triggers @typescript-eslint/no-unsafe-assignment
+try {
+  await riskyOperation();
+} catch (error: unknown) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error("Operation failed:", errorMessage);  // UNSAFE ASSIGNMENT
+}
+```
+
+**Root Cause:** Even with `instanceof Error` checks, TypeScript considers the assignment unsafe because `error` is typed as `unknown`.
+
+**Solutions:**
+
+```typescript
+// ✅ SOLUTION 1: Explicit conditional handling (RECOMMENDED)
+try {
+  await riskyOperation();
+} catch (error: unknown) {
+  if (error instanceof Error) {
+    console.error("Operation failed:", error.message);
+  } else {
+    console.error("Operation failed:", String(error));
+  }
+}
+
+// ✅ SOLUTION 2: Type guard function
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+try {
+  await riskyOperation();
+} catch (error: unknown) {
+  console.error("Operation failed:", getErrorMessage(error));
+}
+
+// ✅ SOLUTION 3: Explicit type assertion with validation
+try {
+  await riskyOperation();
+} catch (error: unknown) {
+  const message: string = error instanceof Error ? error.message : String(error);
+  console.error("Operation failed:", message);
+}
+```
+
+### 27. Type Narrowing with Complex Object Patterns
+
+**Problem:** TypeScript narrows types to `never` in complex find/filter operations.
+
+```typescript
+// ❌ DON'T - Causes type narrowing issues
+let parsedCandidate: ReturnType<typeof parseS3Key> | null = null;
+const candidate = keys.find((k) => {
+  const parsed = parseS3Key(k);
+  if (parsed.type === "logo" && parsed.domain === domain) {
+    parsedCandidate = parsed;  // Type narrowing confusion
+    return true;
+  }
+  return false;
+});
+
+if (!candidate || !parsedCandidate) return null;
+// parsedCandidate is now 'never' type - TypeScript lost track
+const source = parsedCandidate.source;  // ❌ Error: Property 'source' does not exist on type 'never'
+```
+
+**Solution:** Use explicit mapping to maintain type information.
+
+```typescript
+// ✅ DO - Explicit mapping preserves types
+const candidateInfo = keys
+  .map((k) => ({ key: k, parsed: parseS3Key(k) }))
+  .find(({ key, parsed }) => {
+    return (
+      key.toLowerCase().startsWith(prefix) &&
+      parsed.type === "logo" &&
+      parsed.domain === domain &&
+      !parsed.hash
+    );
+  });
+
+if (!candidateInfo) return null;
+
+const { key: candidate, parsed: parsedCandidate } = candidateInfo;
+// parsedCandidate maintains proper typing
+const source = parsedCandidate.source;  // ✅ Works perfectly
+```
+
+### 28. Error Object Creation Patterns
+
+**Problem:** Creating Error objects from unknown values.
+
+```typescript
+// ❌ DON'T - Unsafe patterns
+catch (err: unknown) {
+  throw new Error(err);  // ❌ Unsafe - err might not be string
+  console.error("Failed:", err.message);  // ❌ Unsafe - err might not have message
+}
+```
+
+**Solutions:**
+
+```typescript
+// ✅ DO - Safe error handling patterns
+catch (err: unknown) {
+  // Pattern 1: Conditional logging
+  if (err instanceof Error) {
+    console.error("Failed:", err.message);
+    throw err;  // Re-throw original Error
+  } else {
+    console.error("Failed:", String(err));
+    throw new Error(String(err));  // Create new Error with string conversion
+  }
+}
+
+// ✅ DO - Utility function approach
+function ensureError(value: unknown): Error {
+  if (value instanceof Error) return value;
+  return new Error(String(value));
+}
+
+catch (err: unknown) {
+  const error = ensureError(err);
+  console.error("Failed:", error.message);
+  throw error;
+}
+```
+
+### 29. Debugging Unsafe Assignment Errors
+
+**Step-by-step resolution process:**
+
+1. **Identify the exact line:** Look for assignments involving `unknown` or `any` types
+2. **Check the eslint rule:** `@typescript-eslint/no-unsafe-assignment`
+3. **Analyze the pattern:** Usually involves error handling or external data
+4. **Apply appropriate solution:**
+   - For errors: Use conditional handling (Solution 1 above)
+   - For external data: Use Zod validation
+   - For complex objects: Restructure to maintain type information
+
+**Common locations:**
+
+- `catch` blocks with `error: unknown`
+- JSON parsing without validation
+- API responses without type checking
+- Dynamic imports or module loading
+
+### 30. Type-Safe Error Utilities
+
+**Create reusable error handling utilities:**
+
+```typescript
+// lib/utils/error-handling.ts
+export function formatError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return JSON.stringify(error);
+}
+
+export function logError(context: string, error: unknown): void {
+  if (error instanceof Error) {
+    console.error(`[${context}] ${error.message}`, error);
+  } else {
+    console.error(`[${context}] ${String(error)}`);
+  }
+}
+
+export function createContextualError(context: string, originalError: unknown): Error {
+  const message = formatError(originalError);
+  const error = new Error(`[${context}] ${message}`);
+  
+  // Preserve stack trace if original was an Error
+  if (originalError instanceof Error && originalError.stack) {
+    error.stack = originalError.stack;
+  }
+  
+  return error;
+}
+```
+
+**Usage:**
+
+```typescript
+import { logError, createContextualError } from "@/lib/utils/error-handling";
+
+try {
+  await complexOperation();
+} catch (error: unknown) {
+  logError("ComplexOperation", error);
+  throw createContextualError("ComplexOperation", error);
+}
+```
+
 ## Zod v4 Best Practices
 
 ### 13. Runtime Validation
@@ -446,5 +647,24 @@ When stuck, use:
 | Route params | Sync | `Promise<{}>` |
 | Default caching | Enabled | Opt-in with `'use cache'` |
 | Fetch caching | Default | Explicit `next: { revalidate }` |
+
++### Error Handling Patterns
++
++| Problem | ❌ DON'T | ✅ DO |
++|---------|----------|-------|
++| Unsafe assignment | `const msg = err instanceof Error ? err.message : String(err);` | `if (err instanceof Error) { console.log(err.message); } else { console.log(String(err)); }` |
++| Type narrowing | `let parsed = null; const found = items.find(i => { parsed = parse(i); return true; });` | `const found = items.map(i => ({item: i, parsed: parse(i)})).find(...)` |
++| Error creation | `throw new Error(unknownValue);` | `throw new Error(String(unknownValue));` |
++| Error logging | `console.error(error.message);` | `console.error(error instanceof Error ? error.message : String(error));` |
++
++### Common ESLint Violations & Fixes
++
++| Rule | Common Trigger | Quick Fix |
++|------|----------------|-----------|
++| `@typescript-eslint/no-unsafe-assignment` | `const x = unknownVar;` | Use type guards or explicit conditionals |
++| `@typescript-eslint/no-unsafe-member-access` | `unknownObj.property` | Check with `'property' in obj` first |
++| `@typescript-eslint/no-unsafe-call` | `unknownFunc()` | Verify `typeof unknownFunc === 'function'` |
++| `@typescript-eslint/no-unsafe-return` | `return unknownValue;` | Validate with Zod or type guards |
++| `@typescript-eslint/no-explicit-any` | `const x: any = ...` | Replace with `unknown` and validate |
 
 Remember: **Zero tolerance for type safety violations. Every line must be provably correct.**
