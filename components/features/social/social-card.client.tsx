@@ -71,7 +71,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
    */
   const getProfileFallbackImage = useCallback((networkLabel: string): string => {
     const cdnConfig = getCdnConfigFromEnv();
-    
+
     try {
       if (networkLabel.includes("GitHub")) {
         const usernameMatch = networkLabel.match(/@(\w+)/);
@@ -81,26 +81,26 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
       }
       if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
         return buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig);
-      if (networkLabel.includes("LinkedIn")) 
+      if (networkLabel.includes("LinkedIn"))
         return buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig);
       if (networkLabel.includes("Bluesky")) {
         // Use personal avatar from CDN
         return buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig);
       }
-      if (networkLabel.includes("Discord")) 
+      if (networkLabel.includes("Discord"))
         return buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig);
     } catch (error: unknown) {
       void error;
       console.error(`Error getting profile image for ${networkLabel}:`);
-      if (networkLabel.includes("GitHub")) 
+      if (networkLabel.includes("GitHub"))
         return buildCdnUrl("images/social-media/profiles/github_72193247.jpg", cdnConfig);
       if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
         return buildCdnUrl("images/social-media/profiles/x_5469c2d0.jpg", cdnConfig);
-      if (networkLabel.includes("LinkedIn")) 
+      if (networkLabel.includes("LinkedIn"))
         return buildCdnUrl("images/social-media/profiles/linkedin_cd280279.jpg", cdnConfig);
-      if (networkLabel.includes("Bluesky")) 
+      if (networkLabel.includes("Bluesky"))
         return buildCdnUrl("images/social-media/profiles/bluesky_5a093069.jpg", cdnConfig);
-      if (networkLabel.includes("Discord")) 
+      if (networkLabel.includes("Discord"))
         return buildCdnUrl("images/social-media/profiles/discord_5a093069.jpg", cdnConfig);
     }
     return buildCdnUrl("images/other/profile/william_5469c2d0.jpg", cdnConfig);
@@ -114,16 +114,16 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
    */
   const getDomainFallbackImage = useCallback((networkLabel: string): string => {
     const cdnConfig = getCdnConfigFromEnv();
-    
-    if (networkLabel.includes("GitHub")) 
+
+    if (networkLabel.includes("GitHub"))
       return buildCdnUrl("images/social-media/banners/github_87b6d92e.svg", cdnConfig);
     if (networkLabel.includes("X") || networkLabel.includes("Twitter"))
       return buildCdnUrl("images/social-media/banners/twitter-x_4830ec25.svg", cdnConfig);
-    if (networkLabel.includes("LinkedIn")) 
+    if (networkLabel.includes("LinkedIn"))
       return buildCdnUrl("images/social-media/banners/linkedin_02a7ce76.svg", cdnConfig);
-    if (networkLabel.includes("Discord")) 
+    if (networkLabel.includes("Discord"))
       return buildCdnUrl("images/social-media/banners/discord_783c1e2b.svg", cdnConfig);
-    if (networkLabel.includes("Bluesky")) 
+    if (networkLabel.includes("Bluesky"))
       return buildCdnUrl("images/social-media/banners/bluesky_9310c7f9.png", cdnConfig);
     return buildCdnUrl("images/other/placeholders/company_90296cb3.svg", cdnConfig);
   }, []);
@@ -291,7 +291,7 @@ export function SocialCardClient({ social }: SocialCardProps): JSX.Element {
               title={`Visit ${profileName} profile page`}
             >
               <Icon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-              <span className="text-lg font-bold text-gray-900 dark:text-white">{serviceName}</span>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">{serviceName}</h3>
             </a>
             <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">{getUserHandle(href)}</p>
           </div>
