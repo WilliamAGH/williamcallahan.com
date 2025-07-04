@@ -16,7 +16,6 @@ export function Home() {
           <h1 className="text-4xl font-bold mb-6">William Callahan</h1>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">About</h2>
             <p className="text-lg mb-4">
               Hello there -- I&apos;m William. I&apos;m a lifelong builder and entrepreneur who finds meaning in making
               things better, and in helping others.
@@ -64,13 +63,13 @@ export function Home() {
             <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Projects & Resources</h2>
             <p className="text-lg mb-4">
               If you&apos;re curious about what I&apos;m tinkering with these days, my{" "}
-              <a
+              <Link
                 href="/projects"
                 className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                 title="View my projects"
               >
                 projects page
-              </a>{" "}
+              </Link>{" "}
               serves as a public sandbox for my latest experiments and passion projects. I also regularly bookmark what
               I&apos;m reading, which you can find on my{" "}
               <Link
