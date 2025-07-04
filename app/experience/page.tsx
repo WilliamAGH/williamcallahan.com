@@ -21,7 +21,7 @@ import { getLogoFromManifestAsync } from "@/lib/image-handling/image-manifest-lo
 import type { Experience as ExperienceType, LogoData, ProcessedExperienceItem } from "@/types";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
 
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
 /**
  * Generate metadata for the experience page
@@ -62,7 +62,7 @@ export default async function ExperiencePage() {
   const experienceData = await Promise.all(
     experiences.map(async (exp: ExperienceType): Promise<ProcessedExperienceItem> => {
       let error: string | undefined;
-      
+
       try {
         const hasOverrideDomain = Boolean(exp.logoOnlyDomain);
 
