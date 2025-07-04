@@ -41,73 +41,85 @@ export function Home() {
               globally as <code>us-central1</code> for its recent Google Cloud data center additions.)
             </p>
           </section>
-          <p className="text-lg mb-4">
-            I&apos;m currently building{" "}
-            <a
-              href="https://aventure.vc"
-              className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-              title="aVenture"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              aVenture
-            </a>
-            , a platform designed to bring greater transparency and data-driven safety to the world of private startup
-            investing.
-          </p>
-          <p className="text-lg mb-4">
-            If you&apos;re curious about what I&apos;m tinkering with these days, my{" "}
-            <a
-              href="/projects"
-              className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-              title="View my projects"
-            >
-              projects page
-            </a>{" "}
-            serves as a public sandbox for my latest experiments and passion projects. I also regularly bookmark what
-            I&apos;m reading, which you can find on my{" "}
-            <Link
-              href="/bookmarks"
-              className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-              title="View my bookmarks"
-            >
-              bookmarks page
-            </Link>
-            .
-          </p>
-          <p className="text-lg mb-4">
-            Feel free to connect with me on{" "}
-            <a
-              href="https://discord.com/users/WilliamDscord"
-              className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-              title="Connect with me on Discord"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Discord
-            </a>
-            ,{" "}
-            <a
-              href="https://x.com/williamcallahan"
-              className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-              title="Connect with me on X"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              X
-            </a>
-            , or{" "}
-            <a
-              href="https://linkedin.com/in/williamacallahan"
-              className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-              title="Connect with me on LinkedIn"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              LinkedIn
-            </a>{" "}
-            to chat.
-          </p>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Current Work</h2>
+            <p className="text-lg mb-4">
+              I&apos;m currently building{" "}
+              <a
+                href="https://aventure.vc"
+                className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                title="aVenture"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                aVenture
+              </a>
+              , a platform designed to bring greater transparency and data-driven safety to the world of private startup
+              investing.
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Projects & Resources</h2>
+            <p className="text-lg mb-4">
+              If you&apos;re curious about what I&apos;m tinkering with these days, my{" "}
+              <a
+                href="/projects"
+                className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                title="View my projects"
+              >
+                projects page
+              </a>{" "}
+              serves as a public sandbox for my latest experiments and passion projects. I also regularly bookmark what
+              I&apos;m reading, which you can find on my{" "}
+              <Link
+                href="/bookmarks"
+                className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                title="View my bookmarks"
+              >
+                bookmarks page
+              </Link>
+              .
+            </p>
+          </section>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">Connect</h2>
+            <p className="text-lg mb-4">
+              Feel free to connect with me on{" "}
+              <a
+                href="https://discord.com/users/WilliamDscord"
+                className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                title="Connect with me on Discord"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Discord
+              </a>
+              ,{" "}
+              <a
+                href="https://x.com/williamcallahan"
+                className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                title="Connect with me on X"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                X
+              </a>
+              , or{" "}
+              <a
+                href="https://linkedin.com/in/williamacallahan"
+                className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                title="Connect with me on LinkedIn"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                LinkedIn
+              </a>{" "}
+              to chat.
+            </p>
+          </section>
         </div>
         <ProfileImage />
       </div>
