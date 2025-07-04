@@ -1,6 +1,6 @@
 // Jest provides describe, expect, it, beforeEach globally
 import { compareImages } from "@/lib/image-handling/image-compare";
-import { logger } from "@/lib/logger";
+import logger from "@/lib/utils/logger";
 
 // TODO(wasm-image): These tests reflect the current SHA-256 hash-based implementation.
 // When WASM perceptual hashing is implemented, update tests to cover perceptual similarity.
