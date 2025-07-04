@@ -152,3 +152,25 @@ export function normalizeContentType(contentType: string): string {
  * Derived automatically from IMAGE_MIME_TYPES so there is a single source of truth.
  */
 export const IMAGE_EXTENSIONS: readonly string[] = Object.keys(IMAGE_MIME_TYPES) as readonly string[];
+
+/**
+ * Guess the MIME type for an image based on a response header value and/or the URL path.
+ * Falls back to sensible defaults, never returns application/octet-stream.
+ */
+export function guessImageContentType(url: string, header?: string | null): string {
+  const normalized = header?.toLowerCase();
+
+  if (normalized && normalized !== "application/octet-stream") {
+    return normalized;
+  }
+
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.endsWith(".png")) return "image/png";
+  if (lowerUrl.endsWith(".jpg") || lowerUrl.endsWith(".jpeg")) return "image/jpeg";
+  if (lowerUrl.endsWith(".gif")) return "image/gif";
+  if (lowerUrl.endsWith(".webp")) return "image/webp";
+  if (lowerUrl.endsWith(".svg")) return "image/svg+xml";
+  if (lowerUrl.endsWith(".ico")) return "image/x-icon";
+
+  return "image/png"; // safe default
+}
