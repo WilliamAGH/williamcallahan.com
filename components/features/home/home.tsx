@@ -14,29 +14,33 @@ export function Home() {
       <div className="flex flex-col md:flex-row items-start gap-8 mb-8">
         <div className="flex-1">
           <h1 className="text-4xl font-bold mb-6">William Callahan</h1>
-          <p className="text-lg mb-4">
-            Hello there -- I&apos;m William. I&apos;m a lifelong builder and entrepreneur who finds meaning in making
-            things better, and in helping others.
-          </p>
-          <p className="text-lg mb-4">
-            My background is in finance and technology. Today I live and work in San Francisco / Silicon Valley. I grew
-            up in the small midwestern US town of Carter Lake—a one-square-mile Iowa exclave, famed for two cases on its
-            location reaching the{" "}
-            <a
-              href="https://en.wikipedia.org/wiki/Carter_Lake,_Iowa"
-              className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
-              title="Read about Carter Lake, Iowa on Wikipedia"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              US Supreme Court
-            </a>
-            .
-          </p>
-          <p className="text-lg mb-4">
-            (The neighboring sister town of Council Bluffs, Iowa, where I went to school, is now more famously known
-            globally as <code>us-central1</code> for its recent Google Cloud data center additions.)
-          </p>
+
+          <section className="mb-8">
+            <h2 className="text-2xl font-semibold mb-4 text-gray-900 dark:text-white">About</h2>
+            <p className="text-lg mb-4">
+              Hello there -- I&apos;m William. I&apos;m a lifelong builder and entrepreneur who finds meaning in making
+              things better, and in helping others.
+            </p>
+            <p className="text-lg mb-4">
+              My background is in finance and technology. Today I live and work in San Francisco / Silicon Valley. I
+              grew up in the small midwestern US town of Carter Lake—a one-square-mile Iowa exclave, famed for two cases
+              on its location reaching the{" "}
+              <a
+                href="https://en.wikipedia.org/wiki/Carter_Lake,_Iowa"
+                className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+                title="Read about Carter Lake, Iowa on Wikipedia"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                US Supreme Court
+              </a>
+              .
+            </p>
+            <p className="text-lg mb-4">
+              (The neighboring sister town of Council Bluffs, Iowa, where I went to school, is now more famously known
+              globally as <code>us-central1</code> for its recent Google Cloud data center additions.)
+            </p>
+          </section>
           <p className="text-lg mb-4">
             I&apos;m currently building{" "}
             <a
