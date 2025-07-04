@@ -38,36 +38,40 @@ STEP 3: Type Discovery & Mapping with Framework Context
 Use ALL available MCP tools for comprehensive analysis:
 
 a) **Gather TypeScript Best Practices**:
-   - Use available TypeScript documentation MCPs for v5.x patterns
-   - @mcp__context7__resolve-library-id libraryName="typescript" then @mcp__context7__get-library-docs topic="types"
-   - @mcp__brave-search__brave_web_search for "TypeScript 5 type organization best practices"
-   - Understand current patterns for type exports and organization
+
+- Use available TypeScript documentation MCPs for v5.x patterns
+- @mcp__context7__resolve-library-id libraryName="typescript" then @mcp__context7__get-library-docs topic="types"
+- @mcp__brave-search__brave_web_search for "TypeScript 5 type organization best practices"
+- Understand current patterns for type exports and organization
 
 b) **Framework-Specific Type Patterns**:
-   - Next.js 15 types: @mcp__context7__resolve-library-id libraryName="next.js" then @mcp__context7__get-library-docs topic="typescript"
-   - React 19 types: @mcp__context7__resolve-library-id libraryName="react" then @mcp__context7__get-library-docs topic="typescript"
-   - Zod 4 integration: @mcp__context7__resolve-library-id libraryName="zod" then @mcp__context7__get-library-docs
+
+- Next.js 15 types: @mcp__context7__resolve-library-id libraryName="next.js" then @mcp__context7__get-library-docs topic="typescript"
+- React 19 types: @mcp__context7__resolve-library-id libraryName="react" then @mcp__context7__get-library-docs topic="typescript"
+- Zod 4 integration: @mcp__context7__resolve-library-id libraryName="zod" then @mcp__context7__get-library-docs
 
 c) **Deep Analysis with Context**:
    Use @mcp__zen__thinkdeep with model="pro" and thinking_mode="max" including:
-   - All type definitions found
-   - Framework documentation insights
-   - Best practices from web search
-   
+
+- All type definitions found
+- Framework documentation insights
+- Best practices from web search
+
    Analyze for:
-   - List all type definitions found
-   - Identify potential duplicates by analyzing:
-     - Similar names (e.g., BookmarkType vs Bookmark)
-     - Similar structure (matching properties)
-     - Similar imports/usage patterns
-   - For each potential duplicate set:
-     - Document exact file locations
-     - List all properties and their types
-     - Note any subtle differences
-   - Identify circular import risks:
-     - Trace import chains
-     - Flag any circular dependencies
-     - Plan resolution strategy based on TypeScript best practices
+
+- List all type definitions found
+- Identify potential duplicates by analyzing:
+  - Similar names (e.g., BookmarkType vs Bookmark)
+  - Similar structure (matching properties)
+  - Similar imports/usage patterns
+- For each potential duplicate set:
+  - Document exact file locations
+  - List all properties and their types
+  - Note any subtle differences
+- Identify circular import risks:
+  - Trace import chains
+  - Flag any circular dependencies
+  - Plan resolution strategy based on TypeScript best practices
 
 STEP 4: Consumer Analysis (CRITICAL - Never skip this!)
 For EACH potential duplicate type:
