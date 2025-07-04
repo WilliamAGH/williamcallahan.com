@@ -325,3 +325,31 @@ Before committing any code reduction refactoring, confirm the following:
 - [ ] **JSDoc Comments Intact?** File-level and function-level JSDoc blocks are present, accurate, and succinct.
 - [ ] **Validation Passed?** Did `bun run validate` complete with zero errors or warnings?
 - [ ] **Is this truly better?** Or just fewer lines?
+
+## Commit Instructions - ABSOLUTELY CRITICAL
+
+**NEVER include AI/Claude attribution in commits:**
+- ❌ 🤖 Generated with [Claude Code]
+- ❌ Co-Authored-By: Claude <noreply@anthropic.com>
+- ❌ Any other AI attribution or markers
+
+**Commit Requirements:**
+1. Clear, specific messages describing the exact optimization made
+2. Small batches: 1-3 related files per commit maximum
+3. NO generic messages like "reduce code" or "optimize"
+4. Use conventional format: `refactor([scope]): specific description`
+
+**Example commits:**
+```bash
+# Single file optimization
+git add components/BlogList.tsx
+git commit -m "refactor(blog): consolidate duplicate filter logic into single function"
+
+# Related files in same domain
+git add components/Search.tsx types/search.ts
+git commit -m "refactor(search): remove redundant type definitions and simplify query builder"
+
+# Never more than 3 files unless they're tiny related changes
+git add utils/string.ts utils/number.ts utils/date.ts
+git commit -m "refactor(utils): merge similar validation functions across utility modules"
+```

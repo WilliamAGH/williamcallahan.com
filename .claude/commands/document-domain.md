@@ -380,9 +380,32 @@ npm view [package] version  # Check for updates
 
 ```bash
 grep -r "useMemo\|lazy" --include="*.ts*"  # Performance patterns
-git add docs/projects/structure/[domain].{md,mmd} && git commit -m "docs([domain]): architecture"
 ```
-Update: 00-architecture-entrypoint.md, file-overview-map.md
+
+### Commit Instructions - ABSOLUTELY CRITICAL
+
+**NEVER include AI/Claude attribution in commits:**
+- ❌ 🤖 Generated with [Claude Code]
+- ❌ Co-Authored-By: Claude <noreply@anthropic.com>
+- ❌ Any other AI attribution or markers
+
+**Commit Requirements:**
+1. Clear, specific messages using conventional format: `docs([domain]): architecture`
+2. Small batches: 1-3 domain-related files per commit maximum
+3. NO generic messages like "update docs" or "fix stuff"
+4. Each commit must describe the specific change made
+
+```bash
+# Example commits (one at a time):
+git add docs/projects/structure/[domain].md
+git commit -m "docs([domain]): add architecture documentation with data flow"
+
+git add docs/projects/structure/[domain].mmd
+git commit -m "docs([domain]): add mermaid diagram for component relationships"
+
+git add docs/projects/structure/00-architecture-entrypoint.md docs/projects/file-overview-map.md
+git commit -m "docs: update entrypoint and file map with [domain] functionality"
+```
 
 ## 🚨 Common Pitfalls to AVOID
 
