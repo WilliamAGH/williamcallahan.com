@@ -767,7 +767,7 @@ function buildProjectsIndex(): MiniSearch<Project> {
 
   // Deduplicate by name (assumed unique) - explicitly type the result
   const deduped: Project[] = prepareDocumentsForIndexing(
-    projectsData as Array<Project & { id?: string | number }>,
+    projectsData,
     "Projects",
     (p) => p.name,
   );
