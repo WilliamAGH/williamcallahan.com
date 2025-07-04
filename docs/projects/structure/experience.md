@@ -6,7 +6,7 @@ The Experience domain displays professional work history with idempotent S3 CDN 
 
 ## Architecture Overview
 
-Data Flow: Static Data → Page Processing → Manifest Check → S3 CDN Fetch → Client Render
+Data Flow: Static Data → Request-Time Processing → Manifest Check → S3 CDN Fetch → Client Render
 Components:
 
 - **Data Layer** (`data/experience.ts:1-45`): Static array of work experiences with optional logoOnlyDomain
@@ -49,8 +49,9 @@ export interface LogoData {
 
 1. **logoOnlyDomain Pattern**: `page.tsx:71-75` prioritizes logoOnlyDomain over website/company for accurate logos
 2. **Manifest-First**: `page.tsx:77-84` checks pre-computed manifest before hitting UnifiedImageService
-3. **Server-Side Only**: All logo resolution at build time, no client-side fetching
-4. **Explicit Fallback**: `page.tsx:89` uses getCompanyPlaceholder() for consistent placeholder
+3. **Dynamic Rendering**: Uses `force-dynamic` to resolve logos at request time, preventing build-time API access issues
+4. **Server-Side Only**: All logo resolution server-side, no client-side fetching
+5. **Explicit Fallback**: `page.tsx:89` uses getCompanyPlaceholder() for consistent placeholder
 
 ## External Integrations
 
