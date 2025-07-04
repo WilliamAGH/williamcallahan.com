@@ -5,6 +5,7 @@
  * Converted to a server component for faster initial rendering.
  */
 
+import Link from "next/link";
 import { ProfileImage } from "./profile-image";
 
 export function Home() {
@@ -13,10 +14,14 @@ export function Home() {
       <div className="flex flex-col md:flex-row items-start gap-8 mb-8">
         <div className="flex-1">
           <h1 className="text-4xl font-bold mb-6">William Callahan</h1>
-          <p className="text-lg mb-4">Hello &mdash; I&apos;m an entrepreneur that enjoys building.</p>
           <p className="text-lg mb-4">
-            My background is in finance and technology. I build in Silicon Valley, but my story begins in Carter Lake—a
-            one-square-mile Iowa exclave, famed for two cases on its location reaching the{" "}
+            Hello there -- I&apos;m William. I&apos;m a lifelong builder and entrepreneur who finds meaning in making
+            things better, and in helping others.
+          </p>
+          <p className="text-lg mb-4">
+            My background is in finance and technology. Today I live and work in San Francisco / Silicon Valley. I grew
+            up in the small midwestern US town of Carter Lake—a one-square-mile Iowa exclave, famed for two cases on its
+            location reaching the{" "}
             <a
               href="https://en.wikipedia.org/wiki/Carter_Lake,_Iowa"
               className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
@@ -29,12 +34,11 @@ export function Home() {
             .
           </p>
           <p className="text-lg mb-4">
-            My school bus route led to Council Bluffs (now better known in tech as Google Cloud&apos;s
-            &apos;us-central1&apos; data centers), and I later settled in Omaha before heading west to San Francisco,
-            California a few years ago.
+            (The neighboring sister town of Council Bluffs, Iowa, where I went to school, is now more famously known
+            globally as <code>us-central1</code> for its recent Google Cloud data center additions.)
           </p>
           <p className="text-lg mb-4">
-            Today, my highest professional priority is building{" "}
+            I&apos;m currently building{" "}
             <a
               href="https://aventure.vc"
               className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
@@ -44,17 +48,27 @@ export function Home() {
             >
               aVenture
             </a>
-            , a research and investing platform that seeks to make investing in private startups safer with better data.
+            , a platform designed to bring greater transparency and data-driven safety to the world of private startup
+            investing.
           </p>
           <p className="text-lg mb-4">
-            I also share my experimental projects in an online &apos;sandbox&apos;, all available on my{" "}
+            If you&apos;re curious about what I&apos;m tinkering with these days, my{" "}
             <a
               href="/projects"
               className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
               title="View my projects"
             >
               projects page
-            </a>
+            </a>{" "}
+            serves as a public sandbox for my latest experiments and passion projects. I also regularly bookmark what
+            I&apos;m reading, which you can find on my{" "}
+            <Link
+              href="/bookmarks"
+              className="text-blue-400 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
+              title="View my bookmarks"
+            >
+              bookmarks page
+            </Link>
             .
           </p>
           <p className="text-lg mb-4">
