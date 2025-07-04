@@ -123,7 +123,7 @@ export async function processBookmarksInBatches(
             }
           } else {
             // Runtime mode - schedule async persistence
-            const { scheduleImagePersistence } = await import("@/lib/opengraph/persistence");
+            const { scheduleImagePersistence } = await import("@/lib/persistence/s3-persistence");
             const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
             scheduleImagePersistence(karakeepImage, OPENGRAPH_IMAGES_S3_DIR, "Karakeep", bookmark.id, bookmark.url);
             bookmark.ogImage = karakeepImage;
@@ -200,7 +200,7 @@ export async function processBookmarksInBatches(
                 }
               } else {
                 // Runtime mode - schedule async persistence
-                const { scheduleImagePersistence } = await import("@/lib/opengraph/persistence");
+                const { scheduleImagePersistence } = await import("@/lib/persistence/s3-persistence");
                 const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
                 scheduleImagePersistence(finalImage, OPENGRAPH_IMAGES_S3_DIR, imageSource, bookmark.id, bookmark.url);
                 bookmark.ogImage = finalImage;
@@ -390,7 +390,7 @@ export async function processBookmarksInBatches(
                 }
               } else {
                 // Runtime mode - schedule async persistence
-                const { scheduleImagePersistence } = await import("@/lib/opengraph/persistence");
+                const { scheduleImagePersistence } = await import("@/lib/persistence/s3-persistence");
                 const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
                 scheduleImagePersistence(
                   karakeepImage,
