@@ -54,19 +54,6 @@ else
 fi
 export AWS_REGION
 
-# ---------------------------------------------------------------------------
-# DigitalOcean Spaces signing region
-# ---------------------------------------------------------------------------
-# Most S3-compatible vendors (including DigitalOcean) expect requests to be
-# signed with **us-east-1**, regardless of the datacenter slug in the endpoint.
-# Using the region slug (e.g. "sfo3") frequently triggers
-# SignatureDoesNotMatch/AuthorizationHeaderMalformed errors.  Unless the caller
-# explicitly sets AWS_REGION, default to "us-east-1" whenever a custom
-# S3_SERVER_URL is present.
-
-if [[ -n "${S3_SERVER_URL:-}" ]]; then
-  AWS_REGION="${AWS_REGION:-us-east-1}"
-fi
 
 # When using S3-compatible storage (e.g. DigitalOcean Spaces) the AWS CLI needs
 # the explicit endpoint URL.  Detect S3_SERVER_URL from the env (as defined in
