@@ -66,19 +66,26 @@ export async function InvestmentCard(
       console.warn(`Manifest lookup error for ${name} (${effectiveDomain}):`, errorMessage);
     }
 
-    // Fallback: trigger an asynchronous logo fetch via UnifiedImageService without blocking render
-    void getLogo(effectiveDomain)
-      .then((liveLogo) => {
-        if (liveLogo?.cdnUrl || liveLogo?.url) {
-          console.info(
-            `[InvestmentCard] Background logo fetch succeeded for ${effectiveDomain} via ${liveLogo.source ?? "api"}`,
-          );
-        }
-      })
-      .catch((fetchErr) => {
-        const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
-        console.error(`[InvestmentCard] Background logo fetch failed for ${effectiveDomain}:`, msg);
-      });
+    // 🔧 FIX: Instead of fire-and-forget background fetch, actually use the result
+    try {
+      const liveLogo = await getLogo(effectiveDomain);
+
+      if (liveLogo?.cdnUrl || liveLogo?.url) {
+        console.info(
+          `[InvestmentCard] Live logo fetch succeeded for ${effectiveDomain} via ${liveLogo.source ?? "api"}`,
+        );
+
+        const logoData: LogoData = {
+          url: liveLogo.cdnUrl || liveLogo.url || getCompanyPlaceholder(),
+          source: liveLogo.source || "api",
+        };
+
+        return <InvestmentCardClient {...props} logoData={logoData} />;
+      }
+    } catch (fetchErr) {
+      const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+      console.error(`[InvestmentCard] Live logo fetch failed for ${effectiveDomain}:`, msg);
+    }
   }
 
   // Single fallback to placeholder if no logo could be fetched
