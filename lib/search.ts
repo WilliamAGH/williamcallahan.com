@@ -6,6 +6,7 @@ import { posts } from "../data/blog/posts";
 import { certifications, education } from "../data/education";
 import { experiences } from "../data/experience";
 import { investments } from "../data/investments";
+import { projects as projectsData } from "../data/projects";
 import type { BlogPost } from "../types/blog";
 import type { SearchResult, EducationItem, BookmarkIndexItem } from "../types/search";
 import MiniSearch from "minisearch";
@@ -18,6 +19,7 @@ import { SEARCH_S3_PATHS } from "./constants";
 import { readJsonS3 } from "./s3-utils";
 import type { SerializedIndex } from "@/types/search";
 import { loadIndexFromJSON } from "./search/index-builder";
+import type { Project } from "../types/project";
 
 // Type-safe wrappers for cache functions to fix ESLint unsafe call errors
 const safeCacheLife = (
@@ -55,6 +57,7 @@ const SEARCH_INDEX_KEYS = {
   EXPERIENCE: "search:index:experience",
   EDUCATION: "search:index:education",
   BOOKMARKS: "search:index:bookmarks",
+  PROJECTS: "search:index:projects",
 } as const;
 
 // TTL for search indexes (1 hour for static, 5 minutes for dynamic)
@@ -678,7 +681,10 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
       indexData = await getBookmarksIndex();
     } catch (error) {
       console.error(`[searchBookmarks] Failed to get bookmarks index:`, error);
-      return cached?.results || [];
+      if (cached && Array.isArray(cached.results)) {
+        return cached.results;
+      }
+      return [];
     }
 
     const { index, bookmarks } = indexData;
@@ -702,19 +708,19 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
 
     // Map search results back to SearchResult format
     const resultIds = new Set(searchResults.map((r) => String(r.id)));
-    const results = bookmarks
+    const results: SearchResult[] = bookmarks
       .filter((b) => resultIds.has(b.id))
-      .map(
-        (b) =>
-          ({
-            id: b.id,
-            type: "bookmark",
-            title: b.title,
-            description: b.description,
-            url: `/bookmarks/${b.slug}`,
-            score: searchResults.find((r) => r.id === b.id)?.score || 0,
-          }) as SearchResult,
-      )
+      .map((b) => {
+        const mapped: SearchResult = {
+          id: b.id,
+          type: "bookmark",
+          title: b.title,
+          description: b.description,
+          url: `/bookmarks/${b.slug}`,
+          score: searchResults.find((r) => r.id === b.id)?.score ?? 0,
+        };
+        return mapped;
+      })
       .sort((a, b) => b.score - a.score);
 
     // Cache the results
@@ -725,7 +731,10 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     console.error("[searchBookmarks] Unexpected failure:", err);
     // Return cached results if available on error
     const cached = ServerCacheInstance.getSearchResults<SearchResult>("bookmarks", query);
-    return cached?.results || [];
+    if (cached && Array.isArray(cached.results)) {
+      return cached.results;
+    }
+    return [];
   }
 }
 
@@ -746,4 +755,72 @@ export function invalidateSearchQueryCache(query: string): void {
     safeRevalidateTag(`search-posts-${truncatedQuery}`);
     console.log(`[Search] Cache invalidated for query: ${truncatedQuery}`);
   }
+}
+
+function buildProjectsIndex(): MiniSearch<Project> {
+  const projectsIndex = new MiniSearch<Project>({
+    fields: ["name", "description", "tags"],
+    storeFields: ["name", "description", "url"],
+    idField: "name",
+    searchOptions: { boost: { name: 2 }, fuzzy: 0.2, prefix: true },
+  });
+
+  // Deduplicate by name (assumed unique) - explicitly type the result
+  const deduped: Project[] = prepareDocumentsForIndexing(
+    projectsData as Array<Project & { id?: string | number }>,
+    "Projects",
+    (p) => p.name,
+  );
+  projectsIndex.addAll(deduped);
+  return projectsIndex;
+}
+
+async function getProjectsIndex(): Promise<MiniSearch<Project>> {
+  return loadOrBuildIndex(
+    SEARCH_S3_PATHS.PROJECTS_INDEX,
+    SEARCH_INDEX_KEYS.PROJECTS,
+    buildProjectsIndex,
+    STATIC_INDEX_TTL,
+  );
+}
+
+export async function searchProjects(query: string): Promise<SearchResult[]> {
+  const cached = ServerCacheInstance.getSearchResults<SearchResult>("projects", query);
+  if (cached && !ServerCacheInstance.shouldRefreshSearch("projects", query)) {
+    return cached.results;
+  }
+
+  const index = await getProjectsIndex();
+  const results = searchContent(
+    projectsData,
+    query,
+    (p) => [p.name, p.description, (p.tags || []).join(" ")],
+    (p) => p.name,
+    index,
+  );
+
+  const searchResults: SearchResult[] = results.map<SearchResult>((p) => ({
+    id: p.name,
+    type: "project",
+    title: p.name,
+    description: p.shortSummary || p.description,
+    url: p.url ?? "/projects",
+    score: 0,
+  }));
+
+  // If the query is exactly "projects", add navigation result to Projects page at top
+  const sanitized = sanitizeSearchQuery(query).toLowerCase();
+  if (sanitized === "projects" || sanitized === "project") {
+    searchResults.unshift({
+      id: "projects-page",
+      type: "page",
+      title: "Projects",
+      description: "Explore all projects",
+      url: "/projects",
+      score: 1,
+    });
+  }
+
+  ServerCacheInstance.setSearchResults("projects", query, searchResults);
+  return searchResults;
 }
