@@ -1,6 +1,24 @@
-/** Application Constants - Central location for all application constants */
+/**
+ * Application Constants - Central location for all application constants
+ *
+ * CRITICAL HYDRATION WARNING:
+ * ===========================
+ * This file imports server-only dependencies (S3 utilities, which use AWS SDK and node:crypto).
+ * Client components that import from this file will cause hydration errors.
+ *
+ * CLIENT COMPONENTS MUST IMPORT FROM: lib/constants/client.ts
+ *
+ * This file is being gradually deprecated in favor of:
+ * - lib/constants/client.ts - Client-safe constants only
+ * - lib/constants/server.ts - Server-only constants (to be created)
+ *
+ * @see https://github.com/WilliamAGH/williamcallahan.com/issues/175
+ * @deprecated Use lib/constants/client.ts for client components
+ */
 import type { BookmarksS3Paths, RateLimiterConfig } from "@/types/lib";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
+const env = process.env.NODE_ENV;
+const envSuffix = env === "production" || !env ? "" : env === "test" ? "-test" : "-dev";
 
 /** Client-side cache duration: 30 days (milliseconds) */
 export const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000;
@@ -9,45 +27,37 @@ export const SERVER_CACHE_DURATION = 3 * 24 * 60 * 60;
 /** Logo cache: 30 days success, 1 day failure */
 export const LOGO_CACHE_DURATION = { SUCCESS: 30 * 24 * 60 * 60, FAILURE: 24 * 60 * 60 };
 
-const envSuffix =
-  process.env.NODE_ENV === "production" || !process.env.NODE_ENV
-    ? ""
-    : process.env.NODE_ENV === "test"
-      ? "-test"
-      : "-dev";
-
-const p = (path: string) => `${path}${envSuffix}.json`; // Path helper
 export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
   DIR: "json/bookmarks",
-  FILE: p("json/bookmarks/bookmarks"),
-  LOCK: p("json/bookmarks/refresh-lock"),
-  INDEX: p("json/bookmarks/index"),
+  FILE: `json/bookmarks/bookmarks${envSuffix}.json`,
+  LOCK: `json/bookmarks/refresh-lock${envSuffix}.json`,
+  INDEX: `json/bookmarks/index${envSuffix}.json`,
   PAGE_PREFIX: `json/bookmarks/pages${envSuffix}/page-`,
   TAG_PREFIX: `json/bookmarks/tags${envSuffix}/`,
   TAG_INDEX_PREFIX: `json/bookmarks/tags${envSuffix}/`,
 } as const;
 
-export const LOGO_BLOCKLIST_S3_PATH = p("json/rate-limit/logo-failed-domains");
+export const LOGO_BLOCKLIST_S3_PATH = `json/rate-limit/logo-failed-domains${envSuffix}.json`;
 
 /** S3 paths for search indexes (environment-aware) */
 export const SEARCH_S3_PATHS = {
   DIR: "json/search",
-  POSTS_INDEX: p("json/search/posts-index"),
-  BOOKMARKS_INDEX: p("json/search/bookmarks-index"),
-  INVESTMENTS_INDEX: p("json/search/investments-index"),
-  EXPERIENCE_INDEX: p("json/search/experience-index"),
-  EDUCATION_INDEX: p("json/search/education-index"),
-  PROJECTS_INDEX: p("json/search/projects-index"),
-  BUILD_METADATA: p("json/search/build-metadata"),
+  POSTS_INDEX: `json/search/posts-index${envSuffix}.json`,
+  BOOKMARKS_INDEX: `json/search/bookmarks-index${envSuffix}.json`,
+  INVESTMENTS_INDEX: `json/search/investments-index${envSuffix}.json`,
+  EXPERIENCE_INDEX: `json/search/experience-index${envSuffix}.json`,
+  EDUCATION_INDEX: `json/search/education-index${envSuffix}.json`,
+  PROJECTS_INDEX: `json/search/projects-index${envSuffix}.json`,
+  BUILD_METADATA: `json/search/build-metadata${envSuffix}.json`,
 } as const;
 
 /** S3 paths for GitHub activity data (environment-aware) */
 export const GITHUB_ACTIVITY_S3_PATHS = {
   DIR: "json/github-activity",
-  ACTIVITY_DATA: p("json/github-activity/activity_data"),
-  STATS_SUMMARY: p("json/github-activity/github_stats_summary"),
-  ALL_TIME_SUMMARY: p("json/github-activity/github_stats_summary_all_time"),
-  AGGREGATED_WEEKLY: p("json/github-activity/aggregated_weekly_activity"),
+  ACTIVITY_DATA: `json/github-activity/activity_data${envSuffix}.json`,
+  STATS_SUMMARY: `json/github-activity/github_stats_summary${envSuffix}.json`,
+  ALL_TIME_SUMMARY: `json/github-activity/github_stats_summary_all_time${envSuffix}.json`,
+  AGGREGATED_WEEKLY: `json/github-activity/aggregated_weekly_activity${envSuffix}.json`,
   ACTIVITY_DATA_PROD_FALLBACK: "json/github-activity/activity_data.json",
   REPO_RAW_WEEKLY_STATS_DIR: `json/github-activity/repo_raw_weekly_stats${envSuffix}`,
 } as const;
@@ -55,13 +65,13 @@ export const GITHUB_ACTIVITY_S3_PATHS = {
 /** S3 paths for image manifests (environment-aware) */
 export const IMAGE_MANIFEST_S3_PATHS = {
   DIR: "json/image-data",
-  LOGOS_MANIFEST: p("json/image-data/logos/manifest"),
-  OPENGRAPH_MANIFEST: p("json/image-data/opengraph/manifest"),
-  BLOG_IMAGES_MANIFEST: p("json/image-data/blog/manifest"),
-  EDUCATION_IMAGES_MANIFEST: p("json/image-data/education/manifest"),
-  EXPERIENCE_IMAGES_MANIFEST: p("json/image-data/experience/manifest"),
-  INVESTMENTS_IMAGES_MANIFEST: p("json/image-data/investments/manifest"),
-  PROJECTS_IMAGES_MANIFEST: p("json/image-data/projects/manifest"),
+  LOGOS_MANIFEST: `json/image-data/logos/manifest${envSuffix}.json`,
+  OPENGRAPH_MANIFEST: `json/image-data/opengraph/manifest${envSuffix}.json`,
+  BLOG_IMAGES_MANIFEST: `json/image-data/blog/manifest${envSuffix}.json`,
+  EDUCATION_IMAGES_MANIFEST: `json/image-data/education/manifest${envSuffix}.json`,
+  EXPERIENCE_IMAGES_MANIFEST: `json/image-data/experience/manifest${envSuffix}.json`,
+  INVESTMENTS_IMAGES_MANIFEST: `json/image-data/investments/manifest${envSuffix}.json`,
+  PROJECTS_IMAGES_MANIFEST: `json/image-data/projects/manifest${envSuffix}.json`,
 } as const;
 
 /** S3 storage paths for OpenGraph JSON data (environment-aware) */
@@ -70,7 +80,7 @@ export const OPENGRAPH_JSON_S3_PATHS = { DIR: "json/opengraph" } as const;
 /** S3 storage paths for actual image files (PNG, JPG, etc) */
 export const IMAGE_S3_PATHS = {
   LOGOS_DIR: "images/logos",
-  OPENGRAPH_DIR: "images/karakeep", // Karakeep bookmarks OpenGraph images
+  OPENGRAPH_DIR: "images/opengraph", // OpenGraph images for bookmarks
   BLOG_DIR: "images/blog",
   OTHER_DIR: "images/other",
 } as const;
@@ -168,75 +178,6 @@ export const KNOWN_DOMAINS = [
   "morningstar.com",
 ] as const;
 
-/** CSP directives for middleware - minimal to avoid oversized headers */
-export const CSP_DIRECTIVES = {
-  defaultSrc: ["'self'"],
-  scriptSrc: [
-    "'self'",
-    "'unsafe-inline'",
-    "'unsafe-eval'",
-    "https://umami.iocloudhost.net",
-    "https://plausible.iocloudhost.net",
-    "https://static.cloudflareinsights.com",
-    "https://*.sentry.io",
-    "https://scripts.simpleanalyticscdn.com",
-    "https://static.getclicky.com",
-    "https://in.getclicky.com",
-    "https://platform.twitter.com",
-    "https://*.x.com",
-    "blob:",
-  ],
-  connectSrc: [
-    "'self'",
-    "https://umami.iocloudhost.net",
-    "https://plausible.iocloudhost.net",
-    "https://static.cloudflareinsights.com",
-    "https://*.sentry.io",
-    "https://*.ingest.sentry.io",
-    "https://queue.simpleanalyticscdn.com",
-    "https://in.getclicky.com",
-    "https://react-tweet.vercel.app",
-    "https://*.twitter.com",
-    "https://twitter.com",
-    "https://platform.twitter.com",
-    "https://*.x.com",
-  ],
-  workerSrc: ["'self'", "blob:"],
-  imgSrc: [
-    "'self'",
-    "data:",
-    "https://pbs.twimg.com",
-    "https://*.twimg.com",
-    "https://react-tweet.vercel.app",
-    "https:",
-  ],
-  styleSrc: ["'self'", "'unsafe-inline'", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com"],
-  fontSrc: ["'self'", "data:", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com"],
-  frameSrc: ["https://platform.twitter.com", "https://*.x.com"],
-  frameAncestors: ["'none'"],
-  baseUri: ["'self'"],
-  formAction: ["'self'"],
-};
-
-/** Memory thresholds (bytes) */
-const GB = 1024 * 1024 * 1024,
-  MB = 1024 * 1024;
-const totalBudget = Number(
-  process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? (process.env.NODE_ENV === "production" ? 3.75 * GB : 4 * GB),
-);
-
-export const MEMORY_THRESHOLDS = {
-  TOTAL_PROCESS_MEMORY_BUDGET_BYTES: totalBudget,
-  IMAGE_RAM_BUDGET_BYTES: Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15)),
-  SERVER_CACHE_BUDGET_BYTES: Number(process.env.SERVER_CACHE_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15)),
-  MEMORY_WARNING_THRESHOLD: Number(process.env.MEMORY_WARNING_THRESHOLD ?? totalBudget * 0.7),
-  MEMORY_CRITICAL_THRESHOLD: Number(process.env.MEMORY_CRITICAL_THRESHOLD ?? totalBudget * 0.9),
-  IMAGE_STREAM_THRESHOLD_BYTES: Number(process.env.IMAGE_STREAM_THRESHOLD_BYTES ?? 5 * MB),
-} as const;
-
-/** Default S3 bucket name (callers handle undefined gracefully) */
-export const S3_BUCKET: string | undefined = process.env.S3_BUCKET;
-
 /** Time constants (milliseconds) */
 const MIN = 60 * 1000,
   HOUR = 60 * MIN,
@@ -269,7 +210,7 @@ export const OPENGRAPH_OVERRIDES_S3_DIR = `${ogDir}/overrides`;
 
 /** OpenGraph Fetch Configuration with environment variable overrides */
 export const OPENGRAPH_FETCH_CONFIG = {
-  TIMEOUT: Number(process.env.OG_FETCH_TIMEOUT_MS) || 7000,
+  TIMEOUT: Number(process.env.OG_FETCH_TIMEOUT_MS) || 15000,
   MAX_RETRIES: Number(process.env.OG_MAX_RETRIES) || 2,
   BACKOFF_BASE: Number(process.env.OG_RETRY_DELAY_MS) || 1000,
   MAX_BACKOFF: 5000,
@@ -301,7 +242,7 @@ export const SEO_DATE_FIELDS = {
   dublinCore: { created: "DC.date.created", modified: "DC.date.modified", issued: "DC.date.issued" },
 } as const;
 
-export const INDEXING_RATE_LIMIT_PATH = p("json/rate-limit/search-indexing-limiter");
+export const INDEXING_RATE_LIMIT_PATH = `json/rate-limit/search-indexing-limiter${envSuffix}.json`;
 
 // Cache TTL constants (in seconds) - moved from lib/cache.ts to break circular dependency
 export const CACHE_TTL = { DEFAULT: 30 * 24 * 60 * 60, DAILY: 24 * 60 * 60, HOURLY: 60 * 60 } as const;
@@ -330,7 +271,7 @@ export const USE_NEXTJS_CACHE = process.env.USE_NEXTJS_CACHE !== "false";
 
 export const JINA_FETCH_STORE_NAME = "jinaFetch" as const;
 export const JINA_FETCH_CONTEXT_ID = "global" as const;
-export const JINA_FETCH_RATE_LIMIT_S3_PATH = p("json/rate-limit/jina-fetch-limiter");
+export const JINA_FETCH_RATE_LIMIT_S3_PATH = `json/rate-limit/jina-fetch-limiter${envSuffix}.json`;
 
 // GitHub activity re-exports for data access layer
 const ghPaths = GITHUB_ACTIVITY_S3_PATHS;
@@ -370,3 +311,22 @@ export const UNIFIED_IMAGE_SERVICE_CONFIG = {
   CLEANUP_INTERVAL: TIME_CONSTANTS.TWO_MINUTES_MS,
   MEMORY_CHECK_INTERVAL: 1_000,
 } as const;
+
+/** Memory thresholds (bytes) */
+const GB = 1024 * 1024 * 1024,
+  MB = 1024 * 1024;
+const totalBudget = Number(
+  process.env.TOTAL_PROCESS_MEMORY_BUDGET_BYTES ?? (process.env.NODE_ENV === "production" ? 3.75 * GB : 4 * GB),
+);
+
+export const MEMORY_THRESHOLDS = {
+  TOTAL_PROCESS_MEMORY_BUDGET_BYTES: totalBudget,
+  IMAGE_RAM_BUDGET_BYTES: Number(process.env.IMAGE_RAM_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15)),
+  SERVER_CACHE_BUDGET_BYTES: Number(process.env.SERVER_CACHE_BUDGET_BYTES ?? Math.floor(totalBudget * 0.15)),
+  MEMORY_WARNING_THRESHOLD: Number(process.env.MEMORY_WARNING_THRESHOLD ?? totalBudget * 0.7),
+  MEMORY_CRITICAL_THRESHOLD: Number(process.env.MEMORY_CRITICAL_THRESHOLD ?? totalBudget * 0.9),
+  IMAGE_STREAM_THRESHOLD_BYTES: Number(process.env.IMAGE_STREAM_THRESHOLD_BYTES ?? 5 * MB),
+} as const;
+
+/** Default S3 bucket name (callers handle undefined gracefully) */
+export const S3_BUCKET: string | undefined = process.env.S3_BUCKET;
