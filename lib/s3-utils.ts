@@ -895,3 +895,72 @@ export async function writeBinaryS3(s3Key: string, data: Buffer | Readable, cont
     throw error; // Re-throw to let callers handle the error appropriately
   }
 }
+
+const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+/** Acquire a distributed lock using S3 for coordination */
+export async function acquireDistributedLock(
+  lockKey: string,
+  instanceId: string,
+  operation: string,
+  timeoutMs: number = LOCK_TIMEOUT_MS,
+): Promise<boolean> {
+  const lockPath = `locks/${lockKey}.json`;
+  const lockEntry: { instanceId: string; acquiredAt: number; operation: string } = {
+    instanceId,
+    acquiredAt: Date.now(),
+    operation,
+  };
+
+  try {
+    const existingLock = await readJsonS3<{ instanceId: string; acquiredAt: number; operation: string }>(lockPath);
+    if (existingLock && Date.now() - existingLock.acquiredAt < timeoutMs) {
+      return false; // Lock still active
+    }
+  } catch {
+    // Lock doesn't exist, proceed to acquire
+  }
+
+  try {
+    await writeJsonS3(lockPath, lockEntry);
+    return true;
+  } catch (error) {
+    console.error(`Failed to acquire lock ${lockKey}:`, error);
+    return false;
+  }
+}
+
+/** Release a distributed lock */
+export async function releaseDistributedLock(lockKey: string, instanceId: string): Promise<void> {
+  const lockPath = `locks/${lockKey}.json`;
+
+  try {
+    const existingLock = await readJsonS3<{ instanceId: string; acquiredAt: number; operation: string }>(lockPath);
+    if (existingLock?.instanceId === instanceId) {
+      await deleteFromS3(lockPath);
+    }
+  } catch (error) {
+    console.error(`Failed to release lock ${lockKey}:`, error);
+  }
+}
+
+/** Clean up stale locks older than timeout */
+export async function cleanupStaleLocks(timeoutMs: number = LOCK_TIMEOUT_MS): Promise<void> {
+  try {
+    const locks = await listS3Objects("locks/");
+    const now = Date.now();
+
+    for (const lockKey of locks) {
+      try {
+        const lockData = await readJsonS3<{ instanceId: string; acquiredAt: number; operation: string }>(lockKey);
+        if (lockData && now - lockData.acquiredAt > timeoutMs) {
+          await deleteFromS3(lockKey);
+        }
+      } catch {
+        // Ignore errors for individual lock cleanup
+      }
+    }
+  } catch (error) {
+    console.error("Failed to cleanup stale locks:", error);
+  }
+}
