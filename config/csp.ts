@@ -22,6 +22,7 @@ export const CSP_DIRECTIVES = {
     "https://platform.twitter.com",
     "https://*.x.com",
     "blob:",
+    ...(process.env.NODE_ENV !== "production" ? ["'unsafe-eval'"] : []),
   ],
   connectSrc: [
     "'self'",
