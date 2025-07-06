@@ -145,12 +145,13 @@ export async function BookmarksServer({
   }));
 
   // Pass the processed data to the client component with explicit typing
+  const includesAll = serializableBookmarks.length === totalCount;
   return (
     <BookmarksClientWithWindow
       bookmarks={serializableBookmarks}
       title={title ?? ""}
       description={description ?? ""}
-      searchAllBookmarks={false}
+      searchAllBookmarks={!includesAll}
       showFilterBar={showFilterBar}
       titleSlug={titleSlug}
       initialPage={initialPage}
