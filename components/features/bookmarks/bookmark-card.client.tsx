@@ -50,7 +50,7 @@ import type { BookmarkCardClientProps } from "@/types";
  */
 
 export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element | null {
-  const { id, url, title, description, tags, ogImage, content, dateBookmarked, internalHref } = props;
+  const { id, url, title, description, tags, ogImage, ogImageExternal, content, dateBookmarked, internalHref } = props;
   const pathname = usePathname();
 
   /**
@@ -82,7 +82,25 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
   // CRITICAL: Always prefer direct S3 CDN URLs to avoid proxy overhead
   // Only use proxy routes (/api/assets/, /api/og-image) as absolute last resort
   const getDisplayImageUrl = () => {
+    // DEV-ONLY: Log the props received by the card for debugging
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[BookmarkCardClient:${id}] Received props:`, {
+        ogImage,
+        ogImageExternal,
+        contentExists: !!content,
+        imageUrl: content?.imageUrl,
+        imageAssetId: content?.imageAssetId,
+        screenshotAssetId: content?.screenshotAssetId,
+      });
+    }
+
     const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+
+    // PRIORITY 0: Explicit external image field (always trustworthy)
+    if (ogImageExternal?.startsWith("http")) {
+      console.log(`[BookmarkCard] Using ogImageExternal: ${ogImageExternal}`);
+      return ogImageExternal;
+    }
 
     // PRIORITY 1: Enriched ogImage field (already persisted to S3)
     // This is the MOST IMPORTANT - it contains the S3 URL from enrichment

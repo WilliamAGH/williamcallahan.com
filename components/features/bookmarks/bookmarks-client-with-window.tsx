@@ -61,12 +61,15 @@ export function BookmarksClientWithWindow({
   showFilterBar = true,
   titleSlug,
   initialPage,
+  totalPages,
+  totalCount,
   baseUrl,
   usePagination = true,
   initialTag,
   tag,
+  internalHrefs,
 }: BookmarksClientWithWindowProps) {
-  const unifiedBookmarks = convertSerializableBookmarksToUnified(bookmarks);
+  const unifiedBookmarks: import("@/types").UnifiedBookmark[] = convertSerializableBookmarksToUnified(bookmarks);
 
   // Title is currently unused in this component, acknowledge to satisfy linter rules (no underscore prefixes allowed)
   void title;
@@ -89,9 +92,12 @@ export function BookmarksClientWithWindow({
             enableInfiniteScroll={false}
             itemsPerPage={24}
             initialPage={initialPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
             baseUrl={baseUrl}
             initialTag={initialTag}
             tag={tag}
+            internalHrefs={internalHrefs}
           />
         </Suspense>
       </div>
