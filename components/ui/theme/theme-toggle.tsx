@@ -6,7 +6,7 @@
  */
 "use client";
 
-import { THEME_TIMESTAMP_KEY } from "@/lib/constants";
+import { THEME_TIMESTAMP_KEY } from "@/lib/constants/client";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";

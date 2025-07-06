@@ -12,7 +12,7 @@
  */
 
 import { metadata } from "@/data/metadata";
-import { DEFAULT_IMAGES } from "@/lib/constants";
+import { DEFAULT_IMAGES } from "@/lib/constants/client";
 import type { OpenGraphLogoProps } from "@/types";
 
 /**
