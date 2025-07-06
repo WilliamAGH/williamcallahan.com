@@ -13,8 +13,9 @@ import { BOOKMARKS_S3_PATHS, BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import type { UnifiedBookmark, DistributedLockEntry, RefreshBookmarksCallback } from "@/types";
 import type { BookmarksIndex, BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
+import { BookmarksIndexSchema } from "@/lib/schemas/bookmarks";
 import { tagToSlug } from "@/lib/utils/tag-utils";
-import { normalizeBookmarkTag } from "@/lib/bookmarks/utils";
+import { normalizeBookmarkTag, omitHtmlContent } from "@/lib/bookmarks/utils";
 import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
 
@@ -252,7 +253,8 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
   for (let page = 1; page <= totalPages; page++) {
     const start = (page - 1) * pageSize;
     const pageBookmarks = bookmarks.slice(start, start + pageSize);
-    await writeJsonS3(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${page}.json`, pageBookmarks);
+    const pageKey = `${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${page}.json`;
+    await writeJsonS3(pageKey, pageBookmarks);
   }
 
   console.log(`${LOG_PREFIX} Wrote ${totalPages} pages of bookmarks`);
@@ -318,13 +320,15 @@ async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<
       lastAttemptedAt: Date.now(),
       checksum: calculateBookmarksChecksum(tagBookmarks),
     };
-    await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`, tagIndex);
+    const tagIndexKey = `${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`;
+    await writeJsonS3(tagIndexKey, tagIndex);
 
     // Write each page for this tag
     for (let page = 1; page <= totalPages; page++) {
       const start = (page - 1) * pageSize;
       const pageBookmarks = tagBookmarks.slice(start, start + pageSize);
-      await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${page}.json`, pageBookmarks);
+      const pageKey = `${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${page}.json`;
+      await writeJsonS3(pageKey, pageBookmarks);
     }
   }
 
@@ -354,7 +358,12 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
     // Only write if changed
     await writePaginatedBookmarks(allIncomingBookmarks);
     // Also write full file for tag filtering operations
-    await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, allIncomingBookmarks);
+    // Strip HTML content to reduce file size from ~5MB to ~500KB
+    const lightweightBookmarks = allIncomingBookmarks.map(bookmark => ({
+      ...bookmark,
+      content: bookmark.content ? omitHtmlContent(bookmark.content) : undefined
+    }));
+    await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, lightweightBookmarks);
     // Write tag-filtered bookmarks
     await writeTagFilteredBookmarks(allIncomingBookmarks);
 
@@ -365,7 +374,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
   }
 }
 
-export function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> {
+export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookmark[] | null> {
   if (inFlightRefreshPromise) return inFlightRefreshPromise;
 
   const promise = (async () => {
@@ -374,17 +383,22 @@ export function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> 
       const useSelectiveRefresh = process.env.SELECTIVE_OG_REFRESH === "true";
       if (!useSelectiveRefresh) {
         if (!refreshBookmarksCallback) return null;
-        const freshBookmarks = await refreshBookmarksCallback();
+        const freshBookmarks = await refreshBookmarksCallback(force);
         if (freshBookmarks && freshBookmarks.length > 0) {
           const { isValid } = validateBookmarkDataset(freshBookmarks);
           if (isValid) {
-            // Only write if changed
+            // Only write if changed or forced
             const hasChanged = await hasBookmarksChanged(freshBookmarks);
-            if (hasChanged) {
-              console.log(`${LOG_PREFIX} Changes detected, writing to S3`);
+            if (hasChanged || force) {
+              console.log(`${LOG_PREFIX} ${force ? "Forcing write" : "Changes detected"}, writing to S3`);
               await writePaginatedBookmarks(freshBookmarks);
               // Also write full file for tag filtering operations
-              await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, freshBookmarks);
+              // Strip HTML content to reduce file size from ~5MB to ~500KB
+              const lightweightBookmarks = freshBookmarks.map(bookmark => ({
+                ...bookmark,
+                content: bookmark.content ? omitHtmlContent(bookmark.content) : undefined
+              }));
+              await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, lightweightBookmarks);
               // Write tag-filtered bookmarks
               await writeTagFilteredBookmarks(freshBookmarks);
             } else {
@@ -397,6 +411,7 @@ export function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> 
         }
         return null;
       }
+      // Note: Selective refresh does not currently support the 'force' parameter
       return await selectiveRefreshAndPersistBookmarks();
     } catch (error) {
       console.error(`${LOG_PREFIX} Failed to refresh bookmarks:`, String(error));
@@ -419,7 +434,7 @@ export function refreshAndPersistBookmarks(): Promise<UnifiedBookmark[] | null> 
 async function fetchAndCacheBookmarks(
   options: BookmarkLoadOptions = {},
 ): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
-  const { skipExternalFetch = false, includeImageData = true } = options;
+  const { skipExternalFetch = false, includeImageData = true, force = false } = options;
   console.log(
     `${LOG_PREFIX} fetchAndCacheBookmarks called. skipExternalFetch=${skipExternalFetch}, includeImageData=${includeImageData}`,
   );
@@ -468,7 +483,7 @@ async function fetchAndCacheBookmarks(
     return [];
   }
 
-  const refreshedBookmarks = await refreshAndPersistBookmarks();
+  const refreshedBookmarks = await refreshAndPersistBookmarks(force);
   if (!refreshedBookmarks) return [];
 
   // Strip image data if not needed
@@ -629,6 +644,38 @@ export async function getTagBookmarksIndex(tagSlug: string): Promise<BookmarksIn
   return getTagBookmarksIndexDirect(tagSlug);
 }
 
+// Internal direct S3 read function for the main bookmarks index
+async function getBookmarksIndexDirect(): Promise<BookmarksIndex | null> {
+  try {
+    const rawIndex = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+    const validation = BookmarksIndexSchema.safeParse(rawIndex);
+    if (validation.success) {
+      return validation.data;
+    }
+    console.warn(`${LOG_PREFIX} Main bookmarks index failed validation`, validation.error);
+    return null;
+  } catch (error) {
+    if (isS3Error(error) && error.$metadata?.httpStatusCode === 404) {
+      // Index doesn't exist
+      return null;
+    }
+    // S3 service error - log for monitoring
+    console.error(`${LOG_PREFIX} S3 service error loading main bookmarks index:`, error);
+    return null;
+  }
+}
+
+// Cached version for main bookmarks index
+async function getCachedBookmarksIndex(): Promise<BookmarksIndex | null> {
+  "use cache";
+
+  safeCacheLife("minutes"); // Cache for 5 minutes
+  safeCacheTag("bookmarks");
+  safeCacheTag("bookmarks-index");
+
+  return getBookmarksIndexDirect();
+}
+
 export async function getBookmarks(
   options: BookmarkLoadOptions = {},
 ): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
@@ -738,4 +785,14 @@ export function invalidateBookmarkCache(bookmarkId: string): void {
     safeRevalidateTag(`bookmark-${bookmarkId}`);
     console.log(`[Bookmarks] Cache invalidated for bookmark: ${bookmarkId}`);
   }
+}
+
+export async function getBookmarksIndex(): Promise<BookmarksIndex | null> {
+  if (USE_NEXTJS_CACHE) {
+    return withCacheFallback(
+      () => getCachedBookmarksIndex(),
+      () => getBookmarksIndexDirect(),
+    );
+  }
+  return getBookmarksIndexDirect();
 }
