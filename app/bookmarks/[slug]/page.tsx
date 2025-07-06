@@ -158,7 +158,7 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
   return (
     <>
       <JsonLdScript data={jsonLdData} />
-      <div className="space-y-8">
+      <div className="max-w-5xl mx-auto space-y-8">
         <BookmarksServer
           title={`Detail view for ${foundBookmark.title}`}
           description="A detailed view of a single saved bookmark."
