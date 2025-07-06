@@ -30,6 +30,16 @@ export interface BookmarkError extends ExtendedError {
   lastFetchedTimestamp?: number;
 }
 
+/**
+ * Extracted markdown content from a bookmark
+ */
+export interface ExtractedContent {
+  markdown: string;
+  wordCount: number;
+  readingTime: number; // in minutes
+  extractedAt: string;
+}
+
 // Use a single tag schema with optional fields
 export const rawApiBookmarkTagSchema = bookmarkTagSchema
   .extend({
@@ -130,6 +140,7 @@ export const unifiedBookmarkSchema = z.object({
   ogImageEtag: z.string().optional(),
   isPrivate: z.boolean().optional(),
   isFavorite: z.boolean().optional(),
+  ogImageExternal: z.string().optional(),
 });
 
 export type UnifiedBookmark = z.infer<typeof unifiedBookmarkSchema>;
@@ -261,9 +272,10 @@ export const BookmarksApiResponseSchema = z.object({
 export { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 
 // Lightweight bookmark type that excludes heavy image data
-export type LightweightBookmark = Omit<UnifiedBookmark, 'content' | 'ogImage' | 'logoData'>;
+export type LightweightBookmark = Omit<UnifiedBookmark, "content" | "ogImage" | "logoData">;
 
 export interface BookmarkLoadOptions {
   includeImageData?: boolean;
   skipExternalFetch?: boolean;
+  force?: boolean;
 }
