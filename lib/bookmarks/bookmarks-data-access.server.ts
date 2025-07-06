@@ -49,6 +49,8 @@ const LOG_PREFIX = "[BookmarksDataAccess]";
 const DISTRIBUTED_LOCK_S3_KEY = BOOKMARKS_S3_PATHS.LOCK;
 const LOCK_TTL_MS = Number(process.env.BOOKMARKS_LOCK_TTL_MS) || 5 * 60 * 1000;
 const LOCK_CLEANUP_INTERVAL_MS = 2 * 60 * 1000;
+const MAX_POLL_ATTEMPTS = 5;
+const POLL_INTERVAL_MS = 50;
 
 let isRefreshLocked = false;
 let lockCleanupInterval: NodeJS.Timeout | null = null;
@@ -79,8 +81,6 @@ async function acquireDistributedLock(lockKey: string, ttlMs: number, retryCount
             }
             await releaseDistributedLock(lockKey, true);
             // Wait for S3 eventual consistency
-            const MAX_POLL_ATTEMPTS = 5,
-              POLL_INTERVAL_MS = 50;
             for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
               try {
                 await readJsonS3(lockKey);
