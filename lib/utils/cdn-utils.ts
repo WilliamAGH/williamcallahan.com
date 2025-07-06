@@ -11,14 +11,27 @@ import type { CdnConfig } from "@/types/s3-cdn";
  * Extract S3 hostname from server URL
  */
 export function getS3Host(s3ServerUrl?: string): string {
-  if (!s3ServerUrl) return "s3.amazonaws.com";
-
-  try {
-    const url = new URL(s3ServerUrl);
-    return url.hostname;
-  } catch {
-    return "s3.amazonaws.com";
+  // If caller supplies a value, parse and return hostname
+  if (s3ServerUrl) {
+    try {
+      return new URL(s3ServerUrl).hostname;
+    } catch {
+      // Fall through to the explicit error below
+    }
   }
+
+  /*
+   * No valid server URL was provided. In this code-base we rely on DigitalOcean
+   * Spaces (or another S3-compatible provider), **not** AWS S3. Returning the
+   * hard-coded AWS hostname leads to confusing, broken URLs. Instead we fail
+   * fast with a descriptive error so the missing configuration is detected
+   * immediately during development or CI.
+   */
+  throw new Error(
+    "[cdn-utils] S3 server URL is required but was not provided or was invalid. " +
+      "Please set S3_SERVER_URL (e.g. https://sfo3.digitaloceanspaces.com) or ensure " +
+      "a valid cdnBaseUrl is supplied.",
+  );
 }
 
 /**
@@ -42,8 +55,8 @@ export function buildCdnUrl(s3Key: string, config: CdnConfig): string {
     // This ensures we catch configuration issues early
     throw new Error(
       `CDN configuration missing: Either cdnBaseUrl or s3BucketName must be provided. ` +
-      `S3 key: ${s3Key}. ` +
-      `Please ensure NEXT_PUBLIC_S3_CDN_URL is set in your environment.`
+        `S3 key: ${s3Key}. ` +
+        `Please ensure NEXT_PUBLIC_S3_CDN_URL is set in your environment.`,
     );
   }
 
@@ -107,8 +120,8 @@ export function isOurCdnUrl(url: string, config: CdnConfig): boolean {
  */
 export function getCdnConfigFromEnv(): CdnConfig {
   // In client-side environment, only NEXT_PUBLIC_* variables are available
-  const isClient = typeof globalThis.window !== 'undefined';
-  
+  const isClient = typeof globalThis.window !== "undefined";
+
   if (isClient) {
     // Client-side: only NEXT_PUBLIC_S3_CDN_URL is available
     return {
@@ -118,7 +131,7 @@ export function getCdnConfigFromEnv(): CdnConfig {
       s3ServerUrl: undefined,
     };
   }
-  
+
   // Server-side: all environment variables are available
   return {
     cdnBaseUrl: process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL,

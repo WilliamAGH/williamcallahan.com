@@ -86,12 +86,11 @@ if (!S3_BUCKET || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY
 }
 
 // Lazy initialization of S3 client to ensure environment variables are loaded
-// eslint-disable-next-line @typescript-eslint/naming-convention
-let _s3Client: S3Client | null = null;
+let s3ClientInstance: S3Client | null = null;
 
 export function getS3Client(): S3Client | null {
-  if (_s3Client !== null) {
-    return _s3Client;
+  if (s3ClientInstance !== null) {
+    return s3ClientInstance;
   }
 
   // Re-read environment variables on each initialization attempt
@@ -102,7 +101,7 @@ export function getS3Client(): S3Client | null {
   const region = process.env.S3_REGION || process.env.AWS_REGION || "us-east-1";
 
   if (bucket && endpoint && accessKeyId && secretAccessKey) {
-    _s3Client = new S3Client({
+    s3ClientInstance = new S3Client({
       endpoint,
       region,
       credentials: {
@@ -118,18 +117,19 @@ export function getS3Client(): S3Client | null {
   } else {
     if (isDebug) {
       debug(`[S3Utils] S3 client not initialized - missing environment variables:
-        S3_BUCKET: ${bucket ? 'set' : 'missing'}
-        S3_SERVER_URL: ${endpoint ? 'set' : 'missing'}
-        S3_ACCESS_KEY_ID: ${accessKeyId ? 'set' : 'missing'}
-        S3_SECRET_ACCESS_KEY: ${secretAccessKey ? 'set' : 'missing'}`);
+        S3_BUCKET: ${bucket ? "set" : "missing"}
+        S3_SERVER_URL: ${endpoint ? "set" : "missing"}
+        S3_ACCESS_KEY_ID: ${accessKeyId ? "set" : "missing"}
+        S3_SECRET_ACCESS_KEY: ${secretAccessKey ? "set" : "missing"}`);
     }
   }
 
-  return _s3Client;
+  return s3ClientInstance;
 }
 
 export const s3Client = new Proxy({} as S3Client, {
-  get(_target, prop) {
+  get(target, prop) {
+    void target; // Explicitly mark as unused per project convention
     const client = getS3Client();
     if (!client) return null;
     return client[prop as keyof S3Client];
@@ -350,8 +350,9 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
           const baseDelay = Math.min(S3_READ_RETRY_BASE_DELAY_MS * 2 ** (attempt - 1), S3_READ_RETRY_MAX_DELAY_MS);
           const jitter = Math.random() * baseDelay * 0.3; // 30% jitter
           const delay = Math.round(baseDelay + jitter);
-          
-          if (isDebug) debug(`[S3Utils] Retrying read for ${key} in ${delay}ms (attempt ${attempt}/${MAX_S3_READ_RETRIES})...`);
+
+          if (isDebug)
+            debug(`[S3Utils] Retrying read for ${key} in ${delay}ms (attempt ${attempt}/${MAX_S3_READ_RETRIES})...`);
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue; // Next attempt
         }
@@ -385,6 +386,7 @@ export async function writeToS3(
   acl: "private" | "public-read" | "public-read-write" | "authenticated-read" = "private",
 ): Promise<void> {
   const SMALL_PAYLOAD_THRESHOLD = 512 * 1024; // 512 KB
+  const OPENGRAPH_IMAGE_THRESHOLD = 2 * 1024 * 1024; // 2 MB - reasonable limit for OpenGraph images
   const dataSize =
     typeof data === "string"
       ? Buffer.byteLength(data, "utf-8")
@@ -397,17 +399,17 @@ export async function writeToS3(
 
   if (!isDevMigrationRun) {
     if (isBinaryKey(key)) {
+      // For binary payloads, use different thresholds based on the type of image
+      const isOpenGraphImage = key.includes("images/opengraph/");
+      const threshold = isOpenGraphImage ? OPENGRAPH_IMAGE_THRESHOLD : SMALL_PAYLOAD_THRESHOLD;
+
       // For binary payloads, only block when (a) the process is under
       // memory pressure *and* (b) the payload is larger than the
-      // conservative SMALL_PAYLOAD_THRESHOLD (512&nbsp;KB). This prevents
-      // harmless favicon-sized writes (usually <10&nbsp;KB) from failing
-      // when the process is close to the RSS limit while still protecting
-      // against large image uploads that could exacerbate memory issues.
+      // threshold. OpenGraph images get a higher threshold (2MB) since
+      // they're essential for bookmark previews.
 
-      if (dataSize > SMALL_PAYLOAD_THRESHOLD && !hasMemoryHeadroom()) {
-        throw new Error(
-          `[S3Utils] Insufficient memory headroom for binary S3 write operation (>${SMALL_PAYLOAD_THRESHOLD} bytes)`,
-        );
+      if (dataSize > threshold && !hasMemoryHeadroom()) {
+        throw new Error(`[S3Utils] Insufficient memory headroom for binary S3 write operation (>${threshold} bytes)`);
       }
     } else if (!hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
       // For non-binary (JSON/string) data, still guard very large writes
@@ -449,11 +451,13 @@ export async function writeToS3(
           typeof data === "string" ? dataSize : Buffer.isBuffer(data) ? data.length : "stream"
         }`,
       );
-    await client.send(command);
+    else console.log(`[S3Utils] Writing to S3 key ${key} with ACL: ${acl}`);
+    const response = await client.send(command);
     if (isDebug) debug(`[S3Utils] Successfully wrote to S3 key ${key}`);
+    else console.log(`[S3Utils] ✅ Successfully wrote to S3 key ${key} with ACL: ${acl}. ETag: ${response.ETag}`);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
-    console.error(`[S3Utils] Error writing to S3 key ${key}:`, message);
+    console.error(`[S3Utils] ❌ Error writing to S3 key ${key}:`, message);
     // Re-throw the error so callers like writeBinaryS3 can catch it if needed
     throw error;
   }
@@ -769,12 +773,12 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
       await writeToS3(s3Key, jsonData, "application/json", "public-read");
     }
     // No need for redundant success log here, writeToS3 handles it.
-  } catch (_error: unknown) {
+  } catch (error: unknown) {
     // If error is due to conditional write failing because object exists (HTTP 412), treat as benign
-    const err = _error as { name?: string; $metadata?: { httpStatusCode?: number } };
+    const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
     const isPreconditionFailed = err.name === "PreconditionFailed" || err.$metadata?.httpStatusCode === 412;
 
-    const message = _error instanceof Error ? _error.message : safeJsonStringify(_error) || "Unknown error";
+    const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
 
     if (isPreconditionFailed) {
       // Only log at debug level to keep dev console clean
@@ -783,7 +787,7 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
     }
 
     console.error(`[S3Utils] Failed to write JSON to S3 key ${s3Key}:`, message);
-    throw _error; // Re-throw other errors so callers can handle
+    throw error; // Re-throw other errors so callers can handle
   }
 }
 
@@ -859,7 +863,7 @@ export async function writeBinaryS3(s3Key: string, data: Buffer | Readable, cont
       const { Readable } = await import("node:stream");
       if (payload instanceof Readable) {
         payload = await streamToBuffer(payload);
-      } else if (typeof payload === 'object' && payload && 'pipe' in payload) {
+      } else if (typeof payload === "object" && payload && "pipe" in payload) {
         // Handle other stream-like objects that might not be instanceof Readable
         payload = await streamToBuffer(payload as Readable);
       }
@@ -868,7 +872,7 @@ export async function writeBinaryS3(s3Key: string, data: Buffer | Readable, cont
       console.error(`[S3Utils] Failed to convert stream to buffer for key ${s3Key}:`, error);
       throw new Error(
         `Failed to convert stream to buffer: ${error instanceof Error ? error.message : String(error)}. ` +
-        `This typically occurs when the stream is malformed or the x-amz-decoded-content-length header cannot be determined.`
+          `This typically occurs when the stream is malformed or the x-amz-decoded-content-length header cannot be determined.`,
       );
     }
   }
@@ -885,9 +889,9 @@ export async function writeBinaryS3(s3Key: string, data: Buffer | Readable, cont
     // Binary files (images, etc.) are typically public for CDN serving
     await writeToS3(s3Key, payload, contentType, "public-read");
     // Success is logged by writeToS3.
-  } catch (_error: unknown) {
-    const message = _error instanceof Error ? _error.message : safeJsonStringify(_error) || "Unknown error";
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
     console.error(`[S3Utils] Failed to write binary file to S3 key ${s3Key}:`, message);
-    throw _error; // Re-throw to let callers handle the error appropriately
+    throw error; // Re-throw to let callers handle the error appropriately
   }
 }
