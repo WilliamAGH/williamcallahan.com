@@ -153,10 +153,15 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
 
         const json: unknown = await response.json();
 
-        // The endpoint returns { data: UnifiedBookmark[] }
-        const apiResponse = json as { data: UnifiedBookmark[] };
+        // Validate the API response using dynamic import to comply with codebase rules
+        const { bookmarksSearchResponseSchema } = await import("@/types/bookmark");
+        const validation = bookmarksSearchResponseSchema.safeParse(json);
+        if (!validation.success) {
+          console.error("[BookmarksSearch] Invalid API response format:", validation.error);
+          throw new Error("Invalid API response format");
+        }
 
-        const allBookmarks: UnifiedBookmark[] = apiResponse.data;
+        const allBookmarks: UnifiedBookmark[] = validation.data.data;
 
         // Simple client-side filtering (case-insensitive contains across key
         // fields). We reuse the same helper used in the memoized filter below
