@@ -139,6 +139,43 @@ export function convertSerializableBookmarksToUnified(
 }
 
 /**
+ * Converts UnifiedBookmark data to SerializableBookmark format for server props.
+ * This removes non-serializable fields and prepares data for client transfer.
+ *
+ * @param bookmarks - Array of unified bookmarks to convert
+ * @returns Array of serializable bookmarks for client props
+ */
+export function convertBookmarksToSerializable(bookmarks: UnifiedBookmark[]): SerializableBookmark[] {
+  return bookmarks.map((bookmark) => ({
+    id: bookmark.id,
+    url: bookmark.url,
+    title: bookmark.title,
+    description: bookmark.description,
+    tags: Array.isArray(bookmark.tags) ? bookmark.tags.map(normalizeBookmarkTag) : [],
+    dateBookmarked: bookmark.dateBookmarked,
+    dateCreated: bookmark.dateCreated,
+    dateUpdated: bookmark.dateUpdated,
+    content: bookmark.content,
+    logoData: bookmark.logoData
+      ? {
+          url: bookmark.logoData.url,
+          alt: bookmark.logoData.alt || "Logo",
+          width: bookmark.logoData.width,
+          height: bookmark.logoData.height,
+        }
+      : null,
+    isPrivate: bookmark.isPrivate || false,
+    isFavorite: bookmark.isFavorite || false,
+    readingTime: bookmark.readingTime,
+    wordCount: bookmark.wordCount,
+    ogTitle: bookmark.ogTitle,
+    ogDescription: bookmark.ogDescription,
+    ogImage: bookmark.ogImage,
+    domain: bookmark.domain,
+  }));
+}
+
+/**
  * Checks if a bookmark's source data has been updated.
  *
  * @param {UnifiedBookmark} existingBookmark - The bookmark currently in our system.

@@ -33,8 +33,8 @@ export { getBookmarks as fetchExternalBookmarks } from "./service.server";
  * @throws {Error} If any critical step fails (e.g., API request, S3 write, critical config missing).
  *                 It attempts to provide S3 fallback data in console logs but still throws for primary failures.
  */
-export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
-  console.log("[refreshBookmarksData] Starting refresh cycle from external API...");
+export async function refreshBookmarksData(force = false): Promise<UnifiedBookmark[]> {
+  console.log(`[refreshBookmarksData] Starting refresh cycle from external API... (force: ${force})`);
 
   // Read configuration from constants
   const bookmarksListId = BOOKMARKS_API_CONFIG.LIST_ID;
@@ -101,11 +101,17 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
       }
 
       const data: ApiResponse = (await pageResponse.json()) as ApiResponse;
-      console.log(
-        `[refreshBookmarksData] Retrieved ${data.bookmarks.length} bookmarks from page ${pageCount}. Next cursor: '${data.nextCursor}'`,
-      );
+      console.log(`[refreshBookmarksData] Retrieved ${data.bookmarks.length} bookmarks from page ${pageCount}.`);
       allRawBookmarks.push(...data.bookmarks);
       cursor = data.nextCursor;
+
+      // If the cursor is missing but there are bookmarks, it implies an incomplete fetch.
+      if (!cursor && data.bookmarks.length > 0) {
+        console.error(
+          `CRITICAL_API_FAILURE: Bookmark API did not return a nextCursor on page ${pageCount}. The data fetch may be incomplete. Full response:`,
+          JSON.stringify(data, null, 2),
+        );
+      }
     } while (cursor);
 
     console.log(
@@ -119,30 +125,34 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
     const rawChecksum = createHash("sha256").update(rawJsonString).digest("hex");
     const latestKey = `${RAW_CACHE_PREFIX}/LATEST.json`;
 
-    try {
-      const latest = await readJsonS3<{ checksum: string; key: string }>(latestKey);
-      if (latest?.checksum === rawChecksum) {
-        const cached = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+    if (!force) {
+      try {
+        const latest = await readJsonS3<{ checksum: string; key: string }>(latestKey);
+        if (latest?.checksum === rawChecksum) {
+          const cached = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
 
-        // Only short-circuit when the *persisted* manifest length matches the
-        // newly fetched raw count.  This guards against scenarios where a
-        // previous dev-mode run wrote a truncated dataset (e.g., 20 items)
-        // even though the raw API data is unchanged and complete.
-        if (cached && cached.length === allRawBookmarks.length) {
-          console.log(
-            `[refreshBookmarksData] Raw checksum unchanged (${rawChecksum}) and manifest already contains ${cached.length} records – reuse without re-processing.`,
+          // Only short-circuit when the *persisted* manifest length matches the
+          // newly fetched raw count.  This guards against scenarios where a
+          // previous dev-mode run wrote a truncated dataset (e.g., 20 items)
+          // even though the raw API data is unchanged and complete.
+          if (cached && cached.length === allRawBookmarks.length) {
+            console.log(
+              `[refreshBookmarksData] Raw checksum unchanged (${rawChecksum}) and manifest already contains ${cached.length} records – reuse without re-processing.`,
+            );
+            return cached;
+          }
+
+          console.warn(
+            `[refreshBookmarksData] Raw checksum unchanged but manifest size mismatch (cached: ${cached?.length ?? 0}, expected: ${allRawBookmarks.length}). Proceeding with normalization & enrichment to correct the dataset.`,
           );
-          return cached;
+          // Fallthrough – continue with full pipeline so we rewrite the correct data.
         }
-
-        console.warn(
-          `[refreshBookmarksData] Raw checksum unchanged but manifest size mismatch (cached: ${cached?.length ?? 0}, expected: ${allRawBookmarks.length}). Proceeding with normalization & enrichment to correct the dataset.`,
-        );
-        // Fallthrough – continue with full pipeline so we rewrite the correct data.
+      } catch (err) {
+        // Non-fatal – proceed to full refresh.
+        console.warn("[refreshBookmarksData] Could not read raw LATEST checksum:", String(err));
       }
-    } catch (err) {
-      // Non-fatal – proceed to full refresh.
-      console.warn("[refreshBookmarksData] Could not read raw LATEST checksum:", String(err));
+    } else {
+      console.log("[refreshBookmarksData] Force refresh requested, skipping checksum check.");
     }
 
     // First pass: normalize bookmarks without OpenGraph data
@@ -179,7 +189,8 @@ export async function refreshBookmarksData(): Promise<UnifiedBookmark[]> {
     // Second pass: enrich with OpenGraph data using batched processing
     const isDev = process.env.NODE_ENV === "development";
     const isBatchMode = process.env.IS_DATA_UPDATER === "true";
-    const enrichedBookmarks = await processBookmarksInBatches(bookmarksToProcess, isDev, isBatchMode);
+    const extractContent = process.env.EXTRACT_BOOKMARK_CONTENT === "true" || isBatchMode;
+    const enrichedBookmarks = await processBookmarksInBatches(bookmarksToProcess, isDev, isBatchMode, extractContent);
 
     console.log(`[refreshBookmarksData] OpenGraph enrichment completed for ${enrichedBookmarks.length} bookmarks.`);
 
