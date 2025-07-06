@@ -6,7 +6,7 @@
 import { s3Client, writeBinaryS3, checkIfS3ObjectExists } from "../s3-utils";
 import { ServerCacheInstance } from "../server-cache";
 import { getDomainVariants } from "../utils/domain-utils";
-import { parseS3Key } from "../utils/s3-key-generator";
+import { parseS3Key } from "../utils/hash-utils";
 import { LOGO_SOURCES, LOGO_BLOCKLIST_S3_PATH, UNIFIED_IMAGE_SERVICE_CONFIG } from "../constants";
 import { getBaseUrl } from "../utils/get-base-url";
 import { isDebug } from "../utils/debug";
@@ -24,7 +24,7 @@ import {
   isRetryableHttpError,
 } from "../utils/http-client";
 import { retryWithOptions, computeExponentialDelay } from "../utils/retry";
-import { generateS3Key, getFileExtension } from "../utils/s3-key-generator";
+import { generateS3Key, getFileExtension } from "../utils/hash-utils";
 import { FailureTracker } from "../utils/failure-tracker";
 import { isOperationAllowedWithCircuitBreaker, recordOperationFailure } from "../rate-limiter";
 import { inferContentTypeFromUrl, getExtensionFromContentType, IMAGE_EXTENSIONS } from "../utils/content-type";
@@ -39,7 +39,7 @@ import type { LogoInversion } from "../../types/logo";
 import type { ImageServiceOptions, ImageResult } from "../../types/image";
 import { logoDebugger } from "@/lib/utils/logo-debug";
 import { maybeStreamImageToS3 } from "./image-streaming";
-import { hashAndArchiveManualLogo } from "./logo-hash-migrator";
+import { hashAndArchiveManualLogo } from "../utils/hash-utils";
 import logger from "../utils/logger";
 
 export class UnifiedImageService {
@@ -208,8 +208,9 @@ export class UnifiedImageService {
           }
 
           // If no hashed files found, check for legacy files (without hashes)
-          const { findLegacyLogoKey } = await import("./logo-hash-migrator");
-          const legacyKey = await findLegacyLogoKey(domain);
+          const { findLegacyLogoKey } = await import("../utils/hash-utils");
+          const { listS3Objects } = await import("../s3-utils");
+          const legacyKey = await findLegacyLogoKey(domain, listS3Objects);
 
           if (legacyKey) {
             console.log(`[UnifiedImageService] Found existing legacy logo: ${legacyKey}`);
@@ -223,7 +224,13 @@ export class UnifiedImageService {
             // If key lacks hash, migrate it (hashAndArchiveManualLogo handles ACL)
             let finalKey = legacyKey;
             if (!parsed.hash) {
-              const migrated = await hashAndArchiveManualLogo(domain);
+              const { readBinaryS3, writeBinaryS3, deleteFromS3 } = await import("../s3-utils");
+              const migrated = await hashAndArchiveManualLogo(domain, {
+                listS3Objects,
+                readBinaryS3,
+                writeBinaryS3,
+                deleteFromS3,
+              });
               if (migrated) {
                 finalKey = migrated;
                 console.log(`[UnifiedImageService] Manual logo migrated → ${migrated}`);
@@ -555,7 +562,8 @@ export class UnifiedImageService {
             maxRetries: this.CONFIG.MAX_UPLOAD_RETRIES - retry.attempts,
             baseDelay: this.CONFIG.RETRY_BASE_DELAY,
             isRetryable: (error) => isRetryableHttpError(error),
-            onRetry: (_error, attempt) => {
+            onRetry: (error, attempt) => {
+              void error; // Explicitly mark as unused per project convention
               console.log(
                 `[UnifiedImageService] Retry ${attempt + retry.attempts}/${this.CONFIG.MAX_UPLOAD_RETRIES} for ${key}`,
               );

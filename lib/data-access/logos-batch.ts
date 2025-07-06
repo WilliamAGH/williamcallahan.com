@@ -8,11 +8,11 @@
  */
 
 import type { LogoResult, LogoSource } from "@/types/logo";
-import { writeBinaryS3, checkIfS3ObjectExists } from "@/lib/s3-utils";
+import { writeBinaryS3, checkIfS3ObjectExists, listS3Objects } from "@/lib/s3-utils";
 import { getDomainVariants, normalizeDomain } from "@/lib/utils/domain-utils";
 import { LOGO_SOURCES, LOGO_BLOCKLIST_S3_PATH } from "@/lib/constants";
 import { FailureTracker } from "@/lib/utils/failure-tracker";
-import { generateS3Key, getFileExtension } from "@/lib/utils/s3-key-generator";
+import { generateS3Key, getFileExtension } from "@/lib/utils/hash-utils";
 import { BatchProcessor, BatchProgressReporter } from "@/lib/batch-processing";
 import { Readable } from "node:stream";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
@@ -99,37 +99,33 @@ export async function getLogoBatch(domain: string): Promise<LogoResult> {
     }
   }
 
-  // If no hashed files found, check for legacy files (without hashes) across all variants - same logic as runtime process
+  // If no hashed files found, check for legacy files (without hashes) - same logic as runtime process
   try {
-    const { findLegacyLogoKey } = await import("@/lib/services/logo-hash-migrator");
+    const { findLegacyLogoKey, parseS3Key } = await import("@/lib/utils/hash-utils");
 
-    for (const variant of variants) {
-      const legacyKey = await findLegacyLogoKey(variant);
+    const legacyKey = await findLegacyLogoKey(normalizedDomain, listS3Objects);
 
-      if (legacyKey) {
-        console.log(`[Logo Batch] Found existing legacy logo for variant ${variant}: ${legacyKey}`);
+    if (legacyKey) {
+      console.log(`[Logo Batch] Found existing legacy logo for ${normalizedDomain}: ${legacyKey}`);
 
-        // Extract metadata from legacy key
-        const { parseS3Key } = await import("@/lib/utils/s3-key-generator");
-        const parsed = parseS3Key(legacyKey);
-        const source = (parsed.source || "unknown") as LogoSource;
-        const ext = parsed.extension || "png";
-        const contentType = ext === "svg" ? "image/svg+xml" : ext === "ico" ? "image/x-icon" : `image/${ext}`;
+      // Extract metadata from legacy key
+      const parsed = parseS3Key(legacyKey);
+      const source = (parsed.source || "unknown") as LogoSource;
+      const ext = parsed.extension || "png";
+      const contentType = ext === "svg" ? "image/svg+xml" : ext === "ico" ? "image/x-icon" : `image/${ext}`;
 
-        // For batch operations, we return the legacy key as-is without migration
-        // Migration will happen during runtime requests if needed
-        return {
-          url: `${cdnUrl}/${legacyKey}`,
-          source,
-          error: undefined,
-          contentType,
-        };
-      }
+      // For batch operations, we return the legacy key as-is without migration
+      // Migration will happen during runtime requests if needed
+      return {
+        url: `${cdnUrl}/${legacyKey}`,
+        source,
+        error: undefined,
+        contentType,
+      };
     }
   } catch (error) {
-    console.log(
-      `[Logo Batch] Error checking for legacy logos: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.log(`[Logo Batch] Error checking for legacy logos: ${errorMessage}`);
   }
 
   // Fetch from external sources
