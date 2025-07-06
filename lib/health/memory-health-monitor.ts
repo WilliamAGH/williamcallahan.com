@@ -25,8 +25,8 @@ import {
  */
 export class MemoryHealthMonitor extends EventEmitter {
   private readonly memoryBudget = MEMORY_THRESHOLDS.TOTAL_PROCESS_MEMORY_BUDGET_BYTES;
-  private readonly warningThreshold = this.memoryBudget * 0.75;
-  private readonly criticalThreshold = this.memoryBudget * 0.9;
+  private readonly warningThreshold = MEMORY_THRESHOLDS.MEMORY_WARNING_THRESHOLD;
+  private readonly criticalThreshold = MEMORY_THRESHOLDS.MEMORY_CRITICAL_THRESHOLD;
   // In-memory history of memory metric snapshots for basic trend analysis
   private readonly metricsHistory: import("@/types/health").MemoryMetrics[] = [];
 
@@ -126,7 +126,8 @@ export class MemoryHealthMonitor extends EventEmitter {
    * Middleware that returns 503 during critical memory pressure
    */
   memoryPressureMiddleware() {
-    return (_req: MiddlewareRequest, res: MiddlewareResponse, next: MiddlewareNextFunction) => {
+    return (req: MiddlewareRequest, res: MiddlewareResponse, next: MiddlewareNextFunction) => {
+      void req; // Explicitly mark as unused per project convention
       const health = this.getHealthStatus();
 
       if (health.statusCode === 503) {
@@ -401,7 +402,8 @@ export function getMemoryHealthMonitor(): MemoryHealthMonitor {
  * Adds an `X-Memory-Status` header to each response to surface current memory
  * state and returns the underlying `HealthCheckResult` for optional logging.
  */
-export function memoryHealthCheckMiddleware(_req: MiddlewareRequest, res: MiddlewareResponse): HealthCheckResult {
+export function memoryHealthCheckMiddleware(req: MiddlewareRequest, res: MiddlewareResponse): HealthCheckResult {
+  void req; // Explicitly mark as unused per project convention
   const monitor = getMemoryHealthMonitor();
   const health = monitor.getHealthStatus();
   if (typeof res.setHeader === "function") {
@@ -415,10 +417,11 @@ export function memoryHealthCheckMiddleware(_req: MiddlewareRequest, res: Middle
  * under critical memory pressure.
  */
 export function memoryPressureMiddleware(
-  _req: MiddlewareRequest,
+  req: MiddlewareRequest,
   res: MiddlewareResponse,
   next: MiddlewareNextFunction,
 ): void {
+  void req; // Explicitly mark as unused per project convention
   const monitor = getMemoryHealthMonitor();
   if (monitor.shouldAcceptNewRequests()) {
     next();

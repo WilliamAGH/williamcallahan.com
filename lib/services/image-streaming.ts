@@ -19,7 +19,11 @@ class StreamMonitor extends Transform {
   private bytesStreamed = 0;
   private maxSize = 100 * 1024 * 1024; // 100MB max to prevent memory exhaustion
 
-  _transform(chunk: Buffer, _encoding: string, callback: (error?: Error) => void): void {
+  // Note: _transform is a Node.js Transform stream method that must keep the underscore prefix
+  // This is required by the Node.js stream API and cannot be renamed
+  // eslint-disable-next-line no-underscore-dangle
+  _transform(chunk: Buffer, encoding: string, callback: (error?: Error) => void): void {
+    void encoding; // Explicitly mark as unused per project convention
     this.bytesStreamed += chunk.length;
 
     // Check for size limits to prevent memory exhaustion
@@ -34,6 +38,9 @@ class StreamMonitor extends Transform {
     callback();
   }
 
+  // Note: _flush is a Node.js Transform stream method that must keep the underscore prefix
+  // This is required by the Node.js stream API and cannot be renamed
+  // eslint-disable-next-line no-underscore-dangle
   _flush(callback: (error?: Error) => void): void {
     // Ensure cleanup on stream end
     callback();
