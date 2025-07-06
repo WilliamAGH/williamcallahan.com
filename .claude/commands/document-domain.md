@@ -385,11 +385,13 @@ grep -r "useMemo\|lazy" --include="*.ts*"  # Performance patterns
 ### Commit Instructions - ABSOLUTELY CRITICAL
 
 **NEVER include AI/Claude attribution in commits:**
+
 - ❌ 🤖 Generated with [Claude Code]
 - ❌ Co-Authored-By: Claude <noreply@anthropic.com>
 - ❌ Any other AI attribution or markers
 
 **Commit Requirements:**
+
 1. Clear, specific messages using conventional format: `docs([domain]): architecture`
 2. Small batches: 1-3 domain-related files per commit maximum
 3. NO generic messages like "update docs" or "fix stuff"

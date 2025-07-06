@@ -11,8 +11,10 @@ The "terminal" functionality encompasses components and utilities that manage th
 ### Core Terminal Components
 
 - **components/ui/terminal/terminal-implementation.client.tsx**: Main orchestrator component managing terminal appearance, state integration, and window behaviors. Handles layout (normal vs maximized), event handling, and scroll behavior.
+- **components/ui/terminal/terminal-loader.client.tsx**: Dynamic loading component that provides a skeleton matching the exact initial state of the terminal (including welcome message) to prevent layout shifts during loading.
+- **components/ui/terminal/terminal.client.tsx**: Wrapper component that exports the lazy-loaded terminal implementation.
 - **components/ui/terminal/terminal-header.tsx**: Simple presentational component for window controls and title display.
-- **components/ui/terminal/terminal-context.client.tsx**: Manages terminal-specific state (command history) with sessionStorage persistence. Provides history management and clearing functionality.
+- **components/ui/terminal/terminal-context.client.tsx**: Manages terminal-specific state (command history) with sessionStorage persistence. Provides history management and clearing functionality. Always initializes with a welcome message.
 - **components/ui/terminal/command-input.client.tsx**: Handles user input with iOS Safari zoom prevention using CSS transforms. Manages command submission.
 - **components/ui/terminal/history.tsx**: Displays command history with proper formatting and styling.
 - **components/ui/terminal/selection-view.client.tsx**: Interactive list for search results with keyboard navigation (arrow keys, enter, escape). Handles visual selection feedback.
@@ -109,3 +111,10 @@ The SelectionView component implements a modal navigation system similar to term
 - **Event Delegation**: Efficient handling of dynamic content
 - **Conflict Prevention**: Window state changes coordinated through GlobalWindowRegistry
 - **Clean Lifecycle**: All listeners properly removed on unmount
+
+### Loading State Implementation
+
+- **Skeleton Accuracy**: The skeleton component (terminal-loader.client.tsx) exactly mirrors the initial state of the terminal, including the welcome message
+- **Layout Shift Prevention**: By matching the skeleton's content to the actual initial state, we prevent Cumulative Layout Shift (CLS) issues
+- **Dynamic Import**: Terminal is lazy-loaded with Next.js dynamic() and ssr: false for client-side rendering
+- **Consistent Sizing**: Both skeleton and actual terminal use identical padding, margins, and max-height values
