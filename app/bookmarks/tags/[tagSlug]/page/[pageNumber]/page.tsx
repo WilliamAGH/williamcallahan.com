@@ -26,6 +26,7 @@ import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { sanitizeUnicode } from "@/lib/utils/tag-utils";
 import type { PaginatedTagBookmarkContext } from "@/types";
 import { PageNumberSchema } from "@/types/lib";
+import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 
 /**
  * Generate metadata for the paginated tag bookmarks page
@@ -174,7 +175,7 @@ export default async function PaginatedTagBookmarksPage({ params }: PaginatedTag
         <BookmarksServer
           title={pageTitle}
           description={pageDescription}
-          bookmarks={taggedBookmarks}
+          bookmarks={convertBookmarksToSerializable(taggedBookmarks)}
           tag={displayTag}
           showFilterBar={true}
           titleSlug={tagSlug}
