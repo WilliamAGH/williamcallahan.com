@@ -171,6 +171,7 @@ export function convertBookmarksToSerializable(bookmarks: UnifiedBookmark[]): Se
     ogTitle: bookmark.ogTitle,
     ogDescription: bookmark.ogDescription,
     ogImage: bookmark.ogImage,
+    ogImageExternal: bookmark.ogImageExternal,
     domain: bookmark.domain,
   }));
 }
