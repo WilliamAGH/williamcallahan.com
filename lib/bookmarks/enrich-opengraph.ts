@@ -10,7 +10,6 @@ import { BOOKMARKS_API_CONFIG } from "@/lib/constants";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import { getOpenGraphDataBatch } from "@/lib/data-access/opengraph-batch";
 import { selectBestImage } from "./bookmark-helpers";
-import { getCompanyPlaceholder } from "@/lib/data-access/placeholder-images";
 import { extractMarkdownContent, applyExtractedContent } from "./extract-markdown";
 import type { UnifiedBookmark } from "@/types/bookmark";
 
@@ -179,26 +178,55 @@ export async function processBookmarksInBatches(
           );
 
           if (result.s3Url) {
+            // ✅ Successfully stored in S3 – use CDN URL
             bookmark.ogImage = result.s3Url;
-            // Preserve external URL - use the absolute URL we constructed
             bookmark.ogImageExternal = absoluteImageUrl;
             imageStats.bookmarksUsingS3Image++;
             if (result.wasNewlyPersisted) imageStats.imagesNewlyPersisted++;
           } else {
-            // Persistence failed, use placeholder
-            bookmark.ogImage = getCompanyPlaceholder();
-            bookmark.ogImageExternal = absoluteImageUrl;
-            imageStats.bookmarksWithoutImages++;
+            // ❌ Could not persist primary image. Try screenshot asset as secondary fallback before giving up.
+            const screenshotId = bookmark.content?.screenshotAssetId;
+            if (screenshotId) {
+              const { getAssetUrl } = await import("./bookmark-helpers");
+              const ssUrl = getAssetUrl(screenshotId);
+              if (ssUrl) {
+                const ssResult = await persistImageAndGetS3UrlWithStatus(
+                  ssUrl,
+                  OPENGRAPH_IMAGES_S3_DIR,
+                  "ScreenshotFallback",
+                  bookmark.id,
+                  bookmark.url,
+                );
+                if (ssResult.s3Url) {
+                  bookmark.ogImage = ssResult.s3Url;
+                  bookmark.ogImageExternal = ssUrl;
+                  imageStats.bookmarksUsingS3Image++;
+                  if (ssResult.wasNewlyPersisted) imageStats.imagesNewlyPersisted++;
+                } else {
+                  bookmark.ogImage = undefined;
+                  bookmark.ogImageExternal = ssUrl;
+                  imageStats.bookmarksWithoutImages++;
+                }
+              } else {
+                bookmark.ogImage = undefined;
+                bookmark.ogImageExternal = absoluteImageUrl;
+                imageStats.bookmarksWithoutImages++;
+              }
+            } else {
+              bookmark.ogImage = undefined;
+              bookmark.ogImageExternal = absoluteImageUrl;
+              imageStats.bookmarksWithoutImages++;
+            }
           }
         } else {
           // No valid image URL after processing
-          bookmark.ogImage = getCompanyPlaceholder();
+          bookmark.ogImage = undefined;
           bookmark.ogImageExternal = undefined;
           imageStats.bookmarksWithoutImages++;
         }
       } else {
-        // No image found from any source, use placeholder
-        bookmark.ogImage = getCompanyPlaceholder();
+        // No image found from any source
+        bookmark.ogImage = undefined;
         bookmark.ogImageExternal = undefined;
         imageStats.bookmarksWithoutImages++;
       }
@@ -225,7 +253,7 @@ export async function processBookmarksInBatches(
       imageStats.bookmarksWithErrors++;
       imageStats.errorDetails.push({ url: bookmark.url || "unknown", error: error.message });
       // On outer error, assign a placeholder
-      bookmark.ogImage = getCompanyPlaceholder();
+      bookmark.ogImage = undefined;
       bookmark.ogImageExternal = undefined;
       enrichedBookmarks.push(bookmark);
     }
