@@ -6,8 +6,13 @@
 
 import { useCallback, useMemo, useState } from "react";
 import useSWRInfinite from "swr/infinite";
-import type { BookmarksResponse, UnifiedBookmark } from "@/types/bookmark";
-import type { UseBookmarksPaginationOptions, UseBookmarksPaginationReturn } from "@/types/features/bookmarks";
+import type { Fetcher } from "swr";
+import type {
+  UseBookmarksPaginationOptions,
+  UseBookmarksPaginationReturn,
+  UnifiedBookmark,
+  BookmarksResponse,
+} from "@/types";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helper – placed outside the hook to keep stable reference for SWR.
@@ -16,8 +21,14 @@ import type { UseBookmarksPaginationOptions, UseBookmarksPaginationReturn } from
 // `any` or cause type-safety issues.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const fetcher = async (url: string): Promise<BookmarksResponse> => {
-  const response = await fetch(url, { cache: "no-store" });
+const fetcher: Fetcher<BookmarksResponse, [string, number, string?]> = async ([requestKey, page, tag]) => {
+  // The first and third tuple elements are not used within the fetcher, but we must
+  // reference them to comply with the no-unused-vars rule without relying on underscore
+  // prefixes (forbidden by project standards).
+  void requestKey;
+  void tag;
+
+  const response = await fetch(`/api/bookmarks?page=${page}&limit=${24}`, { cache: "no-store" });
 
   if (!response.ok) {
     const errorBody = await response.text();
@@ -33,90 +44,85 @@ const fetcher = async (url: string): Promise<BookmarksResponse> => {
   return apiResponse;
 };
 
+const SWR_KEY = "bookmarks";
+
 export function useBookmarksPagination({
   limit = 24,
   initialData = [],
   initialPage = 1,
+  initialTotalPages,
+  initialTotalCount,
   tag,
 }: UseBookmarksPaginationOptions = {}): UseBookmarksPaginationReturn {
   const [currentPage, setCurrentPage] = useState(initialPage);
 
-  const getKey = useCallback(
-    (pageIndex: number, previousPageData: BookmarksResponse | null) => {
-      // Don't fetch if we've reached the end
-      if (previousPageData && !previousPageData.meta.pagination.hasNext) return null;
+  const getKey = (pageIndex: number, previousPageData: BookmarksResponse | null): [string, number, string?] | null => {
+    const page = pageIndex + 1;
+    if (previousPageData && !previousPageData.meta.pagination.hasNext) return null;
 
-      // If we have initial data and it's the first page, don't fetch
-      // This prevents overriding server-provided data with potentially empty API results
-      if (pageIndex === 0 && initialData && initialData.length > 0) {
-        return null;
-      }
+    if (pageIndex === 0 && initialData && initialData.length > 0) {
+      return null;
+    }
 
-      // Build URL with pagination and optional tag filter
-      const params = new URLSearchParams({
-        page: String(pageIndex + 1),
-        limit: String(limit),
-      });
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
 
-      if (tag) {
-        params.append("tag", tag);
-      }
+    if (tag) {
+      params.append("tag", tag);
+    }
 
-      return `/api/bookmarks?${params.toString()}`;
-    },
-    [limit, tag, initialData],
-  );
+    if (!initialTotalPages && initialTotalCount && pageIndex * limit >= initialTotalCount) return null;
 
-  // Prepare fallbackData in the expected format if initialData is provided
-  const fallbackData = useMemo((): BookmarksResponse[] | undefined => {
-    if (!initialData || initialData.length === 0) return undefined;
+    // The key is a tuple with the endpoint, page number, and optional tag
+    return [SWR_KEY, page, tag];
+  };
 
-    // When server passes all bookmarks, we need to create proper pagination metadata
-    const totalItems = initialData.length;
-    const totalPages = Math.ceil(totalItems / limit);
-    
-    // For the first page response, only include the first page of data
-    const firstPageData = initialData.slice(0, limit);
-
-    const response: BookmarksResponse = {
-      data: firstPageData,
-      meta: {
-        pagination: {
-          page: 1,
-          limit: limit,
-          total: totalItems, // This is the full count of ALL bookmarks
-          totalPages: totalPages, // Total pages based on ALL bookmarks
-          hasNext: totalPages > 1,
-          hasPrev: false,
-        },
-      },
-    };
-
-    return [response];
-  }, [initialData, limit]);
-
-  const { data, error, size, setSize, mutate } = useSWRInfinite<BookmarksResponse, Error>(getKey, fetcher, {
-    revalidateFirstPage: false,
-    revalidateAll: false,
+  const {
+    data,
+    error,
+    size,
+    setSize,
+    isLoading: swrIsLoading,
+    mutate,
+  } = useSWRInfinite<BookmarksResponse | null, Error>(getKey, fetcher, {
+    initialSize: initialPage,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     revalidateIfStale: false,
-    fallbackData,
-    initialSize: 1,
+    dedupingInterval: 5000,
+    fallbackData:
+      initialData.length > 0
+        ? Array.from({ length: initialPage }).map((_, i) =>
+            i === initialPage - 1
+              ? {
+                  data: initialData,
+                  meta: {
+                    pagination: {
+                      total: initialTotalCount ?? initialData.length,
+                      totalPages: initialTotalPages ?? 1,
+                      page: initialPage,
+                      hasNext: initialPage < (initialTotalPages ?? 1),
+                      hasPrev: initialPage > 1,
+                      limit: limit,
+                    },
+                  },
+                }
+              : null,
+          )
+        : [],
   });
 
-  const bookmarks: UnifiedBookmark[] = useMemo(
-    () =>
-      (data ?? fallbackData ?? [])
-        .filter((page): page is BookmarksResponse => !!page)
-        .flatMap((page) => page.data ?? []),
-    [data, fallbackData],
-  );
+  const bookmarks: UnifiedBookmark[] = data ? data.flatMap((page) => page?.data ?? []) : [];
+  const isLoading = swrIsLoading;
+  const isLoadingMore = swrIsLoading && size > 1;
+  const totalItems = initialTotalCount ?? data?.[0]?.meta.pagination.total ?? 0;
+  const totalPages = initialTotalPages ?? Math.ceil(totalItems / limit);
 
   const paginationMeta = useMemo(() => {
-    // Check data first, then fallback to fallbackData
-    const dataSource = data || fallbackData;
-    
+    const dataSource = data || [];
+
     if (!dataSource || dataSource.length === 0) {
       return {
         totalPages: 0,
@@ -124,7 +130,7 @@ export function useBookmarksPagination({
         hasMore: false,
       };
     }
-    
+
     const lastPage = dataSource.filter(Boolean).pop();
     if (!lastPage) {
       return {
@@ -133,17 +139,15 @@ export function useBookmarksPagination({
         hasMore: false,
       };
     }
-    
+
     return {
       totalPages: lastPage.meta.pagination.totalPages,
       totalItems: lastPage.meta.pagination.total,
       hasMore: lastPage.meta.pagination.hasNext,
     };
-  }, [data, fallbackData]);
+  }, [data]);
 
-  const isLoadingInitialData = !data && !error;
-  const isLoadingMore =
-    isLoadingInitialData || ((size > 0 && data && typeof data[size - 1] === "undefined") as boolean);
+  const hasMore = bookmarks.length < (totalItems ?? 0);
 
   const loadMore = useCallback(() => {
     if (!isLoadingMore && paginationMeta.hasMore) {
@@ -155,7 +159,6 @@ export function useBookmarksPagination({
     (page: number) => {
       if (page < 1 || page > paginationMeta.totalPages) return;
 
-      // For manual page navigation, we need to load all pages up to the requested page
       const pagesToLoad = page;
       if (size < pagesToLoad) {
         void setSize(pagesToLoad);
@@ -168,11 +171,11 @@ export function useBookmarksPagination({
   return {
     bookmarks,
     currentPage,
-    totalPages: paginationMeta.totalPages,
-    totalItems: paginationMeta.totalItems,
-    isLoading: isLoadingInitialData,
-    isLoadingMore: Boolean(isLoadingMore),
-    hasMore: paginationMeta.hasMore,
+    totalPages,
+    totalItems,
+    isLoading: isLoading,
+    isLoadingMore,
+    hasMore,
     error,
     loadMore,
     goToPage,
