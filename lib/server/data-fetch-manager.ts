@@ -99,8 +99,8 @@ export class DataFetchManager {
       const previousCount = previousBookmarks.length;
       const previousBookmarkIds = new Set(previousBookmarks.map((b: UnifiedBookmark) => b.id));
 
-      // Force fresh data fetch
-      const bookmarksResult = await refreshBookmarks();
+      // Force fresh data fetch, passing the forceRefresh flag
+      const bookmarksResult = await refreshBookmarks(config.forceRefresh);
       if (!bookmarksResult) {
         throw new Error("No bookmarks returned from refresh");
       }
@@ -141,13 +141,12 @@ export class DataFetchManager {
 
   /**
    * Fetch GitHub activity data
-   * @param _config - Configuration (acknowledged but unused)
+   * @param config - Configuration (acknowledged but unused)
    * @returns Promise resolving to operation summary
    */
-  private async fetchGithubActivity(_config: DataFetchConfig): Promise<DataFetchOperationSummary> {
+  private async fetchGithubActivity(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
     const startTime = Date.now();
-    // Explicitly acknowledge the argument so ESLint doesn't flag it as unused
-    void _config;
+    void config; // Explicitly mark as unused per project convention
     logger.info("[DataFetchManager] Starting GitHub activity fetch...");
 
     try {
@@ -304,20 +303,16 @@ export class DataFetchManager {
 
     try {
       // Parallelize data collection for better performance
-      const [
-        investmentData,
-        { experiences },
-        { education, certifications, recentCourses },
-        bookmarks
-      ] = await Promise.all([
-        getInvestmentDomainsAndIds(),
-        import("@/data/experience"),
-        import("@/data/education"),
-        getBookmarks({
-          skipExternalFetch: false,
-          includeImageData: false,
-        }) as Promise<UnifiedBookmark[]>
-      ]);
+      const [investmentData, { experiences }, { education, certifications, recentCourses }, bookmarks] =
+        await Promise.all([
+          getInvestmentDomainsAndIds(),
+          import("@/data/experience"),
+          import("@/data/education"),
+          getBookmarks({
+            skipExternalFetch: false,
+            includeImageData: false,
+          }) as Promise<UnifiedBookmark[]>,
+        ]);
 
       // Process investment domains
       for (const [domain] of investmentData) {
@@ -450,9 +445,9 @@ export class DataFetchManager {
    * @param _config - Configuration (acknowledged but unused)
    * @returns Promise resolving to operation summary
    */
-  private async buildSearchIndexes(_config: DataFetchConfig): Promise<DataFetchOperationSummary> {
+  private async buildSearchIndexes(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
     const startTime = Date.now();
-    void _config;
+    void config; // Explicitly mark as unused per project convention
     logger.info("[DataFetchManager] Starting search index build...");
 
     try {
@@ -517,9 +512,9 @@ export class DataFetchManager {
    * @param _config - Configuration (acknowledged but unused)
    * @returns Promise resolving to operation summary
    */
-  private async buildImageManifests(_config: DataFetchConfig): Promise<DataFetchOperationSummary> {
+  private async buildImageManifests(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
     const startTime = Date.now();
-    void _config;
+    void config; // Explicitly mark as unused per project convention
     logger.info("[DataFetchManager] Starting image manifest build...");
 
     try {
