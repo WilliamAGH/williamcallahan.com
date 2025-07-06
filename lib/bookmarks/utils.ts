@@ -3,7 +3,13 @@
  * @module lib/bookmarks/utils
  */
 
-import type { BookmarkTag, RawApiBookmarkContent, UnifiedBookmark, RawBookmark } from "@/types/bookmark";
+import type {
+  BookmarkTag,
+  RawApiBookmarkContent,
+  UnifiedBookmark,
+  RawBookmark,
+  LightweightBookmark,
+} from "@/types/bookmark";
 import type { SerializableBookmark } from "@/types/features/bookmarks";
 
 /**
@@ -145,36 +151,66 @@ export function convertSerializableBookmarksToUnified(
  * @param bookmarks - Array of unified bookmarks to convert
  * @returns Array of serializable bookmarks for client props
  */
-export function convertBookmarksToSerializable(bookmarks: UnifiedBookmark[]): SerializableBookmark[] {
-  return bookmarks.map((bookmark) => ({
-    id: bookmark.id,
-    url: bookmark.url,
-    title: bookmark.title,
-    description: bookmark.description,
-    tags: Array.isArray(bookmark.tags) ? bookmark.tags.map(normalizeBookmarkTag) : [],
-    dateBookmarked: bookmark.dateBookmarked,
-    dateCreated: bookmark.dateCreated,
-    dateUpdated: bookmark.dateUpdated,
-    content: bookmark.content,
-    logoData: bookmark.logoData
+export const convertBookmarksToSerializable = (bookmarks: UnifiedBookmark[]): SerializableBookmark[] =>
+  bookmarks.map((b) => ({
+    id: b.id,
+    url: b.url,
+    title: b.title,
+    description: b.description ?? "",
+    tags: (b.tags || []).map((t) => normalizeBookmarkTag(t as string | BookmarkTag)),
+    ogImage: b.ogImage,
+    ogImageExternal: b.ogImageExternal,
+    content: b.content,
+    dateBookmarked: b.dateBookmarked,
+    dateCreated: b.dateCreated,
+    dateUpdated: b.dateUpdated,
+    logoData: b.logoData
       ? {
-          url: bookmark.logoData.url,
-          alt: bookmark.logoData.alt || "Logo",
-          width: bookmark.logoData.width,
-          height: bookmark.logoData.height,
+          url: b.logoData.url,
+          alt: b.logoData.alt ?? "Logo",
+          width: b.logoData.width,
+          height: b.logoData.height,
         }
       : null,
-    isPrivate: bookmark.isPrivate || false,
-    isFavorite: bookmark.isFavorite || false,
-    readingTime: bookmark.readingTime,
-    wordCount: bookmark.wordCount,
-    ogTitle: bookmark.ogTitle,
-    ogDescription: bookmark.ogDescription,
-    ogImage: bookmark.ogImage,
-    ogImageExternal: bookmark.ogImageExternal,
-    domain: bookmark.domain,
+    isPrivate: !!b.isPrivate,
+    isFavorite: !!b.isFavorite,
+    readingTime: b.readingTime,
+    wordCount: b.wordCount,
+    ogTitle: b.ogTitle ?? undefined,
+    ogDescription: b.ogDescription ?? undefined,
+    domain: b.domain,
   }));
-}
+
+/** Calculate checksum for bookmark array based on id and modification time */
+export const calculateBookmarksChecksum = (bookmarks: UnifiedBookmark[]): string =>
+  bookmarks.map((b) => `${b.id}:${b.modifiedAt || b.dateBookmarked}`).join("|");
+
+/** Convert UnifiedBookmark to LightweightBookmark by stripping image data */
+export const stripImageData = (b: UnifiedBookmark): LightweightBookmark =>
+  ({
+    ...b,
+    content: undefined,
+    imageUrl: undefined,
+    imageAssetId: undefined,
+    screenshotAssetId: undefined,
+    tags: ((b.tags ?? []) as (string | BookmarkTag)[])
+      .filter((t) => t && (typeof t === "string" ? t.trim() : t.name?.trim()))
+      .map(normalizeBookmarkTag),
+  }) as unknown as LightweightBookmark;
+
+/** Convert to lightweight bookmarks for reduced memory usage */
+export const toLightweightBookmarks = (bookmarks: UnifiedBookmark[]): LightweightBookmark[] => {
+  const lightweight: LightweightBookmark[] = [];
+  for (const b of bookmarks) lightweight.push(stripImageData(b));
+  return lightweight;
+};
+
+/** Normalize tags for a page of bookmarks */
+export const normalizePageBookmarkTags = (bookmarks: UnifiedBookmark[]): UnifiedBookmark[] =>
+  bookmarks.map((b) => ({
+    ...b,
+    tags: ((b.tags ?? []) as (string | BookmarkTag)[]).map(normalizeBookmarkTag),
+  }));
 
 /**
  * Checks if a bookmark's source data has been updated.
