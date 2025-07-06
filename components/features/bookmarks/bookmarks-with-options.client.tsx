@@ -7,11 +7,11 @@
  */
 "use client";
 
-import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
+import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { UnifiedBookmark } from "@/types";
 import { ArrowRight, Loader2, RefreshCw, Search } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
@@ -40,7 +40,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   // Tag expansion is now handled in the TagsList component
   const [allBookmarks, setAllBookmarks] = useState<UnifiedBookmark[]>(bookmarks);
   // Using setIsSearching in handleSearchSubmit
-  const [, setIsSearching] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [dataSource, setDataSource] = useState<"server" | "client">("server");
@@ -51,7 +51,6 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   const [searchResults, setSearchResults] = useState<UnifiedBookmark[] | null>(null);
   const [isSearchingAPI, setIsSearchingAPI] = useState(false);
   const router = useRouter();
-  const pathname = usePathname();
 
   // Determine if refresh button should be shown
   const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
@@ -79,6 +78,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
 
     const searchTimeout = setTimeout(async () => {
       try {
+        setIsSearching(true);
         setIsSearchingAPI(true);
         const response = await fetch(`/api/search/all?q=${encodeURIComponent(searchQuery)}`);
         if (response.ok) {
@@ -114,6 +114,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         console.warn("Search API failed, falling back to client-side search:", error);
         setSearchResults(null);
       } finally {
+        setIsSearching(false);
         setIsSearchingAPI(false);
       }
     }, 300); // 300ms debounce
@@ -244,27 +245,15 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
 
   const handleTagClick = (tag: string) => {
     if (selectedTag === tag) {
-      // Clear filter
       setSelectedTag(null);
     } else {
-      // New tag selected
       setSelectedTag(tag);
     }
   };
 
-  // Handle navigation based on tag selection
-  useEffect(() => {
-    if (!mounted) return;
-
-    if (selectedTag && !pathname.includes("/tags/")) {
-      // Navigate to tag page when tag is selected
-      const tagSlug = tagToSlug(selectedTag);
-      router.push(`/bookmarks/tags/${tagSlug}`);
-    } else if (!selectedTag && pathname.startsWith("/bookmarks/tags/")) {
-      // Navigate back to main bookmarks when tag is cleared
-      router.push("/bookmarks");
-    }
-  }, [selectedTag, pathname, router, mounted]);
+  // We no longer modify the URL when tag selection changes during client
+  // interaction. The SSR route already reflects the initial tag. Keeping the
+  // URL stable prevents unintended refreshes while the user is typing.
 
   // Function to refresh bookmarks data
   const refreshBookmarks = async () => {
@@ -421,9 +410,11 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between">
             <div>
               <p className="text-gray-500 dark:text-gray-400">
-                {filteredBookmarks.length === 0
-                  ? "No bookmarks found"
-                  : `Showing ${filteredBookmarks.length} bookmark${filteredBookmarks.length === 1 ? "" : "s"}`}
+                {isSearching
+                  ? "Searching…"
+                  : filteredBookmarks.length === 0
+                    ? "No bookmarks found"
+                    : `Showing ${filteredBookmarks.length} bookmark${filteredBookmarks.length === 1 ? "" : "s"}`}
                 {searchQuery && ` for "${searchQuery}"`}
                 {selectedTag && ` tagged with "${selectedTag}"`}
                 {searchQuery && searchAllBookmarks && " across all bookmarks"}
@@ -459,7 +450,11 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
 
       {/* Client-side only rendering of bookmark results */}
       {mounted ? (
-        filteredBookmarks.length === 0 && searchQuery ? (
+        isSearching ? (
+          <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
+            <Loader2 className="h-10 w-10 animate-spin text-gray-400 mx-auto" />
+          </div>
+        ) : filteredBookmarks.length === 0 && searchQuery ? (
           <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
             <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">
               No bookmarks found for &ldquo;{searchQuery}&rdquo;

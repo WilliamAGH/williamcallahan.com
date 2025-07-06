@@ -16,7 +16,7 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
   searchAllBookmarks = false,
   showFilterBar = true,
   usePagination = true,
-  enableInfiniteScroll = true,
+  enableInfiniteScroll = false,
   itemsPerPage = 24,
   initialPage,
   totalPages,
