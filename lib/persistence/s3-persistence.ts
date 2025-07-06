@@ -375,8 +375,23 @@ export async function persistImageAndGetS3UrlWithStatus(
   idempotencyKey?: string,
   pageUrl?: string,
 ): Promise<PersistImageResult> {
-  // When running in the web runtime, schedule background persistence
+  // Web runtime: don't attempt to persist immediately. Validate the URL first so we don't store hot-link dead images.
   if (process.env.IS_DATA_UPDATER !== "true") {
+    try {
+      const headOk = await fetch(imageUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) })
+        .then((res) => res.ok && res.headers.get("content-type")?.startsWith("image/"))
+        .catch(() => false);
+
+      if (!headOk) {
+        console.warn(`[OpenGraph S3] HEAD validation failed for ${imageUrl} – skipping immediate use`);
+        return { s3Url: null, wasNewlyPersisted: false };
+      }
+    } catch {
+      // network error – treat as invalid
+      return { s3Url: null, wasNewlyPersisted: false };
+    }
+
+    // Schedule background persistence after basic validation
     scheduleImagePersistence(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
     return { s3Url: imageUrl, wasNewlyPersisted: false };
   }
