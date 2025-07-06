@@ -580,14 +580,6 @@ export async function getBookmarksIndex(): Promise<BookmarksIndex | null> {
   return getBookmarksIndexDirect();
 }
 
-// Cleanup interval for stale locks
-setInterval(
-  () => {
-    cleanupStaleLocks().catch((error) => console.error("[Bookmarks] Failed to cleanup stale locks:", String(error)));
-  },
-  2 * 60 * 1000,
-);
-
 // Cleanup cache and locks on process exit
 process.on("SIGTERM", () => {
   releaseRefreshLock().catch((error) => console.error("[Bookmarks] Failed to release lock on cleanup:", String(error)));
