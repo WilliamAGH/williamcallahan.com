@@ -5,6 +5,7 @@
  */
 
 import { BookmarksIndexSchema } from "@/lib/schemas/bookmarks";
+import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import type { BookmarksIndex } from "@/types/bookmark";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
@@ -28,8 +29,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const tagFilter = searchParams.get("tag") || null;
 
   try {
-    // If no tag filter and requesting a specific page, try to load just that page
-    if (!tagFilter && page > 0) {
+    // Fast-path: only when the caller requests **one standard page** worth of data
+    // If the client asks for more than BOOKMARKS_PER_PAGE (24) items we must
+    // fall back to the full-dataset path otherwise search on the bookmarks page
+    // will miss results that live beyond page 1.
+    if (!tagFilter && page > 0 && limit <= BOOKMARKS_PER_PAGE) {
       const { getBookmarksPage } = await import("@/lib/bookmarks/bookmarks-data-access.server");
       const rawIndex: unknown = await import("@/lib/s3-utils").then((m) =>
         m.readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX),
@@ -95,10 +99,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (tagFilter) {
       // Decode the tag filter (handle URL encoding and slug format)
       const decodedTag = decodeURIComponent(tagFilter);
-      
+
       // Check if this is a slug format (contains hyphens) or display format
-      const isSlugFormat = decodedTag.includes('-');
-      const tagQuery = isSlugFormat ? decodedTag.replace(/-/g, ' ') : decodedTag;
+      const isSlugFormat = decodedTag.includes("-");
+      const tagQuery = isSlugFormat ? decodedTag.replace(/-/g, " ") : decodedTag;
 
       filteredBookmarks = allBookmarks.filter((bookmark) => {
         const tags = normalizeTagsToStrings(bookmark.tags);
