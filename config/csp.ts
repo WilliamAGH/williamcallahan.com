@@ -12,7 +12,6 @@ export const CSP_DIRECTIVES = {
   scriptSrc: [
     "'self'",
     "'unsafe-inline'",
-    "'unsafe-eval'",
     "https://umami.iocloudhost.net",
     "https://plausible.iocloudhost.net",
     "https://static.cloudflareinsights.com",
