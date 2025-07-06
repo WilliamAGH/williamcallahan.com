@@ -172,6 +172,22 @@ const main = async (): Promise<void> => {
   const siteUrlCanonical = submissionSiteUrl.endsWith("/") ? submissionSiteUrl : `${submissionSiteUrl}/`;
   const sitemapUrl = `${siteUrlCanonical}sitemap.xml`;
 
+  // -----------------------------------------------------------------------
+  // Safety-guard: refuse to proceed when the Search-Console property ID is
+  // not provided explicitly through the environment.  Relying on the
+  // URL-prefix fallback would trigger a permission error if the service
+  // account is only added to the **Domain** property.  Making this an
+  // explicit runtime error prevents silent regressions.
+  // -----------------------------------------------------------------------
+  if (!process.env.GOOGLE_SEARCH_CONSOLE_PROPERTY) {
+    throw new Error(
+      "GOOGLE_SEARCH_CONSOLE_PROPERTY env var is missing. Set it to your " +
+        "Search Console property ID (e.g. 'sc-domain:williamcallahan.com' " +
+        "or 'https://williamcallahan.com/') before running the sitemap " +
+        "submission script.",
+    );
+  }
+
   // Submit to Google
   if (!SKIP_GOOGLE) await submitToGoogle(sitemapUrl, siteUrlCanonical);
   else if (DEBUG_MODE) console.info(`${LOG_PREFIX.google} Skipped due to CLI flag.`);
@@ -338,7 +354,14 @@ async function verifyIndexNowKey(keyLocationUrl: string, expectedKey: string): P
   }
 }
 
-main().catch((err) => {
-  console.error("An unexpected error occurred in the main process:", err);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    // Explicitly exit to avoid hanging event-loop handles (e.g. open keep-alive
+    // sockets inside google-auth-library / gaxios).  Only run after successful
+    // completion; failures are handled in the catch below.
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error("An unexpected error occurred in the main process:", err);
+    process.exit(1);
+  });
