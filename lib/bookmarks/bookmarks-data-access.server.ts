@@ -359,9 +359,9 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
     await writePaginatedBookmarks(allIncomingBookmarks);
     // Also write full file for tag filtering operations
     // Strip HTML content to reduce file size from ~5MB to ~500KB
-    const lightweightBookmarks = allIncomingBookmarks.map(bookmark => ({
+    const lightweightBookmarks = allIncomingBookmarks.map((bookmark) => ({
       ...bookmark,
-      content: bookmark.content ? omitHtmlContent(bookmark.content) : undefined
+      content: bookmark.content ? omitHtmlContent(bookmark.content) : undefined,
     }));
     await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, lightweightBookmarks);
     // Write tag-filtered bookmarks
@@ -394,9 +394,9 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
               await writePaginatedBookmarks(freshBookmarks);
               // Also write full file for tag filtering operations
               // Strip HTML content to reduce file size from ~5MB to ~500KB
-              const lightweightBookmarks = freshBookmarks.map(bookmark => ({
+              const lightweightBookmarks = freshBookmarks.map((bookmark) => ({
                 ...bookmark,
-                content: bookmark.content ? omitHtmlContent(bookmark.content) : undefined
+                content: bookmark.content ? omitHtmlContent(bookmark.content) : undefined,
               }));
               await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, lightweightBookmarks);
               // Write tag-filtered bookmarks
@@ -632,15 +632,17 @@ async function getCachedTagBookmarksIndex(tagSlug: string): Promise<BookmarksInd
 
 // Get tag index with metadata - primary export
 export async function getTagBookmarksIndex(tagSlug: string): Promise<BookmarksIndex | null> {
-  // If caching is enabled, try to use it with fallback to direct
   if (USE_NEXTJS_CACHE) {
-    return withCacheFallback(
-      () => getCachedTagBookmarksIndex(tagSlug),
-      () => getTagBookmarksIndexDirect(tagSlug),
-    );
+    // Try cached first; if it returns null/undefined, fall back to direct fetch
+    try {
+      const cached = await getCachedTagBookmarksIndex(tagSlug);
+      if (cached) return cached;
+    } catch (error) {
+      console.warn("[Bookmarks] Cached index fetch failed, falling back to direct", error);
+    }
+    // Direct read (no cache) – this also handles the case where cached returned null
+    return getTagBookmarksIndexDirect(tagSlug);
   }
-
-  // Default: Always use direct S3 read
   return getTagBookmarksIndexDirect(tagSlug);
 }
 
@@ -789,10 +791,15 @@ export function invalidateBookmarkCache(bookmarkId: string): void {
 
 export async function getBookmarksIndex(): Promise<BookmarksIndex | null> {
   if (USE_NEXTJS_CACHE) {
-    return withCacheFallback(
-      () => getCachedBookmarksIndex(),
-      () => getBookmarksIndexDirect(),
-    );
+    // Try cached first; if it returns null/undefined, fall back to direct fetch
+    try {
+      const cached = await getCachedBookmarksIndex();
+      if (cached) return cached;
+    } catch (error) {
+      console.warn("[Bookmarks] Cached index fetch failed, falling back to direct", error);
+    }
+    // Direct read (no cache) – this also handles the case where cached returned null
+    return getBookmarksIndexDirect();
   }
   return getBookmarksIndexDirect();
 }
