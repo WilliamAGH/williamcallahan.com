@@ -45,7 +45,9 @@
         "noAssignInExpressions": "off",
         "noShadowRestrictedNames": "off"
       },
-      "correctness": {}
+      "correctness": {
+        "noUnusedVariables": "off"
+      }
     }
   },
   "assist": {
