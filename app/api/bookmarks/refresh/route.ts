@@ -100,7 +100,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Start refresh in background (non-blocking)
     const refreshPromise = manager.fetchData({
       bookmarks: true,
-      forceRefresh: true,
+      forceRefresh: isCronJob, // Only force refresh for cron jobs
       immediate: false, // Don't process logos immediately to reduce memory pressure
     });
 
