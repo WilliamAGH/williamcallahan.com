@@ -15,14 +15,42 @@ import type { BookmarksIndex, BookmarkLoadOptions, LightweightBookmark } from "@
 import { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 import { BookmarksIndexSchema } from "@/lib/schemas/bookmarks";
 import { tagToSlug } from "@/lib/utils/tag-utils";
-import { normalizeBookmarkTag, omitHtmlContent } from "@/lib/bookmarks/utils";
+import { normalizeBookmarkTag } from "@/lib/bookmarks/utils";
 import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
 
-// Type assertions for cache functions to fix ESLint unsafe call errors
-const safeCacheLife = cacheLife as (profile: string) => void;
-const safeCacheTag = cacheTag as (tag: string) => void;
-const safeRevalidateTag = revalidateTag as (tag: string) => void;
+// Runtime-safe wrappers for cache helper functions. These wrappers only
+// invoke the underlying Next.js helpers when they exist at runtime,
+// avoiding `undefined is not a function` errors in environments where the
+// experimental `unstable_*` APIs are not yet available.
+const safeCacheLife = (
+  profile:
+    | "default"
+    | "seconds"
+    | "minutes"
+    | "hours"
+    | "days"
+    | "weeks"
+    | "max"
+    | { stale?: number; revalidate?: number; expire?: number },
+): void => {
+  if (typeof cacheLife === "function") {
+    cacheLife(profile as never);
+  }
+};
+
+const safeCacheTag = (...tags: string[]): void => {
+  if (typeof cacheTag === "function") {
+    // The helper supports multiple tags, loop to ensure each is applied.
+    tags.forEach((tag) => cacheTag(tag));
+  }
+};
+
+const safeRevalidateTag = (tag: string): void => {
+  if (typeof revalidateTag === "function") {
+    revalidateTag(tag);
+  }
+};
 
 // Helper function to convert UnifiedBookmark to LightweightBookmark
 function stripImageData(bookmark: UnifiedBookmark): LightweightBookmark {
@@ -104,8 +132,30 @@ async function acquireDistributedLock(lockKey: string, ttlMs: number, retryCount
               return false;
             }
             await releaseDistributedLock(lockKey, true);
-            // Add a small delay to avoid race conditions
-            await new Promise((resolve) => setTimeout(resolve, 100));
+
+            // Wait until the lock object is actually gone before retrying to
+            // acquire it. This mitigates eventual-consistency delays in S3 and
+            // avoids races where multiple instances immediately attempt to
+            // create the lock after deletion.
+            const MAX_POLL_ATTEMPTS = 5;
+            const POLL_INTERVAL_MS = 50;
+
+            for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+              try {
+                await readJsonS3(lockKey);
+                // If read succeeds the object still exists – wait and retry.
+                await new Promise((res) => setTimeout(res, POLL_INTERVAL_MS));
+              } catch (pollErr: unknown) {
+                if (isS3Error(pollErr) && pollErr.$metadata?.httpStatusCode === 404) {
+                  // Lock object is gone; safe to proceed.
+                  break;
+                }
+                // Unexpected error – log and break to avoid infinite loop.
+                console.warn(`${LOG_PREFIX} Polling error while waiting for lock deletion:`, String(pollErr));
+                break;
+              }
+            }
+
             return acquireDistributedLock(lockKey, ttlMs, retryCount + 1);
           }
         }
@@ -359,10 +409,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
     await writePaginatedBookmarks(allIncomingBookmarks);
     // Also write full file for tag filtering operations
     // Strip HTML content to reduce file size from ~5MB to ~500KB
-    const lightweightBookmarks = allIncomingBookmarks.map((bookmark) => ({
-      ...bookmark,
-      content: bookmark.content ? omitHtmlContent(bookmark.content) : undefined,
-    }));
+    const lightweightBookmarks = toLightweightBookmarks(allIncomingBookmarks);
     await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, lightweightBookmarks);
     // Write tag-filtered bookmarks
     await writeTagFilteredBookmarks(allIncomingBookmarks);
@@ -394,10 +441,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
               await writePaginatedBookmarks(freshBookmarks);
               // Also write full file for tag filtering operations
               // Strip HTML content to reduce file size from ~5MB to ~500KB
-              const lightweightBookmarks = freshBookmarks.map((bookmark) => ({
-                ...bookmark,
-                content: bookmark.content ? omitHtmlContent(bookmark.content) : undefined,
-              }));
+              const lightweightBookmarks = toLightweightBookmarks(freshBookmarks);
               await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, lightweightBookmarks);
               // Write tag-filtered bookmarks
               await writeTagFilteredBookmarks(freshBookmarks);
@@ -802,4 +846,18 @@ export async function getBookmarksIndex(): Promise<BookmarksIndex | null> {
     return getBookmarksIndexDirect();
   }
   return getBookmarksIndexDirect();
+}
+
+/**
+ * Converts full bookmark objects to lightweight versions while avoiding large
+ * temporary arrays. The implementation pushes to the destination array inside
+ * the iteration loop so that the GC can reclaim the original `content` payload
+ * sooner, resulting in lower peak memory usage when datasets are large.
+ */
+function toLightweightBookmarks(bookmarks: UnifiedBookmark[]): LightweightBookmark[] {
+  const lightweight: LightweightBookmark[] = [];
+  for (const bookmark of bookmarks) {
+    lightweight.push(stripImageData(bookmark));
+  }
+  return lightweight;
 }
