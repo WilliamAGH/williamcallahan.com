@@ -11,6 +11,11 @@ import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate } from "@/lib/seo
 import { NEXT_PUBLIC_SITE_URL } from "@/lib/constants";
 import { isPacificDateString } from "@/types/seo";
 
+jest.mock("@/lib/constants", () => ({
+  ...jest.requireActual("@/lib/constants"),
+  NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
+}));
+
 describe("SEO Utilities", () => {
   describe("ensureAbsoluteUrl", () => {
     it("should return the same URL if already absolute", () => {
