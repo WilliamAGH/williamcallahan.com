@@ -63,6 +63,57 @@ Before any code is changed, a rigorous analysis and planning phase is mandatory.
 
 **Do not proceed to edit any code until this entire prerequisite workflow is complete.** All planning and analysis must be finished before implementation begins.
 
+---
+
+## 🔰 Kick-Off Recipe – Start Every Flattening Task the Same Way
+
+### 1  Create a **Functionality Inventory** (WHAT the file does)
+
+Fill a small table before touching code:
+
+| Category | Questions to answer |
+| --- | --- |
+| **Public API** | What is exported? Params & return types? |
+| **Side-effects** | Disk writes? Logs? DOM tweaks? Global state? |
+| **Data Flow** | Which modules/types are consumed & produced? |
+| **Branching** | List every conditional and what it checks. |
+| **Collections** | Loops / map / filter / reduce targets? |
+| **Errors** | try/catch, error codes, expected failures? |
+| **I/O & Network** | fetch, db, S3, fs, etc.? |
+| **Config Flags** | Env vars, feature toggles, runtime flags? |
+| **Types & Schemas** | Local aliases, interfaces, Zod, enums? |
+| **Domain Nouns** | Business concepts used repeatedly? |
+
+*(1-line per row, no judgement yet)*
+
+### 2  Run the **First-Principles Search Loop** (WHERE else is it?)
+
+For **each** inventory bullet:
+
+1. **Exact `rg` grep** → literal symbol search.
+2. **Semantic search** → ask "Where is X parsed/validated?"
+3. **Review neighbours** → duplicate? SOC violation? Canonical impl?
+4. **Action tag** → KEEP / MERGE / MOVE / DELETE.
+5. **Brainstorm reductions** only after every tag is set.
+
+Repeat until every item has a clear fate backed by evidence.
+
+### 3  Lock in with a **Refactor Prompt Template**
+
+```text
+System: "ZERO-TEMPERATURE refactor – file <path>."
+User:
+1. Here is the inventory + action map.
+2. Apply reduce-code-flatten rules (line count must fall).
+3. No new files, env vars, @ts-ignore, eslint-disable.
+4. After edits run `bun run validate` → 0 errors/warnings.
+5. Output minimal `edit_file` operations only.
+```
+
+Use this exact sequence every time to ensure consistency with project rules.
+
+---
+
 ### Core Principles
 
 1. **Functionality is Sacred**: The foremost rule is to preserve 100% of the existing functionality. No features, behaviors, or edge cases should be changed or removed.
@@ -329,11 +380,13 @@ Before committing any code reduction refactoring, confirm the following:
 ## Commit Instructions - ABSOLUTELY CRITICAL
 
 **NEVER include AI/Claude attribution in commits:**
+
 - ❌ 🤖 Generated with [Claude Code]
 - ❌ Co-Authored-By: Claude <noreply@anthropic.com>
 - ❌ Any other AI attribution or markers
 
 **Commit Requirements:**
+
 1. Clear, specific messages describing the exact optimization made
 2. Small batches: 1-3 related files per commit maximum
 3. NO generic messages like "reduce code" or "optimize"
