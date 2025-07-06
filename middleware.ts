@@ -12,7 +12,7 @@
 // See: https://github.com/vercel/next.js/blob/canary/docs/01-app/03-api-reference/03-file-conventions/middleware.mdx
 // Using `edge` here (not deprecated `experimental-edge`).
 
-import { CSP_DIRECTIVES } from "./lib/constants";
+import { CSP_DIRECTIVES } from "./config/csp";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { memoryPressureMiddleware } from "./lib/middleware/memory-pressure";
