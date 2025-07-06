@@ -10,7 +10,7 @@
  */
 
 import type { PacificDateString } from "../../types/seo/shared";
-import { NEXT_PUBLIC_SITE_URL } from "../constants";
+import { NEXT_PUBLIC_SITE_URL } from "../constants/client";
 
 /**
  * Ensures a URL is absolute by prepending the site URL if necessary
