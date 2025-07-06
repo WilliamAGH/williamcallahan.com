@@ -154,17 +154,17 @@ export function OptimizedCardImage({
   src,
   alt,
   className = "",
-  noLogoFallback = false,
   logoDomain,
 }: OptimizedCardImageProps): React.JSX.Element {
   const [loaded, setLoaded] = useState(false);
   const [errored, setErrored] = useState(false);
 
-  // When src is null, we immediately fall back
   const shouldShowReal = src && !errored;
 
-  if (!shouldShowReal && noLogoFallback) {
-    // Plain placeholder (already imported static) fills
+  if (!shouldShowReal) {
+    // If the primary image source (ogImage) fails or is missing,
+    // always fall back to the generic static placeholder.
+    // Do NOT attempt to fetch a logo as a fallback.
     return <Image src={Placeholder} alt={alt} fill placeholder="empty" className="object-cover" />;
   }
 
@@ -192,7 +192,7 @@ export function OptimizedCardImage({
       placeholder="empty"
       className={`object-cover transition-opacity duration-200 ${className}`}
       style={{ opacity: loaded ? 1 : 0.2 }}
-      onLoadingComplete={() => setLoaded(true)}
+      onLoad={() => setLoaded(true)}
       onError={() => setErrored(true)}
     />
   );
