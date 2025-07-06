@@ -44,24 +44,22 @@ jest.mock("@/lib/constants", () => ({
 }));
 
 describe("Logos Batch Performance Optimizations", () => {
-  const mockCheckIfS3ObjectExists = checkIfS3ObjectExists as jest.MockedFunction<typeof checkIfS3ObjectExists>;
-  const mockGenerateS3Key = generateS3Key as jest.MockedFunction<typeof generateS3Key>;
-  const mockGetDomainVariants = getDomainVariants as jest.MockedFunction<typeof getDomainVariants>;
-  const mockReadJsonS3 = readJsonS3 as jest.MockedFunction<typeof readJsonS3>;
-  const mockWriteBinaryS3 = writeBinaryS3 as jest.MockedFunction<typeof writeBinaryS3>;
+  const mockCheckIfS3ObjectExists = jest.mocked(checkIfS3ObjectExists);
+  const mockGenerateS3Key = jest.mocked(generateS3Key);
+  const mockGetDomainVariants = jest.mocked(getDomainVariants);
+  const mockReadJsonS3 = jest.mocked(readJsonS3);
+  const mockWriteBinaryS3 = jest.mocked(writeBinaryS3);
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Default mocks
     mockGetDomainVariants.mockReturnValue(["example.com", "www.example.com"]);
-    mockGenerateS3Key.mockImplementation(({ domain, source, extension }) => 
-      `logos/${source}/${domain}.${extension}`
-    );
+    mockGenerateS3Key.mockImplementation(({ domain, source, extension }) => `logos/${source}/${domain}.${extension}`);
     mockCheckIfS3ObjectExists.mockResolvedValue(false); // Default: no logos exist
     mockReadJsonS3.mockRejectedValue(new Error("File not found")); // No persisted failures
     mockWriteBinaryS3.mockResolvedValue(undefined);
-    
+
     // Mock fetch to prevent actual network requests
     const mockBody = {
       getReader: jest.fn(),
@@ -70,20 +68,22 @@ describe("Logos Batch Performance Optimizations", () => {
       pipeThrough: jest.fn(),
       tee: jest.fn(),
     };
-    
+
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       headers: new Headers({ "content-type": "image/png" }),
       body: mockBody,
-    } as unknown as Response);
-    
+    });
+
     // Mock Readable.fromWeb for Node.js stream conversion
     const { Readable } = require("node:stream");
-    Readable.fromWeb = jest.fn().mockReturnValue(new Readable({
-      read() {
-        this.push(null); // Empty stream
-      }
-    }));
+    Readable.fromWeb = jest.fn().mockReturnValue(
+      new Readable({
+        read() {
+          this.push(null); // Empty stream
+        },
+      }),
+    );
   });
 
   describe("Batch S3 existence checking", () => {
@@ -94,7 +94,7 @@ describe("Logos Batch Performance Optimizations", () => {
       // Track when each check is called
       mockCheckIfS3ObjectExists.mockImplementation(async (key) => {
         checkTimes[key] = Date.now() - startTime;
-        await new Promise(resolve => setTimeout(resolve, 10)); // Simulate S3 latency
+        await new Promise((resolve) => setTimeout(resolve, 10)); // Simulate S3 latency
         return false;
       });
 
@@ -137,19 +137,14 @@ describe("Logos Batch Performance Optimizations", () => {
     });
 
     it("should handle multiple domain variants efficiently", async () => {
-      mockGetDomainVariants.mockReturnValue([
-        "example.com",
-        "www.example.com", 
-        "app.example.com",
-        "api.example.com",
-      ]);
+      mockGetDomainVariants.mockReturnValue(["example.com", "www.example.com", "app.example.com", "api.example.com"]);
 
       const checkTimes: number[] = [];
       const startTime = Date.now();
 
       mockCheckIfS3ObjectExists.mockImplementation(async () => {
         checkTimes.push(Date.now() - startTime);
-        await new Promise(resolve => setTimeout(resolve, 5));
+        await new Promise((resolve) => setTimeout(resolve, 5));
         return false;
       });
 
@@ -163,7 +158,7 @@ describe("Logos Batch Performance Optimizations", () => {
       const windows = [0, 10, 20, 30, 40];
       const checksPerWindow = windows.map((window, i) => {
         const nextWindow = windows[i + 1] || Infinity;
-        return checkTimes.filter(t => t >= window && t < nextWindow).length;
+        return checkTimes.filter((t) => t >= window && t < nextWindow).length;
       });
 
       // With fast mocked responses, many checks may complete in the first window
@@ -176,7 +171,7 @@ describe("Logos Batch Performance Optimizations", () => {
     it("should be significantly faster than sequential checking", async () => {
       // Simulate realistic S3 latency
       mockCheckIfS3ObjectExists.mockImplementation(async () => {
-        await new Promise(resolve => setTimeout(resolve, 20)); // 20ms per check
+        await new Promise((resolve) => setTimeout(resolve, 20)); // 20ms per check
         return false;
       });
 
@@ -204,7 +199,7 @@ describe("Logos Batch Performance Optimizations", () => {
       // The current implementation doesn't handle S3 check errors gracefully
       // It will throw when Promise.all encounters a rejection
       await expect(getLogoBatch("example.com")).rejects.toThrow("S3 check failed");
-      
+
       // It should have attempted some checks before failing
       expect(mockCheckIfS3ObjectExists).toHaveBeenCalled();
       // The first batch contains 10 checks, and they all run in parallel
