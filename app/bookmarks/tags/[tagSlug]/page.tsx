@@ -26,6 +26,7 @@ import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { tagToSlug, sanitizeUnicode } from "@/lib/utils/tag-utils";
 import type { TagBookmarkContext } from "@/types";
+import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 
 /**
  * Generate static paths for tag pages
@@ -94,7 +95,14 @@ export default async function TagPage({ params }: TagBookmarkContext) {
   const { tagSlug } = await Promise.resolve(params);
   const sanitizedSlug = sanitizeUnicode(tagSlug);
   const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
-  const result = await getBookmarksByTag(sanitizedSlug, 1);
+  const result: { bookmarks: import("@/types").UnifiedBookmark[]; totalPages: number; totalCount: number } =
+    await getBookmarksByTag(sanitizedSlug, 1);
+
+  const tagDisplayName = result.bookmarks[0]?.tags.find(
+    (t) => typeof t !== "string" && tagToSlug(t.name) === sanitizedSlug,
+  );
+  const finalTagDisplayName =
+    tagDisplayName && typeof tagDisplayName !== "string" ? tagDisplayName.name : sanitizedSlug;
 
   const displayTag = formatTagDisplay(sanitizedSlug.replace(/-/g, " "));
   const pageTitle = `${displayTag} Bookmarks`;
@@ -122,17 +130,20 @@ export default async function TagPage({ params }: TagBookmarkContext) {
     <>
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-5xl mx-auto">
-        <BookmarksServer
-          title={pageTitle}
-          description={pageDescription}
-          bookmarks={result.bookmarks}
-          tag={sanitizedSlug}
-          showFilterBar={true}
-          titleSlug={sanitizedSlug}
-          initialPage={1}
-          baseUrl={`/bookmarks/tags/${sanitizedSlug}`}
-          initialTag={displayTag}
-        />
+        <div className="space-y-8">
+          <BookmarksServer
+            title={`Bookmarks tagged with "${finalTagDisplayName}"`}
+            description={`A collection of bookmarks filtered by the tag "${finalTagDisplayName}".`}
+            bookmarks={convertBookmarksToSerializable(result.bookmarks)}
+            usePagination={true}
+            initialPage={1}
+            totalPages={result.totalPages}
+            totalCount={result.totalCount}
+            baseUrl={`/bookmarks/tags/${sanitizedSlug}`}
+            initialTag={finalTagDisplayName}
+            tag={finalTagDisplayName}
+          />
+        </div>
       </div>
     </>
   );

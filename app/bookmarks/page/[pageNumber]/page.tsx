@@ -26,9 +26,11 @@ import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
-import { getBookmarks } from "@/lib/bookmarks/service.server";
-import type { PaginatedBookmarkContext, UnifiedBookmark } from "@/types";
+import { getBookmarks, getBookmarksPage, getBookmarksIndex } from "@/lib/bookmarks/service.server";
+import type { PaginatedBookmarkContext } from "@/types";
 import { PageNumberSchema } from "@/types/lib";
+import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
+import { UnifiedBookmark } from "@/types/bookmark";
 
 /**
  * Generate metadata for the paginated Bookmarks page
@@ -45,8 +47,8 @@ export async function generateMetadata({ params }: PaginatedBookmarkContext): Pr
   }
 
   // Get total count for meta description (lightweight for metadata)
-  const bookmarks = (await getBookmarks({ includeImageData: false })) as UnifiedBookmark[];
-  const totalPages = Math.ceil(bookmarks.length / 24);
+  const index = await getBookmarksIndex();
+  const totalPages = index?.totalPages ?? 1;
 
   const baseMetadata = getStaticPageMetadata("/bookmarks", "bookmarks") as Metadata;
 
@@ -125,8 +127,8 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   }
 
   // Get bookmarks to check if page exists (lightweight for pagination check)
-  const bookmarks = (await getBookmarks({ includeImageData: false })) as UnifiedBookmark[];
-  const totalPages = Math.ceil(bookmarks.length / 24);
+  const index = await getBookmarksIndex();
+  const totalPages = index?.totalPages ?? 0;
 
   if (pageNum > totalPages) {
     notFound();
@@ -153,6 +155,16 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
   };
   const jsonLdData = generateSchemaGraph(schemaParams);
 
+  // Fetch the data for the specific page
+  const pageBookmarks = await getBookmarksPage(pageNum);
+
+  // Fetch all bookmarks without image data for slug generation
+  const allBookmarks = (await getBookmarks({ includeImageData: false })) as UnifiedBookmark[];
+
+  if (pageBookmarks.length === 0 && pageNum > 1) {
+    notFound();
+  }
+
   return (
     <>
       <JsonLdScript data={jsonLdData} />
@@ -160,8 +172,12 @@ export default async function PaginatedBookmarksPage({ params }: PaginatedBookma
         <BookmarksServer
           title={pageTitle}
           description={pageDescription}
+          bookmarks={convertBookmarksToSerializable(pageBookmarks)}
+          allBookmarksForSlugs={allBookmarks}
           initialPage={pageNum}
-          includeImageData={false}
+          totalPages={totalPages}
+          totalCount={index?.count ?? 0}
+          includeImageData={true}
         />
       </div>
     </>
