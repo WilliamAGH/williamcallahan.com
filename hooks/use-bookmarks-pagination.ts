@@ -21,14 +21,14 @@ import type {
 // `any` or cause type-safety issues.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const fetcher: Fetcher<BookmarksResponse, [string, number, string?]> = async ([requestKey, page, tag]) => {
-  // The first and third tuple elements are not used within the fetcher, but we must
+const fetcher: Fetcher<BookmarksResponse, [string, number, number, string?]> = async ([requestKey, page, limit, tag]) => {
+  // The first and fourth tuple elements are not used within the fetcher, but we must
   // reference them to comply with the no-unused-vars rule without relying on underscore
   // prefixes (forbidden by project standards).
   void requestKey;
   void tag;
 
-  const response = await fetch(`/api/bookmarks?page=${page}&limit=${24}`, { cache: "no-store" });
+  const response = await fetch(`/api/bookmarks?page=${page}&limit=${limit}`, { cache: "no-store" });
 
   if (!response.ok) {
     const errorBody = await response.text();
@@ -56,7 +56,7 @@ export function useBookmarksPagination({
 }: UseBookmarksPaginationOptions = {}): UseBookmarksPaginationReturn {
   const [currentPage, setCurrentPage] = useState(initialPage);
 
-  const getKey = (pageIndex: number, previousPageData: BookmarksResponse | null): [string, number, string?] | null => {
+  const getKey = (pageIndex: number, previousPageData: BookmarksResponse | null): [string, number, number, string?] | null => {
     const page = pageIndex + 1;
     if (previousPageData && !previousPageData.meta.pagination.hasNext) return null;
 
@@ -75,8 +75,8 @@ export function useBookmarksPagination({
 
     if (!initialTotalPages && initialTotalCount && pageIndex * limit >= initialTotalCount) return null;
 
-    // The key is a tuple with the endpoint, page number, and optional tag
-    return [SWR_KEY, page, tag];
+    // The key is a tuple with the endpoint, page number, limit, and optional tag
+    return [SWR_KEY, page, limit, tag];
   };
 
   const {
