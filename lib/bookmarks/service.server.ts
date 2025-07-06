@@ -5,6 +5,7 @@
 import {
   getBookmarks as getBookmarksInternal,
   getBookmarksByTag as getBookmarksByTagInternal,
+  getBookmarksPage as getBookmarksPageInternal,
   refreshAndPersistBookmarks,
   setRefreshBookmarksCallback,
   initializeBookmarksDataAccess,
@@ -14,12 +15,14 @@ import type { UnifiedBookmark } from "@/types";
 import type { BookmarkLoadOptions, LightweightBookmark } from "@/types/bookmark";
 
 // Initialize the refresh callback
-setRefreshBookmarksCallback(refreshBookmarksData);
+setRefreshBookmarksCallback((force?: boolean) => refreshBookmarksData(force));
 
 /**
  * Get bookmarks from cache or S3, with optional background refresh
  */
-export async function getBookmarks(options: BookmarkLoadOptions = {}): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
+export async function getBookmarks(
+  options: BookmarkLoadOptions = {},
+): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
   initializeBookmarksDataAccess();
   return getBookmarksInternal(options);
 }
@@ -27,8 +30,8 @@ export async function getBookmarks(options: BookmarkLoadOptions = {}): Promise<U
 /**
  * Force refresh bookmarks from external API
  */
-export async function refreshBookmarks(): Promise<UnifiedBookmark[] | null> {
-  return refreshAndPersistBookmarks();
+export async function refreshBookmarks(force = false): Promise<UnifiedBookmark[] | null> {
+  return refreshAndPersistBookmarks(force);
 }
 
 /**
@@ -37,4 +40,21 @@ export async function refreshBookmarks(): Promise<UnifiedBookmark[] | null> {
 export async function getBookmarksByTag(tagSlug: string, pageNumber: number = 1) {
   initializeBookmarksDataAccess();
   return getBookmarksByTagInternal(tagSlug, pageNumber);
+}
+
+/**
+ * Get a single page of bookmarks from cache or S3
+ */
+export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookmark[]> {
+  initializeBookmarksDataAccess();
+  return getBookmarksPageInternal(pageNumber);
+}
+
+/**
+ * Get the main bookmarks index from cache or S3
+ */
+export async function getBookmarksIndex() {
+  initializeBookmarksDataAccess();
+  const { getBookmarksIndex: getBookmarksIndexInternal } = await import("./bookmarks-data-access.server");
+  return getBookmarksIndexInternal();
 }
