@@ -150,6 +150,17 @@ const config = tseslint.config(
   // TypeScript rules
   {
     rules: {
+      "no-underscore-dangle": [
+        "error",
+        {
+          allow: ["__filename", "__dirname", "__TEST__"],
+          enforceInMethodNames: true,
+          enforceInClassFields: true,
+          allowInArrayDestructuring: false,
+          allowInObjectDestructuring: false,
+          allowFunctionParams: false,
+        },
+      ],
       "@typescript-eslint/naming-convention": [
         "warn",
         { selector: "variable", format: ["camelCase", "UPPER_CASE", "PascalCase"] },
@@ -180,8 +191,21 @@ const config = tseslint.config(
       "@typescript-eslint/no-unnecessary-type-assertion": "warn",
       "@typescript-eslint/restrict-template-expressions": "warn",
       "@typescript-eslint/no-empty-object-type": "warn",
-      "@typescript-eslint/no-unused-vars": "warn",
-      "@typescript-eslint/no-unused-expressions": "warn",
+      // Custom rule configuration to prevent auto-fixing unused vars with underscores
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          vars: "all",
+          args: "none", // Change from "after-used" to "none" to prevent auto-fixing function parameters
+          ignoreRestSiblings: true,
+          // Override default `^_` to disallow using underscore for unused variables.
+          // The project convention is to use `void var;` for intentional fall-through.
+          varsIgnorePattern: "^$", // This will only match an empty string, effectively disabling the ignore pattern.
+          argsIgnorePattern: "^$",
+          // Allow destructuring with unused parameters without requiring underscore prefix
+          destructuredArrayIgnorePattern: "^$",
+        },
+      ],
       "no-useless-escape": "warn",
     },
   },
@@ -281,6 +305,7 @@ const config = tseslint.config(
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unnecessary-type-assertion": "off",
       "@typescript-eslint/no-require-imports": "off",
+      "no-underscore-dangle": "off", // Allow underscores in config and script files
     },
   },
 
@@ -333,6 +358,7 @@ const config = tseslint.config(
       "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-require-imports": "off",
       "no-restricted-syntax": "off",
+      "no-underscore-dangle": "off", // Allow underscores in test files for mocking and test utilities
     },
   },
 

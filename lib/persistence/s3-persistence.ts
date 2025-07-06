@@ -1,9 +1,9 @@
 /**
  * Centralized S3 Persistence Module
- * 
+ *
  * Provides a unified interface for all S3 write operations with guaranteed
  * public-read ACL settings for DigitalOcean Spaces compatibility.
- * 
+ *
  * @module persistence/s3-persistence
  */
 
@@ -12,7 +12,7 @@ import { writeToS3, writeJsonS3, writeBinaryS3, readFromS3 } from "@/lib/s3-util
 import { persistImageToS3, findImageInS3 } from "@/lib/image-handling/image-s3-utils";
 import { debug, isDebug } from "@/lib/utils/debug";
 import { hashUrl, normalizeUrl } from "@/lib/utils/opengraph-utils";
-import { OPENGRAPH_JINA_HTML_S3_DIR, OPENGRAPH_OVERRIDES_S3_DIR } from "@/lib/constants";
+import { OPENGRAPH_JINA_HTML_S3_DIR, OPENGRAPH_OVERRIDES_S3_DIR, OPENGRAPH_JSON_S3_PATHS } from "@/lib/constants";
 import type { OgResult, PersistImageResult } from "@/types";
 import { OgError, isOgResult } from "@/types/opengraph";
 import { ContentCategory } from "@/types/s3-cdn";
@@ -24,29 +24,29 @@ import { isS3ReadOnly } from "@/lib/utils/s3-read-only";
 function getContentCategory(contentType: string | undefined, s3Key: string): ContentCategory {
   // Images are always public assets
   if (contentType?.startsWith("image/")) return ContentCategory.PublicAsset;
-  
+
   // JSON data is typically public for this application
   if (contentType === "application/json" || s3Key.endsWith(".json")) {
     return ContentCategory.PublicData;
   }
-  
+
   // HTML content (like Jina AI caches)
   if (contentType?.includes("text/html") || s3Key.endsWith(".html")) {
     return ContentCategory.Html;
   }
-  
+
   // CSS/JS are public assets
   if (contentType?.includes("text/css") || contentType?.includes("javascript")) {
     return ContentCategory.PublicAsset;
   }
-  
+
   // Default to public data for safety (aligns with bucket policy)
   return ContentCategory.PublicData;
 }
 
 /**
  * Persist any content to S3 with appropriate ACL settings
- * 
+ *
  * @param s3Key - The S3 object key
  * @param data - The data to write (string, Buffer, or Readable stream)
  * @param contentType - The MIME type of the content
@@ -56,27 +56,29 @@ export async function persistToS3(
   s3Key: string,
   data: Buffer | string | Readable,
   contentType?: string,
-  forcePrivate = false
+  forcePrivate = false,
 ): Promise<void> {
   const category = getContentCategory(contentType, s3Key);
-  
+
   // Determine ACL based on content category and force flag
   let acl: "private" | "public-read" = "public-read"; // Default to public
-  
+
   if (forcePrivate || category === ContentCategory.PrivateData) {
     acl = "private";
   }
-  
+
   if (isDebug) {
     debug(`[S3 Persistence] Writing to ${s3Key} with ACL: ${acl}, ContentType: ${contentType || "auto"}`);
+  } else {
+    console.log(`[S3 Persistence] Writing to ${s3Key} with ACL: ${acl}`);
   }
-  
+
   await writeToS3(s3Key, data, contentType, acl);
 }
 
 /**
  * Persist JSON data to S3 (always public-read for this application)
- * 
+ *
  * @param s3Key - The S3 object key
  * @param data - The JSON data to persist
  */
@@ -84,34 +86,30 @@ export async function persistJsonToS3<T>(s3Key: string, data: T): Promise<void> 
   if (isDebug) {
     debug(`[S3 Persistence] Writing JSON to ${s3Key} with public-read ACL`);
   }
-  
+
   // writeJsonS3 already sets public-read ACL
   await writeJsonS3(s3Key, data);
 }
 
 /**
  * Persist binary data to S3 (always public-read for images)
- * 
+ *
  * @param s3Key - The S3 object key
  * @param data - The binary data (Buffer or Readable stream)
  * @param contentType - The MIME type of the content
  */
-export async function persistBinaryToS3(
-  s3Key: string,
-  data: Buffer | Readable,
-  contentType: string
-): Promise<void> {
+export async function persistBinaryToS3(s3Key: string, data: Buffer | Readable, contentType: string): Promise<void> {
   if (isDebug) {
     debug(`[S3 Persistence] Writing binary to ${s3Key} with public-read ACL, ContentType: ${contentType}`);
   }
-  
+
   // writeBinaryS3 already sets public-read ACL
   await writeBinaryS3(s3Key, data, contentType);
 }
 
 /**
  * Persist HTML content from Jina AI to S3
- * 
+ *
  * @param url - The original URL, used to create a consistent hash
  * @param html - The HTML content to store
  */
@@ -134,8 +132,32 @@ export function persistJinaHtmlInBackground(url: string, html: string): void {
 }
 
 /**
+ * Persist Jina AI markdown content to S3 in the background
+ *
+ * @param url - URL of the page that was fetched
+ * @param markdown - Markdown content to persist
+ */
+export function persistJinaMarkdownInBackground(url: string, markdown: string): void {
+  const s3Key = `${OPENGRAPH_JSON_S3_PATHS.DIR}/jina-markdown/${hashUrl(normalizeUrl(url))}.md`;
+
+  void (async () => {
+    try {
+      // Use centralized persistence with public-read ACL
+      await persistToS3(s3Key, markdown, "text/markdown; charset=utf-8");
+      console.log(`[OpenGraph S3] 📝 Successfully persisted Jina markdown to S3: ${s3Key} (${markdown.length} bytes)`);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      const ogError = new OgError(`Error persisting Jina markdown to S3 for ${url}`, "s3-write-jina-markdown", {
+        originalError: error,
+      });
+      console.error(`[OpenGraph S3] ❌ Failed to persist Jina markdown: ${ogError.message}`);
+    }
+  })();
+}
+
+/**
  * Retrieve cached Jina AI HTML from S3
- * 
+ *
  * @param url - The original URL to look up
  * @returns The cached HTML content or null if not found
  */
@@ -164,8 +186,38 @@ export async function getCachedJinaHtml(url: string): Promise<string | null> {
 }
 
 /**
+ * Get cached Jina AI markdown from S3
+ *
+ * @param url - URL of the page to look up
+ * @returns Markdown content if found, null otherwise
+ */
+export async function getCachedJinaMarkdown(url: string): Promise<string | null> {
+  const s3Key = `${OPENGRAPH_JSON_S3_PATHS.DIR}/jina-markdown/${hashUrl(normalizeUrl(url))}.md`;
+
+  try {
+    const result = await readFromS3(s3Key);
+    if (result) {
+      debug(`[DataAccess/OpenGraph] Found cached Jina markdown in S3: ${s3Key}`);
+      return Buffer.isBuffer(result) ? result.toString("utf-8") : result;
+    }
+  } catch (err) {
+    if (err instanceof Error && "code" in err && (err as { code: string }).code === "NoSuchKey") {
+      debug(`[DataAccess/OpenGraph] No cached Jina markdown found in S3 for ${url}`);
+    } else {
+      const error = err instanceof Error ? err : new Error(String(err));
+      const ogError = new OgError(`Error reading Jina markdown from S3 for ${url}`, "s3-read-jina-markdown", {
+        originalError: error,
+      });
+      debug(`[DataAccess/OpenGraph] ${ogError.message}`);
+    }
+  }
+
+  return null;
+}
+
+/**
  * Retrieve a hardcoded OpenGraph override from S3
- * 
+ *
  * @param url - The original URL to look up
  * @returns The override data or null if not found
  */
@@ -198,7 +250,7 @@ export async function getS3Override(url: string): Promise<OgResult | null> {
 
 /**
  * Persist an OpenGraph override to S3
- * 
+ *
  * @param url - The original URL
  * @param data - The OpenGraph data to store
  */
@@ -219,7 +271,7 @@ export async function persistS3Override(url: string, data: OgResult): Promise<vo
 
 /**
  * Schedule background image persistence to S3
- * 
+ *
  * @param imageUrl - URL of the image to persist
  * @param s3Directory - S3 directory to store the image
  * @param logContext - Context for logging
@@ -233,10 +285,8 @@ export function scheduleImagePersistence(
   idempotencyKey?: string,
   pageUrl?: string,
 ): void {
-  const displayUrl = imageUrl.startsWith("data:") 
-    ? `${imageUrl.substring(0, 50)}...[base64 data truncated]` 
-    : imageUrl;
-  
+  const displayUrl = imageUrl.startsWith("data:") ? `${imageUrl.substring(0, 50)}...[base64 data truncated]` : imageUrl;
+
   console.log(`[OpenGraph S3] 📋 Scheduling image persistence for: ${displayUrl}`);
   console.log(
     `[OpenGraph S3] 📋 Context: ${logContext}, Page: ${pageUrl || "N/A"}, IdempotencyKey: ${idempotencyKey || "N/A"}`,
@@ -267,7 +317,7 @@ export function scheduleImagePersistence(
 
 /**
  * Persist an OpenGraph image to S3 synchronously and return the S3 URL
- * 
+ *
  * @param imageUrl - URL of the image to persist
  * @param s3Directory - S3 directory to store the image
  * @param logContext - Context for logging
@@ -282,16 +332,14 @@ export async function persistImageAndGetS3Url(
   idempotencyKey?: string,
   pageUrl?: string,
 ): Promise<string | null> {
-  const displayUrl = imageUrl.startsWith("data:") 
-    ? `${imageUrl.substring(0, 50)}...[base64 data truncated]` 
-    : imageUrl;
-  
+  const displayUrl = imageUrl.startsWith("data:") ? `${imageUrl.substring(0, 50)}...[base64 data truncated]` : imageUrl;
+
   console.log(`[OpenGraph S3] 🔄 Persisting image synchronously: ${displayUrl}`);
 
   try {
     const s3Key = await persistImageToS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
     if (s3Key) {
-      const cdnUrl = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL;
+      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL;
       if (!cdnUrl) {
         console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
         return null;
@@ -312,7 +360,7 @@ export async function persistImageAndGetS3Url(
 
 /**
  * Persist an OpenGraph image to S3 synchronously and return detailed result
- * 
+ *
  * @param imageUrl - URL of the image to persist
  * @param s3Directory - S3 directory to store the image
  * @param logContext - Context for logging
@@ -327,16 +375,29 @@ export async function persistImageAndGetS3UrlWithStatus(
   idempotencyKey?: string,
   pageUrl?: string,
 ): Promise<PersistImageResult> {
-  // When running in the web runtime, schedule background persistence
+  // Web runtime: don't attempt to persist immediately. Validate the URL first so we don't store hot-link dead images.
   if (process.env.IS_DATA_UPDATER !== "true") {
+    try {
+      const headOk = await fetch(imageUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) })
+        .then((res) => res.ok && res.headers.get("content-type")?.startsWith("image/"))
+        .catch(() => false);
+
+      if (!headOk) {
+        console.warn(`[OpenGraph S3] HEAD validation failed for ${imageUrl} – skipping immediate use`);
+        return { s3Url: null, wasNewlyPersisted: false };
+      }
+    } catch {
+      // network error – treat as invalid
+      return { s3Url: null, wasNewlyPersisted: false };
+    }
+
+    // Schedule background persistence after basic validation
     scheduleImagePersistence(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
     return { s3Url: imageUrl, wasNewlyPersisted: false };
   }
-  
-  const displayUrl = imageUrl.startsWith("data:") 
-    ? `${imageUrl.substring(0, 50)}...[base64 data truncated]` 
-    : imageUrl;
-  
+
+  const displayUrl = imageUrl.startsWith("data:") ? `${imageUrl.substring(0, 50)}...[base64 data truncated]` : imageUrl;
+
   console.log(`[OpenGraph S3] 🔄 Checking and persisting image: ${displayUrl}`);
 
   try {
@@ -344,7 +405,7 @@ export async function persistImageAndGetS3UrlWithStatus(
     const existingKey = await findImageInS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
 
     if (existingKey) {
-      const cdnUrl = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL;
+      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL;
       if (!cdnUrl) {
         console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
         return { s3Url: null, wasNewlyPersisted: false };
@@ -357,7 +418,7 @@ export async function persistImageAndGetS3UrlWithStatus(
     // Image doesn't exist, persist it
     const s3Key = await persistImageToS3(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
     if (s3Key) {
-      const cdnUrl = process.env.S3_CDN_URL || process.env.NEXT_PUBLIC_S3_CDN_URL;
+      const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL;
       if (!cdnUrl) {
         console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
         return { s3Url: null, wasNewlyPersisted: false };
@@ -393,9 +454,9 @@ export async function normalizeLogoFilenames(): Promise<void> {
   try {
     const { ListObjectsV2Command, CopyObjectCommand, DeleteObjectCommand } = await import("@aws-sdk/client-s3");
     const { IMAGE_S3_PATHS } = await import("@/lib/constants");
-    const { parseS3Key, generateS3Key } = await import("@/lib/utils/s3-key-generator");
+    const { parseS3Key, generateS3Key } = await import("@/lib/utils/hash-utils");
     const { s3Client } = await import("@/lib/s3-utils");
-    
+
     if (!s3Client || !process.env.S3_BUCKET) {
       console.error("[S3 Persistence] S3 not configured for logo normalization");
       return;
@@ -403,7 +464,7 @@ export async function normalizeLogoFilenames(): Promise<void> {
 
     const bucket = process.env.S3_BUCKET;
     const prefix = IMAGE_S3_PATHS.LOGOS_DIR + "/";
-    
+
     // List all logos
     const listCommand = new ListObjectsV2Command({
       Bucket: bucket,
@@ -413,18 +474,18 @@ export async function normalizeLogoFilenames(): Promise<void> {
 
     const response = await s3Client.send(listCommand);
     const objects = response.Contents || [];
-    
+
     console.log(`[S3 Persistence] Found ${objects.length} logos to check`);
-    
+
     for (const obj of objects) {
       if (!obj.Key) continue;
-      
+
       const parsed = parseS3Key(obj.Key);
-      
+
       // Check if it needs normalization
       if (parsed.type === "logo" && parsed.domain && !parsed.hash) {
         console.log(`[S3 Persistence] Found logo without hash: ${obj.Key}`);
-        
+
         // Generate the proper filename with hash
         const newKey = generateS3Key({
           type: "logo",
@@ -433,27 +494,31 @@ export async function normalizeLogoFilenames(): Promise<void> {
           extension: parsed.extension || "png",
           inverted: parsed.inverted,
         });
-        
+
         console.log(`[S3 Persistence] Renaming to: ${newKey}`);
-        
+
         // Copy to new location
-        await s3Client.send(new CopyObjectCommand({
-          Bucket: bucket,
-          CopySource: `${bucket}/${obj.Key}`,
-          Key: newKey,
-          ACL: "public-read",
-        }));
-        
+        await s3Client.send(
+          new CopyObjectCommand({
+            Bucket: bucket,
+            CopySource: `${bucket}/${obj.Key}`,
+            Key: newKey,
+            ACL: "public-read",
+          }),
+        );
+
         // Delete old file
-        await s3Client.send(new DeleteObjectCommand({
-          Bucket: bucket,
-          Key: obj.Key,
-        }));
-        
+        await s3Client.send(
+          new DeleteObjectCommand({
+            Bucket: bucket,
+            Key: obj.Key,
+          }),
+        );
+
         console.log(`[S3 Persistence] Successfully normalized: ${obj.Key} -> ${newKey}`);
       }
     }
-    
+
     console.log("[S3 Persistence] Logo normalization complete");
   } catch (error) {
     console.error("[S3 Persistence] Error normalizing logo filenames:", error);

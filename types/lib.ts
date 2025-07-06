@@ -137,7 +137,7 @@ export interface DistributedLockEntry {
 /**
  * Callback function type for refreshing bookmarks data.
  */
-export type RefreshBookmarksCallback = () => Promise<import("./bookmark").UnifiedBookmark[]>;
+export type RefreshBookmarksCallback = (force?: boolean) => Promise<import("./bookmark").UnifiedBookmark[] | null>;
 
 export type AsyncJobType = "opengraph" | "image" | "data-fetch" | "cache-cleanup";
 

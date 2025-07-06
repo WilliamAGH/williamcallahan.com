@@ -5,12 +5,13 @@
  */
 
 import { generateMetadata as generateBookmarksMetadata } from "@/app/bookmarks/page/[pageNumber]/page";
-import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
+import { getBookmarks, getBookmarksIndex } from "@/lib/bookmarks/bookmarks-data-access.server";
 import type { Metadata } from "next";
 
 // Mock dependencies
 jest.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
   getBookmarks: jest.fn(),
+  getBookmarksIndex: jest.fn(),
   setRefreshBookmarksCallback: jest.fn(),
   refreshAndPersistBookmarks: jest.fn(),
   initializeBookmarksDataAccess: jest.fn(),
@@ -49,7 +50,8 @@ jest.mock("@/lib/constants", () => ({
 }));
 
 describe("Metadata Integration Tests", () => {
-  const mockGetBookmarks = getBookmarks;
+  const mockGetBookmarks = getBookmarks as jest.MockedFunction<typeof getBookmarks>;
+  const mockGetBookmarksIndex = getBookmarksIndex as jest.MockedFunction<typeof getBookmarksIndex>;
 
   // Mock bookmarks data
   const mockBookmarks = Array.from({ length: 50 }, (_, i) => ({
@@ -68,6 +70,18 @@ describe("Metadata Integration Tests", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetBookmarks.mockResolvedValue(mockBookmarks);
+
+    // Mock the index with pagination info
+    mockGetBookmarksIndex.mockResolvedValue({
+      count: 50,
+      totalPages: 3, // 50 bookmarks / 24 per page = 3 pages
+      pageSize: 24,
+      lastModified: "2024-01-01T00:00:00.000Z",
+      lastFetchedAt: Date.now(),
+      lastAttemptedAt: Date.now(),
+      checksum: "mock-checksum",
+    });
+
     process.env.NEXT_PUBLIC_SITE_URL = "https://williamcallahan.com";
   });
 

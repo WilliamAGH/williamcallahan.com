@@ -8,7 +8,7 @@
  * Everything else is just UI variations that should use composition.
  */
 
-import type { UnifiedBookmark, BookmarkTag } from "../bookmark";
+import type { UnifiedBookmark, BookmarkTag, BookmarkContent } from "../bookmark";
 import type { BaseComponentProps, BaseFilterableProps, BasePaginatedProps } from "../ui";
 
 // =============================================================================
@@ -84,6 +84,12 @@ export type BookmarksPaginatedClientProps = BaseBookmarkListProps &
   BaseFilterableProps &
   BookmarkPaginationProps & {
     forceClientFetch?: boolean;
+    totalPages?: number;
+    totalCount?: number;
+    baseUrl?: string;
+    initialTag?: string;
+    tag?: string;
+    internalHrefs?: Record<string, string>;
   };
 
 /**
@@ -106,7 +112,17 @@ export type BookmarksWithOptionsClientProps = BaseBookmarkListProps &
 /**
  * Bookmarks with pagination client props - USED in bookmarks-with-pagination.client.tsx
  */
-export type BookmarksWithPaginationClientProps = BaseBookmarkListProps & BaseFilterableProps & BookmarkPaginationProps;
+export type BookmarksWithPaginationClientProps = BaseBookmarkListProps &
+  BaseFilterableProps &
+  BookmarkPaginationProps & {
+    totalPages?: number;
+    totalCount?: number;
+    baseUrl?: string;
+    initialTag?: string;
+    tag?: string;
+    className?: string;
+    internalHrefs?: Record<string, string>;
+  };
 
 /**
  * Window client props extended - USED in bookmarks-window.client.tsx
@@ -118,6 +134,8 @@ export type BookmarksWindowClientPropsExtended = import("../component-types").Wi
     pageTitle?: string;
     pageDescription?: string;
     forceClientFetch?: boolean;
+    totalPages?: number;
+    totalCount?: number;
   };
 
 /**
@@ -131,6 +149,8 @@ export interface BookmarksClientWithWindowProps {
   showFilterBar?: boolean;
   titleSlug?: string;
   initialPage?: number;
+  totalPages?: number;
+  totalCount?: number;
   baseUrl?: string;
   usePagination?: boolean;
   initialTag?: string;
@@ -138,6 +158,7 @@ export interface BookmarksClientWithWindowProps {
   itemsPerPage?: number;
   enableInfiniteScroll?: boolean;
   searchAllBookmarks?: boolean;
+  internalHrefs?: Record<string, string>;
 }
 
 /**
@@ -160,17 +181,24 @@ export interface BookmarksWindowContentProps {
 /**
  * Server extended props - USED in bookmarks.server.tsx
  */
-export type BookmarksServerExtendedProps = BaseFilterableProps & {
-  bookmarks?: UnifiedBookmark[];
-  title: string;
-  description: string;
+export interface BookmarksServerExtendedProps {
+  bookmarks?: SerializableBookmark[];
+  allBookmarksForSlugs?: UnifiedBookmark[];
+  title?: string;
+  description?: string;
+  searchAllBookmarks?: boolean;
+  showFilterBar?: boolean;
   titleSlug?: string;
   initialPage?: number;
+  totalPages?: number;
+  totalCount?: number;
   baseUrl?: string;
   usePagination?: boolean;
+  initialTag?: string;
   tag?: string;
   includeImageData?: boolean;
-};
+  internalHrefs?: Record<string, string>;
+}
 
 // =============================================================================
 // SERIALIZATION TYPE (Critical for server/client boundary)
@@ -180,17 +208,32 @@ export type BookmarksServerExtendedProps = BaseFilterableProps & {
  * Serializable bookmark - USED for server-to-client data passing
  * This ensures all date fields are strings for JSON serialization
  */
-export type SerializableBookmark = Omit<
-  UnifiedBookmark,
-  "dateBookmarked" | "datePublished" | "sourceUpdatedAt" | "modifiedAt"
-> & {
+export interface SerializableBookmark {
+  id: string;
+  url: string;
+  title: string;
+  description: string;
+  tags: string[] | BookmarkTag[];
+  ogImage?: string;
+  ogImageExternal?: string;
+  content?: BookmarkContent;
   dateBookmarked: string;
-  datePublished?: string;
-  sourceUpdatedAt?: string;
-  modifiedAt?: string;
+  dateCreated?: string;
+  dateUpdated?: string;
+  logoData?: {
+    url: string;
+    alt: string;
+    width?: number;
+    height?: number;
+  } | null;
   isPrivate: boolean;
   isFavorite: boolean;
-};
+  readingTime?: number;
+  wordCount?: number;
+  ogTitle?: string | null;
+  ogDescription?: string | null;
+  domain?: string;
+}
 
 // =============================================================================
 // HOOK TYPES
@@ -203,7 +246,10 @@ export interface UseBookmarksPaginationOptions {
   limit?: number;
   initialData?: UnifiedBookmark[];
   initialPage?: number;
+  initialTotalPages?: number;
+  initialTotalCount?: number;
   tag?: string;
+  internalHrefs?: Record<string, string>;
 }
 
 /**

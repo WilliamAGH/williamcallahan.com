@@ -7,7 +7,7 @@
 
 "use client";
 
-import { THEME_TIMESTAMP_KEY, TIME_CONSTANTS } from "@/lib/constants";
+import { THEME_TIMESTAMP_KEY, TIME_CONSTANTS } from "@/lib/constants/client";
 import { ThemeProvider as NextThemesProvider, type ThemeProviderProps, useTheme } from "next-themes";
 import * as React from "react";
 

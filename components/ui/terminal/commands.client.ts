@@ -96,8 +96,12 @@ function createPerformSiteWideSearchImpl() {
         return [];
       }
       const data: unknown = await response.json();
-      // Parse as SearchResult array and transform to TerminalSearchResult
-      const searchResults: SearchResult[] = searchResultsSchema.parse(data);
+
+      // The site-wide search API may return either an array or
+      // an object of shape { results: SearchResult[] }. Handle both.
+      const rawArray = Array.isArray(data) ? data : ((data as { results?: unknown[] })?.results ?? []);
+
+      const searchResults: SearchResult[] = searchResultsSchema.parse(rawArray);
       return searchResults.map(transformSearchResultToSelectionItem);
     } catch (error: unknown) {
       console.error(

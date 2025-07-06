@@ -82,22 +82,28 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         setIsSearchingAPI(true);
         const response = await fetch(`/api/search/all?q=${encodeURIComponent(searchQuery)}`);
         if (response.ok) {
-          const results = (await response.json()) as Array<{
-            label: string;
-            description: string;
-            path: string;
-          }>;
-          // Filter only bookmark results and map back to UnifiedBookmark format
-          const bookmarkResults = results
-            .filter((r) => r.path.startsWith("/bookmarks/"))
-            .map((r) => {
-              // Find the matching bookmark from our current set
-              const matchingBookmark = [...allBookmarks, ...bookmarks].find(
-                (b) => r.label === b.title || r.path.includes(b.id),
+          const raw: unknown = await response.json();
+
+          // The scoped search API returns { results: SearchResult[] }
+          // while older code expected an array. Handle both.
+          const resultsArray = Array.isArray(raw) ? raw : ((raw as { results?: unknown[] })?.results ?? []);
+
+          // Narrow to bookmark results and map back to UnifiedBookmark by ID
+          const bookmarkResults = resultsArray
+            .filter((r): r is { id: string; type: string; [key: string]: unknown } => {
+              return (
+                typeof r === "object" &&
+                r !== null &&
+                "type" in r &&
+                (r as { type: unknown }).type === "bookmark" &&
+                "id" in r &&
+                typeof (r as { id: unknown }).id === "string"
               );
-              return matchingBookmark;
             })
-            .filter((b): b is UnifiedBookmark => b !== undefined);
+            .map((r) => {
+              return [...allBookmarks, ...bookmarks].find((b) => b.id === r.id);
+            })
+            .filter((b): b is UnifiedBookmark => Boolean(b));
 
           setSearchResults(bookmarkResults);
         } else {

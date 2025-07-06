@@ -22,6 +22,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { OG_IMAGE_DIMENSIONS } from "@/data/metadata";
+import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 
 // No static params generation for dynamic pages
 
@@ -157,13 +158,13 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
   return (
     <>
       <JsonLdScript data={jsonLdData} />
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto space-y-8">
         <BookmarksServer
-          title={pageTitle}
-          description={pageDescription}
-          bookmarks={[foundBookmark]}
-          showFilterBar={false}
+          title={`Detail view for ${foundBookmark.title}`}
+          description="A detailed view of a single saved bookmark."
+          bookmarks={convertBookmarksToSerializable([foundBookmark])}
           usePagination={false}
+          showFilterBar={false}
         />
       </div>
     </>

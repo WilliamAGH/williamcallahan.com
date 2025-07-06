@@ -123,7 +123,8 @@ async function saveAssetToS3(assetId: string, buffer: Buffer, contentType: strin
   return key;
 }
 
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ assetId: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ assetId: string }> }) {
+  void request; // Explicitly mark as unused per project convention
   const { assetId } = await params;
 
   console.log(`[Assets API] Request for assetId: ${assetId}`);
@@ -138,7 +139,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     console.error(`[Assets API] Invalid asset ID format: ${assetId}`);
     return NextResponse.json(
       { error: "Invalid asset ID format", details: assetIdValidation.error.errors[0]?.message },
-      { status: 400 }
+      { status: 400 },
     );
   }
 

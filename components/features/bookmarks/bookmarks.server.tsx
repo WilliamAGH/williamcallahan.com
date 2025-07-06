@@ -8,12 +8,16 @@ import "server-only"; // Ensure this component remains server-only
 
 // Defer heavy imports to reduce initial bundle size
 const getBookmarks = async () => (await import("@/lib/bookmarks/service.server")).getBookmarks;
+const getBookmarksPage = async () => (await import("@/lib/bookmarks/service.server")).getBookmarksPage;
+const getBookmarksIndex = async () => (await import("@/lib/bookmarks/service.server")).getBookmarksIndex;
 const normalizeBookmarkTag = async () => (await import("@/lib/bookmarks/utils")).normalizeBookmarkTag;
-const getServerCache = async () => (await import("@/lib/server-cache")).ServerCacheInstance;
+import { convertSerializableBookmarksToUnified } from "@/lib/bookmarks/utils";
+
 import type { UnifiedBookmark } from "@/types";
 import { BookmarksClientWithWindow } from "./bookmarks-client-with-window";
 
 import type { JSX } from "react";
+import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 
 import type { BookmarksServerExtendedProps, SerializableBookmark } from "@/types";
 
@@ -40,52 +44,72 @@ export async function BookmarksServer({
   initialTag,
   tag,
   includeImageData = true,
+  allBookmarksForSlugs,
+  totalPages: propsTotalPages,
+  totalCount: propsTotalCount,
 }: BookmarksServerExtendedProps): Promise<JSX.Element> {
-  // If bookmarks are provided via props, use those; otherwise fetch from API
   let bookmarks: UnifiedBookmark[] = [];
+  let totalPages = 1;
+  let totalCount = 0;
+  const internalHrefs = new Map<string, string>();
 
-  // Helper function to sort bookmarks by date (newest first)
-  const sortByDateDesc = (list: UnifiedBookmark[]) =>
-    [...list].sort((a, b) => {
-      const safeTs = (d?: string) => {
-        const ts = d ? Date.parse(d) : Number.NaN;
-        return Number.isFinite(ts) ? ts : 0;
-      };
-      return safeTs(b.dateBookmarked) - safeTs(a.dateBookmarked);
-    });
-
-  // If bookmarks are provided via props (e.g., pre-filtered for tags), use those
-  if (propsBookmarks) {
-    // Apply the same consistent sorting even when bookmarks are provided externally
-    bookmarks = sortByDateDesc(propsBookmarks);
-    console.log("[BookmarksServer] Using provided bookmarks, count:", bookmarks.length);
-  } else {
-    // Fetch bookmarks. If getBookmarks() throws, it will propagate up.
-    const getBookmarksFunc = await getBookmarks();
-    bookmarks = (await getBookmarksFunc({ includeImageData })) as UnifiedBookmark[];
-    console.log(
-      `[BookmarksServer] Fetched via getBookmarks, count: ${bookmarks.length}, includeImageData: ${includeImageData}`,
-    );
-    if (bookmarks.length > 0 && bookmarks[0]) {
-      console.log("[BookmarksServer] First bookmark title:", bookmarks[0].title);
-    } else {
-      console.warn(
-        "[BookmarksServer] No bookmarks found via getBookmarks (API may have returned empty or fetch was skipped).",
+  // Helper function to generate slugs for a list of bookmarks
+  const generateHrefs = (bms: UnifiedBookmark[], allBms?: UnifiedBookmark[]) => {
+    const allBookmarks = allBms || bms;
+    bms.forEach((bookmark) => {
+      internalHrefs.set(
+        bookmark.id,
+        `/bookmarks/${generateUniqueSlug(
+          bookmark.url,
+          allBookmarks.map((b) => ({ id: b.id, url: b.url })),
+          bookmark.id,
+        )}`,
       );
-    }
+    });
+  };
 
-    // Sort bookmarks by date (newest first) if we have any
-    bookmarks = bookmarks.length ? sortByDateDesc(bookmarks) : [];
+  // Helper function to sort bookmarks by date (newest first) - removed unused function
 
-    // Previously, an error was thrown in production if bookmark data was unavailable.
-    // This caused a hard failure when the external bookmarks service was unreachable.
-    // Instead, log the situation and allow the component tree to render an empty state gracefully.
-    if (!propsBookmarks && bookmarks.length === 0) {
-      const serverCache = await getServerCache();
-      const lastFetched = serverCache.getBookmarks()?.lastFetchedAt ?? 0;
-      console.warn("[BookmarksServer] No bookmark data available after fetch. lastFetchedAt=", lastFetched);
-      // Proceed with empty array – downstream components will show an empty state UI.
+  if (propsBookmarks && propsBookmarks.length > 0 && allBookmarksForSlugs) {
+    // Case: We have both bookmarks and allBookmarksForSlugs (paginated scenario)
+    bookmarks = convertSerializableBookmarksToUnified(propsBookmarks);
+    generateHrefs(bookmarks, allBookmarksForSlugs);
+    totalPages = propsTotalPages || 1;
+    totalCount = propsTotalCount || bookmarks.length;
+  } else if (propsBookmarks && propsBookmarks.length > 0) {
+    // Case: We have bookmarks but need to fetch allBookmarksForSlugs
+    bookmarks = convertSerializableBookmarksToUnified(propsBookmarks);
+    const allBookmarksForSlugs = (await (await getBookmarks())({ includeImageData: false })) as UnifiedBookmark[];
+    totalPages = propsTotalPages || 1;
+    totalCount = propsTotalCount || propsBookmarks.length;
+    generateHrefs(bookmarks, allBookmarksForSlugs);
+  } else if (initialPage && initialPage > 1) {
+    const getBookmarksPageFunc = await getBookmarksPage();
+    const getBookmarksIndexFunc = await getBookmarksIndex();
+    const [pageData, indexData] = await Promise.all([getBookmarksPageFunc(initialPage), getBookmarksIndexFunc()]);
+    bookmarks = pageData ?? [];
+    totalPages = indexData?.totalPages ?? 1;
+    totalCount = indexData?.count ?? 0;
+    if (bookmarks.length > 0) {
+      const allBookmarksForSlugs = (await (await getBookmarks())({ includeImageData: false })) as UnifiedBookmark[];
+      generateHrefs(bookmarks, allBookmarksForSlugs);
     }
+  } else {
+    // Default to fetching all bookmarks for the main page or if no specific page is set
+    const allBookmarks = (await (await getBookmarks())({ includeImageData })) as UnifiedBookmark[];
+    if (Array.isArray(allBookmarks) && allBookmarks.length > 0) {
+      bookmarks = allBookmarks;
+      const index = await (await getBookmarksIndex())();
+      totalPages = index?.totalPages ?? 1;
+      totalCount = index?.count ?? 0;
+      generateHrefs(bookmarks, allBookmarks);
+    }
+  }
+
+  // Fallback if bookmarks are empty
+  if (bookmarks.length === 0) {
+    console.warn("[BookmarksServer] No bookmark data available after fetch.");
+    // Allow empty state to render
   }
 
   // Transform to serializable format for client component
@@ -121,19 +145,23 @@ export async function BookmarksServer({
   }));
 
   // Pass the processed data to the client component with explicit typing
+  const includesAll = serializableBookmarks.length === totalCount;
   return (
     <BookmarksClientWithWindow
       bookmarks={serializableBookmarks}
-      title={title}
-      description={description}
-      searchAllBookmarks
+      title={title ?? ""}
+      description={description ?? ""}
+      searchAllBookmarks={!includesAll}
       showFilterBar={showFilterBar}
       titleSlug={titleSlug}
       initialPage={initialPage}
+      totalPages={totalPages}
+      totalCount={totalCount}
       baseUrl={baseUrl}
       usePagination={usePagination}
       initialTag={initialTag}
       tag={tag}
+      internalHrefs={Object.fromEntries(internalHrefs)}
     />
   );
 }

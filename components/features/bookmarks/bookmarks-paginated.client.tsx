@@ -19,10 +19,13 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
   enableInfiniteScroll = true,
   itemsPerPage = 24,
   initialPage,
+  totalPages,
+  totalCount,
   baseUrl,
   initialTag,
   tag,
-}) => {
+  internalHrefs,
+}: BookmarksPaginatedClientProps) => {
   // Debug log to check if bookmarks are passed correctly to client component
   if (process.env.NODE_ENV === "development") {
     console.log(
@@ -46,9 +49,12 @@ export const BookmarksPaginatedClient: React.FC<BookmarksPaginatedClientProps> =
         enableInfiniteScroll={enableInfiniteScroll}
         itemsPerPage={itemsPerPage}
         initialPage={initialPage}
+        totalPages={totalPages}
+        totalCount={totalCount}
         baseUrl={baseUrl}
         initialTag={initialTag}
         tag={tag}
+        internalHrefs={internalHrefs}
       />
     );
   }

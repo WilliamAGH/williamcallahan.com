@@ -21,6 +21,12 @@ import type { SerializedIndex } from "@/types/search";
 import { loadIndexFromJSON } from "./search/index-builder";
 import type { Project } from "../types/project";
 
+// Add near top of file (after imports) a dev log helper
+const IS_DEV = process.env.NODE_ENV !== "production";
+const devLog = (...args: unknown[]) => {
+  if (IS_DEV) console.log("[SearchDev]", ...args);
+};
+
 // Type-safe wrappers for cache functions to fix ESLint unsafe call errors
 const safeCacheLife = (
   profile:
@@ -529,6 +535,7 @@ async function getBookmarksIndex(): Promise<{
     /* If monitor not available, continue */
   }
 
+  devLog("[getBookmarksIndex] Building/Loading bookmarks index. start");
   // Try to get from cache first
   const cacheKey = SEARCH_INDEX_KEYS.BOOKMARKS;
   const cached = ServerCacheInstance.get<{
@@ -536,45 +543,65 @@ async function getBookmarksIndex(): Promise<{
     bookmarks: Array<BookmarkIndexItem & { slug: string }>;
   }>(cacheKey);
   if (cached) {
+    devLog("[getBookmarksIndex] using cached in-memory index", { items: cached.bookmarks.length });
     return cached;
   }
 
-  // For bookmarks, we always need the data for slug generation
-  // So we can't just load the index from S3, we need to build it
+  // Try the fast path: import bookmarks directly when running server-side and not using S3 indexes.
+  let bookmarks: Array<{
+    id: string;
+    url: string;
+    title: string;
+    description: string;
+    tags?: Array<string | { name?: string }>;
+    content?: { author?: string | null; publisher?: string | null };
+  }> = [];
 
-  // Fetch bookmark data via the API
-  const { getBaseUrl } = await import("@/lib/utils/get-base-url");
-  const apiUrl = `${getBaseUrl()}/api/bookmarks`;
-
-  // Abort the request if it hangs >5 s
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000);
-  let resp: Response;
   try {
-    resp = await fetch(apiUrl, { cache: "no-store", signal: controller.signal });
-  } catch (fetchErr) {
-    clearTimeout(timeoutId);
-    throw fetchErr;
-  }
-  clearTimeout(timeoutId);
+    const { getBookmarks } = await import("@/lib/bookmarks/service.server");
+    const all = (await getBookmarks({ includeImageData: false })) as Array<{
+      id: string;
+      url: string;
+      title: string;
+      description: string;
+      tags?: Array<string | { name?: string }>;
+      content?: { author?: string | null; publisher?: string | null };
+    }>;
+    bookmarks = all;
+    devLog("[getBookmarksIndex] fetched bookmarks via direct import", { count: bookmarks.length });
+  } catch (directErr) {
+    devLog("[getBookmarksIndex] falling back to API fetch");
+    console.warn("[Search] Direct bookmarks fetch failed, falling back to /api/bookmarks", directErr);
 
-  if (!resp.ok) {
-    throw new Error(`Failed to fetch bookmarks: ${resp.status}`);
+    const { getBaseUrl } = await import("@/lib/utils/get-base-url");
+    const apiUrl = `${getBaseUrl()}/api/bookmarks?limit=10000`;
+
+    const controller = new AbortController();
+    const FETCH_TIMEOUT_MS = Number(process.env.SEARCH_BOOKMARKS_TIMEOUT_MS) || 30000; // 30s fallback
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    let resp: Response;
+    try {
+      resp = await fetch(apiUrl, { cache: "no-store", signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    if (!resp.ok) {
+      throw new Error(`Failed to fetch bookmarks: ${resp.status}`);
+    }
+    const raw = (await resp.json()) as unknown;
+    if (Array.isArray(raw)) {
+      bookmarks = raw as typeof bookmarks;
+    } else if (typeof raw === "object" && raw !== null) {
+      const obj = raw as Record<string, unknown>;
+      bookmarks = (obj.data ?? obj.bookmarks ?? []) as typeof bookmarks;
+    }
+    devLog("[getBookmarksIndex] fetched bookmarks via API", { count: bookmarks.length });
   }
 
-  // Parse response
-  const raw = (await resp.json()) as unknown;
-  let bookmarksData: unknown;
-  if (Array.isArray(raw)) {
-    bookmarksData = raw;
-  } else if (typeof raw === "object" && raw !== null) {
-    const obj = raw as Record<string, unknown>;
-    bookmarksData = obj.data ?? obj.bookmarks ?? [];
-  } else {
-    bookmarksData = [];
-  }
+  // At this point `bookmarks` should be populated (possibly empty array)
+  bookmarks = bookmarks || [];
 
-  const bookmarks = (Array.isArray(bookmarksData) ? bookmarksData : []) as Array<{
+  const bookmarksArr = bookmarks as Array<{
     id: string;
     url: string;
     title: string;
@@ -597,20 +624,20 @@ async function getBookmarksIndex(): Promise<{
         console.log(`[Search] Loaded ${cacheKey} from S3 (${serializedIndex.metadata.itemCount} items)`);
       } else {
         // Build in-memory as fallback
-        bookmarksIndex = buildBookmarksIndex(bookmarks);
+        bookmarksIndex = buildBookmarksIndex(bookmarksArr);
       }
     } catch (error) {
       console.error(`[Search] Error loading ${cacheKey} from S3:`, error);
       // Build in-memory as fallback
-      bookmarksIndex = buildBookmarksIndex(bookmarks);
+      bookmarksIndex = buildBookmarksIndex(bookmarksArr);
     }
   } else {
     // Build in-memory
-    bookmarksIndex = buildBookmarksIndex(bookmarks);
+    bookmarksIndex = buildBookmarksIndex(bookmarksArr);
   }
 
   // Transform bookmarks for result mapping
-  const bookmarksForIndex: Array<BookmarkIndexItem & { slug: string }> = bookmarks.map((b) => ({
+  const bookmarksForIndex: Array<BookmarkIndexItem & { slug: string }> = bookmarksArr.map((b) => ({
     id: b.id,
     title: b.title || b.url,
     description: b.description || "",
@@ -618,12 +645,14 @@ async function getBookmarksIndex(): Promise<{
     url: b.url,
     author: b.content?.author || "",
     publisher: b.content?.publisher || "",
-    slug: generateUniqueSlug(b.url, bookmarks, b.id),
+    slug: generateUniqueSlug(b.url, bookmarksArr, b.id),
   }));
 
   // Cache the index and bookmarks
   const result = { index: bookmarksIndex, bookmarks: bookmarksForIndex };
   ServerCacheInstance.set(cacheKey, result, BOOKMARK_INDEX_TTL);
+
+  devLog("[getBookmarksIndex] index built", { indexed: bookmarksArr.length });
 
   return result;
 }
@@ -669,9 +698,11 @@ function buildBookmarksIndex(
 
 export async function searchBookmarks(query: string): Promise<SearchResult[]> {
   try {
+    devLog("[searchBookmarks] query", { query });
     // Check result cache first
     const cached = ServerCacheInstance.getSearchResults<SearchResult>("bookmarks", query);
     if (cached && !ServerCacheInstance.shouldRefreshSearch("bookmarks", query)) {
+      devLog("[searchBookmarks] results", { count: cached.results.length });
       return cached.results;
     }
 
@@ -682,6 +713,7 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     } catch (error) {
       console.error(`[searchBookmarks] Failed to get bookmarks index:`, error);
       if (cached && Array.isArray(cached.results)) {
+        devLog("[searchBookmarks] returning cached results", { count: cached.results.length });
         return cached.results;
       }
       return [];
@@ -723,6 +755,7 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
       })
       .sort((a, b) => b.score - a.score);
 
+    devLog("[searchBookmarks] results", { count: results.length });
     // Cache the results
     ServerCacheInstance.setSearchResults("bookmarks", query, results);
 
@@ -732,6 +765,7 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     // Return cached results if available on error
     const cached = ServerCacheInstance.getSearchResults<SearchResult>("bookmarks", query);
     if (cached && Array.isArray(cached.results)) {
+      devLog("[searchBookmarks] returning cached results", { count: cached.results.length });
       return cached.results;
     }
     return [];
@@ -766,11 +800,7 @@ function buildProjectsIndex(): MiniSearch<Project> {
   });
 
   // Deduplicate by name (assumed unique) - explicitly type the result
-  const deduped: Project[] = prepareDocumentsForIndexing(
-    projectsData,
-    "Projects",
-    (p) => p.name,
-  );
+  const deduped: Project[] = prepareDocumentsForIndexing(projectsData, "Projects", (p) => p.name);
   projectsIndex.addAll(deduped);
   return projectsIndex;
 }

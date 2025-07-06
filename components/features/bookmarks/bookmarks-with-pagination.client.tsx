@@ -10,7 +10,6 @@
 "use client";
 
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
-import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { UnifiedBookmark } from "@/types";
 import { ArrowRight, Loader2, RefreshCw, Search } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -40,10 +39,13 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   enableInfiniteScroll = true,
   itemsPerPage = 24,
   initialPage = 1,
+  totalPages: initialTotalPages,
+  totalCount: initialTotalCount,
   baseUrl = "/bookmarks",
   initialTag,
   tag,
   className,
+  internalHrefs,
 }) => {
   // searchAllBookmarks is reserved for future use
   void searchAllBookmarks;
@@ -79,15 +81,10 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     limit: itemsPerPage,
     initialData: paginatedInitialData,
     initialPage: initialPage,
+    initialTotalPages,
+    initialTotalCount,
     tag: tag, // Pass tag for server-side filtering
   });
-
-  // Keep the original total count based on the initial server payload. This represents the
-  // full size of the dataset **before** any client-side filtering is applied. We need this
-  // number to show a stable "total bookmarks" value while users paginate through pages that
-  // may not have been fetched yet. (Using `bookmarks.length` would under-count because SWR
-  // only stores pages that have already been fetched.)
-  const initialTotalCount = initialBookmarks?.length ?? 0;
 
   // Determine if refresh button should be shown
   const coolifyUrl = process.env.NEXT_PUBLIC_COOLIFY_URL;
@@ -384,23 +381,6 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     return filteredBookmarks;
   }, [searchResults, filteredBookmarks]);
 
-  const internalHrefs = useMemo(() => {
-    const hrefs = new Map<string, string>();
-    if (Array.isArray(displayBookmarks)) {
-      displayBookmarks.forEach((bookmark: UnifiedBookmark) => {
-        hrefs.set(
-          bookmark.id,
-          `/bookmarks/${generateUniqueSlug(
-            bookmark.url,
-            Array.isArray(bookmarks) ? bookmarks.map((b: UnifiedBookmark) => ({ id: b.id, url: b.url })) : [],
-            bookmark.id,
-          )}`,
-        );
-      });
-    }
-    return hrefs;
-  }, [displayBookmarks, bookmarks]);
-
   return (
     <div className={`w-full px-4 sm:px-6 lg:px-8 ${className}`}>
       {/* Search and filtering */}
@@ -567,28 +547,28 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
               {Array.isArray(displayBookmarks) &&
-                displayBookmarks
-                  .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                  .map((bookmark: UnifiedBookmark) => {
-                    // Debug: Log bookmark data for CLI bookmark
-                    if (bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
-                      console.log("[BookmarksWithPagination] CLI bookmark data:", {
-                        id: bookmark.id,
-                        hasContent: !!bookmark.content,
-                        hasImageAssetId: !!bookmark.content?.imageAssetId,
-                        hasImageUrl: !!bookmark.content?.imageUrl,
-                        hasScreenshotAssetId: !!bookmark.content?.screenshotAssetId,
-                        content: bookmark.content,
-                      });
-                    }
-                    return (
-                      <BookmarkCardClient
-                        key={bookmark.id}
-                        {...bookmark}
-                        internalHref={internalHrefs.get(bookmark.id)}
-                      />
-                    );
-                  })}
+                // If we have fewer items than the configured page size, it means
+                // we loaded only the current page (e.g. server-side render for
+                // page > 1). In that case, render everything without slicing.
+                (displayBookmarks.length <= itemsPerPage
+                  ? displayBookmarks
+                  : displayBookmarks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                ).map((bookmark) => {
+                  // Debug: Log bookmark data for CLI bookmark
+                  if (bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
+                    console.log("[BookmarksWithPagination] CLI bookmark data:", {
+                      id: bookmark.id,
+                      hasContent: !!bookmark.content,
+                      hasImageAssetId: !!bookmark.content?.imageAssetId,
+                      hasImageUrl: !!bookmark.content?.imageUrl,
+                      hasScreenshotAssetId: !!bookmark.content?.screenshotAssetId,
+                      content: bookmark.content,
+                    });
+                  }
+                  return (
+                    <BookmarkCardClient key={bookmark.id} {...bookmark} internalHref={internalHrefs?.[bookmark.id]} />
+                  );
+                })}
             </div>
 
             {/* Infinite scroll sentinel */}
@@ -603,7 +583,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           {Array.isArray(initialBookmarks) &&
             initialBookmarks
               .slice(0, 6)
-              .map((bookmark: UnifiedBookmark) => (
+              .map((bookmark) => (
                 <div
                   key={bookmark.id}
                   className="bg-white dark:bg-gray-800 rounded-3xl shadow-lg h-96"
