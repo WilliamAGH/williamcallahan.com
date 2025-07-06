@@ -96,12 +96,6 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
 
     const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
 
-    // PRIORITY 0: Explicit external image field (always trustworthy)
-    if (ogImageExternal?.startsWith("http")) {
-      console.log(`[BookmarkCard] Using ogImageExternal: ${ogImageExternal}`);
-      return ogImageExternal;
-    }
-
     // PRIORITY 1: Enriched ogImage field (already persisted to S3)
     // This is the MOST IMPORTANT - it contains the S3 URL from enrichment
     if (ogImage?.includes(s3CdnUrl)) {
@@ -115,14 +109,20 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
       return content.imageUrl;
     }
 
-    // PRIORITY 3: Check if ogImage is a direct HTTP URL (not a proxy)
+    // PRIORITY 3: Check if ogImageExternal is available (external remote)
+    if (ogImageExternal?.startsWith("http")) {
+      console.log(`[BookmarkCard] Using ogImageExternal: ${ogImageExternal}`);
+      return ogImageExternal;
+    }
+
+    // PRIORITY 4: Check if ogImage is a direct HTTP URL (not a proxy)
     if (ogImage?.startsWith("http")) {
       // If it's already a direct URL, use it (might be from older enrichments)
       console.log(`[BookmarkCard] Using direct HTTP ogImage: ${ogImage}`);
       return ogImage;
     }
 
-    // PRIORITY 4: Direct HTTP URLs in content.imageUrl
+    // PRIORITY 5: Direct HTTP URLs in content.imageUrl
     if (content?.imageUrl?.startsWith("http")) {
       console.log(`[BookmarkCard] Using direct HTTP imageUrl: ${content.imageUrl}`);
       return content.imageUrl;
@@ -130,19 +130,19 @@ export function BookmarkCardClient(props: BookmarkCardClientProps): JSX.Element 
 
     // === PROXY FALLBACKS (only if no direct URLs available) ===
 
-    // PRIORITY 5: Karakeep imageAssetId - unfortunately requires proxy
+    // PRIORITY 6: Karakeep imageAssetId - unfortunately requires proxy
     if (content?.imageAssetId) {
       console.log(`[BookmarkCard] ⚠️ FALLBACK to proxy for Karakeep asset: ${content.imageAssetId}`);
       return getAssetUrl(content.imageAssetId);
     }
 
-    // PRIORITY 6: OpenGraph proxy - only for truly external images
+    // PRIORITY 7: OpenGraph proxy - only for truly external images
     if (ogImage && !ogImage.startsWith("/")) {
       console.log(`[BookmarkCard] ⚠️ FALLBACK to og-image proxy: ${ogImage}`);
       return `/api/og-image?url=${encodeURIComponent(ogImage)}&bookmarkId=${encodeURIComponent(id)}`;
     }
 
-    // PRIORITY 7: Screenshot fallback - requires proxy
+    // PRIORITY 8: Screenshot fallback - requires proxy
     if (content?.screenshotAssetId) {
       console.log(`[BookmarkCard] ⚠️ FALLBACK to proxy for screenshot: ${content.screenshotAssetId}`);
       return getAssetUrl(content.screenshotAssetId);
