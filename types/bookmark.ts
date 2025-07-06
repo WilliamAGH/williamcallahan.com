@@ -220,6 +220,13 @@ export type BookmarksIndex = z.infer<typeof bookmarksIndexSchema>;
 
 export type BookmarksResponse = import("./lib").PaginatedResponse<UnifiedBookmark>;
 
+// Search API response schema
+export const bookmarksSearchResponseSchema = z.object({
+  data: z.array(unifiedBookmarkSchema),
+});
+
+export type BookmarksSearchResponse = z.infer<typeof bookmarksSearchResponseSchema>;
+
 // Additional Zod schemas moved from lib/validators/bookmarks.ts
 export const BookmarkAssetSchema = z.object({
   id: z.string(),
