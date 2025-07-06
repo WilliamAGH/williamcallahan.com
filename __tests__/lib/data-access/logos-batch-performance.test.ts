@@ -1,12 +1,12 @@
 import { getLogoBatch } from "@/lib/data-access/logos-batch";
 import { checkIfS3ObjectExists, readJsonS3, writeBinaryS3 } from "@/lib/s3-utils";
-import { generateS3Key } from "@/lib/utils/s3-key-generator";
+import { generateS3Key } from "@/lib/utils/hash-utils";
 import { getDomainVariants } from "@/lib/utils/domain-utils";
 import type { LogoSource } from "@/types/logo";
 
 // Mock dependencies
 jest.mock("@/lib/s3-utils");
-jest.mock("@/lib/utils/s3-key-generator");
+jest.mock("@/lib/utils/hash-utils");
 jest.mock("@/lib/utils/domain-utils");
 jest.mock("@/lib/services/unified-image-service", () => ({
   getUnifiedImageService: jest.fn().mockReturnValue({
