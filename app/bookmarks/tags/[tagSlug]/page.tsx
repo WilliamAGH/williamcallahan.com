@@ -27,6 +27,7 @@ import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { tagToSlug, sanitizeUnicode } from "@/lib/utils/tag-utils";
 import type { TagBookmarkContext } from "@/types";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
+import { redirect } from "next/navigation";
 
 /**
  * Generate static paths for tag pages
@@ -50,7 +51,9 @@ export function generateStaticParams() {
  */
 export async function generateMetadata({ params }: TagBookmarkContext): Promise<Metadata> {
   const { tagSlug } = await Promise.resolve(params);
-  const sanitizedSlug = sanitizeUnicode(tagSlug);
+  const decodedSlug = decodeURIComponent(tagSlug);
+  const normalizedSlug = tagToSlug(decodedSlug);
+  const sanitizedSlug = sanitizeUnicode(normalizedSlug);
   const path = `/bookmarks/tags/${sanitizedSlug}`;
 
   const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
@@ -93,7 +96,16 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
 
 export default async function TagPage({ params }: TagBookmarkContext) {
   const { tagSlug } = await Promise.resolve(params);
-  const sanitizedSlug = sanitizeUnicode(tagSlug);
+  // Normalize the slug: decode URI components, slugify and remove unicode controls
+  const decodedSlug = decodeURIComponent(tagSlug);
+  const normalizedSlug = tagToSlug(decodedSlug);
+  const sanitizedSlug = sanitizeUnicode(normalizedSlug);
+
+  // If the incoming slug differs from the normalized version, redirect to the canonical URL
+  if (sanitizedSlug !== tagSlug) {
+    redirect(`/bookmarks/tags/${sanitizedSlug}`);
+  }
+
   const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
   const result: { bookmarks: import("@/types").UnifiedBookmark[]; totalPages: number; totalCount: number } =
     await getBookmarksByTag(sanitizedSlug, 1);
