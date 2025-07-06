@@ -1,4 +1,8 @@
 import { envSchema, type Env } from "@/types/schemas/env";
+import { loadEnvironmentWithMultilineSupport } from "@/lib/utils/env-loader";
+
+// CRITICAL: Load environment variables before any other code runs.
+loadEnvironmentWithMultilineSupport();
 
 /**
  * Parse and validate the environment variables against the schema.
@@ -12,38 +16,56 @@ import { envSchema, type Env } from "@/types/schemas/env";
  */
 // Note: zod schemas and type aliases live in @/types per repo lint rules.
 
-
 /**
- * Resolved and validated environment variables. In production it must satisfy
- * the schema entirely; in `test` or `DRY_RUN` modes we relax the requirement so
- * that smoke-tests can deliberately unset variables.
+ * Default values for environment variables, used primarily in test environments
+ * or as a fallback in development when certain keys are not set.
+ * This ensures that the application can run without a complete .env file,
+ * facilitating testing and local UI development.
  */
-
-
-
-// Test defaults for environments where some env vars may be missing
 const testDefaults: Env = {
   AWS_ACCESS_KEY_ID: "test-access-key",
   AWS_SECRET_ACCESS_KEY: "test-secret-key",
   S3_BUCKET: "test-bucket",
   AWS_REGION: "us-east-1",
   NODE_ENV: "test",
-  NEXT_PUBLIC_S3_CDN_URL: "https://test-cdn.example.com"
+  NEXT_PUBLIC_S3_CDN_URL: "https://test-cdn.example.com",
 };
 
+/**
+ * Parses and validates the environment variables against the Zod schema.
+ *
+ * This function is the single source of truth for accessing environment variables.
+ * It ensures that all required variables are present and correctly typed before
+ * they are used anywhere else in the application.
+ *
+ * In `test` or `DRY_RUN` modes, it allows for a partial environment, merging
+ * missing values with safe defaults to facilitate testing.
+ *
+ * @throws {ZodError} If validation fails in a non-test, non-dry-run environment.
+ * @returns {Env} A fully validated environment object.
+ */
 function loadEnv(): Env {
   try {
     return envSchema.parse(process.env);
   } catch (error) {
+    const isDev = process.env.NODE_ENV === "development";
     const isTestLike = process.env.NODE_ENV === "test" || process.env.DRY_RUN === "true";
-    if (isTestLike) {
-      // Allow partial schema during tests or dry runs by merging with safe defaults.
-      // This ensures type safety while allowing tests to override specific values.
+
+    if (isDev || isTestLike) {
+      console.warn(
+        "⚠️ WARNING: Environment validation failed. This is acceptable for local development or testing, but will be a FATAL ERROR in production. Using fallback values for missing variables.",
+      );
       const partialEnv = envSchema.partial().parse(process.env);
       return { ...testDefaults, ...partialEnv } as Env;
     }
+    console.error("⛔️ FATAL: Missing or invalid environment variables in production.", error);
     throw error;
   }
 }
 
+/**
+ * A Zod-validated, type-safe object representing the application's environment variables.
+ * This is the single source of truth for all environment configuration.
+ * It is populated by the `loadEnv` function upon application startup.
+ */
 export const env: Env = loadEnv();

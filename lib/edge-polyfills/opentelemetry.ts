@@ -35,7 +35,8 @@ const createSpan = () => {
 export const trace = {
   getTracer: () => ({
     startSpan: () => createSpan(),
-    startActiveSpan: <T>(_name: string, ...rest: unknown[]): T | undefined => {
+    startActiveSpan: <T>(name: string, ...rest: unknown[]): T | undefined => {
+      void name; // Explicitly mark as unused per project convention
       const maybeCallback = rest[rest.length - 1];
       if (typeof maybeCallback === "function") {
         const span = createSpan();
@@ -76,8 +77,14 @@ export const ROOT_CONTEXT = Symbol("OpenTelemetry Context Key ACTIVE_SPAN");
 // Minimal context API implementation
 export const context = {
   active: () => ({}),
-  with: <T>(_ctx: unknown, fn: () => T): T => fn(),
-  bind: <T extends (...args: unknown[]) => unknown>(_ctx: unknown, fn: T): T => fn,
+  with: <T>(ctx: unknown, fn: () => T): T => {
+    void ctx; // Explicitly mark as unused per project convention
+    return fn();
+  },
+  bind: <T extends (...args: unknown[]) => unknown>(ctx: unknown, fn: T): T => {
+    void ctx; // Explicitly mark as unused per project convention
+    return fn;
+  },
   disable: () => {},
   enable: () => {},
 };
