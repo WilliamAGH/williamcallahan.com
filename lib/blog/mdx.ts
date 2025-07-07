@@ -105,7 +105,7 @@ async function sanitizeCoverImage(
           const matchingKey = s3Keys.find((key) => {
             const s3Filename = key.split("/").pop();
             if (!s3Filename) return false;
-            return s3Filename === `${baseName}${ext}` || s3Filename.startsWith(`${baseName}_`);
+            return s3Filename === filename || (s3Filename.startsWith(`${baseName}_`) && s3Filename.endsWith(ext));
           });
 
           if (matchingKey) {
