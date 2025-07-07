@@ -26,6 +26,8 @@ import type { BlogPost } from "../blog";
 export interface BlogArticleProps {
   /** The blog post data to render */
   post: BlogPost;
+  /** Pre-rendered MDX content from server component */
+  mdxContent?: ReactNode;
   /** JSON-LD structured data for the blog post */
   jsonLd?: WithContext<Article>;
   /** Optional CSS classes */
