@@ -1,9 +1,5 @@
 // Mock the S3 helper functions
 // Mock functions need to be declared before jest.mock
-const mockReadJsonS3 = jest.fn();
-const mockWriteJsonS3 = jest.fn();
-const mockDeleteFromS3 = jest.fn();
-const mockListS3Objects = jest.fn();
 
 // Mock environment variables to ensure functions execute
 const originalEnv = process.env;
@@ -22,18 +18,12 @@ afterAll(() => {
   process.env = originalEnv;
 });
 
-// Mock only the core S3 operations
-// const mockReadJsonS3 = jest.fn();
-// const mockWriteJsonS3 = jest.fn();
-// const mockDeleteFromS3 = jest.fn();
-// const mockListS3Objects = jest.fn();
-
 jest.mock("../../lib/s3-utils", () => ({
   ...jest.requireActual("../../lib/s3-utils"),
-  readJsonS3: mockReadJsonS3,
-  writeJsonS3: mockWriteJsonS3,
-  deleteFromS3: mockDeleteFromS3,
-  listS3Objects: mockListS3Objects,
+  readJsonS3: jest.fn(),
+  writeJsonS3: jest.fn(),
+  deleteFromS3: jest.fn(),
+  listS3Objects: jest.fn(),
 }));
 
 // Also mock the s3-read-only module
@@ -41,7 +31,21 @@ jest.mock("../../lib/utils/s3-read-only", () => ({
   isS3ReadOnly: jest.fn(() => false),
 }));
 
-import { acquireDistributedLock, releaseDistributedLock, cleanupStaleLocks } from "../../lib/s3-utils";
+import {
+  acquireDistributedLock,
+  releaseDistributedLock,
+  cleanupStaleLocks,
+  readJsonS3,
+  writeJsonS3,
+  deleteFromS3,
+  listS3Objects,
+} from "../../lib/s3-utils";
+
+// Cast mocked functions
+const mockReadJsonS3 = readJsonS3 as jest.MockedFunction<typeof readJsonS3>;
+const mockWriteJsonS3 = writeJsonS3 as jest.MockedFunction<typeof writeJsonS3>;
+const mockDeleteFromS3 = deleteFromS3 as jest.MockedFunction<typeof deleteFromS3>;
+const mockListS3Objects = listS3Objects as jest.MockedFunction<typeof listS3Objects>;
 
 describe("S3 distributed lock helpers", () => {
   const lockKey = "test-lock";
