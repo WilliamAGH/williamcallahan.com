@@ -33,8 +33,8 @@ loadEnvironmentWithMultilineSupport();
 
 import { randomInt } from "node:crypto";
 import rawCron from "node-cron";
-// Maximum random jitter for scheduled tasks: 5 minutes
-const DEFAULT_JITTER_MS = 5 * 60 * 1000;
+// Maximum random jitter for scheduled tasks: 15 minutes
+const DEFAULT_JITTER_MS = 15 * 60 * 1000;
 import { spawn } from "node:child_process";
 
 // Track running jobs to prevent concurrent executions

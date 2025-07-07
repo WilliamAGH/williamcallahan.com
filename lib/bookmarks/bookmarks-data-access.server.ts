@@ -344,6 +344,11 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
 async function fetchAndCacheBookmarks(
   options: BookmarkLoadOptions = {},
 ): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
+  "use cache";
+  // Cache the full bookmarks payload in memory for 5 minutes and tag it so it can be
+  // invalidated together with the existing bookmarks cache.
+  safeCacheLife({ revalidate: 300 });
+  safeCacheTag("bookmarks-s3-full");
   const { skipExternalFetch = false, includeImageData = true, force = false } = options;
   console.log(
     `${LOG_PREFIX} fetchAndCacheBookmarks called. skipExternalFetch=${skipExternalFetch}, includeImageData=${includeImageData}`,
@@ -548,6 +553,7 @@ export async function getBookmarksByTag(
 export const invalidateBookmarksCache = (): void => {
   if (USE_NEXTJS_CACHE) {
     safeRevalidateTag("bookmarks");
+    safeRevalidateTag("bookmarks-s3-full");
     console.log("[Bookmarks] Cache invalidated for tag: bookmarks");
   }
 };
