@@ -19,6 +19,19 @@ import { memoryPressureMiddleware } from "./lib/middleware/memory-pressure";
 
 import type { RequestLog } from "@/types/lib";
 
+// Dynamically import hashes and handle cases where the file doesn't exist
+async function getCspHashes() {
+  try {
+    const hashes = await import("@/config/csp-hashes.json", {
+      assert: { type: "json" },
+    });
+    return hashes.default;
+  } catch (error) {
+    console.warn("[CSP] Could not load csp-hashes.json. This is expected on the first build.", error);
+    return { scriptSrc: [], styleSrc: [] };
+  }
+}
+
 /**
  * Gets the real client IP from various headers
  * Prioritizes Cloudflare headers, then standard proxy headers
@@ -97,10 +110,21 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     response.headers.set(header, value);
   }
 
-  // Build and set Content-Security-Policy.
-  // Nonce is temporarily disabled to allow 'unsafe-inline' for Next.js 15+ inline scripts.
-  // The presence of a nonce makes browsers ignore 'unsafe-inline'.
-  const csp = Object.entries(CSP_DIRECTIVES)
+  // Build and set Content-Security-Policy with per-request nonce and build-time hashes
+  const nonce = generateNonce();
+  const cspHashes = await getCspHashes();
+
+  // Combine hashes from the build with the base directives
+  const scriptSrc = [...CSP_DIRECTIVES.scriptSrc, ...cspHashes.scriptSrc, `'nonce-${nonce}'`];
+  const styleSrc = [...CSP_DIRECTIVES.styleSrc, ...cspHashes.styleSrc, `'nonce-${nonce}'`];
+
+  const cspDirectivesWithNonce: typeof CSP_DIRECTIVES = {
+    ...CSP_DIRECTIVES,
+    scriptSrc,
+    styleSrc,
+  };
+
+  const csp = Object.entries(cspDirectivesWithNonce)
     .map(([key, sources]) => {
       const directive = key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
       return `${directive} ${sources.join(" ")}`;
@@ -108,6 +132,9 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     .join("; ");
 
   response.headers.set("Content-Security-Policy", csp);
+
+  // Expose nonce so server components can read it via next/headers
+  response.headers.set("X-Nonce", nonce);
 
   // Add caching headers for static assets and analytics scripts
   const url = request.nextUrl.pathname;
@@ -216,10 +243,10 @@ export const config = {
   ],
 };
 
-// Nonce generation is temporarily disabled.
-// const generateNonce = (): string => {
-//   const array = new Uint8Array(16);
-//   crypto.getRandomValues(array);
-//   // Convert to base64 (Edge runtime supports btoa)
-//   return btoa(String.fromCharCode(...array));
-// };
+// Generate a base64 nonce for CSP – 128-bit entropy
+const generateNonce = (): string => {
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  // Convert to base64 (Edge runtime supports btoa)
+  return btoa(String.fromCharCode(...array));
+};
