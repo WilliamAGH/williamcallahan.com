@@ -46,8 +46,8 @@ describe("scripts/data-updater.ts Smoke Test", () => {
       // FULL mode runs without restrictions
 
       try {
-        // Use bun with full path to ensure it's found
-        const bunPath = "/Users/williamcallahan/.bun/bin/bun";
+        // Use environment variable or default to 'bun' in PATH
+        const bunPath = process.env.BUN_PATH || "bun";
         const command = `${bunPath} ${SCRIPT_PATH}`;
 
         stdout = execSync(command, {
