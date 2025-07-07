@@ -97,14 +97,29 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     response.headers.set(header, value);
   }
 
-  // Build and set Content-Security-Policy from constants
-  const csp = Object.entries(CSP_DIRECTIVES)
+  // Build and set Content-Security-Policy with per-request nonce
+  const nonce = generateNonce();
+
+  // Deep-clone arrays so we don't mutate the shared constant
+  const scriptSrc = [...CSP_DIRECTIVES.scriptSrc, `'nonce-${nonce}'`];
+  const styleSrc = [...CSP_DIRECTIVES.styleSrc, `'nonce-${nonce}'`];
+
+  const cspDirectivesWithNonce: typeof CSP_DIRECTIVES = {
+    ...CSP_DIRECTIVES,
+    scriptSrc,
+    styleSrc,
+  };
+
+  const csp = Object.entries(cspDirectivesWithNonce)
     .map(([key, sources]) => {
       const directive = key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
       return `${directive} ${sources.join(" ")}`;
     })
     .join("; ");
+
   response.headers.set("Content-Security-Policy", csp);
+  // Expose nonce so server components can read it via next/headers
+  response.headers.set("X-Nonce", nonce);
 
   // Add caching headers for static assets and analytics scripts
   const url = request.nextUrl.pathname;
@@ -211,4 +226,12 @@ export const config = {
     "/((?!api|_next/static|favicon.ico|robots.txt|sitemap.xml).*)",
     "/_next/image(.*)",
   ],
+};
+
+// Generate a base64 nonce for CSP – 128-bit entropy
+const generateNonce = (): string => {
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  // Convert to base64 (Edge runtime supports btoa)
+  return btoa(String.fromCharCode(...array));
 };
