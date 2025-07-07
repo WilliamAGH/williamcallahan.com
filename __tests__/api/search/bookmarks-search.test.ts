@@ -68,15 +68,20 @@ describe("Bookmarks Search API", () => {
 
   it("returns matched bookmarks for query", async () => {
     const request = {
-      url: "http://localhost:3000/api/search/bookmarks?q=sdk",
+      url: "http://localhost:3000/api/search/bookmarks?q=sdk&page=1&limit=24",
     } as any;
 
     const response = await GET(request);
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(body).toHaveProperty("data");
+    expect(body).toHaveProperty("totalCount");
+    expect(body).toHaveProperty("hasMore");
     expect(Array.isArray(body.data)).toBe(true);
     expect(body.data).toHaveLength(2);
+    expect(body.totalCount).toBe(2);
+    expect(body.hasMore).toBe(false);
     const ids = body.data.map((b: UnifiedBookmark) => b.id);
     expect(ids).toContain(idMatch1);
     expect(ids).toContain(idMatch2);
