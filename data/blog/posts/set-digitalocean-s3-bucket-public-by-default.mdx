@@ -1,0 +1,140 @@
+---
+title: "How I Finally Got a DigitalOcean Spaces Bucket to Default Public (Spoiler: Ditch Per-Bucket Keys)"
+slug: "set-digitalocean-s3-bucket-public-by-default-the-right-way"
+excerpt: "Still hitting 403 errors trying to make a DigitalOcean Spaces bucket public? Turn off Per-Bucket Access Keys, lean on simple ACLs, and skip the old support-ticket dance—access logging is self-serve now."
+publishedAt: "2025-07-20"
+updatedAt: "2025-07-20"
+author: "william-callahan"
+tags: [
+  "digitalocean",
+  "s3",
+  "object storage",
+  "aws-cli",
+  "s3cmd",
+  "devops",
+  "sysadmin",
+  "hosting",
+  "cdn",
+  "bucket policy",
+  "acl"
+]
+coverImage: "/images/posts/digitalocean-set-bucket-policy-public-always-ghibly.png"
+---
+
+<BackgroundInfo title="What This Post Covers">
+By the end of this guide you'll know:
+
+- **Why Per-Bucket Access Keys are the secret villain** behind most `403 Forbidden` policy errors.
+- **The dead-simple ACL approach** that works every time.
+- **When you can safely use a JSON bucket policy** (and when to save yourself the headache).
+- **How to turn on server access logging**—no support ticket required anymore.
+</BackgroundInfo>
+
+I thought making a bucket public on DigitalOcean Spaces would be a ten-second checkbox. Instead I burned an afternoon chasing `403 Forbidden` errors and second-guessing my JSON.
+
+Here's the truth I wish I'd known from the start: **if you leave Per-Bucket Access Keys enabled you can't modify most bucket policies—period.** Turn that feature off, switch to a regular all-or-nothing access key, and everything snaps into place.
+
+Below is the exact sequence that finally worked for me, with the false turns called out so you don't repeat them.
+
+## 1. Disable Per-Bucket Access Keys (Yes, Really)
+
+DigitalOcean's per-bucket keys sound great on paper: tight scoping, least-privilege, all that good stuff. Unfortunately the current implementation blocks `PutBucketPolicy`, `PutBucketLogging`, and a few other S3 calls—even if the UI insists the key has those permissions.
+
+**Fix:** In the Spaces dashboard, open your bucket ➜ *Settings* ➜ toggle **Per-Bucket Access Keys** off. Grab a classic Spaces key (or create a new one) that has full account-wide access. Use that for every command below.
+
+*If you're still seeing 403s after this step, double-check that your CLI is using the new key.*
+
+## 2. Install `s3cmd` (AWS CLI Works, But `s3cmd` is Friendlier Here)
+
+```bash
+# macOS
+brew install s3cmd
+
+# Ubuntu / Debian
+sudo apt-get install s3cmd
+```
+
+Run `s3cmd --configure` and drop in your Spaces key, secret, and region (for me: `sfo3`). When it asks for the endpoint, use `sfo3.digitaloceanspaces.com` (swap for your region).
+
+## 3. The No-Drama ACL Method
+
+This is the zero-friction route I recommend.
+
+### a. Make the bucket listable
+
+```bash
+s3cmd setacl s3://YOUR_BUCKET --acl-public
+```
+
+### b. Flip every existing object to public
+
+```bash
+s3cmd setacl s3://YOUR_BUCKET/ --acl-public --recursive
+```
+
+### c. Upload new files as public by default
+
+```bash
+s3cmd put local-file.jpg s3://YOUR_BUCKET/remote-file.jpg --acl-public
+```
+
+That's it. Skip the rest of the post unless you love yak-shaving.
+
+## 4. The JSON Bucket Policy Rabbit Hole (Optional)
+
+Feel like you **must** use a proper policy? Fine—just remember the Per-Bucket Keys warning above.
+
+1. Create `public-policy.json`:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::YOUR_BUCKET/*"
+    }
+  ]
+}
+```
+
+2. Push it with the AWS CLI (endpoint is mandatory):
+
+```bash
+aws s3api put-bucket-policy \
+  --bucket YOUR_BUCKET \
+  --endpoint-url https://YOUR_REGION.digitaloceanspaces.com \
+  --policy file://public-policy.json
+```
+
+If that still throws a 403, triple-check that you're using a non-scoped key.
+
+## 5. Good News: Access Logging is Self-Serve Now
+
+Back in early 2025 you had to open a support ticket to enable server access logging. As of **July 2025** the feature is rolled out for everyone—no ticket required.
+
+Enable it with a single call:
+
+```bash
+aws s3api put-bucket-logging \
+  --bucket YOUR_SOURCE_BUCKET \
+  --endpoint-url https://YOUR_REGION.digitaloceanspaces.com \
+  --bucket-logging-status '{
+    "LoggingEnabled": {
+      "TargetBucket": "your-log-destination-bucket",
+      "TargetPrefix": "logs/"
+    }
+  }'
+```
+
+If you get a 403 here, you already know the likely cause: you forgot to disable Per-Bucket Access Keys.
+
+---
+
+## tl;dr
+
+1. **Turn off Per-Bucket Access Keys.**
+2. **Use ACLs** for the fastest public-by-default setup.
+3. Policies and access logging work once you're using a full-access key—no more support tickets.
