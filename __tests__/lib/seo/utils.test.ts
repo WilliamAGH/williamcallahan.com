@@ -11,8 +11,7 @@ import { ensureAbsoluteUrl, getImageTypeFromUrl, formatSeoDate } from "@/lib/seo
 import { NEXT_PUBLIC_SITE_URL } from "@/lib/constants";
 import { isPacificDateString } from "@/types/seo";
 
-jest.mock("@/lib/constants", () => ({
-  ...jest.requireActual("@/lib/constants"),
+jest.mock("@/lib/constants/client", () => ({
   NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
 }));
 
