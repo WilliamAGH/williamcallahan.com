@@ -50,13 +50,14 @@ describe("Environment Variable Configuration", () => {
      * Ensures reasonable fallback values for timeout (7s), retries (2), and backoff (1s)
      */
     it("should use default values when env vars not set", async () => {
+      // Delete environment variables to test fallbacks
       Reflect.deleteProperty(process.env, "OG_FETCH_TIMEOUT_MS");
       Reflect.deleteProperty(process.env, "OG_MAX_RETRIES");
       Reflect.deleteProperty(process.env, "OG_RETRY_DELAY_MS");
 
       const { OPENGRAPH_FETCH_CONFIG } = await import("@/lib/constants");
 
-      expect(OPENGRAPH_FETCH_CONFIG.TIMEOUT).toBe(7000);
+      expect(OPENGRAPH_FETCH_CONFIG.TIMEOUT).toBe(15000);
       expect(OPENGRAPH_FETCH_CONFIG.MAX_RETRIES).toBe(2);
       expect(OPENGRAPH_FETCH_CONFIG.BACKOFF_BASE).toBe(1000);
     });
@@ -89,7 +90,7 @@ describe("Environment Variable Configuration", () => {
       const { OPENGRAPH_FETCH_CONFIG } = await import("@/lib/constants");
 
       /** Should fall back to defaults for invalid values */
-      expect(OPENGRAPH_FETCH_CONFIG.TIMEOUT).toBe(7000); // NaN || 7000
+      expect(OPENGRAPH_FETCH_CONFIG.TIMEOUT).toBe(15000); // NaN || 7000
       expect(OPENGRAPH_FETCH_CONFIG.MAX_RETRIES).toBe(2); // NaN || 2
       expect(OPENGRAPH_FETCH_CONFIG.BACKOFF_BASE).toBe(1000); // '0' parses to 0, but NaN defaults to 1000
     });
