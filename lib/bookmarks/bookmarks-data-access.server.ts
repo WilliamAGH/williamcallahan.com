@@ -91,6 +91,10 @@ async function acquireDistributedLock(lockKey: string, ttlMs: number, retryCount
                 break;
               }
             }
+            // Exponential backoff with jitter to mitigate race conditions
+            const baseDelay = 100 + 2 ** retryCount * 50; // ms
+            const jitter = Math.floor(Math.random() * 50); // 0-49ms random jitter
+            await new Promise((res) => setTimeout(res, baseDelay + jitter));
             return acquireDistributedLock(lockKey, ttlMs, retryCount + 1);
           }
         }
