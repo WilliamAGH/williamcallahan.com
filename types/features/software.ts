@@ -36,6 +36,8 @@ export interface SoftwareSchemaProps {
   authorName?: string;
   /** The URL of the author's profile or website */
   authorUrl?: string;
+  /** CSP nonce to be passed to the script tag */
+  nonce?: string;
 }
 
 /**
