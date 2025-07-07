@@ -18,7 +18,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorBoundary } from "../../../ui/error-boundary.client";
 import { BlogAuthor } from "../shared/blog-author";
 import { BlogTags } from "../shared/blog-tags";
-import { MDXContent } from "./mdx-content";
 import { formatDate } from "@/lib/utils";
 
 import type { BlogArticleProps } from "@/types/features";
@@ -37,7 +36,7 @@ import type { BlogArticleProps } from "@/types/features";
  * @param {BlogPost} props.post - The blog post data to render
  * @returns {JSX.Element} The rendered blog article
  */
-export const BlogArticle: React.FC<BlogArticleProps> = ({ post }) => {
+export const BlogArticle: React.FC<BlogArticleProps> = ({ post, mdxContent }) => {
   // Format publication date to a human-readable string (e.g., "June 16, 2025")
   const formattedDate = formatDate(post.publishedAt);
   // State to track mounted status and cleanup queue
@@ -153,7 +152,7 @@ export const BlogArticle: React.FC<BlogArticleProps> = ({ post }) => {
       )}
 
       {/* Article Content */}
-      <MDXContent content={post.content} />
+      {mdxContent || <div>Loading content...</div>}
     </article>
   );
 };
