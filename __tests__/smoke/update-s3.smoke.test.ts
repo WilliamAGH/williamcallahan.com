@@ -22,7 +22,7 @@ import * as path from "node:path";
 describe("Update S3 Script Smoke Tests", () => {
   /** Resolved path to target data updater script for reference validation */
   const scriptPath = path.join(__dirname, "../../scripts/data-updater.ts");
-  const bunPath = "/Users/williamcallahan/.bun/bin/bun";
+  const bunPath = process.env.BUN_PATH || "bun";
 
   /** Extended timeout accommodation for potential script execution scenarios */
   jest.setTimeout(30000);
