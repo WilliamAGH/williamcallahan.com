@@ -11,6 +11,8 @@
 
 // eslint-disable react/no-danger
 import type { JSX } from "react";
+import { use } from "react";
+import { headers } from "next/headers";
 
 import type { JsonLdScriptProps } from "@/types";
 
@@ -26,9 +28,24 @@ export function JsonLdScript({ data }: JsonLdScriptProps): JSX.Element {
     .replace(/<\/(script)/giu, "<\\/$1")
     .replace(/<!--/g, "<\\!--");
 
+  // Read per-request CSP nonce injected by middleware with full type guards
+  let nonceHeader: string | undefined;
+  try {
+    const hdrs = use(headers());
+    if (typeof hdrs === "object" && typeof hdrs.get === "function") {
+      const value = hdrs.get("x-nonce");
+      if (typeof value === "string") nonceHeader = value;
+    }
+  } catch {
+    // headers() may throw in unsupported runtime (e.g. during unit tests)
+    nonceHeader = undefined;
+  }
+
   return (
     <script
       type="application/ld+json"
+      // Attach nonce for CSP compliance
+      {...(nonceHeader ? { nonce: nonceHeader } : {})}
       // biome-ignore lint/security/noDangerouslySetInnerHtml: Necessary for embedding JSON-LD, and the content is sanitized.
       dangerouslySetInnerHTML={{ __html: json }}
     />
