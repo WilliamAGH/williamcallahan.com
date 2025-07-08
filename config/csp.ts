@@ -12,7 +12,6 @@ export const CSP_DIRECTIVES = {
   scriptSrc: [
     "'self'",
     "'unsafe-inline'",
-    "'unsafe-eval'",
     "https://umami.iocloudhost.net",
     "https://plausible.iocloudhost.net",
     "https://static.cloudflareinsights.com",
@@ -23,6 +22,7 @@ export const CSP_DIRECTIVES = {
     "https://platform.twitter.com",
     "https://*.x.com",
     "blob:",
+    "'unsafe-eval'",
   ],
   connectSrc: [
     "'self'",
@@ -48,7 +48,7 @@ export const CSP_DIRECTIVES = {
     "https://react-tweet.vercel.app",
     "https:",
   ],
-  styleSrc: ["'self'", "'unsafe-inline'", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com"],
+  styleSrc: ["'self'", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com", "'unsafe-inline'"],
   fontSrc: ["'self'", "data:", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com"],
   frameSrc: ["https://platform.twitter.com", "https://*.x.com"],
   frameAncestors: ["'none'"],

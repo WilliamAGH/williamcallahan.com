@@ -12,9 +12,9 @@
 import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import type { UnifiedBookmark } from "@/types";
 import { ArrowRight, Loader2, RefreshCw, Search } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
 import { useBookmarksPagination } from "@/hooks/use-bookmarks-pagination";
@@ -58,8 +58,24 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<UnifiedBookmark[] | null>(null);
   const [isSearchingAPI, setIsSearchingAPI] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  // ---------------------------------------------------------------------------
+  // When the user is performing a TEXT SEARCH we paginate purely on the client
+  // (because we already fetched the *entire* result-set via /api/search/bookmarks).
+  // SWR's pagination meta does not know about those extra pages, so calling
+  // `goToPage()` would early-return.  We therefore keep a dedicated local
+  // page state that is only used while `searchQuery` is non-empty.
+  // ---------------------------------------------------------------------------
+  const [localSearchPage, setLocalSearchPage] = useState(initialPage);
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Disable infinite scroll while the user is running a text search so that
+  // page navigation (via <PaginationControl>) reflects the sliced subset
+  // instead of rendering the entire result set.  This preserves expected UX
+  // where clicking "page 2" updates the visible bookmarks list.
+  const infiniteScrollActive = enableInfiniteScroll && searchQuery.trim() === "";
 
   // The hook now expects UnifiedBookmark[] directly, not wrapped in pagination structure
   const paginatedInitialData = initialBookmarks;
@@ -114,18 +130,20 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   // the query changes. This guarantees we are not restricted to the currently
   // loaded page or any active tag filter. We debounce the request for 300 ms.
   useEffect(() => {
-    if (!searchQuery || searchQuery.trim().length === 0) {
+    if (searchQuery === "" || searchQuery.trim().length === 0) {
       setSearchResults(null);
+      setIsSearching(false);
       return;
     }
 
     const searchTimeout = setTimeout(async () => {
       try {
+        setIsSearching(true);
         setIsSearchingAPI(true);
 
-        // Fetch *all* bookmarks in one shot (up to 1000, well above current
-        // collection size) so we can filter entirely client-side.
-        const response = await fetch("/api/bookmarks?limit=1000&page=1", {
+        // Call the dedicated bookmarks search endpoint so the server does
+        // the heavy lifting and we transfer only the matched items.
+        const response = await fetch(`/api/search/bookmarks?q=${encodeURIComponent(searchQuery)}`, {
           cache: "no-store",
         });
 
@@ -135,11 +153,15 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
 
         const json: unknown = await response.json();
 
-        // The API returns { data: [...], meta: {...} } format
-        const apiResponse = json as { data: UnifiedBookmark[]; meta: unknown };
+        // Validate the API response using dynamic import to comply with codebase rules
+        const { bookmarksSearchResponseSchema } = await import("@/types/bookmark");
+        const validation = bookmarksSearchResponseSchema.safeParse(json);
+        if (!validation.success) {
+          console.error("[BookmarksSearch] Invalid API response format:", validation.error);
+          throw new Error("Invalid API response format");
+        }
 
-        // API already returns UnifiedBookmark objects, no validation needed
-        const allBookmarks: UnifiedBookmark[] = apiResponse.data;
+        const allBookmarks: UnifiedBookmark[] = validation.data.data;
 
         // Simple client-side filtering (case-insensitive contains across key
         // fields). We reuse the same helper used in the memoized filter below
@@ -175,6 +197,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
         console.warn("Full-dataset bookmark search failed, falling back to local filter", message);
         setSearchResults(null);
       } finally {
+        setIsSearching(false);
         setIsSearchingAPI(false);
       }
     }, 300);
@@ -193,15 +216,10 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
 
   // Filter bookmarks based on search and tags
   const filteredBookmarks = useMemo(() => {
-    // If we have search results from the API, use those
     if (searchResults && searchQuery) {
-      // Apply tag filter to API results
-      if (selectedTag) {
-        return searchResults.filter((bookmark: UnifiedBookmark) => {
-          const tagsAsString = getTagsAsStringArray(bookmark.tags);
-          return tagsAsString.includes(selectedTag);
-        });
-      }
+      // Do NOT pre-filter by tag here; the downstream logic (below) applies
+      // the current selectedTag so that searches initiated while a tag is
+      // still selected can recover once the tag is cleared.
       return searchResults;
     }
 
@@ -249,6 +267,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       setSelectedTag(null);
       if (goToPage) goToPage(1);
     }
+    // Whenever a new query is typed we reset the local page state so the
+    // user starts from the first page of the new result-set.
+    setLocalSearchPage(1);
   };
 
   const handleSearchSubmit = (event: React.FormEvent) => {
@@ -260,42 +281,29 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     if (selectedTag === tag) {
       // Clear filter
       setSelectedTag(null);
-      if (goToPage) goToPage(1); // Reset to page 1
+      router.push(baseUrl);
     } else {
       // New tag selected
       setSelectedTag(tag);
-      if (goToPage) goToPage(1); // Reset to page 1
+      // Navigate to the canonical tag URL (avoids nesting `/tags/.../tags/...`).
+      router.push(`/bookmarks/tags/${tagToSlug(tag)}`);
     }
+    if (goToPage) goToPage(1); // Reset to page 1
   };
-
-  // Navigate to the correct URL when the selected tag changes. This covers
-  // three scenarios:
-  // 1. We are on /bookmarks and a tag is selected → push to /bookmarks/tags/<tag>.
-  // 2. We are already on a different tag page and select a new tag → replace the slug.
-  // 3. The tag filter is cleared while on /bookmarks/tags/<tag> → return to /bookmarks.
-  useEffect(() => {
-    if (!mounted) return;
-
-    // Extract the current tag slug from the pathname, if any
-    const match = pathname.match(/\/bookmarks\/tags\/([^/]+)/);
-    const currentTagSlug = match ? match[1] : null;
-
-    const nextTagSlug = selectedTag ? tagToSlug(selectedTag) : null;
-
-    if (nextTagSlug && nextTagSlug !== currentTagSlug) {
-      router.push(`/bookmarks/tags/${nextTagSlug}`);
-    } else if (!nextTagSlug && currentTagSlug) {
-      router.push("/bookmarks");
-    }
-  }, [selectedTag, pathname, router, mounted]);
 
   // Navigate to a specific page (used by PaginationControl during SSR fallback)
   const handlePageChange = useCallback(
     (page: number) => {
-      goToPage(page);
+      if (searchQuery.trim() !== "") {
+        // During a text search we ONLY update the local page index – no server
+        // interaction needed because the full dataset is already in memory.
+        setLocalSearchPage(page);
+      } else {
+        goToPage(page);
+      }
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    [goToPage],
+    [goToPage, searchQuery],
   );
 
   // Function to refresh bookmarks data
@@ -359,27 +367,104 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   }, [mutate, router]);
 
   // ---------------------------------------------------------------------------
-  // UX: Ensure that changing the search query or selected tag always brings the
-  // user back to the first page. This prevents scenarios where a user is on
-  // page N, applies a filter that returns fewer results than `(N-1)*limit`, and
-  // ends up staring at an empty page.
+  // Reset to page 1 whenever search query or selected tag changes.
+  // We keep `currentPage` out of the dependency list by reading it from a ref,
+  // satisfying the exhaustive-deps rule without importing experimental APIs.
   // ---------------------------------------------------------------------------
+
+  const currentPageRef = useRef(currentPage);
+
+  // Keep the ref in sync with the latest page number
   useEffect(() => {
-    // Skip reset if we have an initial page from URL
-    if (initialPage && initialPage > 1) {
-      return;
-    }
-    // Reset to page 1 when filters/search change to avoid empty pages.
-    if ((searchQuery || selectedTag) && currentPage !== 1) {
+    currentPageRef.current = currentPage;
+  }, [currentPage]);
+
+  useEffect(() => {
+    // Skip SSR deep-link when the initial page is >1
+    if (initialPage && initialPage > 1) return;
+
+    if ((searchQuery || selectedTag) && currentPageRef.current !== 1) {
       goToPage(1);
     }
-    // Note: `goToPage` is a stable callback from `useCallback`, safe to include.
-  }, [searchQuery, selectedTag, currentPage, goToPage, initialPage]);
+  }, [searchQuery, selectedTag, initialPage, goToPage]);
 
   const displayBookmarks = useMemo(() => {
     if (searchResults) return searchResults;
     return filteredBookmarks;
   }, [searchResults, filteredBookmarks]);
+
+  // ---------------------------------------------------------------------------
+  // Derived pagination metrics — when the user is searching we fetch the
+  // ENTIRE result-set at once (client side).  The server-provided `totalPages`
+  // therefore becomes stale.  We recompute an *effective* total page count so
+  // that pagination controls / labels remain accurate.
+  // ---------------------------------------------------------------------------
+
+  const effectiveTotalPages = useMemo(() => {
+    const count = displayBookmarks?.length ?? 0;
+    // Fallback to server value when we are *not* in a filtered/search view
+    if (!searchQuery) return totalPages;
+    return Math.max(1, Math.ceil(count / itemsPerPage));
+  }, [displayBookmarks?.length, searchQuery, totalPages, itemsPerPage]);
+
+  // When searching we avoid URL-based navigation (would trigger a full reload
+  // and ignore search results).  Instead we fall back to the in-memory
+  // <PaginationControl> component.
+  const useUrlPagination = typeof window !== "undefined" && !searchQuery;
+
+  const getCurrentPage = (): number => {
+    return searchQuery.trim() !== "" ? localSearchPage : currentPage;
+  };
+
+  // Client-side safe slicer (applies to ANY view when we have more than one
+  // page worth of items). This guarantees tag-search views correctly slice
+  // irrespective of the `tag` prop coming from SSR.
+  const paginatedSlice = (items: UnifiedBookmark[]): UnifiedBookmark[] => {
+    if (infiniteScrollActive) return items; // avoid slicing for infinite scroll when active
+    if (items.length <= itemsPerPage) return items;
+    const pageNum = getCurrentPage();
+    return items.slice((pageNum - 1) * itemsPerPage, pageNum * itemsPerPage);
+  };
+
+  // ---------------------------------------------------------------------------
+  // Keep `currentPage` in sync with URL navigation triggered by <Link> (i.e.,
+  // PaginationControlUrl).  This provides immediate visual feedback instead
+  // of waiting for the server round-trip.
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const match = pathname.match(/\/page\/(\d+)/);
+    const pageFromPath = match ? Number(match[1]) : 1;
+    if (!Number.isNaN(pageFromPath) && pageFromPath !== currentPage) {
+      goToPage(pageFromPath);
+    }
+    // `goToPage` is a stable callback from the pagination hook – safe omit.
+  }, [pathname, goToPage, currentPage]);
+
+  // ---------------------------------------------------------------------------
+  // Keep `localSearchPage` in sync with the URL (?page=N) *while a text search
+  // is active*.  This allows refresh / copy-link to land on the same page.
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (searchQuery.trim() === "") return; // Only relevant for search views
+
+    const pageParam = Number(searchParams.get("page"));
+    if (!Number.isNaN(pageParam) && pageParam > 0 && pageParam !== localSearchPage) {
+      setLocalSearchPage(Math.min(pageParam, effectiveTotalPages));
+    }
+  }, [searchQuery, searchParams, effectiveTotalPages, localSearchPage]);
+
+  // ---------------------------------------------------------------------------
+  // Clamp `localSearchPage` whenever the effective total shrinks (e.g. user
+  // narrows the query so there are fewer pages than before).
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (localSearchPage > effectiveTotalPages) {
+      setLocalSearchPage(effectiveTotalPages);
+    }
+  }, [localSearchPage, effectiveTotalPages]);
 
   return (
     <div className={`w-full px-4 sm:px-6 lg:px-8 ${className}`}>
@@ -446,12 +531,12 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       </div>
 
       {/* Pagination controls at the top right corner */}
-      {mounted && totalPages > 1 && (
+      {mounted && effectiveTotalPages > 1 && (
         <div className="mb-6 flex justify-end">
-          {typeof window !== "undefined" ? (
+          {useUrlPagination ? (
             <PaginationControlUrl
-              currentPage={currentPage}
-              totalPages={totalPages}
+              currentPage={getCurrentPage()}
+              totalPages={effectiveTotalPages}
               totalItems={totalItems}
               itemsPerPage={itemsPerPage}
               isLoading={isLoading || isLoadingMore}
@@ -459,8 +544,8 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
             />
           ) : (
             <PaginationControl
-              currentPage={currentPage}
-              totalPages={totalPages}
+              currentPage={getCurrentPage()}
+              totalPages={effectiveTotalPages}
               totalItems={totalItems}
               itemsPerPage={itemsPerPage}
               onPageChange={handlePageChange}
@@ -482,6 +567,11 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
                     return "Error loading bookmarks";
                   }
 
+                  // While search is in progress, show the query inline and move the ellipsis
+                  if (isSearching) {
+                    return searchQuery ? `Searching for ${searchQuery}…` : "Searching…";
+                  }
+
                   // When the user is actively searching or filtering by tag, we
                   // fall back to the *filtered* total because the dataset size
                   // genuinely changes from the user's perspective.
@@ -498,12 +588,13 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
                     return "No bookmarks found";
                   }
 
-                  const start = (currentPage - 1) * itemsPerPage + 1;
-                  const end = Math.min(currentPage * itemsPerPage, totalCount);
+                  const pageNum = getCurrentPage();
+                  const start = (pageNum - 1) * itemsPerPage + 1;
+                  const end = Math.min(pageNum * itemsPerPage, totalCount);
 
                   return `Showing ${start}-${end} of ${totalCount} bookmarks`;
                 })()}
-                {searchQuery && ` for "${searchQuery}"`}
+                {!isSearching && searchQuery && ` for ${searchQuery}`}
                 {selectedTag && ` tagged with "${selectedTag}"`}
               </p>
 
@@ -519,7 +610,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
             {isDevelopment && (
               <div className="mt-2 sm:mt-0 text-xs inline-flex items-center">
                 <span className="px-2 py-1 rounded-lg font-mono bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                  Page {currentPage}/{totalPages}
+                  Page {getCurrentPage()}/{effectiveTotalPages}
                 </span>
               </div>
             )}
@@ -536,6 +627,10 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
             <p className="text-red-600 dark:text-red-400 text-lg mb-2">Error loading bookmarks</p>
             <p className="text-red-500 dark:text-red-300 text-sm">{error?.message}</p>
           </div>
+        ) : isSearching ? (
+          <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
+            <Loader2 className="h-10 w-10 animate-spin text-gray-400 mx-auto" />
+          </div>
         ) : (displayBookmarks?.length ?? 0) === 0 && searchQuery ? (
           <div className="text-center py-16 px-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700">
             <p className="text-gray-400 dark:text-gray-500 text-lg mb-2">
@@ -547,13 +642,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
               {Array.isArray(displayBookmarks) &&
-                // If we have fewer items than the configured page size, it means
-                // we loaded only the current page (e.g. server-side render for
-                // page > 1). In that case, render everything without slicing.
-                (displayBookmarks.length <= itemsPerPage
-                  ? displayBookmarks
-                  : displayBookmarks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                ).map((bookmark) => {
+                paginatedSlice(displayBookmarks).map((bookmark) => {
                   // Debug: Log bookmark data for CLI bookmark
                   if (bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
                     console.log("[BookmarksWithPagination] CLI bookmark data:", {
@@ -572,7 +661,7 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
             </div>
 
             {/* Infinite scroll sentinel */}
-            {enableInfiniteScroll && (
+            {infiniteScrollActive && (
               <InfiniteScrollSentinel onIntersect={loadMore} loading={isLoadingMore} hasMore={hasMore} />
             )}
           </>
@@ -594,12 +683,12 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
       )}
 
       {/* Pagination controls at the bottom */}
-      {totalPages > 1 && (
+      {effectiveTotalPages > 1 && (
         <div className="mt-6 mb-6 flex justify-end">
-          {typeof window !== "undefined" ? (
+          {useUrlPagination ? (
             <PaginationControlUrl
-              currentPage={currentPage}
-              totalPages={totalPages}
+              currentPage={getCurrentPage()}
+              totalPages={effectiveTotalPages}
               totalItems={totalItems}
               itemsPerPage={itemsPerPage}
               isLoading={isLoading || isLoadingMore}
@@ -607,8 +696,8 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
             />
           ) : (
             <PaginationControl
-              currentPage={currentPage}
-              totalPages={totalPages}
+              currentPage={getCurrentPage()}
+              totalPages={effectiveTotalPages}
               totalItems={totalItems}
               itemsPerPage={itemsPerPage}
               onPageChange={handlePageChange}

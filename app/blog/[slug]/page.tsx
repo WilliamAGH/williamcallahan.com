@@ -13,6 +13,7 @@ import { createArticleMetadata, createSoftwareApplicationMetadata } from "@/lib/
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import type { ExtendedMetadata } from "@/types/seo";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { BlogArticle } from "../../../components/features/blog";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
@@ -235,10 +236,26 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
     const jsonLdData = generateSchemaGraph(schemaParams);
 
+    // Read CSP nonce from middleware-injected header
+    let nonce: string | undefined;
+    try {
+      const headersList = await headers();
+      const nonceValue = headersList.get("x-nonce");
+      if (nonceValue) {
+        nonce = nonceValue;
+      }
+    } catch (error) {
+      // headers() may fail in certain contexts (e.g., static generation)
+      console.warn("Failed to read headers for CSP nonce:", error instanceof Error ? error.message : String(error));
+    }
+
+    // Import MDXContent server component here at the page level
+    const { MDXContent } = await import("@/components/features/blog/blog-article/mdx-content");
+
     return (
       <>
-        <JsonLdScript data={jsonLdData} />
-        <BlogArticle post={post} />
+        <JsonLdScript data={jsonLdData} nonce={nonce} />
+        <BlogArticle post={post} mdxContent={<MDXContent content={post.content} />} />
       </>
     );
   } catch (error) {

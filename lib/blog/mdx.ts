@@ -78,7 +78,7 @@ async function sanitizeCoverImage(
   }
   if (typeof coverImageValue === "string" && coverImageValue.trim() !== "") {
     const trimmedValue = coverImageValue.trim();
-    
+
     // Check if it's a local blog post image path
     // eslint-disable-next-line s3/no-hardcoded-images -- This is a path prefix check, not a hardcoded image
     if (trimmedValue.startsWith("/images/posts/")) {
@@ -87,21 +87,27 @@ async function sanitizeCoverImage(
       if (filename) {
         // Remove extension to create base name for S3 lookup
         const baseName = filename.replace(/\.[^.]+$/, "");
-        
+
         try {
           // Import S3 utilities dynamically to avoid circular dependencies
           const { listS3Objects } = await import("@/lib/s3-utils");
           const { buildCdnUrl, getCdnConfigFromEnv } = await import("@/lib/utils/cdn-utils");
-          
+
           // List all objects in the blog posts S3 directory
           const s3Keys = await listS3Objects("images/other/blog-posts/");
-          
-          // Find matching S3 key (starts with baseName and underscore for hash)
-          const matchingKey = s3Keys.find(key => {
+
+          // Allow two naming conventions in S3:
+          // 1. Exact filename   -> my-cover.png
+          // 2. Hash-suffixed    -> my-cover_<hash>.png
+          // Both map back to the same front-matter reference.
+          const ext = path.extname(filename); // ".png", ".jpg", etc.
+
+          const matchingKey = s3Keys.find((key) => {
             const s3Filename = key.split("/").pop();
-            return s3Filename?.startsWith(`${baseName}_`);
+            if (!s3Filename) return false;
+            return s3Filename === filename || (s3Filename.startsWith(`${baseName}_`) && s3Filename.endsWith(ext));
           });
-          
+
           if (matchingKey) {
             // Build and return CDN URL
             const cdnConfig = getCdnConfigFromEnv();
@@ -116,7 +122,7 @@ async function sanitizeCoverImage(
         }
       }
     }
-    
+
     return trimmedValue;
   }
   console.warn(

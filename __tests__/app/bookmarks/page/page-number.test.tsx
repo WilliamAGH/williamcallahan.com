@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 // Manually mock the entire data access layer for this test suite
 jest.mock("@/lib/bookmarks/bookmarks-data-access.server", () => ({
   __esModule: true,
+  getBookmarksIndex: jest.fn().mockResolvedValue({ count: 1, totalPages: 1 }),
   getBookmarksPage: jest.fn().mockResolvedValue([]),
   getTagBookmarksPage: jest.fn().mockResolvedValue([]),
   getTagBookmarksIndex: jest.fn().mockResolvedValue({ count: 0, totalPages: 1 }),

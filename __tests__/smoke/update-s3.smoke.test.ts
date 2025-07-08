@@ -22,6 +22,7 @@ import * as path from "node:path";
 describe("Update S3 Script Smoke Tests", () => {
   /** Resolved path to target data updater script for reference validation */
   const scriptPath = path.join(__dirname, "../../scripts/data-updater.ts");
+  const bunPath = process.env.BUN_PATH || "bun";
 
   /** Extended timeout accommodation for potential script execution scenarios */
   jest.setTimeout(30000);
@@ -32,7 +33,7 @@ describe("Update S3 Script Smoke Tests", () => {
    */
   it("should display help message", () => {
     /** Execute script with --help flag and capture output */
-    const stdout = execSync(`bun ${scriptPath} --help`, {
+    const stdout = execSync(`${bunPath} ${scriptPath} --help`, {
       encoding: "utf8",
       env: { ...process.env, S3_BUCKET: "test-bucket" },
     });
@@ -50,7 +51,7 @@ describe("Update S3 Script Smoke Tests", () => {
    */
   it("should run with DRY_RUN environment variable", () => {
     /** Execute script in dry-run mode and capture output */
-    const stdout = execSync(`bun ${scriptPath}`, {
+    const stdout = execSync(`${bunPath} ${scriptPath}`, {
       encoding: "utf8",
       env: { ...process.env, DRY_RUN: "true", S3_BUCKET: "test-bucket" },
     });
@@ -76,7 +77,7 @@ describe("Update S3 Script Smoke Tests", () => {
 
     try {
       // Use test limit and dry run to ensure quick execution
-      stdout = execSync(`bun ${scriptPath}`, {
+      stdout = execSync(`${bunPath} ${scriptPath}`, {
         encoding: "utf8",
         env: { ...cleanEnv, DRY_RUN: "true", S3_TEST_LIMIT: "1" },
         timeout: 5000, // 5 second timeout
@@ -98,7 +99,7 @@ describe("Update S3 Script Smoke Tests", () => {
    */
   it("should accept individual update flags", () => {
     /** Execute script with specific flags in dry-run mode */
-    const stdout = execSync(`bun ${scriptPath} --bookmarks --logos`, {
+    const stdout = execSync(`${bunPath} ${scriptPath} --bookmarks --logos`, {
       encoding: "utf8",
       env: { ...process.env, DRY_RUN: "true", S3_BUCKET: "test-bucket" },
     });
@@ -115,7 +116,7 @@ describe("Update S3 Script Smoke Tests", () => {
    */
   it("should handle test limit environment variable", () => {
     /** Execute script with test limit set */
-    const stdout = execSync(`bun ${scriptPath}`, {
+    const stdout = execSync(`${bunPath} ${scriptPath}`, {
       encoding: "utf8",
       env: { ...process.env, DRY_RUN: "true", S3_BUCKET: "test-bucket", S3_TEST_LIMIT: "5" },
     });
@@ -131,7 +132,7 @@ describe("Update S3 Script Smoke Tests", () => {
     /** Execute script with immediate exit to test module loading */
     let exitCode = 0;
     try {
-      execSync(`bun ${scriptPath} --help`, {
+      execSync(`${bunPath} ${scriptPath} --help`, {
         encoding: "utf8",
         env: { ...process.env, S3_BUCKET: "test-bucket" },
       });

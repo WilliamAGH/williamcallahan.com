@@ -19,6 +19,19 @@ import { memoryPressureMiddleware } from "./lib/middleware/memory-pressure";
 
 import type { RequestLog } from "@/types/lib";
 
+// Dynamically import hashes and handle cases where the file doesn't exist
+async function getCspHashes() {
+  try {
+    const hashes = await import("@/config/csp-hashes.json", {
+      assert: { type: "json" },
+    });
+    return hashes.default;
+  } catch (error) {
+    console.warn("[CSP] Could not load csp-hashes.json. This is expected on the first build.", error);
+    return { scriptSrc: [], styleSrc: [] };
+  }
+}
+
 /**
  * Gets the real client IP from various headers
  * Prioritizes Cloudflare headers, then standard proxy headers
@@ -97,13 +110,26 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     response.headers.set(header, value);
   }
 
-  // Build and set Content-Security-Policy from constants
-  const csp = Object.entries(CSP_DIRECTIVES)
+  // Build and set Content-Security-Policy using build-time hashes (inline scripts/styles are allowed via 'unsafe-inline')
+  const cspHashes = await getCspHashes();
+
+  // Combine hashes from the build with the base directives
+  const scriptSrc = [...CSP_DIRECTIVES.scriptSrc, ...cspHashes.scriptSrc];
+  const styleSrc = [...CSP_DIRECTIVES.styleSrc, ...cspHashes.styleSrc];
+
+  const cspDirectives: typeof CSP_DIRECTIVES = {
+    ...CSP_DIRECTIVES,
+    scriptSrc,
+    styleSrc,
+  };
+
+  const csp = Object.entries(cspDirectives)
     .map(([key, sources]) => {
       const directive = key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
       return `${directive} ${sources.join(" ")}`;
     })
     .join("; ");
+
   response.headers.set("Content-Security-Policy", csp);
 
   // Add caching headers for static assets and analytics scripts

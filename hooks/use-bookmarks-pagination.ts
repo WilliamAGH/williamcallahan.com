@@ -21,14 +21,23 @@ import type {
 // `any` or cause type-safety issues.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const fetcher: Fetcher<BookmarksResponse, [string, number, number, string?]> = async ([requestKey, page, limit, tag]) => {
+const fetcher: Fetcher<BookmarksResponse, [string, number, number, string?]> = async ([
+  requestKey,
+  page,
+  limit,
+  tag,
+]) => {
   // The first and fourth tuple elements are not used within the fetcher, but we must
   // reference them to comply with the no-unused-vars rule without relying on underscore
   // prefixes (forbidden by project standards).
   void requestKey;
   void tag;
 
-  const response = await fetch(`/api/bookmarks?page=${page}&limit=${limit}`, { cache: "no-store" });
+  // Using SWR already provides an in-memory stale-while-revalidate layer. We
+  // therefore avoid forcing `no-store`, allowing the browser to reuse cached
+  // responses when available. On the server we hint to Next.js' data cache to
+  // revalidate the resource every 60 seconds.
+  const response = await fetch(`/api/bookmarks?page=${page}&limit=${limit}`);
 
   if (!response.ok) {
     const errorBody = await response.text();
@@ -56,7 +65,10 @@ export function useBookmarksPagination({
 }: UseBookmarksPaginationOptions = {}): UseBookmarksPaginationReturn {
   const [currentPage, setCurrentPage] = useState(initialPage);
 
-  const getKey = (pageIndex: number, previousPageData: BookmarksResponse | null): [string, number, number, string?] | null => {
+  const getKey = (
+    pageIndex: number,
+    previousPageData: BookmarksResponse | null,
+  ): [string, number, number, string?] | null => {
     const page = pageIndex + 1;
     if (previousPageData && !previousPageData.meta.pagination.hasNext) return null;
 

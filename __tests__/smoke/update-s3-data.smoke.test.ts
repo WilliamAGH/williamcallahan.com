@@ -46,15 +46,9 @@ describe("scripts/data-updater.ts Smoke Test", () => {
       // FULL mode runs without restrictions
 
       try {
-        // Use bun if available in PATH, otherwise fall back to tsx
-        let command: string;
-        try {
-          execSync("which bun", { stdio: "ignore" });
-          command = `bun ${SCRIPT_PATH}`;
-        } catch {
-          // If bun is not available, use tsx which is more portable than ts-node
-          command = `npx tsx ${SCRIPT_PATH}`;
-        }
+        // Use environment variable or default to 'bun' in PATH
+        const bunPath = process.env.BUN_PATH || "bun";
+        const command = `${bunPath} ${SCRIPT_PATH}`;
 
         stdout = execSync(command, {
           env: envVars,

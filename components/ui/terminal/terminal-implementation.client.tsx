@@ -156,31 +156,33 @@ export function Terminal() {
   // Effect to prevent page scrolling when terminal has focus or is being interacted with
   useEffect(() => {
     let terminalContainer: Element | null = null;
-    
+
     // We need to wait for the ref to be available
     const checkAndSetup = () => {
       terminalContainer = scrollContainerRef.current?.closest('[data-testid="terminal-container"]') || null;
     };
-    
+
     // Check immediately and after a short delay
     checkAndSetup();
     const setupTimer = setTimeout(checkAndSetup, 100);
-    
+
     const handleWindowKeyDown = (e: KeyboardEvent) => {
       // Re-check in case the ref wasn't available initially
       if (!terminalContainer) {
         checkAndSetup();
       }
-      
+
       // If the terminal is focused or contains the active element, prevent arrow key scrolling
-      const isTerminalActive = terminalContainer && (
-        terminalContainer.contains(document.activeElement) || 
-        document.activeElement === terminalContainer ||
-        isTerminalFocused
-      );
-      
+      const isTerminalActive =
+        terminalContainer &&
+        (terminalContainer.contains(document.activeElement) ||
+          document.activeElement === terminalContainer ||
+          isTerminalFocused);
+
       if (isTerminalActive) {
-        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(e.key)) {
+        if (
+          ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End", " "].includes(e.key)
+        ) {
           // Only prevent default to stop page scrolling, but let the event propagate
           e.preventDefault();
         }
@@ -192,13 +194,13 @@ export function Terminal() {
       if (!terminalContainer) {
         checkAndSetup();
       }
-      
+
       if (terminalContainer && e.target instanceof Node && terminalContainer.contains(e.target)) {
         const scrollContainer = scrollContainerRef.current;
         if (scrollContainer) {
           const canScrollUp = scrollContainer.scrollTop > 0;
           const canScrollDown = scrollContainer.scrollTop < scrollContainer.scrollHeight - scrollContainer.clientHeight;
-          
+
           // Only prevent page scrolling if terminal can't scroll in that direction
           if ((e.deltaY < 0 && !canScrollUp) || (e.deltaY > 0 && !canScrollDown)) {
             e.preventDefault();
@@ -208,15 +210,15 @@ export function Terminal() {
     };
 
     // Add listeners in capture phase with highest priority
-    window.addEventListener('keydown', handleWindowKeyDown, { capture: true, passive: false });
-    document.addEventListener('keydown', handleWindowKeyDown, { capture: true, passive: false });
-    window.addEventListener('wheel', handleWheel, { capture: true, passive: false });
-    
+    window.addEventListener("keydown", handleWindowKeyDown, { capture: true, passive: false });
+    document.addEventListener("keydown", handleWindowKeyDown, { capture: true, passive: false });
+    window.addEventListener("wheel", handleWheel, { capture: true, passive: false });
+
     return () => {
       clearTimeout(setupTimer);
-      window.removeEventListener('keydown', handleWindowKeyDown, { capture: true });
-      document.removeEventListener('keydown', handleWindowKeyDown, { capture: true });
-      window.removeEventListener('wheel', handleWheel, { capture: true });
+      window.removeEventListener("keydown", handleWindowKeyDown, { capture: true });
+      document.removeEventListener("keydown", handleWindowKeyDown, { capture: true });
+      window.removeEventListener("wheel", handleWheel, { capture: true });
     };
   }, [isTerminalFocused]);
 
@@ -225,11 +227,11 @@ export function Terminal() {
     if (selection && scrollContainerRef.current) {
       const handleContainerKeyDown = (e: KeyboardEvent) => {
         // Forward navigation keys to SelectionView when it's active
-        if (['ArrowUp', 'ArrowDown', 'Enter', 'Escape'].includes(e.key)) {
+        if (["ArrowUp", "ArrowDown", "Enter", "Escape"].includes(e.key)) {
           const selectionView = scrollContainerRef.current?.querySelector('[data-testid="selection-view"]');
           if (selectionView && document.activeElement !== selectionView) {
             // Create and dispatch a synthetic keyboard event to the SelectionView
-            const syntheticEvent = new KeyboardEvent('keydown', {
+            const syntheticEvent = new KeyboardEvent("keydown", {
               key: e.key,
               code: e.code,
               keyCode: e.keyCode,
@@ -248,10 +250,10 @@ export function Terminal() {
 
       // Use capture phase to intercept events before they reach other elements
       const container = scrollContainerRef.current;
-      container.addEventListener('keydown', handleContainerKeyDown, { capture: true });
-      
+      container.addEventListener("keydown", handleContainerKeyDown, { capture: true });
+
       return () => {
-        container.removeEventListener('keydown', handleContainerKeyDown, { capture: true });
+        container.removeEventListener("keydown", handleContainerKeyDown, { capture: true });
       };
     }
   }, [selection]);
@@ -359,7 +361,13 @@ export function Terminal() {
                 scrollContainerRef={scrollContainerRef}
               />
             ) : (
-              <CommandInput ref={inputRef} value={input} onChange={setInput} onSubmit={handleSubmit} disabled={isSubmitting} />
+              <CommandInput
+                ref={inputRef}
+                value={input}
+                onChange={setInput}
+                onSubmit={handleSubmit}
+                disabled={isSubmitting}
+              />
             )}
           </div>
         </section>

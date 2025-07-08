@@ -5,6 +5,7 @@
 import {
   getBookmarks as getBookmarksInternal,
   getBookmarksByTag as getBookmarksByTagInternal,
+  getBookmarksIndex as getBookmarksIndexInternal,
   getBookmarksPage as getBookmarksPageInternal,
   refreshAndPersistBookmarks,
   setRefreshBookmarksCallback,
@@ -55,6 +56,5 @@ export async function getBookmarksPage(pageNumber: number): Promise<UnifiedBookm
  */
 export async function getBookmarksIndex() {
   initializeBookmarksDataAccess();
-  const { getBookmarksIndex: getBookmarksIndexInternal } = await import("./bookmarks-data-access.server");
   return getBookmarksIndexInternal();
 }

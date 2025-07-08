@@ -14,7 +14,7 @@ import type { JSX } from "react";
 
 import type { JsonLdScriptProps } from "@/types";
 
-export function JsonLdScript({ data }: JsonLdScriptProps): JSX.Element {
+export function JsonLdScript({ data, nonce }: JsonLdScriptProps): JSX.Element {
   /**
    * JSON-LD must be embedded using dangerouslySetInnerHTML to avoid issues
    * with the HTML parser prematurely closing the <script> tag when the JSON
@@ -29,6 +29,8 @@ export function JsonLdScript({ data }: JsonLdScriptProps): JSX.Element {
   return (
     <script
       type="application/ld+json"
+      // Attach nonce for CSP compliance
+      {...(nonce ? { nonce } : {})}
       // biome-ignore lint/security/noDangerouslySetInnerHtml: Necessary for embedding JSON-LD, and the content is sanitized.
       dangerouslySetInnerHTML={{ __html: json }}
     />

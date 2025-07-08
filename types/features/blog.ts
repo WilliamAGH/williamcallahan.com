@@ -26,6 +26,8 @@ import type { BlogPost } from "../blog";
 export interface BlogArticleProps {
   /** The blog post data to render */
   post: BlogPost;
+  /** Pre-rendered MDX content from server component */
+  mdxContent?: ReactNode;
   /** JSON-LD structured data for the blog post */
   jsonLd?: WithContext<Article>;
   /** Optional CSS classes */
@@ -176,6 +178,8 @@ export interface ArticleGalleryProps {
 export interface MDXContentProps {
   /** The serialized MDX content object */
   content: import("next-mdx-remote").MDXRemoteSerializeResult;
+  /** CSP nonce propagated from the server */
+  nonce?: string;
 }
 
 /**
