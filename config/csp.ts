@@ -11,6 +11,7 @@ export const CSP_DIRECTIVES = {
   defaultSrc: ["'self'"],
   scriptSrc: [
     "'self'",
+    "'unsafe-inline'",
     "https://umami.iocloudhost.net",
     "https://plausible.iocloudhost.net",
     "https://static.cloudflareinsights.com",
@@ -47,7 +48,7 @@ export const CSP_DIRECTIVES = {
     "https://react-tweet.vercel.app",
     "https:",
   ],
-  styleSrc: ["'self'", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com"],
+  styleSrc: ["'self'", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com", "'unsafe-inline'"],
   fontSrc: ["'self'", "data:", "https://platform.twitter.com", "https://*.twimg.com", "https://*.x.com"],
   frameSrc: ["https://platform.twitter.com", "https://*.x.com"],
   frameAncestors: ["'none'"],

@@ -110,21 +110,20 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     response.headers.set(header, value);
   }
 
-  // Build and set Content-Security-Policy with per-request nonce and build-time hashes
-  const nonce = generateNonce();
+  // Build and set Content-Security-Policy using build-time hashes (inline scripts/styles are allowed via 'unsafe-inline')
   const cspHashes = await getCspHashes();
 
   // Combine hashes from the build with the base directives
-  const scriptSrc = [...CSP_DIRECTIVES.scriptSrc, ...cspHashes.scriptSrc, `'nonce-${nonce}'`];
-  const styleSrc = [...CSP_DIRECTIVES.styleSrc, ...cspHashes.styleSrc, `'nonce-${nonce}'`];
+  const scriptSrc = [...CSP_DIRECTIVES.scriptSrc, ...cspHashes.scriptSrc];
+  const styleSrc = [...CSP_DIRECTIVES.styleSrc, ...cspHashes.styleSrc];
 
-  const cspDirectivesWithNonce: typeof CSP_DIRECTIVES = {
+  const cspDirectives: typeof CSP_DIRECTIVES = {
     ...CSP_DIRECTIVES,
     scriptSrc,
     styleSrc,
   };
 
-  const csp = Object.entries(cspDirectivesWithNonce)
+  const csp = Object.entries(cspDirectives)
     .map(([key, sources]) => {
       const directive = key.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
       return `${directive} ${sources.join(" ")}`;
@@ -132,9 +131,6 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     .join("; ");
 
   response.headers.set("Content-Security-Policy", csp);
-
-  // Expose nonce so server components can read it via next/headers
-  response.headers.set("X-Nonce", nonce);
 
   // Add caching headers for static assets and analytics scripts
   const url = request.nextUrl.pathname;
@@ -241,12 +237,4 @@ export const config = {
     "/((?!api|_next/static|favicon.ico|robots.txt|sitemap.xml).*)",
     "/_next/image(.*)",
   ],
-};
-
-// Generate a base64 nonce for CSP – 128-bit entropy
-const generateNonce = (): string => {
-  const array = new Uint8Array(16);
-  crypto.getRandomValues(array);
-  // Convert to base64 (Edge runtime supports btoa)
-  return btoa(String.fromCharCode(...array));
 };
