@@ -2,9 +2,20 @@
  * Post-build script to generate Content Security Policy (CSP) hashes.
  *
  * This script scans the Next.js build output for inline scripts and styles,
- * computes their SHA256 hashes, and saves them to a JSON file. This allows
- * for a strict CSP without 'unsafe-inline', enhancing application security.
- * It is executed automatically after `next build`.
+ * computes their SHA256 hashes, and saves them to config/csp-hashes.json.
+ * This allows for a strict CSP without 'unsafe-inline', enhancing application security.
+ * 
+ * @fileoverview Generates csp-hashes.json containing SHA256 hashes of all inline content
+ * @module generate-csp-hashes
+ * 
+ * @example Output format in config/csp-hashes.json:
+ * {
+ *   "scriptSrc": ["'sha256-abc123...'", "'sha256-def456...'"],
+ *   "styleSrc": ["'sha256-ghi789...'", "'sha256-jkl012...'"]
+ * }
+ * 
+ * @note This script is executed automatically after `next build` via package.json scripts.
+ *       The generated file is tracked in git and required for the middleware to function.
  */
 
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
@@ -84,7 +95,19 @@ function calculateHash(content: string): string {
 }
 
 /**
- * Main function to generate CSP hashes.
+ * Main function to generate CSP hashes for all inline content in the Next.js build.
+ * 
+ * Workflow:
+ * 1. Scans .next/server/app directory for all HTML files
+ * 2. Extracts inline <script> and <style> content from each HTML file
+ * 3. Computes SHA256 hash for each unique inline content
+ * 4. Writes the hashes to config/csp-hashes.json
+ * 
+ * The generated file structure:
+ * - scriptSrc: Array of CSP-formatted hashes for inline scripts
+ * - styleSrc: Array of CSP-formatted hashes for inline styles
+ * 
+ * @throws {Error} Exits with code 1 if hash generation fails
  */
 function generateHashes() {
   console.log(`${LOG_PREFIX} Starting CSP hash generation...`);
@@ -116,16 +139,20 @@ function generateHashes() {
     styles.forEach((style) => styleHashes.add(calculateHash(style)));
   }
 
+  // Prepare output structure matching the expected format
   const output = {
     scriptSrc: Array.from(scriptHashes),
     styleSrc: Array.from(styleHashes),
   };
 
+  // Ensure the config directory exists
   const outputDir = resolve(outputFile, "..");
   if (!existsSync(outputDir)) {
     mkdirSync(outputDir, { recursive: true });
   }
 
+  // Write the hashes to config/csp-hashes.json
+  // This file is imported by middleware.ts to apply CSP headers
   writeFileSync(outputFile, JSON.stringify(output, null, 2));
 
   console.log(

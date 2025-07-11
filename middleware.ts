@@ -19,7 +19,24 @@ import { memoryPressureMiddleware } from "./lib/middleware/memory-pressure";
 
 import type { RequestLog } from "@/types/lib";
 
-// Dynamically import hashes and handle cases where the file doesn't exist
+/**
+ * Dynamically imports Content Security Policy (CSP) hashes from the auto-generated file.
+ * 
+ * The csp-hashes.json file is created post-build by scripts/generate-csp-hashes.ts
+ * and contains SHA256 hashes of all inline scripts and styles found in the Next.js
+ * build output. These hashes enable a strict CSP policy without using 'unsafe-inline'.
+ * 
+ * @returns {Promise<{scriptSrc: string[], styleSrc: string[]}>} Object containing arrays of CSP hash strings
+ *          - scriptSrc: Array of SHA256 hashes for inline scripts (e.g., "'sha256-abc123...'")
+ *          - styleSrc: Array of SHA256 hashes for inline styles
+ * 
+ * @example
+ * const hashes = await getCspHashes();
+ * // Returns: { scriptSrc: ["'sha256-...'", "'sha256-...'"], styleSrc: ["'sha256-...'"] }
+ * 
+ * @note The file may not exist during the first build, which is expected behavior.
+ *       In this case, empty arrays are returned for both scriptSrc and styleSrc.
+ */
 async function getCspHashes() {
   try {
     const hashes = await import("@/config/csp-hashes.json", {
@@ -110,10 +127,12 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     response.headers.set(header, value);
   }
 
-  // Build and set Content-Security-Policy using build-time hashes (inline scripts/styles are allowed via 'unsafe-inline')
+  // Build and set Content-Security-Policy using build-time hashes
+  // The csp-hashes.json file contains SHA256 hashes of all inline scripts/styles from the build output
   const cspHashes = await getCspHashes();
 
-  // Combine hashes from the build with the base directives
+  // Merge auto-generated hashes with base CSP directives
+  // This allows specific inline scripts/styles while maintaining security
   const scriptSrc = [...CSP_DIRECTIVES.scriptSrc, ...cspHashes.scriptSrc];
   const styleSrc = [...CSP_DIRECTIVES.styleSrc, ...cspHashes.styleSrc];
 
