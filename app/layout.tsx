@@ -13,6 +13,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
+import Script from "next/script";
 import "./globals.css";
 // Import our custom code block styling
 import "./code-blocks.css";
@@ -126,6 +127,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           This is important for modern browsers to respect user's theme preference.
         */}
         <meta name="color-scheme" content="light dark" />
+
+        {/* Legacy fix – only apply when the native push is non-writable */}
+        <Script id="webpack-readonly-push-fix" strategy="beforeInteractive">
+          {`(() => {
+  try {
+    const wq = (typeof self !== 'undefined' ? self : window)["webpackChunk_N_E"];
+    if (!wq || !Array.isArray(wq)) return;
+
+    const desc = Object.getOwnPropertyDescriptor(wq, "push");
+    // Only patch if push exists AND is *not* writable (Chrome ≤63 bug)
+    if (desc && desc.writable === false) {
+      Object.defineProperty(wq, "push", {
+        configurable: true,
+        enumerable: false,
+        writable: true,
+        value: Array.prototype.push.bind(wq),
+      });
+    }
+  } catch {/* ignore – safety shim only */}
+})();`}
+        </Script>
       </head>
       <body className={`${inter.className} overflow-x-hidden`} suppressHydrationWarning>
         <Providers>

@@ -1,4 +1,20 @@
-// Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
+/**
+ * Smoke-tests the blog MDX pipeline – verifies every post parses via
+ * `getMDXPost`, has a valid slug, and that the posts directory is non-empty.
+ * Network calls are mocked (`listS3Objects`) so it runs offline; suite timeout
+ * set to 60 s for slow machines.
+ */
+
+// Suite-specific timeout for slow environments
+jest.setTimeout(60_000);
+
+// Mock the S3 directory listing to avoid network latency/timeouts
+jest.mock("@/lib/s3-utils", () => ({
+  __esModule: true,
+  ...jest.requireActual("@/lib/s3-utils"),
+  listS3Objects: jest.fn().mockResolvedValue([]),
+}));
+
 import type { BlogFrontmatter } from "@/types/test";
 import fs from "node:fs/promises";
 import path from "node:path";
