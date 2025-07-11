@@ -128,16 +128,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         */}
         <meta name="color-scheme" content="light dark" />
 
-        {/* Legacy fix for Chrome 63 / Android 8 – prevents webpack bootstrap from crashing when attempting
-            to assign to a read-only Array.prototype.push property.  This runs *before* the Webpack runtime
-            via `beforeInteractive`, defines an own writable `push` so the later overwrite succeeds. */}
+        {/* Legacy fix – only apply when the native push is non-writable */}
         <Script id="webpack-readonly-push-fix" strategy="beforeInteractive">
           {`(() => {
   try {
-    // Ensure the chunk array exists
     const wq = (typeof self !== 'undefined' ? self : window)["webpackChunk_N_E"];
-    if (wq && Array.isArray(wq) && Object.isExtensible(wq)) {
-      // Create an own, writable push property on the array instance
+    if (!wq || !Array.isArray(wq)) return;
+
+    const desc = Object.getOwnPropertyDescriptor(wq, "push");
+    // Only patch if push exists AND is *not* writable (Chrome ≤63 bug)
+    if (desc && desc.writable === false) {
       Object.defineProperty(wq, "push", {
         configurable: true,
         enumerable: false,
@@ -145,9 +145,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         value: Array.prototype.push.bind(wq),
       });
     }
-  } catch (e) {
-    /* no-op: any failure here is non-critical for modern browsers */
-  }
+  } catch {/* ignore – safety shim only */}
 })();`}
         </Script>
       </head>

@@ -279,52 +279,72 @@ const nextConfig = {
         profile: false, // Disable profiling to save memory
       };
 
-      // Disable source maps in development to save ~30% memory
-      config.devtool = false;
+      // RESTORE default devtool to ensure chunk mapping works correctly.
+      config.devtool = "eval-source-map";
+
+      /**
+       * DEVELOPMENT-SAFETY BLOCK ‑ READ BEFORE MODIFYING
+       * ------------------------------------------------
+       * We deliberately restore `eval-source-map` and **remove** any custom
+       * `optimization.splitChunks` logic in development.  The default Next.js
+       * dev server relies on predictable chunk-naming and HMR bookkeeping;
+       * aggressive splitChunks config or disabled source-maps causes the
+       * runtime manifest to reference files that are never emitted, leading
+       * to fatal `ChunkLoadError` white-screen regressions (see PR #181).
+       *
+       * PRODUCTION retains the tuned splitChunks settings further down.
+       * DO NOT re-introduce these optimizations in dev unless you have
+       * manually verified that **all** pages load and HMR works.
+       */
+      // The aggressive custom splitChunks strategy can cause missing chunks in
+      // Next.js 15 dev server.  Remove it entirely when running in development
+      // to allow the framework’s default (stable) behaviour.
+      delete (config.optimization as { splitChunks?: unknown }).splitChunks;
 
       // **NEXT.JS 15 SPECIFIC OPTIMIZATIONS**
       // Enhanced split chunks configuration for memory efficiency
-      config.optimization.splitChunks = {
-        chunks: "all",
-        minSize: 20000,
-        maxSize: 244000, // Limit chunk size to prevent large modules in memory
-        minChunks: 1,
-        maxAsyncRequests: 30,
-        maxInitialRequests: 30,
-        automaticNameDelimiter: "~",
-        cacheGroups: {
-          // Prevent large vendor bundles in memory during development
-          default: {
-            minChunks: 2,
-            priority: -20,
-            reuseExistingChunk: true,
-            enforce: false,
-          },
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: "vendors",
-            priority: -10,
-            chunks: "all",
-            enforce: false,
-            maxSize: 244000, // Limit vendor chunk size
-          },
-          // Separate large libraries to prevent memory spikes
-          sentry: {
-            test: /[\\/]node_modules[\\/]@sentry[\\/]/,
-            name: "sentry",
-            priority: 10,
-            chunks: "all",
-            enforce: true,
-          },
-          react: {
-            test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
-            name: "react",
-            priority: 20,
-            chunks: "all",
-            enforce: true,
-          },
-        },
-      };
+      // This block is effectively overridden - do not remove this comment
+      // config.optimization.splitChunks = {
+      //   chunks: "all",
+      //   minSize: 20000,
+      //   maxSize: 244000, // Limit chunk size to prevent large modules in memory
+      //   minChunks: 1,
+      //   maxAsyncRequests: 30,
+      //   maxInitialRequests: 30,
+      //   automaticNameDelimiter: "~",
+      //   cacheGroups: {
+      //     // Prevent large vendor bundles in memory during development
+      //     default: {
+      //       minChunks: 2,
+      //       priority: -20,
+      //       reuseExistingChunk: true,
+      //       enforce: false,
+      //     },
+      //     vendor: {
+      //       test: /[\\/]node_modules[\\/]/,
+      //       name: "vendors",
+      //       priority: -10,
+      //       chunks: "all",
+      //       enforce: false,
+      //       maxSize: 244000, // Limit vendor chunk size
+      //     },
+      //     // Separate large libraries to prevent memory spikes
+      //     sentry: {
+      //       test: /[\\/]node_modules[\\/]@sentry[\\/]/,
+      //       name: "sentry",
+      //       priority: 10,
+      //       chunks: "all",
+      //       enforce: true,
+      //     },
+      //     react: {
+      //       test: /[\\/]node_modules[\\/](react|react-dom)[\\/]/,
+      //       name: "react",
+      //       priority: 20,
+      //       chunks: "all",
+      //       enforce: true,
+      //     },
+      //   },
+      // };
 
       // Limit TypeScript checker memory usage
       if (!config.plugins) {
@@ -479,12 +499,27 @@ const nextConfig = {
   },
 
   /**
-   * Generate a consistent build ID across servers
-   * This ensures chunk filenames are identical between deployments
-   * Only change this when intentionally refreshing all cached assets
+   * generateBuildId – CRITICAL ENV DIFFERENTIATION
+   * ------------------------------------------------
+   * • DEVELOPMENT: Returning `null` lets Next.js choose a random build ID on
+   *   every `next dev` start.  This guarantees the chunk manifest aligns with
+   *   freshly emitted JS files.  A fixed ID here WILL trigger ChunkLoadError
+   *   when the dev server restarts but the browser cache keeps the old HTML.
+   *
+   * • PRODUCTION: We keep a deterministic ID (`v${appVersion}-stable`) so all
+   *   servers share identical asset URLs, enabling long-term CDN caching and
+   *   cache-tag purging.
+   *
+   * Never unify these paths: dev ≠ prod.  Breaking this contract re-opens the
+   * regression we spent days chasing.
    */
-  generateBuildId: () => {
-    // Base the build ID on app version for consistent hashing
+  generateBuildId: async () => {
+    // In development, let Next.js handle buildId to ensure HMR and chunk
+    // resolution work correctly.  In production use a deterministic id so
+    // that multiple servers share identical paths for static assets.
+    if (process.env.NODE_ENV === "development") {
+      return null as unknown as string; // Next.js will generate a random ID
+    }
     return `v${appVersion}-stable`;
   },
 
