@@ -13,6 +13,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Suspense } from "react";
+import Script from "next/script";
 import "./globals.css";
 // Import our custom code block styling
 import "./code-blocks.css";
@@ -126,6 +127,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           This is important for modern browsers to respect user's theme preference.
         */}
         <meta name="color-scheme" content="light dark" />
+
+        {/* Legacy fix for Chrome 63 / Android 8 – prevents webpack bootstrap from crashing when attempting
+            to assign to a read-only Array.prototype.push property.  This runs *before* the Webpack runtime
+            via `beforeInteractive`, defines an own writable `push` so the later overwrite succeeds. */}
+        <Script id="webpack-readonly-push-fix" strategy="beforeInteractive">
+          {`(() => {
+  try {
+    // Ensure the chunk array exists
+    const wq = (self as unknown as Record<string, unknown>)["webpackChunk_N_E"] as unknown[] | undefined;
+    if (wq && Object.isExtensible(wq)) {
+      // Create an own, writable push property on the array instance
+      Object.defineProperty(wq, "push", {
+        configurable: true,
+        enumerable: false,
+        writable: true,
+        value: Array.prototype.push.bind(wq),
+      });
+    }
+  } catch {
+    /* no-op: any failure here is non-critical for modern browsers */
+  }
+})();`}
+        </Script>
       </head>
       <body className={`${inter.className} overflow-x-hidden`} suppressHydrationWarning>
         <Providers>
