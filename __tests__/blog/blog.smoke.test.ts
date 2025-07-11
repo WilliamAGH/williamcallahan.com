@@ -1,3 +1,12 @@
+// Increase timeout for slower environments (e.g., in-flight internet)
+jest.setTimeout(60_000);
+// Mock S3 list call so smoke tests do not depend on network connectivity
+jest.mock("@/lib/s3-utils", () => ({
+  __esModule: true,
+  ...jest.requireActual("@/lib/s3-utils"),
+  listS3Objects: jest.fn().mockResolvedValue([]),
+}));
+
 // Jest provides describe, it, expect, beforeEach, afterEach, beforeAll, afterAll globally
 import type { BlogFrontmatter } from "@/types/test";
 import fs from "node:fs/promises";
