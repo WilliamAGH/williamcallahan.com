@@ -27,7 +27,8 @@ const prefix: string = process.argv[2] ?? "";
       console.log(keys.slice(0, 10));
     }
   } catch (error: unknown) {
-    console.error("[debug-list-s3] Error listing objects:", (error as Error).message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("[debug-list-s3] Error listing objects:", errorMessage);
     process.exitCode = 1;
   }
 })();
