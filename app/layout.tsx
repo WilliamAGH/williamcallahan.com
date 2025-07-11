@@ -135,8 +135,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {`(() => {
   try {
     // Ensure the chunk array exists
-    const wq = (self as unknown as Record<string, unknown>)["webpackChunk_N_E"] as unknown[] | undefined;
-    if (wq && Object.isExtensible(wq)) {
+    const wq = (typeof self !== 'undefined' ? self : window)["webpackChunk_N_E"];
+    if (wq && Array.isArray(wq) && Object.isExtensible(wq)) {
       // Create an own, writable push property on the array instance
       Object.defineProperty(wq, "push", {
         configurable: true,
@@ -145,7 +145,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         value: Array.prototype.push.bind(wq),
       });
     }
-  } catch {
+  } catch (e) {
     /* no-op: any failure here is non-critical for modern browsers */
   }
 })();`}
