@@ -131,21 +131,46 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Legacy fix – only apply when the native push is non-writable */}
         <Script id="webpack-readonly-push-fix" strategy="beforeInteractive">
           {`(() => {
-  try {
-    const wq = (typeof self !== 'undefined' ? self : window)["webpackChunk_N_E"];
-    if (!wq || !Array.isArray(wq)) return;
+  const root = typeof self !== 'undefined' ? self : window;
 
-    const desc = Object.getOwnPropertyDescriptor(wq, "push");
-    // Only patch if push exists AND is *not* writable (Chrome ≤63 bug)
-    if (desc && desc.writable === false) {
-      Object.defineProperty(wq, "push", {
-        configurable: true,
-        enumerable: false,
-        writable: true,
-        value: Array.prototype.push.bind(wq),
-      });
+  /**
+   * Attempt to make webpackChunk_N_E.push writable (or add it) in a way that
+   * never throws and runs at least twice: once immediately and once after the
+   * Webpack runtime has executed.  This guards against timing races in Safari
+   * where the non-writable own property sometimes appears *after* our first
+   * check.
+   */
+  function patchPush() {
+    try {
+      const arr = root["webpackChunk_N_E"];
+      if (!Array.isArray(arr)) return; // nothing to fix yet
+
+      const desc = Object.getOwnPropertyDescriptor(arr, "push");
+
+      // If push is missing OR non-writable *and* still configurable, replace it.
+      if (!desc || (desc.writable === false && desc.configurable !== false)) {
+        Object.defineProperty(arr, "push", {
+          configurable: true,
+          enumerable: false,
+          writable: true,
+          value: Array.prototype.push.bind(arr),
+        });
+      }
+    } catch {
+      /* silence – defensive patch only */
     }
-  } catch {/* ignore – safety shim only */}
+  }
+
+  // First attempt immediately.
+  patchPush();
+
+  // Second attempt after the document is interactive – ensures Webpack runtime has run.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', patchPush, { once: true });
+  } else {
+    // already past DOMContentLoaded; queue micro-task
+    Promise.resolve().then(patchPush);
+  }
 })();`}
         </Script>
       </head>
