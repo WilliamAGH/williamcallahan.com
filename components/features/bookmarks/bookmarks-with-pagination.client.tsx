@@ -466,9 +466,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     }
   }, [localSearchPage, effectiveTotalPages]);
 
-  // Dev-only hydration guard removed – migrated to top-level useEffect
+  // Dev-only hydration guard - only runs in development
   useEffect(() => {
-    if (!mounted) return;
+    if (!isDevelopment || !mounted) return;
 
     const win = window as unknown as Record<string, unknown>;
     if (win.hydrationRefreshBtn !== undefined && win.hydrationRefreshBtn !== showRefreshButton) {
