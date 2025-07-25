@@ -304,6 +304,7 @@ export function Terminal() {
           }}
           tabIndex={0}
           role="button"
+          aria-label="Close terminal"
         />
       )}
 
