@@ -25,39 +25,65 @@ import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle, generateTagDescription, formatTagDisplay } from "@/lib/seo/dynamic-metadata";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { tagToSlug, sanitizeUnicode } from "@/lib/utils/tag-utils";
-import type { TagBookmarkContext } from "@/types";
+import type { BookmarkTagPageContext } from "@/types";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 import { redirect } from "next/navigation";
 
 /**
  * Generate static paths for tag pages
  */
-export function generateStaticParams() {
+export async function generateStaticParams() {
   const bookmarks = getBookmarksForStaticBuild();
-  const tags = bookmarks.flatMap((b) =>
-    (Array.isArray(b.tags) ? b.tags : []).map((t: string | import("@/types").BookmarkTag) =>
-      typeof t === "string" ? t : t.name,
-    ),
-  );
-  const uniqueSlugs = Array.from(new Set(tags)).map((tag) => {
-    // tag should now be string after the flatMap transformation
-    return tagToSlug(tag);
+  const tagCounts: { [key: string]: number } = {};
+  bookmarks.forEach((b) => {
+    (Array.isArray(b.tags) ? b.tags : []).forEach((t: string | { name: string }) => {
+      const tagName = typeof t === "string" ? t : t.name;
+      const slug = tagToSlug(tagName);
+      if (!tagCounts[slug]) {
+        tagCounts[slug] = 0;
+      }
+      tagCounts[slug]++;
+    });
   });
-  return uniqueSlugs.map((tagSlug) => ({ tagSlug }));
+
+  const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
+  const params: { slug: string[] }[] = [];
+
+  for (const tagSlug in tagCounts) {
+    const { totalPages } = await getBookmarksByTag(tagSlug, 1);
+    params.push({ slug: [tagSlug] });
+    for (let i = 2; i <= totalPages; i++) {
+      params.push({ slug: [tagSlug, "page", i.toString()] });
+    }
+  }
+
+  return params;
 }
 
 /**
  * Generate metadata for this tag page
  */
-export async function generateMetadata({ params }: TagBookmarkContext): Promise<Metadata> {
-  const { tagSlug } = await Promise.resolve(params);
+export async function generateMetadata({ params }: BookmarkTagPageContext): Promise<Metadata> {
+  const { slug } = params;
+  const [tagSlug, page, pageNumberStr] = slug;
+
+  if (!tagSlug) {
+    return getStaticPageMetadata("/bookmarks", "bookmarks");
+  }
+
+  const pageNumber = page === "page" && pageNumberStr ? parseInt(pageNumberStr, 10) : 1;
+
   const decodedSlug = decodeURIComponent(tagSlug);
   const normalizedSlug = tagToSlug(decodedSlug);
   const sanitizedSlug = sanitizeUnicode(normalizedSlug);
-  const path = `/bookmarks/tags/${sanitizedSlug}`;
+
+  let path = `/bookmarks/tags/${sanitizedSlug}`;
+  if (pageNumber > 1) {
+    path += `/page/${pageNumber}`;
+  }
 
   const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
-  const { bookmarks } = await getBookmarksByTag(sanitizedSlug);
+  const { bookmarks } = await getBookmarksByTag(sanitizedSlug, pageNumber);
 
   if (bookmarks.length === 0) {
     return {
@@ -67,10 +93,16 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
   }
 
   const displayTag = formatTagDisplay(sanitizedSlug.replace(/-/g, " "));
-  const customTitle = generateDynamicTitle(`${displayTag} Bookmarks`, "bookmarks", {
+  const pageTitle = pageNumber > 1 ? `${displayTag} Bookmarks (Page ${pageNumber})` : `${displayTag} Bookmarks`;
+
+  const customTitle = generateDynamicTitle(pageTitle, "bookmarks", {
     isTag: true,
   });
-  const customDescription = generateTagDescription(displayTag, "bookmarks");
+  const customDescription = generateTagDescription(
+    displayTag,
+    "bookmarks",
+    pageNumber > 1 ? pageNumber.toString() : undefined,
+  );
   const baseMetadata = getStaticPageMetadata(path, "bookmarks");
 
   return {
@@ -94,35 +126,70 @@ export async function generateMetadata({ params }: TagBookmarkContext): Promise<
   };
 }
 
-export default async function TagPage({ params }: TagBookmarkContext) {
-  const { tagSlug } = await Promise.resolve(params);
-  // Normalize the slug: decode URI components, slugify and remove unicode controls
-  const decodedSlug = decodeURIComponent(tagSlug);
+export default async function TagPage({ params }: BookmarkTagPageContext) {
+  const { slug = [] } = params;
+
+  if (!slug || slug.length === 0) {
+    redirect("/bookmarks");
+  }
+
+  const [rawTagSlug, page, pageNumberStr] = slug;
+  const currentPage = page === "page" && pageNumberStr ? parseInt(pageNumberStr, 10) : 1;
+
+  if (!rawTagSlug) {
+    redirect("/bookmarks");
+  }
+
+  const decodedSlug = decodeURIComponent(rawTagSlug);
   const normalizedSlug = tagToSlug(decodedSlug);
   const sanitizedSlug = sanitizeUnicode(normalizedSlug);
 
-  // If the incoming slug differs from the normalized version, redirect to the canonical URL
-  if (sanitizedSlug !== tagSlug) {
-    redirect(`/bookmarks/tags/${sanitizedSlug}`);
+  if (sanitizedSlug !== rawTagSlug || (page && page !== "page")) {
+    let redirectPath = `/bookmarks/tags/${sanitizedSlug}`;
+    if (currentPage > 1) {
+      redirectPath += `/page/${currentPage}`;
+    }
+    redirect(redirectPath);
   }
 
   const { getBookmarksByTag } = await import("@/lib/bookmarks/service.server");
-  const result: { bookmarks: import("@/types").UnifiedBookmark[]; totalPages: number; totalCount: number } =
-    await getBookmarksByTag(sanitizedSlug, 1);
+  const result = await getBookmarksByTag(sanitizedSlug, currentPage);
 
-  const tagDisplayName = result.bookmarks[0]?.tags.find(
-    (t) => typeof t !== "string" && tagToSlug(t.name) === sanitizedSlug,
+  if (!result.bookmarks || result.bookmarks.length === 0) {
+    redirect("/bookmarks");
+  }
+
+  const tagDisplayName =
+    result.bookmarks[0]?.tags.find((t) => typeof t !== "string" && tagToSlug(t.name) === sanitizedSlug) ??
+    sanitizedSlug;
+
+  const finalTagDisplayName = typeof tagDisplayName === "string" ? tagDisplayName : tagDisplayName.name;
+  const displayTag = formatTagDisplay(finalTagDisplayName.replace(/-/g, " "));
+
+  const pageTitle =
+    currentPage > 1 ? `Bookmarks for ${displayTag} (Page ${currentPage})` : `Bookmarks for ${displayTag}`;
+
+  const pageDescription = generateTagDescription(
+    displayTag,
+    "bookmarks",
+    currentPage > 1 ? currentPage.toString() : undefined,
   );
-  const finalTagDisplayName =
-    tagDisplayName && typeof tagDisplayName !== "string" ? tagDisplayName.name : sanitizedSlug;
-
-  const displayTag = formatTagDisplay(sanitizedSlug.replace(/-/g, " "));
-  const pageTitle = `${displayTag} Bookmarks`;
-  const pageDescription = generateTagDescription(displayTag, "bookmarks");
 
   // Generate schema for this tagged bookmarks page
-  const path = `/bookmarks/tags/${sanitizedSlug}`;
+  let path = `/bookmarks/tags/${sanitizedSlug}`;
+  if (currentPage > 1) {
+    path += `/page/${currentPage}`;
+  }
   const pageMetadata = PAGE_METADATA.bookmarks;
+  const breadcrumbs = [
+    { path: "/", name: "Home" },
+    { path: "/bookmarks", name: "Bookmarks" },
+    { path: `/bookmarks/tags/${sanitizedSlug}`, name: displayTag },
+  ];
+  if (currentPage > 1) {
+    breadcrumbs.push({ path, name: `Page ${currentPage}` });
+  }
+
   const schemaParams = {
     path,
     title: pageTitle,
@@ -130,11 +197,7 @@ export default async function TagPage({ params }: TagBookmarkContext) {
     datePublished: formatSeoDate(pageMetadata.dateCreated),
     dateModified: formatSeoDate(pageMetadata.dateModified),
     type: "collection" as const,
-    breadcrumbs: [
-      { path: "/", name: "Home" },
-      { path: "/bookmarks", name: "Bookmarks" },
-      { path, name: displayTag },
-    ],
+    breadcrumbs,
   };
   const jsonLdData = generateSchemaGraph(schemaParams);
 
@@ -148,7 +211,7 @@ export default async function TagPage({ params }: TagBookmarkContext) {
             description={`A collection of bookmarks filtered by the tag "${finalTagDisplayName}".`}
             bookmarks={convertBookmarksToSerializable(result.bookmarks)}
             usePagination={true}
-            initialPage={1}
+            initialPage={currentPage}
             totalPages={result.totalPages}
             totalCount={result.totalCount}
             baseUrl={`/bookmarks/tags/${sanitizedSlug}`}

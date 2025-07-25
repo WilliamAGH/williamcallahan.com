@@ -62,24 +62,15 @@ export interface PaginatedBookmarkContext {
 }
 
 /**
- * Context for tag-filtered bookmark routes ([tagSlug])
- * @usage - Page components for tag-specific bookmark listings
- * @route - /bookmarks/tags/[tagSlug]/page.tsx
- * @note - Params are Promise due to Next.js instrumentation
+ * Context for the combined tag and paginated bookmarks page ([...slug])
+ * @route - /bookmarks/tags/[...slug]/page.tsx
+ * @note - The slug can contain the tag and pagination info
  */
-export interface TagBookmarkContext {
-  params: Promise<{ tagSlug: string }>;
-}
-
-/**
- * Context for paginated tag bookmark routes ([tagSlug]/page/[pageNumber])
- * @usage - Page components for paginated tag-specific bookmark listings
- * @route - /bookmarks/tags/[tagSlug]/page/[pageNumber]/page.tsx
- * @note - Params are Promise due to Next.js instrumentation
- */
-export interface PaginatedTagBookmarkContext {
-  params: Promise<{ tagSlug: string; pageNumber: string }>;
-}
+export type BookmarkTagPageContext = {
+  params: {
+    slug: string[];
+  };
+};
 
 /**
  * Error page props for Next.js error boundaries

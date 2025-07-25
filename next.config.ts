@@ -50,6 +50,26 @@ function getPackageVersion(): string {
   return "0.0.0-dev";
 }
 
+/**
+ * Get the current git hash
+ * @returns {string} The git hash or a fallback string
+ */
+function getGitHash(): string {
+  // Use environment variable if available (e.g., from CI)
+  if (process.env.GIT_HASH) {
+    return process.env.GIT_HASH;
+  }
+  try {
+    // Fallback to executing git command
+    const { execSync } = require("node:child_process");
+    return execSync("git rev-parse --short HEAD").toString().trim();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[Next Config] Could not get git hash: ${message}`);
+    return "unknown-hash";
+  }
+}
+
 // Get version and cache it
 const appVersion = getPackageVersion();
 process.env.NEXT_PUBLIC_APP_VERSION = appVersion;
@@ -520,7 +540,8 @@ const nextConfig = {
     if (process.env.NODE_ENV === "development") {
       return null as unknown as string; // Next.js will generate a random ID
     }
-    return `v${appVersion}-stable`;
+    const gitHash = getGitHash();
+    return `v${appVersion}-${gitHash}`;
   },
 
   /**

@@ -104,14 +104,6 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
       console.log(`[refreshBookmarksData] Retrieved ${data.bookmarks.length} bookmarks from page ${pageCount}.`);
       allRawBookmarks.push(...data.bookmarks);
       cursor = data.nextCursor;
-
-      // If the cursor is missing but there are bookmarks, it implies an incomplete fetch.
-      if (!cursor && data.bookmarks.length > 0) {
-        console.error(
-          `CRITICAL_API_FAILURE: Bookmark API did not return a nextCursor on page ${pageCount}. The data fetch may be incomplete. Full response:`,
-          JSON.stringify(data, null, 2),
-        );
-      }
     } while (cursor);
 
     console.log(

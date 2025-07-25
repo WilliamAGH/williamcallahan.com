@@ -34,6 +34,7 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
 
   private isProcessing = false;
   private processingInterval: NodeJS.Timeout | null = null;
+  private requestCounter = 0;
 
   // Metrics
   private totalProcessed = 0;
@@ -80,7 +81,8 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
       throw new Error("Request queue full - system overloaded");
     }
 
-    const requestId = `req-${Math.random().toString(36).slice(2)}`;
+    this.requestCounter += 1;
+    const requestId = `req-${this.requestCounter}-${Date.now()}`;
     const timestamp = Date.now();
 
     return new Promise<T>((resolve, reject) => {
