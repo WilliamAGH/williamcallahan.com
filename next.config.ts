@@ -581,7 +581,7 @@ const nextConfig = {
       ],
     },
     {
-      source: "/_next/image:params*",
+      source: "/_next/image/:params*",
       headers: [
         {
           key: "Cache-Control",
