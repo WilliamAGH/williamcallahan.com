@@ -34,7 +34,6 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
 
   private isProcessing = false;
   private processingInterval: NodeJS.Timeout | null = null;
-  private requestIdCounter = 0;
 
   // Metrics
   private totalProcessed = 0;
@@ -44,8 +43,6 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
 
   // External event listener references for cleanup
   private statusChangedHandler?: (data: { status: string; data?: unknown }) => void;
-  private memoryPressureHandler?: (data: import("@/types/health").MemoryPressureEvent) => void;
-  private memoryCriticalHandler?: () => void;
 
   constructor(
     options: {
@@ -83,7 +80,7 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
       throw new Error("Request queue full - system overloaded");
     }
 
-    const requestId = `req-${++this.requestIdCounter}`;
+    const requestId = `req-${Math.random().toString(36).slice(2)}`;
     const timestamp = Date.now();
 
     return new Promise<T>((resolve, reject) => {
@@ -173,7 +170,7 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
         console.error("[MemoryScheduler] Error in processing loop:", error);
       });
     }, 100); // Check every 100ms
-    
+
     // Don't prevent process from exiting
     if (this.processingInterval.unref) {
       this.processingInterval.unref();
