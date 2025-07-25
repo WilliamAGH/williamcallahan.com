@@ -1,0 +1,466 @@
+---
+title: "How to Have LLMs Write More Efficient Code using Optimal Data Structures"
+slug: "optimizing-llm-generated-code-data-structures-algorithms"
+excerpt: "LLMs often generate O(n²) solutions when O(n) would suffice. Learn how to prompt for optimal data structures, avoid common performance pitfalls, and get LLMs to write code that actually scales."
+publishedAt: "2025-07-25"
+updatedAt: "2025-07-25"
+author: "william-callahan"
+tags: ["llm", "performance", "data-structures", "algorithms", "optimization", "claude", "chatgpt"]
+coverImage: "/images/posts/llm-data-structures-optimization.png"
+---
+
+You've probably noticed it too. You ask an LLM to write some code, and it works perfectly... on your test data of 100 items. Then you deploy to production with 100,000 items and suddenly your server is on fire.
+
+I've been using Claude, ChatGPT, and other LLMs extensively for code generation, and I've noticed they have the same bad habits many junior engineers have: defaulting to arrays when sets would be better, writing nested loops when a single pass would suffice, and generating N+1 SQL queries like our database won't ever have more than 100 rows.
+
+<BackgroundInfo title="The Fundamental Problem">
+LLMs are trained on a massive corpus of code where correctness is prioritized over performance. Most tutorial code, Stack Overflow answers, and GitHub repositories optimize for readability and "getting it working" rather than efficiency. As Martin Kleppmann notes in *Designing Data-Intensive Applications*, "premature optimization" warnings have led to a generation of developers who never optimize at all.
+</BackgroundInfo>
+
+After spending months refactoring LLM-generated code and studying both *Designing Data-Intensive Applications* and *A Common-Sense Guide to Data Structures and Algorithms*, I've identified the most common performance mistakes LLMs make—and more importantly, how to get them to write efficient code from the start.
+
+## 1: The Array vs Set Trap
+
+This is by far the most common mistake I see. LLMs love arrays, even when you're doing membership checks.
+
+### Common LLM Code (O(n) lookups)
+```typescript
+// LLM typically generates this
+const userIds = [1, 2, 3, 4, 5, ...]; // thousands of IDs
+const bannedUsers = [101, 102, 103, ...]; // hundreds of banned IDs
+
+function isUserBanned(userId: number): boolean {
+  return bannedUsers.includes(userId); // O(n) lookup!
+}
+
+// Processing users
+userIds.forEach(userId => {
+  if (isUserBanned(userId)) { // O(n) * O(m) = O(n*m)
+    console.log(`User ${userId} is banned`);
+  }
+});
+```
+
+### Improved Code (Using Set)
+```typescript
+// Better approach
+const userIds = [1, 2, 3, 4, 5, ...];
+const bannedUsersSet = new Set([101, 102, 103, ...]); // Set for O(1) lookups
+
+function isUserBanned(userId: number): boolean {
+  return bannedUsersSet.has(userId); // O(1) lookup!
+}
+
+userIds.forEach(userId => {
+  if (isUserBanned(userId)) { // O(n) * O(1) = O(n)
+    console.log(`User ${userId} is banned`);
+  }
+});
+```
+
+### Most Optimized Code (Batch Processing)
+```typescript
+// Optimal for large-scale processing
+const userIds = [1, 2, 3, 4, 5, ...];
+const bannedUsersSet = new Set([101, 102, 103, ...]);
+
+// Process in batches to optimize memory access patterns
+const BATCH_SIZE = 1000;
+const results: number[] = [];
+
+for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
+  const batch = userIds.slice(i, i + BATCH_SIZE);
+  const bannedInBatch = batch.filter(id => bannedUsersSet.has(id));
+  results.push(...bannedInBatch);
+}
+
+console.log(`Found ${results.length} banned users`);
+```
+
+<CollapseDropdown summary="Why batch processing matters" id="batch-processing">
+Modern CPUs have multiple levels of cache (L1, L2, L3). When you process data in batches that fit in cache, you get significantly better performance due to spatial locality. This is especially important when dealing with millions of items. The batch approach also makes it easier to parallelize work across multiple threads or workers.
+</CollapseDropdown>
+
+## 2: The N+1 Query Problem
+
+LLMs are notorious for generating code that makes database queries inside loops. This is perhaps the most performance-destroying pattern in web applications.
+
+### Common LLM Code (N+1 Queries)
+```typescript
+// LLM often generates this disaster
+async function getUsersWithPosts(userIds: number[]) {
+  const results = [];
+  
+  for (const userId of userIds) {
+    const user = await db.query('SELECT * FROM users WHERE id = ?', [userId]);
+    const posts = await db.query('SELECT * FROM posts WHERE user_id = ?', [userId]);
+    
+    results.push({
+      ...user,
+      posts
+    });
+  }
+  
+  return results; // Made N+1 queries!
+}
+```
+
+### Improved Code (Join Query)
+```typescript
+// Better approach with a single query
+async function getUsersWithPosts(userIds: number[]) {
+  const query = `
+    SELECT 
+      u.id, u.name, u.email,
+      p.id as post_id, p.title, p.content
+    FROM users u
+    LEFT JOIN posts p ON u.id = p.user_id
+    WHERE u.id IN (${userIds.map(() => '?').join(',')})
+  `;
+  
+  const rows = await db.query(query, userIds);
+  
+  // Group results by user
+  const userMap = new Map();
+  rows.forEach(row => {
+    if (!userMap.has(row.id)) {
+      userMap.set(row.id, {
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        posts: []
+      });
+    }
+    
+    if (row.post_id) {
+      userMap.get(row.id).posts.push({
+        id: row.post_id,
+        title: row.title,
+        content: row.content
+      });
+    }
+  });
+  
+  return Array.from(userMap.values());
+}
+```
+
+### Most Optimized Code (Prepared Statements + Connection Pooling)
+```typescript
+// Optimal approach for production
+const GET_USERS_WITH_POSTS = `
+  SELECT 
+    u.id, u.name, u.email,
+    COALESCE(
+      JSON_AGG(
+        JSON_BUILD_OBJECT(
+          'id', p.id,
+          'title', p.title,
+          'content', p.content
+        ) ORDER BY p.created_at DESC
+      ) FILTER (WHERE p.id IS NOT NULL),
+      '[]'::json
+    ) as posts
+  FROM users u
+  LEFT JOIN posts p ON u.id = p.user_id
+  WHERE u.id = ANY($1::int[])
+  GROUP BY u.id
+`;
+
+// Use prepared statement with connection pool
+async function getUsersWithPosts(userIds: number[]) {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(GET_USERS_WITH_POSTS, [userIds]);
+    return result.rows.map(row => ({
+      ...row,
+      posts: row.posts || []
+    }));
+  } finally {
+    client.release();
+  }
+}
+```
+
+## 3: Inefficient String Operations
+
+LLMs love string concatenation in loops, apparently unaware that strings are immutable in most languages.
+
+### Common LLM Code (O(n²) String Building)
+```javascript
+// LLM typically writes this
+function generateCSV(data) {
+  let csv = 'id,name,email\n';
+  
+  for (const row of data) {
+    csv += `${row.id},${row.name},${row.email}\n`; // Creates new string each time!
+  }
+  
+  return csv;
+}
+```
+
+### Improved Code (Array Join)
+```javascript
+// Better approach
+function generateCSV(data) {
+  const header = 'id,name,email';
+  const rows = data.map(row => `${row.id},${row.name},${row.email}`);
+  
+  return [header, ...rows].join('\n');
+}
+```
+
+### Most Optimized Code (Streaming + Proper Escaping)
+```javascript
+// Production-ready streaming approach
+const { Transform } = require('stream');
+
+class CSVTransform extends Transform {
+  constructor(options) {
+    super(options);
+    this.isFirstChunk = true;
+  }
+  
+  _transform(chunk, encoding, callback) {
+    if (this.isFirstChunk) {
+      this.push('id,name,email\n');
+      this.isFirstChunk = false;
+    }
+    
+    const row = JSON.parse(chunk);
+    const escaped = [
+      row.id,
+      this.escapeCSV(row.name),
+      this.escapeCSV(row.email)
+    ];
+    
+    this.push(escaped.join(',') + '\n');
+    callback();
+  }
+  
+  escapeCSV(field) {
+    if (field == null) return '';
+    const str = String(field);
+    if (str.includes('"') || str.includes(',') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  }
+}
+
+// Usage with streaming
+async function generateLargeCSV(dataStream, outputStream) {
+  return dataStream
+    .pipe(new CSVTransform())
+    .pipe(outputStream);
+}
+```
+
+## 4: API Endpoint Design
+
+LLMs often design REST APIs that require multiple round trips when a single request would suffice.
+
+### Common LLM Code (Chatty API)
+```typescript
+// LLM often suggests this pattern
+app.get('/api/user/:id', async (req, res) => {
+  const user = await getUser(req.params.id);
+  res.json(user);
+});
+
+app.get('/api/user/:id/posts', async (req, res) => {
+  const posts = await getUserPosts(req.params.id);
+  res.json(posts);
+});
+
+app.get('/api/user/:id/followers', async (req, res) => {
+  const followers = await getUserFollowers(req.params.id);
+  res.json(followers);
+});
+
+// Client needs 3 requests to show a profile page!
+```
+
+### Improved Code (GraphQL-style Fields)
+```typescript
+// Better approach with field selection
+app.get('/api/user/:id', async (req, res) => {
+  const fields = req.query.fields?.split(',') || ['basic'];
+  const userId = req.params.id;
+  
+  const result: any = {};
+  
+  if (fields.includes('basic') || fields.includes('*')) {
+    result.user = await getUser(userId);
+  }
+  
+  if (fields.includes('posts') || fields.includes('*')) {
+    result.posts = await getUserPosts(userId);
+  }
+  
+  if (fields.includes('followers') || fields.includes('*')) {
+    result.followers = await getUserFollowers(userId);
+  }
+  
+  res.json(result);
+});
+
+// Client can request: /api/user/123?fields=basic,posts,followers
+```
+
+### Most Optimized Code (Single Query + Caching)
+```typescript
+// Optimal approach with dataloader pattern
+const DataLoader = require('dataloader');
+
+// Batch and cache user loads
+const userLoader = new DataLoader(async (userIds: number[]) => {
+  const query = `
+    SELECT 
+      u.*,
+      array_agg(DISTINCT p.*) FILTER (WHERE p.id IS NOT NULL) as posts,
+      array_agg(DISTINCT f.*) FILTER (WHERE f.id IS NOT NULL) as followers
+    FROM users u
+    LEFT JOIN posts p ON p.user_id = u.id
+    LEFT JOIN followers f ON f.following_id = u.id
+    WHERE u.id = ANY($1::int[])
+    GROUP BY u.id
+  `;
+  
+  const result = await db.query(query, [userIds]);
+  const userMap = new Map(result.rows.map(r => [r.id, r]));
+  
+  return userIds.map(id => userMap.get(id));
+});
+
+app.get('/api/user/:id', async (req, res) => {
+  const userId = parseInt(req.params.id);
+  const cached = await redis.get(`user:${userId}`);
+  
+  if (cached) {
+    return res.json(JSON.parse(cached));
+  }
+  
+  const userData = await userLoader.load(userId);
+  
+  // Cache for 5 minutes
+  await redis.setex(`user:${userId}`, 300, JSON.stringify(userData));
+  
+  res.json(userData);
+});
+```
+
+## 5: Memory-Hungry Data Transformations
+
+LLMs often load entire datasets into memory when streaming would be more appropriate.
+
+### Common LLM Code (Loads Everything)
+```javascript
+// LLM typically suggests this
+async function processLargeFile(filePath) {
+  const data = fs.readFileSync(filePath, 'utf-8'); // Loads entire file!
+  const lines = data.split('\n');
+  
+  const results = lines.map(line => {
+    const parsed = JSON.parse(line);
+    return {
+      id: parsed.id,
+      total: parsed.items.reduce((sum, item) => sum + item.price, 0)
+    };
+  });
+  
+  return results;
+}
+```
+
+### Improved Code (Line-by-Line)
+```javascript
+// Better approach with readline
+const readline = require('readline');
+
+async function processLargeFile(filePath) {
+  const results = [];
+  const rl = readline.createInterface({
+    input: fs.createReadStream(filePath),
+    crlfDelay: Infinity
+  });
+  
+  for await (const line of rl) {
+    if (line.trim()) {
+      const parsed = JSON.parse(line);
+      results.push({
+        id: parsed.id,
+        total: parsed.items.reduce((sum, item) => sum + item.price, 0)
+      });
+    }
+  }
+  
+  return results;
+}
+```
+
+### Most Optimized Code (Streaming + Parallel Processing)
+<CollapseDropdown summary="Parallel streaming processing with worker threads" id="streaming-parallel">
+```javascript
+// Full implementation trimmed for brevity.
+// Key ideas:
+// 1. Use stream.pipeline with Split2 to lazily parse lines.
+// 2. Distribute chunks across a fixed worker pool via worker_threads.
+// 3. JSON.stringify each transformed chunk to the output stream.
+// 4. Gracefully terminate workers in _final().
+```
+</CollapseDropdown>
+
+## 6: Type-Safe Data Shapes
+
+LLMs often gloss over TypeScript's power—falling back to `any` and leaving you to discover runtime type errors. A better pattern is **derive runtime validation from compile-time types**.
+
+<CollapseDropdown summary="Show me the code for type-safe shapes" id="type-safe-shapes">
+```typescript
+import { z } from 'zod';
+
+// Compile-time shape
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+type UserMap = Record<User['id'], User>; // O(1) access by id
+
+// Runtime validator derived from the same shape
+const UserSchema = z.object({
+  id: z.number().int(),
+  name: z.string(),
+  email: z.string().email()
+});
+
+// Safer lookup helper
+function buildUserMap(users: User[]): UserMap {
+  users.forEach(u => UserSchema.parse(u));
+  return Object.fromEntries(users.map(u => [u.id, u]));
+}
+```
+</CollapseDropdown>
+
+<BackgroundInfo title="Why this matters">With a single source of truth you get exhaustive type-checking **and** runtime safety—no silent shape drift.</BackgroundInfo>
+
+## 7: Query Plan & Indexing Essentials
+
+Even when an LLM generates the right JOIN, it rarely suggests the **index** that makes it fast.
+
+<CollapseDropdown summary="Show me the SQL for indexing" id="sql-indexing">
+```sql
+-- Before: 1.2s sequential scan
+EXPLAIN ANALYZE SELECT * FROM posts WHERE user_id = 42;
+
+-- Fix: composite index
+CREATE INDEX CONCURRENTLY idx_posts_user_created ON posts(user_id, created_at DESC);
+
+-- After: 3ms using idx_posts_user_created
+```
+</CollapseDropdown>
+
+Key takeaways:
+1. Always run `EXPLAIN`
