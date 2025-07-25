@@ -463,4 +463,227 @@ CREATE INDEX CONCURRENTLY idx_posts_user_created ON posts(user_id, created_at DE
 </CollapseDropdown>
 
 Key takeaways:
-1. Always run `EXPLAIN`
+1. Always run `EXPLAIN` on generated SQL.
+2. Add covering or composite indexes to match your `WHERE` + `ORDER BY` patterns.
+3. For repeated, heavy aggregations, prefer **materialized views** or cache layers.
+
+## 8: Inefficient In-Memory Filtering
+
+LLMs love to load entire datasets into memory and then filter them at request time. This works fine for toy examples but becomes a performance disaster as data grows.
+
+### Common LLM Code (Load Everything, Filter Everything)
+```typescript
+// LLM typically generates this
+async function findBookmarksByTag(tag: string) {
+  const allBookmarks = await getAllBookmarksFromSource(); // Loads 10,000+ items
+  
+  return allBookmarks.filter(bookmark => {
+    return bookmark.tags.some(t => t.toLowerCase() === tag.toLowerCase());
+  }); // O(n) scan for every request
+}
+```
+
+### Improved Code (Pre-computed Index)
+```typescript
+// Better approach with tag index
+type TagIndex = Map<string, Bookmark[]>;
+let tagIndex: TagIndex;
+
+async function buildTagIndex() {
+  const allBookmarks = await getAllBookmarksFromSource();
+  const index = new Map<string, Bookmark[]>();
+  
+  for (const bookmark of allBookmarks) {
+    for (const tag of bookmark.tags) {
+      const normalizedTag = tag.toLowerCase();
+      if (!index.has(normalizedTag)) {
+        index.set(normalizedTag, []);
+      }
+      index.get(normalizedTag)!.push(bookmark);
+    }
+  }
+  tagIndex = index;
+}
+
+// O(1) lookup at request time
+async function findBookmarksByTag(tag: string): Promise<Bookmark[]> {
+  if (!tagIndex) await buildTagIndex();
+  return tagIndex.get(tag.toLowerCase()) || [];
+}
+```
+
+### Most Optimized Code (Full-Text Search Index)
+```typescript
+// Optimal approach with search index
+import lunr from 'lunr';
+
+const searchIndex = lunr(function () {
+  this.ref('id');
+  this.field('title');
+  this.field('tags');
+  
+  allBookmarks.forEach(doc => {
+    this.add({
+      ...doc,
+      tags: doc.tags.join(' ')
+    });
+  });
+});
+
+const bookmarkMap = new Map(allBookmarks.map(b => [b.id, b]));
+
+async function findBookmarksByTag(tag: string): Promise<Bookmark[]> {
+  const results = searchIndex.search(`tags:${tag}`);
+  return results.map(result => bookmarkMap.get(result.ref)!);
+}
+```
+
+## 9: The Infinitely Growing Cache
+
+LLMs understand caching in principle but often implement it as a simple `Map` with no eviction policy, leading to unbounded memory growth.
+
+### Common LLM Code (Memory Leak Cache)
+```typescript
+// LLM often generates this
+const cache = new Map();
+
+function getExpensiveData(id: string) {
+  if (cache.has(id)) {
+    return cache.get(id);
+  }
+  const data = computeExpensiveData(id);
+  cache.set(id, data); // Never evicts, grows forever!
+  return data;
+}
+```
+
+### Improved Code (Bounded Map)
+```typescript
+// Better approach with size limit
+const cache = new Map();
+const MAX_CACHE_SIZE = 1000;
+
+function getExpensiveData(id: string) {
+  if (cache.has(id)) {
+    return cache.get(id);
+  }
+  if (cache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = cache.keys().next().value;
+    cache.delete(oldestKey); // FIFO eviction
+  }
+  const data = computeExpensiveData(id);
+  cache.set(id, data);
+  return data;
+}
+```
+
+### Most Optimized Code (LRU Cache)
+```typescript
+// Optimal approach with LRU eviction
+import { LRUCache } from 'lru-cache';
+
+const cache = new LRUCache({
+  max: 500, // Max number of items
+  ttl: 1000 * 60 * 5, // 5 minute TTL
+});
+
+function getExpensiveData(id: string) {
+  const cachedValue = cache.get(id);
+  if (cachedValue) {
+    return cachedValue;
+  }
+  
+  const data = computeExpensiveData(id);
+  cache.set(id, data);
+  return data;
+}
+```
+
+<BackgroundInfo title="Why LRU is usually better">
+An LRU cache evicts the item that hasn't been accessed for the longest time. This is perfect for caching user sessions, configuration data, or any resource where recent access predicts future access. A simple bounded map with FIFO eviction might discard a popular, frequently-accessed item just because it was one of the first to be added.
+</BackgroundInfo>
+
+## How to Get Better Code from LLMs
+
+After months of iteration, here's my prompt template that consistently produces more efficient code:
+
+```markdown
+Write a function to [task description].
+
+Performance requirements:
+- Expected data size: [e.g., "10k-100k items"]
+- Access pattern: [e.g., "frequent lookups by ID"]
+- Constraints: [e.g., "must handle streaming data", "limited memory"]
+
+Optimize for [time complexity/space complexity/both].
+Avoid O(n²) algorithms and prefer O(n log n) or better.
+Use appropriate data structures (Set for lookups, Map for key-value, etc).
+```
+
+### Example Prompt vs Results
+
+**Bad Prompt**: "Write a function to find common elements in two arrays"
+
+**LLM Output**: Almost always produces nested loops with O(n*m) complexity
+
+**Good Prompt**: "Write a function to find common elements in two arrays. Arrays may contain 10k-100k items. Optimize for time complexity. Use appropriate data structures for efficient lookups."
+
+**LLM Output**: Usually produces a Set-based solution with O(n+m) complexity
+
+## Quick Reference: Data Structure Selection
+
+Based on *A Common-Sense Guide to Data Structures and Algorithms*, here's when to use what:
+
+| Operation | Wrong Choice | Right Choice | Time Complexity |
+|-----------|--------------|--------------|-----------------|
+| Lookup by value | Array | Set/Map | O(n) → O(1) |
+| Finding duplicates | Nested loops | Set | O(n²) → O(n) |
+| Priority queue | Sorted array | Heap | O(n) → O(log n) |
+| Range queries | Hash table | B-tree/Skip list | O(n) → O(log n) |
+| LRU Cache | Array | LinkedHashMap | O(n) → O(1) |
+
+## Back-End Team Recommendations
+
+Based on analyzing real codebases, here are impactful changes you can make:
+
+### Data Structure Audit
+1. **Replace Array.includes() with Set.has()** for membership checks
+2. **Use Map instead of object literals** for dynamic key lookups
+3. **Implement proper cache eviction policies** (LRU, TTL, or size-based)
+4. **Pre-compute indexes** for common filter operations
+
+### Database Optimization
+1. **Always run EXPLAIN ANALYZE** before deploying new queries
+2. **Add composite indexes** for WHERE + ORDER BY combinations
+3. **Use prepared statements** to avoid query parsing overhead
+4. **Batch database operations** instead of individual queries in loops
+
+### API Design
+1. **Support field selection** (?fields=basic,posts) to reduce payload size
+2. **Implement cursor-based pagination** for large datasets
+3. **Use DataLoader pattern** to batch and deduplicate database queries
+4. **Cache at multiple levels**: query results, computed data, and full responses
+
+### Memory Management
+1. **Stream large datasets** instead of loading into memory
+2. **Process data in batches** that fit in CPU cache
+3. **Monitor memory usage** and set heap limits
+4. **Use worker threads** for CPU-intensive tasks
+
+The key insight: **Most performance problems are solved by choosing the right data structure for your access patterns, not by micro-optimizing algorithms.**
+
+## Second Opinion from the LLM / Sub-Agent
+
+<BackgroundInfo title="Getting a Contrarian / Second Opinion">
+– Did I miss any critical data-structure pitfalls?
+– Are there scenarios where Sets/Maps are *not* the right fix?
+– Which concurrency patterns trip up LLMs most often?
+</BackgroundInfo>
+
+## Conclusion
+
+LLMs are incredible tools for generating code quickly, but they inherit the biases of their training data—which is full of tutorial-level, unoptimized code. By understanding common performance pitfalls and being specific about your performance requirements in prompts, you can get LLMs to generate code that's not just correct, but actually efficient.
+
+Remember: **The difference between O(n) and O(n²) might not matter at n=100, but at n=100,000, it's the difference between 100ms and 3 hours.**
+
+Next time you're using an LLM for code generation, take an extra moment to specify your performance requirements. Your future self (and your AWS bill) will thank you.
