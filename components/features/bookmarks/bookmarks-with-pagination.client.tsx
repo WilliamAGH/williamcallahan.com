@@ -466,6 +466,17 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     }
   }, [localSearchPage, effectiveTotalPages]);
 
+  // Dev-only hydration guard removed – migrated to top-level useEffect
+  useEffect(() => {
+    if (!mounted) return;
+
+    const win = window as unknown as Record<string, unknown>;
+    if (win.hydrationRefreshBtn !== undefined && win.hydrationRefreshBtn !== showRefreshButton) {
+      console.error("[HydrationCheck] showRefreshButton mismatch between SSR and client");
+    }
+    win.hydrationRefreshBtn = showRefreshButton;
+  }, [mounted, showRefreshButton]);
+
   return (
     <div className={`w-full px-4 sm:px-6 lg:px-8 ${className}`}>
       {/* Search and filtering */}
@@ -504,18 +515,21 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
             )}
           </form>
 
-          {/* Refresh button - conditionally rendered */}
-          {mounted && showRefreshButton && (
+          {/* Refresh button – always in the DOM so SSR/CSR markup match.
+              Visibility is toggled with CSS once hydration completes. */}
+          {showRefreshButton && (
             <button
               type="button"
               onClick={refreshBookmarks}
               disabled={isRefreshing}
               className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               aria-label="Refresh Bookmarks"
+              style={{ visibility: mounted ? "visible" : "hidden" }}
             >
               {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             </button>
           )}
+
           {/* Display Refresh Error */}
           {refreshError && (
             <div className="mt-2 text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded-lg">

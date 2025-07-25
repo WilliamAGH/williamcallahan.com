@@ -371,14 +371,15 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
             )}
           </form>
 
-          {/* Refresh button - conditionally rendered */}
-          {mounted && showRefreshButton && (
+          {/* Refresh button – always present; visibility toggles after hydration */}
+          {showRefreshButton && (
             <button
               type="button"
               onClick={() => void refreshBookmarks()}
               disabled={isRefreshing}
               className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               aria-label="Refresh Bookmarks"
+              style={{ visibility: mounted ? "visible" : "hidden" }}
             >
               {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             </button>

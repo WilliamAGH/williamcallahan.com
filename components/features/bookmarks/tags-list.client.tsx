@@ -56,16 +56,16 @@ export function TagsList({ tags, selectedTag, onTagSelectAction }: TagsListClien
         </button>
       )}
 
-      {/* Only show the Clear button client-side where it's functional */}
-      {mounted && selectedTag && (
-        <button
-          type="button"
-          onClick={() => onTagSelectAction(selectedTag)}
-          className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
-        >
-          Clear filter
-        </button>
-      )}
+      {/* Clear filter button – always present to keep SSR/CSR markup identical */}
+      <button
+        type="button"
+        onClick={() => selectedTag && mounted && onTagSelectAction(selectedTag)}
+        className="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+        style={{ visibility: mounted && selectedTag ? "visible" : "hidden" }}
+        disabled={!mounted || !selectedTag}
+      >
+        Clear filter
+      </button>
     </div>
   );
 }
