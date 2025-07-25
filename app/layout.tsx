@@ -129,6 +129,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="color-scheme" content="light dark" />
 
         {/* Legacy fix – only apply when the native push is non-writable */}
+        {/*
+         * ────────────────────────────────────────────────────────────────────────────
+         * Router-patch micro-task rationale (Next.js 15 / React 19)
+         *
+         * We intentionally queue the second `patchPush()` run inside
+         * `Promise.resolve().then()` *inside* the inline script below.  This ensures
+         * the patch executes **after**
+         *   1. React hydration has completed, and
+         *   2. Next.js’ own router initialisation has monkey-patched
+         *      `window.history.pushState/replaceState`.
+         *
+         * Removing that micro-task can create non-deterministic race conditions
+         * (especially with streaming hydration) and is **not** recommended by the
+         * current React 19 and Next.js 15 docs.  If you are tempted to simplify it
+         * to a direct call, please first read:
+         *   – https://react.dev/reference/react/useEffect#avoiding-hydration-mismatches
+         *   – https://nextjs.org/docs/app/building-your-application/optimizing#post-hydration-scripts
+         *
+         * @internal  Guard against future “optimisation” PRs that remove the
+         *            micro-task.  Tests relying on client routing will fail.
+         */}
         <Script id="webpack-readonly-push-fix" strategy="beforeInteractive">
           {`(() => {
   const root = typeof self !== 'undefined' ? self : window;
@@ -164,12 +185,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // First attempt immediately.
   patchPush();
 
-  // Second attempt after the document is interactive – ensures Webpack runtime has run.
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', patchPush, { once: true });
   } else {
-    // already past DOMContentLoaded; queue micro-task
-    Promise.resolve().then(patchPush);
+    Promise.resolve().then(patchPush); {/* keep micro-task */}
   }
 })();`}
         </Script>
