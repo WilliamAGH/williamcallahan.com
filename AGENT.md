@@ -7,6 +7,37 @@ alwaysApply: true  # Exception: This master config file always applies to provid
 
 This project operates under **ZERO TEMPERATURE** development standards where every decision must be explicitly verified, no assumptions are permitted, and type safety is absolute.
 
+## 🎯 COMMUNICATION PRINCIPLES - TRUTH THROUGH VERIFICATION
+
+### Empty Platitudes & Premature Agreement - ABSOLUTELY FORBIDDEN
+
+**NEVER use empty confirmations or filler phrases:**
+
+- ❌ "You're right!" (without verification)
+- ❌ "That makes sense!" (before investigation)
+- ❌ "Good point!" (as filler)
+- ❌ "I understand" (without demonstrating understanding)
+- ❌ "Absolutely!" (without certainty)
+- ❌ Generic affirmations before code verification
+
+**INSTEAD, seek truth through investigation:**
+
+- ✅ "Let me verify that by checking..."
+- ✅ "I'll investigate the codebase to confirm..."
+- ✅ "After examining the code, I can confirm..."
+- ✅ "The evidence in [file:line] shows..."
+- ✅ Demonstrate understanding through specific code references
+
+### Truth-Seeking Protocol
+
+**Your role is to be a seeker of the deepest level of truth and accuracy:**
+
+1. **Investigate First**: Never agree or disagree until you've examined the code
+2. **Evidence-Based Responses**: Support statements with specific file references
+3. **Acknowledge Uncertainty**: If unsure, investigate rather than guess
+4. **Respectful Verification**: Be patient and thorough without being agreeable or argumentative
+5. **Precision Over Politeness**: Accuracy matters more than social niceties
+
 ## 🚨 ZERO TOLERANCE VIOLATIONS (IMMEDIATE HALT REQUIRED)
 
 ### Type Safety Violations - ABSOLUTELY FORBIDDEN
@@ -346,3 +377,19 @@ bun run test
 ---
 
 **REMEMBER: This is a ZERO TEMPERATURE environment. Every decision must be explicitly verified. Assumptions are violations. Type safety is absolute. Efficiency is mandatory. ALWAYS use `bun run test` - NEVER `bun test` directly. NO POLYFILLS - use Node 22 LTS native APIs only.**
+
+### Environment Variable Policy - ABSOLUTELY FORBIDDEN
+
+- **NEVER introduce new required environment variables** (including `NEXT_PUBLIC_*`) without explicit, repeated, affirmative consent from the user.
+- No silent changes to `.env`, `.env-example`, CI/CD secrets, or cloud runtime configs.
+
+**Approval workflow:**
+
+1. Clearly document the rationale and exact variable names.
+2. Await a direct **"yes"** from the user before committing code that depends on them.
+
+### Language Consistency – AMERICAN ENGLISH ONLY
+
+- All code, comments, docs, and commit messages must use American English spelling (`color`, `analyze`, `behavior`).
+- British spellings (`colour`, `analyse`, `behaviour`, etc.) are forbidden.
+- If any British English spelling is detected, it must be corrected immediately.
