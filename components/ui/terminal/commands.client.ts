@@ -162,8 +162,6 @@ const HELP_MESSAGE = `
 Available commands:
   help                Show this help message
   clear              Clear terminal history
-  schema[.org]       Show metadata for current page
-                     Add --debug for diagnostic info
 
 Navigation:
   home               Go to home page
@@ -183,8 +181,6 @@ Examples:
   investments fintech
   experience 2020
   bookmarks AI
-  schema
-  schema --debug
   clear
 `.trim();
 
