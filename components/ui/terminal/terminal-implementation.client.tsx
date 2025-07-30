@@ -291,7 +291,8 @@ export function Terminal() {
     <>
       {/* Backdrop for maximized state */}
       {isMaximized && (
-        <div
+        <button
+          type="button"
           data-testid="terminal-backdrop"
           className="fixed left-0 right-0 top-14 bottom-0 z-[59] bg-black/50 backdrop-blur-sm"
           onClick={() => {
@@ -302,8 +303,6 @@ export function Terminal() {
               maximizeWindow();
             }
           }}
-          tabIndex={0}
-          role="button"
           aria-label="Close terminal"
         />
       )}
