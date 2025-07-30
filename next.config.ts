@@ -74,6 +74,9 @@ function getGitHash(): string {
 const appVersion = getPackageVersion();
 process.env.NEXT_PUBLIC_APP_VERSION = appVersion;
 
+const gitHash = getGitHash();
+process.env.NEXT_PUBLIC_GIT_HASH = gitHash;
+
 const nextConfig = {
   /**
    * Include data directory in standalone build output
@@ -788,7 +791,7 @@ const sentryWebpackPluginOptions = {
   project: "williamcallahan-com",
   authToken: process.env.SENTRY_AUTH_TOKEN,
   release: {
-    name: process.env.NEXT_PUBLIC_APP_VERSION,
+    name: process.env.NEXT_PUBLIC_GIT_HASH || process.env.NEXT_PUBLIC_APP_VERSION,
     deploy: {
       env: process.env.NODE_ENV || "production",
     },

@@ -6,7 +6,7 @@
 export const runtime = "nodejs";
 
 export async function register(): Promise<void> {
-  const releaseVersion = process.env.NEXT_PUBLIC_APP_VERSION || process.env.SENTRY_RELEASE;
+  const releaseVersion = process.env.NEXT_PUBLIC_GIT_HASH || process.env.SENTRY_RELEASE || process.env.NEXT_PUBLIC_APP_VERSION;
   const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
   if (isBuildPhase) return;
 

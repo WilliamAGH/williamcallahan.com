@@ -51,7 +51,7 @@ if (process.env.NODE_ENV === "production") {
     tunnel: "/api/tunnel",
 
     // Associate errors with the correct source map
-    release: process.env.NEXT_PUBLIC_APP_VERSION,
+    release: process.env.NEXT_PUBLIC_GIT_HASH || process.env.NEXT_PUBLIC_APP_VERSION,
 
     // Add optional integrations for additional features
     integrations: [Sentry.replayIntegration()],
