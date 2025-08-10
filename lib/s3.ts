@@ -66,7 +66,7 @@ export const s3Client: S3ClientWrapper = (() => {
         }
         if (typeof body === "string") {
           const enc = new TextEncoder().encode(body);
-          return enc.buffer as ArrayBuffer;
+          return enc.buffer;
         }
         return new ArrayBuffer(0);
       },
