@@ -163,6 +163,9 @@ Available commands:
   help                Show this help message
   clear              Clear terminal history
 
+AI:
+  ai | chat          Open search-ai.io in a new tab
+
 Navigation:
   home               Go to home page
   investments        Go to investments page
@@ -286,6 +289,27 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
           id: crypto.randomUUID(),
           input: "",
           output: getSchemaOrgData(includeDebug),
+          timestamp: Date.now(),
+        },
+      ],
+    };
+  }
+
+  // Open external AI search in a new tab
+  if (command === "ai" || command === "chat") {
+    try {
+      // Use native window.open with security flags; this is a client-only module
+      window.open("https://search-ai.io", "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("Failed to open external URL:", err);
+    }
+    return {
+      results: [
+        {
+          type: "text",
+          id: crypto.randomUUID(),
+          input: "",
+          output: 'Opening https://search-ai.io in a new tab…',
           timestamp: Date.now(),
         },
       ],
