@@ -25,7 +25,7 @@ const defaultContext: TerminalContextType = {
   removeFromHistory: () => {},
 };
 
-export const TerminalContext = createContext<TerminalContextType>(defaultContext);
+export const TerminalContext = createContext<TerminalContextType | undefined>(undefined);
 
 const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
   type: "text",
@@ -192,6 +192,7 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
     }
     if (pathname !== lastPath) {
       clearHistory();
+      setCurrentInput("");
       setLastPath(pathname);
     }
   }, [pathname, lastPath, clearHistory]);
@@ -202,7 +203,5 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
 // Hook to access terminal context
 export function useTerminalContext() {
   const context = useContext(TerminalContext);
-  // Return default context if provider is not available
-  // This ensures the terminal can still render even if the provider fails
-  return context || defaultContext;
+  return context ?? defaultContext;
 }
