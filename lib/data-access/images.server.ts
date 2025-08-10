@@ -61,7 +61,8 @@ export async function getImageFromS3StorageForCache(key: string): Promise<Buffer
 
   safeCacheLife("weeks"); // Use predefined profile for consistency
   safeCacheTag("image");
-  safeCacheTag(`image-key-${key}`);
+  const imageKeyTag = `image-key-${key.replace(/[^a-zA-Z0-9-]/g, "-")}`;
+  safeCacheTag(imageKeyTag);
 
   const command = new GetObjectCommand({
     Bucket: env.S3_BUCKET,
@@ -84,7 +85,8 @@ export async function getImageFromS3StorageForCache(key: string): Promise<Buffer
 export function invalidateImageCache(key?: string): void {
   if (key) {
     // Invalidate specific image
-    safeRevalidateTag(`image-key-${key}`);
+    const imageKeyTag = `image-key-${key.replace(/[^a-zA-Z0-9-]/g, "-")}`;
+    safeRevalidateTag(imageKeyTag);
     console.log(`[Images] Cache invalidated for image: ${key}`);
   } else {
     // Invalidate all images
