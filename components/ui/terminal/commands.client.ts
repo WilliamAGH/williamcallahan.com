@@ -299,7 +299,21 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
   if (command === "ai" || command === "chat") {
     try {
       // Use native window.open with security flags; this is a client-only module
-      window.open("https://search-ai.io", "_blank", "noopener,noreferrer");
+      const win = window.open("https://search-ai.io", "_blank", "noopener,noreferrer");
+      if (win == null) {
+        console.warn("Popup blocked by the browser. Allow popups for this site to open search-ai.io.");
+        return {
+          results: [
+            {
+              type: "text",
+              id: crypto.randomUUID(),
+              input: "",
+              output: "Popup blocked. Please allow popups for this site to open https://search-ai.io.",
+              timestamp: Date.now(),
+            },
+          ],
+        };
+      }
     } catch (err) {
       console.error("Failed to open external URL:", err);
     }
