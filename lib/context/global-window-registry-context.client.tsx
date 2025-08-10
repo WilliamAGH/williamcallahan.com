@@ -20,6 +20,19 @@ import type {
 // Create the context
 const GlobalWindowRegistryContext = createContext<GlobalWindowRegistryContextType | undefined>(undefined);
 
+// Referentially stable no-op registry for safety when provider is missing
+const NOOP_WINDOW_REGISTRY: GlobalWindowRegistryContextType = {
+  windows: {},
+  registerWindow: () => {},
+  unregisterWindow: () => {},
+  setWindowState: () => {},
+  minimizeWindow: () => {},
+  maximizeWindow: () => {},
+  closeWindow: () => {},
+  restoreWindow: () => {},
+  getWindowState: () => undefined,
+};
+
 // Define the provider component
 export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryProviderProps) => {
   const [windows, setWindows] = useState<Record<string, WindowInstanceInfo>>({});
@@ -129,18 +142,8 @@ export const useWindowRegistry = (): GlobalWindowRegistryContextType | null => {
 export const useSafeWindowRegistry = (): GlobalWindowRegistryContextType => {
   const context = useContext(GlobalWindowRegistryContext);
   if (context === undefined) {
-    // Return a no-op implementation that won't break components
-    return {
-      windows: {},
-      registerWindow: () => {},
-      unregisterWindow: () => {},
-      setWindowState: () => {},
-      minimizeWindow: () => {},
-      maximizeWindow: () => {},
-      closeWindow: () => {},
-      restoreWindow: () => {},
-      getWindowState: () => undefined,
-    };
+    // Referentially stable no-op implementation
+    return NOOP_WINDOW_REGISTRY;
   }
   return context;
 };

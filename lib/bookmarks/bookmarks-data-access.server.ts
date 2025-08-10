@@ -38,29 +38,38 @@ const safeCacheLife = (
     if (typeof cacheLife === "function" && !process.argv.includes("data-updater")) {
       cacheLife(profile);
     }
-  } catch {
+  } catch (err) {
     // Silently ignore - expected when running outside Next.js request context
     // This is normal for CLI scripts, data-updater, and environments without experimental.useCache
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[Bookmarks] cacheLife not available:", err);
+    }
   }
 };
 const safeCacheTag = (...tags: string[]): void => {
   try {
     // Only attempt to use cacheTag if we're in a Next.js request context
     if (typeof cacheTag === "function" && !process.argv.includes("data-updater")) {
-      tags.forEach((tag) => cacheTag(tag));
+      for (const tag of new Set(tags)) cacheTag(tag);
     }
-  } catch {
+  } catch (err) {
     // Silently ignore - expected when running outside Next.js request context
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[Bookmarks] cacheTag not available:", err);
+    }
   }
 };
-const safeRevalidateTag = (tag: string): void => {
+const safeRevalidateTag = (...tags: string[]): void => {
   try {
     // Only attempt to use revalidateTag if we're in a Next.js request context
     if (typeof revalidateTag === "function" && !process.argv.includes("data-updater")) {
-      revalidateTag(tag);
+      for (const tag of new Set(tags)) revalidateTag(tag);
     }
-  } catch {
+  } catch (err) {
     // Silently ignore - expected when running outside Next.js request context
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[Bookmarks] revalidateTag not available:", err);
+    }
   }
 };
 
