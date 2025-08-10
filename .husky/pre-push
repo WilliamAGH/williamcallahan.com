@@ -1,0 +1,43 @@
+#!/bin/sh
+echo "🚀 Running pre-push checks..."
+
+# Check if .next directory exists
+if [ ! -d ".next" ]; then
+  echo "⚠️  Build directory not found. Running build..."
+  bun run build || { echo "❌ Build failed!"; exit 1; }
+fi
+
+# Check for chunk files
+CHUNK_COUNT=$(find .next/static/chunks -type f -name "*.js" 2>/dev/null | wc -l)
+
+if [ "$CHUNK_COUNT" -lt 5 ]; then
+  echo "⚠️  Missing or insufficient chunk files detected (found: $CHUNK_COUNT)"
+  echo "🔨 Regenerating build..."
+  bun run build || { echo "❌ Build failed!"; exit 1; }
+fi
+
+# Verify critical chunks exist
+CRITICAL_CHUNKS=(
+  ".next/static/chunks/webpack.js"
+  ".next/static/chunks/main-app.js"
+  ".next/static/chunks/app-pages-internals.js"
+)
+
+for chunk in "${CRITICAL_CHUNKS[@]}"; do
+  if [ ! -f "$chunk" ]; then
+    echo "⚠️  Critical chunk missing: $chunk"
+    echo "🔨 Regenerating build..."
+    bun run build || { echo "❌ Build failed!"; exit 1; }
+    break
+  fi
+done
+
+# Run validation
+echo "📝 Validating code..."
+bun run validate || { echo "❌ Code validation failed!"; exit 1; }
+
+# Run smoke tests
+echo "🧪 Running smoke tests..."
+bun run test:smoke || { echo "❌ Smoke tests failed!"; exit 1; }
+
+echo "✅ All pre-push checks passed!"
