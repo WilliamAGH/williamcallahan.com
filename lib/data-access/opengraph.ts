@@ -37,7 +37,7 @@ const safeCacheLife = (
   profile: "default" | "seconds" | "minutes" | "hours" | "days" | "weeks" | "max" | { stale?: number; revalidate?: number; expire?: number }
 ): void => {
   try {
-    if (typeof cacheLife === "function") {
+    if (typeof cacheLife === "function" && !process.argv.includes("data-updater")) {
       cacheLife(profile);
     }
   } catch (error) {
@@ -47,10 +47,10 @@ const safeCacheLife = (
     }
   }
 };
-const safeCacheTag = (tag: string): void => {
+const safeCacheTag = (...tags: string[]): void => {
   try {
-    if (typeof cacheTag === "function") {
-      cacheTag(tag);
+    if (typeof cacheTag === "function" && !process.argv.includes("data-updater")) {
+      for (const tag of new Set(tags)) cacheTag(tag);
     }
   } catch (error) {
     // Silently ignore if cacheTag is not available
@@ -59,10 +59,10 @@ const safeCacheTag = (tag: string): void => {
     }
   }
 };
-const safeRevalidateTag = (tag: string): void => {
+const safeRevalidateTag = (...tags: string[]): void => {
   try {
-    if (typeof revalidateTag === "function") {
-      revalidateTag(tag);
+    if (typeof revalidateTag === "function" && !process.argv.includes("data-updater")) {
+      for (const tag of new Set(tags)) revalidateTag(tag);
     }
   } catch (error) {
     // Silently ignore if revalidateTag is not available
