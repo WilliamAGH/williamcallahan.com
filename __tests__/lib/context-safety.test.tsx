@@ -41,6 +41,7 @@ describe("Context Safety", () => {
       expect(result.current.minimizeWindow).toBeDefined();
       
       // Functions should be no-ops but not throw
+      // Test-only justification: window ref is unused in no-op registry; minimal placeholder keeps test focused.
       expect(() => result.current.registerWindow("test", {} as any, "Test", "normal")).not.toThrow();
       expect(() => result.current.minimizeWindow("test")).not.toThrow();
       expect(() => result.current.closeWindow("test")).not.toThrow();
