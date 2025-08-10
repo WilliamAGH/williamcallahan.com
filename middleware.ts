@@ -205,12 +205,14 @@ export default async function middleware(request: NextRequest): Promise<NextResp
       response.headers.set("CDN-Cache-Control", noStoreValue);
       response.headers.set("Cloudflare-CDN-Cache-Control", noStoreValue);
 
-      // Tag the response with the current build version so we can purge by tag
-      // via Cloudflare API after each deployment. This avoids full-site purges
-      // while still ensuring old HTML is never served once a version is
-      // invalidated.
-      const buildTag = process.env.NEXT_PUBLIC_APP_VERSION ?? "dev";
-      response.headers.set("Cache-Tag", `html-${buildTag}`);
+      // Tag the response with both the semantic app version and the commit hash
+      // so our CDN can surgically purge HTML on every deploy. Previously this
+      // only used the app version, which changes infrequently and allowed stale
+      // HTML to reference non-existent chunk paths after a deploy.
+      const appVersion = process.env.NEXT_PUBLIC_APP_VERSION ?? "dev";
+      const gitHash = process.env.NEXT_PUBLIC_GIT_HASH ?? "unknown-hash";
+      // Cloudflare supports comma-separated tags in the Cache-Tag header.
+      response.headers.set("Cache-Tag", `html-v${appVersion}, commit-${gitHash}`);
     }
   } else {
     response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
