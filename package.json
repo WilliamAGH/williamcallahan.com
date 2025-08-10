@@ -21,7 +21,7 @@
     "prestart": "",
     "prefetch": "bun scripts/data-updater.ts --bookmarks --github --logos",
     "populate-data": "NODE_ENV=development bun scripts/data-updater.ts --bookmarks --github --logos",
-    "dev": "bun scripts/init-csp-hashes.ts && bun run cleanCache && (NODE_ENV=development bun scripts/data-updater.ts --quiet &) && NODE_OPTIONS='--max-old-space-size=3072 --max-semi-space-size=64 --expose-gc' NODE_ENV=development next dev",
+    "dev": "bun scripts/init-csp-hashes.ts && bun run cleanCache && NODE_OPTIONS='--max-old-space-size=3072 --max-semi-space-size=64 --expose-gc' NODE_ENV=development next dev",
     "dev:update-data": "NODE_ENV=development bun scripts/data-updater.ts",
     "dev:with-data": "bun scripts/init-csp-hashes.ts && bun run populate-data && bun run cleanCache && NODE_OPTIONS='--max-old-space-size=3072 --max-semi-space-size=64 --expose-gc' NODE_ENV=development next dev",
     "dev:full": "bun scripts/init-csp-hashes.ts && bun run populate-data && bun run cleanCache && NODE_OPTIONS='--max-old-space-size=3072 --max-semi-space-size=64 --expose-gc' NODE_ENV=development next dev",

@@ -50,7 +50,7 @@ The "navigation" functionality encompasses components and utilities that manage 
 
 - **`components/ui/navigation/navigation-link.client.tsx`**: Individual link component
   - Active state management with `aria-current`
-  - Terminal history clearing on navigation
+  - No terminal dependency; terminal history clearing is handled by TerminalProvider on route change
   - **Issues**: Production console.log, hydration mismatch, duplicate clearHistory calls
 
 - **`components/ui/navigation/navigation-links.ts`**: Navigation configuration

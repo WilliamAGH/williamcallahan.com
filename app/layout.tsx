@@ -36,7 +36,7 @@ import { SvgTransformFixer } from "../components/utils/svg-transform-fixer.clien
 import { cn } from "../lib/utils";
 
 // Import the client-side terminal loader
-import { TerminalLoader } from "@/components/ui/terminal";
+import { TerminalLoader, TerminalProvider } from "@/components/ui/terminal";
 
 /** Load Inter font with Latin subset and display swap */
 const inter = Inter({
@@ -242,9 +242,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </ErrorBoundary>
 
               <main className="pb-16 px-4 motion-safe:transition-opacity motion-safe:duration-200">
-                <ErrorBoundary>
-                  <TerminalLoader />
-                </ErrorBoundary>
+                {/* Localize TerminalProvider to isolate failures to this subtree */}
+                <TerminalProvider>
+                  <ErrorBoundary>
+                    <TerminalLoader />
+                  </ErrorBoundary>
+                </TerminalProvider>
                 <ErrorBoundary>{children}</ErrorBoundary>
               </main>
 

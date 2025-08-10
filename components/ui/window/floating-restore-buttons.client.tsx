@@ -5,11 +5,11 @@
 
 "use client";
 
-import { useWindowRegistry } from "@/lib/context/global-window-registry-context.client";
+import { useSafeWindowRegistry } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
 
 export function FloatingRestoreButtons() {
-  const { windows, restoreWindow } = useWindowRegistry();
+  const { windows, restoreWindow } = useSafeWindowRegistry();
 
   // Filter for windows that are minimized or closed
   const windowsToRestore = Object.values(windows).filter((win) => win.state === "minimized" || win.state === "closed");

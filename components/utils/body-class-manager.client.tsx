@@ -1,6 +1,6 @@
 "use client";
 
-import { useWindowRegistry } from "@/lib/context/global-window-registry-context.client";
+import { useSafeWindowRegistry } from "@/lib/context/global-window-registry-context.client";
 import { useEffect, useState } from "react";
 
 /**
@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
  * It isolates this side effect from the main context provider to improve HMR stability.
  */
 export function BodyClassManager() {
-  const { windows } = useWindowRegistry();
+  const { windows } = useSafeWindowRegistry();
   const [isMounted, setIsMounted] = useState(false);
 
   // Track mount status to avoid SSR issues with direct DOM manipulation
