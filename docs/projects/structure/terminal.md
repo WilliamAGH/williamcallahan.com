@@ -60,7 +60,7 @@ Window Controls → TerminalHeader → GlobalWindowRegistry
 3. **History Management**: TerminalContext persists history in sessionStorage
 4. **Search Results**: SelectionView provides keyboard-navigable results
 5. **Window States**: GlobalWindowRegistry coordinates minimize/maximize/close actions
-6. **Navigation**: Commands can trigger navigation to different pages
+6. **Navigation**: Commands can trigger navigation to different pages; `ai` and `chat` open `https://search-ai.io` in a new browser tab
 7. **API Integration**: Search commands communicate with /api/search endpoints
 
 ## Architecture Strengths
