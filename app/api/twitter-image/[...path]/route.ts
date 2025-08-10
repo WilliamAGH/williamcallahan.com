@@ -64,7 +64,7 @@ export async function GET(request: NextRequest, { params }: TwitterImageContext)
         ...IMAGE_SECURITY_HEADERS,
       });
 
-      return new NextResponse(result.buffer, { headers: responseHeaders });
+      return new NextResponse(new Uint8Array(result.buffer), { headers: responseHeaders });
     }
 
     // If we have an error, return appropriate status

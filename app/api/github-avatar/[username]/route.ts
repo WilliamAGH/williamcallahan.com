@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, { params }: GitHubAvatarRoutePar
 
     // If we have a buffer, return it
     if (result.buffer) {
-      return new NextResponse(result.buffer, {
+      return new NextResponse(new Uint8Array(result.buffer), {
         headers: {
           "Content-Type": result.contentType,
           "Cache-Control": "public, max-age=604800", // 7 days
