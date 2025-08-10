@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useFixSvgTransforms } from "@/hooks/use-fix-svg-transforms";
+import { useFixSvgTransforms } from "@/lib/hooks/use-fix-svg-transforms";
 import type { LucideIcon } from "lucide-react"; // Assuming lucide-react for icons
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type {
@@ -120,10 +120,27 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
 };
 
 // Define custom hook for easy consumption
-export const useWindowRegistry = (): GlobalWindowRegistryContextType => {
+export const useWindowRegistry = (): GlobalWindowRegistryContextType | null => {
+  const context = useContext(GlobalWindowRegistryContext);
+  return context || null;
+};
+
+// Safe version that always returns a value
+export const useSafeWindowRegistry = (): GlobalWindowRegistryContextType => {
   const context = useContext(GlobalWindowRegistryContext);
   if (context === undefined) {
-    throw new Error("useWindowRegistry must be used within a GlobalWindowRegistryProvider");
+    // Return a no-op implementation that won't break components
+    return {
+      windows: {},
+      registerWindow: () => {},
+      unregisterWindow: () => {},
+      setWindowState: () => {},
+      minimizeWindow: () => {},
+      maximizeWindow: () => {},
+      closeWindow: () => {},
+      restoreWindow: () => {},
+      getWindowState: () => undefined,
+    };
   }
   return context;
 };
@@ -145,7 +162,7 @@ export const useRegisteredWindowState = (
     closeWindow,
     restoreWindow,
     setWindowState,
-  } = useWindowRegistry();
+  } = useSafeWindowRegistry();
 
   useEffect(() => {
     registerWindow(id, icon, title, initialState);

@@ -10,9 +10,33 @@ import { IMAGE_MANIFEST_S3_PATHS } from "@/lib/constants";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "next/cache";
 import type { LogoManifest, ImageManifest } from "@/types/image";
 
-// Type assertions for cache functions
-const safeCacheLife = cacheLife as (profile: string) => void;
-const safeCacheTag = cacheTag as (tag: string) => void;
+// Runtime-safe wrappers for experimental cache APIs
+const safeCacheLife = (
+  profile: "default" | "seconds" | "minutes" | "hours" | "days" | "weeks" | "max" | { stale?: number; revalidate?: number; expire?: number }
+): void => {
+  try {
+    if (typeof cacheLife === "function") {
+      cacheLife(profile);
+    }
+  } catch (error) {
+    // Silently ignore if cacheLife is not available or experimental.useCache is not enabled
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[ManifestLoader] cacheLife not available:", error);
+    }
+  }
+};
+const safeCacheTag = (tag: string): void => {
+  try {
+    if (typeof cacheTag === "function") {
+      cacheTag(tag);
+    }
+  } catch (error) {
+    // Silently ignore if cacheTag is not available
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[ManifestLoader] cacheTag not available:", error);
+    }
+  }
+};
 
 /**
  * Load all manifests with caching

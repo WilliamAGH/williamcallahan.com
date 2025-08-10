@@ -12,9 +12,33 @@ import { USE_NEXTJS_CACHE } from "./constants";
 import { withCacheFallback } from "./cache";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "next/cache";
 
-// Type assertions for cache functions
-const safeCacheLife = cacheLife as (profile: string) => void;
-const safeCacheTag = cacheTag as (tag: string) => void;
+// Runtime-safe wrappers for cache functions
+const safeCacheLife = (
+  profile: "default" | "seconds" | "minutes" | "hours" | "days" | "weeks" | "max" | { stale?: number; revalidate?: number; expire?: number }
+): void => {
+  try {
+    if (typeof cacheLife === "function") {
+      cacheLife(profile);
+    }
+  } catch (error) {
+    // Silently ignore if cacheLife is not available or experimental.useCache is not enabled
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[S3Cache] cacheLife not available:", error);
+    }
+  }
+};
+const safeCacheTag = (tag: string): void => {
+  try {
+    if (typeof cacheTag === "function") {
+      cacheTag(tag);
+    }
+  } catch (error) {
+    // Silently ignore if cacheTag is not available
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[S3Cache] cacheTag not available:", error);
+    }
+  }
+};
 
 /**
  * Cached JSON read from S3 with 'use cache' directive

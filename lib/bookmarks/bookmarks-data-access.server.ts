@@ -19,6 +19,8 @@ import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
 
 // Runtime-safe cache wrappers for experimental Next.js APIs
+// These functions are only available in Next.js request context with experimental.useCache enabled
+// They will be no-ops when called from CLI scripts or outside request context
 const safeCacheLife = (
   profile:
     | "default"
@@ -30,13 +32,36 @@ const safeCacheLife = (
     | "max"
     | { stale?: number; revalidate?: number; expire?: number },
 ): void => {
-  if (typeof cacheLife === "function") cacheLife(profile as never);
+  try {
+    // Only attempt to use cacheLife if we're in a Next.js request context
+    // CLI scripts and data-updater won't have access to these functions
+    if (typeof cacheLife === "function" && !process.argv.includes("data-updater")) {
+      cacheLife(profile);
+    }
+  } catch {
+    // Silently ignore - expected when running outside Next.js request context
+    // This is normal for CLI scripts, data-updater, and environments without experimental.useCache
+  }
 };
 const safeCacheTag = (...tags: string[]): void => {
-  if (typeof cacheTag === "function") tags.forEach((tag) => cacheTag(tag));
+  try {
+    // Only attempt to use cacheTag if we're in a Next.js request context
+    if (typeof cacheTag === "function" && !process.argv.includes("data-updater")) {
+      tags.forEach((tag) => cacheTag(tag));
+    }
+  } catch {
+    // Silently ignore - expected when running outside Next.js request context
+  }
 };
 const safeRevalidateTag = (tag: string): void => {
-  if (typeof revalidateTag === "function") revalidateTag(tag);
+  try {
+    // Only attempt to use revalidateTag if we're in a Next.js request context
+    if (typeof revalidateTag === "function" && !process.argv.includes("data-updater")) {
+      revalidateTag(tag);
+    }
+  } catch {
+    // Silently ignore - expected when running outside Next.js request context
+  }
 };
 
 const INSTANCE_ID = `instance-${randomInt(1000000, 9999999)}-${Date.now()}`;

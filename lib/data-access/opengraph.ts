@@ -32,10 +32,45 @@ import { USE_NEXTJS_CACHE } from "@/lib/cache";
 // Re-export constants for backwards compatibility
 export { OPENGRAPH_S3_KEY_DIR, OPENGRAPH_METADATA_S3_DIR, OPENGRAPH_IMAGES_S3_DIR };
 
-// Type assertions for Next.js cache functions to fix ESLint errors
-const safeCacheLife = cacheLife as (profile: string) => void;
-const safeCacheTag = cacheTag as (tag: string) => void;
-const safeRevalidateTag = revalidateTag as (tag: string) => void;
+// Runtime-safe wrappers for experimental cache APIs
+const safeCacheLife = (
+  profile: "default" | "seconds" | "minutes" | "hours" | "days" | "weeks" | "max" | { stale?: number; revalidate?: number; expire?: number }
+): void => {
+  try {
+    if (typeof cacheLife === "function") {
+      cacheLife(profile);
+    }
+  } catch (error) {
+    // Silently ignore if cacheLife is not available or experimental.useCache is not enabled
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[OpenGraph] cacheLife not available:", error);
+    }
+  }
+};
+const safeCacheTag = (tag: string): void => {
+  try {
+    if (typeof cacheTag === "function") {
+      cacheTag(tag);
+    }
+  } catch (error) {
+    // Silently ignore if cacheTag is not available
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[OpenGraph] cacheTag not available:", error);
+    }
+  }
+};
+const safeRevalidateTag = (tag: string): void => {
+  try {
+    if (typeof revalidateTag === "function") {
+      revalidateTag(tag);
+    }
+  } catch (error) {
+    // Silently ignore if revalidateTag is not available
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[OpenGraph] revalidateTag not available:", error);
+    }
+  }
+};
 
 const inFlightOgPromises: Map<string, Promise<OgResult | null>> = new Map();
 
