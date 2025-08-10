@@ -80,8 +80,11 @@ The "navigation" functionality encompasses components and utilities that manage 
 ### Navigation Rendering Flow
 ```
 Navigation.tsx → navigation-links.ts → NavigationLink.tsx → next/link
-                                            ↓
-                                    Terminal clearHistory()
+
+                                      ↓
+                         TerminalProvider observes pathname change
+                                      ↓
+                            Clears terminal history centrally
 ```
 
 ### Anchor Scrolling Flow

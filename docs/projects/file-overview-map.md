@@ -390,7 +390,7 @@ File/Path                                       Functionality                   
 - [x] `favicon.ico`                             `image-handling`        - Favicon
 - [x] `global-error.tsx`                        `log-error-debug-handling` - Global error boundary
 - [x] `globals.css`                             `css`                   - Global stylesheets
-- [x] `layout.tsx`                              `app-layout`            - Root layout & providers
+- [x] `layout.tsx`                              `app-layout`            - Root layout & providers (TerminalProvider localized to terminal subtree; see terminal.md "Provider Location & Resilience")
 - [x] `not-found.tsx`                           `log-error-debug-handling` - 404 Not Found page
   - [x] `page.tsx`                              `home`                  - Landing page & SEO
 - [x] `providers.client.tsx`                    `state-theme-window-providers` - Client-side providers

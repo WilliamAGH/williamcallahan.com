@@ -83,3 +83,6 @@ Example schemas:
 | `string-manipulation` | Contain generic utilities for formatting and converting strings (e.g., `kebabCase`). | [string-manipulation.md](./string-manipulation.md) | |
 | `terminal` | Encompass components and utilities that manage the display, interaction, and state of the application's terminal interface. | [terminal.md](./terminal.md) | [Diagram](./terminal.mmd) |
 | `testing-config` | Configure and set up the testing environment for both Jest and Bun test runners, including mocks, polyfills, and type definitions. | [testing-config.md](./testing-config.md) | [Diagram](./testing-config.mmd) |
+### Provider Localization Note (2025-08)
+
+- TerminalProvider is localized to the terminal subtree in `app/layout.tsx` for resilience. See “Provider Location & Resilience (2025-08)” in [terminal.md](./terminal.md) for details and guarantees.
