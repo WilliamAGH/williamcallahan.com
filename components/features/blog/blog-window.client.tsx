@@ -14,7 +14,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { WindowControls } from "@/components/ui/navigation/window-controls";
-import { useFixSvgTransforms } from "@/hooks/use-fix-svg-transforms";
+import { useFixSvgTransforms } from "@/lib/hooks/use-fix-svg-transforms";
 import { useRegisteredWindowState } from "@/lib/context/global-window-registry-context.client";
 import { cn } from "@/lib/utils";
 import type { BlogWindowClientProps } from "@/types/features";
