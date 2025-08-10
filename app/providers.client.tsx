@@ -2,7 +2,7 @@
  * Providers Component
  *
  * This component is responsible for providing the necessary providers to the application.
- * It wraps the application in a ThemeProvider and a TerminalProvider.
+ * It wraps the application in a ThemeProvider. The TerminalProvider is localized to the terminal subtree.
  *
  */
 

@@ -25,7 +25,7 @@ import { BodyClassManager } from "@/components/utils/body-class-manager.client";
 import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-registry-context.client";
 // Re-add direct imports
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
-// Terminal is now dynamically imported for lazy loading
+// Terminal is lazy-loaded inside TerminalLoader (dynamic import)
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, metadata as siteMetadata, SEO_IMAGES } from "../data/metadata";
 import { Providers } from "./providers.client";
 
@@ -188,7 +188,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', patchPush, { once: true });
   } else {
-    Promise.resolve().then(patchPush); {/* keep micro-task */}
+    // keep micro-task
+    Promise.resolve().then(patchPush);
   }
 })();`}
         </Script>
