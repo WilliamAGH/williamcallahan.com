@@ -1,0 +1,62 @@
+#!/bin/sh
+echo "🚀 Running pre-push checks..."
+
+# Check if only csp-hashes.json changed in the commits being pushed
+# Get the range of commits being pushed
+REMOTE_REF=$(git rev-parse @{u} 2>/dev/null || git rev-parse origin/$(git branch --show-current) 2>/dev/null || echo "HEAD~1")
+CHANGED_FILES=$(git diff --name-only $REMOTE_REF..HEAD)
+
+# Check if only csp-hashes.json is in the list of changed files
+if [ "$CHANGED_FILES" = "config/csp-hashes.json" ]; then
+  echo "✅ Only CSP hashes changed in commits, skipping build check"
+else
+  # Flag to track if build is needed
+  BUILD_NEEDED=false
+
+  # Check if .next directory exists
+  if [ ! -d ".next" ]; then
+    echo "⚠️  Build directory not found."
+    BUILD_NEEDED=true
+  else
+    # Check for chunk files
+    CHUNK_COUNT=$(find .next/static/chunks -type f -name "*.js" 2>/dev/null | wc -l)
+    
+    if [ "$CHUNK_COUNT" -lt 5 ]; then
+      echo "⚠️  Missing or insufficient chunk files detected (found: $CHUNK_COUNT)"
+      BUILD_NEEDED=true
+    else
+      # Verify critical chunks exist
+      CRITICAL_CHUNKS=(
+        ".next/static/chunks/webpack.js"
+        ".next/static/chunks/main-app.js"
+        ".next/static/chunks/app-pages-internals.js"
+      )
+      
+      for chunk in "${CRITICAL_CHUNKS[@]}"; do
+        if [ ! -f "$chunk" ]; then
+          echo "⚠️  Critical chunk missing: $chunk"
+          BUILD_NEEDED=true
+          break
+        fi
+      done
+    fi
+  fi
+
+  # Run build if needed
+  if [ "$BUILD_NEEDED" = true ]; then
+    echo "🔨 Building application..."
+    bun run build || { echo "❌ Build failed!"; exit 1; }
+  else
+    echo "✅ Build artifacts are present"
+  fi
+fi
+
+# Run validation
+echo "📝 Validating code..."
+bun run validate || { echo "❌ Code validation failed!"; exit 1; }
+
+# Run smoke tests
+echo "🧪 Running smoke tests..."
+bun run test:smoke || { echo "❌ Smoke tests failed!"; exit 1; }
+
+echo "✅ All pre-push checks passed!"

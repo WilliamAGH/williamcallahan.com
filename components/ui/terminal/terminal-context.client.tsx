@@ -8,6 +8,7 @@
 
 import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import type { TerminalCommand } from "@/types/terminal";
 import type { TerminalContextType } from "@/types/ui/terminal";
 import { isTerminalCommandArray } from "@/types/terminal";
@@ -24,7 +25,7 @@ const defaultContext: TerminalContextType = {
   removeFromHistory: () => {},
 };
 
-export const TerminalContext = createContext<TerminalContextType>(defaultContext);
+export const TerminalContext = createContext<TerminalContextType | undefined>(undefined);
 
 const INITIAL_WELCOME_MESSAGE: TerminalCommand = {
   type: "text",
@@ -39,6 +40,8 @@ const MAX_HISTORY_SIZE = 100; // Limit history to prevent unbounded growth
 
 export function TerminalProvider({ children }: { children: React.ReactNode }) {
   const [currentInput, setCurrentInput] = useState<string>("");
+  const pathname = usePathname();
+  const [lastPath, setLastPath] = useState<string | null>(null);
 
   // Initialize state lazily to read from sessionStorage only on the client
   const [history, setHistory] = useState<TerminalCommand[]>((): TerminalCommand[] => {
@@ -180,14 +183,25 @@ export function TerminalProvider({ children }: { children: React.ReactNode }) {
     [clearHistory, resetTerminal, history, addToHistory, addCommand, currentInput, removeFromHistory],
   );
 
+  // Clear terminal history when the route changes (robust, fully decoupled from nav)
+  useEffect(() => {
+    if (typeof pathname !== "string") return;
+    if (lastPath === null) {
+      setLastPath(pathname);
+      return;
+    }
+    if (pathname !== lastPath) {
+      clearHistory();
+      setCurrentInput("");
+      setLastPath(pathname);
+    }
+  }, [pathname, lastPath, clearHistory]);
+
   return <TerminalContext.Provider value={contextValue}>{children}</TerminalContext.Provider>;
 }
 
 // Hook to access terminal context
 export function useTerminalContext() {
   const context = useContext(TerminalContext);
-  if (!context) {
-    throw new Error("useTerminalContext must be used within a TerminalProvider");
-  }
-  return context;
+  return context ?? defaultContext;
 }

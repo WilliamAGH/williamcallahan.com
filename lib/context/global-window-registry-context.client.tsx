@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useFixSvgTransforms } from "@/hooks/use-fix-svg-transforms";
+import { useFixSvgTransforms } from "@/lib/hooks/use-fix-svg-transforms";
 import type { LucideIcon } from "lucide-react"; // Assuming lucide-react for icons
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
 import type {
@@ -19,6 +19,19 @@ import type {
 
 // Create the context
 const GlobalWindowRegistryContext = createContext<GlobalWindowRegistryContextType | undefined>(undefined);
+
+// Referentially stable no-op registry for safety when provider is missing
+const NOOP_WINDOW_REGISTRY: GlobalWindowRegistryContextType = {
+  windows: {},
+  registerWindow: () => {},
+  unregisterWindow: () => {},
+  setWindowState: () => {},
+  minimizeWindow: () => {},
+  maximizeWindow: () => {},
+  closeWindow: () => {},
+  restoreWindow: () => {},
+  getWindowState: () => undefined,
+};
 
 // Define the provider component
 export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryProviderProps) => {
@@ -120,10 +133,17 @@ export const GlobalWindowRegistryProvider = ({ children }: GlobalWindowRegistryP
 };
 
 // Define custom hook for easy consumption
-export const useWindowRegistry = (): GlobalWindowRegistryContextType => {
+export const useWindowRegistry = (): GlobalWindowRegistryContextType | null => {
+  const context = useContext(GlobalWindowRegistryContext);
+  return context || null;
+};
+
+// Safe version that always returns a value
+export const useSafeWindowRegistry = (): GlobalWindowRegistryContextType => {
   const context = useContext(GlobalWindowRegistryContext);
   if (context === undefined) {
-    throw new Error("useWindowRegistry must be used within a GlobalWindowRegistryProvider");
+    // Referentially stable no-op implementation
+    return NOOP_WINDOW_REGISTRY;
   }
   return context;
 };
@@ -145,7 +165,7 @@ export const useRegisteredWindowState = (
     closeWindow,
     restoreWindow,
     setWindowState,
-  } = useWindowRegistry();
+  } = useSafeWindowRegistry();
 
   useEffect(() => {
     registerWindow(id, icon, title, initialState);

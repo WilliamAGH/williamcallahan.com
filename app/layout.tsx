@@ -25,7 +25,7 @@ import { BodyClassManager } from "@/components/utils/body-class-manager.client";
 import { GlobalWindowRegistryProvider } from "@/lib/context/global-window-registry-context.client";
 // Re-add direct imports
 import { Navigation, SocialIcons, ThemeToggle } from "../components/ui";
-// Terminal is now dynamically imported for lazy loading
+// Terminal is lazy-loaded inside TerminalLoader (dynamic import)
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, metadata as siteMetadata, SEO_IMAGES } from "../data/metadata";
 import { Providers } from "./providers.client";
 
@@ -36,7 +36,7 @@ import { SvgTransformFixer } from "../components/utils/svg-transform-fixer.clien
 import { cn } from "../lib/utils";
 
 // Import the client-side terminal loader
-import { TerminalLoader } from "@/components/ui/terminal";
+import { TerminalLoader, TerminalProvider } from "@/components/ui/terminal";
 
 /** Load Inter font with Latin subset and display swap */
 const inter = Inter({
@@ -188,7 +188,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', patchPush, { once: true });
   } else {
-    Promise.resolve().then(patchPush); {/* keep micro-task */}
+    // keep micro-task
+    Promise.resolve().then(patchPush);
   }
 })();`}
         </Script>
@@ -242,9 +243,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </ErrorBoundary>
 
               <main className="pb-16 px-4 motion-safe:transition-opacity motion-safe:duration-200">
-                <ErrorBoundary>
-                  <TerminalLoader />
-                </ErrorBoundary>
+                {/* Localize TerminalProvider to isolate failures to this subtree */}
+                <TerminalProvider>
+                  <ErrorBoundary>
+                    <TerminalLoader />
+                  </ErrorBoundary>
+                </TerminalProvider>
                 <ErrorBoundary>{children}</ErrorBoundary>
               </main>
 

@@ -2,13 +2,12 @@
  * Providers Component
  *
  * This component is responsible for providing the necessary providers to the application.
- * It wraps the application in a ThemeProvider and a TerminalProvider.
+ * It wraps the application in a ThemeProvider. The TerminalProvider is localized to the terminal subtree.
  *
  */
 
 "use client";
 
-import { TerminalProvider } from "@/components/ui/terminal";
 import { ThemeProvider } from "@/components/ui/theme/theme-provider.client";
 import { Suspense } from "react";
 
@@ -17,9 +16,7 @@ function Providers({ children }: { children: React.ReactNode }) {
   // NOTE: Dark Reader detection and class addition is handled by an inline script in app/layout.tsx
   return (
     <ThemeProvider disableTransitionOnChange enableSystem attribute="class" defaultTheme="system">
-      <TerminalProvider>
-        <Suspense fallback={null}>{children}</Suspense>
-      </TerminalProvider>
+      <Suspense fallback={null}>{children}</Suspense>
     </ThemeProvider>
   );
 }

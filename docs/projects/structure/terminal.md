@@ -60,7 +60,7 @@ Window Controls → TerminalHeader → GlobalWindowRegistry
 3. **History Management**: TerminalContext persists history in sessionStorage
 4. **Search Results**: SelectionView provides keyboard-navigable results
 5. **Window States**: GlobalWindowRegistry coordinates minimize/maximize/close actions
-6. **Navigation**: Commands can trigger navigation to different pages
+6. **Navigation**: Commands can trigger navigation to different pages; `ai` and `chat` open `https://search-ai.io` in a new browser tab
 7. **API Integration**: Search commands communicate with /api/search endpoints
 
 ## Architecture Strengths
@@ -118,3 +118,10 @@ The SelectionView component implements a modal navigation system similar to term
 - **Layout Shift Prevention**: By matching the skeleton's content to the actual initial state, we prevent Cumulative Layout Shift (CLS) issues
 - **Dynamic Import**: Terminal is lazy-loaded with Next.js dynamic() and ssr: false for client-side rendering
 - **Consistent Sizing**: Both skeleton and actual terminal use identical padding, margins, and max-height values
+
+### Provider Location & Resilience (2025-08)
+
+- The `TerminalProvider` is localized to the terminal subtree in `app/layout.tsx` to ensure terminal runtime issues cannot impact unrelated UI (e.g., navigation/hamburger).
+- Terminal history is cleared on route change by listening to the current pathname inside the provider (no coupling to navigation components).
+- Error boundaries wrap the terminal subtree so failures degrade gracefully while the rest of the page remains fully functional.
+- Cross-links: See repository overview in [00-architecture-entrypoint.md](./00-architecture-entrypoint.md) and mapping in [file-overview-map.md](../file-overview-map.md).

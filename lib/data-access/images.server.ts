@@ -6,10 +6,45 @@ import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalid
 // S3 is PERSISTENT STORAGE, not a cache!
 // This module caches data retrieved FROM S3 to reduce storage reads.
 
-// Type assertions for cache functions to fix ESLint unsafe call errors
-const safeCacheLife = cacheLife as (profile: string) => void;
-const safeCacheTag = cacheTag as (tag: string) => void;
-const safeRevalidateTag = revalidateTag as (tag: string) => void;
+// Runtime-safe wrappers for experimental cache APIs
+const safeCacheLife = (
+  profile: "default" | "seconds" | "minutes" | "hours" | "days" | "weeks" | "max" | { stale?: number; revalidate?: number; expire?: number }
+): void => {
+  try {
+    if (typeof cacheLife === "function") {
+      cacheLife(profile);
+    }
+  } catch (error) {
+    // Silently ignore if cacheLife is not available or experimental.useCache is not enabled
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[Images] cacheLife not available:", error);
+    }
+  }
+};
+const safeCacheTag = (tag: string): void => {
+  try {
+    if (typeof cacheTag === "function") {
+      cacheTag(tag);
+    }
+  } catch (error) {
+    // Silently ignore if cacheTag is not available
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[Images] cacheTag not available:", error);
+    }
+  }
+};
+const safeRevalidateTag = (tag: string): void => {
+  try {
+    if (typeof revalidateTag === "function") {
+      revalidateTag(tag);
+    }
+  } catch (error) {
+    // Silently ignore if revalidateTag is not available
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[Images] revalidateTag not available:", error);
+    }
+  }
+};
 
 const s3Client = new S3Client({ region: env.AWS_REGION });
 
@@ -26,7 +61,8 @@ export async function getImageFromS3StorageForCache(key: string): Promise<Buffer
 
   safeCacheLife("weeks"); // Use predefined profile for consistency
   safeCacheTag("image");
-  safeCacheTag(`image-key-${key}`);
+  const imageKeyTag = `image-key-${key.replace(/[^a-zA-Z0-9-]/g, "-")}`;
+  safeCacheTag(imageKeyTag);
 
   const command = new GetObjectCommand({
     Bucket: env.S3_BUCKET,
@@ -49,7 +85,8 @@ export async function getImageFromS3StorageForCache(key: string): Promise<Buffer
 export function invalidateImageCache(key?: string): void {
   if (key) {
     // Invalidate specific image
-    safeRevalidateTag(`image-key-${key}`);
+    const imageKeyTag = `image-key-${key.replace(/[^a-zA-Z0-9-]/g, "-")}`;
+    safeRevalidateTag(imageKeyTag);
     console.log(`[Images] Cache invalidated for image: ${key}`);
   } else {
     // Invalidate all images
