@@ -5,7 +5,8 @@
 
 import type { NavigationLinkProps } from "@/types/navigation";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react"; // Import useRef
+import { useEffect, useRef, useState } from "react";
+import type { MouseEvent } from "react";
 
 // Important pages that should be prefetched for faster navigation
 const PRIORITY_PATHS = ["/projects", "/blog", "/experience", "/contact"];
@@ -32,7 +33,7 @@ export function NavigationLink({ path, name, responsive, currentPath, className 
   const shouldPrefetch = PRIORITY_PATHS.includes(path);
 
   // Click handler (no hook dependency warnings)
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = (e: MouseEvent) => {
     const now = Date.now();
 
     // Prevent rapid navigation clicks (possible server switching)
