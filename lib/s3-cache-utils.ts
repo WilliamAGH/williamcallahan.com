@@ -58,7 +58,8 @@ async function getCachedJsonS3<T>(
   safeCacheLife(cacheProfile);
   safeCacheTag("s3-json");
   safeCacheTag(`s3-key-${s3Key.replace(/[^a-zA-Z0-9-]/g, "-")}`);
-  tags.forEach(tag => safeCacheTag(tag));
+  const normalize = (t: string) => t.replace(/[^a-zA-Z0-9-]/g, "-");
+  tags.forEach(tag => safeCacheTag(normalize(tag)));
   
   return readJsonS3<T>(s3Key);
 }
