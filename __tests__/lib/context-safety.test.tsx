@@ -3,7 +3,6 @@
  * Ensures contexts gracefully handle missing providers
  */
 
-import React from "react";
 import { renderHook } from "@testing-library/react";
 import { useTerminalContext } from "@/components/ui/terminal/terminal-context.client";
 import { useSafeWindowRegistry } from "@/lib/context/global-window-registry-context.client";

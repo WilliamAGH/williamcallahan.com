@@ -118,3 +118,9 @@ The SelectionView component implements a modal navigation system similar to term
 - **Layout Shift Prevention**: By matching the skeleton's content to the actual initial state, we prevent Cumulative Layout Shift (CLS) issues
 - **Dynamic Import**: Terminal is lazy-loaded with Next.js dynamic() and ssr: false for client-side rendering
 - **Consistent Sizing**: Both skeleton and actual terminal use identical padding, margins, and max-height values
+
+### Provider Location & Resilience (2025-08)
+
+- The `TerminalProvider` is localized to the terminal subtree in `app/layout.tsx` to ensure terminal runtime issues cannot impact unrelated UI (e.g., navigation/hamburger).
+- Terminal history is cleared on route change by listening to the current pathname inside the provider (no coupling to navigation components).
+- Error boundaries wrap the terminal subtree so failures degrade gracefully while the rest of the page remains fully functional.

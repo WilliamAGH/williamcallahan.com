@@ -3,11 +3,9 @@
  */
 "use client"; // Add "use client" as it uses hooks
 
-// Revert to original hook name
-import { useTerminalContext } from "@/components/ui/terminal/terminal-context.client";
 import type { NavigationLinkProps } from "@/types/navigation";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react"; // Import useRef
+import { useEffect, useRef, useState } from "react"; // Import useRef
 
 // Important pages that should be prefetched for faster navigation
 const PRIORITY_PATHS = ["/projects", "/blog", "/experience", "/contact"];
@@ -16,8 +14,6 @@ const PRIORITY_PATHS = ["/projects", "/blog", "/experience", "/contact"];
 const NAVIGATION_COOLDOWN = 300; // ms
 
 export function NavigationLink({ path, name, responsive, currentPath, className = "", onClick }: NavigationLinkProps) {
-  // Use the original hook name
-  const { clearHistory } = useTerminalContext();
   
   // Routes that should use prefix matching (have child routes)
   const prefixMatchRoutes = ["/bookmarks", "/blog", "/projects"];
@@ -35,33 +31,22 @@ export function NavigationLink({ path, name, responsive, currentPath, className 
   // Determine if this link should be prefetched
   const shouldPrefetch = PRIORITY_PATHS.includes(path);
 
-  // Memoize the click handler to prevent rerenders
-  const handleClick = useCallback(
-    (e: React.MouseEvent) => {
-      const now = Date.now();
+  // Click handler (no hook dependency warnings)
+  const handleClick = (e: React.MouseEvent) => {
+    const now = Date.now();
 
-      // Prevent rapid navigation clicks (possible server switching)
-      // Access and compare using the ref's current value
-      if (now - lastNavigationTimeRef.current < NAVIGATION_COOLDOWN) {
-        e.preventDefault();
-        return;
-      }
+    // Prevent rapid navigation clicks (possible server switching)
+    if (now - lastNavigationTimeRef.current < NAVIGATION_COOLDOWN) {
+      e.preventDefault();
+      return;
+    }
 
-      // Only clear history if navigating to a new page
-      if (path !== currentPath) {
-        // console.log(`[NavigationLink] Navigating to new path: ${path}`);
-        clearHistory(); // Clear history when navigating to a new page
-      } else {
-        // console.log(`[NavigationLink] Clicked active path: ${path}.`);
-      }
+    // No direct coupling to terminal; history clearing handled by TerminalProvider on route change
 
-      // Update the ref's current value
-      lastNavigationTimeRef.current = now;
-      setIsNavigating(true);
-      onClick?.();
-    },
-    [path, currentPath, onClick, clearHistory],
-  ); // Added clearHistory to dependency array
+    lastNavigationTimeRef.current = now;
+    setIsNavigating(true);
+    onClick?.();
+  };
 
   // Reset navigation state after timeout
   useEffect(() => {
