@@ -885,7 +885,7 @@ export class UnifiedImageService {
         response.headers instanceof Map ? response.headers.get("content-type") : response.headers.get("content-type");
       formData.append(
         "image",
-        new Blob([rawBuffer], { type: contentType ?? "application/octet-stream" }),
+        new Blob([new Uint8Array(rawBuffer)], { type: contentType ?? "application/octet-stream" }),
         "logo-to-validate",
       );
       formData.append("url", url);
