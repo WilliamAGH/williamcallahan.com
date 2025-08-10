@@ -51,4 +51,5 @@ tsconfig.tsbuildinfo
 # Data update details file
 .data-update-details.json
 
-.jrdev/*
+.jrdev/
+!.jrdev/.gitkeep

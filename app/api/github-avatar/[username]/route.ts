@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 import type { NextRequest } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import type { GitHubAvatarRouteParams } from "@/types/api";
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest, { params }: GitHubAvatarRoutePar
           "Content-Type": result.contentType,
           "Cache-Control": "public, max-age=604800", // 7 days
           "X-Cache": result.source === "s3" ? "HIT" : "MISS",
+          ...IMAGE_SECURITY_HEADERS,
         },
       });
     }
