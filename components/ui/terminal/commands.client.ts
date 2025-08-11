@@ -188,6 +188,35 @@ Examples:
 `.trim();
 
 /**
+ * Safely open a URL in a new tab using an anchor click. This avoids
+ * relying on the return value of window.open and prevents tabnabbing
+ * with rel="noopener". Keep this synchronous within the user gesture
+ * for best compatibility on mobile browsers.
+ */
+function openInNewTabSafe(rawUrl: string): void {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    console.error("Invalid URL provided to openInNewTabSafe:", rawUrl);
+    return;
+  }
+
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    console.error("Blocked non-http(s) protocol for openInNewTabSafe:", url.protocol);
+    return;
+  }
+
+  const anchor = document.createElement("a");
+  anchor.href = url.toString();
+  anchor.target = "_blank";
+  anchor.rel = "noopener"; // prevent window.opener access
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+}
+
+/**
  * Get the Schema.org data for the current page
  * @param includeDebug - Whether to include debug information (path, URL, timestamp)
  * @returns Schema.org JSON-LD data as a formatted string
@@ -298,22 +327,8 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
   // Open external AI search in a new tab
   if (command === "ai" || command === "chat") {
     try {
-      // Use native window.open with security flags; this is a client-only module
-      const win = window.open("https://search-ai.io", "_blank", "noopener,noreferrer");
-      if (win == null) {
-        console.warn("Popup blocked by the browser. Allow popups for this site to open search-ai.io.");
-        return {
-          results: [
-            {
-              type: "text",
-              id: crypto.randomUUID(),
-              input: "",
-              output: "Popup blocked. Please allow popups for this site to open https://search-ai.io.",
-              timestamp: Date.now(),
-            },
-          ],
-        };
-      }
+      // Open via safe anchor click; avoid Safari's null return behavior with noreferrer
+      openInNewTabSafe("https://search-ai.io");
     } catch (err) {
       console.error("Failed to open external URL:", err);
     }
@@ -323,7 +338,7 @@ export async function handleCommand(input: string, signal?: AbortSignal): Promis
           type: "text",
           id: crypto.randomUUID(),
           input: "",
-          output: 'Opening https://search-ai.io in a new tab…',
+          output: "Opening https://search-ai.io in a new tab…",
           timestamp: Date.now(),
         },
       ],
