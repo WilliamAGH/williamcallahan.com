@@ -5,6 +5,71 @@ alwaysApply: true  # Exception: This master config file always applies to provid
 
 # CLAUDE Development Environment - ZERO TEMPERATURE PROTOCOLS
 
+## 📌 PROJECT CONFIGURATION
+
+```yaml
+# Repository
+REPO_NAME: williamcallahan.com
+GITHUB_URL: https://github.com/williamcallahan/williamcallahan.com
+GITHUB_ORG: WilliamAGH
+DEFAULT_BRANCH: sandbox
+
+# Package Manager
+PACKAGE_MANAGER: bun
+PACKAGE_MANAGER_LOCK: bun.lock
+PACKAGE_MANAGER_RUN: bun run
+PACKAGE_MANAGER_INSTALL: bun install
+PACKAGE_MANAGER_ADD: bun add
+PACKAGE_MANAGER_REMOVE: bun remove
+
+# Commands
+BUILD_COMMAND: bun run build
+DEV_COMMAND: bun run dev
+TEST_COMMAND: bun run test
+LINT_COMMAND: bun run lint
+FORMAT_COMMAND: bun run format
+VALIDATE_COMMAND: bun run validate
+TYPE_CHECK_COMMAND: bun run type-check
+
+# Stack
+FRAMEWORK: Next.js
+FRAMEWORK_VERSION: 22.x
+RUNTIME: Node.js
+RUNTIME_VERSION: 22 LTS
+TYPESCRIPT_VERSION: 5.x
+REACT_VERSION: 19.x
+
+# Testing
+TEST_RUNNER: Jest
+TEST_FRAMEWORK: React Testing Library
+TEST_CONFIG_PATH: config/jest/config.ts
+TEST_COVERAGE_COMMAND: bun run test:coverage
+TEST_WATCH_COMMAND: bun run test:watch
+
+# Code Quality
+LINTER: Oxlint v1.x
+FORMATTER: Prettier with ESLint
+TYPE_CHECKER: TypeScript (tsc)
+VALIDATION_SCHEMA_LIB: Zod
+SCHEMA_VERSION: 4.x
+
+# Directories
+TYPES_DIR: types/
+SCHEMAS_DIR: lib/schemas/
+DOCS_DIR: docs/
+COMPONENTS_DIR: components/
+STYLES_DIR: styles/
+PUBLIC_DIR: public/
+CONFIG_DIR: config/
+
+# CI/CD & Deployment
+CI_PROVIDER: GitHub Actions
+DEPLOYMENT_PLATFORM: Self-hosted Docker Containers (Coolify and others)
+PRODUCTION_URL: https://williamcallahan.com
+DEVELOPMENT_URL: https://dev.williamcallahan.com
+LOCAL_DEVELOPMENT_URL: http://localhost:3000
+```
+
 This project operates under **ZERO TEMPERATURE** development standards where every decision must be explicitly verified, no assumptions are permitted, and type safety is absolute.
 
 ## 🎯 COMMUNICATION PRINCIPLES - TRUTH THROUGH VERIFICATION
