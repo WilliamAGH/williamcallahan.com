@@ -30,7 +30,7 @@ import { getContentTypeFromExtension, isImageContentType } from "@/lib/utils/con
 
 // Environment variables for S3 configuration
 const S3_BUCKET = process.env.S3_BUCKET;
-const S3_ENDPOINT_URL = process.env.S3_SERVER_URL; // Use S3_SERVER_URL env var for S3 endpoint
+const S3_ENDPOINT_URL = process.env.S3_SERVER_URL; // Optional: custom endpoint for S3-compatible providers
 const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
 const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 // S3_REGION variable moved into getS3Client function
@@ -95,33 +95,30 @@ export function getS3Client(): S3Client | null {
 
   // Re-read environment variables on each initialization attempt
   const bucket = process.env.S3_BUCKET;
-  const endpoint = process.env.S3_SERVER_URL;
+  const endpoint = process.env.S3_SERVER_URL; // may be undefined (SDK default endpoint)
   const accessKeyId = process.env.S3_ACCESS_KEY_ID;
   const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
   const region = process.env.S3_REGION || process.env.AWS_REGION || "us-east-1";
 
-  if (bucket && endpoint && accessKeyId && secretAccessKey) {
-    s3ClientInstance = new S3Client({
-      endpoint,
+  if (bucket && accessKeyId && secretAccessKey) {
+    const baseConfig = {
       region,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
+      credentials: { accessKeyId, secretAccessKey },
       forcePathStyle: true,
-      // Enhanced retry configuration with adaptive mode
-      maxAttempts: 5, // Default is 3, increase to 5
-      retryMode: "adaptive", // Use adaptive retry mode for better backoff and throttling
-    });
-    if (isDebug) debug("[S3Utils] S3 client initialized successfully");
-  } else {
-    if (isDebug) {
-      debug(`[S3Utils] S3 client not initialized - missing environment variables:
-        S3_BUCKET: ${bucket ? "set" : "missing"}
-        S3_SERVER_URL: ${endpoint ? "set" : "missing"}
-        S3_ACCESS_KEY_ID: ${accessKeyId ? "set" : "missing"}
-        S3_SECRET_ACCESS_KEY: ${secretAccessKey ? "set" : "missing"}`);
-    }
+      maxAttempts: 5,
+      retryMode: "adaptive" as const,
+    };
+    s3ClientInstance = endpoint ? new S3Client({ ...baseConfig, endpoint }) : new S3Client(baseConfig);
+    if (isDebug)
+      debug(
+        `[S3Utils] S3-compatible client initialized (${endpoint ? "custom endpoint" : "sdk default endpoint"}).`,
+      );
+  } else if (isDebug) {
+    debug(`[S3Utils] S3 client not initialized - missing envs: ` +
+      `S3_BUCKET=${bucket ? "set" : "missing"}, ` +
+      `S3_SERVER_URL=${endpoint ? "set" : "missing"}, ` +
+      `S3_ACCESS_KEY_ID=${accessKeyId ? "set" : "missing"}, ` +
+      `S3_SECRET_ACCESS_KEY=${secretAccessKey ? "set" : "missing"}`);
   }
 
   return s3ClientInstance;
@@ -721,7 +718,8 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
  * @param data Data to write
  * @param options Optional parameters including IfNoneMatch for conditional writes
  */
-export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneMatch?: string }): Promise<void> {
+// biome-ignore lint/correctness/noUnusedFunctionParameters: third-arg kept for API compatibility
+export async function writeJsonS3<T>(s3Key: string, data: T, unusedOptions?: { IfNoneMatch?: string }): Promise<void> {
   if (DRY_RUN) {
     if (isDebug) debug(`[S3Utils][DRY RUN] Would write JSON to S3 key: ${s3Key}`);
     return;
@@ -743,7 +741,9 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
   const dataSize = Buffer.byteLength(jsonData, "utf-8");
   const SMALL_PAYLOAD_THRESHOLD = 512 * 1024; // 512 KB
 
-  if (!hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
+  // Allow tiny operational JSON files to bypass headroom checks (e.g., index/heartbeat)
+  const isTinyOperationalFile = /json\/bookmarks\/(index|heartbeat).*\.json$/.test(s3Key);
+  if (!isTinyOperationalFile && !hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
     console.warn(
       `[S3Utils] Skipping S3 write for ${s3Key} (${(dataSize / 1024).toFixed(1)} KB) due to memory pressure`,
     );
@@ -751,41 +751,11 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
   }
 
   try {
-    // If conditional write options are provided, use direct S3 command
-    if (options?.IfNoneMatch) {
-      const client = getS3Client();
-      if (!S3_BUCKET || !client) {
-        throw new Error("[S3Utils] S3 not properly configured for conditional write");
-      }
-
-      const command = new PutObjectCommand({
-        Bucket: S3_BUCKET,
-        Key: s3Key,
-        Body: jsonData,
-        ContentType: "application/json",
-        ACL: "public-read", // JSON data is typically public
-      });
-
-      await client.send(command);
-      if (isDebug) debug(`[S3Utils] Conditional write successful for ${s3Key}`);
-    } else {
-      // Use regular writeToS3 for non-conditional writes
-      await writeToS3(s3Key, jsonData, "application/json", "public-read");
-    }
+    // Use regular write regardless of options to stay provider-agnostic
+    await writeToS3(s3Key, jsonData, "application/json", "public-read");
     // No need for redundant success log here, writeToS3 handles it.
   } catch (error: unknown) {
-    // If error is due to conditional write failing because object exists (HTTP 412), treat as benign
-    const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
-    const isPreconditionFailed = err.name === "PreconditionFailed" || err.$metadata?.httpStatusCode === 412;
-
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
-
-    if (isPreconditionFailed) {
-      // Only log at debug level to keep dev console clean
-      if (isDebug) debug(`[S3Utils] Conditional write skipped for ${s3Key} (object already exists, HTTP 412).`);
-      return; // Swallow error – lock already exists
-    }
-
     console.error(`[S3Utils] Failed to write JSON to S3 key ${s3Key}:`, message);
     throw error; // Re-throw other errors so callers can handle
   }
