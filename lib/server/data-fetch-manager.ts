@@ -120,12 +120,29 @@ export class DataFetchManager {
         }
       }
 
+      // Read current index to surface changeDetected/lastFetchedAt consistently
+      let changeDetected: boolean | undefined;
+      let lastFetchedAt: number | undefined;
+      try {
+        const { readJsonS3 } = await import("@/lib/s3-utils");
+        const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
+        const index = await readJsonS3<import("@/types/bookmark").BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+        if (index) {
+          changeDetected = index.changeDetected ?? undefined;
+          lastFetchedAt = index.lastFetchedAt;
+        }
+      } catch {
+        // non-fatal
+      }
+
       const duration = (Date.now() - startTime) / 1000;
       return {
         success: true,
         operation: "bookmarks",
         itemsProcessed: bookmarks.length,
         duration,
+        changeDetected,
+        lastFetchedAt,
       };
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error(String(e));
