@@ -596,6 +596,8 @@ export interface BookmarksS3Paths {
   TAG_PREFIX: string;
   /** S3 path prefix for tag index files */
   TAG_INDEX_PREFIX: string;
+  /** Heartbeat file for operational checks */
+  HEARTBEAT: string;
 }
 
 /** URL validation result */
