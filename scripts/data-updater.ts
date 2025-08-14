@@ -206,9 +206,9 @@ if (testLimitArg) {
 
     results.forEach((result) => {
       if (result.success) {
-        logger.info(`  - ${result.operation}: Success (${result.itemsProcessed} items)`);
+        logger.info(`  - ${result.operation}: Success (${result.itemsProcessed} items, duration: ${result.duration}s)`);
       } else {
-        logger.error(`  - ${result.operation}: Failed (${result.error})`);
+        logger.error(`  - ${result.operation}: Failed (${result.error}, duration: ${result.duration}s)`);
       }
     });
 
