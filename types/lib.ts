@@ -449,6 +449,9 @@ export interface DataFetchOperationSummary {
   itemsProcessed?: number;
   error?: string;
   duration?: number;
+  // Optional standardized fields for bookmarks refresh parity
+  changeDetected?: boolean;
+  lastFetchedAt?: number;
 }
 
 // =============================================================================
