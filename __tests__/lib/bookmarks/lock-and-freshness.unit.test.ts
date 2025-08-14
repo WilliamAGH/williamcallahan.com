@@ -16,16 +16,12 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
   it("acquires lock when none exists, writes heartbeat, updates index on unchanged, and releases lock", async () => {
     await jest.isolateModulesAsync(async () => {
       // Global accumulators so we observe writes even if module instances differ
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).__S3_WRITES__ = [] as string[];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).__S3_DELETES__ = [] as string[];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (globalThis as any).__S3_LOCK__ = null as unknown;
 
       jest.doMock("@/lib/s3-utils", () => {
-        const readJsonS3 = jest.fn().mockImplementation(async (key: string) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const readJsonS3 = jest.fn().mockImplementation((key: string) => {
           const g: any = globalThis as any;
           console.log(`readJsonS3 called with key: ${key}`);
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
@@ -46,8 +42,7 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
           }
           return Promise.resolve(null);
         });
-        const writeJsonS3 = jest.fn().mockImplementation(async (key: string, value: unknown) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const writeJsonS3 = jest.fn().mockImplementation((key: string, value: unknown) => {
           const g: any = globalThis as any;
           console.log(`writeJsonS3 called with key: ${key}, value:`, value);
           g.__S3_WRITES__.push(key);
@@ -57,8 +52,7 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
           }
           return Promise.resolve(void 0);
         });
-        const deleteFromS3 = jest.fn().mockImplementation(async (key: string) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const deleteFromS3 = jest.fn().mockImplementation((key: string) => {
           const g: any = globalThis as any;
           g.__S3_DELETES__.push(key);
           if (key === BOOKMARKS_S3_PATHS.LOCK) g.__S3_LOCK__ = null;
@@ -98,7 +92,6 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
       const result = await refreshAndPersistBookmarks(false);
       console.log("refreshAndPersistBookmarks result:", result);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const writes = ((globalThis as any).__S3_WRITES__ as string[]) || [];
       const wroteLock = writes.includes(BOOKMARKS_S3_PATHS.LOCK);
       const wroteHeartbeat = writes.includes(BOOKMARKS_S3_PATHS.HEARTBEAT);
@@ -109,9 +102,7 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
       expect(wroteHeartbeat).toBe(true);
       expect(wroteIndex).toBe(true);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const deletes = ((globalThis as any).__S3_DELETES__ as string[]) || [];
-      // eslint-disable-next-line no-console
       console.log("S3 deletes:", deletes);
       expect(deletes.includes(BOOKMARKS_S3_PATHS.LOCK)).toBe(true);
     });

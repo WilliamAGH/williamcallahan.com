@@ -69,6 +69,8 @@ export async function POST(request: Request): Promise<NextResponse> {
               refreshed: false,
               bookmarksCount: index?.count || 0,
               lastFetchedAt: index?.lastFetchedAt ? new Date(index.lastFetchedAt).toISOString() : null,
+              lastFetchedAtTs: index?.lastFetchedAt ?? null,
+              changeDetected: index?.changeDetected ?? null,
             },
           });
         }
@@ -85,8 +87,9 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     // Get previous count from S3 index
     let previousCount = 0;
+    let previousIndex: BookmarksIndex | null = null;
     try {
-      const previousIndex = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
+      previousIndex = await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX);
       previousCount = previousIndex?.count || 0;
     } catch {
       // Index doesn't exist yet
@@ -131,6 +134,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       data: {
         refreshStarted: true,
         previousCount,
+        changeDetected: previousIndex?.changeDetected ?? null,
+        lastFetchedAt: previousIndex?.lastFetchedAt ? new Date(previousIndex.lastFetchedAt).toISOString() : null,
+        lastFetchedAtTs: previousIndex?.lastFetchedAt ?? null,
       },
     });
   } catch (error) {
@@ -169,6 +175,8 @@ export async function GET(): Promise<NextResponse> {
         bookmarksCount: index?.count || 0,
         lastFetchedAt: index?.lastFetchedAt ? new Date(index.lastFetchedAt).toISOString() : null,
         lastAttemptedAt: index?.lastAttemptedAt ? new Date(index.lastAttemptedAt).toISOString() : null,
+        lastFetchedAtTs: index?.lastFetchedAt ?? null,
+        lastAttemptedAtTs: index?.lastAttemptedAt ?? null,
         changeDetected: index?.changeDetected ?? null,
       },
     });
