@@ -169,6 +169,7 @@ export async function GET(): Promise<NextResponse> {
         bookmarksCount: index?.count || 0,
         lastFetchedAt: index?.lastFetchedAt ? new Date(index.lastFetchedAt).toISOString() : null,
         lastAttemptedAt: index?.lastAttemptedAt ? new Date(index.lastAttemptedAt).toISOString() : null,
+        changeDetected: index?.changeDetected ?? null,
       },
     });
   } catch {
@@ -180,6 +181,7 @@ export async function GET(): Promise<NextResponse> {
         bookmarksCount: 0,
         lastFetchedAt: null,
         lastAttemptedAt: null,
+        changeDetected: null,
       },
     });
   }
