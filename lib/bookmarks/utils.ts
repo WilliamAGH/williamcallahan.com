@@ -181,9 +181,15 @@ export const convertBookmarksToSerializable = (bookmarks: UnifiedBookmark[]): Se
     domain: b.domain,
   }));
 
-/** Calculate checksum for bookmark array based on id and modification time */
+/**
+ * Calculate checksum for bookmark array based on id and modification time.
+ * Order-insensitive: sorts by id to avoid false change detection from reordering.
+ */
 export const calculateBookmarksChecksum = (bookmarks: UnifiedBookmark[]): string =>
-  bookmarks.map((b) => `${b.id}:${b.modifiedAt || b.dateBookmarked}`).join("|");
+  [...bookmarks]
+    .sort((a, b) => (a.id || "").localeCompare(b.id || ""))
+    .map((b) => `${b.id}:${b.modifiedAt || b.dateBookmarked}`)
+    .join("|");
 
 /** Convert UnifiedBookmark to LightweightBookmark by stripping image data */
 export const stripImageData = (b: UnifiedBookmark): LightweightBookmark =>
