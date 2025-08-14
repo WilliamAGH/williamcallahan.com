@@ -61,6 +61,7 @@ describe("Tag Route Functionality", () => {
         lastFetchedAt: Date.now(),
         lastAttemptedAt: Date.now(),
         checksum: "test-checksum",
+        changeDetected: false,
       };
 
       // Mock cached page and index
@@ -309,6 +310,7 @@ describe("Tag Route Functionality", () => {
         lastFetchedAt: Date.now(),
         lastAttemptedAt: Date.now(),
         checksum: "react-checksum",
+        changeDetected: true,
       };
 
       // Mock for popular tag that would be cached
@@ -419,6 +421,7 @@ describe("Tag Route Functionality", () => {
         lastFetchedAt: Date.now(),
         lastAttemptedAt: Date.now(),
         checksum: "popular-checksum",
+        changeDetected: true,
       };
 
       // Mock S3 to return the cached popular tag data
