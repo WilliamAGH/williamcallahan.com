@@ -256,6 +256,7 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
     lastFetchedAt: now,
     lastAttemptedAt: now,
     checksum: calculateBookmarksChecksum(bookmarks),
+    changeDetected: true,
   };
   await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, index);
   for (let page = 1; page <= totalPages; page++) {
@@ -307,6 +308,7 @@ async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<
       lastFetchedAt: now,
       lastAttemptedAt: now,
       checksum: calculateBookmarksChecksum(tagBookmarks),
+      changeDetected: true,
     };
     await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`, tagIndex);
     for (let page = 1; page <= totalPages; page++) {
@@ -332,6 +334,20 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
     const hasChanged = await hasBookmarksChanged(allIncomingBookmarks);
     if (!hasChanged) {
       console.log(`${LOG_PREFIX} No changes detected, skipping write`);
+      // Still update index freshness to reflect successful refresh
+      const now = Date.now();
+      const existingIndex = (await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX)) || null;
+      const updatedIndex: BookmarksIndex = {
+        count: existingIndex?.count ?? allIncomingBookmarks.length,
+        totalPages: existingIndex?.totalPages ?? Math.ceil(allIncomingBookmarks.length / BOOKMARKS_PER_PAGE),
+        pageSize: existingIndex?.pageSize ?? BOOKMARKS_PER_PAGE,
+        lastModified: new Date().toISOString(),
+        lastFetchedAt: now,
+        lastAttemptedAt: now,
+        checksum: existingIndex?.checksum ?? calculateBookmarksChecksum(allIncomingBookmarks),
+        changeDetected: false,
+      };
+      await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, updatedIndex);
       return allIncomingBookmarks;
     }
     console.log(`${LOG_PREFIX} Changes detected, persisting bookmarks`);
@@ -376,6 +392,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 lastFetchedAt: now,
                 lastAttemptedAt: now,
                 checksum: existingIndex?.checksum ?? calculateBookmarksChecksum(freshBookmarks),
+                changeDetected: false,
               };
               await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, updatedIndex);
             }
