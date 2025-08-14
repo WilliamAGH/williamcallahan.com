@@ -13,25 +13,27 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
   it("acquires lock when none exists, writes heartbeat, updates index on unchanged, and releases lock", async () => {
     await jest.isolateModulesAsync(async () => {
       jest.doMock("@/lib/s3-utils", () => {
-        return {
-          __esModule: true,
-          readJsonS3: jest.fn((key: string) => {
-            if (key === BOOKMARKS_S3_PATHS.LOCK) return null; // no existing lock
-            if (key === BOOKMARKS_S3_PATHS.INDEX)
-              return {
-                count: 1,
-                totalPages: 1,
-                pageSize: BOOKMARKS_PER_PAGE,
-                lastModified: new Date().toISOString(),
-                lastFetchedAt: Date.now() - 3600_000,
-                lastAttemptedAt: Date.now() - 3600_000,
-                checksum: "same",
-              };
-            return null;
-          }),
-          writeJsonS3: jest.fn(async () => void 0),
-          deleteFromS3: jest.fn(async () => void 0),
-        };
+        let lockEntry: unknown = null;
+        const readJsonS3 = jest.fn((key: string) => {
+          if (key === BOOKMARKS_S3_PATHS.LOCK) return lockEntry; // reflect last lock write
+          if (key === BOOKMARKS_S3_PATHS.INDEX)
+            return {
+              count: 1,
+              totalPages: 1,
+              pageSize: BOOKMARKS_PER_PAGE,
+              lastModified: new Date().toISOString(),
+              lastFetchedAt: Date.now() - 3600_000,
+              lastAttemptedAt: Date.now() - 3600_000,
+              checksum: "same",
+            };
+          return null;
+        });
+        const writeJsonS3 = jest.fn(async (key: string, value: unknown) => {
+          if (key === BOOKMARKS_S3_PATHS.LOCK) lockEntry = value;
+          return void 0;
+        });
+        const deleteFromS3 = jest.fn(async () => void 0);
+        return { __esModule: true, readJsonS3, writeJsonS3, deleteFromS3 };
       });
 
       const s3 = await import("@/lib/s3-utils");
