@@ -214,6 +214,7 @@ export const bookmarksIndexSchema = z.object({
   lastFetchedAt: z.number().int(),
   lastAttemptedAt: z.number().int(),
   checksum: z.string(),
+  changeDetected: z.boolean().optional(),
 });
 
 export type BookmarksIndex = z.infer<typeof bookmarksIndexSchema>;
