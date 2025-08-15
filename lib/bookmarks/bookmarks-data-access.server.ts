@@ -384,7 +384,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 count: existingIndex?.count ?? freshBookmarks.length,
                 totalPages: existingIndex?.totalPages ?? Math.ceil(freshBookmarks.length / BOOKMARKS_PER_PAGE),
                 pageSize: existingIndex?.pageSize ?? BOOKMARKS_PER_PAGE,
-                lastModified: new Date().toISOString(),
+                lastModified: existingIndex?.lastModified ?? new Date().toISOString(),
                 lastFetchedAt: now,
                 lastAttemptedAt: now,
                 checksum: existingIndex?.checksum ?? calculateBookmarksChecksum(freshBookmarks),
