@@ -717,8 +717,7 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
  * @param data Data to write
  * @param options Optional parameters including IfNoneMatch for conditional writes
  */
-// biome-ignore lint/correctness/noUnusedFunctionParameters: third-arg kept for API compatibility
-export async function writeJsonS3<T>(s3Key: string, data: T, unusedOptions?: { IfNoneMatch?: string }): Promise<void> {
+export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneMatch?: string }): Promise<void> {
   if (DRY_RUN) {
     if (isDebug) debug(`[S3Utils][DRY RUN] Would write JSON to S3 key: ${s3Key}`);
     return;
@@ -755,7 +754,24 @@ export async function writeJsonS3<T>(s3Key: string, data: T, unusedOptions?: { I
   }
 
   try {
-    // Use regular write regardless of options to stay provider-agnostic
+    // Prefer atomic conditional create when requested and client is available
+    if (options?.IfNoneMatch === "*") {
+      const client = getS3Client();
+      if (isS3FullyConfigured && client) {
+        const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+        const command = new PutObjectCommand({
+          Bucket: S3_BUCKET,
+          Key: s3Key,
+          Body: jsonData,
+          ContentType: "application/json",
+          ACL: "public-read",
+          IfNoneMatch: "*",
+        });
+        await client.send(command);
+        return;
+      }
+      // Fall through to regular write if client not available
+    }
     await writeToS3(s3Key, jsonData, "application/json", "public-read");
     // No need for redundant success log here, writeToS3 handles it.
   } catch (error: unknown) {
