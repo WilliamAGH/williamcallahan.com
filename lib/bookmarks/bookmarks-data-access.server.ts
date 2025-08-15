@@ -393,11 +393,11 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
               await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, updatedIndex);
             }
             // Heartbeat write (tiny file)
-            await writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
+            void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
               runAt: Date.now(),
               success: true,
               changeDetected: hasChanged || !!force,
-            });
+            }).catch(() => void 0);
             return freshBookmarks;
           }
           console.warn(`${LOG_PREFIX} Freshly fetched bookmarks are invalid.`);
