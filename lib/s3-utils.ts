@@ -912,7 +912,7 @@ export async function acquireDistributedLock(
   }
 
   try {
-    await writeJsonS3(lockPath, lockEntry);
+    await writeJsonS3(lockPath, lockEntry, { IfNoneMatch: "*" });
     // Read-back verification to confirm we own the lock after any concurrent writes
     const current = await readJsonS3<{ instanceId: string; acquiredAt: number; operation: string }>(lockPath);
     if (current && current.instanceId === lockEntry.instanceId && current.acquiredAt === lockEntry.acquiredAt) {
@@ -920,7 +920,15 @@ export async function acquireDistributedLock(
     }
     // Someone else won the race
     return false;
-  } catch (error) {
+  } catch (error: unknown) {
+    // Check if it's a precondition failure (lock already exists)
+    if (error && typeof error === "object" && "$metadata" in error) {
+      const metadata = error.$metadata as { httpStatusCode?: number };
+      if (metadata.httpStatusCode === 412) {
+        // Another process holds the lock - this is expected, not an error
+        return false;
+      }
+    }
     console.error(`Failed to acquire lock ${lockKey}:`, error);
     return false;
   }
