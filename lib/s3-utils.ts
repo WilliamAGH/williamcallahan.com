@@ -30,7 +30,6 @@ import { getContentTypeFromExtension, isImageContentType } from "@/lib/utils/con
 
 // Environment variables for S3 configuration
 const S3_BUCKET = process.env.S3_BUCKET;
-const S3_ENDPOINT_URL = process.env.S3_SERVER_URL; // Optional: custom endpoint for S3-compatible providers
 const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
 const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 // S3_REGION variable moved into getS3Client function
@@ -51,13 +50,13 @@ const MAX_S3_READ_SIZE = 50 * 1024 * 1024; // 50MB max read size to prevent memo
 const inFlightReads = new Map<string, Promise<Buffer | string | null>>();
 
 // Helper: log a single warning when S3 configuration is missing, then downgrade subsequent messages to debug level
-const isS3FullyConfigured = Boolean(S3_BUCKET && S3_ENDPOINT_URL && S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY);
+const isS3FullyConfigured = Boolean(S3_BUCKET && S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY);
 
 let hasLoggedMissingS3Config = false;
 function logMissingS3ConfigOnce(context: string): void {
   if (!hasLoggedMissingS3Config) {
     console.warn(
-      "[S3Utils] Missing S3 configuration (S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). All S3 operations will be skipped.",
+      "[S3Utils] Missing S3 configuration (S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3_SERVER_URL is optional. All S3 operations will be skipped.",
     );
     hasLoggedMissingS3Config = true;
   }
@@ -77,10 +76,10 @@ function isBinaryKey(key: string): boolean {
 
 // Only warn about missing S3 config if we're not in build phase
 // During build, S3 write operations are intentionally disabled so missing config is expected
-if (!S3_BUCKET || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
+if (!S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
   if (process.env.NEXT_PHASE !== "phase-production-build") {
     console.warn(
-      "[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3 operations may fail.",
+      "[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3_SERVER_URL is optional. S3 operations may fail.",
     );
   }
 }
