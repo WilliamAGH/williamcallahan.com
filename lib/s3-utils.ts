@@ -897,7 +897,13 @@ export async function acquireDistributedLock(
 
   try {
     await writeJsonS3(lockPath, lockEntry);
-    return true;
+    // Read-back verification to confirm we own the lock after any concurrent writes
+    const current = await readJsonS3<{ instanceId: string; acquiredAt: number; operation: string }>(lockPath);
+    if (current && current.instanceId === lockEntry.instanceId && current.acquiredAt === lockEntry.acquiredAt) {
+      return true;
+    }
+    // Someone else won the race
+    return false;
   } catch (error) {
     console.error(`Failed to acquire lock ${lockKey}:`, error);
     return false;
