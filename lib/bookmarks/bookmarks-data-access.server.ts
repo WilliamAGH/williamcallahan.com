@@ -83,12 +83,6 @@ const LOG_PREFIX = "[BookmarksDataAccess]";
 const DISTRIBUTED_LOCK_S3_KEY = BOOKMARKS_S3_PATHS.LOCK;
 const LOCK_TTL_MS = Number(process.env.BOOKMARKS_LOCK_TTL_MS) || 5 * 60 * 1000;
 const LOCK_CLEANUP_INTERVAL_MS = 2 * 60 * 1000;
-// legacy constants (no longer used after lock simplification)
-// kept for backward compatibility to minimize diff but unused
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const MAX_POLL_ATTEMPTS = 5;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const POLL_INTERVAL_MS = 50;
 
 let isRefreshLocked = false;
 let lockCleanupInterval: NodeJS.Timeout | null = null;
