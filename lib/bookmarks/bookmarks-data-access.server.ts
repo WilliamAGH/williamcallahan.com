@@ -165,7 +165,7 @@ async function cleanupStaleLocks(): Promise<void> {
   try {
     const existingLock = await readJsonS3<DistributedLockEntry>(DISTRIBUTED_LOCK_S3_KEY);
     if (existingLock && typeof existingLock === "object") {
-      const expired = Date.now() - existingLock.acquiredAt > existingLock.ttlMs;
+      const expired = Date.now() - existingLock.acquiredAt >= existingLock.ttlMs;
       if (expired) await releaseDistributedLock(DISTRIBUTED_LOCK_S3_KEY, true);
     }
   } catch (e: unknown) {
