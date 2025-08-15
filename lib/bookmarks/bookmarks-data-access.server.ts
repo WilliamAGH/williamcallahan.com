@@ -407,11 +407,11 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
       }
       const sel = await selectiveRefreshAndPersistBookmarks();
       // Heartbeat for selective path
-      await writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
+      void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
         runAt: Date.now(),
         success: !!sel,
         changeDetected: !!sel, // conservative signal
-      });
+      }).catch(() => void 0);
       return sel;
     } catch (error) {
       console.error(`${LOG_PREFIX} Failed to refresh bookmarks:`, String(error));
