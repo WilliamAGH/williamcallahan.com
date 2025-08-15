@@ -337,7 +337,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         count: existingIndex?.count ?? allIncomingBookmarks.length,
         totalPages: existingIndex?.totalPages ?? Math.ceil(allIncomingBookmarks.length / BOOKMARKS_PER_PAGE),
         pageSize: existingIndex?.pageSize ?? BOOKMARKS_PER_PAGE,
-        lastModified: new Date().toISOString(),
+        lastModified: existingIndex?.lastModified ?? new Date().toISOString(),
         lastFetchedAt: now,
         lastAttemptedAt: now,
         checksum: existingIndex?.checksum ?? calculateBookmarksChecksum(allIncomingBookmarks),
