@@ -106,7 +106,9 @@ async function acquireDistributedLock(lockKey: string, ttlMs: number, retryCount
     const existing = await readJsonS3<DistributedLockEntry>(lockKey);
     if (existing && typeof existing === "object") {
       const age = Date.now() - existing.acquiredAt;
-      if (age < existing.ttlMs) {
+      // lock is still valid if age hasn't exceeded TTL
+      const isExpired = age >= existing.ttlMs;
+      if (!isExpired) {
         return false;
       }
     }
