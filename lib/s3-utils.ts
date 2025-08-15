@@ -742,7 +742,12 @@ export async function writeJsonS3<T>(s3Key: string, data: T, unusedOptions?: { I
   const SMALL_PAYLOAD_THRESHOLD = 512 * 1024; // 512 KB
 
   // Allow tiny operational JSON files to bypass headroom checks (e.g., index/heartbeat)
-  const isTinyOperationalFile = /json\/bookmarks\/(index|heartbeat).*\.json$/.test(s3Key);
+  // Use the constants from BOOKMARKS_S3_PATHS to determine operational files
+  const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
+  const isTinyOperationalFile = 
+    s3Key === BOOKMARKS_S3_PATHS.INDEX || 
+    s3Key === BOOKMARKS_S3_PATHS.HEARTBEAT ||
+    s3Key === BOOKMARKS_S3_PATHS.LOCK;
   if (!isTinyOperationalFile && !hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
     console.warn(
       `[S3Utils] Skipping S3 write for ${s3Key} (${(dataSize / 1024).toFixed(1)} KB) due to memory pressure`,
