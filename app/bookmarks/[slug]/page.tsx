@@ -18,7 +18,6 @@ import { generateSchemaGraph } from "@/lib/seo/schema";
 import { PAGE_METADATA } from "@/data/metadata";
 import { formatSeoDate } from "@/lib/seo/utils";
 import { generateDynamicTitle } from "@/lib/seo/dynamic-metadata";
-import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
@@ -26,7 +25,7 @@ import { OG_IMAGE_DIMENSIONS } from "@/data/metadata";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 import { RelatedContent } from "@/components/features/related-content";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
-import { loadSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { loadSlugMapping, generateSlugMapping, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
 
 // Generate static params for all bookmarks at build time
 export async function generateStaticParams() {
@@ -53,18 +52,29 @@ export async function generateStaticParams() {
   }
 }
 
-// Helper function to find bookmark by slug
+// Helper function to find bookmark by slug using pre-computed mappings
 async function findBookmarkBySlug(slug: string) {
+  // Load the pre-computed slug mapping
+  let mapping = await loadSlugMapping();
+  
+  // If no mapping exists, generate it (this should only happen during build)
+  if (!mapping) {
+    const allBookmarks = (await getBookmarks({ includeImageData: false })) as import("@/types").UnifiedBookmark[];
+    if (!allBookmarks || allBookmarks.length === 0) {
+      return null;
+    }
+    mapping = generateSlugMapping(allBookmarks);
+  }
+  
+  // Look up the bookmark ID from the slug
+  const bookmarkId = getBookmarkIdFromSlug(mapping, slug);
+  if (!bookmarkId) {
+    return null;
+  }
+  
+  // Load all bookmarks and find the one with matching ID
   const allBookmarks = (await getBookmarks({ includeImageData: true })) as import("@/types").UnifiedBookmark[];
-
-  // Pre-generate all slugs once to avoid O(n²) complexity
-  const bookmarkWithSlugs = allBookmarks.map((bookmark) => ({
-    bookmark,
-    slug: generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id),
-  }));
-
-  const found = bookmarkWithSlugs.find((item) => item.slug === slug);
-  return found?.bookmark || null;
+  return allBookmarks.find(b => b.id === bookmarkId) || null;
 }
 
 /**

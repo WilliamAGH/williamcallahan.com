@@ -9,8 +9,8 @@ import { aggregateAllContent, getContentById, filterByTypes } from "@/lib/conten
 import { findMostSimilar, groupByType, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { RelatedContentSection } from "./related-content-section";
-import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
+import { getBulkBookmarkSlugs } from "@/lib/bookmarks/slug-helpers";
 import type {
   RelatedContentProps,
   RelatedContentItem,
@@ -28,7 +28,7 @@ const DEFAULT_MAX_TOTAL = 12;
  */
 function toRelatedContentItem(
   content: NormalizedContent & { score: number },
-  allBookmarks?: UnifiedBookmark[]
+  slugMap?: Map<string, string>
 ): RelatedContentItem {
   const metadata: RelatedContentItem["metadata"] = {
     tags: content.tags,
@@ -40,12 +40,9 @@ function toRelatedContentItem(
   switch (content.type) {
     case "bookmark": {
       const bookmark = content.source as UnifiedBookmark;
-      // Generate the correct slug-based URL
-      let url = `/bookmarks/${content.id}`;
-      if (allBookmarks) {
-        const slug = generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id);
-        url = `/bookmarks/${slug}`;
-      }
+      // Use pre-computed slug from mapping
+      const slug = slugMap?.get(bookmark.id) || content.id;
+      const url = `/bookmarks/${slug}`;
       
       metadata.imageUrl = bookmark.ogImage || bookmark.content?.imageUrl;
       return {
@@ -175,14 +172,15 @@ export async function RelatedContent({
       
       const finalItems = limited.slice(0, maxTotal);
       
-      // Get all bookmarks for slug generation if needed
-      let allBookmarks: UnifiedBookmark[] | undefined;
+      // Get pre-computed slug mappings for bookmarks if needed
+      let slugMap: Map<string, string> | undefined;
       if (finalItems.some(item => item.type === "bookmark")) {
         const { getBookmarks } = await import("@/lib/bookmarks/service.server");
-        allBookmarks = await getBookmarks({ includeImageData: false }) as UnifiedBookmark[];
+        const allBookmarks = await getBookmarks({ includeImageData: false }) as UnifiedBookmark[];
+        slugMap = await getBulkBookmarkSlugs(allBookmarks);
       }
       
-      const relatedItems = finalItems.map(item => toRelatedContentItem(item, allBookmarks));
+      const relatedItems = finalItems.map(item => toRelatedContentItem(item, slugMap));
       
       return (
         <RelatedContentSection
@@ -243,15 +241,16 @@ export async function RelatedContent({
       });
     }
     
-    // Get all bookmarks for slug generation if needed
-    let allBookmarks: UnifiedBookmark[] | undefined;
+    // Get pre-computed slug mappings for bookmarks if needed
+    let slugMap: Map<string, string> | undefined;
     if (finalItems.some(item => item.type === "bookmark")) {
       const { getBookmarks } = await import("@/lib/bookmarks/service.server");
-      allBookmarks = await getBookmarks({ includeImageData: false }) as UnifiedBookmark[];
+      const allBookmarks = await getBookmarks({ includeImageData: false }) as UnifiedBookmark[];
+      slugMap = await getBulkBookmarkSlugs(allBookmarks);
     }
     
     // Convert to RelatedContentItem format
-    const relatedItems = finalItems.map(item => toRelatedContentItem(item, allBookmarks));
+    const relatedItems = finalItems.map(item => toRelatedContentItem(item, slugMap));
     
     // Return nothing if no related items found
     if (relatedItems.length === 0) {

@@ -107,6 +107,7 @@ export type BookmarksWithOptionsClientProps = BaseBookmarkListProps &
   BaseFilterableProps & {
     filterOptions?: FilterOptions;
     className?: string;
+    internalHrefs?: Record<string, string>;
   };
 
 /**
