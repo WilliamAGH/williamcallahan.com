@@ -18,6 +18,7 @@ import { BlogArticle } from "../../../components/features/blog";
 import { JsonLdScript } from "@/components/seo/json-ld";
 import { generateSchemaGraph } from "@/lib/seo/schema";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
+import { RelatedContent } from "@/components/features/related-content";
 
 /**
  * Generate static paths for all blog posts at build time
@@ -256,6 +257,21 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       <>
         <JsonLdScript data={jsonLdData} nonce={nonce} />
         <BlogArticle post={post} mdxContent={<MDXContent content={post.content} />} />
+        
+        {/* Related Content Section */}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <RelatedContent
+            sourceType="blog"
+            sourceId={post.id}
+            sectionTitle="Related Content"
+            options={{
+              maxPerType: 4,
+              maxTotal: 12,
+              excludeTypes: [], // Include all content types
+            }}
+            className="mt-16 pt-8 border-t border-gray-200 dark:border-gray-700"
+          />
+        </div>
       </>
     );
   } catch (error) {
