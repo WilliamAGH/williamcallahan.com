@@ -25,7 +25,7 @@ describe("Bookmark API Tag Filtering", () => {
       dateBookmarked: "2025-01-01",
     } as UnifiedBookmark,
     {
-      id: "2", 
+      id: "2",
       url: "https://example2.com",
       title: "Software Tools",
       description: "Essential tools",
@@ -49,7 +49,7 @@ describe("Bookmark API Tag Filtering", () => {
 
   afterEach(() => {
     // Restore original console.log
-    console.log = jest.requireActual('console').log;
+    console.log = jest.requireActual("console").log;
   });
 
   describe("Tag parameter handling", () => {
@@ -66,7 +66,7 @@ describe("Bookmark API Tag Filtering", () => {
           searchParams: new URLSearchParams({ tag: "web-development" }),
         },
       } as any;
-      
+
       const response = await GET(request);
       const data = await response.json();
 
@@ -89,7 +89,7 @@ describe("Bookmark API Tag Filtering", () => {
           searchParams: new URLSearchParams({ tag: "software-development-tools" }),
         },
       } as any;
-      
+
       const response = await GET(request);
       const data = await response.json();
 
@@ -111,7 +111,7 @@ describe("Bookmark API Tag Filtering", () => {
           searchParams: new URLSearchParams({ tag: "web development" }),
         },
       } as any;
-      
+
       const response = await GET(request);
       const data = await response.json();
 
@@ -133,7 +133,7 @@ describe("Bookmark API Tag Filtering", () => {
           searchParams: new URLSearchParams({ tag: "WEB-DEVELOPMENT" }),
         },
       } as any;
-      
+
       const response = await GET(request);
       const data = await response.json();
 
@@ -155,7 +155,7 @@ describe("Bookmark API Tag Filtering", () => {
           searchParams: new URLSearchParams({ tag: "non-existent-tag" }),
         },
       } as any;
-      
+
       const response = await GET(request);
       const data = await response.json();
 
@@ -165,14 +165,19 @@ describe("Bookmark API Tag Filtering", () => {
     });
 
     it("should handle pagination with tag filtering", async () => {
-      const largeSet = Array(50).fill(null).map((_, i) => ({
-        id: `bookmark-${i}`,
-        url: `https://example${i}.com`,
-        title: `Bookmark ${i}`,
-        description: `Description ${i}`,
-        tags: ["test tag"],
-        dateBookmarked: "2025-01-01",
-      } as UnifiedBookmark));
+      const largeSet = Array(50)
+        .fill(null)
+        .map(
+          (_, i) =>
+            ({
+              id: `bookmark-${i}`,
+              url: `https://example${i}.com`,
+              title: `Bookmark ${i}`,
+              description: `Description ${i}`,
+              tags: ["test tag"],
+              dateBookmarked: "2025-01-01",
+            }) as UnifiedBookmark,
+        );
 
       mockGetBookmarks.mockResolvedValueOnce(largeSet);
       mockReadJsonS3.mockResolvedValueOnce({
@@ -186,7 +191,7 @@ describe("Bookmark API Tag Filtering", () => {
           searchParams: new URLSearchParams({ tag: "test-tag", page: "2", limit: "20" }),
         },
       } as any;
-      
+
       const response = await GET(request);
       const data = await response.json();
 
@@ -217,7 +222,7 @@ describe("Bookmark API Tag Filtering", () => {
           searchParams: new URLSearchParams(),
         },
       } as any;
-      
+
       const response = await GET(request);
       const data = await response.json();
 
@@ -237,7 +242,7 @@ describe("Bookmark API Tag Filtering", () => {
           searchParams: new URLSearchParams(),
         },
       } as any;
-      
+
       const response = await GET(request);
       const data = await response.json();
 

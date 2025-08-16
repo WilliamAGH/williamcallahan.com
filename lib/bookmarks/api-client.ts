@@ -66,7 +66,7 @@ export async function callBookmarksApi(endpoint: string, options?: RequestInit):
     return handleBookmarkApiResponse(response, endpoint);
   } catch (error) {
     clearTimeout(timeout);
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (error instanceof Error && error.name === "AbortError") {
       console.error(`${getLogPrefix()} Request to ${endpoint} timed out after ${timeoutMs}ms`);
       throw new Error(`Request timed out after ${timeoutMs}ms`);
     }

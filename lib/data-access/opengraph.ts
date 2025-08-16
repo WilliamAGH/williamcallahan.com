@@ -34,7 +34,15 @@ export { OPENGRAPH_S3_KEY_DIR, OPENGRAPH_METADATA_S3_DIR, OPENGRAPH_IMAGES_S3_DI
 
 // Runtime-safe wrappers for experimental cache APIs
 const safeCacheLife = (
-  profile: "default" | "seconds" | "minutes" | "hours" | "days" | "weeks" | "max" | { stale?: number; revalidate?: number; expire?: number }
+  profile:
+    | "default"
+    | "seconds"
+    | "minutes"
+    | "hours"
+    | "days"
+    | "weeks"
+    | "max"
+    | { stale?: number; revalidate?: number; expire?: number },
 ): void => {
   try {
     if (typeof cacheLife === "function" && !process.argv.includes("data-updater")) {

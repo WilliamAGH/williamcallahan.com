@@ -11,24 +11,74 @@ import { GET } from "@/app/api/search/all/route";
 // Mock search functions to return empty arrays for test environment
 jest.mock("@/lib/blog/server-search", () => ({
   searchBlogPostsServerSide: jest.fn().mockResolvedValue([
-    { id: "1", type: "post", title: "[Blog] Test Post 1", description: "Test description", url: "/blog/test-1", score: 1 },
-    { id: "2", type: "post", title: "[Blog] Test Post 2", description: "Test description", url: "/blog/test-2", score: 0.8 }
-  ])
+    {
+      id: "1",
+      type: "post",
+      title: "[Blog] Test Post 1",
+      description: "Test description",
+      url: "/blog/test-1",
+      score: 1,
+    },
+    {
+      id: "2",
+      type: "post",
+      title: "[Blog] Test Post 2",
+      description: "Test description",
+      url: "/blog/test-2",
+      score: 0.8,
+    },
+  ]),
 }));
 
 jest.mock("@/lib/search", () => ({
-  searchInvestments: jest.fn().mockResolvedValue([
-    { id: "inv1", type: "project", title: "Test Investment", description: "Test description", url: "/investments#inv1", score: 0.9 }
-  ]),
-  searchExperience: jest.fn().mockResolvedValue([
-    { id: "exp1", type: "page", title: "Test Experience", description: "Test description", url: "/experience#exp1", score: 0.85 }
-  ]),
-  searchEducation: jest.fn().mockResolvedValue([
-    { id: "edu1", type: "page", title: "Test Education", description: "Test description", url: "/education#edu1", score: 0.75 }
-  ]),
-  searchBookmarks: jest.fn().mockResolvedValue([
-    { id: "bm1", type: "bookmark", title: "Test Bookmark", description: "Test description", url: "/bookmarks/test", score: 0.7 }
-  ])
+  searchInvestments: jest
+    .fn()
+    .mockResolvedValue([
+      {
+        id: "inv1",
+        type: "project",
+        title: "Test Investment",
+        description: "Test description",
+        url: "/investments#inv1",
+        score: 0.9,
+      },
+    ]),
+  searchExperience: jest
+    .fn()
+    .mockResolvedValue([
+      {
+        id: "exp1",
+        type: "page",
+        title: "Test Experience",
+        description: "Test description",
+        url: "/experience#exp1",
+        score: 0.85,
+      },
+    ]),
+  searchEducation: jest
+    .fn()
+    .mockResolvedValue([
+      {
+        id: "edu1",
+        type: "page",
+        title: "Test Education",
+        description: "Test description",
+        url: "/education#edu1",
+        score: 0.75,
+      },
+    ]),
+  searchBookmarks: jest
+    .fn()
+    .mockResolvedValue([
+      {
+        id: "bm1",
+        type: "bookmark",
+        title: "Test Bookmark",
+        description: "Test description",
+        url: "/bookmarks/test",
+        score: 0.7,
+      },
+    ]),
 }));
 
 /**

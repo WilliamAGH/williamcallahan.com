@@ -8,7 +8,7 @@ export async function GET(request: NextRequest, { params }: GitHubAvatarRoutePar
   void request; // Explicitly mark as intentionally unused
   try {
     const { username } = await params;
-    
+
     if (!username) {
       return NextResponse.json({ error: "Username is required" }, { status: 400 });
     }
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest, { params }: GitHubAvatarRoutePar
 
     // Construct GitHub avatar URL
     const avatarUrl = `https://avatars.githubusercontent.com/${username}`;
-    
+
     // Use UnifiedImageService to fetch and persist the avatar
     const imageService = getUnifiedImageService();
     const result = await imageService.getImage(avatarUrl, {
@@ -29,11 +29,11 @@ export async function GET(request: NextRequest, { params }: GitHubAvatarRoutePar
 
     // If we got a CDN URL, redirect to it
     if (result.cdnUrl && !result.buffer) {
-      return NextResponse.redirect(result.cdnUrl, { 
+      return NextResponse.redirect(result.cdnUrl, {
         status: 302,
         headers: {
           "Cache-Control": "public, max-age=604800", // 7 days
-        }
+        },
       });
     }
 
@@ -53,13 +53,13 @@ export async function GET(request: NextRequest, { params }: GitHubAvatarRoutePar
     return NextResponse.redirect(avatarUrl, { status: 302 });
   } catch (error) {
     console.error("[GitHub Avatar] Error:", error);
-    
+
     // Fallback to GitHub's default avatar
-    return NextResponse.redirect("https://avatars.githubusercontent.com/u/0", { 
+    return NextResponse.redirect("https://avatars.githubusercontent.com/u/0", {
       status: 302,
       headers: {
         "Cache-Control": "public, max-age=300", // 5 minutes for errors
-      }
+      },
     });
   }
 }

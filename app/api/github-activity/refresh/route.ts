@@ -99,15 +99,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       RATE_LIMIT_STORE_NAME,
       rateLimitKey,
       { maxRequests: RATE_LIMIT_MAX_REQUESTS, windowMs: RATE_LIMIT_WINDOW },
-      RATE_LIMIT_S3_PATH
+      RATE_LIMIT_S3_PATH,
     );
 
     if (!allowed) {
       const resetTime = Date.now() + RATE_LIMIT_WINDOW;
       const resetDate = new Date(resetTime);
-      console.warn(
-        `[API Refresh] Rate limit exceeded for IP ${ip}. Limit: ${RATE_LIMIT_MAX_REQUESTS} per hour`,
-      );
+      console.warn(`[API Refresh] Rate limit exceeded for IP ${ip}. Limit: ${RATE_LIMIT_MAX_REQUESTS} per hour`);
 
       return NextResponse.json(
         {

@@ -35,8 +35,8 @@ export function History({ history }: HistoryProps) {
       return line.items.map((item) => `${item.label}: ${item.description}`).join("\n");
     }
     if (isSearchingCommand(line)) {
-      const searchText = line.scope 
-        ? `⏳ Searching for ${line.scope} related to "${line.query}"...` 
+      const searchText = line.scope
+        ? `⏳ Searching for ${line.scope} related to "${line.query}"...`
         : `⏳ Searching website for all results related to "${line.query}"...`;
       return searchText;
     }

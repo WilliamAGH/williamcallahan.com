@@ -1,8 +1,8 @@
 /**
  * Date Formatting Utilities
- * 
+ *
  * Centralized date formatting functions for consistent date handling
- * 
+ *
  * @module lib/utils/date-format
  */
 
@@ -56,7 +56,7 @@ export function endOfDay(date: Date): Date {
  * Format date as ISO date string (YYYY-MM-DD)
  */
 export function formatISODate(date: Date): string {
-  return date.toISOString().split('T')[0] || '';
+  return date.toISOString().split("T")[0] || "";
 }
 
 /**

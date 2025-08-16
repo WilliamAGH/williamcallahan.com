@@ -12,10 +12,10 @@ import path from "node:path";
 
 /**
  * Loads environment variables from .env file with support for multi-line values.
- * 
+ *
  * This is specifically designed to handle Google Service Account private keys
  * which contain newlines and can break standard dotenv parsing.
- * 
+ *
  * The function:
  * - Reads the .env file manually
  * - Extracts GOOGLE_SEARCH_INDEXING_SA_PRIVATE_KEY separately
@@ -52,8 +52,10 @@ export function loadEnvironmentWithMultilineSupport(): void {
           if (key && !process.env[key]) {
             let processedValue = value || "";
             // Remove surrounding quotes if present
-            if ((processedValue.startsWith('"') && processedValue.endsWith('"')) ||
-                (processedValue.startsWith("'") && processedValue.endsWith("'"))) {
+            if (
+              (processedValue.startsWith('"') && processedValue.endsWith('"')) ||
+              (processedValue.startsWith("'") && processedValue.endsWith("'"))
+            ) {
               processedValue = processedValue.slice(1, -1);
             }
             process.env[key] = processedValue;

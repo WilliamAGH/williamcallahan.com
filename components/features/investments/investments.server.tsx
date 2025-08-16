@@ -22,8 +22,8 @@ export async function Investments({ investments = [] }: InvestmentsProps): Promi
     ...investment,
     card: await InvestmentCardServer(investment),
   }));
-  
-  const investmentsWithCards = await Promise.all(investmentCardPromises) as InvestmentWithCard[];
+
+  const investmentsWithCards = (await Promise.all(investmentCardPromises)) as InvestmentWithCard[];
 
   return (
     <GlobalWindowRegistryProvider>

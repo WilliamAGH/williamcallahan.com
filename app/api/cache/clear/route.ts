@@ -42,7 +42,7 @@ function detectCacheCorruption() {
     invalidOpenGraphEntries: 0,
     oversizedEntries: 0,
     repaired: false,
-    message: "Cache corruption detection is deprecated. Next.js cache handles data integrity."
+    message: "Cache corruption detection is deprecated. Next.js cache handles data integrity.",
   };
 }
 
@@ -60,16 +60,16 @@ export function GET(request: NextRequest): NextResponse {
     message: "Cache health check endpoint is deprecated",
     data: {
       cache: {
-        message: "Next.js cache manages its own health and integrity"
+        message: "Next.js cache manages its own health and integrity",
       },
       imageMemory: {
-        message: "Image memory caching has been removed - images served directly from S3/CDN"
+        message: "Image memory caching has been removed - images served directly from S3/CDN",
       },
       corruption: detectCacheCorruption(),
       recommendations: [
         "This endpoint is deprecated",
         "Next.js cache handles data integrity automatically",
-        "Images are served directly from S3/CDN without caching"
+        "Images are served directly from S3/CDN without caching",
       ],
     },
   });
@@ -86,35 +86,35 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // Invalidate all Next.js caches
     console.log("[Cache Clear] Starting Next.js cache invalidation...");
-    
+
     // Clear specific cache tags
     const cacheTags = [
       "blog",
       "github",
       "opengraph",
-      "logos", 
+      "logos",
       "search",
       "bookmarks",
       "education",
       "experience",
-      "investments"
+      "investments",
     ];
-    
+
     // Invalidate each cache tag
     for (const tag of cacheTags) {
       revalidateTag(tag);
       console.log(`[Cache Clear] Invalidated cache tag: ${tag}`);
     }
-    
+
     // Call specific invalidation functions
     await Promise.all([
       invalidateBlogCache(),
       invalidateGitHubCache(),
       invalidateOpenGraphCache(),
       invalidateLogoCache(),
-      invalidateSearchCache()
+      invalidateSearchCache(),
     ]);
-    
+
     console.log("[Cache Clear] All Next.js caches invalidated successfully");
 
     // Force garbage collection if available
@@ -131,8 +131,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         notes: [
           "Next.js caches have been invalidated",
           "Image caching has been removed - images served directly from S3/CDN",
-          "ServerCache is deprecated and will be removed"
-        ]
+          "ServerCache is deprecated and will be removed",
+        ],
       },
     });
   } catch (error) {

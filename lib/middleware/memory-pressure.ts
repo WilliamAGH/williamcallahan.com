@@ -61,7 +61,7 @@ async function checkMemoryViaHealthEndpoint(): Promise<{ critical: boolean; warn
     // Determine base URL for Edge Runtime compatibility
     const isProduction = process.env.NODE_ENV === "production";
     const publicSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-    
+
     let baseUrl: string;
     if (isProduction && publicSiteUrl && !publicSiteUrl.includes("localhost")) {
       baseUrl = publicSiteUrl.replace(/\/$/, "");
@@ -71,7 +71,7 @@ async function checkMemoryViaHealthEndpoint(): Promise<{ critical: boolean; warn
       const port = process.env.PORT || 3000;
       baseUrl = `http://localhost:${port}`;
     }
-    
+
     const healthUrl = new URL("/api/health", baseUrl);
 
     // Quick fetch with short timeout to avoid blocking

@@ -8,7 +8,14 @@
  * ensuring it works with Next.js in both webpack and Bun environments.
  */
 
-import { listS3Objects as awsListS3Objects, deleteFromS3, readFromS3, writeJsonS3, writeToS3, s3Client as s3UtilsClient } from "@/lib/s3-utils";
+import {
+  listS3Objects as awsListS3Objects,
+  deleteFromS3,
+  readFromS3,
+  writeJsonS3,
+  writeToS3,
+  s3Client as s3UtilsClient,
+} from "@/lib/s3-utils";
 import type { S3ClientWrapper } from "@/types/s3-cdn";
 import type { S3Client as AwsS3Client } from "@aws-sdk/client-s3";
 
@@ -27,12 +34,14 @@ if (!bucket || !accessKeyId || !secretAccessKey) {
 export const s3Client: S3ClientWrapper = (() => {
   // Reuse the existing S3 client from s3-utils instead of creating a new one
   const client = s3UtilsClient as unknown as AwsS3Client & S3ClientWrapper;
-  
+
   if (!client) {
     console.warn("[lib/s3] S3 client not available from s3-utils");
     // Return a minimal implementation that throws errors
     return {
-      file: () => { throw new Error("S3 not configured"); },
+      file: () => {
+        throw new Error("S3 not configured");
+      },
       list: () => Promise.resolve({ contents: [], isTruncated: false }),
     } as S3ClientWrapper;
   }
@@ -66,8 +75,12 @@ export const s3Client: S3ClientWrapper = (() => {
         }
         if (typeof body === "string") {
           const enc = new TextEncoder().encode(body);
-          const ab = enc.buffer as ArrayBuffer;
-          return ab.slice(enc.byteOffset, enc.byteOffset + enc.byteLength);
+          const ab = enc.buffer;
+          if (ab instanceof ArrayBuffer) {
+            return ab.slice(enc.byteOffset, enc.byteOffset + enc.byteLength);
+          }
+          // Handle SharedArrayBuffer case (shouldn't happen with TextEncoder, but TypeScript requires it)
+          return new ArrayBuffer(0);
         }
         return new ArrayBuffer(0);
       },

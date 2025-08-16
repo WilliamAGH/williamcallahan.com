@@ -64,12 +64,7 @@ describe("URL Validation Functions", () => {
     });
 
     it("should reject invalid OpenGraph URLs", async () => {
-      const invalidUrls = [
-        "http://192.168.1.1",
-        "javascript:alert(1)",
-        "ftp://example.com",
-        "",
-      ];
+      const invalidUrls = ["http://192.168.1.1", "javascript:alert(1)", "ftp://example.com", ""];
 
       for (const url of invalidUrls) {
         const result = await validateOpenGraphUrl(url);
@@ -96,12 +91,7 @@ describe("URL Validation Functions", () => {
     });
 
     it("should reject unsafe S3 keys", () => {
-      const invalidKeys = [
-        "../../../etc/passwd",
-        "/root/.ssh/id_rsa",
-        "images/../../../secrets",
-        "file\x00.txt",
-      ];
+      const invalidKeys = ["../../../etc/passwd", "/root/.ssh/id_rsa", "images/../../../secrets", "file\x00.txt"];
 
       for (const key of invalidKeys) {
         expect(validateS3Key(key)).toBe(false);

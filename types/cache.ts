@@ -107,7 +107,6 @@ export interface CacheStats {
   utilizationPercent?: number;
 }
 
-
 /**
  * Types that can be safely stored in cache (excludes null/undefined)
  * These satisfy the constraint that values must extend {}
@@ -120,7 +119,6 @@ export type StorableCacheValue = string | number | boolean | object | Buffer;
  * null values are handled by not storing them (returning undefined instead)
  */
 export type CacheValue = StorableCacheValue | null;
-
 
 /**
  * Internal cache entry structure for ServerCache

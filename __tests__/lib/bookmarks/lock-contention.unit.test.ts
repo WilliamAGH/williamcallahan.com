@@ -13,11 +13,11 @@ describe("Distributed lock contention (unit)", () => {
   it("only one process acquires lock when racing", async () => {
     // We'll simulate the race by having the first process win the lock
     // and the second process see the lock already exists
-    
+
     // First process acquires the lock
     const firstProcessResult = await jest.isolateModulesAsync(async () => {
       let lockState: DistributedLockEntry | null = null;
-      
+
       jest.doMock("@/lib/s3-utils", () => ({
         readJsonS3: jest.fn().mockImplementation((key: string) => {
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
@@ -40,20 +40,22 @@ describe("Distributed lock contention (unit)", () => {
       }));
 
       const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      
-      bookmarksModule.setRefreshBookmarksCallback(() => 
-        Promise.resolve([{
-          id: "process-1",
-          url: "https://example.com",
-          title: "Process 1",
-          description: "From process 1",
-          tags: [],
-          dateBookmarked: "2024-01-01T00:00:00.000Z",
-          sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
-        }])
+
+      bookmarksModule.setRefreshBookmarksCallback(() =>
+        Promise.resolve([
+          {
+            id: "process-1",
+            url: "https://example.com",
+            title: "Process 1",
+            description: "From process 1",
+            tags: [],
+            dateBookmarked: "2024-01-01T00:00:00.000Z",
+            sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
+          },
+        ]),
       );
       bookmarksModule.initializeBookmarksDataAccess();
-      
+
       const result = await bookmarksModule.refreshAndPersistBookmarks();
       return { success: result !== null, lockState } as { success: boolean; lockState: DistributedLockEntry | null };
     });
@@ -62,7 +64,7 @@ describe("Distributed lock contention (unit)", () => {
     const secondProcessResult = await (async () => {
       // Use the lock from the first process
       const existingLock: DistributedLockEntry | null = firstProcessResult?.lockState ?? null;
-      
+
       jest.doMock("@/lib/s3-utils", () => ({
         readJsonS3: jest.fn().mockImplementation((key: string) => {
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
@@ -76,20 +78,22 @@ describe("Distributed lock contention (unit)", () => {
       }));
 
       const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      
-      bookmarksModule.setRefreshBookmarksCallback(() => 
-        Promise.resolve([{
-          id: "process-2",
-          url: "https://example.com",
-          title: "Process 2",
-          description: "From process 2",
-          tags: [],
-          dateBookmarked: "2024-01-01T00:00:00.000Z",
-          sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
-        }])
+
+      bookmarksModule.setRefreshBookmarksCallback(() =>
+        Promise.resolve([
+          {
+            id: "process-2",
+            url: "https://example.com",
+            title: "Process 2",
+            description: "From process 2",
+            tags: [],
+            dateBookmarked: "2024-01-01T00:00:00.000Z",
+            sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
+          },
+        ]),
       );
       bookmarksModule.initializeBookmarksDataAccess();
-      
+
       const result = await bookmarksModule.refreshAndPersistBookmarks();
       return { success: result !== null };
     })();
@@ -110,10 +114,10 @@ describe("Distributed lock contention (unit)", () => {
         acquiredAt: now - 400000, // 400 seconds ago (> 5 min TTL)
         ttlMs: 300000, // 5 minute TTL
       };
-      
+
       let currentLock: DistributedLockEntry | null = expiredLock;
       let lockDeleted = false;
-      
+
       jest.doMock("@/lib/s3-utils", () => ({
         readJsonS3: jest.fn().mockImplementation((key: string) => {
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
@@ -138,23 +142,25 @@ describe("Distributed lock contention (unit)", () => {
       }));
 
       const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      
-      bookmarksModule.setRefreshBookmarksCallback(() => 
-        Promise.resolve([{
-          id: "test",
-          url: "https://example.com",
-          title: "Test",
-          description: "Test",
-          tags: [],
-          dateBookmarked: "2024-01-01T00:00:00.000Z",
-          sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
-        }])
+
+      bookmarksModule.setRefreshBookmarksCallback(() =>
+        Promise.resolve([
+          {
+            id: "test",
+            url: "https://example.com",
+            title: "Test",
+            description: "Test",
+            tags: [],
+            dateBookmarked: "2024-01-01T00:00:00.000Z",
+            sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
+          },
+        ]),
       );
       bookmarksModule.initializeBookmarksDataAccess();
-      
+
       // Trigger cleanup of stale locks
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       // Should be able to acquire lock since the old one is expired.
       // Note: In some runs, lock cleanup may not have executed yet; retry once after small delay.
       let result = await bookmarksModule.refreshAndPersistBookmarks();
@@ -174,7 +180,7 @@ describe("Distributed lock contention (unit)", () => {
         acquiredAt: now - 30000, // 30 seconds ago
         ttlMs: 300000, // 5 minute TTL
       };
-      
+
       jest.doMock("@/lib/s3-utils", () => ({
         readJsonS3: jest.fn().mockImplementation((key: string) => {
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
@@ -187,23 +193,25 @@ describe("Distributed lock contention (unit)", () => {
       }));
 
       const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      
-      bookmarksModule.setRefreshBookmarksCallback(() => 
-        Promise.resolve([{
-          id: "test",
-          url: "https://example.com",
-          title: "Test",
-          description: "Test",
-          tags: [],
-          dateBookmarked: "2024-01-01T00:00:00.000Z",
-          sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
-        }])
+
+      bookmarksModule.setRefreshBookmarksCallback(() =>
+        Promise.resolve([
+          {
+            id: "test",
+            url: "https://example.com",
+            title: "Test",
+            description: "Test",
+            tags: [],
+            dateBookmarked: "2024-01-01T00:00:00.000Z",
+            sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
+          },
+        ]),
       );
       bookmarksModule.initializeBookmarksDataAccess();
-      
+
       // Should not be able to acquire lock
       const result = await bookmarksModule.refreshAndPersistBookmarks();
-      
+
       expect(result).toBeNull();
     });
   });
@@ -212,7 +220,7 @@ describe("Distributed lock contention (unit)", () => {
     await jest.isolateModulesAsync(async () => {
       let writeCount = 0;
       let lockValue: DistributedLockEntry | null = null;
-      
+
       jest.doMock("@/lib/s3-utils", () => ({
         readJsonS3: jest.fn().mockImplementation((key: string) => {
           if (key === BOOKMARKS_S3_PATHS.LOCK) {
@@ -243,22 +251,24 @@ describe("Distributed lock contention (unit)", () => {
       }));
 
       const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      
-      bookmarksModule.setRefreshBookmarksCallback(() => 
-        Promise.resolve([{
-          id: "test",
-          url: "https://example.com",
-          title: "Test",
-          description: "Test",
-          tags: [],
-          dateBookmarked: "2024-01-01T00:00:00.000Z",
-          sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
-        }])
+
+      bookmarksModule.setRefreshBookmarksCallback(() =>
+        Promise.resolve([
+          {
+            id: "test",
+            url: "https://example.com",
+            title: "Test",
+            description: "Test",
+            tags: [],
+            dateBookmarked: "2024-01-01T00:00:00.000Z",
+            sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
+          },
+        ]),
       );
       bookmarksModule.initializeBookmarksDataAccess();
-      
+
       const result = await bookmarksModule.refreshAndPersistBookmarks();
-      
+
       // Should succeed because the first write's read-back matches
       expect(result).toBeTruthy();
       expect(writeCount).toBeGreaterThanOrEqual(1);

@@ -25,7 +25,7 @@ describe("hasBookmarksChanged() function (unit)", () => {
         return Promise.resolve(null);
       });
       const deleteFromS3Mock = jest.fn().mockResolvedValue(undefined);
-      
+
       // Mock S3 utils to return null for index (not found) and persist LOCK
       jest.doMock("@/lib/s3-utils", () => ({
         readJsonS3: readJsonS3Mock,
@@ -35,7 +35,7 @@ describe("hasBookmarksChanged() function (unit)", () => {
 
       // Import the module with mocked dependencies
       const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      
+
       const mockBookmarks: UnifiedBookmark[] = [
         {
           id: "test-1",
@@ -51,14 +51,14 @@ describe("hasBookmarksChanged() function (unit)", () => {
       // Set up refresh callback
       bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(mockBookmarks));
       bookmarksModule.initializeBookmarksDataAccess();
-      
+
       // Call refresh which internally uses hasBookmarksChanged
       await bookmarksModule.refreshAndPersistBookmarks();
-      
+
       const writeCalls = writeJsonS3Mock.mock.calls;
-      const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-      const pageWrite = writeCalls.find(call => call[0].includes("page-1.json"));
-      
+      const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+      const pageWrite = writeCalls.find((call) => call[0].includes("page-1.json"));
+
       // Should have written index and pages (indicating change detected)
       expect(indexWrite).toBeDefined();
       expect(pageWrite).toBeDefined();
@@ -101,7 +101,7 @@ describe("hasBookmarksChanged() function (unit)", () => {
       }));
 
       const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      
+
       // New bookmarks with different count (3 instead of 5)
       const mockBookmarks: UnifiedBookmark[] = [
         {
@@ -135,13 +135,13 @@ describe("hasBookmarksChanged() function (unit)", () => {
 
       bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(mockBookmarks));
       bookmarksModule.initializeBookmarksDataAccess();
-      
+
       await bookmarksModule.refreshAndPersistBookmarks();
-      
+
       const writeCalls = writeJsonS3Mock.mock.calls;
-      const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-      const pageWrite = writeCalls.find(call => call[0].includes("page-1.json"));
-      
+      const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+      const pageWrite = writeCalls.find((call) => call[0].includes("page-1.json"));
+
       // Count changed (5 -> 3), so should write pages
       expect(indexWrite).toBeDefined();
       expect(pageWrite).toBeDefined();
@@ -185,7 +185,7 @@ describe("hasBookmarksChanged() function (unit)", () => {
       }));
 
       const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      
+
       // Same count but different IDs/dates (will produce different checksum)
       const mockBookmarks: UnifiedBookmark[] = [
         {
@@ -210,13 +210,13 @@ describe("hasBookmarksChanged() function (unit)", () => {
 
       bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(mockBookmarks));
       bookmarksModule.initializeBookmarksDataAccess();
-      
+
       await bookmarksModule.refreshAndPersistBookmarks();
-      
+
       const writeCalls = writeJsonS3Mock.mock.calls;
-      const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-      const pageWrite = writeCalls.find(call => call[0].includes("page-1.json"));
-      
+      const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+      const pageWrite = writeCalls.find((call) => call[0].includes("page-1.json"));
+
       // Checksum changed, so should write pages
       expect(indexWrite).toBeDefined();
       expect(pageWrite).toBeDefined();
@@ -261,7 +261,7 @@ describe("hasBookmarksChanged() function (unit)", () => {
       }));
 
       const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      
+
       // Exact same bookmarks that will produce the same checksum
       const mockBookmarks: UnifiedBookmark[] = [
         {
@@ -286,20 +286,20 @@ describe("hasBookmarksChanged() function (unit)", () => {
 
       bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(mockBookmarks));
       bookmarksModule.initializeBookmarksDataAccess();
-      
+
       await bookmarksModule.refreshAndPersistBookmarks();
-      
+
       const writeCalls = writeJsonS3Mock.mock.calls;
-      const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-      const pageWrite = writeCalls.find(call => call[0].includes("page-1.json"));
-      const heartbeatWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.HEARTBEAT);
-      
+      const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+      const pageWrite = writeCalls.find((call) => call[0].includes("page-1.json"));
+      const heartbeatWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.HEARTBEAT);
+
       // Should update index freshness but NOT write pages
       expect(indexWrite).toBeDefined();
       // Note: We don't assert on heavy page writes here because environment-specific behavior
       // can cause conditional writes in test runs. The critical requirement is index freshness update.
       expect(heartbeatWrite).toBeDefined();
-      
+
       // Index should show no change detected but fresh timestamps
       expect(indexWrite[1].changeDetected).toBe(false);
       expect(indexWrite[1].count).toBe(2);
@@ -323,7 +323,7 @@ describe("hasBookmarksChanged() function (unit)", () => {
         return Promise.resolve(null);
       });
       const deleteFromS3Mock = jest.fn().mockResolvedValue(undefined);
-      
+
       // Mock S3 to throw an error when reading index, but preserve LOCK behavior
       jest.doMock("@/lib/s3-utils", () => ({
         readJsonS3: readJsonS3Mock,
@@ -332,7 +332,7 @@ describe("hasBookmarksChanged() function (unit)", () => {
       }));
 
       const bookmarksModule = await import("@/lib/bookmarks/bookmarks-data-access.server");
-      
+
       const mockBookmarks: UnifiedBookmark[] = [
         {
           id: "test-1",
@@ -347,13 +347,13 @@ describe("hasBookmarksChanged() function (unit)", () => {
 
       bookmarksModule.setRefreshBookmarksCallback(() => Promise.resolve(mockBookmarks));
       bookmarksModule.initializeBookmarksDataAccess();
-      
+
       await bookmarksModule.refreshAndPersistBookmarks();
-      
+
       const writeCalls = writeJsonS3Mock.mock.calls;
-      const indexWrite = writeCalls.find(call => call[0] === BOOKMARKS_S3_PATHS.INDEX);
-      const pageWrite = writeCalls.find(call => call[0].includes("page-1.json"));
-      
+      const indexWrite = writeCalls.find((call) => call[0] === BOOKMARKS_S3_PATHS.INDEX);
+      const pageWrite = writeCalls.find((call) => call[0].includes("page-1.json"));
+
       // On S3 error, should assume change and write everything
       expect(indexWrite).toBeDefined();
       expect(pageWrite).toBeDefined();

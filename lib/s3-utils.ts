@@ -109,15 +109,15 @@ export function getS3Client(): S3Client | null {
     };
     s3ClientInstance = endpoint ? new S3Client({ ...baseConfig, endpoint }) : new S3Client(baseConfig);
     if (isDebug)
-      debug(
-        `[S3Utils] S3-compatible client initialized (${endpoint ? "custom endpoint" : "sdk default endpoint"}).`,
-      );
+      debug(`[S3Utils] S3-compatible client initialized (${endpoint ? "custom endpoint" : "sdk default endpoint"}).`);
   } else if (isDebug) {
-    debug(`[S3Utils] S3 client not initialized - missing envs: ` +
-      `S3_BUCKET=${bucket ? "set" : "missing"}, ` +
-      `S3_SERVER_URL=${endpoint ? "set" : "missing"}, ` +
-      `S3_ACCESS_KEY_ID=${accessKeyId ? "set" : "missing"}, ` +
-      `S3_SECRET_ACCESS_KEY=${secretAccessKey ? "set" : "missing"}`);
+    debug(
+      `[S3Utils] S3 client not initialized - missing envs: ` +
+        `S3_BUCKET=${bucket ? "set" : "missing"}, ` +
+        `S3_SERVER_URL=${endpoint ? "set" : "missing"}, ` +
+        `S3_ACCESS_KEY_ID=${accessKeyId ? "set" : "missing"}, ` +
+        `S3_SECRET_ACCESS_KEY=${secretAccessKey ? "set" : "missing"}`,
+    );
   }
 
   return s3ClientInstance;
@@ -742,10 +742,8 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
   // Allow tiny operational JSON files to bypass headroom checks (e.g., index/heartbeat)
   // Use the constants from BOOKMARKS_S3_PATHS to determine operational files
   const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
-  const isTinyOperationalFile = 
-    s3Key === BOOKMARKS_S3_PATHS.INDEX || 
-    s3Key === BOOKMARKS_S3_PATHS.HEARTBEAT ||
-    s3Key === BOOKMARKS_S3_PATHS.LOCK;
+  const isTinyOperationalFile =
+    s3Key === BOOKMARKS_S3_PATHS.INDEX || s3Key === BOOKMARKS_S3_PATHS.HEARTBEAT || s3Key === BOOKMARKS_S3_PATHS.LOCK;
   if (!isTinyOperationalFile && !hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
     console.warn(
       `[S3Utils] Skipping S3 write for ${s3Key} (${(dataSize / 1024).toFixed(1)} KB) due to memory pressure`,

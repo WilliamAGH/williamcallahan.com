@@ -1,9 +1,9 @@
 /**
  * S3 Cache Utilities
- * 
+ *
  * Provides cached versions of S3 operations using Next.js 15's 'use cache' directive
  * for improved performance and reduced S3 API calls.
- * 
+ *
  * @module lib/s3-cache-utils
  */
 
@@ -14,7 +14,15 @@ import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "
 
 // Runtime-safe wrappers for cache functions
 const safeCacheLife = (
-  profile: "default" | "seconds" | "minutes" | "hours" | "days" | "weeks" | "max" | { stale?: number; revalidate?: number; expire?: number }
+  profile:
+    | "default"
+    | "seconds"
+    | "minutes"
+    | "hours"
+    | "days"
+    | "weeks"
+    | "max"
+    | { stale?: number; revalidate?: number; expire?: number },
 ): void => {
   try {
     if (typeof cacheLife === "function") {
@@ -54,13 +62,13 @@ async function getCachedJsonS3<T>(
   tags: string[] = [],
 ): Promise<T | null> {
   "use cache";
-  
+
   safeCacheLife(cacheProfile);
   safeCacheTag("s3-json");
   safeCacheTag(`s3-key-${s3Key.replace(/[^a-zA-Z0-9-]/g, "-")}`);
   const normalize = (t: string) => t.replace(/[^a-zA-Z0-9-]/g, "-");
-  tags.forEach(tag => safeCacheTag(normalize(tag)));
-  
+  tags.forEach((tag) => safeCacheTag(normalize(tag)));
+
   return readJsonS3<T>(s3Key);
 }
 
@@ -81,14 +89,14 @@ export async function readJsonS3Cached<T>(
 ): Promise<T | null> {
   // Default to true unless explicitly set to false
   const { useCache = options.useCache !== false && USE_NEXTJS_CACHE, cacheProfile = "hours", tags = [] } = options;
-  
+
   if (useCache) {
     return withCacheFallback<T | null>(
       () => getCachedJsonS3<T>(s3Key, cacheProfile, tags),
       () => readJsonS3<T>(s3Key),
     );
   }
-  
+
   return readJsonS3<T>(s3Key);
 }
 
@@ -98,16 +106,13 @@ export async function readJsonS3Cached<T>(
  * @param cacheProfile - Cache duration profile
  * @returns Promise resolving to true if the object exists
  */
-function getCachedS3Exists(
-  s3Key: string,
-  cacheProfile: "minutes" | "hours" | "days" = "hours",
-): Promise<boolean> {
+function getCachedS3Exists(s3Key: string, cacheProfile: "minutes" | "hours" | "days" = "hours"): Promise<boolean> {
   "use cache";
-  
+
   safeCacheLife(cacheProfile);
   safeCacheTag("s3-exists");
   safeCacheTag(`s3-exists-${s3Key.replace(/[^a-zA-Z0-9-]/g, "-")}`);
-  
+
   return checkIfS3ObjectExists(s3Key);
 }
 
@@ -126,14 +131,14 @@ export async function checkS3ExistsCached(
 ): Promise<boolean> {
   // Default to true unless explicitly set to false
   const { useCache = options.useCache !== false && USE_NEXTJS_CACHE, cacheProfile = "hours" } = options;
-  
+
   if (useCache) {
     return withCacheFallback<boolean>(
       () => getCachedS3Exists(s3Key, cacheProfile),
       () => checkIfS3ObjectExists(s3Key),
     );
   }
-  
+
   return checkIfS3ObjectExists(s3Key);
 }
 
@@ -151,7 +156,5 @@ export async function batchReadJsonS3Cached<T>(
     tags?: string[];
   } = {},
 ): Promise<(T | null)[]> {
-  return Promise.all(
-    s3Keys.map(key => readJsonS3Cached<T>(key, options))
-  );
+  return Promise.all(s3Keys.map((key) => readJsonS3Cached<T>(key, options)));
 }

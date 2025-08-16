@@ -72,7 +72,9 @@ cron.schedule(bookmarksCron, () => {
   setTimeout(() => {
     // Check if job is already running
     if (runningJobs.has("bookmarks")) {
-      console.warn(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Job is already running, skipping this execution`);
+      console.warn(
+        `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Job is already running, skipping this execution`,
+      );
       return;
     }
     runningJobs.add("bookmarks");

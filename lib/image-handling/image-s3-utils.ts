@@ -33,16 +33,16 @@ export async function persistImageToS3(
 ): Promise<string | null> {
   // Check if we're in read-only mode using shared utility
   if (isS3ReadOnly()) {
-    const displayUrl = imageUrl.startsWith('data:') 
+    const displayUrl = imageUrl.startsWith("data:")
       ? `${imageUrl.substring(0, 50)}...[base64 data truncated]`
       : imageUrl;
     console.log(`[${logContext}] Read-only mode: Skipping S3 persistence for ${displayUrl}`);
     return null;
   }
-  
+
   try {
     if (isDebug) {
-      const displayUrl = imageUrl.startsWith('data:') 
+      const displayUrl = imageUrl.startsWith("data:")
         ? `${imageUrl.substring(0, 50)}...[base64 data truncated]`
         : imageUrl;
       debug(
@@ -95,10 +95,10 @@ export async function persistImageToS3(
 
     // Process the image (handles SVG detection, PNG conversion, etc.)
     if (isDebug) debug(`[${logContext}] Processing image buffer for: ${imageUrl}`);
-    
+
     // Use shared image processing utility
     const { processedBuffer, contentType } = await processImageBufferSimple(rawBuffer, logContext);
-    
+
     if (isDebug)
       debug(
         `[${logContext}] Image processed for ${imageUrl}. New size: ${processedBuffer.length} bytes, ContentType: ${contentType}`,
@@ -112,7 +112,7 @@ export async function persistImageToS3(
     console.log(`[OpenGraph S3] 📤 Uploading processed image to S3: ${s3Key} (${processedBuffer.length} bytes)`);
     await writeBinaryS3(s3Key, processedBuffer, contentType);
 
-    const displayUrl = imageUrl.startsWith('data:') 
+    const displayUrl = imageUrl.startsWith("data:")
       ? `${imageUrl.substring(0, 50)}...[base64 data truncated]`
       : imageUrl;
     console.log(
@@ -122,30 +122,30 @@ export async function persistImageToS3(
   } catch (error) {
     // Ensure error is an instance of Error for consistent message property access
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const displayUrl = imageUrl.startsWith('data:') 
+    const displayUrl = imageUrl.startsWith("data:")
       ? `${imageUrl.substring(0, 50)}...[base64 data truncated]`
       : imageUrl;
     console.error(`[${logContext}] ❌ FAILED to persist image from URL: ${displayUrl}`);
     console.error(`[${logContext}] ❌ Error: ${errorMessage}`);
     console.error(`[${logContext}] ❌ S3 Directory: ${s3Directory}`);
-    console.error(`[${logContext}] ❌ Page URL: ${pageUrl || 'N/A'}`);
-    console.error(`[${logContext}] ❌ Idempotency Key: ${idempotencyKey || 'N/A'}`);
-    
+    console.error(`[${logContext}] ❌ Page URL: ${pageUrl || "N/A"}`);
+    console.error(`[${logContext}] ❌ Idempotency Key: ${idempotencyKey || "N/A"}`);
+
     // Log specific error types
-    if (errorMessage.includes('fetch failed') || errorMessage.includes('ENOTFOUND')) {
+    if (errorMessage.includes("fetch failed") || errorMessage.includes("ENOTFOUND")) {
       console.error(`[${logContext}] ❌ Network error: Unable to fetch image from source`);
-    } else if (errorMessage.includes('404')) {
+    } else if (errorMessage.includes("404")) {
       console.error(`[${logContext}] ❌ Image not found (404) at source URL`);
-    } else if (errorMessage.includes('403')) {
+    } else if (errorMessage.includes("403")) {
       console.error(`[${logContext}] ❌ Access forbidden (403) to image URL`);
-    } else if (errorMessage.includes('timeout')) {
+    } else if (errorMessage.includes("timeout")) {
       console.error(`[${logContext}] ❌ Timeout: Image fetch took too long`);
-    } else if (errorMessage.includes('content-type')) {
+    } else if (errorMessage.includes("content-type")) {
       console.error(`[${logContext}] ❌ Invalid content type: Not an image`);
-    } else if (errorMessage.includes('S3')) {
+    } else if (errorMessage.includes("S3")) {
       console.error(`[${logContext}] ❌ S3 error: Failed to upload to S3`);
     }
-    
+
     return null;
   }
 }
@@ -165,7 +165,7 @@ async function handleStaleImageUrl(imageUrl: string, pageUrl: string, logContext
     // will fall back to the cached CDN copy we already have in S3 instead of hammering the origin.
     if (!isKarakeepUrl) {
       if (isDebug) {
-        const displayUrl = imageUrl.startsWith('data:') 
+        const displayUrl = imageUrl.startsWith("data:")
           ? `${imageUrl.substring(0, 50)}...[base64 data truncated]`
           : imageUrl;
         debug(
@@ -181,7 +181,7 @@ async function handleStaleImageUrl(imageUrl: string, pageUrl: string, logContext
 
     if (!invalidated) return;
 
-    const displayUrl = imageUrl.startsWith('data:') 
+    const displayUrl = imageUrl.startsWith("data:")
       ? `${imageUrl.substring(0, 50)}...[base64 data truncated]`
       : imageUrl;
     console.warn(`[${logContext}] 🚨 Karakeep asset URL is invalid: ${displayUrl}`);
