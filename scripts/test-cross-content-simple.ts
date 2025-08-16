@@ -8,6 +8,34 @@ import { calculateSimilarity, SAME_TYPE_WEIGHTS, CROSS_TYPE_WEIGHTS } from "../l
 import { calculateSemanticTagSimilarity } from "../lib/content-similarity/tag-ontology";
 import { extractKeywords } from "../lib/content-similarity/keyword-extractor";
 import type { NormalizedContent } from "@/types/related-content";
+import type { UnifiedBookmark } from "@/types/bookmark";
+import type { BlogPost } from "@/types/blog";
+import type { Investment } from "@/types/investment";
+import type { Project } from "@/types/project";
+
+// Create minimal mock source objects for testing
+const mockBookmarkSource = {
+  id: "1",
+  title: "GitHub - openai/whisper",
+  url: "https://github.com/openai/whisper",
+  description: "AI speech recognition model",
+  tags: ["AI Development Tools"],
+  imageUrl: null,
+  imageAssetId: null,
+  logoUrl: null,
+  logoAssetId: null,
+  screenshotAssetId: null,
+  faviconAssetId: null,
+  faviconUrl: null,
+  deleted: false,
+  createdAt: "2024-01-15",
+  lastModified: "2024-01-15",
+  content: null,
+  metadata: {},
+  ogImage: null,
+  dateBookmarked: "2024-01-15",
+  sourceUpdatedAt: "2024-01-15",
+} as unknown as UnifiedBookmark;
 
 // Test content samples
 const bookmark: NormalizedContent = {
@@ -19,8 +47,26 @@ const bookmark: NormalizedContent = {
   url: "/bookmarks/test-bookmark",
   domain: "github.com",
   date: new Date("2024-01-15"),
-  source: {} as any,
+  source: mockBookmarkSource,
 };
+
+const mockInvestmentSource = {
+  id: "openai",
+  name: "OpenAI",
+  company: "OpenAI",
+  logo: null,
+  website: "https://openai.com",
+  description: "Leading artificial intelligence research laboratory",
+  category: "AI / ML",
+  stage: "Series B+",
+  status: "Active",
+  type: "Direct",
+  invested_year: 2023,
+  exit_year: null,
+  exitValue: null,
+  exitDate: null,
+  tags: ["AI / ML"],
+} as unknown as Investment;
 
 const investment: NormalizedContent = {
   id: "test-investment",
@@ -31,8 +77,27 @@ const investment: NormalizedContent = {
   url: "/investments#openai",
   domain: "openai.com",
   date: new Date("2023-01-01"),
-  source: {} as any,
+  source: mockInvestmentSource,
 };
+
+const mockBlogSource = {
+  id: "ml-production",
+  slug: "ml-production",
+  title: "Understanding Machine Learning in Production",
+  date: "2024-02-01",
+  lastModified: "2024-02-01",
+  publishedAt: "2024-02-01",
+  author: {
+    name: "Test Author",
+    avatar: null,
+  },
+  summary: "A deep dive into deploying machine learning models at scale",
+  excerpt: "A deep dive into deploying machine learning models at scale",
+  coverImage: null,
+  tags: ["machine-learning", "ai"],
+  readingTime: 10,
+  content: "Content here",
+} as unknown as BlogPost;
 
 const blogPost: NormalizedContent = {
   id: "test-blog",
@@ -43,8 +108,25 @@ const blogPost: NormalizedContent = {
   url: "/blog/ml-production",
   domain: undefined,
   date: new Date("2024-02-01"),
-  source: {} as any,
+  source: mockBlogSource,
 };
+
+const mockProjectSource = {
+  id: "dashboard-framework",
+  name: "React Dashboard Framework",
+  title: "React Dashboard Framework",
+  description: "A comprehensive dashboard framework",
+  shortSummary: "Dashboard framework",
+  url: "/projects#dashboard",
+  technologies: ["React", "TypeScript", "Tailwind CSS"],
+  status: "active",
+  featured: false,
+  github: null,
+  demo: null,
+  link: null,
+  imageKey: null,
+  order: 0,
+} as unknown as Project;
 
 const project: NormalizedContent = {
   id: "test-project",
@@ -55,7 +137,7 @@ const project: NormalizedContent = {
   url: "/projects#dashboard",
   domain: undefined,
   date: undefined,
-  source: {} as any,
+  source: mockProjectSource,
 };
 
 function testPair(source: NormalizedContent, target: NormalizedContent, label: string) {

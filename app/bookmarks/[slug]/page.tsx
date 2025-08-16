@@ -24,6 +24,7 @@ import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { OG_IMAGE_DIMENSIONS } from "@/data/metadata";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 import { RelatedContent } from "@/components/features/related-content";
+import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 
 // No static params generation for dynamic pages
 
@@ -71,7 +72,6 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const customDescription =
     bookmark.description || `A bookmark from ${domainName} that I've saved for future reference.`;
 
-  const { selectBestImage } = await import("@/lib/bookmarks/bookmark-helpers");
   const rawImageUrl =
     selectBestImage(bookmark, {
       preferOpenGraph: true,
