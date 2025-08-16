@@ -11,6 +11,7 @@ import type * as githubHelpers from "@/lib/server-cache/github";
 import type * as logoHelpers from "@/lib/server-cache/logo";
 import type * as opengraphHelpers from "@/lib/server-cache/opengraph";
 import type * as searchHelpers from "@/lib/server-cache/search";
+import type * as aggregatedContentHelpers from "@/lib/server-cache/aggregated-content";
 
 declare module "@/lib/server-cache" {
   interface ServerCache
@@ -18,5 +19,6 @@ declare module "@/lib/server-cache" {
       Pick<typeof githubHelpers, keyof typeof githubHelpers>,
       Pick<typeof logoHelpers, keyof typeof logoHelpers>,
       Pick<typeof opengraphHelpers, keyof typeof opengraphHelpers>,
-      Pick<typeof searchHelpers, keyof typeof searchHelpers> {}
+      Pick<typeof searchHelpers, keyof typeof searchHelpers>,
+      Pick<typeof aggregatedContentHelpers, keyof typeof aggregatedContentHelpers> {}
 }

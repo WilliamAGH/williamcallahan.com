@@ -17,6 +17,7 @@ import * as githubHelpers from "./server-cache/github";
 import * as logoHelpers from "./server-cache/logo";
 import * as opengraphHelpers from "./server-cache/opengraph";
 import * as searchHelpers from "./server-cache/search";
+import * as aggregatedContentHelpers from "./server-cache/aggregated-content";
 
 assertServerOnly();
 
@@ -328,6 +329,7 @@ Object.assign(ServerCache.prototype, githubHelpers);
 Object.assign(ServerCache.prototype, logoHelpers);
 Object.assign(ServerCache.prototype, opengraphHelpers);
 Object.assign(ServerCache.prototype, searchHelpers);
+Object.assign(ServerCache.prototype, aggregatedContentHelpers);
 
 // Export a singleton instance
 export const ServerCacheInstance = new ServerCache();
