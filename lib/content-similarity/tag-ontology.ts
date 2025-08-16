@@ -160,7 +160,7 @@ function buildReverseLookup(): Map<string, Set<string>> {
       // Add all other tags in the group as related
       for (const relatedTag of normalizedGroup) {
         if (relatedTag !== tag) {
-          lookup.get(tag)!.add(relatedTag);
+          lookup.get(tag)?.add(relatedTag);
         }
       }
     }
