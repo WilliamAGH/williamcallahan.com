@@ -12,15 +12,9 @@ jest.mock("@/data/experience", () => ({
   ],
 }));
 jest.mock("@/data/education", () => ({
-  education: [
-    { name: "School A", website: "https://school-a.edu" },
-  ],
-  certifications: [
-    { name: "Cert A", website: "https://cert-a.org" },
-  ],
-  recentCourses: [
-    { name: "Course A", website: "https://course-a.com" },
-  ],
+  education: [{ name: "School A", website: "https://school-a.edu" }],
+  certifications: [{ name: "Cert A", website: "https://cert-a.org" }],
+  recentCourses: [{ name: "Course A", website: "https://course-a.com" }],
 }));
 
 describe("DataFetchManager Performance Optimizations", () => {
@@ -29,8 +23,10 @@ describe("DataFetchManager Performance Optimizations", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    mockGetInvestmentDomainsAndIds = getInvestmentDomainsAndIds as jest.MockedFunction<typeof getInvestmentDomainsAndIds>;
+
+    mockGetInvestmentDomainsAndIds = getInvestmentDomainsAndIds as jest.MockedFunction<
+      typeof getInvestmentDomainsAndIds
+    >;
     mockGetBookmarks = getBookmarks as jest.MockedFunction<typeof getBookmarks>;
 
     // Mock return values
@@ -62,23 +58,25 @@ describe("DataFetchManager Performance Optimizations", () => {
 
       mockGetInvestmentDomainsAndIds.mockImplementation(async () => {
         callTimes.investments = Date.now() - startTime;
-        await new Promise(resolve => setTimeout(resolve, 50)); // Simulate delay
+        await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate delay
         return [["investment-a.com", "inv-1"]];
       });
 
       mockGetBookmarks.mockImplementation(async () => {
         callTimes.bookmarks = Date.now() - startTime;
-        await new Promise(resolve => setTimeout(resolve, 50)); // Simulate delay
-        return [{
-          id: "bookmark-1",
-          url: "https://bookmark-a.com",
-          domain: "bookmark-a.com",
-          title: "Bookmark A",
-          description: "Description A",
-          tags: [],
-          createdAt: new Date().toISOString(),
-          content: {},
-        }];
+        await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate delay
+        return [
+          {
+            id: "bookmark-1",
+            url: "https://bookmark-a.com",
+            domain: "bookmark-a.com",
+            title: "Bookmark A",
+            description: "Description A",
+            tags: [],
+            createdAt: new Date().toISOString(),
+            content: {},
+          },
+        ];
       });
 
       // Create a test instance to access private methods
@@ -117,7 +115,7 @@ describe("DataFetchManager Performance Optimizations", () => {
 
       // When one source fails, Promise.all rejects and collectAllDomains returns empty set
       expect(domains.size).toBe(0);
-      
+
       // Verify error was logged but method didn't throw
       expect(domains).toBeInstanceOf(Set);
     });
@@ -182,22 +180,24 @@ describe("DataFetchManager Performance Optimizations", () => {
     it("should complete domain collection faster with parallel execution", async () => {
       // Add delays to simulate real network/database calls
       mockGetInvestmentDomainsAndIds.mockImplementation(async () => {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         return [["investment-a.com", "inv-1"]];
       });
 
       mockGetBookmarks.mockImplementation(async () => {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        return [{
-          id: "bookmark-1",
-          url: "https://bookmark-a.com",
-          domain: "bookmark-a.com",
-          title: "Bookmark A",
-          description: "Description A",
-          tags: [],
-          createdAt: new Date().toISOString(),
-          content: {},
-        }];
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        return [
+          {
+            id: "bookmark-1",
+            url: "https://bookmark-a.com",
+            domain: "bookmark-a.com",
+            title: "Bookmark A",
+            description: "Description A",
+            tags: [],
+            createdAt: new Date().toISOString(),
+            content: {},
+          },
+        ];
       });
 
       const dataFetchManager5 = new DataFetchManager();

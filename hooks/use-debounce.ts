@@ -1,9 +1,9 @@
 /**
  * Debounce Hook
- * 
+ *
  * Custom React hook that debounces a value. The debounced value will only
  * update after the specified delay has passed without the value changing.
- * 
+ *
  * @module hooks/use-debounce
  */
 
@@ -14,17 +14,17 @@ import { useEffect, useState } from "react";
 /**
  * Debounces a value by delaying updates until after wait milliseconds have elapsed
  * since the last time the debounced value was updated.
- * 
+ *
  * @template T The type of the value being debounced
  * @param value The value to debounce
  * @param delay The number of milliseconds to delay
  * @returns The debounced value
- * 
+ *
  * @example
  * ```tsx
  * const [searchTerm, setSearchTerm] = useState('');
  * const debouncedSearchTerm = useDebounce(searchTerm, 300);
- * 
+ *
  * // Effect will only run when user stops typing for 300ms
  * useEffect(() => {
  *   if (debouncedSearchTerm) {

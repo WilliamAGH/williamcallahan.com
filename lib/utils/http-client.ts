@@ -122,7 +122,7 @@ export async function fetchBinary(
   // Validate URL to prevent SSRF attacks
   const schema = options?.validateAsLogo ? logoUrlSchema : openGraphUrlSchema;
   const validatedUrl = schema.parse(url);
-  
+
   const response = await fetchWithTimeout(validatedUrl, options);
 
   if (!response.ok) {
@@ -151,8 +151,9 @@ export async function fetchJson<T>(url: string, options?: FetchOptions): Promise
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
 
-   const data: unknown = await response.json();
-   return data as T;}
+  const data: unknown = await response.json();
+  return data as T;
+}
 
 /**
  * Check if a URL is accessible (HEAD request)

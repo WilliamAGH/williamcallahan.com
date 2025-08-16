@@ -43,14 +43,14 @@ const searchResults: SearchResult[] = [
 function deduplicateSearchResults(results: SearchResult[]): SearchResult[] {
   const seen = new Set<string>();
   const deduped: SearchResult[] = [];
-  
+
   for (const result of results) {
     if (!seen.has(result.id)) {
       seen.add(result.id);
       deduped.push(result);
     }
   }
-  
+
   return deduped;
 }
 

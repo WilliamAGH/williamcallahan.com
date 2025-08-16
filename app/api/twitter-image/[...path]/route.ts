@@ -11,7 +11,7 @@ export async function GET(request: NextRequest, { params }: TwitterImageContext)
 
     // Sanitize path to prevent directory traversal
     const fullPath = sanitizePath(pathSegments.join("/"));
-    
+
     // Extract embedded query parameters from the fullPath
     let pathOnly = fullPath;
     let embeddedSearch = "";
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest, { params }: TwitterImageContext)
 
     // Use UnifiedImageService for consistent image handling
     const imageService = getUnifiedImageService();
-    
+
     // Categorize Twitter images for proper S3 organization
     const options: Parameters<typeof imageService.getImage>[1] = {};
     if (pathOnly.startsWith("profile_images/")) {
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest, { params }: TwitterImageContext)
     } else if (pathOnly.startsWith("media/") || pathOnly.startsWith("ext_tw_video_thumb/")) {
       options.type = "twitter-media";
     }
-    
+
     const result = await imageService.getImage(upstreamUrl, options);
 
     // If we got a CDN URL, redirect to it

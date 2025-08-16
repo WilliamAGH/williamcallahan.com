@@ -21,9 +21,9 @@ export async function EducationCard(props: Education): Promise<JSX.Element> {
     const educationWithLogo = await processEducationItem(props);
     return <EducationCardClient education={educationWithLogo} />;
   } catch (error) {
-    console.error('Failed to process education item:', error);
+    console.error("Failed to process education item:", error);
     // Fallback to default logo data
-    const fallbackEducation = { ...props, logoData: { url: '', source: null } };
+    const fallbackEducation = { ...props, logoData: { url: "", source: null } };
     return <EducationCardClient education={fallbackEducation} />;
   }
 }

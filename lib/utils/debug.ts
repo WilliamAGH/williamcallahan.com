@@ -4,7 +4,7 @@
  * Automatically detects debug mode based on:
  * - NODE_ENV === 'development'
  * - --debug flag in process.argv
- * 
+ *
  * Integrates with request context for structured logging
  */
 
@@ -26,13 +26,13 @@ import { getRequestContext } from "./request-context";
 function formatWithContext(args: unknown[]): unknown[] {
   const context = getRequestContext();
   if (!context) return args;
-  
+
   const prefix = `[${context.requestId}]${context.operation ? ` [${context.operation}]` : ""}`;
-  
+
   if (args.length > 0 && typeof args[0] === "string") {
     return [prefix + " " + args[0], ...args.slice(1)];
   }
-  
+
   return [prefix, ...args];
 }
 
@@ -65,11 +65,7 @@ export function debugError(...args: unknown[]): void {
 /**
  * Unified debug logger with leveled output.
  */
-export function debugLog(
-  message: string,
-  level: "info" | "warn" | "error" = "info",
-  meta?: unknown,
-): void {
+export function debugLog(message: string, level: "info" | "warn" | "error" = "info", meta?: unknown): void {
   const payload = meta ? [message, meta] : [message];
   switch (level) {
     case "warn":

@@ -39,9 +39,7 @@ export function isJinaFetchAllowed(): boolean {
         windowStartTimestamp: now,
       };
       ServerCacheInstance.set(JINA_LIMITER_CACHE_KEY, newState);
-      debug(
-        `[JinaLimiter] Jina AI fetch permitted. Count is now ${newState.count}/${JINA_FETCH_CONFIG.maxRequests}.`,
-      );
+      debug(`[JinaLimiter] Jina AI fetch permitted. Count is now ${newState.count}/${JINA_FETCH_CONFIG.maxRequests}.`);
       return true;
     }
 
@@ -58,9 +56,7 @@ export function isJinaFetchAllowed(): boolean {
       count: state.count + 1,
     };
     ServerCacheInstance.set(JINA_LIMITER_CACHE_KEY, newState);
-    debug(
-      `[JinaLimiter] Jina AI fetch permitted. Count is now ${newState.count}/${JINA_FETCH_CONFIG.maxRequests}.`,
-    );
+    debug(`[JinaLimiter] Jina AI fetch permitted. Count is now ${newState.count}/${JINA_FETCH_CONFIG.maxRequests}.`);
 
     return true;
   } catch (err) {

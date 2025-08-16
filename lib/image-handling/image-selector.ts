@@ -54,13 +54,13 @@ export function selectBestOpenGraphImage(metadata: Record<string, unknown>, url?
   for (const imageKey of imagePriority) {
     const imageUrl = metadata[imageKey];
     const imageUrlString = typeof imageUrl === "string" ? imageUrl : "not found";
-    
+
     // Special handling for profileImage on non-social sites
     if (imageKey === "profileImage" && !isSocialPlatform) {
       debug(`[OG-Priority-4.${imageKey}] Skipping profileImage check for non-social site (${domainType})`);
       continue;
     }
-    
+
     console.log(`[OG-Priority-4.${imageKey}] 🔍 Checking ${imageKey}: ${imageUrlString}`);
 
     // Skip if undefined, null, or not a valid string

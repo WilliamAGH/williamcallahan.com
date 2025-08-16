@@ -568,7 +568,7 @@ describe.skip("Integration Tests", () => {
     manager.setMemoryPressure(true);
 
     // Allow event propagation with a small delay or use event-based waiting
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // The manager's own metrics should reflect the pressure state
     const managerMetrics = manager.getMetrics();
@@ -581,7 +581,7 @@ describe.skip("Integration Tests", () => {
     manager.setMemoryPressure(false);
 
     // Allow cleanup to propagate
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Verify cleanup worked
     expect(monitor.shouldAllowImageOperations()).toBe(true);

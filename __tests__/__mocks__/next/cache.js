@@ -16,13 +16,13 @@ const unstableCache = jest.fn((fn, keyParts, options) => {
     // Call the original function
     return await fn(...args);
   });
-  
+
   // Add properties that Next.js might add to the wrapped function
   if (options) {
     wrappedFn.revalidate = options.revalidate;
     wrappedFn.tags = options.tags;
   }
-  
+
   return wrappedFn;
 });
 
@@ -30,9 +30,9 @@ const unstableCache = jest.fn((fn, keyParts, options) => {
 const cache = unstableCache;
 
 // Mock React's cache function if it's being used
-if (typeof jest !== 'undefined') {
-  jest.mock('react', () => ({
-    ...jest.requireActual('react'),
+if (typeof jest !== "undefined") {
+  jest.mock("react", () => ({
+    ...jest.requireActual("react"),
     cache: jest.fn((fn) => fn), // Pass-through for tests
   }));
 }

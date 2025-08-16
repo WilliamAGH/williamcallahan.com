@@ -96,7 +96,7 @@ const createMockResponse = (options: {
 }): Response => {
   // Use globalThis.Headers to ensure we get the polyfilled version
   const headers = globalThis.Headers ? new globalThis.Headers() : {};
-  
+
   return {
     ok: options.ok,
     status: options.status ?? 200,

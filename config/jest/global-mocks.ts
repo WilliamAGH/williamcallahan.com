@@ -17,11 +17,10 @@ const cachesMock = {
   open: jest.fn().mockResolvedValue(mockCache),
 };
 
-// @ts-ignore - Mock Edge Runtime caches API
+// @ts-expect-error - Mock Edge Runtime caches API
 global.caches = cachesMock;
 Object.defineProperty(globalThis, "caches", {
   value: cachesMock,
   writable: true,
   configurable: true,
 });
-

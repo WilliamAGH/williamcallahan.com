@@ -1,21 +1,21 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.1.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.2.0/schema.json",
   "files": {
     "includes": [
       "**/*",
-      "!node_modules/**",
+      "!node_modules",
       "!components/ui/code-block/prism-syntax-highlighting/prism.js",
-      "!.next/**",
-      "!coverage/**",
+      "!.next",
+      "!coverage",
       "!**/*.mdx",
       "!.DS_Store",
-      "!.husky/**",
+      "!.husky",
       "!*.env*",
       "!*.ico",
       "!bun.lock",
       "!README.md",
       "!docs/**/*.md",
-      "!.jest-pre-compiled/**"
+      "!.jest-pre-compiled"
     ],
     "maxSize": 2097152,
     "ignoreUnknown": true
@@ -43,10 +43,13 @@
       },
       "suspicious": {
         "noAssignInExpressions": "off",
-        "noShadowRestrictedNames": "off"
+        "noShadowRestrictedNames": "off",
+        "useIterableCallbackReturn": "off",
+        "noUnknownAtRules": "off"
       },
       "correctness": {
-        "noUnusedVariables": "off"
+        "noUnusedVariables": "off",
+        "useUniqueElementIds": "off"
       }
     }
   },
@@ -117,11 +120,7 @@
     {
       "includes": ["components/analytics/analytics.client.tsx"],
       "linter": {
-        "rules": {
-          "nursery": {
-            "useUniqueElementIds": "off"
-          }
-        }
+        "rules": {}
       }
     },
     {
@@ -143,6 +142,26 @@
         "rules": {
           "a11y": {
             "useSemanticElements": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/*.css"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noUnknownAtRules": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["components/features/blog/blog-article/mdx-content.client.tsx"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noNestedComponentDefinitions": "off"
           }
         }
       }

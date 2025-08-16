@@ -62,11 +62,9 @@ describe("Bookmarks lock + freshness behavior (unit)", () => {
       });
 
       const s3 = await import("@/lib/s3-utils");
-      const {
-        setRefreshBookmarksCallback,
-        refreshAndPersistBookmarks,
-        initializeBookmarksDataAccess,
-      } = await import("../../../lib/bookmarks/bookmarks-data-access.server");
+      const { setRefreshBookmarksCallback, refreshAndPersistBookmarks, initializeBookmarksDataAccess } = await import(
+        "../../../lib/bookmarks/bookmarks-data-access.server"
+      );
 
       initializeBookmarksDataAccess();
 

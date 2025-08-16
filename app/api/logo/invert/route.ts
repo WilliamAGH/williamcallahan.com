@@ -108,7 +108,7 @@ export async function HEAD(request: NextRequest): Promise<NextResponse> {
     // Use UnifiedImageService for analysis with caching
     const imageService = getUnifiedImageService();
     const analysis = await imageService.getLogoAnalysisByUrl(url);
-    
+
     if (!analysis) {
       return new NextResponse(null, {
         status: 404,

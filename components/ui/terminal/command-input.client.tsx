@@ -42,7 +42,7 @@ export const CommandInput = forwardRef<HTMLInputElement, CommandInputProps>(func
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter' && !disabled) {
+      if (e.key === "Enter" && !disabled) {
         e.preventDefault();
         onSubmit(value);
       }

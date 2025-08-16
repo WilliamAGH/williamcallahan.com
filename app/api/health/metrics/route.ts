@@ -25,7 +25,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     // Check authorization using existing env variable
     const authHeader = request.headers.get("authorization");
     const expectedToken = process.env.GITHUB_REFRESH_SECRET || process.env.BOOKMARK_CRON_REFRESH_SECRET;
-    
+
     if (!expectedToken || authHeader !== `Bearer ${expectedToken}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

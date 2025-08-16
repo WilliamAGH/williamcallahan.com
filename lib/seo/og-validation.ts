@@ -59,7 +59,7 @@ export function validateOGImage(imageUrl: string, width?: number, height?: numbe
 
   // Check file extension
   const supportedFormats = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
-  const urlPath = imageUrl.split('?')[0]?.split('#')[0] ?? imageUrl;
+  const urlPath = imageUrl.split("?")[0]?.split("#")[0] ?? imageUrl;
   const hasValidExtension = supportedFormats.some((ext) => urlPath.toLowerCase().endsWith(ext));
 
   if (!hasValidExtension) {
@@ -174,7 +174,7 @@ export function createCacheBustingUrl(imageUrl: string, forceRefresh = false): s
 export function prepareOGImageUrl(imageUrl: string, width?: number, height?: number, forceRefresh = false): string {
   // Handle URLs - they might already be absolute S3 CDN URLs
   let processedUrl = imageUrl;
-  
+
   // Only make relative URLs absolute
   if (imageUrl.startsWith("/")) {
     processedUrl = `${metadata.site.url}${imageUrl}`;

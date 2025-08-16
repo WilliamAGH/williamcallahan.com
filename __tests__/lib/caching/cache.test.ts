@@ -11,23 +11,23 @@ describe("lib/cache", () => {
 
   describe("getCacheProfile", () => {
     it("should return 'minutes' for TTL <= 60 seconds", () => {
-      expect(getCacheProfile(30)).toBe('minutes');
-      expect(getCacheProfile(60)).toBe('minutes');
+      expect(getCacheProfile(30)).toBe("minutes");
+      expect(getCacheProfile(60)).toBe("minutes");
     });
 
     it("should return 'hours' for TTL <= 3600 seconds", () => {
-      expect(getCacheProfile(61)).toBe('hours');
-      expect(getCacheProfile(3600)).toBe('hours');
+      expect(getCacheProfile(61)).toBe("hours");
+      expect(getCacheProfile(3600)).toBe("hours");
     });
 
     it("should return 'days' for TTL <= 86400 seconds", () => {
-      expect(getCacheProfile(3601)).toBe('days');
-      expect(getCacheProfile(86400)).toBe('days');
+      expect(getCacheProfile(3601)).toBe("days");
+      expect(getCacheProfile(86400)).toBe("days");
     });
 
     it("should return 'weeks' for TTL > 86400 seconds", () => {
-      expect(getCacheProfile(86401)).toBe('weeks');
-      expect(getCacheProfile(604800)).toBe('weeks');
+      expect(getCacheProfile(86401)).toBe("weeks");
+      expect(getCacheProfile(604800)).toBe("weeks");
     });
   });
 
@@ -57,7 +57,7 @@ describe("lib/cache", () => {
 
   describe("USE_NEXTJS_CACHE", () => {
     it("should be a boolean", () => {
-      expect(typeof USE_NEXTJS_CACHE).toBe('boolean');
+      expect(typeof USE_NEXTJS_CACHE).toBe("boolean");
     });
   });
 });

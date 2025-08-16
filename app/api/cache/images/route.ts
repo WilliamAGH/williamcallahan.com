@@ -45,7 +45,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!urlValidation.success) {
     return NextResponse.json(
       { error: "Invalid or unsafe URL", details: urlValidation.error.errors[0]?.message },
-      { status: 403 }
+      { status: 403 },
     );
   }
 

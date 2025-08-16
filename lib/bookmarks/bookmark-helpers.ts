@@ -24,7 +24,7 @@ export function getAssetUrl(assetId: string | undefined | null): string | undefi
  * Selects the best available image for a bookmark based on priority order
  *
  * CRITICAL: This function now prioritizes S3 CDN URLs to avoid proxy overhead
- * 
+ *
  * Priority order:
  * 1. S3 CDN URLs (from ogImage or content.imageUrl) - ALWAYS PREFERRED
  * 2. Direct HTTP URLs (already hosted externally)
@@ -122,11 +122,15 @@ export function selectBestImage(
  * @param idempotencyKey Optional unique key for idempotent storage (e.g., bookmark ID)
  * @returns KarakeepImageFallback object for OpenGraph fallback
  */
-export function createKarakeepFallback(content: BookmarkContent | undefined, baseUrl = "", idempotencyKey?: string): KarakeepImageFallback {
+export function createKarakeepFallback(
+  content: BookmarkContent | undefined,
+  baseUrl = "",
+  idempotencyKey?: string,
+): KarakeepImageFallback {
   if (!content) {
-    return { 
+    return {
       karakeepBaseUrl: baseUrl,
-      idempotencyKey: idempotencyKey || undefined
+      idempotencyKey: idempotencyKey || undefined,
     };
   }
 
@@ -135,6 +139,6 @@ export function createKarakeepFallback(content: BookmarkContent | undefined, bas
     imageAssetId: typeof content.imageAssetId === "string" ? content.imageAssetId : null,
     screenshotAssetId: typeof content.screenshotAssetId === "string" ? content.screenshotAssetId : null,
     karakeepBaseUrl: baseUrl,
-    idempotencyKey: idempotencyKey || undefined
+    idempotencyKey: idempotencyKey || undefined,
   };
 }

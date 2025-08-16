@@ -1,6 +1,6 @@
 /**
  * Cached manifest loading functions for Next.js 15
- * 
+ *
  * These functions use the experimental "use cache" directive and must be
  * in a separate module to work properly with Next.js 15's caching system.
  */
@@ -12,7 +12,15 @@ import type { LogoManifest, ImageManifest } from "@/types/image";
 
 // Runtime-safe wrappers for experimental cache APIs
 const safeCacheLife = (
-  profile: "default" | "seconds" | "minutes" | "hours" | "days" | "weeks" | "max" | { stale?: number; revalidate?: number; expire?: number }
+  profile:
+    | "default"
+    | "seconds"
+    | "minutes"
+    | "hours"
+    | "days"
+    | "weeks"
+    | "max"
+    | { stale?: number; revalidate?: number; expire?: number },
 ): void => {
   try {
     if (typeof cacheLife === "function") {
@@ -43,16 +51,16 @@ const safeCacheTag = (tag: string): void => {
  */
 export async function loadManifestsWithCache() {
   "use cache";
-  
+
   safeCacheLife("days");
   safeCacheTag("image-manifests");
-  
+
   const [logos, opengraph, blog] = await Promise.all([
     readJsonS3<LogoManifest>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST),
     readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST),
     readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST),
   ]);
-  
+
   return {
     logos: logos || {},
     opengraph: opengraph || [],
@@ -65,10 +73,10 @@ export async function loadManifestsWithCache() {
  */
 export async function loadLogoManifestWithCache() {
   "use cache";
-  
+
   safeCacheLife("days");
   safeCacheTag("logo-manifest");
-  
+
   const manifest = await readJsonS3<LogoManifest>(IMAGE_MANIFEST_S3_PATHS.LOGOS_MANIFEST);
   return manifest || {};
 }

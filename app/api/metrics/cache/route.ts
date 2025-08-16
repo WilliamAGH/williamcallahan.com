@@ -22,7 +22,7 @@ export function GET(): NextResponse {
   try {
     // Get process memory for context
     const memUsage = process.memoryUsage();
-    
+
     const response = {
       timestamp: new Date().toISOString(),
       process: {
@@ -36,9 +36,9 @@ export function GET(): NextResponse {
         notes: [
           "Next.js cache doesn't expose metrics like traditional cache implementations",
           "Image caching has been removed - images served directly from S3/CDN",
-          "ServerCache uses simple Map-based implementation with TTL and size-aware eviction"
-        ]
-      }
+          "ServerCache uses simple Map-based implementation with TTL and size-aware eviction",
+        ],
+      },
     };
 
     // Add Prometheus-style metrics as plain text if requested

@@ -8,7 +8,15 @@ import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalid
 
 // Runtime-safe wrappers for experimental cache APIs
 const safeCacheLife = (
-  profile: "default" | "seconds" | "minutes" | "hours" | "days" | "weeks" | "max" | { stale?: number; revalidate?: number; expire?: number }
+  profile:
+    | "default"
+    | "seconds"
+    | "minutes"
+    | "hours"
+    | "days"
+    | "weeks"
+    | "max"
+    | { stale?: number; revalidate?: number; expire?: number },
 ): void => {
   try {
     if (typeof cacheLife === "function") {

@@ -155,8 +155,8 @@ export async function refreshGitHubActivityDataFromApi(): Promise<{
 
   // Check if we're rate limited before starting expensive operations
   const rateLimitConfig = { maxRequests: 1000, windowMs: 60 * 60 * 1000 }; // 1000 requests per hour
-  if (!isOperationAllowed('github-api', 'global', rateLimitConfig)) {
-    console.warn('[DataAccess/GitHub] Skipping refresh due to rate limit. Will retry later.');
+  if (!isOperationAllowed("github-api", "global", rateLimitConfig)) {
+    console.warn("[DataAccess/GitHub] Skipping refresh due to rate limit. Will retry later.");
     return null;
   }
 

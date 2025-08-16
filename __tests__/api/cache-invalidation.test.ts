@@ -8,7 +8,6 @@ import { POST as clearCacheHandler } from "@/app/api/cache/clear/route";
 import { POST as invalidateBookmarksHandler, DELETE as clearBookmarksHandler } from "@/app/api/cache/bookmarks/route";
 import { NextRequest } from "next/server";
 
-
 // Mock the cache library
 jest.mock("@/lib/cache", () => {
   const actual = jest.requireActual<typeof import("@/lib/cache")>("@/lib/cache");
@@ -26,45 +25,43 @@ jest.mock("@/lib/s3-utils", () => {
       .fn<() => Promise<{ count: number; lastRefresh: string }>>()
       .mockResolvedValue({ count: 0, lastRefresh: new Date().toISOString() }),
     writeJsonS3: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-  }
+  };
 });
 
 // Mock bookmark data access
 jest.mock("@/lib/bookmarks/bookmarks-data-access.server", () => {
   return {
     invalidateBookmarksCache: jest.fn().mockReturnValue({
-        success: true,
-        bookmarks: [],
-        count: 0,
-        lastRefresh: new Date().toISOString(),
-      }),
-  }
+      success: true,
+      bookmarks: [],
+      count: 0,
+      lastRefresh: new Date().toISOString(),
+    }),
+  };
 });
 
 // Mock refresh function
 jest.mock("@/lib/bookmarks", () => {
   return {
-    refreshBookmarksData: jest
-      .fn<() => Promise<{ status: string; phases: any }>>()
-      .mockResolvedValue({
-        status: "COMPLETE_SUCCESS",
-        phases: {
-          primaryFetch: { status: "SUCCESS", recordCount: 10 },
-          s3Fallback: { status: "NOT_ATTEMPTED" },
-          finalOutcome: { status: "PRIMARY_SUCCESS", bookmarksServed: 10 },
-        },
-      }),
-  }
+    refreshBookmarksData: jest.fn<() => Promise<{ status: string; phases: any }>>().mockResolvedValue({
+      status: "COMPLETE_SUCCESS",
+      phases: {
+        primaryFetch: { status: "SUCCESS", recordCount: 10 },
+        s3Fallback: { status: "NOT_ATTEMPTED" },
+        finalOutcome: { status: "PRIMARY_SUCCESS", bookmarksServed: 10 },
+      },
+    }),
+  };
 });
 
 // Mock DataFetchManager
 jest.mock("@/lib/server/data-fetch-manager", () => {
   class MockDataFetchManager {
-    fetchData = jest.fn<() => Promise<Array<{ operation: string; success: boolean; dataCount: number }>>>().mockResolvedValue([
-      { operation: "bookmarks", success: true, dataCount: 10 },
-    ]);
+    fetchData = jest
+      .fn<() => Promise<Array<{ operation: string; success: boolean; dataCount: number }>>>()
+      .mockResolvedValue([{ operation: "bookmarks", success: true, dataCount: 10 }]);
   }
-  return { DataFetchManager: MockDataFetchManager }
+  return { DataFetchManager: MockDataFetchManager };
 });
 
 describe("Cache Invalidation via API Routes", () => {

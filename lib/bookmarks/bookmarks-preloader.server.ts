@@ -27,7 +27,6 @@ export async function preloadBookmarksIfNeeded(): Promise<void> {
 
   preloadPromise = (async () => {
     try {
-
       // Ensure the server is fully ready before we spike outbound bandwidth
       await new Promise((r) => setTimeout(r, 1_000));
 
@@ -111,7 +110,7 @@ export function scheduleBackgroundBookmarkPreload(): void {
       }
       clearTimeout(timeoutId);
     };
-    
+
     process.on("SIGTERM", cleanup);
     process.on("SIGINT", cleanup);
     process.on("beforeExit", cleanup);

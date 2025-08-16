@@ -246,7 +246,7 @@ export function constructKarakeepAssetUrl(assetId: string, baseUrl?: string, ext
   // Mark unused parameters explicitly (kept for API compatibility)
   void baseUrl;
   void extension;
-  
+
   // Validate asset ID format (should be non-empty string, potentially UUID)
   if (!assetId || typeof assetId !== "string" || assetId.trim().length === 0) {
     throw new Error("Invalid asset ID provided");

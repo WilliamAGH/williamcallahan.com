@@ -33,15 +33,15 @@ describe("Search-mode client pagination", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Mock the hook to return different values based on the current state
     const { useBookmarksPagination } = require("@/hooks/use-bookmarks-pagination");
     let currentPage = 1;
-    
+
     const goToPageMock = jest.fn((page: number) => {
       currentPage = page;
     });
-    
+
     useBookmarksPagination.mockImplementation(() => ({
       bookmarks: mockBookmarks.slice((currentPage - 1) * 24, currentPage * 24),
       currentPage,
@@ -67,7 +67,7 @@ describe("Search-mode client pagination", () => {
       Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ data: mockBookmarks }),
-      })
+      }),
     ) as jest.Mock;
 
     const { container } = render(
@@ -83,29 +83,29 @@ describe("Search-mode client pagination", () => {
 
     // Helper to check for text in the component
     const findText = (text: string) => {
-      const elements = container.querySelectorAll('*');
-      return Array.from(elements).some(el => el.textContent?.includes(text));
+      const elements = container.querySelectorAll("*");
+      return Array.from(elements).some((el) => el.textContent?.includes(text));
     };
 
     // Verify initial state shows some bookmarks
     expect(screen.getByPlaceholderText(/search bookmarks/i)).toBeInTheDocument();
-    
+
     // Type search term
     fireEvent.change(screen.getByPlaceholderText(/search bookmarks/i), { target: { value: "ai" } });
 
     // Wait for search to be triggered
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/api/search/bookmarks?q=ai'),
-        expect.any(Object)
+        expect.stringContaining("/api/search/bookmarks?q=ai"),
+        expect.any(Object),
       );
     });
 
     // Verify search results are displayed
     await waitFor(() => {
-      expect(findText('for ai')).toBe(true);
+      expect(findText("for ai")).toBe(true);
     });
-    
+
     // The component should show bookmarks
     const bookmarkElements = container.querySelectorAll('[class*="rounded-3xl"]');
     expect(bookmarkElements.length).toBeGreaterThan(0);

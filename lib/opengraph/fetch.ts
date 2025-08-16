@@ -10,7 +10,12 @@
 
 import { debug, debugWarn } from "@/lib/utils/debug";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
-import { getCachedJinaHtml, persistJinaHtmlInBackground, scheduleImagePersistence, persistImageAndGetS3Url } from "@/lib/persistence/s3-persistence";
+import {
+  getCachedJinaHtml,
+  persistJinaHtmlInBackground,
+  scheduleImagePersistence,
+  persistImageAndGetS3Url,
+} from "@/lib/persistence/s3-persistence";
 import { fetchWithTimeout, getBrowserHeaders } from "@/lib/utils/http-client";
 import { incrementAndPersist, waitForPermit } from "@/lib/rate-limiter";
 import { retryWithThrow, RETRY_CONFIGS } from "@/lib/utils/retry";
@@ -52,7 +57,7 @@ export async function fetchExternalOpenGraphWithRetry(
   fallbackImageData?: KarakeepImageFallback,
 ): Promise<OgResult | { networkFailure: true; lastError: Error | null } | null> {
   // Check if there's already an ongoing request for this URL
-  const cacheKey = `${url}:${fallbackImageData?.idempotencyKey || 'default'}`;
+  const cacheKey = `${url}:${fallbackImageData?.idempotencyKey || "default"}`;
   const existingRequest = ongoingRequests.get(cacheKey);
   if (existingRequest) {
     debug(`[OpenGraph Dedup] Returning existing request for URL: ${url}`);
@@ -90,18 +95,23 @@ async function performFetchWithRetry(
     const result = await retryWithThrow(
       async () => {
         let lastAttemptError: Error | null = null;
-        
+
         // Try direct fetch first, then proxies
-        const urlsToTry = [url, ...proxies.map(proxy => {
-          const proxyUrl = new URL(url);
-          proxyUrl.hostname = proxy;
-          return proxyUrl.toString();
-        })];
+        const urlsToTry = [
+          url,
+          ...proxies.map((proxy) => {
+            const proxyUrl = new URL(url);
+            proxyUrl.hostname = proxy;
+            return proxyUrl.toString();
+          }),
+        ];
 
         for (const effectiveUrl of urlsToTry) {
           const isProxy = effectiveUrl !== url;
           if (isProxy) {
-            console.log(`[OpenGraph Proxy] Trying ${new URL(effectiveUrl).hostname} for ${url.includes('/status/') ? 'tweet' : 'profile'}: ${effectiveUrl}`);
+            console.log(
+              `[OpenGraph Proxy] Trying ${new URL(effectiveUrl).hostname} for ${url.includes("/status/") ? "tweet" : "profile"}: ${effectiveUrl}`,
+            );
           } else {
             console.log(`[OpenGraph Direct] Attempting direct fetch for: ${url}`);
           }
@@ -117,16 +127,14 @@ async function performFetchWithRetry(
             }
 
             if (result && typeof result === "object" && "blocked" in result) {
-              console.log(
-                `[OpenGraph Crawl] 🚫 Access blocked for ${effectiveUrl}, trying next option`,
-              );
+              console.log(`[OpenGraph Crawl] 🚫 Access blocked for ${effectiveUrl}, trying next option`);
               continue;
             }
 
             if (result && !("permanentFailure" in result) && !("blocked" in result)) {
               // Check if we actually got meaningful data
               const hasValidData = result.title || result.description || result.imageUrl;
-              
+
               if (hasValidData) {
                 console.log(`[OpenGraph Crawl] ✅ Successfully crawled ${url}`);
                 console.log(
@@ -135,7 +143,7 @@ async function performFetchWithRetry(
                 return result; // Success!
               } else {
                 console.log(
-                  `[OpenGraph Crawl] ⚠️ Empty metadata from ${isProxy ? 'proxy' : 'direct fetch'} for ${url}, trying next option`,
+                  `[OpenGraph Crawl] ⚠️ Empty metadata from ${isProxy ? "proxy" : "direct fetch"} for ${url}, trying next option`,
                 );
               }
             }
@@ -162,7 +170,7 @@ async function performFetchWithRetry(
     // retryWithOptions failed - handle the error
     const error = finalError instanceof Error ? finalError : new Error(String(finalError));
     const errorMessage = error.message;
-    
+
     const isNetworkError =
       errorMessage.includes("fetch failed") ||
       errorMessage.includes("ENOTFOUND") ||
@@ -248,7 +256,7 @@ async function fetchExternalOpenGraph(
 
     try {
       await waitForPermit(OPENGRAPH_FETCH_STORE_NAME, OPENGRAPH_FETCH_CONTEXT_ID, DEFAULT_OPENGRAPH_FETCH_LIMIT_CONFIG);
-      
+
       // Use shared fetch utility with timeout and browser headers
       const headers = getBrowserHeaders();
       const response = await fetchWithTimeout(url, {

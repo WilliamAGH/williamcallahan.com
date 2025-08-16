@@ -60,10 +60,7 @@ describe("URL Schema Validation", () => {
     });
 
     it("should reject URLs with credentials", () => {
-      const urlsWithCreds = [
-        "https://user:pass@example.com",
-        "http://admin:secret@example.com/path",
-      ];
+      const urlsWithCreds = ["https://user:pass@example.com", "http://admin:secret@example.com/path"];
 
       for (const url of urlsWithCreds) {
         expect(() => safeUrlSchema.parse(url)).toThrow(/not safe/);
@@ -72,11 +69,11 @@ describe("URL Schema Validation", () => {
 
     it("should reject URLs with suspicious ports", () => {
       const suspiciousPorts = [
-        "http://example.com:22",    // SSH
-        "http://example.com:23",    // Telnet
-        "http://example.com:3389",  // RDP
-        "http://example.com:5432",  // PostgreSQL
-        "http://example.com:6379",  // Redis
+        "http://example.com:22", // SSH
+        "http://example.com:23", // Telnet
+        "http://example.com:3389", // RDP
+        "http://example.com:5432", // PostgreSQL
+        "http://example.com:6379", // Redis
       ];
 
       for (const url of suspiciousPorts) {
@@ -116,7 +113,7 @@ describe("URL Schema Validation", () => {
     it("should inherit safeUrlSchema restrictions", () => {
       // Should reject private IPs
       expect(() => logoUrlSchema.parse("http://localhost/logo.png")).toThrow();
-      
+
       // Should reject credentials
       expect(() => logoUrlSchema.parse("https://user:pass@example.com/logo.png")).toThrow();
     });
@@ -139,7 +136,7 @@ describe("URL Schema Validation", () => {
     it("should inherit safeUrlSchema restrictions", () => {
       // Should reject private IPs
       expect(() => openGraphUrlSchema.parse("http://192.168.1.1")).toThrow();
-      
+
       // Should reject file protocol
       expect(() => openGraphUrlSchema.parse("file:///etc/passwd")).toThrow();
     });
@@ -175,11 +172,7 @@ describe("URL Schema Validation", () => {
     });
 
     it("should reject absolute paths", () => {
-      const absolutePaths = [
-        "/etc/passwd",
-        "/root/.ssh/id_rsa",
-        "/var/log/secrets",
-      ];
+      const absolutePaths = ["/etc/passwd", "/root/.ssh/id_rsa", "/var/log/secrets"];
 
       for (const path of absolutePaths) {
         expect(() => s3KeySchema.parse(path)).toThrow(/Invalid S3 key format/);
@@ -202,7 +195,7 @@ describe("URL Schema Validation", () => {
     it("should handle specific patterns", () => {
       // Should accept hash-based names
       expect(() => s3KeySchema.parse("a1b2c3d4e5f6789012345678901234567890123456789012345678901234.png")).not.toThrow();
-      
+
       // Should reject patterns with special characters not in allowed set
       expect(() => s3KeySchema.parse("images/logos/file@name.png")).toThrow();
     });
@@ -236,9 +229,9 @@ describe("URL Schema Validation", () => {
     it("should accept valid asset IDs", () => {
       const validIds = [
         "550e8400-e29b-41d4-a716-446655440000", // UUID v4 with hyphens
-        "550e8400e29b41d4a716446655440000",     // UUID without hyphens
+        "550e8400e29b41d4a716446655440000", // UUID without hyphens
         "550E8400-E29B-41D4-A716-446655440000", // UUID uppercase
-        "550e8400e29b41d4a716446655440000",     // UUID lowercase no hyphens
+        "550e8400e29b41d4a716446655440000", // UUID lowercase no hyphens
       ];
 
       for (const id of validIds) {
@@ -270,10 +263,10 @@ describe("URL Schema Validation", () => {
     it("should reject malformed UUIDs", () => {
       const malformedIds = [
         "550e8400-e29b-41d4-a716-44665544000g", // Invalid character 'g'
-        "550e8400-e29b-41d4-a716-4466554400",   // Too short
+        "550e8400-e29b-41d4-a716-4466554400", // Too short
         "550e8400--e29b-41d4-a716-446655440000", // Double hyphen
       ];
-      
+
       for (const id of malformedIds) {
         expect(() => assetIdSchema.parse(id)).toThrow(/Invalid asset ID format/);
       }

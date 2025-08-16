@@ -21,7 +21,6 @@ let blogManifest: ImageManifest | null = null;
 let isLoading = false;
 let loadingPromise: Promise<void> | null = null;
 
-
 /**
  * Direct manifest loading (no cache)
  */
@@ -35,7 +34,7 @@ async function getManifestsDirect(): Promise<{
     readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.OPENGRAPH_MANIFEST),
     readJsonS3<ImageManifest>(IMAGE_MANIFEST_S3_PATHS.BLOG_IMAGES_MANIFEST),
   ]);
-  
+
   return {
     logos: logos || {},
     opengraph: opengraph || [],
@@ -111,7 +110,6 @@ async function ensureManifestsLoaded(): Promise<void> {
   return loadingPromise;
 }
 
-
 /**
  * Get logo info from manifest
  * @param domain - Domain to lookup
@@ -153,7 +151,7 @@ export async function getLogoFromManifestAsync(domain: string): Promise<LogoMani
       return getLogoFromManifest(domain);
     }
   }
-  
+
   await ensureManifestsLoaded();
   return getLogoFromManifest(domain);
 }

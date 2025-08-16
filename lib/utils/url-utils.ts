@@ -75,43 +75,76 @@ export function extractPathname(url: string): string {
  * Known complex TLDs that should be treated as a single unit
  */
 const COMPLEX_TLDS = [
-  'com.br', 'co.uk', 'co.za', 'co.in', 'co.nz', 'co.jp', 'co.kr',
-  'com.au', 'com.cn', 'com.mx', 'com.ar', 'com.tr', 'com.tw',
-  'net.au', 'net.br', 'net.cn', 'net.in', 'net.nz',
-  'org.au', 'org.br', 'org.uk', 'org.in', 'org.nz',
-  'gov.au', 'gov.br', 'gov.uk', 'gov.in', 'gov.cn',
-  'edu.au', 'edu.br', 'edu.cn', 'edu.in', 'edu.mx',
-  'ac.uk', 'ac.jp', 'ac.in', 'ac.za', 'ac.nz',
-  'or.jp', 'ne.jp', 'gr.jp'
+  "com.br",
+  "co.uk",
+  "co.za",
+  "co.in",
+  "co.nz",
+  "co.jp",
+  "co.kr",
+  "com.au",
+  "com.cn",
+  "com.mx",
+  "com.ar",
+  "com.tr",
+  "com.tw",
+  "net.au",
+  "net.br",
+  "net.cn",
+  "net.in",
+  "net.nz",
+  "org.au",
+  "org.br",
+  "org.uk",
+  "org.in",
+  "org.nz",
+  "gov.au",
+  "gov.br",
+  "gov.uk",
+  "gov.in",
+  "gov.cn",
+  "edu.au",
+  "edu.br",
+  "edu.cn",
+  "edu.in",
+  "edu.mx",
+  "ac.uk",
+  "ac.jp",
+  "ac.in",
+  "ac.za",
+  "ac.nz",
+  "or.jp",
+  "ne.jp",
+  "gr.jp",
 ];
 
 /**
  * Extract TLD from domain, supporting complex TLDs
  */
 export function extractTld(domain: string): { name: string; tld: string } {
-  const parts = domain.toLowerCase().split('.');
-  
+  const parts = domain.toLowerCase().split(".");
+
   // Check for complex TLDs
   if (parts.length >= 3) {
     const possibleComplexTld = `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
     if (COMPLEX_TLDS.includes(possibleComplexTld)) {
       return {
-        name: parts.slice(0, -2).join('.'),
-        tld: possibleComplexTld
+        name: parts.slice(0, -2).join("."),
+        tld: possibleComplexTld,
       };
     }
   }
-  
+
   // Simple TLD
   if (parts.length >= 2) {
     return {
-      name: parts.slice(0, -1).join('.'),
-      tld: parts[parts.length - 1] || ''
+      name: parts.slice(0, -1).join("."),
+      tld: parts[parts.length - 1] || "",
     };
   }
-  
+
   // Invalid domain
-  return { name: domain, tld: '' };
+  return { name: domain, tld: "" };
 }
 
 /**
@@ -122,21 +155,21 @@ export function extractTld(domain: string): { name: string; tld: string } {
  */
 export function getBaseDomain(domain: string): string {
   const { name, tld } = extractTld(domain);
-  
+
   if (!tld) return domain;
-  
-  const nameParts = name.split('.');
-  
+
+  const nameParts = name.split(".");
+
   // Keep www prefix if present
-  if (nameParts.length > 1 && nameParts[0] === 'www') {
+  if (nameParts.length > 1 && nameParts[0] === "www") {
     return `www.${nameParts[nameParts.length - 1]}.${tld}`;
   }
-  
+
   // For simple cases, just base name + tld
   if (nameParts.length === 1) {
     return `${name}.${tld}`;
   }
-  
+
   // Return just the base domain
   return `${nameParts[nameParts.length - 1]}.${tld}`;
 }
