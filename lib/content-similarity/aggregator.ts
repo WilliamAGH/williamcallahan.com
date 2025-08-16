@@ -15,7 +15,6 @@ import type {
   NormalizedContent,
   RelatedContentType,
   ContentSource,
-  AggregatedContentCacheEntry,
 } from "@/types/related-content";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { BlogPost } from "@/types/blog";
@@ -43,7 +42,7 @@ function parseDate(dateStr?: string | null): Date | undefined {
   if (!dateStr) return undefined;
   try {
     const date = new Date(dateStr);
-    return isNaN(date.getTime()) ? undefined : date;
+    return Number.isNaN(date.getTime()) ? undefined : date;
   } catch {
     return undefined;
   }
