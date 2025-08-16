@@ -17,9 +17,9 @@ export interface ProbeOptions {
   retries?: number;
 }
 
-declare module 'probe-image-size' {
+declare module "probe-image-size" {
   function probe(input: string | Buffer | NodeJS.ReadableStream, options?: ProbeOptions): Promise<ProbeResult>;
-  
+
   namespace probe {
     function sync(input: Buffer): ProbeResult | null;
   }

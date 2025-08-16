@@ -43,7 +43,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
         description: "Railway makes it easy to deploy and scale applications",
         imageUrl: "https://railway.app/og-image.png",
         url: "https://railway.app",
-        
+
         siteName: "Railway",
       };
 
@@ -56,7 +56,7 @@ describe("lib/data-access/opengraph.ts functionality", () => {
       expect(result?.description).toBe("Railway makes it easy to deploy and scale applications");
       expect(result?.imageUrl).toBe("https://railway.app/og-image.png");
       expect(result?.url).toBe("https://railway.app");
-      
+
       expect(result?.siteName).toBe("Railway");
     });
 
@@ -151,13 +151,13 @@ describe("lib/data-access/opengraph.ts functionality", () => {
       const standardProperties = ["title", "description", "imageUrl", "url", "siteName"];
 
       const mockData: OgResult = {
-         url: "https://example.com",
-         timestamp: Date.now(),
-         source: "external",
+        url: "https://example.com",
+        timestamp: Date.now(),
+        source: "external",
         title: "Test Title",
-         description: "Test Description",
-         imageUrl: "https://example.com/image.jpg",
-         siteName: "Example Site",
+        description: "Test Description",
+        imageUrl: "https://example.com/image.jpg",
+        siteName: "Example Site",
       };
 
       for (const property of standardProperties) {
@@ -168,12 +168,12 @@ describe("lib/data-access/opengraph.ts functionality", () => {
 
     it("should handle optional OpenGraph properties", () => {
       const optionalData: OgResult = {
-         url: "https://example.com",
-         timestamp: Date.now(),
-         source: "external",
-         imageUrl: undefined,
-         title: "Test Title",
-         siteName: "Test Site",
+        url: "https://example.com",
+        timestamp: Date.now(),
+        source: "external",
+        imageUrl: undefined,
+        title: "Test Title",
+        siteName: "Test Site",
         // Additional optional properties
         locale: "en_US",
       };
@@ -188,7 +188,12 @@ describe("lib/data-access/opengraph.ts functionality", () => {
 
   describe("Error handling and edge cases", () => {
     it("should handle empty responses", async () => {
-      mockGetOpenGraphData.mockResolvedValue({ url: "", timestamp: Date.now(), source: "external", imageUrl: undefined } as OgResult);
+      mockGetOpenGraphData.mockResolvedValue({
+        url: "",
+        timestamp: Date.now(),
+        source: "external",
+        imageUrl: undefined,
+      } as OgResult);
 
       const result = await getOpenGraphData("https://example.com");
       expect(result).toEqual(
@@ -202,9 +207,9 @@ describe("lib/data-access/opengraph.ts functionality", () => {
 
     it("should handle malformed data", async () => {
       const malformedData: OgResult = {
-         url: "https://example.com",
-         timestamp: Date.now(),
-         source: "external",
+        url: "https://example.com",
+        timestamp: Date.now(),
+        source: "external",
         title: "", // Empty title
         description: null, // Null description
         imageUrl: "not-a-valid-url", // Invalid image URL
@@ -285,14 +290,14 @@ describe("lib/data-access/opengraph.ts functionality", () => {
 
     it("should validate extracted data quality", async () => {
       const highQualityData: OgResult = {
-         url: "https://railway.app",
-         timestamp: Date.now(),
-         source: "external",
+        url: "https://railway.app",
+        timestamp: Date.now(),
+        source: "external",
         title: "Railway - Deploy code with zero configuration",
         description:
           "Railway makes it easy to deploy and scale applications without the platform complexity. Deploy from GitHub in seconds.",
         imageUrl: "https://railway.app/og-image.png",
-         siteName: "Railway",
+        siteName: "Railway",
       };
 
       mockGetOpenGraphData.mockResolvedValueOnce(highQualityData);

@@ -16,34 +16,34 @@ import { acceleratorSchema } from "./accelerator";
 const experienceBaseSchema = z.object({
   /** Unique identifier for the experience entry */
   id: z.string().min(1, "ID is required"),
-  
+
   /** Company or organization name */
   company: z.string().min(1, "Company name is required"),
-  
+
   /** Display-friendly date period (e.g., "2023 - Present") */
   period: z.string().min(1, "Period is required"),
-  
+
   /** ISO date string for when the position started */
   startDate: z.string().datetime({ message: "Start date must be a valid ISO datetime string" }),
-  
+
   /** ISO date string for when the position ended (undefined for current positions) */
   endDate: z.string().datetime({ message: "End date must be a valid ISO datetime string" }).optional(),
-  
+
   /** Job title and description */
   role: z.string().min(1, "Role is required"),
-  
+
   /** Path to company logo image */
   logo: z.string().optional(),
-  
+
   /** Company website URL */
   website: z.string().url("Website must be a valid URL").optional(),
-  
+
   /** Associated accelerator program */
   accelerator: acceleratorSchema.optional(),
-  
+
   /** Company location */
   location: z.string().optional(),
-  
+
   /**
    * Domain to be used solely for logo and data-matching operations.
    * This is never rendered to end-users. If present it overrides
@@ -51,7 +51,8 @@ const experienceBaseSchema = z.object({
    * logos or other domain-based assets.
    * Example: "callahanplanning.com"
    */
-  logoOnlyDomain: z.string()
+  logoOnlyDomain: z
+    .string()
     .regex(/^[a-zA-Z0-9][a-zA-Z0-9-_.]*\.[a-zA-Z]{2,}$/, "Must be a valid domain name")
     .optional(),
 });
@@ -67,7 +68,7 @@ export const experienceSchema = experienceBaseSchema.refine(
     }
     return true;
   },
-  { message: "End date must be after or equal to start date", path: ["endDate"] }
+  { message: "End date must be after or equal to start date", path: ["endDate"] },
 );
 
 /**

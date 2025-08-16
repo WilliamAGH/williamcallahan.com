@@ -2,7 +2,7 @@
  * Mock for GitHub data access module
  */
 
-import type { UserActivityView } from '@/types/github';
+import type { UserActivityView } from "@/types/github";
 
 // Export S3 key constants that other modules may import
 export const GITHUB_ACTIVITY_S3_KEY_DIR = "github-activity";
@@ -57,7 +57,7 @@ export async function getGithubActivity(): Promise<UserActivityView> {
 
 export function invalidateGitHubCache(): void {
   cacheInvalidated = true;
-  console.log('[Mock] GitHub cache invalidated');
+  console.log("[Mock] GitHub cache invalidated");
 }
 
 export function refreshGitHubActivityDataFromApi() {

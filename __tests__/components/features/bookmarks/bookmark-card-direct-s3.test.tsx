@@ -45,9 +45,7 @@ describe("BookmarkCard Direct S3 CDN Usage Tests", () => {
 
       const result = getDisplayImageUrl();
 
-      expect(result).toBe(
-        "/api/assets/a1b2c3d4e5f6789012345678901234567890",
-      );
+      expect(result).toBe("/api/assets/a1b2c3d4e5f6789012345678901234567890");
       expect(result).not.toContain("/api/og-image");
       expect(result).toContain("/api/assets/");
     });

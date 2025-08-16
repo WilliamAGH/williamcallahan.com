@@ -182,7 +182,6 @@ export function incrementAndPersist(
   return allowed;
 }
 
-
 /**
  * Check if operation is allowed with circuit breaker protection
  */
@@ -192,22 +191,22 @@ export function isOperationAllowedWithCircuitBreaker(
   rateLimitConfig: RateLimiterConfig,
   circuitConfig: CircuitBreakerConfig = {},
 ): boolean {
-  const { 
-    failureThreshold = 5, 
-    resetTimeout = 60000 // 1 minute
+  const {
+    failureThreshold = 5,
+    resetTimeout = 60000, // 1 minute
   } = circuitConfig;
 
   // Initialize circuit breaker state if needed
   if (!circuitBreakerStates[storeName]) {
     circuitBreakerStates[storeName] = {};
   }
-  
+
   const circuitState = circuitBreakerStates[storeName][contextId] || {
     failures: 0,
     lastFailureTime: 0,
     state: "closed" as const,
   };
-  
+
   // Check circuit state
   if (circuitState.state === "open") {
     const timeSinceFailure = Date.now() - circuitState.lastFailureTime;
@@ -219,15 +218,15 @@ export function isOperationAllowedWithCircuitBreaker(
       return false; // Circuit is open, reject request
     }
   }
-  
+
   // Check rate limit
   const allowed = isOperationAllowed(storeName, contextId, rateLimitConfig);
-  
+
   // Update circuit breaker state based on result
   if (!allowed) {
     circuitState.failures++;
     circuitState.lastFailureTime = Date.now();
-    
+
     if (circuitState.failures >= failureThreshold) {
       circuitState.state = "open";
       debugWarn(`[RateLimiter] Circuit opened for ${storeName}/${contextId} after ${circuitState.failures} failures`);
@@ -238,10 +237,10 @@ export function isOperationAllowedWithCircuitBreaker(
     circuitState.failures = 0;
     debug(`[RateLimiter] Circuit closed for ${storeName}/${contextId}`);
   }
-  
+
   // Store updated state
   circuitBreakerStates[storeName][contextId] = circuitState;
-  
+
   return allowed;
 }
 
@@ -255,25 +254,25 @@ export function recordOperationFailure(
   circuitConfig: CircuitBreakerConfig = {},
 ): void {
   const { failureThreshold = 5 } = circuitConfig;
-  
+
   if (!circuitBreakerStates[storeName]) {
     circuitBreakerStates[storeName] = {};
   }
-  
+
   const circuitState = circuitBreakerStates[storeName][contextId] || {
     failures: 0,
     lastFailureTime: 0,
     state: "closed" as const,
   };
-  
+
   circuitState.failures++;
   circuitState.lastFailureTime = Date.now();
-  
+
   if (circuitState.failures >= failureThreshold && circuitState.state !== "open") {
     circuitState.state = "open";
     debugWarn(`[RateLimiter] Circuit opened for ${storeName}/${contextId} after external failure`);
   }
-  
+
   circuitBreakerStates[storeName][contextId] = circuitState;
 }
 
@@ -290,9 +289,6 @@ export function resetCircuitBreaker(storeName: string, contextId: string): void 
 /**
  * Get circuit breaker state for monitoring
  */
-export function getCircuitBreakerState(
-  storeName: string,
-  contextId: string,
-): CircuitBreakerState | undefined {
+export function getCircuitBreakerState(storeName: string, contextId: string): CircuitBreakerState | undefined {
   return circuitBreakerStates[storeName]?.[contextId];
 }

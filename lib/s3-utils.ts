@@ -30,7 +30,6 @@ import { getContentTypeFromExtension, isImageContentType } from "@/lib/utils/con
 
 // Environment variables for S3 configuration
 const S3_BUCKET = process.env.S3_BUCKET;
-const S3_ENDPOINT_URL = process.env.S3_SERVER_URL; // Use S3_SERVER_URL env var for S3 endpoint
 const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID;
 const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY;
 // S3_REGION variable moved into getS3Client function
@@ -51,13 +50,13 @@ const MAX_S3_READ_SIZE = 50 * 1024 * 1024; // 50MB max read size to prevent memo
 const inFlightReads = new Map<string, Promise<Buffer | string | null>>();
 
 // Helper: log a single warning when S3 configuration is missing, then downgrade subsequent messages to debug level
-const isS3FullyConfigured = Boolean(S3_BUCKET && S3_ENDPOINT_URL && S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY);
+const isS3FullyConfigured = Boolean(S3_BUCKET && S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY);
 
 let hasLoggedMissingS3Config = false;
 function logMissingS3ConfigOnce(context: string): void {
   if (!hasLoggedMissingS3Config) {
     console.warn(
-      "[S3Utils] Missing S3 configuration (S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). All S3 operations will be skipped.",
+      "[S3Utils] Missing S3 configuration (S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3_SERVER_URL is optional. All S3 operations will be skipped.",
     );
     hasLoggedMissingS3Config = true;
   }
@@ -77,10 +76,10 @@ function isBinaryKey(key: string): boolean {
 
 // Only warn about missing S3 config if we're not in build phase
 // During build, S3 write operations are intentionally disabled so missing config is expected
-if (!S3_BUCKET || !S3_ENDPOINT_URL || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
+if (!S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
   if (process.env.NEXT_PHASE !== "phase-production-build") {
     console.warn(
-      "[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_SERVER_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3 operations may fail.",
+      "[S3Utils] Missing one or more S3 configuration environment variables (S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY). S3_SERVER_URL is optional. S3 operations may fail.",
     );
   }
 }
@@ -95,33 +94,30 @@ export function getS3Client(): S3Client | null {
 
   // Re-read environment variables on each initialization attempt
   const bucket = process.env.S3_BUCKET;
-  const endpoint = process.env.S3_SERVER_URL;
+  const endpoint = process.env.S3_SERVER_URL; // may be undefined (SDK default endpoint)
   const accessKeyId = process.env.S3_ACCESS_KEY_ID;
   const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
   const region = process.env.S3_REGION || process.env.AWS_REGION || "us-east-1";
 
-  if (bucket && endpoint && accessKeyId && secretAccessKey) {
-    s3ClientInstance = new S3Client({
-      endpoint,
+  if (bucket && accessKeyId && secretAccessKey) {
+    const baseConfig = {
       region,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
+      credentials: { accessKeyId, secretAccessKey },
       forcePathStyle: true,
-      // Enhanced retry configuration with adaptive mode
-      maxAttempts: 5, // Default is 3, increase to 5
-      retryMode: "adaptive", // Use adaptive retry mode for better backoff and throttling
-    });
-    if (isDebug) debug("[S3Utils] S3 client initialized successfully");
-  } else {
-    if (isDebug) {
-      debug(`[S3Utils] S3 client not initialized - missing environment variables:
-        S3_BUCKET: ${bucket ? "set" : "missing"}
-        S3_SERVER_URL: ${endpoint ? "set" : "missing"}
-        S3_ACCESS_KEY_ID: ${accessKeyId ? "set" : "missing"}
-        S3_SECRET_ACCESS_KEY: ${secretAccessKey ? "set" : "missing"}`);
-    }
+      maxAttempts: 5,
+      retryMode: "adaptive" as const,
+    };
+    s3ClientInstance = endpoint ? new S3Client({ ...baseConfig, endpoint }) : new S3Client(baseConfig);
+    if (isDebug)
+      debug(`[S3Utils] S3-compatible client initialized (${endpoint ? "custom endpoint" : "sdk default endpoint"}).`);
+  } else if (isDebug) {
+    debug(
+      `[S3Utils] S3 client not initialized - missing envs: ` +
+        `S3_BUCKET=${bucket ? "set" : "missing"}, ` +
+        `S3_SERVER_URL=${endpoint ? "set" : "missing"}, ` +
+        `S3_ACCESS_KEY_ID=${accessKeyId ? "set" : "missing"}, ` +
+        `S3_SECRET_ACCESS_KEY=${secretAccessKey ? "set" : "missing"}`,
+    );
   }
 
   return s3ClientInstance;
@@ -743,7 +739,12 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
   const dataSize = Buffer.byteLength(jsonData, "utf-8");
   const SMALL_PAYLOAD_THRESHOLD = 512 * 1024; // 512 KB
 
-  if (!hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
+  // Allow tiny operational JSON files to bypass headroom checks (e.g., index/heartbeat)
+  // Use the constants from BOOKMARKS_S3_PATHS to determine operational files
+  const { BOOKMARKS_S3_PATHS } = await import("@/lib/constants");
+  const isTinyOperationalFile =
+    s3Key === BOOKMARKS_S3_PATHS.INDEX || s3Key === BOOKMARKS_S3_PATHS.HEARTBEAT || s3Key === BOOKMARKS_S3_PATHS.LOCK;
+  if (!isTinyOperationalFile && !hasMemoryHeadroom() && dataSize > SMALL_PAYLOAD_THRESHOLD) {
     console.warn(
       `[S3Utils] Skipping S3 write for ${s3Key} (${(dataSize / 1024).toFixed(1)} KB) due to memory pressure`,
     );
@@ -751,41 +752,28 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
   }
 
   try {
-    // If conditional write options are provided, use direct S3 command
-    if (options?.IfNoneMatch) {
+    // Prefer atomic conditional create when requested and client is available
+    if (options?.IfNoneMatch === "*") {
       const client = getS3Client();
-      if (!S3_BUCKET || !client) {
-        throw new Error("[S3Utils] S3 not properly configured for conditional write");
+      if (isS3FullyConfigured && client) {
+        const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+        const command = new PutObjectCommand({
+          Bucket: S3_BUCKET,
+          Key: s3Key,
+          Body: jsonData,
+          ContentType: "application/json",
+          ACL: "public-read",
+          IfNoneMatch: "*",
+        });
+        await client.send(command);
+        return;
       }
-
-      const command = new PutObjectCommand({
-        Bucket: S3_BUCKET,
-        Key: s3Key,
-        Body: jsonData,
-        ContentType: "application/json",
-        ACL: "public-read", // JSON data is typically public
-      });
-
-      await client.send(command);
-      if (isDebug) debug(`[S3Utils] Conditional write successful for ${s3Key}`);
-    } else {
-      // Use regular writeToS3 for non-conditional writes
-      await writeToS3(s3Key, jsonData, "application/json", "public-read");
+      // Fall through to regular write if client not available
     }
+    await writeToS3(s3Key, jsonData, "application/json", "public-read");
     // No need for redundant success log here, writeToS3 handles it.
   } catch (error: unknown) {
-    // If error is due to conditional write failing because object exists (HTTP 412), treat as benign
-    const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
-    const isPreconditionFailed = err.name === "PreconditionFailed" || err.$metadata?.httpStatusCode === 412;
-
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
-
-    if (isPreconditionFailed) {
-      // Only log at debug level to keep dev console clean
-      if (isDebug) debug(`[S3Utils] Conditional write skipped for ${s3Key} (object already exists, HTTP 412).`);
-      return; // Swallow error – lock already exists
-    }
-
     console.error(`[S3Utils] Failed to write JSON to S3 key ${s3Key}:`, message);
     throw error; // Re-throw other errors so callers can handle
   }
@@ -922,9 +910,23 @@ export async function acquireDistributedLock(
   }
 
   try {
-    await writeJsonS3(lockPath, lockEntry);
-    return true;
-  } catch (error) {
+    await writeJsonS3(lockPath, lockEntry, { IfNoneMatch: "*" });
+    // Read-back verification to confirm we own the lock after any concurrent writes
+    const current = await readJsonS3<{ instanceId: string; acquiredAt: number; operation: string }>(lockPath);
+    if (current && current.instanceId === lockEntry.instanceId && current.acquiredAt === lockEntry.acquiredAt) {
+      return true;
+    }
+    // Someone else won the race
+    return false;
+  } catch (error: unknown) {
+    // Check if it's a precondition failure (lock already exists)
+    if (error && typeof error === "object" && "$metadata" in error) {
+      const metadata = error.$metadata as { httpStatusCode?: number };
+      if (metadata.httpStatusCode === 412) {
+        // Another process holds the lock - this is expected, not an error
+        return false;
+      }
+    }
     console.error(`Failed to acquire lock ${lockKey}:`, error);
     return false;
   }

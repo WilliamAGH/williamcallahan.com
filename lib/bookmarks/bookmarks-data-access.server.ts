@@ -83,8 +83,6 @@ const LOG_PREFIX = "[BookmarksDataAccess]";
 const DISTRIBUTED_LOCK_S3_KEY = BOOKMARKS_S3_PATHS.LOCK;
 const LOCK_TTL_MS = Number(process.env.BOOKMARKS_LOCK_TTL_MS) || 5 * 60 * 1000;
 const LOCK_CLEANUP_INTERVAL_MS = 2 * 60 * 1000;
-const MAX_POLL_ATTEMPTS = 5;
-const POLL_INTERVAL_MS = 50;
 
 let isRefreshLocked = false;
 let lockCleanupInterval: NodeJS.Timeout | null = null;
@@ -94,52 +92,60 @@ let inFlightRefreshPromise: Promise<UnifiedBookmark[] | null> | null = null;
 const isS3Error = (err: unknown): err is { $metadata?: { httpStatusCode?: number } } =>
   typeof err === "object" && err !== null && "$metadata" in err;
 
-/** S3 distributed lock management */
+/** S3-compatible single-file lock with read-back verification */
 async function acquireDistributedLock(lockKey: string, ttlMs: number, retryCount = 0): Promise<boolean> {
   const MAX_RETRIES = 3;
-  const lockEntry: DistributedLockEntry = { instanceId: INSTANCE_ID, acquiredAt: Date.now(), ttlMs };
+  const backoff = async (attempt: number) => {
+    const baseDelay = 100 + 2 ** attempt * 50;
+    const jitter = Math.floor(Math.random() * 50);
+    await new Promise((res) => setTimeout(res, baseDelay + jitter));
+  };
+
+  // Step A: if an active lock exists, bail fast
   try {
-    await writeJsonS3(lockKey, lockEntry, { IfNoneMatch: "*" });
-    console.log(`${LOG_PREFIX} Distributed lock acquired atomically by ${INSTANCE_ID}`);
-    return true;
-  } catch (e: unknown) {
-    if (isS3Error(e) && e.$metadata?.httpStatusCode === 412) {
-      try {
-        const existingLock = await readJsonS3<DistributedLockEntry>(lockKey);
-        if (existingLock && typeof existingLock === "object") {
-          const lockAge = Date.now() - existingLock.acquiredAt;
-          if (lockAge > existingLock.ttlMs) {
-            if (retryCount >= MAX_RETRIES) {
-              console.error(`${LOG_PREFIX} Max retries (${MAX_RETRIES}) exceeded for acquiring lock`);
-              return false;
-            }
-            await releaseDistributedLock(lockKey, true);
-            // Wait for S3 eventual consistency
-            for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-              try {
-                await readJsonS3(lockKey);
-                await new Promise((res) => setTimeout(res, POLL_INTERVAL_MS));
-              } catch (pollErr: unknown) {
-                if (isS3Error(pollErr) && pollErr.$metadata?.httpStatusCode === 404) break;
-                console.warn(`${LOG_PREFIX} Polling error while waiting for lock deletion:`, String(pollErr));
-                break;
-              }
-            }
-            // Exponential backoff with jitter to mitigate race conditions
-            const baseDelay = 100 + 2 ** retryCount * 50; // ms
-            const jitter = Math.floor(Math.random() * 50); // 0-49ms random jitter
-            await new Promise((res) => setTimeout(res, baseDelay + jitter));
-            return acquireDistributedLock(lockKey, ttlMs, retryCount + 1);
-          }
-        }
-      } catch (readError: unknown) {
-        console.error(`${LOG_PREFIX} Error reading existing lock:`, String(readError));
+    const existing = await readJsonS3<DistributedLockEntry>(lockKey);
+    if (existing && typeof existing === "object") {
+      const age = Date.now() - existing.acquiredAt;
+      // lock is still valid if age hasn't exceeded TTL
+      const isExpired = age >= existing.ttlMs;
+      if (!isExpired) {
+        return false;
       }
-      return false;
     }
-    console.error(`${LOG_PREFIX} Error during atomic lock acquisition:`, String(e));
+  } catch {
+    // ignore read issues and try to proceed
+  }
+
+  // Step B: write our lock entry with atomic conditional create
+  const myEntry: DistributedLockEntry = { instanceId: INSTANCE_ID, acquiredAt: Date.now(), ttlMs };
+  try {
+    await writeJsonS3(lockKey, myEntry, { IfNoneMatch: "*" });
+  } catch {
+    // If conditional write failed, another process has the lock
+    if (retryCount < MAX_RETRIES) {
+      await backoff(retryCount);
+      return acquireDistributedLock(lockKey, ttlMs, retryCount + 1);
+    }
     return false;
   }
+
+  // Step C: read back and verify ownership
+  try {
+    const current = await readJsonS3<DistributedLockEntry>(lockKey);
+    if (current && current.instanceId === myEntry.instanceId && current.acquiredAt === myEntry.acquiredAt) {
+      console.log(`${LOG_PREFIX} Lock acquired by ${INSTANCE_ID}`);
+      return true;
+    }
+  } catch (e) {
+    console.warn(`${LOG_PREFIX} Failed to verify lock ownership:`, String(e));
+  }
+
+  // Another process won the race
+  if (retryCount < MAX_RETRIES) {
+    await backoff(retryCount);
+    return acquireDistributedLock(lockKey, ttlMs, retryCount + 1);
+  }
+  return false;
 }
 
 async function releaseDistributedLock(lockKey: string, forceRelease = false): Promise<void> {
@@ -158,8 +164,9 @@ async function releaseDistributedLock(lockKey: string, forceRelease = false): Pr
 async function cleanupStaleLocks(): Promise<void> {
   try {
     const existingLock = await readJsonS3<DistributedLockEntry>(DISTRIBUTED_LOCK_S3_KEY);
-    if (existingLock && typeof existingLock === "object" && Date.now() - existingLock.acquiredAt > existingLock.ttlMs) {
-      await releaseDistributedLock(DISTRIBUTED_LOCK_S3_KEY, true);
+    if (existingLock && typeof existingLock === "object") {
+      const expired = Date.now() - existingLock.acquiredAt >= existingLock.ttlMs;
+      if (expired) await releaseDistributedLock(DISTRIBUTED_LOCK_S3_KEY, true);
     }
   } catch (e: unknown) {
     if (!isS3Error(e) || e.$metadata?.httpStatusCode !== 404)
@@ -245,6 +252,7 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
     lastFetchedAt: now,
     lastAttemptedAt: now,
     checksum: calculateBookmarksChecksum(bookmarks),
+    changeDetected: true,
   };
   await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, index);
   for (let page = 1; page <= totalPages; page++) {
@@ -296,6 +304,7 @@ async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<
       lastFetchedAt: now,
       lastAttemptedAt: now,
       checksum: calculateBookmarksChecksum(tagBookmarks),
+      changeDetected: true,
     };
     await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`, tagIndex);
     for (let page = 1; page <= totalPages; page++) {
@@ -321,6 +330,20 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
     const hasChanged = await hasBookmarksChanged(allIncomingBookmarks);
     if (!hasChanged) {
       console.log(`${LOG_PREFIX} No changes detected, skipping write`);
+      // Still update index freshness to reflect successful refresh
+      const now = Date.now();
+      const existingIndex = (await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX)) || null;
+      const updatedIndex: BookmarksIndex = {
+        count: existingIndex?.count ?? allIncomingBookmarks.length,
+        totalPages: existingIndex?.totalPages ?? Math.ceil(allIncomingBookmarks.length / BOOKMARKS_PER_PAGE),
+        pageSize: existingIndex?.pageSize ?? BOOKMARKS_PER_PAGE,
+        lastModified: existingIndex?.lastModified ?? new Date().toISOString(),
+        lastFetchedAt: now,
+        lastAttemptedAt: now,
+        checksum: existingIndex?.checksum ?? calculateBookmarksChecksum(allIncomingBookmarks),
+        changeDetected: false,
+      };
+      await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, updatedIndex);
       return allIncomingBookmarks;
     }
     console.log(`${LOG_PREFIX} Changes detected, persisting bookmarks`);
@@ -352,7 +375,29 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
               await writePaginatedBookmarks(freshBookmarks);
               await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, toLightweightBookmarks(freshBookmarks));
               await writeTagFilteredBookmarks(freshBookmarks);
-            } else console.log(`${LOG_PREFIX} No changes, skipping S3 write`);
+            } else {
+              console.log(`${LOG_PREFIX} No changes, skipping heavy S3 writes`);
+              // Still update index freshness to reflect successful refresh
+              const now = Date.now();
+              const existingIndex = (await readJsonS3<BookmarksIndex>(BOOKMARKS_S3_PATHS.INDEX)) || null;
+              const updatedIndex: BookmarksIndex = {
+                count: existingIndex?.count ?? freshBookmarks.length,
+                totalPages: existingIndex?.totalPages ?? Math.ceil(freshBookmarks.length / BOOKMARKS_PER_PAGE),
+                pageSize: existingIndex?.pageSize ?? BOOKMARKS_PER_PAGE,
+                lastModified: existingIndex?.lastModified ?? new Date().toISOString(),
+                lastFetchedAt: now,
+                lastAttemptedAt: now,
+                checksum: existingIndex?.checksum ?? calculateBookmarksChecksum(freshBookmarks),
+                changeDetected: false,
+              };
+              await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, updatedIndex);
+            }
+            // Heartbeat write (tiny file)
+            void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
+              runAt: Date.now(),
+              success: true,
+              changeDetected: hasChanged || !!force,
+            }).catch(() => void 0);
             return freshBookmarks;
           }
           console.warn(`${LOG_PREFIX} Freshly fetched bookmarks are invalid.`);
@@ -360,9 +405,23 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
         }
         return null;
       }
-      return await selectiveRefreshAndPersistBookmarks();
+      const sel = await selectiveRefreshAndPersistBookmarks();
+      // Heartbeat for selective path
+      void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
+        runAt: Date.now(),
+        success: !!sel,
+        changeDetected: !!sel, // conservative signal
+      }).catch(() => void 0);
+      return sel;
     } catch (error) {
       console.error(`${LOG_PREFIX} Failed to refresh bookmarks:`, String(error));
+      // Failure heartbeat
+      await writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
+        runAt: Date.now(),
+        success: false,
+        changeDetected: false,
+        error: String(error),
+      }).catch(() => void 0);
       return null;
     } finally {
       await releaseRefreshLock();

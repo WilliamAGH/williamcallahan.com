@@ -127,7 +127,7 @@ describe("SelectionView Component", () => {
       fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });
     });
     expect(options[2]).toHaveAttribute("aria-selected", "true");
-    
+
     // Navigate down from last option - should stay at last
     act(() => {
       fireEvent.keyDown(screen.getByRole("listbox"), { key: "ArrowDown" });

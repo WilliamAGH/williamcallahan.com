@@ -99,7 +99,8 @@ describe("BaseMediaResult Type System", () => {
         source: "clearbit",
         url: "https://logo.clearbit.com/example.com", // LogoResult-specific
         retrieval: "external", // LogoResult-specific
-        inversion: { // LogoResult-specific
+        inversion: {
+          // LogoResult-specific
           needsDarkInversion: true,
           needsLightInversion: false,
           hasTransparency: true,
@@ -148,14 +149,11 @@ describe("BaseMediaResult Type System", () => {
 
     it("should support type guards", () => {
       function isImageResult(result: BaseMediaResult): result is ImageResult {
-        return "source" in result && 
-               typeof result.source === "string" &&
-               ("s3Url" in result || !("url" in result)); // ImageResult has s3Url, LogoResult has url
+        return "source" in result && typeof result.source === "string" && ("s3Url" in result || !("url" in result)); // ImageResult has s3Url, LogoResult has url
       }
 
       function isLogoResult(result: BaseMediaResult): result is LogoResult {
-        return "source" in result && 
-               ("url" in result || "retrieval" in result || "inversion" in result); // LogoResult-specific properties
+        return "source" in result && ("url" in result || "retrieval" in result || "inversion" in result); // LogoResult-specific properties
       }
 
       const imageResult: ImageResult = {

@@ -15,10 +15,10 @@ describe("Dotenv v17 Compatibility Test", () => {
     ];
 
     const results: Record<string, string> = {};
-    
+
     for (const script of scriptsToCheck) {
       const content = readFileSync(join(process.cwd(), script), "utf-8");
-      
+
       // Check for different dotenv patterns
       if (content.includes('import "dotenv/config"')) {
         results[script] = "import dotenv/config";
@@ -33,7 +33,7 @@ describe("Dotenv v17 Compatibility Test", () => {
 
     // Verify force-refresh-repo-stats.ts was updated to use the correct pattern
     expect(results["scripts/force-refresh-repo-stats.ts"]).toBe("import dotenv/config");
-    
+
     // These should use their existing patterns
     expect(results["scripts/refresh-opengraph-images.ts"]).toBe("import dotenv/config");
     expect(results["scripts/submit-sitemap.ts"]).toBe("custom env loader");

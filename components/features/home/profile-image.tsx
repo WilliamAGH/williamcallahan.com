@@ -2,7 +2,7 @@
  * Profile image component rendered on the server.
  * Uses a direct approach with explicit dimensions to avoid iOS Safari rendering
  * issues that can produce crescent artifacts. No nested absolute positioning.
- * 
+ *
  * Optimized with static import for automatic blur placeholder and format conversion.
  */
 

@@ -433,7 +433,7 @@ describe.skip("Terminal Component", () => {
     it("disables input during command processing", async () => {
       // Mock a slow search response
       jest.useFakeTimers();
-      
+
       renderTerminal();
       const input = screen.getByRole("textbox");
 
@@ -480,7 +480,7 @@ describe.skip("Terminal Component", () => {
         expect(fetchSpy).toHaveBeenCalledTimes(1);
         expect(fetchSpy).toHaveBeenCalledWith(
           expect.stringContaining("blog"),
-          expect.objectContaining({ signal: expect.any(AbortSignal) })
+          expect.objectContaining({ signal: expect.any(AbortSignal) }),
         );
       });
     });
@@ -490,7 +490,7 @@ describe.skip("Terminal Component", () => {
     it("aborts in-flight requests when component unmounts", () => {
       const abortSpy = jest.fn();
       const originalAbortController = global.AbortController;
-      
+
       // Mock AbortController to track abort calls
       global.AbortController = jest.fn().mockImplementation(() => ({
         signal: {},
@@ -517,7 +517,7 @@ describe.skip("Terminal Component", () => {
       const abortSpy = jest.fn();
       const originalAbortController = global.AbortController;
       let controllerCount = 0;
-      
+
       // Mock AbortController to track abort calls
       global.AbortController = jest.fn().mockImplementation(() => {
         const controller = {
@@ -531,9 +531,7 @@ describe.skip("Terminal Component", () => {
       const input = screen.getByRole("textbox");
 
       // Mock slow fetch
-      global.fetch = jest.fn().mockImplementation(() => 
-        new Promise(resolve => setTimeout(resolve, 1000))
-      );
+      global.fetch = jest.fn().mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 1000)));
 
       // Submit first search
       fireEvent.change(input, { target: { value: "blog first" } });

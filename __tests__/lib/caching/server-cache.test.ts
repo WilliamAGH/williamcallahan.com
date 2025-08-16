@@ -181,7 +181,6 @@ describe("ServerCache", () => {
     });
   });
 
-
   describe("GitHub Activity", () => {
     const mockActivity: GitHubActivityApiResponse = {
       commitCount: 100,

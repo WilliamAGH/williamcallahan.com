@@ -1,8 +1,8 @@
 /**
  * GraphQL Client Type Definitions
- * 
+ *
  * Types for the generic GraphQL client utility
- * 
+ *
  * @module types/graphql
  */
 

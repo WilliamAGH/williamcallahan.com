@@ -37,13 +37,16 @@ import rawCron from "node-cron";
 const DEFAULT_JITTER_MS = 15 * 60 * 1000;
 import { spawn } from "node:child_process";
 
+// Generate unique instance ID for this scheduler
+const SCHEDULER_INSTANCE_ID = `scheduler-${randomInt(1000000, 9999999)}-${Date.now()}`;
+
 // Track running jobs to prevent concurrent executions
 const runningJobs = new Set<string>();
 
-console.log("[Scheduler] Process started. Setting up cron jobs...");
+console.log(`[Scheduler] Process started with instanceId: ${SCHEDULER_INSTANCE_ID}. Setting up cron jobs...`);
 // Debug: log key environment variables
 console.log(
-  `[Scheduler] Env vars: S3_BUCKET=${process.env.S3_BUCKET}, ` +
+  `[Scheduler] [${SCHEDULER_INSTANCE_ID}] Env vars: S3_BUCKET=${process.env.S3_BUCKET}, ` +
     `S3_SERVER_URL=${process.env.S3_SERVER_URL}, PATH=${process.env.PATH}`,
 );
 
@@ -62,19 +65,21 @@ const logosCron = process.env.S3_LOGOS_CRON || "0 1 * * 0"; // weekly Sunday at 
 console.log(`[Scheduler] Bookmarks schedule: ${bookmarksCron} (every 2 hours)`);
 cron.schedule(bookmarksCron, () => {
   console.log(
-    `[Scheduler] [Bookmarks] Cron triggered at ${new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })}. Preparing to spawn update-s3...`,
+    `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Cron triggered at ${new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })}. Preparing to spawn update-s3...`,
   );
   const jitter = randomInt(DEFAULT_JITTER_MS);
-  console.log(`[Scheduler] [Bookmarks] Applying jitter of ${jitter}ms before update-s3`);
+  console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Applying jitter of ${jitter}ms before update-s3`);
   setTimeout(() => {
     // Check if job is already running
     if (runningJobs.has("bookmarks")) {
-      console.warn("[Scheduler] [Bookmarks] Job is already running, skipping this execution");
+      console.warn(
+        `[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Job is already running, skipping this execution`,
+      );
       return;
     }
     runningJobs.add("bookmarks");
-    console.log("[Scheduler] [Bookmarks] Command: bun run update-s3 -- --bookmarks");
-    console.log(`[Scheduler] [Bookmarks] Using S3_BUCKET=${process.env.S3_BUCKET}`);
+    console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Command: bun run update-s3 -- --bookmarks`);
+    console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Using S3_BUCKET=${process.env.S3_BUCKET}`);
 
     const updateProcess = spawn("bun", ["run", "update-s3", "--", "--bookmarks"], {
       env: process.env,
@@ -83,7 +88,7 @@ cron.schedule(bookmarksCron, () => {
     });
 
     updateProcess.on("error", (err) => {
-      console.error("[Scheduler] [Bookmarks] Failed to start update-s3 process:", err);
+      console.error(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] Failed to start update-s3 process:`, err);
     });
 
     updateProcess.on("close", (code) => {
@@ -91,9 +96,9 @@ cron.schedule(bookmarksCron, () => {
       runningJobs.delete("bookmarks");
 
       if (code !== 0) {
-        console.error(`[Scheduler] [Bookmarks] update-s3 script failed (code ${code}).`);
+        console.error(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] update-s3 script failed (code ${code}).`);
       } else {
-        console.log("[Scheduler] [Bookmarks] update-s3 script completed successfully");
+        console.log(`[Scheduler] [${SCHEDULER_INSTANCE_ID}] [Bookmarks] update-s3 script completed successfully`);
 
         // Submit updated sitemap to search engines
         console.log("[Scheduler] [Bookmarks] Submitting updated sitemap to search engines asynchronously...");

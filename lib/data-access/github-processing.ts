@@ -24,10 +24,12 @@ import { AGGREGATED_WEEKLY_ACTIVITY_S3_KEY_FILE, REPO_RAW_WEEKLY_STATS_S3_KEY_DI
 
 // Type-safe global override declarations
 declare global {
-  var calculateAndStoreAggregatedWeeklyActivityOverride: (() => Promise<{
-    aggregatedActivity: AggregatedWeeklyActivity[];
-    overallDataComplete: boolean;
-  } | null>) | undefined;
+  var calculateAndStoreAggregatedWeeklyActivityOverride:
+    | (() => Promise<{
+        aggregatedActivity: AggregatedWeeklyActivity[];
+        overallDataComplete: boolean;
+      } | null>)
+    | undefined;
 }
 
 // Contribution level mapping
@@ -189,9 +191,7 @@ export function repairCsvData(csvContent: string, defaultValues = { w: 0, a: 0, 
   const stats = parseGitHubStatsCSV(csvContent);
 
   // Check if repair is needed
-  const needsRepair = stats.some((stat) =>
-    Object.values(stat).some((val) => val === undefined || val === null),
-  );
+  const needsRepair = stats.some((stat) => Object.values(stat).some((val) => val === undefined || val === null));
 
   if (!needsRepair) {
     return csvContent;

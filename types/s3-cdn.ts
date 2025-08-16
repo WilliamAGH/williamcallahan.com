@@ -98,11 +98,11 @@ export interface FailureTrackerConfig {
 // --- S3 Key Generation ---
 export interface S3KeyOptions {
   /** Asset type */
-  type: 'logo' | 'opengraph' | 'image' | 'avatar' | 'banner';
+  type: "logo" | "opengraph" | "image" | "avatar" | "banner";
   /** Domain for logos */
   domain?: string;
   /** Logo source */
-  source?: import('@/types/logo').LogoSource;
+  source?: import("@/types/logo").LogoSource;
   /** URL for hashing */
   url?: string;
   /** Custom hash if pre-computed */
@@ -116,7 +116,7 @@ export interface S3KeyOptions {
 }
 
 export interface ParsedS3Key {
-  type: 'logo' | 'opengraph' | 'image' | 'avatar' | 'banner' | 'unknown';
+  type: "logo" | "opengraph" | "image" | "avatar" | "banner" | "unknown";
   domain?: string;
   source?: string;
   hash?: string;
@@ -131,8 +131,8 @@ export type S3KeyMetadata = ParsedS3Key;
  * Content type categories for automatic ACL determination
  */
 export enum ContentCategory {
-  PublicAsset = "public-asset",    // Images, CSS, JS - always public
-  PublicData = "public-data",       // JSON data meant for public consumption
-  PrivateData = "private-data",     // Sensitive data - always private
-  Html = "html",                    // HTML content - configurable
+  PublicAsset = "public-asset", // Images, CSS, JS - always public
+  PublicData = "public-data", // JSON data meant for public consumption
+  PrivateData = "private-data", // Sensitive data - always private
+  Html = "html", // HTML content - configurable
 }

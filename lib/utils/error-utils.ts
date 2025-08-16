@@ -440,9 +440,7 @@ export function createCategorizedError(
 
   // Extract status code if available
   if (typeof error === "object" && error !== null && "$metadata" in error) {
-    const metadata = (
-      error as { $metadata?: { httpStatusCode?: number } }
-    ).$metadata;
+    const metadata = (error as { $metadata?: { httpStatusCode?: number } }).$metadata;
     if (metadata?.httpStatusCode) {
       categorizedError.statusCode = metadata.httpStatusCode;
     }

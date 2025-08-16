@@ -20,7 +20,7 @@
  * The plugins work correctly at runtime despite TypeScript type mismatches
  * from nested unified/vfile version dependencies. The `@ts-nocheck` directive
  * is necessary because the type incompatibilities are too deep in the unified
- * ecosystem to resolve with targeted `@ts-ignore` comments.
+ * ecosystem to resolve with targeted `@ts-expect-error` comments.
  *
  * If you encounter "Plugin<...> is not assignable to type 'Pluggable<any[]>'"
  * errors when updating these packages, ensure the versions listed above are

@@ -1,9 +1,9 @@
 /**
  * Markdown Content Extraction Module
- * 
+ *
  * Handles efficient extraction of markdown content from bookmarks using Jina AI Reader
  * with memory-conscious processing and hash-based caching
- * 
+ *
  * @module bookmarks/extract-markdown
  */
 
@@ -17,7 +17,6 @@ import {
   JINA_FETCH_RATE_LIMIT_S3_PATH,
 } from "@/lib/constants";
 import type { UnifiedBookmark, ExtractedContent } from "@/types/bookmark";
-
 
 /**
  * Calculate reading time from word count
@@ -34,26 +33,24 @@ function calculateReadingTime(wordCount: number): number {
 function countWords(text: string): number {
   // Remove markdown syntax for accurate count
   const cleanText = text
-    .replace(/```[\s\S]*?```/g, '') // Remove code blocks
-    .replace(/`[^`]*`/g, '') // Remove inline code
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // Convert links to text
-    .replace(/[#*_~>-]/g, '') // Remove markdown symbols
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '') // Remove images
+    .replace(/```[\s\S]*?```/g, "") // Remove code blocks
+    .replace(/`[^`]*`/g, "") // Remove inline code
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // Convert links to text
+    .replace(/[#*_~>-]/g, "") // Remove markdown symbols
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "") // Remove images
     .trim();
-  
-  return cleanText.split(/\s+/).filter(word => word.length > 0).length;
+
+  return cleanText.split(/\s+/).filter((word) => word.length > 0).length;
 }
 
 /**
  * Extract markdown content from a bookmark URL using Jina AI Reader
  * Memory-efficient: processes one bookmark at a time
- * 
+ *
  * @param bookmark - Bookmark to extract content from
  * @returns Extracted content or null if extraction fails
  */
-export async function extractMarkdownContent(
-  bookmark: UnifiedBookmark
-): Promise<ExtractedContent | null> {
+export async function extractMarkdownContent(bookmark: UnifiedBookmark): Promise<ExtractedContent | null> {
   if (!bookmark.url) {
     debugWarn(`[Markdown Extract] No URL for bookmark ${bookmark.id}`);
     return null;
@@ -73,12 +70,9 @@ export async function extractMarkdownContent(
   }
 
   // 2. Check rate limit before fetching
-  if (!incrementAndPersist(
-    JINA_FETCH_STORE_NAME,
-    JINA_FETCH_CONTEXT_ID,
-    JINA_FETCH_CONFIG,
-    JINA_FETCH_RATE_LIMIT_S3_PATH,
-  )) {
+  if (
+    !incrementAndPersist(JINA_FETCH_STORE_NAME, JINA_FETCH_CONTEXT_ID, JINA_FETCH_CONFIG, JINA_FETCH_RATE_LIMIT_S3_PATH)
+  ) {
     debugWarn(`[Markdown Extract] Rate limit exceeded for Jina AI Reader`);
     return null;
   }
@@ -87,9 +81,9 @@ export async function extractMarkdownContent(
     // 3. Fetch markdown content from Jina AI Reader
     debug(`[Markdown Extract] Fetching markdown via Jina AI Reader: ${bookmark.url}`);
     const response = await fetch(`https://r.jina.ai/${bookmark.url}`, {
-      headers: { 
+      headers: {
         "x-respond-with": "markdown",
-        "Accept": "text/plain"
+        Accept: "text/plain",
       },
       signal: AbortSignal.timeout(30000), // 30s timeout
     });
@@ -99,10 +93,10 @@ export async function extractMarkdownContent(
     }
 
     const markdown = await response.text();
-    
+
     // Validate we got markdown, not HTML
-    if (markdown.trim().startsWith('<!DOCTYPE') || markdown.trim().startsWith('<html')) {
-      throw new Error('Received HTML instead of markdown from Jina AI');
+    if (markdown.trim().startsWith("<!DOCTYPE") || markdown.trim().startsWith("<html")) {
+      throw new Error("Received HTML instead of markdown from Jina AI");
     }
 
     const wordCount = countWords(markdown);
@@ -118,7 +112,6 @@ export async function extractMarkdownContent(
 
     debug(`[Markdown Extract] Successfully extracted ${wordCount} words from: ${bookmark.url}`);
     return extractedContent;
-
   } catch (error) {
     debugWarn(`[Markdown Extract] Failed to extract markdown for ${bookmark.url}:`, error);
     return null;
@@ -128,18 +121,18 @@ export async function extractMarkdownContent(
 /**
  * Memory-efficient batch processor for markdown extraction
  * Processes bookmarks sequentially to avoid memory spikes
- * 
+ *
  * @param bookmarks - Bookmarks to process
  * @param onProgress - Optional callback for progress updates
  * @returns Map of bookmark ID to extracted content
  */
 export async function extractMarkdownBatch(
   bookmarks: UnifiedBookmark[],
-  onProgress?: (processed: number, total: number) => void
+  onProgress?: (processed: number, total: number) => void,
 ): Promise<Map<string, ExtractedContent>> {
   const results = new Map<string, ExtractedContent>();
   let processed = 0;
-  
+
   // Process sequentially to minimize memory usage
   for (const bookmark of bookmarks) {
     // Check memory pressure before processing
@@ -147,50 +140,47 @@ export async function extractMarkdownBatch(
       debug(`[Markdown Extract] Running GC at bookmark ${processed + 1}/${bookmarks.length}`);
       global.gc();
     }
-    
+
     const content = await extractMarkdownContent(bookmark);
     if (content) {
       results.set(bookmark.id, content);
     }
-    
+
     processed++;
     onProgress?.(processed, bookmarks.length);
-    
+
     // Small delay to prevent rate limiting
     if (processed < bookmarks.length) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
-  
+
   return results;
 }
 
 /**
  * Update bookmark with extracted content data
  * This modifies the bookmark in-place for memory efficiency
- * 
+ *
  * @param bookmark - Bookmark to update
  * @param content - Extracted content data
  */
-export function applyExtractedContent(
-  bookmark: UnifiedBookmark,
-  content: ExtractedContent
-): void {
+export function applyExtractedContent(bookmark: UnifiedBookmark, content: ExtractedContent): void {
   // Update reading metrics
   bookmark.wordCount = content.wordCount;
   bookmark.readingTime = content.readingTime;
-  
+
   // Store a summary instead of full content to save memory
   // Take first 200 characters of markdown as summary if none exists
   if (!bookmark.summary && content.markdown) {
     const cleanSummary = content.markdown
-      .replace(/[#*_~>-]/g, '')
-      .replace(/\s+/g, ' ')
+      .replace(/[#*_~>-]/g, "")
+      .replace(/\s+/g, " ")
       .trim()
       .substring(0, 200);
-    bookmark.summary = cleanSummary + (content.markdown.length > 200 ? '...' : '');
+    bookmark.summary = cleanSummary + (content.markdown.length > 200 ? "..." : "");
   }
-  
+
   // Note: We don't store the full markdown in the bookmark
   // It's persisted to S3 and can be retrieved when needed
 }

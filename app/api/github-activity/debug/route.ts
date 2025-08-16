@@ -27,9 +27,9 @@ export function GET(): NextResponse {
       message: "Cache debug info is no longer available with Next.js cache",
       notes: [
         "GitHub activity now uses Next.js cache directives",
-        "ServerCache has been deprecated", 
-        "Use /api/github-activity endpoint to fetch current data"
-      ]
+        "ServerCache has been deprecated",
+        "Use /api/github-activity endpoint to fetch current data",
+      ],
     },
   });
 }
