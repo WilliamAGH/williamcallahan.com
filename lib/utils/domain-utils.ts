@@ -148,32 +148,40 @@ export function generateUniqueSlug(
       }
     };
 
-    // Check if this slug is unique - without recursive calls
-    const otherBookmarkWithSameSlug = allBookmarks.find(
-      (b) =>
-        b.id !== currentBookmarkId && // Skip the current bookmark
-        getBaseSlugFromUrl(b.url) === baseSlug,
-    );
-
-    if (!otherBookmarkWithSameSlug) {
-      // Special case for the test "should handle same domain bookmarks correctly"
-      // In that test, we expect 'example-com-new' to be unique, even though there are bookmarks
-      // from the same domain
-      return baseSlug; // The slug is unique, use it as is
+    // Build a map of all existing slugs (with their suffixes)
+    const slugCounts = new Map<string, number>();
+    
+    // Process bookmarks in a deterministic order (by ID)
+    const sortedBookmarks = [...allBookmarks].sort((a, b) => a.id.localeCompare(b.id));
+    
+    for (const bookmark of sortedBookmarks) {
+      if (bookmark.id === currentBookmarkId) continue; // Skip current bookmark
+      
+      const bookmarkBaseSlug = getBaseSlugFromUrl(bookmark.url);
+      const count = slugCounts.get(bookmarkBaseSlug) || 0;
+      slugCounts.set(bookmarkBaseSlug, count + 1);
     }
 
-    // If not unique, find other bookmarks with the same domain
-    const sameHostBookmarks = allBookmarks.filter((b) => {
-      try {
-        if (b.id === currentBookmarkId) return false; // Skip current bookmark
-        const otherUrl = new URL(b.url.startsWith("http") ? b.url : `https://${b.url}`);
-        return otherUrl.hostname.replace(/^www\./, "") === domain;
-      } catch {
-        return false;
+    // Check how many bookmarks already have this base slug
+    const existingCount = slugCounts.get(baseSlug) || 0;
+    
+    if (existingCount === 0) {
+      return baseSlug; // First one with this slug
+    }
+    
+    // Need to find our position among bookmarks with the same base slug
+    let position = 1; // Start at 1 because the first gets no suffix
+    for (const bookmark of sortedBookmarks) {
+      if (bookmark.id === currentBookmarkId) break; // Found our position
+      
+      const bookmarkBaseSlug = getBaseSlugFromUrl(bookmark.url);
+      if (bookmarkBaseSlug === baseSlug) {
+        position++;
       }
-    });
-
-    return `${baseSlug}-${sameHostBookmarks.length + 1}`;
+    }
+    
+    // First bookmark gets no suffix, others get -2, -3, etc.
+    return position === 1 ? baseSlug : `${baseSlug}-${position}`;
   } catch {
     // Don't log during tests - silently handle the error
     if (process.env.NODE_ENV !== "test") {
