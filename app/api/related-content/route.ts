@@ -146,8 +146,8 @@ export async function GET(request: NextRequest) {
     }
     
     // Parse optional parameters
-    const maxPerType = parseInt(searchParams.get("maxPerType") || String(DEFAULT_MAX_PER_TYPE));
-    const maxTotal = parseInt(searchParams.get("maxTotal") || String(DEFAULT_MAX_TOTAL));
+    const maxPerType = parseInt(searchParams.get("maxPerType") || String(DEFAULT_MAX_PER_TYPE), 10);
+    const maxTotal = parseInt(searchParams.get("maxTotal") || String(DEFAULT_MAX_TOTAL), 10);
     const includeTypes = searchParams.get("includeTypes")?.split(",") as RelatedContentType[] | undefined;
     const excludeTypes = searchParams.get("excludeTypes")?.split(",") as RelatedContentType[] | undefined;
     const debug = searchParams.get("debug") === "true";
