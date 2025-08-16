@@ -15,6 +15,7 @@ import {
   toLightweightBookmarks,
   normalizePageBookmarkTags,
 } from "@/lib/bookmarks/utils";
+import { saveSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
 
@@ -260,6 +261,15 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
     await writeJsonS3(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${page}.json`, bookmarks.slice(start, start + pageSize));
   }
   console.log(`${LOG_PREFIX} Wrote ${totalPages} pages of bookmarks`);
+  
+  // Save slug mapping for static generation
+  try {
+    await saveSlugMapping(bookmarks);
+    console.log(`${LOG_PREFIX} Saved slug mapping for ${bookmarks.length} bookmarks`);
+  } catch (error) {
+    console.error(`${LOG_PREFIX} Failed to save slug mapping:`, error);
+    // Non-critical error - don't fail the entire operation
+  }
 }
 
 /** Write tag-filtered bookmarks in paginated format */

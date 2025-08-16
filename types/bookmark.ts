@@ -287,3 +287,19 @@ export interface BookmarkLoadOptions {
   skipExternalFetch?: boolean;
   force?: boolean;
 }
+
+/**
+ * Mapping of bookmark IDs to pre-computed slugs for static generation
+ */
+export interface BookmarkSlugMapping {
+  version: string;
+  generated: string;
+  count: number;
+  slugs: Record<string, {
+    id: string;
+    slug: string;
+    url: string;
+    title: string;
+  }>;
+  reverseMap: Record<string, string>; // slug -> id for quick lookup
+}
