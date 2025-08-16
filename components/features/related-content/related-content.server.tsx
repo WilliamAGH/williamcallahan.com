@@ -10,6 +10,7 @@ import { findMostSimilar, groupByType, DEFAULT_WEIGHTS } from "@/lib/content-sim
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { RelatedContentSection } from "./related-content-section";
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
+import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import type {
   RelatedContentProps,
   RelatedContentItem,
@@ -61,10 +62,11 @@ function toRelatedContentItem(
     case "blog": {
       const blog = content.source as import("@/types/blog").BlogPost;
       metadata.readingTime = blog.readingTime;
-      metadata.imageUrl = blog.coverImage;
+      // Ensure blog cover images are absolute URLs
+      metadata.imageUrl = blog.coverImage ? ensureAbsoluteUrl(blog.coverImage) : undefined;
       metadata.author = blog.author ? {
         name: blog.author.name,
-        avatar: blog.author.avatar,
+        avatar: blog.author.avatar ? ensureAbsoluteUrl(blog.author.avatar) : undefined,
       } : undefined;
       
       return {
@@ -82,7 +84,8 @@ function toRelatedContentItem(
       const investment = content.source as import("@/types/investment").Investment;
       metadata.stage = investment.stage;
       metadata.category = investment.category;
-      metadata.imageUrl = investment.logo || undefined;
+      // Investment logos might be relative paths
+      metadata.imageUrl = investment.logo ? ensureAbsoluteUrl(investment.logo) : undefined;
       
       return {
         type: content.type,
@@ -97,9 +100,9 @@ function toRelatedContentItem(
     
     case "project": {
       const project = content.source as import("@/types/project").Project;
-      // Use S3 image key to construct URL
+      // Use S3 image key to construct absolute URL
       if (project.imageKey) {
-        metadata.imageUrl = `/api/s3/${project.imageKey}`;
+        metadata.imageUrl = ensureAbsoluteUrl(`/api/s3/${project.imageKey}`);
       }
       
       return {
