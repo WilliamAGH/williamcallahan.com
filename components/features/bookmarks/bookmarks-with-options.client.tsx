@@ -8,7 +8,6 @@
 "use client";
 
 import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
-import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { UnifiedBookmark } from "@/types";
 import { ArrowRight, Loader2, RefreshCw, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -32,6 +31,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   showFilterBar = true,
   searchAllBookmarks = false,
   initialTag,
+  internalHrefs,
 }) => {
   // Add mounted state for hydration safety
   const [mounted, setMounted] = useState(false);
@@ -465,12 +465,9 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
             {filteredBookmarks.map((bookmark) => {
-              // Generate internal href once per bookmark to avoid per-card API calls
-              const internalHref = `/bookmarks/${generateUniqueSlug(
-                bookmark.url,
-                bookmarks.map((b) => ({ id: b.id, url: b.url })),
-                bookmark.id,
-              )}`;
+              // Use pre-computed href from server if available, fallback to ID-based URL
+              const internalHref = internalHrefs?.[bookmark.id] || `/bookmarks/${bookmark.id}`;
+              
               // Debug: Log bookmark data for CLI bookmark
               if (bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
                 console.log("[BookmarksWithOptions] CLI bookmark data:", {

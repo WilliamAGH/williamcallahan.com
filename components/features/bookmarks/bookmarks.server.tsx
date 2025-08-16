@@ -17,7 +17,7 @@ import type { UnifiedBookmark } from "@/types";
 import { BookmarksClientWithWindow } from "./bookmarks-client-with-window";
 
 import type { JSX } from "react";
-import { generateUniqueSlug } from "@/lib/utils/domain-utils";
+import { getBulkBookmarkSlugs } from "@/lib/bookmarks/slug-helpers";
 
 import type { BookmarksServerExtendedProps, SerializableBookmark } from "@/types";
 
@@ -53,18 +53,16 @@ export async function BookmarksServer({
   let totalCount = 0;
   const internalHrefs = new Map<string, string>();
 
-  // Helper function to generate slugs for a list of bookmarks
-  const generateHrefs = (bms: UnifiedBookmark[], allBms?: UnifiedBookmark[]) => {
+  // Helper function to generate slugs for a list of bookmarks using pre-computed mappings
+  const generateHrefs = async (bms: UnifiedBookmark[], allBms?: UnifiedBookmark[]) => {
     const allBookmarks = allBms || bms;
+    const slugMap = await getBulkBookmarkSlugs(allBookmarks);
+    
     bms.forEach((bookmark) => {
-      internalHrefs.set(
-        bookmark.id,
-        `/bookmarks/${generateUniqueSlug(
-          bookmark.url,
-          allBookmarks.map((b) => ({ id: b.id, url: b.url })),
-          bookmark.id,
-        )}`,
-      );
+      const slug = slugMap.get(bookmark.id);
+      if (slug) {
+        internalHrefs.set(bookmark.id, `/bookmarks/${slug}`);
+      }
     });
   };
 
@@ -73,7 +71,7 @@ export async function BookmarksServer({
   if (propsBookmarks && propsBookmarks.length > 0 && allBookmarksForSlugs) {
     // Case: We have both bookmarks and allBookmarksForSlugs (paginated scenario)
     bookmarks = convertSerializableBookmarksToUnified(propsBookmarks);
-    generateHrefs(bookmarks, allBookmarksForSlugs);
+    await generateHrefs(bookmarks, allBookmarksForSlugs);
     totalPages = propsTotalPages || 1;
     totalCount = propsTotalCount || bookmarks.length;
   } else if (propsBookmarks && propsBookmarks.length > 0) {
@@ -82,7 +80,7 @@ export async function BookmarksServer({
     const allBookmarksForSlugs = (await (await getBookmarks())({ includeImageData: false })) as UnifiedBookmark[];
     totalPages = propsTotalPages || 1;
     totalCount = propsTotalCount || propsBookmarks.length;
-    generateHrefs(bookmarks, allBookmarksForSlugs);
+    await generateHrefs(bookmarks, allBookmarksForSlugs);
   } else if (initialPage && initialPage > 1) {
     const getBookmarksPageFunc = await getBookmarksPage();
     const getBookmarksIndexFunc = await getBookmarksIndex();
@@ -92,7 +90,7 @@ export async function BookmarksServer({
     totalCount = indexData?.count ?? 0;
     if (bookmarks.length > 0) {
       const allBookmarksForSlugs = (await (await getBookmarks())({ includeImageData: false })) as UnifiedBookmark[];
-      generateHrefs(bookmarks, allBookmarksForSlugs);
+      await generateHrefs(bookmarks, allBookmarksForSlugs);
     }
   } else {
     // Default to fetching all bookmarks for the main page or if no specific page is set
@@ -102,7 +100,7 @@ export async function BookmarksServer({
       const index = await (await getBookmarksIndex())();
       totalPages = index?.totalPages ?? 1;
       totalCount = index?.count ?? 0;
-      generateHrefs(bookmarks, allBookmarks);
+      await generateHrefs(bookmarks, allBookmarks);
     }
   }
 

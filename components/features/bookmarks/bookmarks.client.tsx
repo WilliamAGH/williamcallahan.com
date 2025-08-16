@@ -14,6 +14,7 @@ export function BookmarksClient({
   bookmarks = [],
   forceClientFetch = false,
   showFilterBar = true,
+  internalHrefs,
 }: BookmarksPaginatedClientProps) {
   // Debug log to check if bookmarks are passed correctly to client component
   if (process.env.NODE_ENV === "development") {
@@ -33,6 +34,11 @@ export function BookmarksClient({
 
   // Use our configurable component with passed settings
   return (
-    <BookmarksWithOptions bookmarks={bookmarks} showFilterBar={showFilterBar} searchAllBookmarks={forceClientFetch} />
+    <BookmarksWithOptions 
+      bookmarks={bookmarks} 
+      showFilterBar={showFilterBar} 
+      searchAllBookmarks={forceClientFetch}
+      internalHrefs={internalHrefs}
+    />
   );
 }
