@@ -48,7 +48,7 @@ TEST_WATCH_COMMAND: bun run test:watch
 
 # Code Quality
 LINTER: Oxlint v1.x
-FORMATTER: Prettier with ESLint
+FORMATTER: Biome
 TYPE_CHECKER: TypeScript (tsc)
 VALIDATION_SCHEMA_LIB: Zod
 SCHEMA_VERSION: 4.x
