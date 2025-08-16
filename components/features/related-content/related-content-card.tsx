@@ -4,25 +4,43 @@
  * Unified card component for displaying different types of related content
  */
 
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { useState } from "react";
 import type { RelatedContentCardProps } from "@/types/related-content";
 
 /**
- * Get icon for content type
+ * Get type badge configuration
  */
-function getTypeIcon(type: string): string {
+function getTypeBadge(type: string): { label: string; className: string } {
   switch (type) {
     case "bookmark":
-      return "🔖";
+      return {
+        label: "LINK",
+        className: "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+      };
     case "blog":
-      return "📝";
+      return {
+        label: "BLOG",
+        className: "bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800",
+      };
     case "investment":
-      return "💼";
+      return {
+        label: "INV",
+        className: "bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800",
+      };
     case "project":
-      return "🚀";
+      return {
+        label: "PRJ",
+        className: "bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800",
+      };
     default:
-      return "📄";
+      return {
+        label: "DOC",
+        className: "bg-gray-50 dark:bg-gray-950/30 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800",
+      };
   }
 }
 
@@ -58,9 +76,18 @@ export function RelatedContentCard({
   showScore = false,
 }: RelatedContentCardProps) {
   const { type, title, description, url, metadata } = item;
+  const [imageError, setImageError] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
   
   // Build tag display (max 3 tags)
   const displayTags = metadata.tags?.slice(0, 3) || [];
+  const typeBadge = getTypeBadge(type);
+  
+  // Determine if image is from external source that might need unoptimized
+  const isExternalImage = !!(metadata.imageUrl && (
+    metadata.imageUrl.startsWith("http://") ||
+    metadata.imageUrl.startsWith("https://")
+  ));
   
   return (
     <Link
@@ -72,10 +99,17 @@ export function RelatedContentCard({
       `}
     >
       <article className="h-full flex flex-col">
-        {/* Header with type icon and metadata */}
-        <header className="flex items-start justify-between mb-2">
-          <span className="text-2xl" role="img" aria-label={type}>
-            {getTypeIcon(type)}
+        {/* Header with type badge and metadata */}
+        <header className="flex items-start justify-between mb-3">
+          <span 
+            className={`
+              inline-flex items-center justify-center px-2 py-0.5 
+              text-[10px] font-mono font-semibold tracking-wider
+              border rounded ${typeBadge.className}
+            `}
+            title={`Content type: ${type}`}
+          >
+            {typeBadge.label}
           </span>
           <div className="flex flex-col items-end text-xs text-gray-500 dark:text-gray-400">
             {metadata.date && (
@@ -90,14 +124,27 @@ export function RelatedContentCard({
         </header>
         
         {/* Image if available */}
-        {metadata.imageUrl && (
+        {metadata.imageUrl && !imageError && (
           <div className="relative w-full h-32 mb-3 rounded overflow-hidden bg-gray-100 dark:bg-gray-700">
+            {imageLoading && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-8 h-8 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
             <Image
               src={metadata.imageUrl}
               alt={title}
               fill
-              className="object-cover"
+              className={`object-cover transition-opacity duration-200 ${imageLoading ? "opacity-0" : "opacity-100"}`}
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              onLoad={() => setImageLoading(false)}
+              onError={() => {
+                setImageError(true);
+                setImageLoading(false);
+                console.warn(`Failed to load image for ${type}: ${metadata.imageUrl}`);
+              }}
+              unoptimized={isExternalImage}
+              priority={false}
             />
           </div>
         )}
