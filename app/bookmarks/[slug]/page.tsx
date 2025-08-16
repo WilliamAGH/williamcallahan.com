@@ -23,6 +23,7 @@ import { notFound } from "next/navigation";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { OG_IMAGE_DIMENSIONS } from "@/data/metadata";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
+import { RelatedContent } from "@/components/features/related-content";
 
 // No static params generation for dynamic pages
 
@@ -165,6 +166,19 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
           bookmarks={convertBookmarksToSerializable([foundBookmark])}
           usePagination={false}
           showFilterBar={false}
+        />
+        
+        {/* Related Content Section */}
+        <RelatedContent
+          sourceType="bookmark"
+          sourceId={foundBookmark.id}
+          sectionTitle="You might also like"
+          options={{
+            maxPerType: 3,
+            maxTotal: 9,
+            excludeTypes: [], // Include all content types
+          }}
+          className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700"
         />
       </div>
     </>
