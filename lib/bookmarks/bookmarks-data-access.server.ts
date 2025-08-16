@@ -116,12 +116,12 @@ async function acquireDistributedLock(lockKey: string, ttlMs: number, retryCount
     // ignore read issues and try to proceed
   }
 
-  // Step B: write our lock entry
+  // Step B: write our lock entry with atomic conditional create
   const myEntry: DistributedLockEntry = { instanceId: INSTANCE_ID, acquiredAt: Date.now(), ttlMs };
   try {
-    await writeJsonS3(lockKey, myEntry);
-  } catch (e) {
-    console.warn(`${LOG_PREFIX} Could not write lock file:`, String(e));
+    await writeJsonS3(lockKey, myEntry, { IfNoneMatch: "*" });
+  } catch {
+    // If conditional write failed, another process has the lock
     if (retryCount < MAX_RETRIES) {
       await backoff(retryCount);
       return acquireDistributedLock(lockKey, ttlMs, retryCount + 1);
