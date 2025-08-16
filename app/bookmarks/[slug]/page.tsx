@@ -6,8 +6,9 @@
  * @module app/bookmarks/[slug]/page
  */
 
-// Configure dynamic rendering
-export const dynamic = "force-dynamic";
+// Configure for static generation with ISR
+export const revalidate = 3600; // Revalidate every hour
+export const dynamicParams = true; // Allow dynamic params for new bookmarks
 
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
@@ -25,8 +26,32 @@ import { OG_IMAGE_DIMENSIONS } from "@/data/metadata";
 import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 import { RelatedContent } from "@/components/features/related-content";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
+import { loadSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
 
-// No static params generation for dynamic pages
+// Generate static params for all bookmarks at build time
+export async function generateStaticParams() {
+  try {
+    // First try to load existing slug mapping
+    let mapping = await loadSlugMapping();
+    
+    // If no mapping exists, generate it from bookmarks
+    if (!mapping) {
+      const allBookmarks = await getBookmarks({ includeImageData: false });
+      if (!allBookmarks || allBookmarks.length === 0) {
+        return [];
+      }
+      mapping = generateSlugMapping(allBookmarks as import("@/types").UnifiedBookmark[]);
+    }
+    
+    // Return all slug params for static generation
+    return Object.values(mapping.slugs).map(entry => ({
+      slug: entry.slug,
+    }));
+  } catch (error) {
+    console.error("Failed to generate static params for bookmarks:", error);
+    return [];
+  }
+}
 
 // Helper function to find bookmark by slug
 async function findBookmarkBySlug(slug: string) {
