@@ -538,3 +538,94 @@ bun run test:s3-connection
 2. **"Insufficient memory headroom"**: Increase memory limits or reduce concurrent operations
 3. **"Stream timeout"**: Check network connectivity and S3 endpoint health
 4. **CDN stale content**: JSON bypasses CDN; use cache headers for other content
+
+## Deployment Automation & Automatic Data Population (Integrated)
+
+The platform automatically prepares and maintains S3 JSON data across environments during builds and container starts. This consolidates the guidance previously tracked in temporary deployment docs.
+
+### Environment Detection
+
+- Source of truth: `lib/config/environment.ts`
+- URL-based detection first (`API_BASE_URL` or `NEXT_PUBLIC_SITE_URL`), with safe `NODE_ENV` fallback
+- Suffix strategy for S3 keys via `getEnvironmentSuffix()`:
+  - production: "" (no suffix)
+  - test: "-test"
+  - development/local: "-dev"
+
+### Docker Entrypoint Orchestration
+
+- File: `scripts/entrypoint.sh`
+- On container start:
+  - Creates cache directories and performs sanity checks
+  - Verifies that slug-mapping data exists in S3; if missing, runs immediate population via `scripts/data-updater.ts`
+  - Falls back to `scripts/ensure-slug-mappings.ts` on failure
+  - Starts scheduler for ongoing updates; finally starts the Next.js server
+
+### Scheduler Cadence
+
+- File: `lib/server/scheduler.ts`
+- Default schedules (Pacific Time):
+  - Bookmarks: Every 2 hours
+  - GitHub Activity: Daily at midnight
+  - Logos: Weekly on Sunday
+
+### Build Hooks Overview
+
+- `package.json` scripts coordinate postbuild/postdeploy side effects:
+  - `postbuild`: Verifies slug mappings
+  - `postdeploy`: Performs initialization
+  - `postinstall`: Initializes CSP hashes
+
+### Container Startup Flow
+
+1) Entrypoint executes
+2) Initial data population if required (bookmarks/slug mapping)
+3) Scheduler boots in the background
+4) Next.js server starts serving traffic
+
+### Environment-Specific Behavior
+
+- Development and local use the `-dev` suffix; production uses no suffix
+- Example keys:
+  - dev: `json/bookmarks/slug-mapping-dev.json`
+  - prod: `json/bookmarks/slug-mapping.json`
+
+### Redundancy & Fallbacks
+
+- Multiple save paths for resilience:
+  ```ts
+  await saveSlugMapping(bookmarks, true, true); // Save to all paths
+  ```
+- Fallback load order:
+  1) Environment-specific primary path
+  2) All environment variants
+  3) Dynamic regeneration when necessary
+
+### Manual Intervention
+
+```bash
+# Inside container – force data update
+bun scripts/data-updater.ts --bookmarks --force
+
+# Check status / S3 health
+bun scripts/debug-slug-mapping.ts
+bun scripts/fix-s3-env-suffix.ts
+```
+
+### Monitoring
+
+- Container health checks hit `/api/health`
+- Scheduler logs to container stdout
+- Verification commands:
+  ```bash
+  ps aux | grep scheduler
+  docker logs <container-id> | grep Scheduler
+  bun scripts/debug-slug-mapping.ts
+  ```
+
+### What Could Go Wrong?
+
+- 404 on Bookmarks after deploy → Entrypoint repopulates; manual fallback: `ensure-slug-mappings.ts --force --all-paths`
+- Scheduler not running → Restart container (scheduler auto-starts)
+- Wrong environment detected → Set `API_BASE_URL` or `NEXT_PUBLIC_SITE_URL` correctly (see `lib/config/environment.ts`)
+- S3 connection failed → Verify `S3_*` env variables are present
