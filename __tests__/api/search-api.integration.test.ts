@@ -31,54 +31,46 @@ jest.mock("@/lib/blog/server-search", () => ({
 }));
 
 jest.mock("@/lib/search", () => ({
-  searchInvestments: jest
-    .fn()
-    .mockResolvedValue([
-      {
-        id: "inv1",
-        type: "project",
-        title: "Test Investment",
-        description: "Test description",
-        url: "/investments#inv1",
-        score: 0.9,
-      },
-    ]),
-  searchExperience: jest
-    .fn()
-    .mockResolvedValue([
-      {
-        id: "exp1",
-        type: "page",
-        title: "Test Experience",
-        description: "Test description",
-        url: "/experience#exp1",
-        score: 0.85,
-      },
-    ]),
-  searchEducation: jest
-    .fn()
-    .mockResolvedValue([
-      {
-        id: "edu1",
-        type: "page",
-        title: "Test Education",
-        description: "Test description",
-        url: "/education#edu1",
-        score: 0.75,
-      },
-    ]),
-  searchBookmarks: jest
-    .fn()
-    .mockResolvedValue([
-      {
-        id: "bm1",
-        type: "bookmark",
-        title: "Test Bookmark",
-        description: "Test description",
-        url: "/bookmarks/test",
-        score: 0.7,
-      },
-    ]),
+  searchInvestments: jest.fn().mockResolvedValue([
+    {
+      id: "inv1",
+      type: "project",
+      title: "Test Investment",
+      description: "Test description",
+      url: "/investments#inv1",
+      score: 0.9,
+    },
+  ]),
+  searchExperience: jest.fn().mockResolvedValue([
+    {
+      id: "exp1",
+      type: "page",
+      title: "Test Experience",
+      description: "Test description",
+      url: "/experience#exp1",
+      score: 0.85,
+    },
+  ]),
+  searchEducation: jest.fn().mockResolvedValue([
+    {
+      id: "edu1",
+      type: "page",
+      title: "Test Education",
+      description: "Test description",
+      url: "/education#edu1",
+      score: 0.75,
+    },
+  ]),
+  searchBookmarks: jest.fn().mockResolvedValue([
+    {
+      id: "bm1",
+      type: "bookmark",
+      title: "Test Bookmark",
+      description: "Test description",
+      url: "/bookmarks/test",
+      score: 0.7,
+    },
+  ]),
 }));
 
 /**
