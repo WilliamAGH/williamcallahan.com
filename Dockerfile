@@ -203,9 +203,8 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=3 \
   CMD curl --silent --show-error --fail http://127.0.0.1:3000/api/health || exit 1
 
-# Use entrypoint to seed logos, then start server
-# Note: We use Node.js to run the standalone server as it's more compatible
-# with Next.js 15's standalone output, even though Bun is available in the runner
+# Use entrypoint to handle data initialization, scheduler startup, and graceful shutdown
+# Note: entrypoint.sh now includes initial data population before starting scheduler
 ENTRYPOINT ["/app/entrypoint.sh"]
 # Node.js will respect NODE_OPTIONS env var for memory limit
 CMD ["node", "server.js"]
