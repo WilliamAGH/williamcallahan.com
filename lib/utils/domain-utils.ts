@@ -256,7 +256,7 @@ export function getDisplayDomain(url: string): string {
     const domain = normalizeDomain(url);
     
     // If it's a clean domain, return it
-    if (domain && domain.includes(".")) {
+    if (domain?.includes(".")) {
       return domain;
     }
     
