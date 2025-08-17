@@ -184,3 +184,55 @@ curl http://localhost:3000/api/bookmarks/status
 - See `memory-mgmt.md` for memory management details
 - See `s3-object-storage.md` for storage patterns
 - See `opengraph.md` for metadata enrichment
+
+## Deployment & Automatic Data Population (Integrated)
+
+This consolidates deployment details for bookmarks data population and scheduler behavior.
+
+### Automatic Population on Container Startup
+
+- `scripts/entrypoint.sh` ensures slug mappings exist at boot:
+  - Runs `scripts/data-updater.ts --bookmarks --force` if missing
+  - Falls back to `scripts/ensure-slug-mappings.ts` on failure
+  - Starts scheduler and Next.js server
+
+### Scheduler Cadence (Pacific Time)
+
+- Bookmarks refresh: every 2 hours
+- GitHub activity: daily at midnight
+- Logos: weekly on Sunday
+
+### Environment-Specific S3 Keys
+
+- Source of truth: `lib/config/environment.ts`
+- Suffixes:
+  - production: "" (no suffix)
+  - test: "-test"
+  - development/local: "-dev"
+- Examples:
+  - dev: `json/bookmarks/slug-mapping-dev.json`
+  - prod: `json/bookmarks/slug-mapping.json`
+
+### Redundancy & Fallbacks
+
+- Save to all paths when needed for resilience:
+  ```ts
+  await saveSlugMapping(bookmarks, true, true);
+  ```
+- Load fallback order:
+  1) Primary (env-specific)
+  2) All environment variants
+  3) Regenerate dynamically
+
+### Manual Ops
+
+```bash
+# Force data update
+bun scripts/data-updater.ts --bookmarks --force
+
+# Check status
+bun scripts/debug-slug-mapping.ts
+
+# Fix suffix layout
+bun scripts/fix-s3-env-suffix.ts
+```
