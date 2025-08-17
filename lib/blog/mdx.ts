@@ -426,9 +426,16 @@ async function getCachedAllMDXPosts(): Promise<BlogPost[]> {
     // Silently ignore if cacheLife is not available in this context
   }
   
-  cacheTag("blog");
-  cacheTag("mdx");
-  cacheTag("blog-posts-all");
+  // Safe cacheTag calls with availability check
+  try {
+    if (typeof cacheTag === "function") {
+      cacheTag("blog");
+      cacheTag("mdx");
+      cacheTag("blog-posts-all");
+    }
+  } catch {
+    // Silently ignore if cacheTag is not available in this context
+  }
 
   return getAllMDXPostsDirect();
 }

@@ -414,6 +414,17 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
           console.warn(`${LOG_PREFIX} Freshly fetched bookmarks are invalid.`);
           return null;
         }
+        // If we get an empty array, try to return existing S3 data as fallback
+        console.warn(`${LOG_PREFIX} No bookmarks returned from refresh (likely missing API config), attempting S3 fallback`);
+        try {
+          const existingBookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
+          if (existingBookmarks && Array.isArray(existingBookmarks) && existingBookmarks.length > 0) {
+            console.log(`${LOG_PREFIX} Returning ${existingBookmarks.length} existing bookmarks from S3`);
+            return existingBookmarks;
+          }
+        } catch (error) {
+          console.error(`${LOG_PREFIX} Failed to read existing bookmarks from S3:`, String(error));
+        }
         return null;
       }
       const sel = await selectiveRefreshAndPersistBookmarks();
