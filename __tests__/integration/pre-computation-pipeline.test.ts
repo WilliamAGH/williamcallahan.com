@@ -235,8 +235,19 @@ describe("Pre-computation Pipeline Integration", () => {
       const prodData = await readJsonS3("json/content-graph/metadata.json");
 
       expect(devData).not.toEqual(prodData);
-      expect((devData as { env: string }).env).toBe("development");
-      expect((prodData as { env: string }).env).toBe("production");
+      
+      // Type-safe property access with proper checking
+      if (devData && typeof devData === 'object' && 'env' in devData) {
+        expect(devData.env).toBe("development");
+      } else {
+        throw new Error("devData missing expected env property");
+      }
+      
+      if (prodData && typeof prodData === 'object' && 'env' in prodData) {
+        expect(prodData.env).toBe("production");
+      } else {
+        throw new Error("prodData missing expected env property");
+      }
     });
   });
 
@@ -408,11 +419,24 @@ describe("Pre-computation Pipeline Integration", () => {
       );
 
       if (metadataCall && relatedContentCall) {
-        const metadata = metadataCall[1] as { counts: { total: number } };
-        const relatedContent = relatedContentCall[1] as Record<string, unknown>;
+        // Type-safe metadata access
+        const metadata = metadataCall[1];
+        if (!metadata || typeof metadata !== 'object' || !('counts' in metadata)) {
+          throw new Error("Invalid metadata structure");
+        }
+        const metadataWithCounts = metadata as Record<string, unknown>;
+        if (!metadataWithCounts.counts || typeof metadataWithCounts.counts !== 'object') {
+          throw new Error("Invalid counts structure in metadata");
+        }
+        
+        const relatedContent = relatedContentCall[1];
+        if (!relatedContent || typeof relatedContent !== 'object') {
+          throw new Error("Invalid related content structure");
+        }
 
         // Metadata count should match actual content
-        expect(metadata.counts.total).toBe(Object.keys(relatedContent).length);
+        const counts = metadataWithCounts.counts as Record<string, unknown>;
+        expect(counts.total).toBe(Object.keys(relatedContent).length);
       }
     });
   });
