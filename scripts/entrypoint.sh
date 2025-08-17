@@ -10,6 +10,18 @@ echo "✅ [Entrypoint] Cache directory /app/cache/s3_data ensured."
 # REMOVED: Volume seeding logic as data is now in S3
 # REMOVED: User switching logic - running as root
 
+echo "📊 [Entrypoint] Checking for initial data population..."
+# Check if critical data exists, if not populate immediately
+if ! bun scripts/debug-slug-mapping.ts 2>/dev/null | grep -q "Slug mapping exists"; then
+    echo "⚠️  [Entrypoint] Slug mapping missing, running initial data population..."
+    bun scripts/data-updater.ts --bookmarks --force || {
+        echo "⚠️  [Entrypoint] Data updater failed, trying ensure-slug-mappings fallback..."
+        bun scripts/ensure-slug-mappings.ts --force --all-paths
+    }
+else
+    echo "✅ [Entrypoint] Data already exists, skipping initial population"
+fi
+
 echo "🕒 [Entrypoint] Starting data scheduler in background..."
 bun run scheduler &
 SCHEDULER_PID=$!
