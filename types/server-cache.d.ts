@@ -15,30 +15,48 @@ import type * as aggregatedContentHelpers from "@/lib/server-cache/aggregated-co
 
 /**
  * Utility type to extract only function property keys from a type.
- * 
- * @justification TypeScript's conditional types require the use of 'any' in function signature
- * detection patterns. This is documented in the TypeScript Handbook under "Conditional Types"
- * (https://www.typescriptlang.org/docs/handbook/2/conditional-types.html).
- * 
- * @citation "TypeScript Handbook - Conditional Types": When checking if a type extends a function
- * signature, the parameter and return types must use 'any' or 'unknown' to match all possible
- * function signatures. Using specific types would fail to match functions with different signatures.
- * 
- * @rationale The 'any' type is REQUIRED here because:
- * 1. We need to detect ANY function signature, regardless of parameters or return type
- * 2. Using 'unknown' would be too restrictive and fail to match many valid functions
- * 3. This is a compile-time type utility that doesn't affect runtime safety
- * 4. The extracted keys are used with Pick<> to maintain full type safety in the final interface
- * 
- * @example This pattern is standard in TypeScript utility types and is used in popular libraries:
- * - Lodash's type definitions use similar patterns for function detection
- * - React's type utilities employ this approach for event handler detection
- * - TypeScript's own lib.d.ts uses this pattern in built-in utility types
+ *
+ * Rationale:
+ * - The previous implementation used `any` in the conditional type:
+ *   `T[K] extends (...args: any[]) => any ? K : never`. That required a lengthy
+ *   justification comment to satisfy strict linting rules. In this codebase,
+ *   we avoid `any` entirely when a safer alternative exists.
+ * - This version uses TypeScript's `infer` to capture parameter types and
+ *   `unknown` for the return type: `(...args: infer _P) => unknown`. This
+ *   matches "is callable" without broadening the surface to `any` and keeps
+ *   the utility purely type-level with no runtime effect.
+ *
+ * Why `infer` + `unknown`:
+ * - `infer` allows us to detect any function signature without committing to a
+ *   specific parameter list, which is ideal for feature-detection patterns.
+ * - `unknown` is preferred over `any` for return types because it maintains
+ *   type safety—consumers must narrow or assert explicitly if they need to use
+ *   a more specific type, aligning with repository standards.
+ *
+ * Integration points in this repo:
+ * - This utility is consumed by the declaration merging for `ServerCache` in
+ *   this file to pick only function members from helper modules, e.g.:
+ *   `Pick<typeof bookmarkHelpers, FunctionKeys<typeof bookmarkHelpers>>`.
+ * - At runtime (see `lib/server-cache.ts`), `attachHelpers` guards attachment
+ *   with `typeof value === "function"` and narrows callables with
+ *   `(...args: unknown[]) => unknown`. Together, the static and runtime layers
+ *   ensure only callable members are attached, preventing prototype pollution
+ *   and preserving type safety.
+ *
+ * Change history:
+ * - 2025-08: Replaced `any`-based conditional with `infer _P` + `unknown` to
+ *   eliminate `no-explicit-any` warnings while preserving behavior.
+ *
+ * Citations:
+ * - TypeScript Handbook – Conditional Types
+ *   https://www.typescriptlang.org/docs/handbook/2/conditional-types.html
+ * - TypeScript Handbook – Generics (`infer`)
+ *   https://www.typescriptlang.org/docs/handbook/2/generics.html#using-type-parameters-in-generic-constraints
+ * - Declaration Merging
+ *   https://www.typescriptlang.org/docs/handbook/declaration-merging.html
  */
 type FunctionKeys<T> = {
-  // biome-ignore lint/suspicious/noExplicitAny: Conditional type requires 'any' for universal function matching in utility types
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [K in keyof T]-?: T[K] extends (...args: any[]) => any ? K : never;
+  [K in keyof T]-?: T[K] extends (...args: infer _P) => unknown ? K : never;
 }[keyof T];
 
 declare module "@/lib/server-cache" {
