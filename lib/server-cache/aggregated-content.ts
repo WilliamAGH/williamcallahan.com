@@ -12,6 +12,7 @@ import type {
 
 const AGGREGATED_CONTENT_KEY = "aggregated-content:all";
 const RELATED_CONTENT_PREFIX = "related-content:";
+const CACHE_TTL_MS = 15 * 60 * 1000;
 
 /**
  * Get cached aggregated content
@@ -28,7 +29,7 @@ export function setAggregatedContent(
   entry: AggregatedContentCacheEntry
 ): boolean {
   // Cache for 15 minutes
-  return this.set(AGGREGATED_CONTENT_KEY, entry, 15 * 60 * 1000);
+  return this.set(AGGREGATED_CONTENT_KEY, entry, CACHE_TTL_MS);
 }
 
 /**
@@ -61,7 +62,7 @@ export function setRelatedContent(
 ): boolean {
   const key = `${RELATED_CONTENT_PREFIX}${sourceType}:${sourceId}`;
   // Cache for 15 minutes
-  return this.set(key, entry, 15 * 60 * 1000);
+  return this.set(key, entry, CACHE_TTL_MS);
 }
 
 /**

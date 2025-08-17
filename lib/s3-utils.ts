@@ -49,8 +49,14 @@ const MAX_S3_READ_SIZE = 50 * 1024 * 1024; // 50MB max read size to prevent memo
 // Request coalescing for duplicate S3 reads
 const inFlightReads = new Map<string, Promise<Buffer | string | null>>();
 
-// Helper: log a single warning when S3 configuration is missing, then downgrade subsequent messages to debug level
-const isS3FullyConfigured = Boolean(S3_BUCKET && S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY);
+// Helper: check if S3 is fully configured (now a function for dynamic checking)
+function isS3FullyConfigured(): boolean {
+  return Boolean(
+    process.env.S3_BUCKET && 
+    process.env.S3_ACCESS_KEY_ID && 
+    process.env.S3_SECRET_ACCESS_KEY
+  );
+}
 
 let hasLoggedMissingS3Config = false;
 function logMissingS3ConfigOnce(context: string): void {
@@ -307,7 +313,7 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
     return null;
   }
   const client = getS3Client();
-  if (!isS3FullyConfigured || !client) {
+  if (!isS3FullyConfigured() || !client) {
     logMissingS3ConfigOnce("readFromS3");
     return null;
   }
@@ -428,7 +434,7 @@ export async function writeToS3(
     return;
   }
   const client = getS3Client();
-  if (!isS3FullyConfigured || !client) {
+  if (!isS3FullyConfigured() || !client) {
     // During build phase without credentials, silently skip writes instead of logging warnings
     if (process.env.NEXT_PHASE === "phase-production-build") {
       if (isDebug) debug(`[S3Utils] Skipping S3 write during build (no credentials) for key: ${key}`);
@@ -475,7 +481,7 @@ export async function checkIfS3ObjectExists(key: string): Promise<boolean> {
     return false;
   }
   const client = getS3Client();
-  if (!isS3FullyConfigured || !client) {
+  if (!isS3FullyConfigured() || !client) {
     logMissingS3ConfigOnce("checkIfS3ObjectExists");
     return false;
   }
@@ -512,7 +518,7 @@ export async function getS3ObjectMetadata(key: string): Promise<{ ETag?: string;
     return null;
   }
   const client = getS3Client();
-  if (!isS3FullyConfigured || !client) {
+  if (!isS3FullyConfigured() || !client) {
     logMissingS3ConfigOnce("getS3ObjectMetadata");
     return null;
   }
@@ -555,7 +561,7 @@ export async function listS3Objects(prefix: string): Promise<string[]> {
     return [];
   }
   const client = getS3Client();
-  if (!isS3FullyConfigured || !client) {
+  if (!isS3FullyConfigured() || !client) {
     logMissingS3ConfigOnce("listS3Objects");
     return [];
   }
@@ -599,7 +605,7 @@ export async function deleteFromS3(key: string): Promise<void> {
     return;
   }
   const client = getS3Client();
-  if (!isS3FullyConfigured || !client) {
+  if (!isS3FullyConfigured() || !client) {
     logMissingS3ConfigOnce("deleteFromS3");
     return;
   }
@@ -793,6 +799,36 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
   }
 }
 
+// ----------------------------------------------------------------------------
+// Lock store abstraction for deterministic testing and alternative backends
+// ----------------------------------------------------------------------------
+
+import type { LockStore, LockEntry } from "@/types/lib";
+
+const s3LockStore: LockStore = {
+  async read(key) {
+    return await readJsonS3<LockEntry>(key);
+  },
+  async createIfAbsent(key, value) {
+    try {
+      await writeJsonS3(key, value, { IfNoneMatch: "*" });
+      return true;
+    } catch (error: unknown) {
+      if (error && typeof error === "object" && "$metadata" in error) {
+        const metadata = (error as { $metadata?: { httpStatusCode?: number } }).$metadata;
+        if (metadata?.httpStatusCode === 412) return false;
+      }
+      throw error;
+    }
+  },
+  async delete(key) {
+    await deleteFromS3(key);
+  },
+  async list(prefix) {
+    return await listS3Objects(prefix);
+  },
+};
+
 /**
  * Reads a binary file (e.g., an image) from S3
  *
@@ -906,27 +942,40 @@ export async function acquireDistributedLock(
   instanceId: string,
   operation: string,
   timeoutMs: number = LOCK_TIMEOUT_MS,
+  options?: { store?: LockStore; clock?: () => number },
 ): Promise<boolean> {
+  const clock = options?.clock ?? Date.now;
+  const store = options?.store ?? s3LockStore;
   const lockPath = `locks/${lockKey}.json`;
   const lockEntry: { instanceId: string; acquiredAt: number; operation: string } = {
     instanceId,
-    acquiredAt: Date.now(),
+    acquiredAt: clock(),
     operation,
   };
 
   try {
-    const existingLock = await readJsonS3<{ instanceId: string; acquiredAt: number; operation: string }>(lockPath);
-    if (existingLock && Date.now() - existingLock.acquiredAt < timeoutMs) {
-      return false; // Lock still active
+    const existingLock = await store.read(lockPath);
+    if (existingLock) {
+      const age = clock() - existingLock.acquiredAt;
+      if (age < timeoutMs) {
+        return false; // Lock still active
+      }
+      // Stale lock: attempt best-effort cleanup before acquiring
+      try {
+        await store.delete(lockPath);
+      } catch {
+        // Ignore cleanup errors and proceed to conditional create
+      }
     }
   } catch {
     // Lock doesn't exist, proceed to acquire
   }
 
   try {
-    await writeJsonS3(lockPath, lockEntry, { IfNoneMatch: "*" });
+    const created = await store.createIfAbsent(lockPath, lockEntry);
+    if (!created) return false;
     // Read-back verification to confirm we own the lock after any concurrent writes
-    const current = await readJsonS3<{ instanceId: string; acquiredAt: number; operation: string }>(lockPath);
+    const current = await store.read(lockPath);
     if (current && current.instanceId === lockEntry.instanceId && current.acquiredAt === lockEntry.acquiredAt) {
       return true;
     }
@@ -947,13 +996,18 @@ export async function acquireDistributedLock(
 }
 
 /** Release a distributed lock */
-export async function releaseDistributedLock(lockKey: string, instanceId: string): Promise<void> {
+export async function releaseDistributedLock(
+  lockKey: string,
+  instanceId: string,
+  options?: { store?: LockStore },
+): Promise<void> {
+  const store = options?.store ?? s3LockStore;
   const lockPath = `locks/${lockKey}.json`;
 
   try {
-    const existingLock = await readJsonS3<{ instanceId: string; acquiredAt: number; operation: string }>(lockPath);
+    const existingLock = await store.read(lockPath);
     if (existingLock?.instanceId === instanceId) {
-      await deleteFromS3(lockPath);
+      await store.delete(lockPath);
     }
   } catch (error) {
     console.error(`Failed to release lock ${lockKey}:`, error);
@@ -961,16 +1015,21 @@ export async function releaseDistributedLock(lockKey: string, instanceId: string
 }
 
 /** Clean up stale locks older than timeout */
-export async function cleanupStaleLocks(timeoutMs: number = LOCK_TIMEOUT_MS): Promise<void> {
+export async function cleanupStaleLocks(
+  timeoutMs: number = LOCK_TIMEOUT_MS,
+  options?: { store?: LockStore; clock?: () => number },
+): Promise<void> {
+  const store = options?.store ?? s3LockStore;
+  const clock = options?.clock ?? Date.now;
   try {
-    const locks = await listS3Objects("locks/");
-    const now = Date.now();
+    const locks = await store.list("locks/");
+    const now = clock();
 
     for (const lockKey of locks) {
       try {
-        const lockData = await readJsonS3<{ instanceId: string; acquiredAt: number; operation: string }>(lockKey);
+        const lockData = await store.read(lockKey);
         if (lockData && now - lockData.acquiredAt > timeoutMs) {
-          await deleteFromS3(lockKey);
+          await store.delete(lockKey);
         }
       } catch {
         // Ignore errors for individual lock cleanup
@@ -980,3 +1039,11 @@ export async function cleanupStaleLocks(timeoutMs: number = LOCK_TIMEOUT_MS): Pr
     console.error("Failed to cleanup stale locks:", error);
   }
 }
+
+// Convenience wrapper object to enable simpler spying in tests
+export const s3Json = {
+  readJsonS3,
+  writeJsonS3,
+  listS3Objects,
+  deleteFromS3,
+} as const;
