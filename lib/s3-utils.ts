@@ -87,6 +87,11 @@ if (!S3_BUCKET || !S3_ACCESS_KEY_ID || !S3_SECRET_ACCESS_KEY) {
 // Lazy initialization of S3 client to ensure environment variables are loaded
 let s3ClientInstance: S3Client | null = null;
 
+// Export a function to reset client for testing
+export function resetS3Client(): void {
+  s3ClientInstance = null;
+}
+
 export function getS3Client(): S3Client | null {
   if (s3ClientInstance !== null) {
     return s3ClientInstance;
@@ -755,7 +760,13 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
     // Prefer atomic conditional create when requested and client is available
     if (options?.IfNoneMatch === "*") {
       const client = getS3Client();
-      if (!isS3FullyConfigured || !client) {
+      // Check dynamically if S3 is configured (re-read env vars)
+      const bucket = process.env.S3_BUCKET;
+      const accessKeyId = process.env.S3_ACCESS_KEY_ID;
+      const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+      const isConfigured = Boolean(bucket && accessKeyId && secretAccessKey);
+      
+      if (!isConfigured || !client) {
         // If conditional write is requested but S3 is not configured, log error and return
         // Don't throw to maintain backward compatibility with tests
         console.error("[S3Utils] Cannot perform conditional write: S3 client not configured");
@@ -763,7 +774,7 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
       }
       const { PutObjectCommand } = await import("@aws-sdk/client-s3");
       const command = new PutObjectCommand({
-        Bucket: S3_BUCKET,
+        Bucket: bucket,
         Key: s3Key,
         Body: jsonData,
         ContentType: "application/json",
