@@ -33,7 +33,7 @@ function toRelatedContentItem(
   content: NormalizedContent & { score: number },
   slugMap?: Map<string, string>
 ): RelatedContentItem {
-  const metadata: RelatedContentItem["metadata"] = {
+  const baseMetadata: RelatedContentItem["metadata"] = {
     tags: content.tags,
     domain: content.domain,
     date: content.date?.toISOString(),
@@ -46,8 +46,14 @@ function toRelatedContentItem(
       // Use pre-computed slug from mapping
       const slug = slugMap?.get(bookmark.id) || content.id;
       const url = `/bookmarks/${slug}`;
-      
-      metadata.imageUrl = bookmark.ogImage || bookmark.content?.imageUrl;
+      const metadata: RelatedContentItem["metadata"] = {
+        ...baseMetadata,
+        imageUrl: bookmark.ogImage
+          ? ensureAbsoluteUrl(bookmark.ogImage)
+          : bookmark.content?.imageUrl
+          ? ensureAbsoluteUrl(bookmark.content.imageUrl)
+          : undefined,
+      };
       return {
         type: content.type,
         id: content.id,
@@ -61,13 +67,14 @@ function toRelatedContentItem(
     
     case "blog": {
       const blog = content.source as import("@/types/blog").BlogPost;
-      metadata.readingTime = blog.readingTime;
-      // Ensure blog cover images are absolute URLs
-      metadata.imageUrl = blog.coverImage ? ensureAbsoluteUrl(blog.coverImage) : undefined;
-      metadata.author = blog.author ? {
-        name: blog.author.name,
-        avatar: blog.author.avatar ? ensureAbsoluteUrl(blog.author.avatar) : undefined,
-      } : undefined;
+      const metadata: RelatedContentItem["metadata"] = {
+        ...baseMetadata,
+        readingTime: blog.readingTime,
+        imageUrl: blog.coverImage ? ensureAbsoluteUrl(blog.coverImage) : undefined,
+        author: blog.author
+          ? { name: blog.author.name, avatar: blog.author.avatar ? ensureAbsoluteUrl(blog.author.avatar) : undefined }
+          : undefined,
+      };
       
       return {
         type: content.type,
@@ -82,10 +89,12 @@ function toRelatedContentItem(
     
     case "investment": {
       const investment = content.source as import("@/types/investment").Investment;
-      metadata.stage = investment.stage;
-      metadata.category = investment.category;
-      // Investment logos might be relative paths
-      metadata.imageUrl = investment.logo ? ensureAbsoluteUrl(investment.logo) : undefined;
+      const metadata: RelatedContentItem["metadata"] = {
+        ...baseMetadata,
+        stage: investment.stage,
+        category: investment.category,
+        imageUrl: investment.logo ? ensureAbsoluteUrl(investment.logo) : undefined,
+      };
       
       return {
         type: content.type,
@@ -101,9 +110,9 @@ function toRelatedContentItem(
     case "project": {
       const project = content.source as import("@/types/project").Project;
       // Use S3 image key to construct absolute URL
-      if (project.imageKey) {
-        metadata.imageUrl = ensureAbsoluteUrl(`/api/s3/${project.imageKey}`);
-      }
+      const metadata: RelatedContentItem["metadata"] = project.imageKey
+        ? { ...baseMetadata, imageUrl: ensureAbsoluteUrl(`/api/s3/${project.imageKey}`) }
+        : baseMetadata;
       
       return {
         type: content.type,
@@ -124,7 +133,7 @@ function toRelatedContentItem(
         description: content.text,
         url: content.url,
         score: content.score,
-        metadata,
+        metadata: baseMetadata,
       };
   }
 }
@@ -163,10 +172,12 @@ export async function RelatedContent({
       
       // Apply filters
       if (includeTypes) {
-        items = items.filter(item => includeTypes.includes(item.type));
+        const inc = [...includeTypes];
+        items = items.filter(item => inc.includes(item.type));
       }
       if (excludeTypes) {
-        items = items.filter(item => !excludeTypes.includes(item.type));
+        const exc = [...excludeTypes];
+        items = items.filter(item => !exc.includes(item.type));
       }
       if (excludeIds.length > 0) {
         items = items.filter(item => !excludeIds.includes(item.id));
@@ -197,17 +208,19 @@ export async function RelatedContent({
       }
       
       // Convert to RelatedContentItem format
-      const relatedItems = limited.map(item => {
-        const content = contentMap.get(`${item.type}:${item.id}`);
-        if (!content) return null;
-        return toRelatedContentItem({ ...content, score: item.score }, slugMap);
-      }).filter(Boolean);
+      const relatedItems = limited
+        .map((item) => {
+          const content = contentMap.get(`${item.type}:${item.id}`);
+          if (!content) return null;
+          return toRelatedContentItem({ ...content, score: item.score }, slugMap);
+        })
+        .filter((i): i is RelatedContentItem => i !== null);
       
       if (relatedItems.length > 0) {
         return (
           <RelatedContentSection
             title={sectionTitle}
-            items={relatedItems as RelatedContentItem[]}
+            items={relatedItems}
             className={className}
           />
         );
@@ -225,7 +238,11 @@ export async function RelatedContent({
       let items = cached.items;
       
       if (includeTypes || excludeTypes) {
-        items = filterByTypes(items, includeTypes, excludeTypes) as typeof items;
+        items = filterByTypes(
+          items,
+          includeTypes ? [...includeTypes] : undefined,
+          excludeTypes ? [...excludeTypes] : undefined,
+        );
       }
       
       // Apply limits
@@ -272,7 +289,11 @@ export async function RelatedContent({
     
     // Filter by include/exclude types
     if (includeTypes || excludeTypes) {
-      allContent = filterByTypes(allContent, includeTypes, excludeTypes);
+      allContent = filterByTypes(
+        allContent,
+        includeTypes ? [...includeTypes] : undefined,
+        excludeTypes ? [...excludeTypes] : undefined,
+      );
     }
     
     // Exclude the source item and any specified IDs
