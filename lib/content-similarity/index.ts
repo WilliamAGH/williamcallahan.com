@@ -1,15 +1,11 @@
 /**
  * Content Similarity Engine
- * 
+ *
  * Core module for calculating similarity scores between different content types
  * using tag matching, text similarity, domain matching, and recency factors.
  */
 
-import type {
-  NormalizedContent,
-  SimilarityWeights,
-  RelatedContentType,
-} from "@/types/related-content";
+import type { NormalizedContent, SimilarityWeights, RelatedContentType } from "@/types/related-content";
 import { calculateSemanticTagSimilarity } from "./tag-ontology";
 
 /**
@@ -26,10 +22,10 @@ export const SAME_TYPE_WEIGHTS: SimilarityWeights = {
  * Weights for comparing different content types (cross-content)
  */
 export const CROSS_TYPE_WEIGHTS: SimilarityWeights = {
-  tagMatch: 0.25,      // Reduced from 0.4
+  tagMatch: 0.25, // Reduced from 0.4
   textSimilarity: 0.45, // Increased from 0.3
-  domainMatch: 0.05,    // Reduced from 0.2 (rarely matches across types)
-  recency: 0.1,         // Same
+  domainMatch: 0.05, // Reduced from 0.2 (rarely matches across types)
+  recency: 0.1, // Same
   // Remaining 0.15 will be added as semantic bonus
 };
 
@@ -43,13 +39,13 @@ export const DEFAULT_WEIGHTS = SAME_TYPE_WEIGHTS;
  */
 function calculateTagSimilarity(tags1: string[], tags2: string[]): number {
   if (tags1.length === 0 || tags2.length === 0) return 0;
-  
-  const set1 = new Set(tags1.map(t => t.toLowerCase()));
-  const set2 = new Set(tags2.map(t => t.toLowerCase()));
-  
-  const intersection = new Set([...set1].filter(x => set2.has(x)));
+
+  const set1 = new Set(tags1.map((t) => t.toLowerCase()));
+  const set2 = new Set(tags2.map((t) => t.toLowerCase()));
+
+  const intersection = new Set([...set1].filter((x) => set2.has(x)));
   const union = new Set([...set1, ...set2]);
-  
+
   return union.size > 0 ? intersection.size / union.size : 0;
 }
 
@@ -59,7 +55,7 @@ function calculateTagSimilarity(tags1: string[], tags2: string[]): number {
  */
 function calculateTextSimilarity(text1: string, text2: string): number {
   if (!text1 || !text2) return 0;
-  
+
   // Normalize and tokenize
   const SHORT_TOKENS = new Set(["ai", "ml", "vr", "ar"]);
   const normalize = (text: string) =>
@@ -68,15 +64,15 @@ function calculateTextSimilarity(text1: string, text2: string): number {
       .replace(/[^\w\s]/g, " ")
       .split(/\s+/)
       .filter((token) => token.length > 2 || SHORT_TOKENS.has(token));
-  
+
   const tokens1 = new Set(normalize(text1));
   const tokens2 = new Set(normalize(text2));
-  
+
   if (tokens1.size === 0 || tokens2.size === 0) return 0;
-  
-  const intersection = new Set([...tokens1].filter(x => tokens2.has(x)));
+
+  const intersection = new Set([...tokens1].filter((x) => tokens2.has(x)));
   const smaller = Math.min(tokens1.size, tokens2.size);
-  
+
   // Use smaller set as denominator for better results with different text lengths
   return intersection.size / smaller;
 }
@@ -86,22 +82,22 @@ function calculateTextSimilarity(text1: string, text2: string): number {
  */
 function calculateDomainSimilarity(domain1?: string, domain2?: string): number {
   if (!domain1 || !domain2) return 0;
-  
+
   // Exact match
   if (domain1 === domain2) return 1;
-  
+
   // Subdomain match (e.g., blog.example.com and www.example.com)
   const extractMainDomain = (domain: string) => {
-    const parts = domain.split('.');
+    const parts = domain.split(".");
     if (parts.length >= 2) {
-      return parts.slice(-2).join('.');
+      return parts.slice(-2).join(".");
     }
     return domain;
   };
-  
+
   const main1 = extractMainDomain(domain1);
   const main2 = extractMainDomain(domain2);
-  
+
   return main1 === main2 ? 0.7 : 0;
 }
 
@@ -110,10 +106,10 @@ function calculateDomainSimilarity(domain1?: string, domain2?: string): number {
  */
 function calculateRecencyScore(date?: Date): number {
   if (!date) return 0.5; // Neutral score for undated content
-  
+
   const now = new Date();
   const ageInDays = (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
-  
+
   // Scoring curve: content from today = 1.0, older content gradually decreases
   if (ageInDays <= 0) return 1;
   if (ageInDays <= 7) return 0.95;
@@ -130,7 +126,7 @@ function calculateRecencyScore(date?: Date): number {
 export function calculateSimilarity(
   source: NormalizedContent,
   target: NormalizedContent,
-  weights?: SimilarityWeights
+  weights?: SimilarityWeights,
 ): { total: number; breakdown: Record<keyof SimilarityWeights, number> } {
   // Don't compare content to itself
   if (source.type === target.type && source.id === target.id) {
@@ -144,48 +140,43 @@ export function calculateSimilarity(
       },
     };
   }
-  
+
   // Determine if this is cross-content comparison
   const isCrossContent = source.type !== target.type;
-  
+
   // Use appropriate weights
   const activeWeights = weights || (isCrossContent ? CROSS_TYPE_WEIGHTS : SAME_TYPE_WEIGHTS);
-  
+
   // Calculate exact tag similarity
   const exactTagScore = calculateTagSimilarity(source.tags, target.tags);
-  
+
   // Calculate semantic tag similarity (only for cross-content)
-  const semanticTagScore = isCrossContent 
-    ? calculateSemanticTagSimilarity(source.tags, target.tags)
-    : 0;
-  
+  const semanticTagScore = isCrossContent ? calculateSemanticTagSimilarity(source.tags, target.tags) : 0;
+
   // Use the better of exact or semantic matching
   const tagScore = Math.max(exactTagScore, semanticTagScore);
-  
+
   // Calculate individual scores
   const scores = {
     tagMatch: tagScore,
-    textSimilarity: calculateTextSimilarity(
-      `${source.title} ${source.text}`,
-      `${target.title} ${target.text}`
-    ),
+    textSimilarity: calculateTextSimilarity(`${source.title} ${source.text}`, `${target.title} ${target.text}`),
     domainMatch: calculateDomainSimilarity(source.domain, target.domain),
     recency: calculateRecencyScore(target.date),
   };
-  
+
   // Calculate base weighted total
   let total = Object.entries(scores).reduce(
     (sum, [key, score]) => sum + score * activeWeights[key as keyof SimilarityWeights],
-    0
+    0,
   );
-  
+
   // Add semantic bonus for cross-content with good matches
   if (isCrossContent) {
     // Add 15% bonus if we have semantic tag matches
     if (semanticTagScore > 0.3) {
       total += 0.15 * semanticTagScore;
     }
-    
+
     // Add bonus for specific cross-content relationships
     if (
       (source.type === "blog" && target.type === "investment") ||
@@ -194,17 +185,17 @@ export function calculateSimilarity(
       // Check for venture/investment context
       const sourceText = `${source.title} ${source.text}`.toLowerCase();
       const targetText = `${target.title} ${target.text}`.toLowerCase();
-      
+
       const investmentTerms = ["invest", "venture", "startup", "funding", "portfolio"];
-      const hasInvestmentContext = investmentTerms.some(term => 
-        sourceText.includes(term) || targetText.includes(term)
+      const hasInvestmentContext = investmentTerms.some(
+        (term) => sourceText.includes(term) || targetText.includes(term),
       );
-      
+
       if (hasInvestmentContext) {
         total += 0.1;
       }
     }
-    
+
     if (
       (source.type === "bookmark" && target.type === "project") ||
       (source.type === "project" && target.type === "bookmark")
@@ -218,10 +209,10 @@ export function calculateSimilarity(
     // Same type comparison - apply small boost
     total *= 1.05;
   }
-  
+
   // Ensure total is between 0 and 1
   const normalizedTotal = Math.min(1, Math.max(0, total));
-  
+
   return {
     total: normalizedTotal,
     breakdown: scores,
@@ -235,12 +226,12 @@ export function findMostSimilar(
   source: NormalizedContent,
   candidates: NormalizedContent[],
   limit: number = 10,
-  weights?: Partial<SimilarityWeights>
+  weights?: Partial<SimilarityWeights>,
 ): Array<NormalizedContent & { score: number; breakdown: Record<keyof SimilarityWeights, number> }> {
   const finalWeights = { ...DEFAULT_WEIGHTS, ...weights };
   // Calculate similarity for all candidates
   const scored = candidates
-    .map(candidate => {
+    .map((candidate) => {
       const { total, breakdown } = calculateSimilarity(source, candidate, finalWeights);
       return {
         ...candidate,
@@ -248,10 +239,10 @@ export function findMostSimilar(
         breakdown,
       };
     })
-    .filter(item => item.score > 0) // Filter out zero scores
+    .filter((item) => item.score > 0) // Filter out zero scores
     .sort((a, b) => b.score - a.score) // Sort by score descending
     .slice(0, limit); // Limit results
-  
+
   return scored;
 }
 
@@ -259,10 +250,10 @@ export function findMostSimilar(
  * Group similar content by type
  */
 export function groupByType<T extends NormalizedContent & { score: number }>(
-  items: T[]
+  items: T[],
 ): Partial<Record<RelatedContentType, T[]>> {
   const grouped: Partial<Record<RelatedContentType, T[]>> = {};
-  
+
   for (const item of items) {
     const type = item.type;
     if (!grouped[type]) {
@@ -270,6 +261,6 @@ export function groupByType<T extends NormalizedContent & { score: number }>(
     }
     grouped[type].push(item);
   }
-  
+
   return grouped;
 }
