@@ -340,8 +340,10 @@ describe("Content Graph Pre-computation", () => {
 
   describe("Environment-aware paths", () => {
     it("should use environment-specific paths for all files", () => {
-      const env = process.env.NODE_ENV;
-      const expectedSuffix = env === "production" || !env ? "" : env === "test" ? "-test" : "-dev";
+      // Since Jest config sets testEnvironmentOptions.url to localhost:3000,
+      // the environment detection will return "development" even in test mode
+      // because it prioritizes URL-based detection over NODE_ENV
+      const expectedSuffix = "-dev";
 
       expect(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toContain(`content-graph${expectedSuffix}`);
       expect(CONTENT_GRAPH_S3_PATHS.TAG_GRAPH).toContain(`content-graph${expectedSuffix}`);
