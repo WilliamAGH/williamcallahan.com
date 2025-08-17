@@ -9,7 +9,7 @@
  */
 
 import { getEnvironment, getEnvironmentSuffix } from "@/lib/config/environment";
-import { BOOKMARKS_S3_PATHS, CONTENT_GRAPH_S3_PATHS, SEARCH_S3_PATHS } from "@/lib/constants";
+import { BOOKMARKS_S3_PATHS, SEARCH_S3_PATHS } from "@/lib/constants";
 
 console.log("=== Environment Validation ===\n");
 
