@@ -54,3 +54,6 @@ tsconfig.tsbuildinfo
 .jrdev/
 !.jrdev/.gitkeep
 .aider*
+
+# S3 reset audits directory
+.s3-reset-audits/
