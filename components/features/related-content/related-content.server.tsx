@@ -11,6 +11,7 @@ import { ServerCacheInstance } from "@/lib/server-cache";
 import { RelatedContentSection } from "./related-content-section";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { getBulkBookmarkSlugs } from "@/lib/bookmarks/slug-helpers";
+import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 import type {
@@ -44,7 +45,26 @@ function toRelatedContentItem(
     case "bookmark": {
       const bookmark = content.source as UnifiedBookmark;
       // Use pre-computed slug from mapping
-      const slug = slugMap?.get(bookmark.id) || content.id;
+      let slug = slugMap?.get(bookmark.id);
+      
+      // If no slug in mapping, generate one (this should be rare)
+      if (!slug) {
+        console.warn(`[RelatedContent] No slug found for bookmark ${bookmark.id}, generating fallback`);
+        // Generate a fallback slug based on the URL
+        // This ensures we get a proper slug format, not a raw ID
+        if (bookmark.url) {
+          slug = generateUniqueSlug(
+            bookmark.url,
+            [], // Empty array since we're just generating a single slug
+            bookmark.id
+          );
+        } else {
+          // Last resort: use the ID (this should never happen with valid bookmarks)
+          console.error(`[RelatedContent] Bookmark ${bookmark.id} has no URL, using ID as fallback`);
+          slug = bookmark.id;
+        }
+      }
+      
       const url = `/bookmarks/${slug}`;
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,

@@ -22,7 +22,7 @@ import type { Project } from "@/types/project";
 import { getAllMDXPostsForSearch } from "@/lib/blog/mdx";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { prepareDocumentsForIndexing } from "@/lib/utils/search-helpers";
-import { generateUniqueSlug } from "@/lib/utils/domain-utils";
+import { loadSlugMapping, generateSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import type { UnifiedBookmark } from "@/types/bookmark";
 
 /**
@@ -225,23 +225,37 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
     },
   });
 
+  // Load the centralized slug mapping to ensure consistency
+  let slugMapping = await loadSlugMapping();
+  
+  // If no mapping exists, generate it (this should rarely happen in production)
+  if (!slugMapping) {
+    console.warn("[Search Index Builder] No slug mapping found, generating new mapping");
+    slugMapping = generateSlugMapping(bookmarks);
+  }
+
   // Transform bookmarks for indexing
-  const bookmarksForIndex = bookmarks.map((b) => ({
-    id: b.id,
-    title: b.title || b.url,
-    description: b.description || "",
-    tags: Array.isArray(b.tags)
-      ? b.tags.map((t) => (typeof t === "string" ? t : (t as { name?: string })?.name || "")).join(" ")
-      : "",
-    url: b.url,
-    author: b.content?.author || "",
-    publisher: b.content?.publisher || "",
-    slug: generateUniqueSlug(
-      b.url || "",
-      bookmarks.filter((bm): bm is UnifiedBookmark & { id: string; url: string } => Boolean(bm.id) && Boolean(bm.url)),
-      b.id || "",
-    ),
-  }));
+  const bookmarksForIndex = bookmarks.map((b) => {
+    // Use the centralized slug mapping for consistency
+    const slug = getSlugForBookmark(slugMapping, b.id);
+    
+    if (!slug) {
+      console.error(`[Search Index Builder] No slug found for bookmark ${b.id}`);
+    }
+    
+    return {
+      id: b.id,
+      title: b.title || b.url,
+      description: b.description || "",
+      tags: Array.isArray(b.tags)
+        ? b.tags.map((t) => (typeof t === "string" ? t : (t as { name?: string })?.name || "")).join(" ")
+        : "",
+      url: b.url,
+      author: b.content?.author || "",
+      publisher: b.content?.publisher || "",
+      slug: slug || b.id, // Fallback to ID if slug is missing (should not happen)
+    };
+  });
 
   index.addAll(bookmarksForIndex);
 
