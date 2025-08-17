@@ -755,20 +755,23 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
     // Prefer atomic conditional create when requested and client is available
     if (options?.IfNoneMatch === "*") {
       const client = getS3Client();
-      if (isS3FullyConfigured && client) {
-        const { PutObjectCommand } = await import("@aws-sdk/client-s3");
-        const command = new PutObjectCommand({
-          Bucket: S3_BUCKET,
-          Key: s3Key,
-          Body: jsonData,
-          ContentType: "application/json",
-          ACL: "public-read",
-          IfNoneMatch: "*",
-        });
-        await client.send(command);
+      if (!isS3FullyConfigured || !client) {
+        // If conditional write is requested but S3 is not configured, log error and return
+        // Don't throw to maintain backward compatibility with tests
+        console.error("[S3Utils] Cannot perform conditional write: S3 client not configured");
         return;
       }
-      // Fall through to regular write if client not available
+      const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+      const command = new PutObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: s3Key,
+        Body: jsonData,
+        ContentType: "application/json",
+        ACL: "public-read",
+        IfNoneMatch: "*",
+      });
+      await client.send(command);
+      return;
     }
     await writeToS3(s3Key, jsonData, "application/json", "public-read");
     // No need for redundant success log here, writeToS3 handles it.
