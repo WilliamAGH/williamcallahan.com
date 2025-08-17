@@ -115,15 +115,21 @@ export function getS3Client(): S3Client | null {
       retryMode: "adaptive" as const,
     };
     s3ClientInstance = endpoint ? new S3Client({ ...baseConfig, endpoint }) : new S3Client(baseConfig);
+    console.log(
+      `[S3Utils] S3 client initialized: ` +
+        `bucket=${bucket}, ` +
+        `endpoint=${endpoint || "SDK default"}, ` +
+        `region=${region}`
+    );
     if (isDebug)
       debug(`[S3Utils] S3-compatible client initialized (${endpoint ? "custom endpoint" : "sdk default endpoint"}).`);
-  } else if (isDebug) {
-    debug(
-      `[S3Utils] S3 client not initialized - missing envs: ` +
-        `S3_BUCKET=${bucket ? "set" : "missing"}, ` +
-        `S3_SERVER_URL=${endpoint ? "set" : "missing"}, ` +
-        `S3_ACCESS_KEY_ID=${accessKeyId ? "set" : "missing"}, ` +
-        `S3_SECRET_ACCESS_KEY=${secretAccessKey ? "set" : "missing"}`,
+  } else {
+    console.error(
+      `[S3Utils] CRITICAL: S3 client not initialized - missing envs: ` +
+        `S3_BUCKET=${bucket ? "set" : "MISSING"}, ` +
+        `S3_SERVER_URL=${endpoint ? "set" : "not required"}, ` +
+        `S3_ACCESS_KEY_ID=${accessKeyId ? "set" : "MISSING"}, ` +
+        `S3_SECRET_ACCESS_KEY=${secretAccessKey ? "set" : "MISSING"}`,
     );
   }
 
@@ -238,6 +244,8 @@ export async function readFromS3(
 }
 
 async function performS3Read(key: string, options?: { range?: string }): Promise<Buffer | string | null> {
+  console.log(`[S3Utils] performS3Read called for key: ${key}`);
+  
   if (isUnderMemoryPressure() && isBinaryKey(key)) {
     // Allow small binaries (e.g., logos) under pressure, but block anything exceeding MAX_S3_READ_SIZE.
     const canProceed = await validateContentSize(key);
@@ -688,28 +696,52 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
  * @returns Parsed JSON data or null if an error occurs
  */
 export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
+  console.log(`[S3Utils] readJsonS3 called for key: ${s3Key}`);
+  
   if (DRY_RUN) {
-    if (isDebug) debug(`[S3Utils][DRY RUN] Would read JSON from S3 key ${s3Key}`);
+    console.log(`[S3Utils][DRY RUN] Would read JSON from S3 key ${s3Key}`);
     return null;
   }
+  
   try {
+    console.log(`[S3Utils] Attempting to read from S3: ${s3Key}`);
     const content = await readFromS3(s3Key); // readFromS3 already has debug logging
+    
+    if (content === null) {
+      console.warn(`[S3Utils] readFromS3 returned null for key: ${s3Key}`);
+      return null;
+    }
+    
     if (typeof content === "string") {
+      console.log(`[S3Utils] Content is string, length: ${content.length}`);
       const parsed = safeJsonParse<T>(content);
-      if (parsed !== null && isDebug) debug(`[S3Utils] Successfully read and parsed JSON from S3 key ${s3Key}.`);
+      if (parsed !== null) {
+        console.log(`[S3Utils] Successfully parsed JSON from S3 key ${s3Key}`);
+        if (isDebug) debug(`[S3Utils] Successfully read and parsed JSON from S3 key ${s3Key}.`);
+      } else {
+        console.error(`[S3Utils] Failed to parse JSON content from ${s3Key}`);
+      }
       return parsed;
     }
+    
     if (Buffer.isBuffer(content)) {
+      console.log(`[S3Utils] Content is buffer, size: ${content.length} bytes`);
       const parsed = parseJsonFromBuffer<T>(content, "utf-8");
-      if (parsed !== null && isDebug)
-        debug(`[S3Utils] Successfully read and parsed JSON (from buffer) from S3 key ${s3Key}.`);
+      if (parsed !== null) {
+        console.log(`[S3Utils] Successfully parsed JSON from buffer for S3 key ${s3Key}`);
+        if (isDebug)
+          debug(`[S3Utils] Successfully read and parsed JSON (from buffer) from S3 key ${s3Key}.`);
+      } else {
+        console.error(`[S3Utils] Failed to parse JSON from buffer for ${s3Key}`);
+      }
       return parsed;
     }
-    if (isDebug) debug(`[S3Utils] readJsonS3: Key ${s3Key} not found or content was not string/buffer.`);
+    
+    console.error(`[S3Utils] Unexpected content type for ${s3Key}: ${typeof content}`);
     return null;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : safeJsonStringify(error) || "Unknown error";
-    console.warn(`[S3Utils] Error reading/parsing JSON from S3 key ${s3Key}:`, message);
+    console.error(`[S3Utils] CRITICAL ERROR reading/parsing JSON from S3 key ${s3Key}:`, message);
     return null;
   }
 }
@@ -725,6 +757,24 @@ export async function readJsonS3<T>(s3Key: string): Promise<T | null> {
  * @param options Optional parameters including IfNoneMatch for conditional writes
  */
 export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneMatch?: string }): Promise<void> {
+  // CRITICAL: Validate environment path before any S3 write
+  if (s3Key.includes("/bookmarks/") && s3Key.endsWith(".json")) {
+    const { validateEnvironmentPath, getEnvironment } = await import("@/lib/config/environment");
+    if (!validateEnvironmentPath(s3Key)) {
+      const env = getEnvironment();
+      console.error(`[S3Utils] ❌ ENVIRONMENT PATH MISMATCH PREVENTED`);
+      console.error(`[S3Utils]    Current environment: ${env}`);
+      console.error(`[S3Utils]    Attempted write to: ${s3Key}`);
+      console.error(`[S3Utils]    This path doesn't match the expected environment suffix`);
+      
+      // In non-production, throw error to catch issues early
+      if (env !== "production") {
+        throw new Error(`Environment path validation failed: ${s3Key} doesn't match ${env} environment`);
+      }
+      return;
+    }
+  }
+  
   if (DRY_RUN) {
     if (isDebug) debug(`[S3Utils][DRY RUN] Would write JSON to S3 key: ${s3Key}`);
     return;

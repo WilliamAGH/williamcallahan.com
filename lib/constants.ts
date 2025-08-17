@@ -17,8 +17,15 @@
  */
 import type { BookmarksS3Paths, RateLimiterConfig } from "@/types/lib";
 import { getStaticImageUrl } from "@/lib/data-access/static-images";
-const env = process.env.NODE_ENV;
-const envSuffix = env === "production" || !env ? "" : env === "test" ? "-test" : "-dev";
+import { ENVIRONMENT_SUFFIX } from "@/lib/config/environment";
+
+// Use validated environment suffix from centralized config
+const envSuffix = ENVIRONMENT_SUFFIX;
+
+// Warn if environment is not properly configured
+if (typeof process !== "undefined" && !process.env.NODE_ENV && process.env.NODE_ENV !== "production") {
+  console.warn("[Constants] NODE_ENV not set - using environment suffix:", envSuffix);
+}
 
 /** Client-side cache duration: 30 days (milliseconds) */
 export const CACHE_DURATION = 30 * 24 * 60 * 60 * 1000;
