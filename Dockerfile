@@ -19,6 +19,11 @@ COPY package.json ./
 COPY bun.lockb* ./
 COPY .husky ./.husky
 
+# Copy the init-csp-hashes script and config directory needed by postinstall
+# This is required because postinstall runs during bun install
+COPY scripts/init-csp-hashes.ts ./scripts/init-csp-hashes.ts
+COPY config ./config
+
 # Install dependencies with Bun, allowing necessary lifecycle scripts
 RUN --mount=type=cache,target=/root/.bun/install bun install --frozen-lockfile
 
