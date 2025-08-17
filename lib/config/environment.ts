@@ -9,19 +9,42 @@ import logger from "@/lib/utils/logger";
 import type { Environment } from "@/types/config";
 
 /**
- * Get the current environment with validation and defaults
+ * Get the current environment based on URL configuration
+ * Uses API_BASE_URL or NEXT_PUBLIC_SITE_URL to determine environment
  */
 export function getEnvironment(): Environment {
+  // First try to infer from URLs (most reliable)
+  const apiUrl = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  
+  if (apiUrl) {
+    // Check if it's localhost (local development)
+    if (apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1')) {
+      logger.info("[Environment] Detected localhost - using development");
+      return "development";
+    }
+    
+    // Check if it's dev.williamcallahan.com
+    if (apiUrl.includes('dev.williamcallahan.com')) {
+      logger.info("[Environment] Detected dev.williamcallahan.com - using development");
+      return "development";
+    }
+    
+    // Check if it's production williamcallahan.com
+    if (apiUrl.includes('williamcallahan.com') && !apiUrl.includes('dev.')) {
+      logger.info("[Environment] Detected williamcallahan.com - using production");
+      return "production";
+    }
+  }
+  
+  // Fallback to NODE_ENV if URLs aren't set
   const env = process.env.NODE_ENV;
   
-  // Validate and normalize environment
   if (!env) {
-    // Default to development if not set
-    logger.warn("[Environment] NODE_ENV not set, defaulting to 'development'");
+    logger.warn("[Environment] No URL or NODE_ENV set, defaulting to 'development'");
     return "development";
   }
   
-  // Normalize common variations
+  // Normalize NODE_ENV variations
   const normalized = env.toLowerCase().trim();
   
   switch (normalized) {
