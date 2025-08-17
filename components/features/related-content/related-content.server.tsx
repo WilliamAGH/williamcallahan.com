@@ -11,9 +11,12 @@ import { ServerCacheInstance } from "@/lib/server-cache";
 import { RelatedContentSection } from "./related-content-section";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { getBulkBookmarkSlugs } from "@/lib/bookmarks/slug-helpers";
+import { readJsonS3 } from "@/lib/s3-utils";
+import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 import type {
   RelatedContentProps,
   RelatedContentItem,
+  RelatedContentType,
   NormalizedContent,
   RelatedContentCacheData,
 } from "@/types/related-content";
@@ -144,6 +147,72 @@ export async function RelatedContent({
       weights = DEFAULT_WEIGHTS,
       debug = false,
     } = options;
+    
+    // Try to load pre-computed related content first
+    const contentKey = `${sourceType}:${sourceId}`;
+    const precomputed = await readJsonS3<Record<string, {
+      type: RelatedContentType;
+      id: string;
+      score: number;
+      title: string;
+    }[]>>(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
+    
+    if (precomputed && precomputed[contentKey]) {
+      // Use pre-computed scores
+      let items = precomputed[contentKey];
+      
+      // Apply filters
+      if (includeTypes) {
+        items = items.filter(item => includeTypes.includes(item.type));
+      }
+      if (excludeTypes) {
+        items = items.filter(item => !excludeTypes.includes(item.type));
+      }
+      if (excludeIds.length > 0) {
+        items = items.filter(item => !excludeIds.includes(item.id));
+      }
+      
+      // Apply limits
+      const grouped = items.reduce((acc, item) => {
+        if (!acc[item.type]) acc[item.type] = [];
+        const typeItems = acc[item.type];
+        if (typeItems && typeItems.length < maxPerType) {
+          typeItems.push(item);
+        }
+        return acc;
+      }, {} as Record<string, typeof items>);
+      
+      const limited = Object.values(grouped).flat().slice(0, maxTotal);
+      
+      // Get all content for mapping
+      const allContent = await aggregateAllContent();
+      const contentMap = new Map(allContent.map(c => [`${c.type}:${c.id}`, c]));
+      
+      // Get slug mappings for bookmarks
+      let slugMap: Map<string, string> | undefined;
+      if (limited.some(item => item.type === "bookmark")) {
+        const { getBookmarks } = await import("@/lib/bookmarks/service.server");
+        const allBookmarks = await getBookmarks({ includeImageData: false }) as UnifiedBookmark[];
+        slugMap = await getBulkBookmarkSlugs(allBookmarks);
+      }
+      
+      // Convert to RelatedContentItem format
+      const relatedItems = limited.map(item => {
+        const content = contentMap.get(`${item.type}:${item.id}`);
+        if (!content) return null;
+        return toRelatedContentItem({ ...content, score: item.score }, slugMap);
+      }).filter(Boolean);
+      
+      if (relatedItems.length > 0) {
+        return (
+          <RelatedContentSection
+            title={sectionTitle}
+            items={relatedItems as RelatedContentItem[]}
+            className={className}
+          />
+        );
+      }
+    }
     
     // Check cache first
     const getRelatedContent = ServerCacheInstance.getRelatedContent;

@@ -601,6 +601,8 @@ export interface BookmarksS3Paths {
   TAG_INDEX_PREFIX: string;
   /** Heartbeat file for operational checks */
   HEARTBEAT: string;
+  /** S3 path to bookmark slug mapping */
+  SLUG_MAPPING: string;
 }
 
 /** URL validation result */

@@ -8,9 +8,8 @@
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
 import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import logger from "@/lib/utils/logger";
-
-const SLUG_MAPPING_KEY = "bookmark-slugs.json";
 
 /**
  * Generate slug mapping for all bookmarks
@@ -58,7 +57,7 @@ export async function saveSlugMapping(
     const mapping = generateSlugMapping(bookmarks);
     
     // Save to S3 with the standard utilities
-    await writeJsonS3(`bookmarks/${SLUG_MAPPING_KEY}`, mapping);
+    await writeJsonS3(BOOKMARKS_S3_PATHS.SLUG_MAPPING, mapping);
     logger.info(`Saved bookmark slug mapping with ${mapping.count} entries to S3`);
   } catch (error) {
     logger.error("Failed to save slug mapping:", error);
@@ -71,7 +70,7 @@ export async function saveSlugMapping(
  */
 export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
   try {
-    const data = await readJsonS3<BookmarkSlugMapping>(`bookmarks/${SLUG_MAPPING_KEY}`);
+    const data = await readJsonS3<BookmarkSlugMapping>(BOOKMARKS_S3_PATHS.SLUG_MAPPING);
     return data;
   } catch (error) {
     logger.error("Failed to load slug mapping:", error);
