@@ -26,55 +26,87 @@ import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 import { RelatedContent } from "@/components/features/related-content";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { loadSlugMapping, generateSlugMapping, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
+import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 
 // Generate static params for all bookmarks at build time
+// This is optional - if it fails, pages will be generated dynamically
 export async function generateStaticParams() {
+  // Skip static generation in development
+  if (process.env.NODE_ENV === "development") {
+    return [];
+  }
+  
   try {
-    // First try to load existing slug mapping
-    let mapping = await loadSlugMapping();
+    // Try to load existing slug mapping from S3
+    // This might fail during build if S3 isn't accessible
+    const mapping = await loadSlugMapping();
     
-    // If no mapping exists, generate it from bookmarks
+    // If no mapping exists, skip static generation
+    // Pages will be generated dynamically at runtime
     if (!mapping) {
-      const allBookmarks = await getBookmarks({ includeImageData: false });
-      if (!allBookmarks || allBookmarks.length === 0) {
-        return [];
-      }
-      mapping = generateSlugMapping(allBookmarks as import("@/types").UnifiedBookmark[]);
+      console.log("Slug mapping not available during build - using dynamic generation");
+      return [];
     }
     
     // Return all slug params for static generation
-    return Object.values(mapping.slugs).map(entry => ({
+    const params = Object.values(mapping.slugs).map(entry => ({
       slug: entry.slug,
     }));
+    
+    console.log(`Generating static params for ${params.length} bookmark pages`);
+    return params;
   } catch (error) {
-    console.error("Failed to generate static params for bookmarks:", error);
+    // Don't fail the build if static generation fails
+    // Pages will be generated dynamically at runtime
+    console.log("Static generation skipped for bookmarks - using dynamic generation:", error instanceof Error ? error.message : "Unknown error");
     return [];
   }
 }
 
 // Helper function to find bookmark by slug using pre-computed mappings
 async function findBookmarkBySlug(slug: string) {
-  // Load the pre-computed slug mapping
-  let mapping = await loadSlugMapping();
-  
-  // If no mapping exists, generate it (this should only happen during build)
-  if (!mapping) {
-    const allBookmarks = (await getBookmarks({ includeImageData: false })) as import("@/types").UnifiedBookmark[];
-    if (!allBookmarks || allBookmarks.length === 0) {
+  try {
+    // Try to load the pre-computed slug mapping
+    let mapping = await loadSlugMapping();
+    
+    // If no mapping exists, generate it dynamically
+    // This happens when S3 isn't accessible or mapping doesn't exist
+    if (!mapping) {
+      const allBookmarks = (await getBookmarks({ includeImageData: false })) as import("@/types").UnifiedBookmark[];
+      if (!allBookmarks || allBookmarks.length === 0) {
+        return null;
+      }
+      mapping = generateSlugMapping(allBookmarks);
+    }
+    
+    // Look up the bookmark ID from the slug
+    const bookmarkId = getBookmarkIdFromSlug(mapping, slug);
+    if (!bookmarkId) {
+      // If slug not found in mapping, try direct search as fallback
+      const allBookmarks = (await getBookmarks({ includeImageData: true })) as import("@/types").UnifiedBookmark[];
+      
+      // Generate slugs dynamically and find matching bookmark
+      for (const bookmark of allBookmarks) {
+        const generatedSlug = generateUniqueSlug(
+          bookmark.url,
+          allBookmarks.map(b => ({ id: b.id, url: b.url })),
+          bookmark.id
+        );
+        if (generatedSlug === slug) {
+          return bookmark;
+        }
+      }
+      
       return null;
     }
-    mapping = generateSlugMapping(allBookmarks);
-  }
-  
-  // Look up the bookmark ID from the slug
-  const bookmarkId = getBookmarkIdFromSlug(mapping, slug);
-  if (!bookmarkId) {
+    
+    // Load all bookmarks and find the one with matching ID
+    const allBookmarks = (await getBookmarks({ includeImageData: true })) as import("@/types").UnifiedBookmark[];
+    return allBookmarks.find(b => b.id === bookmarkId) || null;
+  } catch (error) {
+    console.error("Error finding bookmark by slug:", error);
     return null;
   }
-  
-  // Load all bookmarks and find the one with matching ID
-  const allBookmarks = (await getBookmarks({ includeImageData: true })) as import("@/types").UnifiedBookmark[];
-  return allBookmarks.find(b => b.id === bookmarkId) || null;
 }
 
 /**
