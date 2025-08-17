@@ -37,6 +37,7 @@ import type * as aggregatedContentHelpers from "@/lib/server-cache/aggregated-co
  */
 type FunctionKeys<T> = {
   // biome-ignore lint/suspicious/noExplicitAny: Conditional type requires 'any' for universal function matching in utility types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [K in keyof T]-?: T[K] extends (...args: any[]) => any ? K : never;
 }[keyof T];
 
