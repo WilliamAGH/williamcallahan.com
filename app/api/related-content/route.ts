@@ -1,6 +1,6 @@
 /**
  * Related Content API Endpoint
- * 
+ *
  * Returns related/suggested content for a given source content item
  * using similarity scoring across bookmarks, blog posts, investments, and projects.
  */
@@ -12,12 +12,10 @@ import { ServerCacheInstance } from "@/lib/server-cache";
 import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { requestLock } from "@/lib/server/request-lock";
 import type {
-  RelatedContentResponse,
   RelatedContentItem,
   RelatedContentType,
   SimilarityWeights,
   NormalizedContent,
-  RelatedContentCacheData,
 } from "@/types/related-content";
 import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types/bookmark";
 
@@ -31,14 +29,14 @@ const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
  */
 function toRelatedContentItem(
   content: NormalizedContent & { score: number },
-  slugMapping: BookmarkSlugMapping | null
+  slugMapping: BookmarkSlugMapping | null,
 ): RelatedContentItem {
   const baseMetadata: RelatedContentItem["metadata"] = {
     tags: content.tags,
     domain: content.domain,
     date: content.date?.toISOString(),
   };
-  
+
   // Add type-specific metadata
   switch (content.type) {
     case "bookmark": {
@@ -65,7 +63,7 @@ function toRelatedContentItem(
         metadata,
       };
     }
-    
+
     case "blog": {
       const blog = content.source as import("@/types/blog").BlogPost;
       const metadata: RelatedContentItem["metadata"] = {
@@ -74,7 +72,7 @@ function toRelatedContentItem(
         imageUrl: blog.coverImage,
         author: blog.author ? { name: blog.author.name, avatar: blog.author.avatar } : undefined,
       };
-      
+
       return {
         type: content.type,
         id: content.id,
@@ -85,7 +83,7 @@ function toRelatedContentItem(
         metadata,
       };
     }
-    
+
     case "investment": {
       const investment = content.source as import("@/types/investment").Investment;
       const metadata: RelatedContentItem["metadata"] = {
@@ -94,7 +92,7 @@ function toRelatedContentItem(
         category: investment.category,
         imageUrl: investment.logo || undefined,
       };
-      
+
       return {
         type: content.type,
         id: content.id,
@@ -105,14 +103,14 @@ function toRelatedContentItem(
         metadata,
       };
     }
-    
+
     case "project": {
       const project = content.source as import("@/types/project").Project;
       // Use S3 image key to construct URL
       const metadata: RelatedContentItem["metadata"] = project.imageKey
         ? { ...baseMetadata, imageUrl: `/api/s3/${project.imageKey}` }
         : baseMetadata;
-      
+
       return {
         type: content.type,
         id: content.id,
@@ -123,7 +121,7 @@ function toRelatedContentItem(
         metadata,
       };
     }
-    
+
     default:
       return {
         type: content.type,
@@ -139,29 +137,27 @@ function toRelatedContentItem(
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
-  
+
   try {
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams;
     const sourceTypeRaw = searchParams.get("type");
     const allowedTypes = new Set<RelatedContentType>(["bookmark", "blog", "investment", "project"]);
-    const sourceType = (allowedTypes.has(sourceTypeRaw as RelatedContentType)
+    const sourceType = allowedTypes.has(sourceTypeRaw as RelatedContentType)
       ? (sourceTypeRaw as RelatedContentType)
-      : null);
+      : null;
     const sourceId = searchParams.get("id");
-    
+
     if (!sourceType || !sourceId) {
-      return NextResponse.json(
-        { error: "Missing required parameters: type and id" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required parameters: type and id" }, { status: 400 });
     }
 
     const lockKey = `related-content:${sourceType}:${sourceId}`;
-    
+
     // Parse optional parameters
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "10", 10);
     const maxPerType = parseInt(searchParams.get("maxPerType") || String(DEFAULT_MAX_PER_TYPE), 10);
-    const maxTotal = parseInt(searchParams.get("maxTotal") || String(DEFAULT_MAX_TOTAL), 10);
     const parseTypesParam = (value: string | null): RelatedContentType[] | undefined => {
       if (!value) return undefined;
       const allowed: RelatedContentType[] = ["bookmark", "blog", "investment", "project"];
@@ -176,7 +172,7 @@ export async function GET(request: NextRequest) {
     const includeTypes = parseTypesParam(searchParams.get("includeTypes"));
     const excludeTypes = parseTypesParam(searchParams.get("excludeTypes"));
     const debug = searchParams.get("debug") === "true";
-    
+
     // Parse custom weights if provided
     let weights = DEFAULT_WEIGHTS;
     const customWeights = searchParams.get("weights");
@@ -188,7 +184,7 @@ export async function GET(request: NextRequest) {
         // Use default weights if parsing fails
       }
     }
-    
+
     // Check cache first
     let cached = ServerCacheInstance.getRelatedContent(sourceType, sourceId);
 
@@ -201,22 +197,21 @@ export async function GET(request: NextRequest) {
           if (!source) {
             return;
           }
-          
+
           let allContent = await aggregateAllContent();
-          
+
           if (includeTypes || excludeTypes) {
             allContent = filterByTypes(allContent, includeTypes, excludeTypes);
           }
-          
+
           const excludeIds = searchParams.get("excludeIds")?.split(",") || [];
           excludeIds.push(sourceId);
-          
-          const candidates = allContent.filter(
-            item => !(item.type === sourceType && excludeIds.includes(item.id))
-          );
-          
-          const similar = findMostSimilar(source, candidates, maxTotal * 2, weights);
-          
+
+          const candidates = allContent.filter((item) => !(item.type === sourceType && excludeIds.includes(item.id)));
+
+          // Get a large number of similar items to allow for pagination
+          const similar = findMostSimilar(source, candidates, 100, weights);
+
           ServerCacheInstance.setRelatedContent(sourceType, sourceId, {
             items: similar,
             timestamp: Date.now(),
@@ -230,73 +225,61 @@ export async function GET(request: NextRequest) {
     if (!cached) {
       return NextResponse.json(
         { error: `Content not found or failed to compute: ${sourceType}/${sourceId}` },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Apply filtering to cached results
     let items = cached.items;
-    
+
     if (includeTypes || excludeTypes) {
       items = filterByTypes(items, includeTypes, excludeTypes) as typeof items;
     }
-    
-    // Apply limits
+
+    // Apply per-type limits
     const grouped = groupByType(items);
     const limited: typeof items = [];
-    
+
     for (const [, typeItems] of Object.entries(grouped)) {
       if (typeItems) {
         const limitedTypeItems = typeItems.slice(0, maxPerType);
         limited.push(...limitedTypeItems);
       }
     }
-    
-    const finalItems = limited
-      .sort((a, b) => b.score - a.score)
-      .slice(0, maxTotal);
-    
+
+    const sortedItems = limited.sort((a, b) => b.score - a.score);
+
+    // Apply pagination
+    const totalItems = sortedItems.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    const paginatedItems = sortedItems.slice((page - 1) * limit, page * limit);
+
     // Get slug mapping if needed for bookmark URLs
     let slugMapping: BookmarkSlugMapping | null = null;
-    if (finalItems.some(item => item.type === "bookmark")) {
+    if (paginatedItems.some((item) => item.type === "bookmark")) {
       slugMapping = await loadSlugMapping();
     }
-    
-    const response: RelatedContentResponse = {
-      items: finalItems.map(item => toRelatedContentItem(item, slugMapping)),
-      totalFound: cached.items.length,
+
+    const responseData = paginatedItems.map((item) => toRelatedContentItem(item, slugMapping));
+
+    const response = {
+      data: responseData,
       meta: {
+        pagination: {
+          total: totalItems,
+          totalPages,
+          page,
+          limit,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
         computeTime: Date.now() - startTime,
-        cached: false,
-        cacheTTL: Math.floor((cached.timestamp + CACHE_TTL - Date.now()) / 1000),
       },
     };
 
-    // Add debug information if requested
-    if (debug) {
-      const source = await getContentById(sourceType, sourceId);
-      if (source) {
-        response.debug = {
-          scores: finalItems.reduce((acc, item) => {
-            acc[`${item.type}:${item.id}`] = item.breakdown;
-            return acc;
-          }, {} as Record<string, Record<keyof SimilarityWeights, number>>),
-          sourceContent: {
-            type: source.type,
-            id: source.id,
-            tags: source.tags,
-            text: source.text.slice(0, 200) + "...",
-          },
-        };
-      }
-    }
-    
     return NextResponse.json(response);
   } catch (error) {
     console.error("Error in related content API:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
