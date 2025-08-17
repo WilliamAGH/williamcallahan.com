@@ -36,7 +36,7 @@ import type * as aggregatedContentHelpers from "@/lib/server-cache/aggregated-co
  * - TypeScript's own lib.d.ts uses this pattern in built-in utility types
  */
 type FunctionKeys<T> = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- See @justification: Conditional type requires 'any' for universal function matching
+  // @justification: Conditional type requires 'any' for universal function matching
   [K in keyof T]-?: T[K] extends (...args: any[]) => any ? K : never;
 }[keyof T];
 
