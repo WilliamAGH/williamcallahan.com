@@ -4,6 +4,7 @@
  * Displays a section of related content items organized by type
  */
 
+import React from "react";
 import { RelatedContentCard } from "./related-content-card";
 import type { RelatedContentItem, RelatedContentType, RelatedContentSectionProps } from "@/types/related-content";
 
@@ -47,12 +48,12 @@ export function RelatedContentSection({
   className = "",
   showScores = false,
 }: RelatedContentSectionProps) {
+  const grouped = React.useMemo(() => groupItemsByType(items), [items]);
+  const hasMultipleTypes = React.useMemo(() => Object.keys(grouped).length > 1, [grouped]);
+
   if (items.length === 0) {
     return null;
   }
-  
-  const grouped = groupItemsByType(items);
-  const hasMultipleTypes = Object.keys(grouped).length > 1;
   
   return (
     <section className={`related-content-section ${className}`}>
