@@ -89,7 +89,7 @@ export type BookmarksPaginatedClientProps = BaseBookmarkListProps &
     baseUrl?: string;
     initialTag?: string;
     tag?: string;
-    internalHrefs?: Record<string, string>;
+    readonly internalHrefs?: Readonly<Record<string, string>>;
   };
 
 /**
@@ -107,7 +107,7 @@ export type BookmarksWithOptionsClientProps = BaseBookmarkListProps &
   BaseFilterableProps & {
     filterOptions?: FilterOptions;
     className?: string;
-    internalHrefs?: Record<string, string>;
+    readonly internalHrefs?: Readonly<Record<string, string>>;
   };
 
 /**
@@ -122,7 +122,7 @@ export type BookmarksWithPaginationClientProps = BaseBookmarkListProps &
     initialTag?: string;
     tag?: string;
     className?: string;
-    internalHrefs?: Record<string, string>;
+    readonly internalHrefs?: Readonly<Record<string, string>>;
   };
 
 /**
@@ -159,7 +159,7 @@ export interface BookmarksClientWithWindowProps {
   itemsPerPage?: number;
   enableInfiniteScroll?: boolean;
   searchAllBookmarks?: boolean;
-  internalHrefs?: Record<string, string>;
+  readonly internalHrefs?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -198,7 +198,7 @@ export interface BookmarksServerExtendedProps {
   initialTag?: string;
   tag?: string;
   includeImageData?: boolean;
-  internalHrefs?: Record<string, string>;
+  readonly internalHrefs?: Readonly<Record<string, string>>;
 }
 
 // =============================================================================
@@ -241,42 +241,12 @@ export interface SerializableBookmark {
 // =============================================================================
 
 /**
- * Pagination hook options - USED in use-bookmarks-pagination.ts
- */
-export interface UseBookmarksPaginationOptions {
-  limit?: number;
-  initialData?: UnifiedBookmark[];
-  initialPage?: number;
-  initialTotalPages?: number;
-  initialTotalCount?: number;
-  tag?: string;
-  internalHrefs?: Record<string, string>;
-}
-
-/**
  * Image selection options for bookmark helpers
  */
 export interface ImageSelectionOptions {
   preferOpenGraph?: boolean;
   includeScreenshots?: boolean;
   returnUndefined?: boolean;
-}
-
-/**
- * Pagination hook return - USED in use-bookmarks-pagination.ts
- */
-export interface UseBookmarksPaginationReturn {
-  bookmarks: UnifiedBookmark[];
-  currentPage: number;
-  totalPages: number;
-  totalItems: number;
-  isLoading: boolean;
-  isLoadingMore: boolean;
-  hasMore: boolean;
-  error: Error | undefined;
-  loadMore: () => void;
-  goToPage: (page: number) => void;
-  mutate: () => void;
 }
 
 // All validated types are now derived from schemas in types/bookmark.ts

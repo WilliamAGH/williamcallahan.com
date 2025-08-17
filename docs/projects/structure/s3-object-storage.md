@@ -48,6 +48,11 @@ See `s3-object-storage.mmd` for detailed data flow visualization.
   - Request coalescing for duplicate reads
   - Stream handling with 30s timeout protection
   - Type-safe JSON operations with safe parsing
+  - NEW (2025-08): S3-based distributed lock abstraction
+    - Create-only writes using `If-None-Match: "*"`
+    - `LockStore` interface for alternative backends and deterministic tests
+    - Default `s3LockStore` plus optional injection in `acquireDistributedLock`/`releaseDistributedLock`/`cleanupStaleLocks`
+    - `s3Json` wrapper export to simplify targeted spying in tests (ESM-safe)
   - **NEW**: Path sanitization to prevent directory traversal attacks
   - **NEW**: S3 key validation with Zod schemas
 

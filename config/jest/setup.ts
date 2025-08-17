@@ -157,6 +157,7 @@ const SUPPRESSED_PATTERNS = [
   "Search API call failed for scope",
   "Error searching in section",
   "Search API returned 500",
+  "[DataFetchManager] Error collecting domains:",
 ];
 
 // Suppress noisy console.error logs during test runs

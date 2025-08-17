@@ -134,6 +134,24 @@ export interface DistributedLockEntry {
   ttlMs: number;
 }
 
+/** Lock entry shape used by S3-based distributed lock */
+export interface LockEntry {
+  instanceId: string;
+  acquiredAt: number;
+  operation: string;
+}
+
+/**
+ * Abstraction for distributed lock persistence.
+ * Default implementation is S3-backed; tests may inject an in-memory store.
+ */
+export interface LockStore {
+  read(key: string): Promise<LockEntry | null>;
+  createIfAbsent(key: string, value: LockEntry): Promise<boolean>;
+  delete(key: string): Promise<void>;
+  list(prefix: string): Promise<string[]>;
+}
+
 /**
  * Callback function type for refreshing bookmarks data.
  */
