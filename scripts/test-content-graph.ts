@@ -2,14 +2,15 @@
 
 import { readJsonS3 } from "../lib/s3-utils";
 import { CONTENT_GRAPH_S3_PATHS } from "../lib/constants";
+import type { ContentGraphMetadata, TagGraph, RelatedContentEntry } from "@/types/related-content";
 
 async function testContentGraph() {
   try {
     console.log("🔍 Checking content graph files in S3...");
     
-    const relatedContent = await readJsonS3<Record<string, any[]>>(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
-    const tagGraph = await readJsonS3<any>(CONTENT_GRAPH_S3_PATHS.TAG_GRAPH);
-    const metadata = await readJsonS3<any>(CONTENT_GRAPH_S3_PATHS.METADATA);
+    const relatedContent = await readJsonS3<Record<string, RelatedContentEntry[]>>(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
+    const tagGraph = await readJsonS3<TagGraph>(CONTENT_GRAPH_S3_PATHS.TAG_GRAPH);
+    const metadata = await readJsonS3<ContentGraphMetadata>(CONTENT_GRAPH_S3_PATHS.METADATA);
     
     console.log("\n✅ Content graph files found:");
     
