@@ -476,7 +476,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
             {filteredBookmarks.map((bookmark) => {
               // Use pre-computed href from server if available, fallback to ID-based URL
               const internalHref = internalHrefs?.[bookmark.id] || `/bookmarks/${bookmark.id}`;
-              
+
               // Debug: Log bookmark data for CLI bookmark (dev-only)
               if (isDevelopment && bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
                 console.log("[BookmarksWithOptions] CLI bookmark data:", {

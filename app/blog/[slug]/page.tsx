@@ -257,7 +257,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       <>
         <JsonLdScript data={jsonLdData} nonce={nonce} />
         <BlogArticle post={post} mdxContent={<MDXContent content={post.content} />} />
-        
+
         {/* Related Content Section */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <RelatedContent
