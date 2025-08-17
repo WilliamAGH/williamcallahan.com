@@ -22,6 +22,23 @@ import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalid
 // Runtime-safe cache wrappers for experimental Next.js APIs
 // These functions are only available in Next.js request context with experimental.useCache enabled
 // They will be no-ops when called from CLI scripts or outside request context
+
+// Shared helpers for CLI context detection
+const isCliLikeContext = (): boolean => {
+  const argv1 = process.argv[1] || "";
+  // Cross-platform check for scripts directory
+  const inScriptsDir = /(^|[\\/])scripts[\\/]/.test(argv1);
+  return (
+    inScriptsDir ||
+    process.argv.includes("data-updater") ||
+    process.argv.includes("reset-and-regenerate") ||
+    process.argv.includes("regenerate-content") ||
+    process.env.NEXT_PHASE === "phase-production-build"
+  );
+};
+
+const shouldLogCacheWarning = (): boolean =>
+  process.env.NODE_ENV === "development" && !isCliLikeContext() && !process.env.SUPPRESS_CACHE_WARNINGS;
 const safeCacheLife = (
   profile:
     | "default"
@@ -36,27 +53,13 @@ const safeCacheLife = (
   try {
     // Only attempt to use cacheLife if we're in a Next.js request context
     // CLI scripts and data-updater won't have access to these functions
-    // Check if we're running in a CLI/script context
-    const isCliContext = 
-      process.argv[1]?.includes('/scripts/') || 
-      process.argv.includes("data-updater") ||
-      process.argv.includes("reset-and-regenerate") ||
-      process.argv.includes("regenerate-content") ||
-      process.env.NEXT_PHASE === "phase-production-build";
-    
-    if (typeof cacheLife === "function" && !isCliContext) {
+    if (typeof cacheLife === "function" && !isCliLikeContext()) {
       cacheLife(profile);
     }
   } catch (err) {
     // Silently ignore - expected when running outside Next.js request context
     // This is normal for CLI scripts, data-updater, and environments without experimental.useCache
-    // Don't log warnings in production or when running CLI scripts
-    const shouldLogWarning = 
-      process.env.NODE_ENV === "development" && 
-      !process.argv[1]?.includes('/scripts/') &&
-      !process.env.SUPPRESS_CACHE_WARNINGS;
-    
-    if (shouldLogWarning) {
+    if (shouldLogCacheWarning()) {
       console.warn("[Bookmarks] cacheLife not available:", err);
     }
   }
@@ -64,24 +67,12 @@ const safeCacheLife = (
 const safeCacheTag = (...tags: string[]): void => {
   try {
     // Only attempt to use cacheTag if we're in a Next.js request context
-    const isCliContext = 
-      process.argv[1]?.includes('/scripts/') || 
-      process.argv.includes("data-updater") ||
-      process.argv.includes("reset-and-regenerate") ||
-      process.argv.includes("regenerate-content") ||
-      process.env.NEXT_PHASE === "phase-production-build";
-    
-    if (typeof cacheTag === "function" && !isCliContext) {
+    if (typeof cacheTag === "function" && !isCliLikeContext()) {
       for (const tag of new Set(tags)) cacheTag(tag);
     }
   } catch (err) {
     // Silently ignore - expected when running outside Next.js request context
-    const shouldLogWarning = 
-      process.env.NODE_ENV === "development" && 
-      !process.argv[1]?.includes('/scripts/') &&
-      !process.env.SUPPRESS_CACHE_WARNINGS;
-    
-    if (shouldLogWarning) {
+    if (shouldLogCacheWarning()) {
       console.warn("[Bookmarks] cacheTag not available:", err);
     }
   }
@@ -89,24 +80,12 @@ const safeCacheTag = (...tags: string[]): void => {
 const safeRevalidateTag = (...tags: string[]): void => {
   try {
     // Only attempt to use revalidateTag if we're in a Next.js request context
-    const isCliContext = 
-      process.argv[1]?.includes('/scripts/') || 
-      process.argv.includes("data-updater") ||
-      process.argv.includes("reset-and-regenerate") ||
-      process.argv.includes("regenerate-content") ||
-      process.env.NEXT_PHASE === "phase-production-build";
-    
-    if (typeof revalidateTag === "function" && !isCliContext) {
+    if (typeof revalidateTag === "function" && !isCliLikeContext()) {
       for (const tag of new Set(tags)) revalidateTag(tag);
     }
   } catch (err) {
     // Silently ignore - expected when running outside Next.js request context
-    const shouldLogWarning = 
-      process.env.NODE_ENV === "development" && 
-      !process.argv[1]?.includes('/scripts/') &&
-      !process.env.SUPPRESS_CACHE_WARNINGS;
-    
-    if (shouldLogWarning) {
+    if (shouldLogCacheWarning()) {
       console.warn("[Bookmarks] revalidateTag not available:", err);
     }
   }
@@ -393,6 +372,14 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         changeDetected: false,
       };
       await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, updatedIndex);
+      // Ensure slug mapping exists even when no changes detected (idempotent)
+      try {
+        await saveSlugMapping(allIncomingBookmarks, true, false);
+        console.log(`${LOG_PREFIX} Saved slug mapping (no-change path) for ${allIncomingBookmarks.length} bookmarks`);
+      } catch (error) {
+        console.error(`${LOG_PREFIX} Failed to save slug mapping (no-change path):`, error);
+        // Non-critical, continue execution
+      }
       return allIncomingBookmarks;
     }
     console.log(`${LOG_PREFIX} Changes detected, persisting bookmarks`);
@@ -440,6 +427,14 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 changeDetected: false,
               };
               await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, updatedIndex);
+              // Ensure slug mapping exists even when no changes detected (idempotent)
+              try {
+                await saveSlugMapping(freshBookmarks, true, false);
+                console.log(`${LOG_PREFIX} Saved slug mapping (no-change path) for ${freshBookmarks.length} bookmarks`);
+              } catch (error) {
+                console.error(`${LOG_PREFIX} Failed to save slug mapping (no-change path):`, error);
+                // Non-critical, continue execution
+              }
             }
             // Heartbeat write (tiny file)
             void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
@@ -458,6 +453,13 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
           const existingBookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
           if (existingBookmarks && Array.isArray(existingBookmarks) && existingBookmarks.length > 0) {
             console.log(`${LOG_PREFIX} Returning ${existingBookmarks.length} existing bookmarks from S3`);
+            // Write heartbeat to record successful fallback
+            void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
+              runAt: Date.now(),
+              success: true,
+              changeDetected: false,
+              usedFallback: true,
+            }).catch(() => void 0);
             return existingBookmarks;
           }
         } catch (error) {
@@ -516,14 +518,16 @@ async function fetchAndCacheBookmarks(
     const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
     if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
       console.log(`${LOG_PREFIX} Loaded ${bookmarks.length} bookmarks from S3`);
-      const cliBookmark = bookmarks.find((b) => b.id === "yz7g8v8vzprsd2bm1w1cjc4y");
-      if (cliBookmark) {
-        console.log(`[BookmarksServer] CLI bookmark content exists:`, {
-          hasContent: !!cliBookmark.content,
-          hasImageAssetId: !!cliBookmark.content?.imageAssetId,
-          imageAssetId: cliBookmark.content?.imageAssetId,
-          contentKeys: cliBookmark.content ? Object.keys(cliBookmark.content) : [],
-        });
+      if (process.env.DEBUG_BOOKMARKS === "true") {
+        const cliBookmark = bookmarks.find((b) => b.id === "yz7g8v8vzprsd2bm1w1cjc4y");
+        if (cliBookmark) {
+          console.log(`[BookmarksServer] CLI bookmark content exists:`, {
+            hasContent: !!cliBookmark.content,
+            hasImageAssetId: !!cliBookmark.content?.imageAssetId,
+            imageAssetId: cliBookmark.content?.imageAssetId,
+            contentKeys: cliBookmark.content ? Object.keys(cliBookmark.content) : [],
+          });
+        }
       }
       if (!includeImageData) {
         console.log(`${LOG_PREFIX} Stripping image data from ${bookmarks.length} bookmarks`);
