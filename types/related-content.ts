@@ -217,3 +217,85 @@ export interface RelatedContentSectionProps {
   /** Show similarity scores on cards */
   showScores?: boolean;
 }
+
+/**
+ * Content graph metadata structure
+ */
+export interface ContentGraphMetadata {
+  /** Version of the graph format */
+  version: string;
+  /** Timestamp when generated */
+  generated: string;
+  /** Number of items by type */
+  counts: {
+    total: number;
+    bookmarks: number;
+    blog: number;
+    investments: number;
+    projects: number;
+  };
+  /** Unique tags found */
+  uniqueTags: number;
+  /** Building environment */
+  environment: string;
+}
+
+/**
+ * Tag graph structure for co-occurrence analysis
+ */
+export interface TagGraph {
+  /** Map of tags to their metadata */
+  tags: Record<string, {
+    /** Total count of this tag */
+    count: number;
+    /** Co-occurrence counts with other tags */
+    coOccurrences: Record<string, number>;
+    /** IDs of content that has this tag */
+    contentIds: string[];
+    /** Most related tags */
+    relatedTags: string[];
+  }>;
+  /** Tag hierarchy (parent -> children mapping) */
+  tagHierarchy: Record<string, string[]>;
+  /** Graph generation metadata */
+  metadata?: {
+    /** Total number of tags */
+    totalTags: number;
+    /** Total number of content items */
+    totalContent: number;
+    /** Generation timestamp */
+    generated: string;
+  };
+}
+
+/**
+ * Pre-computed related content entry
+ */
+export interface RelatedContentEntry {
+  /** Content type */
+  type: RelatedContentType;
+  /** Content ID */
+  id: string;
+  /** Similarity score */
+  score: number;
+  /** Display title */
+  title: string;
+  /** Optional metadata */
+  metadata?: RelatedContentMetadata;
+}
+
+/**
+ * Bookmarks index entry structure
+ */
+export interface BookmarksIndexEntry {
+  /** Current page number */
+  currentPage: number;
+  /** Total pages available */
+  totalPages: number;
+  /** Total count of bookmarks */
+  totalCount: number;
+  /** Items per page */
+  pageSize: number;
+  /** Timestamp when generated */
+  generated: string;
+}
