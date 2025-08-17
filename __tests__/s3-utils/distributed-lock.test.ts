@@ -34,7 +34,11 @@ jest.mock("../../lib/utils/s3-read-only", () => ({
 import { acquireDistributedLock, releaseDistributedLock, cleanupStaleLocks } from "../../lib/s3-utils";
 
 // Create spies on the real implementations so internal references are captured
-const spiedWriteJson = jest.spyOn(require("../../lib/s3-utils"), "writeJsonS3").mockResolvedValue(undefined as never);
+const spiedWriteJson = jest.spyOn(require("../../lib/s3-utils"), "writeJsonS3").mockResolvedValue({
+  success: true,
+  key: "test-key",
+  etag: "test-etag",
+} as any);
 const spiedDelete = jest.spyOn(require("../../lib/s3-utils"), "deleteFromS3").mockResolvedValue(undefined as never);
 const spiedList = jest.spyOn(require("../../lib/s3-utils"), "listS3Objects").mockResolvedValue([] as never);
 const spiedRead = jest.spyOn(require("../../lib/s3-utils"), "readJsonS3");
@@ -57,8 +61,27 @@ describe("S3 distributed lock helpers", () => {
   });
 
   it("acquires a new lock when none exists", async () => {
+    // First read - no lock exists
     mockReadJsonS3.mockRejectedValueOnce(new Error("NotFound"));
-    mockWriteJsonS3.mockResolvedValue(undefined);
+    
+    // Write succeeds
+    mockWriteJsonS3.mockResolvedValue({
+      success: true,
+      key: `locks/${lockKey}.json`,
+      etag: "test-etag",
+    } as any);
+    
+    // Read-back verification - return the lock with matching data
+    // We need to capture what was written and return it
+    mockWriteJsonS3.mockImplementationOnce((path, data) => {
+      // Capture the lock data that was written
+      mockReadJsonS3.mockResolvedValueOnce(data);
+      return Promise.resolve({
+        success: true,
+        key: path,
+        etag: "test-etag",
+      } as any);
+    });
 
     const acquired = await acquireDistributedLock(lockKey, instanceId, "test-op", 1000);
     expect(acquired).toBe(true);
@@ -77,7 +100,11 @@ describe("S3 distributed lock helpers", () => {
   it("takes over stale lock after timeout", async () => {
     const staleLock = { instanceId: "old", acquiredAt: Date.now() - 2000, operation: "old-op" };
     mockReadJsonS3.mockResolvedValue(staleLock);
-    mockWriteJsonS3.mockResolvedValueOnce(undefined as never);
+    mockWriteJsonS3.mockResolvedValueOnce({
+      success: true,
+      key: `locks/${lockKey}.json`,
+      etag: "test-etag",
+    } as any);
 
     const acquired = await acquireDistributedLock(lockKey, instanceId, "test-op", 1000);
     // No assertion on writeJson; success path validated by lack of error
