@@ -340,36 +340,39 @@ export class ServerCache implements ICache {
  * @citation "TypeScript Handbook - Declaration Merging" - While TypeScript supports declaration merging
  * for static type definitions, runtime prototype manipulation requires bypassing the type system.
  * 
- * @rationale The 'any' type is REQUIRED here because:
- * 1. The prototype parameter accepts any class prototype object at runtime
- * 2. Helper methods have varying signatures that cannot be statically typed
- * 3. Dynamic property assignment via bracket notation requires type assertion
- * 4. This pattern implements a mixin strategy where type safety is enforced through
- *    the separate types/server-cache.d.ts declaration file using declaration merging
+ * @rationale The generic constraint approach provides type safety:
+ * 1. Uses 'unknown' instead of 'any' for better type safety
+ * 2. Only attaches functions to prevent prototype pollution (security best practice)
+ * 3. Uses Object.defineProperty with non-enumerable for proper encapsulation
+ * 4. Type safety is enforced through types/server-cache.d.ts using declaration merging
  * 
- * @alternative Considered alternatives that were rejected:
- * - Generic constraints: Cannot express the varying helper signatures
- * - Union types: Would require knowing all possible helper types at compile time
- * - Intersection types: Cannot handle dynamic property names
- * - WeakMap storage: Would break prototype chain and instanceof checks
+ * @security Prototype pollution prevention:
+ * - Type check ensures only functions are attached (no constants/objects)
+ * - Non-enumerable properties prevent unexpected iteration behavior
+ * - Follows MDN and OWASP security best practices for prototype extension
+ * - Prevents accidental exposure of internal state through prototype chain
  */
-function attachHelpers(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- See @justification: Dynamic prototype requires runtime type manipulation
-  prototype: any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- See @justification: Helper methods have varying signatures unknown at compile time
-  helpers: Record<string, any>,
-  helperName: string
+function attachHelpers<T extends Record<string, unknown>>(
+  prototype: object,
+  helpers: T,
+  helperName: string,
 ) {
-  for (const key in helpers) {
-    if (Object.hasOwn(helpers, key)) {
-      if (key in prototype) {
-        console.warn(
-          `[ServerCache] Overwriting existing method '${key}' on prototype while attaching '${helperName}' helpers.`,
-        );
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unnecessary-type-assertion -- See @justification: Dynamic bracket notation assignment
-      (prototype as any)[key] = helpers[key];
+  for (const [key, value] of Object.entries(helpers)) {
+    // Only attach functions to avoid polluting the prototype with constants/objects
+    if (typeof value !== "function") continue;
+    if (key in prototype) {
+      console.warn(
+        `[ServerCache] Overwriting existing method '${key}' on prototype while attaching '${helperName}' helpers.`,
+      );
     }
+    // Define non-enumerable to keep prototype surface tidy
+    Object.defineProperty(prototype, key, {
+      // Narrow to callable without using 'any'
+      value: value as (...args: unknown[]) => unknown,
+      configurable: true,
+      writable: true,
+      enumerable: false,
+    });
   }
 }
 
