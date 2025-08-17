@@ -377,21 +377,36 @@ export async function persistImageAndGetS3UrlWithStatus(
 ): Promise<PersistImageResult> {
   // Web runtime: don't attempt to persist immediately. Validate the URL first so we don't store hot-link dead images.
   if (process.env.IS_DATA_UPDATER !== "true") {
-    try {
-      const headOk = await fetch(imageUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) })
-        .then((res) => res.ok && res.headers.get("content-type")?.startsWith("image/"))
-        .catch(() => false);
+    // Skip validation for internal /api/assets/ URLs - these are our own proxy endpoints
+    // and should always be valid
+    const isInternalAsset = imageUrl.startsWith("/api/assets/");
+    
+    if (!isInternalAsset) {
+      try {
+        const headOk = await fetch(imageUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) })
+          .then((res) => res.ok && res.headers.get("content-type")?.startsWith("image/"))
+          .catch(() => false);
 
-      if (!headOk) {
-        console.warn(`[OpenGraph S3] HEAD validation failed for ${imageUrl} – skipping immediate use`);
+        if (!headOk) {
+          console.warn(`[OpenGraph S3] HEAD validation failed for ${imageUrl} – skipping immediate use`);
+          return { s3Url: null, wasNewlyPersisted: false };
+        }
+      } catch {
+        // network error – treat as invalid
         return { s3Url: null, wasNewlyPersisted: false };
       }
-    } catch {
-      // network error – treat as invalid
-      return { s3Url: null, wasNewlyPersisted: false };
+    } else {
+      console.log(`[OpenGraph S3] Skipping validation for internal asset URL: ${imageUrl}`);
     }
 
-    // Schedule background persistence after basic validation
+    // For internal assets, don't schedule persistence since they're already hosted by us
+    // Just return the relative URL which will work from any host
+    if (isInternalAsset) {
+      console.log(`[OpenGraph S3] Using relative URL for internal Karakeep asset: ${imageUrl}`);
+      return { s3Url: imageUrl, wasNewlyPersisted: false };
+    }
+    
+    // Schedule background persistence for external URLs after basic validation
     scheduleImagePersistence(imageUrl, s3Directory, logContext, idempotencyKey, pageUrl);
     return { s3Url: imageUrl, wasNewlyPersisted: false };
   }
@@ -434,6 +449,63 @@ export async function persistImageAndGetS3UrlWithStatus(
     const error = err instanceof Error ? err : new Error(String(err));
     console.error(`[OpenGraph S3] ❌ Error persisting image ${displayUrl}: ${error.message}`);
     return { s3Url: null, wasNewlyPersisted: false };
+  }
+}
+
+/**
+ * Persist an image buffer directly to S3 (for Karakeep assets)
+ *
+ * @param imageBuffer - Buffer containing the image data
+ * @param s3Directory - S3 directory to store the image
+ * @param assetId - Karakeep asset ID
+ * @param logContext - Context for logging
+ * @param idempotencyKey - Unique key for idempotent storage
+ * @param pageUrl - URL of the page the image belongs to
+ * @returns S3 URL if successful, null otherwise
+ */
+export async function persistImageBufferToS3(
+  imageBuffer: Buffer,
+  s3Directory: string,
+  assetId: string,
+  logContext: string,
+  idempotencyKey?: string,
+  pageUrl?: string,
+): Promise<string | null> {
+  try {
+    console.log(`[OpenGraph S3] 🔄 Processing Karakeep asset buffer: ${assetId} (${imageBuffer.length} bytes)`);
+    
+    // Process the image buffer to detect format and optimize
+    const { processImageBufferSimple } = await import("@/lib/image-handling/shared-image-processing");
+    const { processedBuffer, contentType } = await processImageBufferSimple(imageBuffer, logContext);
+    
+    // Generate S3 key for the asset
+    const { getOgImageS3Key, hashImageContent } = await import("@/lib/utils/opengraph-utils");
+    const s3Key = getOgImageS3Key(
+      `karakeep-asset-${assetId}`,
+      s3Directory,
+      pageUrl,
+      idempotencyKey || assetId,
+      hashImageContent(processedBuffer)
+    );
+    
+    // Upload to S3
+    console.log(`[OpenGraph S3] 📤 Uploading Karakeep asset to S3: ${s3Key} (${processedBuffer.length} bytes)`);
+    await writeBinaryS3(s3Key, processedBuffer, contentType);
+    
+    // Return the S3 CDN URL
+    const cdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL;
+    if (!cdnUrl) {
+      console.error("[OpenGraph S3] ❌ S3_CDN_URL not configured");
+      return null;
+    }
+    
+    const s3Url = `${cdnUrl}/${s3Key}`;
+    console.log(`[OpenGraph S3] ✅ Successfully persisted Karakeep asset to S3: ${s3Url}`);
+    return s3Url;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[OpenGraph S3] ❌ Failed to persist Karakeep asset ${assetId}: ${errorMessage}`);
+    return null;
   }
 }
 
