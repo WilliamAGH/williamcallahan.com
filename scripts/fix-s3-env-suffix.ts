@@ -55,12 +55,8 @@ async function fixEnvironmentSuffixes() {
     const objects = await listS3Objects("json/bookmarks/");
     if (objects && Array.isArray(objects)) {
       console.log(`Found ${objects.length} files:`);
-      objects.slice(0, 20).forEach((obj: any) => {
-        if (typeof obj === 'object' && obj.Key) {
-          console.log(`  - ${obj.Key} (${obj.Size || 0} bytes)`);
-        } else if (typeof obj === 'string') {
-          console.log(`  - ${obj}`);
-        }
+      objects.slice(0, 20).forEach((key: string) => {
+        console.log(`  - ${key}`);
       });
     }
   } catch (error) {
