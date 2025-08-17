@@ -1,7 +1,7 @@
 /**
  * A simple in-memory lock to prevent "stampeding herd" problems for expensive, concurrent requests.
  */
-const locks = new Map<string, Promise<any>>();
+const locks = new Map<string, Promise<unknown>>();
 
 export const requestLock = {
   /**
@@ -14,7 +14,7 @@ export const requestLock = {
    */
   async run<T>({ key, work }: { key: string; work: () => Promise<T> }): Promise<T> {
     // Check if a request for this key is already in progress.
-    const existingPromise = locks.get(key);
+    const existingPromise = locks.get(key) as Promise<T> | undefined;
     if (existingPromise) {
       // Wait for the existing request to finish.
       return existingPromise;

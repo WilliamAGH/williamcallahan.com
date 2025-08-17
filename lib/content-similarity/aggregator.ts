@@ -39,7 +39,15 @@ function parseDate(dateStr?: string | null): Date | undefined {
 function normalizeBookmark(bookmark: UnifiedBookmark): NormalizedContent {
   // Extract tags (known schema) and de-duplicate
   const tags = Array.isArray(bookmark.tags)
-    ? Array.from(new Set(bookmark.tags.map((t) => t?.name).filter((name): name is string => Boolean(name?.trim()))))
+    ? Array.from(
+        new Set(
+          bookmark.tags.map((t) => {
+            if (typeof t === "string") return t;
+            if (t && typeof t === "object" && "name" in t) return (t as { name?: string }).name;
+            return undefined;
+          }).filter((name): name is string => Boolean(name?.trim()))
+        )
+      )
     : [];
 
   // Build text content for similarity matching
@@ -269,11 +277,11 @@ export function filterByTypes<T extends NormalizedContent>(
   let filtered = content;
 
   if (includeTypes && includeTypes.length > 0) {
-    filtered = filtered.filter((item) => includeTypes.includes(item.type)) as typeof filtered;
+    filtered = filtered.filter((item) => includeTypes.includes(item.type));
   }
 
   if (excludeTypes && excludeTypes.length > 0) {
-    filtered = filtered.filter((item) => !excludeTypes.includes(item.type)) as typeof filtered;
+    filtered = filtered.filter((item) => !excludeTypes.includes(item.type));
   }
 
   return filtered;

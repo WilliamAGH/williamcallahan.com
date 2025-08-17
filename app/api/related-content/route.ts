@@ -21,7 +21,6 @@ import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types/bookmark";
 
 // Default options
 const DEFAULT_MAX_PER_TYPE = 3;
-const DEFAULT_MAX_TOTAL = 12;
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 /**
@@ -230,10 +229,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Apply filtering to cached results
-    let items = cached.items;
+    const cachedData = cached;
+    let items = cachedData.items;
 
     if (includeTypes || excludeTypes) {
-      items = filterByTypes(items, includeTypes, excludeTypes) as typeof items;
+      items = filterByTypes(items, includeTypes, excludeTypes);
     }
 
     // Apply per-type limits
