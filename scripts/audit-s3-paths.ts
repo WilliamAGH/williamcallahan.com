@@ -17,6 +17,17 @@ import {
   CONTENT_GRAPH_S3_PATHS
 } from "../lib/constants";
 import type { PathCheck } from "@/types/utils/audit";
+import { ServerCacheInstance } from "../lib/server-cache";
+import { getMemoryHealthMonitor } from "../lib/health/memory-health-monitor";
+
+async function checkPath(path: string): Promise<PathCheck> {
+  try {
+    const data = await readJsonS3(path);
+    const itemCount = Array.isArray(data)
+      ? data.length
+      : data && typeof data === "object"
+        ? Object.keys(data).length
+        : undefined;
     return { path, exists: !!data, itemCount };
   } catch (error) {
     return { path, exists: false, error: String(error) };
@@ -232,5 +243,18 @@ auditS3Paths()
     const client = getS3Client();
     if (client && typeof client.destroy === "function") {
       client.destroy();
+    }
+
+    // Tear down process-wide intervals/singletons created via imports
+    try {
+      ServerCacheInstance.destroy();
+    } catch {
+      // Ignore cleanup errors
+    }
+    try {
+      const monitor = getMemoryHealthMonitor();
+      monitor.destroy();
+    } catch {
+      // Ignore cleanup errors
     }
   });
