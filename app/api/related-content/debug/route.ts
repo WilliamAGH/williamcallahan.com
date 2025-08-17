@@ -12,9 +12,14 @@ import type { RelatedContentType } from "@/types/related-content";
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const sourceType = searchParams.get("type");
+    const sourceTypeRaw = searchParams.get("type");
     const sourceId = searchParams.get("id");
-    const limit = parseInt(searchParams.get("limit") || "20", 10);
+    const limitRaw = parseInt(searchParams.get("limit") || "20", 10);
+    const allowedTypes = new Set<RelatedContentType>(["bookmark", "blog", "investment", "project"]);
+    const sourceType = allowedTypes.has(sourceTypeRaw as RelatedContentType)
+      ? (sourceTypeRaw as RelatedContentType)
+      : null;
+    const limit = Math.max(1, Math.min(100, Number.isFinite(limitRaw) ? limitRaw : 20));
     
     if (!sourceType || !sourceId) {
       return NextResponse.json(
