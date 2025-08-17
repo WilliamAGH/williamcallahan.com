@@ -22,6 +22,9 @@ else
     echo "✅ [Entrypoint] Data already exists, skipping initial population"
 fi
 
+echo "🗺️  [Entrypoint] Submitting sitemap..."
+bun run submit-sitemap || true
+
 echo "🕒 [Entrypoint] Starting data scheduler in background..."
 bun run scheduler &
 SCHEDULER_PID=$!
