@@ -61,11 +61,13 @@ function calculateTextSimilarity(text1: string, text2: string): number {
   if (!text1 || !text2) return 0;
   
   // Normalize and tokenize
-  const normalize = (text: string) => 
-    text.toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
+  const SHORT_TOKENS = new Set(["ai", "ml", "vr", "ar"]);
+  const normalize = (text: string) =>
+    text
+      .toLowerCase()
+      .replace(/[^\w\s]/g, " ")
       .split(/\s+/)
-      .filter(token => token.length > 2);
+      .filter((token) => token.length > 2 || SHORT_TOKENS.has(token));
   
   const tokens1 = new Set(normalize(text1));
   const tokens2 = new Set(normalize(text2));
