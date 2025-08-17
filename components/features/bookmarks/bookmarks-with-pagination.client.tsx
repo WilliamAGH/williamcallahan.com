@@ -17,12 +17,12 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { BookmarkCardClient } from "./bookmark-card.client";
 import { TagsList } from "./tags-list.client";
-import { useBookmarksPagination } from "@/hooks/use-bookmarks-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControl } from "@/components/ui/pagination-control.client";
 import { PaginationControlUrl } from "@/components/ui/pagination-control-url.client";
 import { InfiniteScrollSentinel } from "@/components/ui/infinite-scroll-sentinel.client";
 
-import type { BookmarksWithPaginationClientProps, UseBookmarksPaginationReturn } from "@/types";
+import type { BookmarksWithPaginationClientProps } from "@/types";
 
 // Environment detection helper
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -80,9 +80,9 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
   // The hook now expects UnifiedBookmark[] directly, not wrapped in pagination structure
   const paginatedInitialData = initialBookmarks;
 
-  // Use the pagination hook
+  // Use the generic pagination hook
   const {
-    bookmarks,
+    items: bookmarks,
     currentPage,
     totalPages,
     totalItems,
@@ -93,13 +93,14 @@ export const BookmarksWithPagination: React.FC<BookmarksWithPaginationClientProp
     loadMore,
     goToPage,
     mutate,
-  }: UseBookmarksPaginationReturn = useBookmarksPagination({
+  } = usePagination<UnifiedBookmark>({
+    apiUrl: "/api/bookmarks",
     limit: itemsPerPage,
     initialData: paginatedInitialData,
     initialPage: initialPage,
     initialTotalPages,
     initialTotalCount,
-    tag: tag, // Pass tag for server-side filtering
+    queryParams: tag ? { tag } : {},
   });
 
   // Determine if refresh button should be shown

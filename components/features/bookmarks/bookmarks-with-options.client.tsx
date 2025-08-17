@@ -304,14 +304,23 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
           throw new Error(`Failed to fetch updated bookmarks: ${bookmarksResponse.status}`);
         }
 
-        const refreshedBookmarks = (await bookmarksResponse.json()) as UnifiedBookmark[];
+        const refreshedJson = (await bookmarksResponse.json()) as
+          | { data?: UnifiedBookmark[]; meta?: unknown }
+          | UnifiedBookmark[];
+        const refreshedArray = Array.isArray(refreshedJson)
+          ? refreshedJson
+          : Array.isArray((refreshedJson as { data?: UnifiedBookmark[] })?.data)
+            ? (refreshedJson as { data: UnifiedBookmark[] }).data
+            : [];
 
-        if (Array.isArray(refreshedBookmarks) && refreshedBookmarks.length > 0) {
-          setAllBookmarks(refreshedBookmarks);
+        if (refreshedArray.length > 0) {
+          setAllBookmarks(refreshedArray);
           setLastRefreshed(new Date());
           setDataSource("client");
-          console.log("Bookmarks refreshed successfully:", refreshedBookmarks.length);
+          console.log("Bookmarks refreshed successfully:", refreshedArray.length);
           router.refresh();
+        } else {
+          console.warn("Refresh returned empty or invalid data shape:", refreshedJson);
         }
       }
     } catch (error) {
@@ -468,8 +477,8 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
               // Use pre-computed href from server if available, fallback to ID-based URL
               const internalHref = internalHrefs?.[bookmark.id] || `/bookmarks/${bookmark.id}`;
               
-              // Debug: Log bookmark data for CLI bookmark
-              if (bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
+              // Debug: Log bookmark data for CLI bookmark (dev-only)
+              if (isDevelopment && bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
                 console.log("[BookmarksWithOptions] CLI bookmark data:", {
                   id: bookmark.id,
                   hasContent: !!bookmark.content,
