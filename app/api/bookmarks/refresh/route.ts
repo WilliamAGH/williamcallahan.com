@@ -11,6 +11,7 @@ import { isOperationAllowed } from "@/lib/rate-limiter";
 import { API_ENDPOINT_STORE_NAME, DEFAULT_API_ENDPOINT_LIMIT_CONFIG } from "@/lib/constants";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS, BOOKMARKS_CACHE_DURATION } from "@/lib/constants";
+import { logEnvironmentConfig } from "@/lib/config/environment";
 import logger from "@/lib/utils/logger";
 import { NextResponse } from "next/server";
 import type { BookmarksIndex } from "@/types/bookmark";
@@ -50,6 +51,11 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
   }
 
+  // Log environment configuration to ensure correct paths are used
+  if (process.env.NODE_ENV !== "production") {
+    logEnvironmentConfig();
+  }
+  
   try {
     // For cron jobs, always refresh. For others, check if refresh is needed.
     if (!isCronJob) {
