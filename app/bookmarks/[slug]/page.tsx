@@ -26,83 +26,77 @@ import { convertBookmarksToSerializable } from "@/lib/bookmarks/utils";
 import { RelatedContent } from "@/components/features/related-content";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { loadSlugMapping, generateSlugMapping, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
-import { generateUniqueSlug } from "@/lib/utils/domain-utils";
 
 // Generate static params for all bookmarks at build time
 // This is optional - if it fails, pages will be generated dynamically
-export async function generateStaticParams() {
+export async function generateStaticParams(): Promise<{ slug: string }[]> {
   // Skip static generation in development
   if (process.env.NODE_ENV === "development") {
     return [];
   }
-  
+
   try {
     // Try to load existing slug mapping from S3
     // This might fail during build if S3 isn't accessible
     const mapping = await loadSlugMapping();
-    
+
     // If no mapping exists, skip static generation
     // Pages will be generated dynamically at runtime
     if (!mapping) {
       console.log("Slug mapping not available during build - using dynamic generation");
       return [];
     }
-    
+
     // Return all slug params for static generation
-    const params = Object.values(mapping.slugs).map(entry => ({
+    const params = Object.values(mapping.slugs).map((entry) => ({
       slug: entry.slug,
     }));
-    
+
     console.log(`Generating static params for ${params.length} bookmark pages`);
     return params;
   } catch (error) {
     // Don't fail the build if static generation fails
     // Pages will be generated dynamically at runtime
-    console.log("Static generation skipped for bookmarks - using dynamic generation:", error instanceof Error ? error.message : "Unknown error");
+    console.log(
+      "Static generation skipped for bookmarks - using dynamic generation:",
+      error instanceof Error ? error.message : "Unknown error",
+    );
     return [];
   }
 }
 
 // Helper function to find bookmark by slug using pre-computed mappings
-async function findBookmarkBySlug(slug: string) {
+async function findBookmarkBySlug(slug: string): Promise<import("@/types").UnifiedBookmark | null> {
   try {
     // Try to load the pre-computed slug mapping
     let mapping = await loadSlugMapping();
-    
-    // If no mapping exists, generate it dynamically
-    // This happens when S3 isn't accessible or mapping doesn't exist
+
+    // If no mapping exists, generate it (this should only happen during build)
     if (!mapping) {
-      const allBookmarks = (await getBookmarks({ includeImageData: false })) as import("@/types").UnifiedBookmark[];
+      // Fetch with image data once so we can reuse for the final lookup
+      const allBookmarks = (await getBookmarks({
+        includeImageData: true,
+      })) as import("@/types").UnifiedBookmark[];
       if (!allBookmarks || allBookmarks.length === 0) {
         return null;
       }
       mapping = generateSlugMapping(allBookmarks);
+      // We can return immediately if the slug is found, reusing allBookmarks
+      const bookmarkIdFromGenerated = getBookmarkIdFromSlug(mapping, slug);
+      return bookmarkIdFromGenerated ? allBookmarks.find((b) => b.id === bookmarkIdFromGenerated) || null : null;
     }
-    
+
     // Look up the bookmark ID from the slug
     const bookmarkId = getBookmarkIdFromSlug(mapping, slug);
     if (!bookmarkId) {
-      // If slug not found in mapping, try direct search as fallback
-      const allBookmarks = (await getBookmarks({ includeImageData: true })) as import("@/types").UnifiedBookmark[];
-      
-      // Generate slugs dynamically and find matching bookmark
-      for (const bookmark of allBookmarks) {
-        const generatedSlug = generateUniqueSlug(
-          bookmark.url,
-          allBookmarks.map(b => ({ id: b.id, url: b.url })),
-          bookmark.id
-        );
-        if (generatedSlug === slug) {
-          return bookmark;
-        }
-      }
-      
       return null;
     }
-    
+
     // Load all bookmarks and find the one with matching ID
-    const allBookmarks = (await getBookmarks({ includeImageData: true })) as import("@/types").UnifiedBookmark[];
-    return allBookmarks.find(b => b.id === bookmarkId) || null;
+    const allBookmarks = (await getBookmarks({
+      includeImageData: true,
+    })) as import("@/types").UnifiedBookmark[];
+    return allBookmarks.find((b) => b.id === bookmarkId) || null;
   } catch (error) {
     console.error("Error finding bookmark by slug:", error);
     return null;
@@ -189,6 +183,23 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
   const foundBookmark = await findBookmarkBySlug(slug);
 
   if (!foundBookmark) {
+    // Check if this might be a blog post slug that was incorrectly routed
+    if (slug.startsWith("blog-") || slug.includes("-blog-")) {
+      // This looks like a blog post slug, suggest the correct URL
+      console.warn(
+        `[BookmarkPage] Potential blog slug detected in bookmark route: ${slug}. ` +
+          `User should be redirected to /blog/${slug.replace(/^blog-/, "")}`,
+      );
+    }
+
+    // Check if this might be a project slug
+    if (slug.startsWith("project-") || slug.includes("-project-")) {
+      console.warn(
+        `[BookmarkPage] Potential project slug detected in bookmark route: ${slug}. ` +
+          `User should be redirected to /projects#${slug}`,
+      );
+    }
+
     return notFound();
   }
 
@@ -228,13 +239,13 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
       <JsonLdScript data={jsonLdData} />
       <div className="max-w-5xl mx-auto space-y-8">
         <BookmarksServer
-          title={`Detail view for ${foundBookmark.title}`}
+          title={`Detail view for ${foundBookmark.title || "Bookmark"}`}
           description="A detailed view of a single saved bookmark."
           bookmarks={convertBookmarksToSerializable([foundBookmark])}
           usePagination={false}
           showFilterBar={false}
         />
-        
+
         {/* Related Content Section */}
         <RelatedContent
           sourceType="bookmark"

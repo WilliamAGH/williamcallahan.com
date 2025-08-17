@@ -34,9 +34,9 @@ export function BookmarksClient({
 
   // Use our configurable component with passed settings
   return (
-    <BookmarksWithOptions 
-      bookmarks={bookmarks} 
-      showFilterBar={showFilterBar} 
+    <BookmarksWithOptions
+      bookmarks={bookmarks}
+      showFilterBar={showFilterBar}
       searchAllBookmarks={forceClientFetch}
       internalHrefs={internalHrefs}
     />

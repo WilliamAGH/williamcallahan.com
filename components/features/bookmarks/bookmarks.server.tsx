@@ -57,7 +57,7 @@ export async function BookmarksServer({
   const generateHrefs = async (bms: UnifiedBookmark[], allBms?: UnifiedBookmark[]) => {
     const allBookmarks = allBms || bms;
     const slugMap = await getBulkBookmarkSlugs(allBookmarks);
-    
+
     bms.forEach((bookmark) => {
       const slug = slugMap.get(bookmark.id);
       if (slug) {
@@ -77,10 +77,10 @@ export async function BookmarksServer({
   } else if (propsBookmarks && propsBookmarks.length > 0) {
     // Case: We have bookmarks but need to fetch allBookmarksForSlugs
     bookmarks = convertSerializableBookmarksToUnified(propsBookmarks);
-    const allBookmarksForSlugs = (await (await getBookmarks())({ includeImageData: false })) as UnifiedBookmark[];
+    const allBookmarksForSlugsData = (await (await getBookmarks())({ includeImageData: false })) as UnifiedBookmark[];
     totalPages = propsTotalPages || 1;
     totalCount = propsTotalCount || propsBookmarks.length;
-    await generateHrefs(bookmarks, allBookmarksForSlugs);
+    await generateHrefs(bookmarks, allBookmarksForSlugsData);
   } else if (initialPage && initialPage > 1) {
     const getBookmarksPageFunc = await getBookmarksPage();
     const getBookmarksIndexFunc = await getBookmarksIndex();

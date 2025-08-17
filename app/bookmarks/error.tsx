@@ -13,7 +13,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 
   // Handle ChunkLoadError specifically
   const isChunkLoadError = error.name === "ChunkLoadError" || error.message.includes("Loading chunk");
-  
+
   // Auto-reload for chunk load errors after a delay
   useEffect(() => {
     if (isChunkLoadError && typeof globalThis !== "undefined" && globalThis.location) {
@@ -46,8 +46,8 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
           {isChunkLoadError ? "🔄 Loading Resources..." : "😵‍💫 Bookmarks Unavailable"}
         </h1>
         <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
-          {isChunkLoadError 
-            ? "The page resources are being refreshed. Reloading automatically in a moment..." 
+          {isChunkLoadError
+            ? "The page resources are being refreshed. Reloading automatically in a moment..."
             : "Hmm, my bookmarks service is taking a break."}
         </p>
         {!isChunkLoadError && lastFetched > 0 && (
