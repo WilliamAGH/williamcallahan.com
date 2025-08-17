@@ -228,10 +228,15 @@ export function findMostSimilar(
   limit: number = 10,
   weights?: Partial<SimilarityWeights>,
 ): Array<NormalizedContent & { score: number; breakdown: Record<keyof SimilarityWeights, number> }> {
-  const finalWeights = { ...DEFAULT_WEIGHTS, ...weights };
   // Calculate similarity for all candidates
   const scored = candidates
     .map((candidate) => {
+      // Determine if this is cross-type comparison
+      const isCrossType = source.type !== candidate.type;
+      // Use appropriate weights: custom weights if provided, otherwise cross-type or same-type defaults
+      const baseWeights = isCrossType ? CROSS_TYPE_WEIGHTS : SAME_TYPE_WEIGHTS;
+      const finalWeights = weights ? { ...baseWeights, ...weights } : baseWeights;
+      
       const { total, breakdown } = calculateSimilarity(source, candidate, finalWeights);
       return {
         ...candidate,
