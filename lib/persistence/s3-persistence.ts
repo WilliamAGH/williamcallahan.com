@@ -378,14 +378,25 @@ export async function persistImageAndGetS3UrlWithStatus(
   // Web runtime: don't attempt to persist immediately. Validate the URL first so we don't store hot-link dead images.
   if (process.env.IS_DATA_UPDATER !== "true") {
     // Skip validation for internal /api/assets/ URLs - these are our own proxy endpoints
-    // and should always be valid
+    // and should always be valid. Also skip data URLs.
     const isInternalAsset = imageUrl.startsWith("/api/assets/");
+    const isDataUrl = imageUrl.startsWith("data:");
     
-    if (!isInternalAsset) {
+    if (!isInternalAsset && !isDataUrl) {
       try {
-        const headOk = await fetch(imageUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) })
-          .then((res) => res.ok && res.headers.get("content-type")?.startsWith("image/"))
-          .catch(() => false);
+        // Try HEAD first, then gracefully fall back to a 1-byte GET if HEAD is blocked.
+        const headResult = await fetch(imageUrl, { method: "HEAD", signal: AbortSignal.timeout(5000) }).catch(() => null);
+        let headOk = !!(headResult?.ok && headResult.headers.get("content-type")?.startsWith("image/"));
+
+        if (!headOk && headResult && [405, 501].includes(headResult.status)) {
+          // Some CDNs block HEAD requests, try a minimal GET instead
+          const getResult = await fetch(imageUrl, {
+            method: "GET",
+            headers: { Range: "bytes=0-0" },
+            signal: AbortSignal.timeout(5000),
+          }).catch(() => null);
+          headOk = !!(getResult?.ok && getResult.headers.get("content-type")?.startsWith("image/"));
+        }
 
         if (!headOk) {
           console.warn(`[OpenGraph S3] HEAD validation failed for ${imageUrl} – skipping immediate use`);
@@ -395,14 +406,14 @@ export async function persistImageAndGetS3UrlWithStatus(
         // network error – treat as invalid
         return { s3Url: null, wasNewlyPersisted: false };
       }
-    } else {
-      console.log(`[OpenGraph S3] Skipping validation for internal asset URL: ${imageUrl}`);
+    } else if (isInternalAsset || isDataUrl) {
+      console.log(`[OpenGraph S3] Skipping validation for ${isDataUrl ? 'data URL' : 'internal asset URL'}: ${isDataUrl ? 'data:...' : imageUrl}`);
     }
 
-    // For internal assets, don't schedule persistence since they're already hosted by us
-    // Just return the relative URL which will work from any host
-    if (isInternalAsset) {
-      console.log(`[OpenGraph S3] Using relative URL for internal Karakeep asset: ${imageUrl}`);
+    // For internal assets or data URLs, don't schedule persistence since they're already hosted inline or by us
+    // Just return the URL which will work from any host
+    if (isInternalAsset || isDataUrl) {
+      console.log(`[OpenGraph S3] Using ${isDataUrl ? 'data' : 'relative'} URL for ${isDataUrl ? 'inline' : 'internal Karakeep'} asset`);
       return { s3Url: imageUrl, wasNewlyPersisted: false };
     }
     
@@ -537,15 +548,24 @@ export async function normalizeLogoFilenames(): Promise<void> {
     const bucket = process.env.S3_BUCKET;
     const prefix = IMAGE_S3_PATHS.LOGOS_DIR + "/";
 
-    // List all logos
-    const listCommand = new ListObjectsV2Command({
-      Bucket: bucket,
-      Prefix: prefix,
-      MaxKeys: 1000,
-    });
-
-    const response = await s3Client.send(listCommand);
-    const objects = response.Contents || [];
+    // List all logos with pagination
+    const objects: Array<{ Key?: string }> = [];
+    let continuationToken: string | undefined;
+    
+    do {
+      const response = await s3Client.send(
+        new ListObjectsV2Command({
+          Bucket: bucket,
+          Prefix: prefix,
+          MaxKeys: 1000,
+          ContinuationToken: continuationToken,
+        }),
+      );
+      if (response.Contents && response.Contents.length > 0) {
+        objects.push(...response.Contents);
+      }
+      continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+    } while (continuationToken);
 
     console.log(`[S3 Persistence] Found ${objects.length} logos to check`);
 

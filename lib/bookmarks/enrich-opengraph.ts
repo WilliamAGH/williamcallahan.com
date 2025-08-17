@@ -51,7 +51,7 @@ export async function processBookmarksInBatches(
 
   // Process sequentially with a small delay between requests
   const enrichedBookmarks: UnifiedBookmark[] = [];
-  const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || "";
+  const s3CdnUrl = process.env.NEXT_PUBLIC_S3_CDN_URL || process.env.S3_CDN_URL || "";
 
   for (let i = 0; i < bookmarks.length; i++) {
     const bookmark = bookmarks[i];
