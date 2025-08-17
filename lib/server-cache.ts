@@ -323,7 +323,13 @@ export class ServerCache implements ICache {
   }
 }
 
-function attachHelpers(prototype: any, helpers: Record<string, any>, helperName: string) {
+function attachHelpers(
+  // biome-ignore lint/suspicious/noExplicitAny: Required for dynamic prototype extension
+  prototype: any,
+  // biome-ignore lint/suspicious/noExplicitAny: Required for dynamic helper methods
+  helpers: Record<string, any>,
+  helperName: string
+) {
   for (const key in helpers) {
     if (Object.hasOwn(helpers, key)) {
       if (key in prototype) {
@@ -331,7 +337,8 @@ function attachHelpers(prototype: any, helpers: Record<string, any>, helperName:
           `[ServerCache] Overwriting existing method '${key}' on prototype while attaching '${helperName}' helpers.`,
         );
       }
-      prototype[key] = helpers[key];
+      // biome-ignore lint/suspicious/noExplicitAny: Required for dynamic property assignment
+      (prototype as any)[key] = helpers[key];
     }
   }
 }

@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get source content
-    const source = await getContentById(sourceType as RelatedContentType, sourceId);
+    const source = await getContentById(sourceType, sourceId);
     if (!source) {
       return NextResponse.json({ error: `Content not found: ${sourceType}/${sourceId}` }, { status: 404 });
     }

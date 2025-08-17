@@ -14,6 +14,7 @@ import type * as searchHelpers from "@/lib/server-cache/search";
 import type * as aggregatedContentHelpers from "@/lib/server-cache/aggregated-content";
 
 type FunctionKeys<T> = {
+  // biome-ignore lint/suspicious/noExplicitAny: Required for function type detection in utility type
   [K in keyof T]-?: T[K] extends (...args: any[]) => any ? K : never;
 }[keyof T];
 
