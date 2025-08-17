@@ -36,7 +36,7 @@ import type * as aggregatedContentHelpers from "@/lib/server-cache/aggregated-co
  * - TypeScript's own lib.d.ts uses this pattern in built-in utility types
  */
 type FunctionKeys<T> = {
-  // @justification: Conditional type requires 'any' for universal function matching
+  // biome-ignore lint/suspicious/noExplicitAny: Conditional type requires 'any' for universal function matching in utility types
   [K in keyof T]-?: T[K] extends (...args: any[]) => any ? K : never;
 }[keyof T];
 
