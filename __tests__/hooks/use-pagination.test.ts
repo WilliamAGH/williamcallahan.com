@@ -112,7 +112,7 @@ describe("usePagination", () => {
 
   it("navigates to specific page", () => {
     const mockSetSize = jest.fn();
-     const mockData: PaginatedResponse<UnifiedBookmark>[] = [
+    const mockData: PaginatedResponse<UnifiedBookmark>[] = [
       {
         data: mockItems.slice(0, 24),
         meta: {
@@ -199,14 +199,16 @@ describe("usePagination", () => {
       isLoading: true,
     } as any);
 
-    renderHook(() => usePagination({ 
-      apiUrl: mockApiUrl, 
-      queryParams: { tag: "test", sort: "desc" } 
-    }));
+    renderHook(() =>
+      usePagination({
+        apiUrl: mockApiUrl,
+        queryParams: { tag: "test", sort: "desc" },
+      }),
+    );
 
     // Get the getKey function passed to SWR
     const getKey = mockUseSWRInfinite.mock.calls[0][0];
-    
+
     // Call it to get the URL
     const url = getKey(0, null);
 
