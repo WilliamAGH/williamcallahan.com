@@ -71,6 +71,11 @@
     "regenerate-content": "bun scripts/regenerate-content-data.ts",
     "regenerate-content:bookmarks": "bun scripts/regenerate-content-data.ts --bookmarks",
     "regenerate-content:force": "bun scripts/regenerate-content-data.ts --bookmarks --force",
+    "reset-s3-json": "bun scripts/reset-and-regenerate-s3-json.ts",
+    "reset-s3-json:execute": "bun scripts/reset-and-regenerate-s3-json.ts --execute",
+    "reset-s3-json:force": "bun scripts/reset-and-regenerate-s3-json.ts --execute --force",
+    "reset-s3-json:verbose": "bun scripts/reset-and-regenerate-s3-json.ts --execute --verbose",
+    "reset-s3-json:no-backup": "bun scripts/reset-and-regenerate-s3-json.ts --execute --no-backup",
     "postdeploy": "bun run validate-opengraph"
   },
   "dependencies": {
