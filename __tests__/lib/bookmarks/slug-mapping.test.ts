@@ -33,7 +33,7 @@ describe("Bookmark Slug Mapping", () => {
       note: "",
     },
     {
-      id: "bookmark2", 
+      id: "bookmark2",
       url: "https://github.com/user/repo",
       title: "GitHub Repo",
       tags: [],
@@ -65,7 +65,7 @@ describe("Bookmark Slug Mapping", () => {
       expect(mapping.count).toBe(3);
       expect(Object.keys(mapping.slugs)).toHaveLength(3);
       expect(Object.keys(mapping.reverseMap)).toHaveLength(3);
-      
+
       // Check each bookmark has a slug
       expect(mapping.slugs.bookmark1).toBeDefined();
       expect(mapping.slugs.bookmark2).toBeDefined();
@@ -74,23 +74,24 @@ describe("Bookmark Slug Mapping", () => {
 
     it("should handle duplicate domains with numeric suffixes", () => {
       const mapping = generateSlugMapping(mockBookmarks);
-      
+
       // Both example.com bookmarks should have different slugs
       const slug1 = mapping.slugs.bookmark1.slug;
       const slug3 = mapping.slugs.bookmark3.slug;
-      
+
       expect(slug1).not.toBe(slug3);
       expect(slug1).toContain("example-com");
       expect(slug3).toContain("example-com");
-      
-      // One should have a suffix
-      const hasSuffix = slug1.includes("-2") || slug3.includes("-2");
+
+      // One should have a numeric suffix
+      const suffixRegex = /-\d+$/;
+      const hasSuffix = suffixRegex.test(slug1) || suffixRegex.test(slug3);
       expect(hasSuffix).toBe(true);
     });
 
     it("should create bidirectional mapping", () => {
       const mapping = generateSlugMapping(mockBookmarks);
-      
+
       // For each slug in slugs, there should be a reverse mapping
       for (const [bookmarkId, entry] of Object.entries(mapping.slugs)) {
         expect(mapping.reverseMap[entry.slug]).toBe(bookmarkId);
@@ -100,13 +101,16 @@ describe("Bookmark Slug Mapping", () => {
     it("should be deterministic", () => {
       const mapping1 = generateSlugMapping(mockBookmarks);
       const mapping2 = generateSlugMapping(mockBookmarks);
-      
-      expect(mapping1).toEqual(mapping2);
+
+      // The generated timestamp can be flaky, so we compare the important parts.
+      expect(mapping1.count).toEqual(mapping2.count);
+      expect(mapping1.slugs).toEqual(mapping2.slugs);
+      expect(mapping1.reverseMap).toEqual(mapping2.reverseMap);
     });
 
     it("should handle empty bookmarks array", () => {
       const mapping = generateSlugMapping([]);
-      
+
       expect(mapping.count).toBe(0);
       expect(Object.keys(mapping.slugs)).toHaveLength(0);
       expect(Object.keys(mapping.reverseMap)).toHaveLength(0);
@@ -130,14 +134,16 @@ describe("Bookmark Slug Mapping", () => {
           count: 3,
           slugs: expect.any(Object),
           reverseMap: expect.any(Object),
-        })
+          generated: expect.any(String),
+        }),
+        { IfNoneMatch: "*" },
       );
     });
 
     it("should use environment-aware path", () => {
       const env = process.env.NODE_ENV;
       const expectedSuffix = env === "production" || !env ? "" : env === "test" ? "-test" : "-dev";
-      
+
       expect(BOOKMARKS_S3_PATHS.SLUG_MAPPING).toContain(`slug-mapping${expectedSuffix}.json`);
     });
 
@@ -161,7 +167,7 @@ describe("Bookmark Slug Mapping", () => {
           title: "Example",
         },
         bookmark2: {
-          id: "bookmark2", 
+          id: "bookmark2",
           slug: "github-com",
           url: "https://github.com",
           title: "GitHub",
@@ -252,10 +258,10 @@ describe("Bookmark Slug Mapping", () => {
   describe("Idempotency", () => {
     it("should generate same slugs regardless of bookmark order", () => {
       const shuffled = [...mockBookmarks].reverse();
-      
+
       const mapping1 = generateSlugMapping(mockBookmarks);
       const mapping2 = generateSlugMapping(shuffled);
-      
+
       // Same bookmarks should get same slugs
       for (const bookmarkId of Object.keys(mapping1.slugs)) {
         expect(mapping1.slugs[bookmarkId].slug).toBe(mapping2.slugs[bookmarkId].slug);
