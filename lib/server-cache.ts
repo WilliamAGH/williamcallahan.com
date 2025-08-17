@@ -323,13 +323,24 @@ export class ServerCache implements ICache {
   }
 }
 
+function attachHelpers(prototype: any, helpers: Record<string, any>, helperName: string) {
+  for (const key in helpers) {
+    if (Object.prototype.hasOwnProperty.call(helpers, key)) {
+      if (key in prototype) {
+        console.warn(`[ServerCache] Overwriting existing method '${key}' on prototype while attaching '${helperName}' helpers.`);
+      }
+      prototype[key] = helpers[key];
+    }
+  }
+}
+
 // Attach domain-specific methods to the ServerCache prototype
-Object.assign(ServerCache.prototype, bookmarkHelpers);
-Object.assign(ServerCache.prototype, githubHelpers);
-Object.assign(ServerCache.prototype, logoHelpers);
-Object.assign(ServerCache.prototype, opengraphHelpers);
-Object.assign(ServerCache.prototype, searchHelpers);
-Object.assign(ServerCache.prototype, aggregatedContentHelpers);
+attachHelpers(ServerCache.prototype, bookmarkHelpers, "bookmark");
+attachHelpers(ServerCache.prototype, githubHelpers, "github");
+attachHelpers(ServerCache.prototype, logoHelpers, "logo");
+attachHelpers(ServerCache.prototype, opengraphHelpers, "opengraph");
+attachHelpers(ServerCache.prototype, searchHelpers, "search");
+attachHelpers(ServerCache.prototype, aggregatedContentHelpers, "aggregatedContent");
 
 // Export a singleton instance
 export const ServerCacheInstance = new ServerCache();
