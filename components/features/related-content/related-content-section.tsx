@@ -1,6 +1,6 @@
 /**
  * RelatedContentSection Component
- * 
+ *
  * Displays a section of related content items organized by type
  */
 
@@ -13,14 +13,14 @@ import type { RelatedContentItem, RelatedContentType, RelatedContentSectionProps
  */
 function groupItemsByType(items: RelatedContentItem[]): Record<RelatedContentType, RelatedContentItem[]> {
   const grouped = {} as Record<RelatedContentType, RelatedContentItem[]>;
-  
+
   for (const item of items) {
     if (!grouped[item.type]) {
       grouped[item.type] = [];
     }
     grouped[item.type].push(item);
   }
-  
+
   return grouped;
 }
 
@@ -54,13 +54,11 @@ export function RelatedContentSection({
   if (items.length === 0) {
     return null;
   }
-  
+
   return (
     <section className={`related-content-section ${className}`}>
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-        {title}
-      </h2>
-      
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">{title}</h2>
+
       {hasMultipleTypes ? (
         // Show grouped by type
         <div className="space-y-8">
@@ -71,11 +69,7 @@ export function RelatedContentSection({
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {typeItems.map((item) => (
-                  <RelatedContentCard
-                    key={`${item.type}-${item.id}`}
-                    item={item}
-                    showScore={showScores}
-                  />
+                  <RelatedContentCard key={`${item.type}-${item.id}`} item={item} showScore={showScores} />
                 ))}
               </div>
             </div>
@@ -85,11 +79,7 @@ export function RelatedContentSection({
         // Show as single grid if all same type
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {items.map((item) => (
-            <RelatedContentCard
-              key={`${item.type}-${item.id}`}
-              item={item}
-              showScore={showScores}
-            />
+            <RelatedContentCard key={`${item.type}-${item.id}`} item={item} showScore={showScores} />
           ))}
         </div>
       )}
