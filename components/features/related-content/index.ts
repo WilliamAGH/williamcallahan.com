@@ -1,6 +1,6 @@
 /**
  * Related Content Components
- * 
+ *
  * Export barrel for related content feature components
  */
 

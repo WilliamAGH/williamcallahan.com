@@ -1,6 +1,6 @@
 /**
  * RelatedContentCard Component
- * 
+ *
  * Unified card component for displaying different types of related content
  */
 
@@ -9,86 +9,62 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { formatDate as formatDateUtil, truncateText as truncateTextUtil } from "@/lib/utils";
 import type { RelatedContentCardProps } from "@/types/related-content";
 
 /**
  * Get type badge configuration
  */
-function getTypeBadge(type: string): { label: string; className: string } {
+function getTypeBadge(type: RelatedContentCardProps["item"]["type"]): { label: string; className: string } {
   switch (type) {
     case "bookmark":
       return {
         label: "LINK",
-        className: "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+        className:
+          "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
       };
     case "blog":
       return {
         label: "BLOG",
-        className: "bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800",
+        className:
+          "bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800",
       };
     case "investment":
       return {
         label: "INV",
-        className: "bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800",
+        className:
+          "bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800",
       };
     case "project":
       return {
         label: "PRJ",
-        className: "bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800",
+        className:
+          "bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800",
       };
     default:
       return {
         label: "DOC",
-        className: "bg-gray-50 dark:bg-gray-950/30 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800",
+        className:
+          "bg-gray-50 dark:bg-gray-950/30 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800",
       };
   }
 }
 
-/**
- * Format date for display
- */
-function formatDate(dateStr?: string): string {
-  if (!dateStr) return "";
-  
-  try {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return "";
-  }
-}
-
-/**
- * Truncate text to a maximum length
- */
-function truncateText(text: string, maxLength: number = 150): string {
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength).trim() + "...";
-}
-
-export function RelatedContentCard({
-  item,
-  className = "",
-  showScore = false,
-}: RelatedContentCardProps) {
+export function RelatedContentCard({ item, className = "", showScore = false }: RelatedContentCardProps) {
   const { type, title, description, url, metadata } = item;
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
-  
+
   // Build tag display (max 3 tags)
   const displayTags = metadata.tags?.slice(0, 3) || [];
   const typeBadge = getTypeBadge(type);
-  
+
   // Determine if image is from external source that might need unoptimized
-  const isExternalImage = !!(metadata.imageUrl && (
-    metadata.imageUrl.startsWith("http://") ||
-    metadata.imageUrl.startsWith("https://")
-  ));
-  
+  const isExternalImage = !!(
+    metadata.imageUrl &&
+    (metadata.imageUrl.startsWith("http://") || metadata.imageUrl.startsWith("https://"))
+  );
+
   return (
     <Link
       href={url}
@@ -101,7 +77,7 @@ export function RelatedContentCard({
       <article className="h-full flex flex-col">
         {/* Header with type badge and metadata */}
         <header className="flex items-start justify-between mb-3">
-          <span 
+          <span
             className={`
               inline-flex items-center justify-center px-2 py-0.5 
               text-[10px] font-mono font-semibold tracking-wider
@@ -112,17 +88,15 @@ export function RelatedContentCard({
             {typeBadge.label}
           </span>
           <div className="flex flex-col items-end text-xs text-gray-500 dark:text-gray-400">
-            {metadata.date && (
-              <time dateTime={metadata.date}>{formatDate(metadata.date)}</time>
-            )}
-            {showScore && (
+            {metadata.date && <time dateTime={metadata.date}>{formatDateUtil(metadata.date)}</time>}
+            {showScore && typeof item.score === "number" && (
               <span className="mt-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">
                 {Math.round(item.score * 100)}% match
               </span>
             )}
           </div>
         </header>
-        
+
         {/* Image if available */}
         {metadata.imageUrl && !imageError && (
           <div className="relative w-full h-32 mb-3 rounded overflow-hidden bg-gray-100 dark:bg-gray-700">
@@ -148,17 +122,15 @@ export function RelatedContentCard({
             />
           </div>
         )}
-        
+
         {/* Title */}
-        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
-          {title}
-        </h3>
-        
+        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">{title}</h3>
+
         {/* Description */}
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 flex-grow line-clamp-3">
-          {truncateText(description)}
+          {truncateTextUtil(description, 150)}
         </p>
-        
+
         {/* Footer with tags and metadata */}
         <footer className="mt-auto pt-3 border-t border-gray-100 dark:border-gray-700">
           {/* Tags */}
@@ -179,14 +151,12 @@ export function RelatedContentCard({
               )}
             </div>
           )}
-          
+
           {/* Type-specific metadata */}
           <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
             {/* Domain for bookmarks */}
-            {type === "bookmark" && metadata.domain && (
-              <span className="truncate">{metadata.domain}</span>
-            )}
-            
+            {type === "bookmark" && metadata.domain && <span className="truncate">{metadata.domain}</span>}
+
             {/* Author for blog posts */}
             {type === "blog" && metadata.author && (
               <span className="flex items-center gap-1">
@@ -202,21 +172,15 @@ export function RelatedContentCard({
                 <span>{metadata.author.name}</span>
               </span>
             )}
-            
+
             {/* Reading time for blog posts */}
-            {type === "blog" && metadata.readingTime && (
-              <span>{metadata.readingTime} min read</span>
-            )}
-            
+            {type === "blog" && metadata.readingTime && <span>{metadata.readingTime} min read</span>}
+
             {/* Stage for investments */}
-            {type === "investment" && metadata.stage && (
-              <span>{metadata.stage}</span>
-            )}
-            
+            {type === "investment" && metadata.stage && <span>{metadata.stage}</span>}
+
             {/* Category for investments and projects */}
-            {(type === "investment" || type === "project") && metadata.category && (
-              <span>{metadata.category}</span>
-            )}
+            {(type === "investment" || type === "project") && metadata.category && <span>{metadata.category}</span>}
           </div>
         </footer>
       </article>
