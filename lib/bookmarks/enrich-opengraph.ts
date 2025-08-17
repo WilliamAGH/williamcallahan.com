@@ -123,44 +123,67 @@ export async function processBookmarksInBatches(
       // 4. Process the determined source URL
       if (sourceImageUrl) {
         // Handle Karakeep/Hoarder asset URLs differently
-        let absoluteImageUrl = sourceImageUrl;
+        let absoluteImageUrl: string | null = sourceImageUrl;
 
         if (sourceImageUrl.startsWith("/api/assets/")) {
-          // For Karakeep assets, we need to handle them differently depending on the context.
+          // For Karakeep assets, we need to download them directly from the API
+          // Extract the asset ID from the URL (/api/assets/[id])
+          const assetId = sourceImageUrl.replace("/api/assets/", "");
+          
           if (process.env.IS_DATA_UPDATER === "true") {
-            // In batch mode, we can't resolve internal API routes. Log and skip.
-            console.warn(
-              `${LOG_PREFIX} ⚠️  DATA-UPDATER: Skipping Karakeep asset (${sourceImageUrl}) as it requires a running web server to resolve.`,
+            // In batch mode, we can fetch directly from Karakeep API
+            console.log(
+              `${LOG_PREFIX} 🔗 Fetching Karakeep asset directly for S3 persistence: ${assetId}`,
             );
-            console.warn(`${LOG_PREFIX} ↪️  Falling back to OpenGraph fetch for: ${bookmark.url}`);
-
-            // Attempt to fetch OpenGraph image as a fallback
-            finalImageSource = "OpenGraph";
-            try {
-              const ogData = useBatchMode
-                ? await getOpenGraphDataBatch(bookmark.url)
-                : await getOpenGraphData(bookmark.url, false, bookmark.id);
-
-              if (ogData?.ogMetadata?.image) {
-                absoluteImageUrl = ogData.ogMetadata.image;
-                bookmark.title = ogData.ogMetadata.title || bookmark.title;
-                bookmark.description = ogData.ogMetadata.description || bookmark.description;
-                imageStats.bookmarksUsingOpenGraphImage++;
-              } else {
-                // No OpenGraph image either, skip
+            
+            // Fetch the actual image buffer from Karakeep
+            const imageBuffer = await fetchKarakeepImage(assetId);
+            
+            if (imageBuffer) {
+              // Save the buffer to S3 and get the CDN URL
+              const { persistImageBufferToS3 } = await import("@/lib/persistence/s3-persistence");
+              const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
+              
+              const s3Url = await persistImageBufferToS3(
+                imageBuffer,
+                OPENGRAPH_IMAGES_S3_DIR,
+                assetId,
+                finalImageSource,
+                bookmark.id,
+                bookmark.url,
+              );
+              
+              if (s3Url) {
+                bookmark.ogImage = s3Url;
+                bookmark.ogImageExternal = sourceImageUrl;
+                imageStats.bookmarksUsingS3Image++;
+                imageStats.imagesNewlyPersisted++;
+                console.log(
+                  `${LOG_PREFIX} ✅ Successfully persisted Karakeep asset to S3: ${s3Url}`,
+                );
+                // Skip the normal persistence flow since we already handled it
                 sourceImageUrl = null;
+                absoluteImageUrl = null;
+              } else {
+                console.error(
+                  `${LOG_PREFIX} ❌ Failed to persist Karakeep asset to S3: ${assetId}`,
+                );
+                sourceImageUrl = null;
+                absoluteImageUrl = null;
               }
-            } catch (e: unknown) {
-              const error = e instanceof Error ? e : new Error(String(e));
-              console.error(`${LOG_PREFIX} ❌ OpenGraph fallback for ${bookmark.url} failed: ${error.message}`);
+            } else {
+              console.error(
+                `${LOG_PREFIX} ❌ Failed to fetch Karakeep asset: ${assetId}`,
+              );
               sourceImageUrl = null;
+              absoluteImageUrl = null;
             }
           } else {
-            // In web runtime, we can use our own API as a proxy.
-            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://williamcallahan.com";
-            absoluteImageUrl = `${siteUrl}${sourceImageUrl}`;
+            // In web runtime, we can't fetch from Karakeep directly
+            // Just use the relative URL and let the client handle it
+            absoluteImageUrl = sourceImageUrl;
             console.log(
-              `${LOG_PREFIX} 🔗 Using internal API proxy for Karakeep asset. Absolute URL: ${absoluteImageUrl}`,
+              `${LOG_PREFIX} 🔗 Web runtime: Using relative URL for Karakeep asset: ${absoluteImageUrl}`,
             );
           }
         }
@@ -190,23 +213,13 @@ export async function processBookmarksInBatches(
               const { getAssetUrl } = await import("./bookmark-helpers");
               const ssUrl = getAssetUrl(screenshotId);
               if (ssUrl) {
-                const ssResult = await persistImageAndGetS3UrlWithStatus(
-                  ssUrl,
-                  OPENGRAPH_IMAGES_S3_DIR,
-                  "ScreenshotFallback",
-                  bookmark.id,
-                  bookmark.url,
+                // Use relative URL for screenshot fallback too
+                bookmark.ogImage = ssUrl;  // Keep relative: /api/assets/[id]
+                bookmark.ogImageExternal = ssUrl;
+                imageStats.bookmarksUsingKarakeepImage++;
+                console.log(
+                  `${LOG_PREFIX} 📸 Using relative URL for screenshot fallback: ${ssUrl}`,
                 );
-                if (ssResult.s3Url) {
-                  bookmark.ogImage = ssResult.s3Url;
-                  bookmark.ogImageExternal = ssUrl;
-                  imageStats.bookmarksUsingS3Image++;
-                  if (ssResult.wasNewlyPersisted) imageStats.imagesNewlyPersisted++;
-                } else {
-                  bookmark.ogImage = undefined;
-                  bookmark.ogImageExternal = ssUrl;
-                  imageStats.bookmarksWithoutImages++;
-                }
               } else {
                 bookmark.ogImage = undefined;
                 bookmark.ogImageExternal = absoluteImageUrl;
