@@ -75,7 +75,6 @@ export function getEnvironmentSuffix(): string {
       return "";
     case "test":
       return "-test";
-    case "development":
     default:
       return "-dev";
   }
