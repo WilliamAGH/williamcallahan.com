@@ -67,38 +67,62 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
 
 // Helper function to find bookmark by slug using pre-computed mappings
 async function findBookmarkBySlug(slug: string): Promise<import("@/types").UnifiedBookmark | null> {
+  console.log(`[BookmarkPage] findBookmarkBySlug called with slug: "${slug}"`);
+  console.log(`[BookmarkPage] Environment: NODE_ENV=${process.env.NODE_ENV}`);
+  console.log(`[BookmarkPage] S3 config: BUCKET=${process.env.S3_BUCKET ? 'set' : 'missing'}, KEY=${process.env.S3_ACCESS_KEY_ID ? 'set' : 'missing'}, SECRET=${process.env.S3_SECRET_ACCESS_KEY ? 'set' : 'missing'}`);
+  
   try {
     // Try to load the pre-computed slug mapping
+    console.log(`[BookmarkPage] Attempting to load slug mapping from S3...`);
     let mapping = await loadSlugMapping();
 
     // If no mapping exists, generate it (this should only happen during build)
     if (!mapping) {
+      console.warn(`[BookmarkPage] No slug mapping found in S3, generating dynamically...`);
       // Fetch with image data once so we can reuse for the final lookup
       const allBookmarks = (await getBookmarks({
         includeImageData: true,
       })) as import("@/types").UnifiedBookmark[];
+      console.log(`[BookmarkPage] Loaded ${allBookmarks?.length || 0} bookmarks for dynamic mapping`);
+      
       if (!allBookmarks || allBookmarks.length === 0) {
+        console.error(`[BookmarkPage] No bookmarks available to generate mapping`);
         return null;
       }
       mapping = generateSlugMapping(allBookmarks);
+      console.log(`[BookmarkPage] Generated mapping with ${Object.keys(mapping.slugs).length} slugs`);
+      
       // We can return immediately if the slug is found, reusing allBookmarks
       const bookmarkIdFromGenerated = getBookmarkIdFromSlug(mapping, slug);
+      console.log(`[BookmarkPage] Looked up slug "${slug}" in generated mapping, found ID: ${bookmarkIdFromGenerated || 'none'}`);
       return bookmarkIdFromGenerated ? allBookmarks.find((b) => b.id === bookmarkIdFromGenerated) || null : null;
     }
 
+    console.log(`[BookmarkPage] Loaded slug mapping with ${Object.keys(mapping.slugs).length} entries`);
+    console.log(`[BookmarkPage] Mapping version: ${mapping.version}, generated: ${mapping.generated}`);
+    
     // Look up the bookmark ID from the slug
     const bookmarkId = getBookmarkIdFromSlug(mapping, slug);
+    console.log(`[BookmarkPage] Slug "${slug}" mapped to ID: ${bookmarkId || 'NOT FOUND'}`);
+    
     if (!bookmarkId) {
+      console.error(`[BookmarkPage] No bookmark ID found for slug "${slug}"`);
+      console.log(`[BookmarkPage] Available slugs (first 10): ${Object.values(mapping.slugs).slice(0, 10).map(e => e.slug).join(', ')}`);
       return null;
     }
 
     // Load all bookmarks and find the one with matching ID
+    console.log(`[BookmarkPage] Loading all bookmarks to find ID ${bookmarkId}...`);
     const allBookmarks = (await getBookmarks({
       includeImageData: true,
     })) as import("@/types").UnifiedBookmark[];
-    return allBookmarks.find((b) => b.id === bookmarkId) || null;
+    console.log(`[BookmarkPage] Loaded ${allBookmarks?.length || 0} bookmarks`);
+    
+    const foundBookmark = allBookmarks.find((b) => b.id === bookmarkId);
+    console.log(`[BookmarkPage] Bookmark ${bookmarkId} ${foundBookmark ? 'FOUND' : 'NOT FOUND'} in bookmarks data`);
+    return foundBookmark || null;
   } catch (error) {
-    console.error("Error finding bookmark by slug:", error);
+    console.error(`[BookmarkPage] Error finding bookmark by slug "${slug}":`, error);
     return null;
   }
 }
@@ -180,9 +204,12 @@ import type { BookmarkPageContext } from "@/types";
 
 export default async function BookmarkPage({ params }: BookmarkPageContext) {
   const { slug } = await Promise.resolve(params);
+  console.log(`[BookmarkPage] Page component rendering for slug: "${slug}"`);
   const foundBookmark = await findBookmarkBySlug(slug);
 
   if (!foundBookmark) {
+    console.error(`[BookmarkPage] BOOKMARK NOT FOUND for slug: "${slug}" - returning 404`);
+    
     // Check if this might be a blog post slug that was incorrectly routed
     if (slug.startsWith("blog-") || slug.includes("-blog-")) {
       // This looks like a blog post slug, suggest the correct URL
@@ -202,6 +229,8 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
 
     return notFound();
   }
+  
+  console.log(`[BookmarkPage] Successfully found bookmark: ID=${foundBookmark.id}, URL=${foundBookmark.url}, Title="${foundBookmark.title}"`);
 
   let domainName = "";
   try {
