@@ -295,11 +295,38 @@ export interface BookmarkSlugMapping {
   version: string;
   generated: string;
   count: number;
-  slugs: Record<string, {
-    id: string;
-    slug: string;
-    url: string;
-    title: string;
-  }>;
-  reverseMap: Record<string, string>; // slug -> id for quick lookup
+  slugs: Readonly<
+    Record<
+      string,
+      {
+        id: string;
+        slug: string;
+        url: string;
+        title: string;
+      }
+    >
+  >;
+  reverseMap: Readonly<Record<string, string>>; // slug -> id for quick lookup
 }
+
+export type BookmarkSlugEntry = {
+  id: string;
+  slug: string;
+  url: string;
+  title: string;
+};
+
+export const bookmarkSlugMappingSchema = z.object({
+  version: z.string(),
+  generated: z.string(), // ISO8601 timestamp expected
+  count: z.number().int().min(0),
+  slugs: z.record(
+    z.object({
+      id: z.string(),
+      slug: z.string(),
+      url: z.string().url(),
+      title: z.string(),
+    }),
+  ),
+  reverseMap: z.record(z.string()),
+});

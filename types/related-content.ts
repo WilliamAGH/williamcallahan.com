@@ -1,6 +1,6 @@
 /**
  * Related Content Types
- * 
+ *
  * Type definitions for the related content recommendation system that suggests
  * relevant content across bookmarks, blog posts, investments, and projects.
  */
@@ -20,19 +20,22 @@ export type RelatedContentType = "bookmark" | "blog" | "investment" | "project";
  */
 export interface RelatedContentItem {
   /** Type of content */
-  type: RelatedContentType;
+  readonly type: RelatedContentType;
   /** Unique identifier */
-  id: string;
+  readonly id: string;
   /** Display title */
-  title: string;
+  readonly title: string;
   /** Brief description or excerpt */
-  description: string;
+  readonly description: string;
   /** URL to the content (relative or absolute) */
-  url: string;
-  /** Similarity score (0-1) */
-  score: number;
+  readonly url: string;
+  /**
+   * Similarity score, expected to be between 0 and 1.
+   * Higher scores indicate a better match.
+   */
+  readonly score: number;
   /** Additional metadata for display */
-  metadata: RelatedContentMetadata;
+  readonly metadata: RelatedContentMetadata;
 }
 
 /**
@@ -40,23 +43,23 @@ export interface RelatedContentItem {
  */
 export interface RelatedContentMetadata {
   /** Associated tags */
-  tags?: string[];
+  readonly tags?: readonly string[];
   /** Domain for bookmarks */
-  domain?: string;
+  readonly domain?: string;
   /** Publication or creation date */
-  date?: string;
+  readonly date?: string;
   /** Preview image URL */
-  imageUrl?: string;
+  readonly imageUrl?: string;
   /** Reading time in minutes (for blog posts) */
-  readingTime?: number;
+  readonly readingTime?: number;
   /** Company stage (for investments) */
-  stage?: string;
+  readonly stage?: string;
   /** Business category */
-  category?: string;
+  readonly category?: string;
   /** Author information (for blog posts) */
-  author?: {
-    name: string;
-    avatar?: string;
+  readonly author?: {
+    readonly name: string;
+    readonly avatar?: string;
   };
 }
 
@@ -65,13 +68,13 @@ export interface RelatedContentMetadata {
  */
 export interface SimilarityWeights {
   /** Weight for tag matches (0-1) */
-  tagMatch: number;
+  readonly tagMatch: number;
   /** Weight for text similarity (0-1) */
-  textSimilarity: number;
+  readonly textSimilarity: number;
   /** Weight for domain matches (0-1) */
-  domainMatch: number;
+  readonly domainMatch: number;
   /** Weight for recency (0-1) */
-  recency: number;
+  readonly recency: number;
 }
 
 /**
@@ -79,19 +82,19 @@ export interface SimilarityWeights {
  */
 export interface RelatedContentOptions {
   /** Maximum number of results per content type */
-  maxPerType?: number;
+  readonly maxPerType?: number;
   /** Total maximum results across all types */
-  maxTotal?: number;
+  readonly maxTotal?: number;
   /** Content types to include */
-  includeTypes?: RelatedContentType[];
+  readonly includeTypes?: readonly RelatedContentType[];
   /** Content types to exclude */
-  excludeTypes?: RelatedContentType[];
+  readonly excludeTypes?: readonly RelatedContentType[];
   /** IDs to exclude from results */
-  excludeIds?: string[];
+  readonly excludeIds?: readonly string[];
   /** Custom similarity weights */
-  weights?: Partial<SimilarityWeights>;
+  readonly weights?: Partial<SimilarityWeights>;
   /** Include debug information in results */
-  debug?: boolean;
+  readonly debug?: boolean;
 }
 
 /**
@@ -245,16 +248,19 @@ export interface ContentGraphMetadata {
  */
 export interface TagGraph {
   /** Map of tags to their metadata */
-  tags: Record<string, {
-    /** Total count of this tag */
-    count: number;
-    /** Co-occurrence counts with other tags */
-    coOccurrences: Record<string, number>;
-    /** IDs of content that has this tag */
-    contentIds: string[];
-    /** Most related tags */
-    relatedTags: string[];
-  }>;
+  tags: Record<
+    string,
+    {
+      /** Total count of this tag */
+      count: number;
+      /** Co-occurrence counts with other tags */
+      coOccurrences: Record<string, number>;
+      /** IDs of content that has this tag */
+      contentIds: string[];
+      /** Most related tags */
+      relatedTags: string[];
+    }
+  >;
   /** Tag hierarchy (parent -> children mapping) */
   tagHierarchy: Record<string, string[]>;
   /** Graph generation metadata */
@@ -298,4 +304,16 @@ export interface BookmarksIndexEntry {
   pageSize: number;
   /** Timestamp when generated */
   generated: string;
+}
+
+/**
+ * Props for RelatedContentWithPagination component
+ */
+export interface RelatedContentWithPaginationProps {
+  /** Type of the source content */
+  sourceType: RelatedContentType;
+  /** ID of the source content */
+  sourceId: string;
+  /** Optional limit for items per page */
+  limit?: number;
 }
