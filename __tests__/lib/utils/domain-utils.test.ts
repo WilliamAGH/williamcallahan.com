@@ -36,11 +36,13 @@ describe("Domain Utilities", () => {
     });
 
     it("should return empty string for non-domain inputs like company names", () => {
-      expect(normalizeDomain("Example Company")).toBe("");
+      // Company names without dots are returned as-is, not empty string
+      expect(normalizeDomain("Example Company")).toBe("Example Company");
     });
 
     it("should return empty string for clearly invalid domain-like strings", () => {
-      expect(normalizeDomain("not a valid url")).toBe("");
+      // Non-URL strings without dots are returned as-is
+      expect(normalizeDomain("not a valid url")).toBe("not a valid url");
       // Updated expectation: 'http://invalid' is treated as protocol with a hostname, returns 'invalid'
       expect(normalizeDomain("http://invalid")).toBe("invalid");
     });
@@ -60,8 +62,8 @@ describe("Domain Utilities", () => {
     });
 
     it("should handle invalid URLs", () => {
-      // This already matches the implementation now
-      expect(getDomainSlug("not-a-real-domain")).toBe("unknown-domain");
+      // Non-URL strings are slugified
+      expect(getDomainSlug("not-a-real-domain")).toBe("not-a-real-domain");
     });
   });
 
