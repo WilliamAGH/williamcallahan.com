@@ -1,30 +1,29 @@
 // Mock environment variables to ensure functions execute
 const originalEnv = process.env;
 
-beforeAll(() => {
-  process.env = {
-    ...originalEnv,
-    DRY_RUN: "false",
-    S3_BUCKET: "test-bucket",
-    S3_REGION: "us-east-1",
-    S3_ENDPOINT: "https://s3.amazonaws.com",
-  };
-});
-
-afterAll(() => {
-  process.env = originalEnv;
-});
+// Set environment variables BEFORE any imports
+process.env = {
+  ...originalEnv,
+  DRY_RUN: "false",
+  S3_BUCKET: "test-bucket",
+  S3_REGION: "us-east-1",
+  S3_ENDPOINT: "https://s3.amazonaws.com",
+  S3_ACCESS_KEY_ID: "test-access-key",
+  S3_SECRET_ACCESS_KEY: "test-secret-key",
+};
 
 // Mock the AWS SDK client
 const mockSend = jest.fn();
+const mockS3Client = {
+  send: mockSend,
+};
+
 jest.mock("@aws-sdk/client-s3", () => ({
-  S3Client: jest.fn(() => ({
-    send: mockSend,
-  })),
-  GetObjectCommand: jest.fn(),
-  PutObjectCommand: jest.fn(),
-  DeleteObjectCommand: jest.fn(),
-  ListObjectsV2Command: jest.fn(),
+  S3Client: jest.fn(() => mockS3Client),
+  GetObjectCommand: jest.fn((params) => ({ constructor: { name: "GetObjectCommand" }, input: params })),
+  PutObjectCommand: jest.fn((params) => ({ constructor: { name: "PutObjectCommand" }, input: params })),
+  DeleteObjectCommand: jest.fn((params) => ({ constructor: { name: "DeleteObjectCommand" }, input: params })),
+  ListObjectsV2Command: jest.fn((params) => ({ constructor: { name: "ListObjectsV2Command" }, input: params })),
 }));
 
 // Mock the s3-read-only module
@@ -32,7 +31,18 @@ jest.mock("../../lib/utils/s3-read-only", () => ({
   isS3ReadOnly: jest.fn(() => false),
 }));
 
-import { acquireDistributedLock, releaseDistributedLock, cleanupStaleLocks } from "../../lib/s3-utils";
+// Import the functions we're testing
+import * as s3Utils from "../../lib/s3-utils";
+
+// Mock getS3Client to always return our mock client
+jest.spyOn(s3Utils, "getS3Client").mockImplementation(() => mockS3Client as any);
+
+const { acquireDistributedLock, releaseDistributedLock, cleanupStaleLocks } = s3Utils;
+
+// Restore environment variables after all tests
+afterAll(() => {
+  process.env = originalEnv;
+});
 
 describe("S3 distributed lock helpers", () => {
   const lockKey = "test-lock";
@@ -71,7 +81,7 @@ describe("S3 distributed lock helpers", () => {
       
       if (commandName === "PutObjectCommand") {
         // Capture the written data
-        if (command.input && command.input.Body) {
+        if (command.input?.Body) {
           writtenData = JSON.parse(command.input.Body);
         }
         return Promise.resolve({ ETag: "test-etag" });
@@ -186,7 +196,7 @@ describe("S3 distributed lock helpers", () => {
         }
       }
       if (command.constructor.name === "PutObjectCommand") {
-        if (command.input && command.input.Body) {
+        if (command.input?.Body) {
           writtenData = JSON.parse(command.input.Body);
         }
         return Promise.resolve({ ETag: "test-etag" });
