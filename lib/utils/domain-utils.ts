@@ -9,9 +9,10 @@
 
 /**
  * Extract domain from URL or company name
+ * Handles ALL URL formats and converts them to clean FQDNs
  *
- * @param {string} input - URL or company name
- * @returns {string} Normalized domain or company name
+ * @param {string} input - URL, domain, or company name
+ * @returns {string} Normalized domain (FQDN) or original input if not URL-like
  */
 export function normalizeDomain(input: string): string {
   const s = input.trim();
@@ -20,57 +21,98 @@ export function normalizeDomain(input: string): string {
   }
 
   try {
-    // Heuristic to decide if this is a URL-like string.
-    // It has a protocol, starts with www, or contains a dot (like example.com or example.com:8080)
-    if (s.includes("://") || s.startsWith("www.") || s.includes(".")) {
-      const url = s.includes("://") ? s : `https://${s}`;
-      const hostname = new URL(url).hostname;
-      return hostname.replace(/^www\./, "");
+    // Check if this looks like it could be a URL or domain
+    // More liberal detection - anything with a dot or protocol
+    const looksLikeUrl = s.includes("://") || 
+                        s.startsWith("www.") || 
+                        s.includes(".") ||
+                        s.includes(":") || // port numbers
+                        s.includes("/"); // paths
+    
+    if (looksLikeUrl) {
+      // Ensure we have a protocol for URL parsing
+      let urlToParse = s;
+      if (!urlToParse.includes("://")) {
+        // Add https:// if no protocol
+        urlToParse = `https://${urlToParse}`;
+      }
+      
+      // Parse and extract hostname
+      const urlObj = new URL(urlToParse);
+      let hostname = urlObj.hostname;
+      
+      // Remove www. prefix if present
+      hostname = hostname.replace(/^www\./, "");
+      
+      // Return clean FQDN
+      return hostname;
     }
-    // Otherwise, it's not a valid domain - return empty string
-    // This prevents treating company names like "moves" or "oliverspace" as domains
-    return "";
+    
+    // If it doesn't look like a URL/domain, return as-is
+    // This preserves company names like "moves" or "oliverspace"
+    return s;
   } catch {
-    // If URL parsing fails, it's probably not a valid domain
-    return "";
+    // If URL parsing fails, try to extract domain manually
+    // Handle edge cases like malformed URLs
+    try {
+      // Remove protocol if present
+      let domain = s.replace(/^https?:\/\//, "");
+      // Remove path if present (handle noUncheckedIndexedAccess)
+      domain = (domain.split("/")[0] ?? "");
+      // Remove port if present
+      domain = (domain.split(":")[0] ?? "");
+      // Remove www if present
+      domain = domain.replace(/^www\./, "");
+      
+      // If we got something that looks like a domain, return it
+      if (domain.includes(".")) {
+        return domain;
+      }
+    } catch {
+      // Fallback - return original input
+    }
+    
+    // Last resort - return original input
+    return s;
   }
 }
 
 /**
  * Extracts a clean domain from a URL and formats it for use in URLs
+ * Handles any URL format and converts to slug format
  *
  * @param url The full URL to extract domain from
  * @returns A cleaned domain slug suitable for use in URLs
  */
 export function getDomainSlug(url: string): string {
   try {
-    // Check if input looks like a domain or needs to be treated as an unknown value
-    if (/^[^.]+$/.test(url) && !url.includes("://")) {
-      return "unknown-domain";
+    // First normalize the domain to get clean FQDN
+    const domain = normalizeDomain(url);
+    
+    // If normalizeDomain returned empty or unchanged non-domain input
+    if (!domain || !domain.includes(".")) {
+      // For non-URL inputs like company names, create a slug
+      const slug = domain
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      return slug || "unknown-domain";
     }
-
-    // Handle case where URL doesn't have protocol
-    let processedUrl = url;
-    if (!processedUrl.startsWith("http://") && !processedUrl.startsWith("https://")) {
-      processedUrl = `https://${processedUrl}`;
+    
+    // Convert FQDN to slug format (dots to dashes)
+    const slug = domain
+      .toLowerCase()
+      .replace(/\./g, "-")
+      .replace(/[^a-z0-9-]/g, "-") // Replace any non-alphanumeric/dash
+      .replace(/-+/g, "-") // Collapse multiple dashes
+      .replace(/^-+|-+$/g, ""); // Remove leading/trailing dashes
+    
+    return slug || "unknown-domain";
+  } catch (error) {
+    // Fallback for any parsing errors
+    if (process.env.NODE_ENV !== "test") {
+      console.error(`getDomainSlug: Failed to parse URL: ${url}`, error);
     }
-
-    // Parse the URL
-    const urlObj = new URL(processedUrl);
-
-    // Get the hostname (e.g., "www.example.com")
-    let domain = urlObj.hostname;
-
-    // Remove www. prefix if present
-    domain = domain.replace(/^www\./, "");
-
-    // Replace dots with dashes for URL friendliness
-    const slug = domain.replace(/\./g, "-");
-
-    return slug;
-  } catch {
-    // If URL parsing fails, return a fallback
-    console.error(`Failed to parse URL: ${url}`);
     return "unknown-domain";
   }
 }
@@ -203,32 +245,28 @@ export function slugToDomain(slug: string): string {
 
 /**
  * Gets a display name from a URL or domain
+ * Handles any URL format and returns clean domain for display
  *
  * @param url The URL or domain to format
  * @returns A nicely formatted domain for display
  */
 export function getDisplayDomain(url: string): string {
   try {
-    // Special case for handling colon-separated strings that aren't URLs
-    if (url.includes(":") && !url.includes("://")) {
-      return url;
+    // Use normalizeDomain to get clean FQDN
+    const domain = normalizeDomain(url);
+    
+    // If it's a clean domain, return it
+    if (domain && domain.includes(".")) {
+      return domain;
     }
-
-    // Handle case where URL doesn't have protocol
-    let processedUrl = url;
-    if (!processedUrl.startsWith("http://") && !processedUrl.startsWith("https://")) {
-      processedUrl = `https://${processedUrl}`;
+    
+    // For non-URL inputs, return as-is
+    return domain || url;
+  } catch (error) {
+    // Fallback to original on any error
+    if (process.env.NODE_ENV !== "test") {
+      console.error(`getDisplayDomain: Failed to parse URL: ${url}`, error);
     }
-
-    const urlObj = new URL(processedUrl);
-    let domain = urlObj.hostname;
-
-    // Remove www. prefix if present
-    domain = domain.replace(/^www\./, "");
-
-    return domain;
-  } catch {
-    // If URL parsing fails, just return the original
     return url;
   }
 }

@@ -36,9 +36,18 @@ export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
   TAG_PREFIX: `json/bookmarks/tags${envSuffix}/`,
   TAG_INDEX_PREFIX: `json/bookmarks/tags${envSuffix}/`,
   HEARTBEAT: `json/bookmarks/heartbeat${envSuffix}.json`,
+  SLUG_MAPPING: `json/bookmarks/slug-mapping${envSuffix}.json`,
 } as const;
 
 export const LOGO_BLOCKLIST_S3_PATH = `json/rate-limit/logo-failed-domains${envSuffix}.json`;
+
+/** S3 paths for content graph (environment-aware) */
+export const CONTENT_GRAPH_S3_PATHS = {
+  DIR: `json/content-graph${envSuffix}`,
+  RELATED_CONTENT: `json/content-graph${envSuffix}/related-content.json`,
+  TAG_GRAPH: `json/content-graph${envSuffix}/tag-graph.json`,
+  METADATA: `json/content-graph${envSuffix}/metadata.json`,
+} as const;
 
 /** S3 paths for search indexes (environment-aware) */
 export const SEARCH_S3_PATHS = {
