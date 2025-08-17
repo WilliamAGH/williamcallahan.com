@@ -295,7 +295,15 @@ async function getMDXPostDirect(
 async function getCachedMDXPost(frontmatterSlug: string, filePathForPost: string): Promise<BlogPost | null> {
   "use cache";
 
-  cacheLife("weeks"); // Blog posts are relatively static
+  // Safe cacheLife call with availability check
+  try {
+    if (typeof cacheLife === "function") {
+      cacheLife("weeks"); // Blog posts are relatively static
+    }
+  } catch {
+    // Silently ignore if cacheLife is not available in this context
+  }
+  
   cacheTag("blog");
   cacheTag("mdx");
   cacheTag(`blog-post-${frontmatterSlug}`);
@@ -409,7 +417,15 @@ async function getAllMDXPostsDirect(): Promise<BlogPost[]> {
 async function getCachedAllMDXPosts(): Promise<BlogPost[]> {
   "use cache";
 
-  cacheLife("weeks"); // Blog posts are relatively static
+  // Safe cacheLife call with availability check
+  try {
+    if (typeof cacheLife === "function") {
+      cacheLife("weeks"); // Blog posts are relatively static
+    }
+  } catch {
+    // Silently ignore if cacheLife is not available in this context
+  }
+  
   cacheTag("blog");
   cacheTag("mdx");
   cacheTag("blog-posts-all");
