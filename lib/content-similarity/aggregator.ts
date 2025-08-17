@@ -1,6 +1,6 @@
 /**
  * Content Aggregator
- * 
+ *
  * Fetches and normalizes content from all data sources (bookmarks, blog, investments, projects)
  * for similarity comparison and recommendation generation.
  */
@@ -12,11 +12,7 @@ import { projects } from "@/data/projects";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { extractKeywords, extractCrossContentKeywords } from "./keyword-extractor";
 import { extractDomain } from "@/lib/utils";
-import type {
-  NormalizedContent,
-  RelatedContentType,
-  ContentSource,
-} from "@/types/related-content";
+import type { NormalizedContent, RelatedContentType } from "@/types/related-content";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { BlogPost } from "@/types/blog";
 import type { Investment } from "@/types/investment";
@@ -43,30 +39,19 @@ function parseDate(dateStr?: string | null): Date | undefined {
 function normalizeBookmark(bookmark: UnifiedBookmark): NormalizedContent {
   // Extract tags (known schema) and de-duplicate
   const tags = Array.isArray(bookmark.tags)
-    ? Array.from(
-        new Set(
-          bookmark.tags
-            .map((t) => t?.name)
-            .filter((name): name is string => Boolean(name && name.trim()))
-        )
-      )
+    ? Array.from(new Set(bookmark.tags.map((t) => t?.name).filter((name): name is string => Boolean(name?.trim()))))
     : [];
-  
+
   // Build text content for similarity matching
-  const textParts = [
-    bookmark.description,
-    bookmark.note,
-    bookmark.summary,
-    bookmark.ogDescription,
-  ].filter(Boolean);
-  
+  const textParts = [bookmark.description, bookmark.note, bookmark.summary, bookmark.ogDescription].filter(Boolean);
+
   const text = textParts.join(" ");
   const title = bookmark.title || "Untitled";
-  
+
   // Extract keywords to supplement tags
   const keywords = extractKeywords(title, text, tags, 8);
   const enhancedTags = [...tags, ...keywords];
-  
+
   return {
     id: bookmark.id,
     type: "bookmark",
@@ -91,14 +76,14 @@ function normalizeBlogPost(post: BlogPost): NormalizedContent {
     post.excerpt,
     post.rawContent?.slice(0, 500), // Use first 500 chars of raw content
   ].filter(Boolean);
-  
+
   const text = textParts.join(" ");
   const tags = post.tags || [];
-  
+
   // Extract keywords to supplement tags
   const keywords = extractKeywords(post.title, text, tags, 8);
   const enhancedTags = [...tags, ...keywords];
-  
+
   return {
     id: post.id,
     type: "blog",
@@ -121,11 +106,11 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
   if (investment.category) tags.push(investment.category);
   if (investment.stage) tags.push(investment.stage);
   if (investment.status) tags.push(investment.status);
-  
+
   // Add accelerator tags
   if (investment.accelerator) {
     if (Array.isArray(investment.accelerator)) {
-      investment.accelerator.forEach(acc => {
+      investment.accelerator.forEach((acc) => {
         if (acc && typeof acc === "object" && "name" in acc) {
           const accObj = acc as { name: string };
           tags.push(accObj.name);
@@ -136,20 +121,20 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
       tags.push(accObj.name);
     }
   }
-  
+
   // Extract cross-content keywords for better matching
   const keywords = extractCrossContentKeywords(
     investment.name,
     investment.description,
     investment.category,
-    investment.stage
+    investment.stage,
   );
-  
+
   // Combine tags with keywords
-  const enhancedTags = [...tags, ...keywords].filter((tag, index, self) => 
-    self.indexOf(tag) === index // Remove duplicates
+  const enhancedTags = [...tags, ...keywords].filter(
+    (tag, index, self) => self.indexOf(tag) === index, // Remove duplicates
   );
-  
+
   return {
     id: investment.id,
     type: "investment",
@@ -169,11 +154,11 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
 function normalizeProject(project: Project): NormalizedContent {
   const text = `${project.description} ${project.shortSummary}`;
   const tags = project.tags || [];
-  
+
   // Extract keywords to supplement tags
   const keywords = extractKeywords(project.name, text, tags, 8);
   const enhancedTags = [...tags, ...keywords];
-  
+
   return {
     id: project.id || project.name,
     type: "project",
@@ -193,27 +178,24 @@ function normalizeProject(project: Project): NormalizedContent {
 export async function aggregateAllContent(): Promise<NormalizedContent[]> {
   // Check cache first
   const getAggregatedContent = ServerCacheInstance.getAggregatedContent;
-  if (getAggregatedContent && typeof getAggregatedContent === 'function') {
+  if (getAggregatedContent && typeof getAggregatedContent === "function") {
     const cached = getAggregatedContent.call(ServerCacheInstance);
     if (cached && cached.timestamp > Date.now() - CACHE_TTL) {
       return cached.data;
     }
   }
-  
+
   try {
     // Fetch all content in parallel
-    const [bookmarksData, blogPosts] = await Promise.all([
-      getBookmarks({ includeImageData: false }),
-      getAllPosts(),
-    ]);
-    
+    const [bookmarksData, blogPosts] = await Promise.all([getBookmarks({ includeImageData: false }), getAllPosts()]);
+
     // Normalize all content
     const normalized: NormalizedContent[] = [];
-    
+
     // Process bookmarks
     if (bookmarksData && Array.isArray(bookmarksData)) {
       const bookmarks = bookmarksData as UnifiedBookmark[];
-      bookmarks.forEach(bookmark => {
+      bookmarks.forEach((bookmark) => {
         try {
           normalized.push(normalizeBookmark(bookmark));
         } catch (error) {
@@ -221,10 +203,10 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
         }
       });
     }
-    
+
     // Process blog posts
     if (blogPosts && Array.isArray(blogPosts)) {
-      blogPosts.forEach(post => {
+      blogPosts.forEach((post) => {
         try {
           normalized.push(normalizeBlogPost(post));
         } catch (error) {
@@ -232,34 +214,34 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
         }
       });
     }
-    
+
     // Process investments (static data)
-    investments.forEach(investment => {
+    investments.forEach((investment) => {
       try {
         normalized.push(normalizeInvestment(investment));
       } catch (error) {
         console.error(`Failed to normalize investment ${investment.id}:`, error);
       }
     });
-    
+
     // Process projects (static data)
-    projects.forEach(project => {
+    projects.forEach((project) => {
       try {
         normalized.push(normalizeProject(project));
       } catch (error) {
         console.error(`Failed to normalize project ${project.name}:`, error);
       }
     });
-    
+
     // Cache the results
     const setAggregatedContent = ServerCacheInstance.setAggregatedContent;
-    if (setAggregatedContent && typeof setAggregatedContent === 'function') {
+    if (setAggregatedContent && typeof setAggregatedContent === "function") {
       setAggregatedContent.call(ServerCacheInstance, {
         data: normalized,
         timestamp: Date.now(),
       });
     }
-    
+
     return normalized;
   } catch (error) {
     console.error("Failed to aggregate content:", error);
@@ -271,12 +253,9 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
 /**
  * Get content by type and ID
  */
-export async function getContentById(
-  type: RelatedContentType,
-  id: string
-): Promise<NormalizedContent | null> {
+export async function getContentById(type: RelatedContentType, id: string): Promise<NormalizedContent | null> {
   const allContent = await aggregateAllContent();
-  return allContent.find(item => item.type === type && item.id === id) || null;
+  return allContent.find((item) => item.type === type && item.id === id) || null;
 }
 
 /**
@@ -285,17 +264,17 @@ export async function getContentById(
 export function filterByTypes<T extends NormalizedContent>(
   content: T[],
   includeTypes?: RelatedContentType[],
-  excludeTypes?: RelatedContentType[]
+  excludeTypes?: RelatedContentType[],
 ): T[] {
   let filtered = content;
-  
+
   if (includeTypes && includeTypes.length > 0) {
-    filtered = filtered.filter(item => includeTypes.includes(item.type)) as typeof filtered;
+    filtered = filtered.filter((item) => includeTypes.includes(item.type)) as typeof filtered;
   }
-  
+
   if (excludeTypes && excludeTypes.length > 0) {
-    filtered = filtered.filter(item => !excludeTypes.includes(item.type)) as typeof filtered;
+    filtered = filtered.filter((item) => !excludeTypes.includes(item.type)) as typeof filtered;
   }
-  
+
   return filtered;
 }
