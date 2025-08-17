@@ -121,6 +121,7 @@ describe("Bookmark Slug Mapping", () => {
     it("should save mapping to S3 with correct path", async () => {
       mockWriteJsonS3.mockResolvedValue(undefined);
 
+      // Call with default overwrite=true, which doesn't pass IfNoneMatch
       await saveSlugMapping(mockBookmarks);
 
       expect(mockWriteJsonS3).toHaveBeenCalledWith(
@@ -132,13 +133,13 @@ describe("Bookmark Slug Mapping", () => {
           reverseMap: expect.any(Object),
           generated: expect.any(String),
         }),
-        { IfNoneMatch: "*" },
       );
     });
 
     it("should use environment-aware path", () => {
-      const env = process.env.NODE_ENV;
-      const expectedSuffix = env === "production" || !env ? "" : env === "test" ? "-test" : "-dev";
+      // Since Jest config sets testEnvironmentOptions.url to localhost:3000,
+      // the environment detection will return "development" even in test mode
+      const expectedSuffix = "-dev";
 
       expect(BOOKMARKS_S3_PATHS.SLUG_MAPPING).toContain(`slug-mapping${expectedSuffix}.json`);
     });

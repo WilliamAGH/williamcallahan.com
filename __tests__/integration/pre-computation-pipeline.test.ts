@@ -205,6 +205,12 @@ describe("Pre-computation Pipeline Integration", () => {
   describe("Environment Isolation", () => {
     it("should use different paths for different environments", () => {
       const originalEnv = process.env.NODE_ENV;
+      const originalApiUrl = process.env.API_BASE_URL;
+      const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
+      // Clear URL env vars to make NODE_ENV the primary determinant
+      delete process.env.API_BASE_URL;
+      delete process.env.NEXT_PUBLIC_SITE_URL;
 
       // Test production paths
       process.env.NODE_ENV = "production";
@@ -220,6 +226,8 @@ describe("Pre-computation Pipeline Integration", () => {
 
       // Restore original
       process.env.NODE_ENV = originalEnv;
+      if (originalApiUrl) process.env.API_BASE_URL = originalApiUrl;
+      if (originalSiteUrl) process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
     });
 
     it("should not interfere between environments", async () => {
