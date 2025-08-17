@@ -157,7 +157,7 @@ export async function RelatedContent({
       title: string;
     }[]>>(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
     
-    if (precomputed && precomputed[contentKey]) {
+    if (precomputed?.[contentKey]) {
       // Use pre-computed scores
       let items = precomputed[contentKey];
       
