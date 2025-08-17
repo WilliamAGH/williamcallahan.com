@@ -13,29 +13,39 @@ import type { BlogPost } from "@/types/blog";
 import type { Investment } from "@/types/investment";
 import type { Project } from "@/types/project";
 
+function ensureHasId<T extends { id: string }>(value: unknown, label: string): T {
+  if (!value || typeof value !== "object" || !("id" in value)) {
+    throw new Error(`[${label}] invalid mock: missing id`);
+  }
+  return value as T;
+}
+
 // Create minimal mock source objects for testing
-const mockBookmarkSource = {
-  id: "1",
-  title: "GitHub - openai/whisper",
-  url: "https://github.com/openai/whisper",
-  description: "AI speech recognition model",
-  tags: ["AI Development Tools"],
-  imageUrl: null,
-  imageAssetId: null,
-  logoUrl: null,
-  logoAssetId: null,
-  screenshotAssetId: null,
-  faviconAssetId: null,
-  faviconUrl: null,
-  deleted: false,
-  createdAt: "2024-01-15",
-  lastModified: "2024-01-15",
-  content: null,
-  metadata: {},
-  ogImage: null,
-  dateBookmarked: "2024-01-15",
-  sourceUpdatedAt: "2024-01-15",
-} as unknown as UnifiedBookmark;
+const mockBookmarkSource = ensureHasId<UnifiedBookmark>(
+  {
+    id: "1",
+    title: "GitHub - openai/whisper",
+    url: "https://github.com/openai/whisper",
+    description: "AI speech recognition model",
+    tags: ["AI Development Tools"],
+    imageUrl: null,
+    imageAssetId: null,
+    logoUrl: null,
+    logoAssetId: null,
+    screenshotAssetId: null,
+    faviconAssetId: null,
+    faviconUrl: null,
+    deleted: false,
+    createdAt: "2024-01-15",
+    lastModified: "2024-01-15",
+    content: null,
+    metadata: {},
+    ogImage: null,
+    dateBookmarked: "2024-01-15",
+    sourceUpdatedAt: "2024-01-15",
+  },
+  "UnifiedBookmark",
+);
 
 // Test content samples
 const bookmark: NormalizedContent = {
@@ -50,23 +60,26 @@ const bookmark: NormalizedContent = {
   source: mockBookmarkSource,
 };
 
-const mockInvestmentSource = {
-  id: "openai",
-  name: "OpenAI",
-  company: "OpenAI",
-  logo: null,
-  website: "https://openai.com",
-  description: "Leading artificial intelligence research laboratory",
-  category: "AI / ML",
-  stage: "Series B+",
-  status: "Active",
-  type: "Direct",
-  invested_year: 2023,
-  exit_year: null,
-  exitValue: null,
-  exitDate: null,
-  tags: ["AI / ML"],
-} as unknown as Investment;
+const mockInvestmentSource = ensureHasId<Investment>(
+  {
+    id: "openai",
+    name: "OpenAI",
+    company: "OpenAI",
+    logo: null,
+    website: "https://openai.com",
+    description: "Leading artificial intelligence research laboratory",
+    category: "AI / ML",
+    stage: "Series B+",
+    status: "Active",
+    type: "Direct",
+    invested_year: 2023,
+    exit_year: null,
+    exitValue: null,
+    exitDate: null,
+    tags: ["AI / ML"],
+  },
+  "Investment",
+);
 
 const investment: NormalizedContent = {
   id: "test-investment",
@@ -80,24 +93,27 @@ const investment: NormalizedContent = {
   source: mockInvestmentSource,
 };
 
-const mockBlogSource = {
-  id: "ml-production",
-  slug: "ml-production",
-  title: "Understanding Machine Learning in Production",
-  date: "2024-02-01",
-  lastModified: "2024-02-01",
-  publishedAt: "2024-02-01",
-  author: {
-    name: "Test Author",
-    avatar: null,
+const mockBlogSource = ensureHasId<BlogPost>(
+  {
+    id: "ml-production",
+    slug: "ml-production",
+    title: "Understanding Machine Learning in Production",
+    date: "2024-02-01",
+    lastModified: "2024-02-01",
+    publishedAt: "2024-02-01",
+    author: {
+      name: "Test Author",
+      avatar: null,
+    },
+    summary: "A deep dive into deploying machine learning models at scale",
+    excerpt: "A deep dive into deploying machine learning models at scale",
+    coverImage: null,
+    tags: ["machine-learning", "ai"],
+    readingTime: 10,
+    content: "Content here",
   },
-  summary: "A deep dive into deploying machine learning models at scale",
-  excerpt: "A deep dive into deploying machine learning models at scale",
-  coverImage: null,
-  tags: ["machine-learning", "ai"],
-  readingTime: 10,
-  content: "Content here",
-} as unknown as BlogPost;
+  "BlogPost",
+);
 
 const blogPost: NormalizedContent = {
   id: "test-blog",
@@ -106,27 +122,29 @@ const blogPost: NormalizedContent = {
   text: "A deep dive into deploying machine learning models at scale, covering best practices for model serving, monitoring, and maintenance.",
   tags: ["machine-learning", "ai", "production", "deployment"],
   url: "/blog/ml-production",
-  domain: undefined,
   date: new Date("2024-02-01"),
   source: mockBlogSource,
 };
 
-const mockProjectSource = {
-  id: "dashboard-framework",
-  name: "React Dashboard Framework",
-  title: "React Dashboard Framework",
-  description: "A comprehensive dashboard framework",
-  shortSummary: "Dashboard framework",
-  url: "/projects#dashboard",
-  technologies: ["React", "TypeScript", "Tailwind CSS"],
-  status: "active",
-  featured: false,
-  github: null,
-  demo: null,
-  link: null,
-  imageKey: null,
-  order: 0,
-} as unknown as Project;
+const mockProjectSource = ensureHasId<Project & { id: string }>(
+  {
+    id: "dashboard-framework",
+    name: "React Dashboard Framework",
+    title: "React Dashboard Framework",
+    description: "A comprehensive dashboard framework",
+    shortSummary: "Dashboard framework",
+    url: "/projects#dashboard",
+    technologies: ["React", "TypeScript", "Tailwind CSS"],
+    status: "active",
+    featured: false,
+    github: null,
+    demo: null,
+    link: null,
+    imageKey: null,
+    order: 0,
+  },
+  "Project",
+);
 
 const project: NormalizedContent = {
   id: "test-project",
@@ -135,8 +153,6 @@ const project: NormalizedContent = {
   text: "A comprehensive dashboard framework built with React, TypeScript, and Tailwind CSS for building admin interfaces.",
   tags: ["React", "TypeScript", "Tailwind CSS", "Dashboard"],
   url: "/projects#dashboard",
-  domain: undefined,
-  date: undefined,
   source: mockProjectSource,
 };
 
@@ -144,19 +160,19 @@ function testPair(source: NormalizedContent, target: NormalizedContent, label: s
   console.log(`\n📊 ${label}`);
   console.log(`   Source: ${source.title} (${source.type})`);
   console.log(`   Target: ${target.title} (${target.type})`);
-  
+
   // Test with appropriate weights
   const isCrossContent = source.type !== target.type;
   const weights = isCrossContent ? CROSS_TYPE_WEIGHTS : SAME_TYPE_WEIGHTS;
   const { total, breakdown } = calculateSimilarity(source, target, weights);
-  
+
   console.log(`   Total Score: ${total.toFixed(3)}`);
   console.log(`   Breakdown:`);
   console.log(`     - Tag Match: ${breakdown.tagMatch.toFixed(3)}`);
   console.log(`     - Text Similarity: ${breakdown.textSimilarity.toFixed(3)}`);
   console.log(`     - Domain Match: ${breakdown.domainMatch.toFixed(3)}`);
   console.log(`     - Recency: ${breakdown.recency.toFixed(3)}`);
-  
+
   // Test semantic tag similarity
   if (isCrossContent) {
     const semanticScore = calculateSemanticTagSimilarity(source.tags, target.tags);
@@ -166,42 +182,39 @@ function testPair(source: NormalizedContent, target: NormalizedContent, label: s
 
 function testKeywordExtraction() {
   console.log("\n🔑 Testing Keyword Extraction");
-  
+
   const samples = [
     {
       title: "Building a Real-time Chat Application with WebSockets",
-      description: "Learn how to build a scalable real-time chat application using WebSockets, Node.js, and React. We'll cover authentication, message persistence, and deployment.",
+      description:
+        "Learn how to build a scalable real-time chat application using WebSockets, Node.js, and React. We'll cover authentication, message persistence, and deployment.",
       existingTags: ["tutorial", "websockets"],
     },
     {
       title: "Series A Funding for AI Startups",
-      description: "Analysis of recent Series A funding rounds in the AI startup ecosystem, focusing on venture capital trends and investment patterns.",
+      description:
+        "Analysis of recent Series A funding rounds in the AI startup ecosystem, focusing on venture capital trends and investment patterns.",
       existingTags: ["venture-capital"],
     },
   ];
-  
+
   samples.forEach((sample, i) => {
     console.log(`\n   Sample ${i + 1}: ${sample.title.slice(0, 50)}...`);
-    const keywords = extractKeywords(
-      sample.title,
-      sample.description,
-      sample.existingTags,
-      8
-    );
+    const keywords = extractKeywords(sample.title, sample.description, sample.existingTags, 8);
     console.log(`   Extracted: ${keywords.join(", ")}`);
   });
 }
 
 function testSemanticMatching() {
   console.log("\n🧠 Testing Semantic Tag Matching");
-  
+
   const testCases = [
     { tags1: ["AI Development Tools"], tags2: ["machine learning", "ai"], label: "AI terms" },
     { tags1: ["venture capital"], tags2: ["Series A", "funding"], label: "VC terms" },
     { tags1: ["React"], tags2: ["nextjs", "frontend"], label: "Web frameworks" },
     { tags1: ["Open Source Projects"], tags2: ["github", "repository"], label: "OSS terms" },
   ];
-  
+
   testCases.forEach(({ tags1, tags2, label }) => {
     const score = calculateSemanticTagSimilarity(tags1, tags2);
     console.log(`   ${label}:`);
@@ -214,41 +227,36 @@ function testSemanticMatching() {
 // Enhanced content with extracted keywords
 function testWithEnhancedContent() {
   console.log("\n✨ Testing with Enhanced Content (Keywords Added)");
-  
+
   // Enhance bookmark with keywords
   const enhancedBookmark = {
     ...bookmark,
-    tags: [
-      ...bookmark.tags,
-      ...extractKeywords(bookmark.title, bookmark.text, bookmark.tags, 5),
-    ],
+    tags: [...bookmark.tags, ...extractKeywords(bookmark.title, bookmark.text, bookmark.tags, 5)],
   };
-  
+
   // Enhance investment with keywords
   const enhancedInvestment = {
     ...investment,
-    tags: [
-      ...investment.tags,
-      ...extractKeywords(investment.title, investment.text, investment.tags, 5),
-    ],
+    tags: [...investment.tags, ...extractKeywords(investment.title, investment.text, investment.tags, 5)],
   };
-  
+
   console.log("\n   Enhanced Bookmark Tags:", enhancedBookmark.tags.join(", "));
   console.log("   Enhanced Investment Tags:", enhancedInvestment.tags.join(", "));
-  
-  const { total, breakdown } = calculateSimilarity(
-    enhancedBookmark,
-    enhancedInvestment,
-    CROSS_TYPE_WEIGHTS
-  );
-  
+
+  const { total, breakdown } = calculateSimilarity(enhancedBookmark, enhancedInvestment, CROSS_TYPE_WEIGHTS);
+
   console.log("\n   Cross-Content Score: ", total.toFixed(3));
-  console.log("   Breakdown:", Object.entries(breakdown).map(([k, v]) => `${k}=${v.toFixed(2)}`).join(", "));
+  console.log(
+    "   Breakdown:",
+    Object.entries(breakdown)
+      .map(([k, v]) => `${k}=${v.toFixed(2)}`)
+      .join(", "),
+  );
 }
 
 // Run all tests
 console.log("🚀 Cross-Content Matching Test Suite\n");
-console.log("=" .repeat(60));
+console.log("=".repeat(60));
 
 // Test different content pairs
 testPair(bookmark, investment, "AI Bookmark vs AI Investment");
