@@ -5,10 +5,7 @@
  */
 
 import type { ICache } from "@/types/cache";
-import type { 
-  AggregatedContentCacheEntry,
-  RelatedContentCacheData,
-} from "@/types/related-content";
+import type { AggregatedContentCacheEntry, RelatedContentCacheData } from "@/types/related-content";
 
 const AGGREGATED_CONTENT_KEY = "aggregated-content:all";
 const RELATED_CONTENT_PREFIX = "related-content:";
@@ -24,10 +21,7 @@ export function getAggregatedContent(this: ICache): AggregatedContentCacheEntry 
 /**
  * Set aggregated content in cache
  */
-export function setAggregatedContent(
-  this: ICache,
-  entry: AggregatedContentCacheEntry
-): boolean {
+export function setAggregatedContent(this: ICache, entry: AggregatedContentCacheEntry): boolean {
   // Cache for 15 minutes
   return this.set(AGGREGATED_CONTENT_KEY, entry, CACHE_TTL_MS);
 }
@@ -45,7 +39,7 @@ export function clearAggregatedContent(this: ICache): void {
 export function getRelatedContent(
   this: ICache,
   sourceType: string,
-  sourceId: string
+  sourceId: string,
 ): RelatedContentCacheData | undefined {
   const key = `${RELATED_CONTENT_PREFIX}${sourceType}:${sourceId}`;
   return this.get<RelatedContentCacheData>(key);
@@ -58,7 +52,7 @@ export function setRelatedContent(
   this: ICache,
   sourceType: string,
   sourceId: string,
-  entry: RelatedContentCacheData
+  entry: RelatedContentCacheData,
 ): boolean {
   const key = `${RELATED_CONTENT_PREFIX}${sourceType}:${sourceId}`;
   // Cache for 15 minutes
@@ -68,11 +62,7 @@ export function setRelatedContent(
 /**
  * Clear related content cache for a specific source
  */
-export function clearRelatedContent(
-  this: ICache,
-  sourceType: string,
-  sourceId: string
-): void {
+export function clearRelatedContent(this: ICache, sourceType: string, sourceId: string): void {
   const key = `${RELATED_CONTENT_PREFIX}${sourceType}:${sourceId}`;
   this.del(key);
 }
@@ -82,7 +72,7 @@ export function clearRelatedContent(
  */
 export function clearAllRelatedContent(this: ICache): void {
   const keys = this.keys();
-  const relatedKeys = keys.filter(key => key.startsWith(RELATED_CONTENT_PREFIX));
+  const relatedKeys = keys.filter((key) => key.startsWith(RELATED_CONTENT_PREFIX));
   if (relatedKeys.length > 0) {
     this.del(relatedKeys);
   }

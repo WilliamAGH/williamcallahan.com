@@ -51,11 +51,7 @@ const inFlightReads = new Map<string, Promise<Buffer | string | null>>();
 
 // Helper: check if S3 is fully configured (now a function for dynamic checking)
 function isS3FullyConfigured(): boolean {
-  return Boolean(
-    process.env.S3_BUCKET && 
-    process.env.S3_ACCESS_KEY_ID && 
-    process.env.S3_SECRET_ACCESS_KEY
-  );
+  return Boolean(process.env.S3_BUCKET && process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY);
 }
 
 let hasLoggedMissingS3Config = false;
@@ -771,7 +767,7 @@ export async function writeJsonS3<T>(s3Key: string, data: T, options?: { IfNoneM
       const accessKeyId = process.env.S3_ACCESS_KEY_ID;
       const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
       const isConfigured = Boolean(bucket && accessKeyId && secretAccessKey);
-      
+
       if (!isConfigured || !client) {
         // If conditional write is requested but S3 is not configured, log error and return
         // Don't throw to maintain backward compatibility with tests
