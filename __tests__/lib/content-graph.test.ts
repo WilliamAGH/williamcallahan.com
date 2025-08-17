@@ -3,7 +3,7 @@
  */
 
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
-import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
+import { writeJsonS3 } from "@/lib/s3-utils";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 
 // Mock S3 utilities
@@ -21,7 +21,6 @@ jest.mock("@/data/projects", () => ({
   projects: [],
 }));
 
-const mockReadJsonS3 = readJsonS3 as jest.MockedFunction<typeof readJsonS3>;
 const mockWriteJsonS3 = writeJsonS3 as jest.MockedFunction<typeof writeJsonS3>;
 
 describe("Content Graph Pre-computation", () => {
@@ -81,8 +80,7 @@ describe("Content Graph Pre-computation", () => {
       // Setup mocks
       const { aggregateAllContent } = await import("@/lib/content-similarity/aggregator");
       const { getAllPosts } = await import("@/lib/blog");
-      const { findMostSimilar, DEFAULT_WEIGHTS } = await import("@/lib/content-similarity");
-      const { projects } = await import("@/data/projects");
+      const { findMostSimilar } = await import("@/lib/content-similarity");
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
 
       (aggregateAllContent as jest.Mock).mockResolvedValue(mockNormalizedContent);
@@ -104,7 +102,7 @@ describe("Content Graph Pre-computation", () => {
       });
 
       // Run the content graph build
-      const result = await manager.fetchData({
+      await manager.fetchData({
         bookmarks: true,
         forceRefresh: true,
       });
@@ -183,8 +181,7 @@ describe("Content Graph Pre-computation", () => {
 
       const { aggregateAllContent } = await import("@/lib/content-similarity/aggregator");
       const { getAllPosts } = await import("@/lib/blog");
-      const { findMostSimilar, DEFAULT_WEIGHTS } = await import("@/lib/content-similarity");
-      const { projects } = await import("@/data/projects");
+      const { findMostSimilar } = await import("@/lib/content-similarity");
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
 
       (aggregateAllContent as jest.Mock).mockResolvedValue(mockNormalizedContent);
@@ -274,8 +271,7 @@ describe("Content Graph Pre-computation", () => {
 
       const { aggregateAllContent } = await import("@/lib/content-similarity/aggregator");
       const { getAllPosts } = await import("@/lib/blog");
-      const { findMostSimilar, DEFAULT_WEIGHTS } = await import("@/lib/content-similarity");
-      const { projects } = await import("@/data/projects");
+      const { findMostSimilar } = await import("@/lib/content-similarity");
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
 
       (aggregateAllContent as jest.Mock).mockResolvedValue(mockNormalizedContent);
