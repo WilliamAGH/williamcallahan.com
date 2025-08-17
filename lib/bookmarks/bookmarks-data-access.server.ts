@@ -262,10 +262,11 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
   }
   console.log(`${LOG_PREFIX} Wrote ${totalPages} pages of bookmarks`);
 
-  // Save slug mapping for static generation
+  // Save slug mapping for static generation (save to all paths for redundancy)
   try {
-    await saveSlugMapping(bookmarks);
-    console.log(`${LOG_PREFIX} Saved slug mapping for ${bookmarks.length} bookmarks`);
+    // Save to all environment paths to ensure availability regardless of NODE_ENV
+    await saveSlugMapping(bookmarks, true, true);
+    console.log(`${LOG_PREFIX} Saved slug mapping for ${bookmarks.length} bookmarks to all environment paths`);
   } catch (error) {
     console.error(`${LOG_PREFIX} Failed to save slug mapping:`, error);
     // Non-critical error - don't fail the entire operation
