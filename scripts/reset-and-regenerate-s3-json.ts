@@ -263,7 +263,7 @@ async function createBackupManifest(files: string[]): Promise<void> {
     environment,
     envSuffix,
     fileCount: files.length,
-    files: [] as Array<{ key: string; metadata: any }>,
+    files: [] as Array<{ key: string; metadata: Record<string, unknown> | null }>,
   };
   
   // Get metadata for each file (in batches to avoid overwhelming S3)
@@ -272,7 +272,7 @@ async function createBackupManifest(files: string[]): Promise<void> {
     const batch = files.slice(i, i + BATCH_SIZE);
     const metadataPromises = batch.map(async (file) => {
       const metadata = await getS3ObjectMetadata(file);
-      return { key: file, metadata };
+      return { key: file, metadata: metadata as Record<string, unknown> | null };
     });
     
     const results = await Promise.all(metadataPromises);
@@ -376,7 +376,7 @@ async function deleteJsonFiles(): Promise<DeletionStats> {
   // Categorize files
   fileList.forEach((file) => {
     if (file.startsWith(BOOKMARKS_S3_PATHS.DIR)) {
-      filesByCategory['Bookmarks'].push(file);
+      filesByCategory.Bookmarks.push(file);
     } else if (file.startsWith(GITHUB_ACTIVITY_S3_PATHS.DIR)) {
       filesByCategory['GitHub Activity'].push(file);
     } else if (file.startsWith(SEARCH_S3_PATHS.DIR)) {
@@ -386,13 +386,13 @@ async function deleteJsonFiles(): Promise<DeletionStats> {
     } else if (file.startsWith(IMAGE_MANIFEST_S3_PATHS.DIR)) {
       filesByCategory['Image Manifests'].push(file);
     } else if (file.startsWith(OPENGRAPH_JSON_S3_PATHS.DIR)) {
-      filesByCategory['OpenGraph'].push(file);
+      filesByCategory.OpenGraph.push(file);
     } else if (file.startsWith('json/rate-limit/')) {
       filesByCategory['Rate Limiting'].push(file);
     } else if (file.startsWith('locks/')) {
-      filesByCategory['Locks'].push(file);
+      filesByCategory.Locks.push(file);
     } else {
-      filesByCategory['Other'].push(file);
+      filesByCategory.Other.push(file);
     }
   });
   
