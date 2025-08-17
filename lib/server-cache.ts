@@ -325,9 +325,11 @@ export class ServerCache implements ICache {
 
 function attachHelpers(prototype: any, helpers: Record<string, any>, helperName: string) {
   for (const key in helpers) {
-    if (Object.prototype.hasOwnProperty.call(helpers, key)) {
+    if (Object.hasOwn(helpers, key)) {
       if (key in prototype) {
-        console.warn(`[ServerCache] Overwriting existing method '${key}' on prototype while attaching '${helperName}' helpers.`);
+        console.warn(
+          `[ServerCache] Overwriting existing method '${key}' on prototype while attaching '${helperName}' helpers.`,
+        );
       }
       prototype[key] = helpers[key];
     }

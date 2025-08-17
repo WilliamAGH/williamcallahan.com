@@ -261,7 +261,7 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
     await writeJsonS3(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${page}.json`, bookmarks.slice(start, start + pageSize));
   }
   console.log(`${LOG_PREFIX} Wrote ${totalPages} pages of bookmarks`);
-  
+
   // Save slug mapping for static generation
   try {
     await saveSlugMapping(bookmarks);

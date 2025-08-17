@@ -9,7 +9,7 @@
 
 /**
  * Extract domain from URL or company name
- * Handles ALL URL formats and converts them to clean FQDNs
+ * Handles common URL formats and converts them to clean FQDNs
  *
  * @param {string} input - URL, domain, or company name
  * @returns {string} Normalized domain (FQDN) or original input if not URL-like
@@ -23,12 +23,13 @@ export function normalizeDomain(input: string): string {
   try {
     // Check if this looks like it could be a URL or domain
     // More liberal detection - anything with a dot or protocol
-    const looksLikeUrl = s.includes("://") || 
-                        s.startsWith("www.") || 
-                        s.includes(".") ||
-                        s.includes(":") || // port numbers
-                        s.includes("/"); // paths
-    
+    const looksLikeUrl =
+      s.includes("://") ||
+      s.startsWith("www.") ||
+      s.includes(".") ||
+      s.includes(":") || // port numbers
+      s.includes("/"); // paths
+
     if (looksLikeUrl) {
       // Ensure we have a protocol for URL parsing
       let urlToParse = s;
@@ -36,18 +37,18 @@ export function normalizeDomain(input: string): string {
         // Add https:// if no protocol
         urlToParse = `https://${urlToParse}`;
       }
-      
+
       // Parse and extract hostname
       const urlObj = new URL(urlToParse);
       let hostname = urlObj.hostname;
-      
+
       // Remove www. prefix if present
       hostname = hostname.replace(/^www\./, "");
-      
+
       // Return clean FQDN
       return hostname;
     }
-    
+
     // If it doesn't look like a URL/domain, return as-is
     // This preserves company names like "moves" or "oliverspace"
     return s;
@@ -58,12 +59,12 @@ export function normalizeDomain(input: string): string {
       // Remove protocol if present
       let domain = s.replace(/^https?:\/\//, "");
       // Remove path if present (handle noUncheckedIndexedAccess)
-      domain = (domain.split("/")[0] ?? "");
+      domain = domain.split("/")[0] ?? "";
       // Remove port if present
-      domain = (domain.split(":")[0] ?? "");
+      domain = domain.split(":")[0] ?? "";
       // Remove www if present
       domain = domain.replace(/^www\./, "");
-      
+
       // If we got something that looks like a domain, return it
       if (domain.includes(".")) {
         return domain;
@@ -71,7 +72,7 @@ export function normalizeDomain(input: string): string {
     } catch {
       // Fallback - return original input
     }
-    
+
     // Last resort - return original input
     return s;
   }
@@ -88,7 +89,7 @@ export function getDomainSlug(url: string): string {
   try {
     // First normalize the domain to get clean FQDN
     const domain = normalizeDomain(url);
-    
+
     // If normalizeDomain returned empty or unchanged non-domain input
     if (!domain || !domain.includes(".")) {
       // For non-URL inputs like company names, create a slug
@@ -98,7 +99,7 @@ export function getDomainSlug(url: string): string {
         .replace(/^-+|-+$/g, "");
       return slug || "unknown-domain";
     }
-    
+
     // Convert FQDN to slug format (dots to dashes)
     const slug = domain
       .toLowerCase()
@@ -106,7 +107,7 @@ export function getDomainSlug(url: string): string {
       .replace(/[^a-z0-9-]/g, "-") // Replace any non-alphanumeric/dash
       .replace(/-+/g, "-") // Collapse multiple dashes
       .replace(/^-+|-+$/g, ""); // Remove leading/trailing dashes
-    
+
     return slug || "unknown-domain";
   } catch (error) {
     // Fallback for any parsing errors
@@ -136,30 +137,6 @@ export function generateUniqueSlug(
       processedUrl = `https://${processedUrl}`;
     }
 
-    const urlObj = new URL(processedUrl);
-    const domain = urlObj.hostname.replace(/^www\./, "");
-
-    // Start with the basic domain slug
-    let baseSlug = domain.replace(/\./g, "-");
-
-    // If there's a meaningful path, include it
-    const path = urlObj.pathname;
-    if (path && path !== "/" && path.length > 1) {
-      // Clean up the path and append it
-      const cleanPath = path
-        // Strip Unicode control characters first
-        .replace(/[\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, "")
-        .replace(/^\/|\/$/g, "") // Remove leading/trailing slashes
-        .replace(/\//g, "-") // Replace slashes with dashes
-        .replace(/[^a-zA-Z0-9-]/g, "-") // Replace non-alphanumeric with dashes
-        .replace(/-+/g, "-") // Replace multiple dashes with single dash
-        .replace(/-+$/g, ""); // Remove trailing dashes
-
-      if (cleanPath) {
-        baseSlug = `${baseSlug}-${cleanPath}`;
-      }
-    }
-
     // Generate base slugs for all bookmarks once instead of recursively calling
     const getBaseSlugFromUrl = (url: string): string => {
       try {
@@ -172,6 +149,7 @@ export function generateUniqueSlug(
         const path = urlObj.pathname;
         if (path && path !== "/" && path.length > 1) {
           const cleanPath = path
+            .toLowerCase()
             // Strip Unicode control characters first
             .replace(/[\u007F-\u009F\u200B-\u200F\u2028-\u202F\u2066-\u206F]/g, "")
             .replace(/^\/|\/$/g, "") // Remove leading/trailing slashes
@@ -190,15 +168,17 @@ export function generateUniqueSlug(
       }
     };
 
+    // Compute the base slug once using the helper
+    const baseSlug = getBaseSlugFromUrl(processedUrl);
     // Build a map of all existing slugs (with their suffixes)
     const slugCounts = new Map<string, number>();
-    
+
     // Process bookmarks in a deterministic order (by ID)
     const sortedBookmarks = [...allBookmarks].sort((a, b) => a.id.localeCompare(b.id));
-    
+
     for (const bookmark of sortedBookmarks) {
       if (bookmark.id === currentBookmarkId) continue; // Skip current bookmark
-      
+
       const bookmarkBaseSlug = getBaseSlugFromUrl(bookmark.url);
       const count = slugCounts.get(bookmarkBaseSlug) || 0;
       slugCounts.set(bookmarkBaseSlug, count + 1);
@@ -206,22 +186,22 @@ export function generateUniqueSlug(
 
     // Check how many bookmarks already have this base slug
     const existingCount = slugCounts.get(baseSlug) || 0;
-    
+
     if (existingCount === 0) {
       return baseSlug; // First one with this slug
     }
-    
+
     // Need to find our position among bookmarks with the same base slug
     let position = 1; // Start at 1 because the first gets no suffix
     for (const bookmark of sortedBookmarks) {
       if (bookmark.id === currentBookmarkId) break; // Found our position
-      
+
       const bookmarkBaseSlug = getBaseSlugFromUrl(bookmark.url);
       if (bookmarkBaseSlug === baseSlug) {
         position++;
       }
     }
-    
+
     // First bookmark gets no suffix, others get -2, -3, etc.
     return position === 1 ? baseSlug : `${baseSlug}-${position}`;
   } catch {
@@ -254,12 +234,12 @@ export function getDisplayDomain(url: string): string {
   try {
     // Use normalizeDomain to get clean FQDN
     const domain = normalizeDomain(url);
-    
+
     // If it's a clean domain, return it
     if (domain?.includes(".")) {
       return domain;
     }
-    
+
     // For non-URL inputs, return as-is
     return domain || url;
   } catch (error) {
