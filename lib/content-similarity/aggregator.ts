@@ -11,6 +11,7 @@ import { investments } from "@/data/investments";
 import { projects } from "@/data/projects";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { extractKeywords, extractCrossContentKeywords } from "./keyword-extractor";
+import { extractDomain } from "@/lib/utils";
 import type {
   NormalizedContent,
   RelatedContentType,
@@ -22,18 +23,6 @@ import type { Investment } from "@/types/investment";
 import type { Project } from "@/types/project";
 
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
-
-/**
- * Extract domain from URL
- */
-function extractDomain(url: string): string | undefined {
-  try {
-    const parsed = new URL(url.startsWith("http") ? url : `https://${url}`);
-    return parsed.hostname.replace(/^www\./, "");
-  } catch {
-    return undefined;
-  }
-}
 
 /**
  * Parse date string to Date object
@@ -52,18 +41,16 @@ function parseDate(dateStr?: string | null): Date | undefined {
  * Normalize a bookmark for similarity comparison
  */
 function normalizeBookmark(bookmark: UnifiedBookmark): NormalizedContent {
-  // Extract tags
-  const tags: string[] = [];
-  if (Array.isArray(bookmark.tags)) {
-    bookmark.tags.forEach(tag => {
-      if (typeof tag === "string") {
-        tags.push(tag);
-      } else if (tag && typeof tag === "object" && "name" in tag) {
-        const tagObj = tag as { name: string };
-        tags.push(tagObj.name);
-      }
-    });
-  }
+  // Extract tags (known schema) and de-duplicate
+  const tags = Array.isArray(bookmark.tags)
+    ? Array.from(
+        new Set(
+          bookmark.tags
+            .map((t) => t?.name)
+            .filter((name): name is string => Boolean(name && name.trim()))
+        )
+      )
+    : [];
   
   // Build text content for similarity matching
   const textParts = [
@@ -82,14 +69,16 @@ function normalizeBookmark(bookmark: UnifiedBookmark): NormalizedContent {
   
   return {
     id: bookmark.id,
-    type: "bookmark" as RelatedContentType,
+    type: "bookmark",
     title,
     text,
     tags: enhancedTags,
-    url: `/bookmarks/${bookmark.id}`,
+    // Note: URL will be resolved to actual slug in RelatedContent component
+    // We can't generate slugs here as it requires all bookmarks for uniqueness
+    url: `/bookmarks/${bookmark.id}`, // Placeholder - actual slug resolved later
     domain: extractDomain(bookmark.url),
     date: parseDate(bookmark.dateBookmarked),
-    source: bookmark as ContentSource,
+    source: bookmark,
   };
 }
 
@@ -112,14 +101,14 @@ function normalizeBlogPost(post: BlogPost): NormalizedContent {
   
   return {
     id: post.id,
-    type: "blog" as RelatedContentType,
+    type: "blog",
     title: post.title,
     text,
     tags: enhancedTags,
     url: `/blog/${post.slug}`,
     domain: undefined,
     date: parseDate(post.publishedAt),
-    source: post as ContentSource,
+    source: post,
   };
 }
 
@@ -163,14 +152,14 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
   
   return {
     id: investment.id,
-    type: "investment" as RelatedContentType,
+    type: "investment",
     title: investment.name,
     text: investment.description,
     tags: enhancedTags,
     url: `/investments#${investment.id}`,
     domain: extractDomain(investment.website || ""),
     date: investment.invested_year ? new Date(`${investment.invested_year}-01-01`) : undefined,
-    source: investment as ContentSource,
+    source: investment,
   };
 }
 
@@ -187,14 +176,14 @@ function normalizeProject(project: Project): NormalizedContent {
   
   return {
     id: project.id || project.name,
-    type: "project" as RelatedContentType,
+    type: "project",
     title: project.name,
     text,
     tags: enhancedTags,
     url: `/projects#${project.id || project.name}`,
     domain: extractDomain(project.url),
     date: undefined, // Projects don't have dates in current schema
-    source: project as ContentSource,
+    source: project,
   };
 }
 
@@ -293,19 +282,19 @@ export async function getContentById(
 /**
  * Filter content by types
  */
-export function filterByTypes(
-  content: NormalizedContent[],
+export function filterByTypes<T extends NormalizedContent>(
+  content: T[],
   includeTypes?: RelatedContentType[],
   excludeTypes?: RelatedContentType[]
-): NormalizedContent[] {
+): T[] {
   let filtered = content;
   
   if (includeTypes && includeTypes.length > 0) {
-    filtered = filtered.filter(item => includeTypes.includes(item.type));
+    filtered = filtered.filter(item => includeTypes.includes(item.type)) as typeof filtered;
   }
   
   if (excludeTypes && excludeTypes.length > 0) {
-    filtered = filtered.filter(item => !excludeTypes.includes(item.type));
+    filtered = filtered.filter(item => !excludeTypes.includes(item.type)) as typeof filtered;
   }
   
   return filtered;
