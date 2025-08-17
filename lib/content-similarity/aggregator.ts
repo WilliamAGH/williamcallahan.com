@@ -12,6 +12,7 @@ import { projects } from "@/data/projects";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { extractKeywords, extractCrossContentKeywords } from "./keyword-extractor";
 import { extractDomain } from "@/lib/utils";
+import { getBulkBookmarkSlugs } from "@/lib/bookmarks/slug-helpers";
 import type { NormalizedContent, RelatedContentType } from "@/types/related-content";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { BlogPost } from "@/types/blog";
@@ -35,8 +36,10 @@ function parseDate(dateStr?: string | null): Date | undefined {
 
 /**
  * Normalize a bookmark for similarity comparison
+ * @param bookmark - The bookmark to normalize
+ * @param slugMap - Optional map of bookmark IDs to slugs
  */
-function normalizeBookmark(bookmark: UnifiedBookmark): NormalizedContent {
+function normalizeBookmark(bookmark: UnifiedBookmark, slugMap?: Map<string, string>): NormalizedContent {
   // Extract tags (known schema) and de-duplicate
   const tags = Array.isArray(bookmark.tags)
     ? Array.from(
@@ -60,15 +63,16 @@ function normalizeBookmark(bookmark: UnifiedBookmark): NormalizedContent {
   const keywords = extractKeywords(title, text, tags, 8);
   const enhancedTags = [...tags, ...keywords];
 
+  // Use the actual slug if available, otherwise keep the ID as fallback
+  const slug = slugMap?.get(bookmark.id) || bookmark.id;
+  
   return {
     id: bookmark.id,
     type: "bookmark",
     title,
     text,
     tags: enhancedTags,
-    // Note: URL will be resolved to actual slug in RelatedContent component
-    // We can't generate slugs here as it requires all bookmarks for uniqueness
-    url: `/bookmarks/${bookmark.id}`, // Placeholder - actual slug resolved later
+    url: `/bookmarks/${slug}`, // Use actual slug from mapping
     domain: extractDomain(bookmark.url),
     date: parseDate(bookmark.dateBookmarked),
     source: bookmark,
@@ -200,12 +204,16 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
     // Normalize all content
     const normalized: NormalizedContent[] = [];
 
-    // Process bookmarks
+    // Process bookmarks with slug mapping
     if (bookmarksData && Array.isArray(bookmarksData)) {
       const bookmarks = bookmarksData as UnifiedBookmark[];
+      
+      // Load slug mappings for all bookmarks
+      const slugMap = await getBulkBookmarkSlugs(bookmarks);
+      
       bookmarks.forEach((bookmark) => {
         try {
-          normalized.push(normalizeBookmark(bookmark));
+          normalized.push(normalizeBookmark(bookmark, slugMap));
         } catch (error) {
           console.error(`Failed to normalize bookmark ${bookmark.id}:`, error);
         }
