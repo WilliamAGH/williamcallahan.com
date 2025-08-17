@@ -5,7 +5,6 @@
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
-import type { NormalizedContent } from "@/types/related-content";
 
 // Mock S3 utilities
 jest.mock("@/lib/s3-utils");
@@ -89,7 +88,7 @@ describe("Content Graph Pre-computation", () => {
       (aggregateAllContent as jest.Mock).mockResolvedValue(mockNormalizedContent);
       (getAllPosts as jest.Mock).mockResolvedValue(mockBlogPosts);
       // Projects already mocked at module level
-      (findMostSimilar as jest.Mock).mockImplementation((source, candidates) => {
+      (findMostSimilar as jest.Mock).mockImplementation((_source, candidates) => {
         // Return mock similar content
         return candidates.slice(0, 2).map((c: any, i: number) => ({
           ...c,
@@ -194,7 +193,7 @@ describe("Content Graph Pre-computation", () => {
       (aggregateAllContent as jest.Mock).mockResolvedValue(mockNormalizedContent);
       (getAllPosts as jest.Mock).mockResolvedValue(mockBlogPosts);
       // Projects already mocked at module level
-      (findMostSimilar as jest.Mock).mockImplementation((source, candidates) => {
+      (findMostSimilar as jest.Mock).mockImplementation((_source, candidates) => {
         return candidates.slice(0, 2).map((c: any, i: number) => ({
           ...c,
           score: 0.9 - i * 0.1,
@@ -232,7 +231,7 @@ describe("Content Graph Pre-computation", () => {
         expect(tagGraph.tags).toHaveProperty("react");
         
         // Check co-occurrence tracking
-        const jsTag = tagGraph.tags["javascript"];
+        const jsTag = tagGraph.tags.javascript;
         if (jsTag) {
           expect(jsTag.count).toBeGreaterThan(0);
           expect(jsTag.coOccurrences).toBeDefined();
@@ -284,7 +283,7 @@ describe("Content Graph Pre-computation", () => {
       (aggregateAllContent as jest.Mock).mockResolvedValue(mockNormalizedContent);
       (getAllPosts as jest.Mock).mockResolvedValue(mockBlogPosts);
       // Projects already mocked at module level
-      (findMostSimilar as jest.Mock).mockImplementation((source, candidates) => {
+      (findMostSimilar as jest.Mock).mockImplementation((_source, candidates) => {
         return candidates.slice(0, 2).map((c: any, i: number) => ({
           ...c,
           score: 0.9 - i * 0.1,
