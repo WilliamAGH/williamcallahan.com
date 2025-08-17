@@ -36,13 +36,27 @@ const safeCacheLife = (
   try {
     // Only attempt to use cacheLife if we're in a Next.js request context
     // CLI scripts and data-updater won't have access to these functions
-    if (typeof cacheLife === "function" && !process.argv.includes("data-updater")) {
+    // Check if we're running in a CLI/script context
+    const isCliContext = 
+      process.argv[1]?.includes('/scripts/') || 
+      process.argv.includes("data-updater") ||
+      process.argv.includes("reset-and-regenerate") ||
+      process.argv.includes("regenerate-content") ||
+      process.env.NEXT_PHASE === "phase-production-build";
+    
+    if (typeof cacheLife === "function" && !isCliContext) {
       cacheLife(profile);
     }
   } catch (err) {
     // Silently ignore - expected when running outside Next.js request context
     // This is normal for CLI scripts, data-updater, and environments without experimental.useCache
-    if (process.env.NODE_ENV === "development") {
+    // Don't log warnings in production or when running CLI scripts
+    const shouldLogWarning = 
+      process.env.NODE_ENV === "development" && 
+      !process.argv[1]?.includes('/scripts/') &&
+      !process.env.SUPPRESS_CACHE_WARNINGS;
+    
+    if (shouldLogWarning) {
       console.warn("[Bookmarks] cacheLife not available:", err);
     }
   }
@@ -50,12 +64,24 @@ const safeCacheLife = (
 const safeCacheTag = (...tags: string[]): void => {
   try {
     // Only attempt to use cacheTag if we're in a Next.js request context
-    if (typeof cacheTag === "function" && !process.argv.includes("data-updater")) {
+    const isCliContext = 
+      process.argv[1]?.includes('/scripts/') || 
+      process.argv.includes("data-updater") ||
+      process.argv.includes("reset-and-regenerate") ||
+      process.argv.includes("regenerate-content") ||
+      process.env.NEXT_PHASE === "phase-production-build";
+    
+    if (typeof cacheTag === "function" && !isCliContext) {
       for (const tag of new Set(tags)) cacheTag(tag);
     }
   } catch (err) {
     // Silently ignore - expected when running outside Next.js request context
-    if (process.env.NODE_ENV === "development") {
+    const shouldLogWarning = 
+      process.env.NODE_ENV === "development" && 
+      !process.argv[1]?.includes('/scripts/') &&
+      !process.env.SUPPRESS_CACHE_WARNINGS;
+    
+    if (shouldLogWarning) {
       console.warn("[Bookmarks] cacheTag not available:", err);
     }
   }
@@ -63,12 +89,24 @@ const safeCacheTag = (...tags: string[]): void => {
 const safeRevalidateTag = (...tags: string[]): void => {
   try {
     // Only attempt to use revalidateTag if we're in a Next.js request context
-    if (typeof revalidateTag === "function" && !process.argv.includes("data-updater")) {
+    const isCliContext = 
+      process.argv[1]?.includes('/scripts/') || 
+      process.argv.includes("data-updater") ||
+      process.argv.includes("reset-and-regenerate") ||
+      process.argv.includes("regenerate-content") ||
+      process.env.NEXT_PHASE === "phase-production-build";
+    
+    if (typeof revalidateTag === "function" && !isCliContext) {
       for (const tag of new Set(tags)) revalidateTag(tag);
     }
   } catch (err) {
     // Silently ignore - expected when running outside Next.js request context
-    if (process.env.NODE_ENV === "development") {
+    const shouldLogWarning = 
+      process.env.NODE_ENV === "development" && 
+      !process.argv[1]?.includes('/scripts/') &&
+      !process.env.SUPPRESS_CACHE_WARNINGS;
+    
+    if (shouldLogWarning) {
       console.warn("[Bookmarks] revalidateTag not available:", err);
     }
   }
@@ -262,11 +300,11 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
   }
   console.log(`${LOG_PREFIX} Wrote ${totalPages} pages of bookmarks`);
 
-  // Save slug mapping for static generation (save to all paths for redundancy)
+  // Save slug mapping for static generation
   try {
-    // Save to all environment paths to ensure availability regardless of NODE_ENV
-    await saveSlugMapping(bookmarks, true, true);
-    console.log(`${LOG_PREFIX} Saved slug mapping for ${bookmarks.length} bookmarks to all environment paths`);
+    // Save to current environment path only
+    await saveSlugMapping(bookmarks, true, false);
+    console.log(`${LOG_PREFIX} Saved slug mapping for ${bookmarks.length} bookmarks`);
   } catch (error) {
     console.error(`${LOG_PREFIX} Failed to save slug mapping:`, error);
     // Non-critical error - don't fail the entire operation
