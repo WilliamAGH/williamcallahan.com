@@ -119,11 +119,7 @@ describe("Bookmark Slug Mapping", () => {
 
   describe("saveSlugMapping", () => {
     it("should save mapping to S3 with correct path", async () => {
-      mockWriteJsonS3.mockResolvedValue({
-        success: true,
-        key: BOOKMARKS_S3_PATHS.SLUG_MAPPING,
-        etag: "test-etag",
-      });
+      mockWriteJsonS3.mockResolvedValue(undefined);
 
       await saveSlugMapping(mockBookmarks);
 
