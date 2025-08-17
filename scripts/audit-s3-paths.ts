@@ -17,6 +17,8 @@ import {
   CONTENT_GRAPH_S3_PATHS
 } from "../lib/constants";
 import type { PathCheck } from "@/types/utils/audit";
+import type { BookmarkSlugMapping } from "@/types/bookmark";
+import type { BookmarksIndexEntry, ContentGraphMetadata, RelatedContentEntry } from "@/types/related-content";
 import { ServerCacheInstance } from "../lib/server-cache";
 import { getMemoryHealthMonitor } from "../lib/health/memory-health-monitor";
 
@@ -155,8 +157,8 @@ async function auditS3Paths() {
   console.log("\n🔄 PAGINATION CONSISTENCY CHECK:");
   
   try {
-    const index = await readJsonS3<any>(BOOKMARKS_S3_PATHS.INDEX);
-    if (index && index.totalPages) {
+    const index = await readJsonS3<BookmarksIndexEntry>(BOOKMARKS_S3_PATHS.INDEX);
+    if (index?.totalPages) {
       console.log(`  📖 Index reports ${index.totalPages} pages`);
       
       // Check if all pages exist
@@ -184,7 +186,7 @@ async function auditS3Paths() {
   // Check slug mapping
   console.log("\n🔗 SLUG MAPPING CHECK:");
   try {
-    const slugMapping = await readJsonS3<any>("json/bookmarks/slug-mapping.json");
+    const slugMapping = await readJsonS3<BookmarkSlugMapping>("json/bookmarks/slug-mapping.json");
     if (slugMapping) {
       const slugCount = Object.keys(slugMapping.slugs || {}).length;
       const reverseCount = Object.keys(slugMapping.reverseMap || {}).length;
@@ -203,8 +205,8 @@ async function auditS3Paths() {
   // Check content graph integrity
   console.log("\n🕸️ CONTENT GRAPH INTEGRITY:");
   try {
-    const relatedContent = await readJsonS3<Record<string, any[]>>(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
-    const metadata = await readJsonS3<any>(CONTENT_GRAPH_S3_PATHS.METADATA);
+    const relatedContent = await readJsonS3<Record<string, RelatedContentEntry[]>>(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
+    const metadata = await readJsonS3<ContentGraphMetadata>(CONTENT_GRAPH_S3_PATHS.METADATA);
     
     if (relatedContent && metadata) {
       const relatedCount = Object.keys(relatedContent).length;
