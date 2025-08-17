@@ -89,18 +89,24 @@ export function validateEnvironmentPath(path: string): boolean {
   
   // For production (no suffix), ensure path doesn't have -dev or -test
   if (env === "production") {
-    if (path.includes("-dev.json") || path.includes("-test.json")) {
+    if (path.includes("-dev.json") || path.includes("-test.json") ||
+        path.includes("-dev/") || path.includes("-test/")) {
       logger.error(`[Environment] Production path should not have suffix: ${path}`);
       return false;
     }
     return true;
   }
   
-  // For dev/test, ensure path has the correct suffix before .json
+  // For dev/test, ensure path has the correct suffix
   if (path.endsWith(".json")) {
     const expectedEnding = `${suffix}.json`;
-    if (!path.includes(expectedEnding)) {
-      logger.error(`[Environment] Path missing ${env} suffix: ${path} (expected to contain '${expectedEnding}')`);
+    const expectedDir = `${suffix}/`;
+    
+    // Check if suffix is in the filename (e.g., data-dev.json)
+    // OR in the directory path (e.g., pages-dev/page-1.json)
+    if (!path.includes(expectedEnding) && !path.includes(expectedDir)) {
+      logger.error(`[Environment] Path missing ${env} suffix: ${path}`);
+      logger.error(`[Environment] Expected '${expectedEnding}' in filename OR '${expectedDir}' in directory`);
       return false;
     }
   }
