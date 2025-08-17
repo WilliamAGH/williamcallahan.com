@@ -1,6 +1,6 @@
 /**
  * Integration tests for the complete pre-computation pipeline
- * 
+ *
  * Tests the full flow from data fetching through pre-computation to serving
  */
 
@@ -8,6 +8,7 @@ import { DataFetchManager } from "@/lib/server/data-fetch-manager";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { CONTENT_GRAPH_S3_PATHS, BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { DataFetchConfig } from "@/types/lib";
+import type { BookmarkSlugMapping } from "@/types/bookmark";
 
 // Mock external dependencies
 jest.mock("@/lib/s3-utils");
@@ -45,15 +46,17 @@ describe("Pre-computation Pipeline Integration", () => {
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
       const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
       const mockBookmarks = [
-        { 
-          id: "b1", 
-          title: "Test", 
+        {
+          id: "b1",
+          title: "Test",
           url: "https://test.com",
           domain: "test.com",
           tags: [],
           dateBookmarked: "2024-01-01",
           summary: "",
-          note: ""
+          note: "",
+          description: "",
+          sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
         },
       ];
       (getBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
@@ -154,21 +157,21 @@ describe("Pre-computation Pipeline Integration", () => {
         expect.objectContaining({
           operation: "bookmarks",
           success: true,
-        })
+        }),
       );
-      
+
       expect(results).toContainEqual(
         expect.objectContaining({
           operation: "searchIndexes",
           success: true,
-        })
+        }),
       );
-      
+
       expect(results).toContainEqual(
         expect.objectContaining({
           operation: "content-graph",
           success: true,
-        })
+        }),
       );
     });
 
@@ -183,17 +186,17 @@ describe("Pre-computation Pipeline Integration", () => {
 
       mockReadJsonS3.mockImplementation((path) => {
         if (path === CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT) {
-          return mockRelatedContent;
+          return Promise.resolve(mockRelatedContent);
         }
-        return null;
+        return Promise.resolve(null);
       });
 
       // Simulate server-side rendering
       const serverResult1 = await getRelatedContentForItem("bookmark", "b1");
-      
+
       // Simulate client-side hydration (should get same result)
       const serverResult2 = await getRelatedContentForItem("bookmark", "b1");
-      
+
       // Results should be identical (hydration-safe)
       expect(serverResult1).toEqual(serverResult2);
     });
@@ -207,17 +210,13 @@ describe("Pre-computation Pipeline Integration", () => {
       process.env.NODE_ENV = "production";
       jest.resetModules();
       const prodConstants = require("@/lib/constants");
-      expect(prodConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe(
-        "json/content-graph/related-content.json"
-      );
+      expect(prodConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe("json/content-graph/related-content.json");
 
       // Test development paths
       process.env.NODE_ENV = "development";
       jest.resetModules();
       const devConstants = require("@/lib/constants");
-      expect(devConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe(
-        "json/content-graph-dev/related-content.json"
-      );
+      expect(devConstants.CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT).toBe("json/content-graph-dev/related-content.json");
 
       // Restore original
       process.env.NODE_ENV = originalEnv;
@@ -227,17 +226,17 @@ describe("Pre-computation Pipeline Integration", () => {
       // Mock different data for different environments
       mockReadJsonS3.mockImplementation((path) => {
         if (path.includes("-dev")) {
-          return { env: "development" };
+          return Promise.resolve({ env: "development" });
         }
-        return { env: "production" };
+        return Promise.resolve({ env: "production" });
       });
 
       const devData = await readJsonS3("json/content-graph-dev/metadata.json");
       const prodData = await readJsonS3("json/content-graph/metadata.json");
 
       expect(devData).not.toEqual(prodData);
-      expect((devData as any).env).toBe("development");
-      expect((prodData as any).env).toBe("production");
+      expect((devData as { env: string }).env).toBe("development");
+      expect((prodData as { env: string }).env).toBe("production");
     });
   });
 
@@ -247,24 +246,24 @@ describe("Pre-computation Pipeline Integration", () => {
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
       const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
       const mockBookmarks = [
-        { 
-          id: "b1", 
+        {
+          id: "b1",
           title: "Test",
           url: "https://test.com",
           domain: "test.com",
           tags: [],
           dateBookmarked: "2024-01-01",
           summary: "",
-          note: ""
+          note: "",
+          description: "",
+          sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
         },
       ];
       (getBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
       (refreshBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
 
       const { buildAllSearchIndexes } = await import("@/lib/search/index-builder");
-      (buildAllSearchIndexes as jest.Mock).mockRejectedValue(
-        new Error("Search index build failed")
-      );
+      (buildAllSearchIndexes as jest.Mock).mockRejectedValue(new Error("Search index build failed"));
 
       const results = await manager.fetchData({
         bookmarks: true,
@@ -276,7 +275,7 @@ describe("Pre-computation Pipeline Integration", () => {
         expect.objectContaining({
           operation: "bookmarks",
           success: true,
-        })
+        }),
       );
 
       // Search should fail
@@ -285,14 +284,14 @@ describe("Pre-computation Pipeline Integration", () => {
           operation: "searchIndexes",
           success: false,
           error: expect.stringContaining("Search index build failed"),
-        })
+        }),
       );
 
       // Content graph should still attempt to build
       expect(results).toContainEqual(
         expect.objectContaining({
           operation: "content-graph",
-        })
+        }),
       );
     });
 
@@ -302,7 +301,7 @@ describe("Pre-computation Pipeline Integration", () => {
 
       // Component should fall back to runtime computation
       const result = await getRelatedContentForItem("bookmark", "unknown");
-      
+
       // Should not throw error
       expect(result).toBeDefined();
     });
@@ -311,25 +310,29 @@ describe("Pre-computation Pipeline Integration", () => {
   describe("Data Consistency", () => {
     it("should maintain consistency between slug mapping and bookmarks", async () => {
       const mockBookmarks = [
-        { 
-          id: "b1", 
-          url: "https://test1.com", 
+        {
+          id: "b1",
+          url: "https://test1.com",
           title: "Test 1",
           domain: "test1.com",
           tags: [],
           dateBookmarked: "2024-01-01",
           summary: "",
-          note: ""
+          note: "",
+          description: "",
+          sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
         },
-        { 
-          id: "b2", 
-          url: "https://test2.com", 
+        {
+          id: "b2",
+          url: "https://test2.com",
           title: "Test 2",
           domain: "test2.com",
           tags: [],
           dateBookmarked: "2024-01-02",
           summary: "",
-          note: ""
+          note: "",
+          description: "",
+          sourceUpdatedAt: "2024-01-02T00:00:00.000Z",
         },
       ];
 
@@ -349,7 +352,7 @@ describe("Pre-computation Pipeline Integration", () => {
 
       // Verify slug mapping was created for all bookmarks
       const slugMappingCall = (writeJsonS3 as jest.Mock).mock.calls.find(
-        call => call[0] === BOOKMARKS_S3_PATHS.SLUG_MAPPING
+        (call) => call[0] === BOOKMARKS_S3_PATHS.SLUG_MAPPING,
       );
 
       // Skip this assertion if slug mapping wasn't created
@@ -358,10 +361,10 @@ describe("Pre-computation Pipeline Integration", () => {
         console.log("Slug mapping was not created in this test run");
         return;
       }
-      
+
       expect(slugMappingCall).toBeDefined();
       if (slugMappingCall) {
-        const mapping = slugMappingCall[1];
+        const mapping = slugMappingCall[1] as BookmarkSlugMapping;
         expect(mapping.count).toBe(2);
         expect(mapping.slugs.b1).toBeDefined();
         expect(mapping.slugs.b2).toBeDefined();
@@ -369,16 +372,20 @@ describe("Pre-computation Pipeline Integration", () => {
     });
 
     it("should maintain consistency in content graph counts", async () => {
-      const mockBookmarks = Array(100).fill(null).map((_, i) => ({
-        id: `b${i}`,
-        title: `Bookmark ${i}`,
-        url: `https://test${i}.com`,
-        domain: `test${i}.com`,
-        tags: [],
-        dateBookmarked: "2024-01-01",
-        summary: "",
-        note: "",
-      }));
+      const mockBookmarks = Array(100)
+        .fill(null)
+        .map((_, i) => ({
+          id: `b${i}`,
+          title: `Bookmark ${i}`,
+          url: `https://test${i}.com`,
+          domain: `test${i}.com`,
+          tags: [],
+          dateBookmarked: "2024-01-01",
+          summary: "",
+          note: "",
+          description: `Description for bookmark ${i}`,
+          sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
+        }));
 
       const { refreshBookmarks } = await import("@/lib/bookmarks/service.server");
       const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
@@ -393,17 +400,17 @@ describe("Pre-computation Pipeline Integration", () => {
       // Check metadata consistency
       const { writeJsonS3 } = await import("@/lib/s3-utils");
       const metadataCall = (writeJsonS3 as jest.Mock).mock.calls.find(
-        call => call[0] === CONTENT_GRAPH_S3_PATHS.METADATA
+        (call) => call[0] === CONTENT_GRAPH_S3_PATHS.METADATA,
       );
 
       const relatedContentCall = (writeJsonS3 as jest.Mock).mock.calls.find(
-        call => call[0] === CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT
+        (call) => call[0] === CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
       );
 
       if (metadataCall && relatedContentCall) {
-        const metadata = metadataCall[1];
-        const relatedContent = relatedContentCall[1];
-        
+        const metadata = metadataCall[1] as { counts: { total: number } };
+        const relatedContent = relatedContentCall[1] as Record<string, unknown>;
+
         // Metadata count should match actual content
         expect(metadata.counts.total).toBe(Object.keys(relatedContent).length);
       }
@@ -412,16 +419,13 @@ describe("Pre-computation Pipeline Integration", () => {
 });
 
 // Helper function to simulate component usage
-async function getRelatedContentForItem(
-  type: string,
-  id: string
-): Promise<any> {
+async function getRelatedContentForItem(type: string, id: string): Promise<unknown[]> {
   // This would normally render the component
   // For testing, we just check if data is available
   const data = await readJsonS3(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
   if (data && typeof data === "object") {
     const key = `${type}:${id}`;
-    return (data as any)[key] || [];
+    return (data as Record<string, unknown[]>)[key] || [];
   }
   return [];
 }

@@ -8,7 +8,7 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { useRouter, usePathname } from "next/navigation";
 import { BookmarksWithPagination } from "@/components/features/bookmarks/bookmarks-with-pagination.client";
-import { useBookmarksPagination } from "@/hooks/use-bookmarks-pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import type { UnifiedBookmark } from "@/types";
 
 // Mock next/navigation
@@ -19,7 +19,7 @@ jest.mock("next/navigation", () => ({
 }));
 
 // Mock the pagination hook
-jest.mock("@/hooks/use-bookmarks-pagination");
+jest.mock("@/hooks/use-pagination");
 
 // Mock data
 const mockBookmarks: UnifiedBookmark[] = [
@@ -29,7 +29,8 @@ const mockBookmarks: UnifiedBookmark[] = [
     title: "React Best Practices",
     description: "Learn React",
     tags: ["React", "JavaScript"],
-    dateBookmarked: "2024-01-01",
+    dateBookmarked: "2024-01-01T00:00:00.000Z",
+    sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
   },
   {
     id: "2",
@@ -37,7 +38,8 @@ const mockBookmarks: UnifiedBookmark[] = [
     title: "TypeScript Guide",
     description: "TypeScript fundamentals",
     tags: ["TypeScript", "JavaScript"],
-    dateBookmarked: "2024-01-02",
+    dateBookmarked: "2024-01-02T00:00:00.000Z",
+    sourceUpdatedAt: "2024-01-02T00:00:00.000Z",
   },
   {
     id: "3",
@@ -45,7 +47,8 @@ const mockBookmarks: UnifiedBookmark[] = [
     title: "React Hooks",
     description: "Advanced React patterns",
     tags: ["React", "Hooks"],
-    dateBookmarked: "2024-01-03",
+    dateBookmarked: "2024-01-03T00:00:00.000Z",
+    sourceUpdatedAt: "2024-01-03T00:00:00.000Z",
   },
 ];
 
@@ -66,8 +69,8 @@ describe("Tag Navigation with Pagination", () => {
     (usePathname as jest.Mock).mockReturnValue("/bookmarks");
 
     // Default pagination hook mock
-    (useBookmarksPagination as jest.Mock).mockReturnValue({
-      bookmarks: mockBookmarks,
+    (usePagination as jest.Mock).mockReturnValue({
+      items: mockBookmarks,
       currentPage: 1,
       totalPages: 3,
       totalItems: 72, // 3 pages of 24 items
@@ -93,9 +96,9 @@ describe("Tag Navigation with Pagination", () => {
       );
 
       // Verify the hook was called with the tag parameter
-      expect(useBookmarksPagination).toHaveBeenCalledWith(
+      expect(usePagination).toHaveBeenCalledWith(
         expect.objectContaining({
-          tag: "React",
+          queryParams: { tag: "React" },
         }),
       );
     });
@@ -104,9 +107,9 @@ describe("Tag Navigation with Pagination", () => {
       render(<BookmarksWithPagination initialBookmarks={mockBookmarks} baseUrl="/bookmarks" />);
 
       // Verify the hook was called without tag parameter
-      expect(useBookmarksPagination).toHaveBeenCalledWith(
+      expect(usePagination).toHaveBeenCalledWith(
         expect.objectContaining({
-          tag: undefined,
+          queryParams: {},
         }),
       );
     });
@@ -134,9 +137,9 @@ describe("Tag Navigation with Pagination", () => {
       );
 
       // Verify the hook still receives the tag filter
-      expect(useBookmarksPagination).toHaveBeenLastCalledWith(
+      expect(usePagination).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          tag: "React",
+          queryParams: { tag: "React" },
           initialPage: 2,
         }),
       );
@@ -172,8 +175,8 @@ describe("Tag Navigation with Pagination", () => {
 
     it("should reset to page 1 when selecting a tag", async () => {
       // Start on page 3
-      (useBookmarksPagination as jest.Mock).mockReturnValue({
-        bookmarks: mockBookmarks,
+      (usePagination as jest.Mock).mockReturnValue({
+        items: mockBookmarks,
         currentPage: 3,
         totalPages: 5,
         totalItems: 120,
@@ -214,9 +217,9 @@ describe("Tag Navigation with Pagination", () => {
       );
 
       // Verify the hook was called with the correct tag and page
-      expect(useBookmarksPagination).toHaveBeenCalledWith(
+      expect(usePagination).toHaveBeenCalledWith(
         expect.objectContaining({
-          tag: "React",
+          queryParams: { tag: "React" },
           initialPage: 2,
         }),
       );
@@ -234,9 +237,9 @@ describe("Tag Navigation with Pagination", () => {
       );
 
       // Verify the hook was called with the correct baseUrl-derived initialPage
-      expect(useBookmarksPagination).toHaveBeenCalledWith(
+      expect(usePagination).toHaveBeenCalledWith(
         expect.objectContaining({
-          tag: "React",
+          queryParams: { tag: "React" },
           initialPage: 1,
         }),
       );
@@ -252,9 +255,9 @@ describe("Tag Navigation with Pagination", () => {
         />,
       );
 
-      expect(useBookmarksPagination).toHaveBeenLastCalledWith(
+      expect(usePagination).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          tag: "React",
+          queryParams: { tag: "React" },
           initialPage: 2,
         }),
       );
@@ -274,10 +277,10 @@ describe("Tag Navigation with Pagination", () => {
       );
 
       // Get initial hook call
-      const firstCall = (useBookmarksPagination as jest.Mock).mock.calls[0][0];
+      const firstCall = (usePagination as jest.Mock).mock.calls[0][0];
 
       // Clear mock and re-render (simulating page refresh)
-      (useBookmarksPagination as jest.Mock).mockClear();
+      (usePagination as jest.Mock).mockClear();
 
       rerender(
         <BookmarksWithPagination
@@ -290,7 +293,7 @@ describe("Tag Navigation with Pagination", () => {
       );
 
       // Should call hook with exact same parameters
-      const secondCall = (useBookmarksPagination as jest.Mock).mock.calls[0][0];
+      const secondCall = (usePagination as jest.Mock).mock.calls[0][0];
       expect(secondCall).toEqual(firstCall);
     });
 
@@ -320,9 +323,9 @@ describe("Tag Navigation with Pagination", () => {
 
       // Tag filter should still be present in the hook call
       await waitFor(() => {
-        expect(useBookmarksPagination).toHaveBeenCalledWith(
+        expect(usePagination).toHaveBeenCalledWith(
           expect.objectContaining({
-            tag: "React",
+            queryParams: { tag: "React" },
             initialPage: 2,
           }),
         );
@@ -337,13 +340,15 @@ describe("Tag Navigation with Pagination", () => {
           id: "1",
           url: "https://example.com",
           title: "C++ Guide",
+          description: "A guide to C++",
           tags: ["C++", "C#", ".NET"],
-          dateBookmarked: "2024-01-01",
+          dateBookmarked: "2024-01-01T00:00:00.000Z",
+          sourceUpdatedAt: "2024-01-01T00:00:00.000Z",
         },
       ];
 
-      (useBookmarksPagination as jest.Mock).mockReturnValue({
-        bookmarks: bookmarksWithSpecialTags,
+      (usePagination as jest.Mock).mockReturnValue({
+        items: bookmarksWithSpecialTags,
         currentPage: 1,
         totalPages: 1,
         totalItems: 1,
@@ -367,8 +372,8 @@ describe("Tag Navigation with Pagination", () => {
     });
 
     it("should handle empty results for tag filter", () => {
-      (useBookmarksPagination as jest.Mock).mockReturnValue({
-        bookmarks: [],
+      (usePagination as jest.Mock).mockReturnValue({
+        items: [],
         currentPage: 1,
         totalPages: 0,
         totalItems: 0,
