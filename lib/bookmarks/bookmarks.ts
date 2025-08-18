@@ -157,15 +157,14 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
     const slugMapping = generateSlugMapping(normalizedBookmarks);
 
     // Embed slugs directly into bookmark objects
+    // Note: generateSlugMapping guarantees every bookmark has a slug or throws
     for (const bookmark of normalizedBookmarks) {
       const slugEntry = slugMapping.slugs[bookmark.id];
-      if (slugEntry) {
-        bookmark.slug = slugEntry.slug;
-      } else {
-        // Fallback: generate a simple slug if mapping failed
-        const { getDomainSlug } = await import("@/lib/utils/domain-utils");
-        bookmark.slug = `${getDomainSlug(bookmark.url)}-${bookmark.id.slice(0, 8)}`;
+      if (!slugEntry) {
+        // This should never happen since generateSlugMapping throws on missing slugs
+        throw new Error(`[refreshBookmarksData] Missing slug mapping for bookmark id=${bookmark.id}`);
       }
+      bookmark.slug = slugEntry.slug;
     }
     console.log(`[refreshBookmarksData] Generated slugs for ${normalizedBookmarks.length} bookmarks.`);
 

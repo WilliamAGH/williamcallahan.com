@@ -124,9 +124,8 @@ function toRelatedContentItem(
 
     case "project": {
       const project = content.source as import("@/types/project").Project;
-      // Use S3 image key to construct absolute URL
       const metadata: RelatedContentItem["metadata"] = project.imageKey
-        ? { ...baseMetadata, imageUrl: ensureAbsoluteUrl(`/api/s3/${encodeURI(project.imageKey)}`) }
+        ? { ...baseMetadata, imageUrl: ensureAbsoluteUrl(`/${project.imageKey}`) }
         : baseMetadata;
 
       return {
