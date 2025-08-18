@@ -279,6 +279,7 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
         <RelatedContent
           sourceType="bookmark"
           sourceId={foundBookmark.id}
+          sourceSlug={slug} // Pass the slug for proper idempotent identification
           sectionTitle="You might also like"
           options={{
             maxPerType: 3,
