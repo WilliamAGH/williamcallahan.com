@@ -312,7 +312,7 @@ async function fetchExternalOpenGraph(
   const ogImageValue = validatedMetadata.image || validatedMetadata.profileImage || validatedMetadata.twitterImage;
   const bestImageUrlRaw = selectBestImage(
     { ogImage: ogImageValue || undefined, content: undefined },
-    { includeScreenshots: false, returnUndefined: true }
+    { includeScreenshots: false, returnUndefined: true },
   );
   const bestImageUrl: string | undefined = bestImageUrlRaw === null ? undefined : bestImageUrlRaw;
 

@@ -4,10 +4,7 @@ import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 // Prefer explicit async params typing to avoid thenable duck-typing
 import { sanitizePath, IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
     // Reconstruct the Twitter image URL from dynamic params
     const { path: pathSegments } = await params;
