@@ -152,6 +152,23 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
 
     console.log(`[refreshBookmarksData] Successfully normalized ${normalizedBookmarks.length} bookmarks.`);
 
+    // Generate slugs immediately after normalization for idempotent routing
+    const { generateSlugMapping } = await import("@/lib/bookmarks/slug-manager");
+    const slugMapping = generateSlugMapping(normalizedBookmarks);
+
+    // Embed slugs directly into bookmark objects
+    for (const bookmark of normalizedBookmarks) {
+      const slugEntry = slugMapping.slugs[bookmark.id];
+      if (slugEntry) {
+        bookmark.slug = slugEntry.slug;
+      } else {
+        // Fallback: generate a simple slug if mapping failed
+        const { getDomainSlug } = await import("@/lib/utils/domain-utils");
+        bookmark.slug = `${getDomainSlug(bookmark.url)}-${bookmark.id.slice(0, 8)}`;
+      }
+    }
+    console.log(`[refreshBookmarksData] Generated slugs for ${normalizedBookmarks.length} bookmarks.`);
+
     // -------------------------------------------------------------------------
     // Development-time memory safeguard
     // -------------------------------------------------------------------------

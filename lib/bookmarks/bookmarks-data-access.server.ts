@@ -256,14 +256,17 @@ async function hasBookmarksChanged(newBookmarks: UnifiedBookmark[]): Promise<boo
   }
 }
 
-/** Write bookmarks in paginated format with embedded slugs */
-async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<import("@/types/bookmark").BookmarkSlugMapping> {
+/** Write bookmarks in paginated format (slugs already embedded) */
+async function writePaginatedBookmarks(
+  bookmarks: UnifiedBookmark[],
+): Promise<import("@/types/bookmark").BookmarkSlugMapping> {
   const pageSize = BOOKMARKS_PER_PAGE,
     totalPages = Math.ceil(bookmarks.length / pageSize),
     now = Date.now();
 
-  // Generate mapping once for this write and embed slugs into persisted items
+  // Bookmarks already have embedded slugs - just create mapping for backward compatibility
   const mapping = generateSlugMapping(bookmarks);
+
   const index: BookmarksIndex = {
     count: bookmarks.length,
     totalPages,
@@ -275,27 +278,24 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<im
     changeDetected: true,
   };
   await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, index);
+
+  // Write pages with bookmarks as-is (they already have slugs)
   for (let page = 1; page <= totalPages; page++) {
     const start = (page - 1) * pageSize;
-    const slice = bookmarks.slice(start, start + pageSize).map((b) => ({
-      ...b,
-      slug: mapping.slugs[b.id]?.slug ?? "",
-    }));
+    const slice = bookmarks.slice(start, start + pageSize);
     await writeJsonS3(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${page}.json`, slice);
   }
-  console.log(`${LOG_PREFIX} Wrote ${totalPages} pages of bookmarks`);
+  console.log(`${LOG_PREFIX} Wrote ${totalPages} pages of bookmarks with embedded slugs`);
 
-  // Save slug mapping for static generation - CRITICAL for idempotency
+  // Save slug mapping for backward compatibility and static generation
   try {
-    // Save to current environment path only
     await saveSlugMapping(bookmarks, true, false);
     console.log(`${LOG_PREFIX} Saved slug mapping for ${bookmarks.length} bookmarks`);
   } catch (error) {
-    console.error(`${LOG_PREFIX} CRITICAL: Failed to save slug mapping:`, error);
-    // This is a CRITICAL error - slug mappings are required for bookmark navigation
-    throw new Error(`Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`${LOG_PREFIX} Warning: Failed to save slug mapping (bookmarks have embedded slugs):`, error);
+    // Not critical since bookmarks have embedded slugs
   }
-  
+
   return mapping;
 }
 
@@ -393,7 +393,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         // Slug mappings are CRITICAL for bookmark navigation
         throw new Error(`Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`);
       }
-      
+
       // Ensure bookmarks file exists with full content data
       const mapping = generateSlugMapping(allIncomingBookmarks);
       const bookmarksWithSlugs = allIncomingBookmarks.map((b) => ({
@@ -401,7 +401,7 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         slug: mapping.slugs[b.id]?.slug ?? "",
       }));
       await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
-      
+
       return allIncomingBookmarks;
     }
     console.log(`${LOG_PREFIX} Changes detected, persisting bookmarks`);
@@ -472,7 +472,7 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                   `Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`,
                 );
               }
-              
+
               // Generate mapping for use in bookmarks (but don't save it again)
               const mapping = generateSlugMapping(freshBookmarks);
               const bookmarksWithSlugs = freshBookmarks.map((b) => ({
