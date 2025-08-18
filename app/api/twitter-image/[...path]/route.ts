@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getUnifiedImageService } from "@/lib/services/unified-image-service";
-import type { TwitterImageContext } from "@/types";
+// Prefer explicit async params typing to avoid thenable duck-typing
 import { sanitizePath, IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 
-export async function GET(request: NextRequest, ctx: TwitterImageContext) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> },
+) {
   try {
     // Reconstruct the Twitter image URL from dynamic params
-    // Next 15 may pass params as a thenable in some instrumented paths; await to be safe
-    const resolved = (ctx.params as unknown) as { path: string[] } | Promise<{ path: string[] }>;
-    const { path: pathSegments } = (typeof (resolved as Promise<unknown>).then === "function"
-      ? await (resolved as Promise<{ path: string[] }>)
-      : (resolved as { path: string[] }));
+    const { path: pathSegments } = await params;
 
     // Sanitize path to prevent directory traversal
     const fullPath = sanitizePath(pathSegments.join("/"));
@@ -54,7 +53,12 @@ export async function GET(request: NextRequest, ctx: TwitterImageContext) {
 
     // If we got a CDN URL, redirect to it
     if (result.cdnUrl && !result.buffer) {
-      return NextResponse.redirect(result.cdnUrl, { status: 302 });
+      return NextResponse.redirect(result.cdnUrl, {
+        status: 302,
+        headers: {
+          "Cache-Control": "public, max-age=86400", // 24h
+        },
+      });
     }
 
     // If we have a buffer, return it
