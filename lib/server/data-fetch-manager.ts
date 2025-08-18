@@ -31,7 +31,7 @@ import {
   refreshGitHubActivityDataFromApi,
   resetLogoSessionTracking,
 } from "@/lib/data-access";
-import { buildContentGraph } from "@/lib/content-graph/build";
+// Content graph import moved to lazy loading to reduce startup overhead
 
 /**
  * Main data fetch manager class
@@ -95,7 +95,7 @@ export class DataFetchManager {
     // STEP 5: Build content graph LAST (depends on all content being updated and slug mappings)
     // The content graph uses slug mappings at runtime for bookmark URLs
     if (config.bookmarks || config.forceRefresh) {
-      results.push(await this.buildContentGraph(config));
+      results.push(await this.runContentGraphBuild(config));
     }
 
     return results;
@@ -684,7 +684,9 @@ export class DataFetchManager {
     return s3Keys.map((key) => `${cdnBase}/${key}`);
   }
 
-  private async buildContentGraph(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
+  private async runContentGraphBuild(config: DataFetchConfig): Promise<DataFetchOperationSummary> {
+    // Lazy load the content graph builder to avoid loading heavy modules unless needed
+    const { buildContentGraph } = await import("@/lib/content-graph/build");
     return buildContentGraph(config);
   }
 }

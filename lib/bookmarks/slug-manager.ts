@@ -23,6 +23,7 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
   const sortedBookmarks = [...bookmarks].sort((a, b) => a.id.localeCompare(b.id));
 
   for (const bookmark of sortedBookmarks) {
+    // generateUniqueSlug already handles uniqueness deterministically
     const slug = generateUniqueSlug(
       bookmark.url,
       sortedBookmarks.map((b) => ({ id: b.id, url: b.url })),
@@ -233,7 +234,11 @@ export function getBookmarkIdFromSlug(mapping: BookmarkSlugMapping, slug: string
 
 /**
  * Generate all bookmark routes for static generation
+ * Routes are sorted alphabetically for deterministic output
  */
 export function generateBookmarkRoutes(mapping: BookmarkSlugMapping): string[] {
-  return Object.values(mapping.slugs).map((entry) => `/bookmarks/${entry.slug}`);
+  return Object.values(mapping.slugs)
+    .map((entry) => entry.slug)
+    .sort((a, b) => a.localeCompare(b))
+    .map((slug) => `/bookmarks/${slug}`);
 }
