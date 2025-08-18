@@ -21,18 +21,18 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
       const RELOAD_KEY = "chunk-error-reload-attempts";
       const MAX_RELOAD_ATTEMPTS = 3;
       const RELOAD_WINDOW_MS = 60000; // 1 minute window
-      
+
       try {
         // Get reload attempts from session storage
         const storedData = sessionStorage.getItem(RELOAD_KEY);
-        
+
         let reloadData: { attempts: number[]; lastReset: number };
         if (storedData) {
           const parsed: unknown = JSON.parse(storedData);
           // Validate the structure
-          if (parsed && typeof parsed === 'object' && 'attempts' in parsed && 'lastReset' in parsed) {
+          if (parsed && typeof parsed === "object" && "attempts" in parsed && "lastReset" in parsed) {
             const data = parsed as { attempts: unknown; lastReset: unknown };
-            if (Array.isArray(data.attempts) && typeof data.lastReset === 'number') {
+            if (Array.isArray(data.attempts) && typeof data.lastReset === "number") {
               reloadData = data as { attempts: number[]; lastReset: number };
             } else {
               // Invalid structure, reset
@@ -45,25 +45,27 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
         } else {
           reloadData = { attempts: [], lastReset: Date.now() };
         }
-        
+
         // Reset attempts if outside the time window
         const now = Date.now();
         if (now - reloadData.lastReset > RELOAD_WINDOW_MS) {
           reloadData.attempts = [];
           reloadData.lastReset = now;
         }
-        
+
         // Check if we've exceeded max attempts
         if (reloadData.attempts.length >= MAX_RELOAD_ATTEMPTS) {
-          console.warn(`ChunkLoadError: Exceeded maximum reload attempts (${MAX_RELOAD_ATTEMPTS}) within ${RELOAD_WINDOW_MS}ms window`);
+          console.warn(
+            `ChunkLoadError: Exceeded maximum reload attempts (${MAX_RELOAD_ATTEMPTS}) within ${RELOAD_WINDOW_MS}ms window`,
+          );
           setMaxReloadReached(true);
           return; // Don't reload anymore
         }
-        
+
         // Add current attempt and save
         reloadData.attempts.push(now);
         sessionStorage.setItem(RELOAD_KEY, JSON.stringify(reloadData));
-        
+
         // Schedule reload
         const timer = setTimeout(() => {
           globalThis.location.reload();
@@ -103,7 +105,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
         </h1>
         <p className="text-lg text-gray-700 dark:text-gray-300 mb-6">
           {isChunkLoadError
-            ? maxReloadReached 
+            ? maxReloadReached
               ? "Unable to load page resources. Please try manually refreshing the page or clearing your browser cache."
               : "The page resources are being refreshed. Reloading automatically in a moment..."
             : "Hmm, my bookmarks service is taking a break."}

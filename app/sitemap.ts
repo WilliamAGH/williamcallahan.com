@@ -154,8 +154,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const slugMapping = await loadSlugMapping();
     if (!slugMapping) {
       throw new Error(
-        "[Sitemap] CRITICAL: No slug mapping found. " +
-        "Slug mappings must be generated when bookmarks are fetched."
+        "[Sitemap] CRITICAL: No slug mapping found. " + "Slug mappings must be generated when bookmarks are fetched.",
       );
     }
     console.log(`[Sitemap] Loaded slug mapping with ${slugMapping.count} entries`);
