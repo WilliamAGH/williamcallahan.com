@@ -90,6 +90,12 @@ export interface SearchCacheEntry<T = unknown> {
   timestamp: number;
 }
 
+// Cached bookmark slug mapping with TTL
+export interface CachedSlugMapping {
+  data: import("./bookmark").BookmarkSlugMapping;
+  timestamp: number;
+}
+
 // OgCacheEntry removed - use import from types/opengraph.ts instead
 // import type { OgCacheEntry } from "./opengraph";
 
