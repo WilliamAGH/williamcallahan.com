@@ -19,6 +19,18 @@ import { getSlugCacheTTL } from "@/config/related-content.config";
 const CACHE_TTL_MS = getSlugCacheTTL();
 
 /**
+ * Safely extract an embedded slug from an unknown bookmark-like object.
+ * Uses runtime checks to satisfy strict type safety without unsafe assumptions.
+ */
+export function tryGetEmbeddedSlug(input: unknown): string | null {
+  if (input && typeof input === "object" && "slug" in (input as Record<string, unknown>)) {
+    const val = (input as Record<string, unknown>).slug;
+    if (typeof val === "string" && val.length > 0) return val;
+  }
+  return null;
+}
+
+/**
  * Get the slug for a bookmark, using pre-computed mappings for hydration safety
  *
  * @param bookmarkId - The bookmark ID to get slug for
@@ -40,8 +52,8 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
   // If bookmarks supplied, try embedded slug first
   if (bookmarks && Array.isArray(bookmarks)) {
     const found = bookmarks.find((b) => b.id === bookmarkId);
-    const embeddedSlug = (found as unknown as { slug?: string })?.slug;
-    if (embeddedSlug && typeof embeddedSlug === "string") return embeddedSlug;
+    const embeddedSlug = tryGetEmbeddedSlug(found);
+    if (embeddedSlug) return embeddedSlug;
   }
 
   // Load the mapping from S3
@@ -81,8 +93,8 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
   // Prefer embedded slug if available on the specific item
   if (bookmarks) {
     const found = bookmarks.find((b) => b.id === bookmarkId);
-    const embeddedSlug = (found as unknown as { slug?: string })?.slug;
-    if (embeddedSlug && typeof embeddedSlug === "string") return embeddedSlug;
+    const embeddedSlug = tryGetEmbeddedSlug(found);
+    if (embeddedSlug) return embeddedSlug;
   }
 
   return mapping ? getSlugForBookmark(mapping, bookmarkId) : null;
@@ -100,14 +112,17 @@ export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promis
   // Fast path: use embedded slugs when present
   let hasAllEmbedded = true;
   for (const b of bookmarks) {
-    const s = (b as unknown as { slug?: string })?.slug;
-    if (!s || typeof s !== "string") {
+    const s = tryGetEmbeddedSlug(b);
+    if (!s) {
       hasAllEmbedded = false;
       break;
     }
   }
   if (hasAllEmbedded) {
-    for (const b of bookmarks) slugMap.set(b.id, (b as unknown as { slug: string }).slug);
+    for (const b of bookmarks) {
+      const s = tryGetEmbeddedSlug(b)!;
+      slugMap.set(b.id, s);
+    }
     return slugMap;
   }
 

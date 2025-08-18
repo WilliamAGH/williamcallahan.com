@@ -102,6 +102,11 @@ bookmarks/
         └── page-1.json
 ```
 
+Note: As of this update, all persisted bookmark arrays (bookmarks.json, pages/page-*.json, tags/[tag]/page-*.json)
+embed a required `slug` field per item for idempotent internal routing. The centralized slug-mapping file
+(`slug-mapping*.json`) remains the source of truth and is still written for integrity checks and static
+param generation, but readers now prefer the embedded `slug` when present.
+
 ## Critical Design Decisions
 
 ### 1. Callback Pattern for Circular Dependencies
