@@ -36,7 +36,7 @@ import {
   OPENGRAPH_IMAGES_S3_DIR,
 } from "@/lib/constants";
 import { extractOpenGraphTags } from "./parser";
-import { selectBestOpenGraphImage } from "@/lib/image-handling/image-selector";
+import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import type { OgResult, KarakeepImageFallback } from "@/types";
 
 /**
@@ -308,7 +308,13 @@ async function fetchExternalOpenGraph(
         siteName: null,
       };
 
-  const bestImageUrl = selectBestOpenGraphImage(validatedMetadata, url);
+  // Use centralized image selection logic - for OpenGraph fetch, we don't have content yet
+  const ogImageValue = validatedMetadata.image || validatedMetadata.profileImage || validatedMetadata.twitterImage;
+  const bestImageUrlRaw = selectBestImage(
+    { ogImage: ogImageValue || undefined, content: undefined },
+    { includeScreenshots: false, returnUndefined: true }
+  );
+  const bestImageUrl: string | undefined = bestImageUrlRaw === null ? undefined : bestImageUrlRaw;
 
   // Log what we found
   console.log(`[DataAccess/OpenGraph] Image selection for ${url}:`);
@@ -456,7 +462,7 @@ async function fetchExternalOpenGraph(
     finalUrl: finalUrl !== url ? finalUrl : undefined,
     title: validatedMetadata.title || undefined,
     description: validatedMetadata.description || undefined,
-    imageUrl: finalImageUrl,
+    imageUrl: finalImageUrl || null,
     bannerImageUrl: finalBannerImageUrl || null,
     profileImageUrl: finalProfileImageUrl || null,
     siteName: validatedMetadata.siteName || undefined,
