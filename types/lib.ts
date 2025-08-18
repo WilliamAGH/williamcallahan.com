@@ -437,6 +437,23 @@ export interface DataFetchResult<T> extends OperationResult<T> {
   statusCode?: number;
 }
 
+/**
+ * Result of attempting to read and parse a JSON object by key.
+ */
+export interface ReadJsonResult<T = unknown> {
+  key: string;
+  /** Whether the key exists in the backing store */
+  exists: boolean;
+  /** Whether the read/parse operation was successful */
+  ok: boolean;
+  /** Optional diagnostic details */
+  details?: unknown;
+  /** Error message if the operation failed */
+  error?: string;
+  /** Parsed value, or null when explicitly present-but-null */
+  parsed?: T | null;
+}
+
 /** Data fetch manager interface */
 export interface DataFetchManager {
   fetch: <T>(key: string, fetcher: () => Promise<T>, options?: DataFetchOptions) => Promise<DataFetchResult<T>>;

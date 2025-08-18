@@ -44,6 +44,12 @@ export async function GET(request: Request): Promise<NextResponse> {
     // Get allocator diagnostics for deeper analysis
     const allocatorDiagnostics = monitor.getAllocatorDiagnostics();
 
+    const details = healthStatus.details;
+    const rawBudget = details.budget;
+    const rawThreshold = details.threshold;
+    const budget = typeof rawBudget === "number" ? rawBudget : 0;
+    const threshold = typeof rawThreshold === "number" ? rawThreshold : 0;
+
     const response: HealthMetrics = {
       status: healthStatus.status,
       timestamp: new Date().toISOString(),
@@ -55,9 +61,9 @@ export async function GET(request: Request): Promise<NextResponse> {
           external: Math.round(memUsage.external / 1024 / 1024), // MB
         },
         limits: {
-          totalBudget: Math.round((healthStatus.details.budget || 0) / 1024 / 1024), // MB
-          warningThreshold: Math.round((healthStatus.details.threshold || 0) / 1024 / 1024), // MB
-          criticalThreshold: Math.round(((healthStatus.details.budget || 0) * 0.9) / 1024 / 1024), // MB
+          totalBudget: Math.round(budget / 1024 / 1024), // MB
+          warningThreshold: Math.round(threshold / 1024 / 1024), // MB
+          criticalThreshold: Math.round((budget * 0.9) / 1024 / 1024), // MB
         },
       },
       caches: {
@@ -90,8 +96,9 @@ export async function GET(request: Request): Promise<NextResponse> {
     const parsedResponse = HealthMetricsResponseSchema.parse(response);
 
     return NextResponse.json(parsedResponse);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error retrieving health metrics:", error);
-    return NextResponse.json({ error: "Failed to retrieve health metrics" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "An unknown error occurred while retrieving health metrics.";
+    return NextResponse.json({ error: "Failed to retrieve health metrics", details: message }, { status: 500 });
   }
 }

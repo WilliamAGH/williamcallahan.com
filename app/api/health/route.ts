@@ -71,7 +71,7 @@ export async function GET() {
           "Cache-Control": "no-cache, no-store, must-revalidate",
         },
       });
-    } catch (error) {
+    } catch (error: unknown) {
       // Clear timeout on error
       if (timeoutId) clearTimeout(timeoutId);
       throw error;
