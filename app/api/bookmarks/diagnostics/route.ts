@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import type { BookmarksIndex, BookmarkSlugMapping } from "@/types/bookmark";
+import type { ReadJsonResult } from "@/types/lib";
 import { getEnvironment, getEnvironmentSuffix, logEnvironmentConfig } from "@/lib/config/environment";
 
 export const dynamic = "force-dynamic";
@@ -32,14 +33,7 @@ function isAuthorized(request: Request): boolean {
   return Boolean(secret && token && token === secret);
 }
 
-async function tryReadJson<T>(key: string): Promise<{
-  key: string;
-  exists: boolean; // Kept for backward-compatibility with current checks
-  ok: boolean;
-  details?: unknown;
-  error?: string;
-  parsed?: T | null;
-}> {
+async function tryReadJson<T>(key: string): Promise<ReadJsonResult<T>> {
   try {
     const data = await readJsonS3<T>(key);
     return { key, exists: data !== null, ok: data !== null, parsed: data };
@@ -83,15 +77,8 @@ export async function GET(request: Request): Promise<NextResponse> {
   if (totalPages >= 2) extraPageKeys.push(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}2.json`);
   if (totalPages >= 3) extraPageKeys.push(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}3.json`);
 
-  const extraPageChecks: Array<{
-    key: string;
-    exists: boolean;
-    ok: boolean;
-    details?: unknown;
-    error?: string;
-    parsed?: unknown;
-  }> = extraPageKeys.length
-    ? await Promise.all(extraPageKeys.map((k) => tryReadJson(k)))
+  const extraPageChecks: ReadonlyArray<ReadJsonResult<unknown>> = extraPageKeys.length
+    ? await Promise.all(extraPageKeys.map((k) => tryReadJson<unknown>(k)))
     : [];
 
   // Compute health flags
@@ -103,10 +90,10 @@ export async function GET(request: Request): Promise<NextResponse> {
     slugMapRes.ok &&
     slugMapRes.parsed != null &&
     typeof slugMapRes.parsed === "object" &&
-    "slugs" in (slugMapRes.parsed as Record<string, unknown>) &&
-    (slugMapRes.parsed as { slugs: unknown }).slugs != null &&
-    typeof (slugMapRes.parsed as { slugs: unknown }).slugs === "object" &&
-    !Array.isArray((slugMapRes.parsed as { slugs: unknown }).slugs);
+    "slugs" in slugMapRes.parsed &&
+    slugMapRes.parsed.slugs != null &&
+    typeof slugMapRes.parsed.slugs === "object" &&
+    !Array.isArray(slugMapRes.parsed.slugs);
 
   const health = {
     environment: {
