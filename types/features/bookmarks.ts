@@ -244,7 +244,6 @@ export interface SerializableBookmark {
  * Image selection options for bookmark helpers
  */
 export interface ImageSelectionOptions {
-  preferOpenGraph?: boolean;
   includeScreenshots?: boolean;
   returnUndefined?: boolean;
 }
