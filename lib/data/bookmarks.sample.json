@@ -1,0 +1,12 @@
+[
+  {
+    "id": "test-1",
+    "url": "https://example.com",
+    "title": "Test Bookmark",
+    "description": "Test description",
+    "tags": [],
+    "dateBookmarked": "2024-01-01T00:00:00.000Z",
+    "sourceUpdatedAt": "2024-01-01T00:00:00.000Z",
+    "slug": "example-com"
+  }
+]
