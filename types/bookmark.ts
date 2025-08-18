@@ -327,18 +327,19 @@ export type BookmarkSlugEntry = {
   title: string;
 };
 
+// Reusable schema for mapping entries
+export const bookmarkSlugEntrySchema = z.object({
+  id: z.string(),
+  slug: z.string().min(1),
+  url: z.string().url(),
+  title: z.string(),
+});
+
 export const bookmarkSlugMappingSchema = z.object({
   version: z.string(),
-  generated: z.string(), // ISO8601 timestamp expected
+  generated: z.string().datetime(), // ISO8601
   count: z.number().int().min(0),
-  checksum: z.string(), // MD5 hash for concurrent write protection
-  slugs: z.record(
-    z.object({
-      id: z.string(),
-      slug: z.string(),
-      url: z.string().url(),
-      title: z.string(),
-    }),
-  ),
+  checksum: z.string().regex(/^[a-f0-9]{32}$/), // MD5 hex
+  slugs: z.record(bookmarkSlugEntrySchema),
   reverseMap: z.record(z.string()),
 });
