@@ -610,8 +610,16 @@ async function getBookmarksIndex(): Promise<{
     content?: { author?: string | null; publisher?: string | null };
   }>;
 
-  // Generate slugs
-  const { generateUniqueSlug } = await import("@/lib/utils/domain-utils");
+  // Load slug mapping - REQUIRED for idempotency
+  const { loadSlugMapping, getSlugForBookmark } = await import("@/lib/bookmarks/slug-manager");
+  const slugMapping = await loadSlugMapping();
+  
+  if (!slugMapping) {
+    throw new Error(
+      "[Search] CRITICAL: No slug mapping found. " +
+      "Slug mappings must exist before building search functionality."
+    );
+  }
 
   // Try to load index from S3 if available
   let bookmarksIndex: MiniSearch<BookmarkIndexItem>;
@@ -637,16 +645,27 @@ async function getBookmarksIndex(): Promise<{
   }
 
   // Transform bookmarks for result mapping
-  const bookmarksForIndex: Array<BookmarkIndexItem & { slug: string }> = bookmarksArr.map((b) => ({
-    id: b.id,
-    title: b.title || b.url,
-    description: b.description || "",
-    tags: Array.isArray(b.tags) ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
-    url: b.url,
-    author: b.content?.author || "",
-    publisher: b.content?.publisher || "",
-    slug: generateUniqueSlug(b.url, bookmarksArr, b.id),
-  }));
+  const bookmarksForIndex: Array<BookmarkIndexItem & { slug: string }> = bookmarksArr.map((b) => {
+    // Get slug from mapping - REQUIRED for idempotency
+    const slug = getSlugForBookmark(slugMapping, b.id);
+    if (!slug) {
+      throw new Error(
+        `[Search] CRITICAL: No slug found for bookmark ${b.id}. ` +
+        `Title: ${b.title}, URL: ${b.url}`
+      );
+    }
+    
+    return {
+      id: b.id,
+      title: b.title || b.url,
+      description: b.description || "",
+      tags: Array.isArray(b.tags) ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
+      url: b.url,
+      author: b.content?.author || "",
+      publisher: b.content?.publisher || "",
+      slug,
+    };
+  });
 
   // Cache the index and bookmarks
   const result = { index: bookmarksIndex, bookmarks: bookmarksForIndex };
