@@ -14,9 +14,8 @@ jest.mock("@/lib/bookmarks/slug-manager");
 
 const mockGetBookmarks = jest.mocked(getBookmarks);
 const mockReadJsonS3 = jest.mocked(readJsonS3);
-const { loadSlugMapping } = jest.requireMock<{
-  loadSlugMapping: jest.MockedFunction<() => Promise<BookmarkSlugMapping | null>>;
-}>("@/lib/bookmarks/slug-manager");
+const slugManager = jest.requireMock<typeof import("@/lib/bookmarks/slug-manager")>("@/lib/bookmarks/slug-manager");
+const loadSlugMapping = jest.mocked(slugManager.loadSlugMapping);
 
 describe("Bookmark API – large limit behavior", () => {
   let mockBookmarks: UnifiedBookmark[];
@@ -43,7 +42,7 @@ describe("Bookmark API – large limit behavior", () => {
       totalPages: Math.ceil(mockBookmarks.length / BOOKMARKS_PER_PAGE),
       lastFetchedAt: Date.now(),
     });
-    
+
     // Mock slug mapping for bookmarks with correct typing and reverse map
     const slugs: BookmarkSlugMapping["slugs"] = Object.fromEntries(
       mockBookmarks.map((bookmark) => [
@@ -63,7 +62,7 @@ describe("Bookmark API – large limit behavior", () => {
       slugs,
       reverseMap,
       version: "1.0.0",
-      generated: new Date().toISOString(),
+      generated: "2025-01-01T00:00:00.000Z",
       count: mockBookmarks.length,
       checksum: "mock-checksum",
     };
@@ -76,7 +75,7 @@ describe("Bookmark API – large limit behavior", () => {
       nextUrl: {
         searchParams: new URLSearchParams({ limit: "1000", page: "1" }),
       },
-    } as any;
+    } as unknown as import("next/server").NextRequest;
 
     const response = await GET(request);
     const data = await response.json();
