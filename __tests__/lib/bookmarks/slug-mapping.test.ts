@@ -16,6 +16,13 @@ import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
 // Mock dependencies
 jest.mock("@/lib/s3-utils");
 jest.mock("@/lib/utils/logger");
+jest.mock("node:fs", () => ({
+  promises: {
+    readFile: jest.fn().mockRejectedValue(new Error("File not found")),
+    writeFile: jest.fn(),
+    mkdir: jest.fn(),
+  },
+}));
 
 const mockReadJsonS3 = readJsonS3 as jest.MockedFunction<typeof readJsonS3>;
 const mockWriteJsonS3 = writeJsonS3 as jest.MockedFunction<typeof writeJsonS3>;
