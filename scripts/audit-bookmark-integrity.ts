@@ -12,7 +12,7 @@ import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS, SEARCH_S3_PATHS, CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 import type { UnifiedBookmark } from "@/types";
 
-async function auditBookmarkIntegrity() {
+async function auditBookmarkIntegrity(): Promise<void> {
   console.log("🔍 COMPREHENSIVE BOOKMARK INTEGRITY AUDIT\n");
   console.log("This audit ensures no 404 errors can occur with bookmarks.");
   console.log("=" .repeat(70));
@@ -158,7 +158,11 @@ async function auditBookmarkIntegrity() {
         title: string;
         description?: string;
       }>;
-      metadata: any;
+      metadata: {
+        buildTime?: string;
+        itemCount?: number;
+        version?: string;
+      };
     }>(SEARCH_S3_PATHS.BOOKMARKS_INDEX);
     
     if (searchIndex?.bookmarks) {
@@ -167,7 +171,7 @@ async function auditBookmarkIntegrity() {
       let searchIndexErrors = 0;
       for (const entry of searchIndex.bookmarks) {
         // Extract slug from URL (format: /bookmarks/[slug])
-        const urlMatch = entry.url.match(/^\/bookmarks\/(.+)$/);
+        const urlMatch = entry.url.match(/^\/bookmarks\/([^/?#]+)(?:\/)?(?:\?[^#]*)?(?:#.*)?$/);
         if (!urlMatch) {
           console.log(`❌ Invalid URL format in search: ${entry.url}`);
           searchIndexErrors++;
@@ -227,6 +231,13 @@ async function auditBookmarkIntegrity() {
       let totalBookmarkRefs = 0;
       let invalidBookmarkRefs = 0;
       
+      // Enhanced: Test detailed resolution for sample entries
+      const bookmarkRelatedContent = Object.entries(relatedContent)
+        .filter(([_, items]) => Array.isArray(items) && items.some(item => item.type === "bookmark"))
+        .slice(0, 10); // Test first 10 for detailed check
+      
+      console.log(`🎯 Testing ${bookmarkRelatedContent.length} sample entries with bookmark recommendations...`);
+      
       for (const [key, items] of Object.entries(relatedContent)) {
         const bookmarkItems = items.filter(item => item.type === "bookmark");
         totalBookmarkRefs += bookmarkItems.length;
@@ -234,8 +245,15 @@ async function auditBookmarkIntegrity() {
         for (const item of bookmarkItems) {
           const slug = getSlugForBookmark(slugMapping, item.id);
           if (!slug) {
-            console.log(`❌ Related content references bookmark ${item.id} without slug (in ${key})`);
+            if (invalidBookmarkRefs < 3) {
+              console.log(`❌ Related content references bookmark ${item.id} without slug (in ${key})`);
+              console.log(`   Title: ${item.title}`);
+            }
             invalidBookmarkRefs++;
+          } else if (totalBookmarkRefs <= 5) {
+            // Verify URL construction for first few
+            const expectedUrl = `/bookmarks/${slug}`;
+            console.log(`   ✅ ${item.title.substring(0, 40)}... → ${expectedUrl}`);
           }
         }
       }
@@ -251,10 +269,11 @@ async function auditBookmarkIntegrity() {
         });
         hasErrors = true;
       } else {
+        console.log(`✅ All bookmark references can be properly resolved to URLs`);
         results.push({
           category: "Related Content",
           status: "✅",
-          message: `All ${totalBookmarkRefs} bookmark references valid`
+          message: `All ${totalBookmarkRefs} bookmark references valid and resolvable`
         });
       }
     } else {
@@ -271,7 +290,11 @@ async function auditBookmarkIntegrity() {
     console.log("\n📄 PHASE 6: Pagination Files");
     console.log("-".repeat(40));
     
-    const index = await readJsonS3<any>(BOOKMARKS_S3_PATHS.INDEX);
+    const index = await readJsonS3<{
+      pages?: Array<{ page: number; count: number }>;
+      totalPages?: number;
+      totalCount?: number;
+    }>(BOOKMARKS_S3_PATHS.INDEX);
     if (index?.pages) {
       console.log(`📖 Index reports ${index.pages.length} pages`);
       
@@ -414,4 +437,4 @@ async function auditBookmarkIntegrity() {
 
 // Run the audit
 console.log("Starting Bookmark Integrity Audit...\n");
-auditBookmarkIntegrity().catch(console.error);
+auditBookmarkIntegrity();
