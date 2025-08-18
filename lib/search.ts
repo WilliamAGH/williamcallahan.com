@@ -640,15 +640,21 @@ async function getBookmarksIndex(): Promise<{
   }
 
   // Transform bookmarks for result mapping
-  const bookmarksForIndex: Array<BookmarkIndexItem & { slug: string }> = bookmarksArr.map((b) => {
+  const bookmarksForIndex: Array<BookmarkIndexItem & { slug: string }> = [];
+
+  for (const b of bookmarksArr) {
     // Prefer embedded slug; fallback to mapping
     const embedded = tryGetEmbeddedSlug(b);
     const slug = embedded ?? (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
+
     if (!slug) {
-      throw new Error(`[Search] CRITICAL: No slug found for bookmark ${b.id}. ` + `Title: ${b.title}, URL: ${b.url}`);
+      // Log warning but continue processing other bookmarks
+      console.warn(`[Search] Warning: No slug found for bookmark ${b.id}. Title: ${b.title}, URL: ${b.url}`);
+      // Skip this bookmark instead of throwing
+      continue;
     }
 
-    return {
+    bookmarksForIndex.push({
       id: b.id,
       title: b.title || b.url,
       description: b.description || "",
@@ -657,8 +663,8 @@ async function getBookmarksIndex(): Promise<{
       author: b.content?.author || "",
       publisher: b.content?.publisher || "",
       slug,
-    };
-  });
+    });
+  }
 
   // Cache the index and bookmarks
   const result = { index: bookmarksIndex, bookmarks: bookmarksForIndex };
@@ -755,14 +761,16 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
     const scoreById = new Map(searchResults.map((r) => [String(r.id), r.score ?? 0] as const));
     const results: SearchResult[] = bookmarks
       .filter((b) => resultIds.has(b.id))
-      .map((b): SearchResult => ({
-        id: b.id,
-        type: "bookmark" as const,
-        title: b.title,
-        description: b.description,
-        url: `/bookmarks/${b.slug}`,
-        score: scoreById.get(b.id) ?? 0,
-      }))
+      .map(
+        (b): SearchResult => ({
+          id: b.id,
+          type: "bookmark" as const,
+          title: b.title,
+          description: b.description,
+          url: `/bookmarks/${b.slug}`,
+          score: scoreById.get(b.id) ?? 0,
+        }),
+      )
       .sort((a, b) => b.score - a.score);
 
     devLog("[searchBookmarks] results", { count: results.length });
