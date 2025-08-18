@@ -11,6 +11,7 @@ import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
 import { type NextRequest, NextResponse } from "next/server";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
+import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 
 // This route can leverage the caching within getBookmarks
 export const dynamic = "force-dynamic";
@@ -50,9 +51,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           const paginatedBookmarks = await getBookmarksPage(page);
           console.log(`[API Bookmarks] Loaded page ${page} directly (${paginatedBookmarks.length} items)`);
 
+          // CRITICAL: Generate slug mappings for fast-path too
+          const slugMapping = await loadSlugMapping();
+          const internalHrefs: Record<string, string> = {};
+          
+          if (slugMapping) {
+            for (const bookmark of paginatedBookmarks) {
+              const slug = getSlugForBookmark(slugMapping, bookmark.id);
+              if (slug) {
+                internalHrefs[bookmark.id] = `/bookmarks/${slug}`;
+              } else {
+                console.error(`[API Bookmarks] WARNING: No slug for bookmark ${bookmark.id} (fast-path)`);
+              }
+            }
+          } else {
+            console.error("[API Bookmarks] CRITICAL: No slug mapping available in fast-path - URLs will cause 404s!");
+          }
+
           return NextResponse.json(
             {
               data: paginatedBookmarks,
+              internalHrefs, // Include slug mappings for URL generation
               meta: {
                 pagination: {
                   page,
@@ -123,6 +142,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const paginatedBookmarks = filteredBookmarks.slice(offset, offset + limit);
     const totalPages = Math.ceil(filteredBookmarks.length / limit);
 
+    // CRITICAL: Generate slug mappings for all bookmarks being returned
+    // Without these, the client cannot generate valid URLs and will get 404s
+    const slugMapping = await loadSlugMapping();
+    const internalHrefs: Record<string, string> = {};
+    
+    if (slugMapping) {
+      for (const bookmark of paginatedBookmarks) {
+        const slug = getSlugForBookmark(slugMapping, bookmark.id);
+        if (slug) {
+          internalHrefs[bookmark.id] = `/bookmarks/${slug}`;
+        } else {
+          console.error(`[API Bookmarks] WARNING: No slug for bookmark ${bookmark.id}`);
+        }
+      }
+    } else {
+      console.error("[API Bookmarks] CRITICAL: No slug mapping available - URLs will cause 404s!");
+    }
+
     console.log(
       `[API Bookmarks] Returning page ${page}/${totalPages} with ${paginatedBookmarks.length} bookmarks${tagFilter ? ` (filtered by tag: ${tagFilter})` : ""}`,
     );
@@ -130,6 +167,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       {
         data: paginatedBookmarks,
+        internalHrefs, // Include slug mappings for URL generation
         meta: {
           pagination: {
             page,
