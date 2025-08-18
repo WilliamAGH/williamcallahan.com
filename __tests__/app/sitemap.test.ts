@@ -5,12 +5,12 @@
  */
 
 import sitemap from "@/app/sitemap";
-import { getBookmarksForStaticBuild } from "@/lib/bookmarks/bookmarks.server";
+import { getBookmarksForStaticBuildAsync } from "@/lib/bookmarks/bookmarks.server";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 
 // Mock dependencies
 jest.mock("@/lib/bookmarks/bookmarks.server", () => ({
-  getBookmarksForStaticBuild: jest.fn(),
+  getBookmarksForStaticBuildAsync: jest.fn(),
 }));
 
 jest.mock("@/data/education", () => ({
@@ -76,7 +76,7 @@ Content`,
 }));
 
 describe("Sitemap Generation", () => {
-  const mockGetBookmarksForStaticBuild = getBookmarksForStaticBuild;
+  const mockGetBookmarksForStaticBuildAsync = getBookmarksForStaticBuildAsync as jest.MockedFunction<typeof getBookmarksForStaticBuildAsync>;
   let originalSiteUrl: string | undefined;
 
   beforeEach(() => {
@@ -106,7 +106,7 @@ describe("Sitemap Generation", () => {
         tags: [],
       }));
 
-      mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
+      mockGetBookmarksForStaticBuildAsync.mockResolvedValue(mockBookmarks);
 
       // Provide full slug mapping for all bookmarks to avoid console errors and ensure correct URLs
       mockLoadSlugMapping.mockResolvedValue(buildSlugMappingFrom(mockBookmarks));
@@ -149,7 +149,7 @@ describe("Sitemap Generation", () => {
         tags: [],
       }));
 
-      mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
+      mockGetBookmarksForStaticBuildAsync.mockResolvedValue(mockBookmarks);
 
       mockLoadSlugMapping.mockResolvedValue(buildSlugMappingFrom(mockBookmarks));
 
@@ -180,7 +180,7 @@ describe("Sitemap Generation", () => {
         tags: [],
       }));
 
-      mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
+      mockGetBookmarksForStaticBuildAsync.mockResolvedValue(mockBookmarks);
 
       mockLoadSlugMapping.mockResolvedValue(buildSlugMappingFrom(mockBookmarks));
 
@@ -208,7 +208,7 @@ describe("Sitemap Generation", () => {
         tags: [],
       }));
 
-      mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
+      mockGetBookmarksForStaticBuildAsync.mockResolvedValue(mockBookmarks);
 
       const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
       const reverseMap: Record<string, string> = {};
@@ -266,7 +266,7 @@ describe("Sitemap Generation", () => {
         },
       ];
 
-      mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
+      mockGetBookmarksForStaticBuildAsync.mockResolvedValue(mockBookmarks);
 
       // Provide slugs for the two bookmarks used in this test
       const slugMapping = {
@@ -321,7 +321,7 @@ describe("Sitemap Generation", () => {
      * @description Includes all static pages with correct metadata
      */
     it("should include all static pages with correct metadata", async () => {
-      mockGetBookmarksForStaticBuild.mockReturnValue([]);
+      mockGetBookmarksForStaticBuildAsync.mockResolvedValue([]);
 
       mockLoadSlugMapping.mockResolvedValue(buildSlugMappingFrom([]));
 
