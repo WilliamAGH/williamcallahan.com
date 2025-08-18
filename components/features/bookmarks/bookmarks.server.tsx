@@ -11,6 +11,7 @@ const getBookmarks = async () => (await import("@/lib/bookmarks/service.server")
 const getBookmarksPage = async () => (await import("@/lib/bookmarks/service.server")).getBookmarksPage;
 const getBookmarksIndex = async () => (await import("@/lib/bookmarks/service.server")).getBookmarksIndex;
 const normalizeBookmarkTag = async () => (await import("@/lib/bookmarks/utils")).normalizeBookmarkTag;
+const stripImageData = async () => (await import("@/lib/bookmarks/utils")).stripImageData;
 import { convertSerializableBookmarksToUnified } from "@/lib/bookmarks/utils";
 
 import type { UnifiedBookmark } from "@/types";
@@ -111,20 +112,51 @@ export async function BookmarksServer({
   }
 
   // Transform to serializable format for client component
+  // Using standardized utility functions to ensure consistency
   const normalizeFunc = await normalizeBookmarkTag();
-  const serializableBookmarks: SerializableBookmark[] = bookmarks.map((bookmark) => ({
-    id: bookmark.id,
-    url: bookmark.url,
-    title: bookmark.title,
-    description: bookmark.description,
-    tags: Array.isArray(bookmark.tags) ? bookmark.tags.map(normalizeFunc) : [],
-    dateBookmarked: bookmark.dateBookmarked,
-    dateCreated: bookmark.dateCreated,
-    dateUpdated: bookmark.dateUpdated,
-    // Only include heavy image data if explicitly requested
-    content: includeImageData ? bookmark.content : undefined,
-    logoData:
-      includeImageData && bookmark.logoData
+  const stripImageDataFunc = await stripImageData();
+  
+  const serializableBookmarks: SerializableBookmark[] = bookmarks.map((bookmark) => {
+    // When includeImageData is false, use the standardized stripImageData utility
+    if (!includeImageData) {
+      const lightweight = stripImageDataFunc(bookmark);
+      return {
+        id: lightweight.id,
+        url: lightweight.url,
+        title: lightweight.title,
+        description: lightweight.description,
+        tags: Array.isArray(lightweight.tags) ? lightweight.tags.map(normalizeFunc) : [],
+        dateBookmarked: lightweight.dateBookmarked,
+        dateCreated: lightweight.dateCreated,
+        dateUpdated: lightweight.dateUpdated,
+        content: lightweight.content,
+        logoData: null,
+        isPrivate: lightweight.isPrivate || false,
+        isFavorite: lightweight.isFavorite || false,
+        readingTime: lightweight.readingTime,
+        wordCount: lightweight.wordCount,
+        ogTitle: undefined,
+        ogDescription: undefined,
+        ogImage: undefined,
+        domain: lightweight.domain,
+        ogImageExternal: undefined,
+      };
+    }
+    
+    // When includeImageData is true, use full data conversion
+    return {
+      id: bookmark.id,
+      url: bookmark.url,
+      title: bookmark.title,
+      description: bookmark.description,
+      tags: Array.isArray(bookmark.tags) ? bookmark.tags.map(normalizeFunc) : [],
+      dateBookmarked: bookmark.dateBookmarked,
+      dateCreated: bookmark.dateCreated,
+      dateUpdated: bookmark.dateUpdated,
+      content: bookmark.content,
+      ogImage: bookmark.ogImage,
+      ogImageExternal: bookmark.ogImageExternal,
+      logoData: bookmark.logoData
         ? {
             url: bookmark.logoData.url,
             alt: bookmark.logoData.alt || "Logo",
@@ -132,15 +164,15 @@ export async function BookmarksServer({
             height: bookmark.logoData.height,
           }
         : null,
-    isPrivate: bookmark.isPrivate || false,
-    isFavorite: bookmark.isFavorite || false,
-    readingTime: bookmark.readingTime,
-    wordCount: bookmark.wordCount,
-    ogTitle: includeImageData ? bookmark.ogTitle : undefined,
-    ogDescription: includeImageData ? bookmark.ogDescription : undefined,
-    ogImage: includeImageData ? bookmark.ogImage : undefined,
-    domain: bookmark.domain,
-  }));
+      isPrivate: bookmark.isPrivate || false,
+      isFavorite: bookmark.isFavorite || false,
+      readingTime: bookmark.readingTime,
+      wordCount: bookmark.wordCount,
+      ogTitle: bookmark.ogTitle ?? undefined,
+      ogDescription: bookmark.ogDescription ?? undefined,
+      domain: bookmark.domain,
+    };
+  });
 
   // Pass the processed data to the client component with explicit typing
   const includesAll = serializableBookmarks.length === totalCount;
