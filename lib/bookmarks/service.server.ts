@@ -24,8 +24,15 @@ setRefreshBookmarksCallback((force?: boolean) => refreshBookmarksData(force));
 export async function getBookmarks(
   options: BookmarkLoadOptions = {},
 ): Promise<UnifiedBookmark[] | LightweightBookmark[]> {
+  console.log(`[BookmarksService] getBookmarks called with options:`, {
+    skipExternalFetch: options.skipExternalFetch,
+    includeImageData: options.includeImageData,
+    force: options.force,
+  });
   initializeBookmarksDataAccess();
-  return getBookmarksInternal(options);
+  const result = await getBookmarksInternal(options);
+  console.log(`[BookmarksService] getBookmarks returning ${result.length} bookmarks`);
+  return result;
 }
 
 /**
