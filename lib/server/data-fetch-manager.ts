@@ -54,6 +54,13 @@ export class DataFetchManager {
    * Fetches data based on the provided configuration
    * @param config - Configuration specifying which data to fetch
    * @returns Promise resolving to array of operation summaries
+   * 
+   * CRITICAL DEPENDENCY ORDERING:
+   * 1. Bookmarks MUST be fetched first (generates and saves slug mappings)
+   * 2. Search indexes depend on slug mappings being available
+   * 3. Content graph depends on all content being updated
+   * 
+   * Changing this order can cause race conditions and 404 errors!
    */
   async fetchData(config: DataFetchConfig): Promise<DataFetchOperationSummary[]> {
     const results: DataFetchOperationSummary[] = [];
@@ -61,10 +68,12 @@ export class DataFetchManager {
     // Initialize bookmarks data access (non-blocking)
     void initializeBookmarksDataAccess();
 
+    // STEP 1: Fetch bookmarks first (critical - generates slug mappings)
     if (config.bookmarks) {
       results.push(await this.fetchBookmarks(config));
     }
 
+    // STEP 2: Fetch other primary data sources
     if (config.githubActivity) {
       results.push(await this.fetchGithubActivity(config));
     }
@@ -73,16 +82,18 @@ export class DataFetchManager {
       results.push(await this.fetchLogos(config));
     }
 
+    // STEP 3: Build search indexes (depends on slug mappings from bookmarks)
     if (config.searchIndexes) {
       results.push(await this.buildSearchIndexes(config));
     }
 
-    // Always build image manifests after logo fetching
+    // STEP 4: Build image manifests after logo fetching
     if (config.logos || config.forceRefresh) {
       results.push(await this.buildImageManifests(config));
     }
 
-    // Build content graph with pre-computed relationships after all content is updated
+    // STEP 5: Build content graph LAST (depends on all content being updated and slug mappings)
+    // The content graph uses slug mappings at runtime for bookmark URLs
     if (config.bookmarks || config.forceRefresh) {
       results.push(await this.buildContentGraph(config));
     }
@@ -474,6 +485,24 @@ export class DataFetchManager {
     logger.info("[DataFetchManager] Starting search index build...");
 
     try {
+      // CRITICAL: Ensure slug mappings are saved before building search indexes
+      // This prevents race conditions where search indexes use stale or missing slug mappings
+      logger.info("[DataFetchManager] Ensuring slug mappings are up-to-date before building search indexes...");
+      
+      const { loadSlugMapping, saveSlugMapping } = await import("@/lib/bookmarks/slug-manager");
+      const { getBookmarks } = await import("@/lib/bookmarks/service.server");
+      
+      // Check if slug mappings exist and are current
+      const existingMapping = await loadSlugMapping();
+      if (!existingMapping) {
+        logger.warn("[DataFetchManager] No slug mapping found, generating before search index build...");
+        const bookmarks = await getBookmarks({ skipExternalFetch: false, includeImageData: false }) as import("@/types/bookmark").UnifiedBookmark[];
+        await saveSlugMapping(bookmarks, true, false);
+        logger.info("[DataFetchManager] Slug mapping generated and saved");
+      } else {
+        logger.info(`[DataFetchManager] Slug mapping exists with ${existingMapping.count} entries`);
+      }
+
       // Dynamically import to avoid loading heavy dependencies unless needed
       const { buildAllSearchIndexes } = await import("@/lib/search/index-builder");
 
