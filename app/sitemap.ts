@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { getBookmarksForStaticBuild } from "../lib/bookmarks/bookmarks.server";
-import { generateUniqueSlug } from "../lib/utils/domain-utils";
+import { loadSlugMapping, getSlugForBookmark } from "../lib/bookmarks/slug-manager";
 import { kebabCase } from "../lib/utils/formatters";
 import { tagToSlug } from "../lib/utils/tag-utils";
 import matter from "gray-matter";
@@ -60,7 +60,7 @@ const getLatestDate = (...dates: (Date | undefined)[]): Date | undefined => {
 };
 
 // --- Main Sitemap Generation ---
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = siteMetadata.site.url;
   const postsDirectory = path.join(process.cwd(), "data/blog/posts");
 
@@ -149,8 +149,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
     const bookmarks = getBookmarksForStaticBuild();
     console.log(`[Sitemap] Successfully got ${bookmarks.length} bookmarks for sitemap generation.`);
 
-    // Pre-compute slugs to avoid O(n²) complexity
-    const slugCache = new Map<string, string>();
+    // Load slug mapping - REQUIRED for idempotency
+    console.log("[Sitemap] Loading slug mapping...");
+    const slugMapping = await loadSlugMapping();
+    if (!slugMapping) {
+      throw new Error(
+        "[Sitemap] CRITICAL: No slug mapping found. " +
+        "Slug mappings must be generated when bookmarks are fetched."
+      );
+    }
+    console.log(`[Sitemap] Loaded slug mapping with ${slugMapping.count} entries`);
 
     // Process each bookmark for individual pages
     for (const bookmark of bookmarks) {
@@ -161,11 +169,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
         latestBookmarkUpdateTime = getLatestDate(latestBookmarkUpdateTime, bookmarkLastModified);
       }
 
-      // Get or generate the unique slug for this bookmark
-      let slug = slugCache.get(bookmark.id);
+      // Get slug from mapping - REQUIRED for idempotency
+      const slug = getSlugForBookmark(slugMapping, bookmark.id);
       if (!slug) {
-        slug = generateUniqueSlug(bookmark.url, bookmarks, bookmark.id);
-        slugCache.set(bookmark.id, slug);
+        console.error(`[Sitemap] CRITICAL: No slug found for bookmark ${bookmark.id}, skipping`);
+        continue; // Skip this bookmark rather than generate incorrect URL
       }
 
       // Add bookmark entry

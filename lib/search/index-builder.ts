@@ -22,7 +22,7 @@ import type { Project } from "@/types/project";
 import { getAllMDXPostsForSearch } from "@/lib/blog/mdx";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { prepareDocumentsForIndexing } from "@/lib/utils/search-helpers";
-import { loadSlugMapping, generateSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
+import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import type { UnifiedBookmark } from "@/types/bookmark";
 
 /**
@@ -225,13 +225,17 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
     },
   });
 
-  // Load the centralized slug mapping to ensure consistency
-  let slugMapping = await loadSlugMapping();
+  // Load the centralized slug mapping - REQUIRED for idempotency
+  const slugMapping = await loadSlugMapping();
   
-  // If no mapping exists, generate it (this should rarely happen in production)
+  // If no mapping exists, this is a CRITICAL ERROR
+  // Slug mappings MUST be generated when bookmarks are fetched, not here
   if (!slugMapping) {
-    console.warn("[Search Index Builder] No slug mapping found, generating new mapping");
-    slugMapping = generateSlugMapping(bookmarks);
+    throw new Error(
+      "[Search Index Builder] CRITICAL: No slug mapping found. " +
+      "Slug mappings must be generated when bookmarks are fetched. " +
+      "Run data-updater --bookmarks to generate slug mappings first."
+    );
   }
 
   // Transform bookmarks for indexing
@@ -239,8 +243,13 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
     // Use the centralized slug mapping for consistency
     const slug = getSlugForBookmark(slugMapping, b.id);
     
+    // Every bookmark MUST have a slug for idempotency
     if (!slug) {
-      console.error(`[Search Index Builder] No slug found for bookmark ${b.id}`);
+      throw new Error(
+        `[Search Index Builder] CRITICAL: No slug found for bookmark ${b.id}. ` +
+        `Title: ${b.title}, URL: ${b.url}. ` +
+        `This indicates an incomplete slug mapping.`
+      );
     }
     
     return {
@@ -253,7 +262,7 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
       url: b.url,
       author: b.content?.author || "",
       publisher: b.content?.publisher || "",
-      slug: slug || b.id, // Fallback to ID if slug is missing (should not happen)
+      slug, // No fallback - slug is REQUIRED
     };
   });
 
