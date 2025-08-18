@@ -218,8 +218,8 @@ export interface SerializableBookmark {
   url: string;
   title: string;
   description: string;
-  // Embed slug for idempotent client navigation
-  slug?: string;
+  // REQUIRED: Embed slug for idempotent client navigation
+  slug: string;
   tags: string[] | BookmarkTag[];
   ogImage?: string;
   ogImageExternal?: string;

@@ -135,6 +135,7 @@ export async function BookmarksServer({
         url: lightweight.url,
         title: lightweight.title,
         description: lightweight.description,
+        slug: lightweight.slug, // REQUIRED field
         tags: Array.isArray(lightweight.tags) ? lightweight.tags.map(normalizeFunc) : [],
         dateBookmarked: lightweight.dateBookmarked,
         dateCreated: lightweight.dateCreated,
@@ -159,6 +160,7 @@ export async function BookmarksServer({
       url: bookmark.url,
       title: bookmark.title,
       description: bookmark.description,
+      slug: bookmark.slug, // REQUIRED field
       tags: Array.isArray(bookmark.tags) ? bookmark.tags.map(normalizeFunc) : [],
       dateBookmarked: bookmark.dateBookmarked,
       dateCreated: bookmark.dateCreated,
