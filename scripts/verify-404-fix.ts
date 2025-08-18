@@ -32,7 +32,7 @@ async function verify404Fix() {
         
         // Verify URLs use slugs not IDs
         const sampleUrl = Object.values(data.internalHrefs)[0] as string;
-        if (sampleUrl && sampleUrl.includes("-")) {
+        if (sampleUrl?.includes("-")) {
           console.log(`   Sample URL uses slug: ${sampleUrl}`);
         } else {
           console.log(`❌ URL doesn't look like a slug: ${sampleUrl}`);
@@ -44,7 +44,7 @@ async function verify404Fix() {
     } else {
       console.log("   (Skipping API test - server not running)");
     }
-    } catch (e) {
+    } catch {
       console.log("   (Skipping API test - server not running)");
     }
     
@@ -52,8 +52,10 @@ async function verify404Fix() {
     console.log("\n✅ TEST 3: No ID fallback in client code");
     const clientCode = await Bun.file("components/features/bookmarks/bookmarks-with-options.client.tsx").text();
     
-    // Check for the old problematic pattern
-    if (clientCode.includes('`/bookmarks/${bookmark.id}`')) {
+    // Check for the old problematic pattern - looking for template literal with bookmark.id
+    // We check for the pattern in parts to avoid linting warnings about template strings
+    const hasTemplateBookmarkId = clientCode.includes("`/bookmarks/") && clientCode.includes("bookmark.id}");
+    if (hasTemplateBookmarkId) {
       console.log("❌ FAIL: Found ID-based URL generation!");
       process.exit(1);
     }
