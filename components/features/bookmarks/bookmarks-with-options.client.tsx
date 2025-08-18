@@ -26,6 +26,21 @@ const getTagsAsStringArray = (tags: UnifiedBookmark["tags"]): string[] => {
   return normalizeTagsToStrings(tags);
 };
 
+function isBookmarksApiResponse(
+  obj: unknown,
+): obj is { data: UnifiedBookmark[]; internalHrefs?: Record<string, string>; meta?: unknown } {
+  if (!obj || typeof obj !== "object") return false;
+  const maybe = obj as Record<string, unknown>;
+  return Array.isArray(maybe.data);
+}
+
+function isUnifiedBookmarkArray(x: unknown): x is UnifiedBookmark[] {
+  return (
+    Array.isArray(x) &&
+    x.every((b) => b && typeof (b as { id?: unknown }).id === "string" && typeof (b as { url?: unknown }).url === "string")
+  );
+}
+
 export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = ({
   bookmarks,
   showFilterBar = true,
@@ -146,12 +161,15 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
             throw new Error(`API request failed with status ${response.status}`);
           }
 
-          const responseData = (await response.json()) as {
-            data: UnifiedBookmark[];
-            internalHrefs?: Record<string, string>;
-            meta: unknown;
-          };
-          const allBookmarksData = responseData.data;
+          const responseData: unknown = await response.json();
+          if (!isBookmarksApiResponse(responseData)) {
+            console.error("Client-side: Invalid /api/bookmarks response shape", responseData);
+            setAllBookmarks(bookmarks);
+            return;
+          }
+          const allBookmarksData: UnifiedBookmark[] = isUnifiedBookmarkArray(responseData.data)
+            ? responseData.data
+            : [];
           const apiInternalHrefs = responseData.internalHrefs;
           console.log("Client-side direct fetch bookmarks count:", allBookmarksData?.length || 0);
           console.log("Client-side direct fetch has internalHrefs:", !!apiInternalHrefs);
@@ -163,7 +181,9 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
               setInternalHrefs(apiInternalHrefs);
               console.log("BookmarksWithOptions: Updated internalHrefs from API");
             } else {
-              console.error("BookmarksWithOptions: WARNING - No internalHrefs from API, URLs will cause 404s!");
+              console.error(
+                "BookmarksWithOptions: WARNING - No internalHrefs from API. Cards will fall back to external URLs.",
+              );
             }
             // Explicitly force the dataSource to client
             console.log("BookmarksWithOptions: Setting data source to client-side");
@@ -323,17 +343,20 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
           throw new Error(`Failed to fetch updated bookmarks: ${bookmarksResponse.status}`);
         }
 
-        const refreshedJson = (await bookmarksResponse.json()) as
-          | { data?: UnifiedBookmark[]; internalHrefs?: Record<string, string>; meta?: unknown }
-          | UnifiedBookmark[];
-        const refreshedArray = Array.isArray(refreshedJson)
-          ? refreshedJson
-          : Array.isArray((refreshedJson as { data?: UnifiedBookmark[] })?.data)
-            ? (refreshedJson as { data: UnifiedBookmark[] }).data
-            : [];
-        const refreshedInternalHrefs = !Array.isArray(refreshedJson)
-          ? (refreshedJson as { internalHrefs?: Record<string, string> }).internalHrefs
-          : undefined;
+        const refreshedJson: unknown = await bookmarksResponse.json();
+        let refreshedArray: UnifiedBookmark[] = [];
+        let refreshedInternalHrefs: Record<string, string> | undefined;
+        if (Array.isArray(refreshedJson)) {
+          refreshedArray = isUnifiedBookmarkArray(refreshedJson) ? refreshedJson : [];
+        } else if (refreshedJson && typeof refreshedJson === "object") {
+          const obj = refreshedJson as Record<string, unknown>;
+          if (Array.isArray(obj.data) && isUnifiedBookmarkArray(obj.data)) {
+            refreshedArray = obj.data;
+          }
+          if (obj.internalHrefs && typeof obj.internalHrefs === "object") {
+            refreshedInternalHrefs = obj.internalHrefs as Record<string, string>;
+          }
+        }
 
         if (refreshedArray.length > 0) {
           setAllBookmarks(refreshedArray);
@@ -505,17 +528,11 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
             {filteredBookmarks.map((bookmark) => {
               // Use pre-computed href from server if available
               // CRITICAL: Never fallback to using bookmark.id in the URL!
-              const internalHref = internalHrefs?.[bookmark.id];
-
-              if (!internalHref) {
+              const internalHref = internalHrefs?.[bookmark.id] ?? bookmark.url;
+              if (!internalHrefs?.[bookmark.id]) {
                 console.warn(
-                  `[BookmarksWithOptions] No slug mapping for bookmark ${bookmark.id}. Falling back to external URL.`,
+                  `[BookmarksWithOptions] Missing slug for ${bookmark.id}. Using external URL fallback: ${bookmark.url}`,
                 );
-                console.warn(`[BookmarksWithOptions] bookmark.title: ${bookmark.title}, bookmark.url: ${bookmark.url}`);
-                // We CANNOT generate a valid URL without the slug mapping
-                // Using the ID would cause a 404 error
-                // For now, link to the external URL as a fallback
-                // TODO: This needs to be fixed by ensuring slug mappings are always loaded
               }
 
               // Debug: Log bookmark data for CLI bookmark (dev-only)
