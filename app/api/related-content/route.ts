@@ -25,11 +25,12 @@ const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 /**
  * Convert normalized content to related content item
+ * Returns null if a bookmark doesn't have a pre-computed slug (critical for idempotency)
  */
 function toRelatedContentItem(
   content: NormalizedContent & { score: number },
   slugMapping: BookmarkSlugMapping | null,
-): RelatedContentItem {
+): RelatedContentItem | null {
   const baseMetadata: RelatedContentItem["metadata"] = {
     tags: content.tags,
     domain: content.domain,
@@ -40,14 +41,18 @@ function toRelatedContentItem(
   switch (content.type) {
     case "bookmark": {
       const bookmark = content.source as UnifiedBookmark;
-      // Use pre-computed slug for URL
-      let url = `/bookmarks/${content.id}`; // Fallback
-      if (slugMapping) {
-        const slug = slugMapping.slugs[content.id]?.slug;
-        if (slug) {
-          url = `/bookmarks/${slug}`;
-        }
+      // Use pre-computed slug for URL - REQUIRED for idempotency
+      if (!slugMapping) {
+        console.error(`[RelatedContent API] CRITICAL: No slug mapping loaded`);
+        return null; // Skip this item rather than generate incorrect URL
       }
+      const slug = slugMapping.slugs[content.id]?.slug;
+      if (!slug) {
+        console.error(`[RelatedContent API] CRITICAL: No slug found for bookmark ${content.id}`);
+        console.error(`[RelatedContent API] Title: ${content.title}, URL: ${bookmark.url}`);
+        return null; // Skip this item rather than generate incorrect URL
+      }
+      const url = `/bookmarks/${slug}`;
       const metadata: RelatedContentItem["metadata"] = {
         ...baseMetadata,
         imageUrl: bookmark.ogImage || bookmark.content?.imageUrl,
@@ -145,10 +150,35 @@ export async function GET(request: NextRequest) {
     const sourceType = allowedTypes.has(sourceTypeRaw as RelatedContentType)
       ? (sourceTypeRaw as RelatedContentType)
       : null;
-    const sourceId = searchParams.get("id");
+    
+    // For bookmarks, we should use slug instead of id to maintain idempotency
+    // For other content types, we still use id
+    let sourceId = searchParams.get("id");
+    const sourceSlug = searchParams.get("slug");
+    
+    // If this is a bookmark request with a slug, convert it to ID
+    if (sourceType === "bookmark" && sourceSlug) {
+      const slugMapping = await loadSlugMapping();
+      if (slugMapping) {
+        // Find the bookmark ID from the slug
+        const bookmarkId = slugMapping.reverseMap[sourceSlug];
+        if (bookmarkId) {
+          sourceId = bookmarkId;
+          console.log(`[RelatedContent API] Resolved slug "${sourceSlug}" to bookmark ID "${sourceId}"`);
+        } else {
+          return NextResponse.json({ error: `Bookmark not found for slug: ${sourceSlug}` }, { status: 404 });
+        }
+      } else {
+        return NextResponse.json({ error: "Slug mapping not available" }, { status: 500 });
+      }
+    }
 
     if (!sourceType || !sourceId) {
-      return NextResponse.json({ error: "Missing required parameters: type and id" }, { status: 400 });
+      return NextResponse.json({ 
+        error: sourceType === "bookmark" 
+          ? "Missing required parameters: type and slug" 
+          : "Missing required parameters: type and id" 
+      }, { status: 400 });
     }
 
     const lockKey = `related-content:${sourceType}:${sourceId}`;
@@ -258,9 +288,14 @@ export async function GET(request: NextRequest) {
     let slugMapping: BookmarkSlugMapping | null = null;
     if (paginatedItems.some((item) => item.type === "bookmark")) {
       slugMapping = await loadSlugMapping();
+      if (!slugMapping) {
+        console.error("[RelatedContent API] Failed to load slug mapping - bookmarks will be skipped");
+      }
     }
 
-    const responseData = paginatedItems.map((item) => toRelatedContentItem(item, slugMapping));
+    const responseData = paginatedItems
+      .map((item) => toRelatedContentItem(item, slugMapping))
+      .filter((item): item is RelatedContentItem => item !== null);
 
     const response = {
       data: responseData,
