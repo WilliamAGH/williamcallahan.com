@@ -6,9 +6,10 @@
  * @module app/bookmarks/[slug]/page
  */
 
-// Configure for static generation with ISR
-export const revalidate = 3600; // Revalidate every hour
-export const dynamicParams = true; // Allow dynamic params for new bookmarks
+// Configure for dynamic rendering - consistent with all other bookmark routes
+export const dynamic = "force-dynamic";
+// Revalidate cache every 30 minutes - consistent with other bookmark routes  
+export const revalidate = 1800;
 
 import { BookmarksServer } from "@/components/features/bookmarks/bookmarks.server";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
@@ -27,55 +28,29 @@ import { RelatedContent } from "@/components/features/related-content";
 import { selectBestImage } from "@/lib/bookmarks/bookmark-helpers";
 import { loadSlugMapping, generateSlugMapping, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
 
-// Generate static params for all bookmarks at build time
-// This is optional - if it fails, pages will be generated dynamically
-export async function generateStaticParams(): Promise<{ slug: string }[]> {
-  // Skip static generation in development
-  if (process.env.NODE_ENV === "development") {
-    return [];
-  }
-
-  try {
-    // Try to load existing slug mapping from S3
-    // This might fail during build if S3 isn't accessible
-    const mapping = await loadSlugMapping();
-
-    // If no mapping exists, skip static generation
-    // Pages will be generated dynamically at runtime
-    if (!mapping) {
-      console.log("Slug mapping not available during build - using dynamic generation");
-      return [];
-    }
-
-    // Return all slug params for static generation
-    const params = Object.values(mapping.slugs).map((entry) => ({
-      slug: entry.slug,
-    }));
-
-    console.log(`Generating static params for ${params.length} bookmark pages`);
-    return params;
-  } catch (error) {
-    // Don't fail the build if static generation fails
-    // Pages will be generated dynamically at runtime
-    console.log(
-      "Static generation skipped for bookmarks - using dynamic generation:",
-      error instanceof Error ? error.message : "Unknown error",
-    );
-    return [];
-  }
-}
+// NOTE: Static generation disabled - using force-dynamic for consistency
+// All bookmark routes now use dynamic rendering to avoid build-time S3 dependency
+// and ensure consistent behavior between development and production environments.
+// Pages are dynamically generated at runtime with ISR caching (30 min revalidation).
+//
+// export async function generateStaticParams(): Promise<{ slug: string }[]> {
+//   // Disabled - see note above
+// }
 
 // Helper function to find bookmark by slug using pre-computed mappings
 async function findBookmarkBySlug(slug: string): Promise<import("@/types").UnifiedBookmark | null> {
-  if (process.env.NODE_ENV !== "production") {
-    console.log(`[BookmarkPage] findBookmarkBySlug called with slug: "${slug}"`);
-    console.log(`[BookmarkPage] Environment: NODE_ENV=${process.env.NODE_ENV}`);
-    console.log(
-      `[BookmarkPage] S3 config: BUCKET=${process.env.S3_BUCKET ? "set" : "missing"}, KEY=${
-        process.env.S3_ACCESS_KEY_ID ? "set" : "missing"
-      }, SECRET=${process.env.S3_SECRET_ACCESS_KEY ? "set" : "missing"}`,
-    );
-  }
+  // Enhanced logging for environment detection issues
+  console.log(`[BookmarkPage] ========== BOOKMARK LOOKUP START ==========`);
+  console.log(`[BookmarkPage] Slug requested: "${slug}"`);
+  console.log(`[BookmarkPage] Environment Variables:`);
+  console.log(`[BookmarkPage]   - NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`[BookmarkPage]   - API_BASE_URL: ${process.env.API_BASE_URL || "not set"}`);
+  console.log(`[BookmarkPage]   - NEXT_PUBLIC_SITE_URL: ${process.env.NEXT_PUBLIC_SITE_URL || "not set"}`);
+  console.log(`[BookmarkPage]   - S3_BUCKET: ${process.env.S3_BUCKET ? "✓ set" : "✗ missing"}`);
+  console.log(`[BookmarkPage]   - S3_ACCESS_KEY_ID: ${process.env.S3_ACCESS_KEY_ID ? "✓ set" : "✗ missing"}`);
+  console.log(`[BookmarkPage]   - S3_SECRET_ACCESS_KEY: ${process.env.S3_SECRET_ACCESS_KEY ? "✓ set" : "✗ missing"}`);
+  console.log(`[BookmarkPage]   - S3_CDN_URL: ${process.env.S3_CDN_URL || "not set"}`);
+  console.log(`[BookmarkPage]   - S3_SERVER_URL: ${process.env.S3_SERVER_URL || "not set"}`);
 
   try {
     // Try to load the pre-computed slug mapping
