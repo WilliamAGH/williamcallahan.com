@@ -2,7 +2,7 @@
 /**
  * Fix S3 file naming to include environment suffix
  * This resolves the 404 issue where dev environment can't find its files
- * 
+ *
  * Run with: bun scripts/fix-s3-env-suffix.ts
  */
 
@@ -69,7 +69,7 @@ async function fixEnvironmentSuffixes() {
   for (const file of baseFiles) {
     const sourcePath = `json/bookmarks/${file.base}`;
     const targetPath = file.expected;
-    
+
     if (sourcePath !== targetPath) {
       await copyWithSuffix(sourcePath, targetPath);
     } else {
@@ -82,7 +82,7 @@ async function fixEnvironmentSuffixes() {
   for (let i = 1; i <= 10; i++) {
     const sourcePagePath = `json/bookmarks/pages/page-${i}.json`;
     const targetPagePath = `${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${i}.json`;
-    
+
     if (sourcePagePath !== targetPagePath) {
       const success = await copyWithSuffix(sourcePagePath, targetPagePath);
       if (!success && i > 1) {
@@ -100,10 +100,12 @@ async function fixEnvironmentSuffixes() {
 }
 
 // Run the fix
-fixEnvironmentSuffixes().then(() => {
-  console.log("\n=== Script completed ===");
-  process.exit(0);
-}).catch((error) => {
-  console.error("\n=== Script failed ===", error);
-  process.exit(1);
-});
+fixEnvironmentSuffixes()
+  .then(() => {
+    console.log("\n=== Script completed ===");
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error("\n=== Script failed ===", error);
+    process.exit(1);
+  });

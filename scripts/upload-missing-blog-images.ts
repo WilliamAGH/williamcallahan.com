@@ -35,7 +35,7 @@ function generateS3Key(imagePath: string, buffer: Buffer): string {
   const ext = path.extname(filename);
   const nameWithoutExt = path.basename(filename, ext);
   const hash = generateContentHash(buffer);
-  
+
   // Follow existing pattern: images/other/blog-posts/name_hash.ext
   return `images/other/blog-posts/${nameWithoutExt}_${hash}${ext}`;
 }
@@ -57,30 +57,30 @@ function getContentType(imagePath: string): string {
 
 async function uploadMissingImages() {
   logger.info("Starting upload of missing blog images to S3...");
-  
+
   let uploadedCount = 0;
   let skippedCount = 0;
   let errorCount = 0;
-  
+
   for (const imagePath of MISSING_IMAGES) {
     try {
       // Construct local file path
       const localPath = path.join(process.cwd(), "public", imagePath);
-      
+
       // Check if file exists locally
       if (!fs.existsSync(localPath)) {
         logger.warn(`File not found locally: ${localPath}`);
         errorCount++;
         continue;
       }
-      
+
       // Read file
       const buffer = fs.readFileSync(localPath);
       logger.info(`Read ${imagePath} (${buffer.length} bytes)`);
-      
+
       // Generate S3 key with content hash
       const s3Key = generateS3Key(imagePath, buffer);
-      
+
       // Check if already exists in S3
       const exists = await checkIfS3ObjectExists(s3Key);
       if (exists) {
@@ -88,20 +88,16 @@ async function uploadMissingImages() {
         skippedCount++;
         continue;
       }
-      
+
       // Upload to S3 - use forceWrite to bypass memory checks for this one-time migration
       logger.info(`Uploading to S3: ${s3Key}`);
-      
+
       // For large files, set environment variable to bypass memory check temporarily
       const originalEnv = process.env.S3_FORCE_WRITE;
       process.env.S3_FORCE_WRITE = "true";
-      
+
       try {
-        await writeBinaryS3(
-          s3Key,
-          buffer,
-          getContentType(imagePath)
-        );
+        await writeBinaryS3(s3Key, buffer, getContentType(imagePath));
       } finally {
         // Restore original environment
         if (originalEnv === undefined) {
@@ -110,17 +106,16 @@ async function uploadMissingImages() {
           process.env.S3_FORCE_WRITE = originalEnv;
         }
       }
-      
+
       logger.info(`✅ Successfully uploaded: ${imagePath} → ${s3Key}`);
       logger.info(`   CDN URL: https://s3-storage.callahan.cloud/${s3Key}`);
       uploadedCount++;
-      
     } catch (error) {
       logger.error(`Failed to upload ${imagePath}:`, error);
       errorCount++;
     }
   }
-  
+
   logger.info("\n📊 Upload Summary:");
   logger.info(`   ✅ Uploaded: ${uploadedCount}`);
   logger.info(`   ⏭️  Skipped (already exists): ${skippedCount}`);

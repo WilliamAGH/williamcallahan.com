@@ -248,15 +248,15 @@ describe("Pre-computation Pipeline Integration", () => {
       const prodData = await readJsonS3("json/content-graph/metadata.json");
 
       expect(devData).not.toEqual(prodData);
-      
+
       // Type-safe property access with proper checking
-      if (devData && typeof devData === 'object' && 'env' in devData) {
+      if (devData && typeof devData === "object" && "env" in devData) {
         expect(devData.env).toBe("development");
       } else {
         throw new Error("devData missing expected env property");
       }
-      
-      if (prodData && typeof prodData === 'object' && 'env' in prodData) {
+
+      if (prodData && typeof prodData === "object" && "env" in prodData) {
         expect(prodData.env).toBe("production");
       } else {
         throw new Error("prodData missing expected env property");
@@ -442,16 +442,16 @@ describe("Pre-computation Pipeline Integration", () => {
       if (metadataCall && relatedContentCall) {
         // Type-safe metadata access
         const metadata = metadataCall[1];
-        if (!metadata || typeof metadata !== 'object' || !('counts' in metadata)) {
+        if (!metadata || typeof metadata !== "object" || !("counts" in metadata)) {
           throw new Error("Invalid metadata structure");
         }
         const metadataWithCounts = metadata as Record<string, unknown>;
-        if (!metadataWithCounts.counts || typeof metadataWithCounts.counts !== 'object') {
+        if (!metadataWithCounts.counts || typeof metadataWithCounts.counts !== "object") {
           throw new Error("Invalid counts structure in metadata");
         }
-        
+
         const relatedContent = relatedContentCall[1];
-        if (!relatedContent || typeof relatedContent !== 'object') {
+        if (!relatedContent || typeof relatedContent !== "object") {
           throw new Error("Invalid related content structure");
         }
 
