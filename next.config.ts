@@ -79,6 +79,14 @@ process.env.NEXT_PUBLIC_GIT_HASH = gitHash;
 process.env.SENTRY_RELEASE = gitHash;
 
 const nextConfig = {
+  // We run our own rigorous validation pipeline (`bun run validate`).
+  // Disable Next's built-in lint/type checks to prevent auto-installs and peer-resolve issues.
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   /**
    * Include data directory in standalone build output
    * This ensures static data files are available in production
