@@ -4,10 +4,14 @@ import { getUnifiedImageService } from "@/lib/services/unified-image-service";
 import type { TwitterImageContext } from "@/types";
 import { sanitizePath, IMAGE_SECURITY_HEADERS } from "@/lib/validators/url";
 
-export async function GET(request: NextRequest, { params }: TwitterImageContext) {
+export async function GET(request: NextRequest, ctx: TwitterImageContext) {
   try {
     // Reconstruct the Twitter image URL from dynamic params
-    const { path: pathSegments } = params;
+    // Next 15 may pass params as a thenable in some instrumented paths; await to be safe
+    const resolved = (ctx.params as unknown) as { path: string[] } | Promise<{ path: string[] }>;
+    const { path: pathSegments } = (typeof (resolved as Promise<unknown>).then === "function"
+      ? await (resolved as Promise<{ path: string[] }>)
+      : (resolved as { path: string[] }));
 
     // Sanitize path to prevent directory traversal
     const fullPath = sanitizePath(pathSegments.join("/"));
