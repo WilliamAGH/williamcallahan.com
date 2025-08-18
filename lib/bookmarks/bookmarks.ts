@@ -138,10 +138,21 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
           // previous dev-mode run wrote a truncated dataset (e.g., 20 items)
           // even though the raw API data is unchanged and complete.
           if (cached && cached.length === allRawBookmarks.length) {
-            console.log(
-              `[refreshBookmarksData] Raw checksum unchanged (${rawChecksum}) and manifest already contains ${cached.length} records – reuse without re-processing.`,
+            // Back-compat runtime check: some historic persisted manifests may predate slug embedding.
+            // Use a runtime guard to ensure we only reuse a cached manifest that already contains slugs.
+            const hasSlugs = cached.every((b) => {
+              const candidate = b as unknown as { slug?: unknown };
+              return typeof candidate.slug === "string" && candidate.slug.length > 0;
+            });
+            if (hasSlugs) {
+              console.log(
+                `[refreshBookmarksData] Raw checksum unchanged (${rawChecksum}) and manifest already contains ${cached.length} records with slugs – reuse without re-processing.`,
+              );
+              return cached;
+            }
+            console.warn(
+              "[refreshBookmarksData] Raw checksum unchanged but cached manifest lacks slugs; proceeding with normalization & slug generation.",
             );
-            return cached;
           }
 
           console.warn(
@@ -163,7 +174,7 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
     console.log(`[refreshBookmarksData] Successfully normalized ${normalizedBookmarks.length} bookmarks.`);
 
     // Generate slugs immediately after normalization for idempotent routing
-    const { generateSlugMapping } = await import("@/lib/bookmarks/slug-manager");
+    const { generateSlugMapping, saveSlugMapping } = await import("@/lib/bookmarks/slug-manager");
     const slugMapping = generateSlugMapping(normalizedBookmarks);
 
     // Embed slugs directly into bookmark objects
@@ -177,6 +188,17 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
       bookmark.slug = slugEntry.slug;
     }
     console.log(`[refreshBookmarksData] Generated slugs for ${normalizedBookmarks.length} bookmarks.`);
+
+    // Persist slug mapping to S3 and local fallback so routes remain stable across deploys
+    try {
+      await saveSlugMapping(normalizedBookmarks);
+      console.log(
+        `[refreshBookmarksData] Persisted slug mapping for ${normalizedBookmarks.length} bookmarks to S3 (and local fallback).`,
+      );
+    } catch (err) {
+      // Non-fatal: bookmark routes are still embedded on objects, but persistence is important for consistency.
+      console.warn("[refreshBookmarksData] Failed to persist slug mapping (non-fatal):", String(err));
+    }
 
     // -------------------------------------------------------------------------
     // Development-time memory safeguard
