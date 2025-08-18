@@ -44,11 +44,11 @@ export async function GET(request: Request): Promise<NextResponse> {
     // Get allocator diagnostics for deeper analysis
     const allocatorDiagnostics = monitor.getAllocatorDiagnostics();
 
-    const details = healthStatus.details;
-    const rawBudget = details.budget;
-    const rawThreshold = details.threshold;
-    const budget = typeof rawBudget === "number" ? rawBudget : 0;
-    const threshold = typeof rawThreshold === "number" ? rawThreshold : 0;
+    // Safely access budget and threshold with optional chaining
+    const rawBudget = typeof healthStatus.details?.budget === "number" ? healthStatus.details.budget : null;
+    const rawThreshold = typeof healthStatus.details?.threshold === "number" ? healthStatus.details.threshold : null;
+    const budget = rawBudget ?? 0;
+    const threshold = rawThreshold ?? 0;
 
     const response: HealthMetrics = {
       status: healthStatus.status,
