@@ -558,12 +558,12 @@ const nextConfig = {
 
   /**
    * Configure headers for caching and security
-   * Note: The primary Content Security Policy (CSP) is now managed in `middlewarets`
+  * Note: The primary Content Security Policy (CSP) is now managed in `middleware.ts`
    * @see {@link ./middleware.ts}
    * @returns {Promise<Array<{source: string, headers: Array<{key: string, value: string}>>}
    */
   headers: () => [
-    // IMPORTANT: Content-Security-Policy is primarily set in middlewarets
+    // IMPORTANT: Content-Security-Policy is primarily set in middleware.ts
     // Headers set here might be overridden or complemented by the middleware
     // This section is mainly for cache-control and other non-CSP headers
     {
@@ -607,7 +607,7 @@ const nextConfig = {
     },
     // { // This empty object was causing the "source is missing" error and has been removed
     // Apply CSP to all HTML pages
-    // NOTE: CSP is now primarily handled in middlewarets This block is effectively overridden - do not remove this comment
+    // NOTE: CSP is now primarily handled in middleware.ts. This block is effectively overridden - do not remove this comment.
     // },
   ],
 
@@ -830,8 +830,8 @@ const sentryWebpackPluginOptions = {
 
 // Configure Content Security Policy
 // existing code
-// Ensure this is the last line related to Sentry configuration
-// Make sure to an Sentry Webpack plugin to Node SDK options to allow for source map uploads to Sentry
+// Ensure this is the last line related to Sentry configuration.
+// Make sure to add the Sentry Webpack plugin options to the Node SDK to allow source map uploads to Sentry.
 // For more information, see the Sentry documentation:
-// https://docssentryio/platforms/javascript/guides/nextjs/manual-setup/
+// https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
 export default withSentryConfig(nextConfig, sentryWebpackPluginOptions);
