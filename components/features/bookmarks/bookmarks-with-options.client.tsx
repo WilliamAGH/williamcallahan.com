@@ -31,7 +31,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   showFilterBar = true,
   searchAllBookmarks = false,
   initialTag,
-  internalHrefs,
+  internalHrefs: initialInternalHrefs,
 }) => {
   // Add mounted state for hydration safety
   const [mounted, setMounted] = useState(false);
@@ -42,6 +42,8 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   // Using setIsSearching in handleSearchSubmit
   const [isSearching, setIsSearching] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // Store internal hrefs mapping (critical for preventing 404s)
+  const [internalHrefs, setInternalHrefs] = useState<Record<string, string> | undefined>(initialInternalHrefs);
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [dataSource, setDataSource] = useState<"server" | "client">("server");
   // Currently unused filter UI states - can be removed if the feature is not being developed
@@ -146,13 +148,23 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
 
           const responseData = (await response.json()) as {
             data: UnifiedBookmark[];
+            internalHrefs?: Record<string, string>;
             meta: unknown;
           };
           const allBookmarksData = responseData.data;
+          const apiInternalHrefs = responseData.internalHrefs;
           console.log("Client-side direct fetch bookmarks count:", allBookmarksData?.length || 0);
+          console.log("Client-side direct fetch has internalHrefs:", !!apiInternalHrefs);
 
           if (Array.isArray(allBookmarksData) && allBookmarksData.length > 0) {
             setAllBookmarks(allBookmarksData);
+            // CRITICAL: Update the slug mappings from API
+            if (apiInternalHrefs) {
+              setInternalHrefs(apiInternalHrefs);
+              console.log("BookmarksWithOptions: Updated internalHrefs from API");
+            } else {
+              console.error("BookmarksWithOptions: WARNING - No internalHrefs from API, URLs will cause 404s!");
+            }
             // Explicitly force the dataSource to client
             console.log("BookmarksWithOptions: Setting data source to client-side");
             setDataSource("client");
@@ -305,16 +317,26 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         }
 
         const refreshedJson = (await bookmarksResponse.json()) as
-          | { data?: UnifiedBookmark[]; meta?: unknown }
+          | { data?: UnifiedBookmark[]; internalHrefs?: Record<string, string>; meta?: unknown }
           | UnifiedBookmark[];
         const refreshedArray = Array.isArray(refreshedJson)
           ? refreshedJson
           : Array.isArray((refreshedJson as { data?: UnifiedBookmark[] })?.data)
             ? (refreshedJson as { data: UnifiedBookmark[] }).data
             : [];
+        const refreshedInternalHrefs = !Array.isArray(refreshedJson) 
+          ? (refreshedJson as { internalHrefs?: Record<string, string> }).internalHrefs
+          : undefined;
 
         if (refreshedArray.length > 0) {
           setAllBookmarks(refreshedArray);
+          // CRITICAL: Update slug mappings after refresh
+          if (refreshedInternalHrefs) {
+            setInternalHrefs(refreshedInternalHrefs);
+            console.log("Bookmarks refresh: Updated internalHrefs");
+          } else {
+            console.error("Bookmarks refresh: WARNING - No internalHrefs, URLs will cause 404s!");
+          }
           setLastRefreshed(new Date());
           setDataSource("client");
           console.log("Bookmarks refreshed successfully:", refreshedArray.length);
@@ -474,8 +496,18 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-6">
             {filteredBookmarks.map((bookmark) => {
-              // Use pre-computed href from server if available, fallback to ID-based URL
-              const internalHref = internalHrefs?.[bookmark.id] || `/bookmarks/${bookmark.id}`;
+              // Use pre-computed href from server if available
+              // CRITICAL: Never fallback to using bookmark.id in the URL!
+              const internalHref = internalHrefs?.[bookmark.id];
+              
+              if (!internalHref) {
+                console.error(`[BookmarksWithOptions] WARNING: No slug mapping for bookmark ${bookmark.id}. This will cause 404s!`);
+                console.error(`[BookmarksWithOptions] bookmark.title: ${bookmark.title}, bookmark.url: ${bookmark.url}`);
+                // We CANNOT generate a valid URL without the slug mapping
+                // Using the ID would cause a 404 error
+                // For now, link to the external URL as a fallback
+                // TODO: This needs to be fixed by ensuring slug mappings are always loaded
+              }
 
               // Debug: Log bookmark data for CLI bookmark (dev-only)
               if (isDevelopment && bookmark.id === "yz7g8v8vzprsd2bm1w1cjc4y") {
