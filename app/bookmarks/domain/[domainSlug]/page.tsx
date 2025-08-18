@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "default-no-store";
 
 import { getBookmarks } from "@/lib/bookmarks/service.server";
-import { generateUniqueSlug, getDomainSlug } from "@/lib/utils/domain-utils";
+import { getDomainSlug } from "@/lib/utils/domain-utils";
+import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
 import { redirect } from "next/navigation";
 
 /**
@@ -23,6 +24,14 @@ import type { DomainPageRedirectorProps } from "@/types";
 
 export default async function DomainPageRedirector({ params, searchParams }: DomainPageRedirectorProps) {
   const allBookmarks = (await getBookmarks({ includeImageData: false })) as import("@/types").UnifiedBookmark[];
+  
+  // Load slug mapping - REQUIRED for idempotency
+  const slugMapping = await loadSlugMapping();
+  if (!slugMapping) {
+    console.error("[DomainRedirect] CRITICAL: No slug mapping found");
+    redirect("/bookmarks"); // Fallback to main bookmarks page
+  }
+  
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
   const { domainSlug } = paramsResolved;
@@ -34,8 +43,12 @@ export default async function DomainPageRedirector({ params, searchParams }: Dom
   if (id) {
     const bookmark = allBookmarks.find((b) => b.id === id);
     if (bookmark) {
-      const uniqueSlug = generateUniqueSlug(bookmark.url, allBookmarks, bookmark.id);
-      redirect(`/bookmarks/${uniqueSlug}`);
+      const uniqueSlug = getSlugForBookmark(slugMapping, bookmark.id);
+      if (uniqueSlug) {
+        redirect(`/bookmarks/${uniqueSlug}`);
+      } else {
+        console.error(`[DomainRedirect] No slug found for bookmark ${bookmark.id}`);
+      }
     }
   }
 
@@ -49,8 +62,12 @@ export default async function DomainPageRedirector({ params, searchParams }: Dom
   });
 
   if (bookmarkWithDomain) {
-    const uniqueSlug = generateUniqueSlug(bookmarkWithDomain.url, allBookmarks, bookmarkWithDomain.id);
-    redirect(`/bookmarks/${uniqueSlug}`);
+    const uniqueSlug = getSlugForBookmark(slugMapping, bookmarkWithDomain.id);
+    if (uniqueSlug) {
+      redirect(`/bookmarks/${uniqueSlug}`);
+    } else {
+      console.error(`[DomainRedirect] No slug found for bookmark ${bookmarkWithDomain.id}`);
+    }
   }
 
   // If no match found, redirect to the main bookmarks page

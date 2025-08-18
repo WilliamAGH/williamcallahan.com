@@ -279,14 +279,15 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
   }
   console.log(`${LOG_PREFIX} Wrote ${totalPages} pages of bookmarks`);
 
-  // Save slug mapping for static generation
+  // Save slug mapping for static generation - CRITICAL for idempotency
   try {
     // Save to current environment path only
     await saveSlugMapping(bookmarks, true, false);
     console.log(`${LOG_PREFIX} Saved slug mapping for ${bookmarks.length} bookmarks`);
   } catch (error) {
-    console.error(`${LOG_PREFIX} Failed to save slug mapping:`, error);
-    // Non-critical error - don't fail the entire operation
+    console.error(`${LOG_PREFIX} CRITICAL: Failed to save slug mapping:`, error);
+    // This is a CRITICAL error - slug mappings are required for bookmark navigation
+    throw new Error(`Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -377,8 +378,9 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         await saveSlugMapping(allIncomingBookmarks, true, false);
         console.log(`${LOG_PREFIX} Saved slug mapping (no-change path) for ${allIncomingBookmarks.length} bookmarks`);
       } catch (error) {
-        console.error(`${LOG_PREFIX} Failed to save slug mapping (no-change path):`, error);
-        // Non-critical, continue execution
+        console.error(`${LOG_PREFIX} CRITICAL: Failed to save slug mapping (no-change path):`, error);
+        // Slug mappings are CRITICAL for bookmark navigation
+        throw new Error(`Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`);
       }
       return allIncomingBookmarks;
     }
@@ -432,8 +434,9 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 await saveSlugMapping(freshBookmarks, true, false);
                 console.log(`${LOG_PREFIX} Saved slug mapping (no-change path) for ${freshBookmarks.length} bookmarks`);
               } catch (error) {
-                console.error(`${LOG_PREFIX} Failed to save slug mapping (no-change path):`, error);
-                // Non-critical, continue execution
+                console.error(`${LOG_PREFIX} CRITICAL: Failed to save slug mapping (no-change path):`, error);
+                // Slug mappings are CRITICAL for bookmark navigation
+                throw new Error(`Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`);
               }
             }
             // Heartbeat write (tiny file)

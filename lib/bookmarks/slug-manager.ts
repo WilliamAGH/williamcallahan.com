@@ -29,6 +29,14 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
       bookmark.id,
     );
 
+    // Validate that a slug was generated
+    if (!slug) {
+      throw new Error(
+        `[SlugManager] CRITICAL: Failed to generate slug for bookmark ${bookmark.id}. ` +
+        `URL: ${bookmark.url}, Title: ${bookmark.title}`
+      );
+    }
+
     slugs[bookmark.id] = {
       id: bookmark.id,
       slug,
@@ -37,6 +45,14 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
     };
 
     reverseMap[slug] = bookmark.id;
+  }
+  
+  // Validate that every bookmark has a slug
+  const missingSlugIds = bookmarks.filter(b => !slugs[b.id]).map(b => b.id);
+  if (missingSlugIds.length > 0) {
+    throw new Error(
+      `[SlugManager] CRITICAL: ${missingSlugIds.length} bookmarks missing slugs: ${missingSlugIds.join(', ')}`
+    );
   }
 
   // Generate checksum for change detection
@@ -109,13 +125,10 @@ export async function saveSlugMapping(bookmarks: UnifiedBookmark[], overwrite = 
 
     // Optionally save to all environment paths for redundancy
     if (saveToAllPaths) {
-      // Use consistent path generation for all environments
+      // Use programmatic path generation to avoid hardcoding
       const basePath = 'json/bookmarks/slug-mapping';
-      const allPaths = [
-        `${basePath}.json`,        // production (no suffix)
-        `${basePath}-dev.json`,    // development
-        `${basePath}-test.json`,   // test
-      ];
+      const envSuffixes = ["", "-dev", "-test"] as const;
+      const allPaths = envSuffixes.map(suffix => `${basePath}${suffix}.json`);
 
       for (const path of allPaths) {
         if (path !== primaryPath) {
