@@ -153,6 +153,7 @@ const baseBookmarkSchema = z.object({
   url: urlSchema,
   title: z.string().min(1),
   description: stringOrNullSchema,
+  slug: z.string().min(1), // REQUIRED for idempotent routing in ALL bookmark types
   dateBookmarked: z.string(),
   dateCreated: z.string().optional(),
   dateUpdated: z.string().optional(),
