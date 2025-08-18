@@ -37,11 +37,7 @@ export { OPENGRAPH_S3_KEY_DIR, OPENGRAPH_METADATA_S3_DIR, OPENGRAPH_IMAGES_S3_DI
 const isCliLikeContext = (): boolean => {
   const argv1 = process.argv[1] || "";
   const inScriptsDir = /(^|[\\/])scripts[\\/]/.test(argv1);
-  return (
-    inScriptsDir ||
-    process.argv.includes("data-updater") ||
-    process.env.NEXT_PHASE === "phase-production-build"
-  );
+  return inScriptsDir || process.argv.includes("data-updater") || process.env.NEXT_PHASE === "phase-production-build";
 };
 
 const shouldLogCacheWarning = (): boolean =>
