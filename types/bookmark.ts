@@ -279,8 +279,18 @@ export const BookmarksApiResponseSchema = z.object({
 
 export { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 
-// Lightweight bookmark type that excludes heavy image data
-// BUT preserves content.screenshotAssetId since it's needed for fallback rendering
+// Lightweight bookmark type that excludes heavy image data for performance
+// BUT preserves essential content fields needed for UI rendering
+/**
+ * Lightweight bookmark type that excludes heavy image data for performance in lists.
+ * 
+ * This type preserves essential fields needed for UI rendering while omitting large
+ * image assets. The content object specifically preserves metadata fields like
+ * screenshotAssetId (for fallback images), favicon, author, publisher, and dates.
+ * 
+ * Used throughout the application when rendering bookmark lists to minimize data transfer.
+ * Conversion to/from UnifiedBookmark should use standardized utilities in '@/lib/bookmarks/utils'.
+ */
 export type LightweightBookmark = Omit<UnifiedBookmark, "ogImage" | "logoData"> & {
   content?: Pick<BookmarkContent, "type" | "url" | "title" | "description" | "screenshotAssetId" | "favicon" | "author" | "publisher" | "datePublished" | "dateModified">;
 };
