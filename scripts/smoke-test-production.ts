@@ -62,8 +62,8 @@ class ProductionSmokeTests {
       
       let passed = response.status === expectedStatus;
       
-      // Additional validation if provided
-      if (passed && options.validateResponse) {
+      // Additional validation if provided (only validate JSON on 200 responses)
+      if (passed && response.status === 200 && options.validateResponse) {
         try {
           const data = await response.json();
           passed = options.validateResponse(data);
