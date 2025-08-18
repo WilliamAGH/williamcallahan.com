@@ -209,8 +209,16 @@ export const calculateBookmarksChecksum = (bookmarks: UnifiedBookmark[]): string
  * @returns A LightweightBookmark with image data stripped but essential fields preserved
  */
 export const stripImageData = (b: UnifiedBookmark): LightweightBookmark => {
-  // Extract non-image fields from the UnifiedBookmark
-  const { ogImage, logoData, ...bookmarkWithoutImages } = b;
+  // Destructure to omit heavy image fields
+  const { 
+    ogImage: omittedOgImage,  // Intentionally unused - stripped from result
+    logoData: omittedLogoData,  // Intentionally unused - stripped from result
+    ...bookmarkWithoutImages 
+  } = b;
+  
+  // Void the omitted variables to satisfy linter
+  void omittedOgImage;
+  void omittedLogoData;
 
   // Build the base lightweight bookmark
   const baseResult: LightweightBookmark = {
