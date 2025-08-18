@@ -216,7 +216,7 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
   const maybeBookmarks = await getBookmarks({ skipExternalFetch: false });
   if (!Array.isArray(maybeBookmarks)) {
     throw new Error("[Search Index Builder] Unexpected bookmarks payload");
-    }
+  }
   const bookmarks = maybeBookmarks as UnifiedBookmark[];
 
   const index = new MiniSearch<BookmarkIndexItem>({
