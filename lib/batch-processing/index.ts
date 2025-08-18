@@ -105,7 +105,7 @@ export class BatchProcessor<T, R> {
           if (result !== null) {
             successful.set(item, result);
           }
-        } catch (error) {
+        } catch (error: unknown) {
           const err = error instanceof Error ? error : new Error(String(error));
           failed.set(item, err);
 
