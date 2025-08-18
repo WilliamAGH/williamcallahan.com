@@ -11,6 +11,10 @@ import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import logger from "@/lib/utils/logger";
 import { createHash } from "node:crypto";
+import { promises as fs } from "fs";
+import path from "path";
+
+const LOCAL_SLUG_MAPPING_PATH = path.join(process.cwd(), "lib", "data", "slug-mapping.json");
 
 /**
  * Generate slug mapping for all bookmarks
@@ -97,6 +101,12 @@ export async function saveSlugMapping(
     const mapping = generateSlugMapping(bookmarks);
     logger.info(`[SlugManager] Generated mapping with ${mapping.count} entries, checksum: ${mapping.checksum}`);
 
+    // Ensure the directory exists
+    await fs.mkdir(path.dirname(LOCAL_SLUG_MAPPING_PATH), { recursive: true });
+    // Save to local file system for build-time/runtime fallback
+    await fs.writeFile(LOCAL_SLUG_MAPPING_PATH, JSON.stringify(mapping, null, 2));
+    logger.info(`[SlugManager] ✅ Successfully saved to local fallback path: ${LOCAL_SLUG_MAPPING_PATH}`);
+
     // Save to primary path with concurrent write protection
     // Use conditional writes to prevent concurrent overwrites
     if (overwrite) {
@@ -173,6 +183,20 @@ export async function saveSlugMapping(
  * Load slug mapping from S3 with fallback to other environment paths
  */
 export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
+  // --- 1. Try loading from local cache first ---
+  try {
+    const localData = await fs.readFile(LOCAL_SLUG_MAPPING_PATH, "utf-8");
+    const mapping = JSON.parse(localData) as BookmarkSlugMapping;
+    if (mapping && mapping.slugs) {
+      logger.info(`[SlugManager] Successfully loaded slug mapping from local cache: ${LOCAL_SLUG_MAPPING_PATH}`);
+      return mapping;
+    }
+  } catch (error) {
+    // This is not a critical error, just means we need to fetch from S3
+    logger.warn(`[SlugManager] Local slug mapping cache not found or invalid, proceeding to S3. Error: ${error}`);
+  }
+
+  // --- 2. Fallback to S3 ---
   const primaryPath = BOOKMARKS_S3_PATHS.SLUG_MAPPING;
   logger.info(`[SlugManager] Attempting to load slug mapping from S3 path: ${primaryPath}`);
   logger.info(`[SlugManager] Environment: NODE_ENV=${process.env.NODE_ENV || "(not set)"}`);

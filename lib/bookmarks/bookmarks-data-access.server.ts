@@ -17,6 +17,10 @@ import {
 import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
+import { promises as fs } from "fs";
+import path from "path";
+
+const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "lib", "data", "bookmarks.json");
 
 // Runtime-safe cache wrappers for experimental Next.js APIs
 // These functions are only available in Next.js request context with experimental.useCache enabled
@@ -402,6 +406,16 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
       }));
       await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
 
+      // --- START LOCAL CACHE WRITE ---
+      try {
+        await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
+        await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarksWithSlugs, null, 2));
+        console.log(`${LOG_PREFIX} ✅ Successfully saved bookmarks to local fallback path (no-change path)`);
+      } catch (error) {
+        console.error(`${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path (no-change path):`, error);
+      }
+      // --- END LOCAL CACHE WRITE ---
+
       return allIncomingBookmarks;
     }
     console.log(`${LOG_PREFIX} Changes detected, persisting bookmarks`);
@@ -412,6 +426,16 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         slug: mapping.slugs[b.id]?.slug ?? "",
       }));
       await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
+
+      // --- START LOCAL CACHE WRITE ---
+      try {
+        await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
+        await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarksWithSlugs, null, 2));
+        console.log(`${LOG_PREFIX} ✅ Successfully saved bookmarks to local fallback path (change-detected path)`);
+      } catch (error) {
+        console.error(`${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path (change-detected path):`, error);
+      }
+      // --- END LOCAL CACHE WRITE ---
     }
     await writeTagFilteredBookmarks(allIncomingBookmarks);
     return allIncomingBookmarks;
@@ -480,6 +504,16 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 slug: mapping.slugs[b.id]?.slug ?? "",
               }));
               await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
+
+              // --- START LOCAL CACHE WRITE ---
+              try {
+                await fs.mkdir(path.dirname(LOCAL_BOOKMARKS_PATH), { recursive: true });
+                await fs.writeFile(LOCAL_BOOKMARKS_PATH, JSON.stringify(bookmarksWithSlugs, null, 2));
+                console.log(`${LOG_PREFIX} ✅ Successfully saved bookmarks to local fallback path: ${LOCAL_BOOKMARKS_PATH}`);
+              } catch (error) {
+                console.error(`${LOG_PREFIX} ⚠️ Failed to save bookmarks to local fallback path:`, error);
+              }
+              // --- END LOCAL CACHE WRITE ---
             }
             // Heartbeat write (tiny file)
             void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
@@ -555,12 +589,32 @@ async function fetchAndCacheBookmarks(
   console.log(
     `${LOG_PREFIX} fetchAndCacheBookmarks called. skipExternalFetch=${skipExternalFetch}, includeImageData=${includeImageData}`,
   );
+
+  // Define normalizeBookmarkTags function before usage
   const normalizeBookmarkTags = (bookmark: UnifiedBookmark) => ({
     ...bookmark,
     tags: (bookmark.tags || [])
       .filter((tag) => tag && (typeof tag === "string" ? tag.trim() : tag.name?.trim()))
       .map((tag: string | import("@/types").BookmarkTag) => normalizeBookmarkTag(tag)),
   });
+
+  // --- 1. Try loading from local cache first ---
+  try {
+    const localData = await fs.readFile(LOCAL_BOOKMARKS_PATH, "utf-8");
+    const bookmarks = JSON.parse(localData) as UnifiedBookmark[];
+    if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
+      console.log(`${LOG_PREFIX} Successfully loaded ${bookmarks.length} bookmarks from local cache: ${LOCAL_BOOKMARKS_PATH}`);
+      if (!includeImageData) {
+        console.log(`${LOG_PREFIX} Stripping image data from ${bookmarks.length} bookmarks`);
+        return bookmarks.map(stripImageData);
+      }
+      return bookmarks.map(normalizeBookmarkTags);
+    }
+  } catch (error) {
+    console.warn(`[Bookmarks] Local bookmarks cache not found or invalid, proceeding to S3. Error: ${error}`);
+  }
+
+  // --- 2. Fallback to S3 ---
   try {
     const bookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
     if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
