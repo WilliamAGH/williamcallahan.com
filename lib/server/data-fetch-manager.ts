@@ -54,12 +54,12 @@ export class DataFetchManager {
    * Fetches data based on the provided configuration
    * @param config - Configuration specifying which data to fetch
    * @returns Promise resolving to array of operation summaries
-   * 
+   *
    * CRITICAL DEPENDENCY ORDERING:
    * 1. Bookmarks MUST be fetched first (generates and saves slug mappings)
    * 2. Search indexes depend on slug mappings being available
    * 3. Content graph depends on all content being updated
-   * 
+   *
    * Changing this order can cause race conditions and 404 errors!
    */
   async fetchData(config: DataFetchConfig): Promise<DataFetchOperationSummary[]> {
@@ -488,15 +488,18 @@ export class DataFetchManager {
       // CRITICAL: Ensure slug mappings are saved before building search indexes
       // This prevents race conditions where search indexes use stale or missing slug mappings
       logger.info("[DataFetchManager] Ensuring slug mappings are up-to-date before building search indexes...");
-      
+
       const { loadSlugMapping, saveSlugMapping } = await import("@/lib/bookmarks/slug-manager");
       const { getBookmarks } = await import("@/lib/bookmarks/service.server");
-      
+
       // Check if slug mappings exist and are current
       const existingMapping = await loadSlugMapping();
       if (!existingMapping) {
         logger.warn("[DataFetchManager] No slug mapping found, generating before search index build...");
-        const bookmarks = await getBookmarks({ skipExternalFetch: false, includeImageData: false }) as import("@/types/bookmark").UnifiedBookmark[];
+        const bookmarks = (await getBookmarks({
+          skipExternalFetch: false,
+          includeImageData: false,
+        })) as import("@/types/bookmark").UnifiedBookmark[];
         await saveSlugMapping(bookmarks, true, false);
         logger.info("[DataFetchManager] Slug mapping generated and saved");
       } else {
