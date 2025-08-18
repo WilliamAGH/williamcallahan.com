@@ -120,8 +120,8 @@ export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promis
   }
   if (hasAllEmbedded) {
     for (const b of bookmarks) {
-      const s = tryGetEmbeddedSlug(b)!;
-      slugMap.set(b.id, s);
+      const s = tryGetEmbeddedSlug(b);
+      if (s) slugMap.set(b.id, s);
     }
     return slugMap;
   }
