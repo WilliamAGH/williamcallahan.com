@@ -157,7 +157,7 @@ export async function RelatedContent({
   sourceType,
   sourceId,
   sourceSlug,
-  sectionTitle = "Related Content",
+  sectionTitle = "Similar Content",
   options = {},
   className,
 }: RelatedContentProps) {
@@ -167,8 +167,10 @@ export async function RelatedContent({
     if (sourceType === "bookmark" && sourceSlug) {
       // Load slug mapping to convert slug to ID for internal lookups
       const slugMapping = await loadSlugMapping();
-      if (slugMapping) {
-        const bookmarkId = slugMapping.reverseMap[sourceSlug];
+      if (slugMapping && typeof sourceSlug === "string") {
+        // Convert to Map to avoid unsafe indexed access and satisfy strict linting
+        const reverse = new Map<string, string>(Object.entries(slugMapping.reverseMap));
+        const bookmarkId = reverse.get(sourceSlug);
         if (bookmarkId) {
           actualSourceId = bookmarkId;
           console.log(`[RelatedContent] Using slug "${sourceSlug}" resolved to ID "${bookmarkId}"`);
