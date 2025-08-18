@@ -18,7 +18,7 @@
  * @route - /api/twitter-image/[...path]/route.ts
  */
 export interface TwitterImageContext {
-  params: { path: string[] };
+  params: Promise<{ path: string[] }>;
 }
 
 /**
