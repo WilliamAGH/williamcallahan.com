@@ -183,8 +183,10 @@ export interface RelatedContentCacheData {
 export interface RelatedContentProps {
   /** Type of the source content */
   sourceType: RelatedContentType;
-  /** ID of the source content */
+  /** ID of the source content (for non-bookmarks) */
   sourceId: string;
+  /** Slug of the source content (required for bookmarks to maintain idempotency) */
+  sourceSlug?: string;
   /** Optional title for the section */
   sectionTitle?: string;
   /** Optional custom options */
@@ -314,6 +316,8 @@ export interface RelatedContentWithPaginationProps {
   sourceType: RelatedContentType;
   /** ID of the source content */
   sourceId: string;
+  /** Slug of the source content (required for bookmarks to maintain idempotency) */
+  sourceSlug?: string;
   /** Optional limit for items per page */
   limit?: number;
 }
