@@ -14,6 +14,7 @@ import { createHash } from "node:crypto";
 import { writeJsonS3 } from "@/lib/s3-utils";
 
 import type { UnifiedBookmark, RawApiBookmark, BookmarksApiResponse as ApiResponse } from "@/types/bookmark";
+import { bookmarksApiResponseSchema } from "@/types/bookmark";
 
 // Prefix for transient raw data cache during refresh process
 const RAW_CACHE_PREFIX = "json/bookmarks/raw";
@@ -100,7 +101,16 @@ export async function refreshBookmarksData(force = false): Promise<UnifiedBookma
         throw apiError;
       }
 
-      const data: ApiResponse = (await pageResponse.json()) as ApiResponse;
+      const raw = (await pageResponse.json()) as unknown;
+      const parsed = bookmarksApiResponseSchema.safeParse(raw);
+      if (!parsed.success) {
+        console.error(
+          "[refreshBookmarksData] Invalid API response shape:",
+          parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "),
+        );
+        throw new Error("Invalid bookmarks API response shape");
+      }
+      const data: ApiResponse = parsed.data;
       console.log(`[refreshBookmarksData] Retrieved ${data.bookmarks.length} bookmarks from page ${pageCount}.`);
       allRawBookmarks.push(...data.bookmarks);
       cursor = data.nextCursor;
