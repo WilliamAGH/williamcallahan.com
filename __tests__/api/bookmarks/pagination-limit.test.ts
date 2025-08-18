@@ -9,9 +9,11 @@ import type { UnifiedBookmark } from "@/types";
 // Mock dependencies used inside the route
 jest.mock("@/lib/bookmarks/service.server");
 jest.mock("@/lib/s3-utils");
+jest.mock("@/lib/bookmarks/slug-manager");
 
 const mockGetBookmarks = jest.mocked(getBookmarks);
 const mockReadJsonS3 = jest.mocked(readJsonS3);
+const { loadSlugMapping } = jest.requireMock("@/lib/bookmarks/slug-manager");
 
 describe("Bookmark API – large limit behavior", () => {
   let mockBookmarks: UnifiedBookmark[];
@@ -38,6 +40,20 @@ describe("Bookmark API – large limit behavior", () => {
       totalPages: Math.ceil(mockBookmarks.length / BOOKMARKS_PER_PAGE),
       lastFetchedAt: Date.now(),
     });
+    
+    // Mock slug mapping for bookmarks
+    const mockSlugMapping = {
+      slugs: mockBookmarks.reduce((acc, bookmark) => {
+        acc[bookmark.id] = { slug: `mock-slug-${bookmark.id}`, checksum: "mock" };
+        return acc;
+      }, {} as any),
+      reverseMap: {},
+      version: "1.0.0",
+      generated: new Date().toISOString(),
+      count: mockBookmarks.length,
+      checksum: "mock-checksum"
+    };
+    loadSlugMapping.mockResolvedValue(mockSlugMapping);
   });
 
   it("returns the full dataset when limit exceeds BOOKMARKS_PER_PAGE", async () => {
