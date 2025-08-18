@@ -31,6 +31,9 @@ FORMAT_COMMAND: bun run biome:format
 VALIDATE_COMMAND: bun run validate
 TYPE_CHECK_COMMAND: bun run type-check
 
+# Git Setup (per working directory)
+LOCAL_GIT_SETUP: git update-index --skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
+
 # Stack
 FRAMEWORK: Next.js
 FRAMEWORK_VERSION: canary

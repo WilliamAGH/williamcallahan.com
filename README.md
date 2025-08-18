@@ -1,6 +1,12 @@
 # William Callahan's Personal Website
 >
 > ⚠️ Run tests with `bun run test` (Jest) instead of `bun test`.
+> 
+> 📝 **Local setup:** After cloning, run these commands to ignore auto-generated files:
+> ```bash
+> git update-index --skip-worktree config/csp-hashes.json lib/data/slug-mapping.json
+> ```
+
 This is the repo for my personal website [williamcallahan.com](https://williamcallahan.com). The code is hosted at [github.com/WilliamAGH/williamcallahan.com](https://github.com/WilliamAGH/williamcallahan.com). Below is some info on how the logo fetching works and other stuff to help me remember.
 
 > "I don't know what I think until I read what I'm writing" - Shirley MacLaine
