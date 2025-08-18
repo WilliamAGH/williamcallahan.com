@@ -13,6 +13,7 @@ import { ServerCacheInstance } from "@/lib/server-cache";
 import { extractKeywords, extractCrossContentKeywords } from "./keyword-extractor";
 import { extractDomain } from "@/lib/utils";
 import { getBulkBookmarkSlugs } from "@/lib/bookmarks/slug-helpers";
+import { kebabCase } from "@/lib/utils/formatters";
 import type { NormalizedContent, RelatedContentType } from "@/types/related-content";
 import type { UnifiedBookmark } from "@/types/bookmark";
 import type { BlogPost } from "@/types/blog";
@@ -187,7 +188,7 @@ function normalizeProject(project: Project): NormalizedContent {
     title: project.name,
     text,
     tags: enhancedTags,
-    url: `/projects#${project.id || project.name}`,
+    url: `/projects#${kebabCase(String(project.id || project.name))}`,
     domain: extractDomain(project.url),
     date: undefined, // Projects don't have dates in current schema
     source: project,
@@ -205,34 +206,57 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
   }
 
   try {
-    // Fetch all content in parallel
-    const [bookmarksData, blogPosts] = await Promise.all([getBookmarks({ includeImageData: true }), getAllPosts()]);
+    // Fetch all content in parallel (best-effort with Promise.allSettled)
+    const [bookmarksRes, blogPostsRes] = await Promise.allSettled([
+      getBookmarks({ includeImageData: true }),
+      getAllPosts(),
+    ]);
 
     // Normalize all content
     const normalized: NormalizedContent[] = [];
 
-    // Process bookmarks with slug mapping
-    if (bookmarksData && Array.isArray(bookmarksData)) {
-      const bookmarks = bookmarksData as UnifiedBookmark[];
-
-      // Load slug mappings for all bookmarks
-      const slugMap = await getBulkBookmarkSlugs(bookmarks);
-
-      bookmarks.forEach((bookmark) => {
-        try {
-          normalized.push(normalizeBookmark(bookmark, slugMap));
-        } catch (error) {
-          // Re-throw critical slug mapping errors
-          if (error instanceof Error && error.message.includes("CRITICAL")) {
-            throw error;
+    // Process bookmarks with slug mapping (skip on failures)
+    const bookmarks: UnifiedBookmark[] =
+      bookmarksRes.status === "fulfilled" && Array.isArray(bookmarksRes.value)
+        ? (bookmarksRes.value as UnifiedBookmark[])
+        : [];
+    
+    if (bookmarks.length > 0) {
+      let slugMap: Map<string, string> | undefined;
+      try {
+        slugMap = await getBulkBookmarkSlugs(bookmarks);
+      } catch (error) {
+        console.error("Failed to load slug mappings; skipping bookmark normalization", error);
+      }
+      
+      if (slugMap) {
+        bookmarks.forEach((bookmark) => {
+          try {
+            normalized.push(normalizeBookmark(bookmark, slugMap));
+          } catch (error) {
+            // Skip critical slug errors instead of throwing
+            if (error instanceof Error && error.message.includes("CRITICAL")) {
+              console.error(
+                `Skipping bookmark ${bookmark.id} due to critical slug issue:`,
+                error.message,
+              );
+              return;
+            }
+            console.error(`Failed to normalize bookmark ${bookmark.id}:`, error);
           }
-          console.error(`Failed to normalize bookmark ${bookmark.id}:`, error);
-        }
-      });
+        });
+      }
+    } else if (bookmarksRes.status === "rejected") {
+      console.error("Failed to fetch bookmarks:", bookmarksRes.reason);
     }
 
     // Process blog posts
-    if (blogPosts && Array.isArray(blogPosts)) {
+    const blogPosts: BlogPost[] =
+      blogPostsRes.status === "fulfilled" && Array.isArray(blogPostsRes.value)
+        ? blogPostsRes.value
+        : [];
+    
+    if (blogPosts.length > 0) {
       blogPosts.forEach((post) => {
         try {
           normalized.push(normalizeBlogPost(post));
@@ -240,6 +264,8 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
           console.error(`Failed to normalize blog post ${post.id}:`, error);
         }
       });
+    } else if (blogPostsRes.status === "rejected") {
+      console.error("Failed to fetch blog posts:", blogPostsRes.reason);
     }
 
     // Process investments (static data)
