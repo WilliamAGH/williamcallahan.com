@@ -38,6 +38,8 @@ export class ServerCache implements ICache {
 
     // Run cleanup every 5 minutes
     this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
+    // Allow process to exit naturally in non-server contexts
+    this.cleanupInterval.unref?.();
   }
 
   private proactiveEviction(percentage: number): void {
