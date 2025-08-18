@@ -558,7 +558,7 @@ const nextConfig = {
 
   /**
    * Configure headers for caching and security
-  * Note: The primary Content Security Policy (CSP) is now managed in `middleware.ts`
+   * Note: The primary Content Security Policy (CSP) is now managed in `middleware.ts`
    * @see {@link ./middleware.ts}
    * @returns {Promise<Array<{source: string, headers: Array<{key: string, value: string}>>}
    */

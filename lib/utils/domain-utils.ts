@@ -24,9 +24,7 @@ export function normalizeDomain(input: string): string {
     // Check if this looks like it could be a URL or domain
     // Heuristic: explicit protocol, www., or something that looks like domain.tld[:port][/...]
     const looksLikeUrl =
-      s.includes("://") ||
-      s.startsWith("www.") ||
-      /^[a-z0-9.-]+\.[a-z]{2,}(?::\d{2,5})?(?:[/?#]|$)/i.test(s);
+      s.includes("://") || s.startsWith("www.") || /^[a-z0-9.-]+\.[a-z]{2,}(?::\d{2,5})?(?:[/?#]|$)/i.test(s);
 
     if (looksLikeUrl) {
       // Ensure we have a protocol for URL parsing
@@ -167,7 +165,7 @@ export function generateUniqueSlug(
 
     // Compute the base slug once using the helper
     const baseSlug = getBaseSlugFromUrl(processedUrl);
-    
+
     // Build a map of all existing slugs (with their suffixes)
     const slugCounts = new Map<string, number>();
 
