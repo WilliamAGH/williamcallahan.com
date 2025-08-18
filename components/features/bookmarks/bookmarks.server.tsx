@@ -2,7 +2,12 @@
  * Bookmarks Server Component
  * @module components/features/bookmarks/bookmarks.server
  * @description
- * Server component that fetches bookmarks data and passes it to the client component.
+ * Server component that fetches and processes bookmarks data for client consumption.
+ * 
+ * This component handles the conversion between UnifiedBookmark and SerializableBookmark formats,
+ * using standardized utility functions from '@/lib/bookmarks/utils' to ensure consistency.
+ * When includeImageData is false, it uses stripImageData() to create LightweightBookmark structures
+ * that preserve essential rendering data like screenshotAssetId while excluding heavy image assets.
  */
 import "server-only"; // Ensure this component remains server-only
 
@@ -31,6 +36,11 @@ import type { BookmarksServerExtendedProps, SerializableBookmark } from "@/types
  *
  * @returns The rendered {@link BookmarksClientWithWindow} component with bookmark data and related props.
  *
+ * @remark Uses standardized utility functions from '@/lib/bookmarks/utils' for data conversion
+ * to ensure consistency with LightweightBookmark type definitions and preserve essential fields
+ * like content.screenshotAssetId needed for fallback rendering.
+ *
+ * @returns The rendered {@link BookmarksClientWithWindow} component with processed bookmark data.
  * @throws {Error} If no bookmarks are available in production mode.
  */
 export async function BookmarksServer({
