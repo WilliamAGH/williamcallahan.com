@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 /**
  * Environment Validation Script
- * 
+ *
  * Ensures environment is properly configured before builds and deployments.
  * This prevents S3 path mismatches that cause 404 errors.
- * 
+ *
  * Run automatically before builds or manually with: bun scripts/validate-environment.ts
  */
 
@@ -49,7 +49,7 @@ let hasErrors = false;
 for (const { name, path } of pathsToCheck) {
   const expectedSuffix = suffix ? `${suffix}.json` : ".json";
   const hasCorrectSuffix = path.endsWith(expectedSuffix);
-  
+
   if (hasCorrectSuffix) {
     console.log(`  ✅ ${name}: ${path}`);
   } else {
@@ -84,7 +84,9 @@ if (env !== "production" && suffix === "") {
 // Issue 3: Mismatch between NODE_ENV and expected suffix
 const expectedSuffixForEnv = env === "production" ? "" : env === "test" ? "-test" : "-dev";
 if (suffix !== expectedSuffixForEnv) {
-  console.error(`❌ Suffix mismatch! Environment '${env}' should use suffix '${expectedSuffixForEnv}' but got '${suffix}'`);
+  console.error(
+    `❌ Suffix mismatch! Environment '${env}' should use suffix '${expectedSuffixForEnv}' but got '${suffix}'`,
+  );
   hasErrors = true;
 }
 
@@ -102,7 +104,7 @@ if (hasErrors) {
 } else {
   console.log("✅ Environment validation passed!");
   console.log("   S3 paths will be created with correct suffixes.");
-  
+
   // Show what files will be created
   console.log("\nFiles that will be created in S3:");
   console.log(`  - bookmarks${suffix}.json`);
