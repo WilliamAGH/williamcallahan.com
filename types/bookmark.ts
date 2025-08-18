@@ -295,6 +295,7 @@ export interface BookmarkSlugMapping {
   version: string;
   generated: string;
   count: number;
+  checksum: string; // MD5 hash of slugs for concurrent write protection
   slugs: Readonly<
     Record<
       string,
@@ -320,6 +321,7 @@ export const bookmarkSlugMappingSchema = z.object({
   version: z.string(),
   generated: z.string(), // ISO8601 timestamp expected
   count: z.number().int().min(0),
+  checksum: z.string(), // MD5 hash for concurrent write protection
   slugs: z.record(
     z.object({
       id: z.string(),
