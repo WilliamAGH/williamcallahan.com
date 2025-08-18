@@ -1,6 +1,10 @@
 /**
- * @file Bookmark-specific utility functions.
+ * @file Bookmark-specific utility functions for data conversion and normalization.
  * @module lib/bookmarks/utils
+ * @description
+ * Standardized utility functions for converting between UnifiedBookmark, LightweightBookmark, 
+ * and SerializableBookmark formats. These functions ensure consistency across the application 
+ * and proper preservation of essential fields like screenshotAssetId for fallback rendering.
  */
 
 import type {
@@ -191,7 +195,16 @@ export const calculateBookmarksChecksum = (bookmarks: UnifiedBookmark[]): string
     .map((b) => `${b.id}:${b.modifiedAt || b.dateBookmarked}`)
     .join("|");
 
-/** Convert UnifiedBookmark to LightweightBookmark by stripping image data */
+/**
+ * Convert UnifiedBookmark to LightweightBookmark by stripping heavy image data.
+ * 
+ * This function preserves essential content fields needed for rendering like screenshotAssetId,
+ * favicon, author, publisher, datePublished, and dateModified while removing heavy image assets
+ * like imageUrl, imageAssetId, htmlContent, and crawledAt to reduce memory usage in lists.
+ * 
+ * @param b - The UnifiedBookmark to convert
+ * @returns A LightweightBookmark with image data stripped but essential fields preserved
+ */
 export const stripImageData = (b: UnifiedBookmark): LightweightBookmark =>
   ({
     ...b,
@@ -220,7 +233,16 @@ export const stripImageData = (b: UnifiedBookmark): LightweightBookmark =>
       .map(normalizeBookmarkTag),
   }) as unknown as LightweightBookmark;
 
-/** Convert to lightweight bookmarks for reduced memory usage */
+/**
+ * Convert an array of UnifiedBookmarks to LightweightBookmarks for reduced memory usage.
+ * 
+ * Uses {@link stripImageData} for each bookmark to ensure consistent field preservation
+ * and proper exclusion of heavy image data. This function should be used when preparing
+ * bookmark lists for client-side rendering to minimize bundle size.
+ * 
+ * @param bookmarks - Array of UnifiedBookmarks to convert
+ * @returns Array of LightweightBookmarks with heavy image data stripped
+ */
 export const toLightweightBookmarks = (bookmarks: UnifiedBookmark[]): LightweightBookmark[] => {
   const lightweight: LightweightBookmark[] = [];
   for (const b of bookmarks) lightweight.push(stripImageData(b));
