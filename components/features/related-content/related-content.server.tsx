@@ -348,10 +348,8 @@ export async function RelatedContent({
 
     // Get pre-computed slug mappings for bookmarks using request cache
     let slugMap: Map<string, string> | undefined;
-    let allBookmarks: UnifiedBookmark[] | undefined;
     if (finalItems.some((item) => item.type === "bookmark")) {
-      const { bookmarks, slugMap: map } = await getCachedBookmarksWithSlugs();
-      allBookmarks = bookmarks;
+      const { slugMap: map } = await getCachedBookmarksWithSlugs();
       slugMap = map;
     }
 
