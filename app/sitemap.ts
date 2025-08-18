@@ -11,7 +11,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { getBookmarksForStaticBuild } from "../lib/bookmarks/bookmarks.server";
+import { getBookmarksForStaticBuildAsync } from "../lib/bookmarks/bookmarks.server";
 import { loadSlugMapping, getSlugForBookmark } from "../lib/bookmarks/slug-manager";
 import { kebabCase } from "../lib/utils/formatters";
 import { tagToSlug } from "../lib/utils/tag-utils";
@@ -144,10 +144,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const bookmarkTagCounts: { [tagSlug: string]: number } = {};
 
   try {
-    // Use static build function to get bookmarks
+    // Use async static build function to get bookmarks with slugs
     console.log("[Sitemap] Getting bookmarks for static build...");
-    const bookmarks = getBookmarksForStaticBuild();
-    console.log(`[Sitemap] Successfully got ${bookmarks.length} bookmarks for sitemap generation.`);
+    const bookmarks = await getBookmarksForStaticBuildAsync();
+    console.log(`[Sitemap] Successfully got ${bookmarks.length} bookmarks with slugs for sitemap generation.`);
 
     // Load slug mapping - REQUIRED for idempotency
     console.log("[Sitemap] Loading slug mapping...");
