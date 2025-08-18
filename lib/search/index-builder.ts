@@ -227,14 +227,14 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
 
   // Load the centralized slug mapping - REQUIRED for idempotency
   const slugMapping = await loadSlugMapping();
-  
+
   // If no mapping exists, this is a CRITICAL ERROR
   // Slug mappings MUST be generated when bookmarks are fetched, not here
   if (!slugMapping) {
     throw new Error(
       "[Search Index Builder] CRITICAL: No slug mapping found. " +
-      "Slug mappings must be generated when bookmarks are fetched. " +
-      "Run data-updater --bookmarks to generate slug mappings first."
+        "Slug mappings must be generated when bookmarks are fetched. " +
+        "Run data-updater --bookmarks to generate slug mappings first.",
     );
   }
 
@@ -242,16 +242,16 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
   const bookmarksForIndex = bookmarks.map((b) => {
     // Use the centralized slug mapping for consistency
     const slug = getSlugForBookmark(slugMapping, b.id);
-    
+
     // Every bookmark MUST have a slug for idempotency
     if (!slug) {
       throw new Error(
         `[Search Index Builder] CRITICAL: No slug found for bookmark ${b.id}. ` +
-        `Title: ${b.title}, URL: ${b.url}. ` +
-        `This indicates an incomplete slug mapping.`
+          `Title: ${b.title}, URL: ${b.url}. ` +
+          `This indicates an incomplete slug mapping.`,
       );
     }
-    
+
     return {
       id: b.id,
       title: b.title || b.url,

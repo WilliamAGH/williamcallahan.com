@@ -325,38 +325,34 @@ export class ServerCache implements ICache {
 
 /**
  * Dynamically attaches helper methods to a class prototype at runtime.
- * 
+ *
  * @justification TypeScript's type system has documented limitations with dynamic prototype manipulation.
  * According to Microsoft's DynamicProto-JS (https://github.com/microsoft/DynamicProto-JS), dynamic
  * prototype assignment is necessary to:
  * 1. Enable better code minification by avoiding instance property exposure
  * 2. Support runtime composition patterns that TypeScript cannot statically analyze
  * 3. Implement mixin patterns where methods are attached post-class-definition
- * 
+ *
  * @citation "TypeScript Issue #15163: JavaScript Class Prototype Assignment not Recognized" - The TypeScript
  * compiler has special handling for prototype assignments but cannot fully type-check dynamic property
  * assignment at compile time.
- * 
+ *
  * @citation "TypeScript Handbook - Declaration Merging" - While TypeScript supports declaration merging
  * for static type definitions, runtime prototype manipulation requires bypassing the type system.
- * 
+ *
  * @rationale The generic constraint approach provides type safety:
  * 1. Uses 'unknown' instead of 'any' for better type safety
  * 2. Only attaches functions to prevent prototype pollution (security best practice)
  * 3. Uses Object.defineProperty with non-enumerable for proper encapsulation
  * 4. Type safety is enforced through types/server-cache.d.ts using declaration merging
- * 
+ *
  * @security Prototype pollution prevention:
  * - Type check ensures only functions are attached (no constants/objects)
  * - Non-enumerable properties prevent unexpected iteration behavior
  * - Follows MDN and OWASP security best practices for prototype extension
  * - Prevents accidental exposure of internal state through prototype chain
  */
-function attachHelpers<T extends Record<string, unknown>>(
-  prototype: object,
-  helpers: T,
-  helperName: string,
-) {
+function attachHelpers<T extends Record<string, unknown>>(prototype: object, helpers: T, helperName: string) {
   for (const [key, value] of Object.entries(helpers)) {
     // Only attach functions to avoid polluting the prototype with constants/objects
     if (typeof value !== "function") continue;

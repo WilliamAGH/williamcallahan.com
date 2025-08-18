@@ -236,7 +236,7 @@ export function findMostSimilar(
       // Use appropriate weights: custom weights if provided, otherwise cross-type or same-type defaults
       const baseWeights = isCrossType ? CROSS_TYPE_WEIGHTS : SAME_TYPE_WEIGHTS;
       const finalWeights = weights ? { ...baseWeights, ...weights } : baseWeights;
-      
+
       const { total, breakdown } = calculateSimilarity(source, candidate, finalWeights);
       return {
         ...candidate,
@@ -268,4 +268,36 @@ export function groupByType<T extends NormalizedContent & { score: number }>(
   }
 
   return grouped;
+}
+
+/**
+ * Limit scored items by per-type cap then global cap, preserving highest scores.
+ * - Groups by `type`, sorts each group by `score` desc, slices to `maxPerType`
+ * - Flattens, sorts globally by `score` desc, slices to `maxTotal`
+ * - Optional `tiebreak` to provide stable ordering for equal scores (e.g., by id)
+ */
+export function limitByTypeAndTotal<T extends { type: RelatedContentType; score: number }>(
+  items: readonly T[],
+  maxPerType: number,
+  maxTotal: number,
+  tiebreak?: (a: T, b: T) => number,
+): T[] {
+  const safePerType = Math.max(0, maxPerType);
+  const safeTotal = Math.max(0, maxTotal);
+
+  const grouped = items.reduce((acc, item) => {
+    (acc[item.type] ||= []).push(item);
+    return acc;
+  }, {} as Partial<Record<RelatedContentType, T[]>>);
+
+  const cmp = (a: T, b: T) => {
+    const d = b.score - a.score;
+    return d !== 0 ? d : tiebreak ? tiebreak(a, b) : 0;
+  };
+
+  const perTypeLimited = Object.values(grouped)
+    .filter((arr): arr is T[] => Array.isArray(arr))
+    .flatMap((typeItems) => typeItems.sort(cmp).slice(0, safePerType));
+
+  return perTypeLimited.sort(cmp).slice(0, safeTotal);
 }

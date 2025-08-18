@@ -613,11 +613,10 @@ async function getBookmarksIndex(): Promise<{
   // Load slug mapping - REQUIRED for idempotency
   const { loadSlugMapping, getSlugForBookmark } = await import("@/lib/bookmarks/slug-manager");
   const slugMapping = await loadSlugMapping();
-  
+
   if (!slugMapping) {
     throw new Error(
-      "[Search] CRITICAL: No slug mapping found. " +
-      "Slug mappings must exist before building search functionality."
+      "[Search] CRITICAL: No slug mapping found. " + "Slug mappings must exist before building search functionality.",
     );
   }
 
@@ -649,12 +648,9 @@ async function getBookmarksIndex(): Promise<{
     // Get slug from mapping - REQUIRED for idempotency
     const slug = getSlugForBookmark(slugMapping, b.id);
     if (!slug) {
-      throw new Error(
-        `[Search] CRITICAL: No slug found for bookmark ${b.id}. ` +
-        `Title: ${b.title}, URL: ${b.url}`
-      );
+      throw new Error(`[Search] CRITICAL: No slug found for bookmark ${b.id}. ` + `Title: ${b.title}, URL: ${b.url}`);
     }
-    
+
     return {
       id: b.id,
       title: b.title || b.url,

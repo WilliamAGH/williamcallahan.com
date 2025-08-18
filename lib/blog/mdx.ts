@@ -303,7 +303,7 @@ async function getCachedMDXPost(frontmatterSlug: string, filePathForPost: string
   } catch {
     // Silently ignore if cacheLife is not available in this context
   }
-  
+
   cacheTag("blog");
   cacheTag("mdx");
   cacheTag(`blog-post-${frontmatterSlug}`);
@@ -425,7 +425,7 @@ async function getCachedAllMDXPosts(): Promise<BlogPost[]> {
   } catch {
     // Silently ignore if cacheLife is not available in this context
   }
-  
+
   // Safe cacheTag calls with availability check
   try {
     if (typeof cacheTag === "function") {

@@ -44,12 +44,14 @@ function normalizeBookmark(bookmark: UnifiedBookmark, slugMap?: Map<string, stri
   const tags = Array.isArray(bookmark.tags)
     ? Array.from(
         new Set(
-          bookmark.tags.map((t) => {
-            if (typeof t === "string") return t;
-            if (t && typeof t === "object" && "name" in t) return (t as { name?: string }).name;
-            return undefined;
-          }).filter((name): name is string => Boolean(name?.trim()))
-        )
+          bookmark.tags
+            .map((t) => {
+              if (typeof t === "string") return t;
+              if (t && typeof t === "object" && "name" in t) return (t as { name?: string }).name;
+              return undefined;
+            })
+            .filter((name): name is string => Boolean(name?.trim())),
+        ),
       )
     : [];
 
@@ -69,11 +71,11 @@ function normalizeBookmark(bookmark: UnifiedBookmark, slugMap?: Map<string, stri
   if (!slug) {
     throw new Error(
       `[ContentAggregator] CRITICAL: No slug found for bookmark ${bookmark.id}. ` +
-      `Title: ${title}, URL: ${bookmark.url}. ` +
-      `Slug mappings must be loaded before aggregating content.`
+        `Title: ${title}, URL: ${bookmark.url}. ` +
+        `Slug mappings must be loaded before aggregating content.`,
     );
   }
-  
+
   return {
     id: bookmark.id,
     type: "bookmark",
@@ -212,10 +214,10 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
     // Process bookmarks with slug mapping
     if (bookmarksData && Array.isArray(bookmarksData)) {
       const bookmarks = bookmarksData as UnifiedBookmark[];
-      
+
       // Load slug mappings for all bookmarks
       const slugMap = await getBulkBookmarkSlugs(bookmarks);
-      
+
       bookmarks.forEach((bookmark) => {
         try {
           normalized.push(normalizeBookmark(bookmark, slugMap));
