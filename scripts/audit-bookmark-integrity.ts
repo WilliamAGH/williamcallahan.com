@@ -13,7 +13,12 @@ import { BOOKMARKS_S3_PATHS, SEARCH_S3_PATHS, CONTENT_GRAPH_S3_PATHS } from "@/l
 import type { UnifiedBookmark } from "@/types/bookmark";
 
 function isUnifiedBookmarkArray(x: unknown): x is UnifiedBookmark[] {
-  return Array.isArray(x) && x.every((b) => b && typeof (b as { id?: unknown }).id === "string" && typeof (b as { url?: unknown }).url === "string");
+  return (
+    Array.isArray(x) &&
+    x.every(
+      (b) => b && typeof (b as { id?: unknown }).id === "string" && typeof (b as { url?: unknown }).url === "string",
+    )
+  );
 }
 
 async function auditBookmarkIntegrity(): Promise<void> {

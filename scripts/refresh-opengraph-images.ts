@@ -94,12 +94,15 @@ async function refreshAllOpenGraphImages() {
           }
 
           // Check what we actually have/did
-          const hasKarakeepImage = bookmark.content?.imageUrl || bookmark.content?.imageAssetId || bookmark.content?.screenshotAssetId;
-          
+          const hasKarakeepImage =
+            bookmark.content?.imageUrl || bookmark.content?.imageAssetId || bookmark.content?.screenshotAssetId;
+
           if (hasKarakeepImage) {
-            const imageType = bookmark.content?.imageUrl ? "OpenGraph URL" : 
-                             bookmark.content?.imageAssetId ? "image asset" : 
-                             "screenshot asset";
+            const imageType = bookmark.content?.imageUrl
+              ? "OpenGraph URL"
+              : bookmark.content?.imageAssetId
+                ? "image asset"
+                : "screenshot asset";
             console.log(`  📦 Karakeep provided ${imageType} - OpenGraph fetch skipped`);
             if (ogData?.imageUrl) {
               console.log(`     └─ Image persisted to S3: ${ogData.imageUrl}`);
@@ -113,12 +116,8 @@ async function refreshAllOpenGraphImages() {
             return { status: "success" };
           }
 
-          console.warn(
-            `  ⚠️ No image available for ${bookmark.url}`,
-          );
-          console.warn(
-            `     └─ Reason: ${ogData?.error || "No Karakeep data and no OpenGraph image found"}`,
-          );
+          console.warn(`  ⚠️ No image available for ${bookmark.url}`);
+          console.warn(`     └─ Reason: ${ogData?.error || "No Karakeep data and no OpenGraph image found"}`);
           failureCount++;
           return { status: "failed" };
         } catch (error) {
