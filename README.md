@@ -193,16 +193,21 @@ Use the Data Updater to (re)generate environment-aware JSON data in S3. Prefer t
 bun run update-s3 -- --bookmarks --github --logos --search-indexes
 ```
 
-### Supported flags (data types)
+### Supported flags
 
-- `--bookmarks`: bookmarks dataset, index, pages, tags, slug-mapping
-- `--github`: GitHub activity datasets
-- `--logos`: image manifests (and logo processing where applicable)
-- `--search-indexes`: posts, investments, experience, education, bookmarks indexes
-- `--force`: bypass freshness checks and regenerate
-- `--testLimit=N`: limit processing to N items (dev/testing)
+Data types:
 
-If no flags are provided, all operations run: bookmarks, github, logos, search-indexes.
+- `--bookmarks`: bookmarks dataset, index, pages, tags, slug-mapping.
+- `--github`: GitHub activity datasets.
+- `--logos`: image manifests (and logo processing where applicable).
+- `--search-indexes`: posts, investments, experience, education, bookmarks indexes.
+
+Global options:
+
+- `--force`: bypass freshness checks and regenerate.
+- `--testLimit=N`: limit processing to N items (dev/testing).
+
+If no flags are provided, all operations run: bookmarks, GitHub, logos, search-indexes.
 
 ### S3 JSON key syntax (environment-aware)
 
@@ -211,6 +216,8 @@ Environment suffix comes from `lib/config/environment.ts`:
 - production: no suffix (e.g., `.../file.json`)
 - test: `-test` (e.g., `.../file-test.json`)
 - development/local: `-dev` (e.g., `.../file-dev.json`)
+ 
+See `lib/config/environment.ts` for detection rules and the source of the suffix.
 
 Key families (see `lib/constants.ts` for source of truth):
 
@@ -221,7 +228,10 @@ BOOKMARKS_S3_PATHS = {
   INDEX:           "json/bookmarks/index{SUFFIX}.json",
   PAGE_PREFIX:     "json/bookmarks/pages{SUFFIX}/page-",      // + "<n>.json"
   TAG_PREFIX:      "json/bookmarks/tags{SUFFIX}/",            // + "<tag>/page-<n>.json"
+                                                     // e.g., "json/bookmarks/tags-dev/typescript/page-1.json"
+                                                     // Note: <tag> should be a slug/URL-encoded string.
   TAG_INDEX_PREFIX:"json/bookmarks/tags{SUFFIX}/",            // + "<tag>/index.json"
+                                                     // e.g., "json/bookmarks/tags-dev/typescript/index.json"
   SLUG_MAPPING:    "json/bookmarks/slug-mapping{SUFFIX}.json",
   LOCK:            "json/bookmarks/refresh-lock{SUFFIX}.json",
   HEARTBEAT:       "json/bookmarks/heartbeat{SUFFIX}.json",
@@ -259,7 +269,7 @@ GITHUB_ACTIVITY_S3_PATHS = {
 
 // Image manifests (JSON metadata only)
 IMAGE_MANIFEST_S3_PATHS = {
-  DIR:                       "json/image-data",
+  DIR:                       "json/image-data",               // Global dir; leaf files are suffixed per environment.
   LOGOS_MANIFEST:            "json/image-data/logos/manifest{SUFFIX}.json",
   OPENGRAPH_MANIFEST:        "json/image-data/opengraph/manifest{SUFFIX}.json",
   BLOG_IMAGES_MANIFEST:      "json/image-data/blog/manifest{SUFFIX}.json",
@@ -273,5 +283,5 @@ IMAGE_MANIFEST_S3_PATHS = {
 Tips:
 
 - Use `bun run update-s3 -- --force` after deployments to refresh everything.
-- For quick fixes, target one area, e.g., `bun run update-s3 -- --bookmarks`.
+- For quick fixes, target one area, e.g., `bun run update-s3 -- --bookmarks` or `bun run update-s3 -- --search-indexes`.
 - The scheduler (`bun run scheduler`) runs these with sensible cadences in production.
