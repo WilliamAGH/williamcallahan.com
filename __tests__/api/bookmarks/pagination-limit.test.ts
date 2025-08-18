@@ -5,6 +5,7 @@ import { readJsonS3 } from "@/lib/s3-utils";
 // Placeholder variable – will be set in beforeAll
 let BOOKMARKS_PER_PAGE: number;
 import type { UnifiedBookmark } from "@/types";
+import type { BookmarkSlugMapping } from "@/types/bookmark";
 
 // Mock dependencies used inside the route
 jest.mock("@/lib/bookmarks/service.server");
@@ -13,7 +14,9 @@ jest.mock("@/lib/bookmarks/slug-manager");
 
 const mockGetBookmarks = jest.mocked(getBookmarks);
 const mockReadJsonS3 = jest.mocked(readJsonS3);
-const { loadSlugMapping } = jest.requireMock("@/lib/bookmarks/slug-manager");
+const { loadSlugMapping } = jest.requireMock<{
+  loadSlugMapping: jest.MockedFunction<() => Promise<BookmarkSlugMapping | null>>;
+}>("@/lib/bookmarks/slug-manager");
 
 describe("Bookmark API – large limit behavior", () => {
   let mockBookmarks: UnifiedBookmark[];
@@ -41,17 +44,28 @@ describe("Bookmark API – large limit behavior", () => {
       lastFetchedAt: Date.now(),
     });
     
-    // Mock slug mapping for bookmarks
-    const mockSlugMapping = {
-      slugs: mockBookmarks.reduce((acc, bookmark) => {
-        acc[bookmark.id] = { slug: `mock-slug-${bookmark.id}`, checksum: "mock" };
-        return acc;
-      }, {} as any),
-      reverseMap: {},
+    // Mock slug mapping for bookmarks with correct typing and reverse map
+    const slugs: BookmarkSlugMapping["slugs"] = Object.fromEntries(
+      mockBookmarks.map((bookmark) => [
+        bookmark.id,
+        {
+          id: bookmark.id,
+          slug: `mock-slug-${bookmark.id}`,
+          url: bookmark.url,
+          title: bookmark.title ?? bookmark.url,
+        },
+      ]),
+    );
+    const reverseMap: BookmarkSlugMapping["reverseMap"] = Object.fromEntries(
+      Object.entries(slugs).map(([id, entry]) => [entry.slug, id]),
+    );
+    const mockSlugMapping: BookmarkSlugMapping = {
+      slugs,
+      reverseMap,
       version: "1.0.0",
       generated: new Date().toISOString(),
       count: mockBookmarks.length,
-      checksum: "mock-checksum"
+      checksum: "mock-checksum",
     };
     loadSlugMapping.mockResolvedValue(mockSlugMapping);
   });

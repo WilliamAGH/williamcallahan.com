@@ -33,6 +33,13 @@ jest.mock("@/data/projects", () => ({
   updatedAt: "2024-01-01",
 }));
 
+// Provide a controllable mock for slug manager so sitemap bookmark processing proceeds
+const mockLoadSlugMapping = jest.fn();
+jest.mock("@/lib/bookmarks/slug-manager", () => ({
+  loadSlugMapping: () => mockLoadSlugMapping(),
+  getSlugForBookmark: (mapping: any, id: string) => mapping?.slugs?.[id]?.slug ?? null,
+}));
+
 // Mock the blog posts loading
 jest.mock("fs", () => ({
   ...jest.requireActual("fs"),
@@ -68,7 +75,7 @@ describe("Sitemap Generation", () => {
     /**
      * @description Generates correct paginated entries based on BOOKMARKS_PER_PAGE
      */
-    it("should create paginated entries based on BOOKMARKS_PER_PAGE", () => {
+    it("should create paginated entries based on BOOKMARKS_PER_PAGE", async () => {
       // Mock 50 bookmarks to test pagination logic
       const mockBookmarks = Array.from({ length: 50 }, (_, i) => ({
         id: `bookmark-${i}`,
@@ -80,7 +87,25 @@ describe("Sitemap Generation", () => {
 
       mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
 
-      const sitemapEntries = sitemap();
+      // Provide full slug mapping for all bookmarks to avoid console errors and ensure correct URLs
+      const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
+      const reverseMap: Record<string, string> = {};
+      for (let i = 0; i < mockBookmarks.length; i++) {
+        const id = `bookmark-${i}`;
+        const slug = `example-com-${i}`;
+        slugs[id] = { id, slug, url: `https://example.com/${i}`, title: `Bookmark ${i}` };
+        reverseMap[slug] = id;
+      }
+      mockLoadSlugMapping.mockResolvedValue({
+        version: "1.0.0",
+        generated: new Date().toISOString(),
+        count: mockBookmarks.length,
+        checksum: "test",
+        slugs,
+        reverseMap,
+      });
+
+      const sitemapEntries = await sitemap();
 
       // Calculate expected pages
       const totalPages = Math.ceil(mockBookmarks.length / BOOKMARKS_PER_PAGE);
@@ -104,7 +129,7 @@ describe("Sitemap Generation", () => {
     /**
      * @description Handles undefined lastModified gracefully if no dateBookmarked
      */
-    it("should handle undefined lastModified gracefully", () => {
+    it("should handle undefined lastModified gracefully", async () => {
       // Mock bookmarks without dates
       const mockBookmarks = Array.from({ length: 30 }, (_, i) => ({
         id: `bookmark-${i}`,
@@ -116,7 +141,24 @@ describe("Sitemap Generation", () => {
 
       mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
 
-      const sitemapEntries = sitemap();
+      const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
+      const reverseMap: Record<string, string> = {};
+      for (let i = 0; i < mockBookmarks.length; i++) {
+        const id = `bookmark-${i}`;
+        const slug = `example-com-${i}`;
+        slugs[id] = { id, slug, url: `https://example.com/${i}`, title: `Bookmark ${i}` };
+        reverseMap[slug] = id;
+      }
+      mockLoadSlugMapping.mockResolvedValue({
+        version: "1.0.0",
+        generated: new Date().toISOString(),
+        count: mockBookmarks.length,
+        checksum: "test",
+        slugs,
+        reverseMap,
+      });
+
+      const sitemapEntries = await sitemap();
 
       // Find paginated bookmark entry
       const paginatedEntry = sitemapEntries.find(
@@ -131,7 +173,7 @@ describe("Sitemap Generation", () => {
     /**
      * @description Includes lastModified with the most recent bookmark date
      */
-    it("should include lastModified when bookmarks have dates", () => {
+    it("should include lastModified when bookmarks have dates", async () => {
       const testDate = new Date("2024-06-15T10:00:00Z");
 
       // Mock bookmarks with dates
@@ -145,7 +187,24 @@ describe("Sitemap Generation", () => {
 
       mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
 
-      const sitemapEntries = sitemap();
+      const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
+      const reverseMap: Record<string, string> = {};
+      for (let i = 0; i < mockBookmarks.length; i++) {
+        const id = `bookmark-${i}`;
+        const slug = `example-com-${i}`;
+        slugs[id] = { id, slug, url: `https://example.com/${i}`, title: `Bookmark ${i}` };
+        reverseMap[slug] = id;
+      }
+      mockLoadSlugMapping.mockResolvedValue({
+        version: "1.0.0",
+        generated: new Date().toISOString(),
+        count: mockBookmarks.length,
+        checksum: "test",
+        slugs,
+        reverseMap,
+      });
+
+      const sitemapEntries = await sitemap();
 
       // Find paginated bookmark entry
       const paginatedEntry = sitemapEntries.find(
@@ -159,7 +218,7 @@ describe("Sitemap Generation", () => {
     /**
      * @description Skips pagination if total bookmarks are less than a single page
      */
-    it("should not create pagination for a single page of bookmarks", () => {
+    it("should not create pagination for a single page of bookmarks", async () => {
       // Mock only 20 bookmarks (less than BOOKMARKS_PER_PAGE)
       const mockBookmarks = Array.from({ length: 20 }, (_, i) => ({
         id: `bookmark-${i}`,
@@ -171,7 +230,24 @@ describe("Sitemap Generation", () => {
 
       mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
 
-      const sitemapEntries = sitemap();
+      const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
+      const reverseMap: Record<string, string> = {};
+      for (let i = 0; i < mockBookmarks.length; i++) {
+        const id = `bookmark-${i}`;
+        const slug = `example-com-${i}`;
+        slugs[id] = { id, slug, url: `https://example.com/${i}`, title: `Bookmark ${i}` };
+        reverseMap[slug] = id;
+      }
+      mockLoadSlugMapping.mockResolvedValue({
+        version: "1.0.0",
+        generated: new Date().toISOString(),
+        count: mockBookmarks.length,
+        checksum: "test",
+        slugs,
+        reverseMap,
+      });
+
+      const sitemapEntries = await sitemap();
 
       // Should not have any paginated entries
       const paginatedEntries = sitemapEntries.filter((entry) => entry.url.includes("/bookmarks/page/"));
@@ -192,7 +268,7 @@ describe("Sitemap Generation", () => {
     /**
      * @description Creates a unique sitemap entry for each bookmark with a slug
      */
-    it("should create entries for individual bookmarks with slugs", () => {
+    it("should create entries for individual bookmarks with slugs", async () => {
       const mockBookmarks = [
         {
           id: "bookmark-1",
@@ -212,7 +288,24 @@ describe("Sitemap Generation", () => {
 
       mockGetBookmarksForStaticBuild.mockReturnValue(mockBookmarks);
 
-      const sitemapEntries = sitemap();
+      // Provide slugs for the two bookmarks used in this test
+      const slugMapping = {
+        version: "1.0.0",
+        generated: new Date().toISOString(),
+        count: 2,
+        checksum: "test",
+        slugs: {
+          "bookmark-1": { id: "bookmark-1", slug: "example-com-article", url: "https://example.com/article", title: "Great Article" },
+          "bookmark-2": { id: "bookmark-2", slug: "another-com-post", url: "https://another.com/post", title: "Another Post" },
+        },
+        reverseMap: {
+          "example-com-article": "bookmark-1",
+          "another-com-post": "bookmark-2",
+        },
+      };
+      mockLoadSlugMapping.mockResolvedValue(slugMapping);
+
+      const sitemapEntries = await sitemap();
 
       // Should have entries for individual bookmarks
       const bookmarkEntries = sitemapEntries.filter(
@@ -237,10 +330,19 @@ describe("Sitemap Generation", () => {
     /**
      * @description Includes all static pages with correct metadata
      */
-    it("should include all static pages with correct metadata", () => {
+    it("should include all static pages with correct metadata", async () => {
       mockGetBookmarksForStaticBuild.mockReturnValue([]);
 
-      const sitemapEntries = sitemap();
+      mockLoadSlugMapping.mockResolvedValue({
+        version: "1.0.0",
+        generated: new Date().toISOString(),
+        count: 0,
+        checksum: "test",
+        slugs: {},
+        reverseMap: {},
+      });
+
+      const sitemapEntries = await sitemap();
 
       // Check for main static pages
       const expectedPages = [

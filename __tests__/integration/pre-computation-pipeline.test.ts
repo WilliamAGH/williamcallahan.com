@@ -109,6 +109,11 @@ describe("Pre-computation Pipeline Integration", () => {
         },
       });
 
+      // Ensure slug mapping precondition does not fail: DataFetchManager.buildSearchIndexes
+      // may generate slug mapping via service.server.getBookmarks when mapping is missing.
+      const { getBookmarks: getServiceBookmarks } = await import("@/lib/bookmarks/service.server");
+      (getServiceBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
+
       // Mock S3 utils
       const { writeJsonS3, listS3Objects } = await import("@/lib/s3-utils");
       (writeJsonS3 as jest.Mock).mockResolvedValue({ success: true });
@@ -283,6 +288,14 @@ describe("Pre-computation Pipeline Integration", () => {
 
       const { buildAllSearchIndexes } = await import("@/lib/search/index-builder");
       (buildAllSearchIndexes as jest.Mock).mockRejectedValue(new Error("Search index build failed"));
+
+      // Prevent slug-mapping pre-step from failing with undefined bookmarks
+      const { getBookmarks: getServiceBookmarks } = await import("@/lib/bookmarks/service.server");
+      (getServiceBookmarks as jest.Mock).mockResolvedValue(mockBookmarks);
+
+      // Ensure content graph can iterate even if search fails
+      const { aggregateAllContent } = await import("@/lib/content-similarity/aggregator");
+      (aggregateAllContent as jest.Mock).mockResolvedValue([]);
 
       const results = await manager.fetchData({
         bookmarks: true,
