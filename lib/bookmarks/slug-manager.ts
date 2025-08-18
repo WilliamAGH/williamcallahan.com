@@ -34,7 +34,7 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
     if (!slug) {
       throw new Error(
         `[SlugManager] CRITICAL: Failed to generate slug for bookmark ${bookmark.id}. ` +
-        `URL: ${bookmark.url}, Title: ${bookmark.title}`
+          `URL: ${bookmark.url}, Title: ${bookmark.title}`,
       );
     }
 
@@ -47,19 +47,19 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
 
     reverseMap[slug] = bookmark.id;
   }
-  
+
   // Validate that every bookmark has a slug
-  const missingSlugIds = bookmarks.filter(b => !slugs[b.id]).map(b => b.id);
+  const missingSlugIds = bookmarks.filter((b) => !slugs[b.id]).map((b) => b.id);
   if (missingSlugIds.length > 0) {
     throw new Error(
-      `[SlugManager] CRITICAL: ${missingSlugIds.length} bookmarks missing slugs: ${missingSlugIds.join(', ')}`
+      `[SlugManager] CRITICAL: ${missingSlugIds.length} bookmarks missing slugs: ${missingSlugIds.join(", ")}`,
     );
   }
 
   // Generate checksum for change detection
   const checksumData = JSON.stringify(slugs, Object.keys(slugs).sort());
   const checksum = createHash("md5").update(checksumData).digest("hex");
-  
+
   const mapping: BookmarkSlugMapping = {
     version: "1.0.0",
     generated: new Date().toISOString(),
@@ -76,15 +76,19 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
  * @param bookmarks - Array of bookmarks to generate mapping from
  * @param overwrite - Whether to overwrite existing mapping (default: true)
  * @param saveToAllPaths - Whether to save to all environment paths for redundancy (default: false)
- * 
+ *
  * CRITICAL OPERATION: This function is marked as critical and will execute even under memory pressure.
  * Slug mappings are essential for bookmark navigation and must always be saved.
  */
-export async function saveSlugMapping(bookmarks: UnifiedBookmark[], overwrite = true, saveToAllPaths = false): Promise<void> {
+export async function saveSlugMapping(
+  bookmarks: UnifiedBookmark[],
+  overwrite = true,
+  saveToAllPaths = false,
+): Promise<void> {
   const primaryPath = BOOKMARKS_S3_PATHS.SLUG_MAPPING;
-  logger.info(`[SlugManager] [CRITICAL] Environment check: NODE_ENV=${process.env.NODE_ENV || '(not set)'}`);
+  logger.info(`[SlugManager] [CRITICAL] Environment check: NODE_ENV=${process.env.NODE_ENV || "(not set)"}`);
   logger.info(`[SlugManager] [CRITICAL] Preparing to save slug mapping to S3 path: ${primaryPath}`);
-  
+
   try {
     const mapping = generateSlugMapping(bookmarks);
     logger.info(`[SlugManager] Generated mapping with ${mapping.count} entries, checksum: ${mapping.checksum}`);
@@ -127,9 +131,9 @@ export async function saveSlugMapping(bookmarks: UnifiedBookmark[], overwrite = 
     // Optionally save to all environment paths for redundancy
     if (saveToAllPaths) {
       // Use programmatic path generation to avoid hardcoding
-      const basePath = 'json/bookmarks/slug-mapping';
+      const basePath = "json/bookmarks/slug-mapping";
       const envSuffixes = ["", "-dev", "-test"] as const;
-      const allPaths = envSuffixes.map(suffix => `${basePath}${suffix}.json`);
+      const allPaths = envSuffixes.map((suffix) => `${basePath}${suffix}.json`);
 
       for (const path of allPaths) {
         if (path !== primaryPath) {
@@ -146,7 +150,7 @@ export async function saveSlugMapping(bookmarks: UnifiedBookmark[], overwrite = 
     // CRITICAL ERROR: Slug mapping failures are critical and must be propagated
     logger.error(`[SlugManager] [CRITICAL ERROR] Failed to save slug mapping:`, error);
     logger.error(`[SlugManager] [CRITICAL] This is a critical failure that will prevent bookmark navigation`);
-    
+
     // Emit critical error metrics if available
     if (typeof process !== "undefined" && process.env.NODE_ENV === "production") {
       // Mark this as a critical system failure for monitoring
@@ -156,7 +160,7 @@ export async function saveSlugMapping(bookmarks: UnifiedBookmark[], overwrite = 
         bookmarkCount: bookmarks.length,
       });
     }
-    
+
     throw error;
   }
 }
@@ -167,8 +171,8 @@ export async function saveSlugMapping(bookmarks: UnifiedBookmark[], overwrite = 
 export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
   const primaryPath = BOOKMARKS_S3_PATHS.SLUG_MAPPING;
   logger.info(`[SlugManager] Attempting to load slug mapping from S3 path: ${primaryPath}`);
-  logger.info(`[SlugManager] Environment: NODE_ENV=${process.env.NODE_ENV || '(not set)'}`);
-  
+  logger.info(`[SlugManager] Environment: NODE_ENV=${process.env.NODE_ENV || "(not set)"}`);
+
   try {
     // Try primary path first
     const data = await readJsonS3<BookmarkSlugMapping>(primaryPath);
@@ -184,18 +188,19 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
   // Fallback: Try all possible environment paths using consistent suffix generation
   // Import the environment configuration to ensure consistency
   const { ensureEnvironmentPath } = await import("@/lib/config/environment");
-  
+
   // Generate paths for all environments using the same logic as constants.ts
-  const basePath = 'json/bookmarks/slug-mapping';
+  const basePath = "json/bookmarks/slug-mapping";
   const fallbackPaths = [
-    `${basePath}.json`,        // production (no suffix)
-    `${basePath}-dev.json`,    // development
-    `${basePath}-test.json`,   // test
+    `${basePath}.json`, // production (no suffix)
+    `${basePath}-dev.json`, // development
+    `${basePath}-test.json`, // test
     // Also try the dynamically generated path in case it differs
     ensureEnvironmentPath(`${basePath}.json`),
-  ].filter((path, index, arr) => 
-    // Remove duplicates and exclude the primary path
-    path !== primaryPath && arr.indexOf(path) === index
+  ].filter(
+    (path, index, arr) =>
+      // Remove duplicates and exclude the primary path
+      path !== primaryPath && arr.indexOf(path) === index,
   );
 
   for (const fallbackPath of fallbackPaths) {
@@ -208,7 +213,7 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
         return data;
       }
     } catch {
-      // Continue to next fallback  
+      // Continue to next fallback
       logger.debug(`[SlugManager] Fallback path ${fallbackPath} not available`);
     }
   }

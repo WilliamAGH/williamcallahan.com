@@ -436,7 +436,9 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
               } catch (error) {
                 console.error(`${LOG_PREFIX} CRITICAL: Failed to save slug mapping (no-change path):`, error);
                 // Slug mappings are CRITICAL for bookmark navigation
-                throw new Error(`Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`);
+                throw new Error(
+                  `Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`,
+                );
               }
             }
             // Heartbeat write (tiny file)
@@ -451,7 +453,9 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
           return null;
         }
         // If we get an empty array, try to return existing S3 data as fallback
-        console.warn(`${LOG_PREFIX} No bookmarks returned from refresh (likely missing API config), attempting S3 fallback`);
+        console.warn(
+          `${LOG_PREFIX} No bookmarks returned from refresh (likely missing API config), attempting S3 fallback`,
+        );
         try {
           const existingBookmarks = await readJsonS3<UnifiedBookmark[]>(BOOKMARKS_S3_PATHS.FILE);
           if (existingBookmarks && Array.isArray(existingBookmarks) && existingBookmarks.length > 0) {
