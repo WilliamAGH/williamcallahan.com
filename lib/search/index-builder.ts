@@ -225,23 +225,16 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
     },
   });
 
-  // Load the centralized slug mapping - REQUIRED for idempotency
+  // Load centralized slug mapping (preferred), but allow embedded slug fallback
   const slugMapping = await loadSlugMapping();
-
-  // If no mapping exists, this is a CRITICAL ERROR
-  // Slug mappings MUST be generated when bookmarks are fetched, not here
-  if (!slugMapping) {
-    throw new Error(
-      "[Search Index Builder] CRITICAL: No slug mapping found. " +
-        "Slug mappings must be generated when bookmarks are fetched. " +
-        "Run data-updater --bookmarks to generate slug mappings first.",
-    );
-  }
 
   // Transform bookmarks for indexing
   const bookmarksForIndex = bookmarks.map((b) => {
-    // Use the centralized slug mapping for consistency
-    const slug = getSlugForBookmark(slugMapping, b.id);
+    // Prefer embedded slug when present; fallback to centralized mapping
+    const embedded = (b as unknown as { slug?: string })?.slug;
+    const slug = embedded && typeof embedded === "string" && embedded.length > 0
+      ? embedded
+      : (slugMapping ? getSlugForBookmark(slugMapping, b.id) : null);
 
     // Every bookmark MUST have a slug for idempotency
     if (!slug) {
@@ -262,7 +255,7 @@ async function buildBookmarksIndex(): Promise<SerializedIndex> {
       url: b.url,
       author: b.content?.author || "",
       publisher: b.content?.publisher || "",
-      slug, // No fallback - slug is REQUIRED
+      slug, // slug is required (either embedded or via mapping)
     };
   });
 

@@ -54,18 +54,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           // CRITICAL: Generate slug mappings for fast-path too
           const slugMapping = await loadSlugMapping();
           const internalHrefs: Record<string, string> = {};
-
-          if (slugMapping) {
-            for (const bookmark of paginatedBookmarks) {
-              const slug = getSlugForBookmark(slugMapping, bookmark.id);
-              if (slug) {
-                internalHrefs[bookmark.id] = `/bookmarks/${slug}`;
-              } else {
-                console.error(`[API Bookmarks] WARNING: No slug for bookmark ${bookmark.id} (fast-path)`);
-              }
+          for (const bookmark of paginatedBookmarks) {
+            const embeddedSlug = (bookmark as unknown as { slug?: string }).slug;
+            if (embeddedSlug && typeof embeddedSlug === "string") {
+              internalHrefs[bookmark.id] = `/bookmarks/${embeddedSlug}`;
+              continue;
             }
-          } else {
-            console.error("[API Bookmarks] CRITICAL: No slug mapping available in fast-path - URLs will cause 404s!");
+            if (slugMapping) {
+              const mapped = getSlugForBookmark(slugMapping, bookmark.id);
+              if (mapped) internalHrefs[bookmark.id] = `/bookmarks/${mapped}`;
+              else console.error(`[API Bookmarks] WARNING: No slug for bookmark ${bookmark.id} (fast-path)`);
+            } else {
+              console.error("[API Bookmarks] CRITICAL: No slug mapping and no embedded slug - URLs may 404");
+            }
           }
 
           return NextResponse.json(
@@ -146,18 +147,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Without these, the client cannot generate valid URLs and will get 404s
     const slugMapping = await loadSlugMapping();
     const internalHrefs: Record<string, string> = {};
-
-    if (slugMapping) {
-      for (const bookmark of paginatedBookmarks) {
-        const slug = getSlugForBookmark(slugMapping, bookmark.id);
-        if (slug) {
-          internalHrefs[bookmark.id] = `/bookmarks/${slug}`;
-        } else {
-          console.error(`[API Bookmarks] WARNING: No slug for bookmark ${bookmark.id}`);
-        }
+    for (const bookmark of paginatedBookmarks) {
+      const embeddedSlug = (bookmark as unknown as { slug?: string }).slug;
+      if (embeddedSlug && typeof embeddedSlug === "string") {
+        internalHrefs[bookmark.id] = `/bookmarks/${embeddedSlug}`;
+        continue;
       }
-    } else {
-      console.error("[API Bookmarks] CRITICAL: No slug mapping available - URLs will cause 404s!");
+      if (slugMapping) {
+        const mapped = getSlugForBookmark(slugMapping, bookmark.id);
+        if (mapped) internalHrefs[bookmark.id] = `/bookmarks/${mapped}`;
+        else console.error(`[API Bookmarks] WARNING: No slug for bookmark ${bookmark.id}`);
+      } else {
+        console.error("[API Bookmarks] CRITICAL: No slug mapping and no embedded slug - URLs may 404");
+      }
     }
 
     console.log(

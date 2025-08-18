@@ -15,7 +15,7 @@ import {
   toLightweightBookmarks,
   normalizePageBookmarkTags,
 } from "@/lib/bookmarks/utils";
-import { saveSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
 
@@ -257,11 +257,14 @@ async function hasBookmarksChanged(newBookmarks: UnifiedBookmark[]): Promise<boo
   }
 }
 
-/** Write bookmarks in paginated format */
+/** Write bookmarks in paginated format with embedded slugs */
 async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<void> {
   const pageSize = BOOKMARKS_PER_PAGE,
     totalPages = Math.ceil(bookmarks.length / pageSize),
     now = Date.now();
+
+  // Generate mapping once for this write and embed slugs into persisted items
+  const mapping = generateSlugMapping(bookmarks);
   const index: BookmarksIndex = {
     count: bookmarks.length,
     totalPages,
@@ -275,7 +278,11 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
   await writeJsonS3(BOOKMARKS_S3_PATHS.INDEX, index);
   for (let page = 1; page <= totalPages; page++) {
     const start = (page - 1) * pageSize;
-    await writeJsonS3(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${page}.json`, bookmarks.slice(start, start + pageSize));
+    const slice = bookmarks.slice(start, start + pageSize).map((b) => ({
+      ...b,
+      slug: mapping.slugs[b.id]?.slug ?? "",
+    }));
+    await writeJsonS3(`${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${page}.json`, slice);
   }
   console.log(`${LOG_PREFIX} Wrote ${totalPages} pages of bookmarks`);
 
@@ -291,12 +298,14 @@ async function writePaginatedBookmarks(bookmarks: UnifiedBookmark[]): Promise<vo
   }
 }
 
-/** Write tag-filtered bookmarks in paginated format */
+/** Write tag-filtered bookmarks in paginated format with embedded slugs */
 async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<void> {
   if (!ENABLE_TAG_CACHING) {
     console.log(`${LOG_PREFIX} Tag caching disabled by environment variable`);
     return;
   }
+  // Build a mapping once for this write to embed slugs
+  const mapping = generateSlugMapping(bookmarks);
   const pageSize = BOOKMARKS_PER_PAGE,
     bookmarksByTag: Record<string, UnifiedBookmark[]> = {},
     tagCounts: Record<string, number> = {};
@@ -338,10 +347,11 @@ async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<
     await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`, tagIndex);
     for (let page = 1; page <= totalPages; page++) {
       const start = (page - 1) * pageSize;
-      await writeJsonS3(
-        `${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${page}.json`,
-        tagBookmarks.slice(start, start + pageSize),
-      );
+      const slice = tagBookmarks.slice(start, start + pageSize).map((b) => ({
+        ...b,
+        slug: mapping.slugs[b.id]?.slug ?? "",
+      }));
+      await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${page}.json`, slice);
     }
   }
   console.log(`${LOG_PREFIX} Wrote tag-filtered bookmarks for ${topTags.length} tags`);
@@ -386,7 +396,14 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
     }
     console.log(`${LOG_PREFIX} Changes detected, persisting bookmarks`);
     await writePaginatedBookmarks(allIncomingBookmarks);
-    await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, toLightweightBookmarks(allIncomingBookmarks));
+    {
+      const mapping = generateSlugMapping(allIncomingBookmarks);
+      const lightweightWithSlugs = toLightweightBookmarks(allIncomingBookmarks).map((b) => ({
+        ...b,
+        slug: mapping.slugs[b.id]?.slug ?? "",
+      }));
+      await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, lightweightWithSlugs);
+    }
     await writeTagFilteredBookmarks(allIncomingBookmarks);
     return allIncomingBookmarks;
   } catch (error) {
@@ -411,7 +428,14 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
             if (hasChanged || force) {
               console.log(`${LOG_PREFIX} ${force ? "Forcing write" : "Changes detected"}, writing to S3`);
               await writePaginatedBookmarks(freshBookmarks);
-              await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, toLightweightBookmarks(freshBookmarks));
+              {
+                const mapping = generateSlugMapping(freshBookmarks);
+                const lightweightWithSlugs = toLightweightBookmarks(freshBookmarks).map((b) => ({
+                  ...b,
+                  slug: mapping.slugs[b.id]?.slug ?? "",
+                }));
+                await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, lightweightWithSlugs);
+              }
               await writeTagFilteredBookmarks(freshBookmarks);
             } else {
               console.log(`${LOG_PREFIX} No changes, skipping heavy S3 writes`);
