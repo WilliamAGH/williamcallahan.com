@@ -71,34 +71,41 @@ export async function processBookmarksInBatches(
         continue;
       }
 
-      // 2. Determine the best source URL using proper priority: Karakeep first, then OpenGraph
+      // 2. Determine the best source URL - Karakeep data takes priority
       let sourceImageUrl: string | undefined | null = selectBestImage(bookmark, {
-        preferOpenGraph: false, // Prioritize Karakeep over OpenGraph
         includeScreenshots: true,
         returnUndefined: false,
       });
 
       let finalImageSource = "Unknown";
+      let shouldFetchOpenGraph = false;
 
-      // Check if the selected image is from Karakeep (only /api/assets/ URLs are Karakeep-hosted)
+      // Check what type of image we got
       if (sourceImageUrl) {
         if (sourceImageUrl.includes("/api/assets/")) {
-          // This is a Karakeep-hosted asset that requires authentication
+          // This is a Karakeep-hosted asset
           finalImageSource = "Karakeep";
           imageStats.bookmarksUsingKarakeepImage++;
           imageStats.karakeepFallbackDetails.push({
             url: bookmark.url,
             karakeepImage: sourceImageUrl,
           });
+        } else if (sourceImageUrl.includes(s3CdnUrl)) {
+          // Already persisted to S3
+          finalImageSource = "S3";
+          imageStats.bookmarksUsingS3Image++;
         } else {
-          // This is a regular OpenGraph image URL that Karakeep/Hoarder extracted
+          // Regular HTTP URL (either from Karakeep or our own fetch)
           finalImageSource = "OpenGraph";
           imageStats.bookmarksUsingOpenGraphImage++;
         }
+      } else {
+        // No image from Karakeep, should fetch ourselves
+        shouldFetchOpenGraph = true;
       }
 
-      // 3. If no Karakeep image found, attempt OpenGraph fetch
-      if (!sourceImageUrl) {
+      // 3. Only fetch OpenGraph ourselves if Karakeep provided nothing
+      if (shouldFetchOpenGraph) {
         finalImageSource = "OpenGraph";
         try {
           const ogData = useBatchMode

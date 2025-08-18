@@ -12,7 +12,6 @@ import {
   normalizeBookmarkTag,
   calculateBookmarksChecksum,
   stripImageData,
-  toLightweightBookmarks,
   normalizePageBookmarkTags,
 } from "@/lib/bookmarks/utils";
 import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
@@ -395,24 +394,24 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
         throw new Error(`Failed to save slug mapping: ${error instanceof Error ? error.message : String(error)}`);
       }
       
-      // Ensure lightweight bookmarks file also exists
+      // Ensure bookmarks file exists with full content data
       const mapping = generateSlugMapping(allIncomingBookmarks);
-      const lightweightWithSlugs = toLightweightBookmarks(allIncomingBookmarks).map((b) => ({
+      const bookmarksWithSlugs = allIncomingBookmarks.map((b) => ({
         ...b,
         slug: mapping.slugs[b.id]?.slug ?? "",
       }));
-      await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, lightweightWithSlugs);
+      await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
       
       return allIncomingBookmarks;
     }
     console.log(`${LOG_PREFIX} Changes detected, persisting bookmarks`);
     const mapping = await writePaginatedBookmarks(allIncomingBookmarks);
     {
-      const lightweightWithSlugs = toLightweightBookmarks(allIncomingBookmarks).map((b) => ({
+      const bookmarksWithSlugs = allIncomingBookmarks.map((b) => ({
         ...b,
         slug: mapping.slugs[b.id]?.slug ?? "",
       }));
-      await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, lightweightWithSlugs);
+      await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
     }
     await writeTagFilteredBookmarks(allIncomingBookmarks);
     return allIncomingBookmarks;
@@ -439,11 +438,11 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
               console.log(`${LOG_PREFIX} ${force ? "Forcing write" : "Changes detected"}, writing to S3`);
               const mapping = await writePaginatedBookmarks(freshBookmarks);
               {
-                const lightweightWithSlugs = toLightweightBookmarks(freshBookmarks).map((b) => ({
+                const bookmarksWithSlugs = freshBookmarks.map((b) => ({
                   ...b,
                   slug: mapping.slugs[b.id]?.slug ?? "",
                 }));
-                await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, lightweightWithSlugs);
+                await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
               }
               await writeTagFilteredBookmarks(freshBookmarks);
             } else {
@@ -474,13 +473,13 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
                 );
               }
               
-              // Generate mapping for use in lightweight bookmarks (but don't save it again)
+              // Generate mapping for use in bookmarks (but don't save it again)
               const mapping = generateSlugMapping(freshBookmarks);
-              const lightweightWithSlugs = toLightweightBookmarks(freshBookmarks).map((b) => ({
+              const bookmarksWithSlugs = freshBookmarks.map((b) => ({
                 ...b,
                 slug: mapping.slugs[b.id]?.slug ?? "",
               }));
-              await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, lightweightWithSlugs);
+              await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
             }
             // Heartbeat write (tiny file)
             void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {

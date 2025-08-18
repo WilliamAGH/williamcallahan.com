@@ -172,7 +172,6 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
   const rawImageUrl =
     selectBestImage(bookmark, {
-      preferOpenGraph: true,
       includeScreenshots: true,
     }) || undefined;
   const imageUrl = rawImageUrl ? ensureAbsoluteUrl(rawImageUrl) : undefined;
