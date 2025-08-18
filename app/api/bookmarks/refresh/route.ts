@@ -55,7 +55,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (process.env.NODE_ENV !== "production") {
     logEnvironmentConfig();
   }
-  
+
   try {
     // For cron jobs, always refresh. For others, check if refresh is needed.
     if (!isCronJob) {

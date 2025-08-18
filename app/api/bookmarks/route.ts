@@ -54,7 +54,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           // CRITICAL: Generate slug mappings for fast-path too
           const slugMapping = await loadSlugMapping();
           const internalHrefs: Record<string, string> = {};
-          
+
           if (slugMapping) {
             for (const bookmark of paginatedBookmarks) {
               const slug = getSlugForBookmark(slugMapping, bookmark.id);
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Without these, the client cannot generate valid URLs and will get 404s
     const slugMapping = await loadSlugMapping();
     const internalHrefs: Record<string, string> = {};
-    
+
     if (slugMapping) {
       for (const bookmark of paginatedBookmarks) {
         const slug = getSlugForBookmark(slugMapping, bookmark.id);

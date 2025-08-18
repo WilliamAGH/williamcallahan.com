@@ -24,14 +24,14 @@ import type { DomainPageRedirectorProps } from "@/types";
 
 export default async function DomainPageRedirector({ params, searchParams }: DomainPageRedirectorProps) {
   const allBookmarks = (await getBookmarks({ includeImageData: false })) as import("@/types").UnifiedBookmark[];
-  
+
   // Load slug mapping - REQUIRED for idempotency
   const slugMapping = await loadSlugMapping();
   if (!slugMapping) {
     console.error("[DomainRedirect] CRITICAL: No slug mapping found");
     redirect("/bookmarks"); // Fallback to main bookmarks page
   }
-  
+
   // Make sure to await the params object
   const paramsResolved = await Promise.resolve(params);
   const { domainSlug } = paramsResolved;

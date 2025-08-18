@@ -150,12 +150,12 @@ export async function GET(request: NextRequest) {
     const sourceType = allowedTypes.has(sourceTypeRaw as RelatedContentType)
       ? (sourceTypeRaw as RelatedContentType)
       : null;
-    
+
     // For bookmarks, we should use slug instead of id to maintain idempotency
     // For other content types, we still use id
     let sourceId = searchParams.get("id");
     const sourceSlug = searchParams.get("slug");
-    
+
     // If this is a bookmark request with a slug, convert it to ID
     if (sourceType === "bookmark" && sourceSlug) {
       const slugMapping = await loadSlugMapping();
@@ -174,11 +174,15 @@ export async function GET(request: NextRequest) {
     }
 
     if (!sourceType || !sourceId) {
-      return NextResponse.json({ 
-        error: sourceType === "bookmark" 
-          ? "Missing required parameters: type and slug" 
-          : "Missing required parameters: type and id" 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error:
+            sourceType === "bookmark"
+              ? "Missing required parameters: type and slug"
+              : "Missing required parameters: type and id",
+        },
+        { status: 400 },
+      );
     }
 
     const lockKey = `related-content:${sourceType}:${sourceId}`;
