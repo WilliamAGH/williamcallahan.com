@@ -54,6 +54,7 @@ export function normalizeBookmark(raw: RawApiBookmark, index: number): UnifiedBo
 
     return {
       id: raw.id,
+      slug: "", // Slug will be added by slug manager
       url: raw.content?.url || "",
       title: bestTitle,
       description: bestDescription,
