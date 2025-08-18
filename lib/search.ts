@@ -22,7 +22,7 @@ import { loadIndexFromJSON } from "./search/index-builder";
 import type { Project } from "../types/project";
 
 // Add near top of file (after imports) a dev log helper
-const IS_DEV = process.env.NODE_ENV !== "production";
+const IS_DEV = process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test";
 const devLog = (...args: unknown[]) => {
   if (IS_DEV) console.log("[SearchDev]", ...args);
 };
@@ -752,19 +752,17 @@ export async function searchBookmarks(query: string): Promise<SearchResult[]> {
 
     // Map search results back to SearchResult format
     const resultIds = new Set(searchResults.map((r) => String(r.id)));
+    const scoreById = new Map(searchResults.map((r) => [String(r.id), r.score ?? 0] as const));
     const results: SearchResult[] = bookmarks
       .filter((b) => resultIds.has(b.id))
-      .map((b) => {
-        const mapped: SearchResult = {
-          id: b.id,
-          type: "bookmark",
-          title: b.title,
-          description: b.description,
-          url: `/bookmarks/${b.slug}`,
-          score: searchResults.find((r) => r.id === b.id)?.score ?? 0,
-        };
-        return mapped;
-      })
+      .map((b): SearchResult => ({
+        id: b.id,
+        type: "bookmark" as const,
+        title: b.title,
+        description: b.description,
+        url: `/bookmarks/${b.slug}`,
+        score: scoreById.get(b.id) ?? 0,
+      }))
       .sort((a, b) => b.score - a.score);
 
     devLog("[searchBookmarks] results", { count: results.length });
