@@ -275,7 +275,7 @@ export default async function BookmarkPage({ params }: BookmarkPageContext) {
           showFilterBar={false}
         />
 
-        {/* Related Content Section */}
+        {/* Similar Content Section */}
         <RelatedContent
           sourceType="bookmark"
           sourceId={foundBookmark.id}

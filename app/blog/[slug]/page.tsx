@@ -258,12 +258,12 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         <JsonLdScript data={jsonLdData} nonce={nonce} />
         <BlogArticle post={post} mdxContent={<MDXContent content={post.content} />} />
 
-        {/* Related Content Section */}
+        {/* Similar Content Section */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <RelatedContent
             sourceType="blog"
             sourceId={post.id}
-            sectionTitle="Related Content"
+            sectionTitle="Similar Content"
             options={{
               maxPerType: 4,
               maxTotal: 12,
