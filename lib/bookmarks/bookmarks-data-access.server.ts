@@ -439,9 +439,10 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
     }
     await writeTagFilteredBookmarks(allIncomingBookmarks);
     return allIncomingBookmarks;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(`${LOG_PREFIX} Error during selective refresh:`, String(error));
-    return null;
+    // Propagate the error to ensure the data update process fails correctly.
+    throw error;
   }
 }
 
@@ -556,16 +557,17 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
         changeDetected: !!sel, // conservative signal
       }).catch(() => void 0);
       return sel;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`${LOG_PREFIX} Failed to refresh bookmarks:`, String(error));
       // Failure heartbeat
-      await writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
+      void writeJsonS3(BOOKMARKS_S3_PATHS.HEARTBEAT, {
         runAt: Date.now(),
         success: false,
         changeDetected: false,
         error: String(error),
       }).catch(() => void 0);
-      return null;
+      // Propagate the error to fail the CI/CD process
+      throw error;
     } finally {
       await releaseRefreshLock();
     }
