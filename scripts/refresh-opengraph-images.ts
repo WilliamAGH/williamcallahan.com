@@ -12,6 +12,7 @@ import type { UnifiedBookmark } from "@/types";
 import { getBookmarks } from "@/lib/bookmarks/bookmarks-data-access.server";
 import { getOpenGraphData } from "@/lib/data-access/opengraph";
 import { isValidImageUrl } from "@/lib/utils/opengraph-utils";
+import { BOOKMARKS_API_CONFIG } from "@/lib/constants";
 
 /**
  * Processes a promise with a timeout, returning a fallback value if timeout occurs
@@ -73,10 +74,10 @@ async function refreshAllOpenGraphImages() {
             imageUrl: bookmark.content?.imageUrl || null,
             imageAssetId: bookmark.content?.imageAssetId || null,
             screenshotAssetId: bookmark.content?.screenshotAssetId || null,
-            karakeepBaseUrl: process.env.BOOKMARKS_API_URL || null,
+            karakeepBaseUrl: BOOKMARKS_API_CONFIG.API_URL || null,
           };
 
-          if (!process.env.BOOKMARKS_API_URL) {
+          if (!BOOKMARKS_API_CONFIG.API_URL) {
             console.warn(
               `[${itemNumber}/${bookmarks.length}] Missing BOOKMARKS_API_URL environment variable for ${bookmark.url}`,
             );
@@ -100,7 +101,7 @@ async function refreshAllOpenGraphImages() {
                              bookmark.content?.imageAssetId ? "image asset" : 
                              "screenshot asset";
             console.log(`  📦 Karakeep provided ${imageType} - OpenGraph fetch skipped`);
-            if (ogData && ogData.imageUrl) {
+            if (ogData?.imageUrl) {
               console.log(`     └─ Image persisted to S3: ${ogData.imageUrl}`);
             }
             successCount++;

@@ -10,7 +10,11 @@ import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { loadSlugMapping, getSlugForBookmark, getBookmarkIdFromSlug } from "@/lib/bookmarks/slug-manager";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS, SEARCH_S3_PATHS, CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/bookmark";
+
+function isUnifiedBookmarkArray(x: unknown): x is UnifiedBookmark[] {
+  return Array.isArray(x) && x.every((b) => b && typeof (b as { id?: unknown }).id === "string" && typeof (b as { url?: unknown }).url === "string");
+}
 
 async function auditBookmarkIntegrity(): Promise<void> {
   console.log("🔍 COMPREHENSIVE BOOKMARK INTEGRITY AUDIT\n");
@@ -62,10 +66,14 @@ async function auditBookmarkIntegrity(): Promise<void> {
     console.log("\n🔖 PHASE 2: Bookmark-Slug Coverage");
     console.log("-".repeat(40));
 
-    const bookmarks = (await getBookmarks({
+    const maybeBookmarks = await getBookmarks({
       skipExternalFetch: false,
       includeImageData: false,
-    })) as UnifiedBookmark[];
+    });
+    if (!isUnifiedBookmarkArray(maybeBookmarks)) {
+      throw new Error("Invalid bookmarks payload returned from getBookmarks()");
+    }
+    const bookmarks: UnifiedBookmark[] = maybeBookmarks;
 
     console.log(`📚 Found ${bookmarks.length} bookmarks`);
 
