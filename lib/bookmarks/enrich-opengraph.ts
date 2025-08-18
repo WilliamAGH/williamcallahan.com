@@ -134,8 +134,15 @@ export async function processBookmarksInBatches(
 
         if (sourceImageUrl.startsWith("/api/assets/")) {
           // For Karakeep assets, we need to download them directly from the API
-          // Extract the asset ID from the URL (/api/assets/[id])
-          const assetId = sourceImageUrl.replace("/api/assets/", "");
+          // Extract the asset ID from the URL: /api/assets/[id][?qs][#hash]
+          const afterPrefix: string = sourceImageUrl.split("/api/assets/")[1] ?? "";
+          const rawId: string = afterPrefix.split(/[/?#]/)[0] ?? "";
+          let assetId: string = rawId;
+          try {
+            assetId = decodeURIComponent(rawId);
+          } catch {
+            assetId = rawId;
+          }
 
           if (process.env.IS_DATA_UPDATER === "true") {
             // In batch mode, we can fetch directly from Karakeep API
@@ -359,7 +366,7 @@ export async function fetchKarakeepImage(assetId: string): Promise<Buffer | null
     return null;
   }
 
-  const assetUrl = `${bookmarksApiUrl}/assets/${assetId}`;
+  const assetUrl = `${bookmarksApiUrl ?? ""}/assets/${assetId}`;
 
   try {
     console.log(`[fetchKarakeepImage] Fetching asset: ${assetId}`);

@@ -23,12 +23,9 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
   const sortedBookmarks = [...bookmarks].sort((a, b) => a.id.localeCompare(b.id));
 
   for (const bookmark of sortedBookmarks) {
-    // generateUniqueSlug already handles uniqueness deterministically
-    const slug = generateUniqueSlug(
-      bookmark.url,
-      sortedBookmarks.map((b) => ({ id: b.id, url: b.url })),
-      bookmark.id,
-    );
+    // generateUniqueSlug should handle uniqueness, but add a belt-and-suspenders guard
+    const candidates = sortedBookmarks.map((b) => ({ id: b.id, url: b.url })).filter((c) => !!c.url);
+    let slug = generateUniqueSlug(bookmark.url || "", candidates as { id: string; url: string }[], bookmark.id);
 
     // Validate that a slug was generated
     if (!slug) {
@@ -36,6 +33,11 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
         `[SlugManager] CRITICAL: Failed to generate slug for bookmark ${bookmark.id}. ` +
           `URL: ${bookmark.url}, Title: ${bookmark.title}`,
       );
+    }
+
+    // Collision safety: ensure reverseMap doesn't already own this slug
+    if (reverseMap[slug] && reverseMap[slug] !== bookmark.id) {
+      slug = `${slug}-${bookmark.id.slice(0, 8)}`;
     }
 
     slugs[bookmark.id] = {
@@ -56,9 +58,11 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
     );
   }
 
-  // Generate checksum for change detection
-  const checksumData = JSON.stringify(slugs, Object.keys(slugs).sort());
-  const checksum = createHash("md5").update(checksumData).digest("hex");
+  // Generate checksum for change detection based on [id, slug] pairs in a stable order
+  const checksumPayload = Object.keys(slugs)
+    .sort((a, b) => a.localeCompare(b))
+    .map((id) => [id, slugs[id]?.slug]);
+  const checksum = createHash("md5").update(JSON.stringify(checksumPayload)).digest("hex");
 
   const mapping: BookmarkSlugMapping = {
     version: "1.0.0",
