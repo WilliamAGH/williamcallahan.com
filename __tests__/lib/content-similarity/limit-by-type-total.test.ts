@@ -59,4 +59,3 @@ describe("limitByTypeAndTotal", () => {
     expect(limitByTypeAndTotal(items, -1, -5)).toEqual([]);
   });
 });
-
