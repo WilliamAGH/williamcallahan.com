@@ -6,6 +6,7 @@
  */
 
 import type { NormalizedContent, SimilarityWeights, RelatedContentType } from "@/types/related-content";
+import { hasInvestmentContext } from "./keyword-extractor";
 import { calculateSemanticTagSimilarity } from "./tag-ontology";
 
 /**
@@ -126,7 +127,7 @@ function calculateRecencyScore(date?: Date): number {
 export function calculateSimilarity(
   source: NormalizedContent,
   target: NormalizedContent,
-  weights?: SimilarityWeights,
+  weights?: Partial<SimilarityWeights>,
 ): { total: number; breakdown: Record<keyof SimilarityWeights, number> } {
   // Don't compare content to itself
   if (source.type === target.type && source.id === target.id) {
@@ -144,8 +145,9 @@ export function calculateSimilarity(
   // Determine if this is cross-content comparison
   const isCrossContent = source.type !== target.type;
 
-  // Use appropriate weights
-  const activeWeights = weights || (isCrossContent ? CROSS_TYPE_WEIGHTS : SAME_TYPE_WEIGHTS);
+  // Use appropriate base weights and merge any overrides
+  const base = isCrossContent ? CROSS_TYPE_WEIGHTS : SAME_TYPE_WEIGHTS;
+  const activeWeights: SimilarityWeights = { ...base, ...(weights ?? {}) } as SimilarityWeights;
 
   // Calculate exact tag similarity
   const exactTagScore = calculateTagSimilarity(source.tags, target.tags);
@@ -186,12 +188,8 @@ export function calculateSimilarity(
       const sourceText = `${source.title} ${source.text}`.toLowerCase();
       const targetText = `${target.title} ${target.text}`.toLowerCase();
 
-      const investmentTerms = ["invest", "venture", "startup", "funding", "portfolio"];
-      const hasInvestmentContext = investmentTerms.some(
-        (term) => sourceText.includes(term) || targetText.includes(term),
-      );
-
-      if (hasInvestmentContext) {
+      const hasContext = hasInvestmentContext(sourceText) || hasInvestmentContext(targetText);
+      if (hasContext) {
         total += 0.1;
       }
     }

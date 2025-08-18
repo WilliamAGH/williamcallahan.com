@@ -33,6 +33,19 @@ import { USE_NEXTJS_CACHE } from "@/lib/cache";
 export { OPENGRAPH_S3_KEY_DIR, OPENGRAPH_METADATA_S3_DIR, OPENGRAPH_IMAGES_S3_DIR };
 
 // Runtime-safe wrappers for experimental cache APIs
+// Detect CLI-like contexts (e.g., running from scripts/) where Next.js cache APIs are unavailable
+const isCliLikeContext = (): boolean => {
+  const argv1 = process.argv[1] || "";
+  const inScriptsDir = /(^|[\\/])scripts[\\/]/.test(argv1);
+  return (
+    inScriptsDir ||
+    process.argv.includes("data-updater") ||
+    process.env.NEXT_PHASE === "phase-production-build"
+  );
+};
+
+const shouldLogCacheWarning = (): boolean =>
+  process.env.NODE_ENV === "development" && !isCliLikeContext() && !process.env.SUPPRESS_CACHE_WARNINGS;
 const safeCacheLife = (
   profile:
     | "default"
@@ -45,36 +58,36 @@ const safeCacheLife = (
     | { stale?: number; revalidate?: number; expire?: number },
 ): void => {
   try {
-    if (typeof cacheLife === "function" && !process.argv.includes("data-updater")) {
+    if (typeof cacheLife === "function" && !isCliLikeContext()) {
       cacheLife(profile);
     }
   } catch (error) {
     // Silently ignore if cacheLife is not available or experimental.useCache is not enabled
-    if (process.env.NODE_ENV === "development") {
+    if (shouldLogCacheWarning()) {
       console.warn("[OpenGraph] cacheLife not available:", error);
     }
   }
 };
 const safeCacheTag = (...tags: string[]): void => {
   try {
-    if (typeof cacheTag === "function" && !process.argv.includes("data-updater")) {
+    if (typeof cacheTag === "function" && !isCliLikeContext()) {
       for (const tag of new Set(tags)) cacheTag(tag);
     }
   } catch (error) {
     // Silently ignore if cacheTag is not available
-    if (process.env.NODE_ENV === "development") {
+    if (shouldLogCacheWarning()) {
       console.warn("[OpenGraph] cacheTag not available:", error);
     }
   }
 };
 const safeRevalidateTag = (...tags: string[]): void => {
   try {
-    if (typeof revalidateTag === "function" && !process.argv.includes("data-updater")) {
+    if (typeof revalidateTag === "function" && !isCliLikeContext()) {
       for (const tag of new Set(tags)) revalidateTag(tag);
     }
   } catch (error) {
     // Silently ignore if revalidateTag is not available
-    if (process.env.NODE_ENV === "development") {
+    if (shouldLogCacheWarning()) {
       console.warn("[OpenGraph] revalidateTag not available:", error);
     }
   }
@@ -202,8 +215,8 @@ export async function getOpenGraphData(
     ? karakeepImageFallbackSchema.safeParse(fallbackImageData).data
     : undefined;
 
-  // Use Next.js cache when enabled
-  if (USE_NEXTJS_CACHE) {
+  // Use Next.js cache when enabled and in a Next.js request context (not CLI)
+  if (USE_NEXTJS_CACHE && !isCliLikeContext()) {
     return getCachedOpenGraphDataInternal(normalizedUrl, skipExternalFetch, idempotencyKey, validatedFallback);
   }
 
