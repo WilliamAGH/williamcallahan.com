@@ -2,7 +2,7 @@
 
 /**
  * Test Idempotency of Slug Generation
- * 
+ *
  * This script verifies that the same bookmarks always produce the same slugs,
  * which is critical for preventing 404 errors and ensuring stable URLs.
  */
@@ -17,10 +17,10 @@ async function testIdempotency() {
   try {
     // Step 1: Get current bookmarks
     console.log("📚 Step 1: Fetching bookmarks...");
-    const bookmarks = await getBookmarks({ 
-      skipExternalFetch: false, 
-      includeImageData: false 
-    }) as UnifiedBookmark[];
+    const bookmarks = (await getBookmarks({
+      skipExternalFetch: false,
+      includeImageData: false,
+    })) as UnifiedBookmark[];
     console.log(`✅ Fetched ${bookmarks.length} bookmarks`);
 
     // Step 2: Load existing slug mapping
@@ -48,11 +48,11 @@ async function testIdempotency() {
       console.error("❌ IDEMPOTENCY FAILED - Checksums differ!");
       console.error(`   Existing: ${existingMapping.checksum}`);
       console.error(`   New:      ${newMapping.checksum}`);
-      
+
       // Find differences
       console.log("\n🔍 Finding differences...");
       let differencesFound = 0;
-      
+
       for (const [id, entry] of Object.entries(newMapping.slugs)) {
         const existingEntry = existingMapping.slugs[id];
         if (!existingEntry) {
@@ -65,20 +65,20 @@ async function testIdempotency() {
           differencesFound++;
         }
       }
-      
+
       for (const id of Object.keys(existingMapping.slugs)) {
         if (!newMapping.slugs[id]) {
           console.error(`   ❌ REMOVED: Bookmark ${id} not in new mapping`);
           differencesFound++;
         }
       }
-      
+
       if (differencesFound === 0) {
         console.log("   ℹ️  No slug differences found (order or metadata may differ)");
       } else {
         console.error(`   ❌ Found ${differencesFound} differences`);
       }
-      
+
       process.exit(1);
     }
 
@@ -86,14 +86,14 @@ async function testIdempotency() {
     console.log("\n🔍 Step 5: Testing individual slug consistency...");
     const sampleSize = Math.min(10, bookmarks.length);
     const sampleBookmarks = bookmarks.slice(0, sampleSize);
-    
+
     console.log(`   Testing ${sampleSize} bookmarks...`);
     let allMatch = true;
-    
+
     for (const bookmark of sampleBookmarks) {
       const existingSlug = existingMapping.slugs[bookmark.id]?.slug;
       const newSlug = newMapping.slugs[bookmark.id]?.slug;
-      
+
       if (existingSlug !== newSlug) {
         console.error(`   ❌ Mismatch for ${bookmark.title}`);
         console.error(`      ID: ${bookmark.id}`);
@@ -104,7 +104,7 @@ async function testIdempotency() {
         console.log(`   ✅ ${bookmark.title?.substring(0, 50)}...`);
       }
     }
-    
+
     if (!allMatch) {
       console.error("\n❌ Some slugs don't match!");
       process.exit(1);
@@ -119,7 +119,7 @@ async function testIdempotency() {
         allMatch = false;
       }
     }
-    
+
     if (allMatch) {
       console.log("   ✅ Reverse mapping is consistent");
     }
@@ -133,7 +133,7 @@ async function testIdempotency() {
     const elapsed = Date.now() - startTime;
     const avgTime = elapsed / 10;
     console.log(`   ✅ Average generation time: ${avgTime.toFixed(2)}ms`);
-    
+
     if (avgTime > 1000) {
       console.warn(`   ⚠️  Generation is slow (>1s), consider optimization`);
     }
@@ -141,16 +141,16 @@ async function testIdempotency() {
     // Test 6: Cache TTL Verification (from performance tests)
     console.log("\n📊 Test 6: Cache TTL Verification");
     // Cache TTL is typically 5 minutes in production, 30 seconds in dev
-    const expectedTTL = process.env.NODE_ENV === 'production' ? 300000 : 30000;
-    console.log(`✅ Expected cache TTL: ${expectedTTL}ms for ${process.env.NODE_ENV || 'development'} environment`);
-    
+    const expectedTTL = process.env.NODE_ENV === "production" ? 300000 : 30000;
+    console.log(`✅ Expected cache TTL: ${expectedTTL}ms for ${process.env.NODE_ENV || "development"} environment`);
+
     // Test 7: Lazy Loading for Content (from performance tests)
     console.log("\n💾 Test 7: Lazy Content Loading");
     const { getLazyContentMap, getCachedAllContent } = await import("@/lib/content-similarity/cached-aggregator");
     const contentTypes = ["blog", "project"] as import("@/types/related-content").RelatedContentType[];
     const lazyMap = await getLazyContentMap(contentTypes);
     const allContentCached = await getCachedAllContent();
-    
+
     if (lazyMap.size <= allContentCached.length) {
       console.log(`✅ Lazy loading working: ${lazyMap.size} items (filtered) vs ${allContentCached.length} total`);
     } else {
@@ -170,7 +170,6 @@ async function testIdempotency() {
     console.log("   • Cache TTL configured correctly");
     console.log("   • Lazy loading reduces memory usage");
     console.log("\n🎉 System is ready for deployment!");
-    
   } catch (error) {
     console.error("\n❌ Test failed with error:", error);
     process.exit(1);

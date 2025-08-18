@@ -15,8 +15,8 @@ import type { UnifiedBookmark } from "@/types";
 async function auditBookmarkIntegrity(): Promise<void> {
   console.log("🔍 COMPREHENSIVE BOOKMARK INTEGRITY AUDIT\n");
   console.log("This audit ensures no 404 errors can occur with bookmarks.");
-  console.log("=" .repeat(70));
-  
+  console.log("=".repeat(70));
+
   const results: Array<{
     category: string;
     status: "✅" | "❌" | "⚠️";
@@ -31,29 +31,29 @@ async function auditBookmarkIntegrity(): Promise<void> {
     // ========================================================================
     console.log("\n📋 PHASE 1: Slug Mapping Verification");
     console.log("-".repeat(40));
-    
+
     const slugMapping = await loadSlugMapping();
     if (!slugMapping) {
       results.push({
         category: "Slug Mapping",
         status: "❌",
         message: "No slug mapping found - CRITICAL ERROR",
-        details: ["Run: bun scripts/data-updater.ts --bookmarks --force"]
+        details: ["Run: bun scripts/data-updater.ts --bookmarks --force"],
       });
       hasErrors = true;
       throw new Error("Cannot proceed without slug mapping");
     }
-    
+
     console.log(`✅ Slug mapping loaded: ${slugMapping.count} entries`);
     console.log(`   Version: ${slugMapping.version}`);
     console.log(`   Generated: ${slugMapping.generated}`);
     console.log(`   Checksum: ${slugMapping.checksum}`);
-    
+
     results.push({
       category: "Slug Mapping",
       status: "✅",
       message: `Loaded ${slugMapping.count} slug mappings`,
-      details: [`Checksum: ${slugMapping.checksum}`]
+      details: [`Checksum: ${slugMapping.checksum}`],
     });
 
     // ========================================================================
@@ -61,17 +61,17 @@ async function auditBookmarkIntegrity(): Promise<void> {
     // ========================================================================
     console.log("\n🔖 PHASE 2: Bookmark-Slug Coverage");
     console.log("-".repeat(40));
-    
-    const bookmarks = await getBookmarks({ 
-      skipExternalFetch: false, 
-      includeImageData: false 
-    }) as UnifiedBookmark[];
-    
+
+    const bookmarks = (await getBookmarks({
+      skipExternalFetch: false,
+      includeImageData: false,
+    })) as UnifiedBookmark[];
+
     console.log(`📚 Found ${bookmarks.length} bookmarks`);
-    
+
     const bookmarksWithoutSlugs: UnifiedBookmark[] = [];
     const slugsWithoutBookmarks: string[] = [];
-    
+
     // Check every bookmark has a slug
     for (const bookmark of bookmarks) {
       const slug = getSlugForBookmark(slugMapping, bookmark.id);
@@ -79,37 +79,37 @@ async function auditBookmarkIntegrity(): Promise<void> {
         bookmarksWithoutSlugs.push(bookmark);
       }
     }
-    
+
     // Check every slug has a bookmark
     for (const [bookmarkId, entry] of Object.entries(slugMapping.slugs)) {
-      const bookmark = bookmarks.find(b => b.id === bookmarkId);
+      const bookmark = bookmarks.find((b) => b.id === bookmarkId);
       if (!bookmark) {
         slugsWithoutBookmarks.push(entry.slug);
       }
     }
-    
+
     if (bookmarksWithoutSlugs.length > 0) {
       results.push({
         category: "Bookmark Coverage",
         status: "❌",
         message: `${bookmarksWithoutSlugs.length} bookmarks missing slugs`,
-        details: bookmarksWithoutSlugs.slice(0, 5).map(b => `${b.id}: ${b.title}`)
+        details: bookmarksWithoutSlugs.slice(0, 5).map((b) => `${b.id}: ${b.title}`),
       });
       hasErrors = true;
     } else {
       results.push({
         category: "Bookmark Coverage",
         status: "✅",
-        message: "All bookmarks have slugs"
+        message: "All bookmarks have slugs",
       });
     }
-    
+
     if (slugsWithoutBookmarks.length > 0) {
       results.push({
         category: "Orphaned Slugs",
         status: "⚠️",
         message: `${slugsWithoutBookmarks.length} slugs without bookmarks`,
-        details: slugsWithoutBookmarks.slice(0, 5)
+        details: slugsWithoutBookmarks.slice(0, 5),
       });
     }
 
@@ -118,7 +118,7 @@ async function auditBookmarkIntegrity(): Promise<void> {
     // ========================================================================
     console.log("\n🔄 PHASE 3: Reverse Mapping Consistency");
     console.log("-".repeat(40));
-    
+
     let reverseMappingErrors = 0;
     for (const [bookmarkId, entry] of Object.entries(slugMapping.slugs)) {
       const reverseId = slugMapping.reverseMap[entry.slug];
@@ -127,13 +127,13 @@ async function auditBookmarkIntegrity(): Promise<void> {
         reverseMappingErrors++;
       }
     }
-    
+
     if (reverseMappingErrors > 0) {
       results.push({
         category: "Reverse Mapping",
         status: "❌",
         message: `${reverseMappingErrors} reverse mapping errors`,
-        details: ["Slug mapping is corrupted - regenerate required"]
+        details: ["Slug mapping is corrupted - regenerate required"],
       });
       hasErrors = true;
     } else {
@@ -141,7 +141,7 @@ async function auditBookmarkIntegrity(): Promise<void> {
       results.push({
         category: "Reverse Mapping",
         status: "✅",
-        message: "All reverse mappings consistent"
+        message: "All reverse mappings consistent",
       });
     }
 
@@ -150,7 +150,7 @@ async function auditBookmarkIntegrity(): Promise<void> {
     // ========================================================================
     console.log("\n🔎 PHASE 4: Search Index Verification");
     console.log("-".repeat(40));
-    
+
     const searchIndex = await readJsonS3<{
       bookmarks: Array<{
         id: string;
@@ -164,10 +164,10 @@ async function auditBookmarkIntegrity(): Promise<void> {
         version?: string;
       };
     }>(SEARCH_S3_PATHS.BOOKMARKS_INDEX);
-    
+
     if (searchIndex?.bookmarks) {
       console.log(`📊 Search index contains ${searchIndex.bookmarks.length} bookmark entries`);
-      
+
       let searchIndexErrors = 0;
       for (const entry of searchIndex.bookmarks) {
         // Extract slug from URL (format: /bookmarks/[slug])
@@ -177,10 +177,10 @@ async function auditBookmarkIntegrity(): Promise<void> {
           searchIndexErrors++;
           continue;
         }
-        
+
         const slug = urlMatch[1];
         const bookmarkId = slug ? getBookmarkIdFromSlug(slugMapping, slug) : undefined;
-        
+
         if (!bookmarkId) {
           console.log(`❌ Search index references unknown slug: ${slug}`);
           searchIndexErrors++;
@@ -189,20 +189,20 @@ async function auditBookmarkIntegrity(): Promise<void> {
           searchIndexErrors++;
         }
       }
-      
+
       if (searchIndexErrors > 0) {
         results.push({
           category: "Search Index",
           status: "❌",
           message: `${searchIndexErrors} inconsistencies in search index`,
-          details: ["Rebuild required: bun scripts/data-updater.ts --search-indexes"]
+          details: ["Rebuild required: bun scripts/data-updater.ts --search-indexes"],
         });
         hasErrors = true;
       } else {
         results.push({
           category: "Search Index",
           status: "✅",
-          message: `All ${searchIndex.bookmarks.length} search entries valid`
+          message: `All ${searchIndex.bookmarks.length} search entries valid`,
         });
       }
     } else {
@@ -210,7 +210,7 @@ async function auditBookmarkIntegrity(): Promise<void> {
         category: "Search Index",
         status: "⚠️",
         message: "No search index found",
-        details: ["Run: bun scripts/data-updater.ts --search-indexes"]
+        details: ["Run: bun scripts/data-updater.ts --search-indexes"],
       });
     }
 
@@ -219,29 +219,34 @@ async function auditBookmarkIntegrity(): Promise<void> {
     // ========================================================================
     console.log("\n🔗 PHASE 5: Related Content References");
     console.log("-".repeat(40));
-    
-    const relatedContent = await readJsonS3<Record<string, Array<{
-      type: string;
-      id: string;
-      score: number;
-      title: string;
-    }>>>(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
-    
+
+    const relatedContent = await readJsonS3<
+      Record<
+        string,
+        Array<{
+          type: string;
+          id: string;
+          score: number;
+          title: string;
+        }>
+      >
+    >(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
+
     if (relatedContent) {
       let totalBookmarkRefs = 0;
       let invalidBookmarkRefs = 0;
-      
+
       // Enhanced: Test detailed resolution for sample entries
       const bookmarkRelatedContent = Object.entries(relatedContent)
-        .filter(([_, items]) => Array.isArray(items) && items.some(item => item.type === "bookmark"))
+        .filter(([_, items]) => Array.isArray(items) && items.some((item) => item.type === "bookmark"))
         .slice(0, 10); // Test first 10 for detailed check
-      
+
       console.log(`🎯 Testing ${bookmarkRelatedContent.length} sample entries with bookmark recommendations...`);
-      
+
       for (const [key, items] of Object.entries(relatedContent)) {
-        const bookmarkItems = items.filter(item => item.type === "bookmark");
+        const bookmarkItems = items.filter((item) => item.type === "bookmark");
         totalBookmarkRefs += bookmarkItems.length;
-        
+
         for (const item of bookmarkItems) {
           const slug = getSlugForBookmark(slugMapping, item.id);
           if (!slug) {
@@ -257,15 +262,15 @@ async function auditBookmarkIntegrity(): Promise<void> {
           }
         }
       }
-      
+
       console.log(`📊 Found ${totalBookmarkRefs} bookmark references in related content`);
-      
+
       if (invalidBookmarkRefs > 0) {
         results.push({
           category: "Related Content",
           status: "❌",
           message: `${invalidBookmarkRefs} invalid bookmark references`,
-          details: ["Related content needs regeneration"]
+          details: ["Related content needs regeneration"],
         });
         hasErrors = true;
       } else {
@@ -273,14 +278,14 @@ async function auditBookmarkIntegrity(): Promise<void> {
         results.push({
           category: "Related Content",
           status: "✅",
-          message: `All ${totalBookmarkRefs} bookmark references valid and resolvable`
+          message: `All ${totalBookmarkRefs} bookmark references valid and resolvable`,
         });
       }
     } else {
       results.push({
         category: "Related Content",
         status: "⚠️",
-        message: "No related content found"
+        message: "No related content found",
       });
     }
 
@@ -289,7 +294,7 @@ async function auditBookmarkIntegrity(): Promise<void> {
     // ========================================================================
     console.log("\n📄 PHASE 6: Pagination Files");
     console.log("-".repeat(40));
-    
+
     const index = await readJsonS3<{
       pages?: Array<{ page: number; count: number }>;
       totalPages?: number;
@@ -297,20 +302,20 @@ async function auditBookmarkIntegrity(): Promise<void> {
     }>(BOOKMARKS_S3_PATHS.INDEX);
     if (index?.pages) {
       console.log(`📖 Index reports ${index.pages.length} pages`);
-      
+
       let paginationErrors = 0;
       let totalPaginatedBookmarks = 0;
-      
+
       for (let i = 1; i <= index.pages.length; i++) {
         const pagePath = `${BOOKMARKS_S3_PATHS.PAGE_PREFIX}${i}.json`;
         const pageData = await readJsonS3<{ bookmarks: UnifiedBookmark[] }>(pagePath);
-        
+
         if (!pageData) {
           console.log(`❌ Missing page file: ${pagePath}`);
           paginationErrors++;
         } else {
           totalPaginatedBookmarks += pageData.bookmarks.length;
-          
+
           // Verify each bookmark in page has a slug
           for (const bookmark of pageData.bookmarks) {
             const slug = getSlugForBookmark(slugMapping, bookmark.id);
@@ -321,29 +326,29 @@ async function auditBookmarkIntegrity(): Promise<void> {
           }
         }
       }
-      
+
       console.log(`📊 Total bookmarks across pages: ${totalPaginatedBookmarks}`);
-      
+
       if (paginationErrors > 0) {
         results.push({
           category: "Pagination",
           status: "❌",
           message: `${paginationErrors} pagination errors`,
-          details: ["Pagination needs regeneration"]
+          details: ["Pagination needs regeneration"],
         });
         hasErrors = true;
       } else {
         results.push({
           category: "Pagination",
           status: "✅",
-          message: `All ${index.pages.length} pages valid with ${totalPaginatedBookmarks} bookmarks`
+          message: `All ${index.pages.length} pages valid with ${totalPaginatedBookmarks} bookmarks`,
         });
       }
     } else {
       results.push({
         category: "Pagination",
         status: "⚠️",
-        message: "No pagination index found"
+        message: "No pagination index found",
       });
     }
 
@@ -352,10 +357,10 @@ async function auditBookmarkIntegrity(): Promise<void> {
     // ========================================================================
     console.log("\n🌐 PHASE 7: URL Generation Test");
     console.log("-".repeat(40));
-    
+
     const sampleBookmarks = bookmarks.slice(0, 10);
     console.log("Testing URL generation for sample bookmarks:");
-    
+
     let urlGenerationErrors = 0;
     for (const bookmark of sampleBookmarks) {
       const slug = getSlugForBookmark(slugMapping, bookmark.id);
@@ -365,7 +370,7 @@ async function auditBookmarkIntegrity(): Promise<void> {
       } else {
         const url = `/bookmarks/${slug}`;
         console.log(`✅ ${bookmark.title.substring(0, 40)}... → ${url}`);
-        
+
         // Verify reverse lookup works
         const reverseId = getBookmarkIdFromSlug(slugMapping, slug);
         if (reverseId !== bookmark.id) {
@@ -374,19 +379,19 @@ async function auditBookmarkIntegrity(): Promise<void> {
         }
       }
     }
-    
+
     if (urlGenerationErrors > 0) {
       results.push({
         category: "URL Generation",
         status: "❌",
-        message: `${urlGenerationErrors} URL generation errors`
+        message: `${urlGenerationErrors} URL generation errors`,
       });
       hasErrors = true;
     } else {
       results.push({
         category: "URL Generation",
         status: "✅",
-        message: "URL generation working correctly"
+        message: "URL generation working correctly",
       });
     }
 
@@ -396,7 +401,7 @@ async function auditBookmarkIntegrity(): Promise<void> {
     console.log("\n" + "=".repeat(70));
     console.log("📊 AUDIT REPORT");
     console.log("=".repeat(70));
-    
+
     for (const result of results) {
       console.log(`\n${result.status} ${result.category}`);
       console.log(`   ${result.message}`);
@@ -406,9 +411,9 @@ async function auditBookmarkIntegrity(): Promise<void> {
         }
       }
     }
-    
+
     console.log("\n" + "=".repeat(70));
-    
+
     if (hasErrors) {
       console.log("❌ AUDIT FAILED - 404 ERRORS ARE POSSIBLE!");
       console.log("\nRequired Actions:");
@@ -426,7 +431,6 @@ async function auditBookmarkIntegrity(): Promise<void> {
       console.log("• URL generation is idempotent");
       console.log("\n🎉 The bookmark system is fully consistent and production-ready!");
     }
-    
   } catch (error) {
     console.error("\n❌ CRITICAL AUDIT ERROR:", error);
     console.error("\nThe audit could not complete. This indicates a serious issue.");

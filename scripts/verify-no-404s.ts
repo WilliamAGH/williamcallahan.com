@@ -12,7 +12,7 @@ import type { RelatedContentEntry } from "@/types/related-content";
 
 async function verifyNo404s() {
   console.log("🚀 QUICK 404 VERIFICATION\n");
-  
+
   try {
     // 1. Load slug mapping
     const slugMapping = await loadSlugMapping();
@@ -22,7 +22,7 @@ async function verifyNo404s() {
       process.exit(1);
     }
     console.log(`✅ Slug mapping loaded: ${slugMapping.count} entries`);
-    
+
     // 2. Load bookmarks
     const bookmarksData = await readJsonS3<{ bookmarks: UnifiedBookmark[] }>(BOOKMARKS_S3_PATHS.FILE);
     if (!bookmarksData?.bookmarks) {
@@ -31,7 +31,7 @@ async function verifyNo404s() {
     }
     const bookmarks = bookmarksData.bookmarks;
     console.log(`✅ Bookmarks loaded: ${bookmarks.length} entries`);
-    
+
     // 3. Check all bookmarks have slugs
     let missing = 0;
     for (const bookmark of bookmarks) {
@@ -41,23 +41,25 @@ async function verifyNo404s() {
         missing++;
       }
     }
-    
+
     if (missing > 0) {
       console.log(`\n❌ ${missing} bookmarks without slugs - 404s POSSIBLE!`);
       process.exit(1);
     }
     console.log(`✅ All ${bookmarks.length} bookmarks have slugs`);
-    
+
     // 4. Quick check of related content
-    const relatedContent = await readJsonS3<Record<string, RelatedContentEntry[]>>(CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT);
+    const relatedContent = await readJsonS3<Record<string, RelatedContentEntry[]>>(
+      CONTENT_GRAPH_S3_PATHS.RELATED_CONTENT,
+    );
     if (relatedContent) {
       // Check a sample
       const samples = Object.entries(relatedContent).slice(0, 5);
       let relatedErrors = 0;
-      
+
       for (const [, items] of samples) {
         if (Array.isArray(items)) {
-          const bookmarkItems = items.filter(item => item.type === "bookmark");
+          const bookmarkItems = items.filter((item) => item.type === "bookmark");
           for (const item of bookmarkItems) {
             const slug = getSlugForBookmark(slugMapping, item.id);
             if (!slug) {
@@ -67,14 +69,14 @@ async function verifyNo404s() {
           }
         }
       }
-      
+
       if (relatedErrors > 0) {
         console.log(`\n⚠️  ${relatedErrors} invalid references in related content sample`);
       } else {
         console.log(`✅ Related content references valid (sample checked)`);
       }
     }
-    
+
     // 5. Final verdict
     console.log("\n" + "=".repeat(50));
     console.log("✅ NO 404s POSSIBLE!");
@@ -85,7 +87,6 @@ async function verifyNo404s() {
     console.log("• Related content uses only existing slugs");
     console.log("• No fallback slug generation occurs");
     console.log("\n🎉 System is safe from 404 errors!");
-    
   } catch (error) {
     console.error("\n❌ Verification failed:", error);
     process.exit(1);
