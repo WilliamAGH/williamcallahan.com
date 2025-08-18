@@ -48,7 +48,11 @@ export const BOOKMARKS_S3_PATHS: BookmarksS3Paths = {
 
 export const LOGO_BLOCKLIST_S3_PATH = `json/rate-limit/logo-failed-domains${envSuffix}.json`;
 
-/** S3 paths for content graph (environment-aware) */
+/**
+ * S3 paths for content graph (environment-aware)
+ * Note: DIR includes the environment suffix and leaf files are unsuffixed by design.
+ * This keeps the content-graph directory environment-scoped while file names stay stable.
+ */
 export const CONTENT_GRAPH_S3_PATHS = {
   DIR: `json/content-graph${envSuffix}`,
   RELATED_CONTENT: `json/content-graph${envSuffix}/related-content.json`,
@@ -56,7 +60,10 @@ export const CONTENT_GRAPH_S3_PATHS = {
   METADATA: `json/content-graph${envSuffix}/metadata.json`,
 } as const;
 
-/** S3 paths for search indexes (environment-aware) */
+/**
+ * S3 paths for search indexes (environment-aware)
+ * Note: DIR is global; each leaf file appends the environment suffix.
+ */
 export const SEARCH_S3_PATHS = {
   DIR: "json/search",
   POSTS_INDEX: `json/search/posts-index${envSuffix}.json`,
@@ -68,7 +75,10 @@ export const SEARCH_S3_PATHS = {
   BUILD_METADATA: `json/search/build-metadata${envSuffix}.json`,
 } as const;
 
-/** S3 paths for GitHub activity data (environment-aware) */
+/**
+ * S3 paths for GitHub activity data (environment-aware)
+ * Note: DIR is global; each leaf file appends the environment suffix.
+ */
 export const GITHUB_ACTIVITY_S3_PATHS = {
   DIR: "json/github-activity",
   ACTIVITY_DATA: `json/github-activity/activity_data${envSuffix}.json`,
@@ -79,7 +89,10 @@ export const GITHUB_ACTIVITY_S3_PATHS = {
   REPO_RAW_WEEKLY_STATS_DIR: `json/github-activity/repo_raw_weekly_stats${envSuffix}`,
 } as const;
 
-/** S3 paths for image manifests (environment-aware) */
+/**
+ * S3 paths for image manifests (environment-aware)
+ * Note: DIR is global; each leaf file appends the environment suffix.
+ */
 export const IMAGE_MANIFEST_S3_PATHS = {
   DIR: "json/image-data",
   LOGOS_MANIFEST: `json/image-data/logos/manifest${envSuffix}.json`,
