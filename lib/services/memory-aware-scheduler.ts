@@ -168,7 +168,7 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
     }
 
     this.processingInterval = setInterval(() => {
-      this.processQueue().catch((error) => {
+      this.processQueue().catch((error: unknown) => {
         console.error("[MemoryScheduler] Error in processing loop:", error);
       });
     }, 100); // Check every 100ms
@@ -245,7 +245,7 @@ export class MemoryAwareRequestScheduler extends EventEmitter {
           processingTime,
           success: true,
         });
-      } catch (error) {
+      } catch (error: unknown) {
         const processingError = error instanceof Error ? error : new Error(String(error));
 
         // Retry if possible

@@ -212,6 +212,17 @@ if (testLimitArg) {
       }
     });
 
+    // --- Final Summary Table ---
+    console.log("\n--- Data Updater Final Summary ---");
+    console.table(results.map(r => ({
+      Operation: r.operation,
+      Success: r.success ? '✅' : '❌',
+      'Items Processed': r.itemsProcessed || 'N/A',
+      'Duration (s)': r.duration,
+      Error: r.error || 'None',
+    })));
+    console.log("------------------------------------\n");
+
     // Always update timestamp to prevent rate limit spiral
     // Even if operations fail, we don't want to retry immediately
     await updateTimestamp(results);
@@ -220,6 +231,13 @@ if (testLimitArg) {
     const githubResult = results.find((r) => r.operation === "github-activity");
     if (githubResult && !githubResult.success && githubResult.error?.includes("rate")) {
       logger.warn("[DataUpdaterCLI] GitHub activity failed due to rate limiting. Will retry after cooldown period.");
+    }
+
+    // Check for any failures and exit with a non-zero code
+    const hasFailures = results.some(r => !r.success);
+    if (hasFailures) {
+      logger.error("[DataUpdaterCLI] One or more operations failed. Exiting with status 1.");
+      process.exit(1);
     }
 
     // Explicitly exit to prevent hanging due to active timers/intervals
