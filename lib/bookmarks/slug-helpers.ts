@@ -6,11 +6,17 @@
  */
 
 import { loadSlugMapping, generateSlugMapping, getSlugForBookmark, saveSlugMapping } from "./slug-manager";
-import type { UnifiedBookmark, BookmarkSlugMapping } from "@/types";
+import type { UnifiedBookmark } from "@/types";
+import type { CachedSlugMapping } from "@/types/cache";
 import logger from "@/lib/utils/logger";
 
-// Cache the slug mapping in memory for the process lifetime (reset on updates/tests)
-let cachedMapping: BookmarkSlugMapping | null = null;
+// Cache the slug mapping with TTL for automatic invalidation
+let cachedMapping: CachedSlugMapping | null = null;
+
+// Import cache TTL from configuration
+import { getSlugCacheTTL } from "@/config/related-content.config";
+
+const CACHE_TTL_MS = getSlugCacheTTL();
 
 /**
  * Get the slug for a bookmark, using pre-computed mappings for hydration safety
@@ -20,9 +26,15 @@ let cachedMapping: BookmarkSlugMapping | null = null;
  * @returns The slug for the bookmark, or null if not found
  */
 export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: UnifiedBookmark[]): Promise<string | null> {
-  // Try to use cached mapping first
+  // Try to use cached mapping first (check TTL)
   if (cachedMapping) {
-    return getSlugForBookmark(cachedMapping, bookmarkId);
+    const age = Date.now() - cachedMapping.timestamp;
+    if (age < CACHE_TTL_MS) {
+      return getSlugForBookmark(cachedMapping.data, bookmarkId);
+    } else {
+      // Cache expired, clear it
+      cachedMapping = null;
+    }
   }
 
   // Load the mapping from S3
@@ -34,7 +46,15 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
     try {
       await saveSlugMapping(bookmarks);
     } catch (error) {
-      logger.error("Failed to save generated slug mapping in getSafeBookmarkSlug", { error });
+      // Log the error with critical level since this affects navigation
+      logger.error("[CRITICAL] Failed to save slug mapping - bookmark navigation may fail", { 
+        error,
+        bookmarkId,
+        bookmarkCount: bookmarks.length 
+      });
+      // Still return the generated mapping for this request, but don't cache it
+      // since it wasn't persisted. This allows the current request to succeed.
+      return getSlugForBookmark(mapping, bookmarkId);
     }
   }
 
@@ -43,10 +63,15 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
     return null;
   }
 
-  // Cache for subsequent calls in this request
-  cachedMapping = mapping;
+  // Cache for subsequent calls with timestamp
+  if (mapping) {
+    cachedMapping = {
+      data: mapping,
+      timestamp: Date.now()
+    };
+  }
 
-  return getSlugForBookmark(mapping, bookmarkId);
+  return mapping ? getSlugForBookmark(mapping, bookmarkId) : null;
 }
 
 /**
@@ -58,6 +83,24 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
 export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promise<Map<string, string>> {
   const slugMap = new Map<string, string>();
 
+  // Check cache first (with TTL)
+  if (cachedMapping) {
+    const age = Date.now() - cachedMapping.timestamp;
+    if (age < CACHE_TTL_MS) {
+      // Use cached mapping
+      for (const bookmark of bookmarks) {
+        const slug = getSlugForBookmark(cachedMapping.data, bookmark.id);
+        if (slug) {
+          slugMap.set(bookmark.id, slug);
+        }
+      }
+      return slugMap;
+    } else {
+      // Cache expired
+      cachedMapping = null;
+    }
+  }
+
   // Load or generate the mapping
   let mapping = await loadSlugMapping();
   if (!mapping) {
@@ -65,12 +108,22 @@ export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promis
     try {
       await saveSlugMapping(bookmarks);
     } catch (error) {
-      logger.error("Failed to save generated slug mapping in getBulkBookmarkSlugs", { error });
+      // Log critical error but don't fail the request
+      logger.error("[CRITICAL] Failed to save bulk slug mapping - using in-memory mapping", { 
+        error,
+        bookmarkCount: bookmarks.length 
+      });
+      // Continue with the generated mapping even if save failed
     }
   }
 
-  // Cache for subsequent calls
-  cachedMapping = mapping;
+  // Cache for subsequent calls with timestamp
+  if (mapping) {
+    cachedMapping = {
+      data: mapping,
+      timestamp: Date.now()
+    };
+  }
 
   // Build the map
   for (const bookmark of bookmarks) {
