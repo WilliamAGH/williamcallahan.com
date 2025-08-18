@@ -235,11 +235,6 @@ export const stripImageData = (b: UnifiedBookmark): LightweightBookmark => {
           publisher: b.content.publisher,
           datePublished: b.content.datePublished,
           dateModified: b.content.dateModified,
-          // Strip only the heavy image fields
-          imageUrl: undefined,
-          imageAssetId: undefined,
-          htmlContent: undefined,
-          crawledAt: undefined,
         }
       : undefined,
     ogImageExternal: undefined,
