@@ -22,6 +22,13 @@ import type { Project } from "@/types/project";
 
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
+class MissingSlugError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MissingSlugError";
+  }
+}
+
 /**
  * Parse date string to Date object
  */
@@ -70,8 +77,8 @@ function normalizeBookmark(bookmark: UnifiedBookmark, slugMap?: Map<string, stri
   // Get slug from mapping - REQUIRED for idempotency
   const slug = slugMap?.get(bookmark.id);
   if (!slug) {
-    throw new Error(
-      `[ContentAggregator] CRITICAL: No slug found for bookmark ${bookmark.id}. ` +
+    throw new MissingSlugError(
+      `[ContentAggregator] No slug found for bookmark ${bookmark.id}. ` +
         `Title: ${title}, URL: ${bookmark.url}. ` +
         `Slug mappings must be loaded before aggregating content.`,
     );
@@ -157,11 +164,12 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
   // Deduplicate and normalize tags to lowercase for consistent similarity
   const enhancedTags = Array.from(new Set([...tags, ...keywords].map((t) => t.toLowerCase().trim())));
 
+  const text = typeof investment.description === "string" ? investment.description.slice(0, 1000) : "";
   return {
     id: investment.id,
     type: "investment",
     title: investment.name,
-    text: investment.description,
+    text,
     tags: enhancedTags,
     url: `/investments#${investment.id}`,
     domain: extractDomain(investment.website || ""),
@@ -208,7 +216,7 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
   try {
     // Fetch all content in parallel (best-effort with Promise.allSettled)
     const [bookmarksRes, blogPostsRes] = await Promise.allSettled([
-      getBookmarks({ includeImageData: true }),
+      getBookmarks({ includeImageData: false }),
       getAllPosts(),
     ]);
 
@@ -234,12 +242,9 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
           try {
             normalized.push(normalizeBookmark(bookmark, slugMap));
           } catch (error) {
-            // Skip critical slug errors instead of throwing
-            if (error instanceof Error && error.message.includes("CRITICAL")) {
-              console.error(
-                `Skipping bookmark ${bookmark.id} due to critical slug issue:`,
-                error.message,
-              );
+            // Skip missing slug errors instead of throwing
+            if (error instanceof MissingSlugError) {
+              console.error(`Skipping bookmark ${bookmark.id} due to missing slug: ${error.message}`);
               return;
             }
             console.error(`Failed to normalize bookmark ${bookmark.id}:`, error);
@@ -286,11 +291,13 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
       }
     });
 
-    // Cache the results
-    ServerCacheInstance.setAggregatedContent?.call(ServerCacheInstance, {
-      data: normalized,
-      timestamp: Date.now(),
-    });
+    // Cache the results (avoid locking in empty arrays on transient failures)
+    if (normalized.length > 0) {
+      ServerCacheInstance.setAggregatedContent?.call(ServerCacheInstance, {
+        data: normalized,
+        timestamp: Date.now(),
+      });
+    }
 
     return normalized;
   } catch (error) {
@@ -316,15 +323,11 @@ export function filterByTypes<T extends NormalizedContent>(
   includeTypes?: RelatedContentType[],
   excludeTypes?: RelatedContentType[],
 ): T[] {
-  let filtered = content;
-
-  if (includeTypes && includeTypes.length > 0) {
-    filtered = filtered.filter((item) => includeTypes.includes(item.type));
-  }
-
-  if (excludeTypes && excludeTypes.length > 0) {
-    filtered = filtered.filter((item) => !excludeTypes.includes(item.type));
-  }
-
-  return filtered;
+  const include = includeTypes && includeTypes.length > 0 ? new Set(includeTypes) : undefined;
+  const exclude = excludeTypes && excludeTypes.length > 0 ? new Set(excludeTypes) : undefined;
+  return content.filter((item) => {
+    if (include && !include.has(item.type)) return false;
+    if (exclude?.has(item.type)) return false;
+    return true;
+  });
 }

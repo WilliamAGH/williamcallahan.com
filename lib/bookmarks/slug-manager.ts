@@ -11,8 +11,8 @@ import { readJsonS3, writeJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import logger from "@/lib/utils/logger";
 import { createHash } from "node:crypto";
-import { promises as fs } from "fs";
-import path from "path";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
 const LOCAL_SLUG_MAPPING_PATH = path.join(process.cwd(), "lib", "data", "slug-mapping.json");
 
@@ -187,13 +187,13 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
   try {
     const localData = await fs.readFile(LOCAL_SLUG_MAPPING_PATH, "utf-8");
     const mapping = JSON.parse(localData) as BookmarkSlugMapping;
-    if (mapping && mapping.slugs) {
+    if (mapping?.slugs) {
       logger.info(`[SlugManager] Successfully loaded slug mapping from local cache: ${LOCAL_SLUG_MAPPING_PATH}`);
       return mapping;
     }
   } catch (error) {
     // This is not a critical error, just means we need to fetch from S3
-    logger.warn(`[SlugManager] Local slug mapping cache not found or invalid, proceeding to S3. Error: ${error}`);
+    logger.warn(`[SlugManager] Local slug mapping cache not found or invalid, proceeding to S3. Error: ${String(error)}`);
   }
 
   // --- 2. Fallback to S3 ---
@@ -263,6 +263,36 @@ export function getSlugForBookmark(mapping: BookmarkSlugMapping, bookmarkId: str
  */
 export function getBookmarkIdFromSlug(mapping: BookmarkSlugMapping, slug: string): string | null {
   return mapping.reverseMap[slug] || null;
+}
+
+/**
+ * Get a bookmark by its slug
+ * Returns the bookmark data if found, null otherwise
+ */
+export async function getBookmarkBySlug(slug: string): Promise<UnifiedBookmark | null> {
+  const mapping = await loadSlugMapping();
+  if (!mapping) {
+    logger.error("[SlugManager] Failed to load slug mapping");
+    return null;
+  }
+
+  const bookmarkId = getBookmarkIdFromSlug(mapping, slug);
+  if (!bookmarkId) {
+    logger.warn(`[SlugManager] No bookmark found for slug: ${slug}`);
+    return null;
+  }
+
+  // Import here to avoid circular dependency
+  const { getBookmarks } = await import("@/lib/bookmarks/bookmarks-data-access.server");
+  const bookmarks = await getBookmarks({ skipExternalFetch: true });
+  
+  const bookmark = bookmarks.find((b) => b.id === bookmarkId);
+  if (!bookmark) {
+    logger.warn(`[SlugManager] Bookmark with ID ${bookmarkId} not found in bookmarks data`);
+    return null;
+  }
+
+  return bookmark;
 }
 
 /**

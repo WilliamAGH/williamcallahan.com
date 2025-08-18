@@ -17,8 +17,8 @@ import {
 import { saveSlugMapping, generateSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { USE_NEXTJS_CACHE, withCacheFallback } from "@/lib/cache";
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag, revalidateTag } from "next/cache";
-import { promises as fs } from "fs";
-import path from "path";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
 const LOCAL_BOOKMARKS_PATH = path.join(process.cwd(), "lib", "data", "bookmarks.json");
 
@@ -611,7 +611,7 @@ async function fetchAndCacheBookmarks(
       return bookmarks.map(normalizeBookmarkTags);
     }
   } catch (error) {
-    console.warn(`[Bookmarks] Local bookmarks cache not found or invalid, proceeding to S3. Error: ${error}`);
+    console.warn(`[Bookmarks] Local bookmarks cache not found or invalid, proceeding to S3. Error: ${String(error)}`);
   }
 
   // --- 2. Fallback to S3 ---
