@@ -8,9 +8,7 @@ import { join } from "node:path";
 
 describe("Dotenv v17 Compatibility Test", () => {
   it("should use consistent dotenv import pattern across all scripts", () => {
-    const scriptsToCheck = [
-      "scripts/submit-sitemap.ts",
-    ];
+    const scriptsToCheck = ["scripts/submit-sitemap.ts"];
 
     const results: Record<string, string> = {};
 

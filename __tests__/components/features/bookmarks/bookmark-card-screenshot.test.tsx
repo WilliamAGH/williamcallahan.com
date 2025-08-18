@@ -53,22 +53,22 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
   it("should use screenshotAssetId for image fallback when no ogImage is available", () => {
     // Mock getAssetUrl to return a predictable asset URL
     (getAssetUrl as jest.Mock).mockReturnValue("/api/assets/test-screenshot-asset-id");
-    
+
     const { container } = render(<BookmarkCardClient {...mockBookmark} />);
-    
+
     // Check that the component renders without errors
     expect(screen.getByText("Test Bookmark")).toBeInTheDocument();
     expect(screen.getByText("This is a test bookmark")).toBeInTheDocument();
-    
+
     // Check that the screenshot asset ID is used for image fallback
     const images = container.querySelectorAll("img");
-    const logoImage = Array.from(images).find(img => img.dataset.testid === "logo-image");
-    
+    const logoImage = Array.from(images).find((img) => img.dataset.testid === "logo-image");
+
     if (logoImage) {
       // If we have a logo image element, verify it uses the screenshot asset URL
       expect(logoImage.getAttribute("src")).toBe("/api/assets/test-screenshot-asset-id");
     }
-    
+
     // The component should successfully render even when no image is found
     expect(container.querySelector(".relative.flex.flex-col")).toBeInTheDocument();
   });
@@ -81,13 +81,13 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
         screenshotAssetId: undefined,
       },
     };
-    
+
     const { container } = render(<BookmarkCardClient {...bookmarkWithoutScreenshot} />);
-    
+
     // Should still render the card even without screenshotAssetId
     expect(screen.getByText("Test Bookmark")).toBeInTheDocument();
     expect(screen.getByText("This is a test bookmark")).toBeInTheDocument();
-    
+
     // Should have the main card structure
     expect(container.querySelector(".relative.flex.flex-col")).toBeInTheDocument();
   });
@@ -95,7 +95,7 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
   it("should preserve screenshotAssetId in LightweightBookmark structure", () => {
     // This test verifies that the LightweightBookmark type properly preserves
     // screenshotAssetId even when other image fields are stripped
-    
+
     const lightweightBookmark = {
       ...mockBookmark,
       ogImage: undefined, // This field gets stripped in LightweightBookmark
@@ -116,20 +116,20 @@ describe("BookmarkCardClient screenshotAssetId handling", () => {
         crawledAt: undefined,
       },
     };
-    
+
     // Mock getAssetUrl to return a predictable asset URL
     (getAssetUrl as jest.Mock).mockReturnValue("/api/assets/test-screenshot-asset-id");
-    
+
     const { container } = render(<BookmarkCardClient {...lightweightBookmark} />);
-    
+
     // Verify the component renders correctly with the LightweightBookmark structure
     expect(screen.getByText("Test Bookmark")).toBeInTheDocument();
     expect(screen.getByText("This is a test bookmark")).toBeInTheDocument();
-    
+
     // Check that screenshotAssetId is still accessible and used
     const images = container.querySelectorAll("img");
-    const logoImage = Array.from(images).find(img => img.dataset.testid === "logo-image");
-    
+    const logoImage = Array.from(images).find((img) => img.dataset.testid === "logo-image");
+
     if (logoImage) {
       expect(logoImage.getAttribute("src")).toBe("/api/assets/test-screenshot-asset-id");
     }
