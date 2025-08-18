@@ -115,20 +115,18 @@ export function getS3Client(): S3Client | null {
       retryMode: "adaptive" as const,
     };
     s3ClientInstance = endpoint ? new S3Client({ ...baseConfig, endpoint }) : new S3Client(baseConfig);
+    // Structured, one-line init summary for diagnostics
     console.log(
-      `[S3Utils] S3 client initialized: ` +
-        `bucket=${bucket}, ` +
-        `endpoint=${endpoint || "SDK default"}, ` +
-        `region=${region}`,
+      `[S3Utils] S3 client initialized | bucket=${bucket} | endpoint=${endpoint || "SDK default"} | region=${region}`,
     );
     if (isDebug)
       debug(`[S3Utils] S3-compatible client initialized (${endpoint ? "custom endpoint" : "sdk default endpoint"}).`);
   } else {
     console.error(
-      `[S3Utils] CRITICAL: S3 client not initialized - missing envs: ` +
-        `S3_BUCKET=${bucket ? "set" : "MISSING"}, ` +
-        `S3_SERVER_URL=${endpoint ? "set" : "not required"}, ` +
-        `S3_ACCESS_KEY_ID=${accessKeyId ? "set" : "MISSING"}, ` +
+      `[S3Utils] CRITICAL: S3 client not initialized | ` +
+        `S3_BUCKET=${bucket ? "set" : "MISSING"} | ` +
+        `S3_SERVER_URL=${endpoint ? "set" : "not required"} | ` +
+        `S3_ACCESS_KEY_ID=${accessKeyId ? "set" : "MISSING"} | ` +
         `S3_SECRET_ACCESS_KEY=${secretAccessKey ? "set" : "MISSING"}`,
     );
   }
@@ -353,7 +351,7 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
         );
       return null; // Should not happen if Body is present and Readable
     } catch (error: unknown) {
-      const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+      const err = error as { name?: string; $metadata?: { httpStatusCode?: number }; Code?: string };
       if (err.name === "NotFound" || err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
         if (isDebug) debug(`[S3Utils] readFromS3: Key ${key} not found (attempt ${attempt}/${MAX_S3_READ_RETRIES}).`);
         if (attempt < MAX_S3_READ_RETRIES) {
@@ -372,7 +370,11 @@ async function performS3Read(key: string, options?: { range?: string }): Promise
         return null; // All retries failed
       }
       const message = err instanceof Error ? err.message : safeJsonStringify(err) || "Unknown error";
-      console.error(`[S3Utils] Error reading from S3 key ${key} (attempt ${attempt}/${MAX_S3_READ_RETRIES}):`, message);
+      const code = err.Code ?? err.name ?? "unknown";
+      const status = err.$metadata?.httpStatusCode ?? "unknown";
+      console.error(
+        `[S3Utils] Error reading from S3 | key=${key} | attempt=${attempt}/${MAX_S3_READ_RETRIES} | status=${status} | code=${code} | msg=${message}`,
+      );
       return null;
     }
   }
