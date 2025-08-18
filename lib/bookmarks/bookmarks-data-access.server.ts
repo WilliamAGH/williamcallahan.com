@@ -352,10 +352,13 @@ async function writeTagFilteredBookmarks(bookmarks: UnifiedBookmark[]): Promise<
     await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_INDEX_PREFIX}${tagSlug}/index.json`, tagIndex);
     for (let page = 1; page <= totalPages; page++) {
       const start = (page - 1) * pageSize;
-      const slice = tagBookmarks.slice(start, start + pageSize).map((b) => ({
-        ...b,
-        slug: mapping.slugs[b.id]?.slug ?? "",
-      }));
+      const slice = tagBookmarks.slice(start, start + pageSize).map((b) => {
+        const entry = mapping.slugs[b.id];
+        if (!entry) {
+          throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (tag=${tagSlug})`);
+        }
+        return { ...b, slug: entry.slug };
+      });
       await writeJsonS3(`${BOOKMARKS_S3_PATHS.TAG_PREFIX}${tagSlug}/page-${page}.json`, slice);
     }
   }
@@ -400,10 +403,13 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
 
       // Ensure bookmarks file exists with full content data
       const mapping = generateSlugMapping(allIncomingBookmarks);
-      const bookmarksWithSlugs = allIncomingBookmarks.map((b) => ({
-        ...b,
-        slug: mapping.slugs[b.id]?.slug ?? "",
-      }));
+      const bookmarksWithSlugs = allIncomingBookmarks.map((b) => {
+        const entry = mapping.slugs[b.id];
+        if (!entry) {
+          throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (no-change FILE)`);
+        }
+        return { ...b, slug: entry.slug };
+      });
       await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
 
       // --- START LOCAL CACHE WRITE ---
@@ -421,10 +427,13 @@ async function selectiveRefreshAndPersistBookmarks(): Promise<UnifiedBookmark[] 
     console.log(`${LOG_PREFIX} Changes detected, persisting bookmarks`);
     const mapping = await writePaginatedBookmarks(allIncomingBookmarks);
     {
-      const bookmarksWithSlugs = allIncomingBookmarks.map((b) => ({
-        ...b,
-        slug: mapping.slugs[b.id]?.slug ?? "",
-      }));
+      const bookmarksWithSlugs = allIncomingBookmarks.map((b) => {
+        const entry = mapping.slugs[b.id];
+        if (!entry) {
+          throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (change FILE)`);
+        }
+        return { ...b, slug: entry.slug };
+      });
       await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
 
       // --- START LOCAL CACHE WRITE ---
@@ -463,10 +472,13 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
               console.log(`${LOG_PREFIX} ${force ? "Forcing write" : "Changes detected"}, writing to S3`);
               const mapping = await writePaginatedBookmarks(freshBookmarks);
               {
-                const bookmarksWithSlugs = freshBookmarks.map((b) => ({
-                  ...b,
-                  slug: mapping.slugs[b.id]?.slug ?? "",
-                }));
+                const bookmarksWithSlugs = freshBookmarks.map((b) => {
+                  const entry = mapping.slugs[b.id];
+                  if (!entry) {
+                    throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (force FILE)`);
+                  }
+                  return { ...b, slug: entry.slug };
+                });
                 await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
               }
               await writeTagFilteredBookmarks(freshBookmarks);
@@ -500,10 +512,13 @@ export function refreshAndPersistBookmarks(force = false): Promise<UnifiedBookma
 
               // Generate mapping for use in bookmarks (but don't save it again)
               const mapping = generateSlugMapping(freshBookmarks);
-              const bookmarksWithSlugs = freshBookmarks.map((b) => ({
-                ...b,
-                slug: mapping.slugs[b.id]?.slug ?? "",
-              }));
+              const bookmarksWithSlugs = freshBookmarks.map((b) => {
+                const entry = mapping.slugs[b.id];
+                if (!entry) {
+                  throw new Error(`${LOG_PREFIX} Missing slug mapping for bookmark id=${b.id} (non-selective FILE)`);
+                }
+                return { ...b, slug: entry.slug };
+              });
               await writeJsonS3(BOOKMARKS_S3_PATHS.FILE, bookmarksWithSlugs);
 
               // --- START LOCAL CACHE WRITE ---
@@ -604,7 +619,12 @@ async function fetchAndCacheBookmarks(
   try {
     const localData = await fs.readFile(LOCAL_BOOKMARKS_PATH, "utf-8");
     const bookmarks = JSON.parse(localData) as UnifiedBookmark[];
-    if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
+    
+    // Skip local cache if it only contains test data
+    const isTestData = bookmarks.length === 1 && bookmarks[0]?.id === "test-1";
+    if (isTestData) {
+      console.log(`${LOG_PREFIX} Local cache contains only test data, skipping to S3`);
+    } else if (bookmarks && Array.isArray(bookmarks) && bookmarks.length > 0) {
       console.log(`${LOG_PREFIX} Successfully loaded ${bookmarks.length} bookmarks from local cache: ${LOCAL_BOOKMARKS_PATH}`);
       if (!includeImageData) {
         console.log(`${LOG_PREFIX} Stripping image data from ${bookmarks.length} bookmarks`);

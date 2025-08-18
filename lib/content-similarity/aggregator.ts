@@ -208,7 +208,7 @@ function normalizeProject(project: Project): NormalizedContent {
  */
 export async function aggregateAllContent(): Promise<NormalizedContent[]> {
   // Check cache first
-  const cached = ServerCacheInstance.getAggregatedContent?.call(ServerCacheInstance);
+  const cached = ServerCacheInstance.getAggregatedContent?.();
   if (cached && cached.timestamp > Date.now() - CACHE_TTL) {
     return cached.data;
   }
@@ -293,7 +293,7 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
 
     // Cache the results (avoid locking in empty arrays on transient failures)
     if (normalized.length > 0) {
-      ServerCacheInstance.setAggregatedContent?.call(ServerCacheInstance, {
+      ServerCacheInstance.setAggregatedContent?.({
         data: normalized,
         timestamp: Date.now(),
       });
