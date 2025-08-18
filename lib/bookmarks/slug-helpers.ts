@@ -90,13 +90,6 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
     };
   }
 
-  // Prefer embedded slug if available on the specific item
-  if (bookmarks) {
-    const found = bookmarks.find((b) => b.id === bookmarkId);
-    const embeddedSlug = tryGetEmbeddedSlug(found);
-    if (embeddedSlug) return embeddedSlug;
-  }
-
   return mapping ? getSlugForBookmark(mapping, bookmarkId) : null;
 }
 
