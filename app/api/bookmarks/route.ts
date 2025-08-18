@@ -12,6 +12,7 @@ import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
 import { type NextRequest, NextResponse } from "next/server";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
+import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
 
 // This route can leverage the caching within getBookmarks
 export const dynamic = "force-dynamic";
@@ -55,8 +56,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           const slugMapping = await loadSlugMapping();
           const internalHrefs: Record<string, string> = {};
           for (const bookmark of paginatedBookmarks) {
-            const embeddedSlug = (bookmark as unknown as { slug?: string }).slug;
-            if (embeddedSlug && typeof embeddedSlug === "string") {
+            const embeddedSlug = tryGetEmbeddedSlug(bookmark);
+            if (embeddedSlug) {
               internalHrefs[bookmark.id] = `/bookmarks/${embeddedSlug}`;
               continue;
             }
@@ -148,8 +149,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const slugMapping = await loadSlugMapping();
     const internalHrefs: Record<string, string> = {};
     for (const bookmark of paginatedBookmarks) {
-      const embeddedSlug = (bookmark as unknown as { slug?: string }).slug;
-      if (embeddedSlug && typeof embeddedSlug === "string") {
+      const embeddedSlug = tryGetEmbeddedSlug(bookmark);
+      if (embeddedSlug) {
         internalHrefs[bookmark.id] = `/bookmarks/${embeddedSlug}`;
         continue;
       }
