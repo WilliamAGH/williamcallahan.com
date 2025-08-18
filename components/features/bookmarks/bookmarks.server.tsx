@@ -3,7 +3,7 @@
  * @module components/features/bookmarks/bookmarks.server
  * @description
  * Server component that fetches and processes bookmarks data for client consumption.
- * 
+ *
  * This component handles the conversion between UnifiedBookmark and SerializableBookmark formats,
  * using standardized utility functions from '@/lib/bookmarks/utils' to ensure consistency.
  * When includeImageData is false, it uses stripImageData() to create LightweightBookmark structures
@@ -125,7 +125,7 @@ export async function BookmarksServer({
   // Using standardized utility functions to ensure consistency
   const normalizeFunc = await normalizeBookmarkTag();
   const stripImageDataFunc = await stripImageData();
-  
+
   const serializableBookmarks: SerializableBookmark[] = bookmarks.map((bookmark) => {
     // When includeImageData is false, use the standardized stripImageData utility
     if (!includeImageData) {
@@ -152,7 +152,7 @@ export async function BookmarksServer({
         ogImageExternal: undefined,
       };
     }
-    
+
     // When includeImageData is true, use full data conversion
     return {
       id: bookmark.id,
