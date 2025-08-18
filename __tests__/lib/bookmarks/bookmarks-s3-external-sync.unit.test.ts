@@ -81,12 +81,38 @@ describe("Unit: Bookmarks S3 vs External API Sync Logic", () => {
     global.fetch = mockFetch as typeof fetch;
 
     // Mock a successful response for the bookmarks API
-    const mockBookmarks = [{ id: "1", title: "Test Bookmark" }];
+    const mockBookmarks = [
+      {
+        id: "1",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        modifiedAt: "2024-01-01T00:00:00.000Z",
+        title: "Test Bookmark",
+        archived: false,
+        favourited: false,
+        taggingStatus: "user",
+        note: null,
+        summary: null,
+        tags: [
+          {
+            id: "t1",
+            name: "Test",
+            attachedBy: "user",
+          },
+        ],
+        content: {
+          type: "link",
+          url: "https://example.com",
+          title: "Test Bookmark",
+          description: "Example description",
+        },
+        assets: [],
+      },
+    ];
     const mockResponse = {
       ok: true,
       status: 200,
-      json: jest.fn().mockResolvedValue({ bookmarks: mockBookmarks, next_cursor: null }),
-      text: jest.fn().mockResolvedValue(JSON.stringify({ bookmarks: mockBookmarks, next_cursor: null })),
+      json: jest.fn().mockResolvedValue({ bookmarks: mockBookmarks, nextCursor: null }),
+      text: jest.fn().mockResolvedValue(JSON.stringify({ bookmarks: mockBookmarks, nextCursor: null })),
       headers: new Map([["content-type", "application/json"]]),
     };
     mockFetchImplementation.mockResolvedValue(mockResponse);
