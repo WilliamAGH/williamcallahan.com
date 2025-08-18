@@ -56,15 +56,23 @@ function normalizeBookmark(bookmark: UnifiedBookmark, slugMap?: Map<string, stri
   // Build text content for similarity matching
   const textParts = [bookmark.description, bookmark.note, bookmark.summary, bookmark.ogDescription].filter(Boolean);
 
-  const text = textParts.join(" ");
+  const text = textParts.join(" ").slice(0, 1000); // Cap at 1000 chars to avoid bloated vectors
   const title = bookmark.title || "Untitled";
 
   // Extract keywords to supplement tags
   const keywords = extractKeywords(title, text, tags, 8);
-  const enhancedTags = [...tags, ...keywords];
+  // Deduplicate and normalize tags to lowercase for consistent similarity
+  const enhancedTags = Array.from(new Set([...tags, ...keywords].map((t) => t.toLowerCase().trim())));
 
-  // Use the actual slug if available, otherwise keep the ID as fallback
-  const slug = slugMap?.get(bookmark.id) || bookmark.id;
+  // Get slug from mapping - REQUIRED for idempotency
+  const slug = slugMap?.get(bookmark.id);
+  if (!slug) {
+    throw new Error(
+      `[ContentAggregator] CRITICAL: No slug found for bookmark ${bookmark.id}. ` +
+      `Title: ${title}, URL: ${bookmark.url}. ` +
+      `Slug mappings must be loaded before aggregating content.`
+    );
+  }
   
   return {
     id: bookmark.id,
@@ -89,12 +97,13 @@ function normalizeBlogPost(post: BlogPost): NormalizedContent {
     post.rawContent?.slice(0, 500), // Use first 500 chars of raw content
   ].filter(Boolean);
 
-  const text = textParts.join(" ");
+  const text = textParts.join(" ").slice(0, 1000); // Cap at 1000 chars to avoid bloated vectors
   const tags = post.tags || [];
 
   // Extract keywords to supplement tags
   const keywords = extractKeywords(post.title, text, tags, 8);
-  const enhancedTags = [...tags, ...keywords];
+  // Deduplicate and normalize tags to lowercase for consistent similarity
+  const enhancedTags = Array.from(new Set([...tags, ...keywords].map((t) => t.toLowerCase().trim())));
 
   return {
     id: post.id,
@@ -142,10 +151,8 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
     investment.stage,
   );
 
-  // Combine tags with keywords
-  const enhancedTags = [...tags, ...keywords].filter(
-    (tag, index, self) => self.indexOf(tag) === index, // Remove duplicates
-  );
+  // Deduplicate and normalize tags to lowercase for consistent similarity
+  const enhancedTags = Array.from(new Set([...tags, ...keywords].map((t) => t.toLowerCase().trim())));
 
   return {
     id: investment.id,
@@ -164,12 +171,13 @@ function normalizeInvestment(investment: Investment): NormalizedContent {
  * Normalize a project for similarity comparison
  */
 function normalizeProject(project: Project): NormalizedContent {
-  const text = `${project.description} ${project.shortSummary}`;
+  const text = `${project.description} ${project.shortSummary}`.slice(0, 1000); // Cap at 1000 chars
   const tags = project.tags || [];
 
   // Extract keywords to supplement tags
   const keywords = extractKeywords(project.name, text, tags, 8);
-  const enhancedTags = [...tags, ...keywords];
+  // Deduplicate and normalize tags to lowercase for consistent similarity
+  const enhancedTags = Array.from(new Set([...tags, ...keywords].map((t) => t.toLowerCase().trim())));
 
   return {
     id: project.id || project.name,
@@ -189,12 +197,9 @@ function normalizeProject(project: Project): NormalizedContent {
  */
 export async function aggregateAllContent(): Promise<NormalizedContent[]> {
   // Check cache first
-  const getAggregatedContent = ServerCacheInstance.getAggregatedContent;
-  if (getAggregatedContent && typeof getAggregatedContent === "function") {
-    const cached = getAggregatedContent.call(ServerCacheInstance);
-    if (cached && cached.timestamp > Date.now() - CACHE_TTL) {
-      return cached.data;
-    }
+  const cached = ServerCacheInstance.getAggregatedContent?.call(ServerCacheInstance);
+  if (cached && cached.timestamp > Date.now() - CACHE_TTL) {
+    return cached.data;
   }
 
   try {
@@ -215,6 +220,10 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
         try {
           normalized.push(normalizeBookmark(bookmark, slugMap));
         } catch (error) {
+          // Re-throw critical slug mapping errors
+          if (error instanceof Error && error.message.includes("CRITICAL")) {
+            throw error;
+          }
           console.error(`Failed to normalize bookmark ${bookmark.id}:`, error);
         }
       });
@@ -250,13 +259,10 @@ export async function aggregateAllContent(): Promise<NormalizedContent[]> {
     });
 
     // Cache the results
-    const setAggregatedContent = ServerCacheInstance.setAggregatedContent;
-    if (setAggregatedContent && typeof setAggregatedContent === "function") {
-      setAggregatedContent.call(ServerCacheInstance, {
-        data: normalized,
-        timestamp: Date.now(),
-      });
-    }
+    ServerCacheInstance.setAggregatedContent?.call(ServerCacheInstance, {
+      data: normalized,
+      timestamp: Date.now(),
+    });
 
     return normalized;
   } catch (error) {
