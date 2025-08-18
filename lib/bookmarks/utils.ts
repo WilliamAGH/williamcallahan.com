@@ -195,10 +195,26 @@ export const calculateBookmarksChecksum = (bookmarks: UnifiedBookmark[]): string
 export const stripImageData = (b: UnifiedBookmark): LightweightBookmark =>
   ({
     ...b,
-    content: undefined,
-    imageUrl: undefined,
-    imageAssetId: undefined,
-    screenshotAssetId: undefined,
+    content: b.content ? {
+      type: b.content.type,
+      url: b.content.url,
+      title: b.content.title,
+      description: b.content.description,
+      screenshotAssetId: b.content.screenshotAssetId,
+      favicon: b.content.favicon,
+      author: b.content.author,
+      publisher: b.content.publisher,
+      datePublished: b.content.datePublished,
+      dateModified: b.content.dateModified,
+      // Strip only the heavy image fields
+      imageUrl: undefined,
+      imageAssetId: undefined,
+      htmlContent: undefined,
+      crawledAt: undefined,
+    } : undefined,
+    ogImage: undefined,
+    ogImageExternal: undefined,
+    logoData: undefined,
     tags: ((b.tags ?? []) as (string | BookmarkTag)[])
       .filter((t) => t && (typeof t === "string" ? t.trim() : t.name?.trim()))
       .map(normalizeBookmarkTag),
