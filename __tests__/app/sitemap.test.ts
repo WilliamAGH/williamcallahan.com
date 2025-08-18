@@ -35,9 +35,11 @@ jest.mock("@/data/projects", () => ({
 
 // Provide a controllable mock for slug manager so sitemap bookmark processing proceeds
 const mockLoadSlugMapping = jest.fn();
+type TestSlugMapping = { slugs?: Record<string, { slug?: string }> } | null | undefined;
+const mockGetSlugForBookmark = jest.fn((mapping: TestSlugMapping, id: string) => mapping?.slugs?.[id]?.slug ?? null);
 jest.mock("@/lib/bookmarks/slug-manager", () => ({
   loadSlugMapping: () => mockLoadSlugMapping(),
-  getSlugForBookmark: (mapping: any, id: string) => mapping?.slugs?.[id]?.slug ?? null,
+  getSlugForBookmark: (mapping: TestSlugMapping, id: string) => mockGetSlugForBookmark(mapping, id),
 }));
 
 // Helper to build consistent slug-mapping payloads for tests

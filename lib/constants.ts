@@ -23,7 +23,7 @@ import { ENVIRONMENT_SUFFIX } from "@/lib/config/environment";
 const envSuffix = ENVIRONMENT_SUFFIX;
 
 // Warn if environment is not properly configured
-if (typeof process !== "undefined" && !process.env.NODE_ENV && process.env.NODE_ENV !== "production") {
+if (typeof process !== "undefined" && !process.env.NODE_ENV) {
   console.warn("[Constants] NODE_ENV not set - using environment suffix:", envSuffix);
 }
 
@@ -119,8 +119,14 @@ export const IMAGE_S3_PATHS = {
 export const BOOKMARKS_CACHE_DURATION = { SUCCESS: 7 * 24 * 60 * 60, FAILURE: 60 * 60, REVALIDATION: 60 * 60 };
 
 /** Bookmarks API configuration */
+// Normalize Karakeep API base URL: ensure it ends with /api/v1
+const RAW_BOOKMARKS_API = process.env.BOOKMARKS_API_URL ?? "https://bookmark.iocloudhost.net";
+const NORMALIZED_BOOKMARKS_API = /\/api(\/v\d+)?\/?$/.test(RAW_BOOKMARKS_API)
+  ? RAW_BOOKMARKS_API.replace(/\/?$/, "")
+  : `${RAW_BOOKMARKS_API.replace(/\/?$/, "")}/api/v1`;
+
 export const BOOKMARKS_API_CONFIG = {
-  API_URL: process.env.BOOKMARKS_API_URL ?? "https://bookmark.iocloudhost.net/api/v1",
+  API_URL: NORMALIZED_BOOKMARKS_API,
   LIST_ID: process.env.BOOKMARKS_LIST_ID,
   BEARER_TOKEN: process.env.BOOKMARK_BEARER_TOKEN,
   REQUEST_TIMEOUT_MS: 10_000,
