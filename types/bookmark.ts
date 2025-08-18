@@ -280,7 +280,10 @@ export const BookmarksApiResponseSchema = z.object({
 export { validateBookmarksDataset as validateBookmarkDataset } from "@/lib/validators/bookmarks";
 
 // Lightweight bookmark type that excludes heavy image data
-export type LightweightBookmark = Omit<UnifiedBookmark, "content" | "ogImage" | "logoData">;
+// BUT preserves content.screenshotAssetId since it's needed for fallback rendering
+export type LightweightBookmark = Omit<UnifiedBookmark, "ogImage" | "logoData"> & {
+  content?: Pick<BookmarkContent, "type" | "url" | "title" | "description" | "screenshotAssetId" | "favicon" | "author" | "publisher" | "datePublished" | "dateModified">;
+};
 
 /**
  * Persisted bookmark shapes written to S3. These extend existing shapes with a required slug field.
