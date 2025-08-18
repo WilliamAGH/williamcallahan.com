@@ -501,8 +501,8 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
               const internalHref = internalHrefs?.[bookmark.id];
               
               if (!internalHref) {
-                console.error(`[BookmarksWithOptions] WARNING: No slug mapping for bookmark ${bookmark.id}. This will cause 404s!`);
-                console.error(`[BookmarksWithOptions] bookmark.title: ${bookmark.title}, bookmark.url: ${bookmark.url}`);
+                console.warn(`[BookmarksWithOptions] No slug mapping for bookmark ${bookmark.id}. Falling back to external URL.`);
+                console.warn(`[BookmarksWithOptions] bookmark.title: ${bookmark.title}, bookmark.url: ${bookmark.url}`);
                 // We CANNOT generate a valid URL without the slug mapping
                 // Using the ID would cause a 404 error
                 // For now, link to the external URL as a fallback
