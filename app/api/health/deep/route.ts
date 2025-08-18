@@ -60,7 +60,12 @@ export async function GET() {
   logger.info('[Deep Health Check] Starting deep health check...');
   const checks: DeepCheckResult[] = [];
 
-  const { check: bookmarksCheck } = await measure('Bookmarks Critical Path', checkBookmarks);
+  const { result: bookmarksResult, check: wrapperCheck } = await measure(
+    'Bookmarks Critical Path',
+    checkBookmarks
+  );
+  // Use the actual inner result if available, otherwise fall back to the wrapper check
+  const bookmarksCheck = bookmarksResult ?? { ...wrapperCheck, status: 'error' as const };
   checks.push(bookmarksCheck);
 
   // Future checks for other critical paths (e.g., GitHub activity, Blog posts) can be added here.
