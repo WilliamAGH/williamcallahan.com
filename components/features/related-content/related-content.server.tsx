@@ -7,7 +7,7 @@
 
 import { getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { getLazyContentMap, getCachedAllContent } from "@/lib/content-similarity/cached-aggregator";
-import { findMostSimilar, groupByType, limitByTypeAndTotal } from "@/lib/content-similarity";
+import { findMostSimilar, limitByTypeAndTotal } from "@/lib/content-similarity";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { RelatedContentSection } from "./related-content-section";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";

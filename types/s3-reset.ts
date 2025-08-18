@@ -30,24 +30,24 @@ export interface AuditLog {
   success: boolean;
 }
 
-export type CategoryKey = 
-  | 'bookmarks' 
-  | 'github' 
-  | 'search' 
-  | 'content' 
-  | 'images' 
-  | 'opengraph' 
-  | 'ratelimit' 
-  | 'locks' 
-  | 'logos';
+export type CategoryKey =
+  | "bookmarks"
+  | "github"
+  | "search"
+  | "content"
+  | "images"
+  | "opengraph"
+  | "ratelimit"
+  | "locks"
+  | "logos";
 
-export type CategoryName = 
-  | 'Bookmarks' 
-  | 'GitHub Activity' 
-  | 'Search Indexes' 
-  | 'Content Graph' 
-  | 'Image Manifests' 
-  | 'OpenGraph' 
-  | 'Rate Limiting' 
-  | 'Locks' 
-  | 'Other';
+export type CategoryName =
+  | "Bookmarks"
+  | "GitHub Activity"
+  | "Search Indexes"
+  | "Content Graph"
+  | "Image Manifests"
+  | "OpenGraph"
+  | "Rate Limiting"
+  | "Locks"
+  | "Other";
