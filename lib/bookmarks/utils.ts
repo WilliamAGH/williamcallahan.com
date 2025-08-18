@@ -99,6 +99,7 @@ export function convertRawBookmarksToUnified(rawBookmarks: RawBookmark[]): Unifi
         url: bookmark.url,
         title: bookmark.title,
         description: bookmark.description || "",
+        slug: bookmark.slug, // REQUIRED field from RawBookmark
         tags: bookmark.tags || [],
         dateBookmarked: bookmark.dateBookmarked,
         dateCreated: bookmark.dateCreated,
@@ -161,8 +162,8 @@ export const convertBookmarksToSerializable = (bookmarks: UnifiedBookmark[]): Se
     url: b.url,
     title: b.title,
     description: b.description ?? "",
-    // Preserve embedded slug when available
-    slug: (b as { slug?: string })?.slug,
+    // REQUIRED: Preserve embedded slug (all bookmarks must have slugs)
+    slug: b.slug,
     tags: (b.tags || []).map((t) => normalizeBookmarkTag(t as string | BookmarkTag)),
     ogImage: b.ogImage,
     ogImageExternal: b.ogImageExternal,
@@ -239,10 +240,8 @@ export const stripImageData = (b: UnifiedBookmark): LightweightBookmark => {
       .map(normalizeBookmarkTag),
   };
 
-  // Explicitly preserve slug if it exists on the input
-  if ("slug" in b && typeof (b as UnifiedBookmark & { slug?: string }).slug === "string") {
-    (baseResult as LightweightBookmark & { slug?: string }).slug = (b as UnifiedBookmark & { slug?: string }).slug;
-  }
+  // Slug is REQUIRED in UnifiedBookmark, so it's always present
+  // No need for conditional checks - slug is guaranteed to exist
 
   return baseResult;
 };
