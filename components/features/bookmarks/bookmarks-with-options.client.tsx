@@ -43,7 +43,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
   const [isSearching, setIsSearching] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   // Store internal hrefs mapping (critical for preventing 404s)
-  const [internalHrefs, setInternalHrefs] = useState<Record<string, string> | undefined>(initialInternalHrefs);
+  const [internalHrefs, setInternalHrefs] = useState<Record<string, string>>(initialInternalHrefs ?? {});
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [dataSource, setDataSource] = useState<"server" | "client">("server");
   // Currently unused filter UI states - can be removed if the feature is not being developed
@@ -298,7 +298,14 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
         throw new Error(errorMessage);
       }
 
-      const result = (await response.json()) as import("@/types").RefreshResult;
+      const resultJson: unknown = await response.json();
+      function isRefreshResult(obj: unknown): obj is import("@/types").RefreshResult {
+        return !!obj && typeof obj === "object" && "status" in (obj as Record<string, unknown>);
+      }
+      if (!isRefreshResult(resultJson)) {
+        throw new Error("Unexpected response from refresh endpoint");
+      }
+      const result = resultJson;
       console.log("Bookmarks refresh result:", result);
 
       // If refresh was successful, fetch the new bookmarks
@@ -324,7 +331,7 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
           : Array.isArray((refreshedJson as { data?: UnifiedBookmark[] })?.data)
             ? (refreshedJson as { data: UnifiedBookmark[] }).data
             : [];
-        const refreshedInternalHrefs = !Array.isArray(refreshedJson) 
+        const refreshedInternalHrefs = !Array.isArray(refreshedJson)
           ? (refreshedJson as { internalHrefs?: Record<string, string> }).internalHrefs
           : undefined;
 
@@ -499,9 +506,11 @@ export const BookmarksWithOptions: React.FC<BookmarksWithOptionsClientProps> = (
               // Use pre-computed href from server if available
               // CRITICAL: Never fallback to using bookmark.id in the URL!
               const internalHref = internalHrefs?.[bookmark.id];
-              
+
               if (!internalHref) {
-                console.warn(`[BookmarksWithOptions] No slug mapping for bookmark ${bookmark.id}. Falling back to external URL.`);
+                console.warn(
+                  `[BookmarksWithOptions] No slug mapping for bookmark ${bookmark.id}. Falling back to external URL.`,
+                );
                 console.warn(`[BookmarksWithOptions] bookmark.title: ${bookmark.title}, bookmark.url: ${bookmark.url}`);
                 // We CANNOT generate a valid URL without the slug mapping
                 // Using the ID would cause a 404 error
