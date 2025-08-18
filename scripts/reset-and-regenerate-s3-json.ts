@@ -334,18 +334,18 @@ async function deleteJsonFiles(): Promise<DeletionStats> {
 
         // Check if file matches current environment suffix
         if (environment === "production") {
-          // In production, include files without suffix and with production suffix
+          // In production, include files that do NOT have -dev or -test anywhere in the path
           if (!file.includes("-dev") && !file.includes("-test")) {
             allFiles.add(file);
           }
-        } else if (environment === "development") {
-          // In development, only include -dev files
-          if (file.includes("-dev")) {
-            allFiles.add(file);
-          }
-        } else if (environment === "test") {
-          // In test, only include -test files
-          if (file.includes("-test")) {
+        } else {
+          // For dev/test, require either:
+          // - filename ends with the correct suffix (e.g., thing-dev.json), or
+          // - directory contains the suffix (e.g., content-graph-dev/thing.json)
+          const envSuffix = environment === "development" ? "-dev" : "-test";
+          const expectedEnding = `${envSuffix}.json`;
+          const expectedDir = `${envSuffix}/`;
+          if (file.endsWith(expectedEnding) || file.includes(expectedDir)) {
             allFiles.add(file);
           }
         }
@@ -559,7 +559,7 @@ async function regenerateData(): Promise<RegenerationStats> {
         forceRefresh: true,
       });
 
-      const githubOp = githubResult.find((r) => r.operation === "githubActivity");
+      const githubOp = githubResult.find((r) => r.operation === "github-activity");
       if (githubOp?.success) {
         stats.github = {
           success: true,
@@ -666,7 +666,8 @@ async function generateAuditReport(
     deletionStats,
     regenerationStats,
     duration,
-    success: deletionStats.failedFiles === 0 && Object.values(regenerationStats).every((stat) => stat.success),
+    success:
+      deletionStats.failedFiles === 0 && (isDryRun || Object.values(regenerationStats).every((stat) => stat.success)),
   };
 
   // Ensure audit directory exists
