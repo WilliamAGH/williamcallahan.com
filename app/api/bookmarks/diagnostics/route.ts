@@ -34,7 +34,7 @@ function isAuthorized(request: Request): boolean {
 
 async function tryReadJson<T>(key: string): Promise<{
   key: string;
-  exists: boolean;
+  exists: boolean; // Kept for backward-compatibility with current checks
   ok: boolean;
   details?: unknown;
   error?: string;
@@ -96,10 +96,17 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   // Compute health flags
   const datasetOk = fileRes.ok;
-  const indexOk = indexRes.ok && typeof totalPages === "number";
+  const indexOk = indexRes.ok && typeof indexRes.parsed?.totalPages === "number";
   const firstPageOk = page1Res.ok || totalPages === 0; // If no pages expected, don’t fail on page-1
   const extraPagesOk = extraPageChecks.every((r) => r.ok) || totalPages <= 1;
-  const slugMapOk = slugMapRes.ok && !!slugMapRes.parsed && typeof slugMapRes.parsed === "object" && !!slugMapRes.parsed.slugs;
+  const slugMapOk =
+    slugMapRes.ok &&
+    slugMapRes.parsed != null &&
+    typeof slugMapRes.parsed === "object" &&
+    "slugs" in (slugMapRes.parsed as Record<string, unknown>) &&
+    (slugMapRes.parsed as { slugs: unknown }).slugs != null &&
+    typeof (slugMapRes.parsed as { slugs: unknown }).slugs === "object" &&
+    !Array.isArray((slugMapRes.parsed as { slugs: unknown }).slugs);
 
   const health = {
     environment: {
@@ -137,5 +144,8 @@ export async function GET(request: Request): Promise<NextResponse> {
   };
 
   const allOk = datasetOk && indexOk && firstPageOk && extraPagesOk && slugMapOk;
-  return NextResponse.json({ status: allOk ? "ok" : "fail", ...health });
+  return NextResponse.json(
+    { status: allOk ? "ok" : "fail", ...health },
+    { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } },
+  );
 }
