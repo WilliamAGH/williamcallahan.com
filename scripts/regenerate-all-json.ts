@@ -16,10 +16,10 @@
  */
 
 import { DataFetchManager } from "@/lib/server/data-fetch-manager";
-import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
+import { loadSlugMapping, saveSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
 import { listS3Objects } from "@/lib/s3-utils";
-import type { UnifiedBookmark } from "@/types";
+import type { UnifiedBookmark } from "@/types/bookmark";
 
 // Set environment to ensure we're using the data updater flow
 process.env.IS_DATA_UPDATER = "true";
@@ -60,10 +60,22 @@ async function fetchAndSaveBookmarks() {
 
   console.log(`   ✅ Fetched ${bookmarksResult.itemsProcessed} bookmarks`);
 
-  // Verify slug mappings were created
-  const slugMapping = await loadSlugMapping();
+  // Verify slug mappings were created; if not, generate and save now
+  let slugMapping = await loadSlugMapping();
   if (!slugMapping) {
-    throw new Error("CRITICAL: Slug mappings were not created!");
+    console.warn("   ⚠️  No slug mapping found. Generating and saving now…");
+    const maybeBookmarks = await getBookmarks({
+      skipExternalFetch: false,
+      includeImageData: false,
+    });
+    if (!Array.isArray(maybeBookmarks)) {
+      throw new Error("CRITICAL: Invalid bookmarks payload while generating slug mappings");
+    }
+    await saveSlugMapping(maybeBookmarks as UnifiedBookmark[], true, false);
+    slugMapping = await loadSlugMapping();
+    if (!slugMapping) {
+      throw new Error("CRITICAL: Failed to create slug mappings after fetch.");
+    }
   }
 
   console.log(`   ✅ Slug mapping created with ${slugMapping.count} entries`);
@@ -78,10 +90,14 @@ async function validateSlugMappings() {
     throw new Error("No slug mapping found!");
   }
 
-  const bookmarks = (await getBookmarks({
+  const maybeBookmarks = await getBookmarks({
     skipExternalFetch: false,
     includeImageData: false,
-  })) as UnifiedBookmark[];
+  });
+  if (!Array.isArray(maybeBookmarks)) {
+    throw new Error("Bookmarks payload is invalid");
+  }
+  const bookmarks = maybeBookmarks as UnifiedBookmark[];
 
   // Check that every bookmark has a slug
   const missingSlugIds: string[] = [];
