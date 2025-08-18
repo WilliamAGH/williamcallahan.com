@@ -11,6 +11,7 @@ import type { UnifiedBookmark, LightweightBookmark } from "@/types";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import { stripImageData } from "../bookmarks/utils";
+import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 
 /**
  * Get minimal bookmark data for static site generation (sitemap, static params)
@@ -48,17 +49,30 @@ export async function getBookmarksForStaticBuildAsync(): Promise<LightweightBook
       return [];
     }
 
+    // Attempt to load precomputed slug mapping so we can include bookmarks that
+    // don’t yet have an embedded slug field in the persisted dataset. This keeps
+    // sitemap/static generation resilient during migrations.
+    const slugMapping = await loadSlugMapping().catch(() => null);
+
     // Validate that all bookmarks have required fields (id and slug)
-    const validBookmarks = bookmarks.filter(b => {
-      if (!b.id || !b.slug) {
-        console.error(
-          `[Static Build] CRITICAL: Bookmark missing required fields - ` +
-          `ID: ${b.id || "MISSING"}, Slug: ${b.slug || "MISSING"}, Title: ${b.title || "UNKNOWN"}`
-        );
-        return false;
-      }
-      return true;
-    });
+    const validBookmarks = bookmarks
+      .map((b) => {
+        // If slug missing, try to hydrate from mapping (when available)
+        if (!b.slug && slugMapping && slugMapping.slugs[b.id]?.slug) {
+          return { ...b, slug: slugMapping.slugs[b.id]?.slug } as UnifiedBookmark;
+        }
+        return b;
+      })
+      .filter((b) => {
+        if (!b.id || !b.slug) {
+          console.error(
+            `[Static Build] CRITICAL: Bookmark missing required fields - ` +
+              `ID: ${b.id || "MISSING"}, Slug: ${b.slug || "MISSING"}, Title: ${b.title || "UNKNOWN"}`,
+          );
+          return false;
+        }
+        return true;
+      });
 
     if (validBookmarks.length !== bookmarks.length) {
       console.error(

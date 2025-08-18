@@ -1,8 +1,16 @@
 /**
- * Bookmark Slug Manager
- *
- * Manages pre-computed bookmark slugs to avoid runtime computation
- * and ensure consistency across the application.
+ * @file Bookmark Slug Manager - S3-persisted URL-to-slug mappings
+ * 
+ * Critical for stable bookmark URLs across deployments:
+ * - Generates deterministic slugs from bookmark URLs
+ * - Persists to S3 (primary) and local file (ephemeral cache)
+ * - Ensures bookmarks maintain consistent URLs even after container restarts
+ * 
+ * Architecture:
+ * - S3 = Source of truth (survives deployments)
+ * - Local file = Temporary cache (lost on container restart)
+ * 
+ * @module lib/bookmarks/slug-manager
  */
 
 import { generateUniqueSlug } from "@/lib/utils/domain-utils";
@@ -14,10 +22,16 @@ import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
+// Local file path for ephemeral cache (container-local, not persisted)
 const LOCAL_SLUG_MAPPING_PATH = path.join(process.cwd(), "lib", "data", "slug-mapping.json");
 
 /**
- * Generate slug mapping for all bookmarks
+ * Generate deterministic slug mapping for all bookmarks.
+ * Ensures every bookmark gets a unique, stable slug for routing.
+ * 
+ * @param bookmarks - Array of normalized bookmarks
+ * @returns Mapping with slugs, reverse lookup, and checksum
+ * @throws Error if any bookmark cannot generate a slug
  */
 export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugMapping {
   const slugs: Record<string, { id: string; slug: string; url: string; title: string }> = {};
@@ -80,13 +94,17 @@ export function generateSlugMapping(bookmarks: UnifiedBookmark[]): BookmarkSlugM
 }
 
 /**
- * Save slug mapping to S3
+ * Save slug mapping to S3 (primary) and local file (cache).
+ * 
+ * CRITICAL OPERATION: Essential for bookmark navigation stability.
+ * - S3 write ensures persistence across deployments
+ * - Local file provides fast access during container lifetime
+ * - Checksum comparison prevents unnecessary S3 writes
+ * 
  * @param bookmarks - Array of bookmarks to generate mapping from
  * @param overwrite - Whether to overwrite existing mapping (default: true)
- * @param saveToAllPaths - Whether to save to all environment paths for redundancy (default: false)
- *
- * CRITICAL OPERATION: This function is marked as critical and will execute even under memory pressure.
- * Slug mappings are essential for bookmark navigation and must always be saved.
+ * @param saveToAllPaths - Save to all env paths for redundancy (default: false)
+ * @throws Error on S3 write failure (critical for bookmark routing)
  */
 export async function saveSlugMapping(
   bookmarks: UnifiedBookmark[],
@@ -101,14 +119,13 @@ export async function saveSlugMapping(
     const mapping = generateSlugMapping(bookmarks);
     logger.info(`[SlugManager] Generated mapping with ${mapping.count} entries, checksum: ${mapping.checksum}`);
 
-    // Ensure the directory exists
+    // Save to local file (ephemeral cache for container lifetime)
     await fs.mkdir(path.dirname(LOCAL_SLUG_MAPPING_PATH), { recursive: true });
-    // Save to local file system for build-time/runtime fallback
     await fs.writeFile(LOCAL_SLUG_MAPPING_PATH, JSON.stringify(mapping, null, 2));
-    logger.info(`[SlugManager] ✅ Successfully saved to local fallback path: ${LOCAL_SLUG_MAPPING_PATH}`);
+    logger.info(`[SlugManager] ✅ Saved to local cache (ephemeral): ${LOCAL_SLUG_MAPPING_PATH}`);
 
-    // Save to primary path with concurrent write protection
-    // Use conditional writes to prevent concurrent overwrites
+    // Save to S3 (primary persistent storage)
+    // Checksum comparison prevents unnecessary writes and race conditions
     if (overwrite) {
       // For overwrites, check if the content has changed
       // to avoid unnecessary writes and potential race conditions
@@ -180,7 +197,12 @@ export async function saveSlugMapping(
 }
 
 /**
- * Load slug mapping from S3 with fallback to other environment paths
+ * Load slug mapping with fallback chain:
+ * 1. Local file (fastest, ephemeral cache)
+ * 2. Primary S3 path (environment-specific)
+ * 3. Alternative S3 paths (cross-environment fallback)
+ * 
+ * @returns Slug mapping or null if not found
  */
 export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
   // --- 1. Try loading from local cache first ---
