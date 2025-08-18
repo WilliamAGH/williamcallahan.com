@@ -7,11 +7,12 @@
 
 import { getContentById, filterByTypes } from "@/lib/content-similarity/aggregator";
 import { getLazyContentMap, getCachedAllContent } from "@/lib/content-similarity/cached-aggregator";
-import { findMostSimilar, groupByType, DEFAULT_WEIGHTS } from "@/lib/content-similarity";
+import { findMostSimilar, groupByType } from "@/lib/content-similarity";
 import { ServerCacheInstance } from "@/lib/server-cache";
 import { RelatedContentSection } from "./related-content-section";
 import { ensureAbsoluteUrl } from "@/lib/seo/utils";
 import { getCachedBookmarksWithSlugs } from "@/lib/bookmarks/request-cache";
+import { loadSlugMapping } from "@/lib/bookmarks/slug-manager";
 import { readJsonS3 } from "@/lib/s3-utils";
 import { CONTENT_GRAPH_S3_PATHS } from "@/lib/constants";
 import type {
@@ -50,9 +51,11 @@ function toRelatedContentItem(
       // If no slug in mapping, this is a CRITICAL ERROR
       // Every bookmark MUST have a pre-computed slug for idempotency
       if (!slug) {
-        console.error(`[RelatedContent] CRITICAL: No slug found for bookmark ${bookmark.id}`);
-        console.error(`[RelatedContent] This indicates slug mapping is incomplete or not loaded`);
-        console.error(`[RelatedContent] Bookmark title: ${bookmark.title}, URL: ${bookmark.url}`);
+        console.error(
+          `[RelatedContent] CRITICAL: Missing slug for bookmark ${bookmark.id}. ` +
+          `Title="${bookmark.title}" URL="${bookmark.url}". ` +
+          `Slug mapping is incomplete or not loaded.`
+        );
         // Return null to skip this item rather than generate an incorrect slug
         return null;
       }
@@ -123,7 +126,7 @@ function toRelatedContentItem(
       const project = content.source as import("@/types/project").Project;
       // Use S3 image key to construct absolute URL
       const metadata: RelatedContentItem["metadata"] = project.imageKey
-        ? { ...baseMetadata, imageUrl: ensureAbsoluteUrl(`/api/s3/${project.imageKey}`) }
+        ? { ...baseMetadata, imageUrl: ensureAbsoluteUrl(`/api/s3/${encodeURI(project.imageKey)}`) }
         : baseMetadata;
 
       return {
@@ -153,11 +156,29 @@ function toRelatedContentItem(
 export async function RelatedContent({
   sourceType,
   sourceId,
+  sourceSlug,
   sectionTitle = "Related Content",
   options = {},
   className,
 }: RelatedContentProps) {
   try {
+    // For bookmarks, prefer slug over ID for idempotency
+    let actualSourceId = sourceId;
+    if (sourceType === "bookmark" && sourceSlug) {
+      // Load slug mapping to convert slug to ID for internal lookups
+      const slugMapping = await loadSlugMapping();
+      if (slugMapping) {
+        const bookmarkId = slugMapping.reverseMap[sourceSlug];
+        if (bookmarkId) {
+          actualSourceId = bookmarkId;
+          console.log(`[RelatedContent] Using slug "${sourceSlug}" resolved to ID "${bookmarkId}"`);
+        } else {
+          console.error(`[RelatedContent] No bookmark found for slug "${sourceSlug}"`);
+          return null;
+        }
+      }
+    }
+    
     // Extract options with defaults
     const {
       maxPerType = DEFAULT_MAX_PER_TYPE,
@@ -165,12 +186,12 @@ export async function RelatedContent({
       includeTypes,
       excludeTypes,
       excludeIds = [],
-      weights = DEFAULT_WEIGHTS,
+      weights, // Don't default - let algorithm choose appropriate weights
       debug = false,
     } = options;
 
     // Try to load pre-computed related content first
-    const contentKey = `${sourceType}:${sourceId}`;
+    const contentKey = `${sourceType}:${actualSourceId}`;
     const precomputed = await readJsonS3<
       Record<
         string,
@@ -213,7 +234,10 @@ export async function RelatedContent({
         {} as Record<string, typeof items>,
       );
 
-      const limited = Object.values(grouped).flat().slice(0, maxTotal);
+      const limited = Object.values(grouped)
+        .flat()
+        .sort((a, b) => b.score - a.score)
+        .slice(0, maxTotal);
 
       // Get all content for mapping
       // Use lazy loading to reduce memory pressure
@@ -249,7 +273,7 @@ export async function RelatedContent({
     const getRelatedContent = ServerCacheInstance.getRelatedContent;
     let cached: RelatedContentCacheData | undefined;
     if (getRelatedContent && typeof getRelatedContent === "function") {
-      cached = getRelatedContent.call(ServerCacheInstance, sourceType, sourceId);
+      cached = getRelatedContent.call(ServerCacheInstance, sourceType, actualSourceId);
     }
     if (cached && cached.timestamp > Date.now() - 15 * 60 * 1000 && !debug) {
       // Apply filtering to cached results
@@ -274,7 +298,7 @@ export async function RelatedContent({
         }
       }
 
-      const finalItems = limited.slice(0, maxTotal);
+      const finalItems = limited.sort((a, b) => b.score - a.score).slice(0, maxTotal);
 
       // Get pre-computed slug mappings for bookmarks using request cache
       let slugMap: Map<string, string> | undefined;
@@ -293,13 +317,16 @@ export async function RelatedContent({
         })
         .filter((i): i is RelatedContentItem => i !== null);
 
+      if (relatedItems.length === 0) {
+        return null;
+      }
       return <RelatedContentSection title={sectionTitle} items={relatedItems} className={className} />;
     }
 
     // Get source content
-    const source = await getContentById(sourceType, sourceId);
+    const source = await getContentById(sourceType, actualSourceId);
     if (!source) {
-      console.error(`Content not found: ${sourceType}/${sourceId}`);
+      console.error(`Content not found: ${sourceType}/${actualSourceId}`);
       return null;
     }
 
@@ -316,7 +343,7 @@ export async function RelatedContent({
     }
 
     // Exclude the source item and any specified IDs
-    const allExcludeIds = [...excludeIds, sourceId];
+    const allExcludeIds = [...excludeIds, actualSourceId];
 
     const candidates = allContent.filter((item) => !(item.type === sourceType && allExcludeIds.includes(item.id)));
 
@@ -340,7 +367,7 @@ export async function RelatedContent({
     // Cache the results
     const setRelatedContent = ServerCacheInstance.setRelatedContent;
     if (setRelatedContent && typeof setRelatedContent === "function") {
-      setRelatedContent.call(ServerCacheInstance, sourceType, sourceId, {
+      setRelatedContent.call(ServerCacheInstance, sourceType, actualSourceId, {
         items: finalItems,
         timestamp: Date.now(),
       });
