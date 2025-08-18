@@ -8,7 +8,7 @@ import { BookmarksIndexSchema } from "@/lib/schemas/bookmarks";
 import { BOOKMARKS_PER_PAGE } from "@/lib/constants";
 import type { BookmarksIndex } from "@/types/bookmark";
 import { getBookmarks } from "@/lib/bookmarks/service.server";
-import { normalizeTagsToStrings } from "@/lib/utils/tag-utils";
+import { normalizeTagsToStrings, tagToSlug } from "@/lib/utils/tag-utils";
 import { type NextRequest, NextResponse } from "next/server";
 import { BOOKMARKS_S3_PATHS } from "@/lib/constants";
 import { loadSlugMapping, getSlugForBookmark } from "@/lib/bookmarks/slug-manager";
@@ -16,6 +16,28 @@ import { tryGetEmbeddedSlug } from "@/lib/bookmarks/slug-helpers";
 
 // This route can leverage the caching within getBookmarks
 export const dynamic = "force-dynamic";
+
+function buildInternalHrefs(
+  items: Array<{ id: string } & Record<string, unknown>>,
+  slugMapping: Parameters<typeof getSlugForBookmark>[0] | null,
+): Record<string, string> {
+  const res: Record<string, string> = {};
+  for (const item of items) {
+    const embedded = tryGetEmbeddedSlug(item);
+    if (embedded) {
+      res[item.id] = `/bookmarks/${embedded}`;
+      continue;
+    }
+    if (slugMapping) {
+      const mapped = getSlugForBookmark(slugMapping, item.id);
+      if (mapped) res[item.id] = `/bookmarks/${mapped}`;
+      else console.error(`[API Bookmarks] WARNING: No slug for bookmark ${item.id}`);
+    } else {
+      console.error("[API Bookmarks] CRITICAL: No slug mapping and no embedded slug - URLs may 404");
+    }
+  }
+  return res;
+}
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   console.log("[API Bookmarks] Received GET request for bookmarks");
@@ -54,21 +76,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
           // CRITICAL: Generate slug mappings for fast-path too
           const slugMapping = await loadSlugMapping();
-          const internalHrefs: Record<string, string> = {};
-          for (const bookmark of paginatedBookmarks) {
-            const embeddedSlug = tryGetEmbeddedSlug(bookmark);
-            if (embeddedSlug) {
-              internalHrefs[bookmark.id] = `/bookmarks/${embeddedSlug}`;
-              continue;
-            }
-            if (slugMapping) {
-              const mapped = getSlugForBookmark(slugMapping, bookmark.id);
-              if (mapped) internalHrefs[bookmark.id] = `/bookmarks/${mapped}`;
-              else console.error(`[API Bookmarks] WARNING: No slug for bookmark ${bookmark.id} (fast-path)`);
-            } else {
-              console.error("[API Bookmarks] CRITICAL: No slug mapping and no embedded slug - URLs may 404");
-            }
-          }
+          const internalHrefs = buildInternalHrefs(paginatedBookmarks, slugMapping);
 
           return NextResponse.json(
             {
@@ -118,24 +126,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Apply tag filter if provided
     let filteredBookmarks = allBookmarks;
     if (tagFilter) {
-      // Decode the tag filter (handle URL encoding and slug format)
+      // Decode and normalize to slug for stable comparison
       const decodedTag = decodeURIComponent(tagFilter);
-
-      // Check if this is a slug format (contains hyphens) or display format
-      const isSlugFormat = decodedTag.includes("-");
-      const tagQuery = isSlugFormat ? decodedTag.replace(/-/g, " ") : decodedTag;
+      const normalizedQuerySlug = (decodedTag.includes("-") ? decodedTag : tagToSlug(decodedTag)).toLowerCase();
 
       filteredBookmarks = allBookmarks.filter((bookmark) => {
         const tags = normalizeTagsToStrings(bookmark.tags);
-        // Case-insensitive tag matching against both slug and display formats
-        return tags.some((tag) => {
-          // Compare against the normalized query
-          return tag.toLowerCase() === tagQuery.toLowerCase();
-        });
+        return tags.some((tag) => tagToSlug(tag).toLowerCase() === normalizedQuerySlug);
       });
 
       console.log(
-        `[API Bookmarks] Filtering by tag "${decodedTag}" (normalized: "${tagQuery}"): ${filteredBookmarks.length} of ${allBookmarks.length} bookmarks match`,
+        `[API Bookmarks] Filtering by tag "${decodedTag}" (slug: "${normalizedQuerySlug}"): ${filteredBookmarks.length} of ${allBookmarks.length} bookmarks match`,
       );
     }
 
@@ -147,21 +148,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // CRITICAL: Generate slug mappings for all bookmarks being returned
     // Without these, the client cannot generate valid URLs and will get 404s
     const slugMapping = await loadSlugMapping();
-    const internalHrefs: Record<string, string> = {};
-    for (const bookmark of paginatedBookmarks) {
-      const embeddedSlug = tryGetEmbeddedSlug(bookmark);
-      if (embeddedSlug) {
-        internalHrefs[bookmark.id] = `/bookmarks/${embeddedSlug}`;
-        continue;
-      }
-      if (slugMapping) {
-        const mapped = getSlugForBookmark(slugMapping, bookmark.id);
-        if (mapped) internalHrefs[bookmark.id] = `/bookmarks/${mapped}`;
-        else console.error(`[API Bookmarks] WARNING: No slug for bookmark ${bookmark.id}`);
-      } else {
-        console.error("[API Bookmarks] CRITICAL: No slug mapping and no embedded slug - URLs may 404");
-      }
-    }
+    const internalHrefs = buildInternalHrefs(paginatedBookmarks, slugMapping);
 
     console.log(
       `[API Bookmarks] Returning page ${page}/${totalPages} with ${paginatedBookmarks.length} bookmarks${tagFilter ? ` (filtered by tag: ${tagFilter})` : ""}`,
@@ -193,8 +180,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     );
   } catch (err) {
-    console.error("[API Bookmarks] Failed to fetch bookmarks:", err);
-    const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-    return NextResponse.json({ error: "Failed to fetch bookmarks", details: errorMessage }, { status: 500 });
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error("[API Bookmarks] Failed to fetch bookmarks:", errorMessage);
+    // Include details in non-production environments to aid testing/debugging
+    const payload: { error: string; details?: string } = { error: "Failed to fetch bookmarks" };
+    if (typeof process !== "undefined" && process.env.NODE_ENV !== "production") {
+      payload.details = errorMessage;
+    }
+    return NextResponse.json(payload, { status: 500 });
   }
 }

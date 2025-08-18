@@ -209,6 +209,7 @@ export async function GET(request: NextRequest) {
     // Parse custom weights if provided
     let weights = DEFAULT_WEIGHTS;
     const customWeights = searchParams.get("weights");
+    const hasCustomWeights = Boolean(customWeights);
     if (customWeights) {
       try {
         const parsed = JSON.parse(customWeights) as Partial<SimilarityWeights>;
@@ -221,8 +222,8 @@ export async function GET(request: NextRequest) {
     // Check cache first
     let cached = ServerCacheInstance.getRelatedContent(sourceType, sourceId);
 
-    // If cache is stale or missing, compute it (with a lock)
-    if (!cached || cached.timestamp <= Date.now() - CACHE_TTL || debug) {
+    // If cache is stale/missing, or custom weights/debug requested, compute it (with a lock)
+    if (!cached || cached.timestamp <= Date.now() - CACHE_TTL || debug || hasCustomWeights) {
       await requestLock.run({
         key: lockKey,
         work: async () => {
@@ -231,12 +232,8 @@ export async function GET(request: NextRequest) {
             return;
           }
 
-          let allContent = await aggregateAllContent();
-
-          if (includeTypes || excludeTypes) {
-            allContent = filterByTypes(allContent, includeTypes, excludeTypes);
-          }
-
+          const allContent = await aggregateAllContent();
+          // Parse excludeIds for this request
           const excludeIds = searchParams.get("excludeIds")?.split(",") || [];
           excludeIds.push(sourceId);
 
@@ -245,10 +242,13 @@ export async function GET(request: NextRequest) {
           // Get a large number of similar items to allow for pagination
           const similar = findMostSimilar(source, candidates, 100, weights);
 
-          ServerCacheInstance.setRelatedContent(sourceType, sourceId, {
-            items: similar,
-            timestamp: Date.now(),
-          });
+          // Only cache canonical computations (no debug/custom weights)
+          if (!debug && !hasCustomWeights) {
+            ServerCacheInstance.setRelatedContent(sourceType, sourceId, {
+              items: similar,
+              timestamp: Date.now(),
+            });
+          }
         },
       });
 
@@ -265,10 +265,13 @@ export async function GET(request: NextRequest) {
     // Apply filtering to cached results
     const cachedData = cached;
     let items = cachedData.items;
-
+    // Apply type filters per-request
     if (includeTypes || excludeTypes) {
       items = filterByTypes(items, includeTypes, excludeTypes);
     }
+    // Honor excludeIds on cache hits
+    const excludeIds = (request.nextUrl.searchParams.get("excludeIds")?.split(",") || []).map((s) => s.trim());
+    excludeIds.push(sourceId);
 
     // Apply per-type limits
     const grouped = groupByType(items);
@@ -284,9 +287,11 @@ export async function GET(request: NextRequest) {
     const sortedItems = limited.sort((a, b) => b.score - a.score);
 
     // Apply pagination
-    const totalItems = sortedItems.length;
+    // Remove excluded IDs before pagination
+    const withoutExcluded = sortedItems.filter((i) => !excludeIds.includes(i.id));
+    const totalItems = withoutExcluded.length;
     const totalPages = Math.ceil(totalItems / limit);
-    const paginatedItems = sortedItems.slice((page - 1) * limit, page * limit);
+    const paginatedItems = withoutExcluded.slice((page - 1) * limit, page * limit);
 
     // Get slug mapping if needed for bookmark URLs
     let slugMapping: BookmarkSlugMapping | null = null;
