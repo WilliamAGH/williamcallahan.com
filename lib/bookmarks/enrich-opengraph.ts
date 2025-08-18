@@ -129,21 +129,19 @@ export async function processBookmarksInBatches(
           // For Karakeep assets, we need to download them directly from the API
           // Extract the asset ID from the URL (/api/assets/[id])
           const assetId = sourceImageUrl.replace("/api/assets/", "");
-          
+
           if (process.env.IS_DATA_UPDATER === "true") {
             // In batch mode, we can fetch directly from Karakeep API
-            console.log(
-              `${LOG_PREFIX} 🔗 Fetching Karakeep asset directly for S3 persistence: ${assetId}`,
-            );
-            
+            console.log(`${LOG_PREFIX} 🔗 Fetching Karakeep asset directly for S3 persistence: ${assetId}`);
+
             // Fetch the actual image buffer from Karakeep
             const imageBuffer = await fetchKarakeepImage(assetId);
-            
+
             if (imageBuffer) {
               // Save the buffer to S3 and get the CDN URL
               const { persistImageBufferToS3 } = await import("@/lib/persistence/s3-persistence");
               const { OPENGRAPH_IMAGES_S3_DIR } = await import("@/lib/constants");
-              
+
               const s3Url = await persistImageBufferToS3(
                 imageBuffer,
                 OPENGRAPH_IMAGES_S3_DIR,
@@ -152,29 +150,23 @@ export async function processBookmarksInBatches(
                 bookmark.id,
                 bookmark.url,
               );
-              
+
               if (s3Url) {
                 bookmark.ogImage = s3Url;
                 bookmark.ogImageExternal = sourceImageUrl;
                 imageStats.bookmarksUsingS3Image++;
                 imageStats.imagesNewlyPersisted++;
-                console.log(
-                  `${LOG_PREFIX} ✅ Successfully persisted Karakeep asset to S3: ${s3Url}`,
-                );
+                console.log(`${LOG_PREFIX} ✅ Successfully persisted Karakeep asset to S3: ${s3Url}`);
                 // Skip the normal persistence flow since we already handled it
                 sourceImageUrl = null;
                 absoluteImageUrl = null;
               } else {
-                console.error(
-                  `${LOG_PREFIX} ❌ Failed to persist Karakeep asset to S3: ${assetId}`,
-                );
+                console.error(`${LOG_PREFIX} ❌ Failed to persist Karakeep asset to S3: ${assetId}`);
                 sourceImageUrl = null;
                 absoluteImageUrl = null;
               }
             } else {
-              console.error(
-                `${LOG_PREFIX} ❌ Failed to fetch Karakeep asset: ${assetId}`,
-              );
+              console.error(`${LOG_PREFIX} ❌ Failed to fetch Karakeep asset: ${assetId}`);
               sourceImageUrl = null;
               absoluteImageUrl = null;
             }
@@ -182,9 +174,7 @@ export async function processBookmarksInBatches(
             // In web runtime, we can't fetch from Karakeep directly
             // Just use the relative URL and let the client handle it
             absoluteImageUrl = sourceImageUrl;
-            console.log(
-              `${LOG_PREFIX} 🔗 Web runtime: Using relative URL for Karakeep asset: ${absoluteImageUrl}`,
-            );
+            console.log(`${LOG_PREFIX} 🔗 Web runtime: Using relative URL for Karakeep asset: ${absoluteImageUrl}`);
           }
         }
 
@@ -214,12 +204,10 @@ export async function processBookmarksInBatches(
               const ssUrl = getAssetUrl(screenshotId);
               if (ssUrl) {
                 // Use relative URL for screenshot fallback too
-                bookmark.ogImage = ssUrl;  // Keep relative: /api/assets/[id]
+                bookmark.ogImage = ssUrl; // Keep relative: /api/assets/[id]
                 bookmark.ogImageExternal = ssUrl;
                 imageStats.bookmarksUsingKarakeepImage++;
-                console.log(
-                  `${LOG_PREFIX} 📸 Using relative URL for screenshot fallback: ${ssUrl}`,
-                );
+                console.log(`${LOG_PREFIX} 📸 Using relative URL for screenshot fallback: ${ssUrl}`);
               } else {
                 bookmark.ogImage = undefined;
                 bookmark.ogImageExternal = absoluteImageUrl;

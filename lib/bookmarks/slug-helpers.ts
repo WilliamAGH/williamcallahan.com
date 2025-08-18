@@ -47,10 +47,10 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
       await saveSlugMapping(bookmarks);
     } catch (error) {
       // Log the error with critical level since this affects navigation
-      logger.error("[CRITICAL] Failed to save slug mapping - bookmark navigation may fail", { 
+      logger.error("[CRITICAL] Failed to save slug mapping - bookmark navigation may fail", {
         error,
         bookmarkId,
-        bookmarkCount: bookmarks.length 
+        bookmarkCount: bookmarks.length,
       });
       // Still return the generated mapping for this request, but don't cache it
       // since it wasn't persisted. This allows the current request to succeed.
@@ -67,7 +67,7 @@ export async function getSafeBookmarkSlug(bookmarkId: string, bookmarks?: Unifie
   if (mapping) {
     cachedMapping = {
       data: mapping,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 
@@ -109,9 +109,9 @@ export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promis
       await saveSlugMapping(bookmarks);
     } catch (error) {
       // Log critical error but don't fail the request
-      logger.error("[CRITICAL] Failed to save bulk slug mapping - using in-memory mapping", { 
+      logger.error("[CRITICAL] Failed to save bulk slug mapping - using in-memory mapping", {
         error,
-        bookmarkCount: bookmarks.length 
+        bookmarkCount: bookmarks.length,
       });
       // Continue with the generated mapping even if save failed
     }
@@ -121,7 +121,7 @@ export async function getBulkBookmarkSlugs(bookmarks: UnifiedBookmark[]): Promis
   if (mapping) {
     cachedMapping = {
       data: mapping,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
 
