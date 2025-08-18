@@ -683,12 +683,13 @@ function buildBookmarksIndex(
     description: string;
     tags?: Array<string | { name?: string }>;
     content?: { author?: string | null; publisher?: string | null };
+    slug?: string; // May have embedded slug
   }>,
 ): MiniSearch<BookmarkIndexItem> {
   // Create MiniSearch index
   const bookmarksIndex = new MiniSearch<BookmarkIndexItem>({
-    fields: ["title", "description", "tags", "author", "publisher", "url"],
-    storeFields: ["id", "title", "description", "url"],
+    fields: ["title", "description", "tags", "author", "publisher", "url", "slug"],
+    storeFields: ["id", "title", "description", "url", "slug"], // Include slug in stored fields
     idField: "id",
     searchOptions: {
       boost: { title: 2, description: 1.5 },
@@ -697,16 +698,24 @@ function buildBookmarksIndex(
     },
   });
 
-  // Transform bookmarks for indexing
-  const bookmarksForIndex: BookmarkIndexItem[] = bookmarks.map((b) => ({
-    id: b.id,
-    title: b.title || b.url,
-    description: b.description || "",
-    tags: Array.isArray(b.tags) ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
-    url: b.url,
-    author: b.content?.author || "",
-    publisher: b.content?.publisher || "",
-  }));
+  // Transform bookmarks for indexing - SKIP if no slug
+  const bookmarksForIndex: BookmarkIndexItem[] = [];
+  for (const b of bookmarks) {
+    // For buildBookmarksIndex, we need to generate a fallback slug if not present
+    // This happens when called directly without slug mapping
+    const slug = b.slug || `${b.url.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-${b.id.slice(0, 8)}`;
+    
+    bookmarksForIndex.push({
+      id: b.id,
+      title: b.title || b.url,
+      description: b.description || "",
+      tags: Array.isArray(b.tags) ? b.tags.map((t) => (typeof t === "string" ? t : t?.name || "")).join(" ") : "",
+      url: b.url,
+      author: b.content?.author || "",
+      publisher: b.content?.publisher || "",
+      slug, // REQUIRED field
+    });
+  }
 
   // Add to index
   bookmarksIndex.addAll(bookmarksForIndex);

@@ -283,10 +283,13 @@ export function limitByTypeAndTotal<T extends { type: RelatedContentType; score:
   const safePerType = Math.max(0, maxPerType);
   const safeTotal = Math.max(0, maxTotal);
 
-  const grouped = items.reduce((acc, item) => {
-    (acc[item.type] ||= []).push(item);
-    return acc;
-  }, {} as Partial<Record<RelatedContentType, T[]>>);
+  const grouped = items.reduce(
+    (acc, item) => {
+      (acc[item.type] ||= []).push(item);
+      return acc;
+    },
+    {} as Partial<Record<RelatedContentType, T[]>>,
+  );
 
   const cmp = (a: T, b: T) => {
     const d = b.score - a.score;
