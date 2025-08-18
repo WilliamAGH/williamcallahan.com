@@ -187,7 +187,12 @@ export async function loadSlugMapping(): Promise<BookmarkSlugMapping | null> {
   try {
     const localData = await fs.readFile(LOCAL_SLUG_MAPPING_PATH, "utf-8");
     const mapping = JSON.parse(localData) as BookmarkSlugMapping;
-    if (mapping?.slugs) {
+    
+    // Skip local cache if it only contains test data
+    const isTestData = mapping?.count === 1 && mapping?.slugs?.["test-1"]?.id === "test-1";
+    if (isTestData) {
+      logger.info(`[SlugManager] Local cache contains only test data, skipping to S3`);
+    } else if (mapping?.slugs) {
       logger.info(`[SlugManager] Successfully loaded slug mapping from local cache: ${LOCAL_SLUG_MAPPING_PATH}`);
       return mapping;
     }
